@@ -4,6 +4,9 @@
 /local/
 /dist/
 /node_modules/
+/.direnv/
+/result
+/result-*
 .DS_Store
 .env
 .env.*

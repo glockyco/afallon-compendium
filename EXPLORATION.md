@@ -1,12 +1,12 @@
 # Afallon compendium exploration
 
-Updated: 2026-09-06. Status: private project established; screenshot-first deck.gl map proposal complete and validated. Implementation has not started.
+Updated: 2026-09-06. Status: implementation in progress. Nix-backed local tooling is verified; canonical extraction, capture, and the website remain in development.
 
 ## User intent and permissions
 
 Build a comprehensive interactive map for Afallon, then a full compendium. The user explicitly selected in-game screenshots as the primary basemap. Preserve illustrated maps as an optional orientation layer. Include enemies, NPCs, interactables, resources, and other categories supported by Afallon evidence. Connect markers to useful facts such as enemy drops and vendor stock.
 
-The user owns Afallon on Steam and authorized installation in CrossOver, decompilation, HotRepl inspection, reusable scripts, project creation, and a GitHub repository. Explore mode has ended. The current OpenSpec proposal workflow produces planning artifacts before implementation.
+The user owns Afallon on Steam and authorized installation in CrossOver, decompilation, HotRepl inspection, reusable scripts, project creation, and a GitHub repository. Implementation follows the approved `build-screenshot-first-map` OpenSpec change.
 
 Repository: https://github.com/glockyco/afallon-compendium (private). Local game evidence under `research/` is ignored by Git. No game binaries, recovered declarations, saves, or bulk artwork belong in source control. The initial change is `openspec/changes/build-screenshot-first-map/`.
 
@@ -45,7 +45,7 @@ Duskfall Depths loaded 16 NPCSpawner, 85 InteractableObject, and 9 AddressableLo
 
 ### Reusable implementation direction
 
-The proposal specifies repository-owned host commands and C# probe sources, runtime-first canonical extraction, source-aware placement identity, coverage-led scene traversal, restorable tile capture, and generated site contracts. No reusable production commands exist yet. The proposal workflow ends before implementation.
+The proposal specifies repository-owned host commands and C# probe sources, runtime-first canonical extraction, source-aware placement identity, coverage-led scene traversal, restorable tile capture, and generated site contracts. The `doctor`, `inspect`, and `probe` commands now provide the reusable runtime connection and artifact pipeline.
 
 The user selected deck.gl, consistent with the other compendiums. Use OrthographicView with Cartesian coordinates, tiled BitmapLayer imagery, and separate marker/area layers. Keep Svelte panels and accessible navigation outside the rendering adapter. The provisional Leaflet choice is replaced.
 
@@ -208,7 +208,7 @@ One tutorial boss spawner has a much higher source Y coordinate than nearby spaw
 
 - Model three separate concepts: source scene, rendered map space, and player-facing region. Scenes can share a map, and one scene can contain multiple named regions.
 - Separate canonical entity IDs, authored placement/spawner IDs, and live instance observations. Do not derive canonical identity from display names or runtime GetInstanceID values.
-- Prefer an offline-first publication pipeline with a runtime extraction option. Offline Cpp2IL/schema/asset recovery can read shipped data; HotRepl confirms actual loaded records and behavior. The production extraction authority is not decided yet.
+- Use runtime-first canonical extraction, with offline asset evidence for coverage reconciliation. Publish generated data through a static pipeline; the website does not connect to the game.
 - Do not prescribe a generic descriptor/graph framework. A few explicit entity tables and map projections can support the first map and later pages.
 - Capture screenshot basemaps first and retain shipped imagery as an optional layer. Keep tile-pyramid generation separate from in-game capture.
 - Present a small useful set of map categories at default zoom. Preserve native detail without copying the game's heavy red panel chrome into a website.
@@ -242,12 +242,33 @@ Opened the built-in Adventure Guide for Duskfall Depths using `AdventureGuidePan
 ## Current resume checklist
 
 - Read the screenshot-first checkpoint and `openspec/changes/build-screenshot-first-map/`. These supersede the initial shipped-artwork recommendation.
-- The planning artifacts are the implementation contract. Start the apply workflow when the user requests implementation of this change.
+- The planning artifacts and checked tasks are the implementation contract. Continue canonical extraction after the verified local-tooling checkpoint.
 - Use `research/screenshot-first-session.json` and `research/screenshot-first-eval-history.json` to recover exact successful and failed probes.
-- Relaunch through the recorded CrossOver environment and port 18591. Use AtlasResearch only. The second game session ended normally with exit code 0 after the dungeon capture probes.
-- Implement reusable commands before repeating large manual extraction or capture sequences. Production commands do not exist yet.
+- Use the supervised `afallon-game` process and port 18591. The current implementation session has loaded Coalway woods with AtlasResearch. Do not use unrelated saves.
+- Use the Nix-backed commands below for runtime probes. Keep local configuration and generated artifacts outside Git.
 - Resolve coverage, stable placement identities, dynamic loot semantics, capture readiness, and interior floor profiles through the tasks in the proposal.
 - Keep screenshots and recovered game data local. Confirm asset publication permission before public deployment.
+
+## Local tooling checkpoint
+
+The development shell uses the same pinned nixpkgs input and fleet OpenSpec check as the other compendium repositories. `.envrc` selects the flake. Commands also work through explicit `nix develop` invocations:
+
+```sh
+nix develop --no-write-lock-file --command bun install --frozen-lockfile
+nix develop --no-write-lock-file --command bun run compendium doctor --config local/config.json
+nix develop --no-write-lock-file --command bun run compendium inspect --config local/config.json
+nix develop --no-write-lock-file --command bun run compendium probe --config local/config.json --probe tools/probes/doctor.csx
+nix develop --no-write-lock-file --command bun run check
+nix develop --no-write-lock-file --command bun test
+```
+
+Copy `config.example.json` to the ignored `local/config.json`, then set the installation path, research character, and shared output mapping. Relative host paths resolve from the configuration file. The example's `../artifacts` therefore selects this repository's ignored artifact directory. `runtimeOutputRoot` must refer to that same directory from CrossOver. Start Afallon with the generic HotRepl host before running the commands.
+
+`doctor` checks the running assembly hash against the installation and reads a hash-verified artifact through the configured path mapping. `inspect` writes complete loaded-scene, database, component-family, and addressable-source inventories. It does not claim full-game coverage. Each probe run retains its build hashes, tool revision, settings, artifact hashes, and status. Only a successful run replaces its command's latest-success pointer.
+
+Probe bodies are trusted C# with game-process access. Run only reviewed sources. The host deadline bounds the client's wait; it does not guarantee cancellation of C# code already executing in the game.
+
+Verified on Steam build 25144591: the inspection artifact contains all 421 woods loaders, 800 NPC spawners including inactive objects, and database counts of 1,076 items, 357 NPCs, 133 quests, 208 loot tables, and 40 scenes. Separate runtime queries matched those counts. All 421 loader keys were valid, with no source-read errors. A separate live check returned all 2,000 requested rows, rejected corrupted artifact bytes, rejected a closed session, and stopped waiting for an overlong evaluation after 1,102 ms. Failure checks preserved the previous success pointer and retained diagnostics. Regression tests cover artifact mutation and failed pointer selection.
 
 ## Existing-project defect recorded during comparison
 

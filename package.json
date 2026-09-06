@@ -1,0 +1,19 @@
+{
+  "name": "afallon-compendium",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.13",
+  "scripts": {
+    "compendium": "bun tools/cli.ts",
+    "check": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@hotrepl/sdk": "4.0.1",
+    "@hotrepl/protocol": "4.0.1"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  }
+}

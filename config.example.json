@@ -1,0 +1,8 @@
+{
+  "gamePath": "/absolute/path/to/Afallon",
+  "outputRoot": "../artifacts",
+  "runtimeOutputRoot": "Z:/absolute/path/to/afallon-compendium/artifacts",
+  "hotreplUrl": "ws://127.0.0.1:18591",
+  "character": "YourResearchCharacter",
+  "timeoutMs": 10000
+}
