@@ -357,6 +357,20 @@ Inventory schema `compendium.world-inventory.v2` retains typed owners, source fi
 
 Extraction rejects unavailable required counts, lost rows, duplicate source identities, and scene links that disagree with canonical IDs or internal names. Start-position links must agree with their canonical scene owner and an inventoried world-position record. A replay of the live artifact rejected an unavailable native total, an unavailable component query, a missing destination row, a wrong existing canonical scene, and a wrong authored start position. The accepted artifact retains 50 inventory diagnostics, including the 25 unverified world-position scene associations. Full source traversal, source classification, and persistent placement identities remain open.
 
+## Coverage ledger
+
+`extract` writes a hashed `coverage.json` artifact with separate relevance, reachability, runtime availability, extraction, and imagery states. Each entry has a reason and a raw artifact path. The ledger retains artifact hashes and per-probe observation contexts. Entry IDs identify artifact rows; source keys group observations within an artifact. Neither is a persistent placement identity.
+
+An inactive producer can remain loaded and reachable. An addressable owner's presence does not establish that its asset is loaded. `loadedOrLoading` remains a separate signal, and geometry readiness remains unverified. An unavailable source is not unused. An unproven unreachable label remains unknown. Existing map textures do not satisfy project-owned screenshot coverage.
+
+Diagnostics group by source, issue type, and category. Detail counts and inclusive raw-array index ranges preserve the original occurrences. Validation checks that every supplied diagnostic row occurs exactly once. Unset references, unresolved references, unverified semantics, unsupported sources, and failures remain distinct. State totals count entries; distinct-source totals remove duplicate projections within an artifact.
+
+Live run `f55809c7-5a4b-4901-a5fe-3f87e5b9789d` retained 3,712 entries and 3,664 distinct source observations. Its 243,340 diagnostic occurrences form 33,041 groups across 1,451 unresolved source keys. One global adventurer-family query remains explicitly unmapped; all 153 structured world-diagnostic owners resolve to their source entries. The run has 19 hashed artifacts and a clean runtime receipt. Imagery remains pending for 3,065 entries and not applicable for 647; none is captured or validated. The complete-release gate remains false.
+
+The live data exposed a hierarchy-path collision: 13 Infected grain observations share a candidate path but have distinct native instance IDs. NPC reference validation and coverage now use raw observation-row paths instead of that hierarchy candidate. The earlier ledger merged five observation groups of 3, 3, 3, 6, and 13 entries; the corrected live ledger has no merged observation groups. A replay injected unresolved NPC IDs into two colliding observations and retained two distinct diagnostic sources. These row paths must not become placement IDs.
+
+The same replay accounted for all 3,712 source entries, retained all 421 loader signals, kept an inactive NPC producer loaded, and kept a resource producer without a live node reachable with imagery pending. An unloaded scene with an unsupported unreachable claim stayed unknown. A mismatched scene path did not acquire loaded status merely from its name or ID. The observed MapZone texture remained separate from screenshot coverage. Scene reload, streamed reload, stable placement identity, and full-world traversal remain unverified.
+
 ## Authored producer probes
 
 Run these commands sequentially from the default Nix development shell. HotRepl admits one session; concurrent clients can displace each other.

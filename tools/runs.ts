@@ -54,6 +54,7 @@ type LatestSuccessPointer = {
 };
 
 export interface Run {
+  readonly runId: string;
   readonly directory: string;
   readonly manifestPath: string;
   addArtifact(relativePath: string): Promise<ArtifactRecord>;
@@ -464,6 +465,7 @@ export async function beginRun(outputRoot: string, input: RunInput): Promise<Run
     });
 
   return {
+    runId,
     directory,
     manifestPath,
     addArtifact,

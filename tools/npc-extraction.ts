@@ -683,7 +683,7 @@ function validateProducer(row: Producer, sourcePath: string, reference: NpcRefer
   }
 }
 
-function validateObservation(row: Observation, expectedList: string, reference: NpcReference, sourceIndexCounts: Map<string, number>, instanceIds: Set<number>, indexKeys: Set<string>): void {
+function validateObservation(row: Observation, sourcePath: string, expectedList: string, reference: NpcReference, sourceIndexCounts: Map<string, number>, instanceIds: Set<number>, indexKeys: Set<string>): void {
   if (row.observationList !== expectedList) fail(`Observation list name differs for ${expectedList}.`);
   if (row.sourceIndex < 0) fail(`Invalid observation index for ${expectedList}.`);
   const indexKey = `${row.sourceProducerPath}\u0000${row.sourceIndex}`;
@@ -701,13 +701,13 @@ function validateObservation(row: Observation, expectedList: string, reference: 
     return;
   }
   if (row.sourceScene === null || row.source === null || row.sourcePath === undefined || row.sourceIdentity === undefined) fail(`Available observation projection is incomplete for ${expectedList}.`);
-  validateScene(row.sourceScene, row.sourcePath, reference);
-  validateSource(row.source, row.sourcePath, reference);
-  if (row.npcId !== null) reference(`${row.sourcePath}.npcId`, "npcs", row.npcId);
+  validateScene(row.sourceScene, sourcePath, reference);
+  validateSource(row.source, sourcePath, reference);
+  if (row.npcId !== null) reference(`${sourcePath}.npcId`, "npcs", row.npcId);
   if (row.npc !== null) {
-    if (row.npcId === null) fail(`Observation NPC identity is incomplete at ${row.sourcePath}.`);
-    validateEntry(row.npc, `${row.sourcePath}.npc`, reference);
-    if (row.npc.nativeId !== row.npcId) fail(`Observation NPC identity differs at ${row.sourcePath}.`);
+    if (row.npcId === null) fail(`Observation NPC identity is incomplete at ${sourcePath}.`);
+    validateEntry(row.npc, `${sourcePath}.npc`, reference);
+    if (row.npc.nativeId !== row.npcId) fail(`Observation NPC identity differs at ${sourcePath}.`);
   }
 }
 
@@ -849,9 +849,9 @@ export function validateNpcProducers(value: NpcProducers, reference: NpcReferenc
   const npcIndexKeys = new Set<string>();
   const persistentIndexKeys = new Set<string>();
   const adventurerIndexKeys = new Set<string>();
-  for (const row of value.observations.currentNPCs) validateObservation(row, "CurrentNPCs", reference, npcSourceCounts, npcInstanceIds, npcIndexKeys);
-  for (const row of value.observations.currentPersistentNPCs) validateObservation(row, "CurrentPersistentNPCs", reference, persistentSourceCounts, persistentInstanceIds, persistentIndexKeys);
-  for (const row of value.observations.currentAdventurers) validateObservation(row, "CurrentAdventurers", reference, adventurerSourceCounts, adventurerInstanceIds, adventurerIndexKeys);
+  value.observations.currentNPCs.forEach((row, index) => validateObservation(row, `observations.currentNPCs[${index}]`, "CurrentNPCs", reference, npcSourceCounts, npcInstanceIds, npcIndexKeys));
+  value.observations.currentPersistentNPCs.forEach((row, index) => validateObservation(row, `observations.currentPersistentNPCs[${index}]`, "CurrentPersistentNPCs", reference, persistentSourceCounts, persistentInstanceIds, persistentIndexKeys));
+  value.observations.currentAdventurers.forEach((row, index) => validateObservation(row, `observations.currentAdventurers[${index}]`, "CurrentAdventurers", reference, adventurerSourceCounts, adventurerInstanceIds, adventurerIndexKeys));
 
   if (sourceTotals.currentNPCs < 0 || sourceTotals.currentPersistentNPCs < 0 || sourceTotals.adventurerObservations < 0) fail("Observation source counts are invalid.");
   const npcDuplicates = totals.currentNPCDuplicateInstanceIds;

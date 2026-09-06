@@ -8,6 +8,7 @@ import { CanonicalSchema, LocalizationSchema, LootRulesSchema, ObservationContex
 import { NpcProducersSchema, validateNpcProducers } from "./npc-extraction";
 import { WorldSourcesSchema, validateWorldSources } from "./world-extraction";
 import { WorldInventorySchema, validateWorldInventory } from "./world-inventory";
+import { createCoverageLedger } from "./coverage";
 import { beginRun } from "./runs";
 import type { Runtime } from "./runtime";
 
@@ -26,7 +27,7 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
   const prelude = resolve(import.meta.dir, "probes/conditions.csx");
   const inputHashes: Record<string, string> = { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, conditions: await hashFile(prelude) };
   for (const name of names) inputHashes[name] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "world-inventory"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "extract",
     settings: { character: config.character, timeoutMs: config.timeoutMs, runtimeOwnerToken: runtime.ownerToken, scope: "canonical records, authored relationships and producers, and loaded world observations; not full world coverage" },
@@ -185,12 +186,24 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       observations,
     };
     await Bun.write(resolve(run.directory, "validation.json"), `${JSON.stringify(validation, null, 2)}\n`);
-    await run.addArtifact("validation.json");
+    const validationArtifact = await run.addArtifact("validation.json");
+    if (!observations["world-inventory"] || !observations["npc-producers"] || !observations["world-sources"]) throw new Error("Coverage requires observation context for every world probe.");
+    const coverage = createCoverageLedger({
+      buildId: identity.buildId, runId: run.runId, inventory: worldInventory, npcProducers, worldSources,
+      observations: {
+        "world-inventory": observations["world-inventory"],
+        "npc-producers": observations["npc-producers"],
+        "world-sources": observations["world-sources"],
+      },
+      validation: { artifactSha256: validationArtifact.sha256, inventoryDiagnostics: inventoryValidation.diagnostics, unresolved, unset },
+    });
+    await Bun.write(resolve(run.directory, "coverage.json"), `${JSON.stringify(coverage, null, 2)}\n`);
+    await run.addArtifact("coverage.json");
     await runtime.complete();
     await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
     await run.addArtifact("runtime-cleanup.json");
     await run.succeed();
-    return { manifest: run.manifestPath, validation };
+    return { manifest: run.manifestPath, validation, coverage: coverage.summary };
   } catch (error) {
     await run.fail(error);
     console.error(`Failed extraction: ${run.manifestPath}`);
