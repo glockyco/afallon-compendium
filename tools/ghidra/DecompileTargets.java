@@ -11,8 +11,7 @@ import ghidra.app.script.GhidraScript;
 import ghidra.app.cmd.disassemble.DisassembleCommand;
 import ghidra.app.cmd.function.ApplyFunctionSignatureCmd;
 import ghidra.app.decompiler.DecompInterface;
-import ghidra.app.services.DataTypeManagerService;
-import ghidra.app.util.cparser.C.CParserUtils;
+import ghidra.program.model.data.FunctionDefinitionDataType;
 import ghidra.app.util.cparser.C.CParser;
 import ghidra.framework.Application;
 import ghidra.program.model.address.AddressSet;
@@ -57,10 +56,12 @@ public class DecompileTargets extends GhidraScript {
             var function = getFunctionAt(start);
             if (function == null) function = createFunction(start, name);
             if (function == null) throw new IllegalStateException("Function creation failed: " + name);
+            function.setBody(new AddressSet(start, end.subtract(1)));
             function.setName(name, SourceType.USER_DEFINED);
             if (target.has("signature")) {
-                var signature = CParserUtils.parseSignature((DataTypeManagerService)null, currentProgram, target.get("signature").getAsString(), false);
-                if (signature == null) throw new IllegalArgumentException("Invalid native signature: " + name);
+                var parsed = new CParser(currentProgram.getDataTypeManager()).parse(target.get("signature").getAsString());
+                if (!(parsed instanceof FunctionDefinitionDataType signature) || !signature.getName().equals(name))
+                    throw new IllegalArgumentException("Invalid native signature: " + name);
                 signature.setCallingConvention(currentProgram.getCompilerSpec().getDefaultCallingConvention().getName());
                 if (!new ApplyFunctionSignatureCmd(start, signature, SourceType.USER_DEFINED).applyTo(currentProgram, monitor))
                     throw new IllegalStateException("Signature application failed: " + name);
@@ -78,6 +79,8 @@ public class DecompileTargets extends GhidraScript {
                 if (!result.decompileCompleted() || result.getDecompiledFunction() == null)
                     throw new IllegalStateException("Decompilation failed: " + target.get("name") + ": " + result.getErrorMessage());
                 var row = target.deepCopy();
+                row.addProperty("appliedSignature", getFunctionAt(start).getSignature().getPrototypeString());
+                row.addProperty("bodyBytes", getFunctionAt(start).getBody().getNumAddresses());
                 row.addProperty("pseudocode", result.getDecompiledFunction().getC());
                 row.addProperty("diagnostics", result.getErrorMessage());
                 results.add(row);

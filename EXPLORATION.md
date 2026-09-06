@@ -69,7 +69,7 @@ The display model uses one physical marker with multiple roles. A concise previe
 - Recovered type declarations: `/tmp/afallon-inspection/types/DiffableCs/Assembly-CSharp/`.
 - Recovered dummy assemblies: `/tmp/afallon-inspection/assemblies/`.
 - Cpp2IL successfully mapped 87,948 method definitions on the completed installation.
-- **These outputs recover schemas and signatures, not method implementations. Empty generated bodies are not actual game behavior.** Native behavior has not been decompiled or verified.
+- **These outputs recover schemas and signatures, not method implementations. Empty generated bodies are not actual game behavior.** Targeted native analysis and runtime checks are documented below.
 - Python environment: `/tmp/afallon-asset-tools`, with UnityPy 1.25.3 and TypeTreeGeneratorAPI 0.0.10.
 - Initial Cpp2IL attempt against Steam staging failed because GameAssembly.dll still contained zero-filled preallocation. The completed installation succeeded. Do not diagnose game protection from that staging error.
 
@@ -328,7 +328,7 @@ A Ghidra process can exit successfully even when a script reports an error. Chec
 
 Verified on this ARM Mac against the x86-64 Windows binary: all four selected addresses match live method metadata, and all four functions decompile. The supplied loot-entry layout produces named `minimum`, `maximum`, and `itemId` accesses. Assembly confirms the minimum/maximum comparison and the call with `maximum + 1`. This does not yet establish the final quantity distribution or economy scaling. A separate read-only runtime check confirmed GetLootReferenceLevel for 56 entities and the null-entity player fallback. Observed levels were 1, 15, 16, 17, 18, and 100. Its evidence run is `437af6f4-c6e7-495d-9d07-247c8c8263ec`.
 
-The final typed output is `research/ghidra/25144591/loot-functions-layout.json`. Decompiler warnings about overlapping globals and indirect control flow remain visible. Pseudocode is not original source or proof of every branch. Check unresolved behavior against assembly and bounded runtime observations before publishing derived rules.
+The verified typed output is `research/ghidra/25144591/loot-signature-verified.json`. Each result includes `appliedSignature` and `bodyBytes` from the Ghidra function database. Function bodies cover the supplied ranges: 319, 1,254, 1,730, and 1,135 bytes for the four selected methods. The verified `PickMinimumDrops` signature returns `void *`, which represents its managed list pointer. Signatures use direct C parsing so pointer declarators remain intact. Decompiler warnings about overlapping globals and indirect control flow remain visible. Pseudocode is not original source or proof of every branch. Check unresolved behavior against assembly and bounded runtime observations before publishing derived rules.
 
 ## Existing-project defect recorded during comparison
 
