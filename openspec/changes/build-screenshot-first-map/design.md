@@ -23,7 +23,7 @@ Canonical merchant extraction uses the current MerchantTables lists instead of t
 **Non-Goals:**
 - A shared multi-game framework, plugin system, graph engine, public API service, accounts, or live player tracking.
 - Automatic save editing, forced loot rolls, or modification of unrelated characters.
-- Immediate public deployment or redistribution of game assets without a permission decision.
+- Public deployment without explicit user authorization.
 
 ## Decisions
 
@@ -105,7 +105,7 @@ Captured source images, tile pyramids, calibration, and marker projections carry
 
 Use WebP delivery tiles and a measured zoom limit. Tile generation emits dimensions, byte totals, and file counts so hosting limits remain visible. Do not commit generated images or raw game data.
 
-Request and record the asset-use permission decision early. Pending permission does not block local implementation, but it blocks public asset distribution. Select external artifact storage only after measured size and file counts are available. Deployment remains subject to affirmative permission and separate publication authorization.
+The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Proceed with the planned asset preparation without that checkpoint. Select external artifact storage only after measured size and file counts are available. Deployment still requires explicit user authorization.
 
 ### 8. Small previews, persistent details, and source navigation
 
@@ -146,13 +146,13 @@ Preserve research evidence in ignored local storage. Integrate world probes firs
 
 Before full-world extraction or capture, validate one connected path through a representative outdoor area and an interior. It must cover extraction, repeat-load identities, capture, normalization, and browser picking and details. Include adjacent tile seams, an interior floor slice, a producer without a live node, and item-to-source navigation. The site must consume generated static contracts rather than raw probes or game access.
 
-This milestone validates the complete mechanism. It does not reduce release coverage. After it passes, collect all reachable sources and required imagery. Repeat the UI and performance checks with the complete real dataset. Publish only a coherent validated artifact set with permission and publication authorization. Keep the previous successful set available for rollback.
+This milestone validates the complete mechanism. It does not reduce release coverage. After it passes, collect all reachable sources and required imagery. Repeat the UI and performance checks with the complete real dataset. Publish only a coherent validated artifact set with explicit user publication authorization. Keep the previous successful set available for rollback.
 
 ## Open Questions
 
 - Which finest resolution and tile dimensions provide useful detail at an acceptable measured artifact size?
 - Which per-map floor heights or reviewed suppression profiles are needed after the full scene inventory?
 - Which illustrated maps support precise marker registration, rather than orientation-only viewing?
-- Which static asset host is appropriate after permission and output-size review?
+- Which static asset host is appropriate after output-size review?
 
 These decisions are parameters within the defined capture and publication contracts. They do not remove any required map coverage.

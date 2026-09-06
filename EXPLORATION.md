@@ -6,7 +6,7 @@ Updated: 2026-09-06. Status: implementation in progress. Nix-backed local toolin
 
 Build a comprehensive interactive map for Afallon, then a full compendium. The user explicitly selected in-game screenshots as the primary basemap. Preserve illustrated maps as an optional orientation layer. Include enemies, NPCs, interactables, resources, and other categories supported by Afallon evidence. Connect markers to useful facts such as enemy drops and vendor stock.
 
-The user owns Afallon on Steam and authorized installation in CrossOver, decompilation, HotRepl inspection, reusable scripts, project creation, and a GitHub repository. Implementation follows the approved `build-screenshot-first-map` OpenSpec change.
+The user owns Afallon on Steam and authorized installation in CrossOver, decompilation, HotRepl inspection, reusable scripts, project creation, and a GitHub repository. Implementation follows the approved `build-screenshot-first-map` OpenSpec change. The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation may proceed without that checkpoint. Public deployment and pushing commits still require explicit user authorization.
 
 Repository: https://github.com/glockyco/afallon-compendium (private). Local game evidence under `research/` is ignored by Git. No game binaries, recovered declarations, saves, or bulk artwork belong in source control. The initial change is `openspec/changes/build-screenshot-first-map/`.
 
@@ -194,7 +194,7 @@ These counts use FindObjectsOfType, not a proof of complete authored coverage. I
 - Thus the tested MapZone normalized domain is centered, with corners at -1 and +1. It is not image UV 0..1. Image vertical orientation still needs explicit landmark calibration in a future web map.
 - Extracted `Tutorial cave map` directly from `sharedassets3.assets`, Texture2D path ID 47. Saved `research/screenshots/05-tutorial-basemap.png` and visually confirmed it matches the in-game terrain map.
 - Extracted `Newest map` directly from `sharedassets2.assets`, Texture2D path ID 195. Saved `research/screenshots/07-overworld-basemap.png`. The live map screenshot shows illustrated parchment-style world artwork, unlike the tutorial's terrain image.
-- No custom terrain capture is necessary to obtain these two basemaps. Full-game coverage, redistribution permission, and useful maximum zoom remain open.
+- No custom terrain capture is necessary to obtain these two basemaps. Full-game coverage and useful maximum zoom remain open.
 
 ### Spawns require their own model
 
@@ -229,7 +229,7 @@ Opened the built-in Adventure Guide for Duskfall Depths using `AdventureGuidePan
 - Scene transitions tested through `Il2CppBLINK.RPGBuilder.Managers.LoadingScreenManager.Instance.LoadGameScene(id)`: 9=Coalway swamp, 3=Coalway woods.
 - Runtime map query: `UnityEngine.Object.FindObjectsOfType<Il2CppMapMinimap.MapZone>()`.
 - Runtime spawn query: `UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.AI.NPCSpawner>()`.
-- Do not publish recovered game source, dummy assemblies, or bulk assets to GitHub. They are local research evidence. Confirm asset-use permission before deploying derived artwork.
+- Do not publish recovered game source, dummy assemblies, or bulk assets to GitHub. They are local research evidence. Public deployment requires explicit user authorization.
 
 ## First-session shutdown checkpoint
 
@@ -247,7 +247,7 @@ Opened the built-in Adventure Guide for Duskfall Depths using `AdventureGuidePan
 - Use the supervised `afallon-game` process and port 18591. The current implementation session has loaded Coalway woods with AtlasResearch. Do not use unrelated saves.
 - Use the Nix-backed commands below for runtime probes. Keep local configuration and generated artifacts outside Git.
 - Resolve coverage, stable placement identities, dynamic loot semantics, capture readiness, and interior floor profiles through the tasks in the proposal.
-- Keep screenshots and recovered game data local. Confirm asset publication permission before public deployment.
+- Keep screenshots and recovered game data local. Public deployment requires explicit user authorization.
 
 ## Local tooling checkpoint
 
