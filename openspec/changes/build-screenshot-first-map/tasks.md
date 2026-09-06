@@ -26,7 +26,7 @@
 - [x] 3.5 Implement reusable bounded scene traversal and streamed-source extraction under the runtime owner. Verify near/far and active/inactive cases, scene readiness, and cleanup on interruption before bulk collection.
 - [x] 3.6 Complete NPC-producer acceptance using the existing projection. Verify one area producer and one fixed placement in the game, including candidates, shapes, count limits, overrides, conditions, and separation from observations. Retain unverified selection semantics.
 - [x] 3.7 Extract resource producers and their possible outputs independently of CurrentNode. Verify Herbalism, Mining, and Fishing coverage includes producers without a live node.
-- [ ] 3.8 Complete source-family resolution and placement-role merging using existing interaction, container, quest, service, and transition exports. Verify overlapping components produce one placement with multiple roles. Unhandled relevant families remain explicit coverage blockers.
+- [x] 3.8 Complete source-family resolution and placement-role merging using existing interaction, container, quest, service, and transition exports. Verify overlapping components produce one placement with multiple roles. Unhandled relevant families remain explicit coverage blockers.
 - [ ] 3.9 Resolve source scenes, rendered map spaces, regions, and overlapping floors. Verify known landmarks and explain the observed Duskfall camera/MapZone extent mismatch.
 
 ## 4. Reusable screenshot capture

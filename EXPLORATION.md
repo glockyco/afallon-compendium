@@ -386,7 +386,7 @@ World-source run `97ae5011-300d-4f48-87ff-01dc6deecb60` exported 641 resource pr
 
 The same run exported five containers, eight quest zones, three transitions, 26 services, and 420 condition sources. The Lady in Mourning world-quest record resolves to quest 118. The three dungeon entrances resolve to scenes 46, 39, and 36. All four property currencies resolve to Gold Coin, currency 0. Fixed world quests remain separate from `possibleQuests`: eight count mismatches in the earlier projection became zero after correction.
 
-This is loaded-scene extraction, not complete map coverage. The run retains 788 diagnostics and 85 unsupported sources: one heroic console, 75 random activators, and nine interactive zones. Current world-source schema `compendium.world-sources.v3` uses `extracted` for source data; that state does not establish map imagery. Diagnostic paths include the source component type and its observation index. The earlier integrated artifact had 634 diagnostic rows under only seven ambiguous `source.hierarchyPath` paths; the new live artifact has no such paths. These observation indexes are not persistent placement identities. No InteractiveNode component was present, so its corrected empty-container-list branch was not exercised by this run. Persistent identity, merged placement roles, streamed traversal, and capture remain separate acceptance work.
+This is loaded-scene extraction, not complete map coverage. The run retains 788 diagnostics and 85 unsupported sources: one heroic console, 75 random activators, and nine interactive zones. Current world-source schema `compendium.world-sources.v4` uses `extracted` for source data; that state does not establish map imagery. Diagnostic paths include the source component type and its observation index. The earlier integrated artifact had 634 diagnostic rows under only seven ambiguous `source.hierarchyPath` paths; the new live artifact has no such paths. These observation indexes are not persistent placement identities. No InteractiveNode component was present, so its corrected empty-container-list branch was not exercised by this run. This raw probe does not perform serialized identity resolution, role merging, streamed traversal, or capture.
 
 ## Integrated producer extraction
 
@@ -396,7 +396,7 @@ Run `682c2062-abd5-4f8f-bab3-0e9fca33fd24` on build 25144591 retained 800 NPC pr
 
 Each of the eight context sidecars identifies `AtlasResearch` in Coalway woods and links to its data artifact by SHA-256. Each probe started and ended in the same gameplay frame; the eight probes ran across separate frames. The run also hashes the host extraction, runtime, and schema implementations. A replay rejected a missing NPC producer, a missing nested quest-pool row, a wrong-character observation, and a required world-probe failure. All four failures retained the previous successful extraction pointer and wrote failed manifests. An injected property currency ID was reported as unresolved. A separate corruption check rejected paired exported-candidate counters that disagreed with the actual rows.
 
-World-source schema `compendium.world-sources.v3` projects `RequiredNPCRanks` into strings with native count and availability fields. It does not serialize the IL2CPP list or its pointers. Native smoke run `d242aee3-2881-442e-ac4f-9f92535c4a49` retained the two supplied rank strings. Three temporary inactive InteractiveNode components exercised an empty non-container, an explicit empty container, and a combined resource/container with one resource rank and one loot table. Schema and count checks accepted all three roles. The temporary objects were destroyed before the next gameplay frame, and the node count returned from three to zero. These fixtures are branch checks, not authored map placements.
+World-source schema `compendium.world-sources.v4` projects `RequiredNPCRanks` into strings with native count and availability fields. It does not serialize the IL2CPP list or its pointers. Native smoke run `d242aee3-2881-442e-ac4f-9f92535c4a49` retained the two supplied rank strings. Three temporary inactive InteractiveNode components exercised an empty non-container, an explicit empty container, and a combined resource/container with one resource rank and one loot table. Schema and count checks accepted all three roles. The temporary objects were destroyed before the next gameplay frame, and the node count returned from three to zero. These fixtures are branch checks, not authored map placements.
 
 The integrated run reports 1,028 unresolved raw requirement ID fields, all containing zero across eight database families. The projection retains every typed ID field, including fields that a requirement kind might not use. These are not 1,028 proven broken active conditions or unique missing records. Determine field use from native requirement behavior before publication. Negative IDs, repeated field paths, unsupported source semantics, scene associations, and full-world coverage also remain separate diagnostics or unfinished acceptance work.
 
@@ -474,6 +474,38 @@ Both fixtures retained their raw chance 100 and persistence flag, count fields, 
 Native `AreRequirementsMet` returns true when template mode selects a Unity-null template. The projection retains its null representation, selects no effective condition source, and does not report a missing-template coverage gap. The live check reduced NPC diagnostics from 604 to one without removing any of the 800 producers or 800 candidates. It retained 750 producers without a current NPC and kept 56 observations separate. The remaining diagnostic concerns the unverified per-zone association with the global adventurer roster. Sampling restored the native random sequence and its warning flag within the same gameplay frame; both owner receipts were clean.
 
 Normal extraction run `f8c1a665-50a5-449f-a104-6a634f3197b0` passed schema, count, reference, and context checks with the corrected producer projection. TypeScript and all eight tests passed. The game footprint was 14 GB with a reported 24 GB peak; the earlier 94.12 GB growth remains unexplained. Complete-world coverage remains false.
+
+## Verified placement roles
+
+Normal `extract` runs publish serialized inputs under `identities/` and merged facts in `placement-roles.json`. Each `traverse` visit publishes the same artifacts under its step directory. Role facts retain canonical NPC references, source-component IDs, and JSON-pointer evidence. Unplaced sources retain their role facts without receiving a guessed placement.
+
+NPC source schema `compendium.npc-producers.v2` and world-source schema `compendium.world-sources.v4` retain component and GameObject observation IDs. These IDs join records within a native snapshot. Serialized records still determine persistent IDs.
+
+World sources also retain the scene handle and use the all-component GameObject slot. This slot agrees with the identity snapshot. A same-type component count cannot supply this slot. Missing observations, different scene instances, and incompatible component slots cannot fall back to names or coordinates.
+
+`tools/probes/faction-roles.csx` records faction definitions, player standing, both alignment directions, and sampled native NPC alignments. Hash-checked native analysis is in `research/ghidra/25144591/faction-alignment-functions.json`. `FactionManager.GetAlignment` selects the first Unity-equal stance and reads `AlignementToPlayer`, not the legacy `playerAlignment` field. No matching stance returns Neutral. The observed stance assets all had database ID `-1`. Their observation identities remain distinct.
+
+Native Enemy, Ally, and Neutral NPC samples matched the recovered rules, and player standing remained unchanged.
+
+NPC capabilities and ranks have `authored` scope. Enemy, friendly, and neutral facts have `player-state` scope and describe NPC-to-player faction alignment, not aggression or spawn probability. Enabled producer faction overrides suppress base-faction disposition until their application is verified. Disabled merchant and quest flags do not create roles or unresolved-binding counts. Native action references determine container and quest-location roles. Component names do not.
+
+Final extraction `aff6aabf-77f5-45e0-b1f9-81c4b907a9c1` processed 2,522 source rows. It resolved 2,417 source components into 2,183 physical placements. There were 54 multi-source placements and 1,005 placements with multiple role names. Nine placements retained merchant and quest-giver roles together. NPC 36 retained 21 distinct placements.
+
+The audit resolved all 8,440 evidence pointers and verified source-to-placement links. Its proof is `artifacts/source-role-smoke/db71c651-7b4e-4efe-943c-c75faa206223/proof.json`.
+
+Controlled replay used real extracted inputs to check three boundaries. An absent component observation remained unplaced despite unchanged names and coordinates. A faction override removed base disposition while retaining merchant and quest-giver capabilities. Two existing components, supplied with different recorded action payloads, produced container and quest-location roles on one physical placement.
+
+This last case tests the merger. It does not claim those substituted actions exist in the game. The proof is `artifacts/source-role-smoke/414c54c3-7e6d-4f77-b328-302c3aaa999a/proof.json`.
+
+Serialized preparation indexes only loaded prefabs that contain queried source components. On the same snapshot, two prefab indexes produced exactly the same identity result as 70 indexes. The final run recorded 77 loaded streams, two source-bearing streams, and 75 skips with reason `no-queried-source-components`. These skips do not establish unused content or complete geometry coverage. `compendium.scene-source-issues.v2` records this scope explicitly.
+
+Traversal `c32b0977-6aba-4236-8bba-66c1d165e4a7` covered woods and swamp with bounded stream holds. The woods step retained 2,186 placements, including the selected far camp. The swamp step retained 536 placements. One inactive selected stream remained skipped. Both steps restored their source scene, and the owner receipt was clean with no remaining callbacks.
+
+Coverage schema `compendium.coverage.v2` binds the role summary to the hashed placement-role artifact. Unplaced sources and unresolved role issues block role resolution independently of raw diagnostic groups. The normal run and both traversal steps reported blocked role resolution. The normal hash check is recorded beside the pointer audit as `coverage-proof.json`. Verified smoke drivers and the bounded traversal plan are archived under `artifacts/source-role-smoke/drivers/`.
+
+The final loaded-scene run retains 100 unplaced sources and 1,087 unresolved role issue occurrences. Unsupported actions, activation semantics, adventurer roster associations, and faction override application remain explicit gaps. Issue occurrences are not counts of distinct missing sources.
+
+TypeScript and all eight regression tests passed. The game footprint was 16 GB with a 24 GB peak. The earlier 94.12 GB growth remains unexplained. Complete-world coverage and primary screenshot coverage remain false.
 
 ## Exclusive runtime ownership
 

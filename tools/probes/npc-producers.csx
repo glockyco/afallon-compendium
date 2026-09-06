@@ -1425,6 +1425,8 @@ else
         {
             sourceIndex = producerIndex,
             sourcePath = producerSourcePath,
+            componentInstanceId = spawner.GetInstanceID(),
+            gameObjectInstanceId = spawner.gameObject.GetInstanceID(),
             sourceScene = spawnerSceneInfo.Item1,
             source = new
             {
@@ -1716,6 +1718,8 @@ else
         {
             sourceIndex = managerIndex,
             sourcePath = managerSourcePath,
+            componentInstanceId = manager.GetInstanceID(),
+            gameObjectInstanceId = manager.gameObject.GetInstanceID(),
             sourceScene = managerSceneInfo.Item1,
             source = new
             {
@@ -1868,6 +1872,8 @@ else
         {
             sourceIndex = zoneIndex,
             sourcePath = zoneSourcePath,
+            componentInstanceId = zone.GetInstanceID(),
+            gameObjectInstanceId = zone.gameObject.GetInstanceID(),
             sourceScene = zoneSceneInfo.Item1,
             source = new
             {
@@ -1953,7 +1959,7 @@ else
 
 return new
 {
-    schemaVersion = "compendium.npc-producers.v1",
+    schemaVersion = "compendium.npc-producers.v2",
     coverage = new
     {
         scope = "currently loaded Unity scenes",

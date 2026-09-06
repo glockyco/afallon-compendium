@@ -46,6 +46,12 @@ The ledger SHALL retain conditional and generated content and group diagnostics 
 - **THEN** the coverage report records its identity and evidence for its disposition
 - **AND** it does not invent a public map for that record
 
+#### Scenario: Role resolution retains gaps
+- **WHEN** extracted source roles remain unresolved or lack a verified placement
+- **THEN** the coverage summary reports blocked role resolution
+- **AND** it binds issue and unplaced-source counts to the hashed role artifact
+- **AND** role issue occurrences do not inflate raw distinct diagnostic-source counts
+
 ### Requirement: Separate spatial identities and observations
 
 The snapshot SHALL distinguish canonical entities, source scenes, rendered map spaces, authored placements or producers, and observed instances. Distinct placements SHALL retain distinct identities even when they share an entity. Identities SHALL remain stable across equivalent extractions of the same build. Unproven cross-build identity matches SHALL remain explicit rather than silently merged.
@@ -66,6 +72,11 @@ The snapshot SHALL distinguish canonical entities, source scenes, rendered map s
 - **AND** distinct producers that share a prefab remain distinct
 - **AND** changed runtime instance IDs do not change authored identities
 
+#### Scenario: A role source has no matching snapshot observation
+- **WHEN** a source component observation is absent or disagrees with its scene, GameObject, type, or component slot
+- **THEN** its role evidence remains unplaced
+- **AND** matching names or coordinates do not supply a replacement identity
+
 #### Scenario: Candidate persistence keys collide
 - **WHEN** distinct authored sources produce the same candidate placement key
 - **THEN** validation reports the collision with both source identities
@@ -82,6 +93,21 @@ The snapshot SHALL cover enemies, bosses, friendly NPC services, resources, cont
 #### Scenario: One NPC has several services
 - **WHEN** an NPC sells items and offers quests
 - **THEN** the snapshot preserves both roles without inventing duplicate physical NPCs
+
+#### Scenario: Several components contribute different roles
+- **WHEN** verified source components on one authored GameObject provide different supported interactions
+- **THEN** one physical placement retains their role union and separate source evidence
+
+#### Scenario: Faction alignment depends on player state
+- **WHEN** native faction rules resolve NPC-to-player alignment
+- **THEN** disposition facts retain player-state scope separately from authored capabilities and ranks
+- **AND** combat flags and names do not substitute for native alignment
+- **AND** an unverified producer faction override prevents use of base-faction disposition
+
+#### Scenario: Authored service bindings are disabled
+- **WHEN** an NPC capability flag is disabled but its authored bindings remain present
+- **THEN** those bindings do not grant the disabled role or create an unresolved role gap
+- **AND** the raw bindings remain available as evidence
 
 ### Requirement: Linked facts retain conditions and provenance
 

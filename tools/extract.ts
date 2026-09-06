@@ -1,5 +1,5 @@
 import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
@@ -8,6 +8,11 @@ import { CanonicalSchema, LocalizationSchema, LootRulesSchema, ObservationContex
 import { NpcProducersSchema, validateNpcProducers } from "./npc-extraction";
 import { WorldSourcesSchema, validateWorldSources } from "./world-extraction";
 import { WorldInventorySchema, validateWorldInventory } from "./world-inventory";
+import { FactionRolesSchema, collectFactionRoleFacts } from "./faction-roles";
+import { PlacementSnapshotSchema } from "./placement-contracts";
+import { prepareSceneIdentities } from "./scene-identities";
+import { collectNpcRoleFacts } from "./npc-roles";
+import { collectPlacementRoles } from "./placement-roles";
 import { createCoverageLedger } from "./coverage";
 import { beginRun } from "./runs";
 import type { Runtime } from "./runtime";
@@ -23,11 +28,12 @@ function parseArtifact<T extends TSchema>(schema: T, value: unknown): Static<T> 
 }
 
 export async function extract(runtime: Runtime, config: CompendiumConfig, identity: Awaited<ReturnType<typeof buildIdentity>>) {
-  const names = ["canonical", "localization", "support", "relationships", "loot-rules", "world-inventory", "npc-producers", "world-sources"] as const;
+  const names = ["canonical", "localization", "support", "relationships", "loot-rules", "world-inventory", "faction-roles", "npc-producers", "world-sources", "placement-snapshot"] as const;
   const prelude = resolve(import.meta.dir, "probes/conditions.csx");
   const inputHashes: Record<string, string> = { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, conditions: await hashFile(prelude) };
   for (const name of names) inputHashes[name] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-contracts", "placement-identities", "scene-identities", "serialized-assets"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const path of ["probes/addressable-locations.csx", "serialized-assets.py", "../pyproject.toml", "../uv.lock"]) inputHashes[`tool:${path}`] = await hashFile(resolve(import.meta.dir, path));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "extract",
     settings: { character: config.character, timeoutMs: config.timeoutMs, runtimeOwnerToken: runtime.ownerToken, scope: "canonical records, authored relationships and producers, and loaded world observations; not full world coverage" },
@@ -61,6 +67,12 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
     const worldInventory = parseArtifact(WorldInventorySchema, raw["world-inventory"]);
     const npcProducers = parseArtifact(NpcProducersSchema, raw["npc-producers"]);
     const worldSources = parseArtifact(WorldSourcesSchema, raw["world-sources"]);
+    const factionRoles = parseArtifact(FactionRolesSchema, raw["faction-roles"]);
+    const placementSnapshot = parseArtifact(PlacementSnapshotSchema, raw["placement-snapshot"]);
+    for (const name of ["faction-roles", "npc-producers", "world-sources", "placement-snapshot"]) {
+      const context = observations[name]!;
+      if (context.completed.scene.handle !== placementSnapshot.context.scene.handle || context.completed.gameSceneNativeId !== placementSnapshot.context.gameSceneNativeId) throw new Error("Role extraction crossed a scene instance boundary.");
+    }
     const inventoryValidation = validateWorldInventory(worldInventory, canonical);
     const ids: Record<string, Set<number>> = {};
     for (const kind of canonicalKinds) {
@@ -172,6 +184,17 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       for (const row of table.entries) reference(`dynamicLoot:${table.tableId}.entry[${row.entryIndex}]`, "items", row.itemId);
     }
     if (remainingDynamicTables.size) throw new Error("Loot rules omit level-band tables.");
+    reference("faction-roles.player.factionId", "factions", factionRoles.player.factionId);
+    for (const faction of factionRoles.factions) {
+      reference(`faction-roles.faction:${faction.nativeId}`, "factions", faction.nativeId);
+      for (const interaction of faction.interactions) if ("targetFactionId" in interaction) reference(`faction-roles.faction:${faction.nativeId}.interactions[${interaction.sourceIndex}]`, "factions", interaction.targetFactionId);
+    }
+    const preparedIdentities = await prepareSceneIdentities(config, runtime, identity.buildId, placementSnapshot, resolve(run.directory, "identities"));
+    for (const path of preparedIdentities.artifactPaths) await run.addArtifact(relative(run.directory, path));
+    const factionFacts = collectFactionRoleFacts(factionRoles);
+    const placementRoles = collectPlacementRoles(placementSnapshot, preparedIdentities.result, npcProducers, worldSources, collectNpcRoleFacts(canonical, relationships, factionFacts));
+    await Bun.write(resolve(run.directory, "placement-roles.json"), `${JSON.stringify(placementRoles, null, 2)}\n`);
+    const placementRolesArtifact = await run.addArtifact("placement-roles.json");
     const validation = {
       schemaVersion: "compendium.extraction-validation.v1", buildId: identity.buildId,
       fullGameCoverage: false, canonicalTotals: canonical.exportedTotals, supportTotals: support.sourceTotals,
@@ -183,6 +206,8 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       worldInventory: { totals: inventoryValidation.counts, coverage: worldInventory.coverage, diagnostics: inventoryValidation.diagnostics },
       npcProducers: { sourceTotals: npcProducers.sourceTotals, exportedTotals: npcProducers.exportedTotals, diagnostics: npcProducers.unresolved },
       worldSources: { totals: worldSources.totals, diagnostics: worldSources.unresolved },
+      placementIdentities: { resolved: preparedIdentities.result.identities.length, diagnostics: preparedIdentities.result.unresolved },
+      placementRoles: { summary: placementRoles.summary, diagnostics: placementRoles.unresolved },
       observations,
     };
     await Bun.write(resolve(run.directory, "validation.json"), `${JSON.stringify(validation, null, 2)}\n`);
@@ -190,6 +215,7 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
     if (!observations["world-inventory"] || !observations["npc-producers"] || !observations["world-sources"]) throw new Error("Coverage requires observation context for every world probe.");
     const coverage = createCoverageLedger({
       buildId: identity.buildId, runId: run.runId, inventory: worldInventory, npcProducers, worldSources,
+      placementRoles: { value: placementRoles, artifactSha256: placementRolesArtifact.sha256 },
       observations: {
         "world-inventory": observations["world-inventory"],
         "npc-producers": observations["npc-producers"],

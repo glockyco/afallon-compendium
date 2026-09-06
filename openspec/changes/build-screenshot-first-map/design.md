@@ -39,7 +39,7 @@ A Python-only pipeline was considered. TypeScript keeps publication contracts an
 
 The existing commands are `doctor`, `inspect`, `probe`, `extract`, and `traverse`. Capture, normalization, and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
 
-The normal extraction command includes canonical records, relationships, loot rules, world inventory, NPC producers, and world sources in one validated run. It validates schemas, native and exported counts, and canonical references before selecting the successful snapshot. Each observation records scene and character context. Sequential runtime calls are not one simultaneous observation. Successful loaded-scene extraction does not establish full-world coverage.
+Normal extraction includes canonical records, relationships, loot rules, world inventory, NPC producers, world sources, faction rules, and placement snapshots. It validates schemas, counts, and references, then resolves serialized identities and merges placement roles. Each observation records scene and character context. Sequential runtime calls are not one simultaneous observation. Traversal publishes these role and identity artifacts for each visited scene. Successful loaded-scene extraction does not establish full-world coverage.
 
 The host owns connection lifecycle, request IDs, deadlines, scene readiness, cancellation, and run directories. One operation owns runtime access at a time. Competing operations wait or receive a busy result. They must not displace the owner. Cancellation or disconnection must clean up owned work before the next operation uses that state. Unconfirmed cleanup blocks further state-changing work and successful completion.
 
@@ -59,7 +59,11 @@ Every build scene, database scene record, referenced destination, and streamed s
 
 Keep reachability, runtime availability, extraction status, and imagery status separate. Reachability is unknown, reachable, unreachable, or unused. Extraction is pending, extracted, unsupported, or failed. Imagery is pending, captured, validated, failed, or evidence-backed not-applicable. Runtime availability records activation separately from load state. A loaded-or-loading signal is not proof of ready geometry.
 
-Replace the probes' ambiguous data-extraction `captured` labels when integrating these contracts. Retain raw evidence without presenting it as captured imagery. Group diagnostics by source and issue type, distinguishing unset values, broken references, and unverified semantics. Repeated diagnostics do not count as distinct missing sources. Reachable sources require extraction. Unused or unreachable classifications require evidence. Unknown reachability, unresolved relevant families, and missing required imagery block a complete release.
+Data extraction uses `extracted`. The `captured` state applies only to imagery. Raw data is not evidence of image capture. Diagnostics are grouped by source and issue type. The groups distinguish unset values, broken references, and unverified semantics. Repeated diagnostics do not count as distinct missing sources.
+
+Coverage binds its role-resolution summary to the hashed placement-role artifact. Unplaced sources or unresolved role issue occurrences block role resolution independently of raw diagnostic groups. Occurrence counts do not imply distinct missing sources.
+
+Reachable sources require extraction. Unused or unreachable classifications require evidence. Unknown reachability, unresolved relevant families, and missing required imagery block a complete release.
 
 The traversal uses one research character and records character-dependent settings. Requirements are extracted as rules, not evaluated away against that character. Procedural producers remain authoritative even when no current instance exists.
 
@@ -72,6 +76,10 @@ Canonical keys include entity kind and native database ID. Placement keys prefer
 Establish the identity tables and uniqueness constraints alongside the identity investigation, before full-world collection. Compare extraction before and after scene reload and streamed unload/reload. Distinct producers that share a prefab must remain distinct. Report candidate-key collisions with their source evidence instead of merging them.
 
 Placements retain XYZ, source scene, map space, optional floor, shape, roles, source object, and conditions. Spawn candidates retain multiplicity and area semantics. Generated resource observations link back to their producer. Several components on one authored object can contribute roles to one marker.
+
+Within-run role joins require matching native component and GameObject observations, scene handles, component types, and all-component slots. Only verified serialized keys identify the resulting placements and sources. Missing bindings retain unplaced role evidence instead of using names or coordinates. Serialized preparation indexes source-bearing prefab roots and records other loaded roots as outside that query scope, not as unused content.
+
+Authored capabilities and ranks remain separate from player-state faction alignment. Native faction rules determine enemy, friendly, and neutral facts. Those facts describe NPC-to-player alignment, not aggression or spawn probability. Unverified producer faction overrides suppress base-faction disposition. Disabled capability bindings remain preserved raw data without granting roles or creating unresolved role gaps.
 
 The current OreSpawner name is misleading for categorization: live data proves Herbalism, Mining, and Fishing use it. The UI derives roles from referenced skills and effects. Candidate families include enemies and bosses; NPC services; gathering resources; containers; useful interactions; world quests; and entrances/transitions. Full inventory can add relevant families without copying Ancient Kingdoms' list.
 

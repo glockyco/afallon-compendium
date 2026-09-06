@@ -139,7 +139,8 @@ var worldSceneEvidence = new System.Func<UnityEngine.SceneManagement.Scene, obje
         nativeIdMatchBasis = nativeId != null ? "GameState.CurrentGameScene.entryName == observed Unity Scene.name" : null,
         name = scene.name,
         path = scene.path,
-        buildIndex = scene.buildIndex
+        buildIndex = scene.buildIndex,
+        handle = scene.handle
     };
 });
 
@@ -374,7 +375,7 @@ var worldSource = new System.Func<UnityEngine.Component, string, int, object>((c
     var componentIndex = -1;
     if (go != null)
     {
-        var siblings = go.GetComponents(component.GetIl2CppType());
+        var siblings = go.GetComponents<UnityEngine.Component>();
         for (var index = 0; index < siblings.Length; index++)
         {
             if (siblings[index] != null && siblings[index].Pointer == component.Pointer)
@@ -389,6 +390,8 @@ var worldSource = new System.Func<UnityEngine.Component, string, int, object>((c
     {
         return new
         {
+            componentInstanceId = component == null ? (int?)null : component.GetInstanceID(),
+            gameObjectInstanceId = go == null ? (int?)null : go.GetInstanceID(),
             sourceScene = (object)null,
             source = new
             {
@@ -479,6 +482,8 @@ var worldSource = new System.Func<UnityEngine.Component, string, int, object>((c
     var position = transform.position;
     return new
     {
+        componentInstanceId = component.GetInstanceID(),
+        gameObjectInstanceId = go.GetInstanceID(),
         sourceScene = worldSceneEvidence(scene),
         source = new
         {
@@ -2025,7 +2030,7 @@ var worldExportedTotal = new
 
 return new
 {
-    schemaVersion = "compendium.world-sources.v3",
+    schemaVersion = "compendium.world-sources.v4",
     coverage = new
     {
         scope = "currently loaded Unity scenes and candidate prefab assets visible to the current process",
@@ -2034,6 +2039,7 @@ return new
         authoredCandidatesWithoutInstantiation = true,
         authoredCandidatesWithoutRolling = true,
         runtimeInstanceIdsOnlyObservation = true,
+        componentIndexSemantics = "all-gameobject-components",
         traversalPerformed = false,
         mapZoneCaptureBoundsValidated = false,
         sourceSceneNativeIdRule = "GameState.CurrentGameScene.ID is emitted only when its authored scene name matches the observed Unity scene name.",

@@ -24,6 +24,7 @@ const sceneEvidence = Type.Object({
   name: nullableText,
   path: nullableText,
   buildIndex: integer,
+  handle: integer,
 });
 const hierarchyNode = Type.Object({ name: text, siblingIndex: integer });
 const sourceDetails = Type.Object({
@@ -47,6 +48,8 @@ const sourceIdentity = Type.Object({
   addressableAssetGuidCandidate: nullableText,
 });
 const sourceEvidence = Type.Object({
+  componentInstanceId: nullable(integer),
+  gameObjectInstanceId: nullable(integer),
   sourceScene: nullable(sceneEvidence),
   source: sourceDetails,
   sourceIdentity,
@@ -703,7 +706,7 @@ const exportedTotals = Type.Object({
 });
 
 export const WorldSourcesSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.world-sources.v3"),
+  schemaVersion: Type.Literal("compendium.world-sources.v4"),
   coverage: Type.Object({
     scope: text,
     fullGameCoverage: boolean,
@@ -711,6 +714,7 @@ export const WorldSourcesSchema = Type.Object({
     authoredCandidatesWithoutInstantiation: boolean,
     authoredCandidatesWithoutRolling: boolean,
     runtimeInstanceIdsOnlyObservation: boolean,
+    componentIndexSemantics: Type.Literal("all-gameobject-components"),
     traversalPerformed: boolean,
     mapZoneCaptureBoundsValidated: boolean,
     sourceSceneNativeIdRule: text,
@@ -1148,7 +1152,7 @@ function validateCondition(reference: Reference, rowValue: unknown, index: numbe
 
 export function validateWorldSources(value: Static<typeof WorldSourcesSchema>, reference: Reference): void {
   const artifact = value as unknown as AnyRecord;
-  if (artifact.schemaVersion !== "compendium.world-sources.v3") throw new Error("World source schema version is invalid.");
+  if (artifact.schemaVersion !== "compendium.world-sources.v4") throw new Error("World source schema version is invalid.");
   const totals = record(artifact.totals, "totals");
   const sourceTotalsValue = record(totals.source, "totals.source");
   const exportedTotalsValue = record(totals.exported, "totals.exported");

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
@@ -14,14 +14,19 @@ import type { Runtime } from "./runtime";
 import { SceneVisitSchema, StreamVisitSchema, TraversalPlanSchema, type TraversalPlan } from "./traversal-contracts";
 import { WorldInventorySchema, validateWorldInventory } from "./world-inventory";
 import { WorldSourcesSchema, validateWorldSources } from "./world-extraction";
+import { FactionRolesSchema, collectFactionRoleFacts } from "./faction-roles";
+import { prepareSceneIdentities } from "./scene-identities";
+import { collectNpcRoleFacts } from "./npc-roles";
+import { collectPlacementRoles } from "./placement-roles";
 
 export async function traverse(runtime: Runtime, config: CompendiumConfig, identity: Awaited<ReturnType<typeof buildIdentity>>, plan: TraversalPlan) {
   Assert(TraversalPlanSchema, plan);
   const planText = JSON.stringify(plan, null, 2) + "\n";
   const inputHashes: Record<string, string> = { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, plan: createHash("sha256").update(planText).digest("hex") };
-  const probeNames = ["scene-visit", "stream-visit", "placement-snapshot", "canonical", "support", "relationships", "conditions", "npc-producers", "world-sources", "world-inventory"];
+  const probeNames = ["scene-visit", "stream-visit", "placement-snapshot", "canonical", "support", "relationships", "conditions", "npc-producers", "world-sources", "world-inventory", "faction-roles", "addressable-locations"];
   for (const name of probeNames) inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "traversal", "traversal-contracts", "contracts", "placement-contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "traversal", "traversal-contracts", "contracts", "placement-contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-identities", "scene-identities", "serialized-assets"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const path of ["serialized-assets.py", "../pyproject.toml", "../uv.lock"]) inputHashes[`tool:${path}`] = await hashFile(resolve(import.meta.dir, path));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "traverse",
     settings: { character: config.character, runtimeOwnerToken: runtime.ownerToken, plan, scope: "bounded research traversal; inactive streams and unresolved sources are not complete coverage" },
@@ -115,6 +120,7 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         const observations = {} as CoverageInput["observations"];
         const inventoryResult = await artifact("world-inventory", `${prefix}/raw/world-inventory.json`, WorldInventorySchema, true);
         observations["world-inventory"] = inventoryResult.observation!;
+        const factionResult = await artifact("faction-roles", `${prefix}/raw/faction-roles.json`, FactionRolesSchema, true);
         const npcResult = await artifact("npc-producers", `${prefix}/raw/npc-producers.json`, NpcProducersSchema, true);
         observations["npc-producers"] = npcResult.observation!;
         const worldResult = await artifact("world-sources", `${prefix}/raw/world-sources.json`, WorldSourcesSchema, true);
@@ -122,7 +128,7 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         const after = (await artifact("placement-snapshot", `${prefix}/after.json`, PlacementSnapshotSchema)).value;
         checkDeadline();
         for (const observation of Object.values(observations)) if (observation.completed.scene.handle !== scene.sceneHandle || observation.completed.gameSceneNativeId !== step.sceneNativeId) throw new Error("A traversal extraction observed another scene.");
-        if (after.context.scene.handle !== scene.sceneHandle || after.context.gameSceneNativeId !== step.sceneNativeId) throw new Error("Scene changed during traversal extraction.");
+        if (after.context.scene.handle !== scene.sceneHandle || after.context.gameSceneNativeId !== step.sceneNativeId || factionResult.observation!.completed.scene.handle !== scene.sceneHandle || factionResult.observation!.completed.gameSceneNativeId !== step.sceneNativeId) throw new Error("Scene changed during traversal extraction.");
         const unresolved: CoverageInput["validation"]["unresolved"] = [];
         const unset: CoverageInput["validation"]["unset"] = [];
         const reference = (source: string, targetKind: string, nativeId: number) => {
@@ -132,10 +138,21 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         const inventoryValidation = validateWorldInventory(inventoryResult.value, canonical);
         validateNpcProducers(npcResult.value, reference);
         validateWorldSources(worldResult.value, reference);
-        const validation = { inventoryDiagnostics: inventoryValidation.diagnostics, unresolved, unset };
+        reference("faction-roles.player.factionId", "factions", factionResult.value.player.factionId);
+        for (const faction of factionResult.value.factions) {
+          reference(`faction-roles.faction:${faction.nativeId}`, "factions", faction.nativeId);
+          for (const interaction of faction.interactions) if ("targetFactionId" in interaction) reference(`faction-roles.faction:${faction.nativeId}.interactions[${interaction.sourceIndex}]`, "factions", interaction.targetFactionId);
+        }
+        const preparedIdentities = await prepareSceneIdentities(config, runtime, identity.buildId, after, resolve(run.directory, prefix, "identities"));
+        checkDeadline();
+        for (const path of preparedIdentities.artifactPaths) await run.addArtifact(relative(run.directory, path));
+        const placementRoles = collectPlacementRoles(after, preparedIdentities.result, npcResult.value, worldResult.value, collectNpcRoleFacts(canonical, relationships, collectFactionRoleFacts(factionResult.value)));
+        await Bun.write(resolve(run.directory, prefix, "placement-roles.json"), JSON.stringify(placementRoles, null, 2) + "\n");
+        const placementRolesArtifact = await run.addArtifact(`${prefix}/placement-roles.json`);
+        const validation = { inventoryDiagnostics: inventoryValidation.diagnostics, unresolved, unset, placementIdentities: { resolved: preparedIdentities.result.identities.length, diagnostics: preparedIdentities.result.unresolved }, placementRoles: { summary: placementRoles.summary, diagnostics: placementRoles.unresolved } };
         await Bun.write(resolve(run.directory, prefix, "validation.json"), JSON.stringify(validation, null, 2) + "\n");
         const validationArtifact = await run.addArtifact(`${prefix}/validation.json`);
-        const coverage = createCoverageLedger({ buildId: identity.buildId, runId: run.runId, inventory: inventoryResult.value, npcProducers: npcResult.value, worldSources: worldResult.value, observations, validation: { ...validation, artifactSha256: validationArtifact.sha256 } });
+        const coverage = createCoverageLedger({ buildId: identity.buildId, runId: run.runId, inventory: inventoryResult.value, npcProducers: npcResult.value, worldSources: worldResult.value, placementRoles: { value: placementRoles, artifactSha256: placementRolesArtifact.sha256 }, observations, validation: { ...validation, artifactSha256: validationArtifact.sha256 } });
         for (const item of Object.values(coverage.artifacts)) item.path = `${prefix}/${item.path}`;
         await Bun.write(resolve(run.directory, prefix, "coverage.json"), JSON.stringify(coverage, null, 2) + "\n");
         await run.addArtifact(`${prefix}/coverage.json`);
@@ -150,10 +167,10 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         if (stream) await settle("stream-visit", StreamVisitSchema, stream.key, "restore", "restored", "stream-restored.json", scene.sceneHandle);
         const restored = await settle("scene-visit", SceneVisitSchema, started.key, "restore", "restored", "scene-restored.json");
         if (!restored.sceneReady || restored.sceneNativeId !== started.sourceSceneNativeId) throw new Error("Traversal did not restore the source scene.");
-        const report = { index, sceneNativeId: step.sceneNativeId, sceneHandle: scene.sceneHandle, streamSources, coverage: coverage.summary, restoration: restored };
+        const report = { index, sceneNativeId: step.sceneNativeId, sceneHandle: scene.sceneHandle, streamSources, coverage: coverage.summary, placementRoles: placementRoles.summary, restoration: restored };
         await Bun.write(resolve(run.directory, prefix, "step.json"), JSON.stringify(report, null, 2) + "\n");
         await run.addArtifact(`${prefix}/step.json`);
-        steps.push({ index, sceneNativeId: step.sceneNativeId, selectedStreams: streamSources.length, skippedStreams: streamSources.filter(row => row.skippedReason !== null).length, report: `${prefix}/step.json`, coverage: coverage.summary });
+        steps.push({ index, sceneNativeId: step.sceneNativeId, selectedStreams: streamSources.length, skippedStreams: streamSources.filter(row => row.skippedReason !== null).length, report: `${prefix}/step.json`, coverage: coverage.summary, placementRoles: placementRoles.summary });
       } finally { clearTimeout(timer); }
     }
     await runtime.complete();

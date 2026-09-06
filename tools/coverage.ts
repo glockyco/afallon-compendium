@@ -4,6 +4,7 @@ import { ObservationContextSchema } from "./contracts";
 import type { WorldInventory } from "./world-inventory";
 import type { NpcProducers } from "./npc-extraction";
 import type { WorldSources } from "./world-extraction";
+import type { PlacementRoles } from "./role-contracts";
 import { buildCoverageEntries } from "./coverage-sources";
 import { buildCoverageDiagnostics } from "./coverage-diagnostics";
 
@@ -55,6 +56,7 @@ export type CoverageInput = {
   inventory: WorldInventory;
   npcProducers: NpcProducers;
   worldSources: WorldSources;
+  placementRoles: { value: PlacementRoles; artifactSha256: string };
   observations: Record<"world-inventory" | "npc-producers" | "world-sources", Observation>;
   validation: {
     artifactSha256: string;
@@ -66,7 +68,7 @@ export type CoverageInput = {
 
 const artifactRecord = Type.Object({ path: text, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), observation: Type.Optional(ObservationContextSchema) });
 export const CoverageLedgerSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.coverage.v1"),
+  schemaVersion: Type.Literal("compendium.coverage.v2"),
   buildId: text,
   runId: text,
   identityScope: Type.Literal("artifact observations; not persistent placement identities"),
@@ -84,6 +86,12 @@ export const CoverageLedgerSchema = Type.Object({
     diagnosticGroups: count,
     unresolvedDiagnosticSources: count,
     unmappedDiagnosticSources: count,
+    roleResolution: Type.Object({
+      state: Type.Union([Type.Literal("resolved"), Type.Literal("blocked")]),
+      artifact: Type.Literal("placement-roles"),
+      unplacedSources: count,
+      issueOccurrences: count,
+    }),
     completeReleaseEligible: Type.Literal(false),
     reason: text,
   }),
@@ -91,6 +99,8 @@ export const CoverageLedgerSchema = Type.Object({
 export type CoverageLedger = Static<typeof CoverageLedgerSchema>;
 
 export function createCoverageLedger(input: CoverageInput): CoverageLedger {
+  const roles = input.placementRoles.value;
+  if (roles.buildId !== input.buildId) throw new Error("Placement role coverage requires the same game build.");
   const entries = buildCoverageEntries(input);
   const expected: Record<string, number> = {
     "build-scene": input.inventory.sourceTotals.buildScenes,
@@ -179,14 +189,19 @@ export function createCoverageLedger(input: CoverageInput): CoverageLedger {
     artifacts[name] = { path: `raw/${name}.json`, sha256: artifactSha256, observation };
   }
   artifacts.validation = { path: "validation.json", sha256: input.validation.artifactSha256 };
+  artifacts["placement-roles"] = { path: "placement-roles.json", sha256: input.placementRoles.artifactSha256 };
   const ledger: CoverageLedger = {
-    schemaVersion: "compendium.coverage.v1", buildId: input.buildId, runId: input.runId,
+    schemaVersion: "compendium.coverage.v2", buildId: input.buildId, runId: input.runId,
     identityScope: "artifact observations; not persistent placement identities", discoveryClosed: false,
     artifacts, entries, diagnostics,
     summary: {
       entries: entries.length, distinctSources: sources.size, reachability, extraction, imagery,
       diagnosticOccurrences, diagnosticGroups: diagnostics.length,
       unresolvedDiagnosticSources: unresolvedSources.size, unmappedDiagnosticSources: unmappedSources.size,
+      roleResolution: {
+        state: roles.unplacedSources.length > 0 || roles.unresolved.length > 0 ? "blocked" : "resolved",
+        artifact: "placement-roles", unplacedSources: roles.unplacedSources.length, issueOccurrences: roles.unresolved.length,
+      },
       completeReleaseEligible: false,
       reason: "This extraction observes loaded content. Full-build discovery, traversal, source classification, and project-owned imagery are not complete.",
     },

@@ -223,6 +223,8 @@ const producer = Type.Union([
   Type.Object({
     sourceIndex: integer,
     sourcePath: text,
+    componentInstanceId: integer,
+    gameObjectInstanceId: integer,
     sourceScene,
     source,
     sourceIdentity,
@@ -379,6 +381,8 @@ const manager = Type.Union([
   Type.Object({
     sourceIndex: integer,
     sourcePath: text,
+    componentInstanceId: integer,
+    gameObjectInstanceId: integer,
     sourceScene,
     source,
     sourceIdentity: familyIdentity,
@@ -397,6 +401,8 @@ const zone = Type.Union([
   Type.Object({
     sourceIndex: integer,
     sourcePath: text,
+    componentInstanceId: integer,
+    gameObjectInstanceId: integer,
     sourceScene,
     source,
     sourceIdentity: familyIdentity,
@@ -479,7 +485,7 @@ const totals = Type.Object({
 });
 
 export const NpcProducersSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.npc-producers.v1"),
+  schemaVersion: Type.Literal("compendium.npc-producers.v2"),
   coverage: Type.Object({
     scope: text,
     includesInactiveComponents: boolean,
