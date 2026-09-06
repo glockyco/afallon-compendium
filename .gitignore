@@ -1,0 +1,10 @@
+# Local game evidence and generated publication artifacts.
+/research/
+/artifacts/
+/local/
+/dist/
+/node_modules/
+.DS_Store
+.env
+.env.*
+!.env.example

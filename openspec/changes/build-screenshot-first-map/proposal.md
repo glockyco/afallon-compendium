@@ -1,0 +1,34 @@
+## Why
+
+Players need a comprehensive Afallon map that shows recognizable in-game terrain and connects places to useful game facts. Existing research proves data access, but a complete map needs repeatable capture, coverage accounting, and relationships beyond isolated markers.
+
+## What Changes
+
+- Capture orthographic in-game imagery as the primary basemap for reachable outdoor areas and interiors. Preserve illustrated maps as optional, separately calibrated orientation layers.
+- Create reusable local commands for runtime inspection, capture, extraction, normalization, and publication. Preserve raw evidence and build identity outside Git.
+- Inventory all supported-build scenes and spatial content families. Account for inactive, streamed, conditional, and procedurally produced content instead of treating loaded objects as complete coverage.
+- Extract Afallon-specific enemies, bosses, friendly NPCs and services, resources, containers, interactions, quest locations, and transitions where source evidence supports them.
+- Separate canonical entities, authored placement rules, and live observations. Preserve requirements and placement uncertainty.
+- Resolve enemy drops, vendor stock and prices, resource yields, quest associations, and transition destinations. Keep unverified probability and availability semantics explicit.
+- Publish a static map with search, meaningful filters, shareable selections, and accessible detail panels. Support item-to-source navigation without overwhelming marker popups.
+- Retain a small relational model and generated site contracts that support later compendium pages. Do not introduce a general-purpose game framework.
+
+## Capabilities
+
+### New Capabilities
+
+- `world-extraction`: Reproducible build-scoped snapshots, spatial identities, relationship extraction, and explicit coverage accounting.
+- `screenshot-basemaps`: Restorable in-game capture, map-space calibration, image tiles, and optional illustrated layers.
+- `interactive-atlas`: Static map navigation, Afallon-specific categories, linked entity details, search, and coverage disclosure.
+
+### Modified Capabilities
+
+None. This repository has no existing application capabilities.
+
+## Impact
+
+The change introduces a local game-tooling boundary, a normalization pipeline, and a static SvelteKit site with a deck.gl map. SQLite is the proposed normalized store. Runtime tooling uses the installed MelonLoader/HotRepl setup and Afallon-generated IL2CPP interop assemblies.
+
+Full coverage is the delivery target. Representative scene proofs are implementation gates, not permission to ship only a tutorial map. Unsupported or unreachable content needs an explicit disposition.
+
+The GitHub repository is private. Game binaries, recovered code, raw snapshots, saves, and image artifacts remain outside source control. Public asset distribution requires a separate permission decision. This proposal does not authorize deployment or pushing commits.
