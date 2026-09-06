@@ -242,7 +242,7 @@ Opened the built-in Adventure Guide for Duskfall Depths using `AdventureGuidePan
 ## Current resume checklist
 
 - Read the screenshot-first checkpoint and `openspec/changes/build-screenshot-first-map/`. These supersede the initial shipped-artwork recommendation.
-- The planning artifacts and checked tasks are the implementation contract. Continue canonical extraction after the verified local-tooling checkpoint.
+- The planning artifacts and checked tasks are the implementation contract. Continue with merchant-interface and relationship checks after the verified canonical extraction checkpoint.
 - Use `research/screenshot-first-session.json` and `research/screenshot-first-eval-history.json` to recover exact successful and failed probes.
 - Use the supervised `afallon-game` process and port 18591. The current implementation session has loaded Coalway woods with AtlasResearch. Do not use unrelated saves.
 - Use the Nix-backed commands below for runtime probes. Keep local configuration and generated artifacts outside Git.
@@ -269,6 +269,24 @@ Copy `config.example.json` to the ignored `local/config.json`, then set the inst
 Probe bodies are trusted C# with game-process access. Run only reviewed sources. The host deadline bounds the client's wait; it does not guarantee cancellation of C# code already executing in the game.
 
 Verified on Steam build 25144591: the inspection artifact contains all 421 woods loaders, 800 NPC spawners including inactive objects, and database counts of 1,076 items, 357 NPCs, 133 quests, 208 loot tables, and 40 scenes. Separate runtime queries matched those counts. All 421 loader keys were valid, with no source-read errors. A separate live check returned all 2,000 requested rows, rejected corrupted artifact bytes, rejected a closed session, and stopped waiting for an overlong evaluation after 1,102 ms. Failure checks preserved the previous success pointer and retained diagnostics. Regression tests cover artifact mutation and failed pointer selection.
+
+## Canonical extraction checkpoint
+
+Load the configured research character, then run:
+
+```sh
+nix develop --no-write-lock-file --command bun run compendium extract --config local/config.json
+```
+
+`extract` verifies the running build, writes separate canonical, localization, supporting-definition, relationship, and loot-rule artifacts, then checks their schemas, source counts, and references. `validation.json` retains unset references, missing display labels, source quantity anomalies, and unresolved relationship semantics. A successful extraction is a raw research snapshot, not a publication approval or a claim of full-game coverage.
+
+On build 25144591, the canonical counts match the live database: 1,076 items, 357 NPCs, 133 quests, 208 loot tables, 40 scenes, and no RPGResource records. The snapshot includes all 6,557 loaded English localization entries and 25 supporting database families. Of 6,155 checked references, ten have authored negative sentinel IDs and none of the remaining IDs are unresolved. Two authored display labels are blank. Loot table 42, entry 4, has an authored minimum of 15 and maximum of 3; the snapshot preserves those values and reports the unresolved quantity interpretation rather than changing source evidence.
+
+Canonical metadata uses the current `entryDisplayName`, `entryName`, `entryDescription`, and `entryIcon` fields. The old item-name fields are blank in this build. Localization keys use each entry family's actual prefix, including `gamescene`, not an inferred shared convention.
+
+The loot-rule probe compares the native eligibility method with extracted item-level rules for all four level-band tables. It temporarily checks both values of the research character's `FirstGearDropDone` flag and restores the original value in `finally`, before the next gameplay frame. The verified run made 142,072 native comparisons and confirmed restoration. It does not roll drops, award items, or publish effective drop probabilities. Merchant-interface checks, source-condition interpretation, authored-world coverage, and publication gates remain separate unfinished tasks.
+
+Custom probes can use `--prelude tools/probes/conditions.csx` for the shared requirement projection. The injected `args.researchCharacter` value comes from the local configuration. Raw artifacts, recovered declarations, save data, and screenshots stay outside Git.
 
 ## Existing-project defect recorded during comparison
 

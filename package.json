@@ -9,8 +9,9 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@hotrepl/protocol": "4.0.1",
     "@hotrepl/sdk": "4.0.1",
-    "@hotrepl/protocol": "4.0.1"
+    "typebox": "1.3.27"
   },
   "devDependencies": {
     "@types/bun": "1.3.14",

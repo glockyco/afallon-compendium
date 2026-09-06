@@ -46,11 +46,13 @@ export class Runtime {
     return reply.value as T;
   }
 
-  async probe(sourceFile: string, outputFile: string): Promise<{ reference: ArtifactRef; value: unknown }> {
+  async probe(sourceFile: string, outputFile: string, options: { preludeFile?: string; parameters?: Record<string, unknown> } = {}): Promise<{ reference: ArtifactRef; value: unknown }> {
     const body = await readFile(sourceFile, "utf8");
+    const prelude = options.preludeFile ? await readFile(options.preludeFile, "utf8") : "";
+    const parameters = options.parameters === undefined ? "" : `var args = Newtonsoft.Json.Linq.JObject.Parse(${JSON.stringify(JSON.stringify(options.parameters))});`;
     const output = await toRuntimePath(this.config, outputFile);
     const expression = `new System.Func<object>(() => {
-      var result = new System.Func<object>(() => { ${body}\n })();
+      var result = new System.Func<object>(() => { ${parameters}\n${prelude}\n${body}\n })();
       var bytes = System.Text.Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(result));
       var path = ${JSON.stringify(output)};
       System.IO.File.WriteAllBytes(path, bytes);

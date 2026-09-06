@@ -1,0 +1,11 @@
+var language = Il2Cpp.Localize.CurrentLanguage;
+var expectedCount = Il2Cpp.Localize.LoadedEntryCount;
+var flags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+var mapProperty = typeof(Il2Cpp.Localize).GetProperty("map", flags);
+if (mapProperty == null) throw new System.InvalidOperationException("The Localize.map interop property is unavailable.");
+var map = (Il2CppSystem.Collections.Generic.Dictionary<string, string>)mapProperty.GetValue(null);
+if (map == null) throw new System.InvalidOperationException("The localization map is not loaded.");
+var entries = new System.Collections.Generic.List<object>();
+foreach (var pair in map) entries.Add(new { key = pair.Key, text = pair.Value });
+if (entries.Count != expectedCount) throw new System.InvalidOperationException("Localization entry counts do not match.");
+return new { schemaVersion = "compendium.localization.v1", language = language, sourceCount = expectedCount, entries = entries };
