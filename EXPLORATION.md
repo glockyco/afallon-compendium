@@ -356,6 +356,23 @@ Inventory states distinguish currently loaded sources from sources that have not
 
 Extraction checks source counts, exported row counts, component counts, and canonical scene identities. A replay of captured data rejected a missing build-scene row and preserved the previous successful snapshot. Full source traversal, source classification, and persistent placement identities remain open.
 
+## Authored producer probes
+
+Run these commands sequentially from the default Nix development shell. HotRepl admits one session; concurrent clients can displace each other.
+
+```sh
+bun run tools/cli.ts probe --config local/config.json --probe tools/probes/npc-producers.csx --prelude tools/probes/conditions.csx
+bun run tools/cli.ts probe --config local/config.json --probe tools/probes/world-sources.csx --prelude tools/probes/conditions.csx
+```
+
+NPC run `da13ea47-aead-48f9-b48b-f9cf47fa6530` exported 800 NPCSpawner producers and 800 authored candidates, separately from live observations. It also exported 29 adventurer zones and one population manager with eight roster candidates. Native roster counts are captured before projection; an unavailable entry remains explicit and does not discard later entries. Per-zone roster assignment, spawn selection semantics, and stable placement identities remain unresolved.
+
+World-source run `97ae5011-300d-4f48-87ff-01dc6deecb60` exported 641 resource producers: 345 Herbalism, 286 Mining, and 10 Fishing. All retained authored outputs. At observation time, 337 Herbalism, 285 Mining, and four Fishing producers had no live node. Candidate prefab actions and linked loot tables supply outputs independently of `CurrentNode`.
+
+The same run exported five containers, eight quest zones, three transitions, 26 services, and 420 condition sources. The Lady in Mourning world-quest record resolves to quest 118. The three dungeon entrances resolve to scenes 46, 39, and 36. All four property currencies resolve to Gold Coin, currency 0. Fixed world quests remain separate from `possibleQuests`: eight count mismatches in the earlier projection became zero after correction.
+
+This is loaded-scene extraction, not complete map coverage. The run retains 788 diagnostics and 85 unsupported sources: one heroic console, 75 random activators, and nine interactive zones. Its `captured` dispositions mean source data was extracted, not that map imagery exists. No InteractiveNode component was present, so its corrected empty-container-list branch was not exercised by this run. Persistent identity, merged placement roles, streamed traversal, and capture remain separate acceptance work.
+
 ## Existing-project defect recorded during comparison
 
 `ancient-kingdoms-mods/mods/MapScreenshotter/MapScreenshotter.cs:173-205` disables the player and changes global lighting before checking ZoneInfo. Its null-data error branches exit without local restoration. The capture also uses hardcoded bounds at lines 239–242. These are reasons not to copy that setup into Afallon. No Ancient Kingdoms files were changed.
