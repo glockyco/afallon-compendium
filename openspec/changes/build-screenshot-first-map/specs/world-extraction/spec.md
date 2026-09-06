@@ -13,9 +13,28 @@ The tooling SHALL accept explicit game, endpoint, and output locations. Each sna
 - **THEN** the earlier snapshot remains available
 - **AND** the failed run reports its source build and failure without claiming success
 
+#### Scenario: Authored world probes join a validated snapshot
+- **WHEN** the normal extraction command collects canonical records and authored world content
+- **THEN** one run includes NPC producers, world sources, and inventory artifacts with their schemas, source counts, and canonical references checked
+- **AND** each observation retains its scene and character context without claiming simultaneous collection across runtime calls
+- **AND** failure of any required probe preserves the previous successful snapshot
+
+### Requirement: Exclusive runtime orchestration
+
+One host operation SHALL own runtime access for extraction, traversal, or capture. Competing operations SHALL NOT displace that owner. Cancellation and disconnection SHALL terminate or clean up owned runtime work before another operation uses the affected state. Unconfirmed cleanup SHALL block further state-changing work and SHALL NOT produce a successful run.
+
+#### Scenario: A second operation requests the runtime
+- **WHEN** another operation already owns the runtime
+- **THEN** the second operation waits or receives an explicit busy result without replacing the active session
+- **AND** its artifacts cannot be attributed to the active operation
+
 ### Requirement: Complete coverage accounting
 
-The extractor SHALL inventory build scenes, database scene records, discovered scene references, and streamed content sources. It SHALL assign every discovered source a captured, unreachable, unused, unsupported, or failed disposition with evidence. It SHALL distinguish active, inactive, conditional, and generated content. A release described as complete SHALL have no unresolved reachable source or relevant content family.
+The extractor SHALL inventory build scenes, database scene records, discovered scene references, and streamed content sources. Each discovered source SHALL retain evidence for reachability, runtime availability, extraction status, and imagery status as separate fields. Reachability SHALL distinguish unknown, reachable, unreachable, and unused sources. Extraction SHALL distinguish pending, extracted, unsupported, and failed sources. Imagery SHALL distinguish pending, captured, validated, failed, and evidence-backed not-applicable states.
+
+Runtime availability SHALL retain activation state separately from unloaded, loading, loaded, or unknown load state. A combined loaded-or-loading observation SHALL NOT establish readiness.
+
+The ledger SHALL retain conditional and generated content and group diagnostics by source and issue type. Repeated diagnostics SHALL NOT inflate distinct missing-source counts. Unset fields SHALL remain distinct from failed references and unverified semantics. A release described as complete SHALL have no unresolved reachable source or relevant content family. Pending discovery or classification SHALL NOT count as complete coverage.
 
 #### Scenario: Active objects omit authored content
 - **WHEN** an inactive or unloaded source contains relevant placements
@@ -40,6 +59,17 @@ The snapshot SHALL distinguish canonical entities, source scenes, rendered map s
 - **WHEN** a resource node changes with player skill or proximity
 - **THEN** the authored producer and its possible outputs remain available independently of the current live node
 - **AND** the current observation does not replace the authored rule
+
+#### Scenario: Authored content reloads
+- **WHEN** the same build reloads a scene or unloads and reloads streamed content
+- **THEN** equivalent authored producers retain their identities across extraction
+- **AND** distinct producers that share a prefab remain distinct
+- **AND** changed runtime instance IDs do not change authored identities
+
+#### Scenario: Candidate persistence keys collide
+- **WHEN** distinct authored sources produce the same candidate placement key
+- **THEN** validation reports the collision with both source identities
+- **AND** normalization does not silently merge them
 
 ### Requirement: Afallon-specific content and roles
 
@@ -70,6 +100,8 @@ The snapshot SHALL resolve NPC loot, vendor stock and currency costs, resource y
 ### Requirement: Integrity gates protect publication
 
 Publication SHALL reject unresolved required references, duplicate placement identities, mismatched game builds, and placements outside their declared spatial coverage. Deliberate exclusions SHALL appear in a machine-readable report with their reasons. Repeated runs SHALL not create duplicate placements.
+
+A local preview MAY use explicitly bounded partial coverage. It SHALL retain the outstanding coverage ledger and visibly identify itself as incomplete. References, identities, build agreement, and spatial bounds SHALL still validate for every included record. This preview SHALL NOT satisfy the complete-release coverage gate.
 
 #### Scenario: A marker has no valid map coverage
 - **WHEN** a placement cannot resolve a map space or lies outside validated bounds

@@ -29,6 +29,8 @@ None. This repository has no existing application capabilities.
 
 The change introduces a local game-tooling boundary, a normalization pipeline, and a static SvelteKit site with a deck.gl map. SQLite is the proposed normalized store. Runtime tooling uses the installed MelonLoader/HotRepl setup and Afallon-generated IL2CPP interop assemblies.
 
-Full coverage is the delivery target. Representative scene proofs are implementation gates, not permission to ship only a tutorial map. Unsupported or unreachable content needs an explicit disposition.
+Full coverage is the delivery target. First integrate the authored world probes, establish coverage states and repeat-load identities, and validate one outdoor-to-interior end-to-end path. That path includes capture, normalization, and browser navigation through generated static artifacts. Full-world collection follows this mechanism check. The representative milestone is not permission to ship only a tutorial map.
+
+Reachability, runtime availability, data extraction, and imagery status remain separate evidence dimensions. Unresolved relevant sources block a complete release. Runtime operations have one owner, with multi-frame loading separated from frame-local rendering and restoration. Request asset-use permission early. Select storage after measuring output. Pending permission blocks public redistribution, not local implementation.
 
 The GitHub repository is private. Game binaries, recovered code, raw snapshots, saves, and image artifacts remain outside source control. Public asset distribution requires a separate permission decision. This proposal does not authorize deployment or pushing commits.

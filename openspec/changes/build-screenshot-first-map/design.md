@@ -1,6 +1,6 @@
 ## Context
 
-See proposal.md for motivation and scope. The repository contains research evidence and planning artifacts, not an application.
+See proposal.md for motivation and scope. The repository contains local extraction tooling, research evidence, and planning artifacts. The normalization pipeline and static site remain planned.
 
 Afallon build 25144591 uses Unity 2022.3.62f2, IL2CPP, and the built-in render pipeline. The existing generic HotRepl host evaluates C# against Afallon-generated interop assemblies. Direct `ImageConversion.EncodeToPNG` works, despite the generic screenshot command's earlier encoding failure.
 
@@ -10,7 +10,7 @@ The woods sample contains 421 addressable loaders. Initially 77 reported loaded 
 
 The same scene has 800 loaded NPCSpawner components including inactive objects, versus 661 active at the later sample. It has 641 OreSpawner components covering Herbalism, Mining, and Fishing. Only 16 currently had live resource nodes. A live-object-only exporter would miss most resource locations.
 
-All 357 NPC records have an unset legacy merchantTableID. The current MerchantTables lists contain 166 links. The 39 merchant records include conditional stock groups. Four loot tables enable LevelBandGear. Source fields alone do not establish effective drop probabilities or complete dynamic gear outputs.
+Canonical merchant extraction uses the current MerchantTables lists instead of the unset legacy merchantTableID. Four loot tables enable LevelBandGear. Native verification now establishes level-eligibility intervals and linked-NPC specialization decisions. Global world-loot bindings and supplemental cloth tiers are exported separately. Effective probabilities remain withheld.
 
 ## Goals / Non-Goals
 
@@ -37,9 +37,13 @@ A Python-only pipeline was considered. TypeScript keeps publication contracts an
 
 ### 2. Reusable commands replace repeated manual orchestration
 
-The planned commands are `doctor`, `inspect`, `extract`, `capture`, `normalize`, and `publish`. These commands do not exist yet. They accept explicit game paths, HotRepl endpoint, research character, output root, and build selection.
+The existing commands are `doctor`, `inspect`, `probe`, and `extract`. Capture, normalization, and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
 
-The host owns connection lifecycle, request IDs, deadlines, scene readiness, cancellation, and run directories. Repository-owned C# snippets perform small bounded runtime operations. Large records and image data use local artifact files with hashes and counts rather than oversized REPL result frames. CrossOver path translation is explicit and uses normalized paths.
+The normal extraction command currently includes canonical records, relationships, loot rules, and world inventory. Integrate the separate NPC-producer and world-source probes into one validated run next. Validate schemas, native and exported counts, and canonical references before selecting the successful snapshot. Record scene and character context per observation. Sequential runtime calls are not one simultaneous observation. Completed probe tasks establish capability, not completion of this integration.
+
+The host owns connection lifecycle, request IDs, deadlines, scene readiness, cancellation, and run directories. One operation owns runtime access at a time. Competing operations wait or receive a busy result. They must not displace the owner. Cancellation or disconnection must clean up owned work before the next operation uses that state. Unconfirmed cleanup blocks further state-changing work and successful completion.
+
+Repository-owned C# snippets perform small bounded runtime operations. Large records and image data use local artifact files with hashes and counts rather than oversized REPL result frames. CrossOver path translation is explicit and uses normalized paths.
 
 Raw artifacts live in `artifacts/<build>/<run>/raw/`; normalized and published outputs occupy separate directories. A run manifest records input hashes, tool revision, parameters, outputs, and failures. Completion atomically selects a validated run. Retry and resume reuse only verified compatible artifacts.
 
@@ -47,11 +51,15 @@ Do not add a compiled game-specific mod until measured coroutine or lifetime con
 
 ### 3. Runtime-first extraction, offline identity assistance
 
-The initialized runtime database is the first extraction source for canonical records and references. It avoids relying on partially recovered serialized layouts. Offline asset inspection supplies build inventories, source identities where available, and audit evidence.
+The initialized runtime database is the first extraction source for canonical records and references. It avoids relying on partially recovered serialized layouts. Offline asset inspection supplies build inventories, source identities where available, and audit evidence. Native analysis targets unresolved extraction or capture behavior. Exhaustive decompilation is not a prerequisite for atlas delivery.
 
 World extraction enumerates authored producers and inactive objects, then resolves streamed prefab sources. Scene transitions use the game's loading manager. Tile-local loading uses the game's preload mechanism with bounded readiness checks. The extractor does not equate entering a scene with loading all its content.
 
-Every build scene, database scene record, referenced destination, and streamed source enters a coverage ledger. Reachable sources require extraction. Unused or unreachable sources require evidence. Unsupported and failed sources remain visible blockers to a complete release, not silent exclusions.
+Every build scene, database scene record, referenced destination, and streamed source enters a coverage ledger. Discovery and count reconciliation are separate from source classification and coverage resolution.
+
+Keep reachability, runtime availability, extraction status, and imagery status separate. Reachability is unknown, reachable, unreachable, or unused. Extraction is pending, extracted, unsupported, or failed. Imagery is pending, captured, validated, failed, or evidence-backed not-applicable. Runtime availability records activation separately from load state. A loaded-or-loading signal is not proof of ready geometry.
+
+Replace the probes' ambiguous data-extraction `captured` labels when integrating these contracts. Retain raw evidence without presenting it as captured imagery. Group diagnostics by source and issue type, distinguishing unset values, broken references, and unverified semantics. Repeated diagnostics do not count as distinct missing sources. Reachable sources require extraction. Unused or unreachable classifications require evidence. Unknown reachability, unresolved relevant families, and missing required imagery block a complete release.
 
 The traversal uses one research character and records character-dependent settings. Requirements are extracted as rules, not evaluated away against that character. Procedural producers remain authoritative even when no current instance exists.
 
@@ -60,6 +68,8 @@ The traversal uses one research character and records character-dependent settin
 Use concrete tables for scenes, map spaces, image layers, entities, placements, spawn candidates, conditions, and domain relationships. Domain relationships include NPC loot-table references, loot entries, merchant stock groups, resource yields, quest associations, and transitions. Do not introduce a generic graph to avoid naming these relations.
 
 Canonical keys include entity kind and native database ID. Placement keys prefer source scene and serialized asset/object identity. SaverIdentifier is a candidate only after stability and collision checks. A hierarchy-based fallback needs repeat-run validation and retains its source evidence. Runtime instance IDs are observation keys only. Cross-build correspondence is separate from identity within a build.
+
+Establish the identity tables and uniqueness constraints alongside the identity investigation, before full-world collection. Compare extraction before and after scene reload and streamed unload/reload. Distinct producers that share a prefab must remain distinct. Report candidate-key collisions with their source evidence instead of merging them.
 
 Placements retain XYZ, source scene, map space, optional floor, shape, roles, source object, and conditions. Spawn candidates retain multiplicity and area semantics. Generated resource observations link back to their producer. Several components on one authored object can contribute roles to one marker.
 
@@ -85,13 +95,17 @@ Prefer camera masks for UI and transient entities, but validate actual renderer 
 
 Interiors use explicit floor/height slices first. The dungeon probe showed that a lower camera can expose floor geometry without mesh changes. Where this cannot show a useful floor, use a reviewed reversible ceiling suppression rule. Do not remove a combined roof-and-floor mesh or flatten stacked floors together.
 
-A capture session records every changed property and object. `finally` restores changes in success, failure, and cancellation paths. Restoration is checked before the environment advances another frame. The first probe restored ambient mode, but later color differed as gameplay continued; this is not proof of complete restoration.
+A capture session records every changed property and object under two lifetimes. Scene loading, preload, readiness, geometry holds, and reusable disabled capture resources can span frames. Their cleanup belongs to the runtime operation and runs on success, failure, cancellation, or host disconnection. No later host restore request is required. Confirm cleanup before another operation uses the affected state.
+
+Lighting changes, renderer suppression, and rendering form a frame-local operation. Its `finally` restores visual properties before the next gameplay frame, including on injected failure. A disconnected run cannot report success while cleanup is unconfirmed. The earlier ambient-mode observation does not prove complete restoration.
 
 ### 7. Tiles and map data form one publication artifact
 
 Captured source images, tile pyramids, calibration, and marker projections carry one build identity. Tile filenames use content hashes and a generated index. Empty positions are explicit. A missing image or mismatched manifest blocks publication.
 
-Use WebP delivery tiles and a measured zoom limit. Tile generation emits dimensions, byte totals, and file counts so hosting limits remain visible. Do not commit generated images or raw game data. External artifact hosting is a deployment decision after size measurement and asset permission review.
+Use WebP delivery tiles and a measured zoom limit. Tile generation emits dimensions, byte totals, and file counts so hosting limits remain visible. Do not commit generated images or raw game data.
+
+Request and record the asset-use permission decision early. Pending permission does not block local implementation, but it blocks public asset distribution. Select external artifact storage only after measured size and file counts are available. Deployment remains subject to affirmative permission and separate publication authorization.
 
 ### 8. Small previews, persistent details, and source navigation
 
@@ -128,7 +142,11 @@ The site consumes published contracts only. SQL projections and spatial conversi
 
 ## Migration Plan
 
-There is no existing application to migrate. Preserve research evidence in ignored local storage. Implement reusable tooling before the full traversal and site. Validate representative outdoor and interior captures, then run the complete coverage ledger. Publish only a coherent validated artifact set. Keep the previous successful set available for rollback.
+Preserve research evidence in ignored local storage. Integrate world probes first, then establish coverage states, placement identities, and identity constraints. Implement bounded traversal and capture mechanisms under exclusive runtime ownership.
+
+Before full-world extraction or capture, validate one connected path through a representative outdoor area and an interior. It must cover extraction, repeat-load identities, capture, normalization, and browser picking and details. Include adjacent tile seams, an interior floor slice, a producer without a live node, and item-to-source navigation. The site must consume generated static contracts rather than raw probes or game access.
+
+This milestone validates the complete mechanism. It does not reduce release coverage. After it passes, collect all reachable sources and required imagery. Repeat the UI and performance checks with the complete real dataset. Publish only a coherent validated artifact set with permission and publication authorization. Keep the previous successful set available for rollback.
 
 ## Open Questions
 

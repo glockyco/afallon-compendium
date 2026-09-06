@@ -39,6 +39,19 @@ Capture SHALL prepare the geometry required by each tile, including streamed obj
 
 Capture SHALL control and record camera projection, lighting, fog, and transient suppression. It SHALL retain useful static landmarks. It SHALL handle roofs, ceilings, and floors without erasing relevant interior content. On success, error, or cancellation, it SHALL release temporary resources and restore every state it changed. It SHALL NOT overwrite unrelated saves.
 
+Scene loading, preload, readiness checks, and geometry holds MAY span gameplay frames under exclusive runtime ownership. Temporary lighting changes, renderer suppression, and rendering SHALL execute within a frame-local operation. That operation SHALL restore visual state before the next gameplay frame. Multi-frame operations SHALL release their holds and restore owned temporary state on success, error, cancellation, or disconnection. Cleanup SHALL execute in the runtime without depending on a connected host to issue a later restore command. A disconnected run SHALL remain unsuccessful until cleanup is confirmed.
+
+#### Scenario: Capture loses its host during preload
+- **WHEN** the host disconnects while a multi-frame operation holds geometry
+- **THEN** runtime cleanup releases the owned holds and temporary state
+- **AND** another operation cannot use that state until cleanup is confirmed
+- **AND** the interrupted run does not replace the prior successful artifact set
+
+#### Scenario: Rendering fails after temporary suppression
+- **WHEN** a frame-local render fails after changing lighting or renderer visibility
+- **THEN** the operation restores those properties before the next gameplay frame
+- **AND** restoration does not depend on a later host request
+
 #### Scenario: Capture is interrupted
 - **WHEN** capture fails after it changes rendering state
 - **THEN** temporary cameras, lights, and image buffers are released
