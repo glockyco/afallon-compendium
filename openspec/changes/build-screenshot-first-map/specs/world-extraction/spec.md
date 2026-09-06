@@ -84,6 +84,32 @@ Geometry observations SHALL retain query scope and world Y coordinates. Navigati
 - **THEN** the snapshot retains that geometry and its observation scope
 - **AND** its combined bounds do not become validated screenshot bounds or floor assignments
 
+### Requirement: Reviewed map-space and floor membership
+
+The extractor SHALL retain reviewed map-space profiles separately from native MapZone registrations and capture bounds. Profiles SHALL bind exact source-scene IDs and paths to coordinate frames, membership domains, and optional floor domains. The extractor SHALL verify referenced review evidence hashes and JSON pointers. Missing profiles, unmatched domains, ambiguous floors, and contradictory scene bindings SHALL remain explicit.
+
+#### Scenario: Several source scenes share one rendered map
+- **WHEN** reviewed bindings place several source scenes in one map space
+- **THEN** their placements retain their source-scene identities
+- **AND** each binding projects its coordinates into the shared map space
+
+#### Scenario: One scene contains separate layouts
+- **WHEN** disjoint reviewed domains select different map spaces within one source scene
+- **THEN** the matching domain selects the map-space candidate
+- **AND** a position outside every domain remains unresolved without clamping
+
+#### Scenario: Floors overlap in horizontal coordinates
+- **WHEN** placements share XZ coordinates but match different reviewed floor domains through Y
+- **THEN** their map projections retain distinct floor identities
+- **AND** a point that matches several floors remains ambiguous
+- **AND** domain minima are inclusive and domain maxima are exclusive
+
+#### Scenario: Region geometry is unsupported
+- **WHEN** an authored region has unsupported or contradictory collider geometry
+- **THEN** the snapshot retains the unresolved region evidence
+- **AND** it does not substitute the collider's world-aligned bounding box
+- **AND** a supported overlapping region can still retain its geometric membership
+
 ### Requirement: Separate spatial identities and observations
 
 The snapshot SHALL distinguish canonical entities, source scenes, rendered map spaces, authored placements or producers, and observed instances. Distinct placements SHALL retain distinct identities even when they share an entity. Identities SHALL remain stable across equivalent extractions of the same build. Unproven cross-build identity matches SHALL remain explicit rather than silently merged.

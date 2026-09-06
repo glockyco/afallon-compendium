@@ -16,6 +16,7 @@ import { collectPlacementRoles } from "./placement-roles";
 import { MapGeometrySchema, NavigationGeometrySchema, NativeMapRegistrationSetSchema } from "./map-contracts";
 import { collectSceneCatalog, fitNativeMapRegistration, validateSceneGeometry } from "./map-calibration";
 import { createCoverageLedger } from "./coverage";
+import { loadSpatialProfile, collectSpatialSnapshot } from "./spatial-extraction";
 import { beginRun } from "./runs";
 import type { Runtime } from "./runtime";
 
@@ -33,14 +34,23 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
   const names = ["canonical", "localization", "support", "relationships", "loot-rules", "world-inventory", "faction-roles", "npc-producers", "world-sources", "placement-snapshot", "map-geometry", "navigation-geometry"] as const;
   const prelude = resolve(import.meta.dir, "probes/conditions.csx");
   const inputHashes: Record<string, string> = { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, conditions: await hashFile(prelude) };
+  const spatialProfile = await loadSpatialProfile(config.mapSpaceProfile);
+  if (spatialProfile !== null) {
+    if (spatialProfile.profile.buildId !== identity.buildId) throw new Error("The spatial profile belongs to another game build.");
+    inputHashes["map-space-profile"] = spatialProfile.sha256;
+  }
   for (const name of names) inputHashes[name] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-contracts", "placement-identities", "scene-identities", "serialized-assets", "map-contracts", "map-calibration"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-contracts", "placement-identities", "scene-identities", "serialized-assets", "map-contracts", "map-calibration", "config", "spatial-contracts", "spatial-extraction", "map-spaces", "map-regions"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   for (const path of ["probes/addressable-locations.csx", "serialized-assets.py", "../pyproject.toml", "../uv.lock"]) inputHashes[`tool:${path}`] = await hashFile(resolve(import.meta.dir, path));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "extract",
-    settings: { character: config.character, timeoutMs: config.timeoutMs, runtimeOwnerToken: runtime.ownerToken, scope: "canonical records, authored relationships and producers, and loaded world observations; not full world coverage" },
+    settings: { character: config.character, timeoutMs: config.timeoutMs, mapSpaceProfile: config.mapSpaceProfile ?? null, runtimeOwnerToken: runtime.ownerToken, scope: "canonical records, authored relationships and producers, and loaded world observations; not full world coverage" },
   });
   try {
+    if (spatialProfile !== null) {
+      await Bun.write(resolve(run.directory, "map-space-profile.json"), spatialProfile.bytes);
+      await run.addArtifact("map-space-profile.json");
+    }
     await mkdir(resolve(run.directory, "raw"));
     const raw: Partial<Record<(typeof names)[number], unknown>> = {};
     const observations: Record<string, Static<typeof ObservationContextSchema> & { artifactSha256: string }> = {};
@@ -212,7 +222,15 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
     const placementRoles = collectPlacementRoles(placementSnapshot, preparedIdentities.result, npcProducers, worldSources, collectNpcRoleFacts(canonical, relationships, factionFacts));
     await Bun.write(resolve(run.directory, "placement-roles.json"), `${JSON.stringify(placementRoles, null, 2)}\n`);
     const placementRolesArtifact = await run.addArtifact("placement-roles.json");
+    const spatial = collectSpatialSnapshot(spatialProfile?.profile ?? null, sceneCatalog, mapGeometry, placementRoles, {
+      geometry: { path: "raw/map-geometry.json", sha256: observations["map-geometry"]!.artifactSha256, pointer: "" },
+      placements: { path: "placement-roles.json", sha256: placementRolesArtifact.sha256, pointer: "/placements" },
+      profile: spatialProfile === null ? null : { path: "map-space-profile.json", sha256: spatialProfile.sha256, pointer: "" },
+    });
+    await Bun.write(resolve(run.directory, "spatial.json"), JSON.stringify(spatial, null, 2) + "\n");
+    await run.addArtifact("spatial.json");
     const validation = {
+      spatial: spatial.summary,
       schemaVersion: "compendium.extraction-validation.v1", buildId: identity.buildId,
       fullGameCoverage: false, canonicalTotals: canonical.exportedTotals, supportTotals: support.sourceTotals,
       localization: { language: localization.language, entries: localization.sourceCount },

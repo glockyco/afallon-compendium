@@ -75,6 +75,10 @@ Canonical keys include entity kind and native database ID. Placement keys prefer
 
 Establish the identity tables and uniqueness constraints alongside the identity investigation, before full-world collection. Compare extraction before and after scene reload and streamed unload/reload. Distinct producers that share a prefab must remain distinct. Report candidate-key collisions with their source evidence instead of merging them.
 
+Reviewed map-space profiles bind exact source-scene IDs and paths to horizontal coordinate frames and explicit membership domains. Several source scenes can share one map space, and disjoint layouts in one scene can use separate map spaces. Floor domains use XYZ boxes with inclusive minima and exclusive maxima. Multiple matching floors remain ambiguous rather than selecting the nearest height. Membership domains do not establish capture bounds.
+
+Authored region membership uses observed oriented boxes and spheres, including inactive volumes. Unsupported or contradictory shapes remain unresolved. Region predicates compile once per snapshot. Region instance IDs and negative template IDs remain observations rather than canonical region keys.
+
 Placements retain XYZ, source scene, map space, optional floor, shape, roles, source object, and conditions. Spawn candidates retain multiplicity and area semantics. Generated resource observations link back to their producer. Several components on one authored object can contribute roles to one marker.
 
 Within-run role joins require matching native component and GameObject observations, scene handles, component types, and all-component slots. Only verified serialized keys identify the resulting placements and sources. Missing bindings retain unplaced role evidence instead of using names or coordinates. Serialized preparation indexes source-bearing prefab roots and records other loaded roots as outside that query scope, not as unused content.

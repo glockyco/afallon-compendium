@@ -549,6 +549,34 @@ The canceled traversal manifest records socket closure, while the CLI reports th
 
 The measured game footprint after the combined run was 23 GB with a 24 GB peak. The earlier 94.12 GB growth remains unexplained. Rendered map-space definitions, reviewed floor assignments, and primary screenshot coverage remain incomplete.
 
+## Reviewed map-space membership
+
+The optional `mapSpaceProfile` configuration field selects a `compendium.map-space-profile.v1` JSON file. Its path is relative to the configuration file. Each source binding declares an exact scene ID and path, a horizontal coordinate frame, membership domains, floor domains, and hashed review evidence. Evidence paths are relative to the original profile file. The run retains that input location and the exact profile bytes.
+
+`tools/map-spaces.ts` compiles source-scene lookups and inverse frames. Domain boxes include their minimum coordinates and exclude their maximum coordinates on all three axes. World Y selects reviewed floors but does not change horizontal projection. Overlapping floor domains remain ambiguous. Missing scene bindings, uncovered positions, missing floors, and contradictory scene catalogs remain explicit. The resolver does not choose the nearest floor or clamp positions.
+
+`spatial.json` binds each placement identity and XYZ observation to map-space candidates, floor candidates, and geometric region membership. Region predicates compile once per snapshot. They support oriented boxes and spheres, include inactive authored volumes, and retain unsupported shapes. Region component IDs and negative native IDs remain observations, not canonical identities. No spatial result establishes screenshot coverage.
+
+The representative profile places woods and swamp in one Coalway map space. Two shared TerrainData observations have identical data, rotations, and scales across those scenes. Their world-position residuals are 0.000126 and 0.000255 units. This geometry check supplements the native MapZone registration instead of treating its texture or local ID as sufficient evidence. Results are in `artifacts/map-calibration-smoke/shared-terrain-registration.json`.
+
+Duskfall uses separate arrival and main map spaces. Their reviewed membership boxes are not capture boundaries. The main profile labels the surveyed route without asserting a complete architectural floor inventory. A controlled two-floor profile verifies that identical XZ positions retain separate floors through Y. Boundary, overlapping-domain, reflected-frame, unsupported-region, and changed-evidence checks are in `artifacts/map-calibration-smoke/spatial-proof.json`.
+
+A one-metre grid query found 189 overlapping navigation columns in the sampled Duskfall rectangle. Restricting retained triangle vertices to Y at or below -780 left 33 such columns. A stacked-triangle positive control produced 55 matching columns. These counts describe coarse navigation geometry, not playable floors. Evidence is in `artifacts/map-calibration-smoke/navigation-layer-columns.json`.
+
+Native visit `11bc413f-77b1-4136-b075-d2e12b52c8e3` checked 13 positions with navigation samples, bidirectional paths, and downward physics rays. Five positions had complete paths both ways from the dungeon entrance. Seven had partial paths, including lower surfaces beneath two reachable wooden bridges and high tree geometry. The arrival room had a physical floor but no nearby navigation sample. The visit restored the source scene and reported clean cleanup. Path results do not prove that every partial-path surface is unreachable by the player.
+
+Native region visit `d45f7917-2e13-4a26-b5d9-28334d2318f2` compared 141 queries across 47 woods regions. Compiled membership matched native inverse transforms and local-box containment for every query. All 47 centers matched, and all 47 outside control points were rejected. The owner receipt was clean.
+
+Normal extraction `c3f45239-a466-4109-a720-4b2d40836753` resolved all 2,183 retained woods placements into the reviewed Coalway map space. It reported no ambiguous memberships or region-shape issues and completed cleanly. This is membership coverage, not complete source extraction or imagery coverage.
+
+Traversal `e1fe3815-c911-4e13-b56d-77fbc2444a5c` produced the same 88 resolved and four unresolved dungeon placements. Spatial output finished about 44.4 seconds after scene start. The 100-second step deadline expired while the source scene was restoring. Automatic cleanup subsequently reported clean state with no remaining callbacks. The manifest remains failed and retains the known socket-close diagnostic limitation. The deadline was not relaxed.
+
+The archived dungeon replay resolved 88 of 92 retained placements. Four outliers remain outside the reviewed domains. Their evidence points to quest and mount-control hierarchies. Observed Y values change between the world-source and placement snapshots, reaching 24,603.957 units in the placement snapshot. Their spatial applicability remains unresolved. The pipeline retains their identities and coordinates instead of enlarging the map or suppressing them.
+
+`artifacts/map-calibration-smoke/spatial-integration-proof.json` verifies both runs' source hashes, profile hashes, exact projection replay, and cleanup receipts. TypeScript and all ten regression tests passed. The tests retain the overlapping-floor boundary and contradictory-catalog cases. A catalog with multiple build paths was incorrectly accepted despite its `matched` label. That case failed before the guard change and passed afterward.
+
+Spatial smoke drivers are archived under `artifacts/map-calibration-smoke/drivers/`. Reviewed local profile and connection inputs remain under `local/`. Full-build map-space review, complete interior floor review, and primary screenshot coverage remain open. Task 3.9 stays unchecked until that floor review is complete.
+
 ## Exclusive runtime ownership
 
 All repository runtime commands acquire an exclusive SQLite transaction at `~/.cache/afallon-compendium/runtime-owner.sqlite` before connecting. A competing command fails without opening another game connection. The operating system releases the lock if the host process dies. Evaluation IDs include the owner UUID, so a stale response cannot satisfy a different owner's request.

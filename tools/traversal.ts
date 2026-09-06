@@ -20,18 +20,24 @@ import { collectNpcRoleFacts } from "./npc-roles";
 import { collectPlacementRoles } from "./placement-roles";
 import { MapGeometrySchema, NavigationGeometrySchema, NativeMapRegistrationSetSchema } from "./map-contracts";
 import { collectSceneCatalog, fitNativeMapRegistration, validateSceneGeometry } from "./map-calibration";
+import { loadSpatialProfile, collectSpatialSnapshot } from "./spatial-extraction";
 
 export async function traverse(runtime: Runtime, config: CompendiumConfig, identity: Awaited<ReturnType<typeof buildIdentity>>, plan: TraversalPlan) {
   Assert(TraversalPlanSchema, plan);
   const planText = JSON.stringify(plan, null, 2) + "\n";
   const inputHashes: Record<string, string> = { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, plan: createHash("sha256").update(planText).digest("hex") };
+  const spatialProfile = await loadSpatialProfile(config.mapSpaceProfile);
+  if (spatialProfile !== null) {
+    if (spatialProfile.profile.buildId !== identity.buildId) throw new Error("The spatial profile belongs to another game build.");
+    inputHashes["map-space-profile"] = spatialProfile.sha256;
+  }
   const probeNames = ["scene-visit", "stream-visit", "placement-snapshot", "canonical", "support", "relationships", "conditions", "npc-producers", "world-sources", "world-inventory", "faction-roles", "addressable-locations", "map-geometry", "navigation-geometry"];
   for (const name of probeNames) inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "traversal", "traversal-contracts", "contracts", "placement-contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-identities", "scene-identities", "serialized-assets", "map-contracts", "map-calibration"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "traversal", "traversal-contracts", "contracts", "placement-contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-identities", "scene-identities", "serialized-assets", "map-contracts", "map-calibration", "config", "spatial-contracts", "spatial-extraction", "map-spaces", "map-regions"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   for (const path of ["serialized-assets.py", "../pyproject.toml", "../uv.lock"]) inputHashes[`tool:${path}`] = await hashFile(resolve(import.meta.dir, path));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "traverse",
-    settings: { character: config.character, runtimeOwnerToken: runtime.ownerToken, plan, scope: "bounded research traversal; inactive streams and unresolved sources are not complete coverage" },
+    settings: { character: config.character, mapSpaceProfile: config.mapSpaceProfile ?? null, runtimeOwnerToken: runtime.ownerToken, plan, scope: "bounded research traversal; inactive streams and unresolved sources are not complete coverage" },
   });
   const conditions = resolve(import.meta.dir, "probes/conditions.csx");
   const parameters = { researchCharacter: config.character };
@@ -57,6 +63,10 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
     return { value: result.value as Static<T>, observation };
   }
   try {
+    if (spatialProfile !== null) {
+      await Bun.write(resolve(run.directory, "map-space-profile.json"), spatialProfile.bytes);
+      await run.addArtifact("map-space-profile.json");
+    }
     await Bun.write(resolve(run.directory, "plan.json"), planText);
     await run.addArtifact("plan.json");
     await mkdir(resolve(run.directory, "reference"));
@@ -168,7 +178,14 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         const placementRoles = collectPlacementRoles(after, preparedIdentities.result, npcResult.value, worldResult.value, collectNpcRoleFacts(canonical, relationships, collectFactionRoleFacts(factionResult.value)));
         await Bun.write(resolve(run.directory, prefix, "placement-roles.json"), JSON.stringify(placementRoles, null, 2) + "\n");
         const placementRolesArtifact = await run.addArtifact(`${prefix}/placement-roles.json`);
-        const validation = { inventoryDiagnostics: inventoryValidation.diagnostics, unresolved, unset, sceneCatalog: sceneCatalog.summary, nativeMapRegistrations: nativeMapRegistrations.registrations, navigationGeometry: { vertices: navigationResult.value.vertexCount, triangles: navigationResult.value.triangleCount, scope: navigationResult.value.scope, surfaceOwnership: navigationResult.value.surfaceOwnership }, placementIdentities: { resolved: preparedIdentities.result.identities.length, diagnostics: preparedIdentities.result.unresolved }, placementRoles: { summary: placementRoles.summary, diagnostics: placementRoles.unresolved } };
+        const spatial = collectSpatialSnapshot(spatialProfile?.profile ?? null, sceneCatalog, geometryResult.value, placementRoles, {
+          geometry: { path: `${prefix}/raw/map-geometry.json`, sha256: geometryResult.observation!.artifactSha256, pointer: "" },
+          placements: { path: `${prefix}/placement-roles.json`, sha256: placementRolesArtifact.sha256, pointer: "/placements" },
+          profile: spatialProfile === null ? null : { path: "map-space-profile.json", sha256: spatialProfile.sha256, pointer: "" },
+        });
+        await Bun.write(resolve(run.directory, prefix, "spatial.json"), JSON.stringify(spatial, null, 2) + "\n");
+        await run.addArtifact(`${prefix}/spatial.json`);
+        const validation = { spatial: spatial.summary, inventoryDiagnostics: inventoryValidation.diagnostics, unresolved, unset, sceneCatalog: sceneCatalog.summary, nativeMapRegistrations: nativeMapRegistrations.registrations, navigationGeometry: { vertices: navigationResult.value.vertexCount, triangles: navigationResult.value.triangleCount, scope: navigationResult.value.scope, surfaceOwnership: navigationResult.value.surfaceOwnership }, placementIdentities: { resolved: preparedIdentities.result.identities.length, diagnostics: preparedIdentities.result.unresolved }, placementRoles: { summary: placementRoles.summary, diagnostics: placementRoles.unresolved } };
         await Bun.write(resolve(run.directory, prefix, "validation.json"), JSON.stringify(validation, null, 2) + "\n");
         const validationArtifact = await run.addArtifact(`${prefix}/validation.json`);
         const coverage = createCoverageLedger({ buildId: identity.buildId, runId: run.runId, inventory: inventoryResult.value, npcProducers: npcResult.value, worldSources: worldResult.value, placementRoles: { value: placementRoles, artifactSha256: placementRolesArtifact.sha256 }, observations, validation: { ...validation, artifactSha256: validationArtifact.sha256 } });
@@ -186,10 +203,10 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         if (stream) await settle("stream-visit", StreamVisitSchema, stream.key, "restore", "restored", "stream-restored.json", scene.sceneHandle);
         const restored = await settle("scene-visit", SceneVisitSchema, started.key, "restore", "restored", "scene-restored.json");
         if (!restored.sceneReady || restored.sceneNativeId !== started.sourceSceneNativeId) throw new Error("Traversal did not restore the source scene.");
-        const report = { index, sceneNativeId: step.sceneNativeId, sceneHandle: scene.sceneHandle, streamSources, coverage: coverage.summary, placementRoles: placementRoles.summary, restoration: restored };
+        const report = { index, sceneNativeId: step.sceneNativeId, sceneHandle: scene.sceneHandle, streamSources, coverage: coverage.summary, placementRoles: placementRoles.summary, spatial: spatial.summary, restoration: restored };
         await Bun.write(resolve(run.directory, prefix, "step.json"), JSON.stringify(report, null, 2) + "\n");
         await run.addArtifact(`${prefix}/step.json`);
-        steps.push({ index, sceneNativeId: step.sceneNativeId, selectedStreams: streamSources.length, skippedStreams: streamSources.filter(row => row.skippedReason !== null).length, report: `${prefix}/step.json`, coverage: coverage.summary, placementRoles: placementRoles.summary });
+        steps.push({ index, sceneNativeId: step.sceneNativeId, selectedStreams: streamSources.length, skippedStreams: streamSources.filter(row => row.skippedReason !== null).length, report: `${prefix}/step.json`, coverage: coverage.summary, placementRoles: placementRoles.summary, spatial: spatial.summary });
       } finally { clearTimeout(timer); }
     }
     await runtime.complete();

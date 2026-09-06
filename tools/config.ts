@@ -8,6 +8,7 @@ export interface CompendiumConfig {
   hotreplUrl: string;
   character: string;
   timeoutMs: number;
+  mapSpaceProfile?: string;
 }
 
 export async function loadConfig(file: string): Promise<CompendiumConfig> {
@@ -17,7 +18,7 @@ export async function loadConfig(file: string): Promise<CompendiumConfig> {
     throw new Error("Configuration must be a JSON object.");
   }
   const input = value as Record<string, unknown>;
-  const allowed: Record<string, true> = { gamePath: true, outputRoot: true, runtimeOutputRoot: true, hotreplUrl: true, character: true, timeoutMs: true };
+  const allowed: Record<string, true> = { gamePath: true, outputRoot: true, runtimeOutputRoot: true, hotreplUrl: true, character: true, timeoutMs: true, mapSpaceProfile: true };
   for (const key of Object.keys(input)) {
     if (!Object.hasOwn(allowed, key)) throw new Error(`Unknown configuration field: ${key}`);
   }
@@ -48,7 +49,8 @@ export async function loadConfig(file: string): Promise<CompendiumConfig> {
   await mkdir(output, { recursive: true });
   const outputRoot = await realpath(output);
   if (isWithin(gamePath, outputRoot)) throw new Error("outputRoot must be outside the game installation.");
-  return { gamePath, outputRoot, runtimeOutputRoot, hotreplUrl: endpoint.href, character: text("character"), timeoutMs };
+  const mapSpaceProfile = input.mapSpaceProfile === undefined ? undefined : await realpath(resolve(dirname(location), text("mapSpaceProfile")));
+  return { gamePath, outputRoot, runtimeOutputRoot, hotreplUrl: endpoint.href, character: text("character"), timeoutMs, mapSpaceProfile };
 }
 
 export function isWithin(root: string, path: string): boolean {
