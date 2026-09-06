@@ -420,6 +420,14 @@ Persistence probe `7fc556e6-6d6a-4aac-ae4d-e2a5e2573e78` found zero SaverIdentif
 
 After the user-reported 94.12 GB process was restarted, its footprint was about 8 GB. After the stream and scene checks, `footprint` reported 9,053 MB total and a 9,493 MB peak. The cause of the earlier growth is not established.
 
+## SQLite identity storage
+
+`openIdentityDatabase` and `recordPlacementIdentities` in `tools/identity-store.ts` store authored identities separately from observations. `identity_scenes`, `placement_identities`, and `source_identities` retain canonical scope and serialized keys. `identity_runs` records snapshot hashes, frames, characters, and scene handles. `source_observations` retains native IDs, positions, and unresolved evidence per run. Serialized path IDs remain text, including signed values outside JavaScript's safe integer range.
+
+Strict SQLite tables enforce primary keys, authored-key uniqueness, and foreign keys. The placement uniqueness index treats a null loader as a real scene-origin scope. Shared prefab instances remain distinct through their loader source. Deferred loader foreign keys allow a source to appear before its loader in the input, but prevent committing a missing or cross-scene loader. Reusing an identity with different authored fields fails. Duplicate run/source bindings also fail. Each import is one transaction; a failed import leaves no partial identities or observations.
+
+The real before/after scene evidence produced 2,611 placements, 2,886 sources, two runs, 5,772 resolved observations, and 201 unresolved observations. All 2,886 retained sources had different native component and GameObject IDs between runs. Four invalid imports were rejected without retaining their run rows. A separate regression test verifies complete rollback when a deferred loader reference fails at commit. The database passed `foreign_key_check` and retained all 2,886 sources after closing and reopening. `artifacts/placement-smoke/sqlite-proof.json` records the database path and counts. Eight tests and the TypeScript check pass. Domain relationship tables and normal extraction integration remain later work; this database is identity evidence, not a complete published map.
+
 ## Exclusive runtime ownership
 
 All repository runtime commands acquire an exclusive SQLite transaction at `~/.cache/afallon-compendium/runtime-owner.sqlite` before connecting. A competing command fails without opening another game connection. The operating system releases the lock if the host process dies. Evaluation IDs include the owner UUID, so a stale response cannot satisfy a different owner's request.
