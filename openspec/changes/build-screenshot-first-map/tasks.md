@@ -11,7 +11,7 @@
 - [x] 2.2 Extract all merchant stock groups, requirements, item links, and currency costs. Verify an unconditional group and a progression-gated group against the in-game merchant interface.
 - [x] 2.3 Extract NPC loot-table links, entries, quantity ranges, selection controls, and requirements. Verify nested rule preservation and inspect the runtime behavior before emitting effective probabilities.
 - [x] 2.4 Resolve dynamic level-band gear and linked-NPC loot behavior into explicit source rules and justified outputs. Verify known runtime examples without treating one rolled item as exhaustive output.
-- [ ] 2.5 Extract resource ranks and yields, quest associations, and referenced scene destinations. Verify one real example per relationship family and report unresolved references.
+- [x] 2.5 Extract resource ranks and yields, quest associations, and referenced scene destinations. Verify one real example per relationship family and report unresolved references.
 
 ## 3. World inventory and placement coverage
 
@@ -19,7 +19,7 @@
 - [ ] 3.2 Establish placement identity from serialized sources and verified persistence keys. Verify repeated scene loads and repeated extraction retain identities without merging distinct placements.
 - [ ] 3.3 Implement bounded scene traversal and streamed-source extraction. Verify near/far and active/inactive cases that the earlier active-only probes missed.
 - [ ] 3.4 Extract NPC producers, candidate rules, shapes, count limits, overrides, and conditions separately from live NPC observations. Verify one area producer and one fixed placement in the game.
-- [ ] 3.5 Extract resource producers and their possible outputs independently of CurrentNode. Verify Herbalism, Mining, and Fishing coverage includes producers without a live node.
+- [x] 3.5 Extract resource producers and their possible outputs independently of CurrentNode. Verify Herbalism, Mining, and Fishing coverage includes producers without a live node.
 - [ ] 3.6 Extract useful interactions, containers, quest zones, services, and transitions from all discovered producer families. Verify overlapping components yield one placement with multiple roles where appropriate.
 - [ ] 3.7 Resolve source scenes, rendered map spaces, regions, and overlapping floors. Verify known landmarks and explain the observed Duskfall camera/MapZone extent mismatch.
 
