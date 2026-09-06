@@ -33,14 +33,18 @@ export const SupportSchema = Type.Object({
 });
 export type Support = Static<typeof SupportSchema>;
 
-const template = Type.Union([Type.Null(), Type.Object({ nativeId: integer, sourceName: text, groups: rawRows })]);
+const requirementGroup = Type.Object({ nativeRequirementCount: integer, requirements: rawRows });
+const template = Type.Union([Type.Null(), Type.Object({ nativeId: integer, sourceName: text, groups: Type.Array(requirementGroup) })]);
 export const RelationshipsSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.relationships.v1"),
   merchantBindings: Type.Array(Type.Object({ ownerNativeId: integer, merchantTableID: integer, bindingIndex: integer, requirementsTemplate: template })),
   merchantTables: Type.Array(definition), currencies: Type.Array(definition),
   merchantStock: Type.Array(Type.Object({ merchantTableID: integer, stockIndex: integer, itemID: integer, currencyID: integer, cost: integer })),
   npcLootBindings: Type.Array(Type.Object({ ownerNativeId: integer, lootTableID: integer, bindingIndex: integer, dropRate: Type.Number() })),
-  lootTables: Type.Array(Type.Object({ nativeId: integer, levelBandGear: Type.Boolean(), limitDroppedItems: Type.Boolean(), maxDroppedItems: integer, hasMinimumDrops: Type.Boolean(), minDroppedItems: integer, inlineRequirements: Type.Union([Type.Null(), Type.Object({ nativeGroupCount: integer, groups: rawRows })]), requirementsTemplate: template })),
+  worldLootBindings: Type.Array(Type.Object({ lootTableID: integer, bindingIndex: integer, dropRate: Type.Number(), minimumNPCLevel: integer, maximumNPCLevel: integer, requirementsTemplate: template })),
+  worldLootSettings: Type.Object({ minimumNPCRank: integer, maximumItemsPerNPC: integer, sourceBindingCount: integer }),
+  clothDrops: Type.Object({ dropChance: Type.Number(), minimumCount: integer, maximumCount: integer, tiers: Type.Array(Type.Object({ tierIndex: integer, itemID: integer, startLevel: Type.Number(), rampEnd: Type.Number(), lowWeight: Type.Number(), highWeight: Type.Number(), teaserWeight: Type.Number() })) }),
+  lootTables: Type.Array(Type.Object({ nativeId: integer, levelBandGear: Type.Boolean(), limitDroppedItems: Type.Boolean(), maxDroppedItems: integer, hasMinimumDrops: Type.Boolean(), minDroppedItems: integer, inlineRequirements: Type.Union([Type.Null(), Type.Object({ nativeGroupCount: integer, groups: Type.Array(requirementGroup) })]), requirementsTemplate: template })),
   lootEntries: Type.Array(Type.Object({ lootTableID: integer, entryIndex: integer, itemID: integer, min: integer, max: integer, dropRate: Type.Number() })),
   npcQuestBindings: Type.Array(Type.Object({ ownerNativeId: integer, questID: integer, association: text, associationIndex: integer })),
   quests: Type.Array(definition), tasks: Type.Array(definition),

@@ -731,6 +731,70 @@ if (npcs != null)
     }
 }
 
+var economySettings = databaseAvailable ? database.GetEconomySettings() : null;
+if (economySettings == null || economySettings.WorldLootTables == null)
+    throw new System.InvalidOperationException("Global loot settings are unavailable.");
+var worldLootBindings = new System.Collections.Generic.List<object>();
+for (var bindingIndex = 0; bindingIndex < economySettings.WorldLootTables.Count; bindingIndex++)
+{
+    var binding = economySettings.WorldLootTables[bindingIndex];
+    var sourcePath = "GameDatabase.EconomySettings.WorldLootTables[" + bindingIndex + "]";
+    if (binding == null) throw new System.InvalidOperationException("Global loot contains a null binding: " + sourcePath);
+    var templatePath = sourcePath + ".RequirementsTemplate";
+    var templateProjection = projectTemplate(binding.RequirementsTemplate, templatePath);
+    if (binding.RequirementsTemplate != null)
+        appendRequirementSet(binding.RequirementsTemplate.Requirements, "worldLootBindingTemplate", templatePath + ".Requirements", economySettings.ID, bindingIndex, "worldLootBinding:" + bindingIndex);
+    worldLootBindings.Add(new
+    {
+        bindingIndex = bindingIndex,
+        lootTableID = binding.lootTableID,
+        lootTableName = getLootTableName(binding.lootTableID),
+        dropRate = binding.dropRate,
+        dropRateSemantics = "authored outer raw rate; not an effective probability",
+        minimumNPCLevel = binding.MinNPCLevel,
+        maximumNPCLevel = binding.MaxNPCLevel,
+        requirementsTemplate = templateProjection,
+        sourceFieldPath = sourcePath
+    });
+}
+var worldLootSettings = new
+{
+    minimumNPCRank = (int)economySettings.MinimumWorldLootRank,
+    minimumNPCRankName = economySettings.MinimumWorldLootRank.ToString(),
+    maximumItemsPerNPC = economySettings.MaxWorldLootItemsPerNPC,
+    sourceBindingCount = economySettings.WorldLootTables.Count,
+    sourceFieldPath = "GameDatabase.EconomySettings"
+};
+
+var clothType = typeof(Il2Cpp.ClothDrops);
+var clothStaticFlags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+var clothTierFlags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+var clothTiers = new System.Collections.Generic.List<object>();
+var nativeClothTiers = (System.Collections.IEnumerable)clothType.GetProperty("Tiers", clothStaticFlags).GetValue(null);
+foreach (var tier in nativeClothTiers)
+{
+    var tierType = tier.GetType();
+    clothTiers.Add(new
+    {
+        tierIndex = clothTiers.Count,
+        itemID = (int)tierType.GetProperty("ItemID", clothTierFlags).GetValue(tier),
+        startLevel = (float)tierType.GetProperty("StartLevel", clothTierFlags).GetValue(tier),
+        rampEnd = (float)tierType.GetProperty("RampEnd", clothTierFlags).GetValue(tier),
+        lowWeight = (float)tierType.GetProperty("LowWeight", clothTierFlags).GetValue(tier),
+        highWeight = (float)tierType.GetProperty("HighWeight", clothTierFlags).GetValue(tier),
+        teaserWeight = (float)tierType.GetProperty("TeaserWeight", clothTierFlags).GetValue(tier)
+    });
+}
+var clothDrops = new
+{
+    sourceFieldPath = "ClothDrops.Tiers",
+    dropChance = (float)clothType.GetProperty("DropChance", clothStaticFlags).GetValue(null),
+    minimumCount = (int)clothType.GetProperty("MinCount", clothStaticFlags).GetValue(null),
+    maximumCount = (int)clothType.GetProperty("MaxCount", clothStaticFlags).GetValue(null),
+    tiers = clothTiers,
+    semantics = "Native supplemental loot source configuration; no effective probability is claimed."
+};
+
 var npcQuestBindings = new System.Collections.Generic.List<object>();
 var questBindingCount = 0;
 if (npcs != null)
@@ -1253,6 +1317,9 @@ return new
     merchantStock = merchantStock,
     currencies = currenciesOutput,
     npcLootBindings = npcLootBindings,
+    worldLootBindings = worldLootBindings,
+    worldLootSettings = worldLootSettings,
+    clothDrops = clothDrops,
     lootTables = lootTablesOutput,
     lootEntries = lootEntries,
     dynamicLevelBandGear = dynamicLevelBandGear,

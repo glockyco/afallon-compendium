@@ -110,6 +110,24 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       reference(source, "npcs", row.ownerNativeId);
       reference(source, "lootTables", row.lootTableID);
     }
+    const validateGroups = (source: string, groups: { nativeRequirementCount: number; requirements: unknown[] }[]) => {
+      for (const group of groups) {
+        if (group.nativeRequirementCount >= 0 && group.nativeRequirementCount !== group.requirements.length) throw new Error(`Requirement rows do not reconcile for ${source}.`);
+      }
+    };
+    for (const table of relationships.lootTables) {
+      if (table.inlineRequirements !== null) {
+        if (table.inlineRequirements.nativeGroupCount >= 0 && table.inlineRequirements.nativeGroupCount !== table.inlineRequirements.groups.length) throw new Error(`Loot table ${table.nativeId} lost requirement groups.`);
+        validateGroups(`lootTable:${table.nativeId}.inlineRequirements`, table.inlineRequirements.groups);
+      }
+      if (table.requirementsTemplate !== null) validateGroups(`lootTable:${table.nativeId}.requirementsTemplate`, table.requirementsTemplate.groups);
+    }
+    for (const binding of relationships.worldLootBindings) {
+      if (binding.requirementsTemplate !== null) validateGroups(`worldLoot[${binding.bindingIndex}].requirementsTemplate`, binding.requirementsTemplate.groups);
+    }
+    if (relationships.worldLootBindings.length !== relationships.worldLootSettings.sourceBindingCount) throw new Error("Global loot bindings do not reconcile.");
+    for (const row of relationships.worldLootBindings) reference(`worldLoot[${row.bindingIndex}]`, "lootTables", row.lootTableID);
+    for (const row of relationships.clothDrops.tiers) reference(`clothTier[${row.tierIndex}]`, "items", row.itemID);
     const quantityDiagnostics: { source: string; authoredMinimum: number; authoredMaximum: number; resolved: false }[] = [];
     for (const row of relationships.lootEntries) {
       const source = `loot:${row.lootTableID}.entry[${row.entryIndex}]`;

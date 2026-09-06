@@ -330,6 +330,18 @@ Verified on this ARM Mac against the x86-64 Windows binary: all four selected ad
 
 The verified typed output is `research/ghidra/25144591/loot-signature-verified.json`. Each result includes `appliedSignature` and `bodyBytes` from the Ghidra function database. Function bodies cover the supplied ranges: 319, 1,254, 1,730, and 1,135 bytes for the four selected methods. The verified `PickMinimumDrops` signature returns `void *`, which represents its managed list pointer. Signatures use direct C parsing so pointer declarators remain intact. Decompiler warnings about overlapping globals and indirect control flow remain visible. Pseudocode is not original source or proof of every branch. Check unresolved behavior against assembly and bounded runtime observations before publishing derived rules.
 
+## Loot rule verification
+
+Extraction retains NPC loot bindings, table entries, authored quantities, level gates, nested requirements, and minimum/maximum selection controls. It also exports the five global world-loot bindings and five supplemental cloth tiers. The global settings specify a minimum NPC rank of `MOB` and a maximum of two world-loot items per NPC. These values are source configuration, not effective drop percentages.
+
+Live extraction `caf34af5-2b4b-48e4-af0f-3c15ffbab967` reconciled 208 loot tables with zero unresolved canonical references. One reversed authored quantity range remains a diagnostic; extraction does not silently rewrite it. Nested requirement counts are checked before a snapshot becomes the successful output. A corrupted-artifact replay rejected a missing nested requirement and preserved the previous successful snapshot.
+
+Targeted native analysis in `research/ghidra/25144591/loot-all-sources.json` and `loot-source-contracts.json` distinguishes outer binding rolls, entry rolls, level and quest gates, minimum-drop selection, and supplemental sources. A table's raw rate is not its final item probability. Minimum-drop selection is a separate weighted pass. Level scaling can consume random state, so it is not safe to call merely because it looks like a numeric getter.
+
+Runtime probe `ca551604-5056-48f6-80cf-32c3acf656b3` checked level scaling and requirement results, then restored random state in the same gameplay frame. Inline requirements for loot tables 49 and 124 evaluated to false and true respectively for the research character. These are character-state observations, not permanent eligibility labels.
+
+`RPGNpc.GetLootSpecSource` selects a linked NPC with a loot specialization before the current NPC's own specialization. A linked record is not evidence that every loot-table binding is inherited. Native analysis and live linked-NPC observations must agree before derived sources are published. Effective probabilities remain withheld.
+
 ## World inventory verification
 
 `extract` includes a hashed `raw/world-inventory.json` artifact. The inventory covers build settings, canonical scene records, referenced destinations, loaded addressable loaders, and component types. It does not claim traversal or complete world coverage.
