@@ -330,6 +330,18 @@ Verified on this ARM Mac against the x86-64 Windows binary: all four selected ad
 
 The verified typed output is `research/ghidra/25144591/loot-signature-verified.json`. Each result includes `appliedSignature` and `bodyBytes` from the Ghidra function database. Function bodies cover the supplied ranges: 319, 1,254, 1,730, and 1,135 bytes for the four selected methods. The verified `PickMinimumDrops` signature returns `void *`, which represents its managed list pointer. Signatures use direct C parsing so pointer declarators remain intact. Decompiler warnings about overlapping globals and indirect control flow remain visible. Pseudocode is not original source or proof of every branch. Check unresolved behavior against assembly and bounded runtime observations before publishing derived rules.
 
+## World inventory verification
+
+`extract` includes a hashed `raw/world-inventory.json` artifact. The inventory covers build settings, canonical scene records, referenced destinations, loaded addressable loaders, and component types. It does not claim traversal or complete world coverage.
+
+Build 25144591 reports 33 build scenes, 40 database scenes, and 25 world positions. The inventory scans 143 task records and retains 211 destination or coordinate records, including unset fields. Coalway woods reports 421 addressable loaders. An inactive-inclusive scan found 338 MonoBehaviour types across 19,064 components in run `95629bd1-4f90-40b2-a407-299885811af5`. Counts can change with live observations.
+
+The type scan exposed additional source families, including 29 adventurer zones, 22 crafting stations, four property signs, and activation-condition components. A fixed list of NPCSpawner and OreSpawner components is not a complete content inventory.
+
+Inventory states distinguish currently loaded sources from sources that have not undergone traversal. All 40 scene records currently report `isProceduralScene=false`; this field alone does not prove fixed geometry. World-position records lack a direct scene field, so their 25 unresolved scene associations remain explicit. Names do not establish reachability.
+
+Extraction checks source counts, exported row counts, component counts, and canonical scene identities. A replay of captured data rejected a missing build-scene row and preserved the previous successful snapshot. Full source traversal, source classification, and persistent placement identities remain open.
+
 ## Existing-project defect recorded during comparison
 
 `ancient-kingdoms-mods/mods/MapScreenshotter/MapScreenshotter.cs:173-205` disables the player and changes global lighting before checking ZoneInfo. Its null-data error branches exit without local restoration. The capture also uses hardcoded bounds at lines 239–242. These are reasons not to copy that setup into Afallon. No Ancient Kingdoms files were changed.

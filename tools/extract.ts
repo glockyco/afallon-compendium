@@ -4,7 +4,7 @@ import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
 import type { CompendiumConfig } from "./config";
-import { CanonicalSchema, LocalizationSchema, LootRulesSchema, RelationshipsSchema, SupportSchema, canonicalKinds } from "./contracts";
+import { CanonicalSchema, LocalizationSchema, LootRulesSchema, RelationshipsSchema, SupportSchema, WorldInventorySchema, canonicalKinds } from "./contracts";
 import { beginRun } from "./runs";
 import type { Runtime } from "./runtime";
 
@@ -19,13 +19,13 @@ function parseArtifact<T extends TSchema>(schema: T, value: unknown): Static<T> 
 }
 
 export async function extract(runtime: Runtime, config: CompendiumConfig, identity: Awaited<ReturnType<typeof buildIdentity>>) {
-  const names = ["canonical", "localization", "support", "relationships", "loot-rules"] as const;
+  const names = ["canonical", "localization", "support", "relationships", "loot-rules", "world-inventory"] as const;
   const prelude = resolve(import.meta.dir, "probes/conditions.csx");
   const inputHashes: Record<string, string> = { ...identity.inputHashes, conditions: await hashFile(prelude) };
   for (const name of names) inputHashes[name] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "extract",
-    settings: { character: config.character, timeoutMs: config.timeoutMs, scope: "canonical records and authored relationships; not full world coverage" },
+    settings: { character: config.character, timeoutMs: config.timeoutMs, scope: "canonical records, authored relationships, and loaded world inventory; not full world coverage" },
   });
   try {
     await mkdir(resolve(run.directory, "raw"));
@@ -44,6 +44,27 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
     const support = parseArtifact(SupportSchema, raw.support);
     const relationships = parseArtifact(RelationshipsSchema, raw.relationships);
     const lootRules = parseArtifact(LootRulesSchema, raw["loot-rules"]);
+    const worldInventory = parseArtifact(WorldInventorySchema, raw["world-inventory"]);
+    for (const [kind, count] of Object.entries(worldInventory.sourceTotals)) {
+      if (count < 0 || count !== worldInventory.exportedTotals[kind]) throw new Error(`World inventory counts do not reconcile for ${kind}.`);
+    }
+    const inventoryRows = {
+      buildScenes: worldInventory.buildScenes, databaseScenes: worldInventory.databaseScenes,
+      loadedScenes: worldInventory.loadedScenes, addressableSources: worldInventory.addressableSources,
+      loadedTransitions: worldInventory.transitions, referencedDestinations: worldInventory.referencedDestinations,
+      componentFamilies: worldInventory.componentFamilies, behaviourTypes: worldInventory.behaviourTypes,
+    };
+    for (const [kind, rows] of Object.entries(inventoryRows)) {
+      if (rows.length !== worldInventory.sourceTotals[kind]) throw new Error(`World inventory lost ${kind} rows.`);
+    }
+    for (const rows of [worldInventory.componentFamilies, worldInventory.behaviourTypes]) {
+      for (const row of rows) {
+        if (row.activeCount < 0 || row.includeInactiveCount < row.activeCount) throw new Error("World inventory component counts are invalid.");
+      }
+    }
+    if (worldInventory.behaviourTypes.reduce((sum, row) => sum + row.includeInactiveCount, 0) !== worldInventory.sourceTotals.behaviourComponents) throw new Error("World inventory lost behavior components.");
+    const inventorySceneIds = new Set(worldInventory.databaseScenes.map(row => row.nativeId));
+    if (inventorySceneIds.size !== canonical.scenes.length || worldInventory.databaseScenes.length !== canonical.scenes.length || canonical.scenes.some(row => !inventorySceneIds.has(row.nativeId))) throw new Error("World inventory scenes differ from the canonical snapshot.");
     const ids: Record<string, Set<number>> = {};
     for (const kind of canonicalKinds) {
       const rows = canonical[kind];
@@ -132,6 +153,7 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       blankDisplayNames: canonicalKinds.flatMap(kind => canonical[kind].filter(row => !row.name?.trim()).map(row => ({ kind, nativeId: row.nativeId, internalName: row.internalName }))),
       relationshipDiagnostics: relationships.unresolved,
       lootRuleVerification: lootRules.observation,
+      worldInventory: { totals: worldInventory.sourceTotals, coverage: worldInventory.coverage, diagnostics: worldInventory.unresolved },
     };
     await Bun.write(resolve(run.directory, "validation.json"), `${JSON.stringify(validation, null, 2)}\n`);
     await run.addArtifact("validation.json");
