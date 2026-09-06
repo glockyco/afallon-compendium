@@ -19,6 +19,7 @@ export async function buildIdentity(config: CompendiumConfig) {
   const files = {
     steamManifest: manifestPath,
     gameAssembly: resolve(config.gamePath, "GameAssembly.dll"),
+    unityPlayer: resolve(config.gamePath, "UnityPlayer.dll"),
     metadata: resolve(config.gamePath, "Afallon_Data/il2cpp_data/Metadata/global-metadata.dat"),
   };
   const inputHashes: Record<string, string> = {};

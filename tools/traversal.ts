@@ -18,14 +18,16 @@ import { FactionRolesSchema, collectFactionRoleFacts } from "./faction-roles";
 import { prepareSceneIdentities } from "./scene-identities";
 import { collectNpcRoleFacts } from "./npc-roles";
 import { collectPlacementRoles } from "./placement-roles";
+import { MapGeometrySchema, NavigationGeometrySchema, NativeMapRegistrationSetSchema } from "./map-contracts";
+import { collectSceneCatalog, fitNativeMapRegistration, validateSceneGeometry } from "./map-calibration";
 
 export async function traverse(runtime: Runtime, config: CompendiumConfig, identity: Awaited<ReturnType<typeof buildIdentity>>, plan: TraversalPlan) {
   Assert(TraversalPlanSchema, plan);
   const planText = JSON.stringify(plan, null, 2) + "\n";
   const inputHashes: Record<string, string> = { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, plan: createHash("sha256").update(planText).digest("hex") };
-  const probeNames = ["scene-visit", "stream-visit", "placement-snapshot", "canonical", "support", "relationships", "conditions", "npc-producers", "world-sources", "world-inventory", "faction-roles", "addressable-locations"];
+  const probeNames = ["scene-visit", "stream-visit", "placement-snapshot", "canonical", "support", "relationships", "conditions", "npc-producers", "world-sources", "world-inventory", "faction-roles", "addressable-locations", "map-geometry", "navigation-geometry"];
   for (const name of probeNames) inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "traversal", "traversal-contracts", "contracts", "placement-contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-identities", "scene-identities", "serialized-assets"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "traversal", "traversal-contracts", "contracts", "placement-contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-identities", "scene-identities", "serialized-assets", "map-contracts", "map-calibration"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   for (const path of ["serialized-assets.py", "../pyproject.toml", "../uv.lock"]) inputHashes[`tool:${path}`] = await hashFile(resolve(import.meta.dir, path));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "traverse",
@@ -125,6 +127,12 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         observations["npc-producers"] = npcResult.observation!;
         const worldResult = await artifact("world-sources", `${prefix}/raw/world-sources.json`, WorldSourcesSchema, true);
         observations["world-sources"] = worldResult.observation!;
+        const geometryResult = await artifact("map-geometry", `${prefix}/raw/map-geometry.json`, MapGeometrySchema, true);
+        const navigationResult = await artifact("navigation-geometry", `${prefix}/raw/navigation-geometry.json`, NavigationGeometrySchema, true);
+        validateSceneGeometry(geometryResult.value, navigationResult.value);
+        for (const result of [geometryResult, navigationResult]) {
+          if (result.value.scene.handle !== scene.sceneHandle || result.value.scene.nativeId !== step.sceneNativeId || result.observation!.completed.scene.handle !== scene.sceneHandle || result.observation!.completed.gameSceneNativeId !== step.sceneNativeId) throw new Error("A traversal calibration observed another scene.");
+        }
         const after = (await artifact("placement-snapshot", `${prefix}/after.json`, PlacementSnapshotSchema)).value;
         checkDeadline();
         for (const observation of Object.values(observations)) if (observation.completed.scene.handle !== scene.sceneHandle || observation.completed.gameSceneNativeId !== step.sceneNativeId) throw new Error("A traversal extraction observed another scene.");
@@ -136,6 +144,17 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
           else if (!ids[targetKind]?.has(nativeId)) unresolved.push({ source, targetKind, nativeId });
         };
         const inventoryValidation = validateWorldInventory(inventoryResult.value, canonical);
+        const sceneCatalog = collectSceneCatalog(identity.buildId, inventoryResult.value);
+        const nativeMapRegistrations = {
+          schemaVersion: "compendium.native-map-registrations.v1", buildId: identity.buildId, scene: geometryResult.value.scene,
+          source: { path: `${prefix}/raw/map-geometry.json`, sha256: geometryResult.observation!.artifactSha256 },
+          registrations: geometryResult.value.mapZones.map(fitNativeMapRegistration),
+        };
+        Assert(NativeMapRegistrationSetSchema, nativeMapRegistrations);
+        for (const [path, value] of [["scene-catalog.json", sceneCatalog], ["native-map-registrations.json", nativeMapRegistrations]] as const) {
+          await Bun.write(resolve(run.directory, prefix, path), JSON.stringify(value, null, 2) + "\n");
+          await run.addArtifact(`${prefix}/${path}`);
+        }
         validateNpcProducers(npcResult.value, reference);
         validateWorldSources(worldResult.value, reference);
         reference("faction-roles.player.factionId", "factions", factionResult.value.player.factionId);
@@ -149,7 +168,7 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         const placementRoles = collectPlacementRoles(after, preparedIdentities.result, npcResult.value, worldResult.value, collectNpcRoleFacts(canonical, relationships, collectFactionRoleFacts(factionResult.value)));
         await Bun.write(resolve(run.directory, prefix, "placement-roles.json"), JSON.stringify(placementRoles, null, 2) + "\n");
         const placementRolesArtifact = await run.addArtifact(`${prefix}/placement-roles.json`);
-        const validation = { inventoryDiagnostics: inventoryValidation.diagnostics, unresolved, unset, placementIdentities: { resolved: preparedIdentities.result.identities.length, diagnostics: preparedIdentities.result.unresolved }, placementRoles: { summary: placementRoles.summary, diagnostics: placementRoles.unresolved } };
+        const validation = { inventoryDiagnostics: inventoryValidation.diagnostics, unresolved, unset, sceneCatalog: sceneCatalog.summary, nativeMapRegistrations: nativeMapRegistrations.registrations, navigationGeometry: { vertices: navigationResult.value.vertexCount, triangles: navigationResult.value.triangleCount, scope: navigationResult.value.scope, surfaceOwnership: navigationResult.value.surfaceOwnership }, placementIdentities: { resolved: preparedIdentities.result.identities.length, diagnostics: preparedIdentities.result.unresolved }, placementRoles: { summary: placementRoles.summary, diagnostics: placementRoles.unresolved } };
         await Bun.write(resolve(run.directory, prefix, "validation.json"), JSON.stringify(validation, null, 2) + "\n");
         const validationArtifact = await run.addArtifact(`${prefix}/validation.json`);
         const coverage = createCoverageLedger({ buildId: identity.buildId, runId: run.runId, inventory: inventoryResult.value, npcProducers: npcResult.value, worldSources: worldResult.value, placementRoles: { value: placementRoles, artifactSha256: placementRolesArtifact.sha256 }, observations, validation: { ...validation, artifactSha256: validationArtifact.sha256 } });

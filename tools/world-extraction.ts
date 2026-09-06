@@ -176,6 +176,42 @@ const requirementTemplate = nullable(Type.Object({
 }));
 
 const actionUnavailable = Type.Object({ sourceFieldPath: text, unavailable: text });
+const gameActionTeleport = nullable(Type.Object({
+  type: enumValue,
+  sceneNativeId: integer,
+  position: Type.Object({ x: number, y: number, z: number }),
+  rotation: Type.Object({ x: number, y: number, z: number }),
+}));
+const gameAction = Type.Object({
+  sourceFieldPath: text,
+  sourceIndex: integer,
+  type: enumValue,
+  chance: number,
+  nativeRequirementGroupCount: integer,
+  requirements: Type.Array(requirementGroup),
+  teleport: gameActionTeleport,
+  unsupported: boolean,
+});
+const gameActionRow = Type.Union([gameAction, actionUnavailable]);
+const gameActionList = Type.Object({
+  available: boolean,
+  nativeActionCount: integer,
+  actions: Type.Array(gameActionRow),
+});
+const gameActions = Type.Object({
+  executionOrder: Type.Literal("template-then-inline"),
+  template: nullable(Type.Object({
+    instanceId: integer,
+    nativeId: integer,
+    name: nullableText,
+    internalName: nullableText,
+    fileName: nullableText,
+    available: boolean,
+    nativeActionCount: integer,
+    actions: Type.Array(gameActionRow),
+  })),
+  inline: gameActionList,
+});
 const action = Type.Object({
   sourceFieldPath: text,
   type: enumValue,
@@ -195,8 +231,7 @@ const action = Type.Object({
   task: projectedReference,
   resource: projectedReference,
   lootTable: projectedReference,
-  gameActionsTemplate: nullable(Type.Object({ nativeType: text, text })),
-  gameActionsCount: integer,
+  gameActions: gameActions,
   unityEventAvailable: boolean,
   unsupported: boolean,
 });
@@ -706,7 +741,7 @@ const exportedTotals = Type.Object({
 });
 
 export const WorldSourcesSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.world-sources.v4"),
+  schemaVersion: Type.Literal("compendium.world-sources.v5"),
   coverage: Type.Object({
     scope: text,
     fullGameCoverage: boolean,
@@ -884,6 +919,43 @@ function validateTemplate(reference: Reference, template: unknown, path: string)
   validateRequirements(reference, groups, `${path}.groups`);
 }
 
+function validateGameActionList(reference: Reference, listValue: unknown, path: string) {
+  const list = record(listValue, path);
+  const actions = array(list.actions, `${path}.actions`);
+  countMaybeUnavailable(actions, list.nativeActionCount, list.available, `${path}.actions`);
+  const seen = new Set<string>();
+  actions.forEach((actionValue, actionIndex) => {
+    const action = record(actionValue, `${path}.actions[${actionIndex}]`);
+    if ("unavailable" in action) return;
+    const sourceIndex = finiteInteger(action.sourceIndex, `${path}.actions[${actionIndex}].sourceIndex`);
+    if (sourceIndex !== actionIndex) throw new Error(`World source ${path}.actions lost or reordered rows.`);
+    const sourceFieldPath = action.sourceFieldPath;
+    if (typeof sourceFieldPath !== "string" || seen.has(sourceFieldPath)) throw new Error(`World source ${path}.actions contains duplicate rows.`);
+    seen.add(sourceFieldPath);
+    const requirements = array(action.requirements, `${path}.actions[${actionIndex}].requirements`);
+    countMaybeUnavailable(requirements, action.nativeRequirementGroupCount, action.nativeRequirementGroupCount >= 0, `${path}.actions[${actionIndex}].requirements`);
+    validateRequirements(reference, requirements, `${path}.actions[${actionIndex}].requirements`);
+    const actionType = record(action.type, `${path}.actions[${actionIndex}].type`);
+    if (actionType.value !== 22) {
+      if (action.teleport !== null) throw new Error(`World source ${path}.actions[${actionIndex}] projects a teleport payload for a non-Teleport action.`);
+      return;
+    }
+    if (action.teleport === null) return;
+    const teleport = record(action.teleport, `${path}.actions[${actionIndex}].teleport`);
+    const teleportType = record(teleport.type, `${path}.actions[${actionIndex}].teleport.type`);
+    if (teleportType.value === 0 && teleport.sceneNativeId >= 0) {
+      callReference(reference, `${path}.actions[${actionIndex}].teleport.sceneNativeId`, "scenes", teleport.sceneNativeId);
+    }
+  });
+}
+
+function validateGameActions(reference: Reference, value: unknown, path: string) {
+  const gameActions = record(value, path);
+  const template = gameActions.template;
+  if (template !== null) validateGameActionList(reference, template, `${path}.template`);
+  validateGameActionList(reference, gameActions.inline, `${path}.inline`);
+}
+
 function validateAction(reference: Reference, actionValue: unknown, path: string) {
   const action = record(actionValue, path);
   if ("unavailable" in action) return;
@@ -894,6 +966,8 @@ function validateAction(reference: Reference, actionValue: unknown, path: string
   } else if (targetKind !== undefined) {
     referencePair(reference, path, targetKind, action.referenceId, action.reference);
   }
+  const actionType = record(action.type, `${path}.type`);
+  if (actionType.value === 9) validateGameActions(reference, action.gameActions, `${path}.gameActions`);
   if (action.effectiveProbabilityResolved === true) throw new Error(`World source ${path} claims an unresolved action probability was resolved.`);
 }
 
@@ -1152,7 +1226,7 @@ function validateCondition(reference: Reference, rowValue: unknown, index: numbe
 
 export function validateWorldSources(value: Static<typeof WorldSourcesSchema>, reference: Reference): void {
   const artifact = value as unknown as AnyRecord;
-  if (artifact.schemaVersion !== "compendium.world-sources.v4") throw new Error("World source schema version is invalid.");
+  if (artifact.schemaVersion !== "compendium.world-sources.v5") throw new Error("World source schema version is invalid.");
   const totals = record(artifact.totals, "totals");
   const sourceTotalsValue = record(totals.source, "totals.source");
   const exportedTotalsValue = record(totals.exported, "totals.exported");

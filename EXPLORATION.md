@@ -33,7 +33,7 @@ One woods sample contains 800 NPCSpawner components including inactive objects, 
 
 The 641 OreSpawner records split into 345 Herbalism (skill 6), 286 Mining (skill 7), and 10 Fishing (skill 8). Only 8, 2, and 6 respectively had live CurrentNode objects. Do not categorize all OreSpawner records as mining or extract only their currently generated nodes.
 
-Duskfall Depths loaded 16 NPCSpawner, 85 InteractableObject, and 9 AddressableLoader components at the sample. Its camera was at (2418,-810.12,-957.76), outside its one MapZone extent centered at (1659.18,-778.30,-905.70), size (463.35,605.96). The exact layout/streaming cause remains unresolved. MapZone bounds are not an unconditional screenshot-capture boundary.
+Duskfall Depths loaded 16 NPCSpawner, 85 InteractableObject, and 9 AddressableLoader components at the sample. Its camera was at (2418,-810.12,-957.76), outside its one MapZone extent centered at (1659.18,-778.30,-905.70), size (463.35,605.96). The authored arrival room lies outside this MapZone. Its arrival trigger moves the player into the mapped dungeon without changing scenes. The native transition verification below explains the mismatch. MapZone bounds are not an unconditional screenshot-capture boundary.
 
 ### Relationship measurements
 
@@ -479,7 +479,7 @@ Normal extraction run `f8c1a665-50a5-449f-a104-6a634f3197b0` passed schema, coun
 
 Normal `extract` runs publish serialized inputs under `identities/` and merged facts in `placement-roles.json`. Each `traverse` visit publishes the same artifacts under its step directory. Role facts retain canonical NPC references, source-component IDs, and JSON-pointer evidence. Unplaced sources retain their role facts without receiving a guessed placement.
 
-NPC source schema `compendium.npc-producers.v2` and world-source schema `compendium.world-sources.v4` retain component and GameObject observation IDs. These IDs join records within a native snapshot. Serialized records still determine persistent IDs.
+NPC source schema `compendium.npc-producers.v2` and world-source schema `compendium.world-sources.v5` retain component and GameObject observation IDs. These IDs join records within a native snapshot. Serialized records still determine persistent IDs.
 
 World sources also retain the scene handle and use the all-component GameObject slot. This slot agrees with the identity snapshot. A same-type component count cannot supply this slot. Missing observations, different scene instances, and incompatible component slots cannot fall back to names or coordinates.
 
@@ -506,6 +506,48 @@ Coverage schema `compendium.coverage.v2` binds the role summary to the hashed pl
 The final loaded-scene run retains 100 unplaced sources and 1,087 unresolved role issue occurrences. Unsupported actions, activation semantics, adventurer roster associations, and faction override application remain explicit gaps. Issue occurrences are not counts of distinct missing sources.
 
 TypeScript and all eight regression tests passed. The game footprint was 16 GB with a 24 GB peak. The earlier 94.12 GB growth remains unexplained. Complete-world coverage and primary screenshot coverage remain false.
+
+## Native scene calibration evidence
+
+Normal extraction and each traversal step now publish `scene-catalog.json` and `native-map-registrations.json`. Raw evidence includes `map-geometry.json` and `navigation-geometry.json`. Registration records bind to the geometry artifact hash. Build inputs include `UnityPlayer.dll` because the recovered navigation binding executes engine code.
+
+The catalog compares database `entryName` values with exact Unity build-path basenames. The observed 40 database records produce 32 matches and eight unmatched records. No record has an ambiguous match. All 33 build records remain present, including the unclaimed MainMenu scene. Unmatched records do not become unused, unreachable, or public maps by inference.
+
+MapZone registration uses native samples at `(-1,-1)`, `(0,0)`, `(1,0)`, `(0,1)`, and `(1,1)`. The fit supports rotation and reflection and verifies all world samples and normalized round trips. Singular, non-horizontal, and contradictory samples remain unresolved. Its Y coordinate is the native map plane, not a grounded floor. This is not image calibration or proof of complete capture bounds.
+
+Duskfall registration had a maximum world residual of 0.0001 and normalized residual below 0.000001. Its native player projection agreed with the fitted inverse. Controlled checks covered reflected coordinates, contradictory round trips, and duplicate scene basenames. Evidence is in `artifacts/map-calibration-smoke/d8587f33-8ffa-4f88-a0ac-9b385a72843b/registration-proof.json`.
+
+### Duskfall arrival and transition
+
+Duskfall uses database scene 10 and build scene 28. Its authored arrival position is `(2418,-811,-951)`, outside the MapZone. The `Load new area cave` trigger has a template Position teleport to `(1589,-813,-955)`. Entering its enabled trigger volume through the player controller activated that authored action. The player and camera moved into the MapZone without changing scene instances.
+
+The visit restored the original scene, player position, and rotation. Its native owner reported clean cleanup with no remaining callbacks. Geometry, transition, and role evidence are in `artifacts/map-calibration-smoke/90e3c65f-4b10-4d81-be50-f7d6da1acc23/proof.json`.
+
+World-source schema `compendium.world-sources.v5` preserves template and inline GameActions separately in native execution order. Nested rows retain discriminators, chance, requirement groups, and teleport payloads. Template instance IDs and native IDs remain observations, not canonical identities. Supported Position and GameScene teleports qualify as transitions. Target teleports and unsupported effects retain explicit issues.
+
+A known teleport retains its role when an unresolved sibling action exists. An empty payload retains an explicit blocker. Both defects were reproduced with controlled inputs and then passed with the corrected collector. The replay also checked Target teleports and scene-reference handling. Evidence is in `artifacts/map-calibration-smoke/90e3c65f-4b10-4d81-be50-f7d6da1acc23/game-actions-proof.json`.
+
+### Geometry and navigation scope
+
+`compendium.map-geometry.v3` records scene-local renderers, shared mesh metadata, terrain data, navigation surfaces, regions, MapZones, and grounded landmark samples. Native query counts retain foreign-scene observations separately. Disabled objects remain included. These observations do not establish complete streamed geometry coverage.
+
+The generated bindings omit `NavMesh.CalculateTriangulation`. The engine still resolves `UnityEngine.AI.NavMesh::CalculateTriangulation_Injected`. Native inspection verified its three-array-pointer ABI at UnityPlayer RVA `0x169000`. The evidence and engine hash are in `artifacts/map-calibration-smoke/native-triangulation-abi.json`.
+
+`compendium.navigation-geometry.v2` stores flat world-XYZ coordinates, triangle indices, and area indices. Duskfall produced 26,093 vertices and 11,639 triangles. Coalway woods produced 1,716,233 vertices and 777,867 triangles. Flat arrays avoid allocating one managed object per vertex. The query covers all loaded navigation data, so per-triangle surface ownership remains unresolved.
+
+Duskfall navigation spans about 999 by 999 world units and 185 units of height. Its broad flat surface and higher geometry do not establish the dungeon's playable boundary. Triangulation excludes off-mesh links and detailed grounding geometry. Unity documents this distinction in its [CalculateTriangulation reference](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/AI.NavMesh.CalculateTriangulation.html). Native grounding samples remain separate evidence.
+
+Normal extraction `c1ae0311-9a9d-442e-80a6-cd670f9fbc9f` registered geometry, the scene catalog, engine identity, and verified woods coordinates. Isolated dungeon traversal `d87f275a-341b-485e-ab56-322e3aa09ece` completed and restored the source scene under the existing deadline. Its release coverage remained blocked.
+
+Combined traversal `d0b2e5c5-5c57-4bbc-87d6-bc375e56e8fb` completed the swamp step but exceeded the dungeon step's 100-second deadline during restoration. Dungeon loading consumed 68.5 seconds, and extraction finished before the deadline. Automatic cleanup then completed with no errors or remaining callbacks. The failed run remains recorded as failed. The isolated verification did not relax the deadline.
+
+Woods and swamp retained identical native basis transforms. Their player landmarks and the outside Duskfall arrival matched native normalized coordinates without clamping. Artifact hashes, engine identity, and successful step restoration were checked in `artifacts/map-calibration-smoke/integration-proof.json`.
+
+TypeScript, all eight regression tests, and strict OpenSpec validation passed. Verified replay drivers and traversal plans are archived under `artifacts/map-calibration-smoke/drivers/`. The archived registration, nested-action, and artifact-provenance replays also passed.
+
+The canceled traversal manifest records socket closure, while the CLI reports the originating deadline. Root-cause preservation in canceled run manifests remains unresolved.
+
+The measured game footprint after the combined run was 23 GB with a 24 GB peak. The earlier 94.12 GB growth remains unexplained. Rendered map-space definitions, reviewed floor assignments, and primary screenshot coverage remain incomplete.
 
 ## Exclusive runtime ownership
 

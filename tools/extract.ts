@@ -13,6 +13,8 @@ import { PlacementSnapshotSchema } from "./placement-contracts";
 import { prepareSceneIdentities } from "./scene-identities";
 import { collectNpcRoleFacts } from "./npc-roles";
 import { collectPlacementRoles } from "./placement-roles";
+import { MapGeometrySchema, NavigationGeometrySchema, NativeMapRegistrationSetSchema } from "./map-contracts";
+import { collectSceneCatalog, fitNativeMapRegistration, validateSceneGeometry } from "./map-calibration";
 import { createCoverageLedger } from "./coverage";
 import { beginRun } from "./runs";
 import type { Runtime } from "./runtime";
@@ -28,11 +30,11 @@ function parseArtifact<T extends TSchema>(schema: T, value: unknown): Static<T> 
 }
 
 export async function extract(runtime: Runtime, config: CompendiumConfig, identity: Awaited<ReturnType<typeof buildIdentity>>) {
-  const names = ["canonical", "localization", "support", "relationships", "loot-rules", "world-inventory", "faction-roles", "npc-producers", "world-sources", "placement-snapshot"] as const;
+  const names = ["canonical", "localization", "support", "relationships", "loot-rules", "world-inventory", "faction-roles", "npc-producers", "world-sources", "placement-snapshot", "map-geometry", "navigation-geometry"] as const;
   const prelude = resolve(import.meta.dir, "probes/conditions.csx");
   const inputHashes: Record<string, string> = { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, conditions: await hashFile(prelude) };
   for (const name of names) inputHashes[name] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-contracts", "placement-identities", "scene-identities", "serialized-assets"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-contracts", "placement-identities", "scene-identities", "serialized-assets", "map-contracts", "map-calibration"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   for (const path of ["probes/addressable-locations.csx", "serialized-assets.py", "../pyproject.toml", "../uv.lock"]) inputHashes[`tool:${path}`] = await hashFile(resolve(import.meta.dir, path));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "extract",
@@ -69,11 +71,26 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
     const worldSources = parseArtifact(WorldSourcesSchema, raw["world-sources"]);
     const factionRoles = parseArtifact(FactionRolesSchema, raw["faction-roles"]);
     const placementSnapshot = parseArtifact(PlacementSnapshotSchema, raw["placement-snapshot"]);
-    for (const name of ["faction-roles", "npc-producers", "world-sources", "placement-snapshot"]) {
+    const mapGeometry = parseArtifact(MapGeometrySchema, raw["map-geometry"]);
+    const navigationGeometry = parseArtifact(NavigationGeometrySchema, raw["navigation-geometry"]);
+    validateSceneGeometry(mapGeometry, navigationGeometry);
+    if (mapGeometry.scene.handle !== placementSnapshot.context.scene.handle || mapGeometry.scene.nativeId !== placementSnapshot.context.gameSceneNativeId) throw new Error("Calibration extraction crossed a scene instance boundary.");
+    for (const name of ["faction-roles", "npc-producers", "world-sources", "placement-snapshot", "map-geometry", "navigation-geometry"]) {
       const context = observations[name]!;
       if (context.completed.scene.handle !== placementSnapshot.context.scene.handle || context.completed.gameSceneNativeId !== placementSnapshot.context.gameSceneNativeId) throw new Error("Role extraction crossed a scene instance boundary.");
     }
     const inventoryValidation = validateWorldInventory(worldInventory, canonical);
+    const sceneCatalog = collectSceneCatalog(identity.buildId, worldInventory);
+    const nativeMapRegistrations = {
+      schemaVersion: "compendium.native-map-registrations.v1", buildId: identity.buildId, scene: mapGeometry.scene,
+      source: { path: "raw/map-geometry.json", sha256: observations["map-geometry"]!.artifactSha256 },
+      registrations: mapGeometry.mapZones.map(fitNativeMapRegistration),
+    };
+    Assert(NativeMapRegistrationSetSchema, nativeMapRegistrations);
+    for (const [path, value] of [["scene-catalog.json", sceneCatalog], ["native-map-registrations.json", nativeMapRegistrations]] as const) {
+      await Bun.write(resolve(run.directory, path), JSON.stringify(value, null, 2) + "\n");
+      await run.addArtifact(path);
+    }
     const ids: Record<string, Set<number>> = {};
     for (const kind of canonicalKinds) {
       const rows = canonical[kind];
@@ -208,6 +225,9 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       worldSources: { totals: worldSources.totals, diagnostics: worldSources.unresolved },
       placementIdentities: { resolved: preparedIdentities.result.identities.length, diagnostics: preparedIdentities.result.unresolved },
       placementRoles: { summary: placementRoles.summary, diagnostics: placementRoles.unresolved },
+      sceneCatalog: sceneCatalog.summary,
+      nativeMapRegistrations: nativeMapRegistrations.registrations,
+      navigationGeometry: { vertices: navigationGeometry.vertexCount, triangles: navigationGeometry.triangleCount, scope: navigationGeometry.scope, surfaceOwnership: navigationGeometry.surfaceOwnership },
       observations,
     };
     await Bun.write(resolve(run.directory, "validation.json"), `${JSON.stringify(validation, null, 2)}\n`);

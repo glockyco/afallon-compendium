@@ -52,6 +52,38 @@ The ledger SHALL retain conditional and generated content and group diagnostics 
 - **AND** it binds issue and unplaced-source counts to the hashed role artifact
 - **AND** role issue occurrences do not inflate raw distinct diagnostic-source counts
 
+#### Scenario: Nested actions mix known and unresolved behavior
+- **WHEN** template or inline GameActions contain a supported teleport and an unresolved sibling action
+- **THEN** the source retains its transition role and condition evidence
+- **AND** the unresolved sibling remains a coverage blocker
+- **AND** the exported action lists preserve template-then-inline execution order
+
+#### Scenario: Nested actions have no supported destination
+- **WHEN** a GameActions payload is empty or contains only an unresolved Target teleport
+- **THEN** the source retains an explicit role issue
+- **AND** it does not receive an inferred transition role
+
+### Requirement: Native spatial calibration evidence
+
+The extractor SHALL retain exact scene-binding candidates and native coordinate registration independently from rendered map spaces. Missing or ambiguous scene bindings SHALL remain explicit. Registration SHALL use native sample results and record residuals. Contradictory, singular, or non-horizontal samples SHALL remain unresolved.
+
+Geometry observations SHALL retain query scope and world Y coordinates. Navigation triangles SHALL NOT establish complete playable coverage, exact grounding heights, or floor ownership. Snapshot inputs SHALL include the native engine hash used by the geometry binding.
+
+#### Scenario: A database name matches multiple build scenes
+- **WHEN** an exact database entry name matches multiple Unity build-path basenames
+- **THEN** the catalog retains every candidate and marks the binding ambiguous
+- **AND** it does not select a build scene from record order
+
+#### Scenario: Native map samples contradict a fitted transform
+- **WHEN** a world sample or native normalized round trip exceeds the registration tolerance
+- **THEN** registration remains unresolved with a diagnostic
+- **AND** it does not clamp coordinates or substitute database map bounds
+
+#### Scenario: Navigation geometry covers unrelated elevations
+- **WHEN** loaded navigation data includes multiple elevations or geometry outside verified gameplay landmarks
+- **THEN** the snapshot retains that geometry and its observation scope
+- **AND** its combined bounds do not become validated screenshot bounds or floor assignments
+
 ### Requirement: Separate spatial identities and observations
 
 The snapshot SHALL distinguish canonical entities, source scenes, rendered map spaces, authored placements or producers, and observed instances. Distinct placements SHALL retain distinct identities even when they share an entity. Identities SHALL remain stable across equivalent extractions of the same build. Unproven cross-build identity matches SHALL remain explicit rather than silently merged.

@@ -514,6 +514,95 @@ var worldSource = new System.Func<UnityEngine.Component, string, int, object>((c
     };
 });
 
+var worldGameActionUnsupported = new System.Func<Il2Cpp.GameActionsData.GameAction, bool>((gameAction) =>
+{
+    if (gameAction == null || gameAction.type != Il2Cpp.GameActionsData.GameActionType.Teleport)
+    {
+        return true;
+    }
+    if (gameAction.TeleportType == Il2Cpp.GameActionsData.TeleportType.Position)
+    {
+        return false;
+    }
+    if (gameAction.TeleportType == Il2Cpp.GameActionsData.TeleportType.GameScene)
+    {
+        return gameAction.GameSceneID < 0;
+    }
+    return true;
+});
+
+var worldGameActionProjection = new System.Func<Il2Cpp.GameActionsData.GameAction, string, int, bool, object>((gameAction, sourcePath, sourceIndex, diagnoseUnsupported) =>
+{
+    if (gameAction == null)
+    {
+        if (diagnoseUnsupported) unresolved.Add(new { kind = "gameAction", sourceFieldPath = sourcePath, detail = "The authored nested GameAction row is null." });
+        return new { sourceFieldPath = sourcePath, unavailable = "null authored nested GameAction row" };
+    }
+    var nativeRequirementGroups = gameAction.Requirements;
+    var requirementGroupCount = nativeRequirementGroups == null ? 0 : nativeRequirementGroups.Count;
+    var requirementGroups = new System.Collections.Generic.List<object>();
+    for (var groupIndex = 0; groupIndex < requirementGroupCount; groupIndex++)
+    {
+        var groupPath = sourcePath + ".Requirements[" + groupIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+        requirementGroups.Add(projectGroup(nativeRequirementGroups[groupIndex], groupPath, groupIndex));
+    }
+    var isTeleport = gameAction.type == Il2Cpp.GameActionsData.GameActionType.Teleport;
+    var teleportType = gameAction.TeleportType;
+    if (diagnoseUnsupported && isTeleport && worldGameActionUnsupported(gameAction))
+    {
+        unresolved.Add(new
+        {
+            kind = teleportType == Il2Cpp.GameActionsData.TeleportType.Target ? "unresolvedGameActionTargetTeleport" : "unsupportedGameAction",
+            sourceFieldPath = sourcePath,
+            actionType = gameAction.type.ToString(),
+            teleportType = teleportType.ToString(),
+            detail = teleportType == Il2Cpp.GameActionsData.TeleportType.GameScene && gameAction.GameSceneID < 0 ? "GameScene teleport has no authored destination scene ID." : "The nested teleport payload is not a supported resolved destination."
+        });
+    }
+    else if (diagnoseUnsupported && !isTeleport)
+    {
+        unresolved.Add(new { kind = "unsupportedGameAction", sourceFieldPath = sourcePath, actionType = gameAction.type.ToString(), detail = "The nested GameAction kind is retained but its effect is not projected." });
+    }
+    return new
+    {
+        sourceFieldPath = sourcePath,
+        sourceIndex = sourceIndex,
+        type = new { value = (int)gameAction.type, name = gameAction.type.ToString() },
+        chance = gameAction.chance,
+        nativeRequirementGroupCount = nativeRequirementGroups == null ? -1 : requirementGroupCount,
+        requirements = requirementGroups,
+        teleport = isTeleport ? (object)new
+        {
+            type = new { value = (int)teleportType, name = teleportType.ToString() },
+            sceneNativeId = gameAction.GameSceneID,
+            position = new { x = gameAction.Position.x, y = gameAction.Position.y, z = gameAction.Position.z },
+            rotation = new { x = gameAction.Rotation.x, y = gameAction.Rotation.y, z = gameAction.Rotation.z }
+        } : null,
+        unsupported = worldGameActionUnsupported(gameAction)
+    };
+});
+
+var worldGameActionListProjection = new System.Func<Il2CppSystem.Collections.Generic.List<Il2Cpp.GameActionsData.GameAction>, string, bool, object>((actions, sourcePath, diagnoseUnsupported) =>
+{
+    var rows = new System.Collections.Generic.List<object>();
+    var actionCount = actions == null ? 0 : actions.Count;
+    for (var index = 0; index < actionCount; index++)
+    {
+        rows.Add(worldGameActionProjection(actions[index], sourcePath + "[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]", index, diagnoseUnsupported));
+    }
+    return rows;
+});
+
+var worldGameActionListUnsupported = new System.Func<Il2CppSystem.Collections.Generic.List<Il2Cpp.GameActionsData.GameAction>, bool>((actions) =>
+{
+    if (actions == null) return false;
+    for (var index = 0; index < actions.Count; index++)
+    {
+        if (worldGameActionUnsupported(actions[index])) return true;
+    }
+    return false;
+});
+
 var worldActionProjection = new System.Func<Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectAction, string, object>((action, sourcePath) =>
 {
     if (action == null)
@@ -523,6 +612,26 @@ var worldActionProjection = new System.Func<Il2CppBLINK.RPGBuilder.World.Interac
     }
     var actionTypeName = action.type.ToString();
     var payloadUnsupported = false;
+    var templateActions = action.GameActionsTemplate == null ? null : action.GameActionsTemplate.GameActions;
+    var inlineActions = action.GameActions;
+    var diagnoseGameActions = action.type == Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.GameActions;
+    var gameActionsTemplate = action.GameActionsTemplate == null ? null : (object)new
+    {
+        instanceId = action.GameActionsTemplate.GetInstanceID(),
+        nativeId = action.GameActionsTemplate.ID,
+        name = getEntryName(action.GameActionsTemplate),
+        internalName = action.GameActionsTemplate.entryName,
+        fileName = action.GameActionsTemplate.entryFileName,
+        available = templateActions != null,
+        nativeActionCount = templateActions == null ? -1 : templateActions.Count,
+        actions = worldGameActionListProjection(templateActions, sourcePath + ".GameActionsTemplate.GameActions", diagnoseGameActions)
+    };
+    var gameActionsInline = (object)new
+    {
+        available = inlineActions != null,
+        nativeActionCount = inlineActions == null ? -1 : inlineActions.Count,
+        actions = worldGameActionListProjection(inlineActions, sourcePath + ".GameActions", diagnoseGameActions)
+    };
     var supportedReference = (object)null;
     var referenceKind = (string)null;
     var referenceId = (int?)null;
@@ -574,11 +683,20 @@ var worldActionProjection = new System.Func<Il2CppBLINK.RPGBuilder.World.Interac
         referenceId = action.LootTable == null ? (int?)null : (int?)action.LootTable.ID;
         supportedReference = action.LootTable == null ? null : (object)worldLootReference(action.LootTable);
     }
-    else if (action.type == Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.GameActions ||
-        action.type == Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.UnityEvent)
+    else if (action.type == Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.GameActions)
+    {
+        var hasTemplateActions = templateActions != null && templateActions.Count > 0;
+        var hasInlineActions = inlineActions != null && inlineActions.Count > 0;
+        payloadUnsupported = (!hasTemplateActions && !hasInlineActions) || worldGameActionListUnsupported(templateActions) || worldGameActionListUnsupported(inlineActions);
+        if (payloadUnsupported)
+        {
+            unresolved.Add(new { kind = "unsupportedInteractableAction", sourceFieldPath = sourcePath, actionType = actionTypeName, detail = "The authored GameActions payload contains no supported nested action or contains unresolved nested action semantics." });
+        }
+    }
+    else if (action.type == Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.UnityEvent)
     {
         payloadUnsupported = true;
-        unresolved.Add(new { kind = "unsupportedInteractableAction", sourceFieldPath = sourcePath, actionType = actionTypeName, detail = "The action is authored, but its GameActions or UnityEvent payload is not projected by this probe." });
+        unresolved.Add(new { kind = "unsupportedInteractableAction", sourceFieldPath = sourcePath, actionType = actionTypeName, detail = "The action is authored, but its UnityEvent payload is not projected by this probe." });
     }
     else if (action.type != Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.GiveCharacterExperience &&
         action.type != Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.SaveCharacter)
@@ -611,8 +729,12 @@ var worldActionProjection = new System.Func<Il2CppBLINK.RPGBuilder.World.Interac
         task = action.Task == null ? null : (object)projectEntry(action.Task),
         resource = action.Resource == null ? null : (object)worldResourceReference(action.Resource),
         lootTable = action.LootTable == null ? null : (object)worldLootReference(action.LootTable),
-        gameActionsTemplate = action.GameActionsTemplate == null ? null : (object)projectObject(action.GameActionsTemplate),
-        gameActionsCount = action.GameActions == null ? -1 : action.GameActions.Count,
+        gameActions = new
+        {
+            executionOrder = "template-then-inline",
+            template = gameActionsTemplate,
+            inline = gameActionsInline
+        },
         unityEventAvailable = action.unityEvents != null,
         unsupported = payloadUnsupported
     };
@@ -2030,7 +2152,7 @@ var worldExportedTotal = new
 
 return new
 {
-    schemaVersion = "compendium.world-sources.v4",
+    schemaVersion = "compendium.world-sources.v5",
     coverage = new
     {
         scope = "currently loaded Unity scenes and candidate prefab assets visible to the current process",

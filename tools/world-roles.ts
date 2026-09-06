@@ -166,6 +166,110 @@ function validActionReference(
 }
 
 type ResolvedAction = { name: string; evidence: RoleEvidence[] };
+type NestedGameActionsResult = { supported: number; blocked: boolean; evidence: RoleEvidence[] };
+
+function nestedActionEvidence(action: RecordValue, actionPath: string): RoleEvidence[] {
+  const evidence = refs(`${actionPath}/type`, `${actionPath}/chance`, `${actionPath}/requirements`);
+  const requirements = array(action.requirements);
+  requirements?.forEach((group, groupIndex) => {
+    evidence.push(...refs(`${actionPath}/requirements/${groupIndex}`));
+    const requirementGroup = record(group);
+    const rows = requirementGroup === null ? null : array(requirementGroup.requirements);
+    rows?.forEach((_requirement, requirementIndex) => evidence.push(...refs(`${actionPath}/requirements/${groupIndex}/requirements/${requirementIndex}`)));
+  });
+  return evidence;
+}
+
+function validTeleportPosition(value: unknown): boolean {
+  const position = record(value);
+  return position !== null && typeof position.x === "number" && Number.isFinite(position.x)
+    && typeof position.y === "number" && Number.isFinite(position.y)
+    && typeof position.z === "number" && Number.isFinite(position.z);
+}
+
+function inspectNestedGameActionList(value: unknown, listPath: string, issues: RoleIssue[]): NestedGameActionsResult {
+  const list = record(value);
+  if (list === null) return { supported: 0, blocked: true, evidence: refs(listPath) };
+  const actions = array(list.actions);
+  if (list.available !== true || actions === null || actions.length === 0) return { supported: 0, blocked: false, evidence: refs(`${listPath}/available`, `${listPath}/nativeActionCount`, `${listPath}/actions`) };
+  let supported = 0;
+  let blocked = false;
+  const evidence: RoleEvidence[] = [];
+  actions.forEach((value, actionIndex) => {
+    const actionPath = `${listPath}/actions/${actionIndex}`;
+    const action = record(value);
+    if (action === null || typeof action.unavailable === "string") {
+      issue(issues, "unavailableNestedGameAction", action?.unavailable as string ?? "The nested GameAction row is unavailable. Its behavior is not established.", refs(actionPath));
+      blocked = true;
+      return;
+    }
+    const actionType = record(action.type);
+    const actionName = valueName(action.type);
+    const actionEvidence = nestedActionEvidence(action, actionPath);
+    evidence.push(...actionEvidence);
+    if (actionType === null || actionName === null) {
+      issue(issues, "unsupportedNestedGameAction", "The nested GameAction has no native type projection. Its effect is not established.", actionEvidence.length > 0 ? actionEvidence : refs(actionPath));
+      blocked = true;
+      return;
+    }
+    const teleport = record(action.teleport);
+    const teleportType = teleport === null ? null : record(teleport.type);
+    const teleportEvidence = teleport === null ? [] : refs(`${actionPath}/teleport`, `${actionPath}/teleport/type`, `${actionPath}/teleport/sceneNativeId`, `${actionPath}/teleport/position`, `${actionPath}/teleport/rotation`);
+    evidence.push(...teleportEvidence);
+    if (action.unsupported === true) {
+      const targetEvidence = teleport === null ? actionEvidence : [...actionEvidence, ...teleportEvidence];
+      const targetIssue = actionName === "Teleport" && teleportType?.value === 2;
+      const invalidScene = actionName === "Teleport" && teleportType?.value === 0;
+      issue(issues, targetIssue ? "unresolvedNestedTargetTeleport" : invalidScene ? "invalidNestedTeleportDestination" : "unsupportedNestedGameAction", targetIssue ? "Target teleport destination remains unresolved." : invalidScene ? "GameScene teleport has an invalid destination scene ID." : `Nested GameAction ${actionName} is retained but its effect is not supported.`, targetEvidence);
+      blocked = true;
+      return;
+    }
+    if (actionType.value !== 22 || actionName !== "Teleport") {
+      issue(issues, "unsupportedNestedGameAction", `Nested GameAction ${actionName} is retained but its effect is not supported.`, actionEvidence);
+      blocked = true;
+      return;
+    }
+    if (teleport === null || teleportType === null) {
+      issue(issues, "invalidNestedTeleportDestination", "Teleport action has no projected teleport payload.", [...actionEvidence, ...refs(`${actionPath}/teleport`) ]);
+      blocked = true;
+      return;
+    }
+    if (teleportType.value === 1 && validTeleportPosition(teleport.position) && validTeleportPosition(teleport.rotation)) {
+      supported++;
+      return;
+    }
+    if (teleportType.value === 0 && typeof teleport.sceneNativeId === "number" && Number.isInteger(teleport.sceneNativeId) && teleport.sceneNativeId >= 0) {
+      supported++;
+      return;
+    }
+    if (teleportType.value === 2) {
+      issue(issues, "unresolvedNestedTargetTeleport", "Target teleport destination remains unresolved.", [...actionEvidence, ...teleportEvidence]);
+    } else {
+      issue(issues, "invalidNestedTeleportDestination", "Teleport action has an invalid destination payload.", [...actionEvidence, ...teleportEvidence]);
+    }
+    blocked = true;
+  });
+  return { supported, blocked, evidence };
+}
+
+function inspectGameActions(action: RecordValue, actionPath: string, issues: RoleIssue[]): ResolvedAction | null {
+  const gameActions = record(action.gameActions);
+  if (gameActions === null) {
+    issue(issues, "unsupportedGameAction", "GameActions action has no projected template or inline payload.", refs(`${actionPath}/type`, `${actionPath}/gameActions`));
+    return null;
+  }
+  const evidence = refs(`${actionPath}/type`, `${actionPath}/gameActions/executionOrder`, `${actionPath}/gameActions/template`, `${actionPath}/gameActions/inline`);
+  const template = gameActions.template === null ? null : inspectNestedGameActionList(gameActions.template, `${actionPath}/gameActions/template`, issues);
+  const inline = inspectNestedGameActionList(gameActions.inline, `${actionPath}/gameActions/inline`, issues);
+  const supported = (template?.supported ?? 0) + inline.supported;
+  const blocked = (template?.blocked ?? false) || inline.blocked;
+  evidence.push(...(template?.evidence ?? []), ...inline.evidence);
+  if (supported === 0) {
+    if (!blocked) issue(issues, "unsupportedGameAction", "GameActions action has no supported nested teleport payload.", evidence);
+    return null;
+  }
+  return { name: "GameActions", evidence };
+}
 
 function inspectAction(value: unknown, actionPath: string, issues: RoleIssue[]): ResolvedAction | null {
   const action = record(value);
@@ -184,12 +288,13 @@ function inspectAction(value: unknown, actionPath: string, issues: RoleIssue[]):
     issue(issues, "unsupportedActionType", "The action has no native type projection, so its behavior is not established.", typeEvidence.length > 0 ? typeEvidence : refs(actionPath));
     return null;
   }
-  if (action.unsupported === true || actionName === "GameActions" || actionName === "UnityEvent") {
+  if (actionName === "GameActions") return inspectGameActions(action, actionPath, issues);
+  if (action.unsupported === true || actionName === "UnityEvent") {
     issue(
       issues,
       "unsupportedGameAction",
       `${actionName} action payload is not projected; no useful interaction role is inferred from it.`,
-      refs(`${actionPath}/type`, `${actionPath}/gameActionsTemplate`, `${actionPath}/gameActionsCount`, `${actionPath}/unityEventAvailable`),
+      refs(`${actionPath}/type`, `${actionPath}/unityEventAvailable`),
     );
     return null;
   }
@@ -219,6 +324,9 @@ function collectInteractableActions(row: RecordValue, rowPath: string, facts: Fa
       addFact(facts, "usefulInteraction", resolved.evidence);
     } else if (resolved.name === "Quest" || resolved.name === "CompleteTask") {
       addFact(facts, "questLocation", resolved.evidence);
+      addFact(facts, "usefulInteraction", resolved.evidence);
+    } else if (resolved.name === "GameActions") {
+      addFact(facts, "transition", resolved.evidence);
       addFact(facts, "usefulInteraction", resolved.evidence);
     } else {
       addFact(facts, "usefulInteraction", resolved.evidence);
