@@ -6,6 +6,15 @@ const nullableText = Type.Union([text, Type.Null()]);
 const rawObject = Type.Record(text, Type.Unknown());
 const rawRows = Type.Array(rawObject);
 const definition = Type.Object({ nativeId: integer, name: nullableText, internalName: nullableText });
+const observationState = Type.Object({
+  researchCharacter: text, frame: integer,
+  scene: Type.Object({ name: text, path: text, handle: integer, isLoaded: Type.Literal(true) }),
+  gameSceneNativeId: Type.Union([integer, Type.Null()]),
+});
+export const ObservationContextSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.observation-context.v1"),
+  started: observationState, completed: observationState,
+});
 const canonicalEntry = Type.Object({
   sourceKey: integer, nativeId: integer, name: nullableText, internalName: nullableText,
   description: nullableText, localization: rawObject, icon: rawObject, gameplay: rawObject,

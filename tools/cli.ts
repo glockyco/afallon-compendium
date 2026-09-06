@@ -47,7 +47,7 @@ async function main() {
     }
     if (command === "extract") {
       const result = await extract(runtime, config, identity);
-      console.log(JSON.stringify({ ok: true, buildId: identity.buildId, manifest: result.manifest, counts: result.validation.canonicalTotals, worldInventory: result.validation.worldInventory.totals, unresolvedReferences: result.validation.unresolved.length, diagnostics: { unsetReferences: result.validation.unset.length, quantityRanges: result.validation.quantityDiagnostics.length, relationships: result.validation.relationshipDiagnostics.length, blankDisplayNames: result.validation.blankDisplayNames.length, worldInventory: result.validation.worldInventory.diagnostics.length }, fullGameCoverage: false }, null, 2));
+      console.log(JSON.stringify({ ok: true, buildId: identity.buildId, manifest: result.manifest, counts: result.validation.canonicalTotals, worldInventory: result.validation.worldInventory.totals, npcProducers: result.validation.npcProducers.exportedTotals, worldSources: result.validation.worldSources.totals.exported, unresolvedReferences: result.validation.unresolved.length, diagnostics: { unsetReferences: result.validation.unset.length, quantityRanges: result.validation.quantityDiagnostics.length, relationships: result.validation.relationshipDiagnostics.length, blankDisplayNames: result.validation.blankDisplayNames.length, worldInventory: result.validation.worldInventory.diagnostics.length, npcProducers: result.validation.npcProducers.diagnostics.length, worldSources: result.validation.worldSources.diagnostics.length }, fullGameCoverage: false }, null, 2));
       return;
     }
     const source = command === "probe" ? resolve(values.probe!) : resolve(import.meta.dir, "probes/inspect.csx");

@@ -4,7 +4,9 @@ import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
 import type { CompendiumConfig } from "./config";
-import { CanonicalSchema, LocalizationSchema, LootRulesSchema, RelationshipsSchema, SupportSchema, WorldInventorySchema, canonicalKinds } from "./contracts";
+import { CanonicalSchema, LocalizationSchema, LootRulesSchema, ObservationContextSchema, RelationshipsSchema, SupportSchema, WorldInventorySchema, canonicalKinds } from "./contracts";
+import { NpcProducersSchema, validateNpcProducers } from "./npc-extraction";
+import { WorldSourcesSchema, validateWorldSources } from "./world-extraction";
 import { beginRun } from "./runs";
 import type { Runtime } from "./runtime";
 
@@ -19,24 +21,34 @@ function parseArtifact<T extends TSchema>(schema: T, value: unknown): Static<T> 
 }
 
 export async function extract(runtime: Runtime, config: CompendiumConfig, identity: Awaited<ReturnType<typeof buildIdentity>>) {
-  const names = ["canonical", "localization", "support", "relationships", "loot-rules", "world-inventory"] as const;
+  const names = ["canonical", "localization", "support", "relationships", "loot-rules", "world-inventory", "npc-producers", "world-sources"] as const;
   const prelude = resolve(import.meta.dir, "probes/conditions.csx");
   const inputHashes: Record<string, string> = { ...identity.inputHashes, conditions: await hashFile(prelude) };
   for (const name of names) inputHashes[name] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
+  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "extract",
-    settings: { character: config.character, timeoutMs: config.timeoutMs, scope: "canonical records, authored relationships, and loaded world inventory; not full world coverage" },
+    settings: { character: config.character, timeoutMs: config.timeoutMs, scope: "canonical records, authored relationships and producers, and loaded world observations; not full world coverage" },
   });
   try {
     await mkdir(resolve(run.directory, "raw"));
     const raw: Partial<Record<(typeof names)[number], unknown>> = {};
+    const observations: Record<string, Static<typeof ObservationContextSchema> & { artifactSha256: string }> = {};
     for (const name of names) {
       const result = await runtime.probe(resolve(import.meta.dir, `probes/${name}.csx`), resolve(run.directory, `raw/${name}.json`), {
-        preludeFile: name === "relationships" ? prelude : undefined,
+        preludeFile: name === "relationships" || name === "npc-producers" || name === "world-sources" ? prelude : undefined,
         parameters: { researchCharacter: config.character },
+        captureContext: true,
       });
       const artifact = await run.addArtifact(`raw/${name}.json`);
       if (artifact.sha256 !== result.reference.sha256) throw new Error(`The ${name} artifact changed before registration.`);
+      const context = parseArtifact(ObservationContextSchema, result.observationContext);
+      if (context.started.researchCharacter !== config.character || context.completed.researchCharacter !== config.character) throw new Error(`The ${name} probe observed a different character.`);
+      if (context.started.scene.handle !== context.completed.scene.handle || context.started.gameSceneNativeId !== context.completed.gameSceneNativeId || context.completed.frame < context.started.frame) throw new Error(`The ${name} probe crossed an observation boundary.`);
+      observations[name] = { ...context, artifactSha256: artifact.sha256 };
+      const contextPath = `raw/${name}.context.json`;
+      await Bun.write(resolve(run.directory, contextPath), `${JSON.stringify(observations[name], null, 2)}\n`);
+      await run.addArtifact(contextPath);
       raw[name] = result.value;
     }
     const canonical = parseArtifact(CanonicalSchema, raw.canonical);
@@ -45,6 +57,8 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
     const relationships = parseArtifact(RelationshipsSchema, raw.relationships);
     const lootRules = parseArtifact(LootRulesSchema, raw["loot-rules"]);
     const worldInventory = parseArtifact(WorldInventorySchema, raw["world-inventory"]);
+    const npcProducers = parseArtifact(NpcProducersSchema, raw["npc-producers"]);
+    const worldSources = parseArtifact(WorldSourcesSchema, raw["world-sources"]);
     for (const [kind, count] of Object.entries(worldInventory.sourceTotals)) {
       if (count < 0 || count !== worldInventory.exportedTotals[kind]) throw new Error(`World inventory counts do not reconcile for ${kind}.`);
     }
@@ -95,6 +109,11 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       if (nativeId < 0) unset.push({ source, targetKind, nativeId });
       else if (!ids[targetKind]?.has(nativeId)) unresolved.push({ source, targetKind, nativeId });
     };
+    validateNpcProducers(npcProducers, reference);
+    validateWorldSources(worldSources, reference);
+    for (const [name, context] of Object.entries(observations)) {
+      if (context.started.gameSceneNativeId !== null) reference(`${name}.context.gameScene`, "scenes", context.started.gameSceneNativeId);
+    }
     for (const row of relationships.merchantBindings) {
       reference(`npc:${row.ownerNativeId}.merchant[${row.bindingIndex}]`, "npcs", row.ownerNativeId);
       reference(`npc:${row.ownerNativeId}.merchant[${row.bindingIndex}]`, "merchantTables", row.merchantTableID);
@@ -179,6 +198,9 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       relationshipDiagnostics: relationships.unresolved,
       lootRuleVerification: lootRules.observation,
       worldInventory: { totals: worldInventory.sourceTotals, coverage: worldInventory.coverage, diagnostics: worldInventory.unresolved },
+      npcProducers: { sourceTotals: npcProducers.sourceTotals, exportedTotals: npcProducers.exportedTotals, diagnostics: npcProducers.unresolved },
+      worldSources: { totals: worldSources.totals, diagnostics: worldSources.unresolved },
+      observations,
     };
     await Bun.write(resolve(run.directory, "validation.json"), `${JSON.stringify(validation, null, 2)}\n`);
     await run.addArtifact("validation.json");

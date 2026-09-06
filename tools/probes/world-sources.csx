@@ -1170,6 +1170,10 @@ for (var index = 0; index < worldInteractableCount; index++)
         actions.Add(worldActionProjection(nativeActions[actionIndex], sourcePath + ".Actions[" + actionIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]"));
     }
     var requirements = interactable.RequirementsTemplate == null ? null : (object)worldTemplateProjection(interactable.RequirementsTemplate, sourcePath + ".RequirementsTemplate");
+    var nativeRanks = interactable.RequiredNPCRanks;
+    var rankCount = nativeRanks == null ? 0 : nativeRanks.Count;
+    var ranks = new System.Collections.Generic.List<string>(rankCount);
+    for (var rankIndex = 0; rankIndex < rankCount; rankIndex++) ranks.Add(nativeRanks[rankIndex]);
     worldInteractions.Add(new
     {
         source = sourceEvidence,
@@ -1198,7 +1202,9 @@ for (var index = 0; index < worldInteractableCount; index++)
         maxDistance = interactable.MaxDistance,
         lootWindowGathering = interactable.LootWindowGathering,
         allowNPCInteraction = interactable.AllowNPCInteraction,
-        requiredNPCRanks = interactable.RequiredNPCRanks
+        requiredNPCRanksAvailable = nativeRanks != null,
+        requiredNPCRankCount = nativeRanks == null ? -1 : rankCount,
+        requiredNPCRanks = ranks
     });
 }
 
@@ -2010,7 +2016,7 @@ var worldExportedTotal = new
 
 return new
 {
-    schemaVersion = "compendium.world-sources.v1",
+    schemaVersion = "compendium.world-sources.v2",
     coverage = new
     {
         scope = "currently loaded Unity scenes and candidate prefab assets visible to the current process",
