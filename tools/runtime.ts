@@ -285,7 +285,7 @@ export class Runtime {
       })()`);
     } catch (error) {
       this.cancel(error);
-      throw error;
+      throw this.signal.aborted ? this.signal.reason : error;
     }
   }
 

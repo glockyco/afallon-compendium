@@ -545,7 +545,7 @@ Woods and swamp retained identical native basis transforms. Their player landmar
 
 TypeScript, all eight regression tests, and strict OpenSpec validation passed. Verified replay drivers and traversal plans are archived under `artifacts/map-calibration-smoke/drivers/`. The archived registration, nested-action, and artifact-provenance replays also passed.
 
-The canceled traversal manifest records socket closure, while the CLI reports the originating deadline. Root-cause preservation in canceled run manifests remains unresolved.
+The canceled traversal manifest retains its original socket-close diagnostic. Runtime evaluation now propagates the first cancellation reason to failed-run writers. Historical manifests are not rewritten.
 
 The measured game footprint after the combined run was 23 GB with a 24 GB peak. The earlier 94.12 GB growth remains unexplained. Rendered map-space definitions, reviewed floor assignments, and primary screenshot coverage remain incomplete.
 
@@ -569,7 +569,7 @@ Native region visit `d45f7917-2e13-4a26-b5d9-28334d2318f2` compared 141 queries 
 
 Normal extraction `c3f45239-a466-4109-a720-4b2d40836753` resolved all 2,183 retained woods placements into the reviewed Coalway map space. It reported no ambiguous memberships or region-shape issues and completed cleanly. This is membership coverage, not complete source extraction or imagery coverage.
 
-Traversal `e1fe3815-c911-4e13-b56d-77fbc2444a5c` produced the same 88 resolved and four unresolved dungeon placements. Spatial output finished about 44.4 seconds after scene start. The 100-second step deadline expired while the source scene was restoring. Automatic cleanup subsequently reported clean state with no remaining callbacks. The manifest remains failed and retains the known socket-close diagnostic limitation. The deadline was not relaxed.
+Traversal `e1fe3815-c911-4e13-b56d-77fbc2444a5c` produced the same 88 resolved and four unresolved dungeon placements. Spatial output finished about 44.4 seconds after scene start. The 100-second step deadline expired while the source scene was restoring. Automatic cleanup subsequently reported clean state with no remaining callbacks. The manifest remains failed with its original socket-close diagnostic. The deadline was not relaxed.
 
 The archived dungeon replay resolved 88 of 92 retained placements. Four outliers remain outside the reviewed domains. Their evidence points to quest and mount-control hierarchies. Observed Y values change between the world-source and placement snapshots, reaching 24,603.957 units in the placement snapshot. Their spatial applicability remains unresolved. The pipeline retains their identities and coordinates instead of enlarging the map or suppressing them.
 
@@ -616,6 +616,8 @@ An in-flight disconnect exposed a registration race. The previous guard rejected
 Integrated extraction `b950166c-2b6d-495c-ad62-4cf6ee508c2c` succeeded with 18 artifacts, including a clean receipt for owner `a2ef407e-f9b1-4320-95e6-e54c5c75201a`. The receipt token matches the manifest. The recorded runtime, extraction, and native-owner source hashes match the exercised code. Producer counts and unresolved coverage remain as described above. A cleanup failure injected after all eight probes and validation produced failed run `83b6121c-653a-418f-88cb-b46c3f21d717`. It preserved the successful extraction pointer to `b950166c-2b6d-495c-ad62-4cf6ee508c2c`. The controlled callback changed no game state; its empty failed-owner fixture was removed after exact token and error checks.
 
 This is repository-command coordination, not server-side authorization. An arbitrary raw HotRepl client can still replace the connected client. The in-flight check observed the server forwarding a stale reply to that replacement; owner-prefixed request IDs prevent it from completing another repository request. Native cleanup also cannot preempt C# or run while the game thread is blocked. A missing or failed cleanup receipt remains an error, not permission to reuse affected state.
+
+A canceled evaluation now preserves its originating error instead of replacing it with socket closure. Reproduction `a1cc3155-cc92-4f11-9ce9-94005f3a23c1` recorded `HotRepl WebSocket connection closed` in the manifest while the outer operation retained the tile deadline. With the corrected error propagation, `66d21e2e-930b-488c-81f6-8d3345cb9f4a` retained the same deadline error in the request, outer operation, and manifest. Native-error control `4c1e1907-c856-467e-828d-1f355a78baf0` retained its original native exception and details. All three owners reported clean cleanup. The live regression driver is `artifacts/runtime-errors/verify-cancel-cause.ts`.
 
 The VM connection has an intermittent setup delay. A raw handshake took 8.5 seconds; two owned attempts exceeded the existing 10-second connection deadline before claiming ownership. The six lifecycle checks passed with that existing configuration. The in-flight follow-up and integrated extraction used an isolated 30-second smoke configuration, without changing `local/config.json`. SDK 4.0.1 also leaves its opening promise pending when the socket closes before a handshake; the host deadline and CLI termination bound that wait. No SDK or HotRepl server code was changed.
 
