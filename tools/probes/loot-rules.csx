@@ -27,17 +27,26 @@ foreach (var pair in items)
 }
 foreach (var pair in database.GetLevels()) maxReferenceLevel = System.Math.Max(maxReferenceLevel, pair.Value.levels);
 var linkedNpcs = new System.Collections.Generic.List<object>();
-foreach (var pair in database.GetNPCs())
+var npcs = database.GetNPCs();
+foreach (var pair in npcs)
 {
     var npc = pair.Value;
     maxReferenceLevel = System.Math.Max(maxReferenceLevel, npc.MaxLevel);
     var linked = npc.GetLinkedNpc();
     var specialization = npc.GetLootSpecSource();
+    var expectedLinked = npc.HasLinkedNpc && npc.LinkedNpcID != -1 && npcs.ContainsKey(npc.LinkedNpcID) ? npcs[npc.LinkedNpcID] : null;
+    var expectedSpecialization = expectedLinked != null && expectedLinked.HasLootSpecialization ? expectedLinked : (npc.HasLootSpecialization ? npc : null);
+    if ((linked == null ? (int?)null : linked.ID) != (expectedLinked == null ? (int?)null : expectedLinked.ID) ||
+        (specialization == null ? (int?)null : specialization.ID) != (expectedSpecialization == null ? (int?)null : expectedSpecialization.ID))
+        throw new System.InvalidOperationException("Native linked-NPC loot specialization disagrees with the extracted rule for NPC " + pair.Key + ".");
     linkedNpcs.Add(new
     {
         npcId = pair.Key, hasLinkedNpc = npc.HasLinkedNpc, authoredLinkedNpcId = npc.LinkedNpcID,
         resolvedLinkedNpcId = linked == null ? (int?)null : linked.ID,
         resolvedLootSpecNpcId = specialization == null ? (int?)null : specialization.ID,
+        hasLootSpecialization = npc.HasLootSpecialization,
+        specializationSource = expectedLinked != null && expectedLinked.HasLootSpecialization ? "linked-npc" : (npc.HasLootSpecialization ? "self" : "none"),
+        nativeRuleVerified = true,
         sourceMethods = new[] { "RPGNpc.GetLinkedNpc", "RPGNpc.GetLootSpecSource" }
     });
 }

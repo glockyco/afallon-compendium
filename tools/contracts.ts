@@ -75,6 +75,6 @@ export const LootRulesSchema = Type.Object({
   observation: Type.Object({ researchCharacter: text, playerLevel: integer, originalFirstGearDropDone: Type.Boolean(), restored: Type.Literal(true), sameGameplayFrame: Type.Literal(true), nativeComparisons: integer }),
   dynamicTables: Type.Array(Type.Object({ tableId: integer, sourceEntryCount: integer, entries: Type.Array(Type.Object({ entryIndex: integer, itemId: integer, requiredLevel: integer, beforeFirstGear: intervals, afterFirstGear: intervals })) })),
   itemLevels: Type.Array(Type.Object({ itemId: integer, requiredLevel: integer })),
-  linkedNpcs: Type.Array(Type.Object({ npcId: integer, hasLinkedNpc: Type.Boolean(), authoredLinkedNpcId: integer, resolvedLinkedNpcId: Type.Union([integer, Type.Null()]), resolvedLootSpecNpcId: Type.Union([integer, Type.Null()]) })),
+  linkedNpcs: Type.Array(Type.Object({ npcId: integer, hasLinkedNpc: Type.Boolean(), authoredLinkedNpcId: integer, resolvedLinkedNpcId: Type.Union([integer, Type.Null()]), resolvedLootSpecNpcId: Type.Union([integer, Type.Null()]), hasLootSpecialization: Type.Boolean(), specializationSource: Type.Union([Type.Literal("linked-npc"), Type.Literal("self"), Type.Literal("none")]), nativeRuleVerified: Type.Literal(true) })),
   unresolved: rawRows,
 });

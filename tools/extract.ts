@@ -154,15 +154,22 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       if (row.rewardType === "item") reference(`quest:${row.questID}.reward`, "items", row.itemID);
       if (row.rewardType === "currency") reference(`quest:${row.questID}.reward`, "currencies", row.currencyID);
     }
+    const remainingLootNpcs = new Set(ids.npcs);
     for (const row of lootRules.linkedNpcs) {
+      if (!remainingLootNpcs.delete(row.npcId)) throw new Error(`Loot rules contain an unknown or duplicate NPC ${row.npcId}.`);
       if (row.hasLinkedNpc) reference(`npc:${row.npcId}.linkedNpc`, "npcs", row.authoredLinkedNpcId);
       if (row.resolvedLootSpecNpcId !== null) reference(`npc:${row.npcId}.lootSpecialization`, "npcs", row.resolvedLootSpecNpcId);
     }
+    if (remainingLootNpcs.size) throw new Error("Loot rules omit canonical NPCs.");
+    const remainingDynamicTables = new Set<number>();
+    for (const table of relationships.lootTables) if (table.levelBandGear) remainingDynamicTables.add(table.nativeId);
     for (const table of lootRules.dynamicTables) {
+      if (!remainingDynamicTables.delete(table.tableId)) throw new Error(`Dynamic loot rules contain an unexpected or duplicate table ${table.tableId}.`);
       reference(`dynamicLoot:${table.tableId}`, "lootTables", table.tableId);
       if (table.entries.length !== table.sourceEntryCount) throw new Error(`Dynamic loot table ${table.tableId} lost an entry.`);
       for (const row of table.entries) reference(`dynamicLoot:${table.tableId}.entry[${row.entryIndex}]`, "items", row.itemId);
     }
+    if (remainingDynamicTables.size) throw new Error("Loot rules omit level-band tables.");
     const validation = {
       schemaVersion: "compendium.extraction-validation.v1", buildId: identity.buildId,
       fullGameCoverage: false, canonicalTotals: canonical.exportedTotals, supportTotals: support.sourceTotals,

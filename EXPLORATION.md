@@ -342,6 +342,8 @@ Runtime probe `ca551604-5056-48f6-80cf-32c3acf656b3` checked level scaling and r
 
 `RPGNpc.GetLootSpecSource` selects a linked NPC with a loot specialization before the current NPC's own specialization. A linked record is not evidence that every loot-table binding is inherited. Native analysis and live linked-NPC observations must agree before derived sources are published. Effective probabilities remain withheld.
 
+Run `508f7891-5e50-47b2-835e-d75c8e196a4b` compared the specialization rule with native results for all 357 NPCs: four use a linked NPC, eight use themselves, and 345 have no specialization source. The export labels these decisions explicitly and rejects missing or duplicate NPC rows. Tables 142–145 retain eligible-item intervals for reference levels 0–300, before and after the first gear drop. All 142,072 native eligibility comparisons agreed. The character flag was restored within the same gameplay frame. Extraction also rejects missing or duplicate dynamic tables; these intervals describe level eligibility, not unconditional item availability.
+
 ## World inventory verification
 
 `extract` includes a hashed `raw/world-inventory.json` artifact. The inventory covers build settings, canonical scene records, referenced destinations, loaded addressable loaders, and component types. It does not claim traversal or complete world coverage.
