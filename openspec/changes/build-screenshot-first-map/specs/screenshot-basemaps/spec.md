@@ -6,12 +6,18 @@ Provide recognizable Afallon terrain imagery through reproducible in-game captur
 
 ### Requirement: In-game imagery is the primary layer
 
-Each published reachable map SHALL provide captured in-game imagery as its default basemap. Outdoor areas and interiors SHALL remain in scope. Illustrated maps SHALL be optional orientation layers, not a substitute for an incomplete primary capture. Missing captures SHALL block a complete release and appear in coverage reports.
+Each published reachable map SHALL use imagery captured by this project from the supported game build as its default basemap. Outdoor areas and interiors SHALL remain in scope. Illustrated maps SHALL be separate optional orientation layers. Shipped map textures, illustrations, and community map images SHALL NOT substitute for primary imagery or fill missing capture tiles. Missing or failed project captures SHALL block a complete release and appear in coverage reports.
 
 #### Scenario: A map has both image sources
 - **WHEN** a reader opens the map without a saved layer choice
 - **THEN** the map displays captured in-game terrain
 - **AND** the reader can select the illustrated layer without losing map context
+
+#### Scenario: Only an existing map image is available
+- **WHEN** an illustration or shipped map texture exists but the project capture is missing or failed
+- **THEN** primary imagery coverage remains pending or failed
+- **AND** the existing image is not used as the default basemap or a replacement capture tile
+- **AND** the complete-release gate rejects the incomplete map
 
 ### Requirement: Images and markers share explicit registration
 

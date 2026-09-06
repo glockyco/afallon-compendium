@@ -77,6 +77,8 @@ The current OreSpawner name is misleading for categorization: live data proves H
 
 ### 5. Screenshot layers use their own capture extent
 
+Primary imagery comes only from this project's capture pipeline against the supported game build. Do not substitute shipped map textures, illustrations, or community map images for primary captures, including missing tiles. Retain missing or failed captures as coverage gaps. Illustrations remain a separate optional layer.
+
 Coalway woods and swamp share verified illustrated-map registration. That does not prove the illustration bounds cover every screenshot region or every scene. A Duskfall probe found the current camera well outside the single MapZone bounds. Cause and full dungeon layout remain unresolved.
 
 Capture extents therefore come from validated scene geometry, streamed-source coverage, and navigable region/floor evidence. MapZone is useful calibration evidence, not an unconditional capture boundary. The pipeline rejects unexplained out-of-bounds placements.

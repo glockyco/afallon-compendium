@@ -4,13 +4,13 @@ Updated: 2026-09-06. Status: implementation in progress. Nix-backed local toolin
 
 ## User intent and permissions
 
-Build a comprehensive interactive map for Afallon, then a full compendium. The user explicitly selected in-game screenshots as the primary basemap. Preserve illustrated maps as an optional orientation layer. Include enemies, NPCs, interactables, resources, and other categories supported by Afallon evidence. Connect markers to useful facts such as enemy drops and vendor stock.
+Build a comprehensive interactive map for Afallon, then a full compendium. The primary basemap must use this project's own in-game captures of the supported build. Existing maps are not reliable enough to replace those captures or fill missing tiles. Preserve illustrations as a separate optional orientation layer. Missing or failed captures remain coverage gaps and block a complete release. Include enemies, NPCs, interactables, resources, and other categories supported by Afallon evidence. Connect markers to useful facts such as enemy drops and vendor stock.
 
 The user owns Afallon on Steam and authorized installation in CrossOver, decompilation, HotRepl inspection, reusable scripts, project creation, and a GitHub repository. Implementation follows the approved `build-screenshot-first-map` OpenSpec change. The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation may proceed without that checkpoint. Public deployment and pushing commits still require explicit user authorization.
 
 Repository: https://github.com/glockyco/afallon-compendium (private). Local game evidence under `research/` is ignored by Git. No game binaries, recovered declarations, saves, or bulk artwork belong in source control. The initial change is `openspec/changes/build-screenshot-first-map/`.
 
-The checkpoint sections below preserve earlier observations. Current product requirements supersede the earlier recommendation to use shipped artwork as the primary layer.
+The checkpoint sections below preserve earlier observations. Use the current requirements and checked tasks as the implementation contract.
 
 ## Screenshot-first investigation checkpoint
 
@@ -194,7 +194,7 @@ These counts use FindObjectsOfType, not a proof of complete authored coverage. I
 - Thus the tested MapZone normalized domain is centered, with corners at -1 and +1. It is not image UV 0..1. Image vertical orientation still needs explicit landmark calibration in a future web map.
 - Extracted `Tutorial cave map` directly from `sharedassets3.assets`, Texture2D path ID 47. Saved `research/screenshots/05-tutorial-basemap.png` and visually confirmed it matches the in-game terrain map.
 - Extracted `Newest map` directly from `sharedassets2.assets`, Texture2D path ID 195. Saved `research/screenshots/07-overworld-basemap.png`. The live map screenshot shows illustrated parchment-style world artwork, unlike the tutorial's terrain image.
-- No custom terrain capture is necessary to obtain these two basemaps. Full-game coverage and useful maximum zoom remain open.
+- These extracted textures are research references, not primary basemap captures. The primary layer requires this project's own captures for every supported map. Full-game capture coverage and useful maximum zoom remain open.
 
 ### Spawns require their own model
 
@@ -237,11 +237,10 @@ Opened the built-in Adventure Guide for Duskfall Depths using `AdventureGuidePan
 - The Steam client remains open. Afallon, MelonLoader, generated interop assemblies, and generic HotRepl mods remain installed for the next session.
 - AtlasResearch remains as a research save. The investigation visited Tutorial cave, Coalway swamp, and Coalway woods. No unrelated save was changed or deleted.
 - No application feature, exporter, website, OpenSpec change, or Git repository was created. This directory contains notes and local evidence only; no commit or push was made.
-- Recommended next scope: agree on the first player questions, then propose one coherent map slice using shipped artwork, explicit map-space calibration, canonical entities, and separate spawn records. Retain SvelteKit/static hosting and SQLite as the default familiar stack; choose extraction tooling after the coverage investigation, not before it.
 
 ## Current resume checklist
 
-- Read the screenshot-first checkpoint and `openspec/changes/build-screenshot-first-map/`. These supersede the initial shipped-artwork recommendation.
+- Read the screenshot-first checkpoint and `openspec/changes/build-screenshot-first-map/`. Primary basemap images must come from this project's capture pipeline.
 - The planning artifacts and checked tasks are the implementation contract. Continue with the first unchecked task; use the verified checkpoints below as evidence.
 - Use `research/screenshot-first-session.json` and `research/screenshot-first-eval-history.json` to recover exact successful and failed probes.
 - Use the supervised `afallon-game` process and port 18591. The current implementation session has loaded Coalway woods with AtlasResearch. Do not use unrelated saves.
