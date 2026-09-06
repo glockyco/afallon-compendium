@@ -536,8 +536,10 @@ if (databaseTasks != null)
 }
 
 var componentFamilies = new System.Collections.Generic.List<object>();
+var nativeComponentFamilyQueryCount = 0;
 var addComponentFamily = new System.Action<string, string, int, int, string, string>((family, runtimeType, activeCount, includeInactiveCount, activeError, includeInactiveError) =>
 {
+    nativeComponentFamilyQueryCount++;
     var activeSourceFieldPath = "FindObjectsOfType<" + runtimeType + ">(includeInactive: false)";
     var includeInactiveSourceFieldPath = "FindObjectsOfType<" + runtimeType + ">(includeInactive: true)";
     if (activeError != null)
@@ -571,6 +573,22 @@ try { npcSpawnerActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBui
 try { npcSpawnerAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.AI.NPCSpawner>(true).Length; } catch (System.Exception error) { npcSpawnerAllError = error.GetType().FullName + ": " + error.Message; }
 addComponentFamily("npcSpawner", "Il2CppBLINK.RPGBuilder.AI.NPCSpawner", npcSpawnerActive, npcSpawnerAll, npcSpawnerActiveError, npcSpawnerAllError);
 
+var adventurerPopulationManagerActive = -1;
+var adventurerPopulationManagerAll = -1;
+var adventurerPopulationManagerActiveError = (string)null;
+var adventurerPopulationManagerAllError = (string)null;
+try { adventurerPopulationManagerActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.AI.AdventurerPopulationManager>().Length; } catch (System.Exception error) { adventurerPopulationManagerActiveError = error.GetType().FullName + ": " + error.Message; }
+try { adventurerPopulationManagerAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.AI.AdventurerPopulationManager>(true).Length; } catch (System.Exception error) { adventurerPopulationManagerAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("adventurerPopulationManager", "Il2CppBLINK.RPGBuilder.AI.AdventurerPopulationManager", adventurerPopulationManagerActive, adventurerPopulationManagerAll, adventurerPopulationManagerActiveError, adventurerPopulationManagerAllError);
+
+var adventurerSpawnZoneActive = -1;
+var adventurerSpawnZoneAll = -1;
+var adventurerSpawnZoneActiveError = (string)null;
+var adventurerSpawnZoneAllError = (string)null;
+try { adventurerSpawnZoneActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.AI.AdventurerSpawnZone>().Length; } catch (System.Exception error) { adventurerSpawnZoneActiveError = error.GetType().FullName + ": " + error.Message; }
+try { adventurerSpawnZoneAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.AI.AdventurerSpawnZone>(true).Length; } catch (System.Exception error) { adventurerSpawnZoneAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("adventurerSpawnZone", "Il2CppBLINK.RPGBuilder.AI.AdventurerSpawnZone", adventurerSpawnZoneActive, adventurerSpawnZoneAll, adventurerSpawnZoneActiveError, adventurerSpawnZoneAllError);
+
 var interactableActive = -1;
 var interactableAll = -1;
 var interactableActiveError = (string)null;
@@ -594,6 +612,86 @@ var chestAllError = (string)null;
 try { chestActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.Chest>().Length; } catch (System.Exception error) { chestActiveError = error.GetType().FullName + ": " + error.Message; }
 try { chestAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.Chest>(true).Length; } catch (System.Exception error) { chestAllError = error.GetType().FullName + ": " + error.Message; }
 addComponentFamily("chest", "Il2CppBLINK.RPGBuilder.World.Chest", chestActive, chestAll, chestActiveError, chestAllError);
+
+var craftingStationActive = -1;
+var craftingStationAll = -1;
+var craftingStationActiveError = (string)null;
+var craftingStationAllError = (string)null;
+try { craftingStationActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.CraftingStation>().Length; } catch (System.Exception error) { craftingStationActiveError = error.GetType().FullName + ": " + error.Message; }
+try { craftingStationAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.CraftingStation>(true).Length; } catch (System.Exception error) { craftingStationAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("craftingStation", "Il2CppBLINK.RPGBuilder.World.CraftingStation", craftingStationActive, craftingStationAll, craftingStationActiveError, craftingStationAllError);
+
+var propertyForSaleSignActive = -1;
+var propertyForSaleSignAll = -1;
+var propertyForSaleSignActiveError = (string)null;
+var propertyForSaleSignAllError = (string)null;
+try { propertyForSaleSignActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.PropertyForSaleSign>().Length; } catch (System.Exception error) { propertyForSaleSignActiveError = error.GetType().FullName + ": " + error.Message; }
+try { propertyForSaleSignAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.PropertyForSaleSign>(true).Length; } catch (System.Exception error) { propertyForSaleSignAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("propertyForSaleSign", "Il2CppBLINK.RPGBuilder.World.PropertyForSaleSign", propertyForSaleSignActive, propertyForSaleSignAll, propertyForSaleSignActiveError, propertyForSaleSignAllError);
+
+var heroicConsoleActive = -1;
+var heroicConsoleAll = -1;
+var heroicConsoleActiveError = (string)null;
+var heroicConsoleAllError = (string)null;
+try { heroicConsoleActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.HeroicConsole>().Length; } catch (System.Exception error) { heroicConsoleActiveError = error.GetType().FullName + ": " + error.Message; }
+try { heroicConsoleAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.HeroicConsole>(true).Length; } catch (System.Exception error) { heroicConsoleAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("heroicConsole", "Il2CppBLINK.RPGBuilder.World.HeroicConsole", heroicConsoleActive, heroicConsoleAll, heroicConsoleActiveError, heroicConsoleAllError);
+
+var characterGraveyardActive = -1;
+var characterGraveyardAll = -1;
+var characterGraveyardActiveError = (string)null;
+var characterGraveyardAllError = (string)null;
+try { characterGraveyardActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.CharacterGraveyard>().Length; } catch (System.Exception error) { characterGraveyardActiveError = error.GetType().FullName + ": " + error.Message; }
+try { characterGraveyardAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.CharacterGraveyard>(true).Length; } catch (System.Exception error) { characterGraveyardAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("characterGraveyard", "Il2CppBLINK.RPGBuilder.World.CharacterGraveyard", characterGraveyardActive, characterGraveyardAll, characterGraveyardActiveError, characterGraveyardAllError);
+
+var enhancedInteractableObjectActive = -1;
+var enhancedInteractableObjectAll = -1;
+var enhancedInteractableObjectActiveError = (string)null;
+var enhancedInteractableObjectAllError = (string)null;
+try { enhancedInteractableObjectActive = UnityEngine.Object.FindObjectsOfType<Il2Cpp.EnhancedInteractableObject>().Length; } catch (System.Exception error) { enhancedInteractableObjectActiveError = error.GetType().FullName + ": " + error.Message; }
+try { enhancedInteractableObjectAll = UnityEngine.Object.FindObjectsOfType<Il2Cpp.EnhancedInteractableObject>(true).Length; } catch (System.Exception error) { enhancedInteractableObjectAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("enhancedInteractableObject", "Il2Cpp.EnhancedInteractableObject", enhancedInteractableObjectActive, enhancedInteractableObjectAll, enhancedInteractableObjectActiveError, enhancedInteractableObjectAllError);
+
+var activeRequirementActive = -1;
+var activeRequirementAll = -1;
+var activeRequirementActiveError = (string)null;
+var activeRequirementAllError = (string)null;
+try { activeRequirementActive = UnityEngine.Object.FindObjectsOfType<Il2Cpp.ActiveRequirement>().Length; } catch (System.Exception error) { activeRequirementActiveError = error.GetType().FullName + ": " + error.Message; }
+try { activeRequirementAll = UnityEngine.Object.FindObjectsOfType<Il2Cpp.ActiveRequirement>(true).Length; } catch (System.Exception error) { activeRequirementAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("activeRequirement", "Il2Cpp.ActiveRequirement", activeRequirementActive, activeRequirementAll, activeRequirementActiveError, activeRequirementAllError);
+
+var timedActiveRequirementActive = -1;
+var timedActiveRequirementAll = -1;
+var timedActiveRequirementActiveError = (string)null;
+var timedActiveRequirementAllError = (string)null;
+try { timedActiveRequirementActive = UnityEngine.Object.FindObjectsOfType<Il2Cpp.TimedActiveRequirement>().Length; } catch (System.Exception error) { timedActiveRequirementActiveError = error.GetType().FullName + ": " + error.Message; }
+try { timedActiveRequirementAll = UnityEngine.Object.FindObjectsOfType<Il2Cpp.TimedActiveRequirement>(true).Length; } catch (System.Exception error) { timedActiveRequirementAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("timedActiveRequirement", "Il2Cpp.TimedActiveRequirement", timedActiveRequirementActive, timedActiveRequirementAll, timedActiveRequirementActiveError, timedActiveRequirementAllError);
+
+var disableRequirementActive = -1;
+var disableRequirementAll = -1;
+var disableRequirementActiveError = (string)null;
+var disableRequirementAllError = (string)null;
+try { disableRequirementActive = UnityEngine.Object.FindObjectsOfType<Il2Cpp.DisableRequirement>().Length; } catch (System.Exception error) { disableRequirementActiveError = error.GetType().FullName + ": " + error.Message; }
+try { disableRequirementAll = UnityEngine.Object.FindObjectsOfType<Il2Cpp.DisableRequirement>(true).Length; } catch (System.Exception error) { disableRequirementAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("disableRequirement", "Il2Cpp.DisableRequirement", disableRequirementActive, disableRequirementAll, disableRequirementActiveError, disableRequirementAllError);
+
+var randomActivatorActive = -1;
+var randomActivatorAll = -1;
+var randomActivatorActiveError = (string)null;
+var randomActivatorAllError = (string)null;
+try { randomActivatorActive = UnityEngine.Object.FindObjectsOfType<Il2Cpp.RandomActivator>().Length; } catch (System.Exception error) { randomActivatorActiveError = error.GetType().FullName + ": " + error.Message; }
+try { randomActivatorAll = UnityEngine.Object.FindObjectsOfType<Il2Cpp.RandomActivator>(true).Length; } catch (System.Exception error) { randomActivatorAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("randomActivator", "Il2Cpp.RandomActivator", randomActivatorActive, randomActivatorAll, randomActivatorActiveError, randomActivatorAllError);
+
+var interactiveZoneActive = -1;
+var interactiveZoneAll = -1;
+var interactiveZoneActiveError = (string)null;
+var interactiveZoneAllError = (string)null;
+try { interactiveZoneActive = UnityEngine.Object.FindObjectsOfType<Il2Cpp.InteractiveZone>().Length; } catch (System.Exception error) { interactiveZoneActiveError = error.GetType().FullName + ": " + error.Message; }
+try { interactiveZoneAll = UnityEngine.Object.FindObjectsOfType<Il2Cpp.InteractiveZone>(true).Length; } catch (System.Exception error) { interactiveZoneAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("interactiveZone", "Il2Cpp.InteractiveZone", interactiveZoneActive, interactiveZoneAll, interactiveZoneActiveError, interactiveZoneAllError);
 
 var oreSpawnerActive = -1;
 var oreSpawnerAll = -1;
@@ -978,8 +1076,13 @@ foreach (var behaviour in behaviours)
     if (behaviour.gameObject.activeInHierarchy) behaviourCounts[nativeType][1]++;
 }
 var behaviourTypes = new System.Collections.Generic.List<object>();
+var nativeBehaviourTypeCount = behaviourCounts.Count;
+var exportedBehaviourComponentCount = 0;
 foreach (var pair in behaviourCounts)
+{
+    exportedBehaviourComponentCount += pair.Value[0];
     behaviourTypes.Add(new { nativeType = pair.Key, includeInactiveCount = pair.Value[0], activeCount = pair.Value[1] });
+}
 
 var sourceTotals = new
 {
@@ -992,8 +1095,8 @@ var sourceTotals = new
     addressableSources = addressableAll,
     loadedTransitions = questPortalAll < 0 || dungeonEntranceAll < 0 ? -1 : questPortalAll + dungeonEntranceAll,
     referencedDestinations = databaseScenes == null || databaseWorldPositions == null || databaseTasks == null || questPortalAll < 0 || dungeonEntranceAll < 0 ? -1 : databaseScenes.Count + databaseWorldPositions.Count + databaseTasks.Count + questPortalAll + dungeonEntranceAll,
-    componentFamilies = componentFamilies.Count,
-    behaviourTypes = behaviourTypes.Count,
+    componentFamilies = nativeComponentFamilyQueryCount,
+    behaviourTypes = nativeBehaviourTypeCount,
     behaviourComponents = behaviours.Length
 };
 var exportedTotals = new
@@ -1009,15 +1112,15 @@ var exportedTotals = new
     referencedDestinations = referencedDestinations.Count,
     componentFamilies = componentFamilies.Count,
     behaviourTypes = behaviourTypes.Count,
-    behaviourComponents = behaviours.Length
+    behaviourComponents = exportedBehaviourComponentCount
 };
 
 return new
 {
-    schemaVersion = "compendium.world-inventory.v1",
+    schemaVersion = "compendium.world-inventory.v2",
     coverage = new
     {
-        dispositionValues = new[] { "captured", "unreachable", "unused", "unsupported", "failed", "currently-loaded", "not-traversed" },
+        dispositionValues = new[] { "extracted", "unreachable", "unused", "unsupported", "failed", "currently-loaded", "not-traversed" },
         fullGameCoverage = false,
         label = "currently-loaded and authored database inventory only; traversal, capture, and publication are not performed",
         scope = "Build settings, initialized GameDatabase game scenes, typed world-position and task references, loaded transition components, loaded scenes, inactive-inclusive AddressableLoader components, and relevant component-family counts.",

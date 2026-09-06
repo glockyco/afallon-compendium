@@ -66,18 +66,6 @@ export const RelationshipsSchema = Type.Object({
 });
 export type Relationships = Static<typeof RelationshipsSchema>;
 
-export const WorldInventorySchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.world-inventory.v1"),
-  coverage: Type.Object({ fullGameCoverage: Type.Literal(false), includesInactiveComponents: Type.Literal(true), traversalPerformed: Type.Literal(false) }),
-  runtime: Type.Object({ databaseAvailable: Type.Literal(true), activeScene: text, activeScenePath: text }),
-  buildScenes: Type.Array(Type.Object({ buildIndex: integer, path: nullableText, disposition: text })),
-  databaseScenes: Type.Array(Type.Object({ nativeId: integer, disposition: text })),
-  referencedDestinations: rawRows, transitions: rawRows, loadedScenes: rawRows, addressableSources: rawRows,
-  componentFamilies: Type.Array(Type.Object({ family: text, activeCount: integer, includeInactiveCount: integer })),
-  behaviourTypes: Type.Array(Type.Object({ nativeType: text, activeCount: integer, includeInactiveCount: integer })),
-  sourceTotals: Type.Record(text, integer), exportedTotals: Type.Record(text, integer), unresolved: rawRows,
-});
-
 const intervals = Type.Array(Type.Object({ minimum: integer, maximum: integer, reachesDomainBoundary: Type.Boolean() }));
 export const LootRulesSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.loot-rules.v1"),

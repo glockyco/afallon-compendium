@@ -19,7 +19,7 @@
 
 ## 3. World inventory and placement coverage
 
-- [ ] 3.1 Reconcile discovered build scenes, database scenes, destinations, addressable sources, and relevant component families in the integrated inventory. Verify native and exported counts without treating discovery as resolved coverage.
+- [x] 3.1 Reconcile discovered build scenes, database scenes, destinations, addressable sources, and relevant component families in the integrated inventory. Verify native and exported counts without treating discovery as resolved coverage.
 - [ ] 3.2 Implement separate reachability, runtime availability, extraction, and imagery states in the coverage ledger. Verify every discovered source has evidence-backed states. Group repeated diagnostics by source and issue type without hiding unresolved relevant content.
 - [ ] 3.3 Establish placement identity from serialized sources and verified persistence keys using bounded reload operations. Compare extraction before and after scene reload and streamed unload/reload. Preserve distinct producers sharing a prefab and report collisions rather than merging them.
 - [ ] 3.4 Establish concrete SQLite identity tables and uniqueness constraints alongside placement verification. Verify authored identities remain independent of runtime observation IDs, duplicate keys are rejected, and repeat extraction preserves distinct placements.

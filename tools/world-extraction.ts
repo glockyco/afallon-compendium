@@ -703,7 +703,7 @@ const exportedTotals = Type.Object({
 });
 
 export const WorldSourcesSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.world-sources.v2"),
+  schemaVersion: Type.Literal("compendium.world-sources.v3"),
   coverage: Type.Object({
     scope: text,
     fullGameCoverage: boolean,
@@ -1148,7 +1148,7 @@ function validateCondition(reference: Reference, rowValue: unknown, index: numbe
 
 export function validateWorldSources(value: Static<typeof WorldSourcesSchema>, reference: Reference): void {
   const artifact = value as unknown as AnyRecord;
-  if (artifact.schemaVersion !== "compendium.world-sources.v2") throw new Error("World source schema version is invalid.");
+  if (artifact.schemaVersion !== "compendium.world-sources.v3") throw new Error("World source schema version is invalid.");
   const totals = record(artifact.totals, "totals");
   const sourceTotalsValue = record(totals.source, "totals.source");
   const exportedTotalsValue = record(totals.exported, "totals.exported");

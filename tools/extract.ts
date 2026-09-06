@@ -4,9 +4,10 @@ import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
 import type { CompendiumConfig } from "./config";
-import { CanonicalSchema, LocalizationSchema, LootRulesSchema, ObservationContextSchema, RelationshipsSchema, SupportSchema, WorldInventorySchema, canonicalKinds } from "./contracts";
+import { CanonicalSchema, LocalizationSchema, LootRulesSchema, ObservationContextSchema, RelationshipsSchema, SupportSchema, canonicalKinds } from "./contracts";
 import { NpcProducersSchema, validateNpcProducers } from "./npc-extraction";
 import { WorldSourcesSchema, validateWorldSources } from "./world-extraction";
+import { WorldInventorySchema, validateWorldInventory } from "./world-inventory";
 import { beginRun } from "./runs";
 import type { Runtime } from "./runtime";
 
@@ -25,7 +26,7 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
   const prelude = resolve(import.meta.dir, "probes/conditions.csx");
   const inputHashes: Record<string, string> = { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, conditions: await hashFile(prelude) };
   for (const name of names) inputHashes[name] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "world-inventory"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "extract",
     settings: { character: config.character, timeoutMs: config.timeoutMs, runtimeOwnerToken: runtime.ownerToken, scope: "canonical records, authored relationships and producers, and loaded world observations; not full world coverage" },
@@ -59,26 +60,7 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
     const worldInventory = parseArtifact(WorldInventorySchema, raw["world-inventory"]);
     const npcProducers = parseArtifact(NpcProducersSchema, raw["npc-producers"]);
     const worldSources = parseArtifact(WorldSourcesSchema, raw["world-sources"]);
-    for (const [kind, count] of Object.entries(worldInventory.sourceTotals)) {
-      if (count < 0 || count !== worldInventory.exportedTotals[kind]) throw new Error(`World inventory counts do not reconcile for ${kind}.`);
-    }
-    const inventoryRows = {
-      buildScenes: worldInventory.buildScenes, databaseScenes: worldInventory.databaseScenes,
-      loadedScenes: worldInventory.loadedScenes, addressableSources: worldInventory.addressableSources,
-      loadedTransitions: worldInventory.transitions, referencedDestinations: worldInventory.referencedDestinations,
-      componentFamilies: worldInventory.componentFamilies, behaviourTypes: worldInventory.behaviourTypes,
-    };
-    for (const [kind, rows] of Object.entries(inventoryRows)) {
-      if (rows.length !== worldInventory.sourceTotals[kind]) throw new Error(`World inventory lost ${kind} rows.`);
-    }
-    for (const rows of [worldInventory.componentFamilies, worldInventory.behaviourTypes]) {
-      for (const row of rows) {
-        if (row.activeCount < 0 || row.includeInactiveCount < row.activeCount) throw new Error("World inventory component counts are invalid.");
-      }
-    }
-    if (worldInventory.behaviourTypes.reduce((sum, row) => sum + row.includeInactiveCount, 0) !== worldInventory.sourceTotals.behaviourComponents) throw new Error("World inventory lost behavior components.");
-    const inventorySceneIds = new Set(worldInventory.databaseScenes.map(row => row.nativeId));
-    if (inventorySceneIds.size !== canonical.scenes.length || worldInventory.databaseScenes.length !== canonical.scenes.length || canonical.scenes.some(row => !inventorySceneIds.has(row.nativeId))) throw new Error("World inventory scenes differ from the canonical snapshot.");
+    const inventoryValidation = validateWorldInventory(worldInventory, canonical);
     const ids: Record<string, Set<number>> = {};
     for (const kind of canonicalKinds) {
       const rows = canonical[kind];
@@ -197,7 +179,7 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       blankDisplayNames: canonicalKinds.flatMap(kind => canonical[kind].filter(row => !row.name?.trim()).map(row => ({ kind, nativeId: row.nativeId, internalName: row.internalName }))),
       relationshipDiagnostics: relationships.unresolved,
       lootRuleVerification: lootRules.observation,
-      worldInventory: { totals: worldInventory.sourceTotals, coverage: worldInventory.coverage, diagnostics: worldInventory.unresolved },
+      worldInventory: { totals: inventoryValidation.counts, coverage: worldInventory.coverage, diagnostics: inventoryValidation.diagnostics },
       npcProducers: { sourceTotals: npcProducers.sourceTotals, exportedTotals: npcProducers.exportedTotals, diagnostics: npcProducers.unresolved },
       worldSources: { totals: worldSources.totals, diagnostics: worldSources.unresolved },
       observations,

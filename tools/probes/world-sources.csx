@@ -672,7 +672,7 @@ var worldChestLootProjection = new System.Func<Il2CppBLINK.RPGBuilder.World.Ches
 var worldNodeProjection = new System.Func<Il2CppBLINK.RPGBuilder.World.InteractiveNode, UnityEngine.Component, int, object>((node, component, componentIndex) =>
 {
     var sourceEvidence = worldSource(component, "Il2CppBLINK.RPGBuilder.World.InteractiveNode", componentIndex);
-    var sourcePath = "source.hierarchyPath";
+    var sourcePath = "Il2CppBLINK.RPGBuilder.World.InteractiveNode[" + componentIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     var containerRows = new System.Collections.Generic.List<object>();
     var nativeContainers = node.containerTablesData;
     var containerCount = nativeContainers == null ? 0 : nativeContainers.Count;
@@ -840,7 +840,7 @@ var worldNodeProjection = new System.Func<Il2CppBLINK.RPGBuilder.World.Interacti
     var nodeRecord = new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         producerFamily = "interactiveNode",
         nodeType = new { value = (int)node.nodeType, name = node.nodeType.ToString() },
         nodeStateObservation = new { value = (int)node.nodeState, name = node.nodeState.ToString(), useCount = node.useCount, nextUse = node.nextUse },
@@ -907,7 +907,7 @@ for (var spawnerIndex = 0; spawnerIndex < worldOreSpawnerCount; spawnerIndex++)
         continue;
     }
     var sourceEvidence = worldSource(spawner, "Il2Cpp.OreSpawner", spawnerIndex);
-    var sourcePath = "source.hierarchyPath";
+    var sourcePath = "Il2Cpp.OreSpawner[" + spawnerIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     var options = new System.Collections.Generic.List<object>();
     var possibleOutputs = new System.Collections.Generic.List<object>();
     var weights = new System.Collections.Generic.List<object>();
@@ -1108,7 +1108,7 @@ for (var spawnerIndex = 0; spawnerIndex < worldOreSpawnerCount; spawnerIndex++)
     worldResourceProducers.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         producerFamily = "oreSpawner",
         role = "resourceProducer",
         roles = new[] { "resourceProducer" },
@@ -1157,7 +1157,7 @@ for (var index = 0; index < worldInteractableCount; index++)
         continue;
     }
     var sourceEvidence = worldSource(interactable, "Il2CppBLINK.RPGBuilder.World.InteractableObject", index);
-    var sourcePath = "source.hierarchyPath";
+    var sourcePath = "Il2CppBLINK.RPGBuilder.World.InteractableObject[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     var actions = new System.Collections.Generic.List<object>();
     var nativeActions = interactable.Actions;
     var actionCount = nativeActions == null ? 0 : nativeActions.Count;
@@ -1177,7 +1177,7 @@ for (var index = 0; index < worldInteractableCount; index++)
     worldInteractions.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "interactableObject",
         role = "usefulInteraction",
         roles = new[] { "usefulInteraction" },
@@ -1222,7 +1222,7 @@ for (var index = 0; index < worldNodeCount; index++)
     worldInteractions.Add(new
     {
         source = worldSource(node, "Il2CppBLINK.RPGBuilder.World.InteractiveNode", index),
-        disposition = "captured",
+        disposition = "extracted",
         family = "interactiveNode",
         role = node.nodeType.ToString(),
         roleEvidence = new
@@ -1238,7 +1238,7 @@ for (var index = 0; index < worldNodeCount; index++)
         worldContainers.Add(new
         {
             source = worldSource(node, "Il2CppBLINK.RPGBuilder.World.InteractiveNode", index),
-            disposition = "captured",
+            disposition = "extracted",
             family = "interactiveNode",
             role = "container",
             roles = new[] { "container", "usefulInteraction" },
@@ -1257,7 +1257,7 @@ for (var index = 0; index < worldNodeCount; index++)
         worldResourceProducers.Add(new
         {
             source = worldSource(node, "Il2CppBLINK.RPGBuilder.World.InteractiveNode", index),
-            disposition = "captured",
+            disposition = "extracted",
             producerFamily = "interactiveNode",
             role = "resourceProducer",
             roles = new[] { "resourceProducer" },
@@ -1290,11 +1290,12 @@ for (var index = 0; index < worldChestCount; index++)
         continue;
     }
     var sourceEvidence = worldSource(chest, "Il2CppBLINK.RPGBuilder.World.Chest", index);
-    var chestProjection = worldChestLootProjection(chest, "source.hierarchyPath");
+    var sourcePath = "Il2CppBLINK.RPGBuilder.World.Chest[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+    var chestProjection = worldChestLootProjection(chest, sourcePath);
     worldContainers.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "chest",
         role = "container",
         roles = new[] { "container" },
@@ -1306,7 +1307,7 @@ for (var index = 0; index < worldChestCount; index++)
     worldInteractions.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "chest",
         role = "containerInteraction",
         roles = new[] { "container", "usefulInteraction" },
@@ -1327,6 +1328,7 @@ for (var index = 0; index < worldCraftingStationCount; index++)
         continue;
     }
     var sourceEvidence = worldSource(stationNode, "Il2CppBLINK.RPGBuilder.World.CraftingStation", index);
+    var sourcePath = "Il2CppBLINK.RPGBuilder.World.CraftingStation[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     var station = stationNode.station;
     var stationResolved = station != null && worldDatabaseCraftingStations != null && worldDatabaseCraftingStations.ContainsKey(station.ID) && worldDatabaseCraftingStations[station.ID] != null;
     if (station == null)
@@ -1347,7 +1349,7 @@ for (var index = 0; index < worldCraftingStationCount; index++)
     for (var skillIndex = 0; skillIndex < craftSkillCount; skillIndex++)
     {
         var skillRow = nativeCraftSkills[skillIndex];
-        var skillPath = "source.hierarchyPath.station.craftSkills[" + skillIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+        var skillPath = sourcePath + ".station.craftSkills[" + skillIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
         if (skillRow == null)
         {
             unresolved.Add(new { kind = "craftingStationSkill", source = sourceEvidence, sourceFieldPath = skillPath, detail = "The authored craft skill row is null." });
@@ -1370,7 +1372,7 @@ for (var index = 0; index < worldCraftingStationCount; index++)
     worldServices.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "craftingStation",
         role = "craftingService",
         roles = new[] { "craftingService" },
@@ -1415,7 +1417,7 @@ for (var index = 0; index < worldPropertySignCount; index++)
     worldServices.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "propertyForSaleSign",
         role = "propertyPurchaseService",
         roles = new[] { "propertyPurchaseService" },
@@ -1473,6 +1475,7 @@ for (var index = 0; index < worldGraveyardCount; index++)
         continue;
     }
     var sourceEvidence = worldSource(graveyard, "Il2CppBLINK.RPGBuilder.World.CharacterGraveyard", index);
+    var sourcePath = "Il2CppBLINK.RPGBuilder.World.CharacterGraveyard[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     var classes = new System.Collections.Generic.List<object>();
     var nativeClasses = graveyard.requiredClasses;
     var classCount = nativeClasses == null ? 0 : nativeClasses.Count;
@@ -1483,7 +1486,7 @@ for (var index = 0; index < worldGraveyardCount; index++)
     for (var classIndex = 0; classIndex < classCount; classIndex++)
     {
         var requiredClass = nativeClasses[classIndex];
-        var classPath = "source.hierarchyPath.requiredClasses[" + classIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+        var classPath = sourcePath + ".requiredClasses[" + classIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
         var classResolved = requiredClass != null && worldDatabaseClasses != null && worldDatabaseClasses.ContainsKey(requiredClass.ID) && worldDatabaseClasses[requiredClass.ID] != null;
         if (requiredClass == null)
         {
@@ -1507,7 +1510,7 @@ for (var index = 0; index < worldGraveyardCount; index++)
     for (var raceIndex = 0; raceIndex < raceCount; raceIndex++)
     {
         var requiredRace = nativeRaces[raceIndex];
-        var racePath = "source.hierarchyPath.requiredRaces[" + raceIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+        var racePath = sourcePath + ".requiredRaces[" + raceIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
         var raceResolved = requiredRace != null && worldDatabaseRaces != null && worldDatabaseRaces.ContainsKey(requiredRace.ID) && worldDatabaseRaces[requiredRace.ID] != null;
         if (requiredRace == null)
         {
@@ -1524,7 +1527,7 @@ for (var index = 0; index < worldGraveyardCount; index++)
     worldConditionSources.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "characterGraveyard",
         conditionKind = "respawnDestinationEligibility",
         requiredClassesAvailable = nativeClasses != null,
@@ -1548,6 +1551,7 @@ for (var index = 0; index < worldEnhancedInteractableCount; index++)
         continue;
     }
     var sourceEvidence = worldSource(enhanced, "Il2Cpp.EnhancedInteractableObject", index);
+    var sourcePath = "Il2Cpp.EnhancedInteractableObject[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     if (enhanced.TargetObject == null)
     {
         unresolved.Add(new { kind = "enhancedInteractableTarget", source = sourceEvidence, sourceFieldPath = "EnhancedInteractableObject.TargetObject", detail = "The activation controller has no target GameObject." });
@@ -1555,13 +1559,13 @@ for (var index = 0; index < worldEnhancedInteractableCount; index++)
     worldConditionSources.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "enhancedInteractableObject",
         conditionKind = "activationToggle",
         targetObject = enhanced.TargetObject == null ? null : (object)new { name = enhanced.TargetObject.name, activeSelf = enhanced.TargetObject.activeSelf, activeInHierarchy = enhanced.TargetObject.activeInHierarchy },
         targetSource = enhanced.TargetObject == null ? null : (object)worldSource(enhanced.TargetObject.transform, "UnityEngine.Transform", -1),
-        activationRequirements = enhanced.ActivationRequirements == null ? null : (object)worldTemplateProjection(enhanced.ActivationRequirements, "source.hierarchyPath.ActivationRequirements"),
-        deactivationRequirements = enhanced.DeactivationRequirements == null ? null : (object)worldTemplateProjection(enhanced.DeactivationRequirements, "source.hierarchyPath.DeactivationRequirements"),
+        activationRequirements = enhanced.ActivationRequirements == null ? null : (object)worldTemplateProjection(enhanced.ActivationRequirements, sourcePath + ".ActivationRequirements"),
+        deactivationRequirements = enhanced.DeactivationRequirements == null ? null : (object)worldTemplateProjection(enhanced.DeactivationRequirements, sourcePath + ".DeactivationRequirements"),
         semantics = "Activation and deactivation are runtime state changes. Requirement predicates are retained but not evaluated."
     });
 }
@@ -1577,6 +1581,7 @@ for (var index = 0; index < worldActiveRequirementCount; index++)
         continue;
     }
     var sourceEvidence = worldSource(activeRequirement, "Il2Cpp.ActiveRequirement", index);
+    var sourcePath = "Il2Cpp.ActiveRequirement[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     var requirementGroups = new System.Collections.Generic.List<object>();
     var nativeRequirementGroups = activeRequirement.RequirementGroups;
     var requirementGroupCount = nativeRequirementGroups == null ? 0 : nativeRequirementGroups.Count;
@@ -1594,19 +1599,19 @@ for (var index = 0; index < worldActiveRequirementCount; index++)
     }
     for (var groupIndex = 0; groupIndex < requirementGroupCount; groupIndex++)
     {
-        var groupPath = "source.hierarchyPath.RequirementGroups[" + groupIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+        var groupPath = sourcePath + ".RequirementGroups[" + groupIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
         requirementGroups.Add(projectGroup(nativeRequirementGroups[groupIndex], groupPath, groupIndex));
     }
     worldConditionSources.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "activeRequirement",
         conditionKind = "activationToggle",
         targetObject = activeRequirement.TargetObject == null ? null : (object)new { name = activeRequirement.TargetObject.name, activeSelf = activeRequirement.TargetObject.activeSelf, activeInHierarchy = activeRequirement.TargetObject.activeInHierarchy },
         targetSource = activeRequirement.TargetObject == null ? null : (object)worldSource(activeRequirement.TargetObject.transform, "UnityEngine.Transform", -1),
         requirementSource = new { value = (int)activeRequirement.Source, name = activeRequirement.Source.ToString() },
-        activationRequirement = activeRequirement.ActivationRequirement == null ? null : (object)worldTemplateProjection(activeRequirement.ActivationRequirement, "source.hierarchyPath.ActivationRequirement"),
+        activationRequirement = activeRequirement.ActivationRequirement == null ? null : (object)worldTemplateProjection(activeRequirement.ActivationRequirement, sourcePath + ".ActivationRequirement"),
         requirementGroupsAvailable = nativeRequirementGroups != null,
         requirementGroupCount = nativeRequirementGroups == null ? -1 : requirementGroupCount,
         requirementGroups = requirementGroups,
@@ -1626,6 +1631,7 @@ for (var index = 0; index < worldTimedActiveRequirementCount; index++)
         continue;
     }
     var sourceEvidence = worldSource(timedRequirement, "Il2Cpp.TimedActiveRequirement", index);
+    var sourcePath = "Il2Cpp.TimedActiveRequirement[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     if (timedRequirement.TargetObject == null)
     {
         unresolved.Add(new { kind = "timedActiveRequirementTarget", source = sourceEvidence, sourceFieldPath = "TimedActiveRequirement.TargetObject", detail = "The timed activation controller has no target GameObject." });
@@ -1637,12 +1643,12 @@ for (var index = 0; index < worldTimedActiveRequirementCount; index++)
     worldConditionSources.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "timedActiveRequirement",
         conditionKind = "timedActivationToggle",
         targetObject = timedRequirement.TargetObject == null ? null : (object)new { name = timedRequirement.TargetObject.name, activeSelf = timedRequirement.TargetObject.activeSelf, activeInHierarchy = timedRequirement.TargetObject.activeInHierarchy },
         targetSource = timedRequirement.TargetObject == null ? null : (object)worldSource(timedRequirement.TargetObject.transform, "UnityEngine.Transform", -1),
-        activationRequirement = timedRequirement.ActivationRequirement == null ? null : (object)worldTemplateProjection(timedRequirement.ActivationRequirement, "source.hierarchyPath.ActivationRequirement"),
+        activationRequirement = timedRequirement.ActivationRequirement == null ? null : (object)worldTemplateProjection(timedRequirement.ActivationRequirement, sourcePath + ".ActivationRequirement"),
         activationDurationSeconds = timedRequirement.ActivationDurationSeconds,
         semantics = "The authored duration and requirement are retained. Runtime timer state is not a placement identity."
     });
@@ -1659,6 +1665,7 @@ for (var index = 0; index < worldDisableRequirementCount; index++)
         continue;
     }
     var sourceEvidence = worldSource(disableRequirement, "Il2Cpp.DisableRequirement", index);
+    var sourcePath = "Il2Cpp.DisableRequirement[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     if (disableRequirement.TargetObject == null)
     {
         unresolved.Add(new { kind = "disableRequirementTarget", source = sourceEvidence, sourceFieldPath = "DisableRequirement.TargetObject", detail = "The disable controller has no target GameObject." });
@@ -1670,12 +1677,12 @@ for (var index = 0; index < worldDisableRequirementCount; index++)
     worldConditionSources.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "disableRequirement",
         conditionKind = "disableToggle",
         targetObject = disableRequirement.TargetObject == null ? null : (object)new { name = disableRequirement.TargetObject.name, activeSelf = disableRequirement.TargetObject.activeSelf, activeInHierarchy = disableRequirement.TargetObject.activeInHierarchy },
         targetSource = disableRequirement.TargetObject == null ? null : (object)worldSource(disableRequirement.TargetObject.transform, "UnityEngine.Transform", -1),
-        activationRequirement = disableRequirement.ActivationRequirement == null ? null : (object)worldTemplateProjection(disableRequirement.ActivationRequirement, "source.hierarchyPath.ActivationRequirement"),
+        activationRequirement = disableRequirement.ActivationRequirement == null ? null : (object)worldTemplateProjection(disableRequirement.ActivationRequirement, sourcePath + ".ActivationRequirement"),
         semantics = "The authored requirement is retained. Runtime target disabling is not evaluated."
     });
 }
@@ -1691,6 +1698,7 @@ for (var index = 0; index < worldRandomActivatorCount; index++)
         continue;
     }
     var sourceEvidence = worldSource(randomActivator, "Il2Cpp.RandomActivator", index);
+    var sourcePath = "Il2Cpp.RandomActivator[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     var targetObjects = new System.Collections.Generic.List<object>();
     var nativeTargetObjects = randomActivator.gameObjects;
     var targetObjectCount = nativeTargetObjects == null ? 0 : nativeTargetObjects.Count;
@@ -1701,7 +1709,7 @@ for (var index = 0; index < worldRandomActivatorCount; index++)
     for (var targetIndex = 0; targetIndex < targetObjectCount; targetIndex++)
     {
         var targetObject = nativeTargetObjects[targetIndex];
-        var targetPath = "source.hierarchyPath.gameObjects[" + targetIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+        var targetPath = sourcePath + ".gameObjects[" + targetIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
         if (targetObject == null)
         {
             unresolved.Add(new { kind = "randomActivatorTarget", source = sourceEvidence, sourceFieldPath = targetPath, detail = "The random activator target GameObject is null." });
@@ -1763,12 +1771,13 @@ for (var index = 0; index < worldQuestZoneCount; index++)
         continue;
     }
     var sourceEvidence = worldSource(zone, "Il2Cpp.WorldQuestZone", index);
+    var sourcePath = "Il2Cpp.WorldQuestZone[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
     var quests = new System.Collections.Generic.List<object>();
     if (zone.worldQuest != null)
     {
         if (zone.worldQuest.quest == null)
         {
-            unresolved.Add(new { kind = "worldQuestCanonicalReference", source = sourceEvidence, sourceFieldPath = "source.hierarchyPath.worldQuest.quest", worldQuestID = zone.worldQuest.ID, detail = "The authored RPGWorldQuest has no RPGQuest reference." });
+            unresolved.Add(new { kind = "worldQuestCanonicalReference", source = sourceEvidence, sourceFieldPath = sourcePath + ".worldQuest.quest", worldQuestID = zone.worldQuest.ID, detail = "The authored RPGWorldQuest has no RPGQuest reference." });
         }
     }
     else if (zone.possibleQuests == null || zone.possibleQuests.Count == 0)
@@ -1780,7 +1789,7 @@ for (var index = 0; index < worldQuestZoneCount; index++)
     for (var questIndex = 0; questIndex < possibleCount; questIndex++)
     {
         var possibleQuest = possible[questIndex];
-        var questPath = "source.hierarchyPath.possibleQuests[" + questIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+        var questPath = sourcePath + ".possibleQuests[" + questIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
         if (possibleQuest == null)
         {
             unresolved.Add(new { kind = "worldQuestZoneQuestReference", source = sourceEvidence, sourceFieldPath = questPath, detail = "The possible world quest row is null." });
@@ -1807,7 +1816,7 @@ for (var index = 0; index < worldQuestZoneCount; index++)
     worldQuestZones.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         family = "worldQuestZone",
         role = "questLocation",
         roles = new[] { "questLocation" },
@@ -1842,7 +1851,7 @@ for (var index = 0; index < worldPortalCount; index++)
     worldTransitions.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         transitionKind = "questScenePortal",
         role = "transition",
         roles = new[] { "transition" },
@@ -1877,7 +1886,7 @@ for (var index = 0; index < worldDungeonEntranceCount; index++)
     worldTransitions.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         transitionKind = "dungeonEntranceTrigger",
         role = "transition",
         roles = new[] { "transition" },
@@ -1933,7 +1942,7 @@ for (var index = 0; index < worldMapZoneCount; index++)
     worldMapZones.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         zoneID = mapZone.zone_id,
         map = map == null ? null : (object)new { name = map.name, width = map.width, height = map.height, dimension = map.dimension, textureType = map.GetType().FullName },
         boxCollider = collider == null ? null : (object)new
@@ -1969,7 +1978,7 @@ for (var index = 0; index < worldRegionCount; index++)
     worldRegions.Add(new
     {
         source = sourceEvidence,
-        disposition = "captured",
+        disposition = "extracted",
         regionShape = new { value = (int)region.shapeType, name = region.shapeType.ToString() },
         regionTemplate = template == null ? null : (object)new { nativeId = template.ID, name = getEntryName(template), internalName = template.entryName, fileName = template.entryFileName },
         regionTemplateProjection = template == null ? null : (object)projectEntry(template),
@@ -2016,7 +2025,7 @@ var worldExportedTotal = new
 
 return new
 {
-    schemaVersion = "compendium.world-sources.v2",
+    schemaVersion = "compendium.world-sources.v3",
     coverage = new
     {
         scope = "currently loaded Unity scenes and candidate prefab assets visible to the current process",
@@ -2029,7 +2038,7 @@ return new
         mapZoneCaptureBoundsValidated = false,
         sourceSceneNativeIdRule = "GameState.CurrentGameScene.ID is emitted only when its authored scene name matches the observed Unity scene name.",
         unsupportedFamiliesRemainVisible = true,
-        sourceDispositionVocabulary = new[] { "captured", "unreachable", "unused", "unsupported", "failed" },
+        sourceDispositionVocabulary = new[] { "extracted", "unreachable", "unused", "unsupported", "failed" },
         note = "A successful probe is not a complete-build claim. Sources outside loaded scenes or unavailable streamed content remain unresolved until traversal extracts them."
     },
     nativeNamingUncertainties = new[]
