@@ -1,0 +1,720 @@
+if (args == null)
+    throw new System.ArgumentNullException("args");
+
+var captureActionToken = args["action"];
+if (captureActionToken == null || captureActionToken.Type != Newtonsoft.Json.Linq.JTokenType.String)
+    throw new System.ArgumentException("action is required.");
+var captureAction = (string)captureActionToken;
+if (captureAction != "start" && captureAction != "inspect" && captureAction != "render" && captureAction != "restore")
+    throw new System.ArgumentException("action must be start, inspect, render, or restore.");
+
+var ownerState = System.AppDomain.CurrentDomain.GetData("afallon-compendium.runtime-owner.v1") as System.Collections.Generic.Dictionary<string, object>;
+if (ownerState == null || (ownerState["state"] as string) != "active")
+    throw new System.OperationCanceledException("The runtime owner is no longer active.");
+var ownerToken = ownerState["token"] as string;
+if (string.IsNullOrEmpty(ownerToken))
+    throw new System.InvalidOperationException("The runtime owner token is missing.");
+var ownerConnected = ownerState["isConnected"] as System.Func<bool>;
+if (ownerConnected == null || !ownerConnected())
+    throw new System.OperationCanceledException("The runtime owner socket is no longer connected.");
+
+var captureActiveKeyName = "afallon-compendium.capture.active.v1";
+var formatError = new System.Func<System.Exception, string>(error => error.GetType().FullName + ": " + error.Message);
+var isFinite = new System.Func<float, bool>(value => !float.IsNaN(value) && !float.IsInfinity(value));
+var number = new System.Func<Newtonsoft.Json.Linq.JToken, string, float>((token, name) =>
+{
+    if (token == null || token.Type != Newtonsoft.Json.Linq.JTokenType.Float && token.Type != Newtonsoft.Json.Linq.JTokenType.Integer)
+        throw new System.ArgumentException(name + " must be a finite number.");
+    var value = token.ToObject<float>();
+    if (!isFinite(value)) throw new System.ArgumentException(name + " must be a finite number.");
+    return value;
+});
+var integer = new System.Func<Newtonsoft.Json.Linq.JToken, string, int>((token, name) =>
+{
+    if (token == null || token.Type != Newtonsoft.Json.Linq.JTokenType.Integer)
+        throw new System.ArgumentException(name + " must be an integer.");
+    return token.ToObject<int>();
+});
+var requiredText = new System.Func<Newtonsoft.Json.Linq.JToken, string, string>((token, name) =>
+{
+    if (token == null || token.Type != Newtonsoft.Json.Linq.JTokenType.String || string.IsNullOrEmpty((string)token))
+        throw new System.ArgumentException(name + " must be a non-empty string.");
+    return (string)token;
+});
+var vector = new System.Func<Newtonsoft.Json.Linq.JToken, string, UnityEngine.Vector3>((token, name) =>
+{
+    if (token == null || token.Type != Newtonsoft.Json.Linq.JTokenType.Object)
+        throw new System.ArgumentException(name + " must be an object.");
+    var result = new UnityEngine.Vector3(number(token["x"], name + ".x"), number(token["y"], name + ".y"), number(token["z"], name + ".z"));
+    return result;
+});
+var color = new System.Func<Newtonsoft.Json.Linq.JToken, string, UnityEngine.Color>((token, name) =>
+{
+    if (token == null || token.Type != Newtonsoft.Json.Linq.JTokenType.Object)
+        throw new System.ArgumentException(name + " must be an object.");
+    var result = new UnityEngine.Color(number(token["r"], name + ".r"), number(token["g"], name + ".g"), number(token["b"], name + ".b"), 1f);
+    if (result.r < 0f || result.r > 4f || result.g < 0f || result.g > 4f || result.b < 0f || result.b > 4f)
+        throw new System.ArgumentException(name + " channels must be between 0 and 4.");
+    return result;
+});
+var array = new System.Func<Newtonsoft.Json.Linq.JToken, string, Newtonsoft.Json.Linq.JArray>((token, name) =>
+{
+    if (token == null || token.Type != Newtonsoft.Json.Linq.JTokenType.Array)
+        throw new System.ArgumentException(name + " must be an array.");
+    return (Newtonsoft.Json.Linq.JArray)token;
+});
+
+var cleanupPathFromArgs = args["cleanupPath"];
+var pathFull = new System.Func<string, string>((path) =>
+{
+    if (string.IsNullOrEmpty(path)) throw new System.ArgumentException("Path must be non-empty.");
+    try { return System.IO.Path.GetFullPath(path); }
+    catch (System.Exception error) { throw new System.ArgumentException("Path is invalid: " + error.Message); }
+});
+var cleanupPath = cleanupPathFromArgs == null || cleanupPathFromArgs.Type == Newtonsoft.Json.Linq.JTokenType.Null ? null : requiredText(cleanupPathFromArgs, "cleanupPath");
+var cleanupFullPath = cleanupPath == null ? null : pathFull(cleanupPath);
+var cleanupDirectory = cleanupFullPath == null ? null : System.IO.Path.GetDirectoryName(cleanupFullPath);
+if (cleanupFullPath != null && string.IsNullOrEmpty(cleanupDirectory))
+    throw new System.ArgumentException("cleanupPath must have a directory.");
+if (cleanupDirectory != null)
+    System.IO.Directory.CreateDirectory(cleanupDirectory);
+var pathContained = new System.Func<string, string, bool>((candidate, root) =>
+{
+    var full = pathFull(candidate);
+    var rootFull = pathFull(root);
+    var prefix = rootFull.EndsWith(System.IO.Path.DirectorySeparatorChar.ToString(), System.StringComparison.Ordinal) ? rootFull : rootFull + System.IO.Path.DirectorySeparatorChar;
+    return !string.Equals(full, rootFull, System.StringComparison.OrdinalIgnoreCase) && full.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase);
+});
+var normalizeSafePath = new System.Func<string, string, string>((candidate, name) =>
+{
+    var full = pathFull(candidate);
+    if (!pathContained(full, cleanupDirectory)) throw new System.ArgumentException(name + " must be contained under the cleanup directory.");
+    return full;
+});
+var writeAtomicText = new System.Action<string, string>((destination, text) =>
+{
+    var temp = destination + ".tmp." + System.Guid.NewGuid().ToString("N");
+    try
+    {
+        using (var stream = new System.IO.FileStream(temp, System.IO.FileMode.CreateNew, System.IO.FileAccess.Write, System.IO.FileShare.None))
+        using (var writer = new System.IO.StreamWriter(stream, new System.Text.UTF8Encoding(false)))
+        {
+            writer.Write(text);
+            writer.Flush();
+            stream.Flush(true);
+        }
+        if (System.IO.File.Exists(destination)) throw new System.IO.IOException("The destination already exists: " + destination);
+        System.IO.File.Move(temp, destination);
+    }
+    catch (System.Exception)
+    {
+        try { if (System.IO.File.Exists(temp)) System.IO.File.Delete(temp); } catch (System.Exception) { }
+        throw;
+    }
+});
+
+var readCurrentScene = new System.Func<object>(() =>
+{
+    var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+    var nativeScene = Il2Cpp.GameState.CurrentGameScene;
+    if (!scene.isLoaded || nativeScene == null)
+        throw new System.InvalidOperationException("A loaded native game scene is required.");
+    var result = new System.Collections.Generic.Dictionary<string, object>();
+    result["scene"] = scene;
+    result["nativeId"] = nativeScene.ID;
+    return result;
+});
+var checkCharacter = new System.Action<string>((requestedCharacter) =>
+{
+    var character = Il2CppBLINK.RPGBuilder.Characters.Character.Instance;
+    var data = character == null ? null : character.CharacterData;
+    if (data == null || !data.IsCreated || data.CharacterName != requestedCharacter)
+        throw new System.InvalidOperationException("The configured research character is not active.");
+});
+var checkDimensions = new System.Func<int, int, bool>((width, height) => width >= 64 && width <= 2048 && height >= 64 && height <= 2048);
+var readFrame = new System.Func<Newtonsoft.Json.Linq.JToken, object>((token) =>
+{
+    if (token == null || token.Type != Newtonsoft.Json.Linq.JTokenType.Object)
+        throw new System.ArgumentException("frame must be an object.");
+    var center = token["center"];
+    var worldSize = token["worldSize"];
+    if (center == null || center.Type != Newtonsoft.Json.Linq.JTokenType.Object || worldSize == null || worldSize.Type != Newtonsoft.Json.Linq.JTokenType.Object)
+        throw new System.ArgumentException("frame center and worldSize are required.");
+    var centerX = number(center["x"], "frame.center.x");
+    var centerZ = number(center["z"], "frame.center.z");
+    var sizeX = number(worldSize["x"], "frame.worldSize.x");
+    var sizeZ = number(worldSize["z"], "frame.worldSize.z");
+    var cameraY = number(token["cameraY"], "frame.cameraY");
+    var nearClip = number(token["nearClip"], "frame.nearClip");
+    var farClip = number(token["farClip"], "frame.farClip");
+    if (sizeX <= 0f || sizeZ <= 0f || sizeX > 100000f || sizeZ > 100000f) throw new System.ArgumentException("frame worldSize must be greater than zero and at most 100000.");
+    if (nearClip <= 0f || farClip <= 0f || farClip <= nearClip || farClip > 100000f) throw new System.ArgumentException("frame clip planes are invalid.");
+    var result = new System.Collections.Generic.Dictionary<string, float>();
+    result["centerX"] = centerX;
+    result["centerZ"] = centerZ;
+    result["sizeX"] = sizeX;
+    result["sizeZ"] = sizeZ;
+    result["cameraY"] = cameraY;
+    result["nearClip"] = nearClip;
+    result["farClip"] = farClip;
+    return result;
+});
+var frameObject = new System.Func<object, object>((value) =>
+{
+    var frameData = (System.Collections.Generic.Dictionary<string, float>)value;
+    return new { center = new { x = frameData["centerX"], z = frameData["centerZ"] }, worldSize = new { x = frameData["sizeX"], z = frameData["sizeZ"] }, cameraY = frameData["cameraY"], nearClip = frameData["nearClip"], farClip = frameData["farClip"] };
+});
+var probeEqual = new System.Func<UnityEngine.Rendering.SphericalHarmonicsL2, UnityEngine.Rendering.SphericalHarmonicsL2, bool>((left, right) =>
+{
+    for (var rgb = 0; rgb < 3; rgb++) for (var coefficient = 0; coefficient < 9; coefficient++)
+        if (left[rgb, coefficient] != right[rgb, coefficient]) return false;
+    return true;
+});
+
+var faultAt = args["faultAt"] == null || args["faultAt"].Type == Newtonsoft.Json.Linq.JTokenType.Null ? null : requiredText(args["faultAt"], "faultAt");
+var allowedFault = faultAt == null || faultAt == "after-camera" || faultAt == "after-target" || faultAt == "after-texture" || faultAt == "after-light" || faultAt == "after-visuals" || faultAt == "after-render" || faultAt == "after-encode";
+if (!allowedFault) throw new System.ArgumentException("faultAt is not a supported bounded verification hook.");
+var fault = new System.Action<string>((point) => { if (faultAt == point) throw new System.InvalidOperationException("Injected capture failure at " + point + "."); });
+
+if (captureAction == "start")
+{
+    var researchCharacter = requiredText(args["researchCharacter"], "researchCharacter");
+    var requestedSceneId = integer(args["sceneNativeId"], "sceneNativeId");
+    if (requestedSceneId < 0) throw new System.ArgumentException("sceneNativeId must be non-negative.");
+    var requestedScenePath = requiredText(args["scenePath"], "scenePath");
+    var requestedWidth = integer(args["width"], "width");
+    var requestedHeight = integer(args["height"], "height");
+    if (!checkDimensions(requestedWidth, requestedHeight)) throw new System.ArgumentException("width and height must be between 64 and 2048.");
+    if (cleanupFullPath == null) throw new System.ArgumentException("cleanupPath is required for start.");
+    if (System.IO.File.Exists(cleanupFullPath)) throw new System.IO.IOException("The cleanup receipt destination already exists.");
+    checkCharacter(researchCharacter);
+    var current = readCurrentScene();
+    var currentDictionary = (System.Collections.Generic.Dictionary<string, object>)current;
+    var currentScene = (UnityEngine.SceneManagement.Scene)currentDictionary["scene"];
+    var currentNativeId = (int)currentDictionary["nativeId"];
+    if (currentNativeId != requestedSceneId || currentScene.path != requestedScenePath)
+        throw new System.InvalidOperationException("The current scene does not match sceneNativeId and scenePath.");
+    var priorActive = System.AppDomain.CurrentDomain.GetData(captureActiveKeyName) as string;
+    if (!string.IsNullOrEmpty(priorActive))
+        throw new System.InvalidOperationException("Another capture session is already active.");
+
+    var sessionKey = "afallon-compendium.capture." + System.Guid.NewGuid().ToString("N");
+    var resourcePrefix = "AfallonCapture." + sessionKey.Substring(sessionKey.Length - 16);
+    var state = new System.Collections.Generic.Dictionary<string, object>();
+    state["key"] = sessionKey;
+    state["ownerToken"] = ownerToken;
+    state["researchCharacter"] = researchCharacter;
+    state["sceneNativeId"] = requestedSceneId;
+    state["scenePath"] = requestedScenePath;
+    state["sceneHandle"] = currentScene.handle;
+    state["resourcePrefix"] = resourcePrefix;
+    state["width"] = requestedWidth;
+    state["height"] = requestedHeight;
+    state["cleanupPath"] = cleanupFullPath;
+    state["phase"] = "ready";
+    state["completedCaptures"] = 0;
+    state["lastCapture"] = null;
+    state["pendingFrameRestore"] = null;
+    state["cleanupFinished"] = false;
+    state["explicitRestoreRequested"] = false;
+    state["cleanupRunning"] = false;
+    state["cameraGo"] = null;
+    state["camera"] = null;
+    state["lightGo"] = null;
+    state["light"] = null;
+    state["renderTexture"] = null;
+    state["captureTexture"] = null;
+    System.AppDomain.CurrentDomain.SetData(sessionKey, state);
+    System.AppDomain.CurrentDomain.SetData(captureActiveKeyName, sessionKey);
+
+    System.Action unregisterRuntimeCleanup = null;
+    System.Action cleanupSession = null;
+    cleanupSession = new System.Action(() =>
+    {
+        if ((bool)state["cleanupFinished"]) return;
+        if ((bool)state["cleanupRunning"]) return;
+        state["cleanupRunning"] = true;
+        var cleanupErrors = new System.Collections.Generic.List<string>();
+        var pending = state["pendingFrameRestore"] as System.Action;
+        if (pending != null)
+        {
+            try { pending(); }
+            catch (System.Exception error) { cleanupErrors.Add("Frame restoration failed: " + formatError(error)); }
+        }
+        var camera = state["camera"] as UnityEngine.Camera;
+        var cameraGo = state["cameraGo"] as UnityEngine.GameObject;
+        var light = state["light"] as UnityEngine.Light;
+        var lightGo = state["lightGo"] as UnityEngine.GameObject;
+        var renderTexture = state["renderTexture"] as UnityEngine.RenderTexture;
+        var captureTexture = state["captureTexture"] as UnityEngine.Texture2D;
+        try { if (camera != null) camera.targetTexture = null; } catch (System.Exception error) { cleanupErrors.Add("Camera target detach failed: " + formatError(error)); }
+        try { if (renderTexture != null && UnityEngine.RenderTexture.active == renderTexture) UnityEngine.RenderTexture.active = null; } catch (System.Exception error) { cleanupErrors.Add("Active render target detach failed: " + formatError(error)); }
+        try { if (renderTexture != null) renderTexture.Release(); } catch (System.Exception error) { cleanupErrors.Add("RenderTexture release failed: " + formatError(error)); }
+        try { if (captureTexture != null) UnityEngine.Object.DestroyImmediate(captureTexture); } catch (System.Exception error) { cleanupErrors.Add("Texture destruction failed: " + formatError(error)); }
+        try { if (renderTexture != null) UnityEngine.Object.DestroyImmediate(renderTexture); } catch (System.Exception error) { cleanupErrors.Add("RenderTexture destruction failed: " + formatError(error)); }
+        try { if (cameraGo != null) UnityEngine.Object.DestroyImmediate(cameraGo); } catch (System.Exception error) { cleanupErrors.Add("Camera destruction failed: " + formatError(error)); }
+        try { if (lightGo != null) UnityEngine.Object.DestroyImmediate(lightGo); } catch (System.Exception error) { cleanupErrors.Add("Light destruction failed: " + formatError(error)); }
+        var remaining = 0;
+        try { if (cameraGo != null) remaining++; } catch (System.Exception) { remaining++; }
+        try { if (lightGo != null) remaining++; } catch (System.Exception) { remaining++; }
+        try { if (renderTexture != null) remaining++; } catch (System.Exception) { remaining++; }
+        try { if (captureTexture != null) remaining++; } catch (System.Exception) { remaining++; }
+        if (remaining != 0) cleanupErrors.Add("Owned capture objects remain alive after destruction.");
+        if (cleanupErrors.Count != 0)
+        {
+            state["cleanupRunning"] = false;
+            throw new System.InvalidOperationException("Capture cleanup failed: " + string.Join("; ", cleanupErrors.ToArray()));
+        }
+        state["camera"] = null;
+        state["cameraGo"] = null;
+        state["light"] = null;
+        state["lightGo"] = null;
+        state["renderTexture"] = null;
+        state["captureTexture"] = null;
+        state["phase"] = "restored";
+        var receipt = new { schemaVersion = "compendium.capture-cleanup.v1", key = sessionKey, ownerToken = ownerToken, resourcePrefix = resourcePrefix, phase = "restored", frame = UnityEngine.Time.frameCount, remainingObjects = 0, errors = new string[0] };
+        try { writeAtomicText(cleanupFullPath, Newtonsoft.Json.JsonConvert.SerializeObject(receipt)); }
+        catch (System.Exception)
+        {
+            state["cleanupRunning"] = false;
+            throw;
+        }
+        state["cleanupFinished"] = true;
+        state["cleanupRunning"] = false;
+        if (string.Equals(System.AppDomain.CurrentDomain.GetData(captureActiveKeyName) as string, sessionKey, System.StringComparison.Ordinal)) System.AppDomain.CurrentDomain.SetData(captureActiveKeyName, null);
+        if (object.ReferenceEquals(System.AppDomain.CurrentDomain.GetData(sessionKey), state)) System.AppDomain.CurrentDomain.SetData(sessionKey, null);
+        if ((bool)state["explicitRestoreRequested"] && unregisterRuntimeCleanup != null) unregisterRuntimeCleanup();
+    });
+
+    try
+    {
+        state["cleanupAction"] = cleanupSession;
+        unregisterRuntimeCleanup = registerRuntimeCleanup(cleanupSession);
+        var cameraGo = new UnityEngine.GameObject(resourcePrefix + ".Camera");
+        state["cameraGo"] = cameraGo;
+        cameraGo.SetActive(false);
+        var camera = cameraGo.AddComponent<UnityEngine.Camera>();
+        state["camera"] = camera;
+        camera.enabled = false;
+        fault("after-camera");
+        var lightGo = new UnityEngine.GameObject(resourcePrefix + ".Light");
+        state["lightGo"] = lightGo;
+        lightGo.SetActive(false);
+        var light = lightGo.AddComponent<UnityEngine.Light>();
+        state["light"] = light;
+        light.enabled = false;
+        light.type = UnityEngine.LightType.Directional;
+        light.shadows = UnityEngine.LightShadows.None;
+        fault("after-light");
+        var renderTexture = new UnityEngine.RenderTexture(requestedWidth, requestedHeight, 24);
+        if (renderTexture == null) throw new System.InvalidOperationException("RenderTexture allocation returned null.");
+        state["renderTexture"] = renderTexture;
+        renderTexture.name = resourcePrefix + ".RenderTexture";
+        renderTexture.Create();
+        if (!renderTexture.IsCreated()) throw new System.InvalidOperationException("RenderTexture.Create did not create a live target.");
+        fault("after-target");
+        var captureTexture = new UnityEngine.Texture2D(requestedWidth, requestedHeight, UnityEngine.TextureFormat.RGB24, false);
+        if (captureTexture == null) throw new System.InvalidOperationException("Texture2D allocation returned null.");
+        state["captureTexture"] = captureTexture;
+        captureTexture.name = resourcePrefix + ".Texture2D";
+        fault("after-texture");
+        return new { schemaVersion = "compendium.capture-session.v1", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
+        {
+            new { kind = "camera", instanceId = (int?)camera.GetInstanceID(), alive = camera != null && cameraGo != null },
+            new { kind = "light", instanceId = (int?)light.GetInstanceID(), alive = light != null && lightGo != null },
+            new { kind = "renderTexture", instanceId = (int?)renderTexture.GetInstanceID(), alive = renderTexture != null },
+            new { kind = "texture2D", instanceId = (int?)captureTexture.GetInstanceID(), alive = captureTexture != null },
+        }, completedCaptures = 0, lastCapture = (object)null };
+    }
+    catch (System.Exception error)
+    {
+        try { cleanupSession(); } catch (System.Exception cleanupError) { throw new System.InvalidOperationException(formatError(error) + " Cleanup: " + formatError(cleanupError)); }
+        throw;
+    }
+}
+
+var requestedKey = requiredText(args["key"], "key");
+var activeKey = System.AppDomain.CurrentDomain.GetData(captureActiveKeyName) as string;
+if (!string.Equals(requestedKey, activeKey, System.StringComparison.Ordinal))
+    throw new System.InvalidOperationException("The capture key is stale or is not the active session.");
+var sessionState = System.AppDomain.CurrentDomain.GetData(requestedKey) as System.Collections.Generic.Dictionary<string, object>;
+if (sessionState == null) throw new System.InvalidOperationException("The capture session key is unknown.");
+if (!string.Equals(sessionState["ownerToken"] as string, ownerToken, System.StringComparison.Ordinal))
+    throw new System.InvalidOperationException("The capture session belongs to another runtime owner.");
+if ((sessionState["phase"] as string) != "ready") throw new System.InvalidOperationException("The capture session is already restored.");
+var sessionCleanupFullPath = pathFull((string)sessionState["cleanupPath"]);
+if (cleanupFullPath != null && !string.Equals(cleanupFullPath, sessionCleanupFullPath, System.StringComparison.OrdinalIgnoreCase)) throw new System.ArgumentException("cleanupPath does not match the capture session.");
+cleanupFullPath = sessionCleanupFullPath;
+cleanupDirectory = System.IO.Path.GetDirectoryName(sessionCleanupFullPath);
+var sessionScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+var sessionNativeScene = Il2Cpp.GameState.CurrentGameScene;
+if (!sessionScene.isLoaded || sessionNativeScene == null || sessionNativeScene.ID != (int)sessionState["sceneNativeId"] || sessionScene.path != (string)sessionState["scenePath"] || sessionScene.handle != (int)sessionState["sceneHandle"])
+    throw new System.InvalidOperationException("The active scene no longer matches the capture session.");
+
+var sessionCamera = sessionState["camera"] as UnityEngine.Camera;
+var sessionCameraGo = sessionState["cameraGo"] as UnityEngine.GameObject;
+var sessionLight = sessionState["light"] as UnityEngine.Light;
+var sessionLightGo = sessionState["lightGo"] as UnityEngine.GameObject;
+var sessionRenderTexture = sessionState["renderTexture"] as UnityEngine.RenderTexture;
+var sessionTexture = sessionState["captureTexture"] as UnityEngine.Texture2D;
+if (sessionCamera == null || sessionCameraGo == null || sessionLight == null || sessionLightGo == null || sessionRenderTexture == null || sessionTexture == null)
+    throw new System.InvalidOperationException("The capture session resources are incomplete.");
+
+var sessionResources = new System.Func<object>(() =>
+{
+    return new object[]
+    {
+        new { kind = "camera", instanceId = (int?)sessionCamera.GetInstanceID(), alive = sessionCamera != null && sessionCameraGo != null },
+        new { kind = "light", instanceId = (int?)sessionLight.GetInstanceID(), alive = sessionLight != null && sessionLightGo != null },
+        new { kind = "renderTexture", instanceId = (int?)sessionRenderTexture.GetInstanceID(), alive = sessionRenderTexture != null },
+        new { kind = "texture2D", instanceId = (int?)sessionTexture.GetInstanceID(), alive = sessionTexture != null },
+    };
+});
+var sessionReport = new System.Func<object>(() => new
+{
+    schemaVersion = "compendium.capture-session.v1",
+    key = requestedKey,
+    phase = sessionState["phase"] as string,
+    ownerToken = ownerToken,
+    sceneNativeId = (int)sessionState["sceneNativeId"],
+    scenePath = sessionState["scenePath"] as string,
+    sceneHandle = (int)sessionState["sceneHandle"],
+    resourcePrefix = sessionState["resourcePrefix"] as string,
+    resources = sessionResources(),
+    completedCaptures = (int)sessionState["completedCaptures"],
+    lastCapture = sessionState["lastCapture"],
+});
+
+if (captureAction == "inspect")
+    return sessionReport();
+
+if (captureAction == "restore")
+{
+    sessionState["explicitRestoreRequested"] = true;
+    var restoreCleanup = sessionState["cleanupAction"] as System.Action;
+    if (restoreCleanup == null) throw new System.InvalidOperationException("The capture session has no cleanup action.");
+    restoreCleanup();
+    return new
+    {
+        schemaVersion = "compendium.capture-session.v1",
+        key = requestedKey,
+        phase = "restored",
+        ownerToken = ownerToken,
+        sceneNativeId = (int)sessionState["sceneNativeId"],
+        scenePath = sessionState["scenePath"] as string,
+        sceneHandle = (int)sessionState["sceneHandle"],
+        resourcePrefix = sessionState["resourcePrefix"] as string,
+        resources = new object[]
+        {
+            new { kind = "camera", instanceId = (int?)null, alive = false },
+            new { kind = "light", instanceId = (int?)null, alive = false },
+            new { kind = "renderTexture", instanceId = (int?)null, alive = false },
+            new { kind = "texture2D", instanceId = (int?)null, alive = false },
+        },
+        completedCaptures = (int)sessionState["completedCaptures"],
+        lastCapture = sessionState["lastCapture"],
+    };
+}
+
+if (captureAction != "render") throw new System.InvalidOperationException("Unsupported capture action.");
+var tileId = requiredText(args["tileId"], "tileId");
+if (!System.Text.RegularExpressions.Regex.IsMatch(tileId, "^[a-z0-9]+(?:-[a-z0-9]+)*$") || tileId.Length > 80)
+    throw new System.ArgumentException("tileId has an invalid format.");
+var requestedFrame = readFrame(args["frame"]);
+var frameValue = (System.Collections.Generic.Dictionary<string, float>)requestedFrame;
+var requestedLighting = args["lighting"];
+if (requestedLighting == null || requestedLighting.Type != Newtonsoft.Json.Linq.JTokenType.Object) throw new System.ArgumentException("lighting is required.");
+var ambient = color(requestedLighting["ambient"], "lighting.ambient");
+var directionalIntensity = number(requestedLighting["directionalIntensity"], "lighting.directionalIntensity");
+var directionalEuler = vector(requestedLighting["directionalEuler"], "lighting.directionalEuler");
+if (directionalIntensity < 0f || directionalIntensity > 4f) throw new System.ArgumentException("lighting.directionalIntensity must be between 0 and 4.");
+var cullingMask = integer(args["cullingMask"], "cullingMask");
+var suppressionArray = array(args["suppressedRendererIds"], "suppressedRendererIds");
+if (suppressionArray.Count > 5000) throw new System.ArgumentException("suppressedRendererIds has too many entries.");
+var suppressedIds = new System.Collections.Generic.List<int>();
+var suppressionSet = new System.Collections.Generic.HashSet<int>();
+foreach (var idToken in suppressionArray)
+{
+    var id = integer(idToken, "suppressedRendererIds entry");
+    if (!suppressionSet.Add(id)) throw new System.ArgumentException("suppressedRendererIds must contain unique renderer IDs.");
+    suppressedIds.Add(id);
+}
+var captureWidth = (int)sessionState["width"];
+var captureHeight = (int)sessionState["height"];
+var worldAspect = (double)frameValue["sizeX"] / (double)frameValue["sizeZ"];
+var pixelAspect = (double)captureWidth / (double)captureHeight;
+if (System.Math.Abs(worldAspect - pixelAspect) > 0.000001d) throw new System.ArgumentException("frame world aspect must match the pixel aspect.");
+var outputPathArgument = requiredText(args["outputPath"], "outputPath");
+var outputPath = normalizeSafePath(outputPathArgument, "outputPath");
+if (!outputPath.EndsWith(".png", System.StringComparison.OrdinalIgnoreCase)) throw new System.ArgumentException("outputPath must end with .png.");
+if (System.IO.File.Exists(outputPath)) throw new System.IO.IOException("The PNG destination already exists.");
+var restorationPath = normalizeSafePath(requiredText(args["restorationPath"], "restorationPath"), "restorationPath");
+if (System.IO.File.Exists(restorationPath)) throw new System.IO.IOException("The restoration audit destination already exists.");
+if (string.Equals(outputPath, restorationPath, System.StringComparison.OrdinalIgnoreCase) || string.Equals(outputPath, cleanupFullPath, System.StringComparison.OrdinalIgnoreCase) || string.Equals(restorationPath, cleanupFullPath, System.StringComparison.OrdinalIgnoreCase)) throw new System.ArgumentException("Capture output, restoration audit, and cleanup receipt paths must differ.");
+var pauseAfterVisualsMs = args["pauseAfterVisualsMs"] == null || args["pauseAfterVisualsMs"].Type == Newtonsoft.Json.Linq.JTokenType.Null ? 0 : integer(args["pauseAfterVisualsMs"], "pauseAfterVisualsMs");
+if (pauseAfterVisualsMs < 0 || pauseAfterVisualsMs > 1000) throw new System.ArgumentException("pauseAfterVisualsMs must be between 0 and 1000.");
+var signalPath = args["signalPath"] == null || args["signalPath"].Type == Newtonsoft.Json.Linq.JTokenType.Null ? null : normalizeSafePath(requiredText(args["signalPath"], "signalPath"), "signalPath");
+if (signalPath != null && (string.Equals(signalPath, outputPath, System.StringComparison.OrdinalIgnoreCase) || string.Equals(signalPath, restorationPath, System.StringComparison.OrdinalIgnoreCase) || string.Equals(signalPath, cleanupFullPath, System.StringComparison.OrdinalIgnoreCase))) throw new System.ArgumentException("The interruption signal path must differ from capture output paths.");
+var signal = new System.Action(() =>
+{
+    if (signalPath != null)
+    {
+        writeAtomicText(signalPath, Newtonsoft.Json.JsonConvert.SerializeObject(new { frame = UnityEngine.Time.frameCount, lightEnabled = sessionLight.enabled }));
+    }
+    if (pauseAfterVisualsMs > 0) System.Threading.Thread.Sleep(pauseAfterVisualsMs);
+    if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected during capture.");
+});
+
+var renderers = new System.Collections.Generic.List<UnityEngine.Renderer>();
+var rendererFlags = new System.Collections.Generic.List<bool>();
+var selectedRenderers = new System.Collections.Generic.Dictionary<int, UnityEngine.Renderer>();
+if (suppressedIds.Count != 0)
+{
+    foreach (var renderer in UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true))
+    {
+        if (renderer == null) continue;
+        var rendererId = renderer.GetInstanceID();
+        if (!suppressionSet.Contains(rendererId) || renderer.gameObject.scene.handle != sessionScene.handle) continue;
+        selectedRenderers.Add(rendererId, renderer);
+    }
+}
+foreach (var id in suppressedIds)
+{
+    UnityEngine.Renderer found;
+    if (!selectedRenderers.TryGetValue(id, out found)) throw new System.ArgumentException("suppressedRendererIds contains a renderer outside the active scene or an unknown renderer.");
+    renderers.Add(found);
+    rendererFlags.Add(found.enabled);
+}
+
+var beforeFrame = UnityEngine.Time.frameCount;
+var savedActive = UnityEngine.RenderTexture.active;
+var savedFog = UnityEngine.RenderSettings.fog;
+var savedAmbientMode = UnityEngine.RenderSettings.ambientMode;
+var savedAmbientLight = UnityEngine.RenderSettings.ambientLight;
+var savedSkyColor = UnityEngine.RenderSettings.ambientSkyColor;
+var savedEquatorColor = UnityEngine.RenderSettings.ambientEquatorColor;
+var savedGroundColor = UnityEngine.RenderSettings.ambientGroundColor;
+var savedAmbientIntensity = UnityEngine.RenderSettings.ambientIntensity;
+var savedAmbientProbe = UnityEngine.RenderSettings.ambientProbe;
+var savedCameraTarget = sessionCamera.targetTexture;
+var savedCameraEnabled = sessionCamera.enabled;
+var savedCameraObjectActive = sessionCameraGo.activeSelf;
+var savedLightEnabled = sessionLight.enabled;
+var savedLightObjectActive = sessionLightGo.activeSelf;
+var savedLightIntensity = sessionLight.intensity;
+var savedLightColor = sessionLight.color;
+var savedLightRotation = sessionLight.transform.rotation;
+var rgba = new System.Func<UnityEngine.Color, object>(value => new { r = value.r, g = value.g, b = value.b, a = value.a });
+var visualState = new System.Func<object>(() =>
+{
+    var currentProbe = UnityEngine.RenderSettings.ambientProbe;
+    var values = new System.Collections.Generic.List<float>();
+    for (var rgb = 0; rgb < 3; rgb++) for (var coefficient = 0; coefficient < 9; coefficient++) values.Add(currentProbe[rgb, coefficient]);
+    var currentRenderers = new System.Collections.Generic.List<object>();
+    for (var rendererIndex = 0; rendererIndex < renderers.Count; rendererIndex++) currentRenderers.Add(new { instanceId = renderers[rendererIndex].GetInstanceID(), enabled = renderers[rendererIndex].enabled });
+    var target = UnityEngine.RenderTexture.active;
+    return new
+    {
+        fog = UnityEngine.RenderSettings.fog,
+        ambientMode = (int)UnityEngine.RenderSettings.ambientMode,
+        ambientLight = rgba(UnityEngine.RenderSettings.ambientLight),
+        ambientSky = rgba(UnityEngine.RenderSettings.ambientSkyColor),
+        ambientEquator = rgba(UnityEngine.RenderSettings.ambientEquatorColor),
+        ambientGround = rgba(UnityEngine.RenderSettings.ambientGroundColor),
+        ambientIntensity = UnityEngine.RenderSettings.ambientIntensity,
+        ambientProbe = values.ToArray(),
+        activeTargetInstanceId = target == null ? (int?)null : (int?)target.GetInstanceID(),
+        lightEnabled = sessionLight.enabled,
+        renderers = currentRenderers.ToArray(),
+    };
+});
+var beforeVisualState = visualState();
+var restoreDone = false;
+var restoreRunning = false;
+var restorationErrors = new System.Collections.Generic.List<string>();
+var attemptRestore = new System.Action<string, System.Action>((name, operation) =>
+{
+    try { operation(); } catch (System.Exception error) { restorationErrors.Add(name + ": " + formatError(error)); }
+});
+System.Action restoreFrame = null;
+restoreFrame = new System.Action(() =>
+{
+    if (restoreDone) return;
+    if (restoreRunning) return;
+    restoreRunning = true;
+    restorationErrors.Clear();
+    for (var index = 0; index < renderers.Count; index++)
+    {
+        try { if (renderers[index] != null) renderers[index].enabled = rendererFlags[index]; }
+        catch (System.Exception error) { restorationErrors.Add("renderer " + index + ": " + formatError(error)); }
+    }
+    attemptRestore("active render target", () => { UnityEngine.RenderTexture.active = savedActive; });
+    attemptRestore("fog", () => { UnityEngine.RenderSettings.fog = savedFog; });
+    attemptRestore("ambient mode", () => { UnityEngine.RenderSettings.ambientMode = savedAmbientMode; });
+    attemptRestore("ambient light", () => { UnityEngine.RenderSettings.ambientLight = savedAmbientLight; });
+    attemptRestore("ambient sky", () => { UnityEngine.RenderSettings.ambientSkyColor = savedSkyColor; });
+    attemptRestore("ambient equator", () => { UnityEngine.RenderSettings.ambientEquatorColor = savedEquatorColor; });
+    attemptRestore("ambient ground", () => { UnityEngine.RenderSettings.ambientGroundColor = savedGroundColor; });
+    attemptRestore("ambient intensity", () => { UnityEngine.RenderSettings.ambientIntensity = savedAmbientIntensity; });
+    attemptRestore("camera target", () => { sessionCamera.targetTexture = savedCameraTarget; });
+    attemptRestore("camera enabled", () => { sessionCamera.enabled = savedCameraEnabled; });
+    attemptRestore("camera active", () => { sessionCameraGo.SetActive(savedCameraObjectActive); });
+    attemptRestore("light intensity", () => { sessionLight.intensity = savedLightIntensity; });
+    attemptRestore("light color", () => { sessionLight.color = savedLightColor; });
+    attemptRestore("light rotation", () => { sessionLight.transform.rotation = savedLightRotation; });
+    attemptRestore("light enabled", () => { sessionLight.enabled = savedLightEnabled; });
+    attemptRestore("light active", () => { sessionLightGo.SetActive(savedLightObjectActive); });
+    attemptRestore("ambient probe", () => { UnityEngine.RenderSettings.ambientProbe = savedAmbientProbe; });
+    var restoredProbe = UnityEngine.RenderSettings.ambientProbe;
+    if (!probeEqual(savedAmbientProbe, restoredProbe)) restorationErrors.Add("ambient probe: the saved probe was not restored.");
+    if (sessionCamera.targetTexture != savedCameraTarget) restorationErrors.Add("camera target: verification failed.");
+    if (UnityEngine.RenderTexture.active != savedActive) restorationErrors.Add("active render target: verification failed.");
+    if (UnityEngine.RenderSettings.fog != savedFog) restorationErrors.Add("fog: verification failed.");
+    if (UnityEngine.RenderSettings.ambientMode != savedAmbientMode) restorationErrors.Add("ambient mode: verification failed.");
+    if (UnityEngine.RenderSettings.ambientLight != savedAmbientLight) restorationErrors.Add("ambient light: verification failed.");
+    if (UnityEngine.RenderSettings.ambientSkyColor != savedSkyColor) restorationErrors.Add("ambient sky: verification failed.");
+    if (UnityEngine.RenderSettings.ambientEquatorColor != savedEquatorColor) restorationErrors.Add("ambient equator: verification failed.");
+    if (UnityEngine.RenderSettings.ambientGroundColor != savedGroundColor) restorationErrors.Add("ambient ground: verification failed.");
+    if (System.Math.Abs(UnityEngine.RenderSettings.ambientIntensity - savedAmbientIntensity) > 0.0001f) restorationErrors.Add("ambient intensity: verification failed.");
+    for (var index = 0; index < renderers.Count; index++) if (renderers[index] != null && renderers[index].enabled != rendererFlags[index]) restorationErrors.Add("renderer suppression: verification failed.");
+    if (sessionLight.enabled != savedLightEnabled || sessionLightGo.activeSelf != savedLightObjectActive) restorationErrors.Add("owned light: verification failed.");
+    restoreRunning = false;
+    if (restorationErrors.Count != 0) throw new System.InvalidOperationException("Frame restoration failed: " + string.Join("; ", restorationErrors.ToArray()));
+    restoreDone = true;
+    sessionState["pendingFrameRestore"] = null;
+});
+registerFrameCleanup(restoreFrame);
+sessionState["pendingFrameRestore"] = restoreFrame;
+var captureFailure = (System.Exception)null;
+var restorationFailure = (System.Exception)null;
+var auditFailure = (System.Exception)null;
+var encodedBytes = (byte[])null;
+var encodedHash = (string)null;
+var encodedPath = outputPathArgument;
+var projectionSamples = new System.Collections.Generic.List<object>();
+try
+{
+    sessionCamera.enabled = false;
+    sessionCamera.orthographic = true;
+    sessionCamera.orthographicSize = frameValue["sizeZ"] * 0.5f;
+    sessionCamera.aspect = (float)pixelAspect;
+    sessionCamera.nearClipPlane = (float)frameValue["nearClip"];
+    sessionCamera.farClipPlane = (float)frameValue["farClip"];
+    sessionCamera.useOcclusionCulling = false;
+    sessionCamera.clearFlags = UnityEngine.CameraClearFlags.SolidColor;
+    sessionCamera.backgroundColor = UnityEngine.Color.gray;
+    sessionCamera.cullingMask = cullingMask;
+    sessionCamera.transform.position = new UnityEngine.Vector3((float)frameValue["centerX"], (float)frameValue["cameraY"], (float)frameValue["centerZ"]);
+    sessionCamera.transform.rotation = UnityEngine.Quaternion.Euler(90f, 0f, 0f);
+    for (var sampleIndex = 0; sampleIndex < 3; sampleIndex++)
+    {
+        var offset = sampleIndex == 0 ? 0f : sampleIndex == 1 ? -0.5f : 0.5f;
+        var world = new UnityEngine.Vector3(frameValue["centerX"] + offset * frameValue["sizeX"], 0f, frameValue["centerZ"] + offset * frameValue["sizeZ"]);
+        var viewport = sessionCamera.WorldToViewportPoint(world);
+        projectionSamples.Add(new { world = new { x = world.x, y = world.y, z = world.z }, viewport = new { x = viewport.x, y = viewport.y, z = viewport.z } });
+    }
+    fault("after-camera");
+    sessionCamera.targetTexture = sessionRenderTexture;
+    fault("after-target");
+    if (!sessionRenderTexture.IsCreated()) throw new System.InvalidOperationException("The capture RenderTexture is no longer created.");
+    fault("after-texture");
+    sessionLight.type = UnityEngine.LightType.Directional;
+    sessionLight.intensity = directionalIntensity;
+    sessionLight.color = ambient;
+    sessionLight.shadows = UnityEngine.LightShadows.None;
+    sessionLight.transform.rotation = UnityEngine.Quaternion.Euler(directionalEuler);
+    fault("after-light");
+    UnityEngine.RenderSettings.fog = false;
+    UnityEngine.RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+    UnityEngine.RenderSettings.ambientLight = ambient;
+    UnityEngine.RenderSettings.ambientSkyColor = ambient;
+    UnityEngine.RenderSettings.ambientEquatorColor = ambient;
+    UnityEngine.RenderSettings.ambientGroundColor = ambient;
+    UnityEngine.RenderSettings.ambientIntensity = 1f;
+    foreach (var renderer in renderers) renderer.enabled = false;
+    sessionLightGo.SetActive(true);
+    sessionLight.enabled = true;
+    sessionCameraGo.SetActive(true);
+    sessionCamera.enabled = false;
+    fault("after-visuals");
+    signal();
+    sessionCamera.Render();
+    fault("after-render");
+    UnityEngine.RenderTexture.active = sessionRenderTexture;
+    sessionTexture.ReadPixels(new UnityEngine.Rect(0, 0, captureWidth, captureHeight), 0, 0, false);
+    sessionTexture.Apply(false, false);
+    var nativeEncoded = UnityEngine.ImageConversion.EncodeToPNG(sessionTexture);
+    if (nativeEncoded == null || nativeEncoded.Length == 0) throw new System.InvalidOperationException("EncodeToPNG returned no bytes.");
+    encodedBytes = (byte[])nativeEncoded;
+    fault("after-encode");
+    using (var digest = System.Security.Cryptography.SHA256.Create()) encodedHash = System.BitConverter.ToString(digest.ComputeHash(encodedBytes)).Replace("-", "").ToLowerInvariant();
+    if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected before publishing the capture.");
+}
+catch (System.Exception error) { captureFailure = error; }
+finally
+{
+    try { restoreFrame(); } catch (System.Exception error) { restorationFailure = error; }
+    var afterVisualState = (object)null;
+    try { afterVisualState = visualState(); }
+    catch (System.Exception error)
+    {
+        restorationErrors.Add("visual state read: " + formatError(error));
+        if (restorationFailure == null) restorationFailure = error;
+    }
+    var audit = new
+    {
+        schemaVersion = "compendium.capture-restoration.v1",
+        key = requestedKey,
+        tileId = tileId,
+        frameStarted = beforeFrame,
+        frameRestored = UnityEngine.Time.frameCount,
+        renderSucceeded = captureFailure == null,
+        before = beforeVisualState,
+        after = afterVisualState,
+        errors = restorationErrors.ToArray(),
+    };
+    try { writeAtomicText(restorationPath, Newtonsoft.Json.JsonConvert.SerializeObject(audit)); } catch (System.Exception error) { auditFailure = error; }
+}
+if (restorationFailure != null) throw restorationFailure;
+if (captureFailure != null) throw captureFailure;
+if (auditFailure != null) throw auditFailure;
+if (encodedBytes == null || encodedHash == null) throw new System.InvalidOperationException("The capture did not produce encoded bytes.");
+if (System.IO.File.Exists(outputPath)) throw new System.IO.IOException("The PNG destination appeared during capture.");
+var temporaryOutput = outputPath + ".tmp." + System.Guid.NewGuid().ToString("N");
+try
+{
+    using (var stream = new System.IO.FileStream(temporaryOutput, System.IO.FileMode.CreateNew, System.IO.FileAccess.Write, System.IO.FileShare.None))
+    {
+        stream.Write(encodedBytes, 0, encodedBytes.Length);
+        stream.Flush(true);
+    }
+    if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected before publishing the capture.");
+    if (System.IO.File.Exists(outputPath)) throw new System.IO.IOException("The PNG destination appeared before publish.");
+    System.IO.File.Move(temporaryOutput, outputPath);
+}
+catch (System.Exception)
+{
+    try { if (System.IO.File.Exists(temporaryOutput)) System.IO.File.Delete(temporaryOutput); } catch (System.Exception) { }
+    throw;
+}
+
+var captureFrameMetadata = new
+{
+    tileId = tileId,
+    path = encodedPath,
+    sha256 = encodedHash,
+    byteSize = encodedBytes.LongLength,
+    width = captureWidth,
+    height = captureHeight,
+    frame = beforeFrame,
+    restoredFrame = UnityEngine.Time.frameCount,
+    lightingRestored = true,
+    suppressionRestored = true,
+    activeTargetRestored = true,
+    suppressedRenderers = suppressedIds.Count,
+    cameraFrame = frameObject(requestedFrame),
+    projectionSamples = projectionSamples.ToArray(),
+};
+sessionState["completedCaptures"] = (int)sessionState["completedCaptures"] + 1;
+sessionState["lastCapture"] = captureFrameMetadata;
+return sessionReport();

@@ -37,7 +37,7 @@ A Python-only pipeline was considered. TypeScript keeps publication contracts an
 
 ### 2. Reusable commands replace repeated manual orchestration
 
-The existing commands are `doctor`, `inspect`, `probe`, `extract`, and `traverse`. Capture, normalization, and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
+The existing commands are `doctor`, `inspect`, `probe`, `extract`, `traverse`, and `capture`. Capture accepts explicit camera plans for the loaded scene and requires a reviewed map-space profile. It does not yet establish geometry readiness or complete imagery coverage. Normalization and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
 
 Normal extraction includes canonical records, relationships, loot rules, world inventory, NPC producers, world sources, faction rules, and placement snapshots. It validates schemas, counts, and references, then resolves serialized identities and merges placement roles. Each observation records scene and character context. Sequential runtime calls are not one simultaneous observation. Traversal publishes these role and identity artifacts for each visited scene. Successful loaded-scene extraction does not establish full-world coverage.
 

@@ -31,7 +31,7 @@
 
 ## 4. Reusable screenshot capture
 
-- [ ] 4.1 Implement runtime-owned capture resources and frame-local visual changes. Verify success, injected render failure, cancellation, and disconnection release owned resources. Lighting and suppression must restore before the next gameplay frame without a later host request.
+- [x] 4.1 Implement runtime-owned capture resources and frame-local visual changes. Verify success, injected render failure, cancellation, and disconnection release owned resources. Lighting and suppression must restore before the next gameplay frame without a later host request.
 - [ ] 4.2 Implement multi-frame tile-local preload, geometry holds, and stable readiness inventories under exclusive ownership. Verify initially unloaded geometry, distinguish loaded-or-loading from readiness and timeout from empty terrain, and confirm hold cleanup after cancellation or disconnection.
 - [ ] 4.3 Implement orthographic capture with explicit extent, orientation, and resolution. Verify adjacent outdoor tiles at two resolutions against landmarks and their shared seam.
 - [ ] 4.4 Implement controlled illumination and transient suppression without removing useful static landmarks. Verify the same area remains legible from different gameplay lighting states and no player effects remain.

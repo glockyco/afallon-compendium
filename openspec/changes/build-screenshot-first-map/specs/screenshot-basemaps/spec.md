@@ -63,6 +63,16 @@ Scene loading, preload, readiness checks, and geometry holds MAY span gameplay f
 - **THEN** temporary cameras, lights, and image buffers are released
 - **AND** the previous rendering and gameplay state is restored before the run reports completion
 
+#### Scenario: Capture allocation fails partway through
+- **WHEN** allocation fails after creating only some capture resources
+- **THEN** native cleanup releases every resource that was allocated
+- **AND** existing output and cleanup evidence remain unchanged
+
+#### Scenario: Restoration cannot be observed
+- **WHEN** the capture cannot read the restored visual state
+- **THEN** the capture remains unsuccessful and records the missing observation
+- **AND** it does not substitute the earlier state as evidence of restoration
+
 #### Scenario: Different gameplay lighting produces the same capture request
 - **WHEN** the same tile is captured under the same capture profile from different gameplay lighting states
 - **THEN** its terrain remains comparably legible and its bounds remain identical

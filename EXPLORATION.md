@@ -577,6 +577,24 @@ The archived dungeon replay resolved 88 of 92 retained placements. Four outliers
 
 Spatial smoke drivers are archived under `artifacts/map-calibration-smoke/drivers/`. Reviewed local profile and connection inputs remain under `local/`. Full-build map-space review, complete interior floor review, and primary screenshot coverage remain open. Task 3.9 stays unchecked until that floor review is complete.
 
+## Owned screenshot capture
+
+`capture --config <file> --plan <file>` accepts a `compendium.capture-plan.v1` plan and a reviewed `mapSpaceProfile`. The plan selects the loaded source scene, map space, optional floor, image dimensions, world-XZ camera rectangles, clip planes, lighting, and exact renderer IDs to suppress. It does not load geometry or establish tile readiness. Results retain `readiness: unverified` and `completeImagery: false`.
+
+`tools/probes/capture-session.csx` registers native cleanup before allocating its camera, directional light, render target, and readable texture. The two GameObjects and their components remain inactive between captures. These resources can survive multiple game frames. Explicit restoration, failed allocation, cancellation, and socket loss use the same native cleanup action. The cleanup receipt identifies the resource prefix and reports remaining objects.
+
+Each render records native fog, ambient lighting, the spherical-harmonics probe, the active render target, and selected renderer flags before making temporary visual changes. Its frame-local cleanup restores those values before the evaluation returns. The restoration artifact records the actual before and after values and native frame numbers. A failed read remains unavailable; it is not replaced with the earlier observation. Failed rendering does not publish a PNG.
+
+The capture host checks source and owner identity, camera metadata, PNG dimensions and hashes, exact visual-state restoration, and clean resource receipts. It retains the reviewed profile, plan, scene catalog, and raw inventory with the run. This ownership mechanism does not yet establish stable geometry, production illumination, complete transient suppression, reviewed floor visibility, seams, or resumable capture coverage.
+
+All 12 lifecycle cases passed: normal rendering, four partial-allocation failures, three render-stage failures, and cancellation or disconnection both between and within frames. Every case had a clean owner receipt and an independent native scan with zero remaining capture objects. In-frame cases retained exact visual-state equality and matching frame numbers. All four cancellation and disconnection cases wrote their native cleanup receipts before the host callback unwound. Evidence is in `artifacts/capture-lifecycle/e119609f-a177-4e8d-8369-7e31bfb0077a/proof.json`. Failed cases published no image. Four additional path-collision checks preserved existing evidence and released all resources; their proof is `artifacts/capture-lifecycle/a9b3ad5d-4925-40cf-a0b6-c29516553627/proof.json`.
+
+The first native ownership check produced a 256-square woods image. Six owned Unity objects survived at least two game frames with the camera and light disabled. The render suppressed one real mesh renderer and restored its enabled state in the same frame. A separate read-only native scan found zero owned objects after cleanup. Evidence is in `artifacts/capture-lifecycle/11768413-8c90-4be3-acda-6a6b62d0db9d/success/proof.json`.
+
+Integrated capture `46d7153a-9c3d-45d4-9d4b-99fc82a52549` reused the same resources for two 1024-square images in native frames 1,503,254 and 1,503,255. It retained 15 artifacts totaling 4,592,237 bytes. Camera center and opposite world corners projected to `(0.5,0.5)`, `(0,0)`, and `(1,1)`. The images are recognizable woods captures, not validated production tiles. The artifact replay verified all file hashes and byte counts, exact frame restoration, and clean ownership receipts. Its result is `artifacts/capture-lifecycle/e119609f-a177-4e8d-8369-7e31bfb0077a/integration-proof.json`.
+
+Capture drivers are archived under `artifacts/capture-lifecycle/drivers/`. TypeScript, all ten existing regression tests, and strict OpenSpec validation passed. Task 4.1 is complete; geometry readiness and the remaining capture tasks stay open.
+
 ## Exclusive runtime ownership
 
 All repository runtime commands acquire an exclusive SQLite transaction at `~/.cache/afallon-compendium/runtime-owner.sqlite` before connecting. A competing command fails without opening another game connection. The operating system releases the lock if the host process dies. Evaluation IDs include the owner UUID, so a stale response cannot satisfy a different owner's request.
