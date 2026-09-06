@@ -16,7 +16,7 @@ const { values, positionals } = parseArgs({
 
 async function main() {
   if (values.help || positionals.length === 0) {
-    console.log("Usage: bun run compendium <doctor|inspect|extract|probe> --config local/config.json [--probe file.csx] [--prelude file.csx]\n\nRun through `nix develop --command bun run compendium ...`.\nDoctor verifies the installation, endpoint, build, and shared output path.\nInspect records complete currently-loaded inspection data, not full-game coverage.\nExtract records canonical definitions, localization, relationships, and verified loot rules. Load the configured research character first.\nProbe executes trusted C# with an optional shared prelude; args.researchCharacter comes from the local configuration.");
+    console.log("Usage: bun run compendium <doctor|inspect|extract|probe> --config local/config.json [--probe file.csx] [--prelude file.csx]\n\nRun through `nix develop --command bun run compendium ...`.\nDoctor verifies the installation, endpoint, build, and shared output path.\nInspect records complete currently-loaded inspection data, not full-game coverage.\nExtract validates canonical records, relationships, loot rules, world inventory, and authored producers with observation context. Load the configured research character first. Runtime commands use exclusive ownership and confirm cleanup before reporting success.\nProbe executes trusted C# with an optional shared prelude; args.researchCharacter comes from the local configuration.");
     return;
   }
   const command = positionals[0]!;
@@ -42,7 +42,8 @@ async function main() {
       await unlink(temporary).catch((error: NodeJS.ErrnoException) => { if (error.code !== "ENOENT") throw error; });
     }
     if (command === "doctor") {
-      console.log(JSON.stringify({ ok: true, ...identity, installation, endpoint: config.hotreplUrl, sharedOutputVerified: true, outputRoot: config.outputRoot, runtimeOutputRoot: config.runtimeOutputRoot, researchCharacter: config.character, bun: Bun.version, nixShell: process.env.AFALLON_DEV_SHELL === "1", protocol: runtime.session.handshake.protocolVersion }, null, 2));
+      await runtime.complete();
+      console.log(JSON.stringify({ ok: true, ...identity, installation, endpoint: config.hotreplUrl, sharedOutputVerified: true, outputRoot: config.outputRoot, runtimeOutputRoot: config.runtimeOutputRoot, researchCharacter: config.character, bun: Bun.version, nixShell: process.env.AFALLON_DEV_SHELL === "1", protocol: runtime.handshake.protocolVersion }, null, 2));
       return;
     }
     if (command === "extract") {
@@ -53,16 +54,19 @@ async function main() {
     const source = command === "probe" ? resolve(values.probe!) : resolve(import.meta.dir, "probes/inspect.csx");
     const run = await beginRun(config.outputRoot, {
       ...identity,
-      inputHashes: { ...identity.inputHashes, probe: await hashFile(source), ...(preludeFile ? { prelude: await hashFile(preludeFile) } : {}) },
+      inputHashes: { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, "tool:runtime": await hashFile(resolve(import.meta.dir, "runtime.ts")), probe: await hashFile(source), ...(preludeFile ? { prelude: await hashFile(preludeFile) } : {}) },
       toolRevision: await toolRevision(),
       command,
-      settings: { character: config.character, endpoint: config.hotreplUrl, timeoutMs: config.timeoutMs },
+      settings: { character: config.character, endpoint: config.hotreplUrl, timeoutMs: config.timeoutMs, runtimeOwnerToken: runtime.ownerToken },
     });
     try {
       const output = resolve(run.directory, "result.json");
       const result = await runtime.probe(source, output, { preludeFile, parameters: { researchCharacter: config.character } });
       const artifact = await run.addArtifact("result.json");
       if (artifact.sha256 !== result.reference.sha256) throw new Error("Artifact changed between runtime verification and run registration.");
+      await runtime.complete();
+      await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
+      await run.addArtifact("runtime-cleanup.json");
       await run.succeed();
       console.log(JSON.stringify({ ok: true, buildId: identity.buildId, manifest: run.manifestPath, artifact, result: command === "inspect" ? { coverage: "Currently loaded content only. See the complete artifact for counts and rows." } : undefined }, null, 2));
     } catch (error) {
@@ -78,5 +82,5 @@ try {
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   // Terminate a stalled SDK handshake socket if it never yields a Session to close.
-  process.exit(1);
+  process.exit(process.exitCode || 1);
 }

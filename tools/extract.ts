@@ -23,12 +23,12 @@ function parseArtifact<T extends TSchema>(schema: T, value: unknown): Static<T> 
 export async function extract(runtime: Runtime, config: CompendiumConfig, identity: Awaited<ReturnType<typeof buildIdentity>>) {
   const names = ["canonical", "localization", "support", "relationships", "loot-rules", "world-inventory", "npc-producers", "world-sources"] as const;
   const prelude = resolve(import.meta.dir, "probes/conditions.csx");
-  const inputHashes: Record<string, string> = { ...identity.inputHashes, conditions: await hashFile(prelude) };
+  const inputHashes: Record<string, string> = { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, conditions: await hashFile(prelude) };
   for (const name of names) inputHashes[name] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "extract",
-    settings: { character: config.character, timeoutMs: config.timeoutMs, scope: "canonical records, authored relationships and producers, and loaded world observations; not full world coverage" },
+    settings: { character: config.character, timeoutMs: config.timeoutMs, runtimeOwnerToken: runtime.ownerToken, scope: "canonical records, authored relationships and producers, and loaded world observations; not full world coverage" },
   });
   try {
     await mkdir(resolve(run.directory, "raw"));
@@ -204,6 +204,9 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
     };
     await Bun.write(resolve(run.directory, "validation.json"), `${JSON.stringify(validation, null, 2)}\n`);
     await run.addArtifact("validation.json");
+    await runtime.complete();
+    await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
+    await run.addArtifact("runtime-cleanup.json");
     await run.succeed();
     return { manifest: run.manifestPath, validation };
   } catch (error) {
