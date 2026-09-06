@@ -237,14 +237,24 @@ export class Runtime {
         var runtimeOwner = System.AppDomain.CurrentDomain.GetData("afallon-compendium.runtime-owner.v1") as System.Collections.Generic.Dictionary<string, object>;
         if (runtimeOwner == null || (string)runtimeOwner["token"] != ${JSON.stringify(this.ownerToken)} || (string)runtimeOwner["state"] != "active" || !((System.Func<bool>)runtimeOwner["isConnected"])())
           throw new System.OperationCanceledException("Runtime ownership is no longer active.");
-        var ownedCallbacks = (System.Collections.Generic.List<System.Action>)runtimeOwner["callbacks"];
-        var registerRuntimeCleanup = new System.Func<System.Action, System.Action>(callback => {
+        var ownedCallbacks = (System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<long, System.Delegate>>)runtimeOwner["callbacks"];
+        var registerOwnedCleanup = new System.Func<System.Delegate, System.Action>(callback => {
           if (callback == null) throw new System.ArgumentNullException("callback");
           // An in-flight frame must still register cleanup after socket loss.
           if ((string)runtimeOwner["state"] != "active") throw new System.OperationCanceledException("Cannot register cleanup after runtime ownership ends.");
-          ownedCallbacks.Add(callback);
-          return new System.Action(() => { ownedCallbacks.Remove(callback); });
+          var registrationId = (long)runtimeOwner["nextCallbackId"];
+          runtimeOwner["nextCallbackId"] = checked(registrationId + 1);
+          ownedCallbacks.Add(new System.Collections.Generic.KeyValuePair<long, System.Delegate>(registrationId, callback));
+          return new System.Action(() => {
+            for (var index = ownedCallbacks.Count - 1; index >= 0; index--) {
+              if (ownedCallbacks[index].Key != registrationId) continue;
+              ownedCallbacks.RemoveAt(index);
+              break;
+            }
+          });
         });
+        var registerRuntimeCleanup = new System.Func<System.Action, System.Action>(callback => registerOwnedCleanup(callback));
+        var registerRuntimeCleanupWait = new System.Func<System.Func<bool>, System.Action>(callback => registerOwnedCleanup(callback));
         var frameOpen = true;
         System.Collections.Generic.List<System.Action> frameCallbacks = null;
         var registerFrameCleanup = new System.Action<System.Action>(callback => {

@@ -76,7 +76,7 @@ if (requestedOwnerAction == "release")
         priorState["state"] as string,
         priorState["reason"] as string,
         priorState["errors"] as System.Collections.Generic.List<string>,
-        ((System.Collections.Generic.List<System.Action>)priorState["callbacks"]).Count);
+        ((System.Collections.ICollection)priorState["callbacks"]).Count);
 }
 
 // Bind and verify the current Fleck socket before publishing any new owner state.
@@ -153,7 +153,7 @@ if (priorState != null)
     var priorToken = priorState["token"] as string;
     var priorReason = priorState["reason"] as string;
     var priorErrors = priorState["errors"] as System.Collections.Generic.List<string>;
-    var priorCallbacks = priorState["callbacks"] as System.Collections.Generic.List<System.Action>;
+    var priorCallbacks = priorState["callbacks"] as System.Collections.ICollection;
     if (priorToken == null || priorReason == null || priorErrors == null || priorCallbacks == null)
         throw new System.InvalidOperationException("The runtime owner state is incomplete.");
 
@@ -194,92 +194,106 @@ if (priorState != null)
 }
 
 var newState = new System.Collections.Generic.Dictionary<string, object>();
-var newCallbacks = new System.Collections.Generic.List<System.Action>();
+var newCallbacks = new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<long, System.Delegate>>();
 var newErrors = new System.Collections.Generic.List<string>();
+var cleanupInvoking = false;
 System.Action cleanup = null;
 cleanup = new System.Action(() =>
 {
     var stateName = newState["state"] as string;
-    if (stateName == "clean" || stateName == "cleanupFailed" || stateName == "cleaning")
+    if (stateName == "clean" || stateName == "cleanupFailed" || cleanupInvoking)
         return;
 
-    // Mark the owner before invoking user callbacks so re-entrant cleanup is safe.
-    newState["state"] = "cleaning";
-    while (newCallbacks.Count > 0)
-    {
-        var callbackIndex = newCallbacks.Count - 1;
-        var callback = newCallbacks[callbackIndex];
-        newCallbacks.RemoveAt(callbackIndex);
-        if (callback == null)
-        {
-            newErrors.Add("Runtime cleanup callback was null.");
-            continue;
-        }
-        try
-        {
-            callback();
-        }
-        catch (System.Exception error)
-        {
-            newErrors.Add("Runtime cleanup callback failed: " + formatError(error));
-        }
-    }
-
-    newState["state"] = newErrors.Count == 0 ? "clean" : "cleanupFailed";
-    var receiptWritten = false;
+    cleanupInvoking = true;
     try
     {
-        var receipt = new
+        newState["state"] = "cleaning";
+        while (newCallbacks.Count > 0)
         {
-            schemaVersion = ownerSchemaVersion,
-            token = (string)newState["token"],
-            state = (string)newState["state"],
-            reason = (string)newState["reason"],
-            cleanupErrors = newErrors.ToArray(),
-            callbacksRemaining = newCallbacks.Count,
-            frame = UnityEngine.Time.frameCount,
-        };
-        receiptWritten = publishReceipt(Newtonsoft.Json.JsonConvert.SerializeObject(receipt));
-    }
-    catch (System.Exception error)
-    {
-        newErrors.Add("Runtime owner receipt write failed: " + formatError(error));
-    }
+            var registration = newCallbacks[newCallbacks.Count - 1];
+            var finished = true;
+            try
+            {
+                var immediate = registration.Value as System.Action;
+                var deferred = registration.Value as System.Func<bool>;
+                if (immediate != null) immediate();
+                else if (deferred != null) finished = deferred();
+                else throw new System.InvalidOperationException("Runtime cleanup registration has an unsupported callback type.");
+            }
+            catch (System.Exception error)
+            {
+                newErrors.Add("Runtime cleanup callback failed: " + formatError(error));
+            }
+            if (!finished) return;
+            for (var index = newCallbacks.Count - 1; index >= 0; index--)
+            {
+                if (newCallbacks[index].Key != registration.Key) continue;
+                newCallbacks.RemoveAt(index);
+                break;
+            }
+        }
 
-    if (!receiptWritten)
-    {
-        newState["state"] = "cleanupFailed";
-        // Retry once so a transient write failure still leaves proof of failed cleanup.
+        newState["state"] = newErrors.Count == 0 ? "clean" : "cleanupFailed";
+        var receiptWritten = false;
         try
         {
-            var failureReceipt = new
+            var receipt = new
             {
                 schemaVersion = ownerSchemaVersion,
                 token = (string)newState["token"],
-                state = "cleanupFailed",
+                state = (string)newState["state"],
                 reason = (string)newState["reason"],
                 cleanupErrors = newErrors.ToArray(),
                 callbacksRemaining = newCallbacks.Count,
                 frame = UnityEngine.Time.frameCount,
             };
-            publishReceipt(Newtonsoft.Json.JsonConvert.SerializeObject(failureReceipt));
+            receiptWritten = publishReceipt(Newtonsoft.Json.JsonConvert.SerializeObject(receipt));
         }
-        catch (System.Exception)
+        catch (System.Exception error)
         {
-            // The first write error is retained in the in-memory report as proof of failure.
+            newErrors.Add("Runtime owner receipt write failed: " + formatError(error));
         }
-    }
 
-    if (!receiptWritten || newErrors.Count != 0)
-        newState["state"] = "cleanupFailed";
-    else
-        newState["state"] = "clean";
+        if (!receiptWritten)
+        {
+            newState["state"] = "cleanupFailed";
+            // Retry once so a transient write failure still leaves proof of failed cleanup.
+            try
+            {
+                var failureReceipt = new
+                {
+                    schemaVersion = ownerSchemaVersion,
+                    token = (string)newState["token"],
+                    state = "cleanupFailed",
+                    reason = (string)newState["reason"],
+                    cleanupErrors = newErrors.ToArray(),
+                    callbacksRemaining = newCallbacks.Count,
+                    frame = UnityEngine.Time.frameCount,
+                };
+                publishReceipt(Newtonsoft.Json.JsonConvert.SerializeObject(failureReceipt));
+            }
+            catch (System.Exception)
+            {
+                // The first write error is retained in the in-memory report as proof of failure.
+            }
+        }
+
+        if (!receiptWritten || newErrors.Count != 0)
+            newState["state"] = "cleanupFailed";
+        else
+            newState["state"] = "clean";
+    }
+    finally
+    {
+        cleanupInvoking = false;
+    }
 });
 
 newState["token"] = requestedOwnerToken;
 newState["state"] = "active";
 newState["reason"] = requestedOwnerReason;
 newState["callbacks"] = newCallbacks;
+newState["nextCallbackId"] = 0L;
 newState["errors"] = newErrors;
 newState["cleanup"] = cleanup;
 newState["isConnected"] = isConnected;
@@ -299,8 +313,13 @@ try
                 return false;
             if (!string.Equals(observedState["token"] as string, requestedOwnerToken, System.StringComparison.Ordinal))
                 return false;
-            if ((observedState["state"] as string) != "active")
-                return false;
+            var observedStateName = observedState["state"] as string;
+            if (observedStateName == "cleaning")
+            {
+                cleanup();
+                return (observedState["state"] as string) == "cleaning";
+            }
+            if (observedStateName != "active") return false;
 
             var connected = false;
             try
@@ -316,7 +335,7 @@ try
 
             newState["reason"] = "disconnected";
             cleanup();
-            return false;
+            return (newState["state"] as string) == "cleaning";
         }).GetEnumerator();
     MelonLoader.MelonCoroutines.Start(ownerMonitor);
 
