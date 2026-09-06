@@ -7,7 +7,7 @@ foreach (System.Diagnostics.ProcessModule module in System.Diagnostics.Process.G
 if (assembly == null) throw new System.InvalidOperationException("GameAssembly module was not found.");
 var rows = new System.Collections.Generic.List<object>();
 var unavailable = new System.Collections.Generic.List<object>();
-foreach (var type in new[] { typeof(Il2Cpp.EconomyUtilities), typeof(Il2Cpp.ClothDrops), typeof(Il2Cpp.RPGNpc), typeof(Il2CppSystem.Collections.Generic.Dictionary<int, Il2Cpp.RPGNpc>), typeof(UnityEngine.Random), typeof(UnityEngine.Object), typeof(Il2CppBLINK.RPGBuilder.Managers.RequirementsManager) })
+foreach (var type in new[] { typeof(Il2Cpp.EconomyUtilities), typeof(Il2Cpp.ClothDrops), typeof(Il2Cpp.RPGNpc), typeof(Il2CppSystem.Collections.Generic.Dictionary<int, Il2Cpp.RPGNpc>), typeof(UnityEngine.Random), typeof(UnityEngine.Object), typeof(Il2CppBLINK.RPGBuilder.Managers.RequirementsManager), typeof(Il2CppBLINK.RPGBuilder.AI.NPCSpawner) })
 {
     foreach (var field in type.GetFields(flags))
     {

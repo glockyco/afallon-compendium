@@ -50,7 +50,7 @@ runtimeNamingUncertainties.Add(new
 runtimeNamingUncertainties.Add(new
 {
     member = "NPCSpawner.npcCountMax / spawnedCountMax",
-    detail = "Both native count caps are retained separately; this probe does not assume which is simultaneous capacity versus lifetime spawn count."
+    detail = "Native Initialize checks both live lists against npcCountMax and checks spawnedCount against spawnedCountMax in Limited mode. Counter updates and reset behavior across every spawn path remain unverified."
 });
 runtimeNamingUncertainties.Add(new
 {
@@ -66,11 +66,6 @@ runtimeNamingUncertainties.Add(new
 {
     member = "Il2CppBLINK.RPGBuilder.AI.AdventurerSpawnZone / AdventurerPopulationManager",
     detail = "AdventurerSpawnZone is an additional authored NPC producer family. The zone exposes limits and spawn geometry, while AdventurerPopulationManager owns the global AdventurerRoster. The manager's private availablePool and npcToZone state are not projected. No recovered per-zone candidate association or FillZoneRoutine/SpawnAdventurer body proves selection semantics."
-});
-runtimeNamingUncertainties.Add(new
-{
-    member = "Il2CppBLINK.RPGBuilder.Templates.RequirementsTemplate",
-    detail = "Recovered RequirementsTemplate derives from UnityEngine.ScriptableObject. A null field can be a managed null or a Unity fake-null wrapper for a destroyed native object; this probe records both checks. No recovered NPCSpawner.AreRequirementsMet body establishes behavior for either representation."
 });
 
 var getHierarchy = new System.Func<UnityEngine.Transform, System.Tuple<string, System.Collections.Generic.List<object>>>(transform =>
@@ -1286,7 +1281,7 @@ else
             {
                 kind = "npcProducerRequirementGroups",
                 sourceFieldPath = conditionOwnerPath + ".RequirementGroups",
-                detail = "RequirementGroups returned null. This may represent no inline groups, but this probe has no serialization or native evaluation evidence to distinguish that from an unavailable list."
+                detail = "RequirementGroups returned null. Native AreRequirementsMet dereferences this list when inline groups are selected; no empty list is inferred."
             });
         }
         else
@@ -1367,16 +1362,9 @@ else
                 detail = error.GetType().FullName + ": " + error.Message
             });
         }
-        if (spawner.UseRequirementsTemplate && requirementsTemplateFieldReadAvailable && requirementsTemplateUnityNull.Value)
-        {
-            unresolved.Add(new
-            {
-                kind = "npcProducerRequirementsTemplate",
-                sourceFieldPath = conditionOwnerPath + ".RequirementsTemplate",
-                detail = "UseRequirementsTemplate is true and the RequirementsTemplate representation is " + requirementsTemplateRepresentation + ". The recovered field type is a ScriptableObject reference, so this can be an absent reference or a destroyed native object; native requirement behavior is unresolved."
-            });
-        }
 
+        var useRequirementsTemplate = spawner.UseRequirementsTemplate;
+        var nullTemplatePass = useRequirementsTemplate && requirementsTemplateFieldReadAvailable && requirementsTemplateUnityNull == true;
         var patrolOverride = (object)null;
         var patrolOverrideAvailable = spawner.PatrolPathOverride != null;
         if (patrolOverrideAvailable)
@@ -1472,7 +1460,7 @@ else
                 usePosition = spawner.usePosition,
                 radius = spawner.areaRadius,
                 height = spawner.areaHeight,
-                semantics = spawner.usePosition ? "native fixed-position mode; XYZ is the authored transform position" : "native area mode; radius and height are preserved without generating sample coordinates"
+                semantics = spawner.usePosition ? "native fixed-position mode; XYZ is the authored transform position" : "native square XZ sampling within center +/- areaRadius; ground rays use center Y +/- areaHeight. GetNPCPosition can fall back to NavMesh sampling or the authored position. Live roaming positions are observations, not spawn geometry."
             },
             count = new
             {
@@ -1482,7 +1470,7 @@ else
                 currentNPCCount = currentNPCCount,
                 currentPersistentNPCCount = currentPersistentNPCCount,
                 spawnerType = new { value = (int)spawner.spawnerType, name = spawner.spawnerType.ToString() },
-                semantics = "Native count fields are retained separately; this probe does not collapse simultaneous and lifetime limits."
+                semantics = "Initialize checks npcCountMax against both live lists and spawnedCountMax against spawnedCount in Limited mode. Other spawn paths remain unverified."
             },
             candidatesAvailable = sourceCandidatesAvailable,
             candidateCount = sourceCandidatesCount,
@@ -1497,9 +1485,9 @@ else
             conditions = new
             {
                 ownerSourcePath = conditionOwnerPath,
-                useRequirementsTemplate = spawner.UseRequirementsTemplate,
-                selectedConditionSource = spawner.UseRequirementsTemplate ? "requirements-template" : "inline-requirement-groups",
-                behaviorStatus = spawner.UseRequirementsTemplate && !requirementsTemplateAvailable ? "unresolved" : "source-fields-retained; not evaluated",
+                useRequirementsTemplate,
+                selectedConditionSource = nullTemplatePass ? "none" : (useRequirementsTemplate ? "requirements-template" : "inline-requirement-groups"),
+                behaviorStatus = nullTemplatePass ? "native-null-template-pass" : (useRequirementsTemplate && !requirementsTemplateProjectionAvailable ? "unresolved" : "source-fields-retained; not evaluated"),
                 inlineRequirementsAvailable = inlineRequirementsAvailable,
                 inlineRequirementGroupCount = inlineRequirementGroupCount,
                 inlineRequirementGroups = inlineRequirementGroups,

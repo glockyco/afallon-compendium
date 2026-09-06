@@ -37,9 +37,9 @@ A Python-only pipeline was considered. TypeScript keeps publication contracts an
 
 ### 2. Reusable commands replace repeated manual orchestration
 
-The existing commands are `doctor`, `inspect`, `probe`, and `extract`. Capture, normalization, and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
+The existing commands are `doctor`, `inspect`, `probe`, `extract`, and `traverse`. Capture, normalization, and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
 
-The normal extraction command currently includes canonical records, relationships, loot rules, and world inventory. Integrate the separate NPC-producer and world-source probes into one validated run next. Validate schemas, native and exported counts, and canonical references before selecting the successful snapshot. Record scene and character context per observation. Sequential runtime calls are not one simultaneous observation. Completed probe tasks establish capability, not completion of this integration.
+The normal extraction command includes canonical records, relationships, loot rules, world inventory, NPC producers, and world sources in one validated run. It validates schemas, native and exported counts, and canonical references before selecting the successful snapshot. Each observation records scene and character context. Sequential runtime calls are not one simultaneous observation. Successful loaded-scene extraction does not establish full-world coverage.
 
 The host owns connection lifecycle, request IDs, deadlines, scene readiness, cancellation, and run directories. One operation owns runtime access at a time. Competing operations wait or receive a busy result. They must not displace the owner. Cancellation or disconnection must clean up owned work before the next operation uses that state. Unconfirmed cleanup blocks further state-changing work and successful completion.
 
