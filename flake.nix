@@ -21,6 +21,9 @@
             packages = [ pkgs.bun pkgs.nodejs_24 pkgs.git pkgs.sqlite ];
             AFALLON_DEV_SHELL = "1";
           };
+          analysis = pkgs.mkShellNoCC {
+            packages = [ pkgs.ghidra pkgs.llvmPackages.llvm ];
+          };
         });
       checks = forAllSystems (system: {
         devShell = self.devShells.${system}.default;

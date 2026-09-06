@@ -296,6 +296,40 @@ Selected tables 0 and 27 through the native option controls. Each interface cont
 
 Local proof: boundary run `025e623d-f3e7-436f-a32a-007ef65da178`, stock run `53f8c8b6-452f-4cb1-aa25-2bc6d533212c`, and restoration run `cd7356f6-ec2f-4629-8d43-5799f705bcad`, under `artifacts/25144591/`. Screenshots `09-merchant-groups.png`, `10-merchant-gated-groups.png`, and `11-merchant-gated-stock.png` remain in `research/screenshots/`. The final stock screenshot was captured after the native panel reached full opacity. The temporary verification scripts were removed.
 
+## Native analysis workflow
+
+The separate `analysis` shell supplies Ghidra 12.0.4 and LLVM 21.1.8 from the existing pinned nixpkgs input. The default development shell remains lightweight. No analysis software is installed in CrossOver.
+
+```sh
+nix develop .#analysis --no-write-lock-file --command ghidra
+nix develop --no-write-lock-file --command bun run compendium probe --config local/config.json --probe tools/probes/native-methods.csx
+```
+
+The native-method probe exports module-relative addresses from live IL2CPP method metadata for EconomyUtilities and RPGNpc. Its run manifest records the installation identity. Method addresses change between builds. Use the exact binary hash and fresh metadata for each build, not an absolute process address from another session.
+
+The local `local/loot-targets.json` selects four functions for build 25144591. Its `sha256` identifies the imported executable. Each `functions` row supplies a unique `name`, hexadecimal `rva`, and exclusive hexadecimal `endRva`. Bounds come from the PE unwind records. An optional `signature` supplies a reviewed native C signature. The optional `types` array supplies reviewed C structure declarations. IL2CPP metadata parameters and the target compiler ABI are part of those signatures. Keep recovered declarations and target files local.
+
+The existing project can be inspected without saving analysis changes:
+
+```sh
+nix develop .#analysis --no-write-lock-file --command ghidra-analyzeHeadless \
+  research/ghidra/25144591 LootRules \
+  -process GameAssembly.dll -readOnly -noanalysis \
+  -scriptPath tools/ghidra \
+  -postScript DecompileTargets.java local/loot-targets.json research/ghidra/25144591/loot-review.json \
+  -max-cpu 2
+```
+
+For an initial import, replace `-process GameAssembly.dll -readOnly` with `-import` followed by the configured GameAssembly.dll path. Select a new project for each build. Do not use `-overwrite` for an existing research project. Keep projects and output under the ignored `research/` directory.
+
+`DecompileTargets.java` checks the imported SHA-256 before analysis. It restricts initial disassembly to supplied executable ranges, applies supplied types and signatures, and limits each decompilation to 60 seconds. The decompiler can follow additional blocks belonging to a function. The script publishes a complete output file without replacing existing evidence. Output records the executable hash, Ghidra version, target language/compiler, type assumptions, function ranges, diagnostics, and pseudocode.
+
+A Ghidra process can exit successfully even when a script reports an error. Check the new output and script diagnostics, not only the process exit status. Wrong-build and existing-output checks were exercised: the wrong build produced no output, and the existing result was not replaced. No third-party scripts, plugins, symbol downloads, or game patches are required. Review scripts before execution; they have host-process privileges.
+
+Verified on this ARM Mac against the x86-64 Windows binary: all four selected addresses match live method metadata, and all four functions decompile. The supplied loot-entry layout produces named `minimum`, `maximum`, and `itemId` accesses. Assembly confirms the minimum/maximum comparison and the call with `maximum + 1`. This does not yet establish the final quantity distribution or economy scaling. A separate read-only runtime check confirmed GetLootReferenceLevel for 56 entities and the null-entity player fallback. Observed levels were 1, 15, 16, 17, 18, and 100. Its evidence run is `437af6f4-c6e7-495d-9d07-247c8c8263ec`.
+
+The final typed output is `research/ghidra/25144591/loot-functions-layout.json`. Decompiler warnings about overlapping globals and indirect control flow remain visible. Pseudocode is not original source or proof of every branch. Check unresolved behavior against assembly and bounded runtime observations before publishing derived rules.
+
 ## Existing-project defect recorded during comparison
 
 `ancient-kingdoms-mods/mods/MapScreenshotter/MapScreenshotter.cs:173-205` disables the player and changes global lighting before checking ZoneInfo. Its null-data error branches exit without local restoration. The capture also uses hardcoded bounds at lines 239–242. These are reasons not to copy that setup into Afallon. No Ancient Kingdoms files were changed.
