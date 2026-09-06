@@ -428,6 +428,40 @@ Strict SQLite tables enforce primary keys, authored-key uniqueness, and foreign 
 
 The real before/after scene evidence produced 2,611 placements, 2,886 sources, two runs, 5,772 resolved observations, and 201 unresolved observations. All 2,886 retained sources had different native component and GameObject IDs between runs. Four invalid imports were rejected without retaining their run rows. A separate regression test verifies complete rollback when a deferred loader reference fails at commit. The database passed `foreign_key_check` and retained all 2,886 sources after closing and reopening. `artifacts/placement-smoke/sqlite-proof.json` records the database path and counts. Eight tests and the TypeScript check pass. Domain relationship tables and normal extraction integration remain later work; this database is identity evidence, not a complete published map.
 
+## Bounded scene and stream traversal
+
+Run `nix develop --no-write-lock-file --command bun tools/cli.ts traverse --config local/identity-smoke-config.json --plan local/traversal-plan.json`. The measured configuration uses a 30,000 ms per-probe and cleanup timeout. The plan has a separate deadline for each scene visit:
+
+```json
+{
+  "schemaVersion": "compendium.traversal-plan.v1",
+  "stepTimeoutMs": 60000,
+  "steps": [
+    {
+      "sceneNativeId": 3,
+      "streamAssetGuids": [
+        "3696a306b7c00b54c84b951952fe2fa2",
+        "56fc8464dd72c854794e77ddd3e55f63",
+        "0a056dae5aac97341a52620f4dc5d505"
+      ]
+    },
+    { "sceneNativeId": 9, "streamAssetGuids": [] }
+  ]
+}
+```
+
+Plans allow one to eight scene visits and at most 32 selected loaders per visit. Every matching instance of a requested GUID is retained; an ambiguous instance ID, absent requested GUID, or excessive selection fails instead of selecting an arbitrary object. A visit uses the native scene database and loadability check before changing scenes. `scene-visit.csx` waits for the loaded scene, initialization, loading flag, and readiness holds to agree. Its native cleanup verifies that the configured research character remains loaded, returns to the original scene, and restores the player position and rotation. A new scene visit cannot start while a stream visit is active.
+
+`stream-visit.csx` changes holds only for eligible active loaders. It does not change activation or enabled flags. Native `Preload()` skips inactive loaders without an error, so inactive and disabled rows remain explicit pending evidence. Already-loading targets and unsettled automatic loads near the player are rejected before mutation; the tool does not take ownership of native work already in progress or about to start. Forced far loads must report a root, a valid instance handle, and no pending load across a later frame before extraction. Restoration releases only requested new loads, waits for their roots to be destroyed, restores changed holds, and preserves initially loaded roots. Missing loaders or changed source assets fail instead of returning cached state.
+
+The host records canonical reference inputs, before/after placement snapshots, world inventory, NPC producers, world sources, observation contexts, and grouped coverage ledgers. Each visit also records selected stream roots and the queried source components beneath them. All artifacts are registered in the run manifest. Publication of the successful-run pointer occurs only after stream restoration, scene restoration, and the owner cleanup receipt succeed. A step deadline cancels the runtime connection; native cleanup does not need another host request. This command is bounded research extraction, not full-build collection or a complete-release gate.
+
+Run `afab4be1-e565-4387-a364-e26177f501ef` completed the two-scene plan in 50.94 seconds. The near stream was already loaded at 493.90 units with a 600-unit load distance. The travelers' camp was initially unloaded at 419.89 units with a 250-unit load distance. Both produced three InteractableObject components and one CraftingStation component. The camp's four queried sources agree with its offline prefab index. The inactive stream remained unloaded and pending. Cleanup preserved the near root, released the new camp root, and restored the exact hold values. The swamp visit returned to woods with the original player transform. After controller cleanup, control-artifact hash checks, and the character restoration guard, the complete plan passed again in run `d84c168f-3c10-431e-99fa-f767b3c96bfd`; the TypeScript check and all eight tests also passed. `artifacts/traversal-smoke/character-guard/proof.json` records the wrong-character boundary: restoration accepted mismatched visit metadata before the guard and rejected it afterward. The check changed only tool-owned metadata, left the player transform unchanged, and ended with clean owner cleanup.
+
+Separate socket-loss checks interrupted a pending camp load and a scene visit. Both produced clean disconnected-owner receipts, removed their native controller state, and restored the original player position. Their proofs are `artifacts/traversal-smoke/stream-interruption/proof.json` and `scene-interruption/proof.json`. A missing requested stream and a one-second step deadline both produced failed manifests and clean owner receipts without replacing successful run `80350e9c-9b6f-4e6f-8663-d5d0b5c562b6`. `artifacts/traversal-smoke/failure-proof.json` records those checks. The observed woods inventory still has 238 inactive loaders out of 421; these results do not establish their reachability or resolve their contents.
+
+The woods raw world-source artifact is 69.38 MiB, its validation evidence is 45.78 MiB, and its grouped coverage ledger is 43.88 MiB. Those are research artifacts, not proposed browser downloads. After traversal and interruption checks, the game footprint was about 11 GB with a reported 24 GB peak. The cause of the earlier user-reported 94.12 GB footprint remains unknown. Do not infer full-build memory or publication size from this bounded run.
+
 ## Exclusive runtime ownership
 
 All repository runtime commands acquire an exclusive SQLite transaction at `~/.cache/afallon-compendium/runtime-owner.sqlite` before connecting. A competing command fails without opening another game connection. The operating system releases the lock if the host process dies. Evaluation IDs include the owner UUID, so a stale response cannot satisfy a different owner's request.

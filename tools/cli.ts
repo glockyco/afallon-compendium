@@ -7,23 +7,27 @@ import { loadConfig } from "./config";
 import { extract } from "./extract";
 import { beginRun } from "./runs";
 import { withRuntime } from "./runtime";
+import { traverse } from "./traversal";
 
 const { values, positionals } = parseArgs({
   args: Bun.argv.slice(2),
   allowPositionals: true,
-  options: { config: { type: "string" }, help: { type: "boolean", short: "h" }, probe: { type: "string" }, prelude: { type: "string" } },
+  options: { config: { type: "string" }, help: { type: "boolean", short: "h" }, probe: { type: "string" }, prelude: { type: "string" }, plan: { type: "string" } },
 });
 
 async function main() {
   if (values.help || positionals.length === 0) {
-    console.log("Usage: bun run compendium <doctor|inspect|extract|probe> --config local/config.json [--probe file.csx] [--prelude file.csx]\n\nRun through `nix develop --command bun run compendium ...`.\nDoctor verifies the installation, endpoint, build, and shared output path.\nInspect records complete currently-loaded inspection data, not full-game coverage.\nExtract validates canonical records, relationships, loot rules, world inventory, and authored producers with observation context. Load the configured research character first. Runtime commands use exclusive ownership and confirm cleanup before reporting success.\nProbe executes trusted C# with an optional shared prelude; args.researchCharacter comes from the local configuration.");
+    console.log("Usage: bun run compendium <doctor|inspect|extract|probe|traverse> --config local/config.json [--probe file.csx] [--prelude file.csx]\n\nRun through `nix develop --command bun run compendium ...`.\nDoctor verifies the installation, endpoint, build, and shared output path.\nInspect records complete currently-loaded inspection data, not full-game coverage.\nExtract validates canonical records, relationships, loot rules, world inventory, and authored producers with observation context. Load the configured research character first. Runtime commands use exclusive ownership and confirm cleanup before reporting success.\nProbe executes trusted C# with an optional shared prelude; args.researchCharacter comes from the local configuration.\nTraverse requires --plan file.json. It visits bounded scene/stream selections, validates source exports, and restores owned state. Inactive streams remain explicit coverage gaps.");
     return;
   }
   const command = positionals[0]!;
-  if (positionals.length !== 1 || !["doctor", "inspect", "extract", "probe"].includes(command)) throw new Error("Unknown command. Use --help.");
+  if (positionals.length !== 1 || !["doctor", "inspect", "extract", "probe", "traverse"].includes(command)) throw new Error("Unknown command. Use --help.");
   if (!values.config) throw new Error("Supply --config with an explicit local configuration file.");
   if (command === "probe" && !values.probe) throw new Error("The probe command requires --probe file.csx.");
   if (command !== "probe" && (values.probe || values.prelude)) throw new Error("--probe and --prelude are only valid for the probe command.");
+  if (command === "traverse" && !values.plan) throw new Error("The traverse command requires --plan file.json.");
+  if (command !== "traverse" && values.plan) throw new Error("--plan is only valid for the traverse command.");
+  const plan = values.plan ? await Bun.file(values.plan).json() : undefined;
   const preludeFile = values.prelude ? resolve(values.prelude) : undefined;
   const config = await loadConfig(values.config);
   const identity = await buildIdentity(config);
@@ -44,6 +48,11 @@ async function main() {
     if (command === "doctor") {
       await runtime.complete();
       console.log(JSON.stringify({ ok: true, ...identity, installation, endpoint: config.hotreplUrl, sharedOutputVerified: true, outputRoot: config.outputRoot, runtimeOutputRoot: config.runtimeOutputRoot, researchCharacter: config.character, bun: Bun.version, nixShell: process.env.AFALLON_DEV_SHELL === "1", protocol: runtime.handshake.protocolVersion }, null, 2));
+      return;
+    }
+    if (command === "traverse") {
+      const result = await traverse(runtime, config, identity, plan);
+      console.log(JSON.stringify({ ok: true, buildId: identity.buildId, ...result }, null, 2));
       return;
     }
     if (command === "extract") {
