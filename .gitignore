@@ -4,6 +4,7 @@
 /local/
 /dist/
 /node_modules/
+/.venv/
 /.direnv/
 /result
 /result-*

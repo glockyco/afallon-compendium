@@ -18,8 +18,9 @@
         let pkgs = nixpkgs.legacyPackages.${system};
         in {
           default = pkgs.mkShellNoCC {
-            packages = [ pkgs.bun pkgs.nodejs_24 pkgs.git pkgs.sqlite ];
+            packages = [ pkgs.bun pkgs.nodejs_24 pkgs.git pkgs.sqlite pkgs.uv pkgs.python313 ];
             AFALLON_DEV_SHELL = "1";
+            UV_PYTHON_DOWNLOADS = "never";
           };
           analysis = pkgs.mkShellNoCC {
             packages = [ pkgs.ghidra pkgs.llvmPackages.llvm ];
