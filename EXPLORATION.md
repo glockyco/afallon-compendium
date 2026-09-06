@@ -242,7 +242,7 @@ Opened the built-in Adventure Guide for Duskfall Depths using `AdventureGuidePan
 ## Current resume checklist
 
 - Read the screenshot-first checkpoint and `openspec/changes/build-screenshot-first-map/`. These supersede the initial shipped-artwork recommendation.
-- The planning artifacts and checked tasks are the implementation contract. Continue with merchant-interface and relationship checks after the verified canonical extraction checkpoint.
+- The planning artifacts and checked tasks are the implementation contract. Continue with the first unchecked task; use the verified checkpoints below as evidence.
 - Use `research/screenshot-first-session.json` and `research/screenshot-first-eval-history.json` to recover exact successful and failed probes.
 - Use the supervised `afallon-game` process and port 18591. The current implementation session has loaded Coalway woods with AtlasResearch. Do not use unrelated saves.
 - Use the Nix-backed commands below for runtime probes. Keep local configuration and generated artifacts outside Git.
@@ -284,9 +284,17 @@ On build 25144591, the canonical counts match the live database: 1,076 items, 35
 
 Canonical metadata uses the current `entryDisplayName`, `entryName`, `entryDescription`, and `entryIcon` fields. The old item-name fields are blank in this build. Localization keys use each entry family's actual prefix, including `gamescene`, not an inferred shared convention.
 
-The loot-rule probe compares the native eligibility method with extracted item-level rules for all four level-band tables. It temporarily checks both values of the research character's `FirstGearDropDone` flag and restores the original value in `finally`, before the next gameplay frame. The verified run made 142,072 native comparisons and confirmed restoration. It does not roll drops, award items, or publish effective drop probabilities. Merchant-interface checks, source-condition interpretation, authored-world coverage, and publication gates remain separate unfinished tasks.
+The loot-rule probe compares the native eligibility method with extracted item-level rules for all four level-band tables. It temporarily checks both values of the research character's `FirstGearDropDone` flag and restores the original value in `finally`, before the next gameplay frame. The verified run made 142,072 native comparisons and confirmed restoration. It does not roll drops, award items, or publish effective drop probabilities. Source-condition interpretation, authored-world coverage, and publication gates remain separate unfinished tasks.
 
 Custom probes can use `--prelude tools/probes/conditions.csx` for the shared requirement projection. The injected `args.researchCharacter` value comes from the local configuration. Raw artifacts, recovered declarations, save data, and screenshots stay outside Git.
+
+## Merchant interface verification
+
+Verified Blacksmith NPC 296 through the native `NPCInteractionsPanel` and `MerchantPanel`, not through a copied stock filter. At the research character's item power of 60, the interface exposes tables 0 and 9. Table 27 requires item power greater than 200. Tables 29 and 32 require item power greater than or equal to 300 and 400. Checks at 200/201, 299/300, and 399/400 confirmed those boundaries. The template names say “over,” but their `Value` operators differ; the unused `Comparison=Equal` field does not describe these Stat predicates.
+
+Selected tables 0 and 27 through the native option controls. Each interface contains seven items. Every displayed item ID, currency ID, and base cost matched the extracted stock. Novice stock costs 60 or 100 units of currency 0. Adept stock costs 360 or 550, and the visible price text matches those values for this character. No item was purchased. Temporary item-power changes returned to 60 in `finally`, within the same gameplay frame. The native movement controller returned to the original horizontal position with zero measured error, and all verification panels closed.
+
+Local proof: boundary run `025e623d-f3e7-436f-a32a-007ef65da178`, stock run `53f8c8b6-452f-4cb1-aa25-2bc6d533212c`, and restoration run `cd7356f6-ec2f-4629-8d43-5799f705bcad`, under `artifacts/25144591/`. Screenshots `09-merchant-groups.png`, `10-merchant-gated-groups.png`, and `11-merchant-gated-stock.png` remain in `research/screenshots/`. The final stock screenshot was captured after the native panel reached full opacity. The temporary verification scripts were removed.
 
 ## Existing-project defect recorded during comparison
 
