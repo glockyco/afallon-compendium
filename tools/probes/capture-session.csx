@@ -313,7 +313,7 @@ if (captureAction == "start")
         state["captureTexture"] = captureTexture;
         captureTexture.name = resourcePrefix + ".Texture2D";
         fault("after-texture");
-        return new { schemaVersion = "compendium.capture-session.v1", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
+        return new { schemaVersion = "compendium.capture-session.v2", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
         {
             new { kind = "camera", instanceId = (int?)camera.GetInstanceID(), alive = camera != null && cameraGo != null },
             new { kind = "light", instanceId = (int?)light.GetInstanceID(), alive = light != null && lightGo != null },
@@ -367,7 +367,7 @@ var sessionResources = new System.Func<object>(() =>
 });
 var sessionReport = new System.Func<object>(() => new
 {
-    schemaVersion = "compendium.capture-session.v1",
+    schemaVersion = "compendium.capture-session.v2",
     key = requestedKey,
     phase = sessionState["phase"] as string,
     ownerToken = ownerToken,
@@ -391,7 +391,7 @@ if (captureAction == "restore")
     restoreCleanup();
     return new
     {
-        schemaVersion = "compendium.capture-session.v1",
+        schemaVersion = "compendium.capture-session.v2",
         key = requestedKey,
         phase = "restored",
         ownerToken = ownerToken,
@@ -459,9 +459,13 @@ var signal = new System.Action(() =>
     if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected during capture.");
 });
 
+var rgba = new System.Func<UnityEngine.Color, object>(value => new { r = value.r, g = value.g, b = value.b, a = value.a });
 var renderers = new System.Collections.Generic.List<UnityEngine.Renderer>();
 var rendererFlags = new System.Collections.Generic.List<bool>();
 var selectedRenderers = new System.Collections.Generic.Dictionary<int, UnityEngine.Renderer>();
+var selectedLights = new System.Collections.Generic.Dictionary<int, UnityEngine.Light>();
+var selectedProjectors = new System.Collections.Generic.Dictionary<int, UnityEngine.Projector>();
+var selections = new System.Collections.Generic.List<object>();
 if (suppressedIds.Count != 0)
 {
     foreach (var renderer in UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true))
@@ -474,11 +478,72 @@ if (suppressedIds.Count != 0)
 }
 foreach (var id in suppressedIds)
 {
-    UnityEngine.Renderer found;
-    if (!selectedRenderers.TryGetValue(id, out found)) throw new System.ArgumentException("suppressedRendererIds contains a renderer outside the active scene or an unknown renderer.");
-    renderers.Add(found);
-    rendererFlags.Add(found.enabled);
+    if (!selectedRenderers.ContainsKey(id)) throw new System.ArgumentException("suppressedRendererIds contains a renderer outside the active scene or an unknown renderer.");
+    selections.Add(new { kind = "renderer", instanceId = id, reason = "reviewed-renderer" });
 }
+var visualSelection = collectCaptureVisuals();
+visitCaptureVisualRenderers(visualSelection.Roots, (renderer, reason) =>
+{
+    var id = renderer.GetInstanceID();
+    if (selectedRenderers.ContainsKey(id)) return;
+    selectedRenderers.Add(id, renderer);
+    selections.Add(new { kind = "renderer", instanceId = id, reason = reason });
+});
+var selectRootLightsAndProjectors = new System.Action<UnityEngine.GameObject, string>((root, reason) =>
+{
+    foreach (var light in root.GetComponentsInChildren<UnityEngine.Light>(false))
+    {
+        if (light == null || light == sessionLight || !light.enabled || !light.gameObject.activeInHierarchy) continue;
+        var id = light.GetInstanceID();
+        if (selectedLights.ContainsKey(id)) continue;
+        selectedLights.Add(id, light);
+        selections.Add(new { kind = "light", instanceId = id, reason = reason });
+    }
+    foreach (var projector in root.GetComponentsInChildren<UnityEngine.Projector>(false))
+    {
+        if (projector == null || !projector.enabled || !projector.gameObject.activeInHierarchy) continue;
+        var id = projector.GetInstanceID();
+        if (selectedProjectors.ContainsKey(id)) continue;
+        selectedProjectors.Add(id, projector);
+        selections.Add(new { kind = "projector", instanceId = id, reason = reason });
+    }
+});
+var player = Il2Cpp.GameState.playerEntity;
+foreach (var root in visualSelection.Roots) selectRootLightsAndProjectors(root.Root, root.Reason);
+var allParticles = visualSelection.Particles;
+var lightingInputs = new System.Collections.Generic.List<object>();
+foreach (var light in UnityEngine.Object.FindObjectsOfType<UnityEngine.Light>(true))
+{
+    if (light == null || light == sessionLight) continue;
+    var id = light.GetInstanceID();
+    if (light.enabled && light.gameObject.activeInHierarchy && !selectedLights.ContainsKey(id))
+    {
+        selectedLights.Add(id, light);
+        selections.Add(new { kind = "light", instanceId = id, reason = "game-light" });
+    }
+    if (!light.enabled || !light.gameObject.activeInHierarchy) continue;
+    var position = light.transform.position;
+    lightingInputs.Add(new { instanceId = id, type = (int)light.type, enabled = light.enabled, active = light.gameObject.activeInHierarchy, color = rgba(light.color), intensity = light.intensity, range = light.range, cullingMask = light.cullingMask, position = new { x = position.x, y = position.y, z = position.z } });
+}
+foreach (var renderer in selectedRenderers.Values) { renderers.Add(renderer); rendererFlags.Add(renderer.enabled); }
+var lights = new System.Collections.Generic.List<UnityEngine.Light>(selectedLights.Values);
+var lightFlags = new System.Collections.Generic.List<bool>();
+foreach (var light in lights) lightFlags.Add(light.enabled);
+var projectors = new System.Collections.Generic.List<UnityEngine.Projector>(selectedProjectors.Values);
+var projectorFlags = new System.Collections.Generic.List<bool>();
+foreach (var projector in projectors) projectorFlags.Add(projector.enabled);
+var highlights = new System.Collections.Generic.List<Il2CppHighlightPlus.HighlightEffect>();
+var highlightMasks = new System.Collections.Generic.List<UnityEngine.LayerMask>();
+foreach (var effect in UnityEngine.Object.FindObjectsOfType<Il2CppHighlightPlus.HighlightEffect>(true))
+{
+    if (effect == null || !effect.enabled || !effect.gameObject.activeInHierarchy) continue;
+    highlights.Add(effect); highlightMasks.Add(effect.camerasLayerMask);
+    selections.Add(new { kind = "highlight", instanceId = effect.GetInstanceID(), reason = "camera-highlight" });
+}
+var captureBounds = new UnityEngine.Bounds(new UnityEngine.Vector3(frameValue["centerX"], frameValue["cameraY"] - (frameValue["nearClip"] + frameValue["farClip"]) * 0.5f, frameValue["centerZ"]), new UnityEngine.Vector3(frameValue["sizeX"], frameValue["farClip"] - frameValue["nearClip"], frameValue["sizeZ"]));
+var retainedParticles = new System.Collections.Generic.List<UnityEngine.ParticleSystemRenderer>();
+foreach (var renderer in allParticles)
+    if (renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy && !selectedRenderers.ContainsKey(renderer.GetInstanceID()) && renderer.bounds.Intersects(captureBounds)) retainedParticles.Add(renderer);
 
 var beforeFrame = UnityEngine.Time.frameCount;
 var savedActive = UnityEngine.RenderTexture.active;
@@ -490,6 +555,8 @@ var savedEquatorColor = UnityEngine.RenderSettings.ambientEquatorColor;
 var savedGroundColor = UnityEngine.RenderSettings.ambientGroundColor;
 var savedAmbientIntensity = UnityEngine.RenderSettings.ambientIntensity;
 var savedAmbientProbe = UnityEngine.RenderSettings.ambientProbe;
+var savedReflectionIntensity = UnityEngine.RenderSettings.reflectionIntensity;
+var savedSun = UnityEngine.RenderSettings.sun;
 var savedCameraTarget = sessionCamera.targetTexture;
 var savedCameraEnabled = sessionCamera.enabled;
 var savedCameraObjectActive = sessionCameraGo.activeSelf;
@@ -498,7 +565,6 @@ var savedLightObjectActive = sessionLightGo.activeSelf;
 var savedLightIntensity = sessionLight.intensity;
 var savedLightColor = sessionLight.color;
 var savedLightRotation = sessionLight.transform.rotation;
-var rgba = new System.Func<UnityEngine.Color, object>(value => new { r = value.r, g = value.g, b = value.b, a = value.a });
 var visualState = new System.Func<object>(() =>
 {
     var currentProbe = UnityEngine.RenderSettings.ambientProbe;
@@ -506,7 +572,16 @@ var visualState = new System.Func<object>(() =>
     for (var rgb = 0; rgb < 3; rgb++) for (var coefficient = 0; coefficient < 9; coefficient++) values.Add(currentProbe[rgb, coefficient]);
     var currentRenderers = new System.Collections.Generic.List<object>();
     for (var rendererIndex = 0; rendererIndex < renderers.Count; rendererIndex++) currentRenderers.Add(new { instanceId = renderers[rendererIndex].GetInstanceID(), enabled = renderers[rendererIndex].enabled });
+    var currentLights = new System.Collections.Generic.List<object>();
+    foreach (var light in lights) currentLights.Add(new { instanceId = light.GetInstanceID(), enabled = light.enabled });
+    var currentProjectors = new System.Collections.Generic.List<object>();
+    foreach (var projector in projectors) currentProjectors.Add(new { instanceId = projector.GetInstanceID(), enabled = projector.enabled });
+    var currentHighlights = new System.Collections.Generic.List<object>();
+    foreach (var effect in highlights) currentHighlights.Add(new { instanceId = effect.GetInstanceID(), cameraMask = effect.camerasLayerMask.value });
+    var currentRetained = new System.Collections.Generic.List<object>();
+    foreach (var renderer in retainedParticles) currentRetained.Add(new { instanceId = renderer.GetInstanceID(), enabled = renderer.enabled });
     var target = UnityEngine.RenderTexture.active;
+    var sun = UnityEngine.RenderSettings.sun;
     return new
     {
         fog = UnityEngine.RenderSettings.fog,
@@ -517,9 +592,13 @@ var visualState = new System.Func<object>(() =>
         ambientGround = rgba(UnityEngine.RenderSettings.ambientGroundColor),
         ambientIntensity = UnityEngine.RenderSettings.ambientIntensity,
         ambientProbe = values.ToArray(),
+        reflectionIntensity = UnityEngine.RenderSettings.reflectionIntensity,
+        sunInstanceId = sun == null ? (int?)null : sun.GetInstanceID(),
         activeTargetInstanceId = target == null ? (int?)null : (int?)target.GetInstanceID(),
         lightEnabled = sessionLight.enabled,
-        renderers = currentRenderers.ToArray(),
+        lightInstanceId = sessionLight.GetInstanceID(), lightIntensity = sessionLight.intensity, lightColor = rgba(sessionLight.color),
+        renderers = currentRenderers.ToArray(), lights = currentLights.ToArray(), projectors = currentProjectors.ToArray(),
+        highlights = currentHighlights.ToArray(), retainedParticles = currentRetained.ToArray(),
     };
 });
 var beforeVisualState = visualState();
@@ -542,6 +621,23 @@ restoreFrame = new System.Action(() =>
         try { if (renderers[index] != null) renderers[index].enabled = rendererFlags[index]; }
         catch (System.Exception error) { restorationErrors.Add("renderer " + index + ": " + formatError(error)); }
     }
+    for (var index = 0; index < lights.Count; index++)
+    {
+        try { if (lights[index] != null) lights[index].enabled = lightFlags[index]; }
+        catch (System.Exception error) { restorationErrors.Add("game light " + index + ": " + formatError(error)); }
+    }
+    for (var index = 0; index < projectors.Count; index++)
+    {
+        try { if (projectors[index] != null) projectors[index].enabled = projectorFlags[index]; }
+        catch (System.Exception error) { restorationErrors.Add("projector " + index + ": " + formatError(error)); }
+    }
+    for (var index = 0; index < highlights.Count; index++)
+    {
+        try { if (highlights[index] != null) highlights[index].camerasLayerMask = highlightMasks[index]; }
+        catch (System.Exception error) { restorationErrors.Add("highlight mask " + index + ": " + formatError(error)); }
+    }
+    attemptRestore("sun", () => { UnityEngine.RenderSettings.sun = savedSun; });
+    attemptRestore("reflection intensity", () => { UnityEngine.RenderSettings.reflectionIntensity = savedReflectionIntensity; });
     attemptRestore("active render target", () => { UnityEngine.RenderTexture.active = savedActive; });
     attemptRestore("fog", () => { UnityEngine.RenderSettings.fog = savedFog; });
     attemptRestore("ambient mode", () => { UnityEngine.RenderSettings.ambientMode = savedAmbientMode; });
@@ -558,11 +654,15 @@ restoreFrame = new System.Action(() =>
     attemptRestore("light rotation", () => { sessionLight.transform.rotation = savedLightRotation; });
     attemptRestore("light enabled", () => { sessionLight.enabled = savedLightEnabled; });
     attemptRestore("light active", () => { sessionLightGo.SetActive(savedLightObjectActive); });
-    attemptRestore("ambient probe", () => { UnityEngine.RenderSettings.ambientProbe = savedAmbientProbe; });
     var restoredProbe = UnityEngine.RenderSettings.ambientProbe;
     if (!probeEqual(savedAmbientProbe, restoredProbe)) restorationErrors.Add("ambient probe: the saved probe was not restored.");
     if (sessionCamera.targetTexture != savedCameraTarget) restorationErrors.Add("camera target: verification failed.");
     if (UnityEngine.RenderTexture.active != savedActive) restorationErrors.Add("active render target: verification failed.");
+    if (UnityEngine.RenderSettings.sun != savedSun) restorationErrors.Add("sun: verification failed.");
+    if (UnityEngine.RenderSettings.reflectionIntensity != savedReflectionIntensity) restorationErrors.Add("reflection intensity: verification failed.");
+    for (var index = 0; index < lights.Count; index++) if (lights[index] == null || lights[index].enabled != lightFlags[index]) restorationErrors.Add("game light: verification failed.");
+    for (var index = 0; index < projectors.Count; index++) if (projectors[index] == null || projectors[index].enabled != projectorFlags[index]) restorationErrors.Add("projector: verification failed.");
+    for (var index = 0; index < highlights.Count; index++) if (highlights[index] == null || highlights[index].camerasLayerMask.value != highlightMasks[index].value) restorationErrors.Add("highlight mask: verification failed.");
     if (UnityEngine.RenderSettings.fog != savedFog) restorationErrors.Add("fog: verification failed.");
     if (UnityEngine.RenderSettings.ambientMode != savedAmbientMode) restorationErrors.Add("ambient mode: verification failed.");
     if (UnityEngine.RenderSettings.ambientLight != savedAmbientLight) restorationErrors.Add("ambient light: verification failed.");
@@ -587,6 +687,12 @@ var encodedHash = (string)null;
 var encodedPath = outputPathArgument;
 var projectionSamples = new System.Collections.Generic.List<object>(5);
 object actualCameraFrame = null;
+object duringVisualState = null;
+var captureAmbientProbe = new UnityEngine.Rendering.SphericalHarmonicsL2();
+var captureAmbientColor = UnityEngine.QualitySettings.activeColorSpace == UnityEngine.ColorSpace.Linear ? ambient.linear : ambient;
+captureAmbientProbe[0, 0] = captureAmbientColor.r;
+captureAmbientProbe[1, 0] = captureAmbientColor.g;
+captureAmbientProbe[2, 0] = captureAmbientColor.b;
 try
 {
     sessionCamera.enabled = false;
@@ -634,13 +740,31 @@ try
     UnityEngine.RenderSettings.ambientGroundColor = ambient;
     UnityEngine.RenderSettings.ambientIntensity = 1f;
     foreach (var renderer in renderers) renderer.enabled = false;
+    foreach (var light in lights) light.enabled = false;
+    foreach (var projector in projectors) projector.enabled = false;
+    foreach (var effect in highlights) effect.camerasLayerMask = new UnityEngine.LayerMask { value = 0 };
+    UnityEngine.RenderSettings.reflectionIntensity = 0f;
+    UnityEngine.RenderSettings.sun = sessionLight;
     sessionLightGo.SetActive(true);
     sessionLight.enabled = true;
     sessionCameraGo.SetActive(true);
     sessionCamera.enabled = false;
+    if (!probeEqual(captureAmbientProbe, UnityEngine.RenderSettings.ambientProbe)) throw new System.InvalidOperationException("The engine-derived flat ambient probe does not match the capture color.");
+    duringVisualState = visualState();
     fault("after-visuals");
     signal();
     sessionCamera.Render();
+    if (UnityEngine.RenderSettings.sun != sessionLight || UnityEngine.RenderSettings.reflectionIntensity != 0f || !probeEqual(captureAmbientProbe, UnityEngine.RenderSettings.ambientProbe)
+        || UnityEngine.RenderSettings.fog || UnityEngine.RenderSettings.ambientMode != UnityEngine.Rendering.AmbientMode.Flat || UnityEngine.RenderSettings.ambientIntensity != 1f
+        || UnityEngine.RenderSettings.ambientLight != ambient || UnityEngine.RenderSettings.ambientSkyColor != ambient || UnityEngine.RenderSettings.ambientEquatorColor != ambient || UnityEngine.RenderSettings.ambientGroundColor != ambient
+        || !sessionLight.enabled || !sessionLightGo.activeInHierarchy || sessionLight.intensity != directionalIntensity || sessionLight.color != ambient)
+        throw new System.InvalidOperationException("Rendering changed the controlled lighting state.");
+    foreach (var renderer in renderers) if (renderer == null || renderer.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed renderer.");
+    foreach (var light in lights) if (light == null || light.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed light.");
+    foreach (var light in UnityEngine.Object.FindObjectsOfType<UnityEngine.Light>(true)) if (light != null && light != sessionLight && light.enabled && light.gameObject.activeInHierarchy) throw new System.InvalidOperationException("A game light remained active during capture.");
+    foreach (var projector in projectors) if (projector == null || projector.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed projector.");
+    foreach (var effect in highlights) if (effect == null || effect.camerasLayerMask.value != 0) throw new System.InvalidOperationException("Rendering changed a highlight camera mask.");
+    foreach (var renderer in player.GetComponentsInChildren<UnityEngine.Renderer>(false)) if (renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy) throw new System.InvalidOperationException("A player renderer remained enabled during capture.");
     fault("after-render");
     UnityEngine.RenderTexture.active = sessionRenderTexture;
     sessionTexture.ReadPixels(new UnityEngine.Rect(0, 0, captureWidth, captureHeight), 0, 0, false);
@@ -665,13 +789,17 @@ finally
     }
     var audit = new
     {
-        schemaVersion = "compendium.capture-restoration.v1",
+        schemaVersion = "compendium.capture-restoration.v2",
+        visualPolicy = "compendium.capture-visual-policy.v1",
+        colorSpace = UnityEngine.QualitySettings.activeColorSpace.ToString(),
+        manualRendererIds = suppressedIds.ToArray(), selections = selections.ToArray(), lightingInputs = lightingInputs.ToArray(),
         key = requestedKey,
         tileId = tileId,
         frameStarted = beforeFrame,
         frameRestored = UnityEngine.Time.frameCount,
         renderSucceeded = captureFailure == null,
         before = beforeVisualState,
+        during = duringVisualState,
         after = afterVisualState,
         errors = restorationErrors.ToArray(),
     };
@@ -713,7 +841,8 @@ var captureFrameMetadata = new
     lightingRestored = true,
     suppressionRestored = true,
     activeTargetRestored = true,
-    suppressedRenderers = suppressedIds.Count,
+    suppressedRenderers = renderers.Count,
+    visualPolicy = "compendium.capture-visual-policy.v1",
     cameraFrame = actualCameraFrame,
     projectionSamples = projectionSamples.ToArray(),
 };

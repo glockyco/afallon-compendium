@@ -67,6 +67,24 @@ Capture SHALL control and record camera projection, lighting, fog, and transient
 
 Scene loading, preload, readiness checks, and geometry holds MAY span gameplay frames under exclusive runtime ownership. Temporary lighting changes, renderer suppression, and rendering SHALL execute within a frame-local operation. That operation SHALL restore visual state before the next gameplay frame. Multi-frame operations SHALL release their holds and restore owned temporary state on success, error, cancellation, or disconnection. Cleanup SHALL execute in the runtime without depending on a connected host to issue a later restore command. A disconnected run SHALL remain unsuccessful until cleanup is confirmed.
 
+Capture SHALL exclude active game lights from rendering and use its controlled lighting profile. It SHALL preserve useful static meshes and landmark particles outside the reviewed suppression selection. Geometry readiness SHALL use the same transient selection as rendering and record its exclusions.
+
+#### Scenario: Gameplay lighting inputs differ
+- **WHEN** the same area is captured with different native ambient and game-light settings
+- **THEN** both captures use the controlled lighting profile and retain legible static landmarks
+- **AND** the audit records the original light inputs and their suppression
+- **AND** player renderers, owned effects, projectors, and camera highlights do not appear in the capture
+
+#### Scenario: The ambient getter hides Custom-mode state
+- **WHEN** capture starts while the ambient getter returns Flat or Trilight coefficients
+- **THEN** capture preserves the separate Custom-mode coefficients
+- **AND** restoring visible ambient values alone does not establish complete restoration
+
+#### Scenario: A transient changes between readiness observations
+- **WHEN** renderers excluded by the capture policy change between observations
+- **THEN** those renderers do not keep otherwise stable geometry pending
+- **AND** each observation retains their exclusion identities and reasons
+
 #### Scenario: Capture loses its host during preload
 - **WHEN** the host disconnects while a multi-frame operation holds geometry
 - **THEN** runtime cleanup releases the owned holds and temporary state

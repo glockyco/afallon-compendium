@@ -134,22 +134,43 @@ function pngDimensions(bytes: Uint8Array, path: string): { width: number; height
   return { width: view.getUint32(16), height: view.getUint32(20) };
 }
 
-function assertRestorationAudit(value: unknown, tile: CapturePlan["tiles"][number], key: string, captureFrame: number): void {
+function assertRestorationAudit(value: unknown, tile: CapturePlan["tiles"][number], key: string, captureFrame: number, lighting: CapturePlan["lighting"]): void {
   assertSchema(CaptureRestorationSchema, value, `Restoration audit for tile "${tile.id}"`);
-  const audit = value as {
-    key: string;
-    tileId: string;
-    frameStarted: number;
-    frameRestored: number;
-    renderSucceeded: boolean;
-    before: unknown;
-    after: unknown;
-    errors: string[];
-  };
+  const audit = value;
   if (audit.key !== key || audit.tileId !== tile.id) throw new Error(`Restoration audit for tile "${tile.id}" has mismatched session metadata.`);
   if (audit.frameStarted !== audit.frameRestored || audit.frameStarted !== captureFrame) throw new Error(`Restoration audit for tile "${tile.id}" crossed native frames.`);
   if (!audit.renderSucceeded || audit.errors.length !== 0) throw new Error(`Frame restoration failed for tile "${tile.id}".`);
   if (!isDeepStrictEqual(audit.before, audit.after)) throw new Error(`Frame restoration changed visual state for tile "${tile.id}".`);
+  if (!isDeepStrictEqual(audit.manualRendererIds, tile.suppressedRendererIds)) throw new Error("Capture applied another reviewed renderer selection.");
+  const during = audit.during;
+  if (during === null || during.fog || during.ambientMode !== 3 || during.ambientIntensity !== 1 || during.reflectionIntensity !== 0 || !during.lightEnabled || during.sunInstanceId !== during.lightInstanceId || !closeEnough(during.lightIntensity, lighting.directionalIntensity)) {
+    throw new Error("Capture did not apply its controlled lighting profile.");
+  }
+  for (const channel of ["r", "g", "b"] as const) {
+    for (const field of ["ambientLight", "ambientSky", "ambientEquator", "ambientGround", "lightColor"] as const) {
+      if (!closeEnough(during[field][channel], lighting.ambient[channel])) throw new Error("Capture lighting colors differ from the requested profile.");
+    }
+  }
+  const channels = [lighting.ambient.r, lighting.ambient.g, lighting.ambient.b].map(value => {
+    if (audit.colorSpace === "Gamma") return value;
+    if (value <= 0.04045) return value / 12.92;
+    return value < 1 ? ((value + 0.055) / 1.055) ** 2.4 : value ** 2.2;
+  });
+  for (let index = 0; index < 27; index++) {
+    const expected = index % 9 === 0 ? channels[index / 9]! : 0;
+    if (!closeEnough(during.ambientProbe[index]!, expected)) throw new Error("Capture ambient coefficients differ from the normalized profile.");
+  }
+  for (const field of ["renderers", "lights", "projectors"] as const) {
+    if (during[field].some(row => row.enabled) || !isDeepStrictEqual(audit.before[field].map(row => row.instanceId), during[field].map(row => row.instanceId))) {
+      throw new Error(`Capture did not suppress its selected ${field}.`);
+    }
+  }
+  if (during.highlights.some(row => row.cameraMask !== 0) || !isDeepStrictEqual(audit.before.highlights.map(row => row.instanceId), during.highlights.map(row => row.instanceId))) throw new Error("Capture did not exclude its selected camera highlights.");
+  if (!isDeepStrictEqual(audit.before.retainedParticles, during.retainedParticles)) throw new Error("Capture changed retained landmark particles.");
+  const selectedLights = new Set(during.lights.map(row => row.instanceId));
+  if (audit.lightingInputs.some(row => row.enabled && row.active && !selectedLights.has(row.instanceId))) throw new Error("Capture left an active game light uncontrolled.");
+  const selectedRenderers = new Set(during.renderers.map(row => row.instanceId));
+  if (tile.suppressedRendererIds.some(id => !selectedRenderers.has(id))) throw new Error("Capture omitted a reviewed renderer suppression.");
 }
 
 async function hashPng(path: string, expectedWidth: number, expectedHeight: number, tileId: string): Promise<{ sha256: string; byteSize: number }> {
@@ -227,7 +248,7 @@ export async function capture(
     plan: createHash("sha256").update(planText).digest("hex"),
     "map-space-profile": spatialProfile.sha256,
   };
-  for (const name of ["world-inventory", "capture-session", "capture-geometry", "stream-visit"]) {
+  for (const name of ["world-inventory", "capture-session", "capture-geometry", "capture-visuals", "stream-visit"]) {
     inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   }
   for (const name of [
@@ -254,6 +275,7 @@ export async function capture(
       width: plan.width,
       height: plan.height,
       readiness: plan.readiness,
+      visualPolicy: "compendium.capture-visual-policy.v1",
       completeImagery: false,
     },
   });
@@ -295,6 +317,7 @@ export async function capture(
 
     await mkdir(resolve(run.directory, "tiles"), { recursive: true });
     const probePath = resolve(import.meta.dir, "probes/capture-session.csx");
+    const preludeFile = resolve(import.meta.dir, "probes/capture-visuals.csx");
     const cleanupPath = resolve(run.directory, "capture-cleanup.json");
     const cleanupRuntimePath = await toRuntimePath(config, cleanupPath);
     const baseParameters = {
@@ -306,7 +329,7 @@ export async function capture(
       cleanupPath: cleanupRuntimePath,
     };
     const startPath = "capture-start.json";
-    const startReply = await runtime.probe(probePath, resolve(run.directory, startPath), { parameters: { action: "start", ...baseParameters } });
+    const startReply = await runtime.probe(probePath, resolve(run.directory, startPath), { preludeFile, parameters: { action: "start", ...baseParameters } });
     assertSchema(CaptureSessionSchema, startReply.value, "Capture start response");
     let session = startReply.value as CaptureSession;
     if (session.phase !== "ready" || session.sceneNativeId !== plan.sceneNativeId || session.scenePath !== plan.scenePath) throw new Error("Capture start response has mismatched scene metadata.");
@@ -327,6 +350,7 @@ export async function capture(
       const prepared = await withCaptureGeometry(runtime, config, run, plan, tile, async readiness => {
         if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
         const reply = await runtime.probe(probePath, responsePath, {
+          preludeFile,
           parameters: {
             action: "render",
             key: session.key,
@@ -355,7 +379,7 @@ export async function capture(
         const restorationBytes = await readFile(restorationPath);
         let restoration: unknown;
         try { restoration = JSON.parse(new TextDecoder().decode(restorationBytes)); } catch (error) { throw new Error(`Restoration audit for tile "${tile.id}" is not valid JSON.`, { cause: error }); }
-        assertRestorationAudit(restoration, tile, session.key, capture.frame);
+        assertRestorationAudit(restoration, tile, session.key, capture.frame, plan.lighting);
         await registerProbeArtifact(run, responseRelativePath, reply.reference);
         await registerArtifact(run, `tiles/${tile.id}.png`, png.sha256);
         await registerArtifact(run, `tiles/${tile.id}.restoration.json`);
@@ -368,6 +392,7 @@ export async function capture(
 
     const restoredPath = "capture-restored.json";
     const restoredReply = await runtime.probe(probePath, resolve(run.directory, restoredPath), {
+      preludeFile,
       parameters: { action: "restore", key: session.key, ...baseParameters },
     });
     assertSchema(CaptureSessionSchema, restoredReply.value, "Capture restore response");

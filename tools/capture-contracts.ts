@@ -39,12 +39,12 @@ const capture = Type.Object({
   tileId: text, path: text, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), byteSize: count,
   width: count, height: count, frame: count, restoredFrame: count,
   lightingRestored: Type.Literal(true), suppressionRestored: Type.Literal(true), activeTargetRestored: Type.Literal(true),
-  suppressedRenderers: count,
+  suppressedRenderers: count, visualPolicy: Type.Literal("compendium.capture-visual-policy.v1"),
   cameraFrame: frame,
   projectionSamples: Type.Array(Type.Object({ world: vector, viewport: vector }), { minItems: 3 }),
 });
 export const CaptureSessionSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-session.v1"),
+  schemaVersion: Type.Literal("compendium.capture-session.v2"),
   key: text, phase: Type.Union([Type.Literal("ready"), Type.Literal("restored")]),
   ownerToken: text, sceneNativeId: count, scenePath: text, sceneHandle: integer,
   resourcePrefix: text,
@@ -64,17 +64,27 @@ export const CaptureRasterSchema = Type.Object({
 });
 export type CaptureRaster = Static<typeof CaptureRasterSchema>;
 const rgba = Type.Object({ r: number, g: number, b: number, a: number });
+const enabledState = Type.Object({ instanceId: integer, enabled: Type.Boolean() });
 const visualState = Type.Object({
   fog: Type.Boolean(), ambientMode: integer,
   ambientLight: rgba, ambientSky: rgba, ambientEquator: rgba, ambientGround: rgba,
   ambientIntensity: number, ambientProbe: Type.Array(number, { minItems: 27, maxItems: 27 }),
+  reflectionIntensity: number, sunInstanceId: Type.Union([integer, Type.Null()]),
   activeTargetInstanceId: Type.Union([integer, Type.Null()]), lightEnabled: Type.Boolean(),
-  renderers: Type.Array(Type.Object({ instanceId: integer, enabled: Type.Boolean() })),
+  lightInstanceId: integer, lightIntensity: number, lightColor: rgba,
+  renderers: Type.Array(enabledState), lights: Type.Array(enabledState), projectors: Type.Array(enabledState),
+  retainedParticles: Type.Array(enabledState),
+  highlights: Type.Array(Type.Object({ instanceId: integer, cameraMask: integer })),
 });
 export const CaptureRestorationSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-restoration.v1"), key: text, tileId: text,
+  schemaVersion: Type.Literal("compendium.capture-restoration.v2"), key: text, tileId: text,
+  visualPolicy: Type.Literal("compendium.capture-visual-policy.v1"),
+  colorSpace: Type.Union([Type.Literal("Gamma"), Type.Literal("Linear")]),
   frameStarted: count, frameRestored: count, renderSucceeded: Type.Boolean(),
-  before: visualState, after: Type.Union([visualState, Type.Null()]), errors: Type.Array(text),
+  manualRendererIds: Type.Array(integer),
+  selections: Type.Array(Type.Object({ kind: text, instanceId: integer, reason: text })),
+  lightingInputs: Type.Array(Type.Object({ instanceId: integer, type: integer, enabled: Type.Boolean(), active: Type.Boolean(), color: rgba, intensity: number, range: number, cullingMask: integer, position: vector })),
+  before: visualState, during: Type.Union([visualState, Type.Null()]), after: Type.Union([visualState, Type.Null()]), errors: Type.Array(text),
 });
 export const CaptureCleanupSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-cleanup.v1"),
@@ -86,7 +96,9 @@ const geometryBounds = Type.Object({ center: vector, size: vector });
 const queryCounts = Type.Object({ all: count, scene: count, foreign: count });
 const optionalId = Type.Union([integer, Type.Null()]);
 export const CaptureGeometrySchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-geometry.v1"),
+  schemaVersion: Type.Literal("compendium.capture-geometry.v2"),
+  visualPolicy: Type.Literal("compendium.capture-visual-policy.v1"),
+  excludedRenderers: Type.Array(Type.Object({ instanceId: integer, reason: text })),
   frame: count,
   scene: Type.Object({ nativeId: count, handle: integer, path: text, ready: Type.Boolean() }),
   frustum: geometryBounds,

@@ -121,9 +121,13 @@ The existing stream visitor owns holds and newly instantiated roots. Native clea
 
 Mesh-less renderer components retain null bindings in the inventory. A null mesh alone does not establish a pending addressable load. Such rows prevent an empty classification while they remain relevant. Missing materials on present meshes, missing terrain data, and source-integrity issues block readiness. Readiness establishes the observed geometry state, not complete authored-content coverage.
 
-Capture owns illumination and fog. The successful lighting probe used temporary directional illumination and flat ambient light. Production must also control existing lights, ambient sky/equator/ground values, post-processing, and relevant environment updaters. Merely changing the clock is insufficient.
+Capture disables active game lights and uses its owned directional light with flat ambient illumination. It controls ambient sky, equator, ground, intensity, fog, and sky-reflection intensity. Its private camera does not copy gameplay camera post-processing. Native post-render checks reject changes to controlled lighting or suppression.
 
-Prefer camera masks for UI and transient entities, but validate actual renderer layers. The first masks did not remove every visible effect. Use reversible renderer suppression when masks cannot distinguish transient content. Avoid disabling arbitrary gameplay roots.
+Capture preserves the Custom-mode spherical-harmonics cache without assigning `RenderSettings.ambientProbe`. Flat and Trilight getters return derived coefficients, but the setter changes the separate Custom-mode cache. The audit checks engine-derived ambient coefficients in the active color space. Frame cleanup restores the original mode and colors.
+
+Renderer layers do not reliably separate the player from static geometry. A shared native selector identifies player bodies, mounts, owned actors, combat visuals, weather roots, camera particles, ground indicators, and non-looping particle roots. Particle-only selection preserves other actors' mesh renderers. Capture disables selected renderers, lights, and projectors, and excludes highlight effects through their camera masks. It preserves other landmark meshes and particles without disabling gameplay roots.
+
+Geometry readiness uses the same selector and reviewed renderer IDs. Excluded renderer IDs and reasons remain in each inventory but do not affect geometry stability or missing-binding checks. Capture hashes the shared prelude with its other inputs. Session, restoration, and geometry observations use their v2 contracts.
 
 Interiors use explicit floor/height slices first. The dungeon probe showed that a lower camera can expose floor geometry without mesh changes. Where this cannot show a useful floor, use a reviewed reversible ceiling suppression rule. Do not remove a combined roof-and-floor mesh or flatten stacked floors together.
 

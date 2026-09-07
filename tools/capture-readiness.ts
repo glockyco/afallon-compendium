@@ -433,6 +433,7 @@ export async function withCaptureGeometry<T>(
         const relativePath = `${geometry.relative}/inventory-${String(observationIndex).padStart(4, "0")}.json`;
         const absolutePath = resolve(run.directory, relativePath);
         const reply = await runtime.probe(probePath, absolutePath, {
+          preludeFile: resolve(import.meta.dir, "probes/capture-visuals.csx"),
           parameters: {
             researchCharacter: config.character,
             sceneNativeId: plan.sceneNativeId,
@@ -440,6 +441,7 @@ export async function withCaptureGeometry<T>(
             frame: tile.frame,
             boundaryOverlap: plan.readiness.boundaryOverlap,
             cullingMask: plan.cullingMask,
+            suppressedRendererIds: tile.suppressedRendererIds,
           },
           captureContext: true,
         });

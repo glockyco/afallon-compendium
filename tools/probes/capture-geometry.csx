@@ -309,6 +309,23 @@ var markSourceIntersection = new System.Action<int?>((sourceLoaderId) =>
     source["intersectsFrustum"] = true;
 });
 
+var visualSelection = collectCaptureVisuals();
+var excludedRendererReasons = new System.Collections.Generic.Dictionary<int, string>();
+visitCaptureVisualRenderers(visualSelection.Roots, (renderer, reason) =>
+{
+    var id = renderer.GetInstanceID();
+    if (!excludedRendererReasons.ContainsKey(id)) excludedRendererReasons.Add(id, reason);
+});
+var reviewedIds = args["suppressedRendererIds"] as Newtonsoft.Json.Linq.JArray;
+if (reviewedIds == null || reviewedIds.Count > 5000) throw new System.ArgumentException("suppressedRendererIds must be an array with at most 5000 entries.");
+var reviewedSet = new System.Collections.Generic.HashSet<int>();
+foreach (var token in reviewedIds)
+{
+    var id = readInteger(token, "suppressedRendererIds entry");
+    if (!reviewedSet.Add(id)) throw new System.ArgumentException("suppressedRendererIds must not contain duplicates.");
+    excludedRendererReasons[id] = "reviewed-renderer";
+}
+var excludedRenderers = new System.Collections.Generic.List<object>();
 var meshes = new System.Collections.Generic.List<object>();
 var otherRenderers = new System.Collections.Generic.List<object>();
 var allRenderers = UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true);
@@ -319,6 +336,12 @@ foreach (var renderer in allRenderers)
     if (renderer.gameObject.scene.handle != scene.handle) continue;
     rendererSceneCount++;
     if (!renderer.gameObject.activeInHierarchy || !renderer.enabled || !isMaskVisible(renderer.gameObject)) continue;
+    string exclusionReason;
+    if (excludedRendererReasons.TryGetValue(renderer.GetInstanceID(), out exclusionReason))
+    {
+        excludedRenderers.Add(new { instanceId = renderer.GetInstanceID(), reason = exclusionReason });
+        continue;
+    }
 
     UnityEngine.Bounds rendererBounds;
     try { rendererBounds = renderer.bounds; }
@@ -485,7 +508,9 @@ foreach (var terrain in allTerrains)
 
 return new
 {
-    schemaVersion = "compendium.capture-geometry.v1",
+    schemaVersion = "compendium.capture-geometry.v2",
+    visualPolicy = "compendium.capture-visual-policy.v1",
+    excludedRenderers = excludedRenderers.ToArray(),
     frame = UnityEngine.Time.frameCount,
     scene = new { nativeId = (int)nativeScene.ID, handle = scene.handle, path = scene.path, ready = sceneReady },
     frustum = boundsObject(frustum),
