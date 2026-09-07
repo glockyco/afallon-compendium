@@ -55,6 +55,8 @@ The initialized runtime database is the first extraction source for canonical re
 
 World extraction enumerates authored producers and inactive objects, then resolves streamed prefab sources. Scene transitions use the game's loading manager. Tile-local loading uses the game's preload mechanism with bounded readiness checks. The extractor does not equate entering a scene with loading all its content.
 
+Traversal plans bound each complete step to 1–300 seconds, including scene loading, observations, and restoration. Stream holds add five seconds to that budget and remain below the native 360-second limit. A deadline failure still requires confirmed native cleanup and cannot produce a successful traversal.
+
 Every build scene, database scene record, referenced destination, and streamed source enters a coverage ledger. Discovery and count reconciliation are separate from source classification and coverage resolution.
 
 Keep reachability, runtime availability, extraction status, and imagery status separate. Reachability is unknown, reachable, unreachable, or unused. Extraction is pending, extracted, unsupported, or failed. Imagery is pending, captured, validated, failed, or evidence-backed not-applicable. Runtime availability records activation separately from load state. A loaded-or-loading signal is not proof of ready geometry.

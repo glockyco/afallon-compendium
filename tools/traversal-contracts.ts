@@ -13,7 +13,7 @@ const common = {
 };
 export const TraversalPlanSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.traversal-plan.v1"),
-  stepTimeoutMs: Type.Integer({ minimum: 1000, maximum: 110000 }),
+  stepTimeoutMs: Type.Integer({ minimum: 1000, maximum: 300000 }),
   steps: Type.Array(Type.Object({
     sceneNativeId: count,
     streamAssetGuids: Type.Array(Type.String({ pattern: "^[a-f0-9]{32}$" }), { maxItems: 32, uniqueItems: true }),

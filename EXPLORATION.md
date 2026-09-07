@@ -784,6 +784,10 @@ Scene and traversal control probes now pause 500 milliseconds between requests. 
 
 Full upper-floor capture `fff9067c-4bf7-4472-b139-5ed6b037b062` then completed in 264.20 seconds without changing its deadlines. It restored the original scene, position, and rotation, and confirmed clean native ownership with zero callbacks. Evidence is in `artifacts/restoration-diagnostic/polling-comparison.json`. These checks do not establish that every remaining scene can finish within the existing deadlines.
 
+Traversal `095629ce-4b6a-46ab-a0d7-79d2ccfdd275` still exceeded its 100-second whole-step budget during extraction, then confirmed clean native cleanup. Plans now permit 1–300 seconds per complete step. This keeps the maximum 305-second stream hold below the native 360-second limit. With the explicit 300-second plan, traversal `e78fddee-c7e0-46e7-9bb1-d550f03bdca4` completed in 291.39 seconds overall. It restored Coalway and confirmed clean ownership with zero callbacks. Its source coverage remains incomplete.
+
+Reproduce it with `nix develop --command bun run compendium traverse --config local/spatial-smoke-config.json --plan local/traverse-interior-plan.json`.
+
 Browser picking opens Lost druid Talroth on the raised level and Aquarius on the lower level. Heart of corruption leads from Aquarius to Grovekeeper while retaining item context across floors; browser back returns to the lower floor. The built mobile view retains a 198-pixel map region with no document overflow at 390 by 844 pixels. Floor switching originally reused the upper image because both Deck TileLayers had the same ID. Namespaced layer IDs now discard stale tile state; the built switch requests 12 lower-floor tiles and displays the lower geometry. Evidence is in `artifacts/publication-smoke/interior-pipeline.json`.
 
 On a fresh checkout with the verified publication available, run:
