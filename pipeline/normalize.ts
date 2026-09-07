@@ -453,6 +453,7 @@ function relationRows(value: JsonRecord, canonicalValue: JsonRecord, nativeLootR
   const linkedNpcRules = array(value.dynamicLevelBandGearLinks).map(record).filter((row): row is JsonRecord => row !== null);
   const itemIndex = new Map<number, Map<string, ItemSourceAccumulator>>();
   const itemDefs = canonicalDefinitions(canonicalValue, "items");
+  const npcDefs = canonicalDefinitions(canonicalValue, "npcs");
   const merchantTables = canonicalDefinitions(value, "merchantTables");
   const validReference = (kind: string, id: unknown, key: string, definitions?: ReadonlyMap<number, unknown>): boolean => {
     if (typeof id === "number" && id < 0) return false;
@@ -468,7 +469,8 @@ function relationRows(value: JsonRecord, canonicalValue: JsonRecord, nativeLootR
   const group = (index: Map<number, JsonRecord[]>, row: JsonRecord, tableId: number) => { const rows = index.get(tableId) ?? []; rows.push(row); index.set(tableId, rows); };
   for (const raw of array(value.merchantBindings)) {
     const row = record(raw); if (!row || !validReference("npcs", row.ownerNativeId, "merchant-owner") || !validReference("merchantTables", row.merchantTableID, "merchant-binding-table", merchantTables)) continue;
-    merchantBindings.push(row); group(merchantByTable, row, row.merchantTableID);
+    merchantBindings.push(row);
+    if (record(npcDefs.get(row.ownerNativeId)?.gameplay)?.isMerchant === true) group(merchantByTable, row, row.merchantTableID);
   }
   for (const raw of array(value.merchantStock)) {
     const row = record(raw); if (!row || !validReference("merchantTables", row.merchantTableID, "merchant-stock-table", merchantTables) || !validReference("items", row.itemID, "merchant-stock") || !validReference("currencies", row.currencyID, "merchant-currency")) continue;
@@ -525,6 +527,7 @@ function relationRows(value: JsonRecord, canonicalValue: JsonRecord, nativeLootR
   for (const raw of array(value.npcQuestBindings)) {
     const row = record(raw); if (!row || !validReference("npcs", row.ownerNativeId, "npc-quest-owner") || !validReference("quests", row.questID, "npc-quest")) continue;
     questAssociations.push({ ...row, associationId: ["npc", row.ownerNativeId, row.association, row.associationIndex].join(":"), associationKind: "npc-quest" });
+    if (record(npcDefs.get(row.ownerNativeId)?.gameplay)?.isQuestGiver !== true) continue;
     const owners = questOwners.get(row.questID) ?? []; if (!owners.includes(row.ownerNativeId)) owners.push(row.ownerNativeId); questOwners.set(row.questID, owners);
   }
   for (const raw of array(value.questObjectives)) {
@@ -634,7 +637,13 @@ function categoryData(placements: NormalizedPlacement[], roles: NormalizedDataba
 
 function entityDetails(entities: NormalizedEntity[], roles: NormalizedDatabaseInput["roles"], itemSources: NormalizedItemSources["items"], conditions: NormalizedCondition[], relationData: { merchantBindings: JsonRecord[]; merchantStock: JsonRecord[]; lootBindings: JsonRecord[]; lootEntries: JsonRecord[]; resourceYields: JsonRecord[]; questAssociations: JsonRecord[]; transitions: JsonRecord[] }): EntityDetail[] {
   const merchantOwners = new Map<number, number[]>();
-  for (const row of relationData.merchantBindings) { const tableId = integerOrNull(row.merchantTableID); const ownerId = integerOrNull(row.ownerNativeId); if (tableId !== null && ownerId !== null) merchantOwners.set(tableId, [...(merchantOwners.get(tableId) ?? []), ownerId]); }
+  const enabledMerchants = new Set<number>(), enabledQuestGivers = new Set<number>();
+  for (const entity of entities) if (entity.kind === "npcs") {
+    const gameplay = record(entity.publicData.gameplay);
+    if (gameplay?.isMerchant === true) enabledMerchants.add(entity.nativeId);
+    if (gameplay?.isQuestGiver === true) enabledQuestGivers.add(entity.nativeId);
+  }
+  for (const row of relationData.merchantBindings) { const tableId = integerOrNull(row.merchantTableID); const ownerId = integerOrNull(row.ownerNativeId); if (tableId !== null && ownerId !== null && enabledMerchants.has(ownerId)) merchantOwners.set(tableId, [...(merchantOwners.get(tableId) ?? []), ownerId]); }
   const result = entities.map((entity) => {
     const entityRoles = roles.filter((row) => row.npcId !== null && entity.entityKey === entityKey("npcs", row.npcId));
     const placementIds = [...new Set(entityRoles.map((row) => row.placementId))].sort(compareText);
@@ -642,12 +651,12 @@ function entityDetails(entities: NormalizedEntity[], roles: NormalizedDatabaseIn
     const indexedSources = itemSources.find((row) => row.itemId === entity.nativeId && entity.kind === "items")?.sources.map((source) => ({ sourceKind: source.sourceKind, sourceKey: source.sourceKey, placementIds: source.placementIds, conditionIds: source.conditionIds, context: source.context })) ?? [];
     const roleSources = entityRoles.map((role) => ({ sourceKind: "placement-role", sourceKey: `${role.placementId}:${role.sourceId}:${role.role}`, placementIds: [role.placementId], conditionIds: [], context: { role: role.role, scope: role.scope } }));
     const sources = [...indexedSources, ...roleSources];
-    const merchantStock = relationData.merchantStock.flatMap((row) => { const tableId = integerOrNull(row.merchantTableID); const owners = tableId === null ? [] : [...new Set(merchantOwners.get(tableId) ?? [])]; const itemId = integerOrNull(row.itemID); const currencyId = integerOrNull(row.currencyID); if ((entity.kind === "items" && itemId !== entity.nativeId) || (entity.kind === "currencies" && currencyId !== entity.nativeId) || (entity.kind === "npcs" && !owners.includes(entity.nativeId)) || !["items", "currencies", "npcs"].includes(entity.kind)) return []; return [{ merchantTableId: tableId, stockIndex: integerOrNull(row.stockIndex), itemId, currencyId, cost: numberOrNull(row.cost), ownerNativeIds: owners }]; });
+    const merchantStock = relationData.merchantStock.flatMap((row) => { const tableId = integerOrNull(row.merchantTableID); const owners = tableId === null ? [] : [...new Set(merchantOwners.get(tableId) ?? [])]; const itemId = integerOrNull(row.itemID); const currencyId = integerOrNull(row.currencyID); if (owners.length === 0 || (entity.kind === "items" && itemId !== entity.nativeId) || (entity.kind === "currencies" && currencyId !== entity.nativeId) || (entity.kind === "npcs" && !owners.includes(entity.nativeId)) || !["items", "currencies", "npcs"].includes(entity.kind)) return []; return [{ merchantTableId: tableId, stockIndex: integerOrNull(row.stockIndex), itemId, currencyId, cost: numberOrNull(row.cost), ownerNativeIds: owners }]; });
     const lootBindings = relationData.lootBindings.flatMap((row) => { const ownerId = integerOrNull(row.ownerNativeId); if (entity.kind !== "npcs" || ownerId !== entity.nativeId) return []; return [{ context: row.context === "world" ? "world" as const : "npc" as const, ownerNativeId: ownerId, lootTableId: integerOrNull(row.lootTableID), bindingIndex: integerOrNull(row.bindingIndex), rawRate: numberOrNull(row.dropRate), conditionId: typeof row.conditionId === "string" ? row.conditionId : null }]; });
     const ownedLootTables = new Set(lootBindings.map((row) => row.lootTableId));
     const lootEntries = relationData.lootEntries.flatMap((row) => { const itemId = integerOrNull(row.itemID); const tableId = integerOrNull(row.lootTableID); if ((entity.kind !== "items" || itemId !== entity.nativeId) && !ownedLootTables.has(tableId)) return []; return [{ lootTableId: tableId, entryIndex: integerOrNull(row.entryIndex), itemId, min: numberOrNull(row.min), max: numberOrNull(row.max), rawRate: numberOrNull(row.dropRate) }]; });
     const resourceYields = relationData.resourceYields.flatMap((row) => { const itemId = integerOrNull(row.itemID); const resourceId = integerOrNull(row.resourceID); if ((entity.kind !== "items" || itemId !== entity.nativeId) && (entity.kind !== "resources" || resourceId !== entity.nativeId)) return []; return [{ yieldId: String(row.yieldId), sourceId: typeof row.sourceId === "string" ? row.sourceId : null, resourceId, itemId, rank: integerOrNull(row.rank), min: integerOrNull(row.min), max: integerOrNull(row.max) }]; });
-    const questAssociations = relationData.questAssociations.flatMap((row) => { const ownerId = integerOrNull(row.ownerNativeId); const questId = integerOrNull(row.questID); const taskId = integerOrNull(row.taskID); const itemId = integerOrNull(row.itemID); if ((entity.kind !== "npcs" || ownerId !== entity.nativeId) && (entity.kind !== "quests" || questId !== entity.nativeId) && (entity.kind !== "tasks" || taskId !== entity.nativeId) && (entity.kind !== "items" || itemId !== entity.nativeId)) return []; return [{ associationId: String(row.associationId), associationKind: String(row.associationKind), ownerNativeId: ownerId, questId, taskId, itemId, context: row }]; });
+    const questAssociations = relationData.questAssociations.flatMap((row) => { const ownerId = integerOrNull(row.ownerNativeId); if (row.associationKind === "npc-quest" && (ownerId === null || !enabledQuestGivers.has(ownerId))) return []; const questId = integerOrNull(row.questID); const taskId = integerOrNull(row.taskID); const itemId = integerOrNull(row.itemID); if ((entity.kind !== "npcs" || ownerId !== entity.nativeId) && (entity.kind !== "quests" || questId !== entity.nativeId) && (entity.kind !== "tasks" || taskId !== entity.nativeId) && (entity.kind !== "items" || itemId !== entity.nativeId)) return []; return [{ associationId: String(row.associationId), associationKind: String(row.associationKind), ownerNativeId: ownerId, questId, taskId, itemId, context: row }]; });
     const transitions = relationData.transitions.flatMap((row) => { const sourceScene = integerOrNull(row.sourceSceneNativeId); const destinationScene = integerOrNull(row.destinationSceneNativeId); if (entity.kind !== "scenes" || (sourceScene !== entity.nativeId && destinationScene !== entity.nativeId)) return []; return [{ transitionId: String(row.transitionId), sourceSceneNativeId: sourceScene, destinationSceneNativeId: destinationScene, transitionKind: String(row.transitionKind) }]; });
     const conditionIds = new Set(indexedSources.flatMap((source) => source.conditionIds));
     for (const binding of relationData.merchantBindings) if (entity.kind === "npcs" && binding.ownerNativeId === entity.nativeId && typeof binding.conditionId === "string") conditionIds.add(binding.conditionId);

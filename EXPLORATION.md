@@ -750,6 +750,8 @@ nix develop --command bun run compendium publication --plan local/publication-pl
 
 Normalization reads `raw/placement-snapshot.json` from extraction runs and each step's `after.json` from traversal runs. Mixed normalization `8774a6b0-9a0e-457b-9d36-1f4a3865883f` combines the Coalway extraction with Duskfall traversal `d87f275a-341b-485e-ab56-322e3aa09ece`. It contains 2,713 placements: 2,611 in Coalway, 70 on the reviewed upper floor, 26 on the lower floor, one in the arrival room, and five outside the reviewed profile. The same plan failed before the traversal snapshot-path correction. Run it with `nix develop --command bun run compendium normalize --output artifacts --plan local/normalize-interior-plan.json`.
 
+NPC merchant and quest navigation follows the native `isMerchant` and `isQuestGiver` flags, as role classification does. Authored bindings remain in SQLite even when the service is disabled. Normalization `e5103433-2a56-4758-b30d-f9c4128cf6e0` removes 549 disabled-merchant item sources and 46 disabled-quest location references from navigation. It retains 657 merchant item sources across 39 enabled merchants and 119 quest location references. In the browser, Lost druid Talroth retains three quest associations but no longer appears to sell seven items from an inactive default table. Evidence is in `artifacts/publication-smoke/service-eligibility.json`.
+
 TypeScript and all 19 pipeline/tool regression tests pass, with 63 assertions. These commands and measurements cover bounded local stages, not a complete supported-build release.
 
 ## Static atlas preview
