@@ -686,6 +686,22 @@ nix develop --command bun run compendium capture --config local/spatial-smoke-co
 nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan artifacts/25144591/8ab03e79-f2f6-4567-a911-bc3fb6a3f857/plan.json
 ```
 
+## Optional illustration preparation
+
+The offline `illustration` command preserves artwork in a separate `compendium.illustration.v1` artifact. It records the original image hash, dimensions, reviewed map space, and evidence references. It does not connect to the game. Illustration output always sets `primaryImagery` and `completeImagery` to `false`; it cannot replace capture tiles.
+
+Preparation snapshots input bytes, decodes the image, checks evidence hashes and JSON pointers, and verifies the reviewed map-space profile. Calibrated artwork requires four distinct pixel controls, including a control outside the three-point affine fit. Both declared and independently fitted transforms must satisfy the quarter-pixel residual limit. Orientation-only output has no marker transform.
+
+Run `c2b219c5-f1ad-4003-9bab-3f0910900ea7` imported the real 7540-by-8192 overworld artwork without changing its 76,574,413 bytes. Its image hash is `070ab5cd19d6955565c1d9cda23e5dc0741f727869f29e7bc1e9bec44d0e8b19`. The layer remains orientation-only because native map metadata does not establish image registration. This check covers asset preparation, not browser layer switching. Task 4.6 remains open.
+
+A synthetic rotated calibration exposed transposed affine coefficients during integration. Regression checks now cover rotated coordinates, independent controls, absent evidence pointers, AVIF delivery, and truncated images with matching hashes. Failed preparation preserves the prior successful output. TypeScript and all 15 repository tests passed, with 52 assertions.
+
+Reproduce the offline import:
+
+```sh
+nix develop --command bun run compendium illustration --config local/spatial-smoke-config.json --plan local/illustration-overworld-plan.json
+```
+
 ## Exclusive runtime ownership
 
 All repository runtime commands acquire an exclusive SQLite transaction at `~/.cache/afallon-compendium/runtime-owner.sqlite` before connecting. A competing command fails without opening another game connection. The operating system releases the lock if the host process dies. Evaluation IDs include the owner UUID, so a stale response cannot satisfy a different owner's request.

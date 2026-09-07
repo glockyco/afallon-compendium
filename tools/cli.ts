@@ -9,6 +9,7 @@ import { beginRun } from "./runs";
 import { withRuntime } from "./runtime";
 import { traverse } from "./traversal";
 import { capture } from "./capture";
+import { prepareIllustration } from "./illustrations";
 
 const { values, positionals } = parseArgs({
   args: Bun.argv.slice(2),
@@ -18,20 +19,25 @@ const { values, positionals } = parseArgs({
 
 async function main() {
   if (values.help || positionals.length === 0) {
-    console.log("Usage: bun run compendium <doctor|inspect|extract|probe|traverse|capture> --config local/config.json [--probe file.csx] [--prelude file.csx] [--plan file.json]\n\nRun through `nix develop --command bun run compendium ...`.\nDoctor verifies the installation, endpoint, build, and shared output path.\nInspect records complete currently-loaded inspection data, not full-game coverage.\nExtract validates canonical records, relationships, loot rules, world inventory, and authored producers with observation context. Load the configured research character first. Runtime commands use exclusive ownership and confirm cleanup before reporting success.\nProbe executes trusted C# with an optional shared prelude; args.researchCharacter comes from the local configuration.\nTraverse requires --plan file.json. It visits bounded scene/stream selections, validates source exports, and restores owned state. Inactive streams remain explicit coverage gaps.\nCapture requires --plan file.json and a reviewed mapSpaceProfile. It captures the loaded scene with owned resources and frame-local restoration. Geometry readiness and image calibration remain unverified.");
+    console.log("Usage: bun run compendium <doctor|inspect|extract|probe|traverse|capture|illustration> --config local/config.json [--probe file.csx] [--prelude file.csx] [--plan file.json]\n\nRun through `nix develop --command bun run compendium ...`.\nDoctor verifies the installation, endpoint, build, and shared output path.\nInspect records complete currently-loaded inspection data, not full-game coverage.\nExtract validates canonical records, relationships, loot rules, world inventory, and authored producers with observation context. Load the configured research character first. Runtime commands use exclusive ownership and confirm cleanup before reporting success.\nProbe executes trusted C# with an optional shared prelude; args.researchCharacter comes from the local configuration.\nTraverse requires --plan file.json. It visits bounded scene/stream selections, validates source exports, and restores owned state. Inactive streams remain explicit coverage gaps.\nCapture requires --plan file.json. It visits requested scenes, verifies geometry and raster registration, and does not claim complete imagery coverage.\nIllustration requires --plan file.json. It prepares a hashed optional illustration layer from disk without connecting to the game; it never satisfies primary capture coverage.");
     return;
   }
   const command = positionals[0]!;
-  if (positionals.length !== 1 || !["doctor", "inspect", "extract", "probe", "traverse", "capture"].includes(command)) throw new Error("Unknown command. Use --help.");
+  if (positionals.length !== 1 || !["doctor", "inspect", "extract", "probe", "traverse", "capture", "illustration"].includes(command)) throw new Error("Unknown command. Use --help.");
   if (!values.config) throw new Error("Supply --config with an explicit local configuration file.");
   if (command === "probe" && !values.probe) throw new Error("The probe command requires --probe file.csx.");
   if (command !== "probe" && (values.probe || values.prelude)) throw new Error("--probe and --prelude are only valid for the probe command.");
-  if ((command === "traverse" || command === "capture") && !values.plan) throw new Error(`The ${command} command requires --plan file.json.`);
-  if (command !== "traverse" && command !== "capture" && values.plan) throw new Error("--plan is only valid for traverse and capture.");
-  const plan = values.plan ? await Bun.file(values.plan).json() : undefined;
+  if ((command === "traverse" || command === "capture" || command === "illustration") && !values.plan) throw new Error(`The ${command} command requires --plan file.json.`);
+  if (command !== "traverse" && command !== "capture" && command !== "illustration" && values.plan) throw new Error("--plan is only valid for traverse, capture, and illustration.");
+  const plan = values.plan && command !== "illustration" ? await Bun.file(values.plan).json() : undefined;
   const preludeFile = values.prelude ? resolve(values.prelude) : undefined;
   const config = await loadConfig(values.config);
   const identity = await buildIdentity(config);
+  if (command === "illustration") {
+    const result = await prepareIllustration(config, identity, resolve(values.plan!));
+    console.log(JSON.stringify({ ok: true, ...result }, null, 2));
+    return;
+  }
   const doctorSource = resolve(import.meta.dir, "probes/doctor.csx");
 
   await withRuntime(config, async runtime => {

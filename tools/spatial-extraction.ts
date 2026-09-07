@@ -6,6 +6,17 @@ import { PlacementRolesSchema, type PlacementRoles } from "./role-contracts";
 import { compileMapSpaces } from "./map-spaces";
 import { compileAuthoredRegions } from "./map-regions";
 
+export function resolveEvidencePointer(value: unknown, pointer: string): unknown {
+  if (pointer !== "" && !pointer.startsWith("/")) throw new Error(`Evidence has an invalid JSON pointer: ${pointer}`);
+  for (const encoded of pointer === "" ? [] : pointer.slice(1).split("/")) {
+    if (/~(?:[^01]|$)/.test(encoded)) throw new Error(`Evidence has an invalid JSON pointer: ${pointer}`);
+    const key = encoded.replaceAll("~1", "/").replaceAll("~0", "~");
+    if (value === null || typeof value !== "object" || !Object.hasOwn(value, key)) throw new Error(`Evidence pointer is absent: ${pointer}`);
+    value = (value as Record<string, unknown>)[key];
+  }
+  return value;
+}
+
 export async function loadSpatialProfile(path: string | undefined) {
   if (path === undefined) return null;
   const bytes = await Bun.file(path).bytes();
@@ -22,13 +33,7 @@ export async function loadSpatialProfile(path: string | undefined) {
         observed.set(target, source);
       }
       if (source.sha256 !== evidence.sha256) throw new Error(`Spatial review evidence changed: ${evidence.path}`);
-      let value = source.value;
-      for (const encoded of evidence.pointer === "" ? [] : evidence.pointer.slice(1).split("/")) {
-        if (/~(?:[^01]|$)/.test(encoded)) throw new Error(`Spatial evidence has an invalid JSON pointer: ${evidence.pointer}`);
-        const key = encoded.replaceAll("~1", "/").replaceAll("~0", "~");
-        if (value === null || typeof value !== "object" || !Object.hasOwn(value, key)) throw new Error(`Spatial evidence pointer is absent: ${evidence.pointer}`);
-        value = (value as Record<string, unknown>)[key];
-      }
+      resolveEvidencePointer(source.value, evidence.pointer);
     }
   }
   return { profile, bytes, sha256: new Bun.CryptoHasher("sha256").update(bytes).digest("hex") };

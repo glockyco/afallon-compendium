@@ -140,6 +140,20 @@ function resolveProjection(binding: CompiledBinding, position: SpatialPosition):
   return mapPosition;
 }
 
+export function indexMapSpaceDefinitions(definitions: readonly MapSpace[]): ReadonlyMap<string, MapSpace> {
+  const mapSpaces = new Map<string, MapSpace>();
+  for (const mapSpace of definitions) {
+    if (mapSpaces.has(mapSpace.id)) throw new Error(`Duplicate map-space ID "${mapSpace.id}".`);
+    mapSpaces.set(mapSpace.id, mapSpace);
+    const floorIds = new Set<string>();
+    for (const floor of mapSpace.floors) {
+      if (floorIds.has(floor.id)) throw new Error(`Duplicate floor ID "${floor.id}" within map space "${mapSpace.id}".`);
+      floorIds.add(floor.id);
+    }
+  }
+  return mapSpaces;
+}
+
 export interface CompiledMapSpaces {
   resolve(sceneNativeId: number, scenePath: string, position: SpatialPosition): SpatialResolution;
 }
@@ -151,16 +165,7 @@ export function compileMapSpaces(profile: MapSpaceProfile, catalog: SceneCatalog
     throw new Error(`Map-space profile build "${profile.buildId}" does not match scene catalog build "${catalog.buildId}".`);
   }
 
-  const mapSpaces = new Map<string, MapSpace>();
-  for (const mapSpace of profile.mapSpaces) {
-    if (mapSpaces.has(mapSpace.id)) throw new Error(`Duplicate map-space ID "${mapSpace.id}".`);
-    mapSpaces.set(mapSpace.id, mapSpace);
-    const floorIds = new Set<string>();
-    for (const floor of mapSpace.floors) {
-      if (floorIds.has(floor.id)) throw new Error(`Duplicate floor ID "${floor.id}" within map space "${mapSpace.id}".`);
-      floorIds.add(floor.id);
-    }
-  }
+  const mapSpaces = indexMapSpaceDefinitions(profile.mapSpaces);
 
   const bindingsByScene = new Map<string, CompiledBinding[]>();
   const bindingIds = new Set<string>();

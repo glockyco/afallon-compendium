@@ -37,7 +37,7 @@ A Python-only pipeline was considered. TypeScript keeps publication contracts an
 
 ### 2. Reusable commands replace repeated manual orchestration
 
-The existing commands are `doctor`, `inspect`, `probe`, `extract`, `traverse`, and `capture`. Capture accepts explicit camera plans for the loaded scene and requires a reviewed map-space profile. It requires stable tile-local geometry before rendering but does not establish complete imagery coverage. Normalization and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
+The existing commands are `doctor`, `inspect`, `probe`, `extract`, `traverse`, `capture`, and `illustration`. Capture accepts explicit camera plans and enters requested source scenes under runtime ownership. It requires a reviewed map-space profile. It requires stable tile-local geometry before rendering but does not establish complete imagery coverage. Normalization and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
 
 Normal extraction includes canonical records, relationships, loot rules, world inventory, NPC producers, world sources, faction rules, and placement snapshots. It validates schemas, counts, and references, then resolves serialized identities and merges placement roles. Each observation records scene and character context. Sequential runtime calls are not one simultaneous observation. Traversal publishes these role and identity artifacts for each visited scene. Successful loaded-scene extraction does not establish full-world coverage.
 
@@ -91,7 +91,7 @@ The current OreSpawner name is misleading for categorization: live data proves H
 
 Primary imagery comes only from this project's capture pipeline against the supported game build. Do not substitute shipped map textures, illustrations, or community map images for primary captures, including missing tiles. Retain missing or failed captures as coverage gaps. Illustrations remain a separate optional layer.
 
-Coalway woods and swamp share verified illustrated-map registration. This does not establish screenshot coverage. Duskfall's arrival room lies outside its single MapZone. Its authored trigger teleports the player into the mapped dungeon without changing scenes. Native visits confirm this transition and restore the source scene.
+Coalway woods and swamp share a reviewed native map-space transform. This does not establish artwork pixel registration or screenshot coverage. Duskfall's arrival room lies outside its single MapZone. Its authored trigger teleports the player into the mapped dungeon without changing scenes. Native visits confirm this transition and restore the source scene.
 
 Capture extents therefore come from validated scene geometry, streamed-source coverage, and navigable region/floor evidence. MapZone is useful calibration evidence, not an unconditional capture boundary. The pipeline rejects unexplained out-of-bounds placements.
 
@@ -107,7 +107,7 @@ Each capture records the camera's actual center, extent, and clipping planes, no
 
 Each PNG has a hashed `compendium.capture-raster.v2` artifact linked by its image hash. Its `worldFromPixelEdge` frame maps top-left image edges into source-scene XZ coordinates. Pixel centers use `(column + 0.5, row + 0.5)`. Positive image X increases world X; positive image Y decreases world Z. Source-scene registration remains separate from reviewed map-space registration.
 
-Each layer carries an explicit world-to-image transform. Illustrated layers are independently calibrated. Where artwork distorts positions, show it as an orientation reference instead of placing falsely precise markers on it.
+Each calibrated layer carries an explicit world-to-image transform. The offline illustration command verifies immutable image bytes, the reviewed map-space profile, and evidence hashes and JSON pointers. Calibrated artwork requires four distinct pixel controls, with one or more controls outside the three-point affine fit. Declared and independently fitted transforms must satisfy a quarter-pixel residual limit. Where artwork lacks verified registration, preserve it as an orientation-only layer without a marker transform. Illustration output cannot satisfy primary imagery or complete coverage.
 
 ### 6. Capture is a restorable rendering operation
 
