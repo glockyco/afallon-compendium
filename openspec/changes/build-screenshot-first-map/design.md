@@ -37,7 +37,7 @@ A Python-only pipeline was considered. TypeScript keeps publication contracts an
 
 ### 2. Reusable commands replace repeated manual orchestration
 
-The existing commands are `doctor`, `inspect`, `probe`, `extract`, `traverse`, and `capture`. Capture accepts explicit camera plans for the loaded scene and requires a reviewed map-space profile. It does not yet establish geometry readiness or complete imagery coverage. Normalization and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
+The existing commands are `doctor`, `inspect`, `probe`, `extract`, `traverse`, and `capture`. Capture accepts explicit camera plans for the loaded scene and requires a reviewed map-space profile. It requires stable tile-local geometry before rendering but does not establish complete imagery coverage. Normalization and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
 
 Normal extraction includes canonical records, relationships, loot rules, world inventory, NPC producers, world sources, faction rules, and placement snapshots. It validates schemas, counts, and references, then resolves serialized identities and merges placement roles. Each observation records scene and character context. Sequential runtime calls are not one simultaneous observation. Traversal publishes these role and identity artifacts for each visited scene. Successful loaded-scene extraction does not establish full-world coverage.
 
@@ -108,6 +108,14 @@ Each layer carries an explicit world-to-image transform. Illustrated layers are 
 ### 6. Capture is a restorable rendering operation
 
 Create a dedicated disabled camera, render target, and readable texture. Disable occlusion culling on that camera. Prepare and hold geometry for the complete tile frustum, including boundary overlap, before rendering. Record the source inventory and wait for stable readiness. A timeout is a failed tile, not empty space.
+
+The capture plan uses schema `compendium.capture-plan.v2`. Its readiness profile bounds the whole tile to 1–300 seconds, requests 2–10 stable observations, and limits holds to 256 sources. The deadline includes rendering and stream restoration.
+
+Source selection calls native `Covers` at the closest point on the expanded frustum to each loader. This tests the complete frustum against the native loading sphere without selecting the larger enclosing sphere. Geometry already observed inside the frustum also selects its source. Inactive sources remain separate evidence rather than receiving arbitrary activation changes.
+
+The existing stream visitor owns holds and newly instantiated roots. Native cleanup restores the original holds and roots after success, failure, cancellation, or socket loss. Readiness requires initialized scene state, settled source handles, active loaded roots, and stable mesh, terrain, and material bindings. A combined loaded-or-loading flag is insufficient. Numbered inventories, observation contexts, stable frame IDs, hashes, and cleanup receipts remain with each tile.
+
+Mesh-less renderer components retain null bindings in the inventory. A null mesh alone does not establish a pending addressable load. Such rows prevent an empty classification while they remain relevant. Missing materials on present meshes, missing terrain data, and source-integrity issues block readiness. Readiness establishes the observed geometry state, not complete authored-content coverage.
 
 Capture owns illumination and fog. The successful lighting probe used temporary directional illumination and flat ambient light. Production must also control existing lights, ambient sky/equator/ground values, post-processing, and relevant environment updaters. Merely changing the clock is insufficient.
 

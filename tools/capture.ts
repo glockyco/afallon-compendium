@@ -12,6 +12,7 @@ import {
   CaptureRestorationSchema,
   CaptureSessionSchema,
   type CapturePlan,
+  type CaptureReadiness,
   type CaptureSession,
 } from "./capture-contracts";
 import { ObservationContextSchema } from "./contracts";
@@ -22,6 +23,7 @@ import type { Runtime } from "./runtime";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
+import { withCaptureGeometry } from "./capture-readiness";
 
 function assertSchema<T extends TSchema>(schema: T, value: unknown, label: string): asserts value is Static<T> {
   try {
@@ -193,11 +195,11 @@ export async function capture(
     plan: createHash("sha256").update(planText).digest("hex"),
     "map-space-profile": spatialProfile.sha256,
   };
-  for (const name of ["world-inventory", "capture-session"]) {
+  for (const name of ["world-inventory", "capture-session", "capture-geometry", "stream-visit"]) {
     inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   }
   for (const name of [
-    "capture", "capture-contracts", "runtime", "runs", "build", "config", "contracts", "world-inventory",
+    "capture", "capture-contracts", "capture-readiness", "traversal-contracts", "runtime", "runs", "build", "config", "contracts", "world-inventory",
     "map-calibration", "map-contracts", "map-spaces", "spatial-contracts", "spatial-extraction",
   ]) {
     inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
@@ -219,7 +221,7 @@ export async function capture(
       floorId: plan.floorId,
       width: plan.width,
       height: plan.height,
-      readiness: "unverified",
+      readiness: plan.readiness,
       completeImagery: false,
     },
   });
@@ -281,7 +283,7 @@ export async function capture(
     const captureKey = session.key;
     await registerProbeArtifact(run, startPath, startReply.reference);
 
-    const tiles: NonNullable<CaptureSession["lastCapture"]>[] = [];
+    const tiles: (NonNullable<CaptureSession["lastCapture"]> & { readiness: CaptureReadiness; readinessPath: string })[] = [];
     for (const tile of plan.tiles) {
       runtime.signal.throwIfAborted();
       const pngPath = resolve(run.directory, "tiles", `${tile.id}.png`);
@@ -290,38 +292,43 @@ export async function capture(
       const responsePath = resolve(run.directory, responseRelativePath);
       const pngRuntimePath = await toRuntimePath(config, pngPath);
       const restorationRuntimePath = await toRuntimePath(config, restorationPath);
-      const reply = await runtime.probe(probePath, responsePath, {
-        parameters: {
-          action: "render",
-          key: session.key,
-          tileId: tile.id,
-          frame: tile.frame,
-          lighting: plan.lighting,
-          cullingMask: plan.cullingMask,
-          suppressedRendererIds: tile.suppressedRendererIds,
-          outputPath: pngRuntimePath,
-          restorationPath: restorationRuntimePath,
-          ...baseParameters,
-        },
+      const prepared = await withCaptureGeometry(runtime, config, run, plan, tile, async readiness => {
+        if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
+        const reply = await runtime.probe(probePath, responsePath, {
+          parameters: {
+            action: "render",
+            key: session.key,
+            tileId: tile.id,
+            frame: tile.frame,
+            lighting: plan.lighting,
+            cullingMask: plan.cullingMask,
+            suppressedRendererIds: tile.suppressedRendererIds,
+            outputPath: pngRuntimePath,
+            restorationPath: restorationRuntimePath,
+            ...baseParameters,
+          },
+        });
+        assertSchema(CaptureSessionSchema, reply.value, `Capture response for tile "${tile.id}"`);
+        session = reply.value as CaptureSession;
+        assertSession(session, runtime, captureKey, plan.sceneNativeId, plan.scenePath, sceneHandle, "ready");
+        const capture = session.lastCapture;
+        if (capture === null || capture.tileId !== tile.id || capture.width !== plan.width || capture.height !== plan.height || capture.path !== pngRuntimePath || capture.frame !== capture.restoredFrame) {
+          throw new Error(`Capture response for tile "${tile.id}" has mismatched output metadata.`);
+        }
+        if (capture.frame < readiness.observedFrames.at(-1)!) throw new Error("Capture preceded its geometry readiness evidence.");
+        assertFrameMatches(capture, tile.frame, tile.id);
+        const png = await hashPng(pngPath, plan.width, plan.height, tile.id);
+        if (png.sha256 !== capture.sha256 || png.byteSize !== capture.byteSize) throw new Error(`Capture response for tile "${tile.id}" does not match its PNG artifact.`);
+        const restorationBytes = await readFile(restorationPath);
+        let restoration: unknown;
+        try { restoration = JSON.parse(new TextDecoder().decode(restorationBytes)); } catch (error) { throw new Error(`Restoration audit for tile "${tile.id}" is not valid JSON.`, { cause: error }); }
+        assertRestorationAudit(restoration, tile, session.key, capture.frame);
+        await registerProbeArtifact(run, responseRelativePath, reply.reference);
+        await registerArtifact(run, `tiles/${tile.id}.png`, png.sha256);
+        await registerArtifact(run, `tiles/${tile.id}.restoration.json`);
+        return capture;
       });
-      assertSchema(CaptureSessionSchema, reply.value, `Capture response for tile "${tile.id}"`);
-      session = reply.value as CaptureSession;
-      assertSession(session, runtime, captureKey, plan.sceneNativeId, plan.scenePath, sceneHandle, "ready");
-      const capture = session.lastCapture;
-      if (capture === null || capture.tileId !== tile.id || capture.width !== plan.width || capture.height !== plan.height || capture.path !== pngRuntimePath || capture.frame !== capture.restoredFrame) {
-        throw new Error(`Capture response for tile "${tile.id}" has mismatched output metadata.`);
-      }
-      assertFrameMatches(capture, tile.frame, tile.id);
-      const png = await hashPng(pngPath, plan.width, plan.height, tile.id);
-      if (png.sha256 !== capture.sha256 || png.byteSize !== capture.byteSize) throw new Error(`Capture response for tile "${tile.id}" does not match its PNG artifact.`);
-      const restorationBytes = await readFile(restorationPath);
-      let restoration: unknown;
-      try { restoration = JSON.parse(new TextDecoder().decode(restorationBytes)); } catch (error) { throw new Error(`Restoration audit for tile "${tile.id}" is not valid JSON.`, { cause: error }); }
-      assertRestorationAudit(restoration, tile, session.key, capture.frame);
-      await registerProbeArtifact(run, responseRelativePath, reply.reference);
-      await registerArtifact(run, `tiles/${tile.id}.png`, png.sha256);
-      await registerArtifact(run, `tiles/${tile.id}.restoration.json`);
-      tiles.push(capture);
+      tiles.push({ ...prepared.value, readiness: prepared.readiness, readinessPath: prepared.readinessPath });
     }
 
     const restoredPath = "capture-restored.json";
@@ -350,7 +357,7 @@ export async function capture(
     return {
       manifest: run.manifestPath,
       tiles,
-      readiness: "unverified" as const,
+      readiness: "verified" as const,
       completeImagery: false as const,
     };
   } catch (error) {

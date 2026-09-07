@@ -54,3 +54,9 @@ export const StreamVisitSchema = Type.Object({
   })),
 });
 export type StreamVisit = Static<typeof StreamVisitSchema>;
+export const StreamCleanupSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.stream-cleanup.v1"),
+  key: text, ownerToken: text, sceneHandle: integer, frame: count,
+  rows: StreamVisitSchema.properties.rows,
+  remainingOwnedRoots: Type.Literal(0), errors: Type.Array(text, { maxItems: 0 }),
+});

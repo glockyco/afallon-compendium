@@ -4,14 +4,14 @@ import { relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
-import type { CompendiumConfig } from "./config";
+import { toRuntimePath, type CompendiumConfig } from "./config";
 import { CanonicalSchema, SupportSchema, RelationshipsSchema, ObservationContextSchema, canonicalKinds } from "./contracts";
 import { createCoverageLedger, type CoverageInput } from "./coverage";
 import { NpcProducersSchema, validateNpcProducers } from "./npc-extraction";
 import { PlacementSnapshotSchema, type PlacementSnapshot } from "./placement-contracts";
 import { beginRun } from "./runs";
 import type { Runtime } from "./runtime";
-import { SceneVisitSchema, StreamVisitSchema, TraversalPlanSchema, type TraversalPlan } from "./traversal-contracts";
+import { SceneVisitSchema, StreamVisitSchema, StreamCleanupSchema, TraversalPlanSchema, type TraversalPlan } from "./traversal-contracts";
 import { WorldInventorySchema, validateWorldInventory } from "./world-inventory";
 import { WorldSourcesSchema, validateWorldSources } from "./world-extraction";
 import { FactionRolesSchema, collectFactionRoleFacts } from "./faction-roles";
@@ -125,7 +125,7 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         if (selected.length > 32) throw new Error("The stream selection exceeds the 32-loader bound.");
         let stream: Static<typeof StreamVisitSchema> | undefined;
         if (selected.length > 0) {
-          stream = await control("stream-visit", StreamVisitSchema, { action: "start", sceneHandle: scene.sceneHandle, loaderInstanceIds: selected.map(row => row.componentInstanceId), holdSeconds: Math.ceil(plan.stepTimeoutMs / 1000) + 5 }, "stream-start.json");
+          stream = await control("stream-visit", StreamVisitSchema, { action: "start", sceneHandle: scene.sceneHandle, loaderInstanceIds: selected.map(row => row.componentInstanceId), holdSeconds: Math.ceil(plan.stepTimeoutMs / 1000) + 5, cleanupPath: await toRuntimePath(config, resolve(run.directory, prefix, "stream-cleanup.json")) }, "stream-start.json");
           stream = await settle("stream-visit", StreamVisitSchema, stream.key, "poll", "ready", "stream-ready.json", scene.sceneHandle);
         }
         checkDeadline();
@@ -200,7 +200,19 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
           if (!observed || !observed.isLoaded || observed.isLoading || !observed.hasInstanceHandle || observed.loadedRootInstanceId !== row.rootInstanceId) throw new Error(`Stream ${row.assetGuid} changed during extraction.`);
           return { ...row, extraction: "observed", sourceComponentInstanceIds: componentsUnderRoot(after, parentIds, row.rootInstanceId!) };
         }) ?? [];
-        if (stream) await settle("stream-visit", StreamVisitSchema, stream.key, "restore", "restored", "stream-restored.json", scene.sceneHandle);
+        if (stream) {
+          await settle("stream-visit", StreamVisitSchema, stream.key, "restore", "restored", "stream-restored.json", scene.sceneHandle);
+          const cleanup = await Bun.file(resolve(run.directory, prefix, "stream-cleanup.json")).json();
+          Assert(StreamCleanupSchema, cleanup);
+          if (cleanup.key !== stream.key || cleanup.ownerToken !== runtime.ownerToken || cleanup.sceneHandle !== scene.sceneHandle || cleanup.rows.length !== stream.rows.length) throw new Error("Stream cleanup receipt does not match the owned visit.");
+          const expectedRows = new Map(stream.rows.map(row => [row.loaderInstanceId, row]));
+          for (const row of cleanup.rows) {
+            const expected = expectedRows.get(row.loaderInstanceId);
+            if (!expected || row.assetGuid !== expected.assetGuid || row.initiallyLoaded !== expected.initiallyLoaded || row.holdUntil !== expected.originalHoldUntil) throw new Error("Stream cleanup did not restore the original source hold.");
+            if (row.initiallyLoaded ? row.rootInstanceId !== expected.rootInstanceId || !row.loaded || !row.hasHandle : row.skippedReason === null && (row.loaded || row.loading || row.hasHandle)) throw new Error("Stream cleanup did not restore the original root state.");
+          }
+          await run.addArtifact(`${prefix}/stream-cleanup.json`);
+        }
         const restored = await settle("scene-visit", SceneVisitSchema, started.key, "restore", "restored", "scene-restored.json");
         if (!restored.sceneReady || restored.sceneNativeId !== started.sourceSceneNativeId) throw new Error("Traversal did not restore the source scene.");
         const report = { index, sceneNativeId: step.sceneNativeId, sceneHandle: scene.sceneHandle, streamSources, coverage: coverage.summary, placementRoles: placementRoles.summary, spatial: spatial.summary, restoration: restored };

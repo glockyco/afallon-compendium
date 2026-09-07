@@ -82,17 +82,26 @@ var makePosition = new System.Func<UnityEngine.Vector3, object>(value => new { x
 
 if (action == "start")
 {
+    var cleanupPathToken = args["cleanupPath"];
+    if (cleanupPathToken == null || cleanupPathToken.Type != Newtonsoft.Json.Linq.JTokenType.String || string.IsNullOrEmpty((string)cleanupPathToken))
+        throw new System.ArgumentException("cleanupPath must be a non-empty path.");
+    var cleanupPath = System.IO.Path.GetFullPath((string)cleanupPathToken);
+    var cleanupDirectory = System.IO.Path.GetDirectoryName(cleanupPath);
+    if (string.IsNullOrEmpty(cleanupDirectory)) throw new System.ArgumentException("cleanupPath must have a directory.");
+    if (System.IO.File.Exists(cleanupPath)) throw new System.IO.IOException("The stream cleanup receipt already exists.");
+    System.IO.Directory.CreateDirectory(cleanupDirectory);
+
     var holdSecondsToken = args["holdSeconds"];
     if (holdSecondsToken == null || (holdSecondsToken.Type != Newtonsoft.Json.Linq.JTokenType.Integer && holdSecondsToken.Type != Newtonsoft.Json.Linq.JTokenType.Float))
         throw new System.ArgumentException("holdSeconds must be a number.");
     var holdSeconds = holdSecondsToken.ToObject<double>();
-    if (double.IsNaN(holdSeconds) || double.IsInfinity(holdSeconds) || holdSeconds < 1.0 || holdSeconds > 120.0)
-        throw new System.ArgumentException("holdSeconds must be between 1 and 120 seconds.");
+    if (double.IsNaN(holdSeconds) || double.IsInfinity(holdSeconds) || holdSeconds < 1.0 || holdSeconds > 360.0)
+        throw new System.ArgumentException("holdSeconds must be between 1 and 360 seconds.");
     var holdSecondsFloat = (float)holdSeconds;
 
     var idsToken = args["loaderInstanceIds"] as Newtonsoft.Json.Linq.JArray;
-    if (idsToken == null || idsToken.Count < 1 || idsToken.Count > 32)
-        throw new System.ArgumentException("loaderInstanceIds must contain 1 to 32 unique integers.");
+    if (idsToken == null || idsToken.Count < 1 || idsToken.Count > 256)
+        throw new System.ArgumentException("loaderInstanceIds must contain 1 to 256 unique integers.");
     var requestedLoaderIds = new System.Collections.Generic.List<int>();
     var requestedLoaderIdSet = new System.Collections.Generic.HashSet<int>();
     foreach (var idToken in idsToken)
@@ -132,21 +141,20 @@ if (action == "start")
         throw new System.InvalidOperationException("GameState.playerEntity.transform is required for stream traversal.");
 
     var allLoaders = UnityEngine.Object.FindObjectsOfType<Il2Cpp.AddressableLoader>(true);
+    var loadersById = new System.Collections.Generic.Dictionary<int, Il2Cpp.AddressableLoader>();
+    foreach (var candidate in allLoaders)
+    {
+        if (candidate == null) continue;
+        var candidateId = candidate.GetInstanceID();
+        if (loadersById.ContainsKey(candidateId)) throw new System.InvalidOperationException("The native loader query returned a duplicate instance ID.");
+        loadersById.Add(candidateId, candidate);
+    }
     var rows = new System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, object>>();
     foreach (var requestedLoaderId in requestedLoaderIds)
     {
-        Il2Cpp.AddressableLoader target = null;
-        var matches = 0;
-        foreach (var candidate in allLoaders)
-        {
-            if (candidate == null || candidate.GetInstanceID() != requestedLoaderId) continue;
-            target = candidate;
-            matches++;
-        }
-        if (matches == 0 || target == null)
+        Il2Cpp.AddressableLoader target;
+        if (!loadersById.TryGetValue(requestedLoaderId, out target))
             throw new System.InvalidOperationException("A requested AddressableLoader was not found in the current loaded objects.");
-        if (matches != 1)
-            throw new System.InvalidOperationException("A requested AddressableLoader instance ID is ambiguous.");
         if (target.gameObject == null || target.gameObject.scene.handle != scene.handle)
             throw new System.InvalidOperationException("A requested AddressableLoader belongs to a foreign scene.");
         if (target.addressableAsset == null || string.IsNullOrEmpty(target.addressableAsset.AssetGUID))
@@ -232,6 +240,38 @@ if (action == "start")
         };
     });
     state["currentRow"] = currentRow;
+    var cleanupWritten = false;
+    var writeCleanupReceipt = new System.Action(() =>
+    {
+        if (cleanupWritten) return;
+        var cleanupRows = new System.Collections.Generic.List<object>();
+        var remainingOwnedRoots = 0;
+        foreach (var row in rows)
+        {
+            cleanupRows.Add(currentRow(row));
+            if ((row["ownedRoot"] as UnityEngine.GameObject) != null) remainingOwnedRoots++;
+        }
+        if (remainingOwnedRoots != 0) throw new System.InvalidOperationException("Stream cleanup still has owned roots.");
+        var receipt = new { schemaVersion = "compendium.stream-cleanup.v1", key = key, ownerToken = ownerToken, sceneHandle = requestedSceneHandle, frame = UnityEngine.Time.frameCount, rows = cleanupRows.ToArray(), remainingOwnedRoots = remainingOwnedRoots, errors = new string[0] };
+        var temporaryPath = cleanupPath + ".tmp." + System.Guid.NewGuid().ToString("N");
+        try
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(receipt));
+            using (var output = new System.IO.FileStream(temporaryPath, System.IO.FileMode.CreateNew, System.IO.FileAccess.Write, System.IO.FileShare.None))
+            {
+                output.Write(bytes, 0, bytes.Length);
+                output.Flush(true);
+            }
+            if (System.IO.File.Exists(cleanupPath)) throw new System.IO.IOException("The stream cleanup receipt already exists.");
+            System.IO.File.Move(temporaryPath, cleanupPath);
+            cleanupWritten = true;
+        }
+        catch (System.Exception)
+        {
+            try { if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath); } catch (System.Exception) { }
+            throw;
+        }
+    });
 
     var removeState = new System.Action(() =>
     {
@@ -300,6 +340,7 @@ if (action == "start")
         if (UnityEngine.Time.frameCount <= (int)state["restoreRequestedFrame"])
             return false;
         if (!allRestored) return false;
+        writeCleanupReceipt();
         state["phase"] = "restored";
         var ownerStateName = streamOwner["state"] as string;
         if (ownerStateName == "cleaning")

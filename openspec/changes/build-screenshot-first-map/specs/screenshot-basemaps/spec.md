@@ -36,10 +36,21 @@ Every image layer SHALL identify its map space, world bounds, orientation, resol
 
 Capture SHALL prepare the geometry required by each tile, including streamed objects. Bounds SHALL come from validated spatial evidence, not only marker extents or fixed constants. Every planned tile SHALL have a captured, verified-empty, or failed result. A timeout or missing streamed source SHALL NOT count as empty terrain.
 
+Required source selection SHALL cover the complete tile frustum and its configured boundary overlap. Capture SHALL retain inactive-source exclusions, exact loaded-root and handle state, and stable geometry observations from distinct native frames. A combined loaded-or-loading flag SHALL NOT establish readiness. The tile deadline SHALL include rendering and hold restoration.
+
 #### Scenario: A distant structure is initially unloaded
 - **WHEN** a tile requires that structure
 - **THEN** capture waits for its geometry or reports the tile as failed
 - **AND** the run does not silently accept an incomplete image
+
+#### Scenario: A source reports loaded or loading
+- **WHEN** the combined availability flag is true but the source has no settled loaded root
+- **THEN** capture keeps the tile pending until the source becomes ready or the deadline fails the tile
+
+#### Scenario: An empty tile exceeds its deadline after readiness
+- **WHEN** stable observations establish empty geometry but the tile operation later exceeds its deadline
+- **THEN** the run records a failed tile rather than a successful empty result
+- **AND** native ownership cleanup still completes
 
 ### Requirement: Capture owns visual settings and restores state
 

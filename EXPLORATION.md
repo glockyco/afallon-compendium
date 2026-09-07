@@ -579,13 +579,13 @@ Spatial smoke drivers are archived under `artifacts/map-calibration-smoke/driver
 
 ## Owned screenshot capture
 
-`capture --config <file> --plan <file>` accepts a `compendium.capture-plan.v1` plan and a reviewed `mapSpaceProfile`. The plan selects the loaded source scene, map space, optional floor, image dimensions, world-XZ camera rectangles, clip planes, lighting, and exact renderer IDs to suppress. It does not load geometry or establish tile readiness. Results retain `readiness: unverified` and `completeImagery: false`.
+`capture --config <file> --plan <file>` accepts a `compendium.capture-plan.v2` plan and a reviewed `mapSpaceProfile`. The plan selects the loaded source scene, map space, optional floor, camera rectangles, image dimensions, lighting, and renderer suppression. Its readiness profile supplies a whole-tile deadline, stable observation count, boundary overlap, and source limit. Capture holds geometry until rendering and restoration finish. Successful results report `readiness: verified` and retain `completeImagery: false`.
 
 `tools/probes/capture-session.csx` registers native cleanup before allocating its camera, directional light, render target, and readable texture. The two GameObjects and their components remain inactive between captures. These resources can survive multiple game frames. Explicit restoration, failed allocation, cancellation, and socket loss use the same native cleanup action. The cleanup receipt identifies the resource prefix and reports remaining objects.
 
 Each render records native fog, ambient lighting, the spherical-harmonics probe, the active render target, and selected renderer flags before making temporary visual changes. Its frame-local cleanup restores those values before the evaluation returns. The restoration artifact records the actual before and after values and native frame numbers. A failed read remains unavailable; it is not replaced with the earlier observation. Failed rendering does not publish a PNG.
 
-The capture host checks source and owner identity, camera metadata, PNG dimensions and hashes, exact visual-state restoration, and clean resource receipts. It retains the reviewed profile, plan, scene catalog, and raw inventory with the run. This ownership mechanism does not yet establish stable geometry, production illumination, complete transient suppression, reviewed floor visibility, seams, or resumable capture coverage.
+The capture host checks source and owner identity, camera metadata, PNG dimensions and hashes, exact visual-state restoration, and clean resource receipts. It retains the reviewed profile, plan, scene catalog, and raw inventory with the run. Geometry readiness uses the owned stream scope described below. Production illumination, complete transient suppression, reviewed floor visibility, seams, and resumable capture coverage remain open.
 
 All 12 lifecycle cases passed: normal rendering, four partial-allocation failures, three render-stage failures, and cancellation or disconnection both between and within frames. Every case had a clean owner receipt and an independent native scan with zero remaining capture objects. In-frame cases retained exact visual-state equality and matching frame numbers. All four cancellation and disconnection cases wrote their native cleanup receipts before the host callback unwound. Evidence is in `artifacts/capture-lifecycle/e119609f-a177-4e8d-8369-7e31bfb0077a/proof.json`. Failed cases published no image. Four additional path-collision checks preserved existing evidence and released all resources; their proof is `artifacts/capture-lifecycle/a9b3ad5d-4925-40cf-a0b6-c29516553627/proof.json`.
 
@@ -593,7 +593,33 @@ The first native ownership check produced a 256-square woods image. Six owned Un
 
 Integrated capture `46d7153a-9c3d-45d4-9d4b-99fc82a52549` reused the same resources for two 1024-square images in native frames 1,503,254 and 1,503,255. It retained 15 artifacts totaling 4,592,237 bytes. Camera center and opposite world corners projected to `(0.5,0.5)`, `(0,0)`, and `(1,1)`. The images are recognizable woods captures, not validated production tiles. The artifact replay verified all file hashes and byte counts, exact frame restoration, and clean ownership receipts. Its result is `artifacts/capture-lifecycle/e119609f-a177-4e8d-8369-7e31bfb0077a/integration-proof.json`.
 
-Capture drivers are archived under `artifacts/capture-lifecycle/drivers/`. TypeScript, all ten existing regression tests, and strict OpenSpec validation passed. Task 4.1 is complete; geometry readiness and the remaining capture tasks stay open.
+Capture drivers are archived under `artifacts/capture-lifecycle/drivers/`. TypeScript, all ten existing regression tests, and strict OpenSpec validation passed. Task 4.1 is complete. The geometry readiness evidence follows below.
+
+## Tile-local geometry readiness
+
+`tools/capture-readiness.ts` holds selected sources through rendering and restoration. The readiness profile bounds the whole tile to 1–300 seconds and requires 2–10 stable observations. It permits at most 256 source holds. Traversal retains its separate 32-loader selection limit.
+
+The native geometry probe expands the complete camera frustum by the configured XZ overlap. It calls `AddressableLoader.Covers` at the closest frustum point to each loader. This tests the native loading sphere against the full frustum without loading everything inside the larger enclosing sphere. Already observed intersecting geometry also selects its source. Inactive-source exclusions remain in the inventory.
+
+A 3,789-query native check matched `Covers` to three-dimensional distance, not XZ distance alone. Its result is `artifacts/25144591/89ddd2d9-a081-4386-a02b-f66ba2ac6cc4/result.json`. The broad enclosing sphere selected 133 active sources near the research character. The exact frustum selected 96. The broad 30-second check did not settle, but native cleanup restored every hold and retained no new roots.
+
+Readiness requires initialized scene state, settled native handles, active loaded roots, and stable geometry bindings across distinct observed frames. Source membership uses the actual loaded-root transform, including assets not parented under their loader. Numbered inventories retain scene query counts, meshes, terrain, other renderers, and source state. Companion context files retain character and scene boundaries. The readiness receipt identifies the final inventory hash and the stable frame IDs.
+
+Mesh-less renderer components retain null bindings rather than receiving an invented pending-load state. The native investigation found eleven such zero-size components under character models. Their evidence is `artifacts/25144591/26293faa-76b1-4b74-9637-95f7a495d7fb/result.json`. No claim is made about their authored intent. Relevant null-mesh rows prevent an empty classification. Missing materials on present meshes, missing terrain data, and source-integrity issues remain blockers.
+
+The existing stream visitor registers native cleanup before changing holds or requesting loads. Cleanup restores original holds, preserves originally loaded roots, and releases newly owned roots. It writes `compendium.stream-cleanup.v1` only after restoration settles. Capture and traversal verify that receipt. Socket loss does not require a later host restore request.
+
+Native hold verification selected 96 sources, including 19 initially unloaded sources that reported loading at startup. Normal completion, cancellation before readiness, and disconnection before readiness all restored holds and left zero owned roots. Both interrupted cases produced cleanup receipts before the host callback unwound. Evidence is `artifacts/geometry-holds/ac035e5f-0cd9-40b1-875c-04f4dee94f26/proof.json`.
+
+Integrated scope checks distinguished empty geometry from failed operations. Run `9844f3b7-1555-43b9-9e65-21f7a2e74638` verified empty geometry with no required sources. Run `ea798926-1441-459f-97bf-6f2bcc18889f` reached that same readiness state but failed when its callback exceeded the deadline. Its manifest retained `CaptureTileDeadlineError`. Runs `1deaf76a-0ade-4c6e-905d-aac29cd9a221` and `6999c530-4b39-4a95-a096-2733a639770a` verified cancellation and disconnection while 96 ready sources remained held. Every owner reported clean cleanup.
+
+Far-tile run `f0af2207-fee3-477e-8d6d-6d0edc6a61d9` held 116 sources, including 52 initially unloaded sources. The final inventory contained 521 present meshes, two null-mesh rows, one terrain, and no readiness issues. Newly loaded sources supplied 75 visible mesh renderers. The 1024-square PNG contains recognizable woodland, a road, and rock formations. Its 1,832,409 bytes hash to `3ced29d608c6b866abc250c95b0f85378094157df512612aa278d70c7532689b`. Shorter 60-second and 110-second attempts failed while sources remained loading. Neither timeout became an empty tile.
+
+The final archived verification is `artifacts/capture-readiness/cdb1f3be-a616-44fd-bb75-977c1eb4c2d8/proof.json`. It preserves 70 source and input files with byte-checked copies. Native hold checks, all four integrated scope cases, and two real captures passed. Capture run `714555f2-8e0d-45b0-bb10-8102559148ce` retained 119 verified artifacts totaling 19,034,085 bytes. Each tile held 96 sources and recorded three stable frame IDs before rendering.
+
+Traversal run `520e4444-6b20-48b3-8fa1-3c84f994100c` also passed with the required native cleanup receipt. It selected three streams and retained one inactive exclusion. Source restoration, scene restoration, and owner cleanup completed before success. Its coverage result remains incomplete.
+
+Source archives store test files with a non-executable suffix so Bun does not run duplicate archived tests. `archive-layout.json` records those paths. TypeScript, the ten repository tests, and strict OpenSpec validation passed. These checks establish tile-local readiness and restoration, not full-world imagery coverage or production visual quality. Task 4.2 is complete. Capture verification drivers are archived under `artifacts/capture-readiness/drivers/`.
 
 ## Exclusive runtime ownership
 
