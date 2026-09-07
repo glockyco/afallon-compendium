@@ -37,7 +37,7 @@
 - [x] 4.4 Implement controlled illumination and transient suppression without removing useful static landmarks. Verify the same area remains legible from different gameplay lighting states and no player effects remain.
 - [ ] 4.5 Implement explicit interior floor slices and reviewed ceiling suppression where necessary. Verify a complete dungeon route and stacked geometry without deleting floor content or leaking hidden state.
 - [ ] 4.6 Preserve illustrated assets as a separate optional layer with per-layer calibration. Verify switching at known landmarks; label distorted artwork as orientation-only instead of claiming precise marker registration. Verify existing images never satisfy primary capture coverage or replace missing screenshot tiles.
-- [ ] 4.7 Implement resumable capture manifests and hashed image output. Verify changed build/profile inputs invalidate reuse and interrupted capture leaves the prior valid set intact.
+- [x] 4.7 Implement resumable capture manifests and hashed image output. Verify changed build/profile inputs invalidate reuse and interrupted capture leaves the prior valid set intact.
 
 ## 5. Normalized and published data
 

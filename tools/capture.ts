@@ -11,11 +11,16 @@ import {
   CapturePlanSchema,
   CaptureRasterSchema,
   type CaptureRaster,
+  CaptureReadinessSchema,
   CaptureRestorationSchema,
   CaptureSessionSchema,
+  CaptureSetSchema,
+  CaptureTileCheckpointSchema,
   type CapturePlan,
   type CaptureReadiness,
   type CaptureSession,
+  type CaptureSet,
+  type CaptureTileCheckpoint,
 } from "./capture-contracts";
 import { ObservationContextSchema } from "./contracts";
 import { collectSceneCatalog } from "./map-calibration";
@@ -26,6 +31,14 @@ import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
 import { withCaptureGeometry } from "./capture-readiness";
+import {
+  captureArtifactReference,
+  copyReusableTile,
+  findReusableTiles,
+  readCaptureArtifactJson,
+  tileCompatibilityKey,
+  type ReusableCaptureTile,
+} from "./capture-cache";
 import { SceneVisitSchema, type SceneVisit } from "./traversal-contracts";
 
 function assertSchema<T extends TSchema>(schema: T, value: unknown, label: string): asserts value is Static<T> {
@@ -135,6 +148,37 @@ async function registerProbeArtifact(
   return registerArtifact(run, path, reference.sha256);
 }
 
+async function writeTileCheckpoint(run: Run, checkpoint: CaptureTileCheckpoint): Promise<void> {
+  assertSchema(CaptureTileCheckpointSchema, checkpoint, `Capture checkpoint for tile "${checkpoint.tileId}"`);
+  const path = `tiles/${checkpoint.tileId}.checkpoint.json`;
+  await Bun.write(resolve(run.directory, path), `${JSON.stringify(checkpoint, null, 2)}\n`);
+  await registerArtifact(run, path);
+}
+
+async function writeCaptureSet(run: Run, plan: CapturePlan, buildId: string, checkpoints: Map<string, CaptureTileCheckpoint>, reused: Set<string>): Promise<CaptureSet> {
+  const set: CaptureSet = {
+    schemaVersion: "compendium.capture-set.v1",
+    buildId,
+    sceneNativeId: plan.sceneNativeId,
+    scenePath: plan.scenePath,
+    mapSpaceId: plan.mapSpaceId,
+    floorId: plan.floorId,
+    width: plan.width,
+    height: plan.height,
+    expectedTiles: plan.tiles.map(tile => tile.id),
+    tiles: plan.tiles.map(tile => {
+      const checkpoint = checkpoints.get(tile.id);
+      if (checkpoint === undefined) throw new Error(`Capture set is missing tile checkpoint ${tile.id}.`);
+      return { id: tile.id, compatibilityKey: checkpoint.compatibilityKey, status: reused.has(tile.id) ? ("reused" as const) : ("captured" as const), artifacts: checkpoint.artifacts, origin: checkpoint.origin };
+    }),
+    completeImagery: false,
+  };
+  assertSchema(CaptureSetSchema, set, "Capture set");
+  await Bun.write(resolve(run.directory, "capture-set.json"), `${JSON.stringify(set, null, 2)}\n`);
+  await registerArtifact(run, "capture-set.json");
+  return set;
+}
+
 function pngDimensions(bytes: Uint8Array, path: string): { width: number; height: number } {
   const signature = [137, 80, 78, 71, 13, 10, 26, 10];
   if (bytes.length < 24 || signature.some((value, index) => bytes[index] !== value)) {
@@ -238,6 +282,49 @@ function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>): Ca
   return raster;
 }
 
+type CaptureTileResult = NonNullable<CaptureSession["lastCapture"]> & {
+  readiness: CaptureReadiness;
+  readinessPath: string;
+  rasterPath: string;
+  reused: boolean;
+  nativeObserved: boolean;
+  compatibilityKey: string;
+  origin: CaptureTileCheckpoint["origin"];
+};
+
+async function loadReusedTileResult(run: Run, tile: CapturePlan["tiles"][number], candidate: ReusableCaptureTile, copied: CaptureTileCheckpoint, plan: CapturePlan, config: CompendiumConfig): Promise<CaptureTileResult> {
+  const responseReference = copied.artifacts.nativeContext.find(reference =>
+    reference.path === `tiles/${tile.id}.json` || reference.path === `tiles/${tile.id}.geometry/origin-${tile.id}.json`,
+  );
+  if (responseReference === undefined) throw new Error(`Reused tile "${tile.id}" has no copied native response.`);
+  const response = await readCaptureArtifactJson(run.directory, responseReference);
+  assertSchema(CaptureSessionSchema, response, `Reused capture response for tile "${tile.id}"`);
+  const session = response as CaptureSession;
+  if (session.lastCapture === null) throw new Error(`Reused tile "${tile.id}" has no capture metadata.`);
+  const readiness = await readCaptureArtifactJson(run.directory, copied.artifacts.readiness);
+  assertSchema(CaptureReadinessSchema, readiness, `Reused readiness for tile "${tile.id}"`);
+  const capture = session.lastCapture;
+  if (capture.tileId !== tile.id || capture.width !== plan.width || capture.height !== plan.height || capture.path.length === 0 || capture.frame !== capture.restoredFrame) throw new Error(`Reused tile "${tile.id}" has mismatched capture metadata.`);
+  assertFrameMatches(capture, tile.frame, tile.id);
+  const raster = await readCaptureArtifactJson(run.directory, copied.artifacts.raster);
+  if (!isDeepStrictEqual(raster, registerRaster(capture))) throw new Error("Reused raster disagrees with its native camera controls.");
+  assertRestorationAudit(await readCaptureArtifactJson(run.directory, copied.artifacts.restoration), tile, copied.origin.captureKey, capture.frame, plan.lighting);
+  const imagePath = resolve(run.directory, copied.artifacts.image.path);
+  const image = await hashPng(imagePath, plan.width, plan.height, tile.id);
+  if (image.sha256 !== capture.sha256 || image.byteSize !== capture.byteSize) throw new Error("Reused image disagrees with its native response.");
+  return {
+    ...capture,
+    path: await toRuntimePath(config, imagePath),
+    readiness: readiness as CaptureReadiness,
+    readinessPath: copied.artifacts.readiness.path,
+    rasterPath: copied.artifacts.raster.path,
+    reused: true,
+    nativeObserved: false,
+    compatibilityKey: candidate.checkpoint.compatibilityKey,
+    origin: copied.origin,
+  };
+}
+
 function hasSelectedBinding(profile: MapSpaceProfile, plan: CapturePlan): boolean {
   const mapSpace = profile.mapSpaces.find(candidate => candidate.id === plan.mapSpaceId);
   if (mapSpace === undefined) throw new Error(`Capture plan requests unknown map space "${plan.mapSpaceId}".`);
@@ -264,6 +351,9 @@ export async function capture(
   const spatialProfile = await loadSpatialProfile(config.mapSpaceProfile);
   if (spatialProfile === null) throw new Error("Capture requires a reviewed map-space profile.");
   if (spatialProfile.profile.buildId !== identity.buildId) throw new Error("The spatial profile belongs to another game build.");
+  if (!hasSelectedBinding(spatialProfile.profile, plan)) {
+    throw new Error(`Capture plan has no reviewed scene binding for ${plan.sceneNativeId} at "${plan.scenePath}".`);
+  }
 
   const planText = `${JSON.stringify(plan, null, 2)}\n`;
   const inputHashes: Record<string, string> = {
@@ -292,11 +382,20 @@ export async function capture(
     inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   }
   for (const name of [
-    "capture", "capture-contracts", "capture-readiness", "traversal-contracts", "runtime", "runs", "build", "config", "contracts", "world-inventory",
+    "capture", "capture-cache", "capture-contracts", "capture-readiness", "traversal-contracts", "runtime", "runs", "build", "config", "contracts", "world-inventory",
     "map-calibration", "map-contracts", "map-spaces", "spatial-contracts", "spatial-extraction",
   ]) {
     inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   }
+  const compatibility = new Map(plan.tiles.map(tile => [tile.id, tileCompatibilityKey({
+    buildId: identity.buildId,
+    buildHashes: identity.inputHashes,
+    profileSha256: spatialProfile.sha256,
+    pipelineHashes: inputHashes,
+    character: config.character,
+    plan,
+    tile,
+  })]));
 
   const run = await beginRun(config.outputRoot, {
     ...identity,
@@ -366,6 +465,33 @@ export async function capture(
       await registerArtifact(run, path, sha256);
     }
 
+    const reusable = await findReusableTiles({ outputRoot: config.outputRoot, buildId: identity.buildId, currentRunId: run.runId, compatibility, plan });
+    const checkpoints = new Map<string, CaptureTileCheckpoint>();
+    const reused = new Set<string>();
+    const tiles: CaptureTileResult[] = [];
+    for (const tile of plan.tiles) {
+      const candidate = reusable.get(tile.id);
+      if (candidate === undefined) continue;
+      const copied = await copyReusableTile(run, candidate);
+      const result = await loadReusedTileResult(run, tile, candidate, copied.checkpoint, plan, config);
+      await writeTileCheckpoint(run, copied.checkpoint);
+      checkpoints.set(tile.id, copied.checkpoint);
+      reused.add(tile.id);
+      tiles.push(result);
+    }
+    if (reused.size === plan.tiles.length) {
+      await runtime.complete();
+      await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
+      await registerArtifact(run, "runtime-cleanup.json");
+      await writeCaptureSet(run, plan, identity.buildId, checkpoints, reused);
+      await run.succeed();
+      const orderedTiles: CaptureTileResult[] = plan.tiles.flatMap(tile => {
+        const result = tiles.find(candidate => candidate.tileId === tile.id);
+        return result === undefined ? [] : [result];
+      });
+      return { manifest: run.manifestPath, tiles: orderedTiles, readiness: "verified" as const, completeImagery: false as const, reusedTiles: orderedTiles.map(tile => tile.tileId), capturedTiles: [] as string[] };
+    }
+
     await mkdir(resolve(run.directory, "raw"), { recursive: true });
     const inventoryPath = resolve(run.directory, "raw/world-inventory.json");
     const inventoryReply = await runtime.probe(resolve(import.meta.dir, "probes/world-inventory.csx"), inventoryPath, {
@@ -422,8 +548,8 @@ export async function capture(
     const captureKey = session.key;
     await registerProbeArtifact(run, startPath, startReply.reference);
 
-    const tiles: (NonNullable<CaptureSession["lastCapture"]> & { readiness: CaptureReadiness; readinessPath: string; rasterPath: string })[] = [];
     for (const tile of plan.tiles) {
+      if (reused.has(tile.id)) continue;
       runtime.signal.throwIfAborted();
       const pngPath = resolve(run.directory, "tiles", `${tile.id}.png`);
       const restorationPath = resolve(run.directory, "tiles", `${tile.id}.restoration.json`);
@@ -431,6 +557,10 @@ export async function capture(
       const responsePath = resolve(run.directory, responseRelativePath);
       const pngRuntimePath = await toRuntimePath(config, pngPath);
       const restorationRuntimePath = await toRuntimePath(config, restorationPath);
+      let responseArtifact: ArtifactRecord | undefined;
+      let imageArtifact: ArtifactRecord | undefined;
+      let restorationArtifact: ArtifactRecord | undefined;
+      let rasterArtifact: ArtifactRecord | undefined;
       const prepared = await withCaptureGeometry(runtime, config, run, plan, tile, async readiness => {
         if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
         const reply = await runtime.probe(probePath, responsePath, {
@@ -464,14 +594,34 @@ export async function capture(
         let restoration: unknown;
         try { restoration = JSON.parse(new TextDecoder().decode(restorationBytes)); } catch (error) { throw new Error(`Restoration audit for tile "${tile.id}" is not valid JSON.`, { cause: error }); }
         assertRestorationAudit(restoration, tile, session.key, capture.frame, plan.lighting);
-        await registerProbeArtifact(run, responseRelativePath, reply.reference);
-        await registerArtifact(run, `tiles/${tile.id}.png`, png.sha256);
-        await registerArtifact(run, `tiles/${tile.id}.restoration.json`);
+        responseArtifact = await registerProbeArtifact(run, responseRelativePath, reply.reference);
+        imageArtifact = await registerArtifact(run, `tiles/${tile.id}.png`, png.sha256);
+        restorationArtifact = await registerArtifact(run, `tiles/${tile.id}.restoration.json`);
         await Bun.write(resolve(run.directory, `tiles/${tile.id}.raster.json`), `${JSON.stringify(raster, null, 2)}\n`);
-        await registerArtifact(run, `tiles/${tile.id}.raster.json`);
+        rasterArtifact = await registerArtifact(run, `tiles/${tile.id}.raster.json`);
         return capture;
       });
-      tiles.push({ ...prepared.value, readiness: prepared.readiness, readinessPath: prepared.readinessPath, rasterPath: `tiles/${tile.id}.raster.json` });
+      if (responseArtifact === undefined || imageArtifact === undefined || restorationArtifact === undefined || rasterArtifact === undefined) {
+        throw new Error(`Capture tile "${tile.id}" completed without registered output artifacts.`);
+      }
+      const readinessArtifact = await captureArtifactReference(run.directory, prepared.readinessPath);
+      const inventoryArtifact = await captureArtifactReference(run.directory, prepared.readiness.inventoryPath);
+      const inventoryContextPath = prepared.readiness.inventoryPath.replace(/\.json$/, ".context.json");
+      const inventoryContextArtifact = await captureArtifactReference(run.directory, inventoryContextPath);
+      const nativeContext = [responseArtifact, inventoryArtifact, inventoryContextArtifact];
+      if (prepared.readiness.streamKey !== null) {
+        nativeContext.push(await captureArtifactReference(run.directory, `tiles/${tile.id}.geometry/stream-cleanup.json`));
+      }
+      const checkpoint: CaptureTileCheckpoint = {
+        schemaVersion: "compendium.capture-tile-checkpoint.v1",
+        tileId: tile.id,
+        compatibilityKey: compatibility.get(tile.id)!,
+        artifacts: { image: imageArtifact, raster: rasterArtifact, readiness: readinessArtifact, restoration: restorationArtifact, nativeContext },
+        origin: { runId: run.runId, ownerToken: runtime.ownerToken, captureKey },
+      };
+      await writeTileCheckpoint(run, checkpoint);
+      checkpoints.set(tile.id, checkpoint);
+      tiles.push({ ...prepared.value, readiness: prepared.readiness, readinessPath: prepared.readinessPath, rasterPath: rasterArtifact.path, reused: false, nativeObserved: true, compatibilityKey: checkpoint.compatibilityKey, origin: checkpoint.origin });
     }
 
     const restoredPath = "capture-restored.json";
@@ -482,7 +632,7 @@ export async function capture(
     assertSchema(CaptureSessionSchema, restoredReply.value, "Capture restore response");
     session = restoredReply.value as CaptureSession;
     assertSession(session, runtime, captureKey, plan.sceneNativeId, plan.scenePath, sceneHandle, "restored");
-    if (session.completedCaptures !== plan.tiles.length || session.resources.some(resource => resource.alive)) {
+    if (session.completedCaptures !== plan.tiles.length - reused.size || session.resources.some(resource => resource.alive)) {
       throw new Error("Capture restore response still reports owned resources.");
     }
     await registerProbeArtifact(run, restoredPath, restoredReply.reference);
@@ -492,18 +642,30 @@ export async function capture(
     if (cleanup.key !== session.key || cleanup.ownerToken !== runtime.ownerToken || cleanup.resourcePrefix !== session.resourcePrefix || cleanup.phase !== "restored" || cleanup.remainingObjects !== 0 || cleanup.errors.length !== 0) {
       throw new Error("Capture cleanup receipt does not confirm native restoration.");
     }
-    await registerArtifact(run, "capture-cleanup.json");
+    const captureCleanupArtifact = await registerArtifact(run, "capture-cleanup.json");
     if (visitedScene !== undefined) await transitionScene("restore", visitedScene);
 
     await runtime.complete();
     await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
-    await registerArtifact(run, "runtime-cleanup.json");
+    const runtimeCleanupArtifact = await registerArtifact(run, "runtime-cleanup.json");
+    for (const checkpoint of checkpoints.values()) {
+      if (reused.has(checkpoint.tileId)) continue;
+      if (!checkpoint.artifacts.nativeContext.some(reference => reference.path === captureCleanupArtifact.path)) checkpoint.artifacts.nativeContext.push(captureCleanupArtifact);
+      if (!checkpoint.artifacts.nativeContext.some(reference => reference.path === runtimeCleanupArtifact.path)) checkpoint.artifacts.nativeContext.push(runtimeCleanupArtifact);
+    }
+    await writeCaptureSet(run, plan, identity.buildId, checkpoints, reused);
     await run.succeed();
+    const orderedTiles: CaptureTileResult[] = plan.tiles.flatMap(tile => {
+      const result = tiles.find(candidate => candidate.tileId === tile.id);
+      return result === undefined ? [] : [result];
+    });
     return {
       manifest: run.manifestPath,
-      tiles,
+      tiles: orderedTiles,
       readiness: "verified" as const,
       completeImagery: false as const,
+      reusedTiles: orderedTiles.filter(tile => tile.reused).map(tile => tile.tileId),
+      capturedTiles: orderedTiles.filter(tile => !tile.reused).map(tile => tile.tileId),
     };
   } catch (error) {
     await run.fail(error);

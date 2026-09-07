@@ -686,6 +686,26 @@ nix develop --command bun run compendium capture --config local/spatial-smoke-co
 nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan artifacts/25144591/8ab03e79-f2f6-4567-a911-bc3fb6a3f857/plan.json
 ```
 
+## Resumable primary captures
+
+Capture writes a hashed tile checkpoint only after rendering, raster validation, visual restoration, and stream cleanup pass. Compatibility includes build and profile hashes, capture implementation hashes, character, scene, floor, dimensions, lighting, readiness, frame, and ceiling review. Adding unrelated tiles does not invalidate an unchanged tile.
+
+Reuse verifies registered artifact bytes and decodes those same verified JSON bytes. It repeats the production camera, raster, image, and visual-restoration checks. Copied tiles retain their original native run, owner, and capture key. Returned image paths refer to the new run. An all-reused capture skips inventory, scene transitions, streaming, and capture-resource allocation.
+
+Interrupted-run tiles require matching clean capture and runtime receipts. A missing or pending receipt blocks reuse. If the host failed before registration, the next run verifies the native receipt and copies it into its own registered evidence. A tile checkpoint is not a successful capture set. `capture-set.json` binds every expected tile before atomic successful-run selection. It still reports incomplete world imagery.
+
+The native acceptance driver completed six runs in `artifacts/capture-resume/6b2e2955-9b2e-49d5-9653-ea562e95d6d0/`. Two repeated baseline captures made zero inventory or capture probes and retained the original native provenance. Changed build or profile hashes produced zero cache candidates; an expanded plan retained its unchanged tile.
+
+An injected failure before the second render preserved the previous successful pointer and the first tile checkpoint. Native cleanup finished with no errors or callbacks. Resumption reused `interrupt-a` and captured only adjacent tile `interrupt-b`. A later run reused both tiles from their different native origins without native capture probes. In isolated copies, image corruption rejected only the affected tile. Missing and pending cleanup receipts rejected the interrupted tile; the matching clean receipt permitted it.
+
+`proof.json` records these checks. `provenance.json` verifies 255 artifacts and archives 23 exercised source files. TypeScript and all 17 repository tests passed, with 55 assertions. Task 4.7 is complete; these representative captures do not establish full-world coverage.
+
+Reproduce the compatible capture through the operator command:
+
+```sh
+nix develop --command bun run compendium capture --config artifacts/capture-resume/6b2e2955-9b2e-49d5-9653-ea562e95d6d0/config.json --plan artifacts/capture-resume/6b2e2955-9b2e-49d5-9653-ea562e95d6d0/runs/25144591/b935da6e-0166-402f-ba00-e3b6a8845dcb/plan.json
+```
+
 ## Optional illustration preparation
 
 The offline `illustration` command preserves artwork in a separate `compendium.illustration.v1` artifact. It records the original image hash, dimensions, reviewed map space, and evidence references. It does not connect to the game. Illustration output always sets `primaryImagery` and `completeImagery` to `false`; it cannot replace capture tiles.

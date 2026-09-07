@@ -150,3 +150,45 @@ export const CaptureReadinessSchema = Type.Object({
   streamKey: Type.Union([text, Type.Null()]),
 });
 export type CaptureReadiness = Static<typeof CaptureReadinessSchema>;
+
+const sha256 = Type.String({ pattern: "^[a-f0-9]{64}$" });
+const artifactReference = Type.Object({ path: text, bytes: count, sha256 });
+const uuid = Type.String({ pattern: "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$" });
+const captureTileOrigin = Type.Object({ runId: uuid, ownerToken: uuid, captureKey: text });
+const captureTileArtifacts = Type.Object({
+  image: artifactReference,
+  raster: artifactReference,
+  readiness: artifactReference,
+  restoration: artifactReference,
+  nativeContext: Type.Array(artifactReference, { minItems: 1 }),
+});
+export const CaptureTileCheckpointSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.capture-tile-checkpoint.v1"),
+  tileId: text,
+  compatibilityKey: sha256,
+  artifacts: captureTileArtifacts,
+  origin: captureTileOrigin,
+});
+export type CaptureTileCheckpoint = Static<typeof CaptureTileCheckpointSchema>;
+
+const captureSetTile = Type.Object({
+  id: text,
+  compatibilityKey: sha256,
+  status: Type.Union([Type.Literal("captured"), Type.Literal("reused")]),
+  artifacts: captureTileArtifacts,
+  origin: captureTileOrigin,
+});
+export const CaptureSetSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.capture-set.v1"),
+  buildId: text,
+  sceneNativeId: count,
+  scenePath: text,
+  mapSpaceId: text,
+  floorId: Type.Union([text, Type.Null()]),
+  width: Type.Integer({ minimum: 1 }),
+  height: Type.Integer({ minimum: 1 }),
+  expectedTiles: Type.Array(text, { minItems: 1 }),
+  tiles: Type.Array(captureSetTile, { minItems: 1 }),
+  completeImagery: Type.Literal(false),
+});
+export type CaptureSet = Static<typeof CaptureSetSchema>;

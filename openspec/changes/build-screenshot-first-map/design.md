@@ -141,6 +141,12 @@ A capture session records every changed property and object under two lifetimes.
 
 Lighting changes, renderer suppression, and rendering form a frame-local operation. Its `finally` restores visual properties before the next gameplay frame, including on injected failure. A disconnected run cannot report success while cleanup is unconfirmed. The earlier ambient-mode observation does not prove complete restoration.
 
+Capture writes `compendium.capture-tile-checkpoint.v1` after tile rendering, registration, visual restoration, and stream cleanup pass. Compatibility hashes include build, profile, implementation, character, scene, floor, resolution, lighting, readiness, frame, and reviewed ceilings. Unrelated tiles do not change a compatible tile's key.
+
+Reuse validates artifact bytes and the complete native camera and restoration evidence. Copied artifacts retain their original native run and owner. All-reused runs do not allocate capture resources or load world inventories. Interrupted runs require matching clean native capture and runtime receipts; missing or pending cleanup blocks reuse. Verified receipts that were not registered before interruption become registered evidence in the resumed run.
+
+`compendium.capture-set.v1` binds the exact expected tile list to validated checkpoints before atomic successful-run selection. A failed run cannot replace that selection. Capture sets do not establish full-world imagery. The publication gate makes that separate decision.
+
 ### 7. Tiles and map data form one publication artifact
 
 Captured source images, tile pyramids, calibration, and marker projections carry one build identity. Tile filenames use content hashes and a generated index. Empty positions are explicit. A missing image or mismatched manifest blocks publication.

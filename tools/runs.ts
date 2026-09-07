@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { open, mkdir, realpath, rename, unlink, writeFile } from "node:fs/promises";
+import { open, mkdir, realpath, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import * as path from "node:path";
 
 export interface RunInput {
@@ -16,7 +17,7 @@ export interface ArtifactRecord {
   sha256: string;
 }
 
-type RunStatus = "running" | "succeeded" | "failed";
+export type RunStatus = "running" | "succeeded" | "failed";
 
 type RunTimestamps = {
   createdAt: string;
@@ -32,7 +33,7 @@ type FailureRecord = {
   details?: unknown;
 };
 
-type RunManifest = {
+export type RunManifest = {
   schemaVersion: 1;
   runId: string;
   input: RunInput;
@@ -42,7 +43,7 @@ type RunManifest = {
   failure: FailureRecord | null;
 };
 
-type LatestSuccessPointer = {
+export type LatestSuccessPointer = {
   schemaVersion: 1;
   buildId: string;
   command: string;
@@ -307,6 +308,119 @@ async function atomicWriteJson(pathname: string, value: unknown): Promise<void> 
 
 function now(): string {
   return new Date().toISOString();
+}
+
+function parseRunManifest(value: unknown, source: string): RunManifest {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error(`Run manifest is invalid: ${source}`);
+  const manifest = value as Record<string, unknown>;
+  if (manifest.schemaVersion !== 1 || typeof manifest.runId !== "string" || manifest.input === null || typeof manifest.input !== "object" || Array.isArray(manifest.input)
+    || manifest.timestamps === null || typeof manifest.timestamps !== "object" || Array.isArray(manifest.timestamps)
+    || !["running", "succeeded", "failed"].includes(manifest.status as string) || !Array.isArray(manifest.artifacts)) {
+    throw new Error(`Run manifest is invalid: ${source}`);
+  }
+  const input = manifest.input as Record<string, unknown>;
+  const timestamps = manifest.timestamps as Record<string, unknown>;
+  if (typeof input.buildId !== "string" || typeof input.command !== "string" || typeof input.toolRevision !== "string"
+    || input.settings === null || typeof input.settings !== "object" || Array.isArray(input.settings)
+    || input.inputHashes === null || typeof input.inputHashes !== "object" || Array.isArray(input.inputHashes)
+    || typeof timestamps.createdAt !== "string" || typeof timestamps.startedAt !== "string"
+    || typeof timestamps.updatedAt !== "string" || (timestamps.completedAt !== null && typeof timestamps.completedAt !== "string")) {
+    throw new Error(`Run manifest input or timestamps are invalid: ${source}`);
+  }
+  const artifacts: ArtifactRecord[] = [];
+  const artifactPaths = new Set<string>();
+  for (const artifact of manifest.artifacts) {
+    if (artifact === null || typeof artifact !== "object" || Array.isArray(artifact)) throw new Error(`Run manifest artifact is invalid: ${source}`);
+    const record = artifact as Record<string, unknown>;
+    const bytes = record.bytes;
+    if (typeof record.path !== "string" || typeof bytes !== "number" || !Number.isSafeInteger(bytes) || bytes < 0
+      || typeof record.sha256 !== "string" || !SHA256_PATTERN.test(record.sha256)) {
+      throw new Error(`Run manifest artifact is invalid: ${source}`);
+    }
+    let normalizedPath: string;
+    try {
+      normalizedPath = requireArtifactPath(record.path).split(path.sep).join("/");
+    } catch {
+      throw new Error(`Run manifest artifact is invalid: ${source}`);
+    }
+    if (artifactPaths.has(normalizedPath)) throw new Error(`Run manifest contains duplicate artifacts: ${source}`);
+    artifactPaths.add(normalizedPath);
+    artifacts.push({ path: normalizedPath, bytes, sha256: record.sha256 });
+  }
+  return {
+    schemaVersion: 1,
+    runId: manifest.runId,
+    input: input as unknown as RunInput,
+    timestamps: {
+      createdAt: timestamps.createdAt,
+      startedAt: timestamps.startedAt,
+      updatedAt: timestamps.updatedAt,
+      completedAt: timestamps.completedAt as string | null,
+    },
+    status: manifest.status as RunStatus,
+    artifacts,
+    failure: (manifest.failure ?? null) as FailureRecord | null,
+  };
+}
+
+export async function readRunManifest(manifestPath: string): Promise<RunManifest> {
+  const value = JSON.parse(await readFile(manifestPath, "utf8")) as unknown;
+  return parseRunManifest(value, manifestPath);
+}
+
+export async function readLatestSuccess(outputRoot: string, buildId: string, command: string): Promise<LatestSuccessPointer | null> {
+  const buildRoot = path.join(path.resolve(outputRoot), requireSafeSegment(buildId, "buildId"));
+  const pointerPath = path.join(buildRoot, `${requireSafeSegment(command, "command")}-latest-success.json`);
+  try {
+    const value = JSON.parse(await readFile(pointerPath, "utf8")) as unknown;
+    if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error(`Latest success pointer is invalid: ${pointerPath}`);
+    const pointer = value as Record<string, unknown>;
+    if (pointer.schemaVersion !== 1 || pointer.buildId !== buildId || pointer.command !== command
+      || pointer.status !== "succeeded" || typeof pointer.runId !== "string" || typeof pointer.manifestPath !== "string" || typeof pointer.directory !== "string") {
+      throw new Error(`Latest success pointer is invalid: ${pointerPath}`);
+    }
+    return {
+      schemaVersion: 1,
+      buildId,
+      command,
+      runId: pointer.runId,
+      status: "succeeded",
+      manifestPath: pointer.manifestPath,
+      directory: pointer.directory,
+      selectedAt: typeof pointer.selectedAt === "string" ? pointer.selectedAt : "",
+    };
+  } catch (error) {
+    if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+export async function listRunManifests(outputRoot: string, buildId: string, command: string): Promise<Array<{ manifestPath: string; directory: string; manifest: RunManifest }>> {
+  const buildRoot = path.join(path.resolve(outputRoot), requireSafeSegment(buildId, "buildId"));
+  let entries: Dirent[];
+  try {
+    entries = await readdir(buildRoot, { withFileTypes: true });
+  } catch (error) {
+    if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") return [];
+    throw error;
+  }
+  const result: Array<{ manifestPath: string; directory: string; manifest: RunManifest }> = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name === ".runtime") continue;
+    const directory = path.join(buildRoot, entry.name);
+    const manifestPath = path.join(directory, "manifest.json");
+    try {
+      const manifest = await readRunManifest(manifestPath);
+      if (manifest.input.buildId !== buildId || manifest.input.command !== command || manifest.runId !== entry.name) continue;
+      result.push({ manifestPath, directory, manifest });
+    } catch (error) {
+      if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") continue;
+      if (error instanceof SyntaxError || (error instanceof Error && error.message.startsWith("Run manifest"))) continue;
+      throw error;
+    }
+  }
+  result.sort((left, right) => right.manifest.timestamps.updatedAt.localeCompare(left.manifest.timestamps.updatedAt));
+  return result;
 }
 
 export async function beginRun(outputRoot: string, input: RunInput): Promise<Run> {
