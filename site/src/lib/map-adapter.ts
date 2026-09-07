@@ -443,7 +443,7 @@ export async function createMapAdapter(
       imageryKey = key;
       imageryResourceNamespace = key;
       imageryLayer = new TileLayer<TilePayload | null>({
-        id: "map-imagery-tiles",
+        id: `map-imagery-${key}`,
         data: null,
         tileSize: tileLayer.tileSize,
         minZoom: 0,

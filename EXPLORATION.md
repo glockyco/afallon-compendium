@@ -756,7 +756,7 @@ TypeScript and all 19 pipeline/tool regression tests pass, with 63 assertions. T
 
 ## Static atlas preview
 
-The static SvelteKit client reads only the generated publication. It uses deck.gl orthographic imagery, placement markers, and area layers. The source repository excludes linked publication data and build output. The built metadata hash matches publication `3ed3183f-c217-4fa9-ae31-93c448424a75`.
+The static SvelteKit client reads only the generated publication. It uses deck.gl orthographic imagery, placement markers, and area layers. The source repository excludes linked publication data and build output. The initial Coalway-only build used publication `3ed3183f-c217-4fa9-ae31-93c448424a75`.
 
 Browser checks cover screenshot picking, hover previews, role filters, and persistent details. Merchant filtering returns eight placements. Adding Friendly returns 18 placements, not 26, because overlapping roles do not duplicate results. Selected locations remain visible when filters exclude them. Counts still describe only matching placements. Selected markers stay at their coordinates outside clusters and remain pickable when another placement overlaps them.
 
@@ -768,14 +768,22 @@ A lifecycle smoke mounted and unmounted the real component in Chrome. Before unm
 
 The cold preview response used 805,974 encoded body bytes for 33,450,974 decoded metadata bytes. That viewport requested three screenshot tiles totaling 245,250 bytes. It did not request optional artwork. One development-browser run opened Rough Stone's 1,144-source panel in 631 milliseconds. The document then had 74,699 elements and 20,644 detail rows. This is not a mobile-device benchmark.
 
-The client check passes across 1,426 files with no errors or warnings. The static build succeeds. Its largest JavaScript chunk is 823.92 kB raw and 227.26 kB gzip. Vite still reports its 500 kB chunk warning. Interior browser journeys, cross-map transitions, and full-build performance remain unverified.
+The client check passes across 1,426 files with no errors or warnings. The static build succeeds. Its largest JavaScript chunk is 823.91 kB raw and 227.26 kB gzip. Vite still reports its 500 kB chunk warning. Cross-map transition destinations and full-build performance remain unverified. The publisher does not yet generate the optional destination navigation field. Authored teleport actions appear in source details, but task 6.3 still requires destination normalization and publication before its browser check.
+
+The representative outdoor-and-interior pipeline now passes task 6.5. Duskfall reloads retained all 104 source/placement identity pairs while all 104 runtime component IDs changed. Both identity artifacts match their registered hashes. The second traversal failed during restoration, then confirmed clean native cleanup; its extraction is not a publication input. The new 100-second repeat expired during extraction and also cleaned up. A proposed 300-second plan was rejected by the existing 110-second schema ceiling and was removed.
+
+New upper and lower captures `86023729-a1d4-4ef9-ac83-bc0c4cda4397` and `06d2f65c-2a95-45c4-8bf5-7a274b5c72b7` rendered and restored capture resources but exceeded the source-scene restoration deadline. Both later confirmed clean native ownership with zero callbacks. Successful resumes `3faa8421-1998-4aee-bf4d-fe24128fabcc` and `0424df32-0d49-4ea3-be0a-ae88150954a5` reused the verified checkpoints without recapture. Their tile pyramids contain 17 WebPs per floor, using 409,066 and 854,034 bytes. All 1,075,200 finest-level pixels match the source PNGs, and all 34 shared tile edges agree.
+
+Publication `2061cb5b-55a0-4ee9-8d2d-76d6bff55b9a` contains 51 placements across Coalway and the two reviewed Duskfall floors. Its 42 image files total 61,386,368 bytes, including optional artwork. Built metadata matches SHA-256 `27968bbdd06ceca4260e8880b58e488f0bf7e1be2ef986d168b538c5fc5bd503`. Coverage remains incomplete: 1,765 classified placements are excluded, 897 identities have no classified role, and 4,200 source issues remain. Source-scene restoration delays still require investigation before bulk collection.
+
+Browser picking opens Lost druid Talroth on the raised level and Aquarius on the lower level. Heart of corruption leads from Aquarius to Grovekeeper while retaining item context across floors; browser back returns to the lower floor. The built mobile view retains a 198-pixel map region with no document overflow at 390 by 844 pixels. Floor switching originally reused the upper image because both Deck TileLayers had the same ID. Namespaced layer IDs now discard stale tile state; the built switch requests 12 lower-floor tiles and displays the lower geometry. Evidence is in `artifacts/publication-smoke/interior-pipeline.json`.
 
 On a fresh checkout with the verified publication available, run:
 
 ```sh
 nix develop --command bun install --frozen-lockfile
 mkdir -p site/static
-ln -s ../../artifacts/25144591/3ed3183f-c217-4fa9-ae31-93c448424a75/public site/static/data
+ln -s ../../artifacts/25144591/2061cb5b-55a0-4ee9-8d2d-76d6bff55b9a/public site/static/data
 nix develop --command bun run --filter @afallon-compendium/site check
 nix develop --command bun run --filter @afallon-compendium/site build
 nix develop --command bun run --filter @afallon-compendium/site preview --port 4174
