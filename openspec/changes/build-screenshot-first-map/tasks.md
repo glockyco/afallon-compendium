@@ -48,14 +48,14 @@
 
 ## 6. Static map experience
 
-- [ ] 6.1 Build the static SvelteKit map with deck.gl OrthographicView, TileLayer/BitmapLayer imagery, and separate placement/area layers. Verify lazy tiles, shared transforms, orientation, picking, and Deck cleanup in the browser without game access.
-- [ ] 6.2 Add Afallon-specific filters, counts, spatial aggregation, and a synchronized result list. Verify dense views with the largest available real snapshot and overlapping roles without lost or duplicate markers. Repeat at full-build scale in 7.3.
+- [x] 6.1 Build the static SvelteKit map with deck.gl OrthographicView, TileLayer/BitmapLayer imagery, and separate placement/area layers. Verify lazy tiles, shared transforms, orientation, picking, and Deck cleanup in the browser without game access.
+- [x] 6.2 Add Afallon-specific filters, counts, spatial aggregation, and a synchronized result list. Verify dense views with the largest available real snapshot and overlapping roles without lost or duplicate markers. Repeat at full-build scale in 7.3.
 - [ ] 6.3 Add concise previews and persistent desktop/mobile details for all supported categories. Verify searchable vendor stock, loot, gathering conditions, quest links, and transition destinations in the browser.
-- [ ] 6.4 Add place/entity/item search and source-to-map navigation. Verify an item can lead to multiple vendor, drop, resource, or container sources while preserving item context.
+- [x] 6.4 Add place/entity/item search and source-to-map navigation. Verify an item can lead to multiple vendor, drop, resource, or container sources while preserving item context.
 - [ ] 6.5 Verify the representative end-to-end pipeline before bulk collection: one outdoor area and one interior through extraction, repeat-load identities, capture, normalization, and browser picking/details. Include adjacent tile seams, a floor slice, a producer without a live node, and item-to-source navigation using generated static contracts. Label the preview incomplete.
 - [ ] 6.6 Add URL-backed view, layer, selection, query, and filter state. Verify reload, browser back/forward, cross-map transitions, and stale links in the browser.
-- [ ] 6.7 Add keyboard operation, focus restoration, narrow-screen panels, and non-color marker distinctions. Verify the complete search-to-detail journey without a pointer.
-- [ ] 6.8 Add build identity and coverage disclosure to the interface. Verify a partial research artifact cannot appear as a complete release.
+- [x] 6.7 Add keyboard operation, focus restoration, narrow-screen panels, and non-color marker distinctions. Verify the complete search-to-detail journey without a pointer.
+- [x] 6.8 Add build identity and coverage disclosure to the interface. Verify a partial research artifact cannot appear as a complete release.
 
 ## 7. Complete supported-build delivery
 

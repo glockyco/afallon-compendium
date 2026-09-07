@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.13",
+  "workspaces": ["site"],
   "scripts": {
     "compendium": "bun tools/cli.ts",
     "check": "tsc --noEmit",

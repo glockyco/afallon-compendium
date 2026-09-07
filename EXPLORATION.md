@@ -750,6 +750,35 @@ nix develop --command bun run compendium publication --plan local/publication-pl
 
 TypeScript and all 19 pipeline/tool regression tests pass, with 63 assertions. These commands and measurements cover bounded local stages, not a complete supported-build release.
 
+## Static atlas preview
+
+The static SvelteKit client reads only the generated publication. It uses deck.gl orthographic imagery, placement markers, and area layers. The source repository excludes linked publication data and build output. The built metadata hash matches publication `3ed3183f-c217-4fa9-ae31-93c448424a75`.
+
+Browser checks cover screenshot picking, hover previews, role filters, and persistent details. Merchant filtering returns eight placements. Adding Friendly returns 18 placements, not 26, because overlapping roles do not duplicate results. Selected locations remain visible when filters exclude them. Counts still describe only matching placements. Selected markers stay at their coordinates outside clusters and remain pickable when another placement overlaps them.
+
+Minor health potion leads to Cooking supplies and Traveling alchemist while retaining item context. Searchable details expose vendor stock, Branchweaver loot, and authored gathering conditions. The reviewed resource producer references Herbalism despite its native OreSpawner component name. Skrivik Sharpfang links to Blades and Barter: The Delivery. Exact quest search opens the canonical quest and discloses missing mapped placements.
+
+At 390 by 844 pixels, the source journey keeps a 199-pixel map region visible above the details panel. The document has no horizontal or vertical overflow. The full item-to-source journey works with the keyboard. Escape closes details and restores the surviving result button or the main search input. URL reload and browser history retain source search and selection. Invalid selection links show an explicit warning.
+
+A lifecycle smoke mounted and unmounted the real component in Chrome. Before unmount, it held 33 WebGL buffers, three textures, and two ImageBitmaps. After unmount, all tracked resources were released and its canvas was removed. A separate smoke unmounted the component during a real metadata download. The request completed before the cancellation fix and rejected with AbortError after the fix.
+
+The cold preview response used 805,974 encoded body bytes for 33,450,974 decoded metadata bytes. That viewport requested three screenshot tiles totaling 245,250 bytes. It did not request optional artwork. One development-browser run opened Rough Stone's 1,144-source panel in 631 milliseconds. The document then had 74,699 elements and 20,644 detail rows. This is not a mobile-device benchmark.
+
+The client check passes across 1,426 files with no errors or warnings. The static build succeeds. Its largest JavaScript chunk is 823.92 kB raw and 227.26 kB gzip. Vite still reports its 500 kB chunk warning. Interior browser journeys, cross-map transitions, and full-build performance remain unverified.
+
+On a fresh checkout with the verified publication available, run:
+
+```sh
+nix develop --command bun install --frozen-lockfile
+mkdir -p site/static
+ln -s ../../artifacts/25144591/3ed3183f-c217-4fa9-ae31-93c448424a75/public site/static/data
+nix develop --command bun run --filter @afallon-compendium/site check
+nix develop --command bun run --filter @afallon-compendium/site build
+nix develop --command bun run --filter @afallon-compendium/site preview --port 4174
+```
+
+Stop the preview before each rebuild. Start a new preview process after the build. An existing preview process can return 404 for new hashed assets. These commands do not deploy or upload the artifact.
+
 ## Exclusive runtime ownership
 
 All repository runtime commands acquire an exclusive SQLite transaction at `~/.cache/afallon-compendium/runtime-owner.sqlite` before connecting. A competing command fails without opening another game connection. The operating system releases the lock if the host process dies. Evaluation IDs include the owner UUID, so a stale response cannot satisfy a different owner's request.

@@ -4,6 +4,10 @@
 /local/
 /dist/
 /node_modules/
+/site/node_modules/
+/site/.svelte-kit/
+/site/build/
+/site/static/data
 /.venv/
 /.direnv/
 /result
