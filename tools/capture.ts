@@ -448,7 +448,7 @@ export async function capture(
           return state;
         }
         nextAction = action === "start" ? "poll" : "restore";
-        await Bun.sleep(100);
+        await Bun.sleep(500);
       }
     } finally { clearTimeout(timer); }
   };

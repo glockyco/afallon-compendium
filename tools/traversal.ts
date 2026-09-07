@@ -111,7 +111,7 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
           const state = await control(name, schema, { action, key, sceneHandle }, file);
           if (state.key !== key) throw new Error("Traversal returned another controller key.");
           if (state.phase === phase) return state;
-          await Bun.sleep(100);
+          await Bun.sleep(500);
         }
       }
       try {
