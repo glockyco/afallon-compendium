@@ -722,6 +722,34 @@ Reproduce the offline import:
 nix develop --command bun run compendium illustration --config local/spatial-smoke-config.json --plan local/illustration-overworld-plan.json
 ```
 
+## Offline normalization and publication
+
+The offline `normalize`, `tiles`, and `publication` commands accept `--plan` and `--output`. They do not connect to the game. Source-run inputs must match successful same-build manifests and registered artifact hashes. Plan reference paths resolve relative to their plan. Verified readers retain the bytes they checked and reject unregistered files or paths outside the run directory.
+
+Normalized run `c4bf5d6c-4648-4d73-9b0d-23dbbbb3e0b2` contains 1,959 entities, 2,611 placements, 2,886 source identities, 3,523 role facts, and 1,001 conditions. SQLite retains 47 authored merchant tables, 157 valid merchant bindings, 208 authored loot tables, and 14,390 item-source rows. Nine unset merchant bindings do not create table identities. Table definitions remain separate from owner bindings. Global RPGResource and resource-rank arrays are empty in this build. Concrete producers supply 10,917 resource-yield rows.
+
+Normalization retains merchant and loot requirements, quantities, selection limits, level eligibility, linked-NPC rules, quest context, and authored world-source configuration. Raw rates do not become effective probabilities. Training Dummy `npcs:0` has three distinct published placements, each with combatant, enemy, and NPC roles. The publication contains 34 unique placement IDs.
+
+Repeat run `5b013b54-bcba-4322-9da7-de3907f4f1fc` produces the same database bytes. Both database hashes are `85d227d3225b80beb8187d75a2ded8df39e90728175323e95876685df206b6eb`. Integrated database checks reject dangling stock references and duplicate table identities. The permanent regression check rejects unset table identities without committing earlier rows from the failed transaction.
+
+Tile run `1fed504e-929d-435e-aca1-7604c0ee08a7` contains seven WebP files totaling 433,120 bytes. Its pixel proof verifies 344,064 decoded pixels, exact finest-level source pixels, coarse box averages, and shared edges. Sparse run `629422e8-b126-41a1-a0d9-2ccc5e19b5c3` retains empty, missing, and partial positions instead of filling gaps with artwork. Repeat run `579da829-bea4-4b0a-8bbb-059daaaab3a2` produces the same tile-index hash, `6b84061ed30bce130c8c6b2308ee7645cb1fb819f4eb041f6a7d87b1dbc74ed6`. Tile preparation records the repository revision separately from the implementation fingerprint.
+
+Publication run `3ed3183f-c217-4fa9-ae31-93c448424a75` contains 34 mapped placements, 1,959 entities, and eight content-addressed images. Images total 60,123,268 bytes, including 59,690,148 bytes of optional artwork. Metadata is 33,450,974 bytes. Gzip encoding produces 974,368 bytes. This measurement does not imply that the development server sends compressed responses.
+
+The public metadata hash is `ed4a3e1f27e90069de871afd16886e35f83c7a448ae672e2112624c1185cce12`. It matches the input checked in `artifacts/publication-smoke/7722bb79-gates.json`. Nine rejection checks cover references, floors, spatial bounds, tile registration, duplicate placements, preview disclosure, release coverage, manifest integrity, and build agreement. Rejection does not change the valid public artifact.
+
+The preview excludes 1,762 classified placements outside verified imagery. Another 815 source identities have no classified marker role. Its 3,725 source-coverage issues remain visible as an incomplete-coverage disclosure. Current normalization accepts bounded observations only. Full-world reconciliation and complete-release certification remain open.
+
+Before each downstream command, pin its successful input manifests and SHA-256 digests in the local plan:
+
+```sh
+nix develop --command bun run compendium normalize --plan local/normalize-plan.json --output artifacts
+nix develop --command bun run compendium tiles --plan local/tiles-plan.json --output artifacts
+nix develop --command bun run compendium publication --plan local/publication-plan.json --output artifacts
+```
+
+TypeScript and all 19 pipeline/tool regression tests pass, with 63 assertions. These commands and measurements cover bounded local stages, not a complete supported-build release.
+
 ## Exclusive runtime ownership
 
 All repository runtime commands acquire an exclusive SQLite transaction at `~/.cache/afallon-compendium/runtime-owner.sqlite` before connecting. A competing command fails without opening another game connection. The operating system releases the lock if the host process dies. Evaluation IDs include the owner UUID, so a stale response cannot satisfy a different owner's request.

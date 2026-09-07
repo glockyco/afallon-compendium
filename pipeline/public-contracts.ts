@@ -1,0 +1,86 @@
+import { Type, type Static } from "typebox";
+
+const text = Type.String({ minLength: 1 });
+const number = Type.Number();
+const count = Type.Integer({ minimum: 0 });
+const point = Type.Object({ x: number, y: number }, { additionalProperties: false });
+const position = Type.Tuple([number, number]);
+const floor = Type.Union([text, Type.Null()]);
+const url = Type.String({ minLength: 1, pattern: "^(?!/)(?!.*\\.\\.)(?!.*:)[a-zA-Z0-9_./-]+$" });
+const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
+
+export const PublicAffineSchema = Type.Object({ origin: point, xAxis: point, yAxis: point }, { additionalProperties: false });
+export type PublicAffine = Static<typeof PublicAffineSchema>;
+
+export const PublicDetailRowSchema = Type.Object({
+  label: text,
+  value: Type.String(),
+  entityKey: Type.Optional(text),
+  placementIds: Type.Optional(Type.Array(text, { uniqueItems: true })),
+}, { additionalProperties: false });
+export type PublicDetailRow = Static<typeof PublicDetailRowSchema>;
+
+export const PublicDetailSectionSchema = Type.Object({ title: text, rows: Type.Array(PublicDetailRowSchema) }, { additionalProperties: false });
+export type PublicDetailSection = Static<typeof PublicDetailSectionSchema>;
+const sections = Type.Array(PublicDetailSectionSchema);
+
+export const PublicEntitySchema = Type.Object({
+  entityKey: text, kind: text, nativeId: Type.Integer(), name: text,
+  description: Type.Union([Type.String(), Type.Null()]),
+  placementIds: Type.Array(text, { uniqueItems: true }), sections,
+}, { additionalProperties: false });
+export type PublicEntity = Static<typeof PublicEntitySchema>;
+
+export const PublicPlacementSchema = Type.Object({
+  placementId: text, mapSpaceId: text, floorId: floor, position, label: text,
+  roles: Type.Array(text, { minItems: 1, uniqueItems: true }),
+  entityKeys: Type.Array(text, { uniqueItems: true }),
+  areas: Type.Array(Type.Array(position, { minItems: 3 })), sections,
+  destination: Type.Optional(Type.Object({ mapSpaceId: text, floorId: floor, position: Type.Optional(position) }, { additionalProperties: false })),
+}, { additionalProperties: false });
+export type PublicPlacement = Static<typeof PublicPlacementSchema>;
+
+export const PublicItemSourceSchema = Type.Object({
+  itemKey: text,
+  sources: Type.Array(Type.Object({ label: text, kind: text, placementIds: Type.Array(text, { uniqueItems: true }), sections }, { additionalProperties: false })),
+}, { additionalProperties: false });
+export type PublicItemSource = Static<typeof PublicItemSourceSchema>;
+
+export const PublicTileSchema = Type.Object({
+  z: count, x: count, y: count,
+  width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }),
+  url, sha256: hash, bytes: count, mapFromPixelEdge: PublicAffineSchema,
+  state: Type.Union([Type.Literal("captured"), Type.Literal("empty"), Type.Literal("partial")]),
+}, { additionalProperties: false });
+export type PublicTile = Static<typeof PublicTileSchema>;
+
+export const PublicTileLayerSchema = Type.Object({
+  id: text, mapSpaceId: text, floorId: floor,
+  tileSize: Type.Integer({ minimum: 1 }), finestLevel: count,
+  width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }),
+  mapFromPixelEdge: PublicAffineSchema, tiles: Type.Array(PublicTileSchema, { minItems: 1 }),
+}, { additionalProperties: false });
+export type PublicTileLayer = Static<typeof PublicTileLayerSchema>;
+
+export const PublicIllustrationSchema = Type.Object({
+  id: text, label: text, mapSpaceId: text, floorId: floor,
+  registration: Type.Union([Type.Literal("calibrated"), Type.Literal("orientation-only")]),
+  url, width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }),
+  mapFromPixelEdge: Type.Union([PublicAffineSchema, Type.Null()]),
+}, { additionalProperties: false });
+export type PublicIllustration = Static<typeof PublicIllustrationSchema>;
+
+export const PublicationDataSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.publication.v1"), buildId: text,
+  mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
+  coverage: Type.Object({ complete: Type.Boolean(), messages: Type.Array(text), excludedPlacements: count }, { additionalProperties: false }),
+  maps: Type.Array(Type.Object({
+    mapSpaceId: text, label: text,
+    floors: Type.Array(Type.Object({ floorId: text, label: text }, { additionalProperties: false })),
+    bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
+  }, { additionalProperties: false }), { minItems: 1 }),
+  placements: Type.Array(PublicPlacementSchema), entities: Type.Array(PublicEntitySchema),
+  itemSources: Type.Array(PublicItemSourceSchema), tileLayers: Type.Array(PublicTileLayerSchema, { minItems: 1 }),
+  illustrations: Type.Array(PublicIllustrationSchema),
+}, { additionalProperties: false });
+export type PublicationData = Static<typeof PublicationDataSchema>;

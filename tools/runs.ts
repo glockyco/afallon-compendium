@@ -368,6 +368,44 @@ export async function readRunManifest(manifestPath: string): Promise<RunManifest
   return parseRunManifest(value, manifestPath);
 }
 
+export interface VerifiedRun {
+  directory: string;
+  manifest: RunManifest;
+  readArtifact(relativePath: string): Promise<{ reference: ArtifactRecord; bytes: Uint8Array }>;
+}
+
+export async function loadVerifiedRun(manifestPath: string, sha256: string, buildId: string, command: string): Promise<VerifiedRun> {
+  const manifestBytes = await readFile(manifestPath);
+  if (!SHA256_PATTERN.test(sha256) || createHash("sha256").update(manifestBytes).digest("hex") !== sha256) {
+    throw new ArtifactIntegrityError(`Run manifest hash mismatch: ${manifestPath}`);
+  }
+  const manifest = parseRunManifest(JSON.parse(manifestBytes.toString("utf8")), manifestPath);
+  if (manifest.status !== "succeeded" || manifest.input.buildId !== buildId || manifest.input.command !== command) {
+    throw new ArtifactIntegrityError(`Run manifest does not match successful ${command} output for build ${buildId}: ${manifestPath}`);
+  }
+  const directory = await realpath(path.dirname(path.resolve(manifestPath)));
+  const records = new Map(manifest.artifacts.map(reference => [reference.path, reference]));
+  return {
+    directory,
+    manifest,
+    async readArtifact(relativePath) {
+      const normalized = requireArtifactPath(relativePath).split(path.sep).join("/");
+      const reference = records.get(normalized);
+      if (reference === undefined) throw new ArtifactIntegrityError(`Run does not register artifact: ${relativePath}`);
+      const absolute = await realpath(path.resolve(directory, normalized));
+      const suffix = path.relative(directory, absolute);
+      if (!suffix || path.isAbsolute(suffix) || suffix === ".." || suffix.startsWith(`..${path.sep}`)) {
+        throw new ArtifactIntegrityError(`Run artifact escapes its directory: ${relativePath}`);
+      }
+      const bytes = await readFile(absolute);
+      if (bytes.byteLength !== reference.bytes || createHash("sha256").update(bytes).digest("hex") !== reference.sha256) {
+        throw new ArtifactIntegrityError(`Run artifact hash or size mismatch: ${relativePath}`);
+      }
+      return { reference, bytes };
+    },
+  };
+}
+
 export async function readLatestSuccess(outputRoot: string, buildId: string, command: string): Promise<LatestSuccessPointer | null> {
   const buildRoot = path.join(path.resolve(outputRoot), requireSafeSegment(buildId, "buildId"));
   const pointerPath = path.join(buildRoot, `${requireSafeSegment(command, "command")}-latest-success.json`);

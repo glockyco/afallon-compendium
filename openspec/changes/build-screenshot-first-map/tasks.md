@@ -41,10 +41,10 @@
 
 ## 5. Normalized and published data
 
-- [ ] 5.1 Extend the verified identity tables with concrete placement, condition, and domain relationship tables. Verify foreign keys, duplicate rejection, and repeated-run stability with integrated extraction data.
-- [ ] 5.2 Generate map projections, role-based category metadata, entity details, and item-source indexes. Verify one canonical entity can have several distinct placements and several roles without duplication.
-- [ ] 5.3 Generate WebP tile pyramids and indexes from the finest capture level. Verify seams, explicit empty positions, hashes, bounds, file counts, and byte totals.
-- [ ] 5.4 Add publication gates for references, coverage, build agreement, and spatial bounds. Verify each gate rejects an inconsistent artifact without altering valid output. A labeled local preview may retain pending world coverage. Included records must pass all integrity checks. The preview cannot satisfy the complete-release gate.
+- [x] 5.1 Extend the verified identity tables with concrete placement, condition, and domain relationship tables. Verify foreign keys, duplicate rejection, and repeated-run stability with integrated extraction data.
+- [x] 5.2 Generate map projections, role-based category metadata, entity details, and item-source indexes. Verify one canonical entity can have several distinct placements and several roles without duplication.
+- [x] 5.3 Generate WebP tile pyramids and indexes from the finest capture level. Verify seams, explicit empty positions, hashes, bounds, file counts, and byte totals.
+- [x] 5.4 Add publication gates for references, coverage, build agreement, and spatial bounds. Verify each gate rejects an inconsistent artifact without altering valid output. A labeled local preview may retain pending world coverage. Included records must pass all integrity checks. The preview cannot satisfy the complete-release gate.
 
 ## 6. Static map experience
 

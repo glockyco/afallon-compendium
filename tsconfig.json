@@ -9,5 +9,5 @@
     "noEmit": true,
     "types": ["bun"]
   },
-  "include": ["tools/**/*.ts"]
+  "include": ["tools/**/*.ts", "pipeline/**/*.ts"]
 }
