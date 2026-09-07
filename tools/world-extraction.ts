@@ -1,4 +1,5 @@
 import { Type, type Static, type TSchema } from "typebox";
+import { applicableConditionReferenceFields } from "./condition-references";
 
 const integer = Type.Integer();
 const number = Type.Number();
@@ -858,34 +859,6 @@ const actionReferenceKinds: Record<string, string> = {
   resource: "resources",
   lootTable: "lootTables",
 };
-const conditionReferenceFields = Object.entries({
-  abilityID: "abilities",
-  bonusID: "bonuses",
-  recipeID: "recipes",
-  resourceID: "resources",
-  effectID: "effects",
-  NPCID: "npcs",
-  statID: "stats",
-  factionID: "factions",
-  comboID: "combos",
-  raceID: "races",
-  levelsID: "levels",
-  classID: "classes",
-  speciesID: "species",
-  itemID: "items",
-  currencyID: "currencies",
-  pointID: "treePoints",
-  talentTreeID: "talentTrees",
-  skillID: "skills",
-  spellbookID: "spellbooks",
-  weaponTemplateID: "weaponTemplates",
-  enchantmentID: "enchantments",
-  gearSetID: "gearSets",
-  gameSceneID: "scenes",
-  questID: "quests",
-  dialogueID: "dialogues",
-});
-
 function validateRequirements(reference: Reference, groups: unknown[], path: string) {
   const rows = array(groups, path);
   const seenGroups = new Set<number>();
@@ -904,7 +877,8 @@ function validateRequirements(reference: Reference, groups: unknown[], path: str
       const projectedIndex = finiteInteger(requirement.requirementIndex, `${path}[${groupIndex}].requirements[${requirementIndex}].requirementIndex`);
       if (projectedIndex !== requirementIndex || seenRequirements.has(projectedIndex)) throw new Error(`World source ${path} has lost or duplicate requirement rows.`);
       seenRequirements.add(projectedIndex);
-      for (const [field, targetKind] of conditionReferenceFields) {
+      const fields = applicableConditionReferenceFields(requirement.requirementType);
+      for (const [field, targetKind] of fields) {
         callReference(reference, `${path}[${groupIndex}].requirements[${requirementIndex}].${field}`, targetKind, requirement[field]);
       }
     });

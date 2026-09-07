@@ -1,4 +1,5 @@
 import { Type, type Static } from "typebox";
+import { applicableConditionReferenceFields } from "./condition-references";
 
 const integer = Type.Integer();
 const number = Type.Number();
@@ -562,18 +563,10 @@ function validateEntry(value: Static<typeof entry>, sourcePath: string, referenc
 }
 
 function validateRequirement(value: Requirement, sourcePath: string, reference: NpcReference): void {
-  const ids: [string, string, number][] = [
-    ["abilityID", "abilities", value.abilityID], ["bonusID", "bonuses", value.bonusID], ["recipeID", "recipes", value.recipeID],
-    ["resourceID", "resources", value.resourceID], ["effectID", "effects", value.effectID], ["NPCID", "npcs", value.NPCID],
-    ["statID", "stats", value.statID], ["factionID", "factions", value.factionID], ["comboID", "combos", value.comboID],
-    ["raceID", "races", value.raceID], ["levelsID", "levels", value.levelsID], ["classID", "classes", value.classID],
-    ["speciesID", "species", value.speciesID], ["itemID", "items", value.itemID], ["currencyID", "currencies", value.currencyID],
-    ["pointID", "treePoints", value.pointID], ["talentTreeID", "talentTrees", value.talentTreeID], ["skillID", "skills", value.skillID],
-    ["spellbookID", "spellbooks", value.spellbookID], ["weaponTemplateID", "weaponTemplates", value.weaponTemplateID],
-    ["enchantmentID", "enchantments", value.enchantmentID], ["gearSetID", "gearSets", value.gearSetID], ["gameSceneID", "scenes", value.gameSceneID],
-    ["questID", "quests", value.questID], ["dialogueID", "dialogues", value.dialogueID],
-  ];
-  for (const [field, targetKind, nativeId] of ids) reference(`${sourcePath}.${field}`, targetKind, nativeId);
+  for (const [field, targetKind] of applicableConditionReferenceFields(value.requirementType)) {
+    const nativeId = value[field as keyof Requirement];
+    reference(`${sourcePath}.${field}`, targetKind, nativeId as number);
+  }
   if (value.effectTag !== null) validateEntry(value.effectTag, `${sourcePath}.effectTag`, reference);
   if (value.factionStance !== null) validateEntry(value.factionStance, `${sourcePath}.factionStance`, reference);
   if (value.itemType !== null) validateEntry(value.itemType, `${sourcePath}.itemType`, reference);

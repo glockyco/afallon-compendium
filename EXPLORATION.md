@@ -752,6 +752,10 @@ Normalization reads `raw/placement-snapshot.json` from extraction runs and each 
 
 NPC merchant and quest navigation follows the native `isMerchant` and `isQuestGiver` flags, as role classification does. Authored bindings remain in SQLite even when the service is disabled. Normalization `e5103433-2a56-4758-b30d-f9c4128cf6e0` removes 549 disabled-merchant item sources and 46 disabled-quest location references from navigation. It retains 657 merchant item sources across 39 enabled merchants and 119 quest location references. In the browser, Lost druid Talroth retains three quest associations but no longer appears to sell seven items from an inactive default table. Evidence is in `artifacts/publication-smoke/service-eligibility.json`.
 
+Requirement references follow the outer native `RequirementType`, rather than every serialized ID field. NPC and world validators share these rules. ID zero remains meaningful when its field applies. Unknown requirement types retain all candidate checks. Revalidation of extraction `c3f45239-a466-4109-a720-4b2d40836753` removes 1,028 false missing references while retaining the authored payload. Smoke checks exercise inactive fields, active zero IDs, and unknown types in both validators.
+
+Native extraction `65aba4b1-ba85-4ea3-91ae-1d37f370341c` also reports zero unresolved typed references, but its world coverage remains incomplete. Extraction and traversal provenance include the shared applicability module. Evidence is in `artifacts/publication-smoke/requirement-validation.json`. Nested Item/Effect selectors and object-backed references still need behavioral verification. This correction does not establish complete condition semantics.
+
 TypeScript and all 19 pipeline/tool regression tests pass, with 63 assertions. These commands and measurements cover bounded local stages, not a complete supported-build release.
 
 ## Static atlas preview

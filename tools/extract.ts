@@ -40,7 +40,7 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
     inputHashes["map-space-profile"] = spatialProfile.sha256;
   }
   for (const name of names) inputHashes[name] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-contracts", "placement-identities", "scene-identities", "serialized-assets", "map-contracts", "map-calibration", "config", "spatial-contracts", "spatial-extraction", "map-spaces", "map-regions"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "condition-references", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-contracts", "placement-identities", "scene-identities", "serialized-assets", "map-contracts", "map-calibration", "config", "spatial-contracts", "spatial-extraction", "map-spaces", "map-regions"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   for (const path of ["probes/addressable-locations.csx", "serialized-assets.py", "../pyproject.toml", "../uv.lock"]) inputHashes[`tool:${path}`] = await hashFile(resolve(import.meta.dir, path));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "extract",
