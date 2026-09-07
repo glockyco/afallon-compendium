@@ -748,6 +748,8 @@ nix develop --command bun run compendium tiles --plan local/tiles-plan.json --ou
 nix develop --command bun run compendium publication --plan local/publication-plan.json --output artifacts
 ```
 
+Normalization reads `raw/placement-snapshot.json` from extraction runs and each step's `after.json` from traversal runs. Mixed normalization `8774a6b0-9a0e-457b-9d36-1f4a3865883f` combines the Coalway extraction with Duskfall traversal `d87f275a-341b-485e-ab56-322e3aa09ece`. It contains 2,713 placements: 2,611 in Coalway, 70 on the reviewed upper floor, 26 on the lower floor, one in the arrival room, and five outside the reviewed profile. The same plan failed before the traversal snapshot-path correction. Run it with `nix develop --command bun run compendium normalize --output artifacts --plan local/normalize-interior-plan.json`.
+
 TypeScript and all 19 pipeline/tool regression tests pass, with 63 assertions. These commands and measurements cover bounded local stages, not a complete supported-build release.
 
 ## Static atlas preview

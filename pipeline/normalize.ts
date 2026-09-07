@@ -165,7 +165,8 @@ async function resolveSnapshotReference(planDirectory: string, run: VerifiedRun,
   const prefixParts = rawPrefix ? rawPrefix.split("/") : [];
   if (prefixParts.some(part => part === ".." || part === "." || part.length === 0)) throw new Error(`sceneSnapshots[${index}].prefix contains path traversal.`);
   const prefix = prefixParts.join("/");
-  const suffix = field === "placementRoles" ? "placement-roles.json" : field === "placementIdentities" ? "identities/placement-identities.json" : field === "placementSnapshot" ? "raw/placement-snapshot.json" : field === "npcProducers" ? "raw/npc-producers.json" : field === "coverage" ? "coverage.json" : "raw/world-sources.json";
+  const placementSnapshotPath = run.manifest.input.command === "traverse" ? "after.json" : "raw/placement-snapshot.json";
+  const suffix = field === "placementRoles" ? "placement-roles.json" : field === "placementIdentities" ? "identities/placement-identities.json" : field === "placementSnapshot" ? placementSnapshotPath : field === "npcProducers" ? "raw/npc-producers.json" : field === "coverage" ? "coverage.json" : "raw/world-sources.json";
   return resolveManifestArtifact(planDirectory, run, prefix ? `${prefix}/${suffix}` : suffix, `sceneSnapshots[${index}].${field}`);
 }
 
