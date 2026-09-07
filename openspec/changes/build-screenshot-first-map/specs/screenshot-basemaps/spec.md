@@ -56,6 +56,12 @@ Required source selection SHALL cover the complete tile frustum and its configur
 - **WHEN** the combined availability flag is true but the source has no settled loaded root
 - **THEN** capture keeps the tile pending until the source becomes ready or the deadline fails the tile
 
+#### Scenario: Animated bounds cross a clipping plane
+- **WHEN** a previously observed renderer moves outside the tile frustum without changing its active mesh or material bindings
+- **THEN** later inventories continue inspecting those bindings
+- **AND** changing frustum intersection alone does not prevent stabilization
+- **AND** missing materials, changed bindings, and unready sources remain subject to readiness checks
+
 #### Scenario: An empty tile exceeds its deadline after readiness
 - **WHEN** stable observations establish empty geometry but the tile operation later exceeds its deadline
 - **THEN** the run records a failed tile rather than a successful empty result
@@ -68,6 +74,19 @@ Capture SHALL control and record camera projection, lighting, fog, and transient
 Scene loading, preload, readiness checks, and geometry holds MAY span gameplay frames under exclusive runtime ownership. Temporary lighting changes, renderer suppression, and rendering SHALL execute within a frame-local operation. That operation SHALL restore visual state before the next gameplay frame. Multi-frame operations SHALL release their holds and restore owned temporary state on success, error, cancellation, or disconnection. Cleanup SHALL execute in the runtime without depending on a connected host to issue a later restore command. A disconnected run SHALL remain unsuccessful until cleanup is confirmed.
 
 Capture SHALL exclude active game lights from rendering and use its controlled lighting profile. It SHALL preserve useful static meshes and landmark particles outside the reviewed suppression selection. Geometry readiness SHALL use the same transient selection as rendering and record its exclusions.
+
+Interior floor plans SHALL use one explicit vertical clipping interval across their tiles. Raster metadata SHALL retain that interval separately from floor membership domains. Ceiling reviews SHALL identify renderers through complete hierarchy, mesh name, vertex count, and world bounds rather than transient renderer IDs alone. The host SHALL verify review evidence hashes. Missing or ambiguous matches SHALL block capture. Reviewed floor renderers SHALL remain enabled during rendering and after restoration.
+
+#### Scenario: Reviewed ceilings reload with new runtime IDs
+- **WHEN** the reviewed scene reloads and its renderer IDs change
+- **THEN** capture resolves each ceiling and protected floor from its reviewed geometry selector
+- **AND** the audit records the resolved IDs and unchanged floor visibility
+- **AND** a protected floor selected for suppression causes failure
+
+#### Scenario: The requested scene differs from gameplay
+- **WHEN** capture enters another source scene
+- **THEN** native ownership covers the scene transition and capture
+- **AND** success requires restoration of the original scene, position, and rotation
 
 #### Scenario: Gameplay lighting inputs differ
 - **WHEN** the same area is captured with different native ambient and game-light settings

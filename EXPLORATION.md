@@ -579,7 +579,7 @@ Spatial smoke drivers are archived under `artifacts/map-calibration-smoke/driver
 
 ## Owned screenshot capture
 
-`capture --config <file> --plan <file>` accepts a `compendium.capture-plan.v2` plan and a reviewed `mapSpaceProfile`. The plan selects the loaded source scene, map space, optional floor, camera rectangles, image dimensions, lighting, and renderer suppression. Its readiness profile supplies a whole-tile deadline, stable observation count, boundary overlap, and source limit. Capture holds geometry until rendering and restoration finish. Successful results report `readiness: verified` and retain `completeImagery: false`.
+`capture --config <file> --plan <file>` accepts a `compendium.capture-plan.v3` plan and a reviewed `mapSpaceProfile`. The plan selects the source scene, map space, optional floor, camera rectangles, image dimensions, lighting, and reviewed ceiling selectors. Capture enters the requested scene when necessary and restores the original scene, position, and rotation before success. Its readiness profile bounds each scene transition and each complete tile operation. Capture holds geometry until rendering and restoration finish. Successful results report `readiness: verified` and retain `completeImagery: false`.
 
 `tools/probes/capture-session.csx` registers native cleanup before allocating its camera, directional light, render target, and readable texture. The two GameObjects and their components remain inactive between captures. These resources can survive multiple game frames. Explicit restoration, failed allocation, cancellation, and socket loss use the same native cleanup action. The cleanup receipt identifies the resource prefix and reports remaining objects.
 
@@ -623,7 +623,7 @@ Source archives store test files with a non-executable suffix so Bun does not ru
 
 ## Orthographic raster registration
 
-Each PNG now has a hashed `compendium.capture-raster.v1` artifact linked by its image hash. The native capture reports actual camera properties. Five native projection controls cover the center and all four corners inside the clipping interval. The host rejects missing controls or residuals above one quarter pixel.
+Each PNG now has a hashed `compendium.capture-raster.v2` artifact linked by its image hash. The native capture reports actual camera properties. Five native projection controls cover the center and all four corners inside the clipping interval. The host rejects missing controls or residuals above one quarter pixel.
 
 The raster frame maps top-left pixel edges into source-scene XZ coordinates. Pixel centers use `(column + 0.5, row + 0.5)`. Image X increases world X; image Y decreases world Z. The reviewed map-space transform remains a separate step. A native 2-by-2 color texture and browser pixel decode verified the PNG origin. Evidence is `artifacts/capture-orientation/39e53cac-5871-4e83-8875-6f142d2506a6/proof.json`. Browser screenshot calls timed out; the proof records pixel decoding, not a browser screenshot.
 
@@ -643,7 +643,7 @@ Capture never assigns `RenderSettings.ambientProbe`. Flat and Trilight getters e
 
 The shared `tools/probes/capture-visuals.csx` prelude selects player bodies, mounts, owned actors, combat visuals, weather roots, camera particles, ground indicators, and non-looping particle roots. Particle-only selection preserves other actors' mesh renderers. Capture suppresses selected projectors and excludes highlight effects through their camera masks. It does not disable gameplay roots. Seven retained particle renderers identify furnace, cooking, property-sign, heroic-console, and bed landmarks in the woods sample.
 
-Readiness and rendering use the same selector and reviewed renderer IDs. Geometry inventories retain exclusion IDs and reasons without treating those renderers as pending geometry. In the final production run, exclusions changed from 46 to 57 across the three accepted stable observations. The inventories retained 652 mesh rows and seven other renderers. Capture hashes the shared prelude. Session, restoration, and geometry observations use their v2 contracts.
+Readiness and rendering resolve the same transient policy and reviewed ceiling selectors. Geometry inventories retain exclusion IDs and reasons without treating those renderers as pending geometry. In the final production run, exclusions changed from 46 to 57 across the three accepted stable observations. The inventories retained 652 mesh rows and seven other renderers. Capture hashes the shared prelude. Session, restoration, and geometry observations use their v3 contracts.
 
 Native contrast fixtures changed ambient colors, intensity, reflection intensity, and all active-hierarchy game lights. The bright fixture used light intensity 8 and RGB `(4,3,2)`. The dark fixture used intensity 0.002 and RGB `(0.005,0.01,0.02)`. They did not advance the game clock. Capture suppressed all 75 and 77 active light inputs, respectively, including directional, point, and spot lights.
 
@@ -658,7 +658,32 @@ Evidence is in `artifacts/capture-visuals/3718336a-7ba5-4f5e-bc83-aa92641098bb/`
 Reproduce the normal capture while Coalway woods and the research character are loaded:
 
 ```sh
-nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan artifacts/25144591/ad212d92-ce6d-4d3c-a993-ff6c882ebefe/plan.json
+nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan artifacts/25144591/1e94baf6-9b0e-4ca6-bc48-9c4c4c687d01/plan.json
+```
+
+## Reviewed interior floor capture
+
+Interior plans use explicit clipping intervals. Every tile in a floor plan must use the same interval. Raster `verticalBounds` records that interval separately from floor membership. Neighboring intervals can overlap to retain headroom and connecting geometry.
+
+Ceiling reviews use complete hierarchy, mesh name, vertex count, and world bounds. The host verifies and archives the referenced evidence bytes. Native resolution rejects missing or ambiguous matches and records the resolved renderer IDs. Protected floor renderers must remain enabled during rendering and restoration. Capture changes renderer flags, not shared mesh data or gameplay roots.
+
+The name-only ceiling survey failed because two colliders shared `Rock1_2 (104)`. Its evidence is `artifacts/interior-slices/ba733d39-4982-4174-9673-4961e91ff3e6/`. The reviewed survey resolved two ceiling renderers and 35 protected floor renderers. Its evidence is `artifacts/interior-slices/2c3fa85c-414f-4e2f-8f27-334739504fa3/`. Reloaded captures resolved different runtime IDs from the same selectors.
+
+The native CharacterController remained grounded below and on `Wood_Bridge1 (2)` at the same XZ coordinates. Small horizontal movements retained ground contact at both elevations. The reviewed profile assigns the lower point to `lower` and the bridge point to `upper`. The half-open boundary at Y −807 belongs to `upper`. Evidence is `artifacts/interior-slices/2e02be30-a0bf-4b12-8cbe-3189de180cb9/`. These occupancy controls do not prove natural route access.
+
+Upper capture `90e1c007-0d87-4c4f-9d81-4802dbc32c2f` and lower capture `8ab03e79-f2f6-4567-a911-bc3fb6a3f857` produced registered 640-by-840 images. Both cover X 1490–1810 and Z −1110–−690 at two pixels per world unit. Their clipping intervals are Y −810–−785.1 and Y −845–−805.1, respectively. Direct image inspection shows separate raised and lower geometry. Both captures retained all 35 protected floor renderer flags, restored visual state in the render frame, and left no owned capture objects. Both restored the original scene, position, and rotation with clean runtime receipts.
+
+The first upper capture exposed a readiness defect. Animated NPC meshes and particle bounds crossed a clipping plane, so their inventory rows appeared and disappeared without binding changes. Run `8c15a185-bbea-4745-ae98-b6acf1d01ee9` exceeded its unchanged 300-second tile deadline and restored ownership cleanly. Later observations now continue inspecting previously observed active bindings outside the frustum. Intersection changes do not determine binding stability; source state, geometry bindings, and integrity checks still do. The identical plan succeeded with three stable observations, including a mesh that moved outside the frustum without changing its mesh or materials.
+
+The upper evidence archive verifies 45 artifacts and retains 21 exercised source files. The lower archive verifies 43 artifacts against the same capture sources. `artifacts/interior-slices/90e1c007-0d87-4c4f-9d81-4802dbc32c2f/floor-pair.json` links both raster frames and the occupancy controls. TypeScript and all ten existing regression tests passed. These checks establish reviewed slices and restoration, not a complete dungeon route or complete imagery. Tasks 3.9 and 4.5 remain open until the remaining floor and route review passes.
+
+Arrival-room run `1b5add2d-f260-4263-b1c7-b7f16153452d` produced a PNG but exceeded the 300-second source-scene restoration deadline. Its last poll still reported an unready dungeon scene and no player transform. Native cleanup subsequently reported clean state with no callbacks remaining. The manifest remains failed; this image does not establish accepted arrival-room coverage.
+
+Reproduce the registered floor captures:
+
+```sh
+nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan artifacts/25144591/90e1c007-0d87-4c4f-9d81-4802dbc32c2f/plan.json
+nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan artifacts/25144591/8ab03e79-f2f6-4567-a911-bc3fb6a3f857/plan.json
 ```
 
 ## Exclusive runtime ownership

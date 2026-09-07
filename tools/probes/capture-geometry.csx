@@ -22,6 +22,12 @@ var readInteger = new System.Func<Newtonsoft.Json.Linq.JToken, string, int>((tok
         throw new System.ArgumentException(name + " must fit in Int32.");
     return (int)value;
 });
+var trackedRendererTokens = args["trackedRendererIds"] as Newtonsoft.Json.Linq.JArray;
+if (trackedRendererTokens == null) throw new System.ArgumentException("trackedRendererIds must be an array.");
+var trackedRendererIds = new System.Collections.Generic.HashSet<int>();
+foreach (var token in trackedRendererTokens)
+    if (!trackedRendererIds.Add(readInteger(token, "trackedRendererIds entry")))
+        throw new System.ArgumentException("trackedRendererIds must contain unique IDs.");
 var readText = new System.Func<Newtonsoft.Json.Linq.JToken, string, string>((token, name) =>
 {
     if (token == null || token.Type != Newtonsoft.Json.Linq.JTokenType.String || string.IsNullOrEmpty((string)token))
@@ -316,19 +322,14 @@ visitCaptureVisualRenderers(visualSelection.Roots, (renderer, reason) =>
     var id = renderer.GetInstanceID();
     if (!excludedRendererReasons.ContainsKey(id)) excludedRendererReasons.Add(id, reason);
 });
-var reviewedIds = args["suppressedRendererIds"] as Newtonsoft.Json.Linq.JArray;
-if (reviewedIds == null || reviewedIds.Count > 5000) throw new System.ArgumentException("suppressedRendererIds must be an array with at most 5000 entries.");
-var reviewedSet = new System.Collections.Generic.HashSet<int>();
-foreach (var token in reviewedIds)
-{
-    var id = readInteger(token, "suppressedRendererIds entry");
-    if (!reviewedSet.Add(id)) throw new System.ArgumentException("suppressedRendererIds must not contain duplicates.");
-    excludedRendererReasons[id] = "reviewed-renderer";
-}
+var allRenderers = UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true);
+var ceilingReview = resolveCaptureCeilingReview(args["ceilingReview"], allRenderers, scene.handle, cullingMask, false);
+foreach (var issue in ceilingReview.Issues) addIssue(issues, "ceiling-review", 0, issue);
+foreach (var renderer in ceilingReview.Ceilings) excludedRendererReasons[renderer.GetInstanceID()] = "reviewed-ceiling";
+foreach (var renderer in ceilingReview.Floors) if (excludedRendererReasons.ContainsKey(renderer.GetInstanceID())) throw new System.ArgumentException("A retained floor is selected for transient suppression.");
 var excludedRenderers = new System.Collections.Generic.List<object>();
 var meshes = new System.Collections.Generic.List<object>();
 var otherRenderers = new System.Collections.Generic.List<object>();
-var allRenderers = UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true);
 var rendererSceneCount = 0;
 foreach (var renderer in allRenderers)
 {
@@ -354,7 +355,8 @@ foreach (var renderer in allRenderers)
     var sourceLoaderId = findSourceLoader(renderer.transform);
     System.Collections.Generic.Dictionary<string, object> source;
     var selectedSource = sourceLoaderId.HasValue && sourceById.TryGetValue(sourceLoaderId.Value, out source) && (bool)source["coversFrustum"] && (bool)source["activeInHierarchy"] && (bool)source["enabled"];
-    if (!intersects && !selectedSource) continue;
+    var tracked = trackedRendererIds.Contains(renderer.GetInstanceID());
+    if (!intersects && !selectedSource && !tracked) continue;
     var meshRenderer = renderer.TryCast<UnityEngine.MeshRenderer>();
     var skinnedRenderer = meshRenderer == null ? renderer.TryCast<UnityEngine.SkinnedMeshRenderer>() : null;
 
@@ -368,7 +370,7 @@ foreach (var renderer in allRenderers)
             if (filter != null) mesh = filter.sharedMesh;
         }
         else mesh = skinnedRenderer.sharedMesh;
-        if (!intersects && mesh != null) continue;
+        if (!intersects && !tracked && mesh != null) continue;
         if (intersects) markSourceIntersection(sourceLoaderId);
 
         var materialIds = new System.Collections.Generic.List<object>();
@@ -413,8 +415,8 @@ foreach (var renderer in allRenderers)
     }
     else
     {
-        if (!intersects) continue;
-        markSourceIntersection(sourceLoaderId);
+        if (!intersects && !tracked) continue;
+        if (intersects) markSourceIntersection(sourceLoaderId);
         var rendererType = renderer.GetIl2CppType();
         var rendererTypeName = rendererType == null ? null : rendererType.FullName;
         if (string.IsNullOrEmpty(rendererTypeName))
@@ -508,8 +510,8 @@ foreach (var terrain in allTerrains)
 
 return new
 {
-    schemaVersion = "compendium.capture-geometry.v2",
-    visualPolicy = "compendium.capture-visual-policy.v1",
+    schemaVersion = "compendium.capture-geometry.v3",
+    visualPolicy = "compendium.capture-visual-policy.v2",
     excludedRenderers = excludedRenderers.ToArray(),
     frame = UnityEngine.Time.frameCount,
     scene = new { nativeId = (int)nativeScene.ID, handle = scene.handle, path = scene.path, ready = sceneReady },

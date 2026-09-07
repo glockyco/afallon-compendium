@@ -26,6 +26,7 @@ import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
 import { withCaptureGeometry } from "./capture-readiness";
+import { SceneVisitSchema, type SceneVisit } from "./traversal-contracts";
 
 function assertSchema<T extends TSchema>(schema: T, value: unknown, label: string): asserts value is Static<T> {
   try {
@@ -69,6 +70,18 @@ function validatePlan(plan: CapturePlan): void {
     tileIds.add(tile.id);
     if (!(tile.frame.nearClip < tile.frame.farClip)) {
       throw new Error(`Tile "${tile.id}" nearClip must be less than farClip.`);
+    }
+    if (plan.floorId !== null) {
+      const first = plan.tiles[0]!.frame;
+      if (Math.abs((tile.frame.cameraY - tile.frame.farClip) - (first.cameraY - first.farClip)) > 0.001
+        || Math.abs((tile.frame.cameraY - tile.frame.nearClip) - (first.cameraY - first.nearClip)) > 0.001) {
+        throw new Error(`Floor tile "${tile.id}" uses another vertical clipping interval.`);
+      }
+    }
+    if (tile.ceilingReview !== null) {
+      for (const selectors of [tile.ceilingReview.ceilings, tile.ceilingReview.floors]) for (const selector of selectors) {
+        if (selector.bounds.size.x < 0 || selector.bounds.size.y < 0 || selector.bounds.size.z < 0) throw new Error(`Tile "${tile.id}" has negative reviewed renderer sizes.`);
+      }
     }
     const worldAspect = tile.frame.worldSize.x / tile.frame.worldSize.z;
     const pixelAspect = plan.width / plan.height;
@@ -141,7 +154,9 @@ function assertRestorationAudit(value: unknown, tile: CapturePlan["tiles"][numbe
   if (audit.frameStarted !== audit.frameRestored || audit.frameStarted !== captureFrame) throw new Error(`Restoration audit for tile "${tile.id}" crossed native frames.`);
   if (!audit.renderSucceeded || audit.errors.length !== 0) throw new Error(`Frame restoration failed for tile "${tile.id}".`);
   if (!isDeepStrictEqual(audit.before, audit.after)) throw new Error(`Frame restoration changed visual state for tile "${tile.id}".`);
-  if (!isDeepStrictEqual(audit.manualRendererIds, tile.suppressedRendererIds)) throw new Error("Capture applied another reviewed renderer selection.");
+  if (!isDeepStrictEqual(audit.ceilingReview, tile.ceilingReview)) throw new Error("Capture applied another ceiling review.");
+  const ceilingIds = new Set(audit.ceilingRendererIds);
+  if (ceilingIds.size !== audit.ceilingRendererIds.length || ceilingIds.size !== (tile.ceilingReview?.ceilings.length ?? 0)) throw new Error("Capture did not resolve each reviewed ceiling once.");
   const during = audit.during;
   if (during === null || during.fog || during.ambientMode !== 3 || during.ambientIntensity !== 1 || during.reflectionIntensity !== 0 || !during.lightEnabled || during.sunInstanceId !== during.lightInstanceId || !closeEnough(during.lightIntensity, lighting.directionalIntensity)) {
     throw new Error("Capture did not apply its controlled lighting profile.");
@@ -170,7 +185,15 @@ function assertRestorationAudit(value: unknown, tile: CapturePlan["tiles"][numbe
   const selectedLights = new Set(during.lights.map(row => row.instanceId));
   if (audit.lightingInputs.some(row => row.enabled && row.active && !selectedLights.has(row.instanceId))) throw new Error("Capture left an active game light uncontrolled.");
   const selectedRenderers = new Set(during.renderers.map(row => row.instanceId));
-  if (tile.suppressedRendererIds.some(id => !selectedRenderers.has(id))) throw new Error("Capture omitted a reviewed renderer suppression.");
+  if (audit.ceilingRendererIds.some(id => !selectedRenderers.has(id))) throw new Error("Capture omitted a reviewed ceiling suppression.");
+  const reviewedSelections = audit.selections.filter(row => row.kind === "renderer" && row.reason === "reviewed-ceiling");
+  if (reviewedSelections.length !== ceilingIds.size || new Set(reviewedSelections.map(row => row.instanceId)).size !== ceilingIds.size || reviewedSelections.some(row => !ceilingIds.has(row.instanceId))) throw new Error("Capture ceiling selections differ from its resolution.");
+  if (!isDeepStrictEqual(audit.before.retainedFloors, during.retainedFloors)
+    || during.retainedFloors.length !== (tile.ceilingReview?.floors.length ?? 0)
+    || new Set(during.retainedFloors.map(row => row.instanceId)).size !== during.retainedFloors.length
+    || during.retainedFloors.some(row => !row.enabled || selectedRenderers.has(row.instanceId))) {
+    throw new Error("Capture changed or omitted a retained floor renderer.");
+  }
 }
 
 async function hashPng(path: string, expectedWidth: number, expectedHeight: number, tileId: string): Promise<{ sha256: string; byteSize: number }> {
@@ -206,7 +229,8 @@ function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>): Ca
     maximumProjectionErrorPixels = Math.max(maximumProjectionErrorPixels, error);
   }
   const raster: CaptureRaster = {
-    schemaVersion: "compendium.capture-raster.v1", tileId: capture.tileId, imageSha256: capture.sha256,
+    schemaVersion: "compendium.capture-raster.v2", tileId: capture.tileId, imageSha256: capture.sha256,
+    verticalBounds: { minY: capture.cameraFrame.cameraY - farClip, maxY: capture.cameraFrame.cameraY - nearClip },
     width: capture.width, height: capture.height, coordinateSystem: "source-scene-world-xz", pixelConvention: "top-left-edges",
     worldFromPixelEdge: { origin, xAxis, yAxis }, maximumProjectionErrorPixels,
   };
@@ -248,7 +272,23 @@ export async function capture(
     plan: createHash("sha256").update(planText).digest("hex"),
     "map-space-profile": spatialProfile.sha256,
   };
-  for (const name of ["world-inventory", "capture-session", "capture-geometry", "capture-visuals", "stream-visit"]) {
+  const evidenceByPath = new Map<string, { sha256: string; bytes: Uint8Array }>();
+  const reviewArtifacts = new Map<string, Uint8Array>();
+  for (const tile of plan.tiles) {
+    if (tile.ceilingReview === null) continue;
+    const evidence = tile.ceilingReview.evidence;
+    const path = resolve(evidence.path);
+    let record = evidenceByPath.get(path);
+    if (record === undefined) {
+      const bytes = await readFile(path);
+      record = { sha256: createHash("sha256").update(bytes).digest("hex"), bytes };
+      evidenceByPath.set(path, record);
+    }
+    if (record.sha256 !== evidence.sha256) throw new Error(`Ceiling review evidence changed for tile "${tile.id}".`);
+    inputHashes[`ceiling-review:${tile.id}`] = record.sha256;
+    if (!reviewArtifacts.has(record.sha256)) reviewArtifacts.set(record.sha256, record.bytes);
+  }
+  for (const name of ["world-inventory", "capture-session", "capture-geometry", "capture-visuals", "stream-visit", "scene-visit"]) {
     inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   }
   for (const name of [
@@ -275,16 +315,56 @@ export async function capture(
       width: plan.width,
       height: plan.height,
       readiness: plan.readiness,
-      visualPolicy: "compendium.capture-visual-policy.v1",
+      visualPolicy: "compendium.capture-visual-policy.v2",
       completeImagery: false,
     },
   });
+
+  let visitedScene: SceneVisit | undefined;
+  const transitionScene = async (action: "start" | "restore", previous?: SceneVisit): Promise<SceneVisit> => {
+    const deadline = Date.now() + plan.readiness.timeoutMs;
+    const timeout = new Error(`Capture scene ${action} exceeded its readiness deadline.`);
+    const timer = setTimeout(() => runtime.cancel(timeout), plan.readiness.timeoutMs);
+    let key = previous?.key;
+    let started: SceneVisit | undefined = previous;
+    try {
+      let nextAction: "start" | "poll" | "restore" = action;
+      while (true) {
+        runtime.signal.throwIfAborted();
+        if (Date.now() >= deadline) throw timeout;
+        const path = nextAction === "start" ? "scene-start.json" : action === "start" ? "scene-ready.json" : "scene-restored.json";
+        const reply = await runtime.probe(resolve(import.meta.dir, "probes/scene-visit.csx"), resolve(run.directory, path), {
+          parameters: { researchCharacter: config.character, action: nextAction, key, targetSceneNativeId: plan.sceneNativeId },
+        });
+        assertSchema(SceneVisitSchema, reply.value, "Capture scene transition");
+        const state = reply.value;
+        if (key !== undefined && state.key !== key) throw new Error("Capture scene transition returned another owner key.");
+        if (started !== undefined && (state.sourceSceneNativeId !== started.sourceSceneNativeId || state.sourceSceneHandle !== started.sourceSceneHandle || !isDeepStrictEqual(state.sourcePosition, started.sourcePosition) || !isDeepStrictEqual(state.sourceRotation, started.sourceRotation))) throw new Error("Capture scene transition changed its restoration target.");
+        started ??= state;
+        key = state.key;
+        const finished = state.phase === (action === "start" ? "ready" : "restored");
+        if (nextAction === "start" || finished) await registerProbeArtifact(run, path, reply.reference);
+        if (finished) {
+          if (!state.sceneReady || state.sceneNativeId !== (action === "start" ? plan.sceneNativeId : started.sourceSceneNativeId)) throw new Error("Capture scene transition reached another scene.");
+          return state;
+        }
+        nextAction = action === "start" ? "poll" : "restore";
+        await Bun.sleep(100);
+      }
+    } finally { clearTimeout(timer); }
+  };
 
   try {
     await Bun.write(resolve(run.directory, "plan.json"), planText);
     await registerArtifact(run, "plan.json", inputHashes.plan);
     await Bun.write(resolve(run.directory, "map-space-profile.json"), spatialProfile.bytes);
     await registerArtifact(run, "map-space-profile.json", spatialProfile.sha256);
+    if (reviewArtifacts.size !== 0) await mkdir(resolve(run.directory, "reviews"), { recursive: true });
+    for (const [sha256, bytes] of reviewArtifacts) {
+      const path = `reviews/${sha256}.evidence`;
+      await Bun.write(resolve(run.directory, path), bytes);
+      await registerArtifact(run, path, sha256);
+    }
 
     await mkdir(resolve(run.directory, "raw"), { recursive: true });
     const inventoryPath = resolve(run.directory, "raw/world-inventory.json");
@@ -314,6 +394,10 @@ export async function capture(
     }
     await Bun.write(resolve(run.directory, "scene-catalog.json"), `${JSON.stringify(sceneCatalog, null, 2)}\n`);
     await registerArtifact(run, "scene-catalog.json");
+    if (inventoryReply.observationContext.completed.gameSceneNativeId !== plan.sceneNativeId) {
+      visitedScene = await transitionScene("start");
+      if (visitedScene.sourceSceneNativeId !== inventoryReply.observationContext.completed.gameSceneNativeId || visitedScene.sourceSceneHandle !== inventoryReply.observationContext.completed.scene.handle) throw new Error("The source scene changed before the capture visit.");
+    }
 
     await mkdir(resolve(run.directory, "tiles"), { recursive: true });
     const probePath = resolve(import.meta.dir, "probes/capture-session.csx");
@@ -358,7 +442,7 @@ export async function capture(
             frame: tile.frame,
             lighting: plan.lighting,
             cullingMask: plan.cullingMask,
-            suppressedRendererIds: tile.suppressedRendererIds,
+            ceilingReview: tile.ceilingReview,
             outputPath: pngRuntimePath,
             restorationPath: restorationRuntimePath,
             ...baseParameters,
@@ -409,6 +493,7 @@ export async function capture(
       throw new Error("Capture cleanup receipt does not confirm native restoration.");
     }
     await registerArtifact(run, "capture-cleanup.json");
+    if (visitedScene !== undefined) await transitionScene("restore", visitedScene);
 
     await runtime.complete();
     await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));

@@ -105,7 +105,7 @@ Use an orthographic camera looking down world Y. The initial test covers 200 by 
 
 Each capture records the camera's actual center, extent, and clipping planes, not only the requested settings. Native projection checks use the center and four corners on a plane inside the clipping interval. The host rejects missing controls or errors above one quarter pixel.
 
-Each PNG has a hashed `compendium.capture-raster.v1` artifact linked by its image hash. Its `worldFromPixelEdge` frame maps top-left image edges into source-scene XZ coordinates. Pixel centers use `(column + 0.5, row + 0.5)`. Positive image X increases world X; positive image Y decreases world Z. Source-scene registration remains separate from reviewed map-space registration.
+Each PNG has a hashed `compendium.capture-raster.v2` artifact linked by its image hash. Its `worldFromPixelEdge` frame maps top-left image edges into source-scene XZ coordinates. Pixel centers use `(column + 0.5, row + 0.5)`. Positive image X increases world X; positive image Y decreases world Z. Source-scene registration remains separate from reviewed map-space registration.
 
 Each layer carries an explicit world-to-image transform. Illustrated layers are independently calibrated. Where artwork distorts positions, show it as an orientation reference instead of placing falsely precise markers on it.
 
@@ -113,11 +113,13 @@ Each layer carries an explicit world-to-image transform. Illustrated layers are 
 
 Create a dedicated disabled camera, render target, and readable texture. Disable occlusion culling on that camera. Prepare and hold geometry for the complete tile frustum, including boundary overlap, before rendering. Record the source inventory and wait for stable readiness. A timeout is a failed tile, not empty space.
 
-The capture plan uses schema `compendium.capture-plan.v2`. Its readiness profile bounds the whole tile to 1–300 seconds, requests 2–10 stable observations, and limits holds to 256 sources. The deadline includes rendering and stream restoration.
+The capture plan uses schema `compendium.capture-plan.v3`. Its readiness profile bounds the whole tile to 1–300 seconds, requests 2–10 stable observations, and limits holds to 256 sources. The deadline includes rendering and stream restoration.
 
 Source selection calls native `Covers` at the closest point on the expanded frustum to each loader. This tests the complete frustum against the native loading sphere without selecting the larger enclosing sphere. Geometry already observed inside the frustum also selects its source. Inactive sources remain separate evidence rather than receiving arbitrary activation changes.
 
 The existing stream visitor owns holds and newly instantiated roots. Native cleanup restores the original holds and roots after success, failure, cancellation, or socket loss. Readiness requires initialized scene state, settled source handles, active loaded roots, and stable mesh, terrain, and material bindings. A combined loaded-or-loading flag is insufficient. Numbered inventories, observation contexts, stable frame IDs, hashes, and cleanup receipts remain with each tile.
+
+Once a renderer enters the observation scope, later inventories continue inspecting its active bindings even outside the frustum. Animated bounds and changing intersection flags do not determine binding stability. Source identity, loaded state, mesh and material bindings, and integrity issues still determine readiness.
 
 Mesh-less renderer components retain null bindings in the inventory. A null mesh alone does not establish a pending addressable load. Such rows prevent an empty classification while they remain relevant. Missing materials on present meshes, missing terrain data, and source-integrity issues block readiness. Readiness establishes the observed geometry state, not complete authored-content coverage.
 
@@ -127,9 +129,13 @@ Capture preserves the Custom-mode spherical-harmonics cache without assigning `R
 
 Renderer layers do not reliably separate the player from static geometry. A shared native selector identifies player bodies, mounts, owned actors, combat visuals, weather roots, camera particles, ground indicators, and non-looping particle roots. Particle-only selection preserves other actors' mesh renderers. Capture disables selected renderers, lights, and projectors, and excludes highlight effects through their camera masks. It preserves other landmark meshes and particles without disabling gameplay roots.
 
-Geometry readiness uses the same selector and reviewed renderer IDs. Excluded renderer IDs and reasons remain in each inventory but do not affect geometry stability or missing-binding checks. Capture hashes the shared prelude with its other inputs. Session, restoration, and geometry observations use their v2 contracts.
+Geometry readiness resolves the same transient policy and reviewed ceiling selectors. Excluded renderer IDs and reasons remain in each inventory but do not affect geometry stability or missing-binding checks. Capture hashes the shared prelude with its other inputs. Session, restoration, and geometry observations use their v3 contracts.
 
-Interiors use explicit floor/height slices first. The dungeon probe showed that a lower camera can expose floor geometry without mesh changes. Where this cannot show a useful floor, use a reviewed reversible ceiling suppression rule. Do not remove a combined roof-and-floor mesh or flatten stacked floors together.
+Interiors use explicit floor/height slices first. All tiles in a floor plan use the same vertical clipping interval. Raster `verticalBounds` records the actual interval separately from the reviewed floor membership domain. Neighboring floor intervals can overlap to retain headroom and connecting geometry.
+
+Ceiling reviews bind evidence hashes to complete hierarchy, mesh name, vertex count, and world bounds. Native selection rejects missing or ambiguous matches. Reviews can protect floor renderer selectors, whose enabled flags must remain true during rendering and after restoration. Selection changes renderer visibility only; it never changes shared meshes or gameplay roots. A combined mesh can serve several renderer regions and does not identify a ceiling by itself.
+
+Capture enters another requested source scene through the existing owned scene visitor. The readiness timeout bounds each transition. Success requires restoration of the original source scene, position, and rotation. Native owner cleanup also restores that state after failure or disconnection.
 
 A capture session records every changed property and object under two lifetimes. Scene loading, preload, readiness, geometry holds, and reusable disabled capture resources can span frames. Their cleanup belongs to the runtime operation and runs on success, failure, cancellation, or host disconnection. No later host restore request is required. Confirm cleanup before another operation uses the affected state.
 

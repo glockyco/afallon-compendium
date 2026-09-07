@@ -28,6 +28,7 @@ type SourceMembership = {
   required: CaptureGeometry["sources"];
   excluded: CaptureGeometry["sources"];
   requiredById: Map<number, CaptureGeometry["sources"][number]>;
+  candidateIds: Set<number>;
 };
 
 function assertSchema<T extends TSchema>(schema: T, value: unknown, label: string): asserts value is Static<T> {
@@ -155,14 +156,22 @@ function sourceMembership(geometry: CaptureGeometry): SourceMembership {
     }
   }
 
-  const candidates = geometry.sources.filter(source => source.coversFrustum || source.intersectsFrustum);
+  const boundSourceIds = new Set<number>();
+  for (const bindings of [geometry.meshes, geometry.terrains, geometry.otherRenderers]) {
+    for (const binding of bindings) {
+      if (binding.sourceLoaderId !== null) boundSourceIds.add(binding.sourceLoaderId);
+    }
+  }
+  const candidates = geometry.sources.filter(source => source.coversFrustum || source.intersectsFrustum || boundSourceIds.has(source.instanceId));
+  const candidateIds = new Set<number>();
   for (const source of candidates) {
     if (source.assetGuid === null) throw new Error(`Required or excluded source ${source.instanceId} has no asset GUID.`);
+    candidateIds.add(source.instanceId);
   }
   const required = candidates.filter(source => source.activeInHierarchy && source.enabled);
   const excluded = candidates.filter(source => !source.activeInHierarchy || !source.enabled);
   const requiredById = new Map(required.map(source => [source.instanceId, source]));
-  return { required, excluded, requiredById };
+  return { required, excluded, requiredById, candidateIds };
 }
 
 function assertVisibleBindings(geometry: CaptureGeometry): void {
@@ -212,8 +221,8 @@ function assertMembership(geometry: CaptureGeometry, baseline: SourceMembership 
   return current;
 }
 
-function structuralFingerprint(geometry: CaptureGeometry): string {
-  const sources = geometry.sources.filter(source => source.coversFrustum || source.intersectsFrustum)
+function structuralFingerprint(geometry: CaptureGeometry, membership: SourceMembership): string {
+  const sources = geometry.sources.filter(source => membership.candidateIds.has(source.instanceId))
     .sort((left, right) => left.instanceId - right.instanceId)
     .map(source => ({
       instanceId: source.instanceId,
@@ -223,8 +232,6 @@ function structuralFingerprint(geometry: CaptureGeometry): string {
       activeSelf: source.activeSelf,
       activeInHierarchy: source.activeInHierarchy,
       enabled: source.enabled,
-      coversFrustum: source.coversFrustum,
-      intersectsFrustum: source.intersectsFrustum,
       loadedOrLoading: source.loadedOrLoading,
       loaded: source.loaded,
       loading: source.loading,
@@ -242,7 +249,6 @@ function structuralFingerprint(geometry: CaptureGeometry): string {
       meshId: mesh.meshId,
       meshName: mesh.meshName,
       vertices: mesh.vertices,
-      intersectsFrustum: mesh.intersectsFrustum,
       sourceLoaderId: mesh.sourceLoaderId,
       materialIds: mesh.materialIds,
     }));
@@ -427,6 +433,7 @@ export async function withCaptureGeometry<T>(
         await run.addArtifact(contextPath);
       };
 
+      const trackedRendererIds = new Set<number>();
       const observeGeometry = async (): Promise<CaptureGeometry> => {
         checkDeadline();
         observationIndex += 1;
@@ -441,7 +448,8 @@ export async function withCaptureGeometry<T>(
             frame: tile.frame,
             boundaryOverlap: plan.readiness.boundaryOverlap,
             cullingMask: plan.cullingMask,
-            suppressedRendererIds: tile.suppressedRendererIds,
+            ceilingReview: tile.ceilingReview,
+            trackedRendererIds: [...trackedRendererIds],
           },
           captureContext: true,
         });
@@ -456,6 +464,8 @@ export async function withCaptureGeometry<T>(
         sceneHandle = assertScene(value, plan, sceneHandle);
         const membership = assertMembership(value, baselineMembership, plan.readiness.maximumSources);
         baselineMembership ??= membership;
+        for (const mesh of value.meshes) trackedRendererIds.add(mesh.rendererId);
+        for (const renderer of value.otherRenderers) trackedRendererIds.add(renderer.instanceId);
         if (value.frame < lastGeometryFrame) throw new Error("Capture geometry frame moved backwards.");
         if (value.frame > lastGeometryFrame) {
           observedFrames.push(value.frame);
@@ -533,7 +543,7 @@ export async function withCaptureGeometry<T>(
       let stableCount = 0;
       let stableGeometry: CaptureGeometry | undefined;
       if (streamKey === undefined) {
-        stableFingerprint = structuralFingerprint(firstGeometry);
+        stableFingerprint = structuralFingerprint(firstGeometry, baselineMembership!);
         stableCount = 1;
         stableGeometry = firstGeometry;
       }
@@ -550,7 +560,7 @@ export async function withCaptureGeometry<T>(
         const current = await observeGeometry();
         const streamAgrees = streamRows === undefined || geometryAgreesWithStream(current, streamRows, baselineMembership!.required);
         if (current.frame > (stableGeometry?.frame ?? -1)) {
-          const fingerprint = structuralFingerprint(current);
+          const fingerprint = structuralFingerprint(current, baselineMembership!);
           if (fingerprint === stableFingerprint) stableCount += 1;
           else {
             stableFingerprint = fingerprint;
