@@ -103,6 +103,10 @@ Native triangulation is supporting evidence, not an automatic capture boundary. 
 
 Use an orthographic camera looking down world Y. The initial test covers 200 by 200 world units in 1024 pixels, or 5.12 pixels per unit. This is a probe setting, not the final resolution. Compare adjacent tiles at two resolutions before selecting one production profile. Generate coarser pyramid levels from the finest captured tiles.
 
+Each capture records the camera's actual center, extent, and clipping planes, not only the requested settings. Native projection checks use the center and four corners on a plane inside the clipping interval. The host rejects missing controls or errors above one quarter pixel.
+
+Each PNG has a hashed `compendium.capture-raster.v1` artifact linked by its image hash. Its `worldFromPixelEdge` frame maps top-left image edges into source-scene XZ coordinates. Pixel centers use `(column + 0.5, row + 0.5)`. Positive image X increases world X; positive image Y decreases world Z. Source-scene registration remains separate from reviewed map-space registration.
+
 Each layer carries an explicit world-to-image transform. Illustrated layers are independently calibrated. Where artwork distorts positions, show it as an orientation reference instead of placing falsely precise markers on it.
 
 ### 6. Capture is a restorable rendering operation

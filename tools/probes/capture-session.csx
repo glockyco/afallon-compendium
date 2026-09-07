@@ -159,11 +159,6 @@ var readFrame = new System.Func<Newtonsoft.Json.Linq.JToken, object>((token) =>
     result["farClip"] = farClip;
     return result;
 });
-var frameObject = new System.Func<object, object>((value) =>
-{
-    var frameData = (System.Collections.Generic.Dictionary<string, float>)value;
-    return new { center = new { x = frameData["centerX"], z = frameData["centerZ"] }, worldSize = new { x = frameData["sizeX"], z = frameData["sizeZ"] }, cameraY = frameData["cameraY"], nearClip = frameData["nearClip"], farClip = frameData["farClip"] };
-});
 var probeEqual = new System.Func<UnityEngine.Rendering.SphericalHarmonicsL2, UnityEngine.Rendering.SphericalHarmonicsL2, bool>((left, right) =>
 {
     for (var rgb = 0; rgb < 3; rgb++) for (var coefficient = 0; coefficient < 9; coefficient++)
@@ -420,8 +415,7 @@ if (captureAction != "render") throw new System.InvalidOperationException("Unsup
 var tileId = requiredText(args["tileId"], "tileId");
 if (!System.Text.RegularExpressions.Regex.IsMatch(tileId, "^[a-z0-9]+(?:-[a-z0-9]+)*$") || tileId.Length > 80)
     throw new System.ArgumentException("tileId has an invalid format.");
-var requestedFrame = readFrame(args["frame"]);
-var frameValue = (System.Collections.Generic.Dictionary<string, float>)requestedFrame;
+var frameValue = (System.Collections.Generic.Dictionary<string, float>)readFrame(args["frame"]);
 var requestedLighting = args["lighting"];
 if (requestedLighting == null || requestedLighting.Type != Newtonsoft.Json.Linq.JTokenType.Object) throw new System.ArgumentException("lighting is required.");
 var ambient = color(requestedLighting["ambient"], "lighting.ambient");
@@ -591,7 +585,8 @@ var auditFailure = (System.Exception)null;
 var encodedBytes = (byte[])null;
 var encodedHash = (string)null;
 var encodedPath = outputPathArgument;
-var projectionSamples = new System.Collections.Generic.List<object>();
+var projectionSamples = new System.Collections.Generic.List<object>(5);
+object actualCameraFrame = null;
 try
 {
     sessionCamera.enabled = false;
@@ -606,18 +601,25 @@ try
     sessionCamera.cullingMask = cullingMask;
     sessionCamera.transform.position = new UnityEngine.Vector3((float)frameValue["centerX"], (float)frameValue["cameraY"], (float)frameValue["centerZ"]);
     sessionCamera.transform.rotation = UnityEngine.Quaternion.Euler(90f, 0f, 0f);
-    for (var sampleIndex = 0; sampleIndex < 3; sampleIndex++)
-    {
-        var offset = sampleIndex == 0 ? 0f : sampleIndex == 1 ? -0.5f : 0.5f;
-        var world = new UnityEngine.Vector3(frameValue["centerX"] + offset * frameValue["sizeX"], 0f, frameValue["centerZ"] + offset * frameValue["sizeZ"]);
-        var viewport = sessionCamera.WorldToViewportPoint(world);
-        projectionSamples.Add(new { world = new { x = world.x, y = world.y, z = world.z }, viewport = new { x = viewport.x, y = viewport.y, z = viewport.z } });
-    }
     fault("after-camera");
     sessionCamera.targetTexture = sessionRenderTexture;
     fault("after-target");
     if (!sessionRenderTexture.IsCreated()) throw new System.InvalidOperationException("The capture RenderTexture is no longer created.");
     fault("after-texture");
+    var actualPosition = sessionCamera.transform.position;
+    var actualSizeZ = sessionCamera.orthographicSize * 2f;
+    var actualSizeX = actualSizeZ * sessionCamera.aspect;
+    var actualNear = sessionCamera.nearClipPlane;
+    var actualFar = sessionCamera.farClipPlane;
+    actualCameraFrame = new { center = new { x = actualPosition.x, z = actualPosition.z }, worldSize = new { x = actualSizeX, z = actualSizeZ }, cameraY = actualPosition.y, nearClip = actualNear, farClip = actualFar };
+    for (var sampleIndex = 0; sampleIndex < 5; sampleIndex++)
+    {
+        var offsetX = sampleIndex == 0 ? 0f : ((sampleIndex - 1) & 1) == 0 ? -0.5f : 0.5f;
+        var offsetZ = sampleIndex == 0 ? 0f : sampleIndex <= 2 ? -0.5f : 0.5f;
+        var world = new UnityEngine.Vector3(actualPosition.x + offsetX * actualSizeX, actualPosition.y - (actualNear + actualFar) * 0.5f, actualPosition.z + offsetZ * actualSizeZ);
+        var viewport = sessionCamera.WorldToViewportPoint(world);
+        projectionSamples.Add(new { world = new { x = world.x, y = world.y, z = world.z }, viewport = new { x = viewport.x, y = viewport.y, z = viewport.z } });
+    }
     sessionLight.type = UnityEngine.LightType.Directional;
     sessionLight.intensity = directionalIntensity;
     sessionLight.color = ambient;
@@ -712,7 +714,7 @@ var captureFrameMetadata = new
     suppressionRestored = true,
     activeTargetRestored = true,
     suppressedRenderers = suppressedIds.Count,
-    cameraFrame = frameObject(requestedFrame),
+    cameraFrame = actualCameraFrame,
     projectionSamples = projectionSamples.ToArray(),
 };
 sessionState["completedCaptures"] = (int)sessionState["completedCaptures"] + 1;

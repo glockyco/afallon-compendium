@@ -9,6 +9,8 @@ import { toRuntimePath, type CompendiumConfig } from "./config";
 import {
   CaptureCleanupSchema,
   CapturePlanSchema,
+  CaptureRasterSchema,
+  type CaptureRaster,
   CaptureRestorationSchema,
   CaptureSessionSchema,
   type CapturePlan,
@@ -161,6 +163,36 @@ async function hashPng(path: string, expectedWidth: number, expectedHeight: numb
   return { sha256: createHash("sha256").update(bytes).digest("hex"), byteSize: bytes.byteLength };
 }
 
+function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>): CaptureRaster {
+  const { center, worldSize, nearClip, farClip } = capture.cameraFrame;
+  const origin = { x: center.x - worldSize.x / 2, z: center.z + worldSize.z / 2 };
+  const xAxis = { x: worldSize.x / capture.width, z: 0 };
+  const yAxis = { x: 0, z: -worldSize.z / capture.height };
+  const expected = [[0.5, 0.5], [0, 0], [1, 0], [0, 1], [1, 1]] as const;
+  if (capture.projectionSamples.length !== expected.length) throw new Error("Capture requires center and four corner projection controls.");
+  let maximumProjectionErrorPixels = 0;
+  for (const [index, sample] of capture.projectionSamples.entries()) {
+    const [u, v] = expected[index]!;
+    const imageX = (sample.world.x - origin.x) / xAxis.x;
+    const imageY = (sample.world.z - origin.z) / yAxis.z;
+    const error = Math.max(
+      Math.abs(imageX - u * capture.width), Math.abs(imageY - (1 - v) * capture.height),
+      Math.abs(imageX - sample.viewport.x * capture.width), Math.abs(imageY - (1 - sample.viewport.y) * capture.height),
+    );
+    if (!Number.isFinite(error) || error > 0.25 || sample.viewport.z < nearClip || sample.viewport.z > farClip) {
+      throw new Error(`Capture projection control ${index} exceeds the raster bounds, clipping interval, or quarter-pixel tolerance.`);
+    }
+    maximumProjectionErrorPixels = Math.max(maximumProjectionErrorPixels, error);
+  }
+  const raster: CaptureRaster = {
+    schemaVersion: "compendium.capture-raster.v1", tileId: capture.tileId, imageSha256: capture.sha256,
+    width: capture.width, height: capture.height, coordinateSystem: "source-scene-world-xz", pixelConvention: "top-left-edges",
+    worldFromPixelEdge: { origin, xAxis, yAxis }, maximumProjectionErrorPixels,
+  };
+  assertSchema(CaptureRasterSchema, raster, "Capture raster registration");
+  return raster;
+}
+
 function hasSelectedBinding(profile: MapSpaceProfile, plan: CapturePlan): boolean {
   const mapSpace = profile.mapSpaces.find(candidate => candidate.id === plan.mapSpaceId);
   if (mapSpace === undefined) throw new Error(`Capture plan requests unknown map space "${plan.mapSpaceId}".`);
@@ -283,7 +315,7 @@ export async function capture(
     const captureKey = session.key;
     await registerProbeArtifact(run, startPath, startReply.reference);
 
-    const tiles: (NonNullable<CaptureSession["lastCapture"]> & { readiness: CaptureReadiness; readinessPath: string })[] = [];
+    const tiles: (NonNullable<CaptureSession["lastCapture"]> & { readiness: CaptureReadiness; readinessPath: string; rasterPath: string })[] = [];
     for (const tile of plan.tiles) {
       runtime.signal.throwIfAborted();
       const pngPath = resolve(run.directory, "tiles", `${tile.id}.png`);
@@ -317,6 +349,7 @@ export async function capture(
         }
         if (capture.frame < readiness.observedFrames.at(-1)!) throw new Error("Capture preceded its geometry readiness evidence.");
         assertFrameMatches(capture, tile.frame, tile.id);
+        const raster = registerRaster(capture);
         const png = await hashPng(pngPath, plan.width, plan.height, tile.id);
         if (png.sha256 !== capture.sha256 || png.byteSize !== capture.byteSize) throw new Error(`Capture response for tile "${tile.id}" does not match its PNG artifact.`);
         const restorationBytes = await readFile(restorationPath);
@@ -326,9 +359,11 @@ export async function capture(
         await registerProbeArtifact(run, responseRelativePath, reply.reference);
         await registerArtifact(run, `tiles/${tile.id}.png`, png.sha256);
         await registerArtifact(run, `tiles/${tile.id}.restoration.json`);
+        await Bun.write(resolve(run.directory, `tiles/${tile.id}.raster.json`), `${JSON.stringify(raster, null, 2)}\n`);
+        await registerArtifact(run, `tiles/${tile.id}.raster.json`);
         return capture;
       });
-      tiles.push({ ...prepared.value, readiness: prepared.readiness, readinessPath: prepared.readinessPath });
+      tiles.push({ ...prepared.value, readiness: prepared.readiness, readinessPath: prepared.readinessPath, rasterPath: `tiles/${tile.id}.raster.json` });
     }
 
     const restoredPath = "capture-restored.json";

@@ -53,6 +53,16 @@ export const CaptureSessionSchema = Type.Object({
   lastCapture: Type.Union([capture, Type.Null()]),
 });
 export type CaptureSession = Static<typeof CaptureSessionSchema>;
+export const CaptureRasterSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.capture-raster.v1"),
+  tileId: text, imageSha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
+  width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }),
+  coordinateSystem: Type.Literal("source-scene-world-xz"),
+  pixelConvention: Type.Literal("top-left-edges"),
+  worldFromPixelEdge: Type.Object({ origin: horizontal, xAxis: horizontal, yAxis: horizontal }),
+  maximumProjectionErrorPixels: Type.Number({ minimum: 0, maximum: 0.25 }),
+});
+export type CaptureRaster = Static<typeof CaptureRasterSchema>;
 const rgba = Type.Object({ r: number, g: number, b: number, a: number });
 const visualState = Type.Object({
   fog: Type.Boolean(), ambientMode: integer,

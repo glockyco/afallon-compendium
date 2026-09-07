@@ -23,6 +23,15 @@ Each published reachable map SHALL use imagery captured by this project from the
 
 Every image layer SHALL identify its map space, world bounds, orientation, resolution, and coordinate transform. Calibration SHALL use known landmarks and round-trip checks. An illustration that distorts physical distances SHALL expose that limitation rather than claim exact registration. Separate floors or overlapping interiors SHALL remain distinguishable.
 
+#### Scenario: A native projection contradicts the image extent
+- **WHEN** the native center or corner controls differ from the declared raster mapping by more than one quarter pixel
+- **THEN** capture fails instead of registering that PNG as a valid tile
+
+#### Scenario: Adjacent outdoor tiles use the same resolution
+- **WHEN** neighboring tiles share a world edge and pixel density
+- **THEN** their pixel-edge transforms meet without a gap or an extra Y reversal
+- **AND** known landmarks align with a reference capture across that edge
+
 #### Scenario: Several scenes share a map space
 - **WHEN** a reader switches between calibrated image layers
 - **THEN** the same selected world location remains selected

@@ -585,7 +585,7 @@ Spatial smoke drivers are archived under `artifacts/map-calibration-smoke/driver
 
 Each render records native fog, ambient lighting, the spherical-harmonics probe, the active render target, and selected renderer flags before making temporary visual changes. Its frame-local cleanup restores those values before the evaluation returns. The restoration artifact records the actual before and after values and native frame numbers. A failed read remains unavailable; it is not replaced with the earlier observation. Failed rendering does not publish a PNG.
 
-The capture host checks source and owner identity, camera metadata, PNG dimensions and hashes, exact visual-state restoration, and clean resource receipts. It retains the reviewed profile, plan, scene catalog, and raw inventory with the run. Geometry readiness uses the owned stream scope described below. Production illumination, complete transient suppression, reviewed floor visibility, seams, and resumable capture coverage remain open.
+The capture host checks source and owner identity, camera metadata, PNG dimensions and hashes, exact visual-state restoration, and clean resource receipts. It retains the reviewed profile, plan, scene catalog, and raw inventory with the run. Geometry readiness uses the owned stream scope described below. Production illumination, complete transient suppression, reviewed floor visibility, and resumable capture coverage remain open.
 
 All 12 lifecycle cases passed: normal rendering, four partial-allocation failures, three render-stage failures, and cancellation or disconnection both between and within frames. Every case had a clean owner receipt and an independent native scan with zero remaining capture objects. In-frame cases retained exact visual-state equality and matching frame numbers. All four cancellation and disconnection cases wrote their native cleanup receipts before the host callback unwound. Evidence is in `artifacts/capture-lifecycle/e119609f-a177-4e8d-8369-7e31bfb0077a/proof.json`. Failed cases published no image. Four additional path-collision checks preserved existing evidence and released all resources; their proof is `artifacts/capture-lifecycle/a9b3ad5d-4925-40cf-a0b6-c29516553627/proof.json`.
 
@@ -620,6 +620,20 @@ The final archived verification is `artifacts/capture-readiness/cdb1f3be-a616-44
 Traversal run `520e4444-6b20-48b3-8fa1-3c84f994100c` also passed with the required native cleanup receipt. It selected three streams and retained one inactive exclusion. Source restoration, scene restoration, and owner cleanup completed before success. Its coverage result remains incomplete.
 
 Source archives store test files with a non-executable suffix so Bun does not run duplicate archived tests. `archive-layout.json` records those paths. TypeScript, the ten repository tests, and strict OpenSpec validation passed. These checks establish tile-local readiness and restoration, not full-world imagery coverage or production visual quality. Task 4.2 is complete. Capture verification drivers are archived under `artifacts/capture-readiness/drivers/`.
+
+## Orthographic raster registration
+
+Each PNG now has a hashed `compendium.capture-raster.v1` artifact linked by its image hash. The native capture reports actual camera properties. Five native projection controls cover the center and all four corners inside the clipping interval. The host rejects missing controls or residuals above one quarter pixel.
+
+The raster frame maps top-left pixel edges into source-scene XZ coordinates. Pixel centers use `(column + 0.5, row + 0.5)`. Image X increases world X; image Y decreases world Z. The reviewed map-space transform remains a separate step. A native 2-by-2 color texture and browser pixel decode verified the PNG origin. Evidence is `artifacts/capture-orientation/39e53cac-5871-4e83-8875-6f142d2506a6/proof.json`. Browser screenshot calls timed out; the proof records pixel decoding, not a browser screenshot.
+
+Six native images cover adjacent Coalway rectangles at 256-square and 512-square resolutions. Each square covers 100 by 100 world units. A double-width reference covers their union at the same pixel density. The shared edge is exactly world X 562. Native projection residuals were at most 0.000512 pixels.
+
+Three observed mesh bounds supplied landmark controls: `SM_hc_House`, `House_2x2_02`, and `SM_WarriorStatue_LOD0`. Their image positions round-trip to the recorded world coordinates. Patch matching against each reference image preferred zero displacement for all six landmark checks. Every one-pixel alternative had greater error. Direct image inspection confirmed the buildings, statue, paths, and continuous shared boundary.
+
+The 15-column seam strip had median maximum-channel differences of 2 and 1 out of 255, respectively. At 256 and 512 pixels, 93.70% and 92.30% of seam pixels differed by at most 8. The images are not pixel-identical. Production lighting and transient suppression remain separate open work. The 512-square captures provide 5.12 pixels per world unit for the representative outdoor preview; complete-build profile review remains open.
+
+Evidence and replay drivers are in `artifacts/capture-seams/8e5577d8-8a8c-4688-a61f-25c685fd2548/`. `comparison.json` records landmark and seam measurements. `provenance.json` verifies 472 artifacts and archives 20 exercised source files. All four native owners reported clean cleanup. Task 4.3 is complete; this sample does not establish full-world imagery coverage.
 
 ## Exclusive runtime ownership
 
