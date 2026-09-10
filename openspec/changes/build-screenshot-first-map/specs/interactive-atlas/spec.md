@@ -1,40 +1,150 @@
 ## Purpose
 
-Let Afallon players navigate recognizable maps and follow locations, entities, and item sources without losing spatial context.
+Let Afallon players find places, creatures, services, and item sources on maps that look and read like the game's own maps.
 
 ## ADDED Requirements
 
-### Requirement: Comprehensive categories without duplicate markers
+### Requirement: Categories use the game's own vocabulary
 
-The atlas SHALL expose all published Afallon marker categories and their counts. It SHALL provide role-based filters and distinguish fixed points, spawn areas, and uncertain locations. Overlapping roles SHALL not create duplicate physical markers. Dense views SHALL aggregate markers without silently excluding categories.
+Marker categories SHALL use the terms the game shows its players. The source of that vocabulary is the game's interaction and nameplate model: merchant, quest giver, interactive object, crafting station, and enemy entity, with enemy, neutral, and ally alignment. Resources, containers, and travel points SHALL use the words the game uses for them in its own interface.
+
+Extraction vocabulary SHALL NOT appear on the player surface. The interface SHALL NOT show placement roles, source families, source identities, map spaces, authored flags, component names, or coverage counts.
+
+Overlapping categories SHALL NOT create duplicate physical markers. Dense views SHALL aggregate markers without silently excluding categories.
 
 #### Scenario: A vendor also gives quests
-- **WHEN** a reader enables both service and quest filters
-- **THEN** the NPC has one physical marker with both roles
-- **AND** selection exposes both stock and quest information
+- **WHEN** a reader enables both the merchant and quest-giver categories
+- **THEN** that NPC has one physical marker carrying both
+- **AND** selection exposes both its stock and its quests
+
+#### Scenario: A category has no player-facing name
+- **WHEN** extracted content cannot be described in the game's vocabulary
+- **THEN** it does not become a marker category
+- **AND** it remains in the generated artifacts
 
 #### Scenario: A low-zoom view contains many resources
 - **WHEN** individual markers would obscure terrain
 - **THEN** the atlas aggregates them with discoverable counts
 - **AND** zooming or selecting an aggregate reveals its members
 
-### Requirement: Useful details preserve map context
+### Requirement: One registry owns marker presentation
 
-Selection SHALL show the entity name, roles, location, conditions, and relevant relationships. Enemy details SHALL include known loot sources. Vendor details SHALL include stock, currency costs, and requirements. Resource details SHALL include gathering requirements and possible yields. Containers, quest locations, and transitions SHALL show their verified rewards or destinations. Large lists SHALL remain searchable without expanding an unbounded popup over the map.
+Markers SHALL use recognizable glyph icons from the project's icon set, drawn as a glyph on a colored background, consistent with the sibling atlases. One registry SHALL own each marker's icon, color, label, plural label, size, precedence, render order, and default visibility. Consumers SHALL read that registry.
+
+There SHALL NOT be a second registry, a compatibility mapping, or a per-consumer marker switch. Adding a category SHALL require one registry entry, and a test SHALL fail when a registered category has no rendered layer.
+
+One row SHALL resolve to exactly one marker through a single resolution function, so overlapping categories cannot draw two markers for one place. Marker meaning SHALL NOT depend on color alone: each category SHALL be distinguishable by its glyph.
+
+Render order SHALL be semantic, from terrain and areas, through paths and ranges, ordinary markers, important markers, to selection and hover highlights.
+
+#### Scenario: A category is added
+- **WHEN** a new category is registered with its icon and color
+- **THEN** the map, the result list, the filters, and the legend all present it from that entry
+- **AND** no consumer carries its own icon or color mapping
+
+#### Scenario: A registered category has no layer
+- **WHEN** a category exists in the registry but no layer renders it
+- **THEN** the registration test fails
+
+#### Scenario: A reader cannot rely on color
+- **WHEN** two categories are compared without color perception
+- **THEN** their glyphs distinguish them
+- **AND** the result list and details state the category in words
+
+### Requirement: Level ranges are visible and filterable
+
+The atlas SHALL show the level range of a map or region the way the game does, next to its name. It SHALL provide a level filter over creature levels. Level data SHALL come from the extracted native sources: region level ranges, scene dungeon ranges, scene scaling ranges, and producer scaling overrides.
+
+A creature whose level is unknown SHALL remain visible under a filter rather than silently disappear.
+
+#### Scenario: A reader opens a map
+- **WHEN** the map or its region carries a level range
+- **THEN** the interface shows that range with the name
+- **AND** the wording matches the game's own presentation
+
+#### Scenario: A reader narrows the level filter
+- **WHEN** creatures fall outside the selected range
+- **THEN** their markers hide and the counts update
+- **AND** a creature with no known level still appears
+
+### Requirement: One world map holds every place
+
+The atlas SHALL present one navigable world map. Scenes that the game already covers with a shared map texture SHALL occupy one map without manual composition. Maps the game does not position relative to each other, such as caves and dungeons, SHALL be placed on the world map by reviewed manual placement.
+
+Placement SHALL be translation only at a shared world scale. The atlas SHALL NOT rescale or rotate a map to improve the layout. A reviewed placement file SHALL own the offsets, and an authoring mode SHALL allow dragging a map and exporting those offsets for review. A placement override SHALL move a map and its markers together.
+
+#### Scenario: Two scenes share one game map texture
+- **WHEN** both are published
+- **THEN** they occupy the same map with their native registration
+- **AND** no manual offset is required for them
+
+#### Scenario: A reviewer positions a dungeon
+- **WHEN** the reviewer drags that dungeon in the authoring mode
+- **THEN** its imagery and its markers move together at unchanged scale
+- **AND** the mode exports the offsets for the reviewed placement file
+
+#### Scenario: A map has no reviewed placement
+- **WHEN** the world map is built
+- **THEN** the run reports that map as unplaced
+- **AND** it does not guess a position from unrelated scene coordinates
+
+### Requirement: Travel connections are drawn on the world map
+
+Where a travel point has a resolved destination, the atlas SHALL draw the connection on the world map: the travel marker, a line from it to its destination, and a mark at the destination. One toggle SHALL control that group.
+
+Connections SHALL span maps, so a dungeon entrance links to the arrival point inside the dungeon's own map. A travel point whose destination is unresolved SHALL keep its marker without a line, and SHALL NOT be drawn to a guessed position. A destination that is disabled or otherwise inactive SHALL remain visible and visibly distinguished rather than hidden.
+
+The authoring mode SHALL render connections while a reviewer positions maps, because a line whose ends are far apart or crossed reveals a wrong placement.
+
+#### Scenario: A reader inspects an entrance
+- **WHEN** the entrance has a resolved destination
+- **THEN** the map draws the marker, the connection line, and the destination mark
+- **AND** one toggle hides or shows all three
+
+#### Scenario: A destination is unresolved
+- **WHEN** no verified destination position exists
+- **THEN** the travel marker remains without a line
+- **AND** the atlas draws no line to an assumed position
+
+#### Scenario: A reviewer positions a dungeon
+- **WHEN** connections are visible in the authoring mode
+- **THEN** the lines between that dungeon and its entrances stay visible while it moves
+- **AND** the reviewer can use them to judge the placement
+
+### Requirement: Details answer player questions
+
+Selection SHALL show the name, category, level, and location, then the facts a player wants: what a creature drops, what a vendor sells and for how much, what a resource yields and what gathering it requires, what a container holds, and where a travel point leads. Requirements and conditions SHALL stay attached to the entries they gate. Large lists SHALL remain searchable without covering the map.
+
+Detail panels SHALL NOT show unresolved-semantics notices, provenance, hashes, or raw configuration dumps.
 
 #### Scenario: A vendor has several progression stock groups
 - **WHEN** a reader selects that vendor
 - **THEN** the atlas distinguishes unconditional and conditional stock
-- **AND** the reader can search the complete stock list while retaining the selected map location
+- **AND** the reader can search the complete stock list while retaining the selected location
 
-#### Scenario: Loot probability is not verified
-- **WHEN** a reader inspects a known item source with unresolved chance semantics
-- **THEN** the item remains discoverable as a possible source
-- **AND** the interface does not display an invented effective percentage
+#### Scenario: A fact is not established
+- **WHEN** a value such as an effective drop chance is not established for the supported build
+- **THEN** the entry omits that value
+- **AND** the panel does not carry a note explaining the omission
+
+### Requirement: The map conveys scale and hover identity
+
+The atlas SHALL show a scale indicator in world units that updates with zoom, so a reader can judge travel distance. Hovering a marker SHALL show its name and a short description, matching the game's own map, which supports pan, zoom, and hover descriptions.
+
+Hover SHALL NOT replace selection, and it SHALL NOT open a panel that covers the map.
+
+#### Scenario: A reader zooms out
+- **WHEN** the view scale changes
+- **THEN** the scale indicator updates to the new world distance
+
+#### Scenario: A reader hovers a marker
+- **WHEN** the pointer rests on it
+- **THEN** its name and short description appear
+- **AND** the current selection does not change
 
 ### Requirement: Search connects items to places
 
-Search SHALL find places, NPCs, resources, and items by their displayed names. Item results SHALL expose verified source types, including drops, vendors, containers, and resource yields when known. Selecting a source SHALL navigate to its map and placement without losing the item context.
+Search SHALL find places, creatures, NPCs, resources, and items by their displayed names. Item results SHALL expose their known source types, including drops, vendors, containers, and resource yields. Selecting a source SHALL navigate to its place on the map without losing the item context.
 
 #### Scenario: A player searches for a vendor item
 - **WHEN** the item has stock entries on several vendors
@@ -43,31 +153,39 @@ Search SHALL find places, NPCs, resources, and items by their displayed names. I
 
 ### Requirement: Navigation is shareable and reversible
 
-The URL SHALL preserve map space, selected location, basemap choice, and relevant browsing state. Browser back and forward SHALL restore prior selections. Cross-map transitions SHALL preserve their source context and distinguish unresolved destinations. A stale link SHALL explain the missing selection rather than select an unrelated entity.
+The URL SHALL preserve the map, the selected place, the basemap choice, and relevant browsing state. Browser back and forward SHALL restore prior selections. A travel point SHALL navigate to its destination while preserving the source context and a return control. A stale link SHALL explain the missing selection rather than select an unrelated entity.
 
 #### Scenario: A reader follows a dungeon entrance
 - **WHEN** its destination is published
-- **THEN** the atlas opens the destination map and associated entrance context
-- **AND** browser back restores the source map selection
+- **THEN** the atlas opens that destination and keeps the entrance as source context
+- **AND** browser back restores the entrance selection
 
-#### Scenario: A link names a removed placement
-- **WHEN** the current build no longer contains that placement
+#### Scenario: A link names a removed place
+- **WHEN** the current build no longer contains it
 - **THEN** the atlas reports the stale selection and offers navigation to available content
 
 ### Requirement: Accessible responsive browsing
 
-The atlas SHALL support keyboard navigation and narrow screens. Search and a synchronized result list SHALL provide access to marker details without pointer-only map interaction. Selection panels SHALL have predictable focus behavior and a visible close action. Marker meaning SHALL not depend on color alone.
+The atlas SHALL support keyboard navigation and narrow screens. Search and a synchronized result list SHALL provide access to marker details without pointer-only map interaction. Selection panels SHALL have predictable focus behavior and a visible close action. Marker meaning SHALL NOT depend on color alone.
 
 #### Scenario: A keyboard reader selects a search result
 - **WHEN** the reader opens the result details and then closes them
 - **THEN** the details are operable without a pointer
 - **AND** focus returns to a useful originating control
 
-### Requirement: Static publication exposes evidence limits
+### Requirement: Evidence limits live outside the map
 
-The atlas SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. It SHALL display the supported build and coverage status. It SHALL distinguish unknown facts from absent facts and surface meaningful extraction exclusions. Progressive map loading SHALL not require downloading the full-resolution world image before interaction.
+The atlas SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. It SHALL name the supported build and mark an incomplete preview once, in shared wording, without listing counts on the map or in detail panels.
 
-#### Scenario: A reader opens a map with a partial research snapshot
-- **WHEN** a local preview uses incomplete coverage
-- **THEN** the interface visibly identifies that coverage as incomplete
+Coverage figures, diagnostic totals, and exclusion reasons SHALL live in the generated run manifest and coverage report, which own those measurements. The interface MAY link to a data-status surface that reads them. Progressive map loading SHALL NOT require downloading full-resolution imagery before interaction.
+
+#### Scenario: A reader opens a partial research snapshot
+- **WHEN** coverage is incomplete
+- **THEN** the interface marks the preview as incomplete in one place
 - **AND** it does not present the preview as the complete release
+- **AND** no marker, panel, or control repeats coverage counts
+
+#### Scenario: A reader wants the coverage detail
+- **WHEN** the reader opens the data-status surface
+- **THEN** it reports the build, the coverage figures, and the exclusions from the generated artifacts
+- **AND** those values are not restated anywhere else in the interface

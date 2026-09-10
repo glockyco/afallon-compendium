@@ -27,7 +27,7 @@
 - [x] 3.6 Complete NPC-producer acceptance using the existing projection. Verify one area producer and one fixed placement in the game, including candidates, shapes, count limits, overrides, conditions, and separation from observations. Retain unverified selection semantics.
 - [x] 3.7 Extract resource producers and their possible outputs independently of CurrentNode. Verify Herbalism, Mining, and Fishing coverage includes producers without a live node.
 - [x] 3.8 Complete source-family resolution and placement-role merging using existing interaction, container, quest, service, and transition exports. Verify overlapping components produce one placement with multiple roles. Unhandled relevant families remain explicit coverage blockers.
-- [ ] 3.9 Resolve source scenes, rendered map spaces, regions, and overlapping floors. Verify known landmarks and explain the observed Duskfall camera/MapZone extent mismatch.
+- [ ] 3.9 Resolve source scenes, rendered maps, and regions with horizontal membership only. Verify known landmarks, verify that stacked placements keep distinct identities and their own heights on one plane, and explain the observed Duskfall camera/MapZone extent mismatch.
 
 ## 4. Reusable screenshot capture
 
@@ -35,7 +35,7 @@
 - [x] 4.2 Implement multi-frame tile-local preload, geometry holds, and stable readiness inventories under exclusive ownership. Verify initially unloaded geometry, distinguish loaded-or-loading from readiness and timeout from empty terrain, and confirm hold cleanup after cancellation or disconnection.
 - [x] 4.3 Implement orthographic capture with explicit extent, orientation, and resolution. Verify adjacent outdoor tiles at two resolutions against landmarks and their shared seam.
 - [x] 4.4 Implement controlled illumination and transient suppression without removing useful static landmarks. Verify the same area remains legible from different gameplay lighting states and no player effects remain.
-- [ ] 4.5 Implement explicit interior floor slices and reviewed ceiling suppression where necessary. Verify a complete dungeon route and stacked geometry without deleting floor content or leaking hidden state.
+- [ ] 4.5 Implement conditional camera clipping for extents whose content is covered by overhead geometry. Verify an outdoor extent captures with no clip height, a ceilinged dungeon captures its full route on one plane, and a scene whose vertical range cannot be served reports an explicit gap. No scene object may be disabled, deleted, or left modified.
 - [ ] 4.6 Preserve illustrated assets as a separate optional layer with per-layer calibration. Verify switching at known landmarks; label distorted artwork as orientation-only instead of claiming precise marker registration. Verify existing images never satisfy primary capture coverage or replace missing screenshot tiles.
 - [x] 4.7 Implement resumable capture manifests and hashed image output. Verify changed build/profile inputs invalidate reuse and interrupted capture leaves the prior valid set intact.
 
@@ -50,19 +50,35 @@
 
 - [x] 6.1 Build the static SvelteKit map with deck.gl OrthographicView, TileLayer/BitmapLayer imagery, and separate placement/area layers. Verify lazy tiles, shared transforms, orientation, picking, and Deck cleanup in the browser without game access.
 - [x] 6.2 Add Afallon-specific filters, counts, spatial aggregation, and a synchronized result list. Verify dense views with the largest available real snapshot and overlapping roles without lost or duplicate markers. Repeat at full-build scale in 7.3.
-- [ ] 6.3 Add concise previews and persistent desktop/mobile details for all supported categories. Verify searchable vendor stock, loot, gathering conditions, quest links, and transition destinations in the browser.
+- [ ] 6.3 Add concise previews and persistent desktop/mobile details for all supported categories. Verify searchable vendor stock, loot, gathering conditions, quest links, and travel destinations in the browser. Verify no panel shows coordinates, provenance, configuration dumps, or unresolved-semantics notices.
 - [x] 6.4 Add place/entity/item search and source-to-map navigation. Verify an item can lead to multiple vendor, drop, resource, or container sources while preserving item context.
-- [x] 6.5 Verify the representative end-to-end pipeline before bulk collection: one outdoor area and one interior through extraction, repeat-load identities, capture, normalization, and browser picking/details. Include adjacent tile seams, a floor slice, a producer without a live node, and item-to-source navigation using generated static contracts. Label the preview incomplete.
-- [ ] 6.6 Add URL-backed view, layer, selection, query, and filter state. Verify reload, browser back/forward, cross-map transitions, and stale links in the browser.
+- [ ] 6.5 Verify the representative end-to-end pipeline before bulk collection: one outdoor area and one interior through extraction, repeat-load identities, capture, normalization, and browser picking/details. Include adjacent chunk seams, a clipped interior on one plane, a producer without a live node, and item-to-source navigation using generated static contracts. Label the preview incomplete. The earlier pass satisfied the retired floor model and must be repeated on the single-plane model and the current build.
+- [ ] 6.6 Add URL-backed view, selection, query, and filter state, with a layer parameter only where a map offers a choice. Verify reload, browser back/forward, travel navigation with its return control, and stale links in the browser. No map or floor parameter may remain.
 - [x] 6.7 Add keyboard operation, focus restoration, narrow-screen panels, and non-color marker distinctions. Verify the complete search-to-detail journey without a pointer.
 - [x] 6.8 Add build identity and coverage disclosure to the interface. Verify a partial research artifact cannot appear as a complete release.
+
+## 6a. Single-plane and guide reset
+
+The floor model, the analyst vocabulary, and the map/floor/layer selectors are retired. Remove them completely before further collection: no shims, aliases, deprecated paths, or compatibility fields.
+
+- [ ] 6a.1 Re-baseline on the current build. Regenerate recovered type declarations, run extraction, and record the new build identity. Verify the artifacts of the retired build remain untouched as frozen reference and cannot mix with new runs.
+- [ ] 6a.2 Remove floor membership end to end: reviewed profile floor domains, floor resolution in spatial extraction and normalization, floor columns and scoping in the database and publication, and floor identity in published contracts. Verify stacked placements keep distinct identities and their own heights, and that no artifact retains a floor field.
+- [ ] 6a.3 Remove the reviewed ceiling machinery: capture-plan ceiling reviews, selector resolution, evidence hashing, protected floor selectors, and per-floor vertical intervals. Replace them with the conditional clip height from 4.5. Verify no capture input or artifact retains a ceiling review.
+- [ ] 6a.4 Remove per-floor pyramids and the map, floor, and layer selectors from the client, along with URL floor and map state. Verify one world map remains navigable and no stale layer state survives a reload.
+- [ ] 6a.5 Replace the player-facing vocabulary with the game's own categories from its interaction and nameplate model, and add level-range display and filtering from the extracted native sources. Verify no placement role, source family, map space, or authored term reaches the interface.
+- [ ] 6a.6 Move coverage figures and unresolved-semantics disclosure out of the interface into the run manifest and coverage report, keeping one shared incomplete-preview mark and an optional data-status surface. Verify no marker, panel, or control repeats a coverage count.
+- [ ] 6a.7 Implement the single marker registry with glyph icons, colors, labels, precedence, render order, and default visibility, plus one resolution function and an icon atlas. Verify a registered category without a layer fails its test and one row never draws two markers.
+- [ ] 6a.8 Build the world map layout: shared-texture scenes from native registration, other maps by reviewed translation-only offsets, a deterministic non-overlapping initial arrangement, an authoring mode that drags a map with its markers, and offset export. Verify an unplaced map is reported and no native scene coordinate seeds a position.
+- [ ] 6a.9 Draw travel connections on the world map as one toggled group: the travel marker, a line to its destination, and a destination mark, including across maps and with disabled entries distinguished rather than hidden. Verify an unresolved destination draws no line, and that connections render in the authoring mode while a map moves.
+- [ ] 6a.10 Add the Adventure Guide surfaces for dungeons, bosses, regions, and properties from the extracted native guide metadata. Verify a scene the game excludes from its guide does not appear, and that boss abilities, stats, and loot present the game's groups.
+- [ ] 6a.11 Establish the drop chance the game displays. Import the current binary, resolve the roll helpers and constants, and observe the guide's displayed value for a known boss against its recorded raw rates. Publish a chance only with that measurement and a test asserting it; otherwise publish quantities alone with no disclaimer.
 
 ## 7. Complete supported-build delivery
 
 Full-world collection starts only after the representative end-to-end milestone in 6.5 passes. That milestone does not reduce the release coverage requirement.
 
 - [ ] 7.1 Run extraction across the complete supported-build inventory. Verify no reachable source or relevant content family remains unresolved in the coverage ledger.
-- [ ] 7.2 Capture all required outdoor areas and interiors, then generate their tile pyramids. Verify every expected tile has a valid result and every published placement has validated spatial coverage.
+- [ ] 7.2 Capture all required outdoor areas and interiors, then generate their tile pyramids and world placements. Verify every expected chunk has a valid result, every published marker samples present non-blank finest-level imagery, and every published map has a reviewed placement.
 - [ ] 7.3 Build the complete static artifact set and exercise representative map, loot, stock, gathering, quest, and transition journeys. Verify browser behavior, full-build filtering and aggregation performance, and actual download/file-size measurements.
 - [ ] 7.4 Repeat extraction and resume a capture with unchanged inputs. Verify stable placement identities, compatible tile reuse, and no duplicate relationships.
 - [ ] 7.5 Document the real operator commands, supported build, coverage results, and measured limitations. Verify the documented commands reproduce the artifact set from a fresh local run.

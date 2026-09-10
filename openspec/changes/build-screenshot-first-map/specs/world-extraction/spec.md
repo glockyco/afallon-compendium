@@ -84,9 +84,11 @@ Geometry observations SHALL retain query scope and world Y coordinates. Navigati
 - **THEN** the snapshot retains that geometry and its observation scope
 - **AND** its combined bounds do not become validated screenshot bounds or floor assignments
 
-### Requirement: Reviewed map-space and floor membership
+### Requirement: Reviewed map membership
 
-The extractor SHALL retain reviewed map-space profiles separately from native MapZone registrations and capture bounds. Profiles SHALL bind exact source-scene IDs and paths to coordinate frames, membership domains, and optional floor domains. The extractor SHALL verify referenced review evidence hashes and JSON pointers. Missing profiles, unmatched domains, ambiguous floors, and contradictory scene bindings SHALL remain explicit.
+The extractor SHALL retain reviewed map profiles separately from native MapZone registrations and capture bounds. Profiles SHALL bind exact source-scene IDs and paths to horizontal coordinate frames and membership domains. The extractor SHALL verify referenced review evidence hashes and JSON pointers. Missing profiles, unmatched domains, and contradictory scene bindings SHALL remain explicit.
+
+Membership SHALL be horizontal. A profile SHALL NOT define floor domains, and a placement SHALL NOT carry a floor identity. Each placement SHALL retain its world height as an ordinary field, which the atlas presents as a fact rather than using to select imagery.
 
 #### Scenario: Several source scenes share one rendered map
 - **WHEN** reviewed bindings place several source scenes in one map space
@@ -98,11 +100,11 @@ The extractor SHALL retain reviewed map-space profiles separately from native Ma
 - **THEN** the matching domain selects the map-space candidate
 - **AND** a position outside every domain remains unresolved without clamping
 
-#### Scenario: Floors overlap in horizontal coordinates
-- **WHEN** placements share XZ coordinates but match different reviewed floor domains through Y
-- **THEN** their map projections retain distinct floor identities
-- **AND** a point that matches several floors remains ambiguous
-- **AND** domain minima are inclusive and domain maxima are exclusive
+#### Scenario: Stacked placements share horizontal coordinates
+- **WHEN** placements share XZ coordinates at different heights
+- **THEN** they project to the same map position and retain distinct identities
+- **AND** each retains its own world height
+- **AND** neither is merged, discarded, or displaced
 
 #### Scenario: Region geometry is unsupported
 - **WHEN** an authored region has unsupported or contradictory collider geometry
@@ -169,7 +171,11 @@ The snapshot SHALL cover enemies, bosses, friendly NPC services, resources, cont
 
 ### Requirement: Linked facts retain conditions and provenance
 
-The snapshot SHALL resolve NPC loot, vendor stock and currency costs, resource yields, quest associations, and transition destinations. Relationships SHALL retain source identity, requirements, quantity ranges, and rule structure. Unverified probability semantics SHALL NOT become player-facing percentages. Dynamic loot rules SHALL remain explicit until their outputs can be resolved correctly.
+The snapshot SHALL resolve NPC loot, vendor stock and currency costs, resource yields, quest associations, and transition destinations. Relationships SHALL retain source identity, requirements, quantity ranges, and rule structure. Dynamic loot rules SHALL remain explicit until their outputs can be resolved correctly.
+
+The snapshot SHALL record the loot roll order and gates that native analysis establishes: a table-level requirements gate, then per item an item-level band around its level requirement, then a quest-item gate, then the entry roll; a table drop limit that stops the first pass; a separate minimum-drop selection pass; and a loot-specialisation source that redirects to a linked NPC only when that NPC carries a specialisation.
+
+A published effective chance SHALL rest on a measurement, not on an assumed composition of authored rates. The roll threshold depends on native helpers and constants that raw rates alone do not determine. Where no measurement exists, the snapshot SHALL retain the authored rates and the rule structure without deriving a percentage.
 
 #### Scenario: Vendor stock depends on progression
 - **WHEN** a vendor references several stock tables with different requirements
@@ -179,7 +185,12 @@ The snapshot SHALL resolve NPC loot, vendor stock and currency costs, resource y
 #### Scenario: Loot uses nested rules
 - **WHEN** an NPC references a loot table with its own rate and selection controls
 - **THEN** the snapshot preserves both relationship levels and controls
-- **AND** a publication step rejects any unsupported claim of an effective drop percentage
+- **AND** it records the gates and roll order that native analysis establishes
+
+#### Scenario: An effective chance has no measurement
+- **WHEN** the displayed chance for the supported build is unmeasured
+- **THEN** the snapshot retains the authored rates and rule structure
+- **AND** publication rejects any derived percentage
 
 ### Requirement: Integrity gates protect publication
 

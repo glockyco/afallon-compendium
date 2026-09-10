@@ -19,7 +19,8 @@ Players need a comprehensive Afallon map that shows recognizable in-game terrain
 
 - `world-extraction`: Reproducible build-scoped snapshots, spatial identities, relationship extraction, and explicit coverage accounting.
 - `screenshot-basemaps`: Restorable in-game capture, map-space calibration, image tiles, and optional illustrated layers.
-- `interactive-atlas`: Static map navigation, Afallon-specific categories, linked entity details, search, and coverage disclosure.
+- `interactive-atlas`: One static world map, game-vocabulary categories, level filtering, linked details, search, and one-place coverage disclosure.
+- `adventure-guide`: Dungeon, boss, region, and property pages mirroring the game's own Adventure Guide.
 
 ### Modified Capabilities
 
