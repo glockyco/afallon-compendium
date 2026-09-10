@@ -45,6 +45,8 @@ The existing commands are `doctor`, `inspect`, `probe`, `extract`, `traverse`, `
 
 Normal extraction includes canonical records, relationships, loot rules, world inventory, NPC producers, world sources, faction rules, and placement snapshots. It validates schemas, counts, and references, then resolves serialized identities and merges placement roles. Each observation records scene and character context. Sequential runtime calls are not one simultaneous observation. Traversal publishes these role and identity artifacts for each visited scene. Successful loaded-scene extraction does not establish full-world coverage.
 
+Two instrumented games cannot share one HotRepl port, and the connection reaches whichever bound first. `HOTREPL_PORT` gives each game its own port, and Afallon uses 18601. Doctor compares the connected product against the expected one, so a wrong game fails the command instead of producing a snapshot from another title.
+
 The host owns connection lifecycle, request IDs, deadlines, scene readiness, cancellation, and run directories. One operation owns runtime access at a time. Competing operations wait or receive a busy result. They must not displace the owner. Cancellation or disconnection must clean up owned work before the next operation uses that state. Unconfirmed cleanup blocks further state-changing work and successful completion.
 
 Repository-owned C# snippets perform small bounded runtime operations. Large records and image data use local artifact files with hashes and counts rather than oversized REPL result frames. CrossOver path translation is explicit and uses normalized paths.

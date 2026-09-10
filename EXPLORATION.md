@@ -832,3 +832,26 @@ The VM connection has an intermittent setup delay. A raw handshake took 8.5 seco
 ## Existing-project defect recorded during comparison
 
 `ancient-kingdoms-mods/mods/MapScreenshotter/MapScreenshotter.cs:173-205` disables the player and changes global lighting before checking ZoneInfo. Its null-data error branches exit without local restoration. The capture also uses hardcoded bounds at lines 239–242. These are reasons not to copy that setup into Afallon. No Ancient Kingdoms files were changed.
+
+## Single-plane reset on build 25153357
+
+Steam replaced Afallon during development. `GameAssembly.dll` and `global-metadata.dat` changed, and the build moved from 25144591 to 25153357. Recovered declarations differ in six places, all in combat and corruption types: requirement effect consumption with an added `RequirementsMet` overload, an item-tooltip parameter, a character-updater method, a new combat-settings field that shifts later offsets in that type, and a new `CorruptionGearBonus` type. No map, guide, loot, scene, producer, region, or category type changed. `research/recovered-types.25144591/` retains the previous declarations.
+
+Two instrumented games cannot share one port. HotRepl reads `HOTREPL_PORT`, so Afallon now runs on 18601 and leaves 18591 to the other project. Doctor rejected the wrong game before that change, and it reports build 25153357 with `GameAssembly.dll` hash `d463bf8f6f102bfe695aeb6fd24eb644898f3b4f24de5c523402f9abb3282363`.
+
+The game shows one flat map for each `MapMinimap.MapZone`, with three `MapIconType` tiers, quest icons, and fog. It ships one texture, `Duskfall depths full map`, for the multi-level dungeon, and its Abandoned quarry map is a top-down terrain render. Player-facing categories exist as native enums: `CursorType` and `NameplateUnitType`. Level ranges come from `RegionTemplate`, `RPGGameScene`, `NPCSpawner`, and `QuestLevelRange`, and `MinimapDisplay` renders them beside a name. The in-game Adventure Guide organizes dungeons, bosses with abilities, stats and loot, regions, and properties.
+
+Interior floors and reviewed ceiling suppression are removed. Maps are one horizontal plane, placements retain world height as an ordinary field, and stacked content projects onto the same plane. Schemas moved to map-space profile v2, spatial snapshot v2, capture plan v4, capture set v2, capture restoration v4, tile compatibility v2, illustration plan v2, tile plan v2, tile pyramid v2, normalized output v2, and publication v2. Renderer names cannot identify ceilings: one cave scene has `Massive_Cave_Ceiling_*` renderers while the reviewed dungeon scene has no renderer whose name matches ceiling or roof.
+
+Extraction `bb1a1a93-38b2-495f-98ac-ffc89bd831cd` on the new build resolved all 2,183 placements with the floorless profile and reported zero unresolved typed references. Its native Coalway registration is identical to the retired build: origin `(751, 13, -2984)`, axes 3736.1997 and 4059.1943, residual 0. Normalization `0994fc76-8b61-45ae-93a7-2a5f6b1f74d2` produced 2,611 placements, 1,959 entities, and 2,752 blockers with no floor blocker and no missing reference. Capture `47ad5ca5-a5c5-4f0f-9eca-9d459ab40097` rendered a 1024-pixel Coalway tile from 96 required sources with verified readiness and needed no clip plane, which is the ordinary outdoor case.
+
+Reproduce this baseline with:
+
+```sh
+nix develop --command bun run compendium doctor --config local/spatial-smoke-config.json
+nix develop --command bun run compendium extract --config local/spatial-smoke-config.json
+nix develop --command bun run compendium normalize --plan local/normalize-baseline.json --output artifacts
+nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan local/capture-coalway-baseline.json
+```
+
+Coverage remains incomplete. The world-map layout, game-vocabulary categories, level filtering, the marker registry, travel connections, the guide surfaces, and the displayed drop chance are open.
