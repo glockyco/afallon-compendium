@@ -30,7 +30,7 @@ import type { Runtime } from "./runtime";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
-import { withCaptureGeometry } from "./capture-readiness";
+import { clippingEvidence, effectiveCaptureFrame, withCaptureGeometry } from "./capture-readiness";
 import {
   captureArtifactReference,
   copyReusableTile,
@@ -76,6 +76,9 @@ function closeEnough(left: number, right: number): boolean {
 function validatePlan(plan: CapturePlan): void {
   assertSchema(CapturePlanSchema, plan, "Capture plan");
   assertFiniteScalars(plan, "Capture plan");
+  if (plan.clipHeight !== undefined && !Number.isFinite(plan.clipHeight)) {
+    throw new Error("Capture plan clipHeight must be finite when provided.");
+  }
 
   const tileIds = new Set<string>();
   for (const tile of plan.tiles) {
@@ -230,7 +233,7 @@ async function hashPng(path: string, expectedWidth: number, expectedHeight: numb
   return { sha256: createHash("sha256").update(bytes).digest("hex"), byteSize: bytes.byteLength };
 }
 
-function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>): CaptureRaster {
+function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>, clipping: CaptureReadiness["clipping"]): CaptureRaster {
   const { center, worldSize, nearClip, farClip } = capture.cameraFrame;
   const origin = { x: center.x - worldSize.x / 2, z: center.z + worldSize.z / 2 };
   const xAxis = { x: worldSize.x / capture.width, z: 0 };
@@ -252,7 +255,9 @@ function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>): Ca
     maximumProjectionErrorPixels = Math.max(maximumProjectionErrorPixels, error);
   }
   const raster: CaptureRaster = {
-    schemaVersion: "compendium.capture-raster.v2", tileId: capture.tileId, imageSha256: capture.sha256,
+    schemaVersion: "compendium.capture-raster.v3", tileId: capture.tileId, imageSha256: capture.sha256,
+    cameraFrame: capture.cameraFrame,
+    clipping,
     verticalBounds: { minY: capture.cameraFrame.cameraY - farClip, maxY: capture.cameraFrame.cameraY - nearClip },
     width: capture.width, height: capture.height, coordinateSystem: "source-scene-world-xz", pixelConvention: "top-left-edges",
     worldFromPixelEdge: { origin, xAxis, yAxis }, maximumProjectionErrorPixels,
@@ -284,9 +289,13 @@ async function loadReusedTileResult(run: Run, tile: CapturePlan["tiles"][number]
   assertSchema(CaptureReadinessSchema, readiness, `Reused readiness for tile "${tile.id}"`);
   const capture = session.lastCapture;
   if (capture.tileId !== tile.id || capture.width !== plan.width || capture.height !== plan.height || capture.path.length === 0 || capture.frame !== capture.restoredFrame) throw new Error(`Reused tile "${tile.id}" has mismatched capture metadata.`);
-  assertFrameMatches(capture, tile.frame, tile.id);
+  const expectedClipping = clippingEvidence(plan);
+  if (!isDeepStrictEqual(readiness.clipping, expectedClipping)) throw new Error(`Reused tile "${tile.id}" has incompatible reviewed clip evidence.`);
+  const expectedFrame = effectiveCaptureFrame(tile, plan);
+  assertFrameMatches(capture, expectedFrame, tile.id);
+  if (!isDeepStrictEqual(capture.cameraFrame, readiness.captureFrame)) throw new Error(`Reused tile "${tile.id}" capture frame disagrees with readiness evidence.`);
   const raster = await readCaptureArtifactJson(run.directory, copied.artifacts.raster);
-  if (!isDeepStrictEqual(raster, registerRaster(capture))) throw new Error("Reused raster disagrees with its native camera controls.");
+  if (!isDeepStrictEqual(raster, registerRaster(capture, readiness.clipping))) throw new Error("Reused raster disagrees with its native camera controls or clipping evidence.");
   assertRestorationAudit(await readCaptureArtifactJson(run.directory, copied.artifacts.restoration), tile, copied.origin.captureKey, capture.frame, plan.lighting);
   const imagePath = resolve(run.directory, copied.artifacts.image.path);
   const image = await hashPng(imagePath, plan.width, plan.height, tile.id);
@@ -366,6 +375,7 @@ export async function capture(
       sceneNativeId: plan.sceneNativeId,
       scenePath: plan.scenePath,
       mapSpaceId: plan.mapSpaceId,
+      clipHeight: plan.clipHeight ?? null,
       width: plan.width,
       height: plan.height,
       readiness: plan.readiness,
@@ -418,6 +428,7 @@ export async function capture(
     const checkpoints = new Map<string, CaptureTileCheckpoint>();
     const reused = new Set<string>();
     const tiles: CaptureTileResult[] = [];
+    let captureInterval: { cameraY: number; nearClip: number; farClip: number } | undefined;
     for (const tile of plan.tiles) {
       const candidate = reusable.get(tile.id);
       if (candidate === undefined) continue;
@@ -426,6 +437,11 @@ export async function capture(
       await writeTileCheckpoint(run, copied.checkpoint);
       checkpoints.set(tile.id, copied.checkpoint);
       reused.add(tile.id);
+      const reusedFrame = result.cameraFrame;
+      if (captureInterval === undefined) captureInterval = { cameraY: reusedFrame.cameraY, nearClip: reusedFrame.nearClip, farClip: reusedFrame.farClip };
+      else if (!closeEnough(captureInterval.cameraY, reusedFrame.cameraY) || !closeEnough(captureInterval.nearClip, reusedFrame.nearClip) || !closeEnough(captureInterval.farClip, reusedFrame.farClip)) {
+        throw new Error(`Reused tile "${tile.id}" uses another vertical clipping interval.`);
+      }
       tiles.push(result);
     }
     if (reused.size === plan.tiles.length) {
@@ -512,13 +528,21 @@ export async function capture(
       let rasterArtifact: ArtifactRecord | undefined;
       const prepared = await withCaptureGeometry(runtime, config, run, plan, tile, async readiness => {
         if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
+        const expectedClipping = clippingEvidence(plan);
+        if (!isDeepStrictEqual(readiness.clipping, expectedClipping)) throw new Error(`Capture tile "${tile.id}" readiness disagrees with its reviewed clip setting.`);
+        const expectedFrame = effectiveCaptureFrame(tile, plan);
+        if (!isDeepStrictEqual(expectedFrame, readiness.captureFrame)) throw new Error(`Capture tile "${tile.id}" readiness frame disagrees with its reviewed clip setting.`);
+        if (captureInterval === undefined) captureInterval = { cameraY: expectedFrame.cameraY, nearClip: expectedFrame.nearClip, farClip: expectedFrame.farClip };
+        else if (!closeEnough(captureInterval.cameraY, expectedFrame.cameraY) || !closeEnough(captureInterval.nearClip, expectedFrame.nearClip) || !closeEnough(captureInterval.farClip, expectedFrame.farClip)) {
+          throw new Error(`Tile "${tile.id}" cannot share one vertical clipping interval with the capture plan.`);
+        }
         const reply = await runtime.probe(probePath, responsePath, {
           preludeFile,
           parameters: {
             action: "render",
             key: session.key,
             tileId: tile.id,
-            frame: tile.frame,
+            frame: readiness.captureFrame,
             lighting: plan.lighting,
             cullingMask: plan.cullingMask,
             outputPath: pngRuntimePath,
@@ -534,8 +558,9 @@ export async function capture(
           throw new Error(`Capture response for tile "${tile.id}" has mismatched output metadata.`);
         }
         if (capture.frame < readiness.observedFrames.at(-1)!) throw new Error("Capture preceded its geometry readiness evidence.");
-        assertFrameMatches(capture, tile.frame, tile.id);
-        const raster = registerRaster(capture);
+        assertFrameMatches(capture, readiness.captureFrame, tile.id);
+        if (!isDeepStrictEqual(capture.cameraFrame, readiness.captureFrame)) throw new Error(`Capture response for tile "${tile.id}" disagrees with readiness clipping evidence.`);
+        const raster = registerRaster(capture, readiness.clipping);
         const png = await hashPng(pngPath, plan.width, plan.height, tile.id);
         if (png.sha256 !== capture.sha256 || png.byteSize !== capture.byteSize) throw new Error(`Capture response for tile "${tile.id}" does not match its PNG artifact.`);
         const restorationBytes = await readFile(restorationPath);

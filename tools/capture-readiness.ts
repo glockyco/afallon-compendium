@@ -7,6 +7,7 @@ import {
   CaptureGeometrySchema,
   CapturePlanSchema,
   CaptureReadinessSchema,
+  type CaptureClippingEvidence,
   type CaptureGeometry,
   type CapturePlan,
   type CaptureReadiness,
@@ -87,23 +88,34 @@ function assertClose(actual: number, expected: number, label: string): void {
   if (!closeEnough(actual, expected)) throw new Error(`${label} is ${actual}, expected ${expected}.`);
 }
 
+type CaptureFrame = CapturePlan["tiles"][number]["frame"];
+
+export function clippingEvidence(plan: CapturePlan): CaptureClippingEvidence {
+  const clipHeight = plan.clipHeight === undefined ? null : plan.clipHeight;
+  return { source: clipHeight === null ? "none" : "plan", applied: clipHeight !== null, clipHeight };
+}
+
+export function effectiveCaptureFrame(tile: CaptureTile, plan: CapturePlan): CaptureFrame {
+  return plan.clipHeight === undefined ? tile.frame : { ...tile.frame, cameraY: plan.clipHeight };
+}
+
 function geometryDirectory(tile: CaptureTile, run: Run): { relative: string; absolute: string } {
   const relative = `tiles/${tile.id}.geometry`;
   return { relative, absolute: resolve(run.directory, relative) };
 }
 
-function expectedFrustum(tile: CaptureTile, boundaryOverlap: number): CaptureGeometry["frustum"] {
-  const depth = tile.frame.farClip - tile.frame.nearClip;
+function expectedFrustum(frame: CaptureFrame, boundaryOverlap: number): CaptureGeometry["frustum"] {
+  const depth = frame.farClip - frame.nearClip;
   return {
     center: {
-      x: tile.frame.center.x,
-      y: tile.frame.cameraY - (tile.frame.nearClip + tile.frame.farClip) / 2,
-      z: tile.frame.center.z,
+      x: frame.center.x,
+      y: frame.cameraY - (frame.nearClip + frame.farClip) / 2,
+      z: frame.center.z,
     },
     size: {
-      x: tile.frame.worldSize.x + 2 * boundaryOverlap,
+      x: frame.worldSize.x + 2 * boundaryOverlap,
       y: depth,
-      z: tile.frame.worldSize.z + 2 * boundaryOverlap,
+      z: frame.worldSize.z + 2 * boundaryOverlap,
     },
   };
 }
@@ -117,7 +129,7 @@ function expectedPreloadEnvelope(frustum: CaptureGeometry["frustum"]): CaptureGe
 }
 
 function assertGeometryShape(geometry: CaptureGeometry, tile: CaptureTile, plan: CapturePlan): void {
-  const expected = expectedFrustum(tile, plan.readiness.boundaryOverlap);
+  const expected = expectedFrustum(effectiveCaptureFrame(tile, plan), plan.readiness.boundaryOverlap);
   assertClose(geometry.frustum.center.x, expected.center.x, "Geometry frustum center.x");
   assertClose(geometry.frustum.center.y, expected.center.y, "Geometry frustum center.y");
   assertClose(geometry.frustum.center.z, expected.center.z, "Geometry frustum center.z");
@@ -445,7 +457,7 @@ export async function withCaptureGeometry<T>(
             researchCharacter: config.character,
             sceneNativeId: plan.sceneNativeId,
             scenePath: plan.scenePath,
-            frame: tile.frame,
+            frame: effectiveCaptureFrame(tile, plan),
             boundaryOverlap: plan.readiness.boundaryOverlap,
             cullingMask: plan.cullingMask,
             trackedRendererIds: [...trackedRendererIds],
@@ -592,34 +604,10 @@ export async function withCaptureGeometry<T>(
       if (!finalSourceReady) throw new Error(`Capture geometry for tile "${tile.id}" has an unready required source.`);
       if (streamKey !== undefined && streamRows === undefined) throw new Error("Capture readiness completed without a stream response.");
 
-      const empty = latestGeometry.meshes.length === 0 && latestGeometry.terrains.length === 0 && latestGeometry.otherRenderers.length === 0;
-      const readiness: CaptureReadiness = {
-        schemaVersion: "compendium.capture-readiness.v1",
-        tileId: tile.id,
-        ownerToken: runtime.ownerToken,
-        sceneNativeId: plan.sceneNativeId,
-        sceneHandle: sceneHandle!,
-        inventoryPath: latestInventoryRelative,
-        inventorySha256: latestInventorySha256,
-        observedFrames: observedFrames.slice(-plan.readiness.stableFrames),
-        stableFrames: plan.readiness.stableFrames,
-        requiredSources: baselineMembership.required.length,
-        excludedSources: baselineMembership.excluded.length,
-        empty,
-        streamKey: streamKey ?? null,
-      };
-      assertSchema(CaptureReadinessSchema, readiness, "Capture readiness evidence");
-      const readinessRelative = `${geometry.relative}/readiness.json`;
-      const readinessPath = resolve(run.directory, readinessRelative);
-      await Bun.write(readinessPath, `${JSON.stringify(readiness, null, 2)}\n`);
-      await run.addArtifact(readinessRelative);
-      checkDeadline();
-
-      const value = await capture(readiness);
-      checkDeadline();
-
-      if (streamKey !== undefined) {
+      const restoreStream = async (): Promise<void> => {
+        if (streamKey === undefined) return;
         while (true) {
+          checkDeadline();
           streamRestoreIndex += 1;
           const restoreRelative = `${geometry.relative}/stream-restore-${String(streamRestoreIndex).padStart(4, "0")}.json`;
           const restored = await registerStream(restoreRelative, resolve(run.directory, restoreRelative), "restore", streamKey);
@@ -646,6 +634,41 @@ export async function withCaptureGeometry<T>(
         if ((cleanupValue as StreamCleanup).ownerToken !== runtime.ownerToken) throw new Error("Stream cleanup receipt belongs to another runtime owner.");
         assertCleanupReceipt(cleanupValue as StreamCleanup, streamKey, sceneHandle!, streamRows!);
         await run.addArtifact(cleanupRelative);
+      };
+
+      const clipping = clippingEvidence(plan);
+      const captureFrame = effectiveCaptureFrame(tile, plan);
+      const empty = latestGeometry.meshes.length === 0 && latestGeometry.terrains.length === 0 && latestGeometry.otherRenderers.length === 0;
+      const readiness: CaptureReadiness = {
+        schemaVersion: "compendium.capture-readiness.v2",
+        tileId: tile.id,
+        ownerToken: runtime.ownerToken,
+        sceneNativeId: plan.sceneNativeId,
+        sceneHandle: sceneHandle!,
+        inventoryPath: latestInventoryRelative,
+        inventorySha256: latestInventorySha256,
+        observedFrames: observedFrames.slice(-plan.readiness.stableFrames),
+        stableFrames: plan.readiness.stableFrames,
+        requiredSources: baselineMembership.required.length,
+        excludedSources: baselineMembership.excluded.length,
+        empty,
+        captureFrame,
+        clipping,
+        streamKey: streamKey ?? null,
+      };
+      assertSchema(CaptureReadinessSchema, readiness, "Capture readiness evidence");
+      const readinessRelative = `${geometry.relative}/readiness.json`;
+      const readinessPath = resolve(run.directory, readinessRelative);
+      await Bun.write(readinessPath, `${JSON.stringify(readiness, null, 2)}\n`);
+      await run.addArtifact(readinessRelative);
+      checkDeadline();
+
+      let value!: T;
+      try {
+        value = await capture(readiness);
+        checkDeadline();
+      } finally {
+        await restoreStream();
       }
 
       runtime.signal.throwIfAborted();

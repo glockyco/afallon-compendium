@@ -138,7 +138,7 @@ function assertCapturePlan(value: unknown): CapturePlan {
   try {
     Assert(CapturePlanSchema, value);
   } catch (error) {
-    fail(`capture plan does not satisfy compendium.capture-plan.v4: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`capture plan does not satisfy compendium.capture-plan.v5: ${error instanceof Error ? error.message : String(error)}`);
   }
   return value as CapturePlan;
 }
@@ -156,7 +156,7 @@ function assertRaster(value: unknown): CaptureRaster {
   try {
     Assert(CaptureRasterSchema, value);
   } catch (error) {
-    fail(`raster does not satisfy compendium.capture-raster.v2: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`raster does not satisfy compendium.capture-raster.v3: ${error instanceof Error ? error.message : String(error)}`);
   }
   return value as CaptureRaster;
 }
@@ -165,7 +165,7 @@ function assertReadiness(value: unknown): CaptureReadiness {
   try {
     Assert(CaptureReadinessSchema, value);
   } catch (error) {
-    fail(`readiness does not satisfy compendium.capture-readiness.v1: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`readiness does not satisfy compendium.capture-readiness.v2: ${error instanceof Error ? error.message : String(error)}`);
   }
   return value as CaptureReadiness;
 }
@@ -196,16 +196,42 @@ function validateDomain(binding: MapSpaceProfile["bindings"][number], raster: Ca
 function validateRasterAgainstFrame(raster: CaptureRaster, capturePlan: CapturePlan): void {
   if (!(raster.verticalBounds.minY < raster.verticalBounds.maxY)) fail(`raster ${raster.tileId} has an invalid vertical clipping interval`);
   if (raster.maximumProjectionErrorPixels > 0.25) fail(`raster ${raster.tileId} exceeds the quarter-pixel projection tolerance`);
+  const expectedClipHeight = capturePlan.clipHeight ?? null;
+  const expectedClipping = {
+    source: expectedClipHeight === null ? "none" : "plan",
+    applied: expectedClipHeight !== null,
+    clipHeight: expectedClipHeight,
+  } as const;
+  if (raster.clipping.source !== expectedClipping.source
+    || raster.clipping.applied !== expectedClipping.applied
+    || (raster.clipping.clipHeight === null) !== (expectedClipping.clipHeight === null)
+    || (raster.clipping.clipHeight !== null && expectedClipping.clipHeight !== null && !sameNumber(raster.clipping.clipHeight, expectedClipping.clipHeight))) {
+    fail(`raster ${raster.tileId} has incompatible reviewed clip evidence`);
+  }
   const xLength = Math.hypot(raster.worldFromPixelEdge.xAxis.x, raster.worldFromPixelEdge.xAxis.z);
   const yLength = Math.hypot(raster.worldFromPixelEdge.yAxis.x, raster.worldFromPixelEdge.yAxis.z);
   if (!(xLength > 0) || !(yLength > 0)) fail(`raster ${raster.tileId} has a degenerate pixel frame`);
   const tile = capturePlan.tiles.find(candidate => candidate.id === raster.tileId);
   if (tile === undefined) fail(`capture plan has no tile ${raster.tileId}`);
+  const expectedFrame = expectedClipHeight === null
+    ? tile.frame
+    : { ...tile.frame, cameraY: expectedClipHeight };
+  for (const field of ["x", "z"] as const) {
+    if (!sameNumber(raster.cameraFrame.center[field], expectedFrame.center[field]) || !sameNumber(raster.cameraFrame.worldSize[field], expectedFrame.worldSize[field])) {
+      fail(`raster ${raster.tileId} camera frame contradicts its capture intent`);
+    }
+  }
+  if (!sameNumber(raster.cameraFrame.cameraY, expectedFrame.cameraY) || !sameNumber(raster.cameraFrame.nearClip, expectedFrame.nearClip) || !sameNumber(raster.cameraFrame.farClip, expectedFrame.farClip)) {
+    fail(`raster ${raster.tileId} camera frame contradicts its reviewed clip setting`);
+  }
+  if (!sameNumber(raster.verticalBounds.minY, raster.cameraFrame.cameraY - raster.cameraFrame.farClip)
+    || !sameNumber(raster.verticalBounds.maxY, raster.cameraFrame.cameraY - raster.cameraFrame.nearClip)) {
+    fail(`raster ${raster.tileId} vertical bounds contradict its camera frame`);
+  }
   const expectedX = tile.frame.center.x - tile.frame.worldSize.x / 2;
-  const expectedZ = tile.frame.center.z + tile.frame.worldSize.z / 2;
   const xExtent = raster.worldFromPixelEdge.xAxis.x * raster.width;
   const zExtent = raster.worldFromPixelEdge.yAxis.z * raster.height;
-  if (!sameNumber(raster.worldFromPixelEdge.origin.x, expectedX) || !sameNumber(raster.worldFromPixelEdge.origin.z, expectedZ)
+  if (!sameNumber(raster.worldFromPixelEdge.origin.x, expectedX) || !sameNumber(raster.worldFromPixelEdge.origin.z, tile.frame.center.z + tile.frame.worldSize.z / 2)
     || !sameNumber(xExtent, tile.frame.worldSize.x) || !sameNumber(zExtent, -tile.frame.worldSize.z)
     || !sameNumber(raster.worldFromPixelEdge.xAxis.z, 0) || !sameNumber(raster.worldFromPixelEdge.yAxis.x, 0)) {
     fail(`raster ${raster.tileId} frame contradicts the native capture camera frame`);
@@ -253,7 +279,7 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
   if (planFile.bytes.byteLength !== planItem.bytes) fail(`source run ${reference.path} capture plan byte count differs from its registered value`);
   const capturePlan = assertCapturePlan(readJson(planFile.bytes, `capture plan ${planReference.path}`));
   const capturePlanPath = planFile.path;
-  if (capturePlan.schemaVersion !== "compendium.capture-plan.v4") fail(`source run ${reference.path} uses an unsupported capture plan`);
+  if (capturePlan.schemaVersion !== "compendium.capture-plan.v5") fail(`source run ${reference.path} uses an unsupported capture plan`);
   const capturePlanTileIds = new Set(capturePlan.tiles.map(tile => tile.id));
   if (capturePlanTileIds.size !== capturePlan.tiles.length) fail(`source run ${reference.path} capture plan repeats a tile ID`);
   const inputHashes = asObject(input.inputHashes, `source run ${reference.path}.inputHashes`);
@@ -295,6 +321,19 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
     const readinessValue = assertReadiness(readJson(readinessFile.bytes, `${tile.id} readiness`));
     if (rasterValue.tileId !== tile.id || rasterValue.imageSha256 !== image.sha256 || rasterValue.width !== captureSet.width || rasterValue.height !== captureSet.height) fail(`source ${reference.path} tile ${tile.id} raster identity or dimensions disagree`);
     if (readinessValue.tileId !== tile.id || readinessValue.sceneNativeId !== captureSet.sceneNativeId || readinessValue.empty && readinessValue.stableFrames < 2) fail(`source ${reference.path} tile ${tile.id} readiness identity is invalid`);
+    if (!sameNumber(readinessValue.captureFrame.center.x, rasterValue.cameraFrame.center.x)
+      || !sameNumber(readinessValue.captureFrame.center.z, rasterValue.cameraFrame.center.z)
+      || !sameNumber(readinessValue.captureFrame.worldSize.x, rasterValue.cameraFrame.worldSize.x)
+      || !sameNumber(readinessValue.captureFrame.worldSize.z, rasterValue.cameraFrame.worldSize.z)
+      || !sameNumber(readinessValue.captureFrame.cameraY, rasterValue.cameraFrame.cameraY)
+      || !sameNumber(readinessValue.captureFrame.nearClip, rasterValue.cameraFrame.nearClip)
+      || !sameNumber(readinessValue.captureFrame.farClip, rasterValue.cameraFrame.farClip)
+      || readinessValue.clipping.source !== rasterValue.clipping.source
+      || readinessValue.clipping.applied !== rasterValue.clipping.applied
+      || (readinessValue.clipping.clipHeight === null) !== (rasterValue.clipping.clipHeight === null)
+      || (readinessValue.clipping.clipHeight !== null && rasterValue.clipping.clipHeight !== null && !sameNumber(readinessValue.clipping.clipHeight, rasterValue.clipping.clipHeight))) {
+      fail(`source ${reference.path} tile ${tile.id} readiness and raster clipping evidence disagree`);
+    }
     validateRasterAgainstFrame(rasterValue, capturePlan);
     const binding = profileBinding(profile, captureSet.sceneNativeId, captureSet.scenePath, plan.mapSpaceId);
     validateDomain(binding, rasterValue);

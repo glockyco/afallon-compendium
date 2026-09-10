@@ -14,6 +14,12 @@ const frame = Type.Object({
   nearClip: Type.Number({ exclusiveMinimum: 0 }),
   farClip: Type.Number({ exclusiveMinimum: 0, maximum: 100000 }),
 });
+const clippingEvidence = Type.Object({
+  source: Type.Union([Type.Literal("none"), Type.Literal("plan")]),
+  applied: Type.Boolean(),
+  clipHeight: Type.Union([number, Type.Null()]),
+});
+export type CaptureClippingEvidence = Static<typeof clippingEvidence>;
 export const CaptureReadinessProfileSchema = Type.Object({
   timeoutMs: Type.Integer({ minimum: 1000, maximum: 300000 }),
   stableFrames: Type.Integer({ minimum: 2, maximum: 10 }),
@@ -21,8 +27,9 @@ export const CaptureReadinessProfileSchema = Type.Object({
   maximumSources: Type.Integer({ minimum: 1, maximum: 256 }),
 });
 export const CapturePlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-plan.v4"),
+  schemaVersion: Type.Literal("compendium.capture-plan.v5"),
   sceneNativeId: count, scenePath: text, mapSpaceId: text,
+  clipHeight: Type.Optional(number),
   width: Type.Integer({ minimum: 64, maximum: 2048 }), height: Type.Integer({ minimum: 64, maximum: 2048 }),
   cullingMask: Type.Integer({ minimum: -2147483648, maximum: 2147483647 }),
   lighting: Type.Object({ ambient: color, directionalIntensity: Type.Number({ minimum: 0, maximum: 4 }), directionalEuler: vector }),
@@ -53,11 +60,13 @@ export const CaptureSessionSchema = Type.Object({
 });
 export type CaptureSession = Static<typeof CaptureSessionSchema>;
 export const CaptureRasterSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-raster.v2"),
+  schemaVersion: Type.Literal("compendium.capture-raster.v3"),
   tileId: text, imageSha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
   width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }),
   coordinateSystem: Type.Literal("source-scene-world-xz"),
   pixelConvention: Type.Literal("top-left-edges"),
+  cameraFrame: frame,
+  clipping: clippingEvidence,
   verticalBounds: Type.Object({ minY: number, maxY: number }),
   worldFromPixelEdge: Type.Object({ origin: horizontal, xAxis: horizontal, yAxis: horizontal }),
   maximumProjectionErrorPixels: Type.Number({ minimum: 0, maximum: 0.25 }),
@@ -129,11 +138,13 @@ export const CaptureGeometrySchema = Type.Object({
 });
 export type CaptureGeometry = Static<typeof CaptureGeometrySchema>;
 export const CaptureReadinessSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-readiness.v1"),
+  schemaVersion: Type.Literal("compendium.capture-readiness.v2"),
   tileId: text, ownerToken: text, sceneNativeId: count, sceneHandle: integer,
   inventoryPath: text, inventorySha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
   observedFrames: Type.Array(count, { minItems: 2 }), stableFrames: count,
   requiredSources: count, excludedSources: count, empty: Type.Boolean(),
+  captureFrame: frame,
+  clipping: clippingEvidence,
   streamKey: Type.Union([text, Type.Null()]),
 });
 export type CaptureReadiness = Static<typeof CaptureReadinessSchema>;

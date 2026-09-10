@@ -37,31 +37,24 @@ Overlapping markers from stacked content SHALL remain distinct records at their 
 - **THEN** both remain separately selectable records
 - **AND** the atlas does not merge, hide, or displace either one
 
-### Requirement: A clip height applies only where geometry covers the content
+### Requirement: Clipping is off unless a reviewer sets a height
 
-Capture SHALL clip its camera only when observed geometry lies above the content it depicts and would occlude that content. An extent with no such geometry, which is the ordinary outdoor case, SHALL be captured from above without a derived clip height.
+Capture SHALL NOT clip by default. An extent without a reviewed clip height SHALL be captured with the camera frame its plan declares, which is the ordinary case and covers every outdoor extent.
 
-Where a clip height is required, capture SHALL derive it from observed content: the highest navigable surface and the highest placement in the extent, plus a recorded margin. The capture artifact SHALL record whether clipping applied, the evidence that required it, the derivation inputs, the resulting height, and the margin. Clipping SHALL exclude geometry through the camera and SHALL NOT disable or delete scene objects.
+A capture plan MAY carry a reviewed clip height for a map whose content is covered by geometry above it. Capture SHALL apply that height, exclude the covered geometry through the camera, and record the effective camera frame and the fact that the height came from the plan. Clipping SHALL NOT disable or delete scene objects.
 
-Renderer names SHALL NOT select ceilings and SHALL NOT decide whether clipping is required. Observed evidence rejects that approach: one cave scene contains renderers named `Massive_Cave_Ceiling_*`, and a reviewed dungeon scene contains no renderer whose name matches ceiling or roof at all.
+Capture SHALL NOT infer a clip height. Automatic derivation was tried and removed: it made the decision depend on tile size rather than on the scene, and per-map review is a one-time task whose result is easy to check against the rendered image. Renderer names SHALL NOT select ceilings either, because one cave scene contains renderers named `Massive_Cave_Ceiling_*` while a reviewed dungeon scene contains no renderer whose name matches ceiling or roof.
 
-A scene whose content spans a vertical range too large for one clip height SHALL remain an explicit unresolved capture gap. Capture SHALL NOT silently select a height that hides reachable content.
+#### Scenario: An extent needs no clipping
+- **WHEN** its plan declares no reviewed clip height
+- **THEN** capture renders it with the plan's camera frame
+- **AND** the artifact records the effective frame without a clip height
 
-#### Scenario: An outdoor extent has open sky
-- **WHEN** no observed geometry above the content would occlude it
-- **THEN** capture renders the extent without a derived clip height
-- **AND** the artifact records that clipping did not apply
-
-#### Scenario: A dungeon has a ceiling
-- **WHEN** observed geometry above the content covers it
-- **THEN** capture derives a clip height and excludes that geometry through the camera
-- **AND** the artifact records the evidence and the derived height
+#### Scenario: A reviewer sets a clip height for a covered map
+- **WHEN** the plan carries that height
+- **THEN** capture applies it and the rendered image shows the covered content
+- **AND** the artifact records the height and its reviewed origin
 - **AND** no scene object is deactivated, deleted, or left modified after the capture
-
-#### Scenario: A cave lies under a hillside
-- **WHEN** the clip height derived from all observed content leaves the hillside covering the cave
-- **THEN** capture reports an unresolved vertical-extent gap for that scene
-- **AND** it does not publish an image that hides the cave
 
 ### Requirement: Capture chunks compose into a verified tile pyramid
 
