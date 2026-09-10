@@ -7,7 +7,9 @@ export interface MapUrlState {
   query: string;
   itemSourceQuery: string;
   detailQuery: string;
-  roles: string[];
+  categories: string[];
+  levelMinimum: number | null;
+  levelMaximum: number | null;
   itemKey: string | null;
   entityKey: string | null;
   view: MapViewState | null;
@@ -26,7 +28,9 @@ export function readMapUrl(search: string): MapUrlState {
   const z = finiteNumber(params.get('z'));
   const zoom = finiteNumber(params.get('zoom'));
   const view = x !== null && y !== null && z === 0 && zoom !== null && zoom >= -12 && zoom <= 12 ? { target: [x, y, z] as [number, number, number], zoom } : null;
-  const roles = params.getAll('roles').flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
+  const categories = params.getAll('categories').flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
+  const minimum = finiteNumber(params.get('level-min'));
+  const maximum = finiteNumber(params.get('level-max'));
   return {
     mapSpaceId: params.get('map'),
     layerId: params.get('layer'),
@@ -34,7 +38,9 @@ export function readMapUrl(search: string): MapUrlState {
     query: params.get('q') ?? '',
     itemSourceQuery: params.get('source-q') ?? '',
     detailQuery: params.get('detail-q') ?? '',
-    roles: [...new Set(roles)],
+    categories: [...new Set(categories)],
+    levelMinimum: minimum !== null && Number.isInteger(minimum) && minimum >= 0 ? minimum : null,
+    levelMaximum: maximum !== null && Number.isInteger(maximum) && maximum >= 0 ? maximum : null,
     itemKey: params.get('item'),
     entityKey: params.get('entity'),
     view
@@ -50,6 +56,8 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
     ['q', state.query.trim() || null],
     ['source-q', state.itemSourceQuery.trim() || null],
     ['detail-q', state.detailQuery.trim() || null],
+    ['level-min', state.levelMinimum === null ? null : String(state.levelMinimum)],
+    ['level-max', state.levelMaximum === null ? null : String(state.levelMaximum)],
     ['item', state.itemKey],
     ['entity', state.entityKey]
   ]);
@@ -58,7 +66,8 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
     else params.delete(key);
   }
   params.delete('roles');
-  if (state.roles.length > 0) params.set('roles', state.roles.join(','));
+  params.delete('categories');
+  if (state.categories.length > 0) params.set('categories', state.categories.join(','));
   if (state.view) {
     params.set('x', String(state.view.target[0]));
     params.set('y', String(state.view.target[1]));

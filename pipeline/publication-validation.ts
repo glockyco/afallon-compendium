@@ -54,6 +54,7 @@ export function validatePublication(value: unknown): asserts value is Publicatio
   };
   for (const map of maps.values()) {
     if (!(map.bounds.max.x > map.bounds.min.x && map.bounds.max.y > map.bounds.min.y)) throw new Error(`Publication map has empty bounds: ${map.mapSpaceId}`);
+    if (map.levelRange && map.levelRange.max < map.levelRange.min) throw new Error(`Publication map has an inverted level range: ${map.mapSpaceId}`);
     if (!data.tileLayers.some(layer => layer.mapSpaceId === map.mapSpaceId)) throw new Error(`Publication map lacks primary imagery: ${map.mapSpaceId}`);
   }
   for (const layer of data.tileLayers) {
@@ -73,6 +74,7 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     }
   }
   for (const placement of placements.values()) {
+    if (placement.levelRange && placement.levelRange.max < placement.levelRange.min) throw new Error(`Publication placement has an inverted level range: ${placement.placementId}`);
     scope(placement.mapSpaceId);
     inside(placement.mapSpaceId, placement.position);
     const layer = data.tileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId);

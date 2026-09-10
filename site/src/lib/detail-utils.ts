@@ -1,4 +1,4 @@
-import type { PublicDetailSection, PublicPlacement } from '../../../pipeline/public-contracts';
+import type { PublicDetailSection } from '../../../pipeline/public-contracts';
 
 export interface DetailLink {
   label: string;
@@ -26,9 +26,4 @@ export function linksFromSections(sections: PublicDetailSection[]): DetailLink[]
     }
   }
   return links;
-}
-
-export function placementRoles(placement: PublicPlacement): string {
-  if (placement.roles.length === 0) return 'Unclassified placement';
-  return placement.roles.join(', ');
 }

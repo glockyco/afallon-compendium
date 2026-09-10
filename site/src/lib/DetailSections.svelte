@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { PublicDetailSection, PublicEntity } from '../../../pipeline/public-contracts';
-  import { displayValue } from './publication';
 
   export let sections: PublicDetailSection[];
   export let entities: ReadonlyMap<string, PublicEntity>;
@@ -16,7 +15,7 @@
         <div>
           <dt>{row.label}</dt>
           <dd>
-            {displayValue(row.value)}
+            {#if row.value.trim()}{row.value}{/if}
             {#if row.entityKey}
               <button type="button" on:click={(event) => onEntity(row.entityKey!, event.currentTarget)}>
                 {entities.get(row.entityKey)?.name ?? row.entityKey}

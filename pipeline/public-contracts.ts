@@ -8,6 +8,33 @@ const position = Type.Tuple([number, number]);
 const url = Type.String({ minLength: 1, pattern: "^(?!/)(?!.*\\.\\.)(?!.*:)[a-zA-Z0-9_./-]+$" });
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 
+export const PUBLIC_MARKER_CATEGORY_VALUES = [
+  "enemy",
+  "boss",
+  "neutral",
+  "ally",
+  "npc",
+  "merchant",
+  "questGiver",
+  "interactiveObject",
+  "craftingStation",
+  "resource",
+  "container",
+  "travelPoint",
+] as const;
+export type PublicMarkerCategory = typeof PUBLIC_MARKER_CATEGORY_VALUES[number];
+const publicMarkerCategory = Type.Union([
+  Type.Literal("enemy"), Type.Literal("boss"), Type.Literal("neutral"), Type.Literal("ally"), Type.Literal("npc"),
+  Type.Literal("merchant"), Type.Literal("questGiver"), Type.Literal("interactiveObject"),
+  Type.Literal("craftingStation"), Type.Literal("resource"), Type.Literal("container"), Type.Literal("travelPoint"),
+]);
+
+export const PublicLevelRangeSchema = Type.Object({
+  min: count,
+  max: count,
+}, { additionalProperties: false });
+export type PublicLevelRange = Static<typeof PublicLevelRangeSchema>;
+
 export const PublicAffineSchema = Type.Object({ origin: point, xAxis: point, yAxis: point }, { additionalProperties: false });
 export type PublicAffine = Static<typeof PublicAffineSchema>;
 
@@ -32,7 +59,8 @@ export type PublicEntity = Static<typeof PublicEntitySchema>;
 
 export const PublicPlacementSchema = Type.Object({
   placementId: text, mapSpaceId: text, position, label: text,
-  roles: Type.Array(text, { minItems: 1, uniqueItems: true }),
+  categories: Type.Array(publicMarkerCategory, { minItems: 1, uniqueItems: true }),
+  levelRange: Type.Optional(PublicLevelRangeSchema),
   entityKeys: Type.Array(text, { uniqueItems: true }),
   areas: Type.Array(Type.Array(position, { minItems: 3 })), sections,
 }, { additionalProperties: false });
@@ -69,11 +97,12 @@ export const PublicIllustrationSchema = Type.Object({
 export type PublicIllustration = Static<typeof PublicIllustrationSchema>;
 
 export const PublicationDataSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.publication.v2"), buildId: text,
+  schemaVersion: Type.Literal("compendium.publication.v3"), buildId: text,
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   coverage: Type.Object({ complete: Type.Boolean(), messages: Type.Array(text), excludedPlacements: count }, { additionalProperties: false }),
   maps: Type.Array(Type.Object({
     mapSpaceId: text, label: text,
+    levelRange: Type.Optional(PublicLevelRangeSchema),
     bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
   }, { additionalProperties: false }), { minItems: 1 }),
   placements: Type.Array(PublicPlacementSchema), entities: Type.Array(PublicEntitySchema),

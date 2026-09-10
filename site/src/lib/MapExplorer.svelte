@@ -8,10 +8,15 @@
   import {
     findItem,
     resolvePublicationAssets,
-    roleLabel,
-    ROLE_ORDER,
-    ROLE_STYLES
   } from './publication';
+  import {
+    MARKER_IDS,
+    markerColorCss,
+    markerFor,
+    markerRegistry,
+    resolveMarker,
+    type MarkerId,
+  } from './map/marker-registry';
   import type { PublicEntity, PublicItemSource, PublicPlacement, PublicDetailSection, PublicationData } from '../../../pipeline/public-contracts';
 
   type Adapter = {
@@ -46,7 +51,9 @@
   let layerId = '';
   let selectedId: string | null = null;
   let query = '';
-  let roles: string[] = [];
+  let categories: MarkerId[] = [];
+  let levelMinimum: number | null = null;
+  let levelMaximum: number | null = null;
   let itemKey: string | null = null;
   let selectedEntityKey: string | null = null;
   let itemSourceQuery = '';
@@ -74,16 +81,16 @@
   $: entityByKey = new Map(publication?.entities.map((entity) => [entity.entityKey, entity]) ?? []);
   $: selectedEntity = selectedEntityKey ? entityByKey.get(selectedEntityKey) ?? null : null;
   $: selectedItemEntity = itemKey ? entityByKey.get(itemKey) ?? null : null;
-  $: entitySearchEntries = (publication?.entities ?? []).filter((entity) => entity.kind !== 'items').map((entity) => ({ entity, text: [entity.entityKey, entity.name, entity.kind, entity.description ?? ''].join(' ').toLocaleLowerCase() }));
-  $: itemSearchEntries = (publication?.itemSources ?? []).map((item) => ({ item, text: [item.itemKey, entityByKey.get(item.itemKey)?.name ?? '', ...item.sources.flatMap((source) => [source.label, source.kind, sectionText(source.sections)])].join(' ').toLocaleLowerCase() }));
-  $: placementSearchText = new Map((publication?.placements ?? []).map((placement) => [placement.placementId, [placement.label, ...placement.roles, sectionText(placement.sections), ...placement.entityKeys.flatMap((key) => { const entity = entityByKey.get(key); return entity ? [entity.name, entity.kind, entity.description ?? ''] : []; })].join(' ').toLocaleLowerCase()]));
+  $: entitySearchEntries = (publication?.entities ?? []).filter((entity) => entity.kind !== 'items').map((entity) => ({ entity, text: [entity.name, entity.description ?? ''].join(' ').toLocaleLowerCase() }));
+  $: itemSearchEntries = (publication?.itemSources ?? []).map((item) => ({ item, text: [entityByKey.get(item.itemKey)?.name ?? '', ...item.sources.flatMap((source) => [source.label, source.kind, sectionText(source.sections)])].join(' ').toLocaleLowerCase() }));
+  $: placementSearchText = new Map((publication?.placements ?? []).map((placement) => [placement.placementId, [placement.label, ...placement.categories.map((category) => markerFor(category).label), sectionText(placement.sections), ...placement.entityKeys.flatMap((key) => { const entity = entityByKey.get(key); return entity ? [entity.name, entity.description ?? ''] : []; })].join(' ').toLocaleLowerCase()]));
   $: searchNeedle = query.trim().toLocaleLowerCase();
   $: matchingEntities = searchNeedle ? entitySearchEntries.filter((entry) => entry.text.includes(searchNeedle)).map((entry) => entry.entity) : [];
   $: matchingItems = searchNeedle ? itemSearchEntries.filter((entry) => entry.text.includes(searchNeedle)).map((entry) => entry.item) : [];
   $: querySourcePlacementIds = new Set(matchingItems.flatMap((item) => item.sources.flatMap((source) => source.placementIds)));
-  $: roleCounts = getRoleCounts(allMapPlacements);
-  $: roleFilters = [...new Set([...ROLE_ORDER, ...allMapPlacements.flatMap((placement) => placement.roles)])];
-  $: matchingPlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && (roles.length === 0 || roles.some((role) => placement.roles.includes(role))) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId)));
+  $: matchingPlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && (categories.length === 0 || categories.some((category) => placement.categories.includes(category))) && levelMatches(placement) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId)));
+  $: categoryCounts = getCategoryCounts(matchingPlacements);
+  $: categoryFilters = MARKER_IDS.filter((category) => categoryCounts[category] > 0 || markerFor(category).defaultVisible);
   $: if (selectedId && !allMapPlacements.some((placement) => placement.placementId === selectedId) && !staleSelection) {
     const selected = publication?.placements.find((placement) => placement.placementId === selectedId);
     if (selected) staleSelection = `Selected location “${selected.label}” is outside the current map.`;
@@ -116,7 +123,7 @@
       .then(async (response) => {
         if (!response.ok) throw new Error(`Publication request failed (${response.status})`);
         const json = (await response.json()) as PublicationData;
-        if (json.schemaVersion !== 'compendium.publication.v2') throw new Error('Unsupported publication schema.');
+        if (json.schemaVersion !== 'compendium.publication.v3') throw new Error('Unsupported publication schema.');
         return resolvePublicationAssets(json, publicationUrl);
       })
       .then(async (data) => {
@@ -194,10 +201,20 @@
     });
   }
 
-  function getRoleCounts(placements: PublicPlacement[]): Record<string, number> {
-    const counts: Record<string, number> = {};
-    for (const placement of placements) for (const role of placement.roles) counts[role] = (counts[role] ?? 0) + 1;
+  function getCategoryCounts(placements: PublicPlacement[]): Record<MarkerId, number> {
+    const counts = Object.fromEntries(MARKER_IDS.map((id) => [id, 0])) as Record<MarkerId, number>;
+    for (const placement of placements) for (const category of placement.categories) counts[category] += 1;
     return counts;
+  }
+
+  function levelMatches(placement: PublicPlacement): boolean {
+    if (levelMinimum === null && levelMaximum === null) return true;
+    if (!placement.levelRange) return true;
+    return (levelMinimum === null || placement.levelRange.max >= levelMinimum) && (levelMaximum === null || placement.levelRange.min <= levelMaximum);
+  }
+
+  function levelRangeLabel(range: { min: number; max: number } | undefined): string {
+    return range ? `(lvl.${range.min}-${range.max})` : '';
   }
 
   function rankResults(needle: string, items: PublicItemSource[], entities: PublicEntity[], placements: PublicPlacement[], names: ReadonlyMap<string, PublicEntity>): SearchResult[] {
@@ -232,7 +249,9 @@
       layerId = next.layerId ?? '';
       selectedId = next.selectedId;
       query = next.query;
-      roles = next.roles;
+      categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
+      levelMinimum = next.levelMinimum;
+      levelMaximum = next.levelMaximum;
       itemKey = next.itemKey;
       selectedEntityKey = next.entityKey;
       if (next.view) view = next.view;
@@ -244,10 +263,12 @@
     const options = getLayerOptions(publication, mapSpaceId);
     layerId = options.some((layer) => layer.id === next.layerId) ? next.layerId ?? options[0]?.id ?? '' : options[0]?.id ?? '';
     query = next.query;
-    roles = next.roles;
+    categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
+    levelMinimum = next.levelMinimum;
+    levelMaximum = next.levelMaximum;
     itemKey = next.itemKey && publication.itemSources.some((item) => item.itemKey === next.itemKey) ? next.itemKey : null;
     const selected = next.selectedId ? publication.placements.find((placement) => placement.placementId === next.selectedId) : null;
-    if (next.selectedId && !selected) staleSelection = `This link refers to a location that is not in the loaded publication: ${next.selectedId}.`;
+    if (next.selectedId && !selected) staleSelection = 'This link refers to a location that is not in the loaded publication.';
     else if (selected && selected.mapSpaceId !== mapSpaceId) staleSelection = `Selected location “${selected.label}” is not on this map.`;
     else staleSelection = '';
     selectedId = selected && !staleSelection ? selected.placementId : null;
@@ -260,7 +281,7 @@
   }
 
   function currentUrl(): URL {
-    return writeMapUrl(new URL(window.location.href), { mapSpaceId, layerId, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', roles, itemKey, entityKey: selectedEntityKey, view });
+    return writeMapUrl(new URL(window.location.href), { mapSpaceId, layerId, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories, levelMinimum, levelMaximum, itemKey, entityKey: selectedEntityKey, view });
   }
 
   function syncUrl(mode: 'push' | 'replace'): void {
@@ -346,9 +367,21 @@
     syncUrl('push');
   }
 
-  function toggleRole(role: string): void {
-    roles = roles.includes(role) ? roles.filter((value) => value !== role) : [...roles, role];
+  function toggleCategory(category: MarkerId): void {
+    categories = categories.includes(category) ? categories.filter((value) => value !== category) : [...categories, category];
     syncUrl('push');
+  }
+
+  function updateLevelMinimum(value: string): void {
+    const parsed = Number(value);
+    levelMinimum = value.trim() && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+    syncUrl('replace');
+  }
+
+  function updateLevelMaximum(value: string): void {
+    const parsed = Number(value);
+    levelMaximum = value.trim() && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+    syncUrl('replace');
   }
 
   function submitSearch(): void {
@@ -388,26 +421,28 @@
   <header class="topbar">
     <div class="brand"><span class="brand-mark" aria-hidden="true">A</span><div><strong>Afallon Compendium</strong><small>Static world atlas</small></div></div>
     <div class="build-meta" aria-label="Publication status">
-      {#if publication}<span>Build <strong>{publication.buildId}</strong></span><span class:complete={publication.coverage.complete} class="coverage">{publication.coverage.complete ? 'Complete coverage' : 'Preview · incomplete coverage'}</span>{/if}
+      {#if publication}<span>Supported build <strong>{publication.buildId}</strong></span><span class:complete={publication.coverage.complete} class="coverage">{publication.coverage.complete ? 'Complete coverage' : 'Preview · incomplete coverage'}</span>{/if}
     </div>
   </header>
 
   {#if loading}
-    <main class="state-card" aria-live="polite"><div class="spinner" aria-hidden="true"></div><h1>Loading the published atlas</h1><p>Only the generated static publication is used. No game or extraction service is contacted.</p></main>
+    <main class="state-card" aria-live="polite"><div class="spinner" aria-hidden="true"></div><h1>Loading the published atlas</h1><p>Only the generated static publication is used.</p></main>
   {:else if loadError && !publication}
     <main class="state-card error" role="alert"><h1>Atlas unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p></main>
   {:else if publication}
     <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntity || itemContext || staleSelection)}>
       <aside class="control-panel" aria-label="Atlas controls">
         <div class="control-section search-section"><label for="atlas-search">Search places, entities, and items</label><div class="search-row"><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } }} placeholder="Try a name or item" autocomplete="off" /><button class="quiet-button" type="button" on:click={() => { query = ''; scheduleQueryUrl(); searchInput?.focus(); }} aria-label="Clear search">Clear</button></div><p class="hint">Press Enter to move from search to results.</p></div>
-        <div class="control-section"><label for="map-select">Map space</label><select id="map-select" value={mapSpaceId} on:change={(event) => chooseMap((event.currentTarget as HTMLSelectElement).value)}>{#each publication.maps as map}<option value={map.mapSpaceId}>{map.label}</option>{/each}</select></div>
+        <div class="control-section"><label for="map-select">Map</label><select id="map-select" value={mapSpaceId} on:change={(event) => chooseMap((event.currentTarget as HTMLSelectElement).value)}>{#each publication.maps as map}<option value={map.mapSpaceId}>{map.label} {levelRangeLabel(map.levelRange)}</option>{/each}</select></div>
         <div class="control-section"><label for="layer-select">Map layer</label><select id="layer-select" value={layerId} on:change={(event) => chooseLayer((event.currentTarget as HTMLSelectElement).value)}>{#each layerOptions as layer}<option value={layer.id}>{layer.label}</option>{/each}</select>{#if orientationOnly}<p class="notice">Orientation only. Marker navigation is disabled until a screenshot layer is selected.</p>{/if}</div>
-        <div class="control-section roles"><div class="section-heading"><h2>Categories</h2><span class="count">{allMapPlacements.length}</span></div>{#each roleFilters.filter((role) => roleCounts[role] || roles.includes(role)) as role}<label class="role-option"><input type="checkbox" checked={roles.includes(role)} on:change={() => toggleRole(role)} /><span class="role-symbol" style:background={`rgb(${ROLE_STYLES[role]?.color.join(',') ?? '95,95,95'})`} aria-hidden="true">{ROLE_STYLES[role]?.symbol ?? 'P'}</span><span>{roleLabel(role)}<small>{ROLE_STYLES[role]?.hint ?? 'Other authored placement role'}</small></span><strong>{roleCounts[role] ?? 0}</strong></label>{/each}{#if roles.length > 0}<button type="button" class="text-button" on:click={() => { roles = []; syncUrl('push'); }}>Clear category filters</button>{/if}</div>
-        {#if !publication.coverage.complete}<div class="coverage-card"><strong>Research preview</strong><p>This artifact is not a complete release. Missing coverage is not the same as an absent location.</p>{#each publication.coverage.messages as message}<p class="coverage-message">{message}</p>{/each}<span>{publication.coverage.excludedPlacements} excluded placements</span></div>{/if}
+        <div class="control-section categories"><div class="section-heading"><h2>Categories</h2><span class="count">{allMapPlacements.length}</span></div>{#each categoryFilters.filter((category) => categoryCounts[category] || categories.includes(category)) as category}<label class="category-option"><input type="checkbox" checked={categories.includes(category)} on:change={() => toggleCategory(category)} /><span class="category-symbol" style:background={markerColorCss(markerFor(category))} aria-hidden="true">{markerFor(category).label.slice(0, 1)}</span><span>{markerFor(category).pluralLabel}<small>{markerFor(category).label}</small></span><strong>{categoryCounts[category]}</strong></label>{/each}{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Clear category filters</button>{/if}</div>
+        <div class="control-section marker-legend"><div class="section-heading"><h2>Legend</h2></div>{#each Object.values(markerRegistry) as marker}<div class="legend-entry"><span class="category-symbol" style:background={markerColorCss(marker)} aria-hidden="true">{marker.label.slice(0, 1)}</span><span>{marker.label}</span></div>{/each}</div>
+        <div class="control-section level-filter"><div class="section-heading"><h2>Creature levels</h2></div><div class="level-fields"><label for="level-min">From<input id="level-min" type="number" min="0" step="1" value={levelMinimum ?? ''} on:input={(event) => updateLevelMinimum((event.currentTarget as HTMLInputElement).value)} /></label><label for="level-max">To<input id="level-max" type="number" min="0" step="1" value={levelMaximum ?? ''} on:input={(event) => updateLevelMaximum((event.currentTarget as HTMLInputElement).value)} /></label></div><p class="hint">Locations without a known level stay visible.</p></div>
+        <div class="coverage-card"><strong>Supported game build {publication.buildId}</strong>{#if !publication.coverage.complete}<p>Incomplete research preview. It does not represent full-world research or imagery coverage.</p>{/if}</div>
       </aside>
 
       <section class="map-column" aria-label="Interactive map">
-        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => { view = { ...view, zoom: Math.min(12, view.zoom + 0.5) }; syncUrl('replace'); }}>+</button><button type="button" aria-label="Zoom out" on:click={() => { view = { ...view, zoom: Math.max(-12, view.zoom - 0.5) }; syncUrl('replace'); }}>−</button><button type="button" disabled={orientationOnly} on:click={() => { if (activeMap) { view = centerView(activeMap); syncUrl('replace'); } }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.roles.map(roleLabel).join(' · ') || 'Published placement'}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}{#if orientationOnly}{' · orientation layer'}{/if}</div></div>
+        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => { view = { ...view, zoom: Math.min(12, view.zoom + 0.5) }; syncUrl('replace'); }}>+</button><button type="button" aria-label="Zoom out" on:click={() => { view = { ...view, zoom: Math.max(-12, view.zoom - 0.5) }; syncUrl('replace'); }}>−</button><button type="button" disabled={orientationOnly} on:click={() => { if (activeMap) { view = centerView(activeMap); syncUrl('replace'); } }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(hoveredPlacement.levelRange)}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}{#if orientationOnly}{' · orientation layer'}{/if}</div></div>
         {#if loadError && publication}<div class="inline-error" role="alert">{loadError}</div>{/if}
         <section class="results" aria-labelledby="results-heading" bind:this={resultList}>
           <div class="results-header">
@@ -421,13 +456,15 @@
               {#each rankedResults as result (result.key)}
               {#if result.kind === 'item'}
                 {@const item = result.item}
-                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)}><span class="result-marker item-marker" aria-hidden="true"></span><span class="result-copy"><strong>{entityByKey.get(item.itemKey)?.name ?? item.itemKey}</strong><small>Item · {item.sources.length} known sources</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)}><span class="result-marker item-marker" aria-hidden="true"></span><span class="result-copy"><strong>{entityByKey.get(item.itemKey)?.name ?? 'Unnamed item'}</strong><small>Item</small></span></button></li>
               {:else if result.kind === 'entity'}
                 {@const entity = result.entity}
-                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)}><span class="result-marker entity-marker" aria-hidden="true"></span><span class="result-copy"><strong>{entity.name}</strong><small>{entity.kind} · {entity.placementIds.length} mapped placements</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)}><span class="result-marker entity-marker" aria-hidden="true"></span><span class="result-copy"><strong>{entity.name}</strong><small>Details</small></span></button></li>
               {:else}
                 {@const placement = result.placement}
-                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => hoveredId = placement.placementId} on:mouseleave={() => hoveredId = null}><span class="result-marker" aria-hidden="true"></span><span class="result-copy"><strong>{placement.label}</strong><small>{placement.roles.map(roleLabel).join(' · ')}</small></span><span class="result-coords">{placement.position[0].toFixed(0)}, {placement.position[1].toFixed(0)}</span></button></li>
+                {@const markerId = resolveMarker(placement) ?? placement.categories[0]!}
+                {@const marker = markerFor(markerId)}
+                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => hoveredId = placement.placementId} on:mouseleave={() => hoveredId = null}><span class="result-marker" style:background={markerColorCss(marker)} aria-hidden="true">{marker.label.slice(0, 1)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{placement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(placement.levelRange)}</small></span></button></li>
               {/if}
               {/each}
             </ol>
@@ -440,7 +477,7 @@
           <div class="details-header">
             <div>
               <span class="eyebrow">{itemContext ? 'Item sources' : selectedEntity ? 'Entity details' : 'Selected location'}</span>
-              <h2 tabindex="-1">{itemContext ? selectedItemEntity?.name ?? itemContext.itemKey : selectedEntity?.name ?? selectedPlacement?.label ?? 'Unavailable selection'}</h2>
+              <h2 tabindex="-1">{itemContext ? selectedItemEntity?.name ?? 'Unnamed item' : selectedEntity?.name ?? selectedPlacement?.label ?? 'Unavailable selection'}</h2>
             </div>
             <button class="close-button" type="button" on:click={closeDetails} aria-label="Close details">Close</button>
           </div>
@@ -470,10 +507,8 @@
               {/each}
             </div>
           {:else if selectedEntity}
-            <p class="roles-line">{selectedEntity.kind} · {selectedEntity.entityKey}</p>
             {#if selectedEntity.description}<p>{selectedEntity.description}</p>{/if}
             <label class="detail-search" for="detail-search">Search this entity's details<input id="detail-search" bind:value={detailQuery} on:input={scheduleQueryUrl} placeholder="Condition, reward, requirement" /></label>
-            {#if selectedEntity.placementIds.length === 0}<p class="notice">This definition has no mapped placements in this preview.</p>{/if}
             {#each selectedEntity.placementIds as placementId}
               <button type="button" class="source-location" on:click={(event) => selectPlacement(placementId, event.currentTarget)}>Open location details</button>
             {/each}
@@ -481,12 +516,11 @@
           {:else if selectedPlacement}
             <label class="detail-search" for="detail-search">Search this location's details<input id="detail-search" bind:value={detailQuery} on:input={scheduleQueryUrl} placeholder="Condition, reward, requirement" /></label>
             <div class="location-summary">
-              <p class="roles-line">{selectedPlacement.roles.map(roleLabel).join(' · ')}</p>
-              <p class="coordinates">Map coordinates {selectedPlacement.position[0].toFixed(2)}, {selectedPlacement.position[1].toFixed(2)}</p>
-              {#if orientationOnly}<p class="notice">This orientation-only layer cannot provide precise marker navigation.</p>{/if}
+              <p class="category-line">{selectedPlacement.categories.map((category) => markerFor(category).label).join(' · ')}</p>
+              {#if selectedPlacement.levelRange}<p class="level-line">{levelRangeLabel(selectedPlacement.levelRange)}</p>{/if}
             </div>
             {#each selectedEntities as entity}
-              <article class="entity-block"><div class="entity-heading"><span>{entity.kind}</span><h3>{entity.name}</h3></div>{#if entity.description}<p>{entity.description}</p>{/if}<button type="button" class="inline-link" on:click={(event) => selectEntity(entity, event.currentTarget)}>Open entity details</button></article>
+              <article class="entity-block"><div class="entity-heading"><h3>{entity.name}</h3></div>{#if entity.description}<p>{entity.description}</p>{/if}<button type="button" class="inline-link" on:click={(event) => selectEntity(entity, event.currentTarget)}>Open entity details</button></article>
             {/each}
             <DetailSections sections={filteredDetail} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />
             {#if entityLinks(selectedPlacement.sections).length > 0}
@@ -532,20 +566,21 @@
   .section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: .45rem; }
   .section-heading h2 { margin: 0; }
   .count { color: #d6bd84; font-size: .75rem; }
-  .role-option { display: grid; grid-template-columns: 17px 17px minmax(0,1fr) auto; align-items: start; gap: .4rem; margin: .55rem 0; letter-spacing: normal; text-transform: none; color: #dedbd2; font-size: .78rem; cursor: pointer; }
-  .role-option input { width: 14px; height: 14px; margin: 1px 0 0; accent-color: #bca36e; }
-  .role-symbol, .result-marker { display: inline-block; width: 8px; height: 8px; margin-top: .25rem; border: 1px solid #d3b87c; background: #d3b87c; }
-  .role-symbol { display: grid; place-items: center; width: 17px; height: 17px; margin-top: 0; border-radius: 50%; border-color: #888; color: white; font-size: 10px; }
-  .role-option small { display: block; margin-top: .15rem; color: #85857e; font-size: .67rem; line-height: 1.25; }
-  .role-option strong { color: #aaa9a0; font-size: .72rem; font-weight: 500; }
+  .category-option { display: grid; grid-template-columns: 17px 17px minmax(0,1fr) auto; align-items: start; gap: .4rem; margin: .55rem 0; letter-spacing: normal; text-transform: none; color: #dedbd2; font-size: .78rem; cursor: pointer; }
+  .category-option input { width: 14px; height: 14px; margin: 1px 0 0; accent-color: #bca36e; }
+  .category-symbol, .result-marker { display: inline-grid; place-items: center; width: 17px; height: 17px; margin-top: 0; border: 1px solid #888; border-radius: 50%; color: white; font-size: 10px; }
+  .category-option small { display: block; margin-top: .15rem; color: #85857e; font-size: .67rem; line-height: 1.25; }
+  .category-option strong { color: #aaa9a0; font-size: .72rem; font-weight: 500; }
+  .legend-entry { display: flex; align-items: center; gap: .45rem; margin: .4rem 0; color: #dedbd2; font-size: .75rem; }
+  .level-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; margin-top: .45rem; }
+  .level-fields label { letter-spacing: normal; text-transform: none; font-size: .68rem; }
+  .level-fields input { margin-top: .3rem; }
   .text-button, .inline-link { border: 0; padding: 0; background: none; color: #d5b978; text-decoration: underline; text-underline-offset: 2px; }
   .text-button { font-size: .75rem; }
   .notice, .stale-warning { padding: .55rem; border-left: 2px solid #b98751; background: #2b2721; color: #e2c399; font-size: .73rem; line-height: 1.45; }
   .coverage-card { margin-top: .9rem; padding: .7rem; border: 1px solid #66523b; background: #28241f; color: #d2bd9a; font-size: .72rem; line-height: 1.4; }
   .coverage-card strong { color: #ebd1a2; }
   .coverage-card p { margin: .35rem 0; }
-  .coverage-card > span { color: #ab9678; }
-  .coverage-message { color: #c3b39c; }
   .map-column { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(260px, 1fr) minmax(180px, 30vh); background: #121313; }
   .map-frame { position: relative; min-height: 0; overflow: hidden; border-bottom: 1px solid #393a38; background: #151716; }
   canvas { display: block; width: 100%; height: 100%; }
@@ -570,7 +605,6 @@
   .result-copy strong, .result-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .result-copy strong { font-size: .78rem; font-weight: 600; }
   .result-copy small { margin-top: .15rem; color: #aaa89d; font-size: .67rem; }
-  .result-coords { color: #898a83; font-size: .65rem; white-space: nowrap; }
   .empty { color: #98978e; font-size: .78rem; }
   .eyebrow { color: #bca36e; font-size: .64rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
   .details-header { padding-bottom: .9rem; border-bottom: 1px solid #393a38; }
@@ -580,12 +614,12 @@
   .stale-warning p { margin: .35rem 0; }
   .detail-search { display: block; margin: .8rem 0; }
   .detail-search input { margin-top: .4rem; }
-  .roles-line { margin: .8rem 0 .25rem; color: #d4bc86; font-size: .77rem; }
-  .coordinates { margin: 0 0 .8rem; color: #8e8e87; font-size: .7rem; }
+  .category-line { margin: .8rem 0 .25rem; color: #d4bc86; font-size: .77rem; }
+  .level-line { margin: 0 0 .8rem; color: #aaa89d; font-size: .7rem; }
   .entity-heading h3, .linked-locations h3 { margin: 0 0 .4rem; color: #d7d2c6; font-size: .75rem; letter-spacing: .04em; }
   .source-card, .entity-block { padding: .65rem; margin: .65rem 0; border: 1px solid #3a3b37; background: #1b1c1b; }
   .source-title strong { font-size: .8rem; }
-  .source-title span, .entity-heading span { color: #aaa89d; font-size: .68rem; }
+  .source-title span { color: #aaa89d; font-size: .68rem; }
   .source-location { width: 100%; margin-top: .5rem; padding: .5rem; border: 1px solid #806d4a; background: #2a261e; color: #e4ce99; font-size: .72rem; text-align: center; }
   .source-location:disabled { opacity: .5; cursor: default; }
   summary { cursor: pointer; color: #d4bc86; font-size: .8rem; }
@@ -617,7 +651,6 @@
     .workspace.has-details .control-panel { grid-row: auto; }
     .workspace.has-details .map-column, .details-panel { grid-column: 1; }
     .details-panel { border-left: 0; }
-    .result-coords { display: none; }
     .state-card { margin: 2rem .8rem; padding: 1.2rem; }
   }
 </style>

@@ -12,7 +12,7 @@ import { SceneCatalogSchema, type SceneCatalog } from "../tools/map-contracts";
 import { IllustrationOutputSchema, type IllustrationOutput } from "../tools/illustration-contracts";
 import { TilePyramidSchema, type TilePyramid } from "./tile-contracts";
 import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement } from "./normalized-contracts";
-import type { PublicationData, PublicDetailSection, PublicDetailRow, PublicEntity, PublicPlacement, PublicTileLayer, PublicIllustration } from "./public-contracts";
+import { PUBLIC_MARKER_CATEGORY_VALUES, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicIllustration, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicationData } from "./public-contracts";
 import { affinePoint, inversePoint, validatePublication } from "./publication-validation";
 
 const reference = Type.Object({ path: Type.String({ minLength: 1 }), sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) }, { additionalProperties: false });
@@ -37,6 +37,156 @@ function label(value: string): string {
   return value.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll(/[-_]/g, " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
+const categoryLabels: Record<PublicMarkerCategory, string> = {
+  enemy: "Enemy",
+  boss: "Boss",
+  neutral: "Neutral",
+  ally: "Ally",
+  npc: "NPC",
+  merchant: "Merchant",
+  questGiver: "Quest Giver",
+  interactiveObject: "Interactive Object",
+  craftingStation: "Crafting Station",
+  resource: "Resource",
+  container: "Container",
+  travelPoint: "Travel Point",
+};
+const roleCategory: Readonly<Record<string, PublicMarkerCategory | null>> = {
+  enemy: "enemy",
+  boss: "boss",
+  elite: "enemy",
+  neutral: "neutral",
+  friendly: "ally",
+  npc: "npc",
+  merchant: "merchant",
+  questGiver: "questGiver",
+  resourceProducer: "resource",
+  container: "container",
+  transition: "travelPoint",
+  respawnDestination: "travelPoint",
+  usefulInteraction: "interactiveObject",
+  questLocation: "interactiveObject",
+  craftingService: "craftingStation",
+  propertyPurchaseService: "interactiveObject",
+  combatant: null,
+  dialogue: "npc",
+  inspect: "npc",
+  trade: "npc",
+  adventurerProducer: null,
+  adventurerPopulationManager: null,
+};
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+export function levelRange(min: unknown, max: unknown): PublicLevelRange | undefined {
+  if (typeof min !== "number" || !Number.isInteger(min) || min < 1 || typeof max !== "number" || !Number.isInteger(max) || max < min || (min === 100 && max === 100)) return undefined;
+  return { min, max };
+}
+
+function consistentLevelRange(ranges: readonly (PublicLevelRange | undefined)[]): PublicLevelRange | undefined {
+  const known = ranges.filter((range): range is PublicLevelRange => range !== undefined);
+  if (known.length === 0) return undefined;
+  const first = known[0]!;
+  return known.every((range) => range.min === first.min && range.max === first.max) ? first : undefined;
+}
+
+export function gameplayLevelRange(gameplay: unknown): PublicLevelRange | undefined {
+  const value = record(gameplay);
+  if (!value) return undefined;
+  const candidates: Array<[string, string]> = [
+    ["minLevel", "maxLevel"],
+    ["dungeonLevelMin", "dungeonLevelMax"],
+    ["zoneScalingMinLevel", "zoneScalingMaxLevel"],
+    ["levelRangeMin", "levelRangeMax"],
+    ["LevelRangeMin", "LevelRangeMax"],
+  ];
+  for (const [min, max] of candidates) {
+    const range = levelRange(value[min], value[max]);
+    if (range) return range;
+  }
+  return undefined;
+}
+
+type LevelSourceRanges = {
+  levelOverrides: Array<PublicLevelRange | undefined>;
+  zoneScaling: Array<PublicLevelRange | undefined>;
+  direct: Array<PublicLevelRange | undefined>;
+};
+
+function sourceLevelRanges(data: Record<string, unknown>): LevelSourceRanges {
+  const overrides = record(data.overrides);
+  const levels = record(overrides?.levels);
+  const zoneScaling = record(overrides?.zoneScaling);
+  return {
+    levelOverrides: [levels?.enabled === true ? levelRange(levels.minLevel, levels.maxLevel) : undefined],
+    zoneScaling: [zoneScaling?.enabled === true ? levelRange(zoneScaling.minLevel, zoneScaling.maxLevel) : undefined],
+    direct: [levelRange(data.LevelRangeMin, data.LevelRangeMax), levelRange(data.levelRangeMin, data.levelRangeMax)],
+  };
+}
+
+export function selectLevelRange(
+  levelOverrides: readonly (PublicLevelRange | undefined)[],
+  zoneScaling: readonly (PublicLevelRange | undefined)[],
+  canonical: readonly (PublicLevelRange | undefined)[],
+): PublicLevelRange | undefined {
+  for (const ranges of [levelOverrides, zoneScaling, canonical]) {
+    const known = ranges.filter((range): range is PublicLevelRange => range !== undefined);
+    if (known.length === 0) continue;
+    const first = known[0]!;
+    return known.every((range) => range.min === first.min && range.max === first.max) ? first : undefined;
+  }
+  return undefined;
+}
+
+// Combatant and adventurer-producer are extraction facts, not game map categories.
+// They occur only alongside a mapped NPC or world category in the current run.
+function placementCategories(placement: NormalizedPlacement): PublicMarkerCategory[] {
+  const categories = new Set<PublicMarkerCategory>();
+  for (const role of placement.roles) {
+    const category = roleCategory[role.role];
+    if (category) categories.add(category);
+  }
+  return PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => categories.has(category));
+}
+
+function sourceKindLabel(kind: string): string {
+  return ({
+    merchant: "Vendor",
+    "npc-loot": "Drop",
+    "world-loot": "Drop",
+    container: "Container",
+    resource: "Resource yield",
+    quest: "Quest reward",
+  } as Record<string, string>)[kind] ?? "Source";
+}
+
+function placementLevelRange(
+  placement: NormalizedPlacement,
+  entities: readonly EntityDetail[],
+  sources: readonly NormalizedMapProjection["sources"][number][],
+): PublicLevelRange | undefined {
+  // A producer override is authored for this placement, so it wins over the NPC base
+  // range the way the game applies it. Only sources of equal specificity can conflict.
+  const sourceRanges = sources
+    .filter((source) => source.placementId === placement.placementId)
+    .map((source) => sourceLevelRanges(source.data));
+  const npcRanges = placement.roles
+    .filter((role) => role.npcId !== null)
+    .map((role) => entities.find((entity) => entity.entityKey === `npcs:${role.npcId}`))
+    .map((entity) => gameplayLevelRange(entity?.publicData.gameplay));
+  return selectLevelRange(
+    sourceRanges.flatMap((ranges) => ranges.levelOverrides),
+    sourceRanges.flatMap((ranges) => ranges.zoneScaling),
+    [...sourceRanges.flatMap((ranges) => ranges.direct), ...npcRanges],
+  );
+}
+
+function sceneLevelRange(scene: EntityDetail | undefined): PublicLevelRange | undefined {
+  return gameplayLevelRange(scene?.publicData.gameplay);
+}
+
 const nativeLineBreaks = /<br\s*\/?>/gi;
 const nativeFormatTags = /<\/?(?:color|size|b|i|u|s|font|font-weight|mark|link|align|alpha|cspace|indent|line-height|line-indent|margin|margin-left|margin-right|mspace|nobr|pos|rotate|space|style|sub|sup|voffset|width|uppercase|lowercase|smallcaps)(?:=[^>]*|\s[^>]*)?>/gi;
 function plainText(value: string): string {
@@ -57,21 +207,38 @@ function scalarRows(value: unknown, prefix = ""): PublicDetailRow[] {
 function sectionsFor(entity: EntityDetail, names: Map<string, string>): PublicDetailSection[] {
   const sections: PublicDetailSection[] = [];
   const add = (title: string, rows: PublicDetailRow[]) => { if (rows.length) sections.push({ title, rows }); };
-  const itemRow = (id: number | null, value: string): PublicDetailRow => {
-    const key = `items:${id}`;
-    if (id === null || !names.has(key)) throw new Error(`Publication relationship references missing item ${id}.`);
+  const itemRow = (id: number | null, value: string): PublicDetailRow | null => {
+    const key = id === null ? "" : `items:${id}`;
+    if (!key || !names.has(key)) return null;
     return { label: names.get(key)!, value, entityKey: key };
   };
   const relationships = entity.relationships;
-  add("Vendor stock", relationships.merchantStock.map(row => itemRow(row.itemId, `${row.cost ?? "Unknown cost"} ${row.currencyId === null ? "(currency unknown)" : names.get(`currencies:${row.currencyId}`) ?? `currency ${row.currencyId}`} · stock group ${row.merchantTableId}`)));
-  add("Loot entries — raw authored rates, not effective chances", relationships.lootEntries.map(row => itemRow(row.itemId, `Quantity ${row.min ?? "?"}–${row.max ?? "?"}; raw rate ${row.rawRate ?? "unknown"}; table ${row.lootTableId}`)));
-  add("Gathering outputs", relationships.resourceYields.map(row => itemRow(row.itemId, `Rank ${row.rank ?? "unknown"}; quantity ${row.min ?? "?"}–${row.max ?? "?"}`)));
-  add("Quest associations", relationships.questAssociations.map(row => {
-    const key = `quests:${row.questId}`;
-    return { label: label(row.associationKind), value: row.questId === null ? "Quest unresolved" : names.get(key) ?? `Quest ${row.questId}`, ...(names.has(key) ? { entityKey: key } : {}) };
+  add("Vendor stock", relationships.merchantStock.flatMap((row) => {
+    const currency = row.currencyId === null ? undefined : names.get(`currencies:${row.currencyId}`);
+    const value = typeof row.cost === "number" ? `${row.cost}${currency ? ` ${currency}` : ""}` : "";
+    const item = itemRow(row.itemId, value);
+    return item ? [item] : [];
   }));
-  for (const association of relationships.questAssociations) add(`Quest mechanics — ${label(association.associationKind)}`, scalarRows(association.context));
-  for (const condition of relationships.conditions) add(`Authored condition — ${label(condition.semantics)}`, scalarRows(condition.payload));
+  add("Drops", relationships.lootEntries.flatMap((row) => {
+    const minimum = row.min ?? row.max;
+    const maximum = row.max ?? row.min;
+    const value = typeof minimum === "number" && typeof maximum === "number" ? `Quantity ${minimum === maximum ? minimum : `${minimum}–${maximum}`}` : "";
+    const item = itemRow(row.itemId, value);
+    return item ? [item] : [];
+  }));
+  add("Gathering outputs", relationships.resourceYields.flatMap((row) => {
+    const values = [typeof row.rank === "number" ? `Rank ${row.rank}` : "", typeof row.min === "number" && typeof row.max === "number" ? `Quantity ${row.min === row.max ? row.min : `${row.min}–${row.max}`}` : ""].filter(Boolean);
+    const item = itemRow(row.itemId, values.join(" · "));
+    return item ? [item] : [];
+  }));
+  add("Quest associations", relationships.questAssociations.flatMap((row) => {
+    if (row.questId === null) return [];
+    const key = `quests:${row.questId}`;
+    const name = names.get(key);
+    return name ? [{ label: label(row.associationKind), value: name, entityKey: key }] : [];
+  }));
+  for (const association of relationships.questAssociations) add(`Quest details — ${label(association.associationKind)}`, scalarRows(association.context));
+  for (const condition of relationships.conditions) add("Requirements", scalarRows(condition.payload));
   add("Properties", scalarRows(entity.publicData.gameplay));
   return sections;
 }
@@ -162,26 +329,22 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       return mask.bytes[(Math.floor(y) * mask.width + Math.floor(x)) * 4 + 3]! > 0;
     });
   };
-  const eligible = map.placements.filter(placement => placement.roles.length > 0);
+  const categoriesByPlacement = new Map(map.placements.map((placement) => [placement.placementId, placementCategories(placement)]));
+  const levelRangesByPlacement = new Map(map.placements.map((placement) => [placement.placementId, placementLevelRange(placement, entities.entities, map.sources)]));
+  const eligible = map.placements.filter((placement) => (categoriesByPlacement.get(placement.placementId) ?? []).length > 0);
   const selected = eligible.filter(covered);
   const selectedIds = new Set(selected.map(placement => placement.placementId));
   const filterIds = (ids: readonly string[]) => ids.filter(id => selectedIds.has(id));
-  const names = new Map(entities.entities.map(entity => [entity.entityKey, plainText(entity.name ?? "") || plainText(entity.internalName ?? "") || `${entity.kind} ${entity.nativeId}`]));
+  const names = new Map(entities.entities.map(entity => [entity.entityKey, plainText(entity.name ?? "") || "Unnamed entry"]));
   const publicEntities: PublicEntity[] = entities.entities.map(entity => ({ entityKey: entity.entityKey, kind: entity.kind, nativeId: entity.nativeId, name: names.get(entity.entityKey)!, description: entity.description === null ? null : plainText(entity.description), placementIds: filterIds(entity.placementIds), sections: sectionsFor(entity, names) }));
   const detailsByPlacement = new Map<string, PublicEntity[]>();
   for (const entity of publicEntities) for (const id of entity.placementIds) {
     const rows = detailsByPlacement.get(id) ?? []; rows.push(entity); detailsByPlacement.set(id, rows);
   }
-  const sourceDetailsByPlacement = new Map<string, PublicDetailSection[]>();
   const sourceNamesByPlacement = new Map<string, string>();
   const referenceName = (value: unknown): unknown => value && typeof value === "object" && "name" in value ? value.name : null;
   for (const source of map.sources) {
     if (!selectedIds.has(source.placementId)) continue;
-    const { state, ...authored } = source.data;
-    const rows = scalarRows(authored);
-    const sections = sourceDetailsByPlacement.get(source.placementId) ?? [];
-    if (rows.length) sections.push({ title: `Source configuration — ${label(source.family)}`, rows });
-    sourceDetailsByPlacement.set(source.placementId, sections);
     const name = [source.data.interactableName, source.data.chestName, referenceName(source.data.station), referenceName(source.data.property)].find((value) => typeof value === "string" && value.trim());
     if (typeof name === "string") sourceNamesByPlacement.set(source.placementId, plainText(name));
   }
@@ -190,28 +353,37 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const candidates = resolution.candidates.filter(candidate => candidate.mapSpaceId === placement.mapSpaceId);
     if (candidates.length !== 1 || Math.hypot(candidates[0]!.mapPosition.x - placement.mapPosition!.x, candidates[0]!.mapPosition.y - placement.mapPosition!.y) > 1e-6) throw new Error(`Publication placement contradicts reviewed spatial membership: ${placement.placementId}`);
     const linked = detailsByPlacement.get(placement.placementId) ?? [];
-    const roles = [...new Set(placement.roles.map(role => role.role))];
-    if (!roles.length) throw new Error(`Publication placement has no classified role: ${placement.placementId}`);
-    return { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, position: [placement.mapPosition!.x, placement.mapPosition!.y], label: linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || roles.map(label).join(" / "), roles, entityKeys: linked.map(entity => entity.entityKey), areas: spatialAreas(placement, resolver), sections: [...linked.flatMap(entity => entity.sections), ...(sourceDetailsByPlacement.get(placement.placementId) ?? [])] };
+    const categories = categoriesByPlacement.get(placement.placementId) ?? [];
+    if (!categories.length) throw new Error(`Publication placement has no game category: ${placement.placementId}`);
+    const range = levelRangesByPlacement.get(placement.placementId);
+    return { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, position: [placement.mapPosition!.x, placement.mapPosition!.y], label: linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || categories.map(category => categoryLabels[category]).join(" / "), categories, ...(range ? { levelRange: range } : {}), entityKeys: linked.map(entity => entity.entityKey), areas: spatialAreas(placement, resolver), sections: linked.flatMap(entity => entity.sections) };
   });
   const itemSources: PublicationData["itemSources"] = items.items.map(item => ({ itemKey: item.itemKey, sources: item.sources.map(source => {
     const ownerKeys = source.context.ownerEntityKeys;
     if (ownerKeys !== undefined && (!Array.isArray(ownerKeys) || ownerKeys.some(key => typeof key !== "string" || !names.has(key)))) throw new Error("Item source references an unknown owner.");
     const owners = (ownerKeys as string[] | undefined)?.map(key => names.get(key)!) ?? [];
-    const sourceLabel = typeof source.context.sourceLabel === "string" ? plainText(source.context.sourceLabel) : [label(source.sourceKind), owners.join(" / ")].filter(Boolean).join(" — ");
-    const rows = scalarRows(source.context);
-    if (source.sourceKind === "merchant") rows.unshift({ label: "Price", value: `${source.context.cost ?? "Unknown cost"} ${typeof source.context.currencyId === "number" ? names.get(`currencies:${source.context.currencyId}`) ?? `currency ${source.context.currencyId}` : "(currency unknown)"} (authored base cost)` });
-    if (source.placementIds.length === 0) rows.push({ label: "Locations", value: "No precise source placements are established in this extraction." });
-    else if (source.placementIds.some(id => !selectedIds.has(id))) rows.push({ label: "Map coverage", value: "Some known source locations are outside this preview." });
-    if (source.sourceKind !== "merchant" && source.sourceKind !== "quest") rows.push({ label: "Effective chance", value: "Not established; authored rates and eligibility rules are not effective probabilities." });
-    const sections: PublicDetailSection[] = [{ title: "Source details", rows }];
+    const sourceLabel = typeof source.context.sourceLabel === "string" && plainText(source.context.sourceLabel)
+      ? plainText(source.context.sourceLabel)
+      : [sourceKindLabel(source.sourceKind), owners.join(" / ")].filter(Boolean).join(" — ");
+    const rows: PublicDetailRow[] = [];
+    if (source.sourceKind === "merchant" && typeof source.context.cost === "number") {
+      const currency = typeof source.context.currencyId === "number" ? names.get(`currencies:${source.context.currencyId}`) : undefined;
+      rows.push({ label: "Price", value: `${source.context.cost}${currency ? ` ${currency}` : ""}` });
+    }
+    if ((source.sourceKind === "npc-loot" || source.sourceKind === "world-loot" || source.sourceKind === "container") && (typeof source.context.min === "number" || typeof source.context.max === "number")) {
+      const minimum = typeof source.context.min === "number" ? source.context.min : source.context.max;
+      const maximum = typeof source.context.max === "number" ? source.context.max : source.context.min;
+      rows.push({ label: "Quantity", value: minimum === maximum ? String(minimum) : `${minimum}–${maximum}` });
+    }
+    if (source.sourceKind === "resource" && typeof source.context.rank === "number") rows.push({ label: "Gathering rank", value: String(source.context.rank) });
+    const sections: PublicDetailSection[] = rows.length ? [{ title: `${sourceKindLabel(source.sourceKind)} details`, rows }] : [];
     for (const conditionId of source.conditionIds) {
       const condition = conditionsById.get(conditionId);
       if (!condition) throw new Error(`Item source references missing condition ${conditionId}.`);
       const conditionRows = scalarRows(condition.payload);
-      if (conditionRows.length) sections.push({ title: `Authored condition — ${label(condition.semantics)}`, rows: conditionRows });
+      if (conditionRows.length) sections.push({ title: "Requirements", rows: conditionRows });
     }
-    return { label: sourceLabel, kind: source.sourceKind, placementIds: filterIds(source.placementIds), sections };
+    return { label: sourceLabel, kind: sourceKindLabel(source.sourceKind), placementIds: filterIds(source.placementIds), sections };
   }) }));
   const placementsById = new Map(placements.map(placement => [placement.placementId, placement]));
   const outputSectionsByPlacement = new Map<string, Map<string, PublicDetailSection>>();
@@ -226,11 +398,14 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     }
     section.rows.push({ label: names.get(item.itemKey) ?? item.itemKey, value: source.label, entityKey: item.itemKey });
   }
+  const sceneRanges = new Map(entities.entities.filter((entity) => entity.kind === "scenes").map((entity) => [entity.nativeId, sceneLevelRange(entity)]));
+  const mapLevelRanges = new Map(map.mapSpaces.map((space) => [space.mapSpaceId, consistentLevelRange(map.placements.filter((placement) => placement.mapSpaceId === space.mapSpaceId).map((placement) => sceneRanges.get(placement.sceneNativeId)))]));
   const publicMaps: PublicationData["maps"] = map.mapSpaces.filter(space => tileLayers.some(layer => layer.mapSpaceId === space.mapSpaceId)).map(space => {
     const points: Array<[number, number]> = [];
     for (const layer of tileLayers.filter(layer => layer.mapSpaceId === space.mapSpaceId)) for (const [x, y] of [[0, 0], [layer.width, 0], [0, layer.height], [layer.width, layer.height]] as const) points.push(affinePoint(layer.mapFromPixelEdge, x, y));
     for (const placement of placements.filter(placement => placement.mapSpaceId === space.mapSpaceId)) points.push(...placement.areas.flat());
-    return { mapSpaceId: space.mapSpaceId, label: space.label, bounds: { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } } };
+    const range = mapLevelRanges.get(space.mapSpaceId);
+    return { mapSpaceId: space.mapSpaceId, label: space.label, ...(range ? { levelRange: range } : {}), bounds: { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } } };
   });
   const illustrations: PublicIllustration[] = [];
   for (const reference of plan.illustrations) {
@@ -246,10 +421,9 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     assetBytes.set(url, converted.data);
     illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: value.registration.kind, url, width: value.image.width, height: value.image.height, mapFromPixelEdge: value.registration.kind === "calibrated" ? value.registration.mapFromPixelEdge : null });
   }
-  const placementsWithoutRoles = map.placements.length - eligible.length;
-  const excludedPlacements = eligible.length - placements.length;
+  const excludedPlacements = map.placements.length - placements.length;
   const complete = Boolean(coverage.complete) && allImageryComplete && coverage.blockers.length === 0 && excludedPlacements === 0;
-  const data: PublicationData = { schemaVersion: "compendium.publication.v2", buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage.", `${excludedPlacements} classified placements are outside the included verified imagery.`, `${placementsWithoutRoles} source identities have no classified map role and are not shown as markers.`, `${coverage.blockers.length} coverage issues remain in the source run.`] : [] }, maps: publicMaps, placements, entities: publicEntities, itemSources, tileLayers, illustrations };
+  const data: PublicationData = { schemaVersion: "compendium.publication.v3", buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage."] : [] }, maps: publicMaps, placements, entities: publicEntities, itemSources, tileLayers, illustrations };
   validatePublication(data);
   const inputHashes: Record<string, string> = { plan: createHash("sha256").update(planBytes).digest("hex"), normalized: plan.normalized.sha256 };
   for (const [index, reference] of plan.pyramids.entries()) inputHashes[`pyramid:${index}`] = reference.sha256;

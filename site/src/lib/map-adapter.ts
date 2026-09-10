@@ -7,9 +7,11 @@ import {
 } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
 import { Matrix4 } from "@math.gl/core";
-import { placementStyle } from "./publication";
+import { createIconAtlas, type IconAtlasResult } from "./map/icon-atlas";
+import { MARKER_LAYER_ID, markerFor, resolveMarker, type MarkerId } from "./map/marker-registry";
 import {
   BitmapLayer,
+  IconLayer,
   PolygonLayer,
   ScatterplotLayer,
   TextLayer,
@@ -54,12 +56,12 @@ type TilePayload = {
   closed: boolean;
 };
 
-type MarkerRecord = {
+export type MarkerRecord = {
   placementId: string;
   position: [number, number, number];
   label: string;
-  roles: string[];
-  symbol: string;
+  categories: PublicPlacement["categories"];
+  markerId: MarkerId;
   members: string[];
 };
 
@@ -67,7 +69,7 @@ type AreaRecord = {
   areaId: string;
   placementId: string;
   polygon: Point[];
-  roles: string[];
+  markerId: MarkerId;
 };
 
 type AdapterCallbacks = {
@@ -169,20 +171,16 @@ function normalizeView(view: MapViewState | ViewInput | undefined, fallback: Map
   };
 }
 
-function markerSymbol(roles: readonly string[]): string {
-  return placementStyle(roles).symbol;
-}
-
-function markerColor(roles: readonly string[], selected: boolean, hovered: boolean): [number, number, number, number] {
+function markerColor(markerId: MarkerId, selected: boolean, hovered: boolean): [number, number, number, number] {
   if (selected) return [255, 196, 0, 255];
   if (hovered) return [255, 255, 255, 255];
-  const color = placementStyle(roles).color;
+  const color = markerFor(markerId).color;
   return [color[0], color[1], color[2], 235];
 }
 
 function placementSignature(placements: readonly PublicPlacement[]): string {
   return placements
-    .map(placement => `${placement.placementId}:${placement.position[0]},${placement.position[1]}:${placement.roles.join(",")}`)
+    .map((placement) => `${placement.placementId}:${placement.position[0]},${placement.position[1]}:${placement.categories.join(",")}:${placement.levelRange?.min ?? ""}-${placement.levelRange?.max ?? ""}`)
     .join("\u001f");
 }
 
@@ -194,17 +192,55 @@ function buildMarkers(placements: readonly PublicPlacement[]): MarkerRecord[] {
   const byId = new Map<string, MarkerRecord>();
   for (const placement of placements) {
     if (!validPlacement(placement) || byId.has(placement.placementId)) continue;
+    const markerId = resolveMarker(placement);
+    if (!markerId) continue;
     const position = point(placement.position)!;
     byId.set(placement.placementId, {
       placementId: placement.placementId,
       position: [position[0], position[1], 0],
       label: placement.label,
-      roles: [...placement.roles],
-      symbol: markerSymbol(placement.roles),
+      categories: [...placement.categories],
+      markerId,
       members: [placement.placementId],
     });
   }
-  return [...byId.values()];
+  return [...byId.values()].sort((left, right) => markerFor(left.markerId).renderOrder - markerFor(right.markerId).renderOrder || left.placementId.localeCompare(right.placementId));
+}
+
+export function markerRecordsForPlacements(placements: readonly PublicPlacement[]): MarkerRecord[] {
+  return buildMarkers(placements);
+}
+
+export function createPlacementIconLayer(
+  markers: readonly MarkerRecord[],
+  iconAtlas: IconAtlasResult,
+  selectedId: string | null = null,
+  hoveredId: string | null = null,
+  onSelect?: (placementId: string) => void,
+  onHover?: (placementId: string | null) => void,
+): IconLayer<MarkerRecord> {
+  return new IconLayer<MarkerRecord>({
+    id: MARKER_LAYER_ID,
+    data: markers,
+    iconAtlas: iconAtlas.atlas as unknown as string,
+    iconMapping: iconAtlas.mapping,
+    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+    pickable: true,
+    billboard: false,
+    getPosition: (marker) => marker.position,
+    getIcon: (marker) => marker.markerId,
+    getSize: (marker) => markerFor(marker.markerId).iconSize.base,
+    getColor: (marker) => markerColor(marker.markerId, marker.members.includes(selectedId || ""), marker.members.includes(hoveredId || "")),
+    sizeUnits: "pixels",
+    sizeMinPixels: 14,
+    sizeMaxPixels: 44,
+    updateTriggers: { getColor: [selectedId, hoveredId], getSize: [selectedId, hoveredId] },
+    onClick: onSelect ? (info) => {
+      const placementId = pickedPlacementId(info);
+      if (placementId) onSelect(placementId);
+    } : undefined,
+    onHover: onHover ? (info) => onHover(pickedPlacementId(info)) : undefined,
+  });
 }
 
 function buildAreas(placements: readonly PublicPlacement[]): AreaRecord[] {
@@ -217,11 +253,13 @@ function buildAreas(placements: readonly PublicPlacement[]): AreaRecord[] {
         .map(value => point(value))
         .filter((value): value is Point => value !== null);
       if (polygon.length < 3) continue;
+      const markerId = resolveMarker(placement);
+      if (!markerId) continue;
       areas.push({
         areaId: `${placement.placementId}:${index}`,
         placementId: placement.placementId,
         polygon,
-        roles: [...placement.roles],
+        markerId,
       });
     }
   }
@@ -256,21 +294,21 @@ function aggregateMarkers(markers: readonly MarkerRecord[], zoom: number, select
     let x = 0;
     let y = 0;
     const members: string[] = [];
-    const roles = new Set<string>();
+    const categories = new Set<PublicPlacement["categories"][number]>();
     for (const marker of group) {
       x += marker.position[0];
       y += marker.position[1];
       members.push(...marker.members);
-      marker.roles.forEach(role => roles.add(role));
+      marker.categories.forEach((category) => categories.add(category));
     }
     members.sort();
-    const roleList = [...roles].sort();
+    const markerId = [...group].sort((left, right) => markerFor(right.markerId).precedence - markerFor(left.markerId).precedence)[0]!.markerId;
     result.push({
       placementId: `cluster:${members.join(",")}`,
       position: [x / group.length, y / group.length, 0],
       label: `${group.length} locations`,
-      roles: roleList,
-      symbol: String(group.length),
+      categories: [...categories],
+      markerId,
       members,
     });
   }
@@ -343,6 +381,7 @@ export async function createMapAdapter(
   let imageryResourceNamespace: string | null = null;
   let layers: Layer[] = [];
   const tileResources = new Map<string, TilePayload>();
+  const iconAtlas = await createIconAtlas();
 
   const report = (message: string): void => {
     if (!destroyed) callbacks.onError(message);
@@ -516,7 +555,7 @@ export async function createMapAdapter(
           filled: true,
           getPolygon: area => area.polygon,
           getFillColor: area => {
-            const color = markerColor(area.roles, area.placementId === next.selectedId, area.placementId === hoveredId);
+            const color = markerColor(area.markerId, area.placementId === next.selectedId, area.placementId === hoveredId);
             return [color[0], color[1], color[2], area.placementId === next.selectedId ? 150 : 58];
           },
           getLineColor: area => area.placementId === next.selectedId ? [255, 196, 0, 255] : [28, 28, 28, 230],
@@ -531,66 +570,70 @@ export async function createMapAdapter(
             handleHover(pickedPlacementId(info));
           },
         });
+    const individualMarkers = renderMarkers.filter((marker) => marker.members.length === 1);
+    const clusters = renderMarkers.filter((marker) => marker.members.length > 1);
     const markerLayer = orientationOnly
       ? null
+      : createPlacementIconLayer(
+          individualMarkers,
+          iconAtlas,
+          next.selectedId,
+          hoveredId,
+          callbacks.onSelect,
+          handleHover,
+        );
+    const clusterLayer = orientationOnly
+      ? null
       : new ScatterplotLayer<MarkerRecord>({
-          id: "map-placement-markers",
-          data: renderMarkers,
+          id: "map-placement-clusters",
+          data: clusters,
           coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
           pickable: true,
           stroked: true,
           filled: true,
           radiusUnits: "pixels",
-          radiusMinPixels: 4,
+          radiusMinPixels: 10,
           radiusMaxPixels: 18,
-          getPosition: marker => marker.position,
-          getRadius: marker => marker.members.length > 1 ? 13 : marker.placementId === next.selectedId ? 10 : marker.placementId === hoveredId ? 9 : 7,
-          getFillColor: marker => markerColor(marker.roles, marker.members.includes(next.selectedId || ""), marker.members.includes(hoveredId || "")),
-          getLineColor: marker => marker.members.includes(next.selectedId || "") ? [255, 255, 255, 255] : [20, 20, 20, 255],
+          getPosition: (marker) => marker.position,
+          getRadius: 13,
+          getFillColor: (marker) => markerColor(marker.markerId, marker.members.includes(next.selectedId || ""), marker.members.includes(hoveredId || "")),
+          getLineColor: (marker) => marker.members.includes(next.selectedId || "") ? [255, 255, 255, 255] : [20, 20, 20, 255],
           lineWidthMinPixels: 1,
           lineWidthUnits: "pixels",
-          updateTriggers: {getRadius: [next.selectedId, hoveredId], getFillColor: [next.selectedId, hoveredId], getLineColor: [next.selectedId]},
+          updateTriggers: { getFillColor: [next.selectedId, hoveredId], getLineColor: [next.selectedId] },
           onClick: (info: PickingInfo) => {
             const object = info.object as MarkerRecord | null | undefined;
-            if (!object || object.members.length === 0) return;
-            if (object.members.length > 1) {
-              const revealZoom = Math.min(MAX_CLUSTER_REVEAL_ZOOM, Math.max(view.zoom + 1, AGGREGATION_ZOOM));
-              const revealView: MapViewState = {target: object.position, zoom: revealZoom};
-              activeView = revealView;
-              notifyView();
-              return;
-            }
-            callbacks.onSelect(object.members[0]!);
+            if (!object || object.members.length < 2) return;
+            const revealZoom = Math.min(MAX_CLUSTER_REVEAL_ZOOM, Math.max(view.zoom + 1, AGGREGATION_ZOOM));
+            activeView = { target: object.position, zoom: revealZoom };
+            notifyView();
           },
-          onHover: (info: PickingInfo) => {
-            handleHover(pickedPlacementId(info));
-          },
+          onHover: (info: PickingInfo) => handleHover(pickedPlacementId(info)),
         });
-    const labelLayer = orientationOnly
+    const clusterLabels = orientationOnly
       ? null
       : new TextLayer<MarkerRecord>({
-          id: "map-placement-labels",
-          data: renderMarkers,
+          id: "map-placement-cluster-labels",
+          data: clusters,
           coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
           pickable: false,
-          getPosition: marker => marker.position,
-          getText: marker => marker.members.length > 1 ? String(marker.members.length) : marker.symbol,
-          getSize: marker => marker.members.length > 1 ? 14 : 12,
+          getPosition: (marker) => marker.position,
+          getText: (marker) => String(marker.members.length),
+          getSize: 14,
           sizeUnits: "pixels",
           getColor: [255, 255, 255, 255],
-          getPixelOffset: [0, -1],
           characterSet: "auto",
           outlineColor: [20, 20, 20, 255],
           outlineWidth: 2,
           fontFamily: "sans-serif",
         });
-    layers = [image, areaLayer, markerLayer, labelLayer].filter((layer): layer is Layer => layer !== null);
+    layers = [image, areaLayer, clusterLayer, markerLayer, clusterLabels].filter((layer): layer is Layer => layer !== null);
 
     if (!tileLayer && !illustration) {
       const warningKey = `${next.data.buildId}:${next.mapSpaceId}:${next.layerId}`;
       if (warningKey !== missingLayerWarningKey) {
         missingLayerWarningKey = warningKey;
-        report(`Map layer “${next.layerId}” is not present for ${next.mapSpaceId}.`);
+        report("The selected map layer is not available.");
       }
     }
   };

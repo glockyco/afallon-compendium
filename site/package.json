@@ -12,7 +12,8 @@
     "@deck.gl/core": "9.4.0",
     "@deck.gl/geo-layers": "9.4.0",
     "@deck.gl/layers": "9.4.0",
-    "@math.gl/core": "4.1.0"
+    "@math.gl/core": "4.1.0",
+    "lucide": "0.577.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "3.0.10",
