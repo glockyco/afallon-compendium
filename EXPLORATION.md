@@ -886,8 +886,9 @@ Coverage remains incomplete. Full-build extraction, dungeon imagery, resolved tr
 A sweep visits every matched gameplay scene once, records its native MapZone registration
 and navigable extent, then restores the source scene. `research/spikes/survey-scenes.ts`
 takes the scene catalog and a comma-separated list of scenes to skip, so an interrupted
-sweep resumes. Results for the first 18 scenes are in
-`artifacts/scene-survey/4b437c19-92f0-43ae-89c3-79a8a8c42047`.
+sweep resumes. All 30 gameplay scenes are surveyed, across
+`artifacts/scene-survey/4b437c19-92f0-43ae-89c3-79a8a8c42047` and
+`artifacts/scene-survey/2a28b1e0-d508-4a30-89c0-07623b2b344e`.
 
 Every surveyed scene registers exactly one MapZone and reports no registration error.
 `calibration.size` is two-dimensional: `x` is the world X span and `y` is the world Z span.
@@ -902,10 +903,17 @@ identified by texture name alone, and a rendered image cannot be identified by f
 Interiors each carry their own small MapZone and texture, for example Barrowdeep at
 `(1200, -879)` size `324 x 234`, and Abandoned mine swamp at `(277, -779)` size `404 x 429`.
 
-Recorded defect: `Cave coalway woods 2` (scene 32) registers texture `Abandoned quarry map 1`
-with exactly the frame that `Abandoned quarry` (scene 24) registers, `(1148, -650)` size
-`306 x 221`. Either the game reuses one map asset for both scenes or one scene is
-mis-registered. Not resolved, and no binding may assume either reading.
+Ten scenes share the overworld frame: Coalway woods, Coalway swamp, Chillwind heights and
+the challenge stones. Twenty interiors each carry their own map, so the world holds 21
+distinct rendered maps at most, not one per scene.
+
+Two scenes register another scene's map with an identical frame, so at most 19 interior
+images are distinct. `Cave coalway woods 2` (scene 32) registers `Abandoned quarry map 1`
+with the frame of `Abandoned quarry` (scene 24), `(1148, -650)` size `306 x 221`.
+`Sanctum of the Veilpiercer` (scene 30) registers `Tutorial cave` with the frame of
+`Tutorial cave` (scene 22), `(1187, -650)` size `463 x 357`. Either the game reuses one map
+for both scenes or the second scene is mis-registered. Neither is resolved, and no binding
+may assume either reading.
 
 Native source-scene restoration stalls and retries, so restoring gets a 30 minute budget
 while entering gets 5 minutes. A visit that never restores blocks every later scene,
@@ -915,3 +923,23 @@ without that rule produced 13 misleading failures after one slow restore.
 
 Open hygiene defect: `artifacts/.runtime/` retains about 280 ownership records from earlier
 runs. A stale record blocked ownership with `cleaning, disconnected` until the game restarted.
+
+### The blocked save, and how the sweep was unblocked
+
+A save left inside a challenge-stone arena cannot be used for scene visits. Scene 16 reports
+`sceneLoaded true`, `initialized true`, `isSceneLoading false` and no ready holds, yet
+`loadingScreenActive` stays true and the arena contains no portal, teleport or transition
+component at all. A visit started from it never leaves `loading`, including a visit to
+Coalway woods, so the arena is not a usable source scene. Every failed attempt then wedges
+the runtime: the disconnect leaves in-game cleanup in `cleaning`, and each later claim fails
+with `Runtime ownership is blocked: cleaning, disconnected` until the game restarts.
+
+The fix used the game's own controls rather than a save edit. `MainMenuManager.ClickNewChar`,
+`SelectRace`, `SelectClass`, `SelectGender`, the `characterNameIF` field and `CreateCharacter`
+create a second research character, and the creation scene's own `Continue` control enters the
+world at Tutorial cave. With that character the remaining 11 scenes surveyed in 98 seconds with
+clean ownership, against 35 minutes of stalls and cascading failures from the blocked save.
+
+When restarting the game, stop it and confirm the port is free before starting. A restart that
+overlaps the dying process reports ready against the port the old process still holds, and the
+new process then never binds.
