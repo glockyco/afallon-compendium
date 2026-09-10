@@ -855,3 +855,26 @@ nix develop --command bun run compendium capture --config local/spatial-smoke-co
 ```
 
 Coverage remains incomplete. The world-map layout, game-vocabulary categories, level filtering, the marker registry, travel connections, the guide surfaces, and the displayed drop chance are open.
+
+## World surface, reviewed clipping, and displayed drop chance
+
+Clipping is off unless a reviewer sets it. Automatic derivation was built and then removed: deriving a height from navigation, placements, and upward raycasts made the decision depend on tile size rather than on the scene, because the same cave position at (324.5, -266.4, -676.6) reported covering geometry in a 200-unit tile and open sky in a 70-unit tile containing that point. Requiring one renderer to cover all content could never fire in a cave built from many ceiling pieces. Per-poll derivation also put triangulation and raycasts inside the readiness comparison, which never stabilised and turned an 18-second capture into a 300-second deadline failure across 116 inventories.
+
+A capture plan now carries an optional `clipHeight`. Coalway woods captures in 19 seconds with no clipping entry. The Abandoned mine cave tile with `clipHeight` -250 records `source: plan`, `applied: true`, moves the camera from -180 to -250, and renders the cave floor with the rock formation sliced at that height. Contracts are capture plan v5, raster v3, readiness v2, and geometry v3.
+
+The Adventure Guide displays the authored entry rate as a percentage rounded to one decimal. It ignores the NPC-to-table rate, `LimitDroppedItems` with `maxDroppedItems`, and the minimum-drop pass. Across the four Duskfall bosses the displayed set `5%, 7.6%, 9.1%, 10%, 10.1%, 10.4%, 10.5%, 10.7%, 11.1%, 15%, 15.5%, 30%, 100%` matches the authored rates `5.0, 7.55, 9.13, 10.0, 10.11, 10.44, 10.51, 10.66, 11.10, 15.0, 15.53, 30.0, 100.0`. Thornmaw shows seven items at 15% while its table limits drops to two, so the number the game shows is not an effective probability. Evidence is `research/spikes/guide-drop-chance-result.json`.
+
+Publication v4 composes one world surface. Coalway is native at the origin, Duskfall carries a reviewed offset of 9000 on X because every scene authors its own origin and their native footprints overlap, and Abandoned mine has no reviewed offset, so it is seeded deterministically and reported as unplaced rather than guessed. A reviewed binding for the mine now exists, fitted from its native MapZone at centre (277.4, -778.9) with half extents 202.05 by 214.59 and residual 4.1e-5.
+
+The browser shows one world map with no map selector, terrain under clustered glyph markers, game-vocabulary categories with counts, level ranges such as `Coalway (lvl.15-30)`, a travel-connection toggle, and an authoring mode that exports reviewed offsets. A publication covering the transition area published two travel points whose destinations remain explicitly unresolved, because no dungeon imagery exists yet, and their markers render without lines. Sixteen finest-level tiles load per view and the console reports no errors.
+
+Reproduce with:
+
+```sh
+nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan local/capture-coalway-transitions.json
+nix develop --command bun run compendium tiles --plan local/tiles-coalway-baseline.json --output artifacts
+nix develop --command bun run compendium normalize --plan local/normalize-baseline.json --output artifacts
+nix develop --command bun run compendium publication --plan local/publication-baseline.json --output artifacts
+```
+
+Coverage remains incomplete. Full-build extraction, dungeon imagery, resolved travel arrival points, the Adventure Guide surfaces, and illustrated layers are open.
