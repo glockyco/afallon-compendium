@@ -57,14 +57,51 @@ export const PublicEntitySchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicEntity = Static<typeof PublicEntitySchema>;
 
+const publicTravelDestinationStatus = Type.Union([Type.Literal("resolved"), Type.Literal("unresolved")]);
+export const PublicTravelDestinationSchema = Type.Object({
+  status: publicTravelDestinationStatus,
+  reason: Type.Optional(text),
+  mapSpaceId: Type.Optional(text),
+  placementId: Type.Optional(text),
+  position: Type.Optional(position),
+}, { additionalProperties: false });
+export type PublicTravelDestination = Static<typeof PublicTravelDestinationSchema>;
+
+export const PublicTravelSchema = Type.Object({
+  transitionId: text,
+  enabled: Type.Boolean(),
+  destination: PublicTravelDestinationSchema,
+}, { additionalProperties: false });
+export type PublicTravel = Static<typeof PublicTravelSchema>;
+
 export const PublicPlacementSchema = Type.Object({
   placementId: text, mapSpaceId: text, position, label: text,
   categories: Type.Array(publicMarkerCategory, { minItems: 1, uniqueItems: true }),
   levelRange: Type.Optional(PublicLevelRangeSchema),
   entityKeys: Type.Array(text, { uniqueItems: true }),
   areas: Type.Array(Type.Array(position, { minItems: 3 })), sections,
+  travel: Type.Optional(PublicTravelSchema),
 }, { additionalProperties: false });
 export type PublicPlacement = Static<typeof PublicPlacementSchema>;
+
+export const PublicWorldOffsetSchema = Type.Object({
+  mapSpaceId: text,
+  worldX: number,
+  worldY: number,
+  source: Type.Union([Type.Literal("native"), Type.Literal("reviewed"), Type.Literal("seed")]),
+  status: Type.Union([Type.Literal("placed"), Type.Literal("unplaced")]),
+  reason: Type.Optional(text),
+}, { additionalProperties: false });
+export type PublicWorldOffset = Static<typeof PublicWorldOffsetSchema>;
+
+export const PublicWorldSchema = Type.Object({
+  mapSpaceId: text,
+  label: text,
+  bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
+  offsets: Type.Array(PublicWorldOffsetSchema, { minItems: 1 }),
+  unplacedMapSpaceIds: Type.Array(text, { uniqueItems: true }),
+}, { additionalProperties: false });
+export type PublicWorld = Static<typeof PublicWorldSchema>;
 
 export const PublicItemSourceSchema = Type.Object({
   itemKey: text,
@@ -97,9 +134,10 @@ export const PublicIllustrationSchema = Type.Object({
 export type PublicIllustration = Static<typeof PublicIllustrationSchema>;
 
 export const PublicationDataSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.publication.v3"), buildId: text,
+  schemaVersion: Type.Literal("compendium.publication.v4"), buildId: text,
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   coverage: Type.Object({ complete: Type.Boolean(), messages: Type.Array(text), excludedPlacements: count }, { additionalProperties: false }),
+  world: PublicWorldSchema,
   maps: Type.Array(Type.Object({
     mapSpaceId: text, label: text,
     levelRange: Type.Optional(PublicLevelRangeSchema),

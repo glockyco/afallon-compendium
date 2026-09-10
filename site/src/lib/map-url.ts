@@ -1,7 +1,6 @@
 import type { MapViewState } from './map-adapter';
 
 export interface MapUrlState {
-  mapSpaceId: string | null;
   layerId: string | null;
   selectedId: string | null;
   query: string;
@@ -32,7 +31,6 @@ export function readMapUrl(search: string): MapUrlState {
   const minimum = finiteNumber(params.get('level-min'));
   const maximum = finiteNumber(params.get('level-max'));
   return {
-    mapSpaceId: params.get('map'),
     layerId: params.get('layer'),
     selectedId: params.get('selected'),
     query: params.get('q') ?? '',
@@ -50,7 +48,6 @@ export function readMapUrl(search: string): MapUrlState {
 export function writeMapUrl(url: URL, state: MapUrlState): URL {
   const params = url.searchParams;
   const optional = new Map<string, string | null>([
-    ['map', state.mapSpaceId],
     ['layer', state.layerId],
     ['selected', state.selectedId],
     ['q', state.query.trim() || null],
@@ -61,6 +58,7 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
     ['item', state.itemKey],
     ['entity', state.entityKey]
   ]);
+  params.delete('map');
   for (const [key, value] of optional) {
     if (value) params.set(key, value);
     else params.delete(key);

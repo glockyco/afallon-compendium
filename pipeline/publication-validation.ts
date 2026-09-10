@@ -34,6 +34,18 @@ export function validatePublication(value: unknown): asserts value is Publicatio
   unique(data.tileLayers, row => row.id, "tile layer");
   unique(data.tileLayers, row => row.mapSpaceId, "map pyramid");
   unique(data.illustrations, row => row.id, "illustration");
+  const offsets = unique(data.world.offsets, row => row.mapSpaceId, "world offset");
+  const unplaced = new Set(data.world.unplacedMapSpaceIds);
+  for (const mapSpaceId of unplaced) {
+    const offset = offsets.get(mapSpaceId);
+    if (!offset || offset.status !== "unplaced") throw new Error(`World layout marks an absent or placed map as unplaced: ${mapSpaceId}`);
+  }
+  for (const offset of offsets.values()) {
+    if (offset.status === "unplaced" && (!offset.reason || offset.source !== "seed")) throw new Error(`World layout has an invalid unplaced offset: ${offset.mapSpaceId}`);
+    if (offset.status === "placed" && offset.source === "seed") throw new Error(`World layout marks a seed offset as placed: ${offset.mapSpaceId}`);
+    if (offset.source === "native" && (offset.worldX !== 0 || offset.worldY !== 0)) throw new Error(`Native world offset is not zero: ${offset.mapSpaceId}`);
+  }
+  if (!(data.world.bounds.max.x > data.world.bounds.min.x && data.world.bounds.max.y > data.world.bounds.min.y)) throw new Error("Publication world has empty bounds.");
   const scope = (mapSpaceId: string) => {
     const map = maps.get(mapSpaceId);
     if (!map) throw new Error(`Publication references absent map: ${mapSpaceId}`);
@@ -53,6 +65,7 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     }
   };
   for (const map of maps.values()) {
+    if (!offsets.has(map.mapSpaceId)) throw new Error(`Publication map lacks a world offset: ${map.mapSpaceId}`);
     if (!(map.bounds.max.x > map.bounds.min.x && map.bounds.max.y > map.bounds.min.y)) throw new Error(`Publication map has empty bounds: ${map.mapSpaceId}`);
     if (map.levelRange && map.levelRange.max < map.levelRange.min) throw new Error(`Publication map has an inverted level range: ${map.mapSpaceId}`);
     if (!data.tileLayers.some(layer => layer.mapSpaceId === map.mapSpaceId)) throw new Error(`Publication map lacks primary imagery: ${map.mapSpaceId}`);
@@ -85,6 +98,16 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     })) throw new Error(`Publication placement lacks finest primary imagery: ${placement.placementId}`);
     for (const key of placement.entityKeys) if (!entities.has(key)) throw new Error(`Publication placement references absent entity: ${key}`);
     for (const polygon of placement.areas) for (const point of polygon) inside(placement.mapSpaceId, point);
+    if (placement.travel) {
+      const destination = placement.travel.destination;
+      if (destination.status === "resolved") {
+        if (destination.reason !== undefined || destination.mapSpaceId === undefined || destination.position === undefined || destination.placementId !== undefined) throw new Error(`Resolved travel destination is incomplete: ${placement.placementId}`);
+        scope(destination.mapSpaceId);
+        inside(destination.mapSpaceId, destination.position);
+      } else if (!destination.reason || destination.mapSpaceId !== undefined || destination.position !== undefined || destination.placementId !== undefined) {
+        throw new Error(`Unresolved travel destination has a guessed position: ${placement.placementId}`);
+      }
+    }
     checkSections(placement.sections);
   }
   for (const entity of entities.values()) { checkPlacementRefs(entity.placementIds); checkSections(entity.sections); }

@@ -17,6 +17,7 @@
     resolveMarker,
     type MarkerId,
   } from './map/marker-registry';
+  import { downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
   import type { PublicEntity, PublicItemSource, PublicPlacement, PublicDetailSection, PublicationData } from '../../../pipeline/public-contracts';
 
   type Adapter = {
@@ -47,8 +48,7 @@
   let adapter: Adapter | null = null;
   let loading = true;
   let loadError = '';
-  let mapSpaceId = '';
-  let layerId = '';
+  let layerId = 'captured';
   let selectedId: string | null = null;
   let query = '';
   let categories: MarkerId[] = [];
@@ -64,15 +64,17 @@
   let view: MapViewState = { target: [0, 0, 0], zoom: -1 };
   let adapterReady = false;
   let detailOrigin: HTMLElement | null = null;
+  let authoring = false;
+  let showConnections = true;
+  let worldOffsetOverrides: WorldOffsetOverrides = {};
   let viewTimer: ReturnType<typeof setTimeout> | null = null;
   let queryTimer: ReturnType<typeof setTimeout> | null = null;
 
-  $: activeMap = publication?.maps.find((map) => map.mapSpaceId === mapSpaceId) ?? publication?.maps[0] ?? null;
-  $: layerOptions = getLayerOptions(publication, mapSpaceId);
+  $: layerOptions = getLayerOptions(publication);
   $: if (layerOptions.length > 0 && !layerOptions.some((layer) => layer.id === layerId)) layerId = layerOptions[0]!.id;
   $: currentLayer = layerOptions.find((layer) => layer.id === layerId) ?? null;
   $: orientationOnly = currentLayer?.orientationOnly ?? false;
-  $: allMapPlacements = uniquePlacements(publication?.placements.filter((placement) => placement.mapSpaceId === mapSpaceId) ?? []);
+  $: allMapPlacements = uniquePlacements(publication?.placements ?? []);
   $: itemContext = findItem(publication, itemKey);
   $: sourceSearchEntries = (itemContext?.sources ?? []).map((source) => ({ source, text: [source.label, source.kind, sectionText(source.sections)].join(' ').toLocaleLowerCase() }));
   $: sourceNeedle = itemSourceQuery.trim().toLocaleLowerCase();
@@ -91,10 +93,6 @@
   $: matchingPlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && (categories.length === 0 || categories.some((category) => placement.categories.includes(category))) && levelMatches(placement) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId)));
   $: categoryCounts = getCategoryCounts(matchingPlacements);
   $: categoryFilters = MARKER_IDS.filter((category) => categoryCounts[category] > 0 || markerFor(category).defaultVisible);
-  $: if (selectedId && !allMapPlacements.some((placement) => placement.placementId === selectedId) && !staleSelection) {
-    const selected = publication?.placements.find((placement) => placement.placementId === selectedId);
-    if (selected) staleSelection = `Selected location “${selected.label}” is outside the current map.`;
-  }
   $: viewportPlacements = matchingPlacements.filter((placement) => inViewport(placement, viewportBounds));
   $: selectedPlacement = publication?.placements.find((placement) => placement.placementId === selectedId) ?? null;
   $: hoveredPlacement = publication?.placements.find((placement) => placement.placementId === hoveredId) ?? null;
@@ -107,6 +105,7 @@
 
   onMount(() => {
     let disposed = false;
+    worldOffsetOverrides = loadWorldOffsetOverrides();
     const metadataRequest = new AbortController();
     const onPopState = () => applyUrlState(readMapUrl(window.location.search), false);
     const onKeydown = (event: KeyboardEvent) => {
@@ -123,20 +122,17 @@
       .then(async (response) => {
         if (!response.ok) throw new Error(`Publication request failed (${response.status})`);
         const json = (await response.json()) as PublicationData;
-        if (json.schemaVersion !== 'compendium.publication.v3') throw new Error('Unsupported publication schema.');
+        if (json.schemaVersion !== 'compendium.publication.v4') throw new Error('Unsupported publication schema.');
         return resolvePublicationAssets(json, publicationUrl);
       })
       .then(async (data) => {
         if (disposed) return;
         publication = data;
         applyUrlState(readMapUrl(window.location.search), false);
-        const map = publication.maps.find((candidate) => candidate.mapSpaceId === mapSpaceId) ?? publication.maps[0];
-        if (!map) throw new Error('Publication has no map spaces.');
-        mapSpaceId = map.mapSpaceId;
         loading = false;
         await tick();
         if (disposed) return;
-        view = readMapUrl(window.location.search).view ?? centerView(map);
+        view = readMapUrl(window.location.search).view ?? centerView(publication.world);
         const module = await import('./map-adapter');
         if (disposed) return;
         adapter = await module.createMapAdapter(canvas, {
@@ -150,6 +146,10 @@
           },
           onHover(placementId) {
             hoveredId = placementId;
+          },
+          onWorldOffsetChange(mapSpaceId, offset) {
+            worldOffsetOverrides = { ...worldOffsetOverrides, [mapSpaceId]: offset };
+            saveWorldOffsetOverrides(worldOffsetOverrides);
           },
           onError(message) {
             loadError = message;
@@ -174,21 +174,21 @@
     };
   });
 
-  $: if (adapterReady && adapter && publication && activeMap) {
-    adapter.update({ data: publication, mapSpaceId, layerId, placements: adapterPlacements, selectedId, view });
+  $: if (adapterReady && adapter && publication) {
+    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerId, placements: adapterPlacements, selectedId, view, worldOffsets: worldOffsetOverrides, authoring, showConnections });
   }
 
-  function centerView(map: PublicationData['maps'][number]): MapViewState {
+  function centerView(map: PublicationData['world']): MapViewState {
     const x = (map.bounds.min.x + map.bounds.max.x) / 2;
     const y = (map.bounds.min.y + map.bounds.max.y) / 2;
     const scale = Math.min((canvas?.clientWidth || 640) / (map.bounds.max.x - map.bounds.min.x), (canvas?.clientHeight || 480) / (map.bounds.max.y - map.bounds.min.y));
     return { target: [x, y, 0], zoom: Math.log2(scale * 0.9) };
   }
 
-  function getLayerOptions(data: PublicationData | null, mapId: string): LayerOption[] {
+  function getLayerOptions(data: PublicationData | null): LayerOption[] {
     if (!data) return [];
-    const options: LayerOption[] = data.tileLayers.filter((layer) => layer.mapSpaceId === mapId).map((layer): LayerOption => ({ id: layer.id, label: 'Captured screenshots', kind: 'screenshot', orientationOnly: false }));
-    options.push(...data.illustrations.filter((illustration) => illustration.mapSpaceId === mapId).map((illustration): LayerOption => ({ id: illustration.id, label: `${illustration.label}${illustration.registration === 'orientation-only' ? ' (orientation only)' : ''}`, kind: 'illustration', orientationOnly: illustration.registration === 'orientation-only' })));
+    const options: LayerOption[] = data.tileLayers.length > 0 ? [{ id: 'captured', label: 'Captured screenshots', kind: 'screenshot', orientationOnly: false }] : [];
+    options.push(...data.illustrations.map((illustration): LayerOption => ({ id: illustration.id, label: `${illustration.label}${illustration.registration === 'orientation-only' ? ' (orientation only)' : ''}`, kind: 'illustration', orientationOnly: illustration.registration === 'orientation-only' })));
     return options;
   }
 
@@ -244,44 +244,27 @@
   function applyUrlState(next: MapUrlState, explicit: boolean): void {
     itemSourceQuery = next.itemSourceQuery;
     detailQuery = next.detailQuery;
-    if (!publication) {
-      mapSpaceId = next.mapSpaceId ?? '';
-      layerId = next.layerId ?? '';
-      selectedId = next.selectedId;
-      query = next.query;
-      categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
-      levelMinimum = next.levelMinimum;
-      levelMaximum = next.levelMaximum;
-      itemKey = next.itemKey;
-      selectedEntityKey = next.entityKey;
-      if (next.view) view = next.view;
-      return;
-    }
-    const map = publication.maps.find((candidate) => candidate.mapSpaceId === next.mapSpaceId) ?? publication.maps[0];
-    if (!map) return;
-    mapSpaceId = map.mapSpaceId;
-    const options = getLayerOptions(publication, mapSpaceId);
-    layerId = options.some((layer) => layer.id === next.layerId) ? next.layerId ?? options[0]?.id ?? '' : options[0]?.id ?? '';
+    const options = getLayerOptions(publication);
+    layerId = options.some((layer) => layer.id === next.layerId) ? next.layerId ?? options[0]?.id ?? 'captured' : options[0]?.id ?? 'captured';
     query = next.query;
     categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
     levelMinimum = next.levelMinimum;
     levelMaximum = next.levelMaximum;
-    itemKey = next.itemKey && publication.itemSources.some((item) => item.itemKey === next.itemKey) ? next.itemKey : null;
-    const selected = next.selectedId ? publication.placements.find((placement) => placement.placementId === next.selectedId) : null;
-    if (next.selectedId && !selected) staleSelection = 'This link refers to a location that is not in the loaded publication.';
-    else if (selected && selected.mapSpaceId !== mapSpaceId) staleSelection = `Selected location “${selected.label}” is not on this map.`;
+    itemKey = next.itemKey && (!publication || publication.itemSources.some((item) => item.itemKey === next.itemKey)) ? next.itemKey : null;
+    const selected = next.selectedId && publication ? publication.placements.find((placement) => placement.placementId === next.selectedId) : null;
+    if (next.selectedId && publication && !selected) staleSelection = 'This link refers to a location that is not in the loaded publication.';
     else staleSelection = '';
-    selectedId = selected && !staleSelection ? selected.placementId : null;
-    selectedEntityKey = next.entityKey && publication.entities.some((entity) => entity.entityKey === next.entityKey) ? next.entityKey : null;
+    selectedId = selected?.placementId ?? (publication ? null : next.selectedId);
+    selectedEntityKey = next.entityKey && (!publication || publication.entities.some((entity) => entity.entityKey === next.entityKey)) ? next.entityKey : null;
     if (selectedEntityKey) itemKey = null;
-    else if (next.entityKey) staleSelection = `This link refers to an entity that is not in the loaded publication: ${next.entityKey}.`;
-    if (next.itemKey && !itemKey && !selectedEntityKey) staleSelection = `This link refers to an item that is not in the loaded publication: ${next.itemKey}.`;
+    else if (next.entityKey && publication) staleSelection = `This link refers to an entity that is not in the loaded publication: ${next.entityKey}.`;
+    if (next.itemKey && !itemKey && !selectedEntityKey && publication) staleSelection = `This link refers to an item that is not in the loaded publication: ${next.itemKey}.`;
     if (next.view) view = next.view;
-    else if (!explicit) view = centerView(map);
+    else if (!explicit && publication) view = centerView(publication.world);
   }
 
   function currentUrl(): URL {
-    return writeMapUrl(new URL(window.location.href), { mapSpaceId, layerId, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories, levelMinimum, levelMaximum, itemKey, entityKey: selectedEntityKey, view });
+    return writeMapUrl(new URL(window.location.href), { layerId, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories, levelMinimum, levelMaximum, itemKey, entityKey: selectedEntityKey, view });
   }
 
   function syncUrl(mode: 'push' | 'replace'): void {
@@ -301,14 +284,12 @@
   function selectPlacement(placementId: string, origin: HTMLElement | HTMLCanvasElement | null = null): void {
     const placement = publication?.placements.find((candidate) => candidate.placementId === placementId);
     if (!placement) return;
-    const zoom = !orientationOnly && placement.mapSpaceId === mapSpaceId ? Math.max(view.zoom, 1) : 1;
+    const zoom = !orientationOnly ? Math.max(view.zoom, 1) : 1;
     selectedId = placementId;
     selectedEntityKey = null;
     staleSelection = '';
     detailOrigin = origin;
-    mapSpaceId = placement.mapSpaceId;
-    const options = getLayerOptions(publication, mapSpaceId);
-    if (!options.some((option) => option.id === layerId) || orientationOnly) layerId = options.find((option) => option.kind === 'screenshot')?.id ?? options[0]?.id ?? '';
+    if (!layerOptions.some((option) => option.id === layerId) || orientationOnly) layerId = layerOptions.find((option) => option.kind === 'screenshot')?.id ?? layerOptions[0]?.id ?? '';
     view = { target: [placement.position[0], placement.position[1], 0], zoom };
     viewportBounds = null;
     syncUrl('push');
@@ -350,21 +331,21 @@
     void focusDetails();
   }
 
-  function chooseMap(nextMapId: string): void {
-    const nextMap = publication?.maps.find((map) => map.mapSpaceId === nextMapId);
-    if (!nextMap) return;
-    mapSpaceId = nextMapId;
-    layerId = getLayerOptions(publication, mapSpaceId)[0]?.id ?? '';
-    selectedId = null;
-    staleSelection = '';
-    viewportBounds = null;
-    view = centerView(nextMap);
-    syncUrl('push');
-  }
-
   function chooseLayer(nextLayerId: string): void {
     layerId = nextLayerId;
     syncUrl('push');
+  }
+
+  function toggleAuthoring(): void {
+    authoring = !authoring;
+  }
+
+  function toggleConnections(): void {
+    showConnections = !showConnections;
+  }
+
+  function exportWorldOffsets(): void {
+    if (publication) downloadWorldOffsets(worldOffsetOverrides, publication);
   }
 
   function toggleCategory(category: MarkerId): void {
@@ -433,8 +414,8 @@
     <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntity || itemContext || staleSelection)}>
       <aside class="control-panel" aria-label="Atlas controls">
         <div class="control-section search-section"><label for="atlas-search">Search places, entities, and items</label><div class="search-row"><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } }} placeholder="Try a name or item" autocomplete="off" /><button class="quiet-button" type="button" on:click={() => { query = ''; scheduleQueryUrl(); searchInput?.focus(); }} aria-label="Clear search">Clear</button></div><p class="hint">Press Enter to move from search to results.</p></div>
-        <div class="control-section"><label for="map-select">Map</label><select id="map-select" value={mapSpaceId} on:change={(event) => chooseMap((event.currentTarget as HTMLSelectElement).value)}>{#each publication.maps as map}<option value={map.mapSpaceId}>{map.label} {levelRangeLabel(map.levelRange)}</option>{/each}</select></div>
-        <div class="control-section"><label for="layer-select">Map layer</label><select id="layer-select" value={layerId} on:change={(event) => chooseLayer((event.currentTarget as HTMLSelectElement).value)}>{#each layerOptions as layer}<option value={layer.id}>{layer.label}</option>{/each}</select>{#if orientationOnly}<p class="notice">Orientation only. Marker navigation is disabled until a screenshot layer is selected.</p>{/if}</div>
+        {#if layerOptions.length > 1}<div class="control-section"><label for="layer-select">Map layer</label><select id="layer-select" value={layerId} on:change={(event) => chooseLayer((event.currentTarget as HTMLSelectElement).value)}>{#each layerOptions as layer}<option value={layer.id}>{layer.label}</option>{/each}</select>{#if orientationOnly}<p class="notice">Orientation only. Marker navigation is disabled until a screenshot layer is selected.</p>{/if}</div>{/if}
+        <div class="control-section world-tools"><label class="category-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="category-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button><p class="hint">Drag a map boundary to review its placement. Travel lines stay visible while authoring.</p>{/if}</div>
         <div class="control-section categories"><div class="section-heading"><h2>Categories</h2><span class="count">{allMapPlacements.length}</span></div>{#each categoryFilters.filter((category) => categoryCounts[category] || categories.includes(category)) as category}<label class="category-option"><input type="checkbox" checked={categories.includes(category)} on:change={() => toggleCategory(category)} /><span class="category-symbol" style:background={markerColorCss(markerFor(category))} aria-hidden="true">{markerFor(category).label.slice(0, 1)}</span><span>{markerFor(category).pluralLabel}<small>{markerFor(category).label}</small></span><strong>{categoryCounts[category]}</strong></label>{/each}{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Clear category filters</button>{/if}</div>
         <div class="control-section marker-legend"><div class="section-heading"><h2>Legend</h2></div>{#each Object.values(markerRegistry) as marker}<div class="legend-entry"><span class="category-symbol" style:background={markerColorCss(marker)} aria-hidden="true">{marker.label.slice(0, 1)}</span><span>{marker.label}</span></div>{/each}</div>
         <div class="control-section level-filter"><div class="section-heading"><h2>Creature levels</h2></div><div class="level-fields"><label for="level-min">From<input id="level-min" type="number" min="0" step="1" value={levelMinimum ?? ''} on:input={(event) => updateLevelMinimum((event.currentTarget as HTMLInputElement).value)} /></label><label for="level-max">To<input id="level-max" type="number" min="0" step="1" value={levelMaximum ?? ''} on:input={(event) => updateLevelMaximum((event.currentTarget as HTMLInputElement).value)} /></label></div><p class="hint">Locations without a known level stay visible.</p></div>
@@ -442,7 +423,7 @@
       </aside>
 
       <section class="map-column" aria-label="Interactive map">
-        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => { view = { ...view, zoom: Math.min(12, view.zoom + 0.5) }; syncUrl('replace'); }}>+</button><button type="button" aria-label="Zoom out" on:click={() => { view = { ...view, zoom: Math.max(-12, view.zoom - 0.5) }; syncUrl('replace'); }}>−</button><button type="button" disabled={orientationOnly} on:click={() => { if (activeMap) { view = centerView(activeMap); syncUrl('replace'); } }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(hoveredPlacement.levelRange)}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}{#if orientationOnly}{' · orientation layer'}{/if}</div></div>
+        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => { view = { ...view, zoom: Math.min(12, view.zoom + 0.5) }; syncUrl('replace'); }}>+</button><button type="button" aria-label="Zoom out" on:click={() => { view = { ...view, zoom: Math.max(-12, view.zoom - 0.5) }; syncUrl('replace'); }}>−</button><button type="button" disabled={orientationOnly} on:click={() => { if (publication) { view = centerView(publication.world); syncUrl('replace'); } }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(hoveredPlacement.levelRange)}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}{#if orientationOnly}{' · orientation layer'}{/if}</div></div>
         {#if loadError && publication}<div class="inline-error" role="alert">{loadError}</div>{/if}
         <section class="results" aria-labelledby="results-heading" bind:this={resultList}>
           <div class="results-header">

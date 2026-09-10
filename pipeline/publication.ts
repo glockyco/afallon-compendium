@@ -12,17 +12,19 @@ import { SceneCatalogSchema, type SceneCatalog } from "../tools/map-contracts";
 import { IllustrationOutputSchema, type IllustrationOutput } from "../tools/illustration-contracts";
 import { TilePyramidSchema, type TilePyramid } from "./tile-contracts";
 import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement } from "./normalized-contracts";
-import { PUBLIC_MARKER_CATEGORY_VALUES, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicIllustration, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicationData } from "./public-contracts";
+import { PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicIllustration, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicTravel, type PublicationData } from "./public-contracts";
+import { WorldOffsetsSchema, type WorldOffsets, buildWorldLayout } from "./world-layout";
 import { affinePoint, inversePoint, validatePublication } from "./publication-validation";
 
 const reference = Type.Object({ path: Type.String({ minLength: 1 }), sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) }, { additionalProperties: false });
 export const PublicationPlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.publication-plan.v1"),
+  schemaVersion: Type.Literal("compendium.publication-plan.v2"),
   buildId: Type.String({ minLength: 1 }),
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   normalized: reference,
   pyramids: Type.Array(reference, { minItems: 1 }),
   illustrations: Type.Array(reference),
+  worldOffsets: reference,
 }, { additionalProperties: false });
 export type PublicationPlan = Static<typeof PublicationPlanSchema>;
 
@@ -31,6 +33,17 @@ async function jsonArtifact<T extends { schemaVersion: string; buildId: string }
   const value = JSON.parse(new TextDecoder().decode(bytes)) as T;
   if (value.schemaVersion !== schemaVersion || value.buildId !== run.manifest.input.buildId) throw new Error(`Publication input schema or build mismatch: ${path}`);
   return value;
+}
+
+async function readWorldOffsets(path: string, expectedSha256: string, buildId: string): Promise<WorldOffsets> {
+  const bytes = await readFile(path);
+  const actualSha256 = createHash("sha256").update(bytes).digest("hex");
+  if (actualSha256 !== expectedSha256) throw new Error(`World offsets hash mismatch: ${path}`);
+  const value: unknown = JSON.parse(bytes.toString("utf8"));
+  Assert(WorldOffsetsSchema, value);
+  const offsets = value as WorldOffsets;
+  if (offsets.buildId !== buildId) throw new Error(`World offsets build mismatch: ${path}`);
+  return offsets;
 }
 
 function label(value: string): string {
@@ -259,12 +272,132 @@ function spatialAreas(placement: NormalizedPlacement, resolver: ReturnType<typeo
   return [polygon];
 }
 
+type TravelTarget = { sceneNativeId: number; position: { x: number; y: number; z: number } };
+type TravelResolution = { target: TravelTarget | null; reason?: string };
+
+function discriminator(value: unknown, expectedValue: number, expectedName: string): "match" | "contradictory" | "missing" {
+  const candidate = record(value);
+  if (!candidate || typeof candidate.value !== "number" || typeof candidate.name !== "string") return "missing";
+  if (candidate.value === expectedValue && candidate.name === expectedName) return "match";
+  if (candidate.value === expectedValue || candidate.name === expectedName) return "contradictory";
+  return "missing";
+}
+
+function finitePosition(value: unknown): value is { x: number; y: number; z: number } {
+  const candidate = record(value);
+  return candidate !== null && typeof candidate.x === "number" && Number.isFinite(candidate.x) && typeof candidate.y === "number" && Number.isFinite(candidate.y) && typeof candidate.z === "number" && Number.isFinite(candidate.z);
+}
+
+function nestedTravelResolution(data: Record<string, unknown>, sourceSceneNativeId: number): TravelResolution {
+  const actions = Array.isArray(data.actions) ? data.actions : null;
+  if (!actions) return { target: null, reason: "Nested GameActions are unavailable." };
+  const gameActionLists: unknown[] = [];
+  for (const row of actions) {
+    const action = record(row);
+    if (!action) return { target: null, reason: "A nested action row is unavailable." };
+    const actionDiscriminator = discriminator(action.type, 9, "GameActions");
+    if (actionDiscriminator === "contradictory") return { target: null, reason: "A GameActions discriminator is contradictory." };
+    if (actionDiscriminator === "match") {
+      const gameActions = record(action.gameActions);
+      if (!gameActions) return { target: null, reason: "GameActions has no projected payload." };
+      const template = record(gameActions.template);
+      if (template) gameActionLists.push(template.actions);
+      const inline = record(gameActions.inline);
+      if (inline) gameActionLists.push(inline.actions);
+    }
+  }
+  let sawTeleport = false;
+  for (const listValue of gameActionLists) {
+    if (!Array.isArray(listValue)) return { target: null, reason: "A nested GameActions list is unavailable." };
+    for (const row of listValue) {
+      const action = record(row);
+      if (!action) return { target: null, reason: "A nested teleport row is unavailable." };
+      const actionDiscriminator = discriminator(action.type, 22, "Teleport");
+      if (actionDiscriminator === "contradictory") return { target: null, reason: "A Teleport action discriminator is contradictory." };
+      if (actionDiscriminator !== "match") continue;
+      sawTeleport = true;
+      if (action.unsupported === true) return { target: null, reason: "The Teleport action is marked unsupported." };
+      const teleport = record(action.teleport);
+      if (!teleport) return { target: null, reason: "Teleport has no projected payload." };
+      const teleportType = discriminator(teleport.type, 1, "Position");
+      const gameSceneType = discriminator(teleport.type, 0, "GameScene");
+      const targetType = discriminator(teleport.type, 2, "Target");
+      if (teleportType === "contradictory" || gameSceneType === "contradictory" || targetType === "contradictory") return { target: null, reason: "A teleport type discriminator is contradictory." };
+      if (targetType === "match") return { target: null, reason: "Target teleport destination is unresolved." };
+      if (teleportType === "match") {
+        if (!finitePosition(teleport.position)) return { target: null, reason: "Position teleport has no verified position." };
+        return { target: { sceneNativeId: sourceSceneNativeId, position: teleport.position } };
+      }
+      if (gameSceneType === "match") {
+        if (typeof teleport.sceneNativeId !== "number" || !Number.isInteger(teleport.sceneNativeId) || teleport.sceneNativeId < 0) return { target: null, reason: "GameScene teleport has no verified destination scene." };
+        if (!finitePosition(teleport.position)) return { target: null, reason: "GameScene teleport has no verified arrival position." };
+        return { target: { sceneNativeId: teleport.sceneNativeId, position: teleport.position } };
+      }
+      return { target: null, reason: "Teleport has an unsupported destination type." };
+    }
+  }
+  return { target: null, reason: sawTeleport ? "No verified teleport destination exists." : "No nested Teleport action exists." };
+}
+
+function mapSourceEnabled(data: Record<string, unknown>): boolean {
+  const source = record(data.source);
+  return source?.enabled !== false;
+}
+
+function worldPointForTarget(
+  target: TravelTarget,
+  sourcePath: string,
+  resolver: ReturnType<typeof compileMapSpaces>,
+  sceneCatalog: SceneCatalog,
+  offsets: ReadonlyMap<string, { worldX: number; worldY: number }>,
+  imageryMapSpaces: ReadonlySet<string>,
+): { mapSpaceId: string; position: [number, number] } | null {
+  const scene = sceneCatalog.scenes.find((candidate) => candidate.nativeId === target.sceneNativeId && candidate.state === "matched");
+  const scenePath = scene?.buildMatches[0]?.path ?? sourcePath;
+  const resolution = resolver.resolve(target.sceneNativeId, scenePath, target.position);
+  if (resolution.candidates.length !== 1) return null;
+  const candidate = resolution.candidates[0]!;
+  const offset = offsets.get(candidate.mapSpaceId);
+  if (!offset || !imageryMapSpaces.has(candidate.mapSpaceId)) return null;
+  return { mapSpaceId: candidate.mapSpaceId, position: [candidate.mapPosition.x + offset.worldX, candidate.mapPosition.y + offset.worldY] };
+}
+
+function travelForPlacement(
+  placement: NormalizedPlacement,
+  sources: readonly NormalizedMapProjection["sources"][number][],
+  resolver: ReturnType<typeof compileMapSpaces>,
+  sceneCatalog: SceneCatalog,
+  offsets: ReadonlyMap<string, { worldX: number; worldY: number }>,
+  imageryMapSpaces: ReadonlySet<string>,
+): PublicTravel | undefined {
+  const candidates = sources.filter((source) => source.placementId === placement.placementId && (source.data.role === "transition" || source.data.transitionKind !== undefined || (Array.isArray(source.data.roles) && source.data.roles.includes("transition"))));
+  if (candidates.length === 0 && !placement.roles.some((role) => role.role === "transition" || role.role === "respawnDestination")) return undefined;
+  const source = candidates[0];
+  if (!source) return { transitionId: placement.placementId, enabled: true, destination: { status: "unresolved", reason: "No normalized transition source is available." } };
+  const data = source.data;
+  const transitionId = typeof data.transitionId === "string" ? data.transitionId : source.sourceId;
+  let resolution: TravelResolution;
+  const destinationScene = record(data.destinationScene);
+  if (destinationScene && data.destinationResolved === true && typeof destinationScene.nativeId === "number" && Number.isInteger(destinationScene.nativeId)) {
+    resolution = { target: null, reason: "Destination scene is known, but its verified arrival position is not published." };
+  } else if (Array.isArray(data.actions)) {
+    resolution = nestedTravelResolution(data, placement.sceneNativeId);
+  } else {
+    resolution = { target: null, reason: "Transition destination is unresolved." };
+  }
+  if (!resolution.target) return { transitionId, enabled: mapSourceEnabled(data), destination: { status: "unresolved", reason: resolution.reason ?? "Transition destination is unresolved." } };
+  const destination = worldPointForTarget(resolution.target, placement.scenePath, resolver, sceneCatalog, offsets, imageryMapSpaces);
+  if (!destination) return { transitionId, enabled: mapSourceEnabled(data), destination: { status: "unresolved", reason: "Verified destination has no published map position." } };
+  return { transitionId, enabled: mapSourceEnabled(data), destination: { status: "resolved", mapSpaceId: destination.mapSpaceId, position: destination.position } };
+}
+
 export async function preparePublication(planPath: string, outputRoot: string) {
   const absolutePlan = resolve(planPath), planDirectory = dirname(absolutePlan);
   const planBytes = await readFile(absolutePlan);
   const planValue: unknown = JSON.parse(planBytes.toString("utf8"));
   Assert(PublicationPlanSchema, planValue);
   const plan = planValue as PublicationPlan;
+  const reviewedOffsets = await readWorldOffsets(resolve(planDirectory, plan.worldOffsets.path), plan.worldOffsets.sha256, plan.buildId);
   const load = (reference: PublicationPlan["normalized"], command: string) => loadVerifiedRun(resolve(planDirectory, reference.path), reference.sha256, plan.buildId, command);
   const normalized = await load(plan.normalized, "normalize");
   const map = await jsonArtifact<NormalizedMapProjection>(normalized, "projections/map-projections.json", "compendium.map-projections.v2");
@@ -285,7 +418,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const resolver = compileMapSpaces(profile, catalogValue as SceneCatalog);
   const assetBytes = new Map<string, Uint8Array>();
   const alphaMasks = new Map<string, { bytes: Uint8Array; width: number; height: number }>();
-  const tileLayers: PublicTileLayer[] = [];
+  let tileLayers: PublicTileLayer[] = [];
   let allImageryComplete = true;
   for (const reference of plan.pyramids) {
     const source = await load(reference, "tiles");
@@ -317,9 +450,29 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     allImageryComplete &&= pyramid.coverage.complete && !pyramid.coverage.blocker;
     tileLayers.push(layer);
   }
+  const localTileLayers = tileLayers;
+  const tileBounds = (layer: PublicTileLayer): { min: { x: number; y: number }; max: { x: number; y: number } } => {
+    const corners = [[0, 0], [layer.width, 0], [0, layer.height], [layer.width, layer.height]] as const;
+    const points = corners.map(([x, y]) => affinePoint(layer.mapFromPixelEdge, x, y));
+    return { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } };
+  };
+  const bindingsPerMap = new Map<string, number>();
+  for (const binding of profile.bindings) bindingsPerMap.set(binding.mapSpaceId, (bindingsPerMap.get(binding.mapSpaceId) ?? 0) + 1);
+  const layout = buildWorldLayout(
+    profile.mapSpaces.map((space) => ({ mapSpaceId: space.id, bounds: localTileLayers.find((layer) => layer.mapSpaceId === space.id) ? tileBounds(localTileLayers.find((layer) => layer.mapSpaceId === space.id)!) : null })),
+    reviewedOffsets,
+    new Set([...bindingsPerMap].filter(([, count]) => count > 1).map(([mapSpaceId]) => mapSpaceId)),
+  );
+  const offsetByMap = new Map(layout.offsets.map((offset) => [offset.mapSpaceId, offset]));
+  tileLayers = localTileLayers.map((layer) => {
+    const offset = offsetByMap.get(layer.mapSpaceId);
+    if (!offset) throw new Error(`World layout has no offset for map space: ${layer.mapSpaceId}`);
+    const translate = (affine: PublicAffine): PublicAffine => ({ ...affine, origin: { x: affine.origin.x + offset.worldX, y: affine.origin.y + offset.worldY } });
+    return { ...layer, mapFromPixelEdge: translate(layer.mapFromPixelEdge), tiles: layer.tiles.map((tile) => ({ ...tile, mapFromPixelEdge: translate(tile.mapFromPixelEdge) })) };
+  });
   const covered = (placement: NormalizedPlacement): boolean => {
     if (!placement.mapPosition || !placement.mapSpaceId) return false;
-    const layer = tileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId);
+    const layer = localTileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId);
     if (!layer) return false;
     return layer.tiles.some(tile => {
       if (tile.z !== layer.finestLevel || tile.state === "empty") return false;
@@ -348,7 +501,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const name = [source.data.interactableName, source.data.chestName, referenceName(source.data.station), referenceName(source.data.property)].find((value) => typeof value === "string" && value.trim());
     if (typeof name === "string") sourceNamesByPlacement.set(source.placementId, plainText(name));
   }
-  const placements: PublicPlacement[] = selected.map(placement => {
+  const localPlacements: Array<{ source: NormalizedPlacement; value: PublicPlacement }> = selected.map(placement => {
     const resolution = resolver.resolve(placement.sceneNativeId, placement.scenePath, placement.worldPosition);
     const candidates = resolution.candidates.filter(candidate => candidate.mapSpaceId === placement.mapSpaceId);
     if (candidates.length !== 1 || Math.hypot(candidates[0]!.mapPosition.x - placement.mapPosition!.x, candidates[0]!.mapPosition.y - placement.mapPosition!.y) > 1e-6) throw new Error(`Publication placement contradicts reviewed spatial membership: ${placement.placementId}`);
@@ -356,7 +509,23 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const categories = categoriesByPlacement.get(placement.placementId) ?? [];
     if (!categories.length) throw new Error(`Publication placement has no game category: ${placement.placementId}`);
     const range = levelRangesByPlacement.get(placement.placementId);
-    return { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, position: [placement.mapPosition!.x, placement.mapPosition!.y], label: linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || categories.map(category => categoryLabels[category]).join(" / "), categories, ...(range ? { levelRange: range } : {}), entityKeys: linked.map(entity => entity.entityKey), areas: spatialAreas(placement, resolver), sections: linked.flatMap(entity => entity.sections) };
+    const localAreas = spatialAreas(placement, resolver);
+    return {
+      source: placement,
+      value: { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, position: [placement.mapPosition!.x, placement.mapPosition!.y], label: linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || categories.map(category => categoryLabels[category]).join(" / "), categories, ...(range ? { levelRange: range } : {}), entityKeys: linked.map(entity => entity.entityKey), areas: localAreas, sections: linked.flatMap(entity => entity.sections) },
+    };
+  });
+  const imageryMapSpaces = new Set(tileLayers.map((layer) => layer.mapSpaceId));
+  const placements: PublicPlacement[] = localPlacements.map(({ source, value }) => {
+    const offset = offsetByMap.get(value.mapSpaceId);
+    if (!offset) throw new Error(`World layout has no offset for map space: ${value.mapSpaceId}`);
+    const travel = travelForPlacement(source, map.sources, resolver, catalogValue as SceneCatalog, offsetByMap, imageryMapSpaces);
+    return {
+      ...value,
+      position: [value.position[0] + offset.worldX, value.position[1] + offset.worldY],
+      areas: value.areas.map((polygon: Array<[number, number]>) => polygon.map(([x, y]: [number, number]) => [x + offset.worldX, y + offset.worldY] as [number, number])),
+      ...(travel ? { travel } : {}),
+    };
   });
   const itemSources: PublicationData["itemSources"] = items.items.map(item => ({ itemKey: item.itemKey, sources: item.sources.map(source => {
     const ownerKeys = source.context.ownerEntityKeys;
@@ -407,6 +576,9 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const range = mapLevelRanges.get(space.mapSpaceId);
     return { mapSpaceId: space.mapSpaceId, label: space.label, ...(range ? { levelRange: range } : {}), bounds: { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } } };
   });
+  const worldPoints = publicMaps.flatMap((map) => [[map.bounds.min.x, map.bounds.min.y], [map.bounds.max.x, map.bounds.max.y]] as Array<[number, number]>);
+  if (worldPoints.length === 0) throw new Error("Publication has no renderable world map bounds.");
+  const worldBounds = { min: { x: Math.min(...worldPoints.map((point) => point[0])), y: Math.min(...worldPoints.map((point) => point[1])) }, max: { x: Math.max(...worldPoints.map((point) => point[0])), y: Math.max(...worldPoints.map((point) => point[1])) } };
   const illustrations: PublicIllustration[] = [];
   for (const reference of plan.illustrations) {
     const source = await load(reference, "illustration");
@@ -422,10 +594,12 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: value.registration.kind, url, width: value.image.width, height: value.image.height, mapFromPixelEdge: value.registration.kind === "calibrated" ? value.registration.mapFromPixelEdge : null });
   }
   const excludedPlacements = map.placements.length - placements.length;
-  const complete = Boolean(coverage.complete) && allImageryComplete && coverage.blockers.length === 0 && excludedPlacements === 0;
-  const data: PublicationData = { schemaVersion: "compendium.publication.v3", buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage."] : [] }, maps: publicMaps, placements, entities: publicEntities, itemSources, tileLayers, illustrations };
+  const complete = Boolean(coverage.complete) && allImageryComplete && coverage.blockers.length === 0 && excludedPlacements === 0 && layout.unplacedMapSpaceIds.length === 0;
+  const coverageMessages = plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage."] : [];
+  if (layout.unplacedMapSpaceIds.length > 0) coverageMessages.push(`Unplaced map spaces: ${layout.unplacedMapSpaceIds.join(", ")}.`);
+  const data: PublicationData = { schemaVersion: "compendium.publication.v4", buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: coverageMessages }, world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: layout.offsets, unplacedMapSpaceIds: layout.unplacedMapSpaceIds }, maps: publicMaps, placements, entities: publicEntities, itemSources, tileLayers, illustrations };
   validatePublication(data);
-  const inputHashes: Record<string, string> = { plan: createHash("sha256").update(planBytes).digest("hex"), normalized: plan.normalized.sha256 };
+  const inputHashes: Record<string, string> = { plan: createHash("sha256").update(planBytes).digest("hex"), normalized: plan.normalized.sha256, worldOffsets: plan.worldOffsets.sha256 };
   for (const [index, reference] of plan.pyramids.entries()) inputHashes[`pyramid:${index}`] = reference.sha256;
   for (const [index, reference] of plan.illustrations.entries()) inputHashes[`illustration:${index}`] = reference.sha256;
   for (const file of ["publication.ts", "public-contracts.ts", "publication-validation.ts", "../tools/runs.ts", "../tools/cli.ts", "../package.json", "../bun.lock"]) inputHashes[`tool:${file}`] = createHash("sha256").update(await readFile(resolve(import.meta.dir, file))).digest("hex");

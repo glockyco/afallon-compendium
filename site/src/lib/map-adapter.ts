@@ -9,9 +9,11 @@ import { TileLayer } from "@deck.gl/geo-layers";
 import { Matrix4 } from "@math.gl/core";
 import { createIconAtlas, type IconAtlasResult } from "./map/icon-atlas";
 import { MARKER_LAYER_ID, markerFor, resolveMarker, type MarkerId } from "./map/marker-registry";
+import { WorldDragController, type WorldOffsetOverrides, worldOffsetDelta } from "./map/world-layout";
 import {
   BitmapLayer,
   IconLayer,
+  LineLayer,
   PolygonLayer,
   ScatterplotLayer,
   TextLayer,
@@ -37,6 +39,9 @@ export type MapAdapterUpdate = {
   placements: PublicPlacement[];
   selectedId: string | null;
   view: MapViewState;
+  worldOffsets: WorldOffsetOverrides;
+  authoring: boolean;
+  showConnections: boolean;
 };
 
 type Point = [number, number];
@@ -58,24 +63,41 @@ type TilePayload = {
 
 export type MarkerRecord = {
   placementId: string;
+  mapSpaceId: string;
   position: [number, number, number];
   label: string;
   categories: PublicPlacement["categories"];
   markerId: MarkerId;
   members: string[];
+  enabled: boolean;
+  isTravel: boolean;
 };
 
 type AreaRecord = {
   areaId: string;
   placementId: string;
+  mapSpaceId: string;
   polygon: Point[];
   markerId: MarkerId;
+};
+
+type WorldMapBounds = {
+  mapSpaceId: string;
+  polygon: Point[];
+};
+
+type TravelConnection = {
+  placementId: string;
+  source: Point;
+  target: Point;
+  enabled: boolean;
 };
 
 type AdapterCallbacks = {
   onViewChange: (view: MapViewState, bounds: Bounds) => void;
   onSelect: (placementId: string) => void;
   onHover: (placementId: string | null) => void;
+  onWorldOffsetChange: (mapSpaceId: string, offset: { worldX: number; worldY: number }) => void;
   onError: (message: string) => void;
 };
 
@@ -129,6 +151,10 @@ function ownImageBounds(width: number, height: number): BitmapBounds {
   ];
 }
 
+function translateBounds(bounds: BitmapBounds, x: number, y: number): BitmapBounds {
+  return bounds.map(([pointX, pointY]) => [pointX + x, pointY + y] as Point) as BitmapBounds;
+}
+
 /**
  * TileLayer's non-geospatial indexing has a tileSize square at z=0 and halves
  * each tile's world span for each higher z. The public pyramid uses the same
@@ -171,11 +197,17 @@ function normalizeView(view: MapViewState | ViewInput | undefined, fallback: Map
   };
 }
 
-function markerColor(markerId: MarkerId, selected: boolean, hovered: boolean): [number, number, number, number] {
+function markerColor(markerId: MarkerId, selected: boolean, hovered: boolean, enabled = true): [number, number, number, number] {
   if (selected) return [255, 196, 0, 255];
   if (hovered) return [255, 255, 255, 255];
+  if (!enabled) return [112, 112, 112, 220];
   const color = markerFor(markerId).color;
   return [color[0], color[1], color[2], 235];
+}
+
+function mapOffsetDelta(data: PublicationData, mapSpaceId: string, overrides: WorldOffsetOverrides): { worldX: number; worldY: number } {
+  const base = data.world.offsets.find((offset) => offset.mapSpaceId === mapSpaceId);
+  return base ? worldOffsetDelta(base, overrides) : { worldX: 0, worldY: 0 };
 }
 
 function placementSignature(placements: readonly PublicPlacement[]): string {
@@ -188,20 +220,24 @@ function validPlacement(placement: PublicPlacement): boolean {
   return Boolean(placement.placementId && point(placement.position));
 }
 
-function buildMarkers(placements: readonly PublicPlacement[]): MarkerRecord[] {
+function buildMarkers(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}): MarkerRecord[] {
   const byId = new Map<string, MarkerRecord>();
   for (const placement of placements) {
     if (!validPlacement(placement) || byId.has(placement.placementId)) continue;
     const markerId = resolveMarker(placement);
     if (!markerId) continue;
     const position = point(placement.position)!;
+    const delta = data ? mapOffsetDelta(data, placement.mapSpaceId, overrides) : { worldX: 0, worldY: 0 };
     byId.set(placement.placementId, {
       placementId: placement.placementId,
-      position: [position[0], position[1], 0],
+      mapSpaceId: placement.mapSpaceId,
+      position: [position[0] + delta.worldX, position[1] + delta.worldY, 0],
       label: placement.label,
       categories: [...placement.categories],
       markerId,
       members: [placement.placementId],
+      enabled: placement.travel?.enabled ?? true,
+      isTravel: placement.travel !== undefined,
     });
   }
   return [...byId.values()].sort((left, right) => markerFor(left.markerId).renderOrder - markerFor(right.markerId).renderOrder || left.placementId.localeCompare(right.placementId));
@@ -230,7 +266,7 @@ export function createPlacementIconLayer(
     getPosition: (marker) => marker.position,
     getIcon: (marker) => marker.markerId,
     getSize: (marker) => markerFor(marker.markerId).iconSize.base,
-    getColor: (marker) => markerColor(marker.markerId, marker.members.includes(selectedId || ""), marker.members.includes(hoveredId || "")),
+    getColor: (marker) => markerColor(marker.markerId, marker.members.includes(selectedId || ""), marker.members.includes(hoveredId || ""), marker.enabled),
     sizeUnits: "pixels",
     sizeMinPixels: 14,
     sizeMaxPixels: 44,
@@ -243,21 +279,24 @@ export function createPlacementIconLayer(
   });
 }
 
-function buildAreas(placements: readonly PublicPlacement[]): AreaRecord[] {
+function buildAreas(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}): AreaRecord[] {
   const areas: AreaRecord[] = [];
   for (const placement of placements) {
     for (let index = 0; index < placement.areas.length; index++) {
       const source = placement.areas[index];
       if (!source) continue;
+      const delta = data ? mapOffsetDelta(data, placement.mapSpaceId, overrides) : { worldX: 0, worldY: 0 };
       const polygon = source
         .map(value => point(value))
-        .filter((value): value is Point => value !== null);
+        .filter((value): value is Point => value !== null)
+        .map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point);
       if (polygon.length < 3) continue;
       const markerId = resolveMarker(placement);
       if (!markerId) continue;
       areas.push({
         areaId: `${placement.placementId}:${index}`,
         placementId: placement.placementId,
+        mapSpaceId: placement.mapSpaceId,
         polygon,
         markerId,
       });
@@ -305,11 +344,14 @@ function aggregateMarkers(markers: readonly MarkerRecord[], zoom: number, select
     const markerId = [...group].sort((left, right) => markerFor(right.markerId).precedence - markerFor(left.markerId).precedence)[0]!.markerId;
     result.push({
       placementId: `cluster:${members.join(",")}`,
+      mapSpaceId: group[0]!.mapSpaceId,
       position: [x / group.length, y / group.length, 0],
       label: `${group.length} locations`,
       categories: [...categories],
       markerId,
       members,
+      enabled: group.every((marker) => marker.enabled),
+      isTravel: group.some((marker) => marker.isTravel),
     });
   }
   if (selected) result.push(selected);
@@ -351,14 +393,13 @@ function orientationView(canvas: HTMLCanvasElement, illustration: PublicIllustra
   };
 }
 
-function matchingTileLayer(data: PublicationData, mapSpaceId: string, layerId: string): PublicTileLayer | null {
-  return data.tileLayers.find(layer => layer.id === layerId && layer.mapSpaceId === mapSpaceId) || null;
+function matchingTileLayers(data: PublicationData, layerId: string): PublicTileLayer[] {
+  if (layerId === "captured") return data.tileLayers;
+  return data.tileLayers.filter((layer) => layer.id === layerId);
 }
 
-function matchingIllustration(data: PublicationData, mapSpaceId: string, layerId: string): PublicIllustration | null {
-  return data.illustrations.find(
-    illustration => illustration.id === layerId && illustration.mapSpaceId === mapSpaceId,
-  ) || null;
+function matchingIllustration(data: PublicationData, layerId: string): PublicIllustration | null {
+  return data.illustrations.find((illustration) => illustration.id === layerId) || null;
 }
 
 export async function createMapAdapter(
@@ -371,12 +412,13 @@ export async function createMapAdapter(
   let hoveredId: string | null = null;
   let missingLayerWarningKey: string | null = null;
   let viewSpaceKey: string | null = null;
+  let offsetGeometryKey = "";
   let geometryKey = "";
   let basePlacementKey = "";
   let baseMarkers: MarkerRecord[] = [];
   let baseAreas: AreaRecord[] = [];
   let renderMarkers: readonly MarkerRecord[] = [];
-  let imageryLayer: Layer | null = null;
+  let imageryLayers: Layer[] = [];
   let imageryKey = "";
   let imageryResourceNamespace: string | null = null;
   let layers: Layer[] = [];
@@ -421,7 +463,7 @@ export async function createMapAdapter(
     const response = await fetch(tile.url, signal ? {signal} : undefined);
     if (!response.ok) throw new Error(`Tile ${key} failed to load (${response.status} ${response.statusText})`);
     const bitmap = await createImageBitmap(await response.blob());
-    if (destroyed || namespace !== imageryResourceNamespace || signal?.aborted) {
+    if (destroyed || (imageryResourceNamespace !== null && !namespace.startsWith(imageryResourceNamespace)) || signal?.aborted) {
       bitmap.close();
       return null;
     }
@@ -442,195 +484,244 @@ export async function createMapAdapter(
     return payload;
   };
 
-  const createImagery = (next: MapAdapterUpdate, tileLayer: PublicTileLayer | null, illustration: PublicIllustration | null): Layer | null => {
-    if (tileLayer) {
-      const key = `tiles:${next.data.buildId}:${tileLayer.id}:${tileLayer.mapSpaceId}:${tileLayer.finestLevel}:${tileLayer.width}:${tileLayer.height}`;
-      if (imageryLayer && imageryKey === key) return imageryLayer;
+  const createImagery = (next: MapAdapterUpdate, tileLayersForView: PublicTileLayer[], illustration: PublicIllustration | null): Layer[] => {
+    if (tileLayersForView.length > 0) {
+      const keys = tileLayersForView.map((tileLayer) => {
+        const delta = mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets);
+        return `${tileLayer.id}:${tileLayer.mapSpaceId}:${tileLayer.finestLevel}:${tileLayer.width}:${tileLayer.height}:${delta.worldX}:${delta.worldY}`;
+      });
+      const key = `tiles:${next.data.buildId}:${keys.join("|")}`;
+      if (imageryLayers.length === tileLayersForView.length && imageryKey === key) return imageryLayers;
       if (imageryResourceNamespace) releaseTileNamespace(imageryResourceNamespace);
-      const coarseScale = 2 ** tileLayer.finestLevel;
-      const coarseWidth = Math.ceil(tileLayer.width / coarseScale);
-      const coarseHeight = Math.ceil(tileLayer.height / coarseScale);
       imageryKey = key;
       imageryResourceNamespace = key;
-      imageryLayer = new TileLayer<TilePayload | null>({
-        id: `map-imagery-${key}`,
-        data: null,
-        tileSize: tileLayer.tileSize,
-        minZoom: 0,
-        maxZoom: tileLayer.finestLevel,
-        zoomOffset: Math.ceil(Math.log2(Math.max(Math.hypot(tileLayer.mapFromPixelEdge.xAxis.x, tileLayer.mapFromPixelEdge.xAxis.y), Math.hypot(tileLayer.mapFromPixelEdge.yAxis.x, tileLayer.mapFromPixelEdge.yAxis.y)) * coarseScale * (globalThis.devicePixelRatio || 1))),
-        extent: [0, 0, coarseWidth, coarseHeight],
-        modelMatrix: coarsestModelMatrix(tileLayer.mapFromPixelEdge, tileLayer.finestLevel),
-        refinementStrategy: "never",
-        maxCacheSize: MAX_TILE_CACHE,
-        maxCacheByteSize: MAX_TILE_CACHE_BYTES,
-        getTileData: props => fetchTile(tileLayer, key, props),
-        renderSubLayers: props => {
-          const payload = props.data;
-          if (!payload) return null;
-          return new BitmapLayer({
-            id: `${props.id}-bitmap`,
-            data: null as never,
-            image: payload.image,
-            bounds: bitmapBounds(payload.tile.mapFromPixelEdge, payload.tile.width, payload.tile.height),
-            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-            pickable: false,
-          });
-        },
-        onTileUnload: tile => {
-          const payload = tile.content as TilePayload | null;
-          if (payload) releaseTilePayload(payload);
-        },
-        onTileError: (error, tile) => {
-          if (error instanceof Error && error.name === "AbortError") return;
-          const key = tile ? `${tile.index.z}/${tile.index.x}/${tile.index.y}` : "unknown";
-          report(`Unable to load screenshot tile ${key}: ${textFromError(error)}`);
-        },
+      imageryLayers = tileLayersForView.map((tileLayer, layerIndex) => {
+        const delta = mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets);
+        const affine = { ...tileLayer.mapFromPixelEdge, origin: { x: tileLayer.mapFromPixelEdge.origin.x + delta.worldX, y: tileLayer.mapFromPixelEdge.origin.y + delta.worldY } };
+        const coarseScale = 2 ** tileLayer.finestLevel;
+        const coarseWidth = Math.ceil(tileLayer.width / coarseScale);
+        const coarseHeight = Math.ceil(tileLayer.height / coarseScale);
+        const layerKey = `${key}:${layerIndex}`;
+        return new TileLayer<TilePayload | null>({
+          id: `map-imagery-${tileLayer.mapSpaceId}`,
+          data: null,
+          tileSize: tileLayer.tileSize,
+          minZoom: 0,
+          maxZoom: tileLayer.finestLevel,
+          zoomOffset: Math.ceil(Math.log2(Math.max(Math.hypot(tileLayer.mapFromPixelEdge.xAxis.x, tileLayer.mapFromPixelEdge.xAxis.y), Math.hypot(tileLayer.mapFromPixelEdge.yAxis.x, tileLayer.mapFromPixelEdge.yAxis.y)) * coarseScale * (globalThis.devicePixelRatio || 1))),
+          extent: [0, 0, coarseWidth, coarseHeight],
+          modelMatrix: coarsestModelMatrix(affine, tileLayer.finestLevel),
+          refinementStrategy: "never",
+          maxCacheSize: MAX_TILE_CACHE,
+          maxCacheByteSize: MAX_TILE_CACHE_BYTES,
+          getTileData: props => fetchTile(tileLayer, layerKey, props),
+          renderSubLayers: props => {
+            const payload = props.data;
+            if (!payload) return null;
+            return new BitmapLayer({
+              id: `${props.id}-bitmap`,
+              data: null as never,
+              image: payload.image,
+              bounds: bitmapBounds({ ...payload.tile.mapFromPixelEdge, origin: { x: payload.tile.mapFromPixelEdge.origin.x + delta.worldX, y: payload.tile.mapFromPixelEdge.origin.y + delta.worldY } }, payload.tile.width, payload.tile.height),
+              coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+              pickable: false,
+            });
+          },
+          onTileUnload: tile => {
+            const payload = tile.content as TilePayload | null;
+            if (payload) releaseTilePayload(payload);
+          },
+          onTileError: (error, tile) => {
+            if (error instanceof Error && error.name === "AbortError") return;
+            const tileKey = tile ? `${tile.index.z}/${tile.index.x}/${tile.index.y}` : "unknown";
+            report(`Unable to load screenshot tile ${tileKey}: ${textFromError(error)}`);
+          },
+        });
       });
-      return imageryLayer;
+      return imageryLayers;
     }
     if (illustration) {
       const key = `illustration:${next.data.buildId}:${illustration.id}:${illustration.registration}:${illustration.url}`;
-      if (imageryLayer && imageryKey === key) return imageryLayer;
+      if (imageryLayers.length === 1 && imageryKey === key) return imageryLayers;
       if (imageryResourceNamespace) releaseTileNamespace(imageryResourceNamespace);
       imageryResourceNamespace = null;
       imageryKey = key;
-      imageryLayer = new BitmapLayer({
+      const delta = mapOffsetDelta(next.data, illustration.mapSpaceId, next.worldOffsets);
+      const localBounds = illustration.mapFromPixelEdge
+        ? bitmapBounds(illustration.mapFromPixelEdge, illustration.width, illustration.height)
+        : ownImageBounds(illustration.width, illustration.height);
+      imageryLayers = [new BitmapLayer({
         id: `map-illustration-${illustration.id}`,
         data: null as never,
         image: illustration.url,
-        bounds: illustration.mapFromPixelEdge
-          ? bitmapBounds(illustration.mapFromPixelEdge, illustration.width, illustration.height)
-          : ownImageBounds(illustration.width, illustration.height),
+        bounds: translateBounds(localBounds, delta.worldX, delta.worldY),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         pickable: false,
-      });
-      return imageryLayer;
+      })];
+      return imageryLayers;
     }
     if (imageryResourceNamespace) releaseTileNamespace(imageryResourceNamespace);
     imageryResourceNamespace = null;
-    imageryLayer = null;
+    imageryLayers = [];
     imageryKey = "";
-    return null;
+    return imageryLayers;
   };
 
+  const dragController = new WorldDragController(
+    (mapSpaceId, offset) => callbacks.onWorldOffsetChange(mapSpaceId, offset),
+    () => undefined,
+  );
+
   const refreshLayers = (next: MapAdapterUpdate, view: MapViewState): void => {
-    const tileLayer = matchingTileLayer(next.data, next.mapSpaceId, next.layerId);
-    const illustration = matchingIllustration(next.data, next.mapSpaceId, next.layerId);
+    const tileLayersForView = matchingTileLayers(next.data, next.layerId);
+    const illustration = matchingIllustration(next.data, next.layerId);
     const orientationOnly = Boolean(illustration && illustration.registration === "orientation-only");
-    const layerKind = tileLayer ? `tile:${tileLayer.id}` : illustration ? `illustration:${illustration.id}:${illustration.registration}` : "missing";
-    const visiblePlacements = next.placements.filter(
-      placement => placement.mapSpaceId === next.mapSpaceId,
-    );
+    const layerKind = tileLayersForView.length > 0 ? `tiles:${tileLayersForView.map((layer) => layer.id).join(",")}` : illustration ? `illustration:${illustration.id}:${illustration.registration}` : "missing";
+    const visiblePlacements = next.placements;
     const nextPlacementKey = placementSignature(visiblePlacements);
-    if (nextPlacementKey !== basePlacementKey) {
+    const offsetKey = Object.entries(next.worldOffsets).sort(([left], [right]) => left.localeCompare(right)).map(([mapSpaceId, offset]) => `${mapSpaceId}:${offset.worldX},${offset.worldY}`).join("|");
+    if (nextPlacementKey !== basePlacementKey || offsetKey !== offsetGeometryKey) {
       basePlacementKey = nextPlacementKey;
-      baseMarkers = buildMarkers(visiblePlacements);
-      baseAreas = buildAreas(visiblePlacements);
+      offsetGeometryKey = offsetKey;
+      baseMarkers = buildMarkers(visiblePlacements, next.data, next.worldOffsets);
+      baseAreas = buildAreas(visiblePlacements, next.data, next.worldOffsets);
     }
     const markerViewKey = orientationOnly ? "hidden" : `${Math.round(view.zoom * 1000)}`;
-    const nextGeometryKey = [
-      next.data.buildId,
-      next.mapSpaceId,
-      next.layerId,
-      layerKind,
-      nextPlacementKey,
-      next.selectedId || "",
-      hoveredId || "",
-      markerViewKey,
-    ].join("\u001e");
+    const nextGeometryKey = [next.data.buildId, next.layerId, layerKind, nextPlacementKey, offsetKey, next.selectedId || "", hoveredId || "", markerViewKey, next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections"].join("\u001e");
     if (nextGeometryKey === geometryKey) return;
     geometryKey = nextGeometryKey;
 
-    const image = createImagery(next, tileLayer, illustration);
-    renderMarkers = orientationOnly ? [] : aggregateMarkers(baseMarkers, view.zoom, next.selectedId);
-    const areaLayer = orientationOnly
-      ? null
-      : new PolygonLayer<AreaRecord>({
-          id: "map-placement-areas",
-          data: baseAreas,
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-          pickable: true,
-          stroked: true,
-          filled: true,
-          getPolygon: area => area.polygon,
-          getFillColor: area => {
-            const color = markerColor(area.markerId, area.placementId === next.selectedId, area.placementId === hoveredId);
-            return [color[0], color[1], color[2], area.placementId === next.selectedId ? 150 : 58];
-          },
-          getLineColor: area => area.placementId === next.selectedId ? [255, 196, 0, 255] : [28, 28, 28, 230],
-          getLineWidth: area => area.placementId === next.selectedId ? 4 : area.placementId === hoveredId ? 3 : 1,
-          lineWidthUnits: "pixels",
-          updateTriggers: {getFillColor: [next.selectedId, hoveredId], getLineColor: [next.selectedId], getLineWidth: [next.selectedId, hoveredId]},
-          onClick: (info: PickingInfo) => {
-            const id = pickedPlacementId(info);
-            if (id) callbacks.onSelect(id);
-          },
-          onHover: (info: PickingInfo) => {
-            handleHover(pickedPlacementId(info));
-          },
-        });
+    const imageLayers = createImagery(next, tileLayersForView, illustration);
+    const visibleMarkers = next.showConnections || next.authoring ? baseMarkers : baseMarkers.filter((marker) => !marker.isTravel);
+    renderMarkers = orientationOnly ? [] : aggregateMarkers(visibleMarkers, view.zoom, next.selectedId);
+    const markerByPlacement = new Map(baseMarkers.map((marker) => [marker.placementId, marker]));
+    const boundsLayer = orientationOnly ? null : new PolygonLayer<WorldMapBounds>({
+      id: "world-map-bounds",
+      data: next.data.maps.map((map) => {
+        const delta = mapOffsetDelta(next.data, map.mapSpaceId, next.worldOffsets);
+        return { mapSpaceId: map.mapSpaceId, polygon: [[map.bounds.min.x + delta.worldX, map.bounds.min.y + delta.worldY], [map.bounds.min.x + delta.worldX, map.bounds.max.y + delta.worldY], [map.bounds.max.x + delta.worldX, map.bounds.max.y + delta.worldY], [map.bounds.max.x + delta.worldX, map.bounds.min.y + delta.worldY]] };
+      }),
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: next.authoring,
+      stroked: true,
+      filled: false,
+      getPolygon: (map) => map.polygon,
+      getLineColor: (map) => next.data.world.unplacedMapSpaceIds.includes(map.mapSpaceId) ? [220, 150, 50, 220] : [120, 180, 220, 170],
+      getLineWidth: 2,
+      lineWidthUnits: "pixels",
+      onDragStart: (info: PickingInfo) => {
+        const object = info.object as WorldMapBounds | null | undefined;
+        const coordinate = point(info.coordinate as readonly number[] | undefined);
+        if (!object || !coordinate) return false;
+        const offsets = new Map(next.data.world.offsets.map((offset) => { const delta = mapOffsetDelta(next.data, offset.mapSpaceId, next.worldOffsets); return [offset.mapSpaceId, { worldX: offset.worldX + delta.worldX, worldY: offset.worldY + delta.worldY }] as const; }));
+        return dragController.tryStart({ layerId: info.layer?.id, mapSpaceId: object.mapSpaceId, coordinate }, next.authoring, offsets);
+      },
+      onDrag: (info: PickingInfo) => {
+        const coordinate = point(info.coordinate as readonly number[] | undefined);
+        if (coordinate) dragController.move(coordinate);
+      },
+      onDragEnd: () => dragController.end(),
+    });
+    const areaLayer = orientationOnly ? null : new PolygonLayer<AreaRecord>({
+      id: "map-placement-areas",
+      data: baseAreas,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      getPolygon: area => area.polygon,
+      getFillColor: area => {
+        const marker = markerByPlacement.get(area.placementId);
+        const color = markerColor(area.markerId, area.placementId === next.selectedId, area.placementId === hoveredId, marker?.enabled ?? true);
+        return [color[0], color[1], color[2], area.placementId === next.selectedId ? 150 : 58];
+      },
+      getLineColor: area => area.placementId === next.selectedId ? [255, 196, 0, 255] : [28, 28, 28, 230],
+      getLineWidth: area => area.placementId === next.selectedId ? 4 : area.placementId === hoveredId ? 3 : 1,
+      lineWidthUnits: "pixels",
+      updateTriggers: {getFillColor: [next.selectedId, hoveredId, offsetKey], getLineColor: [next.selectedId], getLineWidth: [next.selectedId, hoveredId]},
+      onClick: (info: PickingInfo) => { const id = pickedPlacementId(info); if (id) callbacks.onSelect(id); },
+      onHover: (info: PickingInfo) => { handleHover(pickedPlacementId(info)); },
+    });
+    const connectionData: TravelConnection[] = [];
+    for (const placement of next.placements) {
+      if (placement.travel?.destination.status !== "resolved" || !placement.travel.destination.position || !placement.travel.destination.mapSpaceId) continue;
+      const source = markerByPlacement.get(placement.placementId);
+      if (!source) continue;
+      const targetDelta = mapOffsetDelta(next.data, placement.travel.destination.mapSpaceId, next.worldOffsets);
+      connectionData.push({ placementId: placement.placementId, source: [source.position[0], source.position[1]], target: [placement.travel.destination.position[0] + targetDelta.worldX, placement.travel.destination.position[1] + targetDelta.worldY], enabled: placement.travel.enabled });
+    }
+    const connectionLines = !orientationOnly && (next.showConnections || next.authoring) ? new LineLayer<TravelConnection>({
+      id: "world-travel-connections",
+      data: connectionData,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: false,
+      getSourcePosition: (connection) => connection.source,
+      getTargetPosition: (connection) => connection.target,
+      getColor: (connection) => connection.enabled ? [100, 210, 255, 205] : [120, 120, 120, 180],
+      getWidth: 3,
+      widthUnits: "pixels",
+    }) : null;
+    const connectionDestinations = !orientationOnly && (next.showConnections || next.authoring) ? new ScatterplotLayer<TravelConnection>({
+      id: "world-travel-destinations",
+      data: connectionData,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: false,
+      radiusUnits: "pixels",
+      getPosition: (connection) => connection.target,
+      getRadius: 5,
+      getFillColor: (connection) => connection.enabled ? [100, 210, 255, 220] : [120, 120, 120, 190],
+      getLineColor: [20, 40, 50, 230],
+      stroked: true,
+      lineWidthMinPixels: 1,
+    }) : null;
     const individualMarkers = renderMarkers.filter((marker) => marker.members.length === 1);
     const clusters = renderMarkers.filter((marker) => marker.members.length > 1);
-    const markerLayer = orientationOnly
-      ? null
-      : createPlacementIconLayer(
-          individualMarkers,
-          iconAtlas,
-          next.selectedId,
-          hoveredId,
-          callbacks.onSelect,
-          handleHover,
-        );
-    const clusterLayer = orientationOnly
-      ? null
-      : new ScatterplotLayer<MarkerRecord>({
-          id: "map-placement-clusters",
-          data: clusters,
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-          pickable: true,
-          stroked: true,
-          filled: true,
-          radiusUnits: "pixels",
-          radiusMinPixels: 10,
-          radiusMaxPixels: 18,
-          getPosition: (marker) => marker.position,
-          getRadius: 13,
-          getFillColor: (marker) => markerColor(marker.markerId, marker.members.includes(next.selectedId || ""), marker.members.includes(hoveredId || "")),
-          getLineColor: (marker) => marker.members.includes(next.selectedId || "") ? [255, 255, 255, 255] : [20, 20, 20, 255],
-          lineWidthMinPixels: 1,
-          lineWidthUnits: "pixels",
-          updateTriggers: { getFillColor: [next.selectedId, hoveredId], getLineColor: [next.selectedId] },
-          onClick: (info: PickingInfo) => {
-            const object = info.object as MarkerRecord | null | undefined;
-            if (!object || object.members.length < 2) return;
-            const revealZoom = Math.min(MAX_CLUSTER_REVEAL_ZOOM, Math.max(view.zoom + 1, AGGREGATION_ZOOM));
-            activeView = { target: object.position, zoom: revealZoom };
-            notifyView();
-          },
-          onHover: (info: PickingInfo) => handleHover(pickedPlacementId(info)),
-        });
-    const clusterLabels = orientationOnly
-      ? null
-      : new TextLayer<MarkerRecord>({
-          id: "map-placement-cluster-labels",
-          data: clusters,
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-          pickable: false,
-          getPosition: (marker) => marker.position,
-          getText: (marker) => String(marker.members.length),
-          getSize: 14,
-          sizeUnits: "pixels",
-          getColor: [255, 255, 255, 255],
-          characterSet: "auto",
-          outlineColor: [20, 20, 20, 255],
-          outlineWidth: 2,
-          fontFamily: "sans-serif",
-        });
-    layers = [image, areaLayer, clusterLayer, markerLayer, clusterLabels].filter((layer): layer is Layer => layer !== null);
+    const markerLayer = orientationOnly ? null : createPlacementIconLayer(individualMarkers, iconAtlas, next.selectedId, hoveredId, callbacks.onSelect, handleHover);
+    const clusterLayer = orientationOnly ? null : new ScatterplotLayer<MarkerRecord>({
+      id: "map-placement-clusters",
+      data: clusters,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      radiusUnits: "pixels",
+      radiusMinPixels: 10,
+      radiusMaxPixels: 18,
+      getPosition: (marker) => marker.position,
+      getRadius: 13,
+      getFillColor: (marker) => markerColor(marker.markerId, marker.members.includes(next.selectedId || ""), marker.members.includes(hoveredId || ""), marker.enabled),
+      getLineColor: (marker) => marker.members.includes(next.selectedId || "") ? [255, 255, 255, 255] : [20, 20, 20, 255],
+      lineWidthMinPixels: 1,
+      lineWidthUnits: "pixels",
+      updateTriggers: { getFillColor: [next.selectedId, hoveredId, offsetKey], getLineColor: [next.selectedId] },
+      onClick: (info: PickingInfo) => {
+        const object = info.object as MarkerRecord | null | undefined;
+        if (!object || object.members.length < 2) return;
+        const revealZoom = Math.min(MAX_CLUSTER_REVEAL_ZOOM, Math.max(view.zoom + 1, AGGREGATION_ZOOM));
+        activeView = { target: object.position, zoom: revealZoom };
+        notifyView();
+      },
+      onHover: (info: PickingInfo) => handleHover(pickedPlacementId(info)),
+    });
+    const clusterLabels = orientationOnly ? null : new TextLayer<MarkerRecord>({
+      id: "map-placement-cluster-labels",
+      data: clusters,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: false,
+      getPosition: (marker) => marker.position,
+      getText: (marker) => String(marker.members.length),
+      getSize: 14,
+      sizeUnits: "pixels",
+      getColor: [255, 255, 255, 255],
+      characterSet: "auto",
+      outlineColor: [20, 20, 20, 255],
+      outlineWidth: 2,
+      fontFamily: "sans-serif",
+    });
+    layers = [...imageLayers, boundsLayer, connectionLines, connectionDestinations, areaLayer, clusterLayer, markerLayer, clusterLabels].filter((layer): layer is Layer => layer !== null);
 
-    if (!tileLayer && !illustration) {
-      const warningKey = `${next.data.buildId}:${next.mapSpaceId}:${next.layerId}`;
+    if (imageLayers.length === 0 && !illustration) {
+      const warningKey = `${next.data.buildId}:${next.layerId}`;
       if (warningKey !== missingLayerWarningKey) {
         missingLayerWarningKey = warningKey;
         report("The selected map layer is not available.");
@@ -692,7 +783,7 @@ export async function createMapAdapter(
     if (destroyed) return;
     current = next;
     let view = normalizeView(next.view, activeView);
-    const illustration = matchingIllustration(next.data, next.mapSpaceId, next.layerId);
+    const illustration = matchingIllustration(next.data, next.layerId);
     const orientationOnly = Boolean(illustration && illustration.registration === "orientation-only");
     const nextViewSpaceKey = orientationOnly && illustration ? `orientation:${illustration.id}` : `map:${next.mapSpaceId}`;
     if (orientationOnly && illustration && viewSpaceKey !== nextViewSpaceKey) {
@@ -715,7 +806,7 @@ export async function createMapAdapter(
     for (const payload of [...tileResources.values()]) releaseTilePayload(payload);
     tileResources.clear();
     layers = [];
-    imageryLayer = null;
+    imageryLayers = [];
     current = null;
   };
 
