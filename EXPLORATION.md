@@ -669,6 +669,8 @@ Ceiling reviews use complete hierarchy, mesh name, vertex count, and world bound
 
 The name-only ceiling survey failed because two colliders shared `Rock1_2 (104)`. Its evidence is `artifacts/interior-slices/ba733d39-4982-4174-9673-4961e91ff3e6/`. The reviewed survey resolved two ceiling renderers and 35 protected floor renderers. Its evidence is `artifacts/interior-slices/2c3fa85c-414f-4e2f-8f27-334739504fa3/`. Reloaded captures resolved different runtime IDs from the same selectors.
 
+Run `1259e5c1-9b69-455d-b022-9c7e6a1b0fec` selected the reviewed bridge as both ceiling and protected floor. Native resolution rejected the conflicting selectors before suppression. The failed run published no image and confirmed clean ownership cleanup.
+
 The native CharacterController remained grounded below and on `Wood_Bridge1 (2)` at the same XZ coordinates. Small horizontal movements retained ground contact at both elevations. The reviewed profile assigns the lower point to `lower` and the bridge point to `upper`. The half-open boundary at Y −807 belongs to `upper`. Evidence is `artifacts/interior-slices/2e02be30-a0bf-4b12-8cbe-3189de180cb9/`. These occupancy controls do not prove natural route access.
 
 Upper capture `90e1c007-0d87-4c4f-9d81-4802dbc32c2f` and lower capture `8ab03e79-f2f6-4567-a911-bc3fb6a3f857` produced registered 640-by-840 images. Both cover X 1490–1810 and Z −1110–−690 at two pixels per world unit. Their clipping intervals are Y −810–−785.1 and Y −845–−805.1, respectively. Direct image inspection shows separate raised and lower geometry. Both captures retained all 35 protected floor renderer flags, restored visual state in the render frame, and left no owned capture objects. Both restored the original scene, position, and rotation with clean runtime receipts.
@@ -878,3 +880,38 @@ nix develop --command bun run compendium publication --plan local/publication-ba
 ```
 
 Coverage remains incomplete. Full-build extraction, dungeon imagery, resolved travel arrival points, the Adventure Guide surfaces, and illustrated layers are open.
+
+## Scene survey: which scenes share a rendered map
+
+A sweep visits every matched gameplay scene once, records its native MapZone registration
+and navigable extent, then restores the source scene. `research/spikes/survey-scenes.ts`
+takes the scene catalog and a comma-separated list of scenes to skip, so an interrupted
+sweep resumes. Results for the first 18 scenes are in
+`artifacts/scene-survey/4b437c19-92f0-43ae-89c3-79a8a8c42047`.
+
+Every surveyed scene registers exactly one MapZone and reports no registration error.
+`calibration.size` is two-dimensional: `x` is the world X span and `y` is the world Z span.
+
+Nine scenes share one identical frame, centred `(751, -2984)` with size `7472 x 8118`:
+Coalway woods, Chillwind heights, and the challenge stones. That frame is the overworld,
+so those scenes are one map space with no offset between them, and the reviewed Duskfall
+offset applies to a dungeon that carries its own map. The shared frame is registered under
+two different texture names, `Newest map` and `NEW MAP`, so a map space cannot be
+identified by texture name alone, and a rendered image cannot be identified by frame alone.
+
+Interiors each carry their own small MapZone and texture, for example Barrowdeep at
+`(1200, -879)` size `324 x 234`, and Abandoned mine swamp at `(277, -779)` size `404 x 429`.
+
+Recorded defect: `Cave coalway woods 2` (scene 32) registers texture `Abandoned quarry map 1`
+with exactly the frame that `Abandoned quarry` (scene 24) registers, `(1148, -650)` size
+`306 x 221`. Either the game reuses one map asset for both scenes or one scene is
+mis-registered. Not resolved, and no binding may assume either reading.
+
+Native source-scene restoration stalls and retries, so restoring gets a 30 minute budget
+while entering gets 5 minutes. A visit that never restores blocks every later scene,
+because the runtime permits one visit at a time and restore is the only exit, so the sweep
+stops at that scene instead of reporting every remaining scene as failed. An earlier sweep
+without that rule produced 13 misleading failures after one slow restore.
+
+Open hygiene defect: `artifacts/.runtime/` retains about 280 ownership records from earlier
+runs. A stale record blocked ownership with `cleaning, disconnected` until the game restarted.
