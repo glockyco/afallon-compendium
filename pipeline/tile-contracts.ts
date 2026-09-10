@@ -5,7 +5,6 @@ const id = Type.String({ pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" });
 const sha256 = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const count = Type.Integer({ minimum: 0 });
 const positive = Type.Number({ exclusiveMinimum: 0 });
-const nullableId = Type.Union([id, Type.Null()]);
 const relativePath = Type.String({ minLength: 1, pattern: "^(?!/)(?![A-Za-z]:)[^\\u0000-\\u001f\\u007f]+$" });
 
 export const TileReferenceSchema = Type.Object({
@@ -15,10 +14,9 @@ export const TileReferenceSchema = Type.Object({
 export type TileReference = Static<typeof TileReferenceSchema>;
 
 export const TilePlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.tile-plan.v1"),
+  schemaVersion: Type.Literal("compendium.tile-plan.v2"),
   buildId: text,
   mapSpaceId: id,
-  floorId: nullableId,
   profile: TileReferenceSchema,
   sources: Type.Array(TileReferenceSchema, { minItems: 1, maxItems: 4096 }),
   tileSize: Type.Optional(Type.Integer({ minimum: 1, maximum: 2048 })),
@@ -90,7 +88,6 @@ export const TileSourceProvenanceSchema = Type.Object({
   sceneNativeId: count,
   scenePath: text,
   mapSpaceId: id,
-  floorId: nullableId,
   completeImagery: Type.Literal(false),
   width: Type.Integer({ minimum: 1 }),
   height: Type.Integer({ minimum: 1 }),
@@ -111,10 +108,9 @@ export const TileSourceProvenanceSchema = Type.Object({
 export type TileSourceProvenance = Static<typeof TileSourceProvenanceSchema>;
 
 export const TilePyramidSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.tile-pyramid.v1"),
+  schemaVersion: Type.Literal("compendium.tile-pyramid.v2"),
   buildId: text,
   mapSpaceId: id,
-  floorId: nullableId,
   plan: TileReferenceSchema,
   profile: TileReferenceSchema,
   coordinateSystem: Type.Literal("map-space-xy"),

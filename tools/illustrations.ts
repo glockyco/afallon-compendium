@@ -341,9 +341,6 @@ function validateMapSpace(profile: MapSpaceProfile, plan: IllustrationPlan): voi
   if (profile.buildId !== plan.buildId) throw new Error(`Illustration map-space profile build "${profile.buildId}" does not match plan build "${plan.buildId}".`);
   const mapSpace = indexMapSpaceDefinitions(profile.mapSpaces).get(plan.mapSpaceId);
   if (mapSpace === undefined) throw new Error(`Illustration references unknown map space "${plan.mapSpaceId}".`);
-  if (plan.floorId !== null && !mapSpace.floors.some(floor => floor.id === plan.floorId)) {
-    throw new Error(`Illustration references unknown floor "${plan.floorId}" in map space "${plan.mapSpaceId}".`);
-  }
 }
 
 export async function prepareIllustration(
@@ -385,7 +382,6 @@ export async function prepareIllustration(
     settings: {
       layerId: plan.layerId,
       mapSpaceId: plan.mapSpaceId,
-      floorId: plan.floorId,
       registration: plan.registration.kind,
       primaryImagery: false,
       completeImagery: false,
@@ -453,7 +449,6 @@ export async function prepareIllustration(
       buildId: identity.buildId,
       layerId: plan.layerId,
       mapSpaceId: plan.mapSpaceId,
-      floorId: plan.floorId,
       role: "illustration",
       primaryImagery: false,
       completeImagery: false,

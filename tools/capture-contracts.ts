@@ -14,16 +14,6 @@ const frame = Type.Object({
   nearClip: Type.Number({ exclusiveMinimum: 0 }),
   farClip: Type.Number({ exclusiveMinimum: 0, maximum: 100000 }),
 });
-const rendererSelector = Type.Object({
-  hierarchy: Type.Array(text, { minItems: 1, maxItems: 128 }),
-  meshName: text, vertices: Type.Integer({ minimum: 1 }),
-  bounds: Type.Object({ center: vector, size: vector }),
-});
-const ceilingReview = Type.Union([Type.Null(), Type.Object({
-  evidence: Type.Object({ path: text, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) }),
-  ceilings: Type.Array(rendererSelector, { minItems: 1, maxItems: 5000 }),
-  floors: Type.Array(rendererSelector, { maxItems: 5000 }),
-})]);
 export const CaptureReadinessProfileSchema = Type.Object({
   timeoutMs: Type.Integer({ minimum: 1000, maximum: 300000 }),
   stableFrames: Type.Integer({ minimum: 2, maximum: 10 }),
@@ -31,8 +21,8 @@ export const CaptureReadinessProfileSchema = Type.Object({
   maximumSources: Type.Integer({ minimum: 1, maximum: 256 }),
 });
 export const CapturePlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-plan.v3"),
-  sceneNativeId: count, scenePath: text, mapSpaceId: text, floorId: Type.Union([text, Type.Null()]),
+  schemaVersion: Type.Literal("compendium.capture-plan.v4"),
+  sceneNativeId: count, scenePath: text, mapSpaceId: text,
   width: Type.Integer({ minimum: 64, maximum: 2048 }), height: Type.Integer({ minimum: 64, maximum: 2048 }),
   cullingMask: Type.Integer({ minimum: -2147483648, maximum: 2147483647 }),
   lighting: Type.Object({ ambient: color, directionalIntensity: Type.Number({ minimum: 0, maximum: 4 }), directionalEuler: vector }),
@@ -40,7 +30,6 @@ export const CapturePlanSchema = Type.Object({
   tiles: Type.Array(Type.Object({
     id: Type.String({ pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$", maxLength: 80 }),
     frame,
-    ceilingReview,
   }), { minItems: 1, maxItems: 64 }),
 });
 export type CapturePlan = Static<typeof CapturePlanSchema>;
@@ -85,15 +74,13 @@ const visualState = Type.Object({
   lightInstanceId: integer, lightIntensity: number, lightColor: rgba,
   renderers: Type.Array(enabledState), lights: Type.Array(enabledState), projectors: Type.Array(enabledState),
   retainedParticles: Type.Array(enabledState),
-  retainedFloors: Type.Array(enabledState),
   highlights: Type.Array(Type.Object({ instanceId: integer, cameraMask: integer })),
 });
 export const CaptureRestorationSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-restoration.v3"), key: text, tileId: text,
+  schemaVersion: Type.Literal("compendium.capture-restoration.v4"), key: text, tileId: text,
   visualPolicy: Type.Literal("compendium.capture-visual-policy.v2"),
   colorSpace: Type.Union([Type.Literal("Gamma"), Type.Literal("Linear")]),
   frameStarted: count, frameRestored: count, renderSucceeded: Type.Boolean(),
-  ceilingReview, ceilingRendererIds: Type.Array(integer),
   selections: Type.Array(Type.Object({ kind: text, instanceId: integer, reason: text })),
   lightingInputs: Type.Array(Type.Object({ instanceId: integer, type: integer, enabled: Type.Boolean(), active: Type.Boolean(), color: rgba, intensity: number, range: number, cullingMask: integer, position: vector })),
   before: visualState, during: Type.Union([visualState, Type.Null()]), after: Type.Union([visualState, Type.Null()]), errors: Type.Array(text),
@@ -179,12 +166,11 @@ const captureSetTile = Type.Object({
   origin: captureTileOrigin,
 });
 export const CaptureSetSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-set.v1"),
+  schemaVersion: Type.Literal("compendium.capture-set.v2"),
   buildId: text,
   sceneNativeId: count,
   scenePath: text,
   mapSpaceId: text,
-  floorId: Type.Union([text, Type.Null()]),
   width: Type.Integer({ minimum: 1 }),
   height: Type.Integer({ minimum: 1 }),
   expectedTiles: Type.Array(text, { minItems: 1 }),

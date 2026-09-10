@@ -3,7 +3,7 @@ import { Assert } from "typebox/value";
 import type { PlacementIdentityResult } from "../tools/placement-contracts";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v1" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v2" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });
@@ -66,8 +66,6 @@ export interface NormalizedPlacement {
   scenePath: string;
   identity: NormalizedPlacementIdentity | null;
   mapSpaceId: string | null;
-  floorId: string | null;
-  floorState: "not-applicable" | "resolved" | "ambiguous" | "outside" | "unresolved";
   worldPosition: { x: number; y: number; z: number };
   mapPosition: { x: number; y: number } | null;
   sourceIds: string[];
@@ -119,9 +117,9 @@ export interface NormalizedSpawnCandidate {
 }
 
 export interface NormalizedMapProjection {
-  schemaVersion: "compendium.map-projections.v1";
+  schemaVersion: "compendium.map-projections.v2";
   buildId: string;
-  mapSpaces: Array<{ mapSpaceId: string; label: string; floors: Array<{ floorId: string; label: string }>; placementIds: string[] }>;
+  mapSpaces: Array<{ mapSpaceId: string; label: string; placementIds: string[] }>;
   placements: NormalizedPlacement[];
   sources: Array<{ sourceId: string; placementId: string; family: string; data: Record<string, unknown> }>;
   provenance: { plan: ArtifactReference; profile: ArtifactReference; sources: ArtifactReference[] };
@@ -196,11 +194,11 @@ export interface NormalizedItemSources {
 }
 
 export interface NormalizedCoverageSummary {
-  schemaVersion: "compendium.normalized-coverage.v1";
+  schemaVersion: "compendium.normalized-coverage.v2";
   buildId: string;
   complete: false;
   blockers: Array<{ kind: string; key: string; detail: string; provenance: ProvenanceReference[] }>;
-  unresolved: { unplacedSources: number; unresolvedIssues: number; missingReferences: number; ambiguousFloors: number; outsideProfile: number };
+  unresolved: { unplacedSources: number; unresolvedIssues: number; missingReferences: number; outsideProfile: number };
   inputCoverage: unknown | null;
   provenance: { plan: ArtifactReference; profile: ArtifactReference; sources: ArtifactReference[] };
 }
@@ -237,8 +235,8 @@ export interface NormalizedDatabaseInput {
   identityResults: Array<{ runId: string; snapshotSha256: string; character: string; sceneHandle: number; result: PlacementIdentityResult }>;
   entities: NormalizedEntity[];
   scenes: Array<{ nativeId: number; path: string; name: string | null }>;
-  mapSpaces: Array<{ id: string; label: string; floors: Array<{ id: string; label: string }> }>;
-  bindings: Array<{ id: string; mapSpaceId: string; sceneNativeId: number; scenePath: string; frame: unknown; domain: unknown; floorDomains: unknown }>;
+  mapSpaces: Array<{ id: string; label: string }>;
+  bindings: Array<{ id: string; mapSpaceId: string; sceneNativeId: number; scenePath: string; frame: unknown; domain: unknown }>;
   placements: NormalizedPlacement[];
   sources: NormalizedSource[];
   roles: Array<{ placementId: string; sourceId: string; role: string; npcId: number | null; scope: string; evidence: unknown }>;

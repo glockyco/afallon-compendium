@@ -2,7 +2,6 @@ import type { MapViewState } from './map-adapter';
 
 export interface MapUrlState {
   mapSpaceId: string | null;
-  floorId: string | null;
   layerId: string | null;
   selectedId: string | null;
   query: string;
@@ -30,7 +29,6 @@ export function readMapUrl(search: string): MapUrlState {
   const roles = params.getAll('roles').flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
   return {
     mapSpaceId: params.get('map'),
-    floorId: params.get('floor'),
     layerId: params.get('layer'),
     selectedId: params.get('selected'),
     query: params.get('q') ?? '',
@@ -47,7 +45,6 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
   const params = url.searchParams;
   const optional = new Map<string, string | null>([
     ['map', state.mapSpaceId],
-    ['floor', state.floorId],
     ['layer', state.layerId],
     ['selected', state.selectedId],
     ['q', state.query.trim() || null],

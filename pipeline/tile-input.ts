@@ -38,7 +38,6 @@ export type SourceTile = {
   sceneNativeId: number;
   scenePath: string;
   mapSpaceId: string;
-  floorId: string | null;
   width: number;
   height: number;
 };
@@ -130,7 +129,7 @@ function assertPlan(value: unknown): TilePlan {
   try {
     Assert(TilePlanSchema, value);
   } catch (error) {
-    fail(`plan does not satisfy compendium.tile-plan.v1: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`plan does not satisfy compendium.tile-plan.v2: ${error instanceof Error ? error.message : String(error)}`);
   }
   return value as TilePlan;
 }
@@ -139,7 +138,7 @@ function assertCapturePlan(value: unknown): CapturePlan {
   try {
     Assert(CapturePlanSchema, value);
   } catch (error) {
-    fail(`capture plan does not satisfy compendium.capture-plan.v3: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`capture plan does not satisfy compendium.capture-plan.v4: ${error instanceof Error ? error.message : String(error)}`);
   }
   return value as CapturePlan;
 }
@@ -148,7 +147,7 @@ function assertCaptureSet(value: unknown): CaptureSet {
   try {
     Assert(CaptureSetSchema, value);
   } catch (error) {
-    fail(`capture set does not satisfy compendium.capture-set.v1: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`capture set does not satisfy compendium.capture-set.v2: ${error instanceof Error ? error.message : String(error)}`);
   }
   return value as CaptureSet;
 }
@@ -189,34 +188,9 @@ function validateDomain(binding: MapSpaceProfile["bindings"][number], raster: Ca
   const rasterMaxX = Math.max(...corners.map(corner => corner.x));
   const rasterMinZ = Math.min(...corners.map(corner => corner.z));
   const rasterMaxZ = Math.max(...corners.map(corner => corner.z));
-  const overlaps = binding.domain.boxes.some(box => {
-    const minY = raster.verticalBounds.minY;
-    const maxY = raster.verticalBounds.maxY;
-    return rasterMaxX > box.min.x && rasterMinX < box.max.x
-      && rasterMaxZ > box.min.z && rasterMinZ < box.max.z
-      && maxY > box.min.y && minY < box.max.y;
-  });
+  const overlaps = binding.domain.boxes.some(box => rasterMaxX > box.min.x && rasterMinX < box.max.x
+    && rasterMaxZ > box.min.z && rasterMinZ < box.max.z);
   if (!overlaps) fail(`raster ${raster.tileId} lies outside reviewed map-space domain`);
-}
-
-function validateFloor(binding: MapSpaceProfile["bindings"][number], floorId: string | null, raster: CaptureRaster): void {
-  if (floorId === null) return;
-  const domain = binding.floorDomains.find(candidate => candidate.floorId === floorId);
-  if (domain === undefined) fail(`reviewed binding has no floor ${floorId}`);
-  const corners = [
-    raster.worldFromPixelEdge.origin,
-    { x: raster.worldFromPixelEdge.origin.x + raster.worldFromPixelEdge.xAxis.x * raster.width, z: raster.worldFromPixelEdge.origin.z + raster.worldFromPixelEdge.xAxis.z * raster.width },
-    { x: raster.worldFromPixelEdge.origin.x + raster.worldFromPixelEdge.yAxis.x * raster.height, z: raster.worldFromPixelEdge.origin.z + raster.worldFromPixelEdge.yAxis.z * raster.height },
-    { x: raster.worldFromPixelEdge.origin.x + raster.worldFromPixelEdge.xAxis.x * raster.width + raster.worldFromPixelEdge.yAxis.x * raster.height, z: raster.worldFromPixelEdge.origin.z + raster.worldFromPixelEdge.xAxis.z * raster.width + raster.worldFromPixelEdge.yAxis.z * raster.height },
-  ];
-  const rasterMinX = Math.min(...corners.map(corner => corner.x));
-  const rasterMaxX = Math.max(...corners.map(corner => corner.x));
-  const rasterMinZ = Math.min(...corners.map(corner => corner.z));
-  const rasterMaxZ = Math.max(...corners.map(corner => corner.z));
-  const overlaps = domain.boxes.some(box => rasterMaxX > box.min.x && rasterMinX < box.max.x
-    && rasterMaxZ > box.min.z && rasterMinZ < box.max.z
-    && raster.verticalBounds.maxY > box.min.y && raster.verticalBounds.minY < box.max.y);
-  if (!overlaps) fail(`raster ${raster.tileId} lies outside reviewed floor ${floorId}`);
 }
 
 function validateRasterAgainstFrame(raster: CaptureRaster, capturePlan: CapturePlan): void {
@@ -263,7 +237,7 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
   const sourceProfileFile = await readRunArtifact(sourceProfileReference, "source map-space profile");
   if (sourceProfileFile.bytes.byteLength !== profileArtifact.bytes) fail(`source run ${reference.path} profile artifact byte count differs from its registered value`);
   const captureCandidates = artifacts.filter(candidate => candidate.path === "capture-set.json" || candidate.path.endsWith("/capture-set.json"));
-  if (captureCandidates.length !== 1) fail(`source run ${reference.path} must contain exactly one capture-set.v1 artifact`);
+  if (captureCandidates.length !== 1) fail(`source run ${reference.path} must contain exactly one capture-set.v2 artifact`);
   const captureArtifact = captureCandidates[0]!;
   const captureReference: TileReference = { path: captureArtifact.path, sha256: captureArtifact.sha256 };
   const captureFile = await readRunArtifact(captureReference, "capture set");
@@ -279,7 +253,7 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
   if (planFile.bytes.byteLength !== planItem.bytes) fail(`source run ${reference.path} capture plan byte count differs from its registered value`);
   const capturePlan = assertCapturePlan(readJson(planFile.bytes, `capture plan ${planReference.path}`));
   const capturePlanPath = planFile.path;
-  if (capturePlan.schemaVersion !== "compendium.capture-plan.v3") fail(`source run ${reference.path} uses an unsupported capture plan`);
+  if (capturePlan.schemaVersion !== "compendium.capture-plan.v4") fail(`source run ${reference.path} uses an unsupported capture plan`);
   const capturePlanTileIds = new Set(capturePlan.tiles.map(tile => tile.id));
   if (capturePlanTileIds.size !== capturePlan.tiles.length) fail(`source run ${reference.path} capture plan repeats a tile ID`);
   const inputHashes = asObject(input.inputHashes, `source run ${reference.path}.inputHashes`);
@@ -288,10 +262,10 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
     fail(`source run ${reference.path} profile hash differs from the selected profile`);
   }
   const captureSet = assertCaptureSet(captureSetValue);
-  if (captureSet.schemaVersion !== "compendium.capture-set.v1") fail(`source ${reference.path} is not capture-set.v1`);
+  if (captureSet.schemaVersion !== "compendium.capture-set.v2") fail(`source ${reference.path} is not capture-set.v2`);
   if (captureSet.buildId !== plan.buildId) fail(`source ${reference.path} build differs from plan`);
-  if (captureSet.mapSpaceId !== plan.mapSpaceId || captureSet.floorId !== plan.floorId) fail(`source ${reference.path} map space or floor differs from plan`);
-  if (capturePlan.sceneNativeId !== captureSet.sceneNativeId || capturePlan.scenePath !== captureSet.scenePath || capturePlan.mapSpaceId !== captureSet.mapSpaceId || capturePlan.floorId !== captureSet.floorId || capturePlan.width !== captureSet.width || capturePlan.height !== captureSet.height) {
+  if (captureSet.mapSpaceId !== plan.mapSpaceId) fail(`source ${reference.path} map space differs from plan`);
+  if (capturePlan.sceneNativeId !== captureSet.sceneNativeId || capturePlan.scenePath !== captureSet.scenePath || capturePlan.mapSpaceId !== captureSet.mapSpaceId || capturePlan.width !== captureSet.width || capturePlan.height !== captureSet.height) {
     fail(`source ${reference.path} capture plan and capture set disagree`);
   }
   const expected = new Set(captureSet.expectedTiles);
@@ -324,13 +298,12 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
     validateRasterAgainstFrame(rasterValue, capturePlan);
     const binding = profileBinding(profile, captureSet.sceneNativeId, captureSet.scenePath, plan.mapSpaceId);
     validateDomain(binding, rasterValue);
-    validateFloor(binding, plan.floorId, rasterValue);
     if (capturePlan.width !== rasterValue.width || capturePlan.height !== rasterValue.height) fail(`source ${reference.path} tile ${tile.id} has inconsistent raster dimensions`);
-    tiles.push({ id: tile.id, compatibilityKey: tile.compatibilityKey, status: tile.status, empty: readinessValue.empty, origin: tile.origin, imagePath: imageFile.path, imageBytes: imageFile.bytes, image, rasterPath: rasterFile.path, raster, readinessPath: readinessFile.path, readiness, restoration, nativeContext, rasterValue, readinessValue, sourcePath, sourceSha256: reference.sha256, runId, captureSetPath, captureSetSha256, sceneNativeId: captureSet.sceneNativeId, scenePath: captureSet.scenePath, mapSpaceId: captureSet.mapSpaceId, floorId: captureSet.floorId, width: captureSet.width, height: captureSet.height });
+    tiles.push({ id: tile.id, compatibilityKey: tile.compatibilityKey, status: tile.status, empty: readinessValue.empty, origin: tile.origin, imagePath: imageFile.path, imageBytes: imageFile.bytes, image, rasterPath: rasterFile.path, raster, readinessPath: readinessFile.path, readiness, restoration, nativeContext, rasterValue, readinessValue, sourcePath, sourceSha256: reference.sha256, runId, captureSetPath, captureSetSha256, sceneNativeId: captureSet.sceneNativeId, scenePath: captureSet.scenePath, mapSpaceId: captureSet.mapSpaceId, width: captureSet.width, height: captureSet.height });
   }
   if (tiles.length === 0) fail(`source ${reference.path} has no capture tiles`);
   const settings = asObject(input.settings, `source run ${reference.path}.settings`);
-  if (input.buildId !== plan.buildId || settings.sceneNativeId !== captureSet.sceneNativeId || settings.scenePath !== captureSet.scenePath || settings.mapSpaceId !== captureSet.mapSpaceId || settings.floorId !== captureSet.floorId || settings.width !== captureSet.width || settings.height !== captureSet.height) fail(`source ${reference.path} run settings contradict capture set`);
+  if (input.buildId !== plan.buildId || settings.sceneNativeId !== captureSet.sceneNativeId || settings.scenePath !== captureSet.scenePath || settings.mapSpaceId !== captureSet.mapSpaceId || settings.width !== captureSet.width || settings.height !== captureSet.height) fail(`source ${reference.path} run settings contradict capture set`);
   return { sourcePath, sourceSha256: reference.sha256, runId, captureSetPath, captureSetSha256, captureSet, tiles, planPath: capturePlanPath };
 }
 
@@ -339,7 +312,7 @@ export async function loadTileInputs(planPath: string): Promise<LoadedTileInputs
   const planBytes = await Bun.file(absolutePlanPath).bytes();
   const planSha256 = createHash("sha256").update(planBytes).digest("hex");
   const plan = assertPlan(readJson(planBytes, "tile plan"));
-  if (plan.schemaVersion !== "compendium.tile-plan.v1") fail("unsupported tile plan schema");
+  if (plan.schemaVersion !== "compendium.tile-plan.v2") fail("unsupported tile plan schema");
   const planDirectory = dirname(absolutePlanPath);
   const profileRef = ref(plan.profile, "tile plan profile");
   const profileFile = await readHashed(profileRef, planDirectory, "map-space profile");
@@ -348,7 +321,6 @@ export async function loadTileInputs(planPath: string): Promise<LoadedTileInputs
   const profile = reviewedProfile.profile;
   if (profile.buildId !== plan.buildId) fail(`profile build ${profile.buildId} differs from plan build ${plan.buildId}`);
   if (!profile.mapSpaces.some(mapSpace => mapSpace.id === plan.mapSpaceId)) fail(`profile has no map space ${plan.mapSpaceId}`);
-  if (plan.floorId !== null && !profile.mapSpaces.some(mapSpace => mapSpace.id === plan.mapSpaceId && mapSpace.floors.some(floor => floor.id === plan.floorId))) fail(`profile has no floor ${plan.floorId} in map space ${plan.mapSpaceId}`);
   const sourceRefs = plan.sources.map((source, index) => {
     if (source.path === profileRef.path && source.sha256 === profileRef.sha256) fail(`source ${index} is the map-space profile, not capture output`);
     return ref(source, `tile plan source ${index}`);
@@ -362,7 +334,7 @@ export async function loadTileInputs(planPath: string): Promise<LoadedTileInputs
     seenSources.add(sourceKey);
     const source = await loadSource(sourceRef, planDirectory, profile, plan);
     sources.push(source);
-    provenance.push({ manifest: { path: relative(planDirectory, source.sourcePath).split("/").join("/"), sha256: source.sourceSha256 }, runId: source.runId, captureSet: { path: relative(planDirectory, source.captureSetPath).split("/").join("/"), sha256: source.captureSetSha256 }, sceneNativeId: source.captureSet.sceneNativeId, scenePath: source.captureSet.scenePath, mapSpaceId: source.captureSet.mapSpaceId, floorId: source.captureSet.floorId, completeImagery: source.captureSet.completeImagery, width: source.captureSet.width, height: source.captureSet.height, tiles: source.tiles.map(tile => ({ id: tile.id, compatibilityKey: tile.compatibilityKey, status: tile.status, empty: tile.empty, origin: tile.origin, verticalBounds: tile.rasterValue.verticalBounds, image: tile.image, raster: tile.raster, readiness: tile.readiness, restoration: tile.restoration, nativeContext: tile.nativeContext })) });
+    provenance.push({ manifest: { path: relative(planDirectory, source.sourcePath).split("/").join("/"), sha256: source.sourceSha256 }, runId: source.runId, captureSet: { path: relative(planDirectory, source.captureSetPath).split("/").join("/"), sha256: source.captureSetSha256 }, sceneNativeId: source.captureSet.sceneNativeId, scenePath: source.captureSet.scenePath, mapSpaceId: source.captureSet.mapSpaceId, completeImagery: source.captureSet.completeImagery, width: source.captureSet.width, height: source.captureSet.height, tiles: source.tiles.map(tile => ({ id: tile.id, compatibilityKey: tile.compatibilityKey, status: tile.status, empty: tile.empty, origin: tile.origin, verticalBounds: tile.rasterValue.verticalBounds, image: tile.image, raster: tile.raster, readiness: tile.readiness, restoration: tile.restoration, nativeContext: tile.nativeContext })) });
   }
   return { plan, planPath: absolutePlanPath, planSha256, profile, profileRef, profilePath: profileFile.path, sources, provenance };
 }

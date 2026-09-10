@@ -43,7 +43,6 @@
   let loading = true;
   let loadError = '';
   let mapSpaceId = '';
-  let floorId: string | null = null;
   let layerId = '';
   let selectedId: string | null = null;
   let query = '';
@@ -62,12 +61,11 @@
   let queryTimer: ReturnType<typeof setTimeout> | null = null;
 
   $: activeMap = publication?.maps.find((map) => map.mapSpaceId === mapSpaceId) ?? publication?.maps[0] ?? null;
-  $: activeFloors = activeMap?.floors ?? [];
-  $: layerOptions = getLayerOptions(publication, mapSpaceId, floorId);
+  $: layerOptions = getLayerOptions(publication, mapSpaceId);
   $: if (layerOptions.length > 0 && !layerOptions.some((layer) => layer.id === layerId)) layerId = layerOptions[0]!.id;
   $: currentLayer = layerOptions.find((layer) => layer.id === layerId) ?? null;
   $: orientationOnly = currentLayer?.orientationOnly ?? false;
-  $: allMapPlacements = uniquePlacements(publication?.placements.filter((placement) => placement.mapSpaceId === mapSpaceId && placement.floorId === floorId) ?? []);
+  $: allMapPlacements = uniquePlacements(publication?.placements.filter((placement) => placement.mapSpaceId === mapSpaceId) ?? []);
   $: itemContext = findItem(publication, itemKey);
   $: sourceSearchEntries = (itemContext?.sources ?? []).map((source) => ({ source, text: [source.label, source.kind, sectionText(source.sections)].join(' ').toLocaleLowerCase() }));
   $: sourceNeedle = itemSourceQuery.trim().toLocaleLowerCase();
@@ -88,7 +86,7 @@
   $: matchingPlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && (roles.length === 0 || roles.some((role) => placement.roles.includes(role))) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId)));
   $: if (selectedId && !allMapPlacements.some((placement) => placement.placementId === selectedId) && !staleSelection) {
     const selected = publication?.placements.find((placement) => placement.placementId === selectedId);
-    if (selected) staleSelection = `Selected location “${selected.label}” is outside the current map or floor.`;
+    if (selected) staleSelection = `Selected location “${selected.label}” is outside the current map.`;
   }
   $: viewportPlacements = matchingPlacements.filter((placement) => inViewport(placement, viewportBounds));
   $: selectedPlacement = publication?.placements.find((placement) => placement.placementId === selectedId) ?? null;
@@ -118,7 +116,7 @@
       .then(async (response) => {
         if (!response.ok) throw new Error(`Publication request failed (${response.status})`);
         const json = (await response.json()) as PublicationData;
-        if (json.schemaVersion !== 'compendium.publication.v1') throw new Error('Unsupported publication schema.');
+        if (json.schemaVersion !== 'compendium.publication.v2') throw new Error('Unsupported publication schema.');
         return resolvePublicationAssets(json, publicationUrl);
       })
       .then(async (data) => {
@@ -128,7 +126,6 @@
         const map = publication.maps.find((candidate) => candidate.mapSpaceId === mapSpaceId) ?? publication.maps[0];
         if (!map) throw new Error('Publication has no map spaces.');
         mapSpaceId = map.mapSpaceId;
-        if (floorId !== null && !map.floors.some((floor) => floor.floorId === floorId)) floorId = map.floors[0]?.floorId ?? null;
         loading = false;
         await tick();
         if (disposed) return;
@@ -171,7 +168,7 @@
   });
 
   $: if (adapterReady && adapter && publication && activeMap) {
-    adapter.update({ data: publication, mapSpaceId, floorId, layerId, placements: adapterPlacements, selectedId, view });
+    adapter.update({ data: publication, mapSpaceId, layerId, placements: adapterPlacements, selectedId, view });
   }
 
   function centerView(map: PublicationData['maps'][number]): MapViewState {
@@ -181,10 +178,10 @@
     return { target: [x, y, 0], zoom: Math.log2(scale * 0.9) };
   }
 
-  function getLayerOptions(data: PublicationData | null, mapId: string, floor: string | null): LayerOption[] {
+  function getLayerOptions(data: PublicationData | null, mapId: string): LayerOption[] {
     if (!data) return [];
-    const options: LayerOption[] = data.tileLayers.filter((layer) => layer.mapSpaceId === mapId && layer.floorId === floor).map((layer): LayerOption => ({ id: layer.id, label: 'Captured screenshots', kind: 'screenshot', orientationOnly: false }));
-    options.push(...data.illustrations.filter((illustration) => illustration.mapSpaceId === mapId && illustration.floorId === floor).map((illustration): LayerOption => ({ id: illustration.id, label: `${illustration.label}${illustration.registration === 'orientation-only' ? ' (orientation only)' : ''}`, kind: 'illustration', orientationOnly: illustration.registration === 'orientation-only' })));
+    const options: LayerOption[] = data.tileLayers.filter((layer) => layer.mapSpaceId === mapId).map((layer): LayerOption => ({ id: layer.id, label: 'Captured screenshots', kind: 'screenshot', orientationOnly: false }));
+    options.push(...data.illustrations.filter((illustration) => illustration.mapSpaceId === mapId).map((illustration): LayerOption => ({ id: illustration.id, label: `${illustration.label}${illustration.registration === 'orientation-only' ? ' (orientation only)' : ''}`, kind: 'illustration', orientationOnly: illustration.registration === 'orientation-only' })));
     return options;
   }
 
@@ -232,7 +229,6 @@
     detailQuery = next.detailQuery;
     if (!publication) {
       mapSpaceId = next.mapSpaceId ?? '';
-      floorId = next.floorId;
       layerId = next.layerId ?? '';
       selectedId = next.selectedId;
       query = next.query;
@@ -245,15 +241,14 @@
     const map = publication.maps.find((candidate) => candidate.mapSpaceId === next.mapSpaceId) ?? publication.maps[0];
     if (!map) return;
     mapSpaceId = map.mapSpaceId;
-    floorId = next.floorId && map.floors.some((floor) => floor.floorId === next.floorId) ? next.floorId : map.floors[0]?.floorId ?? null;
-    const options = getLayerOptions(publication, mapSpaceId, floorId);
+    const options = getLayerOptions(publication, mapSpaceId);
     layerId = options.some((layer) => layer.id === next.layerId) ? next.layerId ?? options[0]?.id ?? '' : options[0]?.id ?? '';
     query = next.query;
     roles = next.roles;
     itemKey = next.itemKey && publication.itemSources.some((item) => item.itemKey === next.itemKey) ? next.itemKey : null;
     const selected = next.selectedId ? publication.placements.find((placement) => placement.placementId === next.selectedId) : null;
     if (next.selectedId && !selected) staleSelection = `This link refers to a location that is not in the loaded publication: ${next.selectedId}.`;
-    else if (selected && (selected.mapSpaceId !== mapSpaceId || selected.floorId !== floorId)) staleSelection = `Selected location “${selected.label}” is not on this map or floor.`;
+    else if (selected && selected.mapSpaceId !== mapSpaceId) staleSelection = `Selected location “${selected.label}” is not on this map.`;
     else staleSelection = '';
     selectedId = selected && !staleSelection ? selected.placementId : null;
     selectedEntityKey = next.entityKey && publication.entities.some((entity) => entity.entityKey === next.entityKey) ? next.entityKey : null;
@@ -265,7 +260,7 @@
   }
 
   function currentUrl(): URL {
-    return writeMapUrl(new URL(window.location.href), { mapSpaceId, floorId, layerId, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', roles, itemKey, entityKey: selectedEntityKey, view });
+    return writeMapUrl(new URL(window.location.href), { mapSpaceId, layerId, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', roles, itemKey, entityKey: selectedEntityKey, view });
   }
 
   function syncUrl(mode: 'push' | 'replace'): void {
@@ -285,14 +280,13 @@
   function selectPlacement(placementId: string, origin: HTMLElement | HTMLCanvasElement | null = null): void {
     const placement = publication?.placements.find((candidate) => candidate.placementId === placementId);
     if (!placement) return;
-    const zoom = !orientationOnly && placement.mapSpaceId === mapSpaceId && placement.floorId === floorId ? Math.max(view.zoom, 1) : 1;
+    const zoom = !orientationOnly && placement.mapSpaceId === mapSpaceId ? Math.max(view.zoom, 1) : 1;
     selectedId = placementId;
     selectedEntityKey = null;
     staleSelection = '';
     detailOrigin = origin;
     mapSpaceId = placement.mapSpaceId;
-    floorId = placement.floorId;
-    const options = getLayerOptions(publication, mapSpaceId, floorId);
+    const options = getLayerOptions(publication, mapSpaceId);
     if (!options.some((option) => option.id === layerId) || orientationOnly) layerId = options.find((option) => option.kind === 'screenshot')?.id ?? options[0]?.id ?? '';
     view = { target: [placement.position[0], placement.position[1], 0], zoom };
     viewportBounds = null;
@@ -335,51 +329,15 @@
     void focusDetails();
   }
 
-  function openDestination(placement: PublicPlacement): void {
-    const destination = placement.destination;
-    if (!destination) return;
-    const destinationMap = publication?.maps.find((map) => map.mapSpaceId === destination.mapSpaceId);
-    if (!destinationMap) {
-      staleSelection = `The destination map “${destination.mapSpaceId}” is not included in this publication.`;
-      return;
-    }
-    if (destinationMap.floors.length > 0 && destination.floorId === null) {
-      staleSelection = `The destination on “${destination.mapSpaceId}” has no verified floor.`;
-      return;
-    }
-    mapSpaceId = destination.mapSpaceId;
-    floorId = destination.floorId;
-    const options = getLayerOptions(publication, mapSpaceId, floorId);
-    const destinationLayer = options.find((option) => option.kind === 'screenshot') ?? options[0];
-    layerId = destinationLayer?.id ?? '';
-    selectedId = null;
-    staleSelection = '';
-    viewportBounds = null;
-    if (destination.position && destinationLayer && !destinationLayer.orientationOnly) view = { target: [destination.position[0], destination.position[1], 0], zoom: 1 };
-    syncUrl('push');
-  }
-
   function chooseMap(nextMapId: string): void {
     const nextMap = publication?.maps.find((map) => map.mapSpaceId === nextMapId);
     if (!nextMap) return;
     mapSpaceId = nextMapId;
-    floorId = nextMap.floors[0]?.floorId ?? null;
-    layerId = getLayerOptions(publication, mapSpaceId, floorId)[0]?.id ?? '';
+    layerId = getLayerOptions(publication, mapSpaceId)[0]?.id ?? '';
     selectedId = null;
     staleSelection = '';
     viewportBounds = null;
     view = centerView(nextMap);
-    syncUrl('push');
-  }
-
-  function chooseFloor(nextFloorId: string): void {
-    floorId = nextFloorId || null;
-    const options = getLayerOptions(publication, mapSpaceId, floorId);
-    layerId = options[0]?.id ?? '';
-    selectedId = null;
-    viewportBounds = null;
-    const map = activeMap;
-    if (map) view = centerView(map);
     syncUrl('push');
   }
 
@@ -443,7 +401,6 @@
       <aside class="control-panel" aria-label="Atlas controls">
         <div class="control-section search-section"><label for="atlas-search">Search places, entities, and items</label><div class="search-row"><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } }} placeholder="Try a name or item" autocomplete="off" /><button class="quiet-button" type="button" on:click={() => { query = ''; scheduleQueryUrl(); searchInput?.focus(); }} aria-label="Clear search">Clear</button></div><p class="hint">Press Enter to move from search to results.</p></div>
         <div class="control-section"><label for="map-select">Map space</label><select id="map-select" value={mapSpaceId} on:change={(event) => chooseMap((event.currentTarget as HTMLSelectElement).value)}>{#each publication.maps as map}<option value={map.mapSpaceId}>{map.label}</option>{/each}</select></div>
-        <div class="control-section"><label for="floor-select">Floor</label><select id="floor-select" value={floorId ?? ''} on:change={(event) => chooseFloor((event.currentTarget as HTMLSelectElement).value)}>{#if activeFloors.length === 0}<option value="">Outdoor / base map</option>{:else}{#each activeFloors as floor}<option value={floor.floorId}>{floor.label}</option>{/each}{/if}</select></div>
         <div class="control-section"><label for="layer-select">Map layer</label><select id="layer-select" value={layerId} on:change={(event) => chooseLayer((event.currentTarget as HTMLSelectElement).value)}>{#each layerOptions as layer}<option value={layer.id}>{layer.label}</option>{/each}</select>{#if orientationOnly}<p class="notice">Orientation only. Marker navigation is disabled until a screenshot layer is selected.</p>{/if}</div>
         <div class="control-section roles"><div class="section-heading"><h2>Categories</h2><span class="count">{allMapPlacements.length}</span></div>{#each roleFilters.filter((role) => roleCounts[role] || roles.includes(role)) as role}<label class="role-option"><input type="checkbox" checked={roles.includes(role)} on:change={() => toggleRole(role)} /><span class="role-symbol" style:background={`rgb(${ROLE_STYLES[role]?.color.join(',') ?? '95,95,95'})`} aria-hidden="true">{ROLE_STYLES[role]?.symbol ?? 'P'}</span><span>{roleLabel(role)}<small>{ROLE_STYLES[role]?.hint ?? 'Other authored placement role'}</small></span><strong>{roleCounts[role] ?? 0}</strong></label>{/each}{#if roles.length > 0}<button type="button" class="text-button" on:click={() => { roles = []; syncUrl('push'); }}>Clear category filters</button>{/if}</div>
         {#if !publication.coverage.complete}<div class="coverage-card"><strong>Research preview</strong><p>This artifact is not a complete release. Missing coverage is not the same as an absent location.</p>{#each publication.coverage.messages as message}<p class="coverage-message">{message}</p>{/each}<span>{publication.coverage.excludedPlacements} excluded placements</span></div>{/if}
@@ -532,7 +489,6 @@
               <article class="entity-block"><div class="entity-heading"><span>{entity.kind}</span><h3>{entity.name}</h3></div>{#if entity.description}<p>{entity.description}</p>{/if}<button type="button" class="inline-link" on:click={(event) => selectEntity(entity, event.currentTarget)}>Open entity details</button></article>
             {/each}
             <DetailSections sections={filteredDetail} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />
-            {#if selectedPlacement.destination}<button class="destination-button" type="button" on:click={() => openDestination(selectedPlacement)}>Open destination map</button>{/if}
             {#if entityLinks(selectedPlacement.sections).length > 0}
               <div class="linked-locations"><h3>Linked locations</h3>{#each entityLinks(selectedPlacement.sections) as link}<button class="inline-link" type="button" on:click={(event) => selectPlacement(link.placementId, event.currentTarget)}>{link.label}</button>{/each}</div>
             {/if}
@@ -630,7 +586,7 @@
   .source-card, .entity-block { padding: .65rem; margin: .65rem 0; border: 1px solid #3a3b37; background: #1b1c1b; }
   .source-title strong { font-size: .8rem; }
   .source-title span, .entity-heading span { color: #aaa89d; font-size: .68rem; }
-  .source-location, .destination-button { width: 100%; margin-top: .5rem; padding: .5rem; border: 1px solid #806d4a; background: #2a261e; color: #e4ce99; font-size: .72rem; text-align: center; }
+  .source-location { width: 100%; margin-top: .5rem; padding: .5rem; border: 1px solid #806d4a; background: #2a261e; color: #e4ce99; font-size: .72rem; text-align: center; }
   .source-location:disabled { opacity: .5; cursor: default; }
   summary { cursor: pointer; color: #d4bc86; font-size: .8rem; }
   .entity-heading h3 { margin-top: .15rem; font-size: .85rem; }

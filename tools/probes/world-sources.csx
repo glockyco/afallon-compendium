@@ -2109,7 +2109,6 @@ for (var index = 0; index < worldRegionCount; index++)
         regionShape = new { value = (int)region.shapeType, name = region.shapeType.ToString() },
         regionTemplate = template == null ? null : (object)new { nativeId = template.ID, name = getEntryName(template), internalName = template.entryName, fileName = template.entryFileName },
         regionTemplateProjection = template == null ? null : (object)projectEntry(template),
-        floorEvidence = new { sourceKind = "authoredRegionComponent", source = sourceEvidence },
         captureBoundsValidated = false
     });
 }

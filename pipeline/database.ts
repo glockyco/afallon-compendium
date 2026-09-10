@@ -52,14 +52,6 @@ export function openNormalizedDatabase(path: string): Database {
         label TEXT NOT NULL,
         PRIMARY KEY(build_id, map_space_id)
       ) STRICT;
-      CREATE TABLE IF NOT EXISTS map_space_floors (
-        build_id TEXT NOT NULL,
-        map_space_id TEXT NOT NULL,
-        floor_id TEXT NOT NULL,
-        label TEXT NOT NULL,
-        PRIMARY KEY(build_id, map_space_id, floor_id),
-        FOREIGN KEY(build_id, map_space_id) REFERENCES map_spaces
-      ) STRICT;
       CREATE TABLE IF NOT EXISTS map_space_bindings (
         build_id TEXT NOT NULL,
         binding_id TEXT NOT NULL,
@@ -68,7 +60,6 @@ export function openNormalizedDatabase(path: string): Database {
         scene_path TEXT NOT NULL,
         frame_json TEXT NOT NULL,
         domain_json TEXT NOT NULL,
-        floor_domains_json TEXT NOT NULL,
         PRIMARY KEY(build_id, binding_id),
         UNIQUE(build_id, scene_native_id, binding_id),
         FOREIGN KEY(build_id, map_space_id) REFERENCES map_spaces,
@@ -80,8 +71,6 @@ export function openNormalizedDatabase(path: string): Database {
         scene_native_id INTEGER NOT NULL,
         scene_path TEXT NOT NULL,
         map_space_id TEXT,
-        floor_id TEXT,
-        floor_state TEXT NOT NULL CHECK(floor_state IN ('not-applicable', 'resolved', 'ambiguous', 'outside', 'unresolved')),
         world_x REAL NOT NULL,
         world_y REAL NOT NULL,
         world_z REAL NOT NULL,
@@ -91,9 +80,7 @@ export function openNormalizedDatabase(path: string): Database {
         provenance_json TEXT NOT NULL,
         FOREIGN KEY(build_id, scene_native_id) REFERENCES identity_scenes,
         FOREIGN KEY(build_id, map_space_id) REFERENCES map_spaces,
-        FOREIGN KEY(build_id, map_space_id, floor_id) REFERENCES map_space_floors,
         CHECK((map_x IS NULL AND map_y IS NULL) OR (map_x IS NOT NULL AND map_y IS NOT NULL)),
-        CHECK(floor_state != 'resolved' OR (map_space_id IS NOT NULL AND floor_id IS NOT NULL)),
         UNIQUE(build_id, placement_id)
       ) STRICT;
       CREATE TABLE IF NOT EXISTS placement_sources (
@@ -292,7 +279,7 @@ export function openNormalizedDatabase(path: string): Database {
         provenance_json TEXT NOT NULL,
         UNIQUE(build_id, kind, blocker_key)
       ) STRICT;
-      CREATE INDEX IF NOT EXISTS placements_map_idx ON placements(build_id, map_space_id, floor_id);
+      CREATE INDEX IF NOT EXISTS placements_map_idx ON placements(build_id, map_space_id);
       CREATE INDEX IF NOT EXISTS placement_roles_role_idx ON placement_roles(role, placement_id);
       CREATE INDEX IF NOT EXISTS item_sources_item_idx ON item_sources(item_entity_key);
     `);
@@ -342,7 +329,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
   for (const identity of input.identityResults) recordPlacementIdentities(db, { runId: identity.runId, snapshotSha256: identity.snapshotSha256, character: identity.character, sceneHandle: identity.sceneHandle }, identity.result);
   const byEntity = new Map(input.entities.map((entity) => [entity.entityKey, entity]));
   db.transaction(() => {
-    insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, "compendium.normalized-output.v1", json(input.provenance)]);
+    insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, "compendium.normalized-output.v2", json(input.provenance)]);
     for (const source of sourceFiles) addSourceManifest(db, input.buildId, source.key, source.kind, source.ref.path, source.ref.sha256);
 
     const sceneRows = new Map<number, { nativeId: number; path: string; name: string | null }>();
@@ -353,14 +340,11 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     }
     for (const row of [...sceneRows.values()].sort((a, b) => a.nativeId - b.nativeId)) insertChecked(db, "identity_scenes", ["build_id", "scene_native_id"], ["build_id", "scene_native_id", "scene_path"], [input.buildId, row.nativeId, row.path]);
     ensureCanonical(db, input.buildId, byEntity);
-    for (const row of input.mapSpaces) {
-      insertChecked(db, "map_spaces", ["build_id", "map_space_id"], ["build_id", "map_space_id", "label"], [input.buildId, row.id, row.label]);
-      for (const floor of row.floors) insertChecked(db, "map_space_floors", ["build_id", "map_space_id", "floor_id"], ["build_id", "map_space_id", "floor_id", "label"], [input.buildId, row.id, floor.id, floor.label]);
-    }
-    for (const binding of input.bindings) insertChecked(db, "map_space_bindings", ["build_id", "binding_id"], ["build_id", "binding_id", "map_space_id", "scene_native_id", "scene_path", "frame_json", "domain_json", "floor_domains_json"], [input.buildId, binding.id, binding.mapSpaceId, binding.sceneNativeId, binding.scenePath, json(binding.frame), json(binding.domain), json(binding.floorDomains)]);
+    for (const row of input.mapSpaces) insertChecked(db, "map_spaces", ["build_id", "map_space_id"], ["build_id", "map_space_id", "label"], [input.buildId, row.id, row.label]);
+    for (const binding of input.bindings) insertChecked(db, "map_space_bindings", ["build_id", "binding_id"], ["build_id", "binding_id", "map_space_id", "scene_native_id", "scene_path", "frame_json", "domain_json"], [input.buildId, binding.id, binding.mapSpaceId, binding.sceneNativeId, binding.scenePath, json(binding.frame), json(binding.domain)]);
 
     for (const placement of input.placements) {
-      insertChecked(db, "placements", ["placement_id"], ["placement_id", "build_id", "scene_native_id", "scene_path", "map_space_id", "floor_id", "floor_state", "world_x", "world_y", "world_z", "map_x", "map_y", "shape_json", "provenance_json"], [placement.placementId, input.buildId, placement.sceneNativeId, placement.scenePath, placement.mapSpaceId, placement.floorId, placement.floorState, placement.worldPosition.x, placement.worldPosition.y, placement.worldPosition.z, placement.mapPosition?.x ?? null, placement.mapPosition?.y ?? null, json(placement.shape), json(placement.provenance)]);
+      insertChecked(db, "placements", ["placement_id"], ["placement_id", "build_id", "scene_native_id", "scene_path", "map_space_id", "world_x", "world_y", "world_z", "map_x", "map_y", "shape_json", "provenance_json"], [placement.placementId, input.buildId, placement.sceneNativeId, placement.scenePath, placement.mapSpaceId, placement.worldPosition.x, placement.worldPosition.y, placement.worldPosition.z, placement.mapPosition?.x ?? null, placement.mapPosition?.y ?? null, json(placement.shape), json(placement.provenance)]);
     }
     for (const source of input.sources) {
       if (!db.query("SELECT 1 AS present FROM source_identities WHERE source_id = ?").get(source.sourceId)) throw new Error(`Source ${source.sourceId} references no persisted identity record.`);

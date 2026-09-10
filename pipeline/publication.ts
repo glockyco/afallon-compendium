@@ -100,10 +100,10 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const plan = planValue as PublicationPlan;
   const load = (reference: PublicationPlan["normalized"], command: string) => loadVerifiedRun(resolve(planDirectory, reference.path), reference.sha256, plan.buildId, command);
   const normalized = await load(plan.normalized, "normalize");
-  const map = await jsonArtifact<NormalizedMapProjection>(normalized, "projections/map-projections.json", "compendium.map-projections.v1");
+  const map = await jsonArtifact<NormalizedMapProjection>(normalized, "projections/map-projections.json", "compendium.map-projections.v2");
   const entities = await jsonArtifact<NormalizedEntityDetails>(normalized, "projections/entity-details.json", "compendium.entity-details.v1");
   const items = await jsonArtifact<NormalizedItemSources>(normalized, "projections/item-sources.json", "compendium.item-sources.v1");
-  const coverage = await jsonArtifact<NormalizedCoverageSummary>(normalized, "projections/coverage-summary.json", "compendium.normalized-coverage.v1");
+  const coverage = await jsonArtifact<NormalizedCoverageSummary>(normalized, "projections/coverage-summary.json", "compendium.normalized-coverage.v2");
   if (plan.mode === "release" && (!coverage.complete || coverage.blockers.length > 0)) throw new Error("Release publication requires complete source coverage without unresolved blockers.");
   if (!Array.isArray(items.conditions) || !Array.isArray(map.sources)) throw new Error("Normalized publication inputs omit condition records or world-source details.");
   const conditionsById = new Map(items.conditions.map((condition) => [condition.conditionId, condition]));
@@ -122,12 +122,12 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   let allImageryComplete = true;
   for (const reference of plan.pyramids) {
     const source = await load(reference, "tiles");
-    const pyramid = await jsonArtifact<TilePyramid>(source, "tile-index.json", "compendium.tile-pyramid.v1");
+    const pyramid = await jsonArtifact<TilePyramid>(source, "tile-index.json", "compendium.tile-pyramid.v2");
     Assert(TilePyramidSchema, pyramid);
     if (pyramid.profile.sha256 !== profileRecord.reference.sha256) throw new Error("Publication pyramid uses different calibration.");
     const finest = pyramid.levels.find(level => level.z === pyramid.finestLevel);
     if (!finest) throw new Error("Publication pyramid has no finest level.");
-    const layer: PublicTileLayer = { id: `${pyramid.mapSpaceId}-${pyramid.floorId ?? "outdoor"}`, mapSpaceId: pyramid.mapSpaceId, floorId: pyramid.floorId, tileSize: pyramid.tileSize, finestLevel: pyramid.finestLevel, width: finest.width, height: finest.height, mapFromPixelEdge: pyramid.mapFromPixelEdge, tiles: [] };
+    const layer: PublicTileLayer = { id: pyramid.mapSpaceId, mapSpaceId: pyramid.mapSpaceId, tileSize: pyramid.tileSize, finestLevel: pyramid.finestLevel, width: finest.width, height: finest.height, mapFromPixelEdge: pyramid.mapFromPixelEdge, tiles: [] };
     let files = 0, bytes = 0;
     for (const level of pyramid.levels) for (const tile of level.tiles) {
       if (tile.coverage.state === "missing") throw new Error("A missing tile cannot have an image artifact.");
@@ -151,8 +151,8 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     tileLayers.push(layer);
   }
   const covered = (placement: NormalizedPlacement): boolean => {
-    if (!placement.mapPosition || !placement.mapSpaceId || !["resolved", "not-applicable"].includes(placement.floorState)) return false;
-    const layer = tileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId && layer.floorId === placement.floorId);
+    if (!placement.mapPosition || !placement.mapSpaceId) return false;
+    const layer = tileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId);
     if (!layer) return false;
     return layer.tiles.some(tile => {
       if (tile.z !== layer.finestLevel || tile.state === "empty") return false;
@@ -187,12 +187,12 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   }
   const placements: PublicPlacement[] = selected.map(placement => {
     const resolution = resolver.resolve(placement.sceneNativeId, placement.scenePath, placement.worldPosition);
-    const candidates = resolution.candidates.filter(candidate => candidate.mapSpaceId === placement.mapSpaceId && candidate.floorState === placement.floorState && (placement.floorId === null ? candidate.floorIds.length === 0 : candidate.floorIds.length === 1 && candidate.floorIds[0] === placement.floorId));
+    const candidates = resolution.candidates.filter(candidate => candidate.mapSpaceId === placement.mapSpaceId);
     if (candidates.length !== 1 || Math.hypot(candidates[0]!.mapPosition.x - placement.mapPosition!.x, candidates[0]!.mapPosition.y - placement.mapPosition!.y) > 1e-6) throw new Error(`Publication placement contradicts reviewed spatial membership: ${placement.placementId}`);
     const linked = detailsByPlacement.get(placement.placementId) ?? [];
     const roles = [...new Set(placement.roles.map(role => role.role))];
     if (!roles.length) throw new Error(`Publication placement has no classified role: ${placement.placementId}`);
-    return { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, floorId: placement.floorId, position: [placement.mapPosition!.x, placement.mapPosition!.y], label: linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || roles.map(label).join(" / "), roles, entityKeys: linked.map(entity => entity.entityKey), areas: spatialAreas(placement, resolver), sections: [...linked.flatMap(entity => entity.sections), ...(sourceDetailsByPlacement.get(placement.placementId) ?? [])] };
+    return { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, position: [placement.mapPosition!.x, placement.mapPosition!.y], label: linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || roles.map(label).join(" / "), roles, entityKeys: linked.map(entity => entity.entityKey), areas: spatialAreas(placement, resolver), sections: [...linked.flatMap(entity => entity.sections), ...(sourceDetailsByPlacement.get(placement.placementId) ?? [])] };
   });
   const itemSources: PublicationData["itemSources"] = items.items.map(item => ({ itemKey: item.itemKey, sources: item.sources.map(source => {
     const ownerKeys = source.context.ownerEntityKeys;
@@ -230,7 +230,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const points: Array<[number, number]> = [];
     for (const layer of tileLayers.filter(layer => layer.mapSpaceId === space.mapSpaceId)) for (const [x, y] of [[0, 0], [layer.width, 0], [0, layer.height], [layer.width, layer.height]] as const) points.push(affinePoint(layer.mapFromPixelEdge, x, y));
     for (const placement of placements.filter(placement => placement.mapSpaceId === space.mapSpaceId)) points.push(...placement.areas.flat());
-    return { mapSpaceId: space.mapSpaceId, label: space.label, floors: space.floors.filter(floor => tileLayers.some(layer => layer.mapSpaceId === space.mapSpaceId && layer.floorId === floor.floorId)), bounds: { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } } };
+    return { mapSpaceId: space.mapSpaceId, label: space.label, bounds: { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } } };
   });
   const illustrations: PublicIllustration[] = [];
   for (const reference of plan.illustrations) {
@@ -244,12 +244,12 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     if (converted.info.width !== value.image.width || converted.info.height !== value.image.height) throw new Error("Publication illustration dimensions mismatch.");
     const hash = createHash("sha256").update(converted.data).digest("hex"), url = `imagery/${hash}.webp`;
     assetBytes.set(url, converted.data);
-    illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, floorId: value.floorId, registration: value.registration.kind, url, width: value.image.width, height: value.image.height, mapFromPixelEdge: value.registration.kind === "calibrated" ? value.registration.mapFromPixelEdge : null });
+    illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: value.registration.kind, url, width: value.image.width, height: value.image.height, mapFromPixelEdge: value.registration.kind === "calibrated" ? value.registration.mapFromPixelEdge : null });
   }
   const placementsWithoutRoles = map.placements.length - eligible.length;
   const excludedPlacements = eligible.length - placements.length;
   const complete = Boolean(coverage.complete) && allImageryComplete && coverage.blockers.length === 0 && excludedPlacements === 0;
-  const data: PublicationData = { schemaVersion: "compendium.publication.v1", buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage.", `${excludedPlacements} classified placements are outside the included verified imagery.`, `${placementsWithoutRoles} source identities have no classified map role and are not shown as markers.`, `${coverage.blockers.length} coverage issues remain in the source run.`] : [] }, maps: publicMaps, placements, entities: publicEntities, itemSources, tileLayers, illustrations };
+  const data: PublicationData = { schemaVersion: "compendium.publication.v2", buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage.", `${excludedPlacements} classified placements are outside the included verified imagery.`, `${placementsWithoutRoles} source identities have no classified map role and are not shown as markers.`, `${coverage.blockers.length} coverage issues remain in the source run.`] : [] }, maps: publicMaps, placements, entities: publicEntities, itemSources, tileLayers, illustrations };
   validatePublication(data);
   const inputHashes: Record<string, string> = { plan: createHash("sha256").update(planBytes).digest("hex"), normalized: plan.normalized.sha256 };
   for (const [index, reference] of plan.pyramids.entries()) inputHashes[`pyramid:${index}`] = reference.sha256;

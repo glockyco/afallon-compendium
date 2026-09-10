@@ -18,12 +18,12 @@ async function fixture(check: (context: {
     await sharp({ create: { width: 16, height: 16, channels: 3, background: "white" } }).png().toFile(join(root, "image.png"));
     await Bun.write(join(root, "review.json"), JSON.stringify({ controls: { "east/west~": true } }));
     await Bun.write(join(root, "profile.json"), JSON.stringify({
-      schemaVersion: "compendium.map-space-profile.v1", buildId: "build",
-      mapSpaces: [{ id: "island", label: "Island", floors: [] }], bindings: [],
+      schemaVersion: "compendium.map-space-profile.v2", buildId: "build",
+      mapSpaces: [{ id: "island", label: "Island" }], bindings: [],
     }));
     const plan: IllustrationPlan = {
-      schemaVersion: "compendium.illustration-plan.v1", buildId: "build", layerId: "artwork",
-      mapSpaceId: "island", floorId: null, role: "illustration",
+      schemaVersion: "compendium.illustration-plan.v2", buildId: "build", layerId: "artwork",
+      mapSpaceId: "island", role: "illustration",
       image: { path: "image.png", sha256: await hashFile(join(root, "image.png")) },
       mapSpaceProfile: { path: "profile.json", sha256: await hashFile(join(root, "profile.json")) },
       registration: {

@@ -10,7 +10,6 @@ import { Matrix4 } from "@math.gl/core";
 import { placementStyle } from "./publication";
 import {
   BitmapLayer,
-  PathLayer,
   PolygonLayer,
   ScatterplotLayer,
   TextLayer,
@@ -32,7 +31,6 @@ export type MapViewState = {
 export type MapAdapterUpdate = {
   data: PublicationData;
   mapSpaceId: string;
-  floorId: string | null;
   layerId: string;
   placements: PublicPlacement[];
   selectedId: string | null;
@@ -70,12 +68,6 @@ type AreaRecord = {
   placementId: string;
   polygon: Point[];
   roles: string[];
-};
-
-type TransitionRecord = {
-  transitionId: string;
-  placementId: string;
-  path: [[number, number, number], [number, number, number]];
 };
 
 type AdapterCallbacks = {
@@ -236,23 +228,6 @@ function buildAreas(placements: readonly PublicPlacement[]): AreaRecord[] {
   return areas;
 }
 
-function buildTransitions(placements: readonly PublicPlacement[]): TransitionRecord[] {
-  const transitions: TransitionRecord[] = [];
-  for (const placement of placements) {
-    const destination = placement.destination;
-    if (!destination || destination.mapSpaceId !== placement.mapSpaceId || destination.floorId !== placement.floorId) continue;
-    const from = point(placement.position);
-    const to = point(destination.position);
-    if (!from || !to) continue;
-    transitions.push({
-      transitionId: `${placement.placementId}:destination`,
-      placementId: placement.placementId,
-      path: [[from[0], from[1], 0], [to[0], to[1], 0]],
-    });
-  }
-  return transitions;
-}
-
 function aggregateMarkers(markers: readonly MarkerRecord[], zoom: number, selectedId: string | null): readonly MarkerRecord[] {
   if (markers.length < 2) return markers;
   const selected = selectedId ? markers.find(marker => marker.placementId === selectedId) : undefined;
@@ -338,16 +313,13 @@ function orientationView(canvas: HTMLCanvasElement, illustration: PublicIllustra
   };
 }
 
-function matchingTileLayer(data: PublicationData, mapSpaceId: string, floorId: string | null, layerId: string): PublicTileLayer | null {
-  return data.tileLayers.find(layer => layer.id === layerId && layer.mapSpaceId === mapSpaceId && layer.floorId === floorId) || null;
+function matchingTileLayer(data: PublicationData, mapSpaceId: string, layerId: string): PublicTileLayer | null {
+  return data.tileLayers.find(layer => layer.id === layerId && layer.mapSpaceId === mapSpaceId) || null;
 }
 
-function matchingIllustration(data: PublicationData, mapSpaceId: string, floorId: string | null, layerId: string): PublicIllustration | null {
+function matchingIllustration(data: PublicationData, mapSpaceId: string, layerId: string): PublicIllustration | null {
   return data.illustrations.find(
-    illustration =>
-      illustration.id === layerId &&
-      illustration.mapSpaceId === mapSpaceId &&
-      illustration.floorId === floorId,
+    illustration => illustration.id === layerId && illustration.mapSpaceId === mapSpaceId,
   ) || null;
 }
 
@@ -365,7 +337,6 @@ export async function createMapAdapter(
   let basePlacementKey = "";
   let baseMarkers: MarkerRecord[] = [];
   let baseAreas: AreaRecord[] = [];
-  let baseTransitions: TransitionRecord[] = [];
   let renderMarkers: readonly MarkerRecord[] = [];
   let imageryLayer: Layer | null = null;
   let imageryKey = "";
@@ -434,7 +405,7 @@ export async function createMapAdapter(
 
   const createImagery = (next: MapAdapterUpdate, tileLayer: PublicTileLayer | null, illustration: PublicIllustration | null): Layer | null => {
     if (tileLayer) {
-      const key = `tiles:${next.data.buildId}:${tileLayer.id}:${tileLayer.mapSpaceId}:${tileLayer.floorId}:${tileLayer.finestLevel}:${tileLayer.width}:${tileLayer.height}`;
+      const key = `tiles:${next.data.buildId}:${tileLayer.id}:${tileLayer.mapSpaceId}:${tileLayer.finestLevel}:${tileLayer.width}:${tileLayer.height}`;
       if (imageryLayer && imageryKey === key) return imageryLayer;
       if (imageryResourceNamespace) releaseTileNamespace(imageryResourceNamespace);
       const coarseScale = 2 ** tileLayer.finestLevel;
@@ -505,25 +476,23 @@ export async function createMapAdapter(
   };
 
   const refreshLayers = (next: MapAdapterUpdate, view: MapViewState): void => {
-    const tileLayer = matchingTileLayer(next.data, next.mapSpaceId, next.floorId, next.layerId);
-    const illustration = matchingIllustration(next.data, next.mapSpaceId, next.floorId, next.layerId);
+    const tileLayer = matchingTileLayer(next.data, next.mapSpaceId, next.layerId);
+    const illustration = matchingIllustration(next.data, next.mapSpaceId, next.layerId);
     const orientationOnly = Boolean(illustration && illustration.registration === "orientation-only");
     const layerKind = tileLayer ? `tile:${tileLayer.id}` : illustration ? `illustration:${illustration.id}:${illustration.registration}` : "missing";
     const visiblePlacements = next.placements.filter(
-      placement => placement.mapSpaceId === next.mapSpaceId && placement.floorId === next.floorId,
+      placement => placement.mapSpaceId === next.mapSpaceId,
     );
     const nextPlacementKey = placementSignature(visiblePlacements);
     if (nextPlacementKey !== basePlacementKey) {
       basePlacementKey = nextPlacementKey;
       baseMarkers = buildMarkers(visiblePlacements);
       baseAreas = buildAreas(visiblePlacements);
-      baseTransitions = buildTransitions(visiblePlacements);
     }
     const markerViewKey = orientationOnly ? "hidden" : `${Math.round(view.zoom * 1000)}`;
     const nextGeometryKey = [
       next.data.buildId,
       next.mapSpaceId,
-      next.floorId || "",
       next.layerId,
       layerKind,
       nextPlacementKey,
@@ -615,33 +584,13 @@ export async function createMapAdapter(
           outlineWidth: 2,
           fontFamily: "sans-serif",
         });
-    const transitionLayer = orientationOnly || baseTransitions.length === 0
-      ? null
-      : new PathLayer<TransitionRecord>({
-          id: "map-placement-transitions",
-          data: baseTransitions,
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-          pickable: true,
-          widthUnits: "pixels",
-          getPath: transition => transition.path,
-          getWidth: transition => transition.placementId === next.selectedId ? 4 : 2,
-          getColor: transition => transition.placementId === next.selectedId ? [255, 196, 0, 255] : [35, 112, 116, 220],
-          updateTriggers: {getWidth: [next.selectedId], getColor: [next.selectedId]},
-          onClick: (info: PickingInfo) => {
-            const id = pickedPlacementId(info);
-            if (id) callbacks.onSelect(id);
-          },
-          onHover: (info: PickingInfo) => {
-            handleHover(pickedPlacementId(info));
-          },
-        });
-    layers = [image, areaLayer, transitionLayer, markerLayer, labelLayer].filter((layer): layer is Layer => layer !== null);
+    layers = [image, areaLayer, markerLayer, labelLayer].filter((layer): layer is Layer => layer !== null);
 
     if (!tileLayer && !illustration) {
-      const warningKey = `${next.data.buildId}:${next.mapSpaceId}:${next.floorId || ""}:${next.layerId}`;
+      const warningKey = `${next.data.buildId}:${next.mapSpaceId}:${next.layerId}`;
       if (warningKey !== missingLayerWarningKey) {
         missingLayerWarningKey = warningKey;
-        report(`Map layer “${next.layerId}” is not present for ${next.mapSpaceId}/${next.floorId || "outdoor"}.`);
+        report(`Map layer “${next.layerId}” is not present for ${next.mapSpaceId}.`);
       }
     }
   };
@@ -700,9 +649,9 @@ export async function createMapAdapter(
     if (destroyed) return;
     current = next;
     let view = normalizeView(next.view, activeView);
-    const illustration = matchingIllustration(next.data, next.mapSpaceId, next.floorId, next.layerId);
+    const illustration = matchingIllustration(next.data, next.mapSpaceId, next.layerId);
     const orientationOnly = Boolean(illustration && illustration.registration === "orientation-only");
-    const nextViewSpaceKey = orientationOnly && illustration ? `orientation:${illustration.id}` : `map:${next.mapSpaceId}:${next.floorId || ""}`;
+    const nextViewSpaceKey = orientationOnly && illustration ? `orientation:${illustration.id}` : `map:${next.mapSpaceId}`;
     if (orientationOnly && illustration && viewSpaceKey !== nextViewSpaceKey) {
       view = orientationView(canvas, illustration);
     }

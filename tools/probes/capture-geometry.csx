@@ -323,10 +323,6 @@ visitCaptureVisualRenderers(visualSelection.Roots, (renderer, reason) =>
     if (!excludedRendererReasons.ContainsKey(id)) excludedRendererReasons.Add(id, reason);
 });
 var allRenderers = UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true);
-var ceilingReview = resolveCaptureCeilingReview(args["ceilingReview"], allRenderers, scene.handle, cullingMask, false);
-foreach (var issue in ceilingReview.Issues) addIssue(issues, "ceiling-review", 0, issue);
-foreach (var renderer in ceilingReview.Ceilings) excludedRendererReasons[renderer.GetInstanceID()] = "reviewed-ceiling";
-foreach (var renderer in ceilingReview.Floors) if (excludedRendererReasons.ContainsKey(renderer.GetInstanceID())) throw new System.ArgumentException("A retained floor is selected for transient suppression.");
 var excludedRenderers = new System.Collections.Generic.List<object>();
 var meshes = new System.Collections.Generic.List<object>();
 var otherRenderers = new System.Collections.Generic.List<object>();

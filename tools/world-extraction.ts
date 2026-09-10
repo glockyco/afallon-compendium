@@ -698,7 +698,6 @@ const region = Type.Object({
   regionShape: enumValue,
   regionTemplate: nullable(canonicalReference),
   regionTemplateProjection: nullable(Type.Object({})),
-  floorEvidence: Type.Object({ sourceKind: text, source: sourceEvidence }),
   captureBoundsValidated: boolean,
 });
 const diagnostic = Type.Object({

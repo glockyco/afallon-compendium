@@ -66,7 +66,7 @@ export function collectSpatialSnapshot(
     summary.regionIssues += regions.unresolved.length;
   }
   const result: SpatialSnapshot = {
-    schemaVersion: "compendium.spatial-snapshot.v1", buildId: catalog.buildId,
+    schemaVersion: "compendium.spatial-snapshot.v2", buildId: catalog.buildId,
     sceneNativeId: geometry.scene.nativeId, scenePath: geometry.scene.path, sources,
     completeImageryCoverage: false, placements: rows, summary,
   };

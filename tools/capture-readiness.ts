@@ -448,7 +448,6 @@ export async function withCaptureGeometry<T>(
             frame: tile.frame,
             boundaryOverlap: plan.readiness.boundaryOverlap,
             cullingMask: plan.cullingMask,
-            ceilingReview: tile.ceilingReview,
             trackedRendererIds: [...trackedRendererIds],
           },
           captureContext: true,

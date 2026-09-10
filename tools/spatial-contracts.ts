@@ -9,9 +9,9 @@ const boxes = Type.Array(box, { minItems: 1 });
 const evidence = Type.Object({ path: text, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), pointer: Type.String({ pattern: "^(?:/.*)?$" }) });
 
 export const MapSpaceProfileSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.map-space-profile.v1"),
+  schemaVersion: Type.Literal("compendium.map-space-profile.v2"),
   buildId: text,
-  mapSpaces: Type.Array(Type.Object({ id, label: text, floors: Type.Array(Type.Object({ id, label: text })) })),
+  mapSpaces: Type.Array(Type.Object({ id, label: text })),
   bindings: Type.Array(Type.Object({
     id,
     mapSpaceId: id,
@@ -19,7 +19,6 @@ export const MapSpaceProfileSchema = Type.Object({
     scenePath: text,
     frame: Type.Object({ origin: horizontal, xAxis: horizontal, yAxis: horizontal }),
     domain: Type.Union([Type.Object({ kind: Type.Literal("scene") }), Type.Object({ kind: Type.Literal("boxes"), boxes })]),
-    floorDomains: Type.Array(Type.Object({ floorId: id, boxes })),
     evidence: Type.Array(evidence, { minItems: 1 }),
   })),
 });
@@ -27,7 +26,7 @@ export type MapSpaceProfile = Static<typeof MapSpaceProfileSchema>;
 export type SpatialPosition = Static<typeof point>;
 export type SpatialBox = Static<typeof box>;
 export const SpatialSnapshotSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.spatial-snapshot.v1"),
+  schemaVersion: Type.Literal("compendium.spatial-snapshot.v2"),
   buildId: text,
   sceneNativeId: Type.Integer({ minimum: 0 }),
   scenePath: text,
@@ -40,8 +39,6 @@ export const SpatialSnapshotSchema = Type.Object({
       state: Type.Union([Type.Literal("resolved"), Type.Literal("unresolved"), Type.Literal("ambiguous")]),
       candidates: Type.Array(Type.Object({
         mapSpaceId: text, mapPosition: Type.Object({ x: Type.Number(), y: Type.Number() }), bindingIds: Type.Array(text),
-        floorState: Type.Union([Type.Literal("not-applicable"), Type.Literal("resolved"), Type.Literal("unresolved"), Type.Literal("ambiguous")]),
-        floorIds: Type.Array(text),
       })),
       issues: Type.Array(text),
     }),

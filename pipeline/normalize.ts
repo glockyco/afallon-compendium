@@ -268,15 +268,15 @@ function sceneContexts(planDirectory: string, plan: NormalizationPlan): Promise<
   })();
 }
 
-function bindingResolution(position: { x: number; y: number; z: number }, profile: NormalizedDatabaseInput["bindings"], resolver: { resolve(sceneNativeId: number, scenePath: string, position: { x: number; y: number; z: number }): SpatialResolution }, sceneNativeId: number, scenePath: string): { binding: NormalizedDatabaseInput["bindings"][number] | null; floorId: string | null; floorState: NormalizedPlacement["floorState"]; mapPosition: { x: number; y: number } | null } {
+function bindingResolution(position: { x: number; y: number; z: number }, profile: NormalizedDatabaseInput["bindings"], resolver: { resolve(sceneNativeId: number, scenePath: string, position: { x: number; y: number; z: number }): SpatialResolution }, sceneNativeId: number, scenePath: string): { binding: NormalizedDatabaseInput["bindings"][number] | null; state: "resolved" | "outside" | "unresolved"; mapPosition: { x: number; y: number } | null } {
   const resolution = resolver.resolve(sceneNativeId, scenePath, position);
   const candidate = resolution.candidates.length === 1 ? resolution.candidates[0] : undefined;
   if (!candidate) {
     const outside = resolution.issues.some((issue) => issue.includes("outside the declared domain"));
-    return { binding: null, floorId: null, floorState: outside ? "outside" : "unresolved", mapPosition: null };
+    return { binding: null, state: outside ? "outside" : "unresolved", mapPosition: null };
   }
-  const binding = profile.find((row) => row.sceneNativeId === sceneNativeId && row.scenePath === scenePath && row.mapSpaceId === candidate.mapSpaceId) ?? null;
-  return { binding, floorId: candidate.floorIds.length === 1 ? candidate.floorIds[0]! : null, floorState: candidate.floorState, mapPosition: candidate.mapPosition };
+  const binding = profile.find((row) => row.sceneNativeId === sceneNativeId && row.scenePath === scenePath && row.mapSpaceId === candidate.mapSpaceId && candidate.bindingIds.includes(row.id)) ?? null;
+  return { binding, state: binding === null ? "unresolved" : "resolved", mapPosition: candidate.mapPosition };
 }
 
 function sourceEvidenceRow(context: SceneContext, value: unknown): SourceIdentityRow | null {
@@ -316,14 +316,13 @@ function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabase
       const row = record(raw); const position = record(row?.position);
       if (!row || typeof row.placementId !== "string" || !position || typeof position.x !== "number" || typeof position.y !== "number" || typeof position.z !== "number") continue;
       const resolved = bindingResolution({ x: position.x, y: position.y, z: position.z }, profile, resolver, context.sceneNativeId, context.scenePath);
-      if (resolved.binding === null || resolved.floorState === "unresolved") blockers.push({ kind: "unresolved-placement-space", key: row.placementId, detail: `No reviewed map-space binding resolves ${context.scenePath}.`, provenance: [] });
-      if (resolved.floorState === "ambiguous") blockers.push({ kind: "ambiguous-floor", key: row.placementId, detail: "Placement matches more than one reviewed floor domain.", provenance: [] });
-      if (resolved.floorState === "outside") blockers.push({ kind: "outside-profile-domain", key: row.placementId, detail: "Placement lies outside the reviewed map-space or floor domain.", provenance: [] });
+      if (resolved.binding === null || resolved.state === "unresolved") blockers.push({ kind: "unresolved-placement-space", key: row.placementId, detail: `No reviewed map-space binding resolves ${context.scenePath}.`, provenance: [] });
+      if (resolved.state === "outside") blockers.push({ kind: "outside-profile-domain", key: row.placementId, detail: "Placement lies outside the reviewed map-space domain.", provenance: [] });
       const requestedSourceIds = array(row.sourceIds).filter((value): value is string => typeof value === "string").sort(compareText);
       for (const sourceId of requestedSourceIds) if (!sourceById.has(sourceId)) blockers.push({ kind: "unresolved-source-identity", key: sourceId, detail: `Placement ${row.placementId} references an unverified source identity.`, provenance: [] });
       const sourceIds = requestedSourceIds.filter((sourceId) => sourceById.has(sourceId));
       const identity = identityByPlacement.get(row.placementId);
-      const placement: NormalizedPlacement = { placementId: row.placementId, buildId: "", sceneNativeId: context.sceneNativeId, scenePath: context.scenePath, identity: identity ? { sceneSourceSha256: identity.sceneSourceSha256, sourceSha256: identity.sourceSha256, serializedFile: identity.serializedFile, gameObjectPathId: identity.gameObjectPathId, origin: identity.origin, loaderSourceId: identity.loaderSourceId } : null, mapSpaceId: resolved.binding?.mapSpaceId ?? null, floorId: resolved.floorId, floorState: resolved.floorState, worldPosition: { x: position.x, y: position.y, z: position.z }, mapPosition: resolved.mapPosition, sourceIds, roles: [], shape: null, provenance: [pointer(profileRef, `/bindings/${resolved.binding?.id ?? "unresolved"}`), pointer(context.roleReference, "/placements")] };
+      const placement: NormalizedPlacement = { placementId: row.placementId, buildId: "", sceneNativeId: context.sceneNativeId, scenePath: context.scenePath, identity: identity ? { sceneSourceSha256: identity.sceneSourceSha256, sourceSha256: identity.sourceSha256, serializedFile: identity.serializedFile, gameObjectPathId: identity.gameObjectPathId, origin: identity.origin, loaderSourceId: identity.loaderSourceId } : null, mapSpaceId: resolved.binding?.mapSpaceId ?? null, worldPosition: { x: position.x, y: position.y, z: position.z }, mapPosition: resolved.mapPosition, sourceIds, roles: [], shape: null, provenance: [pointer(profileRef, `/bindings/${resolved.binding?.id ?? "unresolved"}`), pointer(context.roleReference, "/placements")] };
       const previous = placementById.get(placement.placementId);
       if (previous) {
         if (stableJson(previous.worldPosition) !== stableJson(placement.worldPosition) || previous.sceneNativeId !== placement.sceneNativeId || previous.scenePath !== placement.scenePath) throw new Error(`Conflicting repeated placement identity ${placement.placementId}.`);
@@ -348,10 +347,9 @@ function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabase
     for (const identity of sourceIdentityRows(context.identities)) {
       if (placementById.has(identity.placementId)) continue;
       const resolved = bindingResolution(identity.position, profile, resolver, context.sceneNativeId, context.scenePath);
-      if (resolved.binding === null || resolved.floorState === "unresolved") blockers.push({ kind: "unresolved-placement-space", key: identity.placementId, detail: "Identity-only placement has no reviewed map-space binding.", provenance: [] });
-      if (resolved.floorState === "ambiguous") blockers.push({ kind: "ambiguous-floor", key: identity.placementId, detail: "Identity-only placement matches multiple reviewed floors.", provenance: [] });
-      if (resolved.floorState === "outside") blockers.push({ kind: "outside-profile-domain", key: identity.placementId, detail: "Identity-only placement is outside the reviewed map-space domain.", provenance: [] });
-      placementById.set(identity.placementId, { placementId: identity.placementId, buildId: "", sceneNativeId: context.sceneNativeId, scenePath: context.scenePath, identity: { sceneSourceSha256: identity.sceneSourceSha256, sourceSha256: identity.sourceSha256, serializedFile: identity.serializedFile, gameObjectPathId: identity.gameObjectPathId, origin: identity.origin, loaderSourceId: identity.loaderSourceId }, mapSpaceId: resolved.binding?.mapSpaceId ?? null, floorId: resolved.floorId, floorState: resolved.floorState, worldPosition: identity.position, mapPosition: resolved.mapPosition, sourceIds: [identity.sourceId], roles: [], shape: null, provenance: [pointer(profileRef, `/bindings/${resolved.binding?.id ?? "unresolved"}`), pointer(identityRef, "/identities")] });
+      if (resolved.binding === null || resolved.state === "unresolved") blockers.push({ kind: "unresolved-placement-space", key: identity.placementId, detail: "Identity-only placement has no reviewed map-space binding.", provenance: [] });
+      if (resolved.state === "outside") blockers.push({ kind: "outside-profile-domain", key: identity.placementId, detail: "Identity-only placement is outside the reviewed map-space domain.", provenance: [] });
+      placementById.set(identity.placementId, { placementId: identity.placementId, buildId: "", sceneNativeId: context.sceneNativeId, scenePath: context.scenePath, identity: { sceneSourceSha256: identity.sceneSourceSha256, sourceSha256: identity.sourceSha256, serializedFile: identity.serializedFile, gameObjectPathId: identity.gameObjectPathId, origin: identity.origin, loaderSourceId: identity.loaderSourceId }, mapSpaceId: resolved.binding?.mapSpaceId ?? null, worldPosition: identity.position, mapPosition: resolved.mapPosition, sourceIds: [identity.sourceId], roles: [], shape: null, provenance: [pointer(profileRef, `/bindings/${resolved.binding?.id ?? "unresolved"}`), pointer(identityRef, "/identities")] });
     }
     for (const raw of array(roleRows?.unplacedSources)) {
       const row = record(raw); blockers.push({ kind: "unplaced-source", key: `${context.sceneNativeId}:${stableJson(row ?? raw)}`, detail: "Role evidence has no verified serialized placement and remains unplaced.", provenance: [] });
@@ -669,8 +667,8 @@ function entityDetails(entities: NormalizedEntity[], roles: NormalizedDatabaseIn
 }
 
 function coverageSummary(buildId: string, planRef: ArtifactReference, profileRef: ArtifactReference, sourceRefs: ArtifactReference[], blockers: Blocker[], inputCoverage: unknown): NormalizedCoverageSummary {
-  const unresolved = { unplacedSources: blockers.filter((row) => row.kind === "unplaced-source").length, unresolvedIssues: blockers.filter((row) => row.kind.includes("issue") || row.kind.includes("unresolved")).length, missingReferences: blockers.filter((row) => row.kind === "missing-reference").length, ambiguousFloors: blockers.filter((row) => row.kind === "ambiguous-floor").length, outsideProfile: blockers.filter((row) => row.kind === "outside-profile-domain").length };
-  return { schemaVersion: "compendium.normalized-coverage.v1", buildId, complete: false, blockers: sorted(new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values(), (a, b) => a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key)), unresolved, inputCoverage, provenance: { plan: planRef, profile: profileRef, sources: sourceRefs } };
+  const unresolved = { unplacedSources: blockers.filter((row) => row.kind === "unplaced-source").length, unresolvedIssues: blockers.filter((row) => row.kind.includes("issue") || row.kind.includes("unresolved")).length, missingReferences: blockers.filter((row) => row.kind === "missing-reference").length, outsideProfile: blockers.filter((row) => row.kind === "outside-profile-domain").length };
+  return { schemaVersion: "compendium.normalized-coverage.v2", buildId, complete: false, blockers: sorted(new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values(), (a, b) => a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key)), unresolved, inputCoverage, provenance: { plan: planRef, profile: profileRef, sources: sourceRefs } };
 }
 
 function jsonOutput(value: unknown): string { return `${JSON.stringify(value, null, 2)}\n`; }
@@ -710,8 +708,8 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
   const canonical = record(topLevel.get("canonical")?.value); if (!canonical) throw new Error("Canonical extraction is required.");
   const relationships = record(topLevel.get("relationships")?.value); if (!relationships) throw new Error("Relationships extraction is required.");
   const profileData: Pick<NormalizedDatabaseInput, "mapSpaces" | "bindings"> = {
-    mapSpaces: spatial.profile.mapSpaces.map((space) => ({ id: space.id, label: space.label, floors: space.floors.map((floor) => ({ id: floor.id, label: floor.label })) })),
-    bindings: spatial.profile.bindings.map((binding) => ({ id: binding.id, mapSpaceId: binding.mapSpaceId, sceneNativeId: binding.sceneNativeId, scenePath: binding.scenePath, frame: binding.frame, domain: binding.domain, floorDomains: binding.floorDomains })),
+    mapSpaces: spatial.profile.mapSpaces.map((space) => ({ id: space.id, label: space.label })),
+    bindings: spatial.profile.bindings.map((binding) => ({ id: binding.id, mapSpaceId: binding.mapSpaceId, sceneNativeId: binding.sceneNativeId, scenePath: binding.scenePath, frame: binding.frame, domain: binding.domain })),
   };
   const sceneData = await sceneContexts(planDirectory, plan);
   for (const source of sceneData.sourceFiles) sourceFiles.push(source);
@@ -870,7 +868,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
         if (identity && placementId) sourceDetails.push({ sourceId: identity.sourceId, placementId, family: row.family ?? row.producerFamily ?? row.transitionKind ?? family, data: row });
       }
     }
-    const mapProjection: NormalizedMapProjection = { schemaVersion: "compendium.map-projections.v1" as const, buildId: plan.buildId, mapSpaces: profileData.mapSpaces.map((space) => ({ mapSpaceId: space.id, label: space.label, floors: space.floors.map((floor) => ({ floorId: floor.id, label: floor.label })), placementIds: mapPlacements.filter((placement) => placement.mapSpaceId === space.id).map((placement) => placement.placementId).sort(compareText) })), placements: mapPlacements, sources: sourceDetails, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
+    const mapProjection: NormalizedMapProjection = { schemaVersion: "compendium.map-projections.v2" as const, buildId: plan.buildId, mapSpaces: profileData.mapSpaces.map((space) => ({ mapSpaceId: space.id, label: space.label, placementIds: mapPlacements.filter((placement) => placement.mapSpaceId === space.id).map((placement) => placement.placementId).sort(compareText) })), placements: mapPlacements, sources: sourceDetails, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
     const categoryProjection = { schemaVersion: "compendium.category-metadata.v1" as const, buildId: plan.buildId, categories, provenance: { plan: planRef, sources: sourceFiles.map((source) => source.reference) } };
     const entityProjection = { schemaVersion: "compendium.entity-details.v1" as const, buildId: plan.buildId, entities: entityDetailsRows, provenance: { plan: planRef, sources: sourceFiles.map((source) => source.reference) } };
     const itemProjection: NormalizedItemSources = { schemaVersion: "compendium.item-sources.v1", buildId: plan.buildId, items: itemSources, conditions: [...new Map(conditions.map((condition) => [condition.conditionId, condition])).values()], provenance: { plan: planRef, sources: sourceFiles.map((source) => source.reference) } };
@@ -885,7 +883,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     for (const source of archivedManifests) await run.addArtifact(source.archivePath);
     for (const [relativePath] of outputs) await run.addArtifact(relativePath);
     await run.succeed();
-    const output: NormalizedOutput = { schemaVersion: "compendium.normalized-output.v1", buildId: plan.buildId, runId: run.runId, manifest: run.manifestPath, directory: run.directory, database: databasePath, projections: { map: path.join(run.directory, "projections/map-projections.json"), categories: path.join(run.directory, "projections/category-metadata.json"), entities: path.join(run.directory, "projections/entity-details.json"), itemSources: path.join(run.directory, "projections/item-sources.json"), coverage: path.join(run.directory, "projections/coverage-summary.json") }, counts: { ...counts, blockers: coverage.blockers.length }, coverage: { complete: coverage.complete, unresolved: coverage.unresolved }, provenance: input.provenance };
+    const output: NormalizedOutput = { schemaVersion: "compendium.normalized-output.v2", buildId: plan.buildId, runId: run.runId, manifest: run.manifestPath, directory: run.directory, database: databasePath, projections: { map: path.join(run.directory, "projections/map-projections.json"), categories: path.join(run.directory, "projections/category-metadata.json"), entities: path.join(run.directory, "projections/entity-details.json"), itemSources: path.join(run.directory, "projections/item-sources.json"), coverage: path.join(run.directory, "projections/coverage-summary.json") }, counts: { ...counts, blockers: coverage.blockers.length }, coverage: { complete: coverage.complete, unresolved: coverage.unresolved }, provenance: input.provenance };
     return output;
   } catch (error) { await run.fail(error); throw error; }
 }

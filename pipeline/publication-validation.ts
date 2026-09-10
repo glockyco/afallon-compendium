@@ -32,12 +32,11 @@ export function validatePublication(value: unknown): asserts value is Publicatio
   const entities = unique(data.entities, row => row.entityKey, "entity");
   unique(data.itemSources, row => row.itemKey, "item source index");
   unique(data.tileLayers, row => row.id, "tile layer");
-  unique(data.tileLayers, row => JSON.stringify([row.mapSpaceId, row.floorId]), "map/floor pyramid");
+  unique(data.tileLayers, row => row.mapSpaceId, "map pyramid");
   unique(data.illustrations, row => row.id, "illustration");
-  const scope = (mapSpaceId: string, floorId: string | null) => {
+  const scope = (mapSpaceId: string) => {
     const map = maps.get(mapSpaceId);
-    if (!map || (floorId !== null && !map.floors.some(floor => floor.floorId === floorId))) throw new Error(`Publication references absent map/floor: ${mapSpaceId}/${floorId}`);
-    if (map.floors.length > 0 && floorId === null) throw new Error(`Publication omits a floor in ${mapSpaceId}.`);
+    if (!map) throw new Error(`Publication references absent map: ${mapSpaceId}`);
     return map;
   };
   const inside = (mapSpaceId: string, point: readonly [number, number]) => {
@@ -55,11 +54,10 @@ export function validatePublication(value: unknown): asserts value is Publicatio
   };
   for (const map of maps.values()) {
     if (!(map.bounds.max.x > map.bounds.min.x && map.bounds.max.y > map.bounds.min.y)) throw new Error(`Publication map has empty bounds: ${map.mapSpaceId}`);
-    unique(map.floors, row => row.floorId, "floor");
     if (!data.tileLayers.some(layer => layer.mapSpaceId === map.mapSpaceId)) throw new Error(`Publication map lacks primary imagery: ${map.mapSpaceId}`);
   }
   for (const layer of data.tileLayers) {
-    scope(layer.mapSpaceId, layer.floorId);
+    scope(layer.mapSpaceId);
     inversePoint(layer.mapFromPixelEdge, [0, 0]);
     unique(layer.tiles, tile => `${tile.z}/${tile.x}/${tile.y}`, "tile position");
     for (const tile of layer.tiles) {
@@ -75,9 +73,9 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     }
   }
   for (const placement of placements.values()) {
-    scope(placement.mapSpaceId, placement.floorId);
+    scope(placement.mapSpaceId);
     inside(placement.mapSpaceId, placement.position);
-    const layer = data.tileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId && layer.floorId === placement.floorId);
+    const layer = data.tileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId);
     if (!layer || !layer.tiles.some(tile => {
       if (tile.z !== layer.finestLevel || tile.state === "empty") return false;
       const point = inversePoint(tile.mapFromPixelEdge, placement.position);
@@ -86,10 +84,6 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     for (const key of placement.entityKeys) if (!entities.has(key)) throw new Error(`Publication placement references absent entity: ${key}`);
     for (const polygon of placement.areas) for (const point of polygon) inside(placement.mapSpaceId, point);
     checkSections(placement.sections);
-    if (placement.destination) {
-      scope(placement.destination.mapSpaceId, placement.destination.floorId);
-      if (placement.destination.position) inside(placement.destination.mapSpaceId, placement.destination.position);
-    }
   }
   for (const entity of entities.values()) { checkPlacementRefs(entity.placementIds); checkSections(entity.sections); }
   for (const item of data.itemSources) {
@@ -97,7 +91,7 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     for (const source of item.sources) { checkPlacementRefs(source.placementIds); checkSections(source.sections); }
   }
   for (const illustration of data.illustrations) {
-    scope(illustration.mapSpaceId, illustration.floorId);
+    scope(illustration.mapSpaceId);
     if ((illustration.registration === "calibrated") !== (illustration.mapFromPixelEdge !== null)) throw new Error("Publication illustration registration contradicts its transform.");
     if (illustration.mapFromPixelEdge) inversePoint(illustration.mapFromPixelEdge, [0, 0]);
   }

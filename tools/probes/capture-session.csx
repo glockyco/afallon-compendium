@@ -423,7 +423,6 @@ var directionalIntensity = number(requestedLighting["directionalIntensity"], "li
 var directionalEuler = vector(requestedLighting["directionalEuler"], "lighting.directionalEuler");
 if (directionalIntensity < 0f || directionalIntensity > 4f) throw new System.ArgumentException("lighting.directionalIntensity must be between 0 and 4.");
 var cullingMask = integer(args["cullingMask"], "cullingMask");
-var requestedCeilingReview = args["ceilingReview"];
 var captureWidth = (int)sessionState["width"];
 var captureHeight = (int)sessionState["height"];
 var worldAspect = (double)frameValue["sizeX"] / (double)frameValue["sizeZ"];
@@ -457,18 +456,6 @@ var selectedRenderers = new System.Collections.Generic.Dictionary<int, UnityEngi
 var selectedLights = new System.Collections.Generic.Dictionary<int, UnityEngine.Light>();
 var selectedProjectors = new System.Collections.Generic.Dictionary<int, UnityEngine.Projector>();
 var selections = new System.Collections.Generic.List<object>();
-var reviewedRenderers = resolveCaptureCeilingReview(requestedCeilingReview,
-    requestedCeilingReview != null && requestedCeilingReview.Type != Newtonsoft.Json.Linq.JTokenType.Null ? UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true) : null,
-    sessionScene.handle, cullingMask, true);
-var ceilingRendererIds = new System.Collections.Generic.List<int>(reviewedRenderers.Ceilings.Count);
-foreach (var renderer in reviewedRenderers.Ceilings)
-{
-    var id = renderer.GetInstanceID();
-    selectedRenderers.Add(id, renderer);
-    ceilingRendererIds.Add(id);
-    selections.Add(new { kind = "renderer", instanceId = id, reason = "reviewed-ceiling" });
-}
-var retainedFloors = reviewedRenderers.Floors;
 var visualSelection = collectCaptureVisuals();
 visitCaptureVisualRenderers(visualSelection.Roots, (renderer, reason) =>
 {
@@ -477,7 +464,6 @@ visitCaptureVisualRenderers(visualSelection.Roots, (renderer, reason) =>
     selectedRenderers.Add(id, renderer);
     selections.Add(new { kind = "renderer", instanceId = id, reason = reason });
 });
-foreach (var renderer in retainedFloors) if (selectedRenderers.ContainsKey(renderer.GetInstanceID())) throw new System.ArgumentException("A retained floor is selected for transient suppression.");
 var selectRootLightsAndProjectors = new System.Action<UnityEngine.GameObject, string>((root, reason) =>
 {
     foreach (var light in root.GetComponentsInChildren<UnityEngine.Light>(false))
@@ -569,8 +555,6 @@ var visualState = new System.Func<object>(() =>
     foreach (var effect in highlights) currentHighlights.Add(new { instanceId = effect.GetInstanceID(), cameraMask = effect.camerasLayerMask.value });
     var currentRetained = new System.Collections.Generic.List<object>();
     foreach (var renderer in retainedParticles) currentRetained.Add(new { instanceId = renderer.GetInstanceID(), enabled = renderer.enabled });
-    var currentFloors = new System.Collections.Generic.List<object>(retainedFloors.Count);
-    foreach (var renderer in retainedFloors) currentFloors.Add(new { instanceId = renderer.GetInstanceID(), enabled = renderer.enabled });
     var target = UnityEngine.RenderTexture.active;
     var sun = UnityEngine.RenderSettings.sun;
     return new
@@ -589,7 +573,7 @@ var visualState = new System.Func<object>(() =>
         lightEnabled = sessionLight.enabled,
         lightInstanceId = sessionLight.GetInstanceID(), lightIntensity = sessionLight.intensity, lightColor = rgba(sessionLight.color),
         renderers = currentRenderers.ToArray(), lights = currentLights.ToArray(), projectors = currentProjectors.ToArray(),
-        highlights = currentHighlights.ToArray(), retainedParticles = currentRetained.ToArray(), retainedFloors = currentFloors.ToArray(),
+        highlights = currentHighlights.ToArray(), retainedParticles = currentRetained.ToArray(),
     };
 });
 var beforeVisualState = visualState();
@@ -611,15 +595,6 @@ restoreFrame = new System.Action(() =>
     {
         try { if (renderers[index] != null) renderers[index].enabled = rendererFlags[index]; }
         catch (System.Exception error) { restorationErrors.Add("renderer " + index + ": " + formatError(error)); }
-    }
-    foreach (var renderer in retainedFloors)
-    {
-        try
-        {
-            if (renderer == null) throw new System.InvalidOperationException("A retained floor renderer disappeared.");
-            renderer.enabled = true;
-        }
-        catch (System.Exception error) { restorationErrors.Add("retained floor: " + formatError(error)); }
     }
     for (var index = 0; index < lights.Count; index++)
     {
@@ -671,7 +646,6 @@ restoreFrame = new System.Action(() =>
     if (UnityEngine.RenderSettings.ambientGroundColor != savedGroundColor) restorationErrors.Add("ambient ground: verification failed.");
     if (System.Math.Abs(UnityEngine.RenderSettings.ambientIntensity - savedAmbientIntensity) > 0.0001f) restorationErrors.Add("ambient intensity: verification failed.");
     for (var index = 0; index < renderers.Count; index++) if (renderers[index] == null || renderers[index].enabled != rendererFlags[index]) restorationErrors.Add("renderer suppression: verification failed.");
-    foreach (var renderer in retainedFloors) if (renderer == null || !renderer.enabled) restorationErrors.Add("retained floor: verification failed.");
     if (sessionLight.enabled != savedLightEnabled || sessionLightGo.activeSelf != savedLightObjectActive) restorationErrors.Add("owned light: verification failed.");
     restoreRunning = false;
     if (restorationErrors.Count != 0) throw new System.InvalidOperationException("Frame restoration failed: " + string.Join("; ", restorationErrors.ToArray()));
@@ -761,7 +735,6 @@ try
         || !sessionLight.enabled || !sessionLightGo.activeInHierarchy || sessionLight.intensity != directionalIntensity || sessionLight.color != ambient)
         throw new System.InvalidOperationException("Rendering changed the controlled lighting state.");
     foreach (var renderer in renderers) if (renderer == null || renderer.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed renderer.");
-    foreach (var renderer in retainedFloors) if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy) throw new System.InvalidOperationException("Rendering changed a retained floor renderer.");
     foreach (var light in lights) if (light == null || light.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed light.");
     foreach (var light in UnityEngine.Object.FindObjectsOfType<UnityEngine.Light>(true)) if (light != null && light != sessionLight && light.enabled && light.gameObject.activeInHierarchy) throw new System.InvalidOperationException("A game light remained active during capture.");
     foreach (var projector in projectors) if (projector == null || projector.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed projector.");
@@ -791,10 +764,10 @@ finally
     }
     var audit = new
     {
-        schemaVersion = "compendium.capture-restoration.v3",
+        schemaVersion = "compendium.capture-restoration.v4",
         visualPolicy = "compendium.capture-visual-policy.v2",
         colorSpace = UnityEngine.QualitySettings.activeColorSpace.ToString(),
-        ceilingReview = requestedCeilingReview, ceilingRendererIds = ceilingRendererIds.ToArray(), selections = selections.ToArray(), lightingInputs = lightingInputs.ToArray(),
+        selections = selections.ToArray(), lightingInputs = lightingInputs.ToArray(),
         key = requestedKey,
         tileId = tileId,
         frameStarted = beforeFrame,

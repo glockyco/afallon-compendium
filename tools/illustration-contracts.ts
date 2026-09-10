@@ -52,11 +52,10 @@ export const IllustrationRegistrationInputSchema = Type.Union([
 export type IllustrationRegistrationInput = Static<typeof IllustrationRegistrationInputSchema>;
 
 export const IllustrationPlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.illustration-plan.v1"),
+  schemaVersion: Type.Literal("compendium.illustration-plan.v2"),
   buildId: text,
   layerId: id,
   mapSpaceId: id,
-  floorId: Type.Union([id, Type.Null()]),
   role: Type.Literal("illustration"),
   image: illustrationAsset,
   mapSpaceProfile: Type.Optional(illustrationAsset),
@@ -122,7 +121,6 @@ export const IllustrationOutputSchema = Type.Object({
   buildId: text,
   layerId: id,
   mapSpaceId: id,
-  floorId: Type.Union([id, Type.Null()]),
   role: Type.Literal("illustration"),
   primaryImagery: Type.Literal(false),
   completeImagery: Type.Literal(false),

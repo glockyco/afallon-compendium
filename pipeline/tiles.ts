@@ -246,7 +246,6 @@ async function generatePyramid(planPath: string, outputRoot: string): Promise<Ti
     settings: {
       planPath: inputs.planPath,
       mapSpaceId: inputs.plan.mapSpaceId,
-      floorId: inputs.plan.floorId,
       tileSize,
       zoomConvention: "coarsest-zero-finest-max",
       sourceCount: inputs.sources.length,
@@ -304,10 +303,9 @@ async function generatePyramid(planPath: string, outputRoot: string): Promise<Ti
     if (missingPositions.length > 0) coverageReasons.push(`${missingPositions.length} delivery tile positions have no capture coverage`);
     if (partialPositions.length > 0) coverageReasons.push("partial delivery tiles retain missing pixel coverage");
     const pyramid: TilePyramid = {
-      schemaVersion: "compendium.tile-pyramid.v1",
+      schemaVersion: "compendium.tile-pyramid.v2",
       buildId: inputs.plan.buildId,
       mapSpaceId: inputs.plan.mapSpaceId,
-      floorId: inputs.plan.floorId,
       plan: { path: relativeArtifact(run.directory, resolve(run.directory, "inputs/plan.json")), sha256: inputs.planSha256 },
       profile: { path: relativeArtifact(run.directory, resolve(run.directory, "inputs/map-space-profile.json")), sha256: inputs.profileRef.sha256 },
       coordinateSystem: "map-space-xy",

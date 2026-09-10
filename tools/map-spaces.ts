@@ -15,7 +15,6 @@ type MutableCandidate = {
   mapSpaceId: string;
   mapPosition: { x: number; y: number };
   bindingIds: string[];
-  floorIds: string[];
 };
 
 function assertContract(schema: typeof MapSpaceProfileSchema | typeof SceneCatalogSchema, value: unknown, label: string): void {
@@ -81,7 +80,6 @@ function validateBox(box: SpatialBox, label: string): void {
 
 function contains(box: SpatialBox, position: SpatialPosition): boolean {
   return position.x >= box.min.x && position.x < box.max.x
-    && position.y >= box.min.y && position.y < box.max.y
     && position.z >= box.min.z && position.z < box.max.z;
 }
 
@@ -145,11 +143,6 @@ export function indexMapSpaceDefinitions(definitions: readonly MapSpace[]): Read
   for (const mapSpace of definitions) {
     if (mapSpaces.has(mapSpace.id)) throw new Error(`Duplicate map-space ID "${mapSpace.id}".`);
     mapSpaces.set(mapSpace.id, mapSpace);
-    const floorIds = new Set<string>();
-    for (const floor of mapSpace.floors) {
-      if (floorIds.has(floor.id)) throw new Error(`Duplicate floor ID "${floor.id}" within map space "${mapSpace.id}".`);
-      floorIds.add(floor.id);
-    }
   }
   return mapSpaces;
 }
@@ -178,19 +171,6 @@ export function compileMapSpaces(profile: MapSpaceProfile, catalog: SceneCatalog
     }
     catalogBinding(catalog, binding);
 
-    const mapSpace = mapSpaces.get(binding.mapSpaceId)!;
-    const declaredFloorIds = new Set(mapSpace.floors.map(floor => floor.id));
-    const bindingFloorIds = new Set<string>();
-    for (const floorDomain of binding.floorDomains) {
-      if (bindingFloorIds.has(floorDomain.floorId)) {
-        throw new Error(`Binding "${binding.id}" declares floor "${floorDomain.floorId}" more than once.`);
-      }
-      bindingFloorIds.add(floorDomain.floorId);
-      if (!declaredFloorIds.has(floorDomain.floorId)) {
-        throw new Error(`Binding "${binding.id}" references unknown floor "${floorDomain.floorId}" in map space "${binding.mapSpaceId}".`);
-      }
-      floorDomain.boxes.forEach((box, index) => validateBox(box, `Binding "${binding.id}" floor "${floorDomain.floorId}" box ${index}`));
-    }
     if (binding.domain.kind === "boxes") {
       binding.domain.boxes.forEach((box, index) => validateBox(box, `Binding "${binding.id}" domain box ${index}`));
     }
@@ -241,17 +221,10 @@ export function compileMapSpaces(profile: MapSpaceProfile, catalog: SceneCatalog
           && existing.mapPosition.x === mapPosition.x
           && existing.mapPosition.y === mapPosition.y);
         if (candidate === undefined) {
-          candidate = { mapSpaceId: mapSpace.id, mapPosition, bindingIds: [], floorIds: [] };
+          candidate = { mapSpaceId: mapSpace.id, mapPosition, bindingIds: [] };
           candidates.push(candidate);
         }
         if (!candidate.bindingIds.includes(binding.source.id)) candidate.bindingIds.push(binding.source.id);
-        if (mapSpace.floors.length > 0) {
-          for (const floorDomain of binding.source.floorDomains) {
-            if (floorDomain.boxes.some(box => contains(box, position)) && !candidate.floorIds.includes(floorDomain.floorId)) {
-              candidate.floorIds.push(floorDomain.floorId);
-            }
-          }
-        }
       }
 
       const issues: string[] = [];
@@ -260,22 +233,7 @@ export function compileMapSpaces(profile: MapSpaceProfile, catalog: SceneCatalog
           issues.push(`Position is outside the declared domain for map space "${mapSpaceId}".`);
         }
       }
-      const outputCandidates: SpatialCandidate[] = candidates.map(candidate => {
-        const mapSpace = mapSpaces.get(candidate.mapSpaceId)!;
-        let floorState: SpatialCandidate["floorState"];
-        if (mapSpace.floors.length === 0) {
-          floorState = "not-applicable";
-        } else if (candidate.floorIds.length === 0) {
-          floorState = "unresolved";
-          issues.push(`Position does not match a declared floor in map space "${candidate.mapSpaceId}".`);
-        } else if (candidate.floorIds.length > 1) {
-          floorState = "ambiguous";
-          issues.push(`Position matches multiple declared floors in map space "${candidate.mapSpaceId}": ${candidate.floorIds.join(", ")}.`);
-        } else {
-          floorState = "resolved";
-        }
-        return { ...candidate, floorState };
-      });
+      const outputCandidates: SpatialCandidate[] = candidates;
 
       if (outputCandidates.length > 1) {
         const candidateMapIds = unique(outputCandidates.map(candidate => candidate.mapSpaceId));
@@ -287,8 +245,7 @@ export function compileMapSpaces(profile: MapSpaceProfile, catalog: SceneCatalog
       }
       let state: SpatialResolution["state"];
       if (outputCandidates.length === 0) state = "unresolved";
-      else if (outputCandidates.length > 1 || outputCandidates.some(candidate => candidate.floorState === "ambiguous")) state = "ambiguous";
-      else if (outputCandidates.some(candidate => candidate.floorState === "unresolved")) state = "unresolved";
+      else if (outputCandidates.length > 1) state = "ambiguous";
       else state = "resolved";
       return { state, candidates: outputCandidates, issues };
     },

@@ -85,14 +85,8 @@ function sortedHashes(values: Record<string, string>, predicate: (key: string) =
 export function tileCompatibilityKey(input: TileCompatibilityInput): string {
   if (!SHA256_PATTERN.test(input.profileSha256)) throw new Error("Compatibility profile hash is invalid.");
   const pipelineHashes = sortedHashes(input.pipelineHashes, key => key === "runtime-owner" || key.startsWith("tool:") || key.startsWith("probe:"));
-  const review = input.tile.ceilingReview === null ? null : {
-    evidenceSha256: input.tile.ceilingReview.evidence.sha256,
-    ceilings: input.tile.ceilingReview.ceilings,
-    floors: input.tile.ceilingReview.floors,
-  };
-  if (review !== null && !SHA256_PATTERN.test(review.evidenceSha256)) throw new Error("Compatibility ceiling evidence hash is invalid.");
   return hashCanonical({
-    schemaVersion: "compendium.capture-tile-compatibility.v1",
+    schemaVersion: "compendium.capture-tile-compatibility.v2",
     buildId: input.buildId,
     buildHashes: sortedHashes(input.buildHashes, () => true),
     profileSha256: input.profileSha256,
@@ -101,13 +95,12 @@ export function tileCompatibilityKey(input: TileCompatibilityInput): string {
     planSchemaVersion: input.plan.schemaVersion,
     tileId: input.tile.id,
     scene: { nativeId: input.plan.sceneNativeId, path: input.plan.scenePath },
-    map: { id: input.plan.mapSpaceId, floorId: input.plan.floorId },
+    map: { id: input.plan.mapSpaceId },
     dimensions: { width: input.plan.width, height: input.plan.height },
     lighting: input.plan.lighting,
     cullingMask: input.plan.cullingMask,
     readiness: input.plan.readiness,
     frame: input.tile.frame,
-    ceilingReview: review,
   });
 }
 
@@ -251,7 +244,7 @@ async function validateCheckpoint(sourceDirectory: string, sourceRun: RunManifes
   if (readinessValue.tileId !== expectedTile.id || readinessValue.ownerToken !== checkpoint.origin.ownerToken || readinessValue.sceneNativeId !== expectedPlan.sceneNativeId) throw new Error("Cache readiness provenance does not match its tile.");
   const restorationValue = await readCaptureArtifactJson(sourceDirectory, checkpoint.artifacts.restoration) as Restoration;
   Assert(CaptureRestorationSchema, restorationValue);
-  if (restorationValue.tileId !== expectedTile.id || restorationValue.key !== checkpoint.origin.captureKey || !restorationValue.renderSucceeded || restorationValue.errors.length !== 0 || !isDeepStrictEqual(restorationValue.ceilingReview, expectedTile.ceilingReview)) throw new Error("Cache restoration audit is not successful.");
+  if (restorationValue.tileId !== expectedTile.id || restorationValue.key !== checkpoint.origin.captureKey || !restorationValue.renderSucceeded || restorationValue.errors.length !== 0) throw new Error("Cache restoration audit is not successful.");
   const responseReference = findResponseReference(checkpoint.artifacts, expectedTile.id);
   if (responseReference === undefined) throw new Error("Cache tile has no native capture response.");
   const responseValue = await readCaptureArtifactJson(sourceDirectory, responseReference) as Session;
@@ -270,7 +263,7 @@ async function validateCheckpoint(sourceDirectory: string, sourceRun: RunManifes
 
 function setMatchesPlan(set: CaptureSet, buildId: string, plan: CapturePlan): boolean {
   const expectedTiles = new Set(set.expectedTiles);
-  return set.buildId === buildId && set.sceneNativeId === plan.sceneNativeId && set.scenePath === plan.scenePath && set.mapSpaceId === plan.mapSpaceId && set.floorId === plan.floorId
+  return set.buildId === buildId && set.sceneNativeId === plan.sceneNativeId && set.scenePath === plan.scenePath && set.mapSpaceId === plan.mapSpaceId
     && set.width === plan.width && set.height === plan.height && set.completeImagery === false
     && set.expectedTiles.length === expectedTiles.size
     && set.tiles.length === expectedTiles.size && new Set(set.tiles.map(tile => tile.id)).size === expectedTiles.size && set.tiles.every(tile => expectedTiles.has(tile.id));
