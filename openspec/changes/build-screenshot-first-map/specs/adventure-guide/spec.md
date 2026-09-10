@@ -6,7 +6,7 @@ Present dungeons, bosses, regions, and properties the way the game's own Adventu
 
 ### Requirement: The guide mirrors the game's own structure
 
-The compendium SHALL organize world content into dungeons, regions, and properties, matching the game's Adventure Guide. A dungeon SHALL show its artwork, name, description, and level range, then its bosses. A boss SHALL show its portrait, name, and level, with its abilities, its stats, and its loot. A region SHALL show its artwork, name, description, and level range. A property SHALL show its artwork, name, description, and income.
+The compendium SHALL organize world content into dungeons, regions, and properties, matching the game's Adventure Guide. A dungeon SHALL show its artwork, label, description, and level range, then its bosses. A boss SHALL show its portrait, label, and level, with its abilities, its stats, and its loot. A region SHALL show its artwork, label, description, and level range. A property SHALL show its artwork, label, description, and income.
 
 Structure SHALL come from the extracted native records: scene guide metadata and boss references, and region guide metadata and level ranges. The compendium SHALL NOT invent tabs, groupings, or categories that the game does not present.
 

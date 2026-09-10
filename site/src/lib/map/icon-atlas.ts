@@ -30,6 +30,11 @@ function loadSvg(svg: string): Promise<HTMLImageElement> {
   return promise;
 }
 
+/** The same glyph the map draws, for legends, filters and result rows. */
+export function markerGlyphSvg(marker: { icon: IconNode }): string {
+  return iconNodeToSvg(marker.icon);
+}
+
 export function iconAtlasMapping(): IconAtlasResult["mapping"] {
   return Object.fromEntries(MARKER_IDS.map((id, index) => [id, {
     x: index * CELL_SIZE,

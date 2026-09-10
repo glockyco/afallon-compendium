@@ -17,6 +17,7 @@
     resolveMarker,
     type MarkerId,
   } from './map/marker-registry';
+  import { markerGlyphSvg } from './map/icon-atlas';
   import { downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
   import type { PublicEntity, PublicItemSource, PublicPlacement, PublicDetailSection, PublicationData } from '../../../pipeline/public-contracts';
 
@@ -122,7 +123,7 @@
       .then(async (response) => {
         if (!response.ok) throw new Error(`Publication request failed (${response.status})`);
         const json = (await response.json()) as PublicationData;
-        if (json.schemaVersion !== 'compendium.publication.v4') throw new Error('Unsupported publication schema.');
+        if (json.schemaVersion !== 'compendium.publication.v6') throw new Error('Unsupported publication schema.');
         return resolvePublicationAssets(json, publicationUrl);
       })
       .then(async (data) => {
@@ -263,12 +264,12 @@
     else if (!explicit && publication) view = centerView(publication.world);
   }
 
-  function currentUrl(): URL {
-    return writeMapUrl(new URL(window.location.href), { layerId, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories, levelMinimum, levelMaximum, itemKey, entityKey: selectedEntityKey, view });
+  function currentUrl(overrides: Partial<Pick<MapUrlState, 'categories' | 'levelMinimum' | 'levelMaximum'>> = {}): URL {
+    return writeMapUrl(new URL(window.location.href), { layerId, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, levelMinimum: overrides.levelMinimum !== undefined ? overrides.levelMinimum : levelMinimum, levelMaximum: overrides.levelMaximum !== undefined ? overrides.levelMaximum : levelMaximum, itemKey, entityKey: selectedEntityKey, view });
   }
 
-  function syncUrl(mode: 'push' | 'replace'): void {
-    window.history[mode === 'push' ? 'pushState' : 'replaceState']({}, '', currentUrl());
+  function syncUrl(mode: 'push' | 'replace', overrides: Partial<Pick<MapUrlState, 'categories' | 'levelMinimum' | 'levelMaximum'>> = {}): void {
+    window.history[mode === 'push' ? 'pushState' : 'replaceState']({}, '', currentUrl(overrides));
   }
 
   function scheduleViewUrl(): void {
@@ -349,20 +350,23 @@
   }
 
   function toggleCategory(category: MarkerId): void {
-    categories = categories.includes(category) ? categories.filter((value) => value !== category) : [...categories, category];
-    syncUrl('push');
+    const next = categories.includes(category) ? categories.filter((value) => value !== category) : [...categories, category];
+    categories = next;
+    syncUrl('push', { categories: next });
   }
 
   function updateLevelMinimum(value: string): void {
     const parsed = Number(value);
-    levelMinimum = value.trim() && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
-    syncUrl('replace');
+    const next = value.trim() && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+    levelMinimum = next;
+    syncUrl('replace', { levelMinimum: next });
   }
 
   function updateLevelMaximum(value: string): void {
     const parsed = Number(value);
-    levelMaximum = value.trim() && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
-    syncUrl('replace');
+    const next = value.trim() && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+    levelMaximum = next;
+    syncUrl('replace', { levelMaximum: next });
   }
 
   function submitSearch(): void {
@@ -402,6 +406,7 @@
   <header class="topbar">
     <div class="brand"><span class="brand-mark" aria-hidden="true">A</span><div><strong>Afallon Compendium</strong><small>Static world atlas</small></div></div>
     <div class="build-meta" aria-label="Publication status">
+      <a href={`${base}/guide/`}>Adventure Guide</a>
       {#if publication}<span>Supported build <strong>{publication.buildId}</strong></span><span class:complete={publication.coverage.complete} class="coverage">{publication.coverage.complete ? 'Complete coverage' : 'Preview · incomplete coverage'}</span>{/if}
     </div>
   </header>
@@ -416,8 +421,8 @@
         <div class="control-section search-section"><label for="atlas-search">Search places, entities, and items</label><div class="search-row"><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } }} placeholder="Try a name or item" autocomplete="off" /><button class="quiet-button" type="button" on:click={() => { query = ''; scheduleQueryUrl(); searchInput?.focus(); }} aria-label="Clear search">Clear</button></div><p class="hint">Press Enter to move from search to results.</p></div>
         {#if layerOptions.length > 1}<div class="control-section"><label for="layer-select">Map layer</label><select id="layer-select" value={layerId} on:change={(event) => chooseLayer((event.currentTarget as HTMLSelectElement).value)}>{#each layerOptions as layer}<option value={layer.id}>{layer.label}</option>{/each}</select>{#if orientationOnly}<p class="notice">Orientation only. Marker navigation is disabled until a screenshot layer is selected.</p>{/if}</div>{/if}
         <div class="control-section world-tools"><label class="category-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="category-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button><p class="hint">Drag a map boundary to review its placement. Travel lines stay visible while authoring.</p>{/if}</div>
-        <div class="control-section categories"><div class="section-heading"><h2>Categories</h2><span class="count">{allMapPlacements.length}</span></div>{#each categoryFilters.filter((category) => categoryCounts[category] || categories.includes(category)) as category}<label class="category-option"><input type="checkbox" checked={categories.includes(category)} on:change={() => toggleCategory(category)} /><span class="category-symbol" style:background={markerColorCss(markerFor(category))} aria-hidden="true">{markerFor(category).label.slice(0, 1)}</span><span>{markerFor(category).pluralLabel}<small>{markerFor(category).label}</small></span><strong>{categoryCounts[category]}</strong></label>{/each}{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Clear category filters</button>{/if}</div>
-        <div class="control-section marker-legend"><div class="section-heading"><h2>Legend</h2></div>{#each Object.values(markerRegistry) as marker}<div class="legend-entry"><span class="category-symbol" style:background={markerColorCss(marker)} aria-hidden="true">{marker.label.slice(0, 1)}</span><span>{marker.label}</span></div>{/each}</div>
+        <div class="control-section categories"><div class="section-heading"><h2>Categories</h2><span class="count">{allMapPlacements.length}</span></div>{#each categoryFilters.filter((category) => categoryCounts[category] || categories.includes(category)) as category}<label class="category-option"><input type="checkbox" checked={categories.includes(category)} on:change={() => toggleCategory(category)} /><span class="category-symbol" style:background={markerColorCss(markerFor(category))} aria-hidden="true">{@html markerGlyphSvg(markerFor(category))}</span><span>{markerFor(category).pluralLabel}<small>{markerFor(category).label}</small></span><strong>{categoryCounts[category]}</strong></label>{/each}{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Clear category filters</button>{/if}</div>
+        <div class="control-section marker-legend"><div class="section-heading"><h2>Legend</h2></div>{#each Object.values(markerRegistry) as marker}<div class="legend-entry"><span class="category-symbol" style:background={markerColorCss(marker)} aria-hidden="true">{@html markerGlyphSvg(marker)}</span><span>{marker.label}</span></div>{/each}</div>
         <div class="control-section level-filter"><div class="section-heading"><h2>Creature levels</h2></div><div class="level-fields"><label for="level-min">From<input id="level-min" type="number" min="0" step="1" value={levelMinimum ?? ''} on:input={(event) => updateLevelMinimum((event.currentTarget as HTMLInputElement).value)} /></label><label for="level-max">To<input id="level-max" type="number" min="0" step="1" value={levelMaximum ?? ''} on:input={(event) => updateLevelMaximum((event.currentTarget as HTMLInputElement).value)} /></label></div><p class="hint">Locations without a known level stay visible.</p></div>
         <div class="coverage-card"><strong>Supported game build {publication.buildId}</strong>{#if !publication.coverage.complete}<p>Incomplete research preview. It does not represent full-world research or imagery coverage.</p>{/if}</div>
       </aside>
@@ -445,7 +450,7 @@
                 {@const placement = result.placement}
                 {@const markerId = resolveMarker(placement) ?? placement.categories[0]!}
                 {@const marker = markerFor(markerId)}
-                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => hoveredId = placement.placementId} on:mouseleave={() => hoveredId = null}><span class="result-marker" style:background={markerColorCss(marker)} aria-hidden="true">{marker.label.slice(0, 1)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{placement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(placement.levelRange)}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => hoveredId = placement.placementId} on:mouseleave={() => hoveredId = null}><span class="result-marker" style:background={markerColorCss(marker)} aria-hidden="true">{@html markerGlyphSvg(marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{placement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(placement.levelRange)}</small></span></button></li>
               {/if}
               {/each}
             </ol>
@@ -526,6 +531,7 @@
   .brand strong { display: block; font-size: .95rem; }
   .brand small { display: block; margin-top: .12rem; color: #9e9d95; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; }
   .build-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .65rem; color: #aaa9a0; font-size: .72rem; }
+  .build-meta a { color: #d5b978; }
   .build-meta strong { color: #e9e4d9; font-weight: 600; }
   .coverage { padding: .25rem .45rem; border: 1px solid #896c47; color: #e4b77c; }
   .coverage.complete { border-color: #657d64; color: #a9c1a2; }
@@ -549,7 +555,8 @@
   .count { color: #d6bd84; font-size: .75rem; }
   .category-option { display: grid; grid-template-columns: 17px 17px minmax(0,1fr) auto; align-items: start; gap: .4rem; margin: .55rem 0; letter-spacing: normal; text-transform: none; color: #dedbd2; font-size: .78rem; cursor: pointer; }
   .category-option input { width: 14px; height: 14px; margin: 1px 0 0; accent-color: #bca36e; }
-  .category-symbol, .result-marker { display: inline-grid; place-items: center; width: 17px; height: 17px; margin-top: 0; border: 1px solid #888; border-radius: 50%; color: white; font-size: 10px; }
+  .category-symbol, .result-marker { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-top: 0; border: 1px solid rgba(0, 0, 0, .45); border-radius: 50%; color: white; }
+  .category-symbol :global(svg), .result-marker :global(svg) { width: 11px; height: 11px; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .8)); }
   .category-option small { display: block; margin-top: .15rem; color: #85857e; font-size: .67rem; line-height: 1.25; }
   .category-option strong { color: #aaa9a0; font-size: .72rem; font-weight: 500; }
   .legend-entry { display: flex; align-items: center; gap: .45rem; margin: .4rem 0; color: #dedbd2; font-size: .75rem; }

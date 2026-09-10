@@ -133,8 +133,80 @@ export const PublicIllustrationSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicIllustration = Static<typeof PublicIllustrationSchema>;
 
+const guidePlacementIds = Type.Array(text, { uniqueItems: true });
+const guideDescription = Type.Optional(Type.String({ minLength: 1 }));
+
+export const PublicGuideLootSchema = Type.Object({
+  itemKey: text,
+  label: Type.Optional(text),
+  minimum: Type.Optional(count),
+  maximum: Type.Optional(count),
+  chance: Type.Optional(Type.Number({ minimum: 0, maximum: 100 })),
+}, { additionalProperties: false });
+export type PublicGuideLoot = Static<typeof PublicGuideLootSchema>;
+
+export const PublicGuideAbilityPhaseSchema = Type.Object({
+  phaseIndex: count,
+  label: text,
+  requirement: Type.Optional(Type.String({ minLength: 1 })),
+  abilityIds: Type.Array(count, { uniqueItems: true }),
+}, { additionalProperties: false });
+export type PublicGuideAbilityPhase = Static<typeof PublicGuideAbilityPhaseSchema>;
+
+export const PublicGuideStatSchema = Type.Object({ statId: count, value: Type.Number() }, { additionalProperties: false });
+export type PublicGuideStat = Static<typeof PublicGuideStatSchema>;
+
+export const PublicGuideBossSchema = Type.Object({
+  bossKey: text,
+  label: text,
+  level: Type.Optional(count),
+  levelRange: Type.Optional(PublicLevelRangeSchema),
+  placementIds: guidePlacementIds,
+  dungeonKeys: Type.Optional(guidePlacementIds),
+  abilities: Type.Optional(Type.Array(PublicGuideAbilityPhaseSchema)),
+  stats: Type.Optional(Type.Array(PublicGuideStatSchema)),
+  loot: Type.Array(PublicGuideLootSchema),
+}, { additionalProperties: false });
+export type PublicGuideBoss = Static<typeof PublicGuideBossSchema>;
+
+export const PublicGuideDungeonSchema = Type.Object({
+  dungeonKey: text,
+  label: text,
+  description: guideDescription,
+  levelRange: Type.Optional(PublicLevelRangeSchema),
+  placementIds: guidePlacementIds,
+  bosses: Type.Array(PublicGuideBossSchema),
+}, { additionalProperties: false });
+export type PublicGuideDungeon = Static<typeof PublicGuideDungeonSchema>;
+
+export const PublicGuideRegionSchema = Type.Object({
+  regionKey: text,
+  label: text,
+  description: guideDescription,
+  levelRange: Type.Optional(PublicLevelRangeSchema),
+  placementIds: guidePlacementIds,
+}, { additionalProperties: false });
+export type PublicGuideRegion = Static<typeof PublicGuideRegionSchema>;
+
+export const PublicGuidePropertySchema = Type.Object({
+  propertyKey: text,
+  label: text,
+  description: guideDescription,
+  income: Type.Optional(Type.Number()),
+  placementIds: guidePlacementIds,
+}, { additionalProperties: false });
+export type PublicGuideProperty = Static<typeof PublicGuidePropertySchema>;
+
+export const PublicAdventureGuideSchema = Type.Object({
+  dungeons: Type.Array(PublicGuideDungeonSchema),
+  bosses: Type.Array(PublicGuideBossSchema),
+  regions: Type.Array(PublicGuideRegionSchema),
+  properties: Type.Array(PublicGuidePropertySchema),
+}, { additionalProperties: false });
+export type PublicAdventureGuide = Static<typeof PublicAdventureGuideSchema>;
+
 export const PublicationDataSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.publication.v4"), buildId: text,
+  schemaVersion: Type.Literal("compendium.publication.v6"), buildId: text,
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   coverage: Type.Object({ complete: Type.Boolean(), messages: Type.Array(text), excludedPlacements: count }, { additionalProperties: false }),
   world: PublicWorldSchema,
@@ -146,5 +218,6 @@ export const PublicationDataSchema = Type.Object({
   placements: Type.Array(PublicPlacementSchema), entities: Type.Array(PublicEntitySchema),
   itemSources: Type.Array(PublicItemSourceSchema), tileLayers: Type.Array(PublicTileLayerSchema, { minItems: 1 }),
   illustrations: Type.Array(PublicIllustrationSchema),
+  guide: PublicAdventureGuideSchema,
 }, { additionalProperties: false });
 export type PublicationData = Static<typeof PublicationDataSchema>;

@@ -10,6 +10,14 @@ test("registry keys match the published category contract", () => {
   expect(Object.keys(markerRegistry).sort()).toEqual([...PUBLIC_MARKER_CATEGORY_VALUES].sort());
 });
 
+test("no two markers share a colour or a glyph", () => {
+  const markers = Object.values(markerRegistry);
+  const colours = markers.map((marker) => marker.color.join(","));
+  const glyphs = markers.map((marker) => JSON.stringify(marker.icon));
+  expect(new Set(colours).size).toBe(markers.length);
+  expect(new Set(glyphs).size).toBe(markers.length);
+});
+
 test("every registered marker reaches the rendered icon layer and atlas", () => {
   const placements: PublicPlacement[] = MARKER_IDS.map((category, index) => ({
     placementId: `placement-${category}`,

@@ -109,9 +109,6 @@ type ViewInput = {
 const VIEW_ID = "map";
 const MAX_TILE_CACHE = 128;
 const MAX_TILE_CACHE_BYTES = 64 * 1024 * 1024;
-const AGGREGATION_ZOOM = 1.5;
-const AGGREGATION_CELL_PIXELS = 40;
-const MAX_CLUSTER_REVEAL_ZOOM = 4;
 
 function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -305,20 +302,14 @@ function buildAreas(placements: readonly PublicPlacement[], data: PublicationDat
   return areas;
 }
 
-function aggregateMarkers(markers: readonly MarkerRecord[], zoom: number, selectedId: string | null): readonly MarkerRecord[] {
+// Markers render individually at every zoom. Only placements that share a position
+// exactly are grouped, because otherwise they would draw on top of each other and the
+// hidden ones could never be picked.
+export function groupCoincidentMarkers(markers: readonly MarkerRecord[]): readonly MarkerRecord[] {
   if (markers.length < 2) return markers;
-  const selected = selectedId ? markers.find(marker => marker.placementId === selectedId) : undefined;
-  if (zoom >= AGGREGATION_ZOOM) {
-    if (!selected || markers[markers.length - 1] === selected) return markers;
-    const result = markers.filter(marker => marker !== selected);
-    result.push(selected);
-    return result;
-  }
-  const cellSize = Math.max(AGGREGATION_CELL_PIXELS / 2 ** zoom, 1);
   const groups = new Map<string, MarkerRecord[]>();
   for (const marker of markers) {
-    if (marker === selected) continue;
-    const key = `${Math.floor(marker.position[0] / cellSize)}:${Math.floor(marker.position[1] / cellSize)}`;
+    const key = `${marker.position[0]}:${marker.position[1]}`;
     const group = groups.get(key);
     if (group) group.push(marker);
     else groups.set(key, [marker]);
@@ -330,23 +321,16 @@ function aggregateMarkers(markers: readonly MarkerRecord[], zoom: number, select
       if (only) result.push(only);
       continue;
     }
-    let x = 0;
-    let y = 0;
-    const members: string[] = [];
+    const ordered = [...group].sort((left, right) => left.placementId.localeCompare(right.placementId));
+    const members = ordered.flatMap((marker) => marker.members);
     const categories = new Set<PublicPlacement["categories"][number]>();
-    for (const marker of group) {
-      x += marker.position[0];
-      y += marker.position[1];
-      members.push(...marker.members);
-      marker.categories.forEach((category) => categories.add(category));
-    }
-    members.sort();
+    for (const marker of ordered) marker.categories.forEach((category) => categories.add(category));
     const markerId = [...group].sort((left, right) => markerFor(right.markerId).precedence - markerFor(left.markerId).precedence)[0]!.markerId;
     result.push({
-      placementId: `cluster:${members.join(",")}`,
+      placementId: members[0]!,
       mapSpaceId: group[0]!.mapSpaceId,
-      position: [x / group.length, y / group.length, 0],
-      label: `${group.length} locations`,
+      position: group[0]!.position,
+      label: ordered.map((marker) => marker.label).join(" / "),
       categories: [...categories],
       markerId,
       members,
@@ -354,7 +338,6 @@ function aggregateMarkers(markers: readonly MarkerRecord[], zoom: number, select
       isTravel: group.some((marker) => marker.isTravel),
     });
   }
-  if (selected) result.push(selected);
   return result;
 }
 
@@ -593,7 +576,7 @@ export async function createMapAdapter(
 
     const imageLayers = createImagery(next, tileLayersForView, illustration);
     const visibleMarkers = next.showConnections || next.authoring ? baseMarkers : baseMarkers.filter((marker) => !marker.isTravel);
-    renderMarkers = orientationOnly ? [] : aggregateMarkers(visibleMarkers, view.zoom, next.selectedId);
+    renderMarkers = orientationOnly ? [] : groupCoincidentMarkers(visibleMarkers);
     const markerByPlacement = new Map(baseMarkers.map((marker) => [marker.placementId, marker]));
     const boundsLayer = orientationOnly ? null : new PolygonLayer<WorldMapBounds>({
       id: "world-map-bounds",
@@ -674,43 +657,25 @@ export async function createMapAdapter(
       stroked: true,
       lineWidthMinPixels: 1,
     }) : null;
-    const individualMarkers = renderMarkers.filter((marker) => marker.members.length === 1);
-    const clusters = renderMarkers.filter((marker) => marker.members.length > 1);
-    const markerLayer = orientationOnly ? null : createPlacementIconLayer(individualMarkers, iconAtlas, next.selectedId, hoveredId, callbacks.onSelect, handleHover);
-    const clusterLayer = orientationOnly ? null : new ScatterplotLayer<MarkerRecord>({
-      id: "map-placement-clusters",
-      data: clusters,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: true,
-      stroked: true,
-      filled: true,
-      radiusUnits: "pixels",
-      radiusMinPixels: 10,
-      radiusMaxPixels: 18,
-      getPosition: (marker) => marker.position,
-      getRadius: 13,
-      getFillColor: (marker) => markerColor(marker.markerId, marker.members.includes(next.selectedId || ""), marker.members.includes(hoveredId || ""), marker.enabled),
-      getLineColor: (marker) => marker.members.includes(next.selectedId || "") ? [255, 255, 255, 255] : [20, 20, 20, 255],
-      lineWidthMinPixels: 1,
-      lineWidthUnits: "pixels",
-      updateTriggers: { getFillColor: [next.selectedId, hoveredId, offsetKey], getLineColor: [next.selectedId] },
-      onClick: (info: PickingInfo) => {
-        const object = info.object as MarkerRecord | null | undefined;
-        if (!object || object.members.length < 2) return;
-        const revealZoom = Math.min(MAX_CLUSTER_REVEAL_ZOOM, Math.max(view.zoom + 1, AGGREGATION_ZOOM));
-        activeView = { target: object.position, zoom: revealZoom };
-        notifyView();
-      },
-      onHover: (info: PickingInfo) => handleHover(pickedPlacementId(info)),
-    });
-    const clusterLabels = orientationOnly ? null : new TextLayer<MarkerRecord>({
-      id: "map-placement-cluster-labels",
-      data: clusters,
+    const stacks = renderMarkers.filter((marker) => marker.members.length > 1);
+    // Every marker draws as its own icon. A stack of placements at one position selects
+    // the next member on each click, so a hidden member is still reachable.
+    const selectStacked = (placementId: string) => {
+      const stack = stacks.find((marker) => marker.members.includes(placementId));
+      if (!stack) return callbacks.onSelect(placementId);
+      const current = stack.members.indexOf(next.selectedId ?? "");
+      return callbacks.onSelect(stack.members[(current + 1) % stack.members.length]!);
+    };
+    const markerLayer = orientationOnly ? null : createPlacementIconLayer(renderMarkers, iconAtlas, next.selectedId, hoveredId, selectStacked, handleHover);
+    const stackCounts = orientationOnly || stacks.length === 0 ? null : new TextLayer<MarkerRecord>({
+      id: "map-placement-stack-counts",
+      data: stacks,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       pickable: false,
       getPosition: (marker) => marker.position,
+      getPixelOffset: [9, -9],
       getText: (marker) => String(marker.members.length),
-      getSize: 14,
+      getSize: 12,
       sizeUnits: "pixels",
       getColor: [255, 255, 255, 255],
       characterSet: "auto",
@@ -718,7 +683,7 @@ export async function createMapAdapter(
       outlineWidth: 2,
       fontFamily: "sans-serif",
     });
-    layers = [...imageLayers, boundsLayer, connectionLines, connectionDestinations, areaLayer, clusterLayer, markerLayer, clusterLabels].filter((layer): layer is Layer => layer !== null);
+    layers = [...imageLayers, boundsLayer, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts].filter((layer): layer is Layer => layer !== null);
 
     if (imageLayers.length === 0 && !illustration) {
       const warningKey = `${next.data.buildId}:${next.layerId}`;

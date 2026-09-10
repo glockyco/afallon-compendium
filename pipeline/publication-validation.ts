@@ -64,6 +64,35 @@ export function validatePublication(value: unknown): asserts value is Publicatio
       if (row.placementIds !== undefined) checkPlacementRefs(row.placementIds);
     }
   };
+  const guideDungeons = unique(data.guide.dungeons, row => row.dungeonKey, "guide dungeon");
+  const guideBosses = unique(data.guide.bosses, row => row.bossKey, "guide boss");
+  const guideRegions = unique(data.guide.regions, row => row.regionKey, "guide region");
+  const guideProperties = unique(data.guide.properties, row => row.propertyKey, "guide property");
+  for (const dungeon of guideDungeons.values()) {
+    if (entities.get(dungeon.dungeonKey)?.kind !== "scenes") throw new Error(`Guide dungeon references absent scene: ${dungeon.dungeonKey}`);
+    checkPlacementRefs(dungeon.placementIds);
+    for (const boss of dungeon.bosses) {
+      if (boss.dungeonKeys !== undefined && !boss.dungeonKeys.includes(dungeon.dungeonKey)) throw new Error(`Guide boss omits its dungeon context: ${boss.bossKey}`);
+      if (guideBosses.get(boss.bossKey) === undefined) throw new Error(`Guide dungeon references absent boss: ${boss.bossKey}`);
+      if (entities.get(boss.bossKey)?.kind !== "npcs") throw new Error(`Guide boss references absent NPC: ${boss.bossKey}`);
+      checkPlacementRefs(boss.placementIds);
+      for (const loot of boss.loot) if (entities.get(loot.itemKey)?.kind !== "items") throw new Error(`Guide loot references absent item: ${loot.itemKey}`);
+    }
+  }
+  for (const boss of guideBosses.values()) {
+    if (entities.get(boss.bossKey)?.kind !== "npcs") throw new Error(`Guide boss references absent NPC: ${boss.bossKey}`);
+    checkPlacementRefs(boss.placementIds);
+    if (boss.dungeonKeys !== undefined) for (const dungeonKey of boss.dungeonKeys) if (!guideDungeons.has(dungeonKey)) throw new Error(`Guide boss references absent dungeon: ${dungeonKey}`);
+    for (const loot of boss.loot) if (entities.get(loot.itemKey)?.kind !== "items") throw new Error(`Guide loot references absent item: ${loot.itemKey}`);
+  }
+  for (const region of guideRegions.values()) {
+    if (entities.get(region.regionKey)?.kind !== "regions") throw new Error(`Guide region references absent entity: ${region.regionKey}`);
+    checkPlacementRefs(region.placementIds);
+  }
+  for (const property of guideProperties.values()) {
+    if (entities.get(property.propertyKey)?.kind !== "properties") throw new Error(`Guide property references absent entity: ${property.propertyKey}`);
+    checkPlacementRefs(property.placementIds);
+  }
   for (const map of maps.values()) {
     if (!offsets.has(map.mapSpaceId)) throw new Error(`Publication map lacks a world offset: ${map.mapSpaceId}`);
     if (!(map.bounds.max.x > map.bounds.min.x && map.bounds.max.y > map.bounds.min.y)) throw new Error(`Publication map has empty bounds: ${map.mapSpaceId}`);
