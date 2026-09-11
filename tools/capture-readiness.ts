@@ -96,7 +96,15 @@ export function clippingEvidence(plan: CapturePlan): CaptureClippingEvidence {
 }
 
 export function effectiveCaptureFrame(tile: CaptureTile, plan: CapturePlan): CaptureFrame {
-  return plan.clipHeight === undefined ? tile.frame : { ...tile.frame, cameraY: plan.clipHeight };
+  if (plan.clipHeight === undefined) return tile.frame;
+  return {
+    ...tile.frame,
+    cameraY: plan.clipHeight,
+    // Raising the camera to the clipping plane must not raise the far plane with it.
+    // Preserve the tile's original lower visibility bound so lower dungeon geometry
+    // remains inside the capture frustum.
+    farClip: tile.frame.farClip + Math.max(0, plan.clipHeight - tile.frame.cameraY),
+  };
 }
 
 function geometryDirectory(tile: CaptureTile, run: Run): { relative: string; absolute: string } {

@@ -29,12 +29,13 @@ test("an unreviewed plan leaves the tile frame unchanged", () => {
   expect(effectiveCaptureFrame(capturePlan.tiles[0]!, capturePlan)).toEqual(capturePlan.tiles[0]!.frame);
 });
 
-test("a reviewed clip height changes only the camera height", () => {
-  const capturePlan: CapturePlan = { ...plan(), clipHeight: -256 };
-  expect(clippingEvidence(capturePlan)).toEqual({ source: "plan", applied: true, clipHeight: -256 });
+test("a reviewed clip height preserves the original lower visibility bound", () => {
+  const capturePlan: CapturePlan = { ...plan(), clipHeight: 120 };
+  expect(clippingEvidence(capturePlan)).toEqual({ source: "plan", applied: true, clipHeight: 120 });
   expect(effectiveCaptureFrame(capturePlan.tiles[0]!, capturePlan)).toEqual({
     ...capturePlan.tiles[0]!.frame,
-    cameraY: -256,
+    cameraY: 120,
+    farClip: 130,
   });
 });
 

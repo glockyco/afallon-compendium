@@ -3,6 +3,7 @@ import { realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
 import { CapturePlanSchema, CaptureRasterSchema, CaptureReadinessSchema, CaptureSetSchema, type CapturePlan, type CaptureRaster, type CaptureReadiness, type CaptureSet } from "../tools/capture-contracts";
+import { effectiveCaptureFrame } from "../tools/capture-readiness";
 import { loadSpatialProfile } from "../tools/spatial-extraction";
 import { loadVerifiedRun } from "../tools/runs";
 import type { MapSpaceProfile } from "../tools/spatial-contracts";
@@ -213,9 +214,7 @@ function validateRasterAgainstFrame(raster: CaptureRaster, capturePlan: CaptureP
   if (!(xLength > 0) || !(yLength > 0)) fail(`raster ${raster.tileId} has a degenerate pixel frame`);
   const tile = capturePlan.tiles.find(candidate => candidate.id === raster.tileId);
   if (tile === undefined) fail(`capture plan has no tile ${raster.tileId}`);
-  const expectedFrame = expectedClipHeight === null
-    ? tile.frame
-    : { ...tile.frame, cameraY: expectedClipHeight };
+  const expectedFrame = effectiveCaptureFrame(tile, capturePlan);
   for (const field of ["x", "z"] as const) {
     if (!sameNumber(raster.cameraFrame.center[field], expectedFrame.center[field]) || !sameNumber(raster.cameraFrame.worldSize[field], expectedFrame.worldSize[field])) {
       fail(`raster ${raster.tileId} camera frame contradicts its capture intent`);
