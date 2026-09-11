@@ -171,3 +171,7 @@ export function affineAt(grid: TileGrid, startX: number, startY: number, scaleFa
     yAxis: scale(grid.yAxis, scaleFactor),
   };
 }
+
+export function gridPixelOrigin(grid: TileGrid): TileAffine {
+  return affineAt(grid, grid.minX, grid.minY, 1);
+}

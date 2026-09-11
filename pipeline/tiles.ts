@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { beginRun } from "../tools/runs";
 import { toolRevision } from "../tools/build";
 import { loadTileInputs, type SourceTile } from "./tile-input";
-import { affineAt, makeTileGrid, type GridSource, type TileGrid } from "./tile-grid";
+import { affineAt, gridPixelOrigin, makeTileGrid, type GridSource, type TileGrid } from "./tile-grid";
 import type { TileAffine, TileBounds, TileCoverage, TileFile, TileGenerationResult, TileLevel, TilePyramid } from "./tile-contracts";
 
 const DEFAULT_TILE_SIZE = 256;
@@ -311,7 +311,7 @@ async function generatePyramid(planPath: string, outputRoot: string): Promise<Ti
       coordinateSystem: "map-space-xy",
       pixelConvention: "top-left-edges",
       grid: { origin: grid.origin, xAxis: grid.xAxis, yAxis: grid.yAxis, pixelSize: grid.pixelSize },
-      mapFromPixelEdge: { origin: grid.origin, xAxis: grid.xAxis, yAxis: grid.yAxis },
+      mapFromPixelEdge: gridPixelOrigin(grid),
       bounds: grid.bounds,
       finestLevel,
       coarsestLevel: 0,
