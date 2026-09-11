@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pushState, replaceState } from '$app/navigation';
   import { base } from '$app/paths';
   import { onMount, tick } from 'svelte';
   import type { MapAdapterUpdate, MapViewState } from './map-adapter';
@@ -269,7 +270,11 @@
   }
 
   function syncUrl(mode: 'push' | 'replace', overrides: Partial<Pick<MapUrlState, 'categories' | 'levelMinimum' | 'levelMaximum'>> = {}): void {
-    window.history[mode === 'push' ? 'pushState' : 'replaceState']({}, '', currentUrl(overrides));
+    // The framework router owns history, so its own helpers must be used; calling
+    // window.history directly desynchronises the page store from the address bar.
+    const next = currentUrl(overrides);
+    if (mode === 'push') pushState(next, {});
+    else replaceState(next, {});
   }
 
   function scheduleViewUrl(): void {

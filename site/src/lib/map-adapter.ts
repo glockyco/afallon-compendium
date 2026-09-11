@@ -679,6 +679,9 @@ export async function createMapAdapter(
       sizeUnits: "pixels",
       getColor: [255, 255, 255, 255],
       characterSet: "auto",
+      // An outline needs a signed-distance-field font; without this the renderer warns
+      // and draws the count with no outline, which is illegible over pale terrain.
+      fontSettings: { sdf: true },
       outlineColor: [20, 20, 20, 255],
       outlineWidth: 2,
       fontFamily: "sans-serif",

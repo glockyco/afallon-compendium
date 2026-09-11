@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { base } from '$app/paths';
+  import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import GuideBossDetails from './GuideBossDetails.svelte';
   import type {
@@ -14,7 +16,10 @@
   let entities = new Map<string, PublicEntity>();
   let loading = true;
   let error = '';
-  let requestedKey: string | null = null;
+  // The selected record follows the URL, so a link within the guide changes the view.
+  // Reading it through the page store keeps it reactive across client navigation, and the
+  // browser guard keeps the query string untouched while the route prerenders.
+  $: requestedKey = browser ? $page.url.searchParams.get('id') : null;
 
   $: requestedDungeon = requestedKey ? guide?.dungeons.find((dungeon) => dungeon.dungeonKey === requestedKey) ?? null : null;
   $: requestedBoss = requestedKey ? guide?.bosses.find((boss) => boss.bossKey === requestedKey) ?? null : null;
@@ -23,7 +28,6 @@
   $: selectedBoss = visibleSection === 'bosses' && requestedBoss ? requestedBoss : null;
 
   onMount(() => {
-    requestedKey = new URLSearchParams(window.location.search).get('id');
     const controller = new AbortController();
     const publicationUrl = new URL(`${base}/data/publication.json`, window.location.href).toString();
     fetch(publicationUrl, { signal: controller.signal })
