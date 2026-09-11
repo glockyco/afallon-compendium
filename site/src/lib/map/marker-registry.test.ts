@@ -25,8 +25,9 @@ test("every registered marker reaches the rendered icon layer and atlas", () => 
     label: markerRegistry[category].label,
     categories: [category],
     entityKeys: [],
+    itemKeys: [],
+    searchText: markerRegistry[category].label,
     areas: [],
-    sections: [],
   }));
   const atlas = { atlas: {} as HTMLCanvasElement, mapping: iconAtlasMapping() };
   const records = markerRecordsForPlacements(placements);

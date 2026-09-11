@@ -58,7 +58,7 @@ Capture SHALL NOT infer a clip height. Automatic derivation was tried and remove
 
 ### Requirement: Capture chunks compose into a verified tile pyramid
 
-Capture SHALL render an extent as chunks sized for its resolution, and tile generation SHALL produce the delivery pyramid from those chunks. One image file per map SHALL NOT be a requirement, and neither SHALL one chunk per delivery tile.
+Capture SHALL render an extent as chunks sized for its resolution, and tile generation SHALL produce the delivery pyramid from those chunks. Delivery tiles SHALL use `tileSize: 256`, global integer `(x, y)` indices, and `z` values where each tile covers `[x·256/2^z, (x+1)·256/2^z] × [y·256/2^z, (y+1)·256/2^z]` world units. Zoom levels SHALL run contiguously from `minZoom` through `maxZoom`, with `maxZoom = log2(1024 / captureEdge)` and each coarser level formed by a 2×2 parent merge. Pixel row zero SHALL be the top edge, and the finest extent SHALL be the union of emitted finest tiles. One image file per map SHALL NOT be a requirement, and neither SHALL one chunk per delivery tile.
 
 Every published marker position SHALL sample primary imagery that is present and non-blank at the finest level. A marker over absent or blank imagery SHALL fail tile generation or publication rather than reach a reader.
 

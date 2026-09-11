@@ -1,25 +1,45 @@
 import { expect, test } from "bun:test";
-import { affineAt, gridPixelOrigin, type TileGrid } from "./tile-grid";
-import type { TileAffine } from "./tile-contracts";
+import { makeTileGrid } from "./tile-grid";
+import type { LoadedTileInputs } from "./tile-input";
 
-const grid = {
-  origin: { x: 100, y: 200 }, xAxis: { x: 2, y: 0 }, yAxis: { x: 0, y: -2 }, pixelSize: { x: 2, y: 2 },
-  minX: -5, minY: -7, maxX: 11, maxY: 9, width: 16, height: 16,
-  bounds: { min: { x: 78, y: 182 }, max: { x: 122, y: 214 }, width: 44, height: 32 }, sources: [],
-} satisfies TileGrid;
-
-function point(affine: TileAffine, x: number, y: number) {
-  return { x: affine.origin.x + affine.xAxis.x * x + affine.yAxis.x * y, y: affine.origin.y + affine.xAxis.y * x + affine.yAxis.y * y };
+function inputs(edge: number): LoadedTileInputs {
+  const width = 1024;
+  const height = 1024;
+  const tile = {
+    id: "surface-0", sceneNativeId: 1, scenePath: "Assets/World.unity", mapSpaceId: "world", width, height,
+    rasterValue: {
+      tileId: "surface-0", imageSha256: "0".repeat(64), width, height, coordinateSystem: "source-scene-world-xz", pixelConvention: "top-left-edges",
+      cameraFrame: { center: { x: -1024 + edge / 2, z: -3072 - edge / 2 }, worldSize: { x: edge, z: edge }, cameraY: 1, nearClip: 0.1, farClip: 100 },
+      clipping: { source: "none", applied: false, clipHeight: null }, verticalBounds: { minY: -99, maxY: 99 }, maximumProjectionErrorPixels: 0,
+      worldFromPixelEdge: { origin: { x: -1024, z: -3072 }, xAxis: { x: edge / width, z: 0 }, yAxis: { x: 0, z: -edge / height } },
+    },
+  };
+  return {
+    plan: { schemaVersion: "compendium.tile-plan.v2", buildId: "build", mapSpaceId: "world", profile: { path: "profile.json", sha256: "0".repeat(64) }, sources: [] },
+    planPath: "plan.json", planSha256: "0".repeat(64), profilePath: "profile.json", profileRef: { path: "profile.json", sha256: "0".repeat(64) },
+    profile: { schemaVersion: "compendium.map-space-profile.v2", buildId: "build", mapSpaces: [{ id: "world", label: "World" }], bindings: [{ id: "world", mapSpaceId: "world", sceneNativeId: 1, scenePath: "Assets/World.unity", frame: { origin: { x: 0, z: 0 }, xAxis: { x: 1, z: 0 }, yAxis: { x: 0, z: 1 } }, domain: { kind: "scene" }, evidence: [{ path: "evidence", sha256: "0".repeat(64), pointer: "" }] }] },
+    sources: [{ sourcePath: "capture", sourceSha256: "0".repeat(64), runId: "run", captureSetPath: "capture-set.json", captureSetSha256: "0".repeat(64), captureSet: {} as never, tiles: [tile as never], planPath: "capture-plan.json" }], provenance: [],
+  };
 }
 
-test("all zoom-level tile transforms share the top-left grid origin", () => {
-  const layer = gridPixelOrigin(grid);
-  const finestLevel = 2;
-  for (let level = 0; level <= finestLevel; level++) {
-    const scale = 2 ** (finestLevel - level);
-    const tile = affineAt(grid, grid.minX, grid.minY, scale);
-    expect(point(tile, 0, 0)).toEqual(point(layer, 0, 0));
-    expect(point(tile, 1, 0)).toEqual(point(layer, scale, 0));
-    expect(point(tile, 0, 1)).toEqual(point(layer, 0, scale));
-  }
+test("global lattice uses floor division for negative tile indices", () => {
+  const tileSize = 256;
+  const finestZoom = 1;
+  const worldTile = tileSize / 2 ** finestZoom;
+  const xIndices = [-1024, -896, -768, -640].map((origin) => Math.floor(origin / worldTile));
+  const yIndices = [-3584, -3456, -3328, -3200].map((origin) => Math.floor(origin / worldTile));
+  expect(xIndices).toEqual([-8, -7, -6, -5]);
+  expect(yIndices).toEqual([-28, -27, -26, -25]);
+  expect(Math.floor(-5 / 2)).toBe(-3);
+});
+
+test("makeTileGrid registers a 512-unit capture on the global lattice", () => {
+  const grid = makeTileGrid(inputs(512));
+  expect(grid.pixelSize).toEqual({ x: 0.5, y: 0.5 });
+  expect([Math.floor(grid.minX / 256), Math.floor((grid.maxX - 1) / 256)]).toEqual([-8, -5]);
+  expect([Math.floor(grid.minY / 256), Math.floor((grid.maxY - 1) / 256)]).toEqual([-28, -25]);
+});
+
+test("makeTileGrid rejects a non-power-of-two capture edge", () => {
+  expect(() => makeTileGrid(inputs(300))).toThrow("edge must be a square power of two");
 });

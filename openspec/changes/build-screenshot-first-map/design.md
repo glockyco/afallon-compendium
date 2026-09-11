@@ -187,7 +187,7 @@ Reuse validates artifact bytes and the complete native camera and restoration ev
 
 Captured source images, tile pyramids, calibration, and marker projections carry one build identity. Tile filenames use content hashes and a generated index. Empty positions are explicit. A missing image or mismatched manifest blocks publication.
 
-Use WebP delivery tiles and a measured zoom limit. Tile generation emits dimensions, byte totals, and file counts so hosting limits remain visible. Do not commit generated images or raw game data.
+Publish WebP delivery tiles with `tileSize: 256` and global integer `(x, y)` indices. At zoom `z`, tile `(x, y)` covers world `[x·256/2^z, (x+1)·256/2^z] × [y·256/2^z, (y+1)·256/2^z]`. Set `maxZoom = log2(1024 / captureEdge)`, merge each coarser level from a 2×2 child group, and keep contiguous levels through `minZoom`. Pixel row zero is the top edge. The published extent is the union of the finest tile bounds, and all coordinates use the same map-space system as placements. Tile generation emits dimensions, byte totals, and file counts so hosting limits remain visible. Do not commit generated images or raw game data.
 
 The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation can proceed without that checkpoint. Select external artifact storage only after measured size and file counts are available. Deployment still requires explicit user authorization.
 
@@ -211,7 +211,7 @@ Leaflet was a reasonable raster-only alternative, but deck.gl fits dense markers
 
 A marker preview contains identity, category, level, and a concise summary. Selection opens a side panel on desktop and a bottom sheet on narrow screens. The panel owns searchable full lists and conditions. It avoids a large popup that hides the selected area.
 
-Panels present player questions in the game's words. They carry no coordinates, provenance, source configuration dumps, or unresolved-semantics notices. A value that is not established is omitted, not annotated. Vendor stock groups retain requirements and currency costs. An item result links to all known source types and their places.
+Panels present player questions in the game's words. They carry no coordinates, provenance, source configuration dumps, or unresolved-semantics notices. A value that is not established is omitted, not annotated. Vendor stock groups retain requirements and currency costs. An item result links to all known source types and their places. At initial load, search uses place labels, entity names and descriptions, item names, source names, and source kinds; forward keys resolve matching placements. After selection, the item detail document adds condition values, requirements, and quantities to the detail search. The full source-text field was 1,562,949 bytes, more than one third of the 4,275,809-byte compact publication, so the map index keeps only distinct source names and kinds, measured at 147,623 bytes.
 
 There is one world map, so there is no map selector, no floor selector, and no layer selector unless a map actually has an alternative layer. The sidebar carries game-vocabulary category sections and a level filter, following the sibling atlases.
 

@@ -1,5 +1,5 @@
 import type { MapSpaceProfile } from "../tools/spatial-contracts";
-import type { TileAffine, TileBounds } from "./tile-contracts";
+import type { TileBounds } from "./tile-contracts";
 import type { LoadedTileInputs, SourceTile } from "./tile-input";
 
 const EPSILON = 1e-7;
@@ -9,9 +9,6 @@ type Matrix = { a: number; b: number; c: number; d: number };
 
 export type GridSource = {
   tile: SourceTile;
-  mapOrigin: Point;
-  mapXAxis: Point;
-  mapYAxis: Point;
   originX: number;
   originY: number;
   matrix: Matrix;
@@ -23,9 +20,6 @@ export type GridSource = {
 };
 
 export type TileGrid = {
-  origin: Point;
-  xAxis: Point;
-  yAxis: Point;
   pixelSize: { x: number; y: number };
   minX: number;
   minY: number;
@@ -58,27 +52,14 @@ function apply(matrix: Matrix, point: Point): Point {
   return { x: matrix.a * point.x + matrix.b * point.y, y: matrix.c * point.x + matrix.d * point.y };
 }
 
-function add(left: Point, right: Point): Point {
-  return { x: left.x + right.x, y: left.y + right.y };
-}
-
-function scale(point: Point, amount: number): Point {
-  return { x: point.x * amount, y: point.y * amount };
-}
-
-function relativePoint(baseX: Point, baseY: Point, point: Point): Point {
-  const determinant = baseX.x * baseY.y - baseY.x * baseX.y;
-  if (Math.abs(determinant) <= Number.EPSILON) throw new Error("Tile input rejected: finest raster grid is singular");
-  return {
-    x: (point.x * baseY.y - baseY.x * point.y) / determinant,
-    y: (baseX.x * point.y - point.x * baseX.y) / determinant,
-  };
-}
-
 function roundedInteger(value: number, label: string): number {
   const rounded = Math.round(value);
   if (!Number.isFinite(value) || Math.abs(value - rounded) > EPSILON * Math.max(1, Math.abs(value))) throw new Error(`Tile input rejected: ${label} is not exactly pixel-aligned`);
   return rounded;
+}
+
+function isPowerOfTwo(value: number): boolean {
+  return Number.isInteger(value) && value > 0 && (value & (value - 1)) === 0;
 }
 
 function transformRaster(tile: SourceTile, profile: MapSpaceProfile, mapSpaceId: string): { origin: Point; xAxis: Point; yAxis: Point } {
@@ -115,35 +96,42 @@ export function makeTileGrid(inputs: LoadedTileInputs): TileGrid {
   if (allTiles.length === 0) throw new Error("Tile input rejected: no source captures");
   const ordered = [...allTiles].sort((left, right) => `${left.sourcePath}/${left.id}`.localeCompare(`${right.sourcePath}/${right.id}`));
   const first = transformRaster(ordered[0]!, inputs.profile, inputs.plan.mapSpaceId);
-  const baseX = first.xAxis;
-  const baseY = first.yAxis;
-  const baseOrigin = first.origin;
-  const baseXLength = Math.hypot(baseX.x, baseX.y);
-  const baseYLength = Math.hypot(baseY.x, baseY.y);
-  if (!(baseXLength > 0) || !(baseYLength > 0)) throw new Error("Tile input rejected: finest capture has a degenerate map pixel frame");
+  const firstXLength = Math.hypot(first.xAxis.x, first.xAxis.y);
+  const firstYLength = Math.hypot(first.yAxis.x, first.yAxis.y);
+  const firstEdgeX = firstXLength * ordered[0]!.width;
+  const firstEdgeY = firstYLength * ordered[0]!.height;
+  if (!(firstEdgeX > 0) || !(firstEdgeY > 0) || Math.abs(firstEdgeX - firstEdgeY) > EPSILON * Math.max(1, firstEdgeX, firstEdgeY) || !isPowerOfTwo(firstEdgeX)) {
+    throw new Error(`Tile input rejected: capture tile ${ordered[0]!.id} edge must be a square power of two`);
+  }
+  const pixelSize = { x: firstEdgeX / ordered[0]!.width, y: firstEdgeY / ordered[0]!.height };
   const sources: GridSource[] = [];
   for (const tile of ordered) {
     const transformed = transformRaster(tile, inputs.profile, inputs.plan.mapSpaceId);
-    const originRelative = relativePoint(baseX, baseY, { x: transformed.origin.x - baseOrigin.x, y: transformed.origin.y - baseOrigin.y });
-    const xRelative = relativePoint(baseX, baseY, transformed.xAxis);
-    const yRelative = relativePoint(baseX, baseY, transformed.yAxis);
+    const edgeX = Math.hypot(transformed.xAxis.x, transformed.xAxis.y) * tile.width;
+    const edgeY = Math.hypot(transformed.yAxis.x, transformed.yAxis.y) * tile.height;
+    if (!isPowerOfTwo(edgeX) || !isPowerOfTwo(edgeY) || Math.abs(edgeX - edgeY) > EPSILON * Math.max(1, edgeX, edgeY)) {
+      throw new Error(`Tile input rejected: capture tile ${tile.id} edge must be a square power of two`);
+    }
+    if (Math.abs(edgeX - firstEdgeX) > EPSILON * Math.max(1, edgeX, firstEdgeX) || Math.abs(edgeY - firstEdgeY) > EPSILON * Math.max(1, edgeY, firstEdgeY)) {
+      throw new Error(`Tile input rejected: raster ${tile.id} resolution differs from the finest capture`);
+    }
+    if (Math.abs(transformed.origin.x / edgeX - Math.round(transformed.origin.x / edgeX)) > EPSILON
+      || Math.abs(transformed.origin.y / edgeY - Math.round(transformed.origin.y / edgeY)) > EPSILON) {
+      throw new Error(`Tile input rejected: capture tile ${tile.id} origin must be a multiple of its edge`);
+    }
     const matrix: Matrix = {
-      a: roundedInteger(xRelative.x, `${tile.id} x-axis.x`),
-      c: roundedInteger(xRelative.y, `${tile.id} x-axis.y`),
-      b: roundedInteger(yRelative.x, `${tile.id} y-axis.x`),
-      d: roundedInteger(yRelative.y, `${tile.id} y-axis.y`),
+      a: roundedInteger(transformed.xAxis.x / pixelSize.x, `${tile.id} x-axis.x`),
+      c: roundedInteger(transformed.xAxis.y / pixelSize.y, `${tile.id} x-axis.y`),
+      b: roundedInteger(transformed.yAxis.x / pixelSize.x, `${tile.id} y-axis.x`),
+      d: roundedInteger(transformed.yAxis.y / pixelSize.y, `${tile.id} y-axis.y`),
     };
     if (Math.abs(matrix.a) + Math.abs(matrix.c) !== 1 || Math.abs(matrix.b) + Math.abs(matrix.d) !== 1 || Math.abs(matrix.a * matrix.d - matrix.b * matrix.c) !== 1) {
       throw new Error(`Tile input rejected: raster ${tile.id} has an unsupported rotation, reflection, or resolution relationship`);
     }
-    const originX = roundedInteger(originRelative.x, `${tile.id} origin.x`);
-    const originY = roundedInteger(originRelative.y, `${tile.id} origin.y`);
-    if (Math.abs(Math.hypot(transformed.xAxis.x, transformed.xAxis.y) - baseXLength) > EPSILON * Math.max(1, baseXLength)
-      || Math.abs(Math.hypot(transformed.yAxis.x, transformed.yAxis.y) - baseYLength) > EPSILON * Math.max(1, baseYLength)) {
-      throw new Error(`Tile input rejected: raster ${tile.id} resolution differs from the finest capture`);
-    }
+    const originX = roundedInteger(transformed.origin.x / pixelSize.x, `${tile.id} origin.x`);
+    const originY = roundedInteger(transformed.origin.y / pixelSize.y, `${tile.id} origin.y`);
     const inverseMatrix: Matrix = { a: matrix.d, b: -matrix.b, c: -matrix.c, d: matrix.a };
-    const source: GridSource = { tile, mapOrigin: transformed.origin, mapXAxis: transformed.xAxis, mapYAxis: transformed.yAxis, originX, originY, matrix, inverseMatrix, minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    const source: GridSource = { tile, originX, originY, matrix, inverseMatrix, minX: 0, minY: 0, maxX: 0, maxY: 0 };
     Object.assign(source, transformedBounds(source));
     sources.push(source);
   }
@@ -152,26 +140,11 @@ export function makeTileGrid(inputs: LoadedTileInputs): TileGrid {
   const maxX = Math.max(...sources.map(source => source.maxX));
   const maxY = Math.max(...sources.map(source => source.maxY));
   if (!(maxX > minX) || !(maxY > minY)) throw new Error("Tile input rejected: source captures have no finite common bounds");
-  const mapCorners = [
-    { x: minX, y: minY }, { x: maxX, y: minY }, { x: minX, y: maxY }, { x: maxX, y: maxY },
-  ].map(point => add(baseOrigin, add(scale(baseX, point.x), scale(baseY, point.y))));
   const bounds = {
-    min: { x: Math.min(...mapCorners.map(point => point.x)), y: Math.min(...mapCorners.map(point => point.y)) },
-    max: { x: Math.max(...mapCorners.map(point => point.x)), y: Math.max(...mapCorners.map(point => point.y)) },
-    width: Math.max(...mapCorners.map(point => point.x)) - Math.min(...mapCorners.map(point => point.x)),
-    height: Math.max(...mapCorners.map(point => point.y)) - Math.min(...mapCorners.map(point => point.y)),
+    min: { x: minX * pixelSize.x, y: minY * pixelSize.y },
+    max: { x: maxX * pixelSize.x, y: maxY * pixelSize.y },
+    width: (maxX - minX) * pixelSize.x,
+    height: (maxY - minY) * pixelSize.y,
   };
-  return { origin: baseOrigin, xAxis: baseX, yAxis: baseY, pixelSize: { x: baseXLength, y: baseYLength }, minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY, bounds, sources };
-}
-
-export function affineAt(grid: TileGrid, startX: number, startY: number, scaleFactor: number): TileAffine {
-  return {
-    origin: add(grid.origin, add(scale(grid.xAxis, startX), scale(grid.yAxis, startY))),
-    xAxis: scale(grid.xAxis, scaleFactor),
-    yAxis: scale(grid.yAxis, scaleFactor),
-  };
-}
-
-export function gridPixelOrigin(grid: TileGrid): TileAffine {
-  return affineAt(grid, grid.minX, grid.minY, 1);
+  return { pixelSize, minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY, bounds, sources };
 }

@@ -2,15 +2,14 @@ import { Type, type Static } from "typebox";
 
 const text = Type.String({ minLength: 1 });
 const id = Type.String({ pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" });
-const sha256 = Type.String({ pattern: "^[a-f0-9]{64}$" });
+const integer = Type.Integer();
 const count = Type.Integer({ minimum: 0 });
 const positive = Type.Number({ exclusiveMinimum: 0 });
 const relativePath = Type.String({ minLength: 1, pattern: "^(?!/)(?![A-Za-z]:)[^\\u0000-\\u001f\\u007f]+$" });
+const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
+const reference = Type.Object({ path: relativePath, sha256: hash });
 
-export const TileReferenceSchema = Type.Object({
-  path: relativePath,
-  sha256,
-});
+export const TileReferenceSchema = reference;
 export type TileReference = Static<typeof TileReferenceSchema>;
 
 export const TilePlanSchema = Type.Object({
@@ -24,59 +23,32 @@ export const TilePlanSchema = Type.Object({
 });
 export type TilePlan = Static<typeof TilePlanSchema>;
 
-export const TileAffineSchema = Type.Object({
-  origin: Type.Object({ x: Type.Number(), y: Type.Number() }),
-  xAxis: Type.Object({ x: Type.Number(), y: Type.Number() }),
-  yAxis: Type.Object({ x: Type.Number(), y: Type.Number() }),
-});
-export type TileAffine = Static<typeof TileAffineSchema>;
-
-export const TileBoundsSchema = Type.Object({
-  min: Type.Object({ x: Type.Number(), y: Type.Number() }),
-  max: Type.Object({ x: Type.Number(), y: Type.Number() }),
-  width: positive,
-  height: positive,
-});
-export type TileBounds = Static<typeof TileBoundsSchema>;
-
 export const TileCoverageSchema = Type.Object({
-  state: Type.Union([
-    Type.Literal("captured"),
-    Type.Literal("empty"),
-    Type.Literal("partial"),
-    Type.Literal("missing"),
-  ]),
+  state: Type.Union([Type.Literal("captured"), Type.Literal("empty"), Type.Literal("partial"), Type.Literal("missing")]),
   coveredPixels: count,
   emptyPixels: count,
   missingPixels: count,
   sourceTileIds: Type.Array(text),
 });
 export type TileCoverage = Static<typeof TileCoverageSchema>;
+export type TileBounds = { min: { x: number; y: number }; max: { x: number; y: number }; width: number; height: number };
 
 export const TileFileSchema = Type.Object({
-  z: count,
-  x: count,
-  y: count,
+  z: integer,
+  x: integer,
+  y: integer,
   width: Type.Integer({ minimum: 1 }),
   height: Type.Integer({ minimum: 1 }),
-  mapFromPixelEdge: TileAffineSchema,
-  bounds: TileBoundsSchema,
   coverage: TileCoverageSchema,
   path: relativePath,
   bytes: count,
-  sha256,
+  sha256: hash,
   mediaType: Type.Literal("image/webp"),
 });
 export type TileFile = Static<typeof TileFileSchema>;
 
 export const TileLevelSchema = Type.Object({
-  z: count,
-  scale: Type.Integer({ minimum: 1 }),
-  pixelSize: Type.Object({ x: positive, y: positive }),
-  width: Type.Integer({ minimum: 1 }),
-  height: Type.Integer({ minimum: 1 }),
-  columns: Type.Integer({ minimum: 1 }),
-  rows: Type.Integer({ minimum: 1 }),
+  z: integer,
   tiles: Type.Array(TileFileSchema),
 });
 export type TileLevel = Static<typeof TileLevelSchema>;
@@ -93,7 +65,7 @@ export const TileSourceProvenanceSchema = Type.Object({
   height: Type.Integer({ minimum: 1 }),
   tiles: Type.Array(Type.Object({
     id: text,
-    compatibilityKey: sha256,
+    compatibilityKey: hash,
     status: Type.Union([Type.Literal("captured"), Type.Literal("reused")]),
     empty: Type.Boolean(),
     origin: Type.Object({ runId: text, ownerToken: text, captureKey: text }),
@@ -108,35 +80,27 @@ export const TileSourceProvenanceSchema = Type.Object({
 export type TileSourceProvenance = Static<typeof TileSourceProvenanceSchema>;
 
 export const TilePyramidSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.tile-pyramid.v2"),
+  schemaVersion: Type.Literal("compendium.tile-pyramid.v3"),
   buildId: text,
   mapSpaceId: id,
   plan: TileReferenceSchema,
   profile: TileReferenceSchema,
   coordinateSystem: Type.Literal("map-space-xy"),
   pixelConvention: Type.Literal("top-left-edges"),
-  grid: Type.Object({
-    origin: Type.Object({ x: Type.Number(), y: Type.Number() }),
-    xAxis: Type.Object({ x: Type.Number(), y: Type.Number() }),
-    yAxis: Type.Object({ x: Type.Number(), y: Type.Number() }),
-    pixelSize: Type.Object({ x: positive, y: positive }),
-  }),
-  mapFromPixelEdge: TileAffineSchema,
-  bounds: TileBoundsSchema,
-  finestLevel: count,
-  coarsestLevel: Type.Literal(0),
-  zoomConvention: Type.Literal("coarsest-zero-finest-max"),
+  extent: Type.Tuple([Type.Number(), Type.Number(), Type.Number(), Type.Number()]),
+  minZoom: integer,
+  maxZoom: integer,
   format: Type.Literal("webp-lossless"),
-  tileSize: Type.Integer({ minimum: 1 }),
+  tileSize: Type.Literal(256),
   levels: Type.Array(TileLevelSchema, { minItems: 1 }),
   sources: Type.Array(TileSourceProvenanceSchema, { minItems: 1 }),
   coverage: Type.Object({
     complete: Type.Boolean(),
     blocker: Type.Boolean(),
     reasons: Type.Array(text),
-    missingPositions: Type.Array(Type.Object({ z: count, x: count, y: count })),
-    emptyPositions: Type.Array(Type.Object({ z: count, x: count, y: count })),
-    partialPositions: Type.Array(Type.Object({ z: count, x: count, y: count })),
+    missingPositions: Type.Array(Type.Object({ z: integer, x: integer, y: integer })),
+    emptyPositions: Type.Array(Type.Object({ z: integer, x: integer, y: integer })),
+    partialPositions: Type.Array(Type.Object({ z: integer, x: integer, y: integer })),
   }),
   totals: Type.Object({ files: count, bytes: count }),
 });

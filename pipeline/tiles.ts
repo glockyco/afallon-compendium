@@ -5,8 +5,8 @@ import sharp from "sharp";
 import { beginRun } from "../tools/runs";
 import { toolRevision } from "../tools/build";
 import { loadTileInputs, type SourceTile } from "./tile-input";
-import { affineAt, gridPixelOrigin, makeTileGrid, type GridSource, type TileGrid } from "./tile-grid";
-import type { TileAffine, TileBounds, TileCoverage, TileFile, TileGenerationResult, TileLevel, TilePyramid } from "./tile-contracts";
+import { makeTileGrid, type GridSource, type TileGrid } from "./tile-grid";
+import type { TileCoverage, TileFile, TileGenerationResult, TileLevel, TilePyramid } from "./tile-contracts";
 
 const DEFAULT_TILE_SIZE = 256;
 const CHANNELS = 4;
@@ -99,27 +99,22 @@ function accumulatePixel(decodedByPath: ReadonlyMap<string, DecodedSource>, cand
   }
 }
 
-function composeTile(grid: TileGrid, decodedByPath: ReadonlyMap<string, DecodedSource>, level: number, finestLevel: number, tileX: number, tileY: number, tileSize: number): TileBuffer {
-  const scale = 2 ** (finestLevel - level);
-  const levelWidth = Math.ceil(grid.width / scale);
-  const levelHeight = Math.ceil(grid.height / scale);
-  const width = Math.min(tileSize, levelWidth - tileX * tileSize);
-  const height = Math.min(tileSize, levelHeight - tileY * tileSize);
-  const data = Buffer.alloc(width * height * CHANNELS);
-  const tileMinX = grid.minX + tileX * tileSize * scale;
-  const tileMinY = grid.minY + tileY * tileSize * scale;
-  const tileMaxX = Math.min(grid.maxX, tileMinX + width * scale);
-  const tileMaxY = Math.min(grid.maxY, tileMinY + height * scale);
+function composeTile(grid: TileGrid, decodedByPath: ReadonlyMap<string, DecodedSource>, z: number, maxZoom: number, tileX: number, tileY: number): TileBuffer {
+  const scale = 2 ** (maxZoom - z);
+  const tileMinX = tileX * DEFAULT_TILE_SIZE * scale;
+  const tileMinY = tileY * DEFAULT_TILE_SIZE * scale;
+  const tileMaxX = tileMinX + DEFAULT_TILE_SIZE * scale;
+  const tileMaxY = tileMinY + DEFAULT_TILE_SIZE * scale;
   const candidates = grid.sources.filter(source => source.maxX > tileMinX && source.minX < tileMaxX && source.maxY > tileMinY && source.minY < tileMaxY);
+  const data = Buffer.alloc(DEFAULT_TILE_SIZE * DEFAULT_TILE_SIZE * CHANNELS);
   let coveredPixels = 0;
   let emptyPixels = 0;
   let missingPixels = 0;
   let capturedPixels = 0;
   const sourceTileIds = new Set<string>();
   const cell: CellAccumulator = { covered: false, captured: false, empty: false, sourceCount: 0, firstR: 0, firstG: 0, firstB: 0, firstA: 0, redPremultiplied: 0, greenPremultiplied: 0, bluePremultiplied: 0, alphaSum: 0, localX: 0, localY: 0 };
-  for (let outputY = 0; outputY < height; outputY++) {
-    for (let outputX = 0; outputX < width; outputX++) {
-      let sampleCount = 0;
+  for (let outputY = 0; outputY < DEFAULT_TILE_SIZE; outputY++) {
+    for (let outputX = 0; outputX < DEFAULT_TILE_SIZE; outputX++) {
       let redPremultiplied = 0;
       let greenPremultiplied = 0;
       let bluePremultiplied = 0;
@@ -130,9 +125,8 @@ function composeTile(grid: TileGrid, decodedByPath: ReadonlyMap<string, DecodedS
       for (let dy = 0; dy < scale; dy++) {
         for (let dx = 0; dx < scale; dx++) {
           const globalX = tileMinX + outputX * scale + dx;
-          const globalY = tileMinY + outputY * scale + dy;
-          if (globalX >= grid.maxX || globalY >= grid.maxY) continue;
-          sampleCount++;
+          // Published row zero is the top edge. Sample the finest lattice from top to bottom.
+          const globalY = tileMaxY - 1 - outputY * scale - dy;
           accumulatePixel(decodedByPath, candidates, globalX, globalY, cell, sourceTileIds);
           if (!cell.covered) continue;
           coveredSamples++;
@@ -144,24 +138,23 @@ function composeTile(grid: TileGrid, decodedByPath: ReadonlyMap<string, DecodedS
           alphaSum += cell.alphaSum;
         }
       }
-      const pixelOffset = (outputY * width + outputX) * CHANNELS;
+      const pixelOffset = (outputY * DEFAULT_TILE_SIZE + outputX) * CHANNELS;
       if (coveredSamples === 0) {
         missingPixels++;
-        data[pixelOffset + 3] = 0;
         continue;
       }
       coveredPixels++;
       if (emptySamples === coveredSamples) emptyPixels++;
       if (capturedSamples > 0) capturedPixels++;
-      if (sampleCount !== coveredSamples) missingPixels++;
+      if (coveredSamples !== scale * scale) missingPixels++;
       data[pixelOffset] = alphaSum > 0 ? Math.round(redPremultiplied / alphaSum) : 0;
       data[pixelOffset + 1] = alphaSum > 0 ? Math.round(greenPremultiplied / alphaSum) : 0;
       data[pixelOffset + 2] = alphaSum > 0 ? Math.round(bluePremultiplied / alphaSum) : 0;
-      data[pixelOffset + 3] = Math.round(alphaSum / sampleCount);
+      data[pixelOffset + 3] = alphaSum > 0 ? Math.round(alphaSum / (scale * scale)) : 0;
     }
   }
   const coverage: TileCoverage = {
-    state: tileState(coveredPixels, emptyPixels, missingPixels, width * height, capturedPixels),
+    state: tileState(coveredPixels, emptyPixels, missingPixels, DEFAULT_TILE_SIZE * DEFAULT_TILE_SIZE, capturedPixels),
     coveredPixels,
     emptyPixels,
     missingPixels,
@@ -204,27 +197,29 @@ function relativeArtifact(runDirectory: string, path: string): string {
   return relative(runDirectory, path).split("\\").join("/");
 }
 
-function affineBounds(affine: TileAffine, width: number, height: number): TileBounds {
-  const corners = [
-    affine.origin,
-    { x: affine.origin.x + affine.xAxis.x * width, y: affine.origin.y + affine.xAxis.y * width },
-    { x: affine.origin.x + affine.yAxis.x * height, y: affine.origin.y + affine.yAxis.y * height },
-    { x: affine.origin.x + affine.xAxis.x * width + affine.yAxis.x * height, y: affine.origin.y + affine.xAxis.y * width + affine.yAxis.y * height },
-  ];
-  const minX = Math.min(...corners.map(corner => corner.x));
-  const minY = Math.min(...corners.map(corner => corner.y));
-  const maxX = Math.max(...corners.map(corner => corner.x));
-  const maxY = Math.max(...corners.map(corner => corner.y));
-  return { min: { x: minX, y: minY }, max: { x: maxX, y: maxY }, width: maxX - minX, height: maxY - minY };
-}
-
 async function generatePyramid(planPath: string, outputRoot: string): Promise<TileGenerationResult> {
   const inputs = await loadTileInputs(planPath);
   const grid = makeTileGrid(inputs);
   const tileSize = inputs.plan.tileSize ?? DEFAULT_TILE_SIZE;
-  if (!Number.isInteger(tileSize) || tileSize < 1 || tileSize > 2048) throw new Error("Tile generation rejected: tileSize must be between 1 and 2048");
-  let finestLevel = 0;
-  while (Math.ceil(grid.width / (2 ** finestLevel)) > tileSize || Math.ceil(grid.height / (2 ** finestLevel)) > tileSize) finestLevel++;
+  if (tileSize !== DEFAULT_TILE_SIZE) throw new Error("Tile generation rejected: tileSize must be 256");
+  const captureEdge = grid.pixelSize.x * grid.sources[0]!.tile.width;
+  const maxZoom = Math.round(Math.log2(1024 / captureEdge));
+  if (!Number.isInteger(maxZoom) || Math.abs(maxZoom - Math.log2(1024 / captureEdge)) > 1e-7) throw new Error("Tile generation rejected: capture edge does not produce an integer finest zoom");
+  const tileRange = (z: number): { minX: number; maxX: number; minY: number; maxY: number; count: number } => {
+    const scale = 2 ** (maxZoom - z);
+    const minX = Math.floor(grid.minX / (tileSize * scale));
+    const maxX = Math.floor((grid.maxX - 1) / (tileSize * scale));
+    const minY = Math.floor(grid.minY / (tileSize * scale));
+    const maxY = Math.floor((grid.maxY - 1) / (tileSize * scale));
+    return { minX, maxX, minY, maxY, count: (maxX - minX + 1) * (maxY - minY + 1) };
+  };
+  let minZoom = maxZoom - 5;
+  for (let z = maxZoom; z >= maxZoom - 5; z--) {
+    if (tileRange(z).count <= 4) {
+      minZoom = z;
+      break;
+    }
+  }
   const inputHashes: Record<string, string> = { plan: inputs.planSha256, "map-space-profile": inputs.profileRef.sha256, "tool:tile-implementation": await tileImplementationHash() };
   inputs.sources.forEach((source, index) => {
     inputHashes[`source-manifest:${index}`] = source.sourceSha256;
@@ -247,7 +242,7 @@ async function generatePyramid(planPath: string, outputRoot: string): Promise<Ti
       planPath: inputs.planPath,
       mapSpaceId: inputs.plan.mapSpaceId,
       tileSize,
-      zoomConvention: "coarsest-zero-finest-max",
+      zoomConvention: "global-lattice-fine-max",
       sourceCount: inputs.sources.length,
     },
     inputHashes,
@@ -265,59 +260,57 @@ async function generatePyramid(planPath: string, outputRoot: string): Promise<Ti
     const emptyPositions: Array<{ z: number; x: number; y: number }> = [];
     const partialPositions: Array<{ z: number; x: number; y: number }> = [];
     let totalBytes = 0;
-    for (let level = 0; level <= finestLevel; level++) {
-      const scale = 2 ** (finestLevel - level);
-      const width = Math.ceil(grid.width / scale);
-      const height = Math.ceil(grid.height / scale);
-      const columns = Math.ceil(width / tileSize);
-      const rows = Math.ceil(height / tileSize);
+    let finestExtent: [number, number, number, number] | null = null;
+    for (let z = minZoom; z <= maxZoom; z++) {
+      const range = tileRange(z);
       const tiles: TileFile[] = [];
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < columns; x++) {
-          const outputWidth = Math.min(tileSize, width - x * tileSize);
-          const outputHeight = Math.min(tileSize, height - y * tileSize);
-          const tile = composeTile(grid, decodedByPath, level, finestLevel, x, y, tileSize);
+      for (let y = range.minY; y <= range.maxY; y++) {
+        for (let x = range.minX; x <= range.maxX; x++) {
+          const tile = composeTile(grid, decodedByPath, z, maxZoom, x, y);
           if (tile.coverage.state === "missing") {
-            missingPositions.push({ z: level, x, y });
+            missingPositions.push({ z, x, y });
             continue;
           }
-          if (tile.coverage.state === "empty") emptyPositions.push({ z: level, x, y });
-          if (tile.coverage.state === "partial") partialPositions.push({ z: level, x, y });
-          const webp = await encodeTileWithDimensions(tile, outputWidth, outputHeight);
+          if (tile.coverage.state === "empty") emptyPositions.push({ z, x, y });
+          if (tile.coverage.state === "partial") partialPositions.push({ z, x, y });
+          const webp = await encodeTileWithDimensions(tile, tileSize, tileSize);
           const sha256 = createHash("sha256").update(webp).digest("hex");
-          const path = `tiles/${level}/${x}/${y}.${sha256}.webp`;
+          const path = `tiles/${z}/${x}/${y}.${sha256}.webp`;
           await mkdir(dirname(resolve(run.directory, path)), { recursive: true });
           await Bun.write(resolve(run.directory, path), webp);
-          const affine = affineAt(grid, grid.minX + x * tileSize * scale, grid.minY + y * tileSize * scale, scale);
-          const file: TileFile = { z: level, x, y, width: outputWidth, height: outputHeight, mapFromPixelEdge: affine, bounds: affineBounds(affine, outputWidth, outputHeight), coverage: tile.coverage, path, bytes: webp.byteLength, sha256, mediaType: "image/webp" };
+          const file: TileFile = { z, x, y, width: tileSize, height: tileSize, coverage: tile.coverage, path, bytes: webp.byteLength, sha256, mediaType: "image/webp" };
           tiles.push(file);
           emittedFiles.push(file);
           totalBytes += webp.byteLength;
           await run.addArtifact(path);
+          if (z === maxZoom) {
+            const tileWorldSize = tileSize * grid.pixelSize.x;
+            const extent: [number, number, number, number] = [x * tileWorldSize, y * tileWorldSize, (x + 1) * tileWorldSize, (y + 1) * tileWorldSize];
+            if (finestExtent === null) finestExtent = extent;
+            else finestExtent = [Math.min(finestExtent[0], extent[0]), Math.min(finestExtent[1], extent[1]), Math.max(finestExtent[2], extent[2]), Math.max(finestExtent[3], extent[3])];
+          }
         }
       }
-      levels.push({ z: level, scale, pixelSize: { x: grid.pixelSize.x * scale, y: grid.pixelSize.y * scale }, width, height, columns, rows, tiles });
+      levels.push({ z, tiles });
     }
+    if (finestExtent === null) throw new Error("Tile generation rejected: no finest tiles have capture coverage");
     const coverageReasons: string[] = [];
     if (inputs.sources.some(source => source.captureSet.completeImagery === false)) coverageReasons.push("source capture sets declare incomplete imagery coverage");
     if (missingPositions.length > 0) coverageReasons.push(`${missingPositions.length} delivery tile positions have no capture coverage`);
     if (partialPositions.length > 0) coverageReasons.push("partial delivery tiles retain missing pixel coverage");
     const pyramid: TilePyramid = {
-      schemaVersion: "compendium.tile-pyramid.v2",
+      schemaVersion: "compendium.tile-pyramid.v3",
       buildId: inputs.plan.buildId,
       mapSpaceId: inputs.plan.mapSpaceId,
       plan: { path: relativeArtifact(run.directory, resolve(run.directory, "inputs/plan.json")), sha256: inputs.planSha256 },
       profile: { path: relativeArtifact(run.directory, resolve(run.directory, "inputs/map-space-profile.json")), sha256: inputs.profileRef.sha256 },
       coordinateSystem: "map-space-xy",
       pixelConvention: "top-left-edges",
-      grid: { origin: grid.origin, xAxis: grid.xAxis, yAxis: grid.yAxis, pixelSize: grid.pixelSize },
-      mapFromPixelEdge: gridPixelOrigin(grid),
-      bounds: grid.bounds,
-      finestLevel,
-      coarsestLevel: 0,
-      zoomConvention: "coarsest-zero-finest-max",
+      extent: finestExtent,
+      minZoom,
+      maxZoom,
       format: "webp-lossless",
-      tileSize,
+      tileSize: 256,
       levels,
       sources: inputs.provenance,
       coverage: {

@@ -79,10 +79,26 @@ export const PublicPlacementSchema = Type.Object({
   categories: Type.Array(publicMarkerCategory, { minItems: 1, uniqueItems: true }),
   levelRange: Type.Optional(PublicLevelRangeSchema),
   entityKeys: Type.Array(text, { uniqueItems: true }),
-  areas: Type.Array(Type.Array(position, { minItems: 3 })), sections,
+  itemKeys: Type.Array(text, { uniqueItems: true }),
+  searchText: text,
+  areas: Type.Array(Type.Array(position, { minItems: 3 })),
   travel: Type.Optional(PublicTravelSchema),
 }, { additionalProperties: false });
 export type PublicPlacement = Static<typeof PublicPlacementSchema>;
+
+export const PublicEntitySummarySchema = Type.Object({
+  entityKey: text, kind: text, nativeId: Type.Integer(), name: text,
+  description: Type.Union([Type.String(), Type.Null()]),
+  detailPath: url,
+}, { additionalProperties: false });
+export type PublicEntitySummary = Static<typeof PublicEntitySummarySchema>;
+
+export const PublicItemSummarySchema = Type.Object({
+  itemKey: text, name: text,
+  sourceNames: Type.Array(text, { uniqueItems: true }), sourceKinds: Type.Array(text, { uniqueItems: true }),
+  detailPath: url,
+}, { additionalProperties: false });
+export type PublicItemSummary = Static<typeof PublicItemSummarySchema>;
 
 export const PublicWorldOffsetSchema = Type.Object({
   mapSpaceId: text,
@@ -105,23 +121,24 @@ export type PublicWorld = Static<typeof PublicWorldSchema>;
 
 export const PublicItemSourceSchema = Type.Object({
   itemKey: text,
+  sections,
   sources: Type.Array(Type.Object({ label: text, kind: text, placementIds: Type.Array(text, { uniqueItems: true }), sections }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type PublicItemSource = Static<typeof PublicItemSourceSchema>;
 
 export const PublicTileSchema = Type.Object({
-  z: count, x: count, y: count,
+  z: Type.Integer(), x: Type.Integer(), y: Type.Integer(),
+  url, sha256: hash, bytes: count,
   width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }),
-  url, sha256: hash, bytes: count, mapFromPixelEdge: PublicAffineSchema,
   state: Type.Union([Type.Literal("captured"), Type.Literal("empty"), Type.Literal("partial")]),
 }, { additionalProperties: false });
 export type PublicTile = Static<typeof PublicTileSchema>;
 
 export const PublicTileLayerSchema = Type.Object({
   id: text, mapSpaceId: text,
-  tileSize: Type.Integer({ minimum: 1 }), finestLevel: count,
-  width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }),
-  mapFromPixelEdge: PublicAffineSchema, tiles: Type.Array(PublicTileSchema, { minItems: 1 }),
+  tileSize: Type.Literal(256), minZoom: Type.Integer(), maxZoom: Type.Integer(),
+  extent: Type.Tuple([number, number, number, number]),
+  tiles: Type.Array(PublicTileSchema, { minItems: 1 }),
 }, { additionalProperties: false });
 export type PublicTileLayer = Static<typeof PublicTileLayerSchema>;
 
@@ -235,19 +252,35 @@ export const PublicAdventureGuideSummarySchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicAdventureGuideSummary = Static<typeof PublicAdventureGuideSummarySchema>;
 
+const publicMapSchema = Type.Object({
+  mapSpaceId: text, label: text,
+  levelRange: Type.Optional(PublicLevelRangeSchema),
+  bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
+}, { additionalProperties: false });
+
+export const PUBLICATION_SCHEMA_VERSION = "compendium.publication.v9";
+
 export const PublicationDataSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.publication.v7"), buildId: text,
+  schemaVersion: Type.Literal(PUBLICATION_SCHEMA_VERSION), buildId: text,
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   coverage: Type.Object({ complete: Type.Boolean(), messages: Type.Array(text), excludedPlacements: count }, { additionalProperties: false }),
   world: PublicWorldSchema,
-  maps: Type.Array(Type.Object({
-    mapSpaceId: text, label: text,
-    levelRange: Type.Optional(PublicLevelRangeSchema),
-    bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
-  }, { additionalProperties: false }), { minItems: 1 }),
-  placements: Type.Array(PublicPlacementSchema), entities: Type.Array(PublicEntitySchema),
-  itemSources: Type.Array(PublicItemSourceSchema), tileLayers: Type.Array(PublicTileLayerSchema, { minItems: 1 }),
+  maps: Type.Array(publicMapSchema, { minItems: 1 }),
+  placements: Type.Array(PublicPlacementSchema),
+  entityIndex: Type.Array(PublicEntitySummarySchema), itemIndex: Type.Array(PublicItemSummarySchema),
+  tileLayers: Type.Array(PublicTileLayerSchema, { minItems: 1 }),
   illustrations: Type.Array(PublicIllustrationSchema),
-  guide: PublicAdventureGuideSchema,
 }, { additionalProperties: false });
 export type PublicationData = Static<typeof PublicationDataSchema>;
+
+export const EntityDetailsDocumentSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.publication-entity-details.v1"), buildId: text,
+  entities: Type.Array(PublicEntitySchema),
+}, { additionalProperties: false });
+export type EntityDetailsDocument = Static<typeof EntityDetailsDocumentSchema>;
+
+export const ItemSourcesDocumentSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.publication-item-sources.v1"), buildId: text,
+  itemSources: Type.Array(PublicItemSourceSchema),
+}, { additionalProperties: false });
+export type ItemSourcesDocument = Static<typeof ItemSourcesDocumentSchema>;

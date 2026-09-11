@@ -13,9 +13,9 @@ import { IllustrationOutputSchema, type IllustrationOutput } from "../tools/illu
 import { TilePyramidSchema, type TilePyramid } from "./tile-contracts";
 import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement } from "./normalized-contracts";
 import { projectAdventureGuide } from "./guide-projection";
-import { PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAdventureGuide, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicIllustration, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicTravel, type PublicationData } from "./public-contracts";
+import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicIllustration, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
 import { WorldOffsetsSchema, type WorldOffsets, buildWorldLayout } from "./world-layout";
-import { affinePoint, inversePoint, validatePublication } from "./publication-validation";
+import { validateEntityDetails, validateItemSources, validatePublication } from "./publication-validation";
 
 const reference = Type.Object({ path: Type.String({ minLength: 1 }), sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) }, { additionalProperties: false });
 export const GuideDocumentSchema = Type.Object({
@@ -230,7 +230,13 @@ function scalarRows(value: unknown, prefix = ""): PublicDetailRow[] {
 
 function sectionsFor(entity: EntityDetail, names: Map<string, string>): PublicDetailSection[] {
   const sections: PublicDetailSection[] = [];
-  const add = (title: string, rows: PublicDetailRow[]) => { if (rows.length) sections.push({ title, rows }); };
+  const add = (title: string, rows: PublicDetailRow[]) => {
+    if (rows.length === 0) return;
+    const section = sections.find((candidate) => candidate.title === title);
+    if (!section) { sections.push({ title, rows: [...new Map(rows.map((row) => [JSON.stringify(row), row])).values()] }); return; }
+    const existing = new Set(section.rows.map((row) => JSON.stringify(row)));
+    for (const row of rows) if (!existing.has(JSON.stringify(row))) { section.rows.push(row); existing.add(JSON.stringify(row)); }
+  };
   const itemRow = (id: number | null, value: string): PublicDetailRow | null => {
     const key = id === null ? "" : `items:${id}`;
     if (!key || !names.has(key)) return null;
@@ -433,12 +439,10 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   let allImageryComplete = true;
   for (const reference of plan.pyramids) {
     const source = await load(reference, "tiles");
-    const pyramid = await jsonArtifact<TilePyramid>(source, "tile-index.json", "compendium.tile-pyramid.v2");
+    const pyramid = await jsonArtifact<TilePyramid>(source, "tile-index.json", "compendium.tile-pyramid.v3");
     Assert(TilePyramidSchema, pyramid);
     if (pyramid.profile.sha256 !== profileRecord.reference.sha256) throw new Error("Publication pyramid uses different calibration.");
-    const finest = pyramid.levels.find(level => level.z === pyramid.finestLevel);
-    if (!finest) throw new Error("Publication pyramid has no finest level.");
-    const layer: PublicTileLayer = { id: pyramid.mapSpaceId, mapSpaceId: pyramid.mapSpaceId, tileSize: pyramid.tileSize, finestLevel: pyramid.finestLevel, width: finest.width, height: finest.height, mapFromPixelEdge: pyramid.mapFromPixelEdge, tiles: [] };
+    const layer: PublicTileLayer = { id: pyramid.mapSpaceId, mapSpaceId: pyramid.mapSpaceId, tileSize: 256, minZoom: pyramid.minZoom, maxZoom: pyramid.maxZoom, extent: pyramid.extent, tiles: [] };
     let files = 0, bytes = 0;
     for (const level of pyramid.levels) for (const tile of level.tiles) {
       if (tile.coverage.state === "missing") throw new Error("A missing tile cannot have an image artifact.");
@@ -454,7 +458,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
         const decoded = alphaMasks.get(url)!;
         if (decoded.width !== tile.width || decoded.height !== tile.height) throw new Error("One tile image has contradictory dimensions.");
       }
-      layer.tiles.push({ z: tile.z, x: tile.x, y: tile.y, width: tile.width, height: tile.height, url, sha256: tile.sha256, bytes: tile.bytes, mapFromPixelEdge: tile.mapFromPixelEdge, state: tile.coverage.state });
+      layer.tiles.push({ z: tile.z, x: tile.x, y: tile.y, width: tile.width, height: tile.height, url, sha256: tile.sha256, bytes: tile.bytes, state: tile.coverage.state });
       files++; bytes += tile.bytes;
     }
     if (files !== pyramid.totals.files || bytes !== pyramid.totals.bytes) throw new Error("Publication pyramid file or byte totals are inconsistent.");
@@ -462,15 +466,17 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     tileLayers.push(layer);
   }
   const localTileLayers = tileLayers;
-  const tileBounds = (layer: PublicTileLayer): { min: { x: number; y: number }; max: { x: number; y: number } } => {
-    const corners = [[0, 0], [layer.width, 0], [0, layer.height], [layer.width, layer.height]] as const;
-    const points = corners.map(([x, y]) => affinePoint(layer.mapFromPixelEdge, x, y));
-    return { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } };
-  };
+  const tileBounds = (layer: PublicTileLayer): { min: { x: number; y: number }; max: { x: number; y: number } } => ({
+    min: { x: layer.extent[0], y: layer.extent[1] },
+    max: { x: layer.extent[2], y: layer.extent[3] },
+  });
   const bindingsPerMap = new Map<string, number>();
   for (const binding of profile.bindings) bindingsPerMap.set(binding.mapSpaceId, (bindingsPerMap.get(binding.mapSpaceId) ?? 0) + 1);
   const layout = buildWorldLayout(
-    profile.mapSpaces.map((space) => ({ mapSpaceId: space.id, bounds: localTileLayers.find((layer) => layer.mapSpaceId === space.id) ? tileBounds(localTileLayers.find((layer) => layer.mapSpaceId === space.id)!) : null })),
+    profile.mapSpaces.map((space) => {
+      const layer = localTileLayers.find((candidate) => candidate.mapSpaceId === space.id);
+      return { mapSpaceId: space.id, bounds: layer ? tileBounds(layer) : null, ...(layer ? { coarsestTileSize: layer.tileSize / 2 ** layer.minZoom } : {}) };
+    }),
     reviewedOffsets,
     new Set([...bindingsPerMap].filter(([, count]) => count > 1).map(([mapSpaceId]) => mapSpaceId)),
   );
@@ -478,20 +484,35 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   tileLayers = localTileLayers.map((layer) => {
     const offset = offsetByMap.get(layer.mapSpaceId);
     if (!offset) throw new Error(`World layout has no offset for map space: ${layer.mapSpaceId}`);
-    const translate = (affine: PublicAffine): PublicAffine => ({ ...affine, origin: { x: affine.origin.x + offset.worldX, y: affine.origin.y + offset.worldY } });
-    return { ...layer, mapFromPixelEdge: translate(layer.mapFromPixelEdge), tiles: layer.tiles.map((tile) => ({ ...tile, mapFromPixelEdge: translate(tile.mapFromPixelEdge) })) };
+    const finestPixel = 1 / 2 ** layer.maxZoom;
+    const shiftX = offset.worldX / finestPixel;
+    const shiftY = offset.worldY / finestPixel;
+    if (!Number.isInteger(shiftX) || !Number.isInteger(shiftY)) throw new Error(`World offset for ${layer.mapSpaceId} is not aligned to the finest tile lattice.`);
+    for (const tile of layer.tiles) {
+      const tileWorldSize = layer.tileSize / 2 ** tile.z;
+      if (!Number.isInteger(offset.worldX / tileWorldSize) || !Number.isInteger(offset.worldY / tileWorldSize)) throw new Error(`World offset for ${layer.mapSpaceId} is not aligned to zoom ${tile.z}.`);
+    }
+    return {
+      ...layer,
+      extent: [layer.extent[0] + offset.worldX, layer.extent[1] + offset.worldY, layer.extent[2] + offset.worldX, layer.extent[3] + offset.worldY] as [number, number, number, number],
+      tiles: layer.tiles.map((tile) => ({ ...tile, x: tile.x + Math.round(offset.worldX / (layer.tileSize / 2 ** tile.z)), y: tile.y + Math.round(offset.worldY / (layer.tileSize / 2 ** tile.z)) })),
+    };
   });
   const covered = (placement: NormalizedPlacement): boolean => {
     if (!placement.mapPosition || !placement.mapSpaceId) return false;
-    const layer = localTileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId);
+    const layer = localTileLayers.find(candidate => candidate.mapSpaceId === placement.mapSpaceId);
     if (!layer) return false;
-    return layer.tiles.some(tile => {
-      if (tile.z !== layer.finestLevel || tile.state === "empty") return false;
-      const [x, y] = inversePoint(tile.mapFromPixelEdge, [placement.mapPosition!.x, placement.mapPosition!.y]);
-      if (x < 0 || y < 0 || x >= tile.width || y >= tile.height) return false;
-      const mask = alphaMasks.get(tile.url)!;
-      return mask.bytes[(Math.floor(y) * mask.width + Math.floor(x)) * 4 + 3]! > 0;
-    });
+    const tileWorldSize = 256 / 2 ** layer.maxZoom;
+    const tileX = Math.floor(placement.mapPosition.x / tileWorldSize);
+    const tileY = Math.floor(placement.mapPosition.y / tileWorldSize);
+    const tile = layer.tiles.find(candidate => candidate.z === layer.maxZoom && candidate.x === tileX && candidate.y === tileY);
+    if (!tile || tile.state === "empty") return false;
+    const mask = alphaMasks.get(tile.url);
+    if (!mask) return false;
+    const localX = Math.floor((placement.mapPosition.x - tileX * tileWorldSize) / (tileWorldSize / 256));
+    const localY = Math.floor(((tileY + 1) * tileWorldSize - placement.mapPosition.y) / (tileWorldSize / 256));
+    return localX >= 0 && localX < mask.width && localY >= 0 && localY < mask.height
+      && mask.bytes[(localY * mask.width + localX) * 4 + 3]! > 0;
   };
   const categoriesByPlacement = new Map(map.placements.map((placement) => [placement.placementId, placementCategories(placement)]));
   const levelRangesByPlacement = new Map(map.placements.map((placement) => [placement.placementId, placementLevelRange(placement, entities.entities, map.sources)]));
@@ -512,7 +533,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const name = [source.data.interactableName, source.data.chestName, referenceName(source.data.station), referenceName(source.data.property)].find((value) => typeof value === "string" && value.trim());
     if (typeof name === "string") sourceNamesByPlacement.set(source.placementId, plainText(name));
   }
-  const localPlacements: Array<{ source: NormalizedPlacement; value: PublicPlacement }> = selected.map(placement => {
+  const localPlacements: Array<{ source: NormalizedPlacement; value: Omit<PublicPlacement, "itemKeys" | "searchText"> & { sections: PublicDetailSection[] } }> = selected.map(placement => {
     const resolution = resolver.resolve(placement.sceneNativeId, placement.scenePath, placement.worldPosition);
     const candidates = resolution.candidates.filter(candidate => candidate.mapSpaceId === placement.mapSpaceId);
     if (candidates.length !== 1 || Math.hypot(candidates[0]!.mapPosition.x - placement.mapPosition!.x, candidates[0]!.mapPosition.y - placement.mapPosition!.y) > 1e-6) throw new Error(`Publication placement contradicts reviewed spatial membership: ${placement.placementId}`);
@@ -527,7 +548,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     };
   });
   const imageryMapSpaces = new Set(tileLayers.map((layer) => layer.mapSpaceId));
-  const placements: PublicPlacement[] = localPlacements.map(({ source, value }) => {
+  const offsetPlacements = localPlacements.map(({ source, value }) => {
     const offset = offsetByMap.get(value.mapSpaceId);
     if (!offset) throw new Error(`World layout has no offset for map space: ${value.mapSpaceId}`);
     const travel = travelForPlacement(source, map.sources, resolver, catalogValue as SceneCatalog, offsetByMap, imageryMapSpaces);
@@ -538,34 +559,46 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       ...(travel ? { travel } : {}),
     };
   });
-  const itemSources: PublicationData["itemSources"] = items.items.map(item => ({ itemKey: item.itemKey, sources: item.sources.map(source => {
-    const ownerKeys = source.context.ownerEntityKeys;
-    if (ownerKeys !== undefined && (!Array.isArray(ownerKeys) || ownerKeys.some(key => typeof key !== "string" || !names.has(key)))) throw new Error("Item source references an unknown owner.");
-    const owners = (ownerKeys as string[] | undefined)?.map(key => names.get(key)!) ?? [];
-    const sourceLabel = typeof source.context.sourceLabel === "string" && plainText(source.context.sourceLabel)
-      ? plainText(source.context.sourceLabel)
-      : [sourceKindLabel(source.sourceKind), owners.join(" / ")].filter(Boolean).join(" — ");
-    const rows: PublicDetailRow[] = [];
-    if (source.sourceKind === "merchant" && typeof source.context.cost === "number") {
-      const currency = typeof source.context.currencyId === "number" ? names.get(`currencies:${source.context.currencyId}`) : undefined;
-      rows.push({ label: "Price", value: `${source.context.cost}${currency ? ` ${currency}` : ""}` });
+  const itemSources: PublicItemSource[] = items.items.map(item => {
+    const rawSources = item.sources.map(source => {
+      const ownerKeys = source.context.ownerEntityKeys;
+      if (ownerKeys !== undefined && (!Array.isArray(ownerKeys) || ownerKeys.some(key => typeof key !== "string" || !names.has(key)))) throw new Error("Item source references an unknown owner.");
+      const owners = (ownerKeys as string[] | undefined)?.map(key => names.get(key)!) ?? [];
+      const sourceLabel = typeof source.context.sourceLabel === "string" && plainText(source.context.sourceLabel)
+        ? plainText(source.context.sourceLabel)
+        : [sourceKindLabel(source.sourceKind), owners.join(" / ")].filter(Boolean).join(" — ");
+      const rows: PublicDetailRow[] = [];
+      if (source.sourceKind === "merchant" && typeof source.context.cost === "number") {
+        const currency = typeof source.context.currencyId === "number" ? names.get(`currencies:${source.context.currencyId}`) : undefined;
+        rows.push({ label: "Price", value: `${source.context.cost}${currency ? ` ${currency}` : ""}` });
+      }
+      if ((source.sourceKind === "npc-loot" || source.sourceKind === "world-loot" || source.sourceKind === "container") && (typeof source.context.min === "number" || typeof source.context.max === "number")) {
+        const minimum = typeof source.context.min === "number" ? source.context.min : source.context.max;
+        const maximum = typeof source.context.max === "number" ? source.context.max : source.context.min;
+        rows.push({ label: "Quantity", value: minimum === maximum ? String(minimum) : `${minimum}–${maximum}` });
+      }
+      if (source.sourceKind === "resource" && typeof source.context.rank === "number") rows.push({ label: "Gathering rank", value: String(source.context.rank) });
+      const sections: PublicDetailSection[] = rows.length ? [{ title: `${sourceKindLabel(source.sourceKind)} details`, rows }] : [];
+      for (const conditionId of source.conditionIds) {
+        const condition = conditionsById.get(conditionId);
+        if (!condition) throw new Error(`Item source references missing condition ${conditionId}.`);
+        const conditionRows = scalarRows(condition.payload);
+        if (conditionRows.length) sections.push({ title: "Requirements", rows: conditionRows });
+      }
+      return { label: sourceLabel, kind: sourceKindLabel(source.sourceKind), placementIds: filterIds(source.placementIds), sections };
+    });
+    const sharedByTitle = new Map<string, PublicDetailSection>();
+    for (const source of rawSources) for (const section of source.sections.filter((candidate) => candidate.title === "Requirements")) {
+      const shared = sharedByTitle.get(section.title) ?? { title: section.title, rows: [] };
+      const existing = new Set(shared.rows.map((row) => JSON.stringify(row)));
+      for (const row of section.rows) if (!existing.has(JSON.stringify(row))) { shared.rows.push(row); existing.add(JSON.stringify(row)); }
+      sharedByTitle.set(section.title, shared);
     }
-    if ((source.sourceKind === "npc-loot" || source.sourceKind === "world-loot" || source.sourceKind === "container") && (typeof source.context.min === "number" || typeof source.context.max === "number")) {
-      const minimum = typeof source.context.min === "number" ? source.context.min : source.context.max;
-      const maximum = typeof source.context.max === "number" ? source.context.max : source.context.min;
-      rows.push({ label: "Quantity", value: minimum === maximum ? String(minimum) : `${minimum}–${maximum}` });
-    }
-    if (source.sourceKind === "resource" && typeof source.context.rank === "number") rows.push({ label: "Gathering rank", value: String(source.context.rank) });
-    const sections: PublicDetailSection[] = rows.length ? [{ title: `${sourceKindLabel(source.sourceKind)} details`, rows }] : [];
-    for (const conditionId of source.conditionIds) {
-      const condition = conditionsById.get(conditionId);
-      if (!condition) throw new Error(`Item source references missing condition ${conditionId}.`);
-      const conditionRows = scalarRows(condition.payload);
-      if (conditionRows.length) sections.push({ title: "Requirements", rows: conditionRows });
-    }
-    return { label: sourceLabel, kind: sourceKindLabel(source.sourceKind), placementIds: filterIds(source.placementIds), sections };
-  }) }));
-  const placementsById = new Map(placements.map(placement => [placement.placementId, placement]));
+    const sections = [...sharedByTitle.values()];
+    const sources = rawSources.map((source) => ({ ...source, sections: source.sections.filter((section) => section.title !== "Requirements") }));
+    return { itemKey: item.itemKey, sections, sources };
+  });
+  const placementsById = new Map(offsetPlacements.map((value) => [value.placementId, value]));
   const outputSectionsByPlacement = new Map<string, Map<string, PublicDetailSection>>();
   for (const item of itemSources) for (const source of item.sources) for (const id of source.placementIds) {
     let sections = outputSectionsByPlacement.get(id);
@@ -578,11 +611,38 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     }
     section.rows.push({ label: names.get(item.itemKey) ?? item.itemKey, value: source.label, entityKey: item.itemKey });
   }
+  const detailPath = (kind: "entities" | "items", index: number): string => `details/${kind}-${String(index).padStart(4, "0")}.json`;
+  const entityIndex: PublicEntitySummary[] = publicEntities.map((entity, index) => ({
+    entityKey: entity.entityKey, kind: entity.kind, nativeId: entity.nativeId, name: entity.name,
+    description: entity.description, detailPath: detailPath("entities", index),
+  }));
+  const itemIndex: PublicItemSummary[] = itemSources.map((item, index) => ({
+    itemKey: item.itemKey, name: names.get(item.itemKey) ?? item.itemKey,
+    sourceNames: [...new Set(item.sources.map((source) => source.label))].sort(),
+    sourceKinds: [...new Set(item.sources.map((source) => source.kind))].sort(),
+    detailPath: detailPath("items", index),
+  }));
+  const itemKeysByPlacement = new Map<string, Set<string>>();
+  for (const item of itemSources) for (const source of item.sources) for (const placementId of source.placementIds) {
+    const keys = itemKeysByPlacement.get(placementId) ?? new Set<string>();
+    keys.add(item.itemKey);
+    itemKeysByPlacement.set(placementId, keys);
+  }
+  const placements: PublicPlacement[] = offsetPlacements.map((value) => {
+    const { sections, ...placement } = value;
+    const itemKeys = [...(itemKeysByPlacement.get(placement.placementId) ?? [])].sort();
+    // Spreading widens the fixed-length position to number[], so it is restated as the pair
+    // the published contract declares.
+    const [positionX, positionY] = placement.position;
+    if (positionX === undefined || positionY === undefined) throw new Error(`Placement ${placement.placementId} has no map position.`);
+    const position: [number, number] = [positionX, positionY];
+    return { ...placement, position, itemKeys, searchText: [placement.label, ...placement.categories.map((category) => categoryLabels[category])].join(" ") };
+  });
   const sceneRanges = new Map(entities.entities.filter((entity) => entity.kind === "scenes").map((entity) => [entity.nativeId, sceneLevelRange(entity)]));
   const mapLevelRanges = new Map(map.mapSpaces.map((space) => [space.mapSpaceId, consistentLevelRange(map.placements.filter((placement) => placement.mapSpaceId === space.mapSpaceId).map((placement) => sceneRanges.get(placement.sceneNativeId)))]));
   const publicMaps: PublicationData["maps"] = map.mapSpaces.filter(space => tileLayers.some(layer => layer.mapSpaceId === space.mapSpaceId)).map(space => {
     const points: Array<[number, number]> = [];
-    for (const layer of tileLayers.filter(layer => layer.mapSpaceId === space.mapSpaceId)) for (const [x, y] of [[0, 0], [layer.width, 0], [0, layer.height], [layer.width, layer.height]] as const) points.push(affinePoint(layer.mapFromPixelEdge, x, y));
+    for (const layer of tileLayers.filter(layer => layer.mapSpaceId === space.mapSpaceId)) points.push([layer.extent[0], layer.extent[1]], [layer.extent[2], layer.extent[3]]);
     for (const placement of placements.filter(placement => placement.mapSpaceId === space.mapSpaceId)) points.push(...placement.areas.flat());
     const range = mapLevelRanges.get(space.mapSpaceId);
     return { mapSpaceId: space.mapSpaceId, label: space.label, ...(range ? { levelRange: range } : {}), bounds: { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } } };
@@ -630,8 +690,20 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const complete = Boolean(coverage.complete) && allImageryComplete && coverage.blockers.length === 0 && excludedPlacements === 0 && layout.unplacedMapSpaceIds.length === 0;
   const coverageMessages = plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage."] : [];
   if (layout.unplacedMapSpaceIds.length > 0) coverageMessages.push(`Unplaced map spaces: ${layout.unplacedMapSpaceIds.join(", ")}.`);
-  const data: PublicationData = { schemaVersion: "compendium.publication.v7", buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: coverageMessages }, world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: layout.offsets, unplacedMapSpaceIds: layout.unplacedMapSpaceIds }, maps: publicMaps, placements, entities: publicEntities, itemSources, tileLayers, illustrations, guide };
+  const data: PublicationData = { schemaVersion: PUBLICATION_SCHEMA_VERSION, buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: coverageMessages }, world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: layout.offsets, unplacedMapSpaceIds: layout.unplacedMapSpaceIds }, maps: publicMaps, placements, entityIndex, itemIndex, tileLayers, illustrations };
   validatePublication(data);
+  const entityDocuments: Array<[string, unknown]> = [];
+  for (const [index, entity] of publicEntities.entries()) {
+    const document = { schemaVersion: "compendium.publication-entity-details.v1", buildId: plan.buildId, entities: [entity] };
+    validateEntityDetails(document, data);
+    entityDocuments.push([detailPath("entities", index), document]);
+  }
+  const itemDocuments: Array<[string, unknown]> = [];
+  for (const [index, item] of itemSources.entries()) {
+    const document = { schemaVersion: "compendium.publication-item-sources.v1", buildId: plan.buildId, itemSources: [item] };
+    validateItemSources(document, data);
+    itemDocuments.push([detailPath("items", index), document]);
+  }
   const inputHashes: Record<string, string> = { plan: createHash("sha256").update(planBytes).digest("hex"), normalized: plan.normalized.sha256, worldOffsets: plan.worldOffsets.sha256 };
   for (const [index, reference] of plan.pyramids.entries()) inputHashes[`pyramid:${index}`] = reference.sha256;
   for (const [index, reference] of plan.illustrations.entries()) inputHashes[`illustration:${index}`] = reference.sha256;
@@ -639,9 +711,14 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const run = await beginRun(outputRoot, { buildId: plan.buildId, command: "publication", toolRevision: await toolRevision(), settings: { mode: plan.mode }, inputHashes });
   try {
     await mkdir(resolve(run.directory, "public/imagery"), { recursive: true });
+    await mkdir(resolve(run.directory, "public/details"), { recursive: true });
     await Bun.write(resolve(run.directory, "plan.json"), planBytes); await run.addArtifact("plan.json");
     for (const [url, bytes] of assetBytes) { await Bun.write(resolve(run.directory, "public", url), bytes); await run.addArtifact(`public/${url}`); }
     await Bun.write(resolve(run.directory, "public/publication.json"), `${JSON.stringify(data)}\n`); await run.addArtifact("public/publication.json");
+    for (const [relativePath, document] of [...entityDocuments, ...itemDocuments]) {
+      await Bun.write(resolve(run.directory, "public", relativePath), `${JSON.stringify(document)}\n`);
+      await run.addArtifact(`public/${relativePath}`);
+    }
     for (const [section, document] of Object.entries(guideDocuments)) {
       Assert(GuideDocumentSchema, document);
       const relativePath = `public/guide-${section}.json`;

@@ -1,5 +1,5 @@
 import { Assert } from "typebox/value";
-import { PublicationDataSchema, type PublicationData, type PublicAffine, type PublicDetailSection } from "./public-contracts";
+import { EntityDetailsDocumentSchema, ItemSourcesDocumentSchema, PublicationDataSchema, type EntityDetailsDocument, type ItemSourcesDocument, type PublicationData, type PublicAffine, type PublicDetailSection } from "./public-contracts";
 
 export function affinePoint(frame: PublicAffine, x: number, y: number): [number, number] {
   return [frame.origin.x + frame.xAxis.x * x + frame.yAxis.x * y, frame.origin.y + frame.xAxis.y * x + frame.yAxis.y * y];
@@ -29,8 +29,8 @@ export function validatePublication(value: unknown): asserts value is Publicatio
   if (data.mode === "release" && (!data.coverage.complete || data.coverage.excludedPlacements !== 0)) throw new Error("A release requires complete coverage without omitted placements.");
   const maps = unique(data.maps, row => row.mapSpaceId, "map space");
   const placements = unique(data.placements, row => row.placementId, "placement");
-  const entities = unique(data.entities, row => row.entityKey, "entity");
-  unique(data.itemSources, row => row.itemKey, "item source index");
+  const entities = unique(data.entityIndex, row => row.entityKey, "entity index");
+  const items = unique(data.itemIndex, row => row.itemKey, "item index");
   unique(data.tileLayers, row => row.id, "tile layer");
   unique(data.tileLayers, row => row.mapSpaceId, "map pyramid");
   unique(data.illustrations, row => row.id, "illustration");
@@ -58,41 +58,6 @@ export function validatePublication(value: unknown): asserts value is Publicatio
   const checkPlacementRefs = (ids: readonly string[]) => {
     for (const id of ids) if (!placements.has(id)) throw new Error(`Publication references absent placement: ${id}`);
   };
-  const checkSections = (sections: readonly PublicDetailSection[]) => {
-    for (const section of sections) for (const row of section.rows) {
-      if (row.entityKey !== undefined && !entities.has(row.entityKey)) throw new Error(`Publication detail references absent entity: ${row.entityKey}`);
-      if (row.placementIds !== undefined) checkPlacementRefs(row.placementIds);
-    }
-  };
-  const guideDungeons = unique(data.guide.dungeons, row => row.dungeonKey, "guide dungeon");
-  const guideBosses = unique(data.guide.bosses, row => row.bossKey, "guide boss");
-  const guideRegions = unique(data.guide.regions, row => row.regionKey, "guide region");
-  const guideProperties = unique(data.guide.properties, row => row.propertyKey, "guide property");
-  for (const dungeon of guideDungeons.values()) {
-    if (entities.get(dungeon.dungeonKey)?.kind !== "scenes") throw new Error(`Guide dungeon references absent scene: ${dungeon.dungeonKey}`);
-    checkPlacementRefs(dungeon.placementIds);
-    for (const boss of dungeon.bosses) {
-      if (boss.dungeonKeys !== undefined && !boss.dungeonKeys.includes(dungeon.dungeonKey)) throw new Error(`Guide boss omits its dungeon context: ${boss.bossKey}`);
-      if (guideBosses.get(boss.bossKey) === undefined) throw new Error(`Guide dungeon references absent boss: ${boss.bossKey}`);
-      if (entities.get(boss.bossKey)?.kind !== "npcs") throw new Error(`Guide boss references absent NPC: ${boss.bossKey}`);
-      checkPlacementRefs(boss.placementIds);
-      for (const loot of boss.loot) if (entities.get(loot.itemKey)?.kind !== "items") throw new Error(`Guide loot references absent item: ${loot.itemKey}`);
-    }
-  }
-  for (const boss of guideBosses.values()) {
-    if (entities.get(boss.bossKey)?.kind !== "npcs") throw new Error(`Guide boss references absent NPC: ${boss.bossKey}`);
-    checkPlacementRefs(boss.placementIds);
-    if (boss.dungeonKeys !== undefined) for (const dungeonKey of boss.dungeonKeys) if (!guideDungeons.has(dungeonKey)) throw new Error(`Guide boss references absent dungeon: ${dungeonKey}`);
-    for (const loot of boss.loot) if (entities.get(loot.itemKey)?.kind !== "items") throw new Error(`Guide loot references absent item: ${loot.itemKey}`);
-  }
-  for (const region of guideRegions.values()) {
-    if (entities.get(region.regionKey)?.kind !== "regions") throw new Error(`Guide region references absent entity: ${region.regionKey}`);
-    checkPlacementRefs(region.placementIds);
-  }
-  for (const property of guideProperties.values()) {
-    if (entities.get(property.propertyKey)?.kind !== "properties") throw new Error(`Guide property references absent entity: ${property.propertyKey}`);
-    checkPlacementRefs(property.placementIds);
-  }
   for (const map of maps.values()) {
     if (!offsets.has(map.mapSpaceId)) throw new Error(`Publication map lacks a world offset: ${map.mapSpaceId}`);
     if (!(map.bounds.max.x > map.bounds.min.x && map.bounds.max.y > map.bounds.min.y)) throw new Error(`Publication map has empty bounds: ${map.mapSpaceId}`);
@@ -101,17 +66,38 @@ export function validatePublication(value: unknown): asserts value is Publicatio
   }
   for (const layer of data.tileLayers) {
     scope(layer.mapSpaceId);
-    inversePoint(layer.mapFromPixelEdge, [0, 0]);
-    unique(layer.tiles, tile => `${tile.z}/${tile.x}/${tile.y}`, "tile position");
+    if (layer.minZoom > layer.maxZoom) throw new Error(`Publication tile layer has inverted zoom range: ${layer.mapSpaceId}`);
+    if (!(layer.extent[2] > layer.extent[0] && layer.extent[3] > layer.extent[1])) throw new Error(`Publication tile layer has empty extent: ${layer.mapSpaceId}`);
+    const byPosition = unique(layer.tiles, tile => `${tile.z}/${tile.x}/${tile.y}`, "tile position");
+    const levels = new Set(layer.tiles.map(tile => tile.z));
+    for (let z = layer.minZoom; z <= layer.maxZoom; z++) if (!levels.has(z)) throw new Error(`Publication tile zoom levels are not contiguous: ${layer.mapSpaceId}`);
+    const finestTiles = layer.tiles.filter(tile => tile.z === layer.maxZoom);
+    if (finestTiles.length === 0) throw new Error(`Publication tile layer has no finest tiles: ${layer.mapSpaceId}`);
+    const finestSize = layer.tileSize / 2 ** layer.maxZoom;
+    const expectedExtent: [number, number, number, number] = [
+      Math.min(...finestTiles.map(tile => tile.x * finestSize)),
+      Math.min(...finestTiles.map(tile => tile.y * finestSize)),
+      Math.max(...finestTiles.map(tile => (tile.x + 1) * finestSize)),
+      Math.max(...finestTiles.map(tile => (tile.y + 1) * finestSize)),
+    ];
+    if (expectedExtent.some((value, index) => Math.abs(value - layer.extent[index]!) > 1e-7 * Math.max(1, Math.abs(value), Math.abs(layer.extent[index]!)))) throw new Error(`Publication tile extent disagrees with finest tile union: ${layer.mapSpaceId}`);
     for (const tile of layer.tiles) {
-      if (tile.z > layer.finestLevel) throw new Error("Publication tile exceeds its finest level.");
-      const scale = 2 ** (layer.finestLevel - tile.z);
-      const levelWidth = Math.ceil(layer.width / scale), levelHeight = Math.ceil(layer.height / scale);
-      if (tile.width !== Math.min(layer.tileSize, levelWidth - tile.x * layer.tileSize) || tile.height !== Math.min(layer.tileSize, levelHeight - tile.y * layer.tileSize)) throw new Error("Publication tile dimensions contradict its grid.");
-      for (const [x, y] of [[0, 0], [tile.width, 0], [0, tile.height], [tile.width, tile.height]] as const) {
-        const actual = affinePoint(tile.mapFromPixelEdge, x, y);
-        const grid = inversePoint(layer.mapFromPixelEdge, actual);
-        if (Math.abs(grid[0] - (tile.x * layer.tileSize + x) * scale) > 1e-5 || Math.abs(grid[1] - (tile.y * layer.tileSize + y) * scale) > 1e-5) throw new Error("Publication tile transform contradicts its grid.");
+      if (tile.z < layer.minZoom || tile.z > layer.maxZoom) throw new Error("Publication tile lies outside declared zoom range.");
+      if (tile.width !== layer.tileSize || tile.height !== layer.tileSize) throw new Error("Publication tile dimensions must equal tileSize.");
+      const tileSize = layer.tileSize / 2 ** tile.z;
+      const minX = Math.floor(layer.extent[0] / tileSize);
+      const maxX = Math.ceil(layer.extent[2] / tileSize) - 1;
+      const minY = Math.floor(layer.extent[1] / tileSize);
+      const maxY = Math.ceil(layer.extent[3] / tileSize) - 1;
+      if (tile.x < minX || tile.x > maxX || tile.y < minY || tile.y > maxY) throw new Error("Publication tile lies outside its extent at its zoom level.");
+      if (tile.z < layer.maxZoom) {
+        const childPrefix = `${tile.z + 1}/`;
+        const hasChild = [...byPosition.keys()].some(key => {
+          if (!key.startsWith(childPrefix)) return false;
+          const [, x, y] = key.split("/").map(Number);
+          return Math.floor(x! / 2) === tile.x && Math.floor(y! / 2) === tile.y;
+        });
+        if (!hasChild && tile.state !== "empty") throw new Error("Publication coarse tile is neither a parent of finer tiles nor transparent.");
       }
     }
   }
@@ -121,12 +107,15 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     inside(placement.mapSpaceId, placement.position);
     const layer = data.tileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId);
     const markerTile = layer?.tiles.find(tile => {
-      if (tile.z !== layer.finestLevel || tile.state === "empty") return false;
-      const point = inversePoint(tile.mapFromPixelEdge, placement.position);
-      return point[0] >= 0 && point[1] >= 0 && point[0] < tile.width && point[1] < tile.height;
+      if (tile.z !== layer.maxZoom || tile.state === "empty") return false;
+      const tileSize = layer.tileSize / 2 ** layer.maxZoom;
+      const tileX = Math.floor(placement.position[0] / tileSize);
+      const tileY = Math.floor(placement.position[1] / tileSize);
+      return tile.x === tileX && tile.y === tileY;
     });
     if (!layer || !markerTile) throw new Error(`Publication placement lacks finest primary imagery: ${placement.placementId}`);
     for (const key of placement.entityKeys) if (!entities.has(key)) throw new Error(`Publication placement references absent entity: ${key}`);
+    for (const key of placement.itemKeys) if (!items.has(key)) throw new Error(`Publication placement references absent item: ${key}`);
     for (const polygon of placement.areas) for (const point of polygon) inside(placement.mapSpaceId, point);
     if (placement.travel) {
       const destination = placement.travel.destination;
@@ -138,16 +127,51 @@ export function validatePublication(value: unknown): asserts value is Publicatio
         throw new Error(`Unresolved travel destination has a guessed position: ${placement.placementId}`);
       }
     }
-    checkSections(placement.sections);
-  }
-  for (const entity of entities.values()) { checkPlacementRefs(entity.placementIds); checkSections(entity.sections); }
-  for (const item of data.itemSources) {
-    if (entities.get(item.itemKey)?.kind !== "items") throw new Error(`Publication source index references absent item: ${item.itemKey}`);
-    for (const source of item.sources) { checkPlacementRefs(source.placementIds); checkSections(source.sections); }
   }
   for (const illustration of data.illustrations) {
     scope(illustration.mapSpaceId);
     if ((illustration.registration === "calibrated") !== (illustration.mapFromPixelEdge !== null)) throw new Error("Publication illustration registration contradicts its transform.");
     if (illustration.mapFromPixelEdge) inversePoint(illustration.mapFromPixelEdge, [0, 0]);
+  }
+}
+
+function validateDetailSections(sections: readonly PublicDetailSection[], publication: PublicationData): void {
+  const placements = new Set(publication.placements.map((placement) => placement.placementId));
+  const entities = new Set(publication.entityIndex.map((entity) => entity.entityKey));
+  for (const section of sections) for (const row of section.rows) {
+    if (row.entityKey !== undefined && !entities.has(row.entityKey)) throw new Error(`Publication detail references absent entity: ${row.entityKey}`);
+    if (row.placementIds !== undefined) for (const id of row.placementIds) if (!placements.has(id)) throw new Error(`Publication detail references absent placement: ${id}`);
+  }
+}
+
+export function validateEntityDetails(value: unknown, publication: PublicationData): asserts value is EntityDetailsDocument {
+  Assert(EntityDetailsDocumentSchema, value);
+  const document = value as EntityDetailsDocument;
+  if (document.buildId !== publication.buildId) throw new Error("Entity detail build does not match the map publication.");
+  const index = new Map(publication.entityIndex.map((entity) => [entity.entityKey, entity]));
+  const entities = unique(document.entities, (entity) => entity.entityKey, "entity detail");
+  for (const entity of entities.values()) {
+    const summary = index.get(entity.entityKey);
+    if (!summary) throw new Error(`Entity detail is absent from the map index: ${entity.entityKey}`);
+    if (summary.kind !== entity.kind || summary.nativeId !== entity.nativeId || summary.name !== entity.name || summary.description !== entity.description) throw new Error(`Entity detail contradicts its map index: ${entity.entityKey}`);
+    for (const id of entity.placementIds) if (!publication.placements.some((placement) => placement.placementId === id)) throw new Error(`Entity detail references absent placement: ${id}`);
+    validateDetailSections(entity.sections, publication);
+  }
+}
+
+export function validateItemSources(value: unknown, publication: PublicationData): asserts value is ItemSourcesDocument {
+  Assert(ItemSourcesDocumentSchema, value);
+  const document = value as ItemSourcesDocument;
+  if (document.buildId !== publication.buildId) throw new Error("Item-source detail build does not match the map publication.");
+  const index = new Map(publication.itemIndex.map((item) => [item.itemKey, item]));
+  const items = unique(document.itemSources, (item) => item.itemKey, "item-source detail");
+  for (const item of items.values()) {
+    const summary = index.get(item.itemKey);
+    if (!summary) throw new Error(`Item-source detail is absent from the map index: ${item.itemKey}`);
+    validateDetailSections(item.sections, publication);
+    for (const source of item.sources) {
+      for (const id of source.placementIds) if (!publication.placements.some((placement) => placement.placementId === id)) throw new Error(`Item source references absent placement: ${id}`);
+      for (const section of source.sections) validateDetailSections([section], publication);
+    }
   }
 }

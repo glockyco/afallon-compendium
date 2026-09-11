@@ -31,6 +31,17 @@ test("world layout seeds missing maps deterministically without native coordinat
   expect(first.offsets.find((offset) => offset.mapSpaceId === "seeded")).toEqual(expect.objectContaining({ worldX: 152, worldY: 0, source: "seed", status: "unplaced" }));
 });
 
+test("world layout snaps seeded offsets to each map's coarsest tile size", () => {
+  const layout = buildWorldLayout([
+    { mapSpaceId: "first", bounds: { min: { x: 0, y: 0 }, max: { x: 512, y: 512 } }, coarsestTileSize: 256 },
+    { mapSpaceId: "second", bounds: { min: { x: -128, y: -64 }, max: { x: 128, y: 192 } }, coarsestTileSize: 256 },
+  ], { ...reviewed, offsets: [] });
+  const first = layout.offsets.find((offset) => offset.mapSpaceId === "first")!;
+  const second = layout.offsets.find((offset) => offset.mapSpaceId === "second")!;
+  expect(first).toEqual(expect.objectContaining({ worldX: 256, worldY: 0 }));
+  expect(second).toEqual(expect.objectContaining({ worldX: 1024, worldY: 256 }));
+});
+
 test("world layout rejects unknown and nonzero native reviewed offsets", () => {
   expect(() => buildWorldLayout(maps, { ...reviewed, offsets: [{ mapSpaceId: "unknown", worldX: 1, worldY: 2 }] }, new Set(["native"]))).toThrow("unknown map space");
   expect(() => buildWorldLayout(maps, { ...reviewed, offsets: [{ mapSpaceId: "native", worldX: 1, worldY: 2 }] }, new Set(["native"]))).toThrow("Native map space");

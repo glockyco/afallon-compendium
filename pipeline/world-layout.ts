@@ -16,7 +16,7 @@ export const WorldOffsetsSchema = Type.Object({
 export type WorldOffsets = Static<typeof WorldOffsetsSchema>;
 
 export type LayoutBounds = { min: { x: number; y: number }; max: { x: number; y: number } };
-export type LayoutMap = { mapSpaceId: string; bounds: LayoutBounds | null };
+export type LayoutMap = { mapSpaceId: string; bounds: LayoutBounds | null; coarsestTileSize?: number };
 
 export type WorldLayout = {
   offsets: PublicWorldOffset[];
@@ -90,14 +90,20 @@ export function buildWorldLayout(
       const width = bounds.max.x - bounds.min.x;
       const height = bounds.max.y - bounds.min.y;
       if (!(width > 0 && height > 0)) throw new Error(`World layout map has empty bounds: ${map.mapSpaceId}`);
-      let candidate = translatedBounds(bounds, cursorX - bounds.min.x, baselineY - bounds.min.y);
+      const quantum = map.coarsestTileSize ?? 1;
+      if (!(Number.isFinite(quantum) && quantum > 0)) throw new Error(`World layout map has an invalid coarsest tile size: ${map.mapSpaceId}`);
+      const snap = (value: number): number => Math.ceil(value / quantum) * quantum;
+      let candidateWorldX = snap(cursorX - bounds.min.x);
+      let candidateWorldY = snap(baselineY - bounds.min.y);
+      let candidate = translatedBounds(bounds, candidateWorldX, candidateWorldY);
       while (occupied.some((other) => overlaps(candidate, other))) {
         cursorX = Math.max(cursorX, ...occupied.map((other) => other.max.x + SEED_GAP));
-        candidate = translatedBounds(bounds, cursorX - bounds.min.x, baselineY - bounds.min.y);
+        candidateWorldX = snap(cursorX - bounds.min.x);
+        candidate = translatedBounds(bounds, candidateWorldX, candidateWorldY);
       }
-      worldX = cursorX - bounds.min.x;
-      worldY = baselineY - bounds.min.y;
-      cursorX += width + SEED_GAP;
+      worldX = candidateWorldX;
+      worldY = candidateWorldY;
+      cursorX = bounds.min.x + worldX + width + SEED_GAP;
       occupied.push(candidate);
       boundsByMapSpaceId.set(map.mapSpaceId, candidate);
     }

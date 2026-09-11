@@ -2,21 +2,19 @@ import { expect, test } from "bun:test";
 import { validatePublication } from "./publication-validation";
 import type { PublicationData } from "./public-contracts";
 
-const frame = { origin: { x: 0, y: 0 }, xAxis: { x: 1, y: 0 }, yAxis: { x: 0, y: 1 } };
-
 function publication(): PublicationData {
   return {
-    schemaVersion: "compendium.publication.v7", buildId: "build", mode: "release",
+    schemaVersion: "compendium.publication.v9", buildId: "build", mode: "release",
     coverage: { complete: true, excludedPlacements: 0, messages: [] },
     world: { mapSpaceId: "world", label: "World", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "reviewed", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: "world", label: "World", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } } }],
     placements: [
-      { placementId: "stacked-lower", mapSpaceId: "world", position: [0.5, 0.5], height: 17.25, label: "Enemy", categories: ["enemy"], entityKeys: [], areas: [], sections: [] },
-      { placementId: "stacked-upper", mapSpaceId: "world", position: [0.5, 0.5], height: 83.5, label: "Enemy", categories: ["enemy"], entityKeys: [], areas: [], sections: [] },
+      { placementId: "stacked-lower", mapSpaceId: "world", position: [0.5, 0.5], height: 17.25, label: "Enemy", categories: ["enemy"], entityKeys: [], itemKeys: [], searchText: "Enemy", areas: [] },
+      { placementId: "stacked-upper", mapSpaceId: "world", position: [0.5, 0.5], height: 83.5, label: "Enemy", categories: ["enemy"], entityKeys: [], itemKeys: [], searchText: "Enemy", areas: [] },
     ],
-    entities: [], itemSources: [],
-    tileLayers: [{ id: "world", mapSpaceId: "world", tileSize: 1, finestLevel: 0, width: 1, height: 1, mapFromPixelEdge: frame, tiles: [{ z: 0, x: 0, y: 0, width: 1, height: 1, url: "imagery/pixel.png", sha256: "0".repeat(64), bytes: 0, mapFromPixelEdge: frame, state: "captured" }] }],
-    illustrations: [], guide: { dungeons: [], bosses: [], regions: [], properties: [] },
+    entityIndex: [], itemIndex: [],
+    tileLayers: [{ id: "world", mapSpaceId: "world", tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 256, 256], tiles: [{ z: 0, x: 0, y: 0, width: 256, height: 256, url: "imagery/pixel.png", sha256: "0".repeat(64), bytes: 0, state: "captured" }] }],
+    illustrations: [],
   };
 }
 

@@ -1,4 +1,4 @@
-import type { PublicationData, PublicItemSource } from '../../../pipeline/public-contracts';
+import type { PublicationData, PublicItemSummary } from '../../../pipeline/public-contracts';
 
 export function resolvePublicationAssets(data: PublicationData, publicationUrl: string): PublicationData {
   const resolve = (asset: string) => new URL(asset, publicationUrl).toString();
@@ -12,8 +12,7 @@ export function resolvePublicationAssets(data: PublicationData, publicationUrl: 
   };
 }
 
-
-export function findItem(data: PublicationData | null, itemKey: string | null): PublicItemSource | null {
+export function findItem(data: PublicationData | null, itemKey: string | null): PublicItemSummary | null {
   if (!data || !itemKey) return null;
-  return data.itemSources.find((item) => item.itemKey === itemKey) ?? null;
+  return data.itemIndex.find((item) => item.itemKey === itemKey) ?? null;
 }
