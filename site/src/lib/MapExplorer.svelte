@@ -2,7 +2,7 @@
   import { pushState, replaceState } from '$app/navigation';
   import { base } from '$app/paths';
   import { onMount, tick } from 'svelte';
-  import type { MapAdapterUpdate, MapViewState } from './map-adapter';
+  import type { MapAdapter, MapAdapterUpdate, MapViewState } from './map-adapter';
   import { readMapUrl, writeMapUrl, type MapUrlState } from './map-url';
   import { filteredSections, linksFromSections } from './detail-utils';
   import DetailSections from './DetailSections.svelte';
@@ -25,11 +25,6 @@
   import { markerGlyphSvg } from './map/icon-atlas';
   import { downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
   import { PUBLICATION_SCHEMA_VERSION, type EntityDetailsDocument, type ItemSourcesDocument, type PublicEntity, type PublicEntitySummary, type PublicItemSource, type PublicItemSummary, type PublicPlacement, type PublicDetailSection, type PublicationData } from '../../../pipeline/public-contracts';
-
-  type Adapter = {
-    update(next: MapAdapterUpdate): void;
-    destroy(): void;
-  };
 
   interface LayerOption {
     id: string;
@@ -73,7 +68,7 @@
   let detailRequests = new Map<string, Promise<void>>();
   let detailLoading = false;
   let detailError = '';
-  let adapter: Adapter | null = null;
+  let adapter: MapAdapter | null = null;
   let loading = true;
   let loadError = '';
   let layerId = 'captured';
@@ -156,7 +151,7 @@
       // The expanded sidebar is a safe default when browser storage is unavailable.
     }
     const metadataRequest = new AbortController();
-    const onPopState = () => applyUrlState(readMapUrl(window.location.search), false);
+    const onPopState = () => applyUrlState(readMapUrl(window.location.search));
     const onKeydown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'b') {
         event.preventDefault();
@@ -170,7 +165,7 @@
     };
     window.addEventListener('popstate', onPopState);
     window.addEventListener('keydown', onKeydown);
-    applyUrlState(readMapUrl(window.location.search), false);
+    applyUrlState(readMapUrl(window.location.search));
     const mapDocumentUrl = new URL(`${base}/data/publication.json`, window.location.href).toString();
     publicationUrl = mapDocumentUrl;
     fetch(mapDocumentUrl, { signal: metadataRequest.signal })
@@ -184,7 +179,7 @@
         if (disposed) return;
         publication = data;
         searchIndexes = buildSearchIndexes(data);
-        applyUrlState(readMapUrl(window.location.search), false);
+        applyUrlState(readMapUrl(window.location.search));
         loading = false;
         void tick().then(() => ensureCurrentSelection());
         await tick();
@@ -192,7 +187,7 @@
         view = readMapUrl(window.location.search).view ?? centerView(publication.world);
         const module = await import('./map-adapter');
         if (disposed) return;
-        adapter = await module.createMapAdapter(canvas, {
+        adapter = await module.createMapAdapter(canvas, view, {
           onViewChange(nextView, bounds) {
             view = nextView;
             viewportBounds = bounds;
@@ -232,7 +227,7 @@
   });
 
   $: if (adapterReady && adapter && publication) {
-    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerId, placements: adapterPlacements, selectedId, view, worldOffsets: worldOffsetOverrides, authoring, showConnections });
+    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerId, placements: adapterPlacements, selectedId, worldOffsets: worldOffsetOverrides, authoring, showConnections });
   }
 
   async function loadEntityDetailPath(path: string): Promise<void> {
@@ -425,7 +420,7 @@
     return placement.position[0] >= bounds[0] && placement.position[0] <= bounds[2] && placement.position[1] >= bounds[1] && placement.position[1] <= bounds[3];
   }
 
-  function applyUrlState(next: MapUrlState, explicit: boolean): void {
+  function applyUrlState(next: MapUrlState): void {
     itemSourceQuery = next.itemSourceQuery;
     detailQuery = next.detailQuery;
     const options = getLayerOptions(publication);
@@ -443,8 +438,11 @@
     if (selectedEntityKey) itemKey = null;
     else if (next.entityKey && publication) staleSelection = `This link refers to an entity that is not in the loaded publication: ${next.entityKey}.`;
     if (next.itemKey && !itemKey && !selectedEntityKey && publication) staleSelection = `This link refers to an item that is not in the loaded publication: ${next.itemKey}.`;
-    if (next.view) view = next.view;
-    else if (!explicit && publication) view = centerView(publication.world);
+    const restoredView = next.view ?? (publication ? centerView(publication.world) : null);
+    if (restoredView) {
+      view = restoredView;
+      adapter?.setView(restoredView);
+    }
   }
 
   function currentUrl(overrides: Partial<Pick<MapUrlState, 'categories' | 'levelMinimum' | 'levelMaximum'>> = {}): URL {
@@ -469,17 +467,20 @@
     queryTimer = setTimeout(() => syncUrl('replace'), 280);
   }
 
+  function setMapView(next: MapViewState): void {
+    view = next;
+    adapter?.setView(next);
+    syncUrl('replace');
+  }
+
   function selectPlacement(placementId: string, origin: HTMLElement | HTMLCanvasElement | null = null): void {
     const placement = publication?.placements.find((candidate) => candidate.placementId === placementId);
     if (!placement) return;
-    const zoom = !orientationOnly ? Math.max(view.zoom, 1) : 1;
     selectedId = placementId;
     selectedEntityKey = null;
     staleSelection = '';
     detailOrigin = origin;
     if (!layerOptions.some((option) => option.id === layerId) || orientationOnly) layerId = layerOptions.find((option) => option.kind === 'screenshot')?.id ?? layerOptions[0]?.id ?? '';
-    view = { target: [placement.position[0], placement.position[1], 0], zoom };
-    viewportBounds = null;
     syncUrl('push');
     void tick().then(() => ensureCurrentSelection());
     void focusDetails();
@@ -661,7 +662,7 @@
       </aside>
 
       <section class="map-column" aria-label="Interactive map">
-        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => { view = { ...view, zoom: Math.min(12, view.zoom + 0.5) }; syncUrl('replace'); }}>+</button><button type="button" aria-label="Zoom out" on:click={() => { view = { ...view, zoom: Math.max(-12, view.zoom - 0.5) }; syncUrl('replace'); }}>−</button><button type="button" disabled={orientationOnly} on:click={() => { if (publication) { view = centerView(publication.world); syncUrl('replace'); } }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(hoveredPlacement.levelRange)}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}{#if orientationOnly}{' · orientation layer'}{/if}</div></div>
+        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(12, view.zoom + 0.5) })}>+</button><button type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(-12, view.zoom - 0.5) })}>−</button><button type="button" disabled={orientationOnly} on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(hoveredPlacement.levelRange)}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}{#if orientationOnly}{' · orientation layer'}{/if}</div></div>
         {#if loadError && publication}<div class="inline-error" role="alert">{loadError}</div>{/if}
         <section class="results" aria-labelledby="results-heading" bind:this={resultList}>
           <div class="results-header">
@@ -692,8 +693,8 @@
         </section>
       </section>
 
-      {#if selectedPlacement || selectedEntityKey || itemKey || staleSelection}
-        <aside class="details-panel" bind:this={detailsPanel} aria-label="Selected details">
+      <aside class="details-panel" bind:this={detailsPanel} aria-label="Selected details">
+        {#if selectedPlacement || selectedEntityKey || itemKey || staleSelection}
           <div class="details-header">
             <div>
               <span class="eyebrow">{itemKey ? 'Item sources' : selectedEntityKey ? 'Entity details' : 'Selected location'}</span>
@@ -750,8 +751,10 @@
               <div class="linked-locations"><h3>Linked locations</h3>{#each entityLinks(selectedPlacementDetails) as link}<button class="inline-link" type="button" on:click={(event) => selectPlacement(link.placementId, event.currentTarget)}>{link.label}</button>{/each}</div>
             {/if}
           {/if}
-        </aside>
-      {/if}
+        {:else}
+          <div class="details-empty"><span class="eyebrow">Location details</span><p>Select a marker or a result to inspect it.</p></div>
+        {/if}
+      </aside>
     </main>
   {/if}
 </div>
@@ -772,15 +775,15 @@
   .build-meta strong { color: #e9e4d9; font-weight: 600; }
   .coverage { padding: .25rem .45rem; border: 1px solid #896c47; color: #e4b77c; }
   .coverage.complete { border-color: #657d64; color: #a9c1a2; }
-  .workspace { display: grid; grid-template-columns: 280px minmax(360px, 1fr); height: calc(100dvh - 64px); min-height: 0; }
-  .workspace.has-details { grid-template-columns: 280px minmax(360px, 1fr) minmax(300px, 380px); }
-  .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr); }
-  .workspace.sidebar-collapsed.has-details { grid-template-columns: 56px minmax(360px, 1fr) minmax(300px, 380px); }
+  .workspace { display: grid; grid-template-columns: 280px minmax(360px, 1fr) minmax(300px, 380px); height: calc(100dvh - 64px); min-height: 0; }
+  .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr) minmax(300px, 380px); }
   .control-panel, .details-panel { background: #202120; overflow: auto; }
   .control-panel { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border-right: 1px solid #393a38; }
   .panel-body, .panel-rail { min-height: 0; flex: 1; overflow: auto; }
   .control-panel.collapsed { overflow-x: hidden; }
-  .details-panel { border-left: 1px solid #393a38; padding: 1rem; }
+  .details-panel { min-width: 0; border-left: 1px solid #393a38; padding: 1rem; }
+  .details-empty { display: grid; gap: .45rem; align-content: center; min-height: 100%; color: #aaa89f; }
+  .details-empty p { margin: 0; font-size: .82rem; }
   .panel-header { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: .7rem .75rem; border-bottom: 1px solid #393a38; background: #252622; }
   .panel-header strong, .panel-header small { display: block; }
   .panel-header strong { color: #eee9dd; font-size: .78rem; }
@@ -871,26 +874,18 @@
   .spinner { width: 22px; height: 22px; margin-bottom: 1rem; border: 2px solid #514f45; border-top-color: #d4b875; border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (max-width: 1050px) {
-    .workspace, .workspace.has-details { grid-template-columns: 220px minmax(0, 1fr); }
-    .workspace.sidebar-collapsed, .workspace.sidebar-collapsed.has-details { grid-template-columns: 56px minmax(0, 1fr); }
-    .workspace.has-details { grid-template-rows: minmax(0, 1fr) minmax(0, 45%); }
-    .workspace.has-details .control-panel { grid-row: 1 / -1; }
-    .workspace.has-details .map-column { grid-column: 2; }
+    .workspace { grid-template-columns: 220px minmax(0, 1fr) minmax(280px, 340px); }
+    .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr) minmax(280px, 340px); }
     .map-column { grid-template-rows: minmax(0, 3fr) minmax(0, 1fr); }
-    .details-panel { grid-column: 2; min-height: 0; border-top: 1px solid #706548; }
   }
   @media (max-width: 680px) {
     .atlas-shell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; }
     .topbar { align-items: flex-start; flex-direction: column; flex-shrink: 0; }
     .build-meta { justify-content: flex-start; }
-    .workspace, .workspace.sidebar-collapsed { position: relative; display: block; height: auto; flex: 1; min-height: 0; }
-    .workspace.has-details, .workspace.sidebar-collapsed.has-details { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(45dvh, auto); }
+    .workspace, .workspace.sidebar-collapsed { position: relative; display: grid; grid-template-columns: 56px minmax(280px, 1fr) 280px; height: auto; flex: 1; min-height: 0; overflow-x: auto; }
     .map-column { height: 100%; min-height: 0; grid-template-rows: minmax(280px, 1fr) minmax(180px, 30vh); }
-    .control-panel { position: absolute; z-index: 4; top: 0; bottom: 0; left: 0; width: min(88vw, 300px); border-right: 1px solid #393a38; box-shadow: 5px 0 20px #0008; }
+    .control-panel { position: absolute; z-index: 6; top: 0; bottom: 0; left: 0; width: min(88vw, 300px); border-right: 1px solid #393a38; box-shadow: 5px 0 20px #0008; }
     .control-panel.collapsed { width: 56px; }
-    .workspace.has-details .control-panel { grid-row: auto; }
-    .workspace.has-details .map-column, .details-panel { grid-column: 1; }
-    .details-panel { border-left: 0; }
     .state-card { margin: 2rem .8rem; padding: 1.2rem; }
   }
 </style>

@@ -37,7 +37,6 @@ export type MapAdapterUpdate = {
   layerId: string;
   placements: PublicPlacement[];
   selectedId: string | null;
-  view: MapViewState;
   worldOffsets: WorldOffsetOverrides;
   authoring: boolean;
   showConnections: boolean;
@@ -351,16 +350,24 @@ function matchingIllustration(data: PublicationData, layerId: string): PublicIll
   return data.illustrations.find((illustration) => illustration.id === layerId) || null;
 }
 
+export type MapAdapter = {
+  update: (next: MapAdapterUpdate) => void;
+  setView: (next: MapViewState) => void;
+  destroy: () => void;
+};
+
 export async function createMapAdapter(
   canvas: HTMLCanvasElement,
+  initialView: MapViewState,
   callbacks: AdapterCallbacks,
-): Promise<{update: (next: MapAdapterUpdate) => void; destroy: () => void}> {
+): Promise<MapAdapter> {
   let destroyed = false;
   let current: MapAdapterUpdate | null = null;
-  let activeView: MapViewState = {target: [0, 0, 0], zoom: 0};
+  let activeView = normalizeView(initialView, {target: [0, 0, 0], zoom: 0});
   let hoveredId: string | null = null;
   let missingLayerWarningKey: string | null = null;
   let viewSpaceKey: string | null = null;
+  const viewsBySpace = new Map<string, MapViewState>();
   let offsetGeometryKey = "";
   let geometryKey = "";
   let basePlacementKey = "";
@@ -483,7 +490,7 @@ export async function createMapAdapter(
     () => undefined,
   );
 
-  const refreshLayers = (next: MapAdapterUpdate, view: MapViewState): void => {
+  const refreshLayers = (next: MapAdapterUpdate): void => {
     const tileLayersForView = matchingTileLayers(next.data, next.layerId);
     const illustration = matchingIllustration(next.data, next.layerId);
     const orientationOnly = Boolean(illustration && illustration.registration === "orientation-only");
@@ -547,6 +554,34 @@ export async function createMapAdapter(
         if (coordinate) dragController.move(coordinate);
       },
       onDragEnd: () => dragController.end(),
+    });
+    const mapLabelLayer = orientationOnly ? null : new TextLayer({
+      id: "map-space-labels",
+      data: next.data.maps.map((map) => {
+        const delta = mapOffsetDelta(next.data, map.mapSpaceId, next.worldOffsets);
+        return {
+          label: map.label,
+          position: [
+            (map.bounds.min.x + map.bounds.max.x) / 2 + delta.worldX,
+            map.bounds.max.y + delta.worldY + 20,
+          ],
+        };
+      }),
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: false,
+      getPosition: (map: {position: Point}) => map.position,
+      getText: (map: {label: string}) => map.label,
+      getSize: 24,
+      sizeUnits: "common",
+      getColor: [255, 255, 255, 235],
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "bottom",
+      characterSet: "auto",
+      fontSettings: {sdf: true},
+      outlineColor: [18, 20, 24, 255],
+      outlineWidth: 3,
+      fontFamily: "sans-serif",
+      fontWeight: 700,
     });
     const areaLayer = orientationOnly ? null : new PolygonLayer<AreaRecord>({
       id: "map-placement-areas",
@@ -629,7 +664,7 @@ export async function createMapAdapter(
       outlineWidth: 2,
       fontFamily: "sans-serif",
     });
-    layers = [...imageLayers, boundsLayer, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts].filter((layer): layer is Layer => layer !== null);
+    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts].filter((layer): layer is Layer => layer !== null);
 
     if (imageLayers.length === 0 && !illustration) {
       const warningKey = `${next.data.buildId}:${next.layerId}`;
@@ -645,15 +680,15 @@ export async function createMapAdapter(
     views: new OrthographicView({
       id: VIEW_ID,
       flipY: false,
-      controller: {inertia: 300, scrollZoom: {smooth: true}},
+      controller: {inertia: 500},
     }),
-    viewState: activeView,
+    initialViewState: {...activeView, minZoom: -12, maxZoom: 12},
     layers: [],
     onViewStateChange: params => {
       if (destroyed) return;
       const nextView = normalizeView(params.viewState, activeView);
       activeView = nextView;
-      if (current) refreshLayers(current, nextView);
+      if (viewSpaceKey) viewsBySpace.set(viewSpaceKey, activeView);
       notifyView();
     },
     onError: error => report(`Map rendering error: ${textFromError(error)}`),
@@ -663,7 +698,7 @@ export async function createMapAdapter(
     if (placementId === hoveredId) return;
     hoveredId = placementId;
     if (current) {
-      refreshLayers(current, activeView);
+      refreshLayers(current);
       deck.setProps({layers});
     }
     callbacks.onHover(placementId);
@@ -694,21 +729,39 @@ export async function createMapAdapter(
   }
   resize();
 
+  const setDeckView = (next: MapViewState): void => {
+    activeView = normalizeView(next, activeView);
+    if (viewSpaceKey) viewsBySpace.set(viewSpaceKey, activeView);
+    deck.setProps({initialViewState: {...activeView, minZoom: -12, maxZoom: 12}});
+    notifyView();
+  };
+
   const update = (next: MapAdapterUpdate): void => {
     if (destroyed) return;
     current = next;
-    let view = normalizeView(next.view, activeView);
     const illustration = matchingIllustration(next.data, next.layerId);
     const orientationOnly = Boolean(illustration && illustration.registration === "orientation-only");
     const nextViewSpaceKey = orientationOnly && illustration ? `orientation:${illustration.id}` : `map:${next.mapSpaceId}`;
-    if (orientationOnly && illustration && viewSpaceKey !== nextViewSpaceKey) {
-      view = orientationView(canvas, illustration);
+    if (viewSpaceKey !== nextViewSpaceKey) {
+      if (viewSpaceKey) viewsBySpace.set(viewSpaceKey, activeView);
+      viewSpaceKey = nextViewSpaceKey;
+      const savedView = viewsBySpace.get(nextViewSpaceKey);
+      if (savedView) {
+        setDeckView(savedView);
+      } else if (orientationOnly && illustration) {
+        setDeckView(orientationView(canvas, illustration));
+      } else {
+        viewsBySpace.set(nextViewSpaceKey, activeView);
+      }
     }
-    viewSpaceKey = nextViewSpaceKey;
-    activeView = view;
-    refreshLayers(next, view);
-    deck.setProps({viewState: view, layers});
+    refreshLayers(next);
+    deck.setProps({layers});
     notifyView();
+  };
+
+  const setView = (next: MapViewState): void => {
+    if (destroyed) return;
+    setDeckView(next);
   };
 
   const destroy = (): void => {
@@ -723,5 +776,5 @@ export async function createMapAdapter(
     current = null;
   };
 
-  return {update, destroy};
+  return {update, setView, destroy};
 }
