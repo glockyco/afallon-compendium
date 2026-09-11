@@ -882,7 +882,7 @@
     .atlas-shell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; }
     .topbar { align-items: flex-start; flex-direction: column; flex-shrink: 0; }
     .build-meta { justify-content: flex-start; }
-    .workspace, .workspace.sidebar-collapsed { position: relative; display: grid; grid-template-columns: 56px minmax(280px, 1fr) 280px; height: auto; flex: 1; min-height: 0; overflow-x: auto; }
+    .workspace, .workspace.sidebar-collapsed { position: relative; display: grid; grid-template-columns: minmax(280px, 1fr) 280px; height: auto; flex: 1; min-height: 0; overflow-x: auto; }
     .map-column { height: 100%; min-height: 0; grid-template-rows: minmax(280px, 1fr) minmax(180px, 30vh); }
     .control-panel { position: absolute; z-index: 6; top: 0; bottom: 0; left: 0; width: min(88vw, 300px); border-right: 1px solid #393a38; box-shadow: 5px 0 20px #0008; }
     .control-panel.collapsed { width: 56px; }
