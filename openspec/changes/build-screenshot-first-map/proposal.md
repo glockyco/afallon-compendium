@@ -28,10 +28,10 @@ None. This repository has no existing application capabilities.
 
 ## Impact
 
-The change introduces a local game-tooling boundary, a normalization pipeline, and a static SvelteKit site with a deck.gl map. SQLite is the proposed normalized store. Runtime tooling uses the installed MelonLoader/HotRepl setup and Afallon-generated IL2CPP interop assemblies.
+The repository uses a local game-tooling boundary, a normalization pipeline, and a static SvelteKit site with a deck.gl map. SQLite stores normalized relationships. Runtime tooling uses the installed MelonLoader/HotRepl setup and Afallon-generated IL2CPP interop assemblies.
 
-Full coverage is the delivery target. First integrate the authored world probes, establish coverage states and repeat-load identities, and validate one outdoor-to-interior end-to-end path. That path includes capture, normalization, and browser navigation through generated static artifacts. Full-world collection follows this mechanism check. The representative milestone is not permission to ship only a tutorial map.
+Full coverage is the delivery target. Authored world probes, coverage states, repeat-load identities, and an outdoor-to-interior end-to-end path are implemented and measured. The path includes capture, normalization, and browser navigation through generated static artifacts. Full-world extraction and imagery remain incomplete, so the representative milestone does not authorize a tutorial-only release.
 
-Reachability, runtime availability, data extraction, and imagery status remain separate evidence dimensions. Unresolved relevant sources block a complete release. Runtime operations have one owner, with multi-frame loading separated from frame-local rendering and restoration. The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation is not blocked on that check. Select storage after measuring output.
+Reachability, runtime availability, data extraction, and imagery status remain separate evidence dimensions. Unresolved relevant sources block a complete release. Runtime operations have one owner, with multi-frame loading separated from frame-local rendering and restoration. The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation is not blocked on that check. Measured output sizes are recorded; artifact-storage selection remains open.
 
 The GitHub repository is private. Game binaries, recovered code, raw snapshots, saves, and image artifacts remain outside source control. The user has removed the separate asset-permission checkpoint. This proposal does not authorize deployment or pushing commits.

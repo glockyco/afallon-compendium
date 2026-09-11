@@ -1,20 +1,20 @@
 ## Context
 
-See proposal.md for motivation and scope. The repository contains local extraction tooling, research evidence, and planning artifacts. The normalization pipeline and static site remain planned.
+See proposal.md for motivation and scope. The repository contains local extraction tooling, research evidence, planning artifacts, a normalization pipeline, and a static site.
 
-Steam updated Afallon from build 25144591 to 25153357 during development, replacing `GameAssembly.dll` and `global-metadata.dat`. A full recovered-type diff between the builds reports six differences, all in combat and corruption types: a requirement effect-consumption change with an added `RequirementsMet` overload, an item-tooltip parameter, a character-updater addition, a new combat-settings field that shifts later offsets in that one type, and a new `CorruptionGearBonus` type. No map, guide, loot, scene, producer, region, or category type changed. Every artifact produced against 25144591 remains valid evidence for that build and cannot be reproduced now; new runtime work targets 25153357, and the existing build-identity hashes prevent mixing the two.
+Afallon build 25153357 uses `GameAssembly.dll` and `global-metadata.dat` distinct from build 25144591. A full recovered-type diff reports six differences, all in combat and corruption types: a requirement effect-consumption change with an added `RequirementsMet` overload, an item-tooltip parameter, a character-updater addition, a new combat-settings field that shifts later offsets in that one type, and a new `CorruptionGearBonus` type. No map, guide, loot, scene, producer, region, or category type changed. Artifacts produced against 25144591 remain valid evidence for that build and cannot be reproduced; runtime work targets 25153357, and existing build-identity hashes prevent mixing the two.
 
 Afallon uses Unity 2022.3.62f2, IL2CPP, and the built-in render pipeline. The existing generic HotRepl host evaluates C# against Afallon-generated interop assemblies. Direct `ImageConversion.EncodeToPNG` works, despite the generic screenshot command's earlier encoding failure.
 
-Live probes now produced 1024-square orthographic images of Coalway woods and a Duskfall dungeon room. Outdoor capture needs controlled illumination and transient suppression. A high dungeon camera sees the ceiling. A lower camera exposes part of the room without changing its meshes. Neither experiment establishes production capture quality or full map coverage.
+Live probes produced 1024-square orthographic images of Coalway woods and a Duskfall dungeon room. Outdoor capture needs controlled illumination and transient suppression. A high dungeon camera sees the ceiling. A lower camera exposes part of the room without changing its meshes. Neither experiment establishes production capture quality or full map coverage.
 
 The woods sample contains 421 addressable loaders. Initially 77 reported loaded or loading. A tile-area preload changed that count to 110 and changed `NeedsPreloadAround` from true to false. This supports tile-local preload, but readiness still needs exact loaded-source accounting and stabilization.
 
 The same scene has 800 loaded NPCSpawner components including inactive objects, versus 661 active at the later sample. It has 641 OreSpawner components covering Herbalism, Mining, and Fishing. Only 16 currently had live resource nodes. A live-object-only exporter would miss most resource locations.
 
-Canonical merchant extraction uses the current MerchantTables lists instead of the unset legacy merchantTableID. Four loot tables enable LevelBandGear. Native verification now establishes level-eligibility intervals and linked-NPC specialization decisions. Global world-loot bindings and supplemental cloth tiers are exported separately.
+Canonical merchant extraction uses the current MerchantTables lists instead of the unset legacy merchantTableID. Four loot tables enable LevelBandGear. Native verification establishes level-eligibility intervals and linked-NPC specialization decisions. Global world-loot bindings and supplemental cloth tiers are exported separately.
 
-Decompilation of `GenerateDroppedLoot` establishes the roll order: a table requirements gate, then per entry an item-level band, a quest-item gate, and the entry roll, with a drop limit stopping the first pass and a separate minimum-drop selection pass. It does not establish a probability. The roll compares a random value against a threshold built from unidentified helpers and constants, and a player stat transforms the random value before comparison, so authored rates alone do not determine the outcome. The game does display a chance per item in its Adventure Guide, through `AdventureGuideLootRow.Init(item, dropChance, min, max)`, whose body is not in the recovered declarations. That displayed value is now measured on build 25153357. The guide prints the authored entry rate as a percentage, rounded to one decimal, and ignores the binding rate, `LimitDroppedItems` with `maxDroppedItems`, and the minimum-drop pass. Across the four Duskfall bosses the displayed set `5%, 7.6%, 9.1%, 10%, 10.1%, 10.4%, 10.5%, 10.7%, 11.1%, 15%, 15.5%, 30%, 100%` corresponds exactly to the authored rates `5.0, 7.55, 9.13, 10.0, 10.11, 10.44, 10.51, 10.66, 11.10, 15.0, 15.53, 30.0, 100.0`. One boss shows entry rate 15.53 as `15.5%` while its table limits drops to two of seven items, so the number the game shows a player is not an effective probability.
+Decompilation of `GenerateDroppedLoot` establishes the roll order: a table requirements gate, then per entry an item-level band, a quest-item gate, and the entry roll, with a drop limit stopping the first pass and a separate minimum-drop selection pass. It does not establish a probability. The roll compares a random value against a threshold built from unidentified helpers and constants, and a player stat transforms the random value before comparison, so authored rates alone do not determine the outcome. The game does display a chance per item in its Adventure Guide, through `AdventureGuideLootRow.Init(item, dropChance, min, max)`, whose body is not in the recovered declarations. That displayed value is measured on build 25153357. The guide prints the authored entry rate as a percentage, rounded to one decimal, and ignores the binding rate, `LimitDroppedItems` with `maxDroppedItems`, and the minimum-drop pass. Across the four Duskfall bosses the displayed set `5%, 7.6%, 9.1%, 10%, 10.1%, 10.4%, 10.5%, 10.7%, 11.1%, 15%, 15.5%, 30%, 100%` corresponds exactly to the authored rates `5.0, 7.55, 9.13, 10.0, 10.11, 10.44, 10.51, 10.66, 11.10, 15.0, 15.53, 30.0, 100.0`. One boss shows entry rate 15.53 as `15.5%` while its table limits drops to two of seven items, so the number the game shows a player is not an effective probability.
 
 The compendium therefore publishes the entry rate the same way, matching the game, and continues to withhold any composed probability. Evidence is `research/spikes/guide-drop-chance-result.json`.
 
@@ -43,7 +43,7 @@ A Python-only pipeline was considered. TypeScript keeps publication contracts an
 
 ### 2. Reusable commands replace repeated manual orchestration
 
-The existing commands are `doctor`, `inspect`, `probe`, `extract`, `traverse`, `capture`, and `illustration`. Capture accepts explicit camera plans and enters requested source scenes under runtime ownership. It requires a reviewed map-space profile. It requires stable tile-local geometry before rendering but does not establish complete imagery coverage. Normalization and publication commands remain planned. Configuration supplies explicit game paths, HotRepl endpoint, research character, and output locations. The installed game supplies the build identity.
+The existing commands are `doctor`, `inspect`, `probe`, `extract`, `traverse`, `capture`, `illustration`, `normalize`, `tiles`, and `publication`. Capture accepts explicit camera plans and visits requested source scenes under runtime ownership. A sweep claims ownership once, restores frame-local state and streams per plan, and finishes in the configured known-good scene, Coalway woods, rather than returning to the scene active at the start. This avoids a save that cannot load out of the corrupted challenge-stone arena (scene 16). Capture requires a reviewed map-space profile and stable tile-local geometry before rendering but does not establish complete imagery coverage. Normalization, tile generation, and publication consume verified artifacts without connecting to the game. Configuration supplies explicit game paths, HotRepl endpoint, research character, final scene, and output locations. The installed game supplies the build identity.
 
 Normal extraction includes canonical records, relationships, loot rules, world inventory, NPC producers, world sources, faction rules, and placement snapshots. It validates schemas, counts, and references, then resolves serialized identities and merges placement roles. Each observation records scene and character context. Sequential runtime calls are not one simultaneous observation. Traversal publishes these role and identity artifacts for each visited scene. Successful loaded-scene extraction does not establish full-world coverage.
 
@@ -103,11 +103,13 @@ The current OreSpawner name is misleading for categorization: live data proves H
 
 Duskfall Depths is a multi-level dungeon, and the game ships one texture for it, `Duskfall depths full map`. The Abandoned quarry map is a top-down terrain render, while the overworld map is illustrated parchment. The developer already produces the cutaway view this project needs, so a shipped texture is a framing and cut-height reference, never a published layer.
 
-Floors were this project's invention. Maps are single-plane. World height stays an ordinary placement field. Overlapping markers are acceptable because the game overlaps them too.
+The map contract has no floors. Maps are single-plane. World height stays an ordinary placement field. Overlapping markers are acceptable because the game overlaps them too.
 
 Player-facing categories come from the game's own enums, not from extraction families: `CursorType` gives merchant, quest giver, interactive object, crafting station, and enemy entity; `NameplateUnitType` gives enemy, neutral, and ally; nameplate sprites distinguish available, ongoing, and completed quests. Level ranges come from `RegionTemplate.LevelRangeMin/Max`, `RPGGameScene.DungeonLevelMin/Max` and `ZoneScalingMin/Max`, `NPCSpawner` scaling overrides, and `QuestLevelRange`. `MinimapDisplay` renders them beside a name, as in `Coalway swamp (lvl.1-20)`.
 
 The compendium's information architecture mirrors the in-game Adventure Guide: dungeons with artwork, description, level range and bosses; a boss with abilities, stats and loot; regions; properties. That structure is authored in `RPGGameScene` guide metadata and boss references and in `RegionTemplate` guide metadata. In build 25153357, the runtime assigns `RegionTemplate` records an integer ID of `-1` while `GameDatabase` exposes them under string dictionary keys. The integer identity contract therefore keeps these records observed but unpublished until a separate identity change provides evidence for those keys.
+
+Guide publication contains no artwork or boss portraits. `RPGGameScene.adventureGuideImageKey` is extracted as scene gameplay metadata. Canonical NPC records expose `entryIcon` metadata with a name, rect, and texture name. The native `ADVENTURE_GUIDE_BOSS` record contains only `npcID`; it has no portrait reference. `RegionTemplate.adventureGuideImage` is a Sprite reference, but region records are unpublished because their runtime identity is a string key outside the integer identity contract. Real guide artwork requires an asset path that resolves image keys, serializes sprite and texture bytes, hashes and validates the assets, and adds image references to the guide publication and site. That extraction and publication path is absent.
 
 Evidence honesty belongs to the producer that owns each measurement. Coverage figures and diagnostic totals live in the run manifest and coverage report. The interface marks an incomplete preview once and never repeats counts or unresolved-semantics notices in panels. This follows the sibling compendium's availability pattern, where a shared notice marks a flag and no page renders an unremarkable field.
 
@@ -121,19 +123,19 @@ Manual placement is translation only at a shared world scale, and it moves a map
 
 Duskfall's arrival room lies outside its single `MapZone`. Its authored trigger teleports the player into the mapped dungeon without changing scenes. The game does not show that room on any map, and the project matches the game: the room is not captured and its one placement is an explicit, evidence-backed exclusion rather than a separate map.
 
-Capture extents therefore come from validated scene geometry, streamed-source coverage, and navigable region/floor evidence. MapZone is useful calibration evidence, not an unconditional capture boundary. The pipeline rejects unexplained out-of-bounds placements.
+Capture extents therefore come from validated scene geometry, streamed-source coverage, and navigable region evidence. MapZone is useful calibration evidence, not an unconditional capture boundary. The pipeline rejects unexplained out-of-bounds placements.
 
 Scene registration matches each database `entryName` against exact Unity build-path basenames. Unavailable, unmatched, and ambiguous records remain explicit. A shared rendered map space is a separate decision. A local MapZone ID, texture name, or database map bound cannot establish that decision alone.
 
 Native coordinate registration uses observed map-to-world basis samples and checks every world sample and native normalized round trip. Rotation and reflection are supported. Singular, non-horizontal, or contradictory samples remain unresolved. The stored Y coordinate describes the native map plane, not a gameplay floor. This transform does not establish image orientation or screenshot coverage.
 
-Native triangulation is supporting evidence, not an automatic capture boundary. Duskfall's observed triangles span about 999 by 999 world units and 185 units of height. Their total bounds do not establish a playable dungeon boundary. The query collects all loaded navigation data, so per-triangle surface ownership remains unresolved. Triangulation omits off-mesh links and detailed grounding geometry. Grounded landmarks and native path queries are separate evidence for region and floor review.
+Native triangulation is supporting evidence, not an automatic capture boundary. Duskfall's observed triangles span about 999 by 999 world units and 185 units of height. Their total bounds do not establish a playable dungeon boundary. The query collects all loaded navigation data, so per-triangle surface ownership remains unresolved. Triangulation omits off-mesh links and detailed grounding geometry. Grounded landmarks and native path queries are separate evidence for region review and route evidence.
 
 Use an orthographic camera looking down world Y. The initial test covers 200 by 200 world units in 1024 pixels, or 5.12 pixels per unit. This is a probe setting, not the final resolution. Compare adjacent tiles at two resolutions before selecting one production profile. Generate coarser pyramid levels from the finest captured tiles.
 
 Each capture records the camera's actual center, extent, and clipping planes, not only the requested settings. Native projection checks use the center and four corners on a plane inside the clipping interval. The host rejects missing controls or errors above one quarter pixel.
 
-Each PNG has a hashed `compendium.capture-raster.v2` artifact linked by its image hash. Its `worldFromPixelEdge` frame maps top-left image edges into source-scene XZ coordinates. Pixel centers use `(column + 0.5, row + 0.5)`. Positive image X increases world X; positive image Y decreases world Z. Source-scene registration remains separate from reviewed map-space registration.
+Each PNG has a hashed `CaptureRaster` artifact defined in `tools/capture-contracts.ts`, linked by its image hash. Its `worldFromPixelEdge` frame maps top-left image edges into source-scene XZ coordinates. Pixel centers use `(column + 0.5, row + 0.5)`. Positive image X increases world X; positive image Y decreases world Z. Source-scene registration remains separate from reviewed map-space registration.
 
 Each calibrated layer carries an explicit world-to-image transform. The offline illustration command verifies immutable image bytes, the reviewed map-space profile, and evidence hashes and JSON pointers. Calibrated artwork requires four distinct pixel controls, with one or more controls outside the three-point affine fit. Declared and independently fitted transforms must satisfy a quarter-pixel residual limit. Where artwork lacks verified registration, preserve it as an orientation-only layer without a marker transform. Illustration output cannot satisfy primary imagery or complete coverage.
 
@@ -141,7 +143,7 @@ Each calibrated layer carries an explicit world-to-image transform. The offline 
 
 Create a dedicated disabled camera, render target, and readable texture. Disable occlusion culling on that camera. Prepare and hold geometry for the complete tile frustum, including boundary overlap, before rendering. Record the source inventory and wait for stable readiness. A timeout is a failed tile, not empty space.
 
-The capture plan uses schema `compendium.capture-plan.v3`. Its readiness profile bounds the whole tile to 1–300 seconds, requests 2–10 stable observations, and limits holds to 256 sources. The deadline includes rendering and stream restoration.
+`CapturePlan` and its readiness profile are defined in `tools/capture-contracts.ts`. The profile has separate `readinessTimeoutMs`, `renderTimeoutMs`, `encodeTimeoutMs`, and `cleanupGraceMs` budgets, plus stable-frame and source-hold limits. Readiness, rendering, encoding, and cleanup have separate budgets, so an exhausted operation budget cannot prevent restoration.
 
 Source selection calls native `Covers` at the closest point on the expanded frustum to each loader. This tests the complete frustum against the native loading sphere without selecting the larger enclosing sphere. Geometry already observed inside the frustum also selects its source. Inactive sources remain separate evidence rather than receiving arbitrary activation changes.
 
@@ -165,21 +167,21 @@ Automatic derivation was implemented and then removed. Deriving a height from th
 
 Renderer-name rules do not identify ceilings either. One cave scene contains `Massive_Cave_Ceiling_*` renderers at about 50 units above its floor, and a reviewed dungeon scene contains no renderer whose name matches ceiling or roof. A positive control confirms that absence. Skybox objects such as `Planet` and `Rings` sit thousands of units up, so a highest-renderer rule is unusable as well.
 
-A recorded probe already showed a clip plane at camera height -800 exposing a Duskfall room without disabling or deleting geometry, while a high camera saw only its rocky ceiling. Clipping, not suppression, is the mechanism.
+A probe shows a clip plane at camera height -800 exposing a Duskfall room without disabling or deleting geometry, while a high camera sees only its rocky ceiling. Clipping, not suppression, is the mechanism.
 
 A scene whose content spans more vertical range than one height can serve stays an explicit unresolved gap. A mixed surface-and-cave scene is the expected case: no height both keeps the hillside and reveals the cave.
 
-Capture enters another requested source scene through the existing owned scene visitor. The readiness timeout bounds each transition. Success requires restoration of the original source scene, position, and rotation. Native owner cleanup also restores that state after failure or disconnection.
+Capture visits each requested source scene through the owned scene visitor. The readiness budget bounds each transition. A sweep finishes in the configured known-good scene, Coalway woods, with its configured position and rotation; it does not restore the scene that was active at the start. Native owner cleanup restores frame-local state and streams after failure or disconnection.
 
 A capture session records every changed property and object under two lifetimes. Scene loading, preload, readiness, geometry holds, and reusable disabled capture resources can span frames. Their cleanup belongs to the runtime operation and runs on success, failure, cancellation, or host disconnection. No later host restore request is required. Confirm cleanup before another operation uses the affected state.
 
 Lighting changes, renderer suppression, and rendering form a frame-local operation. Its `finally` restores visual properties before the next gameplay frame, including on injected failure. A disconnected run cannot report success while cleanup is unconfirmed. The earlier ambient-mode observation does not prove complete restoration.
 
-Capture writes `compendium.capture-tile-checkpoint.v1` after tile rendering, registration, visual restoration, and stream cleanup pass. Compatibility hashes include build, profile, implementation, character, scene, clip height, resolution, lighting, readiness, and frame. Unrelated tiles do not change a compatible tile's key.
+Capture writes the tile-checkpoint contract defined in `tools/capture-contracts.ts` after tile rendering, registration, visual restoration, and stream cleanup pass. Compatibility hashes include build, profile, implementation, character, scene, clip height, resolution, lighting, readiness, and frame. Unrelated tiles do not change a compatible tile's key.
 
 Reuse validates artifact bytes and the complete native camera and restoration evidence. Copied artifacts retain their original native run and owner. All-reused runs do not allocate capture resources or load world inventories. Interrupted runs require matching clean native capture and runtime receipts; missing or pending cleanup blocks reuse. Verified receipts that were not registered before interruption become registered evidence in the resumed run.
 
-`compendium.capture-set.v1` binds the exact expected tile list to validated checkpoints before atomic successful-run selection. A failed run cannot replace that selection. Capture sets do not establish full-world imagery. The publication gate makes that separate decision.
+`CaptureSet` in `tools/capture-contracts.ts` binds the exact expected tile list to validated checkpoints before atomic successful-run selection. A failed run cannot replace that selection. Capture sets do not establish full-world imagery. The publication gate makes that separate decision.
 
 ### 8. Tiles and map data form one publication artifact
 
@@ -187,13 +189,13 @@ Captured source images, tile pyramids, calibration, and marker projections carry
 
 Use WebP delivery tiles and a measured zoom limit. Tile generation emits dimensions, byte totals, and file counts so hosting limits remain visible. Do not commit generated images or raw game data.
 
-The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Proceed with the planned asset preparation without that checkpoint. Select external artifact storage only after measured size and file counts are available. Deployment still requires explicit user authorization.
+The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation can proceed without that checkpoint. Select external artifact storage only after measured size and file counts are available. Deployment still requires explicit user authorization.
 
 ### 9. Small previews, persistent details, and source navigation
 
 Use deck.gl, as requested by the user, with a browser-only `OrthographicView` and Cartesian coordinates. `TileLayer` loads screenshot tiles through `BitmapLayer` sublayers. Marker and area layers remain separate from the basemap. No geographic projection or Mapbox/MapLibre base map is required.
 
-Use `OrthographicView({flipY: false})` so positive map Y points upward. The publication transform maps Unity X/Z into pixel-aligned map coordinates and retains world Y as elevation. The same transform determines tile bounds and marker positions. Tile origin, resolution, and zoom indexing come from the emitted manifest, not scattered browser constants. Verify image orientation with landmarks rather than applying another ad hoc Y negation.
+Use `OrthographicView({flipY: false})` so positive map Y points upward. The publication transform maps Unity X/Z into pixel-aligned map coordinates. Normalized placement records retain Unity world Y, but the current public placement contract does not expose that height. This requirement remains unmet: 743 coincident groups share exact X/Z coordinates, and 386 groups contain distinct authored objects in one scene, so height can be the only distinguishing field. The same transform determines tile bounds and marker positions. Tile origin, resolution, and zoom indexing come from the emitted manifest, not scattered browser constants. Verify image orientation with landmarks rather than applying another ad hoc Y negation.
 
 The [OrthographicView contract](https://deck.gl/docs/api-reference/core/orthographic-view) defines zoom zero as one map unit per screen pixel. The [TileLayer contract](https://deck.gl/docs/api-reference/geo-layers/tile-layer) supports non-geographic indexing from the origin. The generated tile grid must match that indexing and the true image tile size.
 
@@ -234,20 +236,20 @@ The site consumes published contracts only. SQL projections and spatial conversi
 
 Preserve research evidence in ignored local storage. Integrate world probes first, then establish coverage states, placement identities, and identity constraints. Implement bounded traversal and capture mechanisms under exclusive runtime ownership.
 
-Before full-world extraction or capture, validate one connected path through a representative outdoor area and an interior. It must cover extraction, repeat-load identities, capture, normalization, and browser picking and details. Include adjacent chunk seams, an interior clip height, a producer without a live node, and item-to-source navigation. The site must consume generated static contracts rather than raw probes or game access.
+The representative outdoor-and-interior path covers extraction, repeat-load identities, capture, normalization, and browser picking from generated static contracts. It includes adjacent chunk seams, a reviewed interior clip height, a producer without a live node, and item-to-source navigation. Full-world extraction and imagery remain separate release gates.
 
-Before that path runs again, remove the floor and ceiling-review machinery completely: floor domains in profiles and normalization, reviewed ceiling selectors and their evidence hashing, per-floor pyramids and floor scoping in publication, floor and map and layer URL state and selectors, and extraction vocabulary on the player surface. Removal is a clean cut with no shims, aliases, or deprecated paths. Re-baseline extraction on 25153357 first, and keep the 25144591 artifacts as frozen reference rather than migrating them.
+The current pipeline has no floor domains, floor resolution, ceiling selectors, per-floor pyramids, floor scoping, or floor and map URL state. The current build baseline is 25153357; artifacts for 25144591 remain frozen reference data and cannot mix with it.
 
-This milestone validates the complete mechanism. It does not reduce release coverage. After it passes, collect all reachable sources and required imagery. Repeat the UI and performance checks with the complete real dataset. Publish only a coherent validated artifact set with explicit user publication authorization. Keep the previous successful set available for rollback.
+The mechanism is implemented and measured, but it does not reduce release coverage. Full-world collection, complete UI and performance checks, and publication authorization remain required before release. A validated successful artifact set remains available for rollback.
 
 ## Open Questions
 
-- Which finest resolution and tile dimensions provide useful detail at an acceptable measured artifact size?
-- Which observation decides that overhead geometry occludes content, so clipping applies to a dungeon but not to an outdoor extent?
-- Which clip-height margin reads correctly across a cave and a two-storey building?
-- Which scenes mix surface and interior content so badly that one clip height cannot serve them?
-- What value does the Adventure Guide display as a drop chance, and how is it derived on the current build?
-- Which illustrated maps support precise marker registration, rather than orientation-only viewing?
-- Which static asset host is appropriate after output-size review?
+- The finest resolution and tile dimensions remain open. Select them after complete-build detail and byte-size measurements.
+- A reviewer sets `clipHeight` per map when overhead geometry obscures the selected content. Automatic derivation is not used. Evidence: `EXPLORATION.md`, “World surface, reviewed clipping, and displayed drop chance”.
+- No common clip-height margin is established across caves and two-storey buildings. Set each map's value by reviewing rendered imagery and its vertical coverage.
+- Mixed surface-and-interior scenes remain open. Settle each scene through complete geometry inventory and rendered-image review.
+- The Adventure Guide displays the authored entry rate rounded to one decimal place. It does not compose an effective probability from outer rates, drop limits, or the minimum-drop pass. Evidence: `research/spikes/guide-drop-chance-result.json`.
+- Illustrated-layer registration remains open for layers without four reviewed landmark controls. Keep those layers orientation-only until the controls and residual checks are available.
+- Static asset-host selection remains open. Select a host after complete pyramid byte and file-count measurements are compared with its limits.
 
 These decisions are parameters within the defined capture and publication contracts. They do not remove any required map coverage.

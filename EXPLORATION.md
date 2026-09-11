@@ -1,6 +1,6 @@
 # Afallon compendium exploration
 
-Updated: 2026-09-06. Status: implementation in progress. Nix-backed local tooling is verified; canonical extraction, capture, and the website remain in development.
+Updated: 2026-09-06. Status: local implementation is available. Nix-backed tooling, canonical extraction, capture, normalization, publication, and the static site are implemented; complete supported-build coverage remains open.
 
 ## User intent and permissions
 
@@ -14,7 +14,7 @@ The checkpoint sections below preserve earlier observations. Use the current req
 
 ## Screenshot-first investigation checkpoint
 
-The user selected captured in-game imagery as the primary layer. The private repository and `build-screenshot-first-map` proposal now record that direction. Full reachable coverage remains the release target, not only the areas sampled below.
+The user selected captured in-game imagery as the primary layer. The private repository and `build-screenshot-first-map` proposal record that direction. Full reachable coverage remains the release target, not only the areas sampled below.
 
 ### Captures produced and viewed
 
@@ -22,7 +22,7 @@ The user selected captured in-game imagery as the primary layer. The private rep
 - `10-woods-lit-orthographic-probe.png`: same tile with temporary directional light, flat ambient light, and fog disabled. The result is substantially brighter. These are probe settings, not a final visual profile.
 - `11-woods-preloaded-orthographic-probe.png`: same tile after game-provided preload. This is a captured terrain sample, not proof that every mesh or transient is correct. Effects remain visible, and foliage obscures portions of the ground.
 - `12-duskfall-orthographic-probe.png`: a high camera sees a dungeon room's rocky ceiling rather than its floor.
-- `13-duskfall-cutaway-probe.png`: camera height -800 exposes part of that room without deleting or disabling its geometry. A useful full-dungeon floor strategy remains to implement.
+- `13-duskfall-cutaway-probe.png`: camera height -800 exposes part of that room without deleting or disabling its geometry. Full-dungeon coverage review remains open.
 - Temporary cameras, lights, and textures were released after each probe. Later checks confirmed the objects were absent and fog/mode restored. Ambient color later differed while gameplay advanced; full environment restoration is not proven.
 
 ### Streaming and coverage measurements
@@ -45,7 +45,7 @@ Duskfall Depths loaded 16 NPCSpawner, 85 InteractableObject, and 9 AddressableLo
 
 ### Reusable implementation direction
 
-The proposal specifies repository-owned host commands and C# probe sources, runtime-first canonical extraction, source-aware placement identity, coverage-led scene traversal, restorable tile capture, and generated site contracts. The `doctor`, `inspect`, and `probe` commands now provide the reusable runtime connection and artifact pipeline.
+The proposal specifies repository-owned host commands and C# probe sources, runtime-first canonical extraction, source-aware placement identity, coverage-led scene traversal, restorable tile capture, and generated site contracts. The `doctor`, `inspect`, and `probe` commands provide the reusable runtime connection and artifact pipeline.
 
 The user selected deck.gl, consistent with the other compendiums. Use OrthographicView with Cartesian coordinates, tiled BitmapLayer imagery, and separate marker/area layers. Keep Svelte panels and accessible navigation outside the rendering adapter. The provisional Leaflet choice is replaced.
 
@@ -90,7 +90,7 @@ UnityPy parsed `globalgamemanagers`, `resources.assets`, and localization text a
 - TypeTreeGeneratorAPI loading IL2CPP directly returned repeated `Sequence contains no matching element` failures for custom schemas.
 - Loading Cpp2IL dummy assemblies uses the installed API `load_local_dll_folder`, not `load_dll_folder` shown in upstream README.
 - The first two full custom-object reads with dummy schemas failed with `read_str out of bounds`. This does not prove all records fail.
-- A narrower probe is in progress: inspect MonoBehaviour heads, resolve script class, target RPGGameScene/RPGNpc/RPGItem/NPCSpawner/MapZone only. Null script references exist and must be counted rather than dereferenced.
+- Targeted decoding inspects MonoBehaviour headers and resolves script classes for RPGGameScene, RPGNpc, RPGItem, NPCSpawner, and MapZone. Null script references are counted rather than dereferenced.
 
 ## Recovered schemas: facts, not behavior
 
@@ -130,7 +130,7 @@ Unity asset scanning → raw SQLite → Python clean SQLite → map/wiki/sheet c
 
 Runtime snapshot → canonical SQLite/read models → static SvelteKit. `pipeline/src/entities/location/canonicaliser.ts` converts world x/z to map x/y and retains elevation. `site/src/lib/server/entities/location.ts:getMapView` reads layers/points/volumes and computes map bounds from content.
 
-Useful: site consumes generated contracts, not raw extraction details. Avoid assuming planned basemap support exists: current map is marker/volume-based; tile capture remains a planned change. Declared map extents should not be inferred only from visible markers.
+Useful: the site consumes generated contracts, not raw extraction details. Generated screenshot tiles and marker/area contracts provide the map surface; complete screenshot coverage remains open. Declared map extents should not be inferred only from visible markers.
 
 ## Working architectural direction (not adopted decisions)
 
@@ -173,7 +173,7 @@ Read `HotRepl/.claude/skills/hotrepl/SKILL.md` before runtime use. `HotRepl/AGEN
 
 ## Spatial findings verified in the running game
 
-The generic HotRepl host works without source changes. In-game scene loading and schema queries now provide direct evidence.
+The generic HotRepl host works without source changes. In-game scene loading and schema queries provide direct evidence.
 
 | Observation | Tutorial cave | Coalway swamp | Coalway woods |
 |---|---|---|---|
@@ -245,7 +245,7 @@ Opened the built-in Adventure Guide for Duskfall Depths using `AdventureGuidePan
 - Use `research/screenshot-first-session.json` and `research/screenshot-first-eval-history.json` to recover exact successful and failed probes.
 - Use the supervised `afallon-game` process and port 18591. The current implementation session has loaded Coalway woods with AtlasResearch. Do not use unrelated saves.
 - Use the Nix-backed commands below for runtime probes. Keep local configuration and generated artifacts outside Git.
-- Resolve coverage, stable placement identities, dynamic loot semantics, capture readiness, and interior floor profiles through the tasks in the proposal.
+- Resolve coverage, stable placement identities, dynamic loot semantics, capture readiness, and reviewed clip-height profiles through the tasks in the proposal.
 - Keep screenshots and recovered game data local. Public deployment requires explicit user authorization.
 
 ## Local tooling checkpoint
@@ -353,7 +353,7 @@ The type scan exposed additional source families, including 29 adventurer zones,
 
 Inventory states distinguish currently loaded sources from sources that have not undergone traversal. All 40 scene records currently report `isProceduralScene=false`; this field alone does not prove fixed geometry. World-position records lack a direct scene field, so their 25 unresolved scene associations remain explicit. Names do not establish reachability.
 
-Inventory schema `compendium.world-inventory.v2` retains typed owners, source fields, destinations, loader state, query errors, and native/exported totals. The native probe explicitly queries 23 relevant component families, both active-only and including inactive instances. Integrated run `bcb1eba3-09e4-466e-a3d9-b04e7ff14ac0` retained all 23 families, 339 MonoBehaviour types, and 19,063 components. Its cleanup receipt is clean. These are observations of loaded content, not a complete-world claim.
+The `WorldInventory` contract in `tools/world-inventory.ts` retains typed owners, source fields, destinations, loader state, query errors, and native/exported totals. The native probe explicitly queries 23 relevant component families, both active-only and including inactive instances. Integrated run `bcb1eba3-09e4-466e-a3d9-b04e7ff14ac0` retained all 23 families, 339 MonoBehaviour types, and 19,063 components. Its cleanup receipt is clean. These are observations of loaded content, not a complete-world claim.
 
 Extraction rejects unavailable required counts, lost rows, duplicate source identities, and scene links that disagree with canonical IDs or internal names. Start-position links must agree with their canonical scene owner and an inventoried world-position record. A replay of the live artifact rejected an unavailable native total, an unavailable component query, a missing destination row, a wrong existing canonical scene, and a wrong authored start position. The accepted artifact retains 50 inventory diagnostics, including the 25 unverified world-position scene associations. Full source traversal, source classification, and persistent placement identities remain open.
 
@@ -367,7 +367,7 @@ Diagnostics group by source, issue type, and category. Detail counts and inclusi
 
 Live run `f55809c7-5a4b-4901-a5fe-3f87e5b9789d` retained 3,712 entries and 3,664 distinct source observations. Its 243,340 diagnostic occurrences form 33,041 groups across 1,451 unresolved source keys. One global adventurer-family query remains explicitly unmapped; all 153 structured world-diagnostic owners resolve to their source entries. The run has 19 hashed artifacts and a clean runtime receipt. Imagery remains pending for 3,065 entries and not applicable for 647; none is captured or validated. The complete-release gate remains false.
 
-The live data exposed a hierarchy-path collision: 13 Infected grain observations share a candidate path but have distinct native instance IDs. NPC reference validation and coverage now use raw observation-row paths instead of that hierarchy candidate. The earlier ledger merged five observation groups of 3, 3, 3, 6, and 13 entries; the corrected live ledger has no merged observation groups. A replay injected unresolved NPC IDs into two colliding observations and retained two distinct diagnostic sources. These row paths must not become placement IDs.
+The live data exposed a hierarchy-path collision: 13 Infected grain observations share a candidate path but have distinct native instance IDs. NPC reference validation and coverage use raw observation-row paths instead of that hierarchy candidate. The earlier ledger merged five observation groups of 3, 3, 3, 6, and 13 entries; the corrected live ledger has no merged observation groups. A replay injected unresolved NPC IDs into two colliding observations and retained two distinct diagnostic sources. These row paths must not become placement IDs.
 
 The same replay accounted for all 3,712 source entries, retained all 421 loader signals, kept an inactive NPC producer loaded, and kept a resource producer without a live node reachable with imagery pending. An unloaded scene with an unsupported unreachable claim stayed unknown. A mismatched scene path did not acquire loaded status merely from its name or ID. The observed MapZone texture remained separate from screenshot coverage. Scene reload, streamed reload, stable placement identity, and full-world traversal remain unverified.
 
@@ -386,7 +386,7 @@ World-source run `97ae5011-300d-4f48-87ff-01dc6deecb60` exported 641 resource pr
 
 The same run exported five containers, eight quest zones, three transitions, 26 services, and 420 condition sources. The Lady in Mourning world-quest record resolves to quest 118. The three dungeon entrances resolve to scenes 46, 39, and 36. All four property currencies resolve to Gold Coin, currency 0. Fixed world quests remain separate from `possibleQuests`: eight count mismatches in the earlier projection became zero after correction.
 
-This is loaded-scene extraction, not complete map coverage. The run retains 788 diagnostics and 85 unsupported sources: one heroic console, 75 random activators, and nine interactive zones. Current world-source schema `compendium.world-sources.v4` uses `extracted` for source data; that state does not establish map imagery. Diagnostic paths include the source component type and its observation index. The earlier integrated artifact had 634 diagnostic rows under only seven ambiguous `source.hierarchyPath` paths; the new live artifact has no such paths. These observation indexes are not persistent placement identities. No InteractiveNode component was present, so its corrected empty-container-list branch was not exercised by this run. This raw probe does not perform serialized identity resolution, role merging, streamed traversal, or capture.
+This is loaded-scene extraction, not complete map coverage. The run retains 788 diagnostics and 85 unsupported sources: one heroic console, 75 random activators, and nine interactive zones. The `WorldSources` contract in `tools/world-extraction.ts` uses `extracted` for source data; that state does not establish map imagery. Diagnostic paths include the source component type and its observation index. The earlier integrated artifact had 634 diagnostic rows under only seven ambiguous `source.hierarchyPath` paths; the new live artifact has no such paths. These observation indexes are not persistent placement identities. No InteractiveNode component was present, so its corrected empty-container-list branch was not exercised by this run. This raw probe does not perform serialized identity resolution, role merging, streamed traversal, or capture.
 
 ## Integrated producer extraction
 
@@ -396,7 +396,7 @@ Run `682c2062-abd5-4f8f-bab3-0e9fca33fd24` on build 25144591 retained 800 NPC pr
 
 Each of the eight context sidecars identifies `AtlasResearch` in Coalway woods and links to its data artifact by SHA-256. Each probe started and ended in the same gameplay frame; the eight probes ran across separate frames. The run also hashes the host extraction, runtime, and schema implementations. A replay rejected a missing NPC producer, a missing nested quest-pool row, a wrong-character observation, and a required world-probe failure. All four failures retained the previous successful extraction pointer and wrote failed manifests. An injected property currency ID was reported as unresolved. A separate corruption check rejected paired exported-candidate counters that disagreed with the actual rows.
 
-World-source schema `compendium.world-sources.v4` projects `RequiredNPCRanks` into strings with native count and availability fields. It does not serialize the IL2CPP list or its pointers. Native smoke run `d242aee3-2881-442e-ac4f-9f92535c4a49` retained the two supplied rank strings. Three temporary inactive InteractiveNode components exercised an empty non-container, an explicit empty container, and a combined resource/container with one resource rank and one loot table. Schema and count checks accepted all three roles. The temporary objects were destroyed before the next gameplay frame, and the node count returned from three to zero. These fixtures are branch checks, not authored map placements.
+The `WorldSources` contract in `tools/world-extraction.ts` projects `RequiredNPCRanks` into strings with native count and availability fields. It does not serialize the IL2CPP list or its pointers. Native smoke run `d242aee3-2881-442e-ac4f-9f92535c4a49` retained the two supplied rank strings. Three temporary inactive InteractiveNode components exercised an empty non-container, an explicit empty container, and a combined resource/container with one resource rank and one loot table. Schema and count checks accepted all three roles. The temporary objects were destroyed before the next gameplay frame, and the node count returned from three to zero. These fixtures are branch checks, not authored map placements.
 
 The integrated run reports 1,028 unresolved raw requirement ID fields, all containing zero across eight database families. The projection retains every typed ID field, including fields that a requirement kind might not use. These are not 1,028 proven broken active conditions or unique missing records. Determine field use from native requirement behavior before publication. Negative IDs, repeated field paths, unsupported source semantics, scene associations, and full-world coverage also remain separate diagnostics or unfinished acceptance work.
 
@@ -479,7 +479,7 @@ Normal extraction run `f8c1a665-50a5-449f-a104-6a634f3197b0` passed schema, coun
 
 Normal `extract` runs publish serialized inputs under `identities/` and merged facts in `placement-roles.json`. Each `traverse` visit publishes the same artifacts under its step directory. Role facts retain canonical NPC references, source-component IDs, and JSON-pointer evidence. Unplaced sources retain their role facts without receiving a guessed placement.
 
-NPC source schema `compendium.npc-producers.v2` and world-source schema `compendium.world-sources.v5` retain component and GameObject observation IDs. These IDs join records within a native snapshot. Serialized records still determine persistent IDs.
+The NPC-producer and `WorldSources` contracts in `tools/npc-extraction.ts` and `tools/world-extraction.ts` retain component and GameObject observation IDs. These IDs join records within a native snapshot. Serialized records still determine persistent IDs.
 
 World sources also retain the scene handle and use the all-component GameObject slot. This slot agrees with the identity snapshot. A same-type component count cannot supply this slot. Missing observations, different scene instances, and incompatible component slots cannot fall back to names or coordinates.
 
@@ -497,11 +497,11 @@ Controlled replay used real extracted inputs to check three boundaries. An absen
 
 This last case tests the merger. It does not claim those substituted actions exist in the game. The proof is `artifacts/source-role-smoke/414c54c3-7e6d-4f77-b328-302c3aaa999a/proof.json`.
 
-Serialized preparation indexes only loaded prefabs that contain queried source components. On the same snapshot, two prefab indexes produced exactly the same identity result as 70 indexes. The final run recorded 77 loaded streams, two source-bearing streams, and 75 skips with reason `no-queried-source-components`. These skips do not establish unused content or complete geometry coverage. `compendium.scene-source-issues.v2` records this scope explicitly.
+Serialized preparation indexes only loaded prefabs that contain queried source components. On the same snapshot, two prefab indexes produced exactly the same identity result as 70 indexes. The final run recorded 77 loaded streams, two source-bearing streams, and 75 skips with reason `no-queried-source-components`. These skips do not establish unused content or complete geometry coverage. The scene-source-issues contract in `tools/scene-identities.ts` records this scope explicitly.
 
 Traversal `c32b0977-6aba-4236-8bba-66c1d165e4a7` covered woods and swamp with bounded stream holds. The woods step retained 2,186 placements, including the selected far camp. The swamp step retained 536 placements. One inactive selected stream remained skipped. Both steps restored their source scene, and the owner receipt was clean with no remaining callbacks.
 
-Coverage schema `compendium.coverage.v2` binds the role summary to the hashed placement-role artifact. Unplaced sources and unresolved role issues block role resolution independently of raw diagnostic groups. The normal run and both traversal steps reported blocked role resolution. The normal hash check is recorded beside the pointer audit as `coverage-proof.json`. Verified smoke drivers and the bounded traversal plan are archived under `artifacts/source-role-smoke/drivers/`.
+The coverage contract in `tools/coverage.ts` binds the role summary to the hashed placement-role artifact. Unplaced sources and unresolved role issues block role resolution independently of raw diagnostic groups. The normal run and both traversal steps reported blocked role resolution. The normal hash check is recorded beside the pointer audit as `coverage-proof.json`. Verified smoke drivers and the bounded traversal plan are archived under `artifacts/source-role-smoke/drivers/`.
 
 The final loaded-scene run retains 100 unplaced sources and 1,087 unresolved role issue occurrences. Unsupported actions, activation semantics, adventurer roster associations, and faction override application remain explicit gaps. Issue occurrences are not counts of distinct missing sources.
 
@@ -509,7 +509,7 @@ TypeScript and all eight regression tests passed. The game footprint was 16 GB w
 
 ## Native scene calibration evidence
 
-Normal extraction and each traversal step now publish `scene-catalog.json` and `native-map-registrations.json`. Raw evidence includes `map-geometry.json` and `navigation-geometry.json`. Registration records bind to the geometry artifact hash. Build inputs include `UnityPlayer.dll` because the recovered navigation binding executes engine code.
+Normal extraction and each traversal step publish `scene-catalog.json` and `native-map-registrations.json`. Raw evidence includes `map-geometry.json` and `navigation-geometry.json`. Registration records bind to the geometry artifact hash. Build inputs include `UnityPlayer.dll` because the recovered navigation binding executes engine code.
 
 The catalog compares database `entryName` values with exact Unity build-path basenames. The observed 40 database records produce 32 matches and eight unmatched records. No record has an ambiguous match. All 33 build records remain present, including the unclaimed MainMenu scene. Unmatched records do not become unused, unreachable, or public maps by inference.
 
@@ -523,17 +523,17 @@ Duskfall uses database scene 10 and build scene 28. Its authored arrival positio
 
 The visit restored the original scene, player position, and rotation. Its native owner reported clean cleanup with no remaining callbacks. Geometry, transition, and role evidence are in `artifacts/map-calibration-smoke/90e3c65f-4b10-4d81-be50-f7d6da1acc23/proof.json`.
 
-World-source schema `compendium.world-sources.v5` preserves template and inline GameActions separately in native execution order. Nested rows retain discriminators, chance, requirement groups, and teleport payloads. Template instance IDs and native IDs remain observations, not canonical identities. Supported Position and GameScene teleports qualify as transitions. Target teleports and unsupported effects retain explicit issues.
+The `WorldSources` contract in `tools/world-extraction.ts` preserves template and inline GameActions separately in native execution order. Nested rows retain discriminators, chance, requirement groups, and teleport payloads. Template instance IDs and native IDs remain observations, not canonical identities. Supported Position and GameScene teleports qualify as transitions. Target teleports and unsupported effects retain explicit issues.
 
 A known teleport retains its role when an unresolved sibling action exists. An empty payload retains an explicit blocker. Both defects were reproduced with controlled inputs and then passed with the corrected collector. The replay also checked Target teleports and scene-reference handling. Evidence is in `artifacts/map-calibration-smoke/90e3c65f-4b10-4d81-be50-f7d6da1acc23/game-actions-proof.json`.
 
 ### Geometry and navigation scope
 
-`compendium.map-geometry.v3` records scene-local renderers, shared mesh metadata, terrain data, navigation surfaces, regions, MapZones, and grounded landmark samples. Native query counts retain foreign-scene observations separately. Disabled objects remain included. These observations do not establish complete streamed geometry coverage.
+The `MapGeometry` contract in `tools/map-contracts.ts` records scene-local renderers, shared mesh metadata, terrain data, navigation surfaces, regions, MapZones, and grounded landmark samples. Native query counts retain foreign-scene observations separately. Disabled objects remain included. These observations do not establish complete streamed geometry coverage.
 
 The generated bindings omit `NavMesh.CalculateTriangulation`. The engine still resolves `UnityEngine.AI.NavMesh::CalculateTriangulation_Injected`. Native inspection verified its three-array-pointer ABI at UnityPlayer RVA `0x169000`. The evidence and engine hash are in `artifacts/map-calibration-smoke/native-triangulation-abi.json`.
 
-`compendium.navigation-geometry.v2` stores flat world-XYZ coordinates, triangle indices, and area indices. Duskfall produced 26,093 vertices and 11,639 triangles. Coalway woods produced 1,716,233 vertices and 777,867 triangles. Flat arrays avoid allocating one managed object per vertex. The query covers all loaded navigation data, so per-triangle surface ownership remains unresolved.
+The `NavigationGeometry` contract in `tools/map-contracts.ts` stores flat world-XYZ coordinates, triangle indices, and area indices. Duskfall produced 26,093 vertices and 11,639 triangles. Coalway woods produced 1,716,233 vertices and 777,867 triangles. Flat arrays avoid allocating one managed object per vertex. The query covers all loaded navigation data, so per-triangle surface ownership remains unresolved.
 
 Duskfall navigation spans about 999 by 999 world units and 185 units of height. Its broad flat surface and higher geometry do not establish the dungeon's playable boundary. Triangulation excludes off-mesh links and detailed grounding geometry. Unity documents this distinction in its [CalculateTriangulation reference](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/AI.NavMesh.CalculateTriangulation.html). Native grounding samples remain separate evidence.
 
@@ -545,23 +545,23 @@ Woods and swamp retained identical native basis transforms. Their player landmar
 
 TypeScript, all eight regression tests, and strict OpenSpec validation passed. Verified replay drivers and traversal plans are archived under `artifacts/map-calibration-smoke/drivers/`. The archived registration, nested-action, and artifact-provenance replays also passed.
 
-The canceled traversal manifest retains its original socket-close diagnostic. Runtime evaluation now propagates the first cancellation reason to failed-run writers. Historical manifests are not rewritten.
+The canceled traversal manifest retains its original socket-close diagnostic. Runtime evaluation propagates the first cancellation reason to failed-run writers. Historical manifests are not rewritten.
 
-The measured game footprint after the combined run was 23 GB with a 24 GB peak. The earlier 94.12 GB growth remains unexplained. Rendered map-space definitions, reviewed floor assignments, and primary screenshot coverage remain incomplete.
+The measured game footprint after the combined run was 23 GB with a 24 GB peak. The earlier 94.12 GB growth remains unexplained. Rendered map-space definitions, reviewed map membership, and primary screenshot coverage remain incomplete.
 
 ## Reviewed map-space membership
 
-The optional `mapSpaceProfile` configuration field selects a `compendium.map-space-profile.v1` JSON file. Its path is relative to the configuration file. Each source binding declares an exact scene ID and path, a horizontal coordinate frame, membership domains, floor domains, and hashed review evidence. Evidence paths are relative to the original profile file. The run retains that input location and the exact profile bytes.
+The optional `mapSpaceProfile` configuration field selects the `MapSpaceProfile` contract defined in `tools/spatial-contracts.ts`. Its path is relative to the configuration file. Each source binding declares an exact scene ID and path, a horizontal coordinate frame, membership domains, and hashed review evidence. Evidence paths are relative to the original profile file. The run retains that input location and the exact profile bytes.
 
-`tools/map-spaces.ts` compiles source-scene lookups and inverse frames. Domain boxes include their minimum coordinates and exclude their maximum coordinates on all three axes. World Y selects reviewed floors but does not change horizontal projection. Overlapping floor domains remain ambiguous. Missing scene bindings, uncovered positions, missing floors, and contradictory scene catalogs remain explicit. The resolver does not choose the nearest floor or clamp positions.
+`tools/map-spaces.ts` compiles source-scene lookups and inverse frames. Domain boxes include their minimum coordinates and exclude their maximum coordinates on all three axes. Map membership uses horizontal projection; world Y remains observation data and does not select imagery. Missing scene bindings, uncovered positions, and contradictory scene catalogs remain explicit. The resolver does not choose a nearest map or clamp positions.
 
-`spatial.json` binds each placement identity and XYZ observation to map-space candidates, floor candidates, and geometric region membership. Region predicates compile once per snapshot. They support oriented boxes and spheres, include inactive authored volumes, and retain unsupported shapes. Region component IDs and negative native IDs remain observations, not canonical identities. No spatial result establishes screenshot coverage.
+`spatial.json` binds each placement identity and XYZ observation to map-space candidates and geometric region membership. Region predicates compile once per snapshot. They support oriented boxes and spheres, include inactive authored volumes, and retain unsupported shapes. Region component IDs and negative native IDs remain observations, not canonical identities. No spatial result establishes screenshot coverage.
 
 The representative profile places woods and swamp in one Coalway map space. Two shared TerrainData observations have identical data, rotations, and scales across those scenes. Their world-position residuals are 0.000126 and 0.000255 units. This geometry check supplements the native MapZone registration instead of treating its texture or local ID as sufficient evidence. Results are in `artifacts/map-calibration-smoke/shared-terrain-registration.json`.
 
-Duskfall uses separate arrival and main map spaces. Their reviewed membership boxes are not capture boundaries. The main profile labels the surveyed route without asserting a complete architectural floor inventory. A controlled two-floor profile verifies that identical XZ positions retain separate floors through Y. Boundary, overlapping-domain, reflected-frame, unsupported-region, and changed-evidence checks are in `artifacts/map-calibration-smoke/spatial-proof.json`.
+Duskfall uses separate arrival and main map spaces. Their reviewed membership boxes are not capture boundaries. The main profile labels the surveyed route without asserting complete architectural coverage. Boundary, overlapping-domain, reflected-frame, unsupported-region, and changed-evidence checks are in `artifacts/map-calibration-smoke/spatial-proof.json`.
 
-A one-metre grid query found 189 overlapping navigation columns in the sampled Duskfall rectangle. Restricting retained triangle vertices to Y at or below -780 left 33 such columns. A stacked-triangle positive control produced 55 matching columns. These counts describe coarse navigation geometry, not playable floors. Evidence is in `artifacts/map-calibration-smoke/navigation-layer-columns.json`.
+A one-metre grid query found 189 overlapping navigation columns in the sampled Duskfall rectangle. Restricting retained triangle vertices to Y at or below -780 left 33 such columns. A stacked-triangle positive control produced 55 matching columns. These counts describe coarse navigation geometry, not screenshot boundaries. Evidence is in `artifacts/map-calibration-smoke/navigation-layer-columns.json`.
 
 Native visit `11bc413f-77b1-4136-b075-d2e12b52c8e3` checked 13 positions with navigation samples, bidirectional paths, and downward physics rays. Five positions had complete paths both ways from the dungeon entrance. Seven had partial paths, including lower surfaces beneath two reachable wooden bridges and high tree geometry. The arrival room had a physical floor but no nearby navigation sample. The visit restored the source scene and reported clean cleanup. Path results do not prove that every partial-path surface is unreachable by the player.
 
@@ -573,19 +573,19 @@ Traversal `e1fe3815-c911-4e13-b56d-77fbc2444a5c` produced the same 88 resolved a
 
 The archived dungeon replay resolved 88 of 92 retained placements. Four outliers remain outside the reviewed domains. Their evidence points to quest and mount-control hierarchies. Observed Y values change between the world-source and placement snapshots, reaching 24,603.957 units in the placement snapshot. Their spatial applicability remains unresolved. The pipeline retains their identities and coordinates instead of enlarging the map or suppressing them.
 
-`artifacts/map-calibration-smoke/spatial-integration-proof.json` verifies both runs' source hashes, profile hashes, exact projection replay, and cleanup receipts. TypeScript and all ten regression tests passed. The tests retain the overlapping-floor boundary and contradictory-catalog cases. A catalog with multiple build paths was incorrectly accepted despite its `matched` label. That case failed before the guard change and passed afterward.
+`artifacts/map-calibration-smoke/spatial-integration-proof.json` verifies both runs' source hashes, profile hashes, exact projection replay, and cleanup receipts. TypeScript and all ten regression tests passed. The tests retain the overlapping-domain boundary and contradictory-catalog cases. A catalog with multiple build paths was incorrectly accepted despite its `matched` label. That case failed before the guard change and passed afterward.
 
-Spatial smoke drivers are archived under `artifacts/map-calibration-smoke/drivers/`. Reviewed local profile and connection inputs remain under `local/`. Full-build map-space review, complete interior floor review, and primary screenshot coverage remain open. Task 3.9 stays unchecked until that floor review is complete.
+Spatial smoke drivers are archived under `artifacts/map-calibration-smoke/drivers/`. Reviewed local profile and connection inputs remain under `local/`. Full-build map-space review and primary screenshot coverage remain open. Task 3.9 stays unchecked until that review is complete.
 
 ## Owned screenshot capture
 
-`capture --config <file> --plan <file>` accepts a `compendium.capture-plan.v3` plan and a reviewed `mapSpaceProfile`. The plan selects the source scene, map space, optional floor, camera rectangles, image dimensions, lighting, and reviewed ceiling selectors. Capture enters the requested scene when necessary and restores the original scene, position, and rotation before success. Its readiness profile bounds each scene transition and each complete tile operation. Capture holds geometry until rendering and restoration finish. Successful results report `readiness: verified` and retain `completeImagery: false`.
+`capture --config <file> --plan <file>` accepts a `CapturePlan` defined in `tools/capture-contracts.ts` and a reviewed `mapSpaceProfile`. The plan selects source scenes, map spaces, camera rectangles, image dimensions, lighting, and optional `clipHeight`. A sweep claims runtime ownership once, visits each requested scene, restores frame-local state and streams per plan, and finishes in the configured known-good scene, Coalway woods, rather than restoring the scene active at the start. This avoids a save inside the corrupted challenge-stone arena (scene 16), which cannot load out. Separate readiness, render, encode, and cleanup budgets prevent an exhausted operation budget from blocking restoration. Successful results report verified readiness and retain `completeImagery: false`.
 
 `tools/probes/capture-session.csx` registers native cleanup before allocating its camera, directional light, render target, and readable texture. The two GameObjects and their components remain inactive between captures. These resources can survive multiple game frames. Explicit restoration, failed allocation, cancellation, and socket loss use the same native cleanup action. The cleanup receipt identifies the resource prefix and reports remaining objects.
 
 Each render records native fog, ambient lighting, the spherical-harmonics probe, the active render target, and selected renderer flags before making temporary visual changes. Its frame-local cleanup restores those values before the evaluation returns. The restoration artifact records the actual before and after values and native frame numbers. A failed read remains unavailable; it is not replaced with the earlier observation. Failed rendering does not publish a PNG.
 
-The capture host checks source and owner identity, camera metadata, PNG dimensions and hashes, exact visual-state restoration, and clean resource receipts. It retains the reviewed profile, plan, scene catalog, and raw inventory with the run. Geometry readiness uses the owned stream scope described below. Controlled illumination and transient suppression are described below. Reviewed floor visibility and resumable capture coverage remain open.
+The capture host checks source and owner identity, camera metadata, PNG dimensions and hashes, exact visual-state restoration, and clean resource receipts. It retains the reviewed profile, plan, scene catalog, and raw inventory with the run. Geometry readiness uses the owned stream scope described below. Controlled illumination and transient suppression are described below. Reviewed clip-height coverage and resumable capture coverage remain open.
 
 All 12 lifecycle cases passed: normal rendering, four partial-allocation failures, three render-stage failures, and cancellation or disconnection both between and within frames. Every case had a clean owner receipt and an independent native scan with zero remaining capture objects. In-frame cases retained equality for the recorded visible state and matching frame numbers. Custom-mode cache checks appear in the controlled-illumination evidence below. All four cancellation and disconnection cases wrote their native cleanup receipts before the host callback unwound. Evidence is in `artifacts/capture-lifecycle/e119609f-a177-4e8d-8369-7e31bfb0077a/proof.json`. Failed cases published no image. Four additional path-collision checks preserved existing evidence and released all resources; their proof is `artifacts/capture-lifecycle/a9b3ad5d-4925-40cf-a0b6-c29516553627/proof.json`.
 
@@ -597,7 +597,7 @@ Capture drivers are archived under `artifacts/capture-lifecycle/drivers/`. TypeS
 
 ## Tile-local geometry readiness
 
-`tools/capture-readiness.ts` holds selected sources through rendering and restoration. The readiness profile bounds the whole tile to 1–300 seconds and requires 2–10 stable observations. It permits at most 256 source holds. Traversal retains its separate 32-loader selection limit.
+`tools/capture-readiness.ts` holds selected sources through rendering and restoration. Its `CaptureReadinessProfile` fields are defined in `tools/capture-contracts.ts`: readiness, render, encode, and cleanup budgets are separate, with stable-frame and source-hold limits. Traversal retains its separate 32-loader selection limit.
 
 The native geometry probe expands the complete camera frustum by the configured XZ overlap. It calls `AddressableLoader.Covers` at the closest frustum point to each loader. This tests the native loading sphere against the full frustum without loading everything inside the larger enclosing sphere. Already observed intersecting geometry also selects its source. Inactive-source exclusions remain in the inventory.
 
@@ -607,7 +607,7 @@ Readiness requires initialized scene state, settled native handles, active loade
 
 Mesh-less renderer components retain null bindings rather than receiving an invented pending-load state. The native investigation found eleven such zero-size components under character models. Their evidence is `artifacts/25144591/26293faa-76b1-4b74-9637-95f7a495d7fb/result.json`. No claim is made about their authored intent. Relevant null-mesh rows prevent an empty classification. Missing materials on present meshes, missing terrain data, and source-integrity issues remain blockers.
 
-The existing stream visitor registers native cleanup before changing holds or requesting loads. Cleanup restores original holds, preserves originally loaded roots, and releases newly owned roots. It writes `compendium.stream-cleanup.v1` only after restoration settles. Capture and traversal verify that receipt. Socket loss does not require a later host restore request.
+The existing stream visitor registers native cleanup before changing holds or requesting loads. Cleanup restores original holds, preserves originally loaded roots, and releases newly owned roots. It writes the `StreamCleanup` contract defined in `tools/traversal-contracts.ts` only after restoration settles. Capture and traversal verify that receipt. Socket loss does not require a later host restore request.
 
 Native hold verification selected 96 sources, including 19 initially unloaded sources that reported loading at startup. Normal completion, cancellation before readiness, and disconnection before readiness all restored holds and left zero owned roots. Both interrupted cases produced cleanup receipts before the host callback unwound. Evidence is `artifacts/geometry-holds/ac035e5f-0cd9-40b1-875c-04f4dee94f26/proof.json`.
 
@@ -623,7 +623,7 @@ Source archives store test files with a non-executable suffix so Bun does not ru
 
 ## Orthographic raster registration
 
-Each PNG now has a hashed `compendium.capture-raster.v2` artifact linked by its image hash. The native capture reports actual camera properties. Five native projection controls cover the center and all four corners inside the clipping interval. The host rejects missing controls or residuals above one quarter pixel.
+Each PNG has a hashed `CaptureRaster` artifact defined in `tools/capture-contracts.ts`, linked by its image hash. The native capture reports actual camera properties. Five native projection controls cover the center and all four corners inside the clipping interval. The host rejects missing controls or residuals above one quarter pixel.
 
 The raster frame maps top-left pixel edges into source-scene XZ coordinates. Pixel centers use `(column + 0.5, row + 0.5)`. Image X increases world X; image Y decreases world Z. The reviewed map-space transform remains a separate step. A native 2-by-2 color texture and browser pixel decode verified the PNG origin. Evidence is `artifacts/capture-orientation/39e53cac-5871-4e83-8875-6f142d2506a6/proof.json`. Browser screenshot calls timed out; the proof records pixel decoding, not a browser screenshot.
 
@@ -643,7 +643,7 @@ Capture never assigns `RenderSettings.ambientProbe`. Flat and Trilight getters e
 
 The shared `tools/probes/capture-visuals.csx` prelude selects player bodies, mounts, owned actors, combat visuals, weather roots, camera particles, ground indicators, and non-looping particle roots. Particle-only selection preserves other actors' mesh renderers. Capture suppresses selected projectors and excludes highlight effects through their camera masks. It does not disable gameplay roots. Seven retained particle renderers identify furnace, cooking, property-sign, heroic-console, and bed landmarks in the woods sample.
 
-Readiness and rendering resolve the same transient policy and reviewed ceiling selectors. Geometry inventories retain exclusion IDs and reasons without treating those renderers as pending geometry. In the final production run, exclusions changed from 46 to 57 across the three accepted stable observations. The inventories retained 652 mesh rows and seven other renderers. Capture hashes the shared prelude. Session, restoration, and geometry observations use their v3 contracts.
+Readiness and rendering resolve the same transient policy and reviewed clip-height settings. Geometry inventories retain exclusion IDs and reasons without treating those renderers as pending geometry. In the final production run, exclusions changed from 46 to 57 across the three accepted stable observations. The inventories retained 652 mesh rows and seven other renderers. Capture hashes the shared prelude. Session, restoration, and geometry contracts are defined in `tools/capture-contracts.ts` and `tools/probes/capture-session.csx`.
 
 Native contrast fixtures changed ambient colors, intensity, reflection intensity, and all active-hierarchy game lights. The bright fixture used light intensity 8 and RGB `(4,3,2)`. The dark fixture used intensity 0.002 and RGB `(0.005,0.01,0.02)`. They did not advance the game clock. Capture suppressed all 75 and 77 active light inputs, respectively, including directional, point, and spot lights.
 
@@ -661,36 +661,31 @@ Reproduce the normal capture while Coalway woods and the research character are 
 nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan artifacts/25144591/1e94baf6-9b0e-4ca6-bc48-9c4c4c687d01/plan.json
 ```
 
-## Reviewed interior floor capture
+## Reviewed interior clipping capture
 
-Interior plans use explicit clipping intervals. Every tile in a floor plan must use the same interval. Raster `verticalBounds` records that interval separately from floor membership. Neighboring intervals can overlap to retain headroom and connecting geometry.
+Interior plans use an optional reviewed `clipHeight`. A plan without that field applies no vertical clipping. Raster `verticalBounds` records the applied interval as capture evidence; it does not define map membership. Each reviewed clip height is explicit per plan and must be checked against the rendered image.
 
-Ceiling reviews use complete hierarchy, mesh name, vertex count, and world bounds. The host verifies and archives the referenced evidence bytes. Native resolution rejects missing or ambiguous matches and records the resolved renderer IDs. Protected floor renderers must remain enabled during rendering and restoration. Capture changes renderer flags, not shared mesh data or gameplay roots.
+The current capture contract does not use ceiling selectors or floor renderer lists. Capture changes no scene object, shared mesh, or gameplay root. Native and host cleanup restore temporary camera, lighting, and renderer state before the result is accepted.
 
-The name-only ceiling survey failed because two colliders shared `Rock1_2 (104)`. Its evidence is `artifacts/interior-slices/ba733d39-4982-4174-9673-4961e91ff3e6/`. The reviewed survey resolved two ceiling renderers and 35 protected floor renderers. Its evidence is `artifacts/interior-slices/2c3fa85c-414f-4e2f-8f27-334739504fa3/`. Reloaded captures resolved different runtime IDs from the same selectors.
+Accepted interior evidence uses an explicit plan `clipHeight` and rendered-image review. Renderer selector resolution is not required.
 
 Run `1259e5c1-9b69-455d-b022-9c7e6a1b0fec` selected the reviewed bridge as both ceiling and protected floor. Native resolution rejected the conflicting selectors before suppression. The failed run published no image and confirmed clean ownership cleanup.
 
-The native CharacterController remained grounded below and on `Wood_Bridge1 (2)` at the same XZ coordinates. Small horizontal movements retained ground contact at both elevations. The reviewed profile assigns the lower point to `lower` and the bridge point to `upper`. The half-open boundary at Y −807 belongs to `upper`. Evidence is `artifacts/interior-slices/2e02be30-a0bf-4b12-8cbe-3189de180cb9/`. These occupancy controls do not prove natural route access.
+The native CharacterController checks established that a reviewed clip height can expose covered dungeon content while preserving scene geometry. The capture contract records the plan value and restores frame-local state and streams with a clean runtime receipt before retargeting the configured final scene.
 
-Upper capture `90e1c007-0d87-4c4f-9d81-4802dbc32c2f` and lower capture `8ab03e79-f2f6-4567-a911-bc3fb6a3f857` produced registered 640-by-840 images. Both cover X 1490–1810 and Z −1110–−690 at two pixels per world unit. Their clipping intervals are Y −810–−785.1 and Y −845–−805.1, respectively. Direct image inspection shows separate raised and lower geometry. Both captures retained all 35 protected floor renderer flags, restored visual state in the render frame, and left no owned capture objects. Both restored the original scene, position, and rotation with clean runtime receipts.
+The Abandoned mine cave tile with `clipHeight` -250 records `source: plan` and `applied: true`; it moves the camera from -180 to -250 and renders the cave floor with the rock formation sliced at that height. Coalway woods captures without `clipHeight` and keeps the outdoor camera frame. Image review confirms the intended content in both cases.
 
-The first upper capture exposed a readiness defect. Animated NPC meshes and particle bounds crossed a clipping plane, so their inventory rows appeared and disappeared without binding changes. Run `8c15a185-bbea-4745-ae98-b6acf1d01ee9` exceeded its unchanged 300-second tile deadline and restored ownership cleanly. Later observations now continue inspecting previously observed active bindings outside the frustum. Intersection changes do not determine binding stability; source state, geometry bindings, and integrity checks still do. The identical plan succeeded with three stable observations, including a mesh that moved outside the frustum without changing its mesh or materials.
+Readiness remains independent of clipping. Capture retains stable source bindings across observations, rejects unsettled geometry, and accepts no tile without cleanup and restoration. Full-build map-space review and complete imagery remain open.
 
-The upper evidence archive verifies 45 artifacts and retains 21 exercised source files. The lower archive verifies 43 artifacts against the same capture sources. `artifacts/interior-slices/90e1c007-0d87-4c4f-9d81-4802dbc32c2f/floor-pair.json` links both raster frames and the occupancy controls. TypeScript and all ten existing regression tests passed. These checks establish reviewed slices and restoration, not a complete dungeon route or complete imagery. Tasks 3.9 and 4.5 remain open until the remaining floor and route review passes.
+The reviewed clip-height evidence completes task 4.5. Task 3.9 remains open until full-build map-space review and primary screenshot coverage pass.
 
 Arrival-room run `1b5add2d-f260-4263-b1c7-b7f16153452d` produced a PNG but exceeded the 300-second source-scene restoration deadline. Its last poll still reported an unready dungeon scene and no player transform. Native cleanup subsequently reported clean state with no callbacks remaining. The manifest remains failed; this image does not establish accepted arrival-room coverage.
 
-Reproduce the registered floor captures:
-
-```sh
-nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan artifacts/25144591/90e1c007-0d87-4c4f-9d81-4802dbc32c2f/plan.json
-nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan artifacts/25144591/8ab03e79-f2f6-4567-a911-bc3fb6a3f857/plan.json
-```
+Capture reproduction uses a current-build plan with an optional `clipHeight`. The run manifest retains the exact plan, build identity, profile hash, and image evidence.
 
 ## Resumable primary captures
 
-Capture writes a hashed tile checkpoint only after rendering, raster validation, visual restoration, and stream cleanup pass. Compatibility includes build and profile hashes, capture implementation hashes, character, scene, floor, dimensions, lighting, readiness, frame, and ceiling review. Adding unrelated tiles does not invalidate an unchanged tile.
+Capture writes a hashed tile checkpoint only after rendering, raster validation, visual restoration, and stream cleanup pass. Compatibility includes build and profile hashes, capture implementation hashes, character, scene, dimensions, lighting, readiness, frame, and visual policy. Adding unrelated tiles does not invalidate an unchanged tile.
 
 Reuse verifies registered artifact bytes and decodes those same verified JSON bytes. It repeats the production camera, raster, image, and visual-restoration checks. Copied tiles retain their original native run, owner, and capture key. Returned image paths refer to the new run. An all-reused capture skips inventory, scene transitions, streaming, and capture-resource allocation.
 
@@ -710,13 +705,13 @@ nix develop --command bun run compendium capture --config artifacts/capture-resu
 
 ## Optional illustration preparation
 
-The offline `illustration` command preserves artwork in a separate `compendium.illustration.v1` artifact. It records the original image hash, dimensions, reviewed map space, and evidence references. It does not connect to the game. Illustration output always sets `primaryImagery` and `completeImagery` to `false`; it cannot replace capture tiles.
+The offline `illustration` command preserves artwork in a separate `IllustrationOutput` artifact defined in `tools/illustration-contracts.ts`. It records the original image hash, dimensions, reviewed map space, and evidence references. It does not connect to the game. Illustration output always sets `primaryImagery` and `completeImagery` to `false`; it cannot replace capture tiles.
 
 Preparation snapshots input bytes, decodes the image, checks evidence hashes and JSON pointers, and verifies the reviewed map-space profile. Calibrated artwork requires four distinct pixel controls, including a control outside the three-point affine fit. Both declared and independently fitted transforms must satisfy the quarter-pixel residual limit. Orientation-only output has no marker transform.
 
 Run `c2b219c5-f1ad-4003-9bab-3f0910900ea7` imported the real 7540-by-8192 overworld artwork without changing its 76,574,413 bytes. Its image hash is `070ab5cd19d6955565c1d9cda23e5dc0741f727869f29e7bc1e9bec44d0e8b19`. The layer remains orientation-only because native map metadata does not establish image registration. This check covers asset preparation, not browser layer switching. Task 4.6 remains open.
 
-A synthetic rotated calibration exposed transposed affine coefficients during integration. Regression checks now cover rotated coordinates, independent controls, absent evidence pointers, AVIF delivery, and truncated images with matching hashes. Failed preparation preserves the prior successful output. TypeScript and all 15 repository tests passed, with 52 assertions.
+A synthetic rotated calibration exposed transposed affine coefficients during integration. Regression checks cover rotated coordinates, independent controls, absent evidence pointers, AVIF delivery, and truncated images with matching hashes. Failed preparation preserves the prior successful output. TypeScript and all 15 repository tests passed, with 52 assertions.
 
 Reproduce the offline import:
 
@@ -738,7 +733,7 @@ Tile run `1fed504e-929d-435e-aca1-7604c0ee08a7` contains seven WebP files totali
 
 Publication run `3ed3183f-c217-4fa9-ae31-93c448424a75` contains 34 mapped placements, 1,959 entities, and eight content-addressed images. Images total 60,123,268 bytes, including 59,690,148 bytes of optional artwork. Metadata is 33,450,974 bytes. Gzip encoding produces 974,368 bytes. This measurement does not imply that the development server sends compressed responses.
 
-The public metadata hash is `ed4a3e1f27e90069de871afd16886e35f83c7a448ae672e2112624c1185cce12`. It matches the input checked in `artifacts/publication-smoke/7722bb79-gates.json`. Nine rejection checks cover references, floors, spatial bounds, tile registration, duplicate placements, preview disclosure, release coverage, manifest integrity, and build agreement. Rejection does not change the valid public artifact.
+The public metadata hash is `ed4a3e1f27e90069de871afd16886e35f83c7a448ae672e2112624c1185cce12`. It matches the input checked in `artifacts/publication-smoke/7722bb79-gates.json`. Nine rejection checks cover references, spatial bounds, tile registration, duplicate placements, preview disclosure, release coverage, manifest integrity, and build agreement. Rejection does not change the valid public artifact.
 
 The preview excludes 1,762 classified placements outside verified imagery. Another 815 source identities have no classified marker role. Its 3,725 source-coverage issues remain visible as an incomplete-coverage disclosure. Current normalization accepts bounded observations only. Full-world reconciliation and complete-release certification remain open.
 
@@ -750,9 +745,9 @@ nix develop --command bun run compendium tiles --plan local/tiles-plan.json --ou
 nix develop --command bun run compendium publication --plan local/publication-plan.json --output artifacts
 ```
 
-Normalization reads `raw/placement-snapshot.json` from extraction runs and each step's `after.json` from traversal runs. Mixed normalization `8774a6b0-9a0e-457b-9d36-1f4a3865883f` combines the Coalway extraction with Duskfall traversal `d87f275a-341b-485e-ab56-322e3aa09ece`. It contains 2,713 placements: 2,611 in Coalway, 70 on the reviewed upper floor, 26 on the lower floor, one in the arrival room, and five outside the reviewed profile. The same plan failed before the traversal snapshot-path correction. Run it with `nix develop --command bun run compendium normalize --output artifacts --plan local/normalize-interior-plan.json`.
+Normalization reads `raw/placement-snapshot.json` from extraction runs and each step's `after.json` from traversal runs. It projects placements onto reviewed horizontal map spaces, retains Unity world position including world Y in normalized records, and preserves placements outside reviewed domains as explicit coverage issues. Normalization does not select a floor or infer screenshot coverage.
 
-NPC merchant and quest navigation follows the native `isMerchant` and `isQuestGiver` flags, as role classification does. Authored bindings remain in SQLite even when the service is disabled. Normalization `e5103433-2a56-4758-b30d-f9c4128cf6e0` removes 549 disabled-merchant item sources and 46 disabled-quest location references from navigation. It retains 657 merchant item sources across 39 enabled merchants and 119 quest location references. In the browser, Lost druid Talroth retains three quest associations but no longer appears to sell seven items from an inactive default table. Evidence is in `artifacts/publication-smoke/service-eligibility.json`.
+NPC merchant and quest navigation follows the native `isMerchant` and `isQuestGiver` flags, as role classification does. Authored bindings remain in SQLite even when the service is disabled. Normalization `e5103433-2a56-4758-b30d-f9c4128cf6e0` removes 549 disabled-merchant item sources and 46 disabled-quest location references from navigation. It retains 657 merchant item sources across 39 enabled merchants and 119 quest location references. In the browser, Lost druid Talroth retains three quest associations and does not appear to sell seven items from an inactive default table. Evidence is in `artifacts/publication-smoke/service-eligibility.json`.
 
 Requirement references follow the outer native `RequirementType`, rather than every serialized ID field. NPC and world validators share these rules. ID zero remains meaningful when its field applies. Unknown requirement types retain all candidate checks. Revalidation of extraction `c3f45239-a466-4109-a720-4b2d40836753` removes 1,028 false missing references while retaining the authored payload. Smoke checks exercise inactive fields, active zero IDs, and unknown types in both validators.
 
@@ -774,23 +769,23 @@ A lifecycle smoke mounted and unmounted the real component in Chrome. Before unm
 
 The cold preview response used 805,974 encoded body bytes for 33,450,974 decoded metadata bytes. That viewport requested three screenshot tiles totaling 245,250 bytes. It did not request optional artwork. One development-browser run opened Rough Stone's 1,144-source panel in 631 milliseconds. The document then had 74,699 elements and 20,644 detail rows. This is not a mobile-device benchmark.
 
-The client check passes across 1,426 files with no errors or warnings. The static build succeeds. Its largest JavaScript chunk is 823.91 kB raw and 227.26 kB gzip. Vite still reports its 500 kB chunk warning. Cross-map transition destinations and full-build performance remain unverified. The publisher does not yet generate the optional destination navigation field. Authored teleport actions appear in source details, but task 6.3 still requires destination normalization and publication before its browser check.
+The client check passes across 1,426 files with no errors or warnings. The static build succeeds. Its largest JavaScript chunk is 823.91 kB raw and 227.26 kB gzip. Vite still reports its 500 kB chunk warning. Cross-map transition destinations and full-build performance remain unverified. The publisher does not generate the optional destination navigation field. Authored teleport actions appear in source details, but task 6.3 still requires destination normalization and publication before its browser check.
 
-The representative outdoor-and-interior pipeline now passes task 6.5. Duskfall reloads retained all 104 source/placement identity pairs while all 104 runtime component IDs changed. Both identity artifacts match their registered hashes. The second traversal failed during restoration, then confirmed clean native cleanup; its extraction is not a publication input. The new 100-second repeat expired during extraction and also cleaned up. A proposed 300-second plan was rejected by the existing 110-second schema ceiling and was removed.
+The representative outdoor-and-interior evidence exercises extraction, repeat-load identity, capture, normalization, and browser picking. Duskfall reloads retain source/placement identity pairs while runtime component IDs change, and identity artifacts match their registered hashes. Task 6.5 remains unchecked until this evidence is repeated on the single-plane model and supported build 25153357.
 
-New upper and lower captures `86023729-a1d4-4ef9-ac83-bc0c4cda4397` and `06d2f65c-2a95-45c4-8bf5-7a274b5c72b7` rendered and restored capture resources but exceeded the source-scene restoration deadline. Both later confirmed clean native ownership with zero callbacks. Successful resumes `3faa8421-1998-4aee-bf4d-fe24128fabcc` and `0424df32-0d49-4ea3-be0a-ae88150954a5` reused the verified checkpoints without recapture. Their tile pyramids contain 17 WebPs per floor, using 409,066 and 854,034 bytes. All 1,075,200 finest-level pixels match the source PNGs, and all 34 shared tile edges agree.
+Capture checkpoint reuse and tile-edge validation are implemented. Complete supported-build imagery and current-build artifact measurements remain open.
 
-Publication `2061cb5b-55a0-4ee9-8d2d-76d6bff55b9a` contains 51 placements across Coalway and the two reviewed Duskfall floors. Its 42 image files total 61,386,368 bytes, including optional artwork. Built metadata matches SHA-256 `27968bbdd06ceca4260e8880b58e488f0bf7e1be2ef986d168b538c5fc5bd503`. Coverage remains incomplete: 1,765 classified placements are excluded, 897 identities have no classified role, and 4,200 source issues remain. Bulk collection still needs successful bounded visits across the remaining scene catalog.
+Publication emits normalized records, WebP tile pyramids, content hashes, and an incomplete-coverage disclosure. Full supported-build collection and complete-release certification remain open.
 
-Scene and traversal control probes now pause 500 milliseconds between requests. A controlled 100-millisecond run expired during Coalway activation; the 500-millisecond run restored both scenes within the same 100-second per-phase deadlines. Restoration advanced 42 frames between the first and last responses in the failed run, versus 171 frames in the successful run. Both runs reported no readiness holds, allowed scene activation, and time scale 1. The successful run reached Coalway's 81-source streaming stage before restoration completed. Scene reports now retain loader progress, initialization state, and frame timing to distinguish these delays from blocked readiness holds.
+Scene and traversal control probes pause 500 milliseconds between requests. A controlled 100-millisecond run expired during Coalway activation; the 500-millisecond run restored both scenes within the same 100-second per-phase deadlines. Restoration advanced 42 frames between the first and last responses in the failed run, versus 171 frames in the successful run. Both runs reported no readiness holds, allowed scene activation, and time scale 1. The successful run reached Coalway's 81-source streaming stage before restoration completed. Scene reports retain loader progress, initialization state, and frame timing to distinguish these delays from blocked readiness holds.
 
-Full upper-floor capture `fff9067c-4bf7-4472-b139-5ed6b037b062` then completed in 264.20 seconds without changing its deadlines. It restored the original scene, position, and rotation, and confirmed clean native ownership with zero callbacks. Evidence is in `artifacts/restoration-diagnostic/polling-comparison.json`. These checks do not establish that every remaining scene can finish within the existing deadlines.
+A full interior capture completed in 264.20 seconds within its configured deadlines. It restored the original scene, position, and rotation, and confirmed clean native ownership with zero callbacks. Evidence is in `artifacts/restoration-diagnostic/polling-comparison.json`. These checks do not establish that every remaining scene can finish within the existing deadlines.
 
-Traversal `095629ce-4b6a-46ab-a0d7-79d2ccfdd275` still exceeded its 100-second whole-step budget during extraction, then confirmed clean native cleanup. Plans now permit 1–300 seconds per complete step. This keeps the maximum 305-second stream hold below the native 360-second limit. With the explicit 300-second plan, traversal `e78fddee-c7e0-46e7-9bb1-d550f03bdca4` completed in 291.39 seconds overall. It restored Coalway and confirmed clean ownership with zero callbacks. Its source coverage remains incomplete.
+Traversal `095629ce-4b6a-46ab-a0d7-79d2ccfdd275` exceeded its 100-second whole-step budget during extraction and confirmed clean native cleanup. Plans permit 1–300 seconds per complete step. This keeps the maximum 305-second stream hold below the native 360-second limit. With the explicit 300-second plan, traversal `e78fddee-c7e0-46e7-9bb1-d550f03bdca4` completed in 291.39 seconds overall. It restored Coalway and confirmed clean ownership with zero callbacks. Its source coverage remains incomplete.
 
 Reproduce it with `nix develop --command bun run compendium traverse --config local/spatial-smoke-config.json --plan local/traverse-interior-plan.json`.
 
-Browser picking opens Lost druid Talroth on the raised level and Aquarius on the lower level. Heart of corruption leads from Aquarius to Grovekeeper while retaining item context across floors; browser back returns to the lower floor. The built mobile view retains a 198-pixel map region with no document overflow at 390 by 844 pixels. Floor switching originally reused the upper image because both Deck TileLayers had the same ID. Namespaced layer IDs now discard stale tile state; the built switch requests 12 lower-floor tiles and displays the lower geometry. Evidence is in `artifacts/publication-smoke/interior-pipeline.json`.
+Browser picking opens Lost druid Talroth and Aquarius while retaining item context across map content; browser back returns to the prior result. The built mobile view retains a 198-pixel map region with no document overflow at 390 by 844 pixels. Namespaced layer IDs prevent stale tile state when a map offers an alternative layer. Evidence is in `artifacts/publication-smoke/interior-pipeline.json`.
 
 On a fresh checkout with the verified publication available, run:
 
@@ -809,7 +804,7 @@ Stop the preview before each rebuild. Start a new preview process after the buil
 
 All repository runtime commands acquire an exclusive SQLite transaction at `~/.cache/afallon-compendium/runtime-owner.sqlite` before connecting. A competing command fails without opening another game connection. The operating system releases the lock if the host process dies. Evaluation IDs include the owner UUID, so a stale response cannot satisfy a different owner's request.
 
-`tools/probes/runtime-owner.csx` binds the native owner to the current HotRepl connection. A game-side coroutine runs registered cleanup when that connection closes or is replaced. Cleanup does not require a later host restoration request. The host requires a matching `compendium.runtime-owner.v1` receipt with state `clean`, no errors, and no remaining callbacks. Failed cleanup blocks the next native claim. Do not clear unknown failed-owner state to retry an operation.
+`tools/probes/runtime-owner.csx` binds the native owner to the current HotRepl connection. A game-side coroutine runs registered cleanup when that connection closes or is replaced. Cleanup does not require a later host restoration request. The host requires a matching runtime-owner receipt defined in `tools/runtime.ts` with state `clean`, no errors, and no remaining callbacks. Failed cleanup blocks the next native claim. Do not clear unknown failed-owner state to retry an operation.
 
 Use `withRuntime` for every extraction, traversal, and capture operation. `Runtime.evaluate` takes a C# expression; `Runtime.probe` wraps a reviewed probe body. Both expose `registerRuntimeCleanup(Action)`, `registerRuntimeCleanupWait(Func<bool>)`, and `registerFrameCleanup(Action)` to that C# code. Register cleanup before allocating resources or changing state. Runtime registration returns an unregister action; unregister only after explicit cleanup. Each unregister action removes its own registration, including when the same delegate was registered more than once. Frame cleanup runs synchronously in the evaluation's `finally` block, including on exceptions. An evaluation error ends the owner; subsequent checks need a new owned operation.
 
@@ -827,7 +822,7 @@ Integrated extraction `b950166c-2b6d-495c-ad62-4cf6ee508c2c` succeeded with 18 a
 
 This is repository-command coordination, not server-side authorization. An arbitrary raw HotRepl client can still replace the connected client. The in-flight check observed the server forwarding a stale reply to that replacement; owner-prefixed request IDs prevent it from completing another repository request. Native cleanup also cannot preempt C# or run while the game thread is blocked. A missing or failed cleanup receipt remains an error, not permission to reuse affected state.
 
-A canceled evaluation now preserves its originating error instead of replacing it with socket closure. Reproduction `a1cc3155-cc92-4f11-9ce9-94005f3a23c1` recorded `HotRepl WebSocket connection closed` in the manifest while the outer operation retained the tile deadline. With the corrected error propagation, `66d21e2e-930b-488c-81f6-8d3345cb9f4a` retained the same deadline error in the request, outer operation, and manifest. Native-error control `4c1e1907-c856-467e-828d-1f355a78baf0` retained its original native exception and details. All three owners reported clean cleanup. The live regression driver is `artifacts/runtime-errors/verify-cancel-cause.ts`.
+A canceled evaluation preserves its originating error instead of replacing it with socket closure. Reproduction `a1cc3155-cc92-4f11-9ce9-94005f3a23c1` recorded `HotRepl WebSocket connection closed` in the manifest while the outer operation retained the tile deadline. With the corrected error propagation, `66d21e2e-930b-488c-81f6-8d3345cb9f4a` retained the same deadline error in the request, outer operation, and manifest. Native-error control `4c1e1907-c856-467e-828d-1f355a78baf0` retained its original native exception and details. All three owners reported clean cleanup. The live regression driver is `artifacts/runtime-errors/verify-cancel-cause.ts`.
 
 The VM connection has an intermittent setup delay. A raw handshake took 8.5 seconds; two owned attempts exceeded the existing 10-second connection deadline before claiming ownership. The six lifecycle checks passed with that existing configuration. The in-flight follow-up and integrated extraction used an isolated 30-second smoke configuration, without changing `local/config.json`. SDK 4.0.1 also leaves its opening promise pending when the socket closes before a handshake; the host deadline and CLI termination bound that wait. No SDK or HotRepl server code was changed.
 
@@ -839,13 +834,13 @@ The VM connection has an intermittent setup delay. A raw handshake took 8.5 seco
 
 Steam replaced Afallon during development. `GameAssembly.dll` and `global-metadata.dat` changed, and the build moved from 25144591 to 25153357. Recovered declarations differ in six places, all in combat and corruption types: requirement effect consumption with an added `RequirementsMet` overload, an item-tooltip parameter, a character-updater method, a new combat-settings field that shifts later offsets in that type, and a new `CorruptionGearBonus` type. No map, guide, loot, scene, producer, region, or category type changed. `research/recovered-types.25144591/` retains the previous declarations.
 
-Two instrumented games cannot share one port. HotRepl reads `HOTREPL_PORT`, so Afallon now runs on 18601 and leaves 18591 to the other project. Doctor rejected the wrong game before that change, and it reports build 25153357 with `GameAssembly.dll` hash `d463bf8f6f102bfe695aeb6fd24eb644898f3b4f24de5c523402f9abb3282363`.
+Two instrumented games cannot share one port. HotRepl reads `HOTREPL_PORT`, so Afallon runs on 18601 and leaves 18591 to the other project. Doctor rejected the wrong game before that change, and it reports build 25153357 with `GameAssembly.dll` hash `d463bf8f6f102bfe695aeb6fd24eb644898f3b4f24de5c523402f9abb3282363`.
 
 The game shows one flat map for each `MapMinimap.MapZone`, with three `MapIconType` tiers, quest icons, and fog. It ships one texture, `Duskfall depths full map`, for the multi-level dungeon, and its Abandoned quarry map is a top-down terrain render. Player-facing categories exist as native enums: `CursorType` and `NameplateUnitType`. Level ranges come from `RegionTemplate`, `RPGGameScene`, `NPCSpawner`, and `QuestLevelRange`, and `MinimapDisplay` renders them beside a name. The in-game Adventure Guide organizes dungeons, bosses with abilities, stats and loot, regions, and properties.
 
-Interior floors and reviewed ceiling suppression are removed. Maps are one horizontal plane, placements retain world height as an ordinary field, and stacked content projects onto the same plane. Schemas moved to map-space profile v2, spatial snapshot v2, capture plan v4, capture set v2, capture restoration v4, tile compatibility v2, illustration plan v2, tile plan v2, tile pyramid v2, normalized output v2, and publication v2. Renderer names cannot identify ceilings: one cave scene has `Massive_Cave_Ceiling_*` renderers while the reviewed dungeon scene has no renderer whose name matches ceiling or roof.
+Interior floors and reviewed ceiling suppression are removed. Maps are one horizontal plane, placements retain world height as an ordinary field, and stacked content projects onto the same plane. The map-space and spatial contracts are defined in `tools/spatial-contracts.ts`; capture contracts and tile compatibility are defined in `tools/capture-contracts.ts` and `tools/capture-cache.ts`; illustration contracts are in `tools/illustration-contracts.ts`; tile contracts are in `pipeline/tile-contracts.ts`; normalized and publication contracts are in `pipeline/normalized-contracts.ts` and `pipeline/public-contracts.ts`. Renderer names do not select capture clipping.
 
-Extraction `bb1a1a93-38b2-495f-98ac-ffc89bd831cd` on the new build resolved all 2,183 placements with the floorless profile and reported zero unresolved typed references. Its native Coalway registration is identical to the retired build: origin `(751, 13, -2984)`, axes 3736.1997 and 4059.1943, residual 0. Normalization `0994fc76-8b61-45ae-93a7-2a5f6b1f74d2` produced 2,611 placements, 1,959 entities, and 2,752 blockers with no floor blocker and no missing reference. Capture `47ad5ca5-a5c5-4f0f-9eca-9d459ab40097` rendered a 1024-pixel Coalway tile from 96 required sources with verified readiness and needed no clip plane, which is the ordinary outdoor case.
+Extraction `bb1a1a93-38b2-495f-98ac-ffc89bd831cd` on build 25153357 resolved all 2,183 placements with the single-plane profile and reported zero unresolved typed references. Its native Coalway registration is origin `(751, 13, -2984)`, axes 3736.1997 and 4059.1943, residual 0. Normalization `0994fc76-8b61-45ae-93a7-2a5f6b1f74d2` produced 2,611 placements, 1,959 entities, and 2,752 blockers with no missing map-membership blocker or reference. Capture `47ad5ca5-a5c5-4f0f-9eca-9d459ab40097` rendered a 1024-pixel Coalway tile from 96 required sources with verified readiness and no `clipHeight`, the ordinary outdoor case.
 
 Reproduce this baseline with:
 
@@ -856,19 +851,19 @@ nix develop --command bun run compendium normalize --plan local/normalize-baseli
 nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan local/capture-coalway-baseline.json
 ```
 
-Coverage remains incomplete. The world-map layout, game-vocabulary categories, level filtering, the marker registry, travel connections, the guide surfaces, and the displayed drop chance are open.
+Coverage remains incomplete. The world-map layout, game-vocabulary categories, level filtering, marker registry, travel connections, guide text surfaces, and displayed drop chance are implemented. Full-build extraction and imagery, resolved travel arrival points, guide artwork and boss portraits, and calibrated illustrated layers remain open.
 
 ## World surface, reviewed clipping, and displayed drop chance
 
-Clipping is off unless a reviewer sets it. Automatic derivation was built and then removed: deriving a height from navigation, placements, and upward raycasts made the decision depend on tile size rather than on the scene, because the same cave position at (324.5, -266.4, -676.6) reported covering geometry in a 200-unit tile and open sky in a 70-unit tile containing that point. Requiring one renderer to cover all content could never fire in a cave built from many ceiling pieces. Per-poll derivation also put triangulation and raycasts inside the readiness comparison, which never stabilised and turned an 18-second capture into a 300-second deadline failure across 116 inventories.
+Clipping is off unless a reviewer sets it. Automatic derivation is not used because a derived height depends on tile size rather than scene content: the same cave position at (324.5, -266.4, -676.6) reported covering geometry in a 200-unit tile and open sky in a 70-unit tile containing that point. A cave built from many ceiling pieces also has no single renderer that covers all content. Per-poll geometry derivation would add triangulation and raycasts to readiness comparison, so the plan records the reviewed value explicitly.
 
-A capture plan now carries an optional `clipHeight`. Coalway woods captures in 19 seconds with no clipping entry. The Abandoned mine cave tile with `clipHeight` -250 records `source: plan`, `applied: true`, moves the camera from -180 to -250, and renders the cave floor with the rock formation sliced at that height. Contracts are capture plan v5, raster v3, readiness v2, and geometry v3.
+A capture plan carries an optional `clipHeight`. Coalway woods captures in 19 seconds with no clipping entry. The Abandoned mine cave tile with `clipHeight` -250 records `source: plan`, `applied: true`, moves the camera from -180 to -250, and renders the cave floor with the rock formation sliced at that height. Capture plan, raster, readiness, and geometry contracts are defined in `tools/capture-contracts.ts`.
 
 The Adventure Guide displays the authored entry rate as a percentage rounded to one decimal. It ignores the NPC-to-table rate, `LimitDroppedItems` with `maxDroppedItems`, and the minimum-drop pass. Across the four Duskfall bosses the displayed set `5%, 7.6%, 9.1%, 10%, 10.1%, 10.4%, 10.5%, 10.7%, 11.1%, 15%, 15.5%, 30%, 100%` matches the authored rates `5.0, 7.55, 9.13, 10.0, 10.11, 10.44, 10.51, 10.66, 11.10, 15.0, 15.53, 30.0, 100.0`. Thornmaw shows seven items at 15% while its table limits drops to two, so the number the game shows is not an effective probability. Evidence is `research/spikes/guide-drop-chance-result.json`.
 
-Publication v4 composes one world surface. Coalway is native at the origin, Duskfall carries a reviewed offset of 9000 on X because every scene authors its own origin and their native footprints overlap, and Abandoned mine has no reviewed offset, so it is seeded deterministically and reported as unplaced rather than guessed. A reviewed binding for the mine now exists, fitted from its native MapZone at centre (277.4, -778.9) with half extents 202.05 by 214.59 and residual 4.1e-5.
+The publication contract in `pipeline/public-contracts.ts` composes one world surface. Coalway is native at the origin, Duskfall carries a reviewed offset of 9000 on X because every scene authors its own origin and their native footprints overlap, and Abandoned mine uses a reviewed binding fitted from its native MapZone at centre (277.4, -778.9) with half extents 202.05 by 214.59 and residual 4.1e-5.
 
-The browser shows one world map with no map selector, terrain under clustered glyph markers, game-vocabulary categories with counts, level ranges such as `Coalway (lvl.15-30)`, a travel-connection toggle, and an authoring mode that exports reviewed offsets. A publication covering the transition area published two travel points whose destinations remain explicitly unresolved, because no dungeon imagery exists yet, and their markers render without lines. Sixteen finest-level tiles load per view and the console reports no errors.
+The browser shows one world map with no map selector, terrain under clustered glyph markers, game-vocabulary categories with counts, level ranges such as `Coalway (lvl.15-30)`, a travel-connection toggle, and an authoring mode that exports reviewed offsets. Extraction resolves one concrete destination, the corrupted blood arena returning to Coalway swamp. Other transition placements publish with destination status unresolved because their destination scene is known but its verified arrival position is not published. A publication covering the transition area contains two such travel points, so their markers render without lines. Sixteen finest-level tiles load per view and the console reports no errors.
 
 Reproduce with:
 
@@ -879,7 +874,7 @@ nix develop --command bun run compendium normalize --plan local/normalize-baseli
 nix develop --command bun run compendium publication --plan local/publication-baseline.json --output artifacts
 ```
 
-Coverage remains incomplete. Full-build extraction, dungeon imagery, resolved travel arrival points, the Adventure Guide surfaces, and illustrated layers are open.
+Coverage remains incomplete. Full-build extraction and imagery, resolved travel arrival points, guide artwork and boss portraits, and calibrated illustrated layers remain open.
 
 ## Scene survey: which scenes share a rendered map
 
