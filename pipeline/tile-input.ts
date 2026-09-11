@@ -324,16 +324,21 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
     const readinessValue = assertReadiness(readJson(readinessFile.bytes, `${tile.id} readiness`));
     if (rasterValue.tileId !== tile.id || rasterValue.imageSha256 !== image.sha256 || rasterValue.width !== captureSet.width || rasterValue.height !== captureSet.height) fail(`source ${reference.path} tile ${tile.id} raster identity or dimensions disagree`);
     if (!readinessCovers(readinessValue, capturePlan.tiles.find(candidate => candidate.id === tile.id)!) || readinessValue.sceneNativeId !== captureSet.sceneNativeId || readinessValue.empty && readinessValue.stableFrames < 2) fail(`source ${reference.path} tile ${tile.id} readiness identity is invalid`);
-    if (!sameNumber(readinessValue.captureFrame.center.x, rasterValue.cameraFrame.center.x)
-      || !sameNumber(readinessValue.captureFrame.center.z, rasterValue.cameraFrame.center.z)
-      || !sameNumber(readinessValue.captureFrame.worldSize.x, rasterValue.cameraFrame.worldSize.x)
-      || !sameNumber(readinessValue.captureFrame.worldSize.z, rasterValue.cameraFrame.worldSize.z)
-      || !sameNumber(readinessValue.captureFrame.cameraY, rasterValue.cameraFrame.cameraY)
-      || !sameNumber(readinessValue.captureFrame.nearClip, rasterValue.cameraFrame.nearClip)
-      || !sameNumber(readinessValue.captureFrame.farClip, rasterValue.cameraFrame.farClip)
-      || (readinessValue.tileId === tile.id ? JSON.stringify(readinessValue.cut) !== JSON.stringify(rasterValue.cut) : readinessValue.cut !== null)) {
-      fail(`source ${reference.path} tile ${tile.id} readiness and raster cut evidence disagree`);
-    }
+    // A tile observed under its own readiness shares that readiness frame and cut exactly. A
+    // tile observed under its map's extent readiness is contained in it, already checked by
+    // readinessCovers, and that readiness carries no cut of its own.
+    const ownReadiness = readinessValue.tileId === tile.id;
+    const frameAgrees = ownReadiness
+      ? sameNumber(readinessValue.captureFrame.center.x, rasterValue.cameraFrame.center.x)
+        && sameNumber(readinessValue.captureFrame.center.z, rasterValue.cameraFrame.center.z)
+        && sameNumber(readinessValue.captureFrame.worldSize.x, rasterValue.cameraFrame.worldSize.x)
+        && sameNumber(readinessValue.captureFrame.worldSize.z, rasterValue.cameraFrame.worldSize.z)
+        && sameNumber(readinessValue.captureFrame.cameraY, rasterValue.cameraFrame.cameraY)
+        && sameNumber(readinessValue.captureFrame.nearClip, rasterValue.cameraFrame.nearClip)
+        && sameNumber(readinessValue.captureFrame.farClip, rasterValue.cameraFrame.farClip)
+        && JSON.stringify(readinessValue.cut) === JSON.stringify(rasterValue.cut)
+      : readinessValue.cut === null;
+    if (!frameAgrees) fail(`source ${reference.path} tile ${tile.id} readiness and raster cut evidence disagree`);
     validateRasterAgainstFrame(rasterValue, capturePlan);
     const binding = profileBinding(profile, captureSet.sceneNativeId, captureSet.scenePath, plan.mapSpaceId);
     validateDomain(binding, rasterValue);

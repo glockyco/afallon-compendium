@@ -397,7 +397,7 @@ async function capturePlan(
     inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   }
   for (const name of [
-    "capture", "capture-cache", "capture-contracts", "capture-readiness", "traversal-contracts", "runtime", "runs", "build", "config", "contracts", "world-inventory",
+    "capture", "capture-cache", "capture-contracts", "capture-cut", "capture-readiness", "traversal-contracts", "runtime", "runs", "build", "config", "contracts", "world-inventory",
     "map-calibration", "map-contracts", "map-spaces", "spatial-contracts", "spatial-extraction",
   ]) {
     inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
