@@ -66,6 +66,7 @@ var boundaryOverlap = readNumber(args["boundaryOverlap"], "boundaryOverlap");
 if (boundaryOverlap < 0f || boundaryOverlap > 1000f)
     throw new System.ArgumentException("boundaryOverlap must be between 0 and 1000.");
 var cullingMask = readInteger(args["cullingMask"], "cullingMask");
+var suppression = readCaptureSuppression(args["suppression"]);
 
 var character = Il2CppBLINK.RPGBuilder.Characters.Character.Instance;
 var characterData = character == null ? null : character.CharacterData;
@@ -322,6 +323,11 @@ visitCaptureVisualRenderers(visualSelection.Roots, (renderer, reason) =>
     var id = renderer.GetInstanceID();
     if (!excludedRendererReasons.ContainsKey(id)) excludedRendererReasons.Add(id, reason);
 });
+visitReviewedShaderRenderers(suppression.ShaderFamilies, (renderer, reason) =>
+{
+    var id = renderer.GetInstanceID();
+    if (!excludedRendererReasons.ContainsKey(id)) excludedRendererReasons.Add(id, reason);
+});
 var allRenderers = UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true);
 var excludedRenderers = new System.Collections.Generic.List<object>();
 var meshes = new System.Collections.Generic.List<object>();
@@ -507,7 +513,7 @@ foreach (var terrain in allTerrains)
 return new
 {
     schemaVersion = "compendium.capture-geometry.v3",
-    visualPolicy = "compendium.capture-visual-policy.v2",
+    visualPolicy = "compendium.capture-visual-policy.v3",
     excludedRenderers = excludedRenderers.ToArray(),
     frame = UnityEngine.Time.frameCount,
     scene = new { nativeId = (int)nativeScene.ID, handle = scene.handle, path = scene.path, ready = sceneReady },

@@ -444,6 +444,7 @@ var directionalIntensity = number(requestedLighting["directionalIntensity"], "li
 var directionalEuler = vector(requestedLighting["directionalEuler"], "lighting.directionalEuler");
 if (directionalIntensity < 0f || directionalIntensity > 4f) throw new System.ArgumentException("lighting.directionalIntensity must be between 0 and 4.");
 var cullingMask = integer(args["cullingMask"], "cullingMask");
+var suppression = readCaptureSuppression(args["suppression"]);
 var captureWidth = (int)sessionState["width"];
 var captureHeight = (int)sessionState["height"];
 var worldAspect = (double)frameValue["sizeX"] / (double)frameValue["sizeZ"];
@@ -485,6 +486,20 @@ visitCaptureVisualRenderers(visualSelection.Roots, (renderer, reason) =>
     selectedRenderers.Add(id, renderer);
     selections.Add(new { kind = "renderer", instanceId = id, reason = reason });
 });
+visitReviewedShaderRenderers(suppression.ShaderFamilies, (renderer, reason) =>
+{
+    var id = renderer.GetInstanceID();
+    if (selectedRenderers.ContainsKey(id)) return;
+    selectedRenderers.Add(id, renderer);
+    selections.Add(new { kind = "renderer", instanceId = id, reason = reason });
+});
+var terrains = collectTerrainsDrawingTrees(suppression.TerrainTrees);
+var terrainFlags = new System.Collections.Generic.List<bool>();
+foreach (var terrain in terrains)
+{
+    terrainFlags.Add(terrain.drawTreesAndFoliage);
+    selections.Add(new { kind = "terrain-trees", instanceId = terrain.GetInstanceID(), reason = "reviewed-terrain-trees" });
+}
 var selectRootLightsAndProjectors = new System.Action<UnityEngine.GameObject, string>((root, reason) =>
 {
     foreach (var light in root.GetComponentsInChildren<UnityEngine.Light>(false))
@@ -578,6 +593,8 @@ var visualState = new System.Func<object>(() =>
     foreach (var effect in highlights) currentHighlights.Add(new { instanceId = effect.GetInstanceID(), cameraMask = effect.camerasLayerMask.value });
     var currentRetained = new System.Collections.Generic.List<object>();
     foreach (var renderer in retainedParticles) currentRetained.Add(new { instanceId = renderer.GetInstanceID(), enabled = renderer.enabled });
+    var currentTerrains = new System.Collections.Generic.List<object>();
+    foreach (var terrain in terrains) currentTerrains.Add(new { instanceId = terrain.GetInstanceID(), drawTreesAndFoliage = terrain.drawTreesAndFoliage });
     var target = UnityEngine.RenderTexture.active;
     var sun = UnityEngine.RenderSettings.sun;
     return new
@@ -596,7 +613,7 @@ var visualState = new System.Func<object>(() =>
         lightEnabled = sessionLight.enabled,
         lightInstanceId = sessionLight.GetInstanceID(), lightIntensity = sessionLight.intensity, lightColor = rgba(sessionLight.color),
         renderers = currentRenderers.ToArray(), lights = currentLights.ToArray(), projectors = currentProjectors.ToArray(),
-        highlights = currentHighlights.ToArray(), retainedParticles = currentRetained.ToArray(),
+        highlights = currentHighlights.ToArray(), retainedParticles = currentRetained.ToArray(), terrains = currentTerrains.ToArray(),
     };
 });
 var beforeVisualState = visualState();
@@ -634,6 +651,11 @@ restoreFrame = new System.Action(() =>
         try { if (highlights[index] != null) highlights[index].camerasLayerMask = highlightMasks[index]; }
         catch (System.Exception error) { restorationErrors.Add("highlight mask " + index + ": " + formatError(error)); }
     }
+    for (var index = 0; index < terrains.Count; index++)
+    {
+        try { if (terrains[index] != null) terrains[index].drawTreesAndFoliage = terrainFlags[index]; }
+        catch (System.Exception error) { restorationErrors.Add("terrain trees " + index + ": " + formatError(error)); }
+    }
     attemptRestore("sun", () => { UnityEngine.RenderSettings.sun = savedSun; });
     attemptRestore("reflection intensity", () => { UnityEngine.RenderSettings.reflectionIntensity = savedReflectionIntensity; });
     attemptRestore("active render target", () => { UnityEngine.RenderTexture.active = savedActive; });
@@ -669,6 +691,7 @@ restoreFrame = new System.Action(() =>
     if (UnityEngine.RenderSettings.ambientGroundColor != savedGroundColor) restorationErrors.Add("ambient ground: verification failed.");
     if (System.Math.Abs(UnityEngine.RenderSettings.ambientIntensity - savedAmbientIntensity) > 0.0001f) restorationErrors.Add("ambient intensity: verification failed.");
     for (var index = 0; index < renderers.Count; index++) if (renderers[index] == null || renderers[index].enabled != rendererFlags[index]) restorationErrors.Add("renderer suppression: verification failed.");
+    for (var index = 0; index < terrains.Count; index++) if (terrains[index] == null || terrains[index].drawTreesAndFoliage != terrainFlags[index]) restorationErrors.Add("terrain trees: verification failed.");
     if (sessionLight.enabled != savedLightEnabled || sessionLightGo.activeSelf != savedLightObjectActive) restorationErrors.Add("owned light: verification failed.");
     restoreRunning = false;
     if (restorationErrors.Count != 0) throw new System.InvalidOperationException("Frame restoration failed: " + string.Join("; ", restorationErrors.ToArray()));
@@ -741,6 +764,7 @@ try
     foreach (var light in lights) light.enabled = false;
     foreach (var projector in projectors) projector.enabled = false;
     foreach (var effect in highlights) effect.camerasLayerMask = new UnityEngine.LayerMask { value = 0 };
+    foreach (var terrain in terrains) terrain.drawTreesAndFoliage = false;
     UnityEngine.RenderSettings.reflectionIntensity = 0f;
     UnityEngine.RenderSettings.sun = sessionLight;
     sessionLightGo.SetActive(true);
@@ -762,6 +786,7 @@ try
     foreach (var light in UnityEngine.Object.FindObjectsOfType<UnityEngine.Light>(true)) if (light != null && light != sessionLight && light.enabled && light.gameObject.activeInHierarchy) throw new System.InvalidOperationException("A game light remained active during capture.");
     foreach (var projector in projectors) if (projector == null || projector.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed projector.");
     foreach (var effect in highlights) if (effect == null || effect.camerasLayerMask.value != 0) throw new System.InvalidOperationException("Rendering changed a highlight camera mask.");
+    foreach (var terrain in terrains) if (terrain == null || terrain.drawTreesAndFoliage) throw new System.InvalidOperationException("Rendering changed suppressed terrain trees.");
     foreach (var renderer in player.GetComponentsInChildren<UnityEngine.Renderer>(false)) if (renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy) throw new System.InvalidOperationException("A player renderer remained enabled during capture.");
     fault("after-render");
     UnityEngine.RenderTexture.active = sessionRenderTexture;
@@ -789,7 +814,7 @@ finally
     var audit = new
     {
         schemaVersion = "compendium.capture-restoration.v4",
-        visualPolicy = "compendium.capture-visual-policy.v2",
+        visualPolicy = "compendium.capture-visual-policy.v3",
         colorSpace = UnityEngine.QualitySettings.activeColorSpace.ToString(),
         selections = selections.ToArray(), lightingInputs = lightingInputs.ToArray(),
         key = requestedKey,
@@ -843,7 +868,7 @@ var captureFrameMetadata = new
     suppressionRestored = true,
     activeTargetRestored = true,
     suppressedRenderers = renderers.Count,
-    visualPolicy = "compendium.capture-visual-policy.v2",
+    visualPolicy = "compendium.capture-visual-policy.v3",
     cameraFrame = actualCameraFrame,
     projectionSamples = projectionSamples.ToArray(),
 };

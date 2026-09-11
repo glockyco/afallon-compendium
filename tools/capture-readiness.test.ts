@@ -6,13 +6,14 @@ const vector = (x: number, y: number, z: number) => ({ x, y, z });
 
 function plan(): CapturePlan {
   return {
-    schemaVersion: "compendium.capture-plan.v5",
+    schemaVersion: "compendium.capture-plan.v6",
     sceneNativeId: 1,
     scenePath: "Assets/Test.unity",
     mapSpaceId: "test",
     width: 100,
     height: 100,
     cullingMask: -1,
+    suppression: { shaderFamilies: [], terrainTrees: false },
     lighting: {
       ambient: { r: 1, g: 1, b: 1 },
       directionalIntensity: 1,

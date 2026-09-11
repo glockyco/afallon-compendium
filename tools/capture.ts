@@ -456,7 +456,7 @@ async function capturePlan(
       width: plan.width,
       height: plan.height,
       readiness: plan.readiness,
-      visualPolicy: "compendium.capture-visual-policy.v2",
+      visualPolicy: "compendium.capture-visual-policy.v3",
       completeImagery: false,
     },
   });
@@ -592,6 +592,7 @@ async function capturePlan(
             frame: readiness.captureFrame,
             lighting: plan.lighting,
             cullingMask: plan.cullingMask,
+            suppression: plan.suppression,
             outputPath: pngRuntimePath,
             restorationPath: restorationRuntimePath,
             ...baseParameters,

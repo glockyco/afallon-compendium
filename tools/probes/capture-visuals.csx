@@ -39,6 +39,59 @@
     return (roots, particles);
 }
 
+// Reviewed suppression: the capture plan names shader families whose renderers hide during
+// capture, and whether terrain-instanced trees and details hide. Afallon marks foliage with no
+// layer or tag; only its shader family identifies it, so the plan carries that decision.
+(System.Collections.Generic.List<string> ShaderFamilies, bool TerrainTrees) readCaptureSuppression(Newtonsoft.Json.Linq.JToken token)
+{
+    if (token == null || token.Type != Newtonsoft.Json.Linq.JTokenType.Object) throw new System.ArgumentException("suppression is required.");
+    var families = new System.Collections.Generic.List<string>();
+    var familiesToken = token["shaderFamilies"];
+    if (familiesToken == null || familiesToken.Type != Newtonsoft.Json.Linq.JTokenType.Array) throw new System.ArgumentException("suppression.shaderFamilies must be an array.");
+    foreach (var entry in familiesToken)
+    {
+        if (entry.Type != Newtonsoft.Json.Linq.JTokenType.String || string.IsNullOrWhiteSpace((string)entry)) throw new System.ArgumentException("suppression.shaderFamilies entries must be non-empty strings.");
+        families.Add((string)entry);
+    }
+    var treesToken = token["terrainTrees"];
+    if (treesToken == null || treesToken.Type != Newtonsoft.Json.Linq.JTokenType.Boolean) throw new System.ArgumentException("suppression.terrainTrees must be a boolean.");
+    return (families, (bool)treesToken);
+}
+
+bool rendererUsesShaderFamily(UnityEngine.Renderer renderer, System.Collections.Generic.List<string> families)
+{
+    if (families.Count == 0) return false;
+    var materials = renderer.sharedMaterials;
+    if (materials == null) return false;
+    foreach (var material in materials)
+    {
+        if (material == null || material.shader == null) continue;
+        var name = material.shader.name;
+        if (name == null) continue;
+        foreach (var family in families) if (name.StartsWith(family, System.StringComparison.Ordinal)) return true;
+    }
+    return false;
+}
+
+void visitReviewedShaderRenderers(System.Collections.Generic.List<string> families, System.Action<UnityEngine.Renderer, string> visit)
+{
+    if (families.Count == 0) return;
+    foreach (var renderer in UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(false))
+    {
+        if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
+        if (rendererUsesShaderFamily(renderer, families)) visit(renderer, "reviewed-shader-family");
+    }
+}
+
+System.Collections.Generic.List<UnityEngine.Terrain> collectTerrainsDrawingTrees(bool terrainTrees)
+{
+    var terrains = new System.Collections.Generic.List<UnityEngine.Terrain>();
+    if (!terrainTrees) return terrains;
+    foreach (var terrain in UnityEngine.Object.FindObjectsOfType<UnityEngine.Terrain>(false))
+        if (terrain != null && terrain.enabled && terrain.gameObject.activeInHierarchy && terrain.drawTreesAndFoliage) terrains.Add(terrain);
+    return terrains;
+}
+
 void visitCaptureVisualRenderers(
     System.Collections.Generic.List<(UnityEngine.GameObject Root, string Reason, bool ParticlesOnly)> roots,
     System.Action<UnityEngine.Renderer, string> visit)

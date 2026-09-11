@@ -27,11 +27,18 @@ export const CaptureReadinessProfileSchema = Type.Object({
   maximumSources: Type.Integer({ minimum: 1, maximum: 256 }),
 });
 export const CapturePlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-plan.v5"),
+  schemaVersion: Type.Literal("compendium.capture-plan.v6"),
   sceneNativeId: count, scenePath: text, mapSpaceId: text,
   clipHeight: Type.Optional(number),
   width: Type.Integer({ minimum: 64, maximum: 2048 }), height: Type.Integer({ minimum: 64, maximum: 2048 }),
   cullingMask: Type.Integer({ minimum: -2147483648, maximum: 2147483647 }),
+  // Reviewed capture suppression. Afallon marks foliage with no layer or tag, so a shader-name
+  // prefix identifies renderers to hide during capture; terrainTrees hides terrain-instanced
+  // trees and details. Both are restored after every tile.
+  suppression: Type.Object({
+    shaderFamilies: Type.Array(text, { maxItems: 32 }),
+    terrainTrees: Type.Boolean(),
+  }),
   lighting: Type.Object({ ambient: color, directionalIntensity: Type.Number({ minimum: 0, maximum: 4 }), directionalEuler: vector }),
   readiness: CaptureReadinessProfileSchema,
   tiles: Type.Array(Type.Object({
@@ -47,7 +54,7 @@ const capture = Type.Object({
   renderTexturesBefore: Type.Array(Type.Object({ instanceId: integer, name: Type.String(), width: count, height: count, depth: count, created: Type.Boolean(), owned: Type.Boolean() })),
   renderTexturesAfter: Type.Array(Type.Object({ instanceId: integer, name: Type.String(), width: count, height: count, depth: count, created: Type.Boolean(), owned: Type.Boolean() })),
   lightingRestored: Type.Literal(true), suppressionRestored: Type.Literal(true), activeTargetRestored: Type.Literal(true),
-  suppressedRenderers: count, visualPolicy: Type.Literal("compendium.capture-visual-policy.v2"),
+  suppressedRenderers: count, visualPolicy: Type.Literal("compendium.capture-visual-policy.v3"),
   cameraFrame: frame,
   projectionSamples: Type.Array(Type.Object({ world: vector, viewport: vector }), { minItems: 3 }),
 });
@@ -89,7 +96,7 @@ const visualState = Type.Object({
 });
 export const CaptureRestorationSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-restoration.v4"), key: text, tileId: text,
-  visualPolicy: Type.Literal("compendium.capture-visual-policy.v2"),
+  visualPolicy: Type.Literal("compendium.capture-visual-policy.v3"),
   colorSpace: Type.Union([Type.Literal("Gamma"), Type.Literal("Linear")]),
   frameStarted: count, frameRestored: count, renderSucceeded: Type.Boolean(),
   selections: Type.Array(Type.Object({ kind: text, instanceId: integer, reason: text })),
@@ -153,7 +160,7 @@ const queryCounts = Type.Object({ all: count, scene: count, foreign: count });
 const optionalId = Type.Union([integer, Type.Null()]);
 export const CaptureGeometrySchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-geometry.v3"),
-  visualPolicy: Type.Literal("compendium.capture-visual-policy.v2"),
+  visualPolicy: Type.Literal("compendium.capture-visual-policy.v3"),
   excludedRenderers: Type.Array(Type.Object({ instanceId: integer, reason: text })),
   frame: count,
   scene: Type.Object({ nativeId: count, handle: integer, path: text, ready: Type.Boolean() }),

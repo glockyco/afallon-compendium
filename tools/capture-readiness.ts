@@ -479,6 +479,7 @@ export async function withCaptureGeometry<T>(
             frame: effectiveCaptureFrame(tile, plan),
             boundaryOverlap: plan.readiness.boundaryOverlap,
             cullingMask: plan.cullingMask,
+            suppression: plan.suppression,
             trackedRendererIds: [...trackedRendererIds],
           },
           captureContext: true,

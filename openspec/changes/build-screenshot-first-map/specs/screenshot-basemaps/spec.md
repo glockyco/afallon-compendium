@@ -124,6 +124,14 @@ Scene loading, preload, readiness checks, and geometry holds MAY span gameplay f
 
 Capture SHALL exclude active game lights from rendering and use its controlled lighting profile. It SHALL preserve useful static meshes and landmark particles outside the reviewed suppression selection. Geometry readiness SHALL use the same transient selection as rendering and record its exclusions.
 
+The capture plan SHALL carry a reviewed suppression policy: shader-name prefixes whose renderers hide during capture, and whether terrain-instanced trees and details hide. The game marks foliage with no layer or tag, so the shader family is the identifying evidence. Capture SHALL record each suppressed renderer and terrain with its reason, restore every one after the tile, and fail the tile when restoration cannot be verified.
+
+#### Scenario: Foliage covers a dungeon floor
+- **WHEN** a plan names the foliage shader families and terrain trees for suppression
+- **THEN** the captured tile shows the floor and rock walls without tree canopy
+- **AND** the restoration audit lists every suppressed renderer and terrain with its reason
+- **AND** the scene's foliage renders again before the next gameplay frame
+
 #### Scenario: The requested scene differs from gameplay
 - **WHEN** capture enters another source scene
 - **THEN** native ownership covers the scene transition and capture
