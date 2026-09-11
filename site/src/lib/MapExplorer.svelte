@@ -82,6 +82,7 @@
   let itemSourceQuery = '';
   let detailQuery = '';
   let hoveredId: string | null = null;
+  let hoveredResult: SearchResult | null = null;
   let staleSelection = '';
   let viewportBounds: [number, number, number, number] | null = null;
   let view: MapViewState = { target: [0, 0, 0], zoom: -1 };
@@ -141,6 +142,8 @@
   $: filteredDetail = selectedPlacement ? filteredSections(selectedPlacementDetails, detailQuery) : [];
   $: extraSelection = selectedPlacement && !staleSelection && !orientationOnly && !matchingPlacements.some((placement) => placement.placementId === selectedId) ? selectedPlacement : null;
   $: adapterPlacements = extraSelection ? [...matchingPlacements, extraSelection] : matchingPlacements;
+  $: highlightedPlacementIds = selectionHighlightIds(selectedPlacement, selectedEntityKey, itemKey, searchIndexes);
+  $: hoveredPlacementIds = resultHighlightIds(hoveredResult, searchIndexes);
 
   onMount(() => {
     let disposed = false;
@@ -197,6 +200,7 @@
             selectPlacement(placementId, canvas);
           },
           onHover(placementId) {
+            hoveredResult = null;
             hoveredId = placementId;
           },
           onWorldOffsetChange(mapSpaceId, offset) {
@@ -227,7 +231,7 @@
   });
 
   $: if (adapterReady && adapter && publication) {
-    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerId, placements: adapterPlacements, selectedId, worldOffsets: worldOffsetOverrides, authoring, showConnections });
+    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerId, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: worldOffsetOverrides, authoring, showConnections });
   }
 
   async function loadEntityDetailPath(path: string): Promise<void> {
@@ -403,6 +407,40 @@
       entitySummaries: new Map(data.entityIndex.map((entity) => [entity.entityKey, summarizePlacements(placementsByEntityKey.get(entity.entityKey) ?? [], 'npc')])),
       itemSummaries: new Map(data.itemIndex.map((item) => [item.itemKey, summarizePlacements(placementsByItemKey.get(item.itemKey) ?? [], 'container')])),
     };
+  }
+
+  function placementIds(placements: readonly PublicPlacement[]): string[] {
+    return [...new Set(placements.map((placement) => placement.placementId))];
+  }
+
+  function selectionHighlightIds(
+    placement: PublicPlacement | null,
+    entityKey: string | null,
+    selectedItemKey: string | null,
+    indexes: SearchIndexes,
+  ): string[] {
+    if (selectedItemKey) return placementIds(indexes.placementsByItemKey.get(selectedItemKey) ?? []);
+    if (entityKey) return placementIds(indexes.placementsByEntityKey.get(entityKey) ?? []);
+    if (!placement) return [];
+    const related = placement.entityKeys.flatMap((key) => indexes.placementsByEntityKey.get(key) ?? []);
+    return placementIds([placement, ...related]);
+  }
+
+  function resultHighlightIds(result: SearchResult | null, indexes: SearchIndexes): string[] {
+    if (!result) return [];
+    if (result.kind === 'placement') return [result.placement.placementId];
+    if (result.kind === 'entity') return placementIds(indexes.placementsByEntityKey.get(result.entity.entityKey) ?? []);
+    return placementIds(indexes.placementsByItemKey.get(result.item.itemKey) ?? []);
+  }
+
+  function setResultHover(result: SearchResult): void {
+    hoveredResult = result;
+    hoveredId = result.kind === 'placement' ? result.placement.placementId : null;
+  }
+
+  function clearResultHover(): void {
+    hoveredResult = null;
+    hoveredId = null;
   }
 
   function resultSummary(result: SearchResult): ResultSummary {
@@ -677,15 +715,15 @@
               {#if result.kind === 'item'}
                 {@const item = result.item}
                 {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{item.name || 'Unnamed item'}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{item.name || 'Unnamed item'}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
               {:else if result.kind === 'entity'}
                 {@const entity = result.entity}
                 {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{entity.name}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{entity.name}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
               {:else}
                 {@const placement = result.placement}
                 {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => hoveredId = placement.placementId} on:mouseleave={() => hoveredId = null}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
               {/if}
               {/each}
             </ol>

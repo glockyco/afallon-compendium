@@ -37,6 +37,8 @@ export type MapAdapterUpdate = {
   layerId: string;
   placements: PublicPlacement[];
   selectedId: string | null;
+  highlightedPlacementIds: readonly string[];
+  hoveredPlacementIds: readonly string[];
   worldOffsets: WorldOffsetOverrides;
   authoring: boolean;
   showConnections: boolean;
@@ -241,6 +243,48 @@ export function createPlacementIconLayer(
   });
 }
 
+function createHighlightLayers(
+  id: string,
+  data: readonly MarkerRecord[],
+  color: [number, number, number, number],
+  fill: [number, number, number, number],
+  radiusOffset: number,
+): Layer[] {
+  if (data.length === 0) return [];
+  const radius = (marker: MarkerRecord) => markerFor(marker.markerId).iconSize.base / 2 + radiusOffset;
+  return [
+    new ScatterplotLayer<MarkerRecord>({
+      id: `${id}-outline`,
+      data,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: false,
+      stroked: true,
+      filled: false,
+      radiusUnits: "pixels",
+      getPosition: marker => marker.position,
+      getRadius: radius,
+      getLineColor: [0, 0, 0, 255],
+      getLineWidth: 6,
+      lineWidthUnits: "pixels",
+    }),
+    new ScatterplotLayer<MarkerRecord>({
+      id,
+      data,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: false,
+      stroked: true,
+      filled: true,
+      radiusUnits: "pixels",
+      getPosition: marker => marker.position,
+      getRadius: radius,
+      getFillColor: fill,
+      getLineColor: color,
+      getLineWidth: 3,
+      lineWidthUnits: "pixels",
+    }),
+  ];
+}
+
 function buildAreas(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}): AreaRecord[] {
   const areas: AreaRecord[] = [];
   for (const placement of placements) {
@@ -364,7 +408,7 @@ export async function createMapAdapter(
   let destroyed = false;
   let current: MapAdapterUpdate | null = null;
   let activeView = normalizeView(initialView, {target: [0, 0, 0], zoom: 0});
-  let hoveredId: string | null = null;
+  let lastPickedId: string | null = null;
   let missingLayerWarningKey: string | null = null;
   let viewSpaceKey: string | null = null;
   const viewsBySpace = new Map<string, MapViewState>();
@@ -377,6 +421,7 @@ export async function createMapAdapter(
   let imageryLayers: Layer[] = [];
   let imageryKey = "";
   let layers: Layer[] = [];
+  let pointerHoverLayers: Layer[] = [];
   const iconAtlas = await createIconAtlas();
 
   const report = (message: string): void => {
@@ -504,7 +549,10 @@ export async function createMapAdapter(
       baseMarkers = buildMarkers(visiblePlacements, next.data, next.worldOffsets);
       baseAreas = buildAreas(visiblePlacements, next.data, next.worldOffsets);
     }
-    const nextGeometryKey = [next.data.buildId, next.layerId, layerKind, nextPlacementKey, offsetKey, next.selectedId || "", hoveredId || "", orientationOnly ? "hidden" : "markers", next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections"].join("\u001e");
+    const highlightedKey = [...next.highlightedPlacementIds].sort().join(",");
+    const hoveredKey = [...next.hoveredPlacementIds].sort().join(",");
+    const hoveredIds = new Set(next.hoveredPlacementIds);
+    const nextGeometryKey = [next.data.buildId, next.layerId, layerKind, nextPlacementKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, orientationOnly ? "hidden" : "markers", next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections"].join("\u001e");
     if (nextGeometryKey === geometryKey) return;
     geometryKey = nextGeometryKey;
 
@@ -588,20 +636,21 @@ export async function createMapAdapter(
       data: baseAreas,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       pickable: true,
+      autoHighlight: true,
+      highlightColor: [250, 204, 21, 70],
       stroked: true,
       filled: true,
       getPolygon: area => area.polygon,
       getFillColor: area => {
         const marker = markerByPlacement.get(area.placementId);
-        const color = markerColor(area.markerId, area.placementId === next.selectedId, area.placementId === hoveredId, marker?.enabled ?? true);
+        const color = markerColor(area.markerId, area.placementId === next.selectedId, hoveredIds.has(area.placementId), marker?.enabled ?? true);
         return [color[0], color[1], color[2], area.placementId === next.selectedId ? 150 : 58];
       },
       getLineColor: area => area.placementId === next.selectedId ? [255, 196, 0, 255] : [28, 28, 28, 230],
-      getLineWidth: area => area.placementId === next.selectedId ? 4 : area.placementId === hoveredId ? 3 : 1,
+      getLineWidth: area => area.placementId === next.selectedId ? 4 : hoveredIds.has(area.placementId) ? 3 : 1,
       lineWidthUnits: "pixels",
-      updateTriggers: {getFillColor: [next.selectedId, hoveredId, offsetKey], getLineColor: [next.selectedId], getLineWidth: [next.selectedId, hoveredId]},
+      updateTriggers: {getFillColor: [next.selectedId, hoveredKey, offsetKey], getLineColor: [next.selectedId], getLineWidth: [next.selectedId, hoveredKey]},
       onClick: (info: PickingInfo) => { const id = pickedPlacementId(info); if (id) callbacks.onSelect(id); },
-      onHover: (info: PickingInfo) => { handleHover(pickedPlacementId(info)); },
     });
     const connectionData: TravelConnection[] = [];
     for (const placement of next.placements) {
@@ -611,6 +660,7 @@ export async function createMapAdapter(
       const targetDelta = mapOffsetDelta(next.data, placement.travel.destination.mapSpaceId, next.worldOffsets);
       connectionData.push({ placementId: placement.placementId, source: [source.position[0], source.position[1]], target: [placement.travel.destination.position[0] + targetDelta.worldX, placement.travel.destination.position[1] + targetDelta.worldY], enabled: placement.travel.enabled });
     }
+    const hoveredConnectionIds = new Set(next.hoveredPlacementIds);
     const connectionLines = !orientationOnly && (next.showConnections || next.authoring) ? new LineLayer<TravelConnection>({
       id: "world-travel-connections",
       data: connectionData,
@@ -618,9 +668,14 @@ export async function createMapAdapter(
       pickable: false,
       getSourcePosition: (connection) => connection.source,
       getTargetPosition: (connection) => connection.target,
-      getColor: (connection) => connection.enabled ? [100, 210, 255, 205] : [120, 120, 120, 180],
-      getWidth: 3,
+      getColor: (connection) => !connection.enabled
+        ? connection.placementId === next.selectedId ? [185, 160, 115, 255] : [120, 120, 120, 180]
+        : connection.placementId === next.selectedId
+          ? [250, 204, 21, 255]
+          : hoveredConnectionIds.has(connection.placementId) ? [100, 230, 255, 255] : [100, 210, 255, 205],
+      getWidth: (connection) => connection.placementId === next.selectedId ? 5 : hoveredConnectionIds.has(connection.placementId) ? 4 : 3,
       widthUnits: "pixels",
+      updateTriggers: {getColor: [next.selectedId, next.hoveredPlacementIds], getWidth: [next.selectedId, next.hoveredPlacementIds]},
     }) : null;
     const connectionDestinations = !orientationOnly && (next.showConnections || next.authoring) ? new ScatterplotLayer<TravelConnection>({
       id: "world-travel-destinations",
@@ -644,7 +699,7 @@ export async function createMapAdapter(
       const current = stack.members.indexOf(next.selectedId ?? "");
       return callbacks.onSelect(stack.members[(current + 1) % stack.members.length]!);
     };
-    const markerLayer = orientationOnly ? null : createPlacementIconLayer(renderMarkers, iconAtlas, next.selectedId, hoveredId, selectStacked, handleHover);
+    const markerLayer = orientationOnly ? null : createPlacementIconLayer(renderMarkers, iconAtlas, next.selectedId, null, selectStacked);
     const stackCounts = orientationOnly || stacks.length === 0 ? null : new TextLayer<MarkerRecord>({
       id: "map-placement-stack-counts",
       data: stacks,
@@ -664,7 +719,18 @@ export async function createMapAdapter(
       outlineWidth: 2,
       fontFamily: "sans-serif",
     });
-    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts].filter((layer): layer is Layer => layer !== null);
+    const groupedMarkersFor = (placementIds: readonly string[]): readonly MarkerRecord[] => {
+      if (orientationOnly) return [];
+      const ids = new Set(placementIds);
+      return groupCoincidentMarkers(baseMarkers.filter(marker => ids.has(marker.placementId)));
+    };
+    const selectedGroup = groupedMarkersFor(next.highlightedPlacementIds.filter(id => id !== next.selectedId));
+    const primarySelection = next.selectedId ? groupedMarkersFor([next.selectedId]) : [];
+    const hoverSelection = groupedMarkersFor(next.hoveredPlacementIds.filter(id => id !== next.selectedId));
+    const hoverHighlightLayers = createHighlightLayers("hover-highlight", hoverSelection, [250, 204, 21, 255], [250, 204, 21, 40], 2);
+    const groupHighlightLayers = createHighlightLayers("selection-group-highlight", selectedGroup, [255, 255, 255, 255], [255, 255, 255, 40], 2);
+    const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6);
+    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
 
     if (imageLayers.length === 0 && !illustration) {
       const warningKey = `${next.data.buildId}:${next.layerId}`;
@@ -684,6 +750,7 @@ export async function createMapAdapter(
     }),
     initialViewState: {...activeView, minZoom: -12, maxZoom: 12},
     layers: [],
+    onHover: info => handleHover(pickedPlacementId(info)),
     onViewStateChange: params => {
       if (destroyed) return;
       const nextView = normalizeView(params.viewState, activeView);
@@ -695,12 +762,13 @@ export async function createMapAdapter(
   });
 
   const handleHover = (placementId: string | null): void => {
-    if (placementId === hoveredId) return;
-    hoveredId = placementId;
-    if (current) {
-      refreshLayers(current);
-      deck.setProps({layers});
-    }
+    if (placementId === lastPickedId) return;
+    lastPickedId = placementId;
+    const marker = placementId ? renderMarkers.find(candidate => candidate.members.includes(placementId)) : null;
+    pointerHoverLayers = marker
+      ? createHighlightLayers("pointer-hover-highlight", [marker], [250, 204, 21, 255], [250, 204, 21, 40], 2)
+      : [];
+    deck.setProps({layers: [...layers, ...pointerHoverLayers]});
     callbacks.onHover(placementId);
   };
 
@@ -755,7 +823,7 @@ export async function createMapAdapter(
       }
     }
     refreshLayers(next);
-    deck.setProps({layers});
+    deck.setProps({layers: [...layers, ...pointerHoverLayers]});
     notifyView();
   };
 
@@ -772,6 +840,7 @@ export async function createMapAdapter(
     if (typeof window !== "undefined") window.removeEventListener("resize", resize);
     deck.finalize();
     layers = [];
+    pointerHoverLayers = [];
     imageryLayers = [];
     current = null;
   };

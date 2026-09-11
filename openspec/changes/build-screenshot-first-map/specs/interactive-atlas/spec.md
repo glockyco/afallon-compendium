@@ -99,7 +99,9 @@ Each placed map SHALL show its player-facing name above its bounds. The label SH
 
 Where a travel point has a resolved destination, the atlas SHALL draw the connection on the world map: the travel marker, a line from it to its destination, and a mark at the destination. One toggle SHALL control that group.
 
-Connections SHALL span maps, so a dungeon entrance links to the arrival point within that zone's map. A travel point whose destination is unresolved SHALL keep its marker without a line, and SHALL NOT be drawn to a guessed position. A destination that is disabled or otherwise inactive SHALL remain visible and visibly distinguished rather than hidden.
+Connections SHALL span maps, so a dungeon entrance links to the arrival point within that zone's map. A travel point whose destination is unresolved SHALL keep its marker without a line, and SHALL NOT be drawn to a guessed position. A destination that is disabled or otherwise inactive SHALL remain visible and visibly distinguished rather than hidden. Selection and hover SHALL strengthen the applicable line while preserving that disabled distinction.
+
+The atlas SHALL draw a connection only from a typed published relationship with explicit source and destination positions. It SHALL NOT infer trap, patrol, portal, blocker, or other lines from labels or detail text.
 
 The authoring mode SHALL render connections while a reviewer positions maps, because a line whose ends are far apart or crossed reveals a wrong placement.
 
@@ -153,12 +155,22 @@ Hover SHALL NOT replace selection, and it SHALL NOT open a panel that covers the
 
 The rendering adapter SHALL own the live pan and zoom state. Pointer interaction SHALL update that camera directly and report snapshots for URL persistence. Semantic changes, such as selection, filtering, and hover, SHALL NOT send the reported camera back to the adapter or rebuild imagery during a camera change.
 
-Selecting a marker SHALL update selection only. A separate focus or fit action MAY move the camera. Captured imagery and orientation-only illustrations SHALL keep separate camera snapshots, so switching layers does not discard the reader's position in either coordinate space.
+Selecting a marker SHALL update selection only. A separate focus or fit action MAY move the camera. The selected physical placement SHALL have a primary highlight. Other placements that carry the same exact entity identity SHALL have a distinct group highlight. Group membership SHALL NOT use a shared label or category. Hovering or focusing a result SHALL highlight the exact placements that result resolves: one placement for a location, all placements for an entity, and all known source placements for an item. A result hover SHALL render above a group highlight and below the primary selection. Captured imagery and orientation-only illustrations SHALL keep separate camera snapshots, so switching layers does not discard the reader's position in either coordinate space.
 
 #### Scenario: A reader selects a marker
 - **WHEN** the reader selects a visible marker
 - **THEN** the selection and details update
 - **AND** the camera target and zoom remain unchanged
+
+#### Scenario: One entity has several placements
+- **WHEN** the reader selects one of those placements
+- **THEN** that placement has the primary highlight
+- **AND** the other placements with the same entity identity have the group highlight
+
+#### Scenario: A reader previews a result
+- **WHEN** the reader hovers or focuses an entity or item result
+- **THEN** every exact placement resolved for that result has the hover highlight
+- **AND** the current selection remains unchanged
 
 #### Scenario: A reader pans with inertia
 - **WHEN** the reader releases a pan gesture

@@ -58,6 +58,7 @@
 - [x] 6.8 Add build identity and coverage disclosure to the interface. Verify a partial research artifact cannot appear as a complete release.
 - [x] 6.9 Give Deck ownership of the live camera, preserve separate captured and orientation-layer snapshots, and keep selection camera-neutral. Reserve persistent full-height control and detail columns. Verify pan inertia, responsive wheel zoom, explicit zoom and fit commands, URL restoration, unchanged map dimensions when details open, and no layer rebuild during view changes in the browser.
 - [x] 6.10 Label each placed map above its bounds at a common world-unit size. Verify the label moves with authored offsets and stays legible without covering terrain at the map's working zoom.
+- [x] 6.11 Add primary, exact-entity group, and result-preview marker rings with explicit precedence. Keep map-pointer rings in an isolated overlay and strengthen selected or hovered travel lines. Verify repeated map hover clears, result hover overrides a group ring, and selection remains camera-neutral in the browser. Do not render another connection family without typed published endpoints.
 
 ## 6a. Single-plane and guide reset
 
