@@ -34,7 +34,7 @@ import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
 import { NotResidentError, withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
-import { compositeRawSlices, cutCaptureFrame, loadNavigationSurvey, planTileCut, type CutPlan, type NavigationSurvey } from "./capture-cut";
+import { capturePositionFor, compositeRawSlices, cutCaptureFrame, loadNavigationSurvey, planTileCut, type CapturePosition, type CutPlan, type NavigationSurvey } from "./capture-cut";
 import {
   captureArtifactReference,
   copyReusableTile,
@@ -362,8 +362,8 @@ type CaptureSweepContext = {
   transitionOrdinal: number;
   sceneTransitions: ArtifactRecord[];
   plans: CaptureSweep["plans"];
-  start: (targetSceneNativeId: number, timeoutMs: number) => Promise<SceneVisit>;
-  retarget: (targetSceneNativeId: number, timeoutMs: number) => Promise<SceneVisit>;
+  start: (targetSceneNativeId: number, timeoutMs: number, capturePosition: CapturePosition | null) => Promise<SceneVisit>;
+  retarget: (targetSceneNativeId: number, timeoutMs: number, capturePosition: CapturePosition | null) => Promise<SceneVisit>;
   restore: (timeoutMs: number) => Promise<SceneVisit>;
   failure?: { planRunId: string; phase: string };
 };
@@ -501,8 +501,11 @@ async function capturePlan(
     await Bun.write(resolve(run.directory, "scene-catalog.json"), `${JSON.stringify(sceneCatalog, null, 2)}\n`);
     await registerArtifact(run, "scene-catalog.json");
     if (sweep !== undefined) {
-      if (sweep.visit === undefined) sweep.visit = await sweep.start(plan.sceneNativeId, plan.readiness.timeoutMs);
-      else if (inventoryReply.observationContext.completed.gameSceneNativeId !== plan.sceneNativeId) sweep.visit = await sweep.retarget(plan.sceneNativeId, plan.readiness.timeoutMs);
+      // A cut map has a surveyed walkable surface, so the player stands on it at the map centre
+      // and the scene is static for capture; an open-world plan keeps the game's arrival point.
+      const capturePosition = survey === null ? null : capturePositionFor(plan, survey);
+      if (sweep.visit === undefined) sweep.visit = await sweep.start(plan.sceneNativeId, plan.readiness.timeoutMs, capturePosition);
+      else if (inventoryReply.observationContext.completed.gameSceneNativeId !== plan.sceneNativeId) sweep.visit = await sweep.retarget(plan.sceneNativeId, plan.readiness.timeoutMs, capturePosition);
       const activeVisit = sweep.visit;
       if (activeVisit === undefined || activeVisit.sceneNativeId !== plan.sceneNativeId || !activeVisit.sceneReady) {
         throw new Error("The scene transition did not reach the capture scene.");
@@ -769,7 +772,7 @@ export async function capture(
     retarget: async () => { throw new Error("Sweep scene controller is not initialized."); },
     restore: async () => { throw new Error("Sweep scene controller is not initialized."); },
   };
-  const transitionScene = async (action: "start" | "retarget" | "restore", targetSceneNativeId: number, timeoutMs: number): Promise<SceneVisit> => {
+  const transitionScene = async (action: "start" | "retarget" | "restore", targetSceneNativeId: number, timeoutMs: number, capturePosition: CapturePosition | null = null): Promise<SceneVisit> => {
     const deadline = Date.now() + timeoutMs;
     const timeout = new Error(`Capture scene ${action} exceeded its readiness deadline.`);
     const previous = sweep.visit;
@@ -781,12 +784,14 @@ export async function capture(
       runtime.signal.throwIfAborted();
       if (Date.now() >= deadline) throw timeout;
       const path = nextAction === "start" ? "scene-start.json" : nextAction === "retarget" ? `scene-retarget-${transitionOrdinal}-${targetSceneNativeId}.json` : action === "restore" ? "scene-final.json" : `scene-ready-${transitionOrdinal}.json`;
-      const parameters: Record<string, unknown> = { researchCharacter: config.character, action: nextAction, key, targetSceneNativeId: action === "restore" ? previous?.targetSceneNativeId : targetSceneNativeId };
+      const parameters: Record<string, unknown> = { researchCharacter: config.character, action: nextAction, key, targetSceneNativeId: action === "restore" ? previous?.targetSceneNativeId : targetSceneNativeId, capturePosition };
       if (nextAction === "start") {
         parameters.finalSceneNativeId = sweep.finalSceneNativeId;
         parameters.finalScenePath = sweep.finalScenePath;
       }
-      const reply = await runtime.probe(resolve(import.meta.dir, "probes/scene-visit.csx"), resolve(sweep.run.directory, path), { parameters });
+      // Scene loading and post-placement asset bursts stall the main thread; a transition poll
+      // tolerates that with the readiness budget instead of the per-call default.
+      const reply = await runtime.probe(resolve(import.meta.dir, "probes/scene-visit.csx"), resolve(sweep.run.directory, path), { parameters, timeoutMs });
       assertSchema(SceneVisitSchema, reply.value, "Capture scene transition");
       const state = reply.value;
       sweep.visit = state;
@@ -805,8 +810,8 @@ export async function capture(
       await Bun.sleep(500);
     }
   };
-  sweep.start = (target, timeoutMs) => transitionScene("start", target, timeoutMs);
-  sweep.retarget = (target, timeoutMs) => transitionScene("retarget", target, timeoutMs);
+  sweep.start = (target, timeoutMs, capturePosition) => transitionScene("start", target, timeoutMs, capturePosition);
+  sweep.retarget = (target, timeoutMs, capturePosition) => transitionScene("retarget", target, timeoutMs, capturePosition);
   sweep.restore = (timeoutMs) => transitionScene("restore", sweep.visit?.targetSceneNativeId ?? finalScene.nativeId, timeoutMs);
   const results: Awaited<ReturnType<typeof capturePlan>>[] = [];
   try {

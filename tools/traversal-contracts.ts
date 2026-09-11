@@ -7,7 +7,9 @@ const vector = Type.Object({ x: Type.Number(), y: Type.Number(), z: Type.Number(
 const rotation = Type.Object({ x: Type.Number(), y: Type.Number(), z: Type.Number(), w: Type.Number() });
 const common = {
   key: text,
-  phase: Type.Union([Type.Literal("loading"), Type.Literal("ready"), Type.Literal("restoring"), Type.Literal("restored")]),
+  // "settling": the scene is loaded and the player was placed at the capture position; the
+  // loaders that placement started are still running.
+  phase: Type.Union([Type.Literal("loading"), Type.Literal("settling"), Type.Literal("ready"), Type.Literal("restoring"), Type.Literal("restored")]),
   frame: count,
   sceneHandle: integer,
 };

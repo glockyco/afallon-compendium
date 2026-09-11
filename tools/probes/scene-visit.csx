@@ -31,6 +31,29 @@ if (requestedFinalPathToken != null && requestedFinalPathToken.Type != Newtonsof
         throw new System.ArgumentException("finalScenePath must be a non-empty string.");
     requestedFinalPath = (string)requestedFinalPathToken;
 }
+// Where the player stands once the target scene is ready. Some scenes arrive outside their level
+// and the player falls, so nothing near the map stays resident; placing the player at the map
+// on the walkable surface makes the scene static for capture.
+var capturePositionToken = args["capturePosition"];
+var hasCapturePosition = capturePositionToken != null && capturePositionToken.Type == Newtonsoft.Json.Linq.JTokenType.Object;
+var placeAtCapturePosition = new System.Action(() =>
+{
+    if (!hasCapturePosition) return;
+    var playerEntity = Il2Cpp.GameState.playerEntity;
+    if (playerEntity == null || playerEntity.transform == null) throw new System.InvalidOperationException("The player is required to place the capture position.");
+    var requested = new UnityEngine.Vector3((float)capturePositionToken["x"], (float)capturePositionToken["y"], (float)capturePositionToken["z"]);
+    UnityEngine.AI.NavMeshHit hit;
+    if (!UnityEngine.AI.NavMesh.SamplePosition(requested, out hit, 64f, UnityEngine.AI.NavMesh.AllAreas)) throw new System.InvalidOperationException("No walkable surface lies within 64 units of the capture position.");
+    // A CharacterController keeps its own position and overrides a transform write on its next
+    // move, so it is disabled around the write; syncing physics drops the accumulated fall.
+    var controller = playerEntity.GetComponent<UnityEngine.CharacterController>();
+    var controllerWasEnabled = controller != null && controller.enabled;
+    if (controller != null) controller.enabled = false;
+    playerEntity.transform.position = hit.position + UnityEngine.Vector3.up * 0.5f;
+    UnityEngine.Physics.SyncTransforms();
+    if (controller != null) controller.enabled = controllerWasEnabled;
+    sceneVisitState["capturePosition"] = playerEntity.transform.position;
+});
 if (requestedTargetToken != null && requestedTargetToken.Type != Newtonsoft.Json.Linq.JTokenType.Null)
 {
     if (requestedTargetToken.Type != Newtonsoft.Json.Linq.JTokenType.Integer)
@@ -363,7 +386,36 @@ if (requestedAction == "poll")
         var requestedFrame = (int)sceneVisitState["requestFrame"];
         var observedNativeId = observed["sceneNativeId"] == null ? -1 : (int)observed["sceneNativeId"];
         if ((int)observed["frame"] > requestedFrame && observedNativeId == (int)sceneVisitState["targetSceneNativeId"] && (bool)observed["sceneReady"])
-            sceneVisitState["phase"] = "ready";
+        {
+            placeAtCapturePosition();
+            sceneVisitState["phase"] = hasCapturePosition ? "settling" : "ready";
+        }
+    }
+    if ((sceneVisitState["phase"] as string) == "settling")
+    {
+        // Placing the player starts every loader that finds the player within its load distance.
+        // The ground under the capture position is one of them, so the player is re-placed on
+        // every poll until each such loader holds its loaded asset; then the scene is static.
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+        var loaderType = typeof(Il2Cpp.AddressableLoader);
+        var loadingMethod = loaderType.GetMethod("IsLoading", flags, null, System.Type.EmptyTypes, null);
+        var withinMethod = loaderType.GetMethod("PlayerIsWithin", flags, null, new System.Type[] { typeof(float) }, null);
+        var assetProperty = loaderType.GetProperty("loadedAsset", flags);
+        var handleProperty = loaderType.GetProperty("hasInstanceHandle", flags);
+        if (loadingMethod == null || withinMethod == null || assetProperty == null || handleProperty == null) throw new System.InvalidOperationException("AddressableLoader state members are unavailable.");
+        var pendingLoaders = 0;
+        foreach (var loader in UnityEngine.Object.FindObjectsOfType<Il2Cpp.AddressableLoader>(false))
+        {
+            if (loader == null || !loader.enabled || !loader.gameObject.activeInHierarchy) continue;
+            if (!(bool)withinMethod.Invoke(loader, new object[] { System.Math.Max(0f, loader.loadDistance) })) continue;
+            var loaded = assetProperty.GetValue(loader) != null && (bool)handleProperty.GetValue(loader) && !(bool)loadingMethod.Invoke(loader, null);
+            if (!loaded) pendingLoaders++;
+        }
+        sceneVisitState["settlingLoaders"] = pendingLoaders;
+        placeAtCapturePosition();
+        var placedFrame = sceneVisitState.ContainsKey("placedFrame") ? (int)sceneVisitState["placedFrame"] : UnityEngine.Time.frameCount;
+        if (!sceneVisitState.ContainsKey("placedFrame")) sceneVisitState["placedFrame"] = placedFrame;
+        if (pendingLoaders == 0 && UnityEngine.Time.frameCount > placedFrame + 30) sceneVisitState["phase"] = "ready";
     }
     return reportDelegate();
 }

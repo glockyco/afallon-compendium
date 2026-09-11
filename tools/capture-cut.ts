@@ -144,3 +144,25 @@ export async function compositeRawSlices(slicePaths: readonly string[], reported
   const rgb = cutPlan === null ? slices[0]! : composeCut(slices, reported.map(slice => slice.cut), cutPlan, width, height).rgb;
   return sharp(rgb, { raw: { width, height, channels: 3 } }).flip().png().toBuffer();
 }
+
+export type CapturePosition = { x: number; y: number; z: number };
+
+// The walkable point nearest the plan's horizontal centre. Standing there keeps every source of
+// the map resident, so the scene is static for capture.
+export function capturePositionFor(plan: CapturePlan, survey: NavigationSurvey): CapturePosition {
+  const minX = Math.min(...plan.tiles.map(tile => tile.frame.center.x - tile.frame.worldSize.x / 2));
+  const maxX = Math.max(...plan.tiles.map(tile => tile.frame.center.x + tile.frame.worldSize.x / 2));
+  const minZ = Math.min(...plan.tiles.map(tile => tile.frame.center.z - tile.frame.worldSize.z / 2));
+  const maxZ = Math.max(...plan.tiles.map(tile => tile.frame.center.z + tile.frame.worldSize.z / 2));
+  const centerX = (minX + maxX) / 2, centerZ = (minZ + maxZ) / 2;
+  const v = survey.vertices;
+  let best = -1, bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i + 2 < v.length; i += 3) {
+    const x = v[i]!, z = v[i + 2]!;
+    if (x < minX || x > maxX || z < minZ || z > maxZ) continue;
+    const distance = (x - centerX) ** 2 + (z - centerZ) ** 2;
+    if (distance < bestDistance) { bestDistance = distance; best = i; }
+  }
+  if (best < 0) throw new Error("The navigation survey has no walkable vertex inside the capture plan.");
+  return { x: v[best]!, y: v[best + 1]!, z: v[best + 2]! };
+}
