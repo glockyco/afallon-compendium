@@ -5,7 +5,7 @@ import { Assert } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
 import { toRuntimePath, type CompendiumConfig } from "./config";
-import { CanonicalSchema, SupportSchema, RelationshipsSchema, ObservationContextSchema, canonicalKinds } from "./contracts";
+import { CanonicalSchema, SupportSchema, RelationshipsSchema, ObservationContextSchema, validateCanonicalIdentityAndCounts } from "./contracts";
 import { createCoverageLedger, type CoverageInput } from "./coverage";
 import { NpcProducersSchema, validateNpcProducers } from "./npc-extraction";
 import { PlacementSnapshotSchema, type PlacementSnapshot } from "./placement-contracts";
@@ -73,12 +73,7 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
     const canonical = (await artifact("canonical", "reference/canonical.json", CanonicalSchema)).value;
     const support = (await artifact("support", "reference/support.json", SupportSchema)).value;
     const relationships = (await artifact("relationships", "reference/relationships.json", RelationshipsSchema)).value;
-    const ids: Record<string, Set<number>> = {};
-    for (const kind of canonicalKinds) {
-      const rows = canonical[kind];
-      ids[kind] = new Set(rows.map(row => row.nativeId));
-      if (rows.length !== canonical.sourceTotals[kind] || rows.length !== canonical.exportedTotals[kind] || ids[kind]!.size !== rows.length || rows.some(row => row.nativeId < 0 || row.nativeId !== row.sourceKey)) throw new Error(`Canonical ${kind} identities or counts do not reconcile.`);
-    }
+    const ids = validateCanonicalIdentityAndCounts(canonical);
     for (const [kind, rows] of Object.entries(support.tables)) {
       ids[kind] = new Set(rows.map(row => row.entry.nativeId));
       if (rows.length !== support.sourceTotals[kind] || ids[kind]!.size !== rows.length || rows.some(row => row.entry.nativeId !== row.sourceKey)) throw new Error(`Supporting ${kind} identities or counts do not reconcile.`);

@@ -326,10 +326,10 @@ function addSourceManifest(db: Database, buildId: string, sourceKey: string, kin
 
 export function populateNormalizedDatabase(db: Database, input: NormalizedDatabaseInput, sourceFiles: ReadonlyArray<{ key: string; kind: string; ref: { path: string; sha256: string } }>): void {
   if (db.query<{ foreign_keys: number }, []>("PRAGMA foreign_keys").get()?.foreign_keys !== 1) throw new Error("Normalized storage requires SQLite foreign keys.");
-  for (const identity of input.identityResults) recordPlacementIdentities(db, { runId: identity.runId, snapshotSha256: identity.snapshotSha256, character: identity.character, sceneHandle: identity.sceneHandle }, identity.result);
+  for (const identity of input.identityResults) recordPlacementIdentities(db, { runId: identity.runId, snapshotId: identity.snapshotId, snapshotPrefix: identity.snapshotPrefix, snapshotSha256: identity.snapshotSha256, character: identity.character, sceneHandle: identity.sceneHandle }, identity.result);
   const byEntity = new Map(input.entities.map((entity) => [entity.entityKey, entity]));
   db.transaction(() => {
-    insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, "compendium.normalized-output.v2", json(input.provenance)]);
+    insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, "compendium.normalized-output.v4", json(input.provenance)]);
     for (const source of sourceFiles) addSourceManifest(db, input.buildId, source.key, source.kind, source.ref.path, source.ref.sha256);
 
     const sceneRows = new Map<number, { nativeId: number; path: string; name: string | null }>();

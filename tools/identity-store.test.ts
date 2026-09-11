@@ -20,7 +20,7 @@ function fixture(): PlacementIdentityResult {
   }
   return { schemaVersion: "compendium.placement-identities.v1", buildId: "build", sceneNativeId: 1, scenePath: "Assets/World.unity", snapshotFrame: 1, identities, unresolved: [] };
 }
-const context = { runId: "first", snapshotSha256: "c".repeat(64), character: "Research", sceneHandle: 1 };
+const context = { runId: "first", snapshotId: "first:", snapshotPrefix: "", snapshotSha256: "c".repeat(64), character: "Research", sceneHandle: 1 };
 
 test("SQLite preserves shared prefab instances and separates repeat observations", () => {
   const db = openIdentityDatabase(":memory:");
@@ -29,14 +29,29 @@ test("SQLite preserves shared prefab instances and separates repeat observations
     recordPlacementIdentities(db, context, first);
     const next = structuredClone(first);
     for (const row of next.identities) { row.componentInstanceId += 1000; row.gameObjectInstanceId += 1000; row.position.x += 1; }
-    recordPlacementIdentities(db, { ...context, runId: "second", sceneHandle: 2 }, next);
+    recordPlacementIdentities(db, { ...context, runId: "second", snapshotId: "second:", sceneHandle: 2 }, next);
     expect(db.query("SELECT count(*) AS n FROM placement_identities").get()).toEqual({ n: 4 });
     expect(db.query("SELECT count(*) AS n FROM source_observations").get()).toEqual({ n: 8 });
     expect(db.query("SELECT game_object_path_id FROM placement_identities WHERE placement_id = 'placement-2'").get()).toEqual({ game_object_path_id: "-9223372036854775807" });
     const duplicate = fixture();
     duplicate.identities[0]!.placementId = "different-id-same-authored-object";
-    expect(() => recordPlacementIdentities(db, { ...context, runId: "duplicate" }, duplicate)).toThrow();
+    expect(() => recordPlacementIdentities(db, { ...context, runId: "duplicate", snapshotId: "duplicate:" }, duplicate)).toThrow();
     expect(db.query("SELECT count(*) AS n FROM identity_runs").get()).toEqual({ n: 2 });
+  } finally { db.close(); }
+});
+
+test("one traversal run can record multiple scene steps", () => {
+  const db = openIdentityDatabase(":memory:");
+  try {
+    const first = fixture();
+    const second = structuredClone(first);
+    recordPlacementIdentities(db, { ...context, snapshotId: "first:steps/0", snapshotPrefix: "steps/0" }, first);
+    recordPlacementIdentities(db, { ...context, snapshotId: "first:steps/1", snapshotPrefix: "steps/1", snapshotSha256: "d".repeat(64), sceneHandle: 2 }, second);
+    expect(db.query("SELECT run_id, snapshot_prefix FROM identity_runs ORDER BY snapshot_id").all()).toEqual([
+      { run_id: "first", snapshot_prefix: "steps/0" },
+      { run_id: "first", snapshot_prefix: "steps/1" },
+    ]);
+    expect(db.query("SELECT count(*) AS n FROM source_observations").get()).toEqual({ n: 8 });
   } finally { db.close(); }
 });
 

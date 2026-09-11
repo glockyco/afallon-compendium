@@ -3,7 +3,7 @@ import { Assert } from "typebox/value";
 import type { PlacementIdentityResult } from "../tools/placement-contracts";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v2" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v4" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });
@@ -232,7 +232,7 @@ export interface NormalizedOutput {
 
 export interface NormalizedDatabaseInput {
   buildId: string;
-  identityResults: Array<{ runId: string; snapshotSha256: string; character: string; sceneHandle: number; result: PlacementIdentityResult }>;
+  identityResults: Array<{ runId: string; snapshotId: string; snapshotPrefix: string; snapshotSha256: string; character: string; sceneHandle: number; result: PlacementIdentityResult }>;
   entities: NormalizedEntity[];
   scenes: Array<{ nativeId: number; path: string; name: string | null }>;
   mapSpaces: Array<{ id: string; label: string }>;

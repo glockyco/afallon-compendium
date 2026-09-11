@@ -50,18 +50,21 @@ export function openIdentityDatabase(path: string): Database {
           REFERENCES placement_identities(placement_id, build_id, scene_native_id)
       ) STRICT;
       CREATE TABLE IF NOT EXISTS identity_runs (
-        run_id TEXT PRIMARY KEY NOT NULL,
+        snapshot_id TEXT PRIMARY KEY NOT NULL,
+        run_id TEXT NOT NULL,
+        snapshot_prefix TEXT NOT NULL,
         build_id TEXT NOT NULL,
         scene_native_id INTEGER NOT NULL,
         snapshot_sha256 TEXT NOT NULL,
         snapshot_frame INTEGER NOT NULL CHECK(snapshot_frame >= 0),
         character TEXT NOT NULL,
         scene_handle INTEGER NOT NULL,
-        UNIQUE(run_id, build_id, scene_native_id),
+        UNIQUE(snapshot_id, build_id, scene_native_id),
+        UNIQUE(run_id, snapshot_prefix),
         FOREIGN KEY(build_id, scene_native_id) REFERENCES identity_scenes
       ) STRICT;
       CREATE TABLE IF NOT EXISTS source_observations (
-        run_id TEXT NOT NULL,
+        snapshot_id TEXT NOT NULL,
         build_id TEXT NOT NULL,
         scene_native_id INTEGER NOT NULL,
         component_instance_id INTEGER NOT NULL,
@@ -73,14 +76,14 @@ export function openIdentityDatabase(path: string): Database {
         unresolved_reason TEXT,
         unresolved_detail TEXT,
         candidates_json TEXT,
-        PRIMARY KEY(run_id, component_instance_id),
-        UNIQUE(run_id, source_id),
+        PRIMARY KEY(snapshot_id, component_instance_id),
+        UNIQUE(snapshot_id, source_id),
         CHECK((source_id IS NOT NULL AND x IS NOT NULL AND y IS NOT NULL AND z IS NOT NULL
                AND unresolved_reason IS NULL AND unresolved_detail IS NULL AND candidates_json IS NULL)
            OR (source_id IS NULL AND x IS NULL AND y IS NULL AND z IS NULL
                AND unresolved_reason IS NOT NULL AND unresolved_detail IS NOT NULL AND candidates_json IS NOT NULL)),
-        FOREIGN KEY(run_id, build_id, scene_native_id)
-          REFERENCES identity_runs(run_id, build_id, scene_native_id),
+        FOREIGN KEY(snapshot_id, build_id, scene_native_id)
+          REFERENCES identity_runs(snapshot_id, build_id, scene_native_id),
         FOREIGN KEY(source_id, build_id, scene_native_id)
           REFERENCES source_identities(source_id, build_id, scene_native_id)
       ) STRICT;
@@ -92,8 +95,12 @@ export function openIdentityDatabase(path: string): Database {
   }
 }
 
+export function identitySnapshotId(runId: string, snapshotPrefix: string): string { return `${runId}:${snapshotPrefix}`; }
+
 export interface IdentityObservationContext {
   runId: string;
+  snapshotId: string;
+  snapshotPrefix: string;
   snapshotSha256: string;
   character: string;
   sceneHandle: number;
@@ -101,8 +108,8 @@ export interface IdentityObservationContext {
 
 export function recordPlacementIdentities(db: Database, context: IdentityObservationContext, result: PlacementIdentityResult): void {
   Assert(PlacementIdentityResultSchema, result);
-  if (!context.runId || !context.character || !/^[a-f0-9]{64}$/.test(context.snapshotSha256) || !Number.isSafeInteger(context.sceneHandle)) {
-    throw new TypeError("Supply a run ID, snapshot SHA-256, character, and integer scene handle.");
+  if (!context.runId || !context.snapshotId || context.snapshotPrefix === undefined || context.snapshotId !== identitySnapshotId(context.runId, context.snapshotPrefix) || !context.character || !/^[a-f0-9]{64}$/.test(context.snapshotSha256) || !Number.isSafeInteger(context.sceneHandle)) {
+    throw new TypeError("Supply a run ID, snapshot identity, step prefix, snapshot SHA-256, character, and integer scene handle.");
   }
   if (db.query<{ foreign_keys: number }, []>("PRAGMA foreign_keys").get()?.foreign_keys !== 1) {
     throw new Error("Identity storage requires SQLite foreign keys.");
@@ -123,18 +130,18 @@ export function recordPlacementIdentities(db: Database, context: IdentityObserva
       scene_native_id = excluded.scene_native_id AND component_path_id = excluded.component_path_id AND
       type_name = excluded.type_name AND assembly = excluded.assembly
       THEN component_path_id ELSE NULL END`);
-  const run = db.query("INSERT INTO identity_runs VALUES (?, ?, ?, ?, ?, ?, ?)");
-  const observation = db.query("INSERT INTO source_observations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+  const run = db.query("INSERT INTO identity_runs (snapshot_id, run_id, snapshot_prefix, build_id, scene_native_id, snapshot_sha256, snapshot_frame, character, scene_handle) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+  const observation = db.query("INSERT INTO source_observations (snapshot_id, build_id, scene_native_id, component_instance_id, game_object_instance_id, source_id, x, y, z, unresolved_reason, unresolved_detail, candidates_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
   db.transaction(() => {
     scene.run(result.buildId, result.sceneNativeId, result.scenePath);
-    run.run(context.runId, result.buildId, result.sceneNativeId, context.snapshotSha256, result.snapshotFrame, context.character, context.sceneHandle);
+    run.run(context.snapshotId, context.runId, context.snapshotPrefix, result.buildId, result.sceneNativeId, context.snapshotSha256, result.snapshotFrame, context.character, context.sceneHandle);
     for (const row of result.identities) {
       placement.run(row.placementId, result.buildId, result.sceneNativeId, row.sceneSourceSha256, row.sourceSha256, row.serializedFile, row.gameObjectPathId, row.origin, row.loaderSourceId);
       source.run(row.sourceId, row.placementId, result.buildId, result.sceneNativeId, row.componentPathId, row.typeName, row.assembly);
-      observation.run(context.runId, result.buildId, result.sceneNativeId, row.componentInstanceId, row.gameObjectInstanceId, row.sourceId, row.position.x, row.position.y, row.position.z, null, null, null);
+      observation.run(context.snapshotId, result.buildId, result.sceneNativeId, row.componentInstanceId, row.gameObjectInstanceId, row.sourceId, row.position.x, row.position.y, row.position.z, null, null, null);
     }
     for (const row of result.unresolved) {
-      observation.run(context.runId, result.buildId, result.sceneNativeId, row.componentInstanceId, row.gameObjectInstanceId, null, null, null, null, row.reason, row.detail, JSON.stringify(row.candidates));
+      observation.run(context.snapshotId, result.buildId, result.sceneNativeId, row.componentInstanceId, row.gameObjectInstanceId, null, null, null, null, row.reason, row.detail, JSON.stringify(row.candidates));
     }
   })();
 }

@@ -19,17 +19,39 @@ const canonicalEntry = Type.Object({
   sourceKey: integer, nativeId: integer, name: nullableText, internalName: nullableText,
   description: nullableText, localization: rawObject, icon: rawObject, gameplay: rawObject,
 });
-export const canonicalKinds = ["items", "npcs", "quests", "lootTables", "scenes", "resources"] as const;
-const counts = Type.Object({ items: integer, npcs: integer, quests: integer, lootTables: integer, scenes: integer, resources: integer });
+export const canonicalKinds = ["items", "npcs", "quests", "lootTables", "scenes", "resources", "regions", "properties"] as const;
+const counts = Type.Object({ items: integer, npcs: integer, quests: integer, lootTables: integer, scenes: integer, resources: integer, regions: integer, properties: integer });
+const guideCoverage = Type.Object({ regionsObserved: integer, regionsExported: integer, regionsOmittedReason: text });
 export const CanonicalSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.canonical.v1"),
+  schemaVersion: Type.Literal("compendium.canonical.v2"),
   databaseAvailable: Type.Literal(true),
   localization: Type.Object({ apiAvailable: Type.Literal(true), language: text, loadedEntryCount: integer }),
   sourceTotals: counts, exportedTotals: counts,
+  guideCoverage,
   items: Type.Array(canonicalEntry), npcs: Type.Array(canonicalEntry), quests: Type.Array(canonicalEntry),
   lootTables: Type.Array(canonicalEntry), scenes: Type.Array(canonicalEntry), resources: Type.Array(canonicalEntry),
+  regions: Type.Array(canonicalEntry), properties: Type.Array(canonicalEntry),
 });
 export type Canonical = Static<typeof CanonicalSchema>;
+
+export function validateCanonicalIdentityAndCounts(canonical: Canonical): Record<string, Set<number>> {
+  const ids: Record<string, Set<number>> = {};
+  for (const kind of canonicalKinds) {
+    const rows = canonical[kind];
+    const omittedRegions = kind === "regions" && rows.length === 0
+      && canonical.sourceTotals.regions === canonical.guideCoverage.regionsObserved
+      && canonical.exportedTotals.regions === canonical.guideCoverage.regionsExported
+      && canonical.guideCoverage.regionsExported === 0;
+    const countsReconcile = rows.length === canonical.sourceTotals[kind] && rows.length === canonical.exportedTotals[kind];
+    const rowIdentitiesReconcile = new Set(rows.map(row => row.nativeId)).size === rows.length
+      && rows.every(row => row.nativeId >= 0 && row.nativeId === row.sourceKey);
+    if ((!omittedRegions && !countsReconcile) || (!omittedRegions && !rowIdentitiesReconcile)) {
+      throw new Error(`Canonical ${kind} identities or counts do not reconcile.`);
+    }
+    ids[kind] = new Set(rows.map(row => row.nativeId));
+  }
+  return ids;
+}
 
 export const LocalizationSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.localization.v1"), language: text, sourceCount: integer,

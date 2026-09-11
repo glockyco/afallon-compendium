@@ -422,7 +422,7 @@ After the user-reported 94.12 GB process was restarted, its footprint was about 
 
 ## SQLite identity storage
 
-`openIdentityDatabase` and `recordPlacementIdentities` in `tools/identity-store.ts` store authored identities separately from observations. `identity_scenes`, `placement_identities`, and `source_identities` retain canonical scope and serialized keys. `identity_runs` records snapshot hashes, frames, characters, and scene handles. `source_observations` retains native IDs, positions, and unresolved evidence per run. Serialized path IDs remain text, including signed values outside JavaScript's safe integer range.
+`openIdentityDatabase` and `recordPlacementIdentities` in `tools/identity-store.ts` store authored identities separately from observations. `identity_scenes`, `placement_identities`, and `source_identities` retain canonical scope and serialized keys. `identity_runs` records each snapshot by the traversal run and step prefix, with hashes, frames, characters, and scene handles. `source_observations` retains native IDs, positions, and unresolved evidence per snapshot. Serialized path IDs remain text, including signed values outside JavaScript's safe integer range.
 
 Strict SQLite tables enforce primary keys, authored-key uniqueness, and foreign keys. The placement uniqueness index treats a null loader as a real scene-origin scope. Shared prefab instances remain distinct through their loader source. Deferred loader foreign keys allow a source to appear before its loader in the input, but prevent committing a missing or cross-scene loader. Reusing an identity with different authored fields fails. Duplicate run/source bindings also fail. Each import is one transaction; a failed import leaves no partial identities or observations.
 

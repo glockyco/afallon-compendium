@@ -18,6 +18,7 @@ import type { SpatialResolution } from "../tools/spatial-contracts";
 import type { NormalizedOutput, NormalizationPlan, ArtifactReference, NormalizedCondition, NormalizedDatabaseInput, NormalizedEntity, NormalizedItemSources, NormalizedMapProjection, NormalizedPlacement, NormalizedSource, NormalizedSpawnCandidate, EntityDetail, CategoryMetadata, NormalizedCoverageSummary, SceneSnapshotReference } from "./normalized-contracts";
 import { assertNormalizationPlan, entityKey, publicEntityDetails, stableJson } from "./normalized-contracts";
 import { databaseCounts, hashRelation, openNormalizedDatabase, populateNormalizedDatabase } from "./database";
+import { identitySnapshotId } from "../tools/identity-store";
 
 type JsonRecord = Record<string, any>;
 type JsonArray = any[];
@@ -56,6 +57,8 @@ type SceneContext = {
   worldReference: ArtifactReference;
   snapshotReference: ArtifactReference;
   snapshotRunId: string;
+  snapshotPrefix: string;
+  snapshotId: string;
   identityResult: PlacementIdentityResult;
   sceneHandle: number;
   character: string;
@@ -185,7 +188,7 @@ function assertBuild(value: unknown, buildId: string, label: string): void {
 function canonicalEntityRows(value: JsonRecord, buildId: string, ref: ArtifactReference): { entities: NormalizedEntity[]; scenes: Array<{ nativeId: number; path: string; name: string | null }> } {
   const entities: NormalizedEntity[] = [];
   const scenes: Array<{ nativeId: number; path: string; name: string | null }> = [];
-  for (const kind of ["items", "npcs", "quests", "lootTables", "scenes", "resources"] as const) {
+  for (const kind of ["items", "npcs", "quests", "lootTables", "scenes", "resources", "regions", "properties"] as const) {
     for (const [index, raw] of array(value[kind]).entries()) {
       const row = record(raw);
       if (!row || !Number.isSafeInteger(row.nativeId)) continue;
@@ -262,7 +265,9 @@ function sceneContexts(planDirectory: string, plan: NormalizationPlan): Promise<
       const sourceByComponent = new Map<number, SourceIdentityRow>();
       const sourceById = new Map<string, SourceIdentityRow>();
       for (const row of identitiesRows) { if (sourceByComponent.has(row.componentInstanceId)) throw new Error(`Duplicate source component ${row.componentInstanceId} in scene snapshot ${index}.`); sourceByComponent.set(row.componentInstanceId, row); sourceById.set(row.sourceId, row); }
-      contexts.push({ role: roleValue, identities: identityValue, npc: record(npc.value), world: record(world.value), sceneNativeId: scene.sceneNativeId, scenePath: scene.scenePath, sourceByComponent, sourceById, roleReference: roles.reference, identityReference: identities.reference, npcReference: npc.reference, worldReference: world.reference, snapshotReference: snapshotRows.reference, snapshotRunId: sceneManifest.run.manifest.runId, identityResult, sceneHandle: scene.sceneHandle, character: scene.character });
+      const snapshotRunId = sceneManifest.run.manifest.runId;
+      const snapshotPrefix = snapshot.prefix ? snapshot.prefix.replaceAll("\\", "/").split("/").filter(Boolean).join("/") : "";
+      contexts.push({ role: roleValue, identities: identityValue, npc: record(npc.value), world: record(world.value), sceneNativeId: scene.sceneNativeId, scenePath: scene.scenePath, sourceByComponent, sourceById, roleReference: roles.reference, identityReference: identities.reference, npcReference: npc.reference, worldReference: world.reference, snapshotReference: snapshotRows.reference, snapshotRunId, snapshotPrefix, snapshotId: identitySnapshotId(snapshotRunId, snapshotPrefix), identityResult, sceneHandle: scene.sceneHandle, character: scene.character });
     }
     return { contexts, sourceFiles: references };
   })();
@@ -821,7 +826,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
   const mapPlacements = placementData.placements;
   const reviewedScenes = profileData.bindings.map((binding) => ({ nativeId: binding.sceneNativeId, path: binding.scenePath, name: binding.scenePath.split("/").pop()?.replace(/\.unity$/, "") ?? null }));
   const reviewedSceneIds = new Set(reviewedScenes.map((scene) => scene.nativeId));
-  const identityResults = [...new Map(sceneData.contexts.map((context) => [`${context.sceneNativeId}:${context.snapshotRunId}`, { runId: context.snapshotRunId, snapshotSha256: context.snapshotReference.sha256, character: context.character, sceneHandle: context.sceneHandle, result: context.identityResult }])).values()];
+  const identityResults = [...new Map(sceneData.contexts.map((context) => [context.snapshotId, { runId: context.snapshotRunId, snapshotId: context.snapshotId, snapshotPrefix: context.snapshotPrefix, snapshotSha256: context.snapshotReference.sha256, character: context.character, sceneHandle: context.sceneHandle, result: context.identityResult }])).values()];
   const input: NormalizedDatabaseInput = { buildId: plan.buildId, identityResults, entities: canonicalData.entities, scenes: [...reviewedScenes, ...canonicalData.scenes.filter((scene) => !reviewedSceneIds.has(scene.nativeId))], mapSpaces: profileData.mapSpaces, bindings: profileData.bindings, placements: mapPlacements, sources: placementData.sources, roles: placementData.roles, conditions, spawnCandidates: npcRows.candidates, merchantTables: relationData.merchantTables, lootTables: relationData.lootTables, merchantBindings: relationData.merchantBindings, merchantStock: relationData.merchantStock, lootBindings: relationData.lootBindings, lootEntries: relationData.lootEntries, linkedNpcRules: linkedRules, resourceYields: [...relationData.resourceYields, ...worldData.resourceYields], questAssociations: [...relationData.questAssociations, ...worldData.questAssociations], transitions: worldData.transitions, itemSources, blockers: coverage.blockers, inputCoverage, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
   const implementationHashes = {
     "tool:pipeline-normalize": await fileHash(path.resolve(import.meta.dir, "normalize.ts")),
@@ -883,7 +888,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     for (const source of archivedManifests) await run.addArtifact(source.archivePath);
     for (const [relativePath] of outputs) await run.addArtifact(relativePath);
     await run.succeed();
-    const output: NormalizedOutput = { schemaVersion: "compendium.normalized-output.v2", buildId: plan.buildId, runId: run.runId, manifest: run.manifestPath, directory: run.directory, database: databasePath, projections: { map: path.join(run.directory, "projections/map-projections.json"), categories: path.join(run.directory, "projections/category-metadata.json"), entities: path.join(run.directory, "projections/entity-details.json"), itemSources: path.join(run.directory, "projections/item-sources.json"), coverage: path.join(run.directory, "projections/coverage-summary.json") }, counts: { ...counts, blockers: coverage.blockers.length }, coverage: { complete: coverage.complete, unresolved: coverage.unresolved }, provenance: input.provenance };
+    const output: NormalizedOutput = { schemaVersion: "compendium.normalized-output.v4", buildId: plan.buildId, runId: run.runId, manifest: run.manifestPath, directory: run.directory, database: databasePath, projections: { map: path.join(run.directory, "projections/map-projections.json"), categories: path.join(run.directory, "projections/category-metadata.json"), entities: path.join(run.directory, "projections/entity-details.json"), itemSources: path.join(run.directory, "projections/item-sources.json"), coverage: path.join(run.directory, "projections/coverage-summary.json") }, counts: { ...counts, blockers: coverage.blockers.length }, coverage: { complete: coverage.complete, unresolved: coverage.unresolved }, provenance: input.provenance };
     return output;
   } catch (error) { await run.fail(error); throw error; }
 }

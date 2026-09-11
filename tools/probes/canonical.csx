@@ -4,6 +4,8 @@ var canonicalQuests = new System.Collections.Generic.List<object>();
 var canonicalLootTables = new System.Collections.Generic.List<object>();
 var canonicalScenes = new System.Collections.Generic.List<object>();
 var canonicalResources = new System.Collections.Generic.List<object>();
+var canonicalRegions = new System.Collections.Generic.List<object>();
+var canonicalProperties = new System.Collections.Generic.List<object>();
 
 var database = Il2CppBLINK.RPGBuilder.Managers.GameDatabase.Instance;
 var databaseAvailable = database != null;
@@ -29,6 +31,8 @@ var quests = databaseAvailable ? database.GetQuests() : null;
 var lootTables = databaseAvailable ? database.GetLootTables() : null;
 var scenes = databaseAvailable ? database.GetGameScenes() : null;
 var resources = databaseAvailable ? database.GetResources() : null;
+var regions = databaseAvailable ? database.GetRegionTemplates() : null;
+var properties = databaseAvailable ? database.GetProperties() : null;
 
 var sourceItemTotal = items == null ? -1 : items.Count;
 var sourceNpcTotal = npcs == null ? -1 : npcs.Count;
@@ -36,6 +40,8 @@ var sourceQuestTotal = quests == null ? -1 : quests.Count;
 var sourceLootTableTotal = lootTables == null ? -1 : lootTables.Count;
 var sourceSceneTotal = scenes == null ? -1 : scenes.Count;
 var sourceResourceTotal = resources == null ? -1 : resources.Count;
+var sourceRegionTotal = regions == null ? -1 : regions.Count;
+var sourcePropertyTotal = properties == null ? -1 : properties.Count;
 
 if (items != null)
 {
@@ -249,6 +255,45 @@ if (npcs != null)
             }
         }
 
+        var npcAiPhases = new System.Collections.Generic.List<object>();
+        if (npc.Phases != null)
+        {
+            for (var phaseIndex = 0; phaseIndex < npc.Phases.Count; phaseIndex++)
+            {
+                var phase = npc.Phases[phaseIndex];
+                var template = phase == null ? null : phase.PhaseTemplate;
+                if (template == null) continue;
+                var phaseName = phase.Preset == null
+                    ? template.entryDisplayName ?? template.entryName
+                    : phase.Preset.entryDisplayName ?? phase.Preset.entryName;
+                var requirementTemplate = template.EnterPhaseRequirementsTemplate;
+                var requirement = requirementTemplate == null ? null : (requirementTemplate.entryDisplayName ?? requirementTemplate.entryName);
+                var abilityIds = new System.Collections.Generic.List<int>();
+                if (template.PotentialBehaviors != null)
+                {
+                    foreach (var potential in template.PotentialBehaviors)
+                    {
+                        var behavior = potential == null ? null : potential.BehaviorTemplate;
+                        if (behavior == null || behavior.PotentialAbilities == null) continue;
+                        foreach (var potentialAbilities in behavior.PotentialAbilities)
+                        {
+                            var abilitiesTemplate = potentialAbilities == null ? null : potentialAbilities.AbilitiesTemplate;
+                            if (abilitiesTemplate == null || abilitiesTemplate.Abilities == null) continue;
+                            foreach (var ability in abilitiesTemplate.Abilities) if (ability != null && !abilityIds.Contains(ability.abilityID)) abilityIds.Add(ability.abilityID);
+                        }
+
+                    }
+                }
+                npcAiPhases.Add(new { phaseIndex = phaseIndex, name = phaseName, requirement = requirement, abilityIds = abilityIds });
+            }
+        }
+        var npcGuideStatsById = new System.Collections.Generic.Dictionary<int, float>();
+        if (npc.stats != null) foreach (var stat in npc.stats) if (stat != null) npcGuideStatsById[stat.statID] = stat.baseValue;
+        if (npc.CustomStats != null) foreach (var stat in npc.CustomStats) if (stat != null) npcGuideStatsById[stat.statID] = stat.addedValue;
+        if (npc.UseStatListTemplate && npc.StatListTemplate != null && npc.StatListTemplate.CustomStats != null) foreach (var stat in npc.StatListTemplate.CustomStats) if (stat != null) npcGuideStatsById[stat.statID] = stat.addedValue;
+        var npcGuideStats = new System.Collections.Generic.List<object>();
+        foreach (var stat in npcGuideStatsById) npcGuideStats.Add(new { statId = stat.Key, value = stat.Value });
+
         var npcMerchantTables = new System.Collections.Generic.List<object>();
         var npcMerchantTablesAvailable = npc.MerchantTables != null;
         if (npc.MerchantTables != null)
@@ -341,6 +386,8 @@ if (npcs != null)
                 dialogueId = npc.dialogueID,
                 minLevel = npc.MinLevel,
                 maxLevel = npc.MaxLevel,
+                aiPhases = npcAiPhases,
+                guideStats = npcGuideStats,
                 isScalingWithPlayer = npc.isScalingWithPlayer,
                 minExperience = npc.MinEXP,
                 maxExperience = npc.MaxEXP,
@@ -734,9 +781,27 @@ if (resources != null)
     }
 }
 
+// RegionTemplate records use string dictionary keys while runtime IDs are -1 in this build.
+// They remain observed but unpublished until the identity contract supports that key.
+
+if (properties != null)
+{
+    foreach (var propertyPair in properties)
+    {
+        var property = propertyPair.Value;
+        if (property == null) continue;
+        var propertyName = property.entryDisplayName ?? property.entryName;
+        var propertyImage = property.propertyImage;
+        object propertyIconMetadata;
+        if (propertyImage == null) propertyIconMetadata = new { available = false, reason = "no authored Sprite reference" };
+        else { var rect = propertyImage.rect; var texture = propertyImage.texture; propertyIconMetadata = new { available = true, name = propertyImage.name, rect = new { x = rect.x, y = rect.y, width = rect.width, height = rect.height }, textureName = texture == null ? null : texture.name }; }
+        canonicalProperties.Add(new { sourceKey = propertyPair.Key, nativeId = property.ID, name = propertyName, internalName = property.entryName, description = property.entryDescription, localization = new { displayName = propertyName, description = property.entryDescription }, icon = propertyIconMetadata, gameplay = new { income = property.incomeAmount } });
+    }
+}
+
 return new
 {
-    schemaVersion = "compendium.canonical.v1",
+    schemaVersion = "compendium.canonical.v2",
     databaseAvailable = databaseAvailable,
     databaseError = databaseError,
     localization = new
@@ -754,7 +819,9 @@ return new
         quests = sourceQuestTotal,
         lootTables = sourceLootTableTotal,
         scenes = sourceSceneTotal,
-        resources = sourceResourceTotal
+        resources = sourceResourceTotal,
+        regions = sourceRegionTotal,
+        properties = sourcePropertyTotal
     },
     exportedTotals = new
     {
@@ -763,12 +830,17 @@ return new
         quests = canonicalQuests.Count,
         lootTables = canonicalLootTables.Count,
         scenes = canonicalScenes.Count,
-        resources = canonicalResources.Count
+        resources = canonicalResources.Count,
+        regions = canonicalRegions.Count,
+        properties = canonicalProperties.Count
     },
+    guideCoverage = new { regionsObserved = regions == null ? 0 : regions.Count, regionsExported = canonicalRegions.Count, regionsOmittedReason = "RegionTemplate runtime IDs are -1; the dictionary key is a string and is outside the integer identity contract." },
     items = canonicalItems,
     npcs = canonicalNpcs,
     quests = canonicalQuests,
     lootTables = canonicalLootTables,
     scenes = canonicalScenes,
-    resources = canonicalResources
+    resources = canonicalResources,
+    regions = canonicalRegions,
+    properties = canonicalProperties
 };

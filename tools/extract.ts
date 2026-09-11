@@ -4,7 +4,7 @@ import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
 import type { CompendiumConfig } from "./config";
-import { CanonicalSchema, LocalizationSchema, LootRulesSchema, ObservationContextSchema, RelationshipsSchema, SupportSchema, canonicalKinds } from "./contracts";
+import { CanonicalSchema, LocalizationSchema, LootRulesSchema, ObservationContextSchema, RelationshipsSchema, SupportSchema, canonicalKinds, validateCanonicalIdentityAndCounts } from "./contracts";
 import { NpcProducersSchema, validateNpcProducers } from "./npc-extraction";
 import { WorldSourcesSchema, validateWorldSources } from "./world-extraction";
 import { WorldInventorySchema, validateWorldInventory } from "./world-inventory";
@@ -101,16 +101,7 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
       await Bun.write(resolve(run.directory, path), JSON.stringify(value, null, 2) + "\n");
       await run.addArtifact(path);
     }
-    const ids: Record<string, Set<number>> = {};
-    for (const kind of canonicalKinds) {
-      const rows = canonical[kind];
-      if (rows.length !== canonical.sourceTotals[kind] || rows.length !== canonical.exportedTotals[kind]) throw new Error(`${kind} counts do not reconcile.`);
-      ids[kind] = new Set();
-      for (const row of rows) {
-        if (row.nativeId < 0 || row.nativeId !== row.sourceKey || ids[kind].has(row.nativeId)) throw new Error(`Invalid or duplicate ${kind} identity: ${row.nativeId}`);
-        ids[kind].add(row.nativeId);
-      }
-    }
+    const ids = validateCanonicalIdentityAndCounts(canonical);
     for (const [kind, rows] of Object.entries(support.tables)) {
       if (rows.length !== support.sourceTotals[kind]) throw new Error(`${kind} supporting counts do not reconcile.`);
       const keys = new Set<number>();
