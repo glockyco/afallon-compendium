@@ -53,12 +53,12 @@ Render order SHALL be semantic, from terrain and areas, through paths and ranges
 
 ### Requirement: Level ranges are visible and filterable
 
-The atlas SHALL show the level range of a map or region the way the game does, next to its name. It SHALL provide a level filter over creature levels. Level data SHALL come from the extracted native sources: region level ranges, scene dungeon ranges, scene scaling ranges, and producer scaling overrides.
+The atlas SHALL show the level range of a map or its associated `RegionTemplate` record the way the game does, next to its name. It SHALL provide a level filter over creature levels. Level data SHALL come from the extracted native sources: `RegionTemplate` level ranges, scene dungeon ranges, scene scaling ranges, and producer scaling overrides.
 
 A creature whose level is unknown SHALL remain visible under a filter rather than silently disappear.
 
 #### Scenario: A reader opens a map
-- **WHEN** the map or its region carries a level range
+- **WHEN** the map or its associated `RegionTemplate` record carries a level range
 - **THEN** the interface shows that range with the name
 - **AND** the wording matches the game's own presentation
 
@@ -92,7 +92,7 @@ Placement SHALL be translation only at a shared world scale. The atlas SHALL NOT
 
 Where a travel point has a resolved destination, the atlas SHALL draw the connection on the world map: the travel marker, a line from it to its destination, and a mark at the destination. One toggle SHALL control that group.
 
-Connections SHALL span maps, so a dungeon entrance links to the arrival point inside the dungeon's own map. A travel point whose destination is unresolved SHALL keep its marker without a line, and SHALL NOT be drawn to a guessed position. A destination that is disabled or otherwise inactive SHALL remain visible and visibly distinguished rather than hidden.
+Connections SHALL span maps, so a dungeon entrance links to the arrival point within that zone's map. A travel point whose destination is unresolved SHALL keep its marker without a line, and SHALL NOT be drawn to a guessed position. A destination that is disabled or otherwise inactive SHALL remain visible and visibly distinguished rather than hidden.
 
 The authoring mode SHALL render connections while a reviewer positions maps, because a line whose ends are far apart or crossed reveals a wrong placement.
 

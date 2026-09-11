@@ -98,13 +98,13 @@ Paths below are relative to the recovered Assembly-CSharp directory.
 
 - `RPGBuilderDatabaseEntry.cs`: ScriptableObject base has integer `ID`, `entryName`, `entryFileName`, `entryDisplayName`, `entryIcon`, `entryDescription`.
 - `Blink/RPGBuilder/Managers/GameDatabase.cs`: integer-keyed dictionaries/accessors for items, NPCs, loot tables, quests, tasks, resources, scenes, abilities, and other records. Some template/category dictionaries use strings.
-- `RPGGameScene.cs`: `minimapImageKey`, `mapBounds`, `mapSize`, `startPositionID`, procedural/spawn fields, regions, dungeon/zone level ranges, Adventure Guide description/image and boss NPC IDs.
+- `RPGGameScene.cs`: `minimapImageKey`, `mapBounds`, `mapSize`, `startPositionID`, procedural/spawn fields, navigable areas, dungeon/zone level ranges, Adventure Guide description/image and boss NPC IDs.
 - `MapMinimap/MapZone.cs`: integer zone ID, map Texture, BoxCollider field, bounds and world/map conversion APIs.
 - `MapMinimap/MapData.cs` and `MapSceneData.cs`: scene-name-keyed persistent fog discovery. Not a canonical world-content database.
 - `Blink/RPGBuilder/AI/NPCSpawner.cs`: list of NPC candidates with spawnChance/persistence, count limits, requirements, distance triggers, area radius/height, usePosition, ground sampling, level/faction/respawn/patrol overrides.
 - `RPGNpc.cs`: NPC classification, merchant/quest/dialogue/faction links, level/scaling fields, loot-table links.
 - `RPGLootTable.cs`: item IDs, min/max quantities, drop-rate fields, requirements and drop-count controls. No probability interpretation verified.
-- `RPGQuest.cs` and `RPGTask.cs`: task/objective IDs and item/NPC/scene/region references, reward and requirement fields.
+- `RPGQuest.cs` and `RPGTask.cs`: task/objective IDs and item/NPC/scene/area references, reward and requirement fields.
 - `RPGResourceNode.cs`: skill requirement and rank-specific loot-table links.
 - `Blink/RPGBuilder/World/DungeonEntranceTrigger.cs`: RPGGameScene reference.
 - `LoadingScreenManager` and `RPGBuilderEssentials`: scene loading/teleport signatures take integer scene IDs.
@@ -137,11 +137,11 @@ Useful: the site consumes generated contracts, not raw extraction details. Gener
 1. Map first as a product, but use entity identities and placements that can support compendium pages later.
 2. Separate authored entity, spawn/placement rule, and live observed instance. Afallon's spawn candidate/area fields make that distinction important.
 3. One repository, explicit extraction → normalized data → static publication boundaries. Prefer a small SQLite model and concrete modules over a generic compendium framework.
-4. Keep game-specific IDs and XYZ coordinates at the evidence boundary. Define map-space calibration once. A map ID must distinguish independent dungeon/overworld spaces.
+4. Keep game-specific IDs and XYZ coordinates at the evidence boundary. Define map-space calibration once. A map ID must distinguish independent zone and world surface map spaces.
 5. Capture in-game terrain imagery as the primary basemap. Preserve shipped artwork as an optional layer with independently verified registration.
 6. Preserve patch/build identity, extraction coverage, conditional availability, and manual corrections separately from extracted facts.
 7. No accounts, backend service, shared multi-game framework, full graph engine, or live tracking unless a reader need justifies them.
-8. Representative outdoor and interior proofs validate the mechanism. They do not reduce the user's requested full-map coverage.
+8. Representative world surface and zone proofs validate the mechanism. They do not reduce the user's requested full-map coverage.
 
 ## HotRepl investigation next
 
@@ -188,12 +188,12 @@ The generic HotRepl host works without source changes. In-game scene loading and
 
 These counts use FindObjectsOfType, not a proof of complete authored coverage. Inactive objects, streamed scenes, runtime-created objects, and disabled content remain to investigate.
 
-- Coalway swamp and woods use the same named texture, dimensions, center, size, and rotation. This supports a shared overworld map space for these two scenes. Do not apply Erenshor-style manual stitching by default.
+- Coalway swamp and woods use the same named texture, dimensions, center, size, and rotation. This supports a shared world surface map space for these two scenes. Do not apply Erenshor-style manual stitching by default.
 - Tutorial cave uses a separate map space even though its local MapZone ID is also 0. MapZone ID alone is not globally unique.
-- `GetNormalizedPos(GetCenter())` returns `(0,0)`. `GetWorldPosition(1,1)` reaches the positive half-extents. Verified round trips in the overworld: `(-1,-1)`, `(0,0)`, and `(1,1)` return unchanged after map→world→map.
+- `GetNormalizedPos(GetCenter())` returns `(0,0)`. `GetWorldPosition(1,1)` reaches the positive half-extents. Verified round trips on the world surface: `(-1,-1)`, `(0,0)`, and `(1,1)` return unchanged after map→world→map.
 - Thus the tested MapZone normalized domain is centered, with corners at -1 and +1. It is not image UV 0..1. Image vertical orientation still needs explicit landmark calibration in a future web map.
 - Extracted `Tutorial cave map` directly from `sharedassets3.assets`, Texture2D path ID 47. Saved `research/screenshots/05-tutorial-basemap.png` and visually confirmed it matches the in-game terrain map.
-- Extracted `Newest map` directly from `sharedassets2.assets`, Texture2D path ID 195. Saved `research/screenshots/07-overworld-basemap.png`. The live map screenshot shows illustrated parchment-style world artwork, unlike the tutorial's terrain image.
+- Extracted `Newest map` directly from `sharedassets2.assets`, Texture2D path ID 195. Saved `research/screenshots/07-overworld-basemap.png`. The live map screenshot shows illustrated parchment-style world surface artwork, unlike the tutorial's terrain image.
 - These extracted textures are research references, not primary basemap captures. The primary layer requires this project's own captures for every supported map. Full-game capture coverage and useful maximum zoom remain open.
 
 ### Spawns require their own model
@@ -206,7 +206,7 @@ One tutorial boss spawner has a much higher source Y coordinate than nearby spaw
 
 ### Product and architecture implications
 
-- Model three separate concepts: source scene, rendered map space, and player-facing region. Scenes can share a map, and one scene can contain multiple named regions.
+- Model three separate concepts: source scene, rendered map space, and player-facing area. Scenes can share a map, and one scene can contain multiple named areas.
 - Separate canonical entity IDs, authored placement/spawner IDs, and live instance observations. Do not derive canonical identity from display names or runtime GetInstanceID values.
 - Use runtime-first canonical extraction, with offline asset evidence for coverage reconciliation. Publish generated data through a static pipeline; the website does not connect to the game.
 - Do not prescribe a generic descriptor/graph framework. A few explicit entity tables and map projections can support the first map and later pages.
@@ -529,7 +529,7 @@ A known teleport retains its role when an unresolved sibling action exists. An e
 
 ### Geometry and navigation scope
 
-The `MapGeometry` contract in `tools/map-contracts.ts` records scene-local renderers, shared mesh metadata, terrain data, navigation surfaces, regions, MapZones, and grounded landmark samples. Native query counts retain foreign-scene observations separately. Disabled objects remain included. These observations do not establish complete streamed geometry coverage.
+The `MapGeometry` contract in `tools/map-contracts.ts` records scene-local renderers, shared mesh metadata, terrain data, navigation surfaces, navigable areas, MapZones, and grounded landmark samples. Native query counts retain foreign-scene observations separately. Disabled objects remain included. These observations do not establish complete streamed geometry coverage.
 
 The generated bindings omit `NavMesh.CalculateTriangulation`. The engine still resolves `UnityEngine.AI.NavMesh::CalculateTriangulation_Injected`. Native inspection verified its three-array-pointer ABI at UnityPlayer RVA `0x169000`. The evidence and engine hash are in `artifacts/map-calibration-smoke/native-triangulation-abi.json`.
 
@@ -555,19 +555,19 @@ The optional `mapSpaceProfile` configuration field selects the `MapSpaceProfile`
 
 `tools/map-spaces.ts` compiles source-scene lookups and inverse frames. Domain boxes include their minimum coordinates and exclude their maximum coordinates on all three axes. Map membership uses horizontal projection; world Y remains observation data and does not select imagery. Missing scene bindings, uncovered positions, and contradictory scene catalogs remain explicit. The resolver does not choose a nearest map or clamp positions.
 
-`spatial.json` binds each placement identity and XYZ observation to map-space candidates and geometric region membership. Region predicates compile once per snapshot. They support oriented boxes and spheres, include inactive authored volumes, and retain unsupported shapes. Region component IDs and negative native IDs remain observations, not canonical identities. No spatial result establishes screenshot coverage.
+`spatial.json` binds each placement identity and XYZ observation to map-space candidates and geometric area membership. Area predicates compile once per snapshot. They support oriented boxes and spheres, include inactive authored volumes, and retain unsupported shapes. Area component IDs and negative native IDs remain observations, not canonical identities. No spatial result establishes screenshot coverage.
 
 The representative profile places woods and swamp in one Coalway map space. Two shared TerrainData observations have identical data, rotations, and scales across those scenes. Their world-position residuals are 0.000126 and 0.000255 units. This geometry check supplements the native MapZone registration instead of treating its texture or local ID as sufficient evidence. Results are in `artifacts/map-calibration-smoke/shared-terrain-registration.json`.
 
-Duskfall uses separate arrival and main map spaces. Their reviewed membership boxes are not capture boundaries. The main profile labels the surveyed route without asserting complete architectural coverage. Boundary, overlapping-domain, reflected-frame, unsupported-region, and changed-evidence checks are in `artifacts/map-calibration-smoke/spatial-proof.json`.
+Duskfall uses separate arrival and main map spaces. Their reviewed membership boxes are not capture boundaries. The main profile labels the surveyed route without asserting complete architectural coverage. Boundary, overlapping-domain, reflected-frame, unsupported-area-shape, and changed-evidence checks are in `artifacts/map-calibration-smoke/spatial-proof.json`.
 
 A one-metre grid query found 189 overlapping navigation columns in the sampled Duskfall rectangle. Restricting retained triangle vertices to Y at or below -780 left 33 such columns. A stacked-triangle positive control produced 55 matching columns. These counts describe coarse navigation geometry, not screenshot boundaries. Evidence is in `artifacts/map-calibration-smoke/navigation-layer-columns.json`.
 
 Native visit `11bc413f-77b1-4136-b075-d2e12b52c8e3` checked 13 positions with navigation samples, bidirectional paths, and downward physics rays. Five positions had complete paths both ways from the dungeon entrance. Seven had partial paths, including lower surfaces beneath two reachable wooden bridges and high tree geometry. The arrival room had a physical floor but no nearby navigation sample. The visit restored the source scene and reported clean cleanup. Path results do not prove that every partial-path surface is unreachable by the player.
 
-Native region visit `d45f7917-2e13-4a26-b5d9-28334d2318f2` compared 141 queries across 47 woods regions. Compiled membership matched native inverse transforms and local-box containment for every query. All 47 centers matched, and all 47 outside control points were rejected. The owner receipt was clean.
+Native area visit `d45f7917-2e13-4a26-b5d9-28334d2318f2` compared 141 queries across 47 woods areas. Compiled membership matched native inverse transforms and local-box containment for every query. All 47 centers matched, and all 47 outside control points were rejected. The owner receipt was clean.
 
-Normal extraction `c3f45239-a466-4109-a720-4b2d40836753` resolved all 2,183 retained woods placements into the reviewed Coalway map space. It reported no ambiguous memberships or region-shape issues and completed cleanly. This is membership coverage, not complete source extraction or imagery coverage.
+Normal extraction `c3f45239-a466-4109-a720-4b2d40836753` resolved all 2,183 retained woods placements into the reviewed Coalway map space. It reported no ambiguous memberships or area-shape issues and completed cleanly. This is membership coverage, not complete source extraction or imagery coverage.
 
 Traversal `e1fe3815-c911-4e13-b56d-77fbc2444a5c` produced the same 88 resolved and four unresolved dungeon placements. Spatial output finished about 44.4 seconds after scene start. The 100-second step deadline expired while the source scene was restoring. Automatic cleanup subsequently reported clean state with no remaining callbacks. The manifest remains failed with its original socket-close diagnostic. The deadline was not relaxed.
 
@@ -631,7 +631,7 @@ Six native images cover adjacent Coalway rectangles at 256-square and 512-square
 
 Three observed mesh bounds supplied landmark controls: `SM_hc_House`, `House_2x2_02`, and `SM_WarriorStatue_LOD0`. Their image positions round-trip to the recorded world coordinates. Patch matching against each reference image preferred zero displacement for all six landmark checks. Every one-pixel alternative had greater error. Direct image inspection confirmed the buildings, statue, paths, and continuous shared boundary.
 
-The 15-column seam strip had median maximum-channel differences of 2 and 1 out of 255, respectively. At 256 and 512 pixels, 93.70% and 92.30% of seam pixels differed by at most 8. The images are not pixel-identical. The controlled-lighting verification below is separate from this seam sample. The 512-square captures provide 5.12 pixels per world unit for the representative outdoor preview; complete-build profile review remains open.
+The 15-column seam strip had median maximum-channel differences of 2 and 1 out of 255, respectively. At 256 and 512 pixels, 93.70% and 92.30% of seam pixels differed by at most 8. The images are not pixel-identical. The controlled-lighting verification below is separate from this seam sample. The 512-square captures provide 5.12 pixels per world unit for the representative world surface preview; complete-build profile review remains open.
 
 Evidence and replay drivers are in `artifacts/capture-seams/8e5577d8-8a8c-4688-a61f-25c685fd2548/`. `comparison.json` records landmark and seam measurements. `provenance.json` verifies 472 artifacts and archives 20 exercised source files. All four native owners reported clean cleanup. Task 4.3 is complete; this sample does not establish full-world imagery coverage.
 
@@ -653,7 +653,7 @@ The 512-by-256 images cover the same 200-by-100-unit area. Direct inspection ret
 
 Rendering, injected render failure, cancellation, and socket disconnection passed their native restoration checks. All five final owners, including the pre-fix regression and normal production command, reported clean cleanup. Failed render and interruption cases published no PNG. Production run `ad212d92-ce6d-4d3c-a993-ff6c882ebefe` held 92 sources and produced a 233,727-byte PNG without fixture objects. Its hash is `dd25b10d908192ee913d91cb008c8aef24852ccfada84435b5e7129bec35e225`.
 
-Evidence is in `artifacts/capture-visuals/3718336a-7ba5-4f5e-bc83-aa92641098bb/`. `comparison.json` records image metrics. `provenance.json` verifies 124 registered artifacts and archives 28 exercised source inputs. Native fixture drivers remain with those inputs because the regression requires Afallon. Browser screenshot capture timed out; image inspection and canvas pixel decoding succeeded. Task 4.4 is complete. Interior visibility and full-world capture coverage remain open.
+Evidence is in `artifacts/capture-visuals/3718336a-7ba5-4f5e-bc83-aa92641098bb/`. `comparison.json` records image metrics. `provenance.json` verifies 124 registered artifacts and archives 28 exercised source inputs. Native fixture drivers remain with those inputs because the regression requires Afallon. Browser screenshot capture timed out; image inspection and canvas pixel decoding succeeded. Task 4.4 is complete. Zone visibility and full-world capture coverage remain open.
 
 Reproduce the normal capture while Coalway woods and the research character are loaded:
 
@@ -661,19 +661,19 @@ Reproduce the normal capture while Coalway woods and the research character are 
 nix develop --command bun run compendium capture --config local/spatial-smoke-config.json --plan artifacts/25144591/1e94baf6-9b0e-4ca6-bc48-9c4c4c687d01/plan.json
 ```
 
-## Reviewed interior clipping capture
+## Reviewed zone clipping capture
 
-Interior plans use an optional reviewed `clipHeight`. A plan without that field applies no vertical clipping. Raster `verticalBounds` records the applied interval as capture evidence; it does not define map membership. Each reviewed clip height is explicit per plan and must be checked against the rendered image.
+Zone plans use an optional reviewed `clipHeight`. A plan without that field applies no vertical clipping. Raster `verticalBounds` records the applied interval as capture evidence; it does not define map membership. Each reviewed clip height is explicit per plan and must be checked against the rendered image.
 
 The current capture contract does not use ceiling selectors or floor renderer lists. Capture changes no scene object, shared mesh, or gameplay root. Native and host cleanup restore temporary camera, lighting, and renderer state before the result is accepted.
 
-Accepted interior evidence uses an explicit plan `clipHeight` and rendered-image review. Renderer selector resolution is not required.
+Accepted zone evidence uses an explicit plan `clipHeight` and rendered-image review. Renderer selector resolution is not required.
 
 Run `1259e5c1-9b69-455d-b022-9c7e6a1b0fec` selected the reviewed bridge as both ceiling and protected floor. Native resolution rejected the conflicting selectors before suppression. The failed run published no image and confirmed clean ownership cleanup.
 
 The native CharacterController checks established that a reviewed clip height can expose covered dungeon content while preserving scene geometry. The capture contract records the plan value and restores frame-local state and streams with a clean runtime receipt before retargeting the configured final scene.
 
-The Abandoned mine cave tile with `clipHeight` -250 records `source: plan` and `applied: true`; it moves the camera from -180 to -250 and renders the cave floor with the rock formation sliced at that height. Coalway woods captures without `clipHeight` and keeps the outdoor camera frame. Image review confirms the intended content in both cases.
+The Abandoned mine cave tile with `clipHeight` -250 records `source: plan` and `applied: true`; it moves the camera from -180 to -250 and renders the cave floor with the rock formation sliced at that height. Coalway woods captures without `clipHeight` and keeps the world surface camera frame. Image review confirms the intended content in both cases.
 
 Readiness remains independent of clipping. Capture retains stable source bindings across observations, rejects unsettled geometry, and accepts no tile without cleanup and restoration. Full-build map-space review and complete imagery remain open.
 
@@ -709,7 +709,7 @@ The offline `illustration` command preserves artwork in a separate `Illustration
 
 Preparation snapshots input bytes, decodes the image, checks evidence hashes and JSON pointers, and verifies the reviewed map-space profile. Calibrated artwork requires four distinct pixel controls, including a control outside the three-point affine fit. Both declared and independently fitted transforms must satisfy the quarter-pixel residual limit. Orientation-only output has no marker transform.
 
-Run `c2b219c5-f1ad-4003-9bab-3f0910900ea7` imported the real 7540-by-8192 overworld artwork without changing its 76,574,413 bytes. Its image hash is `070ab5cd19d6955565c1d9cda23e5dc0741f727869f29e7bc1e9bec44d0e8b19`. The layer remains orientation-only because native map metadata does not establish image registration. This check covers asset preparation, not browser layer switching. Task 4.6 remains open.
+Run `c2b219c5-f1ad-4003-9bab-3f0910900ea7` imported the real 7540-by-8192 world surface artwork without changing its 76,574,413 bytes. Its image hash is `070ab5cd19d6955565c1d9cda23e5dc0741f727869f29e7bc1e9bec44d0e8b19`. The layer remains orientation-only because native map metadata does not establish image registration. This check covers asset preparation, not browser layer switching. Task 4.6 remains open.
 
 A synthetic rotated calibration exposed transposed affine coefficients during integration. Regression checks cover rotated coordinates, independent controls, absent evidence pointers, AVIF delivery, and truncated images with matching hashes. Failed preparation preserves the prior successful output. TypeScript and all 15 repository tests passed, with 52 assertions.
 
@@ -763,7 +763,7 @@ Browser checks cover screenshot picking, hover previews, role filters, and persi
 
 Minor health potion leads to Cooking supplies and Traveling alchemist while retaining item context. Searchable details expose vendor stock, Branchweaver loot, and authored gathering conditions. The reviewed resource producer references Herbalism despite its native OreSpawner component name. Skrivik Sharpfang links to Blades and Barter: The Delivery. Exact quest search opens the canonical quest and discloses missing mapped placements.
 
-At 390 by 844 pixels, the source journey keeps a 199-pixel map region visible above the details panel. The document has no horizontal or vertical overflow. The full item-to-source journey works with the keyboard. Escape closes details and restores the surviving result button or the main search input. URL reload and browser history retain source search and selection. Invalid selection links show an explicit warning.
+At 390 by 844 pixels, the source journey keeps a 199-pixel map viewport visible above the details panel. The document has no horizontal or vertical overflow. The full item-to-source journey works with the keyboard. Escape closes details and restores the surviving result button or the main search input. URL reload and browser history retain source search and selection. Invalid selection links show an explicit warning.
 
 A lifecycle smoke mounted and unmounted the real component in Chrome. Before unmount, it held 33 WebGL buffers, three textures, and two ImageBitmaps. After unmount, all tracked resources were released and its canvas was removed. A separate smoke unmounted the component during a real metadata download. The request completed before the cancellation fix and rejected with AbortError after the fix.
 
@@ -771,7 +771,7 @@ The cold preview response used 805,974 encoded body bytes for 33,450,974 decoded
 
 The client check passes across 1,426 files with no errors or warnings. The static build succeeds. Its largest JavaScript chunk is 823.91 kB raw and 227.26 kB gzip. Vite still reports its 500 kB chunk warning. Cross-map transition destinations and full-build performance remain unverified. The publisher does not generate the optional destination navigation field. Authored teleport actions appear in source details, but task 6.3 still requires destination normalization and publication before its browser check.
 
-The representative outdoor-and-interior evidence exercises extraction, repeat-load identity, capture, normalization, and browser picking. Duskfall reloads retain source/placement identity pairs while runtime component IDs change, and identity artifacts match their registered hashes. Task 6.5 remains unchecked until this evidence is repeated on the single-plane model and supported build 25153357.
+The representative world surface and zone evidence exercises extraction, repeat-load identity, capture, normalization, and browser picking. Duskfall reloads retain source/placement identity pairs while runtime component IDs change, and identity artifacts match their registered hashes. Task 6.5 remains unchecked until this evidence is repeated on the single-plane model and supported build 25153357.
 
 Capture checkpoint reuse and tile-edge validation are implemented. Complete supported-build imagery and current-build artifact measurements remain open.
 
@@ -779,13 +779,13 @@ Publication emits normalized records, WebP tile pyramids, content hashes, and an
 
 Scene and traversal control probes pause 500 milliseconds between requests. A controlled 100-millisecond run expired during Coalway activation; the 500-millisecond run restored both scenes within the same 100-second per-phase deadlines. Restoration advanced 42 frames between the first and last responses in the failed run, versus 171 frames in the successful run. Both runs reported no readiness holds, allowed scene activation, and time scale 1. The successful run reached Coalway's 81-source streaming stage before restoration completed. Scene reports retain loader progress, initialization state, and frame timing to distinguish these delays from blocked readiness holds.
 
-A full interior capture completed in 264.20 seconds within its configured deadlines. It restored the original scene, position, and rotation, and confirmed clean native ownership with zero callbacks. Evidence is in `artifacts/restoration-diagnostic/polling-comparison.json`. These checks do not establish that every remaining scene can finish within the existing deadlines.
+A full zone capture completed in 264.20 seconds within its configured deadlines. It restored the original scene, position, and rotation, and confirmed clean native ownership with zero callbacks. Evidence is in `artifacts/restoration-diagnostic/polling-comparison.json`. These checks do not establish that every remaining scene can finish within the existing deadlines.
 
 Traversal `095629ce-4b6a-46ab-a0d7-79d2ccfdd275` exceeded its 100-second whole-step budget during extraction and confirmed clean native cleanup. Plans permit 1–300 seconds per complete step. This keeps the maximum 305-second stream hold below the native 360-second limit. With the explicit 300-second plan, traversal `e78fddee-c7e0-46e7-9bb1-d550f03bdca4` completed in 291.39 seconds overall. It restored Coalway and confirmed clean ownership with zero callbacks. Its source coverage remains incomplete.
 
 Reproduce it with `nix develop --command bun run compendium traverse --config local/spatial-smoke-config.json --plan local/traverse-interior-plan.json`.
 
-Browser picking opens Lost druid Talroth and Aquarius while retaining item context across map content; browser back returns to the prior result. The built mobile view retains a 198-pixel map region with no document overflow at 390 by 844 pixels. Namespaced layer IDs prevent stale tile state when a map offers an alternative layer. Evidence is in `artifacts/publication-smoke/interior-pipeline.json`.
+Browser picking opens Lost druid Talroth and Aquarius while retaining item context across map content; browser back returns to the prior result. The built mobile view retains a 198-pixel map viewport with no document overflow at 390 by 844 pixels. Namespaced layer IDs prevent stale tile state when a map offers an alternative layer. Evidence is in `artifacts/publication-smoke/interior-pipeline.json`.
 
 On a fresh checkout with the verified publication available, run:
 
@@ -832,15 +832,15 @@ The VM connection has an intermittent setup delay. A raw handshake took 8.5 seco
 
 ## Single-plane reset on build 25153357
 
-Steam replaced Afallon during development. `GameAssembly.dll` and `global-metadata.dat` changed, and the build moved from 25144591 to 25153357. Recovered declarations differ in six places, all in combat and corruption types: requirement effect consumption with an added `RequirementsMet` overload, an item-tooltip parameter, a character-updater method, a new combat-settings field that shifts later offsets in that type, and a new `CorruptionGearBonus` type. No map, guide, loot, scene, producer, region, or category type changed. `research/recovered-types.25144591/` retains the previous declarations.
+Steam replaced Afallon during development. `GameAssembly.dll` and `global-metadata.dat` changed, and the build moved from 25144591 to 25153357. Recovered declarations differ in six places, all in combat and corruption types: requirement effect consumption with an added `RequirementsMet` overload, an item-tooltip parameter, a character-updater method, a new combat-settings field that shifts later offsets in that type, and a new `CorruptionGearBonus` type. No map, guide, loot, scene, producer, `RegionTemplate`, or category type changed. `research/recovered-types.25144591/` retains the previous declarations.
 
 Two instrumented games cannot share one port. HotRepl reads `HOTREPL_PORT`, so Afallon runs on 18601 and leaves 18591 to the other project. Doctor rejected the wrong game before that change, and it reports build 25153357 with `GameAssembly.dll` hash `d463bf8f6f102bfe695aeb6fd24eb644898f3b4f24de5c523402f9abb3282363`.
 
-The game shows one flat map for each `MapMinimap.MapZone`, with three `MapIconType` tiers, quest icons, and fog. It ships one texture, `Duskfall depths full map`, for the multi-level dungeon, and its Abandoned quarry map is a top-down terrain render. Player-facing categories exist as native enums: `CursorType` and `NameplateUnitType`. Level ranges come from `RegionTemplate`, `RPGGameScene`, `NPCSpawner`, and `QuestLevelRange`, and `MinimapDisplay` renders them beside a name. The in-game Adventure Guide organizes dungeons, bosses with abilities, stats and loot, regions, and properties.
+The game shows one flat map for each `MapMinimap.MapZone`, with three `MapIconType` tiers, quest icons, and fog. It ships one texture, `Duskfall depths full map`, for the multi-level dungeon, and its Abandoned quarry zone uses a top-down terrain render. Player-facing categories exist as native enums: `CursorType` and `NameplateUnitType`. Level ranges come from `RegionTemplate`, `RPGGameScene`, `NPCSpawner`, and `QuestLevelRange`, and `MinimapDisplay` renders them beside a name. The in-game Adventure Guide organizes dungeons, bosses with abilities, stats and loot, regions, and properties.
 
 Interior floors and reviewed ceiling suppression are removed. Maps are one horizontal plane, placements retain world height as an ordinary field, and stacked content projects onto the same plane. The map-space and spatial contracts are defined in `tools/spatial-contracts.ts`; capture contracts and tile compatibility are defined in `tools/capture-contracts.ts` and `tools/capture-cache.ts`; illustration contracts are in `tools/illustration-contracts.ts`; tile contracts are in `pipeline/tile-contracts.ts`; normalized and publication contracts are in `pipeline/normalized-contracts.ts` and `pipeline/public-contracts.ts`. Renderer names do not select capture clipping.
 
-Extraction `bb1a1a93-38b2-495f-98ac-ffc89bd831cd` on build 25153357 resolved all 2,183 placements with the single-plane profile and reported zero unresolved typed references. Its native Coalway registration is origin `(751, 13, -2984)`, axes 3736.1997 and 4059.1943, residual 0. Normalization `0994fc76-8b61-45ae-93a7-2a5f6b1f74d2` produced 2,611 placements, 1,959 entities, and 2,752 blockers with no missing map-membership blocker or reference. Capture `47ad5ca5-a5c5-4f0f-9eca-9d459ab40097` rendered a 1024-pixel Coalway tile from 96 required sources with verified readiness and no `clipHeight`, the ordinary outdoor case.
+Extraction `bb1a1a93-38b2-495f-98ac-ffc89bd831cd` on build 25153357 resolved all 2,183 placements with the single-plane profile and reported zero unresolved typed references. Its native Coalway registration is origin `(751, 13, -2984)`, axes 3736.1997 and 4059.1943, residual 0. Normalization `0994fc76-8b61-45ae-93a7-2a5f6b1f74d2` produced 2,611 placements, 1,959 entities, and 2,752 blockers with no missing map-membership blocker or reference. Capture `47ad5ca5-a5c5-4f0f-9eca-9d459ab40097` rendered a 1024-pixel Coalway tile from 96 required sources with verified readiness and no `clipHeight`, the ordinary world surface case.
 
 Reproduce this baseline with:
 
@@ -889,20 +889,20 @@ Every surveyed scene registers exactly one MapZone and reports no registration e
 `calibration.size` is two-dimensional: `x` is the world X span and `y` is the world Z span.
 
 Nine scenes share one identical frame, centred `(751, -2984)` with size `7472 x 8118`:
-Coalway woods, Chillwind heights, and the challenge stones. That frame is the overworld,
+Coalway woods, Chillwind heights, and the challenge stones. That frame is the world surface,
 so those scenes are one map space with no offset between them, and the reviewed Duskfall
-offset applies to a dungeon that carries its own map. The shared frame is registered under
+offset applies to a zone that carries its own map. The shared frame is registered under
 two different texture names, `Newest map` and `NEW MAP`, so a map space cannot be
 identified by texture name alone, and a rendered image cannot be identified by frame alone.
 
-Interiors each carry their own small MapZone and texture, for example Barrowdeep at
+Zones each carry their own small MapZone and texture, for example Barrowdeep at
 `(1200, -879)` size `324 x 234`, and Abandoned mine swamp at `(277, -779)` size `404 x 429`.
 
-Ten scenes share the overworld frame: Coalway woods, Coalway swamp, Chillwind heights and
-the challenge stones. Twenty interiors each carry their own map, so the world holds 21
+Ten scenes share the world surface frame: Coalway woods, Coalway swamp, Chillwind heights and
+the challenge stones. Twenty zones each carry their own map, so the world holds 21
 distinct rendered maps at most, not one per scene.
 
-Two scenes register another scene's map with an identical frame, so at most 19 interior
+Two scenes register another scene's map with an identical frame, so at most 19 zone
 images are distinct. `Cave coalway woods 2` (scene 32) registers `Abandoned quarry map 1`
 with the frame of `Abandoned quarry` (scene 24), `(1148, -650)` size `306 x 221`.
 `Sanctum of the Veilpiercer` (scene 30) registers `Tutorial cave` with the frame of

@@ -6,9 +6,9 @@ Provide recognizable Afallon terrain imagery through reproducible in-game captur
 
 ### Requirement: In-game imagery is the primary layer
 
-Each published reachable map SHALL use imagery captured by this project from the supported game build as its default basemap. Outdoor areas and interiors SHALL remain in scope. Illustrated maps SHALL be separate optional orientation layers. Shipped map textures, illustrations, and community map images SHALL NOT substitute for primary imagery or fill missing capture tiles. Missing or failed project captures SHALL block a complete release and appear in coverage reports.
+Each published reachable map SHALL use imagery captured by this project from the supported game build as its default basemap. The world surface and zones SHALL remain in scope. Illustrated maps SHALL be separate optional orientation layers. Shipped map textures, illustrations, and community map images SHALL NOT substitute for primary imagery or fill missing capture tiles. Missing or failed project captures SHALL block a complete release and appear in coverage reports.
 
-A shipped `MapZone` texture MAY serve as a review reference for framing and cut height, because the game renders its own dungeon maps as top-down terrain images. That comparison SHALL remain review evidence and SHALL NOT enter the published artifact set.
+A shipped `MapZone` texture MAY serve as a review reference for framing and cut height, because the game renders its own zone maps as top-down terrain images. That comparison SHALL remain review evidence and SHALL NOT enter the published artifact set.
 
 #### Scenario: A map has both image sources
 - **WHEN** a reader opens the map without a saved layer choice
@@ -39,7 +39,7 @@ Overlapping markers from stacked content SHALL remain distinct records at their 
 
 ### Requirement: Clipping is off unless a reviewer sets a height
 
-Capture SHALL NOT clip by default. An extent without a reviewed clip height SHALL be captured with the camera frame its plan declares, which is the ordinary case and covers every outdoor extent.
+Capture SHALL NOT clip by default. An extent without a reviewed clip height SHALL be captured with the camera frame its plan declares, which is the ordinary case and covers every world surface extent.
 
 A capture plan MAY carry a reviewed clip height for a map whose content is covered by geometry above it. Capture SHALL apply that height, exclude the covered geometry through the camera, and record the effective camera frame and the fact that the height came from the plan. Clipping SHALL NOT disable or delete scene objects.
 

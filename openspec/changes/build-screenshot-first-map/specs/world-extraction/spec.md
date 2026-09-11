@@ -106,11 +106,11 @@ Membership SHALL be horizontal. A profile SHALL NOT define floor domains, and a 
 - **AND** each retains its own world height
 - **AND** neither is merged, discarded, or displaced
 
-#### Scenario: Region geometry is unsupported
-- **WHEN** an authored region has unsupported or contradictory collider geometry
-- **THEN** the snapshot retains the unresolved region evidence
+#### Scenario: Area geometry is unsupported
+- **WHEN** an authored area has unsupported or contradictory collider geometry
+- **THEN** the snapshot retains the unresolved area evidence
 - **AND** it does not substitute the collider's world-aligned bounding box
-- **AND** a supported overlapping region can still retain its geometric membership
+- **AND** a supported overlapping area can still retain its geometric membership
 
 ### Requirement: Separate spatial identities and observations
 
