@@ -38,6 +38,8 @@
 - [x] 4.5 Support an optional reviewed clip height in the capture plan, with no clipping by default and no inference. A world surface extent captures with the plan's own camera frame, and a reviewed height reveals covered zone content on one plane. No scene object is disabled, deleted, or left modified.
 - [ ] 4.6 Preserve illustrated assets as a separate optional layer with per-layer calibration. Verify switching at known landmarks; label distorted artwork as orientation-only instead of claiming precise marker registration. Verify existing images never satisfy primary capture coverage or replace missing screenshot tiles.
 - [x] 4.7 Implement resumable capture manifests and hashed image output. Verify changed build/profile inputs invalidate reuse and interrupted capture leaves the prior valid set intact.
+- [ ] 4.8 Frame every interior map by a reviewed box domain. Propose boxes from the MapZone rectangle and nearby scene-local placements, snap them to the capture lattice, record outside placements in the exclusion ledger with binding evidence, and capture exactly the boxes. Verify Coalway catacombs centers its content and that scene-independent objects are excluded rather than blocking.
+- [ ] 4.9 Suppress foliage during capture through the reviewed shader-family list and terrain tree drawing, audited and restored like other transient visuals. Verify Duskfall Depths shows its floor and rock walls without canopy, and that the restoration audit lists every suppressed renderer.
 
 ## 5. Normalized and published data
 
