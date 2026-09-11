@@ -33,7 +33,7 @@ import type { Runtime } from "./runtime";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
-import { NotResidentError, withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
+import { TooManySourcesError, withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
 import { capturePositionFor, compositeRawSlices, cutCaptureFrame, loadNavigationSurvey, planTileCut, type CapturePosition, type CutPlan, type NavigationSurvey } from "./capture-cut";
 import {
   captureArtifactReference,
@@ -647,9 +647,9 @@ async function capturePlan(
     };
 
     const pending = plan.tiles.filter(tile => !reused.has(tile.id));
-    // A static scene, one whose required sources are all resident, needs one readiness for the
-    // whole map: nothing loads or unloads between tiles, so every tile renders under the same
-    // observation. A scene with streamed sources keeps per-tile readiness with stream holds.
+    // One readiness for the whole map: it holds every required source for the whole batch, so
+    // nothing loads or unloads between tiles and every tile renders under the same observation.
+    // A map whose required sources exceed the bound for one observation keeps per-tile readiness.
     let staticReadiness: { readiness: CaptureReadiness; readinessPath: string } | undefined;
     if (pending.length > 1) {
       const extent = mapExtentSubject(plan, pending, cutPlans);
@@ -657,10 +657,10 @@ async function capturePlan(
         const observed = await withCaptureGeometry(runtime, config, run, plan, extent, null, async readiness => {
           if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
           return readiness;
-        }, { requireResident: true });
+        }, { singleObservation: true });
         staticReadiness = { readiness: observed.readiness, readinessPath: observed.readinessPath };
       } catch (error) {
-        if (!(error instanceof NotResidentError)) throw error;
+        if (!(error instanceof TooManySourcesError)) throw error;
       }
     }
     if (staticReadiness !== undefined) {

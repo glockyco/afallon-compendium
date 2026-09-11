@@ -290,12 +290,6 @@ function structuralFingerprint(geometry: CaptureGeometry, membership: SourceMemb
   });
 }
 
-// Resident: ready now and kept by the game itself because the player stands well inside the
-// loader's load distance. The margin guards against the player drifting to the edge.
-export function isSourceResident(source: CaptureGeometry["sources"][number]): boolean {
-  return isSourceReady(source) && source.playerDistance < source.loadDistance * 0.8;
-}
-
 function isSourceReady(source: CaptureGeometry["sources"][number]): boolean {
   return source.activeInHierarchy && source.enabled && source.loaded && !source.loading && !source.automaticLoadPending
     && source.loadedOrLoading && source.hasHandle && source.rootId !== null && source.rootActive === true;
@@ -400,10 +394,10 @@ function timeoutError(tile: CaptureTile, timeoutMs: number): Error {
   return error;
 }
 
-// Raised after the first inventory when a required source is not resident and the caller asked
-// for a resident-only readiness, so the caller can fall back to streamed per-tile readiness.
-export class NotResidentError extends Error {
-  constructor(readonly sources: number) { super(`${sources} required source(s) are not resident.`); }
+// Raised after the first inventory when one readiness cannot cover the whole map, so the caller
+// can fall back to per-tile readiness. The source bound is per observation, not per map.
+export class TooManySourcesError extends Error {
+  constructor(readonly sources: number, readonly bound: number) { super(`${sources} required sources exceed the ${bound}-source bound for one readiness.`); }
 }
 
 export type ReadinessSubject = { tile: CaptureTile; frame: CaptureFrame; kind: "tile" | "extent" };
@@ -416,7 +410,7 @@ export async function withCaptureGeometry<T>(
   subject: ReadinessSubject,
   cutEvidence: CaptureReadiness["cut"],
   capture: (readiness: CaptureReadiness) => Promise<T>,
-  options: { requireResident?: boolean } = {},
+  options: { singleObservation?: boolean } = {},
 ): Promise<{ value: T; readiness: CaptureReadiness; readinessPath: string }> {
   let timer: NodeJS.Timeout | undefined;
   const tile = subject.tile;
@@ -495,7 +489,7 @@ export async function withCaptureGeometry<T>(
         assertQueryCounts(value);
         assertVisibleBindings(value);
         sceneHandle = assertScene(value, plan, sceneHandle);
-        const membership = assertMembership(value, baselineMembership, options.requireResident === true ? Number.POSITIVE_INFINITY : plan.readiness.maximumSources);
+        const membership = assertMembership(value, baselineMembership, options.singleObservation === true ? Number.POSITIVE_INFINITY : plan.readiness.maximumSources);
         baselineMembership ??= membership;
         for (const mesh of value.meshes) trackedRendererIds.add(mesh.rendererId);
         for (const renderer of value.otherRenderers) trackedRendererIds.add(renderer.instanceId);
@@ -518,11 +512,10 @@ export async function withCaptureGeometry<T>(
 
       const firstGeometry = await observeGeometry();
       const initialRequired = baselineMembership!.required;
-      if (options.requireResident === true) {
-        // A map that needs more sources than one readiness may hold is streamed by definition.
-        if (initialRequired.length > plan.readiness.maximumSources) throw new NotResidentError(initialRequired.length);
-        const notResident = initialRequired.filter(source => !isSourceResident(source)).length;
-        if (notResident > 0) throw new NotResidentError(notResident);
+      // One readiness holds the sources of the whole map for the whole batch. Only a map whose
+      // required sources exceed the bound for one observation needs per-tile readiness.
+      if (options.singleObservation === true && initialRequired.length > plan.readiness.maximumSources) {
+        throw new TooManySourcesError(initialRequired.length, plan.readiness.maximumSources);
       }
       let streamKey: string | undefined;
       let streamStartRows: Map<number, StreamVisit["rows"][number]> | undefined;
@@ -552,10 +545,9 @@ export async function withCaptureGeometry<T>(
         return value;
       };
 
-      // A stream visit loads and holds sources for the tile. A source the game already keeps
-      // resident, loaded with the player inside its load distance, needs neither, so a tile
-      // whose required sources are all resident skips the visit and its polls entirely.
-      if (initialRequired.some(source => !isSourceResident(source))) {
+      // The stream visit loads and holds every required source for as long as this readiness
+      // lives, which spans the whole batch the caller renders under it.
+      if (initialRequired.length > 0) {
         let preStreamGeometry = firstGeometry;
         while (true) {
           const membership = baselineMembership!;
@@ -718,7 +710,7 @@ export async function withCaptureGeometry<T>(
   } catch (error) {
     // A non-resident answer is a decision for the caller, not a runtime failure: no stream
     // visit started and no state changed, so the session stays usable for per-tile readiness.
-    if (error instanceof NotResidentError && !runtime.signal.aborted) throw error;
+    if (error instanceof TooManySourcesError && !runtime.signal.aborted) throw error;
     const reason = runtime.signal.aborted ? runtime.signal.reason : error;
     if (!runtime.signal.aborted) runtime.cancel(reason);
     throw runtime.signal.aborted ? runtime.signal.reason : reason;
