@@ -40,6 +40,15 @@ test("makeTileGrid registers a 512-unit capture on the global lattice", () => {
   expect([Math.floor(grid.minY / 256), Math.floor((grid.maxY - 1) / 256)]).toEqual([-28, -25]);
 });
 
+test("makeTileGrid maps reflected world pixels back into the source raster", () => {
+  const source = makeTileGrid(inputs(512)).sources[0]!;
+  const worldOffset = { x: 100, y: -200 };
+  expect({
+    x: source.inverseMatrix.a * worldOffset.x + source.inverseMatrix.b * worldOffset.y,
+    y: source.inverseMatrix.c * worldOffset.x + source.inverseMatrix.d * worldOffset.y,
+  }).toEqual({ x: 100, y: 200 });
+});
+
 test("makeTileGrid rejects a non-power-of-two capture edge", () => {
   expect(() => makeTileGrid(inputs(300))).toThrow("edge must be a square power of two");
 });

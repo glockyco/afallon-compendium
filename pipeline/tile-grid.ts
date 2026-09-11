@@ -130,7 +130,12 @@ export function makeTileGrid(inputs: LoadedTileInputs): TileGrid {
     }
     const originX = roundedInteger(transformed.origin.x / pixelSize.x, `${tile.id} origin.x`);
     const originY = roundedInteger(transformed.origin.y / pixelSize.y, `${tile.id} origin.y`);
-    const inverseMatrix: Matrix = { a: matrix.d, b: -matrix.b, c: -matrix.c, d: matrix.a };
+    // The adjugate alone inverts only a matrix of determinant one. A capture raster whose
+    // map Y runs opposite its pixel rows has determinant minus one, so omitting the divisor
+    // reflects every sample out of the source and the whole pyramid reports no coverage.
+    const determinant = matrix.a * matrix.d - matrix.b * matrix.c;
+    if (!Number.isFinite(determinant) || Math.abs(determinant) <= Number.EPSILON) throw new Error(`Tile input rejected: capture tile ${tile.id} has a singular pixel matrix`);
+    const inverseMatrix: Matrix = { a: matrix.d / determinant, b: -matrix.b / determinant, c: -matrix.c / determinant, d: matrix.a / determinant };
     const source: GridSource = { tile, originX, originY, matrix, inverseMatrix, minX: 0, minY: 0, maxX: 0, maxY: 0 };
     Object.assign(source, transformedBounds(source));
     sources.push(source);
