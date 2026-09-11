@@ -25,6 +25,7 @@ type JsonArray = any[];
 type ResolvedReference = { reference: ArtifactReference; absolutePath: string; value: any; bytes: Uint8Array };
 type SourceRecord = { key: string; kind: string; reference: ArtifactReference; value: any; bytes: Uint8Array };
 type Blocker = NormalizedCoverageSummary["blockers"][number];
+type Exclusion = NormalizedCoverageSummary["exclusions"][number];
 type SourceIdentityRow = {
   identityIndex: number;
   sourceId: string;
@@ -273,15 +274,28 @@ function sceneContexts(planDirectory: string, plan: NormalizationPlan): Promise<
   })();
 }
 
-function bindingResolution(position: { x: number; y: number; z: number }, profile: NormalizedDatabaseInput["bindings"], resolver: { resolve(sceneNativeId: number, scenePath: string, position: { x: number; y: number; z: number }): SpatialResolution }, sceneNativeId: number, scenePath: string): { binding: NormalizedDatabaseInput["bindings"][number] | null; state: "resolved" | "outside" | "unresolved"; mapPosition: { x: number; y: number } | null } {
+type BindingResolution = { binding: NormalizedDatabaseInput["bindings"][number] | null; state: "resolved" | "outside" | "unresolved"; mapPosition: { x: number; y: number } | null; domainBindings: NormalizedDatabaseInput["bindings"] };
+
+function bindingResolution(position: { x: number; y: number; z: number }, profile: NormalizedDatabaseInput["bindings"], resolver: { resolve(sceneNativeId: number, scenePath: string, position: { x: number; y: number; z: number }): SpatialResolution }, sceneNativeId: number, scenePath: string): BindingResolution {
   const resolution = resolver.resolve(sceneNativeId, scenePath, position);
   const candidate = resolution.candidates.length === 1 ? resolution.candidates[0] : undefined;
   if (!candidate) {
-    const outside = resolution.issues.some((issue) => issue.includes("outside the declared domain"));
-    return { binding: null, state: outside ? "outside" : "unresolved", mapPosition: null };
+    // The position is outside every reviewed box of this scene, so the reviewer's boxes decided
+    // against it. Every binding whose box domain rejected it is the evidence for that decision.
+    const domainBindings = profile.filter((row) => row.sceneNativeId === sceneNativeId && row.scenePath === scenePath && row.domain.kind === "boxes");
+    const outside = domainBindings.length > 0 && resolution.issues.some((issue) => issue.includes("outside the declared domain"));
+    return { binding: null, state: outside ? "outside" : "unresolved", mapPosition: null, domainBindings: outside ? domainBindings : [] };
   }
   const binding = profile.find((row) => row.sceneNativeId === sceneNativeId && row.scenePath === scenePath && row.mapSpaceId === candidate.mapSpaceId && candidate.bindingIds.includes(row.id)) ?? null;
-  return { binding, state: binding === null ? "unresolved" : "resolved", mapPosition: candidate.mapPosition };
+  return { binding, state: binding === null ? "unresolved" : "resolved", mapPosition: candidate.mapPosition, domainBindings: [] };
+}
+
+function recordPlacementResolution(resolved: BindingResolution, placementId: string, detail: string, profile: NormalizedDatabaseInput["bindings"], profileRef: ArtifactReference, blockers: Blocker[], exclusions: Exclusion[]): void {
+  if (resolved.state === "outside") {
+    exclusions.push({ kind: "outside-reviewed-domain", key: placementId, detail: "Placement lies outside every reviewed map-space domain box for its scene.", mapSpaceIds: [...new Set(resolved.domainBindings.map((binding) => binding.mapSpaceId))].sort(compareText), provenance: resolved.domainBindings.map((binding) => pointer(profileRef, `/bindings/${profile.indexOf(binding)}/domain`)) });
+    return;
+  }
+  if (resolved.binding === null) blockers.push({ kind: "unresolved-placement-space", key: placementId, detail, provenance: [] });
 }
 
 function sourceEvidenceRow(context: SceneContext, value: unknown): SourceIdentityRow | null {
@@ -289,7 +303,7 @@ function sourceEvidenceRow(context: SceneContext, value: unknown): SourceIdentit
   return typeof component === "number" ? context.sourceByComponent.get(component) ?? null : null;
 }
 
-function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabaseInput["bindings"], resolver: { resolve(sceneNativeId: number, scenePath: string, position: { x: number; y: number; z: number }): SpatialResolution }, profileRef: ArtifactReference, blockers: Blocker[]): { placements: NormalizedPlacement[]; sources: NormalizedSource[]; roles: NormalizedDatabaseInput["roles"]; sourceForComponent: Map<string, string>; sourcePlacement: Map<string, string> } {
+function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabaseInput["bindings"], resolver: { resolve(sceneNativeId: number, scenePath: string, position: { x: number; y: number; z: number }): SpatialResolution }, profileRef: ArtifactReference, blockers: Blocker[], exclusions: Exclusion[]): { placements: NormalizedPlacement[]; sources: NormalizedSource[]; roles: NormalizedDatabaseInput["roles"]; sourceForComponent: Map<string, string>; sourcePlacement: Map<string, string> } {
   const placementById = new Map<string, NormalizedPlacement>();
   const sourceById = new Map<string, NormalizedSource>();
   const roles: NormalizedDatabaseInput["roles"] = [];
@@ -321,8 +335,7 @@ function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabase
       const row = record(raw); const position = record(row?.position);
       if (!row || typeof row.placementId !== "string" || !position || typeof position.x !== "number" || typeof position.y !== "number" || typeof position.z !== "number") continue;
       const resolved = bindingResolution({ x: position.x, y: position.y, z: position.z }, profile, resolver, context.sceneNativeId, context.scenePath);
-      if (resolved.binding === null || resolved.state === "unresolved") blockers.push({ kind: "unresolved-placement-space", key: row.placementId, detail: `No reviewed map-space binding resolves ${context.scenePath}.`, provenance: [] });
-      if (resolved.state === "outside") blockers.push({ kind: "outside-profile-domain", key: row.placementId, detail: "Placement lies outside the reviewed map-space domain.", provenance: [] });
+      recordPlacementResolution(resolved, row.placementId, `No reviewed map-space binding resolves ${context.scenePath}.`, profile, profileRef, blockers, exclusions);
       const requestedSourceIds = array(row.sourceIds).filter((value): value is string => typeof value === "string").sort(compareText);
       for (const sourceId of requestedSourceIds) if (!sourceById.has(sourceId)) blockers.push({ kind: "unresolved-source-identity", key: sourceId, detail: `Placement ${row.placementId} references an unverified source identity.`, provenance: [] });
       const sourceIds = requestedSourceIds.filter((sourceId) => sourceById.has(sourceId));
@@ -352,8 +365,7 @@ function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabase
     for (const identity of sourceIdentityRows(context.identities)) {
       if (placementById.has(identity.placementId)) continue;
       const resolved = bindingResolution(identity.position, profile, resolver, context.sceneNativeId, context.scenePath);
-      if (resolved.binding === null || resolved.state === "unresolved") blockers.push({ kind: "unresolved-placement-space", key: identity.placementId, detail: "Identity-only placement has no reviewed map-space binding.", provenance: [] });
-      if (resolved.state === "outside") blockers.push({ kind: "outside-profile-domain", key: identity.placementId, detail: "Identity-only placement is outside the reviewed map-space domain.", provenance: [] });
+      recordPlacementResolution(resolved, identity.placementId, "Identity-only placement has no reviewed map-space binding.", profile, profileRef, blockers, exclusions);
       placementById.set(identity.placementId, { placementId: identity.placementId, buildId: "", sceneNativeId: context.sceneNativeId, scenePath: context.scenePath, identity: { sceneSourceSha256: identity.sceneSourceSha256, sourceSha256: identity.sourceSha256, serializedFile: identity.serializedFile, gameObjectPathId: identity.gameObjectPathId, origin: identity.origin, loaderSourceId: identity.loaderSourceId }, mapSpaceId: resolved.binding?.mapSpaceId ?? null, worldPosition: identity.position, mapPosition: resolved.mapPosition, sourceIds: [identity.sourceId], roles: [], shape: null, provenance: [pointer(profileRef, `/bindings/${resolved.binding?.id ?? "unresolved"}`), pointer(identityRef, "/identities")] });
     }
     for (const raw of array(roleRows?.unplacedSources)) {
@@ -671,9 +683,18 @@ function entityDetails(entities: NormalizedEntity[], roles: NormalizedDatabaseIn
   return sorted(result, (a, b) => compareText(a.entityKey, b.entityKey));
 }
 
-function coverageSummary(buildId: string, planRef: ArtifactReference, profileRef: ArtifactReference, sourceRefs: ArtifactReference[], blockers: Blocker[], inputCoverage: unknown): NormalizedCoverageSummary {
-  const unresolved = { unplacedSources: blockers.filter((row) => row.kind === "unplaced-source").length, unresolvedIssues: blockers.filter((row) => row.kind.includes("issue") || row.kind.includes("unresolved")).length, missingReferences: blockers.filter((row) => row.kind === "missing-reference").length, outsideProfile: blockers.filter((row) => row.kind === "outside-profile-domain").length };
-  return { schemaVersion: "compendium.normalized-coverage.v2", buildId, complete: false, blockers: sorted(new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values(), (a, b) => a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key)), unresolved, inputCoverage, provenance: { plan: planRef, profile: profileRef, sources: sourceRefs } };
+function coverageSummary(buildId: string, planRef: ArtifactReference, profileRef: ArtifactReference, sourceRefs: ArtifactReference[], blockers: Blocker[], exclusions: Exclusion[], inputCoverage: unknown): NormalizedCoverageSummary {
+  const unresolved = { unplacedSources: blockers.filter((row) => row.kind === "unplaced-source").length, unresolvedIssues: blockers.filter((row) => row.kind.includes("issue") || row.kind.includes("unresolved")).length, missingReferences: blockers.filter((row) => row.kind === "missing-reference").length };
+  return {
+    schemaVersion: "compendium.normalized-coverage.v3",
+    buildId,
+    complete: false,
+    blockers: sorted(new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values(), (a, b) => a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key)),
+    exclusions: sorted(new Map(exclusions.map((row) => [row.key, row])).values(), (a, b) => a.key.localeCompare(b.key)),
+    unresolved,
+    inputCoverage,
+    provenance: { plan: planRef, profile: profileRef, sources: sourceRefs },
+  };
 }
 
 function jsonOutput(value: unknown): string { return `${JSON.stringify(value, null, 2)}\n`; }
@@ -723,7 +744,8 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
   sourceFiles.length = 0;
   sourceFiles.push(...uniqueSourceFiles.values());
   const blockers: Blocker[] = [];
-  const placementData = collectPlacements(sceneData.contexts, profileData.bindings, compiledMapSpaces, profile.reference, blockers);
+  const exclusions: Exclusion[] = [];
+  const placementData = collectPlacements(sceneData.contexts, profileData.bindings, compiledMapSpaces, profile.reference, blockers, exclusions);
   attachShapes(sceneData.contexts, placementData.sourceForComponent, placementData.placements, blockers);
   for (const placement of placementData.placements) placement.buildId = plan.buildId;
   for (const source of placementData.sources) source.buildId = plan.buildId;
@@ -820,7 +842,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     blockers.push({ kind: `source-coverage-${diagnostic.category}`, key: `${source.reference.sha256}:${diagnostic.sourceKey}:${diagnostic.issueType}`, detail: diagnostic.details.map((row: { detail: string }) => row.detail).join("; "), provenance: [source.reference] });
   }
   const inputCoverage = { discoveryClosed: false, ledgers: coverageSources.map((source) => ({ reference: source.reference, runId: source.value.runId, discoveryClosed: source.value.discoveryClosed, summary: source.value.summary })) };
-  const coverage = coverageSummary(plan.buildId, planRef, profile.reference, sourceFiles.map((source) => source.reference), blockers, inputCoverage);
+  const coverage = coverageSummary(plan.buildId, planRef, profile.reference, sourceFiles.map((source) => source.reference), blockers, exclusions, inputCoverage);
   coverage.blockers.push({ kind: "input-coverage-incomplete", key: "coverage", detail: "Source coverage ledgers are bounded observations, not a closed-world coverage review.", provenance: coverageSources.map((source) => source.reference) });
   coverage.blockers = sorted(new Map(coverage.blockers.map((row) => [`${row.kind}:${row.key}`, row])).values(), (a, b) => a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key));
   const mapPlacements = placementData.placements;

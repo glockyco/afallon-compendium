@@ -100,6 +100,14 @@ Membership SHALL be horizontal. A profile SHALL NOT define floor domains, and a 
 - **THEN** the matching domain selects the map-space candidate
 - **AND** a position outside every domain remains unresolved without clamping
 
+A reviewed box domain is the map's frame. It decides what the map shows: capture covers the boxes, and a placement outside every box of its scene's bindings is a deliberate exclusion. Normalization SHALL record each such placement in an exclusion ledger with its reason and the binding evidence, separate from unresolved blockers. A tool MAY propose a box from the game's MapZone rectangle and nearby scene-local placements; the reviewer owns the final coordinates.
+
+#### Scenario: A reviewer frames a dungeon
+- **WHEN** a binding declares box domains and a scene-independent object sits outside them
+- **THEN** that placement appears in the exclusion ledger with the binding evidence
+- **AND** it is not an unresolved blocker
+- **AND** the capture plan for that map covers exactly the boxes
+
 #### Scenario: Stacked placements share horizontal coordinates
 - **WHEN** placements share XZ coordinates at different heights
 - **THEN** they project to the same map position and retain distinct identities

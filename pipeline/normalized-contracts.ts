@@ -194,11 +194,14 @@ export interface NormalizedItemSources {
 }
 
 export interface NormalizedCoverageSummary {
-  schemaVersion: "compendium.normalized-coverage.v2";
+  schemaVersion: "compendium.normalized-coverage.v3";
   buildId: string;
   complete: false;
   blockers: Array<{ kind: string; key: string; detail: string; provenance: ProvenanceReference[] }>;
-  unresolved: { unplacedSources: number; unresolvedIssues: number; missingReferences: number; outsideProfile: number };
+  // A reviewed domain box decides what a map shows. A placement outside every box of its scene's
+  // bindings is a deliberate, evidence-backed exclusion, not an unresolved gap.
+  exclusions: Array<{ kind: "outside-reviewed-domain"; key: string; detail: string; mapSpaceIds: string[]; provenance: ProvenanceReference[] }>;
+  unresolved: { unplacedSources: number; unresolvedIssues: number; missingReferences: number };
   inputCoverage: unknown | null;
   provenance: { plan: ArtifactReference; profile: ArtifactReference; sources: ArtifactReference[] };
 }
@@ -236,7 +239,7 @@ export interface NormalizedDatabaseInput {
   entities: NormalizedEntity[];
   scenes: Array<{ nativeId: number; path: string; name: string | null }>;
   mapSpaces: Array<{ id: string; label: string }>;
-  bindings: Array<{ id: string; mapSpaceId: string; sceneNativeId: number; scenePath: string; frame: unknown; domain: unknown }>;
+  bindings: Array<{ id: string; mapSpaceId: string; sceneNativeId: number; scenePath: string; frame: unknown; domain: { kind: "scene" } | { kind: "boxes"; boxes: unknown } }>;
   placements: NormalizedPlacement[];
   sources: NormalizedSource[];
   roles: Array<{ placementId: string; sourceId: string; role: string; npcId: number | null; scope: string; evidence: unknown }>;

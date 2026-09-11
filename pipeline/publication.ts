@@ -420,7 +420,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const map = await jsonArtifact<NormalizedMapProjection>(normalized, "projections/map-projections.json", "compendium.map-projections.v2");
   const entities = await jsonArtifact<NormalizedEntityDetails>(normalized, "projections/entity-details.json", "compendium.entity-details.v1");
   const items = await jsonArtifact<NormalizedItemSources>(normalized, "projections/item-sources.json", "compendium.item-sources.v1");
-  const coverage = await jsonArtifact<NormalizedCoverageSummary>(normalized, "projections/coverage-summary.json", "compendium.normalized-coverage.v2");
+  const coverage = await jsonArtifact<NormalizedCoverageSummary>(normalized, "projections/coverage-summary.json", "compendium.normalized-coverage.v3");
   if (plan.mode === "release" && (!coverage.complete || coverage.blockers.length > 0)) throw new Error("Release publication requires complete source coverage without unresolved blockers.");
   if (!Array.isArray(items.conditions) || !Array.isArray(map.sources)) throw new Error("Normalized publication inputs omit condition records or world-source details.");
   const conditionsById = new Map(items.conditions.map((condition) => [condition.conditionId, condition]));
@@ -664,7 +664,11 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     assetBytes.set(url, converted.data);
     illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: value.registration.kind, url, width: value.image.width, height: value.image.height, mapFromPixelEdge: value.registration.kind === "calibrated" ? value.registration.mapFromPixelEdge : null });
   }
-  const excludedPlacements = map.placements.length - placements.length;
+  // A reviewer's domain box decides that a placement is not part of any map. Those decisions are
+  // reported with their reasons and evidence; they are not omitted coverage.
+  const deliberateExclusions = coverage.exclusions.filter((exclusion) => map.placements.some((placement) => placement.placementId === exclusion.key));
+  const excludedPlacements = map.placements.length - placements.length - deliberateExclusions.length;
+  const exclusionReport = { schemaVersion: "compendium.publication-exclusions.v1", buildId: plan.buildId, exclusions: deliberateExclusions };
   const guide = projectAdventureGuide({ entities: entities.entities, placements: selected, sources: map.sources, publishedPlacementIds: selectedIds });
   const guideSlug = (key: string): string => key.replaceAll(/[^A-Za-z0-9]+/g, "-");
   const guideItemKeys = new Set(guide.bosses.flatMap((boss) => boss.loot.map((loot) => loot.itemKey)));
@@ -713,6 +717,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     await mkdir(resolve(run.directory, "public/imagery"), { recursive: true });
     await mkdir(resolve(run.directory, "public/details"), { recursive: true });
     await Bun.write(resolve(run.directory, "plan.json"), planBytes); await run.addArtifact("plan.json");
+    await Bun.write(resolve(run.directory, "exclusions.json"), `${JSON.stringify(exclusionReport, null, 2)}\n`); await run.addArtifact("exclusions.json");
     for (const [url, bytes] of assetBytes) { await Bun.write(resolve(run.directory, "public", url), bytes); await run.addArtifact(`public/${url}`); }
     await Bun.write(resolve(run.directory, "public/publication.json"), `${JSON.stringify(data)}\n`); await run.addArtifact("public/publication.json");
     for (const [relativePath, document] of [...entityDocuments, ...itemDocuments]) {
