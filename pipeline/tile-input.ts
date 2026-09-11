@@ -331,7 +331,7 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
       || !sameNumber(readinessValue.captureFrame.cameraY, rasterValue.cameraFrame.cameraY)
       || !sameNumber(readinessValue.captureFrame.nearClip, rasterValue.cameraFrame.nearClip)
       || !sameNumber(readinessValue.captureFrame.farClip, rasterValue.cameraFrame.farClip)
-      || JSON.stringify(readinessValue.cut) !== JSON.stringify(rasterValue.cut)) {
+      || (readinessValue.tileId === tile.id ? JSON.stringify(readinessValue.cut) !== JSON.stringify(rasterValue.cut) : readinessValue.cut !== null)) {
       fail(`source ${reference.path} tile ${tile.id} readiness and raster cut evidence disagree`);
     }
     validateRasterAgainstFrame(rasterValue, capturePlan);

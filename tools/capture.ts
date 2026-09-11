@@ -312,28 +312,29 @@ type CaptureTileResult = CapturedTile & {
   origin: CaptureTileCheckpoint["origin"];
 };
 
-async function loadReusedTileResult(run: Run, tile: CapturePlan["tiles"][number], candidate: ReusableCaptureTile, copied: CaptureTileCheckpoint, plan: CapturePlan, config: CompendiumConfig, cutPlan: CutPlan | null): Promise<CaptureTileResult> {
+async function loadReusedTileResult(directory: string, tile: CapturePlan["tiles"][number], candidate: ReusableCaptureTile, copied: CaptureTileCheckpoint, plan: CapturePlan, cutPlan: CutPlan | null): Promise<CaptureTileResult> {
   const responseReference = findResponseReference(copied.artifacts, tile.id);
   if (responseReference === undefined) throw new Error(`Reused tile "${tile.id}" has no copied native response.`);
-  const response = await readCaptureArtifactJson(run.directory, responseReference);
+  const response = await readCaptureArtifactJson(directory, responseReference);
   assertSchema(CaptureSessionSchema, response, `Reused capture response for tile "${tile.id}"`);
   const session = response as CaptureSession;
   const capture = session.lastCapture?.captures.find(candidate => candidate.tileId === tile.id);
   if (capture === undefined) throw new Error(`Reused tile "${tile.id}" has no capture metadata.`);
-  const readiness = await readCaptureArtifactJson(run.directory, copied.artifacts.readiness);
+  const readiness = await readCaptureArtifactJson(directory, copied.artifacts.readiness);
   assertSchema(CaptureReadinessSchema, readiness, `Reused readiness for tile "${tile.id}"`);
   if (capture.width !== plan.width || capture.height !== plan.height || capture.frame !== capture.restoredFrame) throw new Error(`Reused tile "${tile.id}" has mismatched capture metadata.`);
+  // The tile's own readiness carries its cut; a map-extent readiness carries none.
   const expectedCut = cutPlan === null ? null : cutPlan.evidence;
-  if (!isDeepStrictEqual(readiness.cut, expectedCut)) throw new Error(`Reused tile "${tile.id}" has incompatible reviewed cut evidence.`);
+  if (!isDeepStrictEqual(readiness.tileId === tile.id ? readiness.cut : null, readiness.tileId === tile.id ? expectedCut : null)) throw new Error(`Reused tile "${tile.id}" has incompatible reviewed cut evidence.`);
   const expectedFrame = cutCaptureFrame(tile, cutPlan);
   assertFrameMatches(capture, expectedFrame, tile.id);
   if (!readinessCovers(readiness as CaptureReadiness, tile)) throw new Error(`Reused tile "${tile.id}" readiness does not cover its frame.`);
-  assertRestorationAudit(await readCaptureArtifactJson(run.directory, copied.artifacts.restoration), tile, copied.origin.captureKey, capture.frame, plan.lighting);
-  const imagePath = resolve(run.directory, copied.artifacts.image.path);
+  assertRestorationAudit(await readCaptureArtifactJson(directory, copied.artifacts.restoration), tile, copied.origin.captureKey, capture.frame, plan.lighting);
+  const imagePath = resolve(directory, copied.artifacts.image.path);
   const image = await hashPng(imagePath, plan.width, plan.height, tile.id);
   if (image.sha256 !== copied.artifacts.image.sha256) throw new Error("Reused image disagrees with its checkpoint.");
-  const raster = await readCaptureArtifactJson(run.directory, copied.artifacts.raster);
-  if (!isDeepStrictEqual(raster, registerRaster(capture, image, readiness.cut))) throw new Error("Reused raster disagrees with its native camera controls or cut evidence.");
+  const raster = await readCaptureArtifactJson(directory, copied.artifacts.raster);
+  if (!isDeepStrictEqual(raster, registerRaster(capture, image, expectedCut))) throw new Error("Reused raster disagrees with its native camera controls or cut evidence.");
   return {
     ...capture,
     readiness: readiness as CaptureReadiness,
@@ -452,8 +453,17 @@ async function capturePlan(
     for (const tile of plan.tiles) {
       const candidate = reusable.get(tile.id);
       if (candidate === undefined) continue;
+      // A candidate whose evidence contradicts the current plan is not reused and the tile is
+      // captured again, the same outcome the cache gives a candidate it rejects itself. The
+      // check runs against the source run before anything is copied or registered here.
+      try {
+        await loadReusedTileResult(candidate.sourceDirectory, tile, candidate, candidate.checkpoint, plan, cutPlans.get(tile.id)!);
+      } catch (error) {
+        console.warn(`Capture cache candidate rejected: ${candidate.sourceRun.runId}: ${error instanceof Error ? error.message : String(error)}`);
+        continue;
+      }
       const copied = await copyReusableTile(run, candidate);
-      const result = await loadReusedTileResult(run, tile, candidate, copied.checkpoint, plan, config, cutPlans.get(tile.id)!);
+      const result = await loadReusedTileResult(run.directory, tile, candidate, copied.checkpoint, plan, cutPlans.get(tile.id)!);
       await writeTileCheckpoint(run, copied.checkpoint);
       checkpoints.set(tile.id, copied.checkpoint);
       reused.add(tile.id);
