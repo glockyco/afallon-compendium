@@ -40,7 +40,7 @@ async function fixture(check: (context: {
     };
     const config: CompendiumConfig = {
       gamePath: root, outputRoot: join(root, "output"), runtimeOutputRoot: "Z:/unused",
-      hotreplUrl: "ws://127.0.0.1:1", character: "unused", timeoutMs: 1000,
+      hotreplUrl: "ws://127.0.0.1:1", character: "unused", finalSceneNativeId: 3, finalScenePath: "Assets/SCENES/Coalway woods.unity", timeoutMs: 1000,
     };
     await check({ plan, root, execute: async () => {
       const path = join(root, "plan.json");

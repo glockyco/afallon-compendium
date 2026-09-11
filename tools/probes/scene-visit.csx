@@ -1,6 +1,6 @@
 var requestedAction = args == null ? (string)null : (string)args["action"];
-if (requestedAction != "start" && requestedAction != "poll" && requestedAction != "restore")
-    throw new System.ArgumentException("action must be start, poll, or restore.");
+if (requestedAction != "start" && requestedAction != "retarget" && requestedAction != "poll" && requestedAction != "restore")
+    throw new System.ArgumentException("action must be start, retarget, poll, or restore.");
 
 var sceneOwner = System.AppDomain.CurrentDomain.GetData("afallon-compendium.runtime-owner.v1") as System.Collections.Generic.Dictionary<string, object>;
 if (sceneOwner == null || sceneOwner["state"] as string != "active")
@@ -22,6 +22,15 @@ if (requestedResearchToken != null && requestedResearchToken.Type != Newtonsoft.
 }
 var requestedTargetToken = args["targetSceneNativeId"];
 var requestedTargetId = -1;
+var requestedFinalToken = args["finalSceneNativeId"];
+var requestedFinalPathToken = args["finalScenePath"];
+var requestedFinalPath = (string)null;
+if (requestedFinalPathToken != null && requestedFinalPathToken.Type != Newtonsoft.Json.Linq.JTokenType.Null)
+{
+    if (requestedFinalPathToken.Type != Newtonsoft.Json.Linq.JTokenType.String || string.IsNullOrEmpty((string)requestedFinalPathToken))
+        throw new System.ArgumentException("finalScenePath must be a non-empty string.");
+    requestedFinalPath = (string)requestedFinalPathToken;
+}
 if (requestedTargetToken != null && requestedTargetToken.Type != Newtonsoft.Json.Linq.JTokenType.Null)
 {
     if (requestedTargetToken.Type != Newtonsoft.Json.Linq.JTokenType.Integer)
@@ -29,6 +38,15 @@ if (requestedTargetToken != null && requestedTargetToken.Type != Newtonsoft.Json
     requestedTargetId = requestedTargetToken.ToObject<int>();
     if (requestedTargetId < 0)
         throw new System.ArgumentException("targetSceneNativeId must be greater than or equal to zero.");
+}
+var requestedFinalId = -1;
+if (requestedFinalToken != null && requestedFinalToken.Type != Newtonsoft.Json.Linq.JTokenType.Null)
+{
+    if (requestedFinalToken.Type != Newtonsoft.Json.Linq.JTokenType.Integer)
+        throw new System.ArgumentException("finalSceneNativeId must be an integer.");
+    requestedFinalId = requestedFinalToken.ToObject<int>();
+    if (requestedFinalId < 0)
+        throw new System.ArgumentException("finalSceneNativeId must be greater than or equal to zero.");
 }
 
 if (requestedAction == "start")
@@ -78,6 +96,14 @@ if (requestedAction == "start")
     var targetNativeScene = databaseScenes[requestedTargetId];
     if (targetNativeScene == null || targetNativeScene.ID != requestedTargetId)
         throw new System.ArgumentException("targetSceneNativeId does not resolve to a valid runtime scene record.");
+    var finalSceneId = requestedFinalId < 0 ? sourceNativeScene.ID : requestedFinalId;
+    if (!databaseScenes.ContainsKey(finalSceneId) || databaseScenes[finalSceneId] == null || databaseScenes[finalSceneId].ID != finalSceneId)
+        throw new System.ArgumentException("finalSceneNativeId does not resolve to a valid runtime scene record.");
+    var finalNativeScene = databaseScenes[finalSceneId];
+    if (requestedFinalPath != null && !string.Equals(System.IO.Path.GetFileNameWithoutExtension(requestedFinalPath), finalNativeScene.entryName, System.StringComparison.Ordinal))
+        throw new System.ArgumentException("finalScenePath does not match finalSceneNativeId.");
+    if (string.IsNullOrEmpty(finalNativeScene.entryName) || !UnityEngine.Application.CanStreamedLevelBeLoaded(finalNativeScene.entryName))
+        throw new System.InvalidOperationException("The final scene must be available to the native scene loader.");
     if (!databaseScenes.ContainsKey(sourceNativeScene.ID) || databaseScenes[sourceNativeScene.ID] == null || databaseScenes[sourceNativeScene.ID].ID != sourceNativeScene.ID)
         throw new System.InvalidOperationException("The current native scene is not present in the runtime scene database.");
 
@@ -95,6 +121,8 @@ if (requestedAction == "start")
     sceneVisitState["sourceSceneHandle"] = activeScene.handle;
     sceneVisitState["sourceScenePath"] = activeScene.path;
     sceneVisitState["targetSceneNativeId"] = requestedTargetId;
+    sceneVisitState["finalSceneNativeId"] = finalSceneId;
+    sceneVisitState["finalScenePath"] = finalNativeScene.entryName;
     sceneVisitState["sourcePosition"] = playerTransform.position;
     sceneVisitState["sourceRotation"] = playerTransform.rotation;
     sceneVisitState["requestFrame"] = UnityEngine.Time.frameCount;
@@ -157,16 +185,16 @@ if (requestedAction == "start")
         var restoringCharacter = Il2CppBLINK.RPGBuilder.Characters.Character.Instance;
         if (restoringCharacter == null || restoringCharacter.CharacterData == null || !restoringCharacter.CharacterData.IsCreated || restoringCharacter.CharacterData.CharacterName != (string)sceneVisitState["researchCharacter"])
             throw new System.InvalidOperationException("Scene restoration cannot change another research character.");
-        var sourceId = (int)sceneVisitState["sourceSceneNativeId"];
+        var finalSceneId = (int)sceneVisitState["finalSceneNativeId"];
         var currentNativeId = currentNativeScene == null ? -1 : currentNativeScene.ID;
-        if (currentNativeId != sourceId)
+        if (currentNativeId != finalSceneId)
         {
             var restoreRequested = (bool)sceneVisitState["restoreRequested"];
             if (!restoreRequested)
             {
                 sceneVisitState["restoreRequested"] = true;
                 sceneVisitState["restoreRequestFrame"] = UnityEngine.Time.frameCount;
-                currentLoader.LoadGameScene(sourceId);
+                currentLoader.LoadGameScene(finalSceneId);
             }
             return false;
         }
@@ -174,18 +202,19 @@ if (requestedAction == "start")
         if ((bool)sceneVisitState["restoreRequested"] && UnityEngine.Time.frameCount <= (int)sceneVisitState["restoreRequestFrame"])
             return false;
 
-        if (currentScene.path != (string)sceneVisitState["sourceScenePath"])
-            throw new System.InvalidOperationException("The restored native scene has a different source scene path.");
-        var currentPlayer = Il2Cpp.GameState.playerEntity;
-        var currentTransform = currentPlayer == null ? null : currentPlayer.transform;
-        if (currentTransform == null)
-            return false;
-        var sourcePosition = (UnityEngine.Vector3)sceneVisitState["sourcePosition"];
-        var sourceRotation = (UnityEngine.Quaternion)sceneVisitState["sourceRotation"];
-        currentTransform.position = sourcePosition;
-        currentTransform.rotation = sourceRotation;
-        if ((currentTransform.position - sourcePosition).sqrMagnitude > 0.000001f || UnityEngine.Quaternion.Angle(currentTransform.rotation, sourceRotation) > 0.05f)
-            throw new System.InvalidOperationException("The player transform did not accept its original position and rotation.");
+        if (finalSceneId == (int)sceneVisitState["sourceSceneNativeId"])
+        {
+            var currentPlayer = Il2Cpp.GameState.playerEntity;
+            var currentTransform = currentPlayer == null ? null : currentPlayer.transform;
+            if (currentTransform == null)
+                return false;
+            var sourcePosition = (UnityEngine.Vector3)sceneVisitState["sourcePosition"];
+            var sourceRotation = (UnityEngine.Quaternion)sceneVisitState["sourceRotation"];
+            currentTransform.position = sourcePosition;
+            currentTransform.rotation = sourceRotation;
+            if ((currentTransform.position - sourcePosition).sqrMagnitude > 0.000001f || UnityEngine.Quaternion.Angle(currentTransform.rotation, sourceRotation) > 0.05f)
+                throw new System.InvalidOperationException("The player transform did not accept its original position and rotation.");
+        }
         sceneVisitState["phase"] = "restored";
         return true;
     });
@@ -239,6 +268,7 @@ if (requestedAction == "start")
             sourceSceneNativeId = (int)sceneVisitState["sourceSceneNativeId"],
             sourceSceneHandle = (int)sceneVisitState["sourceSceneHandle"],
             targetSceneNativeId = (int)sceneVisitState["targetSceneNativeId"],
+            finalSceneNativeId = (int)sceneVisitState["finalSceneNativeId"],
             sceneNativeId = observed["sceneNativeId"],
             sceneReady = (bool)observed["sceneReady"],
             readiness = observed["readiness"],
@@ -251,6 +281,43 @@ if (requestedAction == "start")
 
     if (requestedTargetId != sourceNativeScene.ID)
         sceneLoader.LoadGameScene(requestedTargetId);
+    return ((System.Func<object>)sceneVisitState["report"])();
+}
+
+if (requestedAction == "retarget")
+{
+    if (requestedTargetToken == null || requestedTargetToken.Type == Newtonsoft.Json.Linq.JTokenType.Null)
+        throw new System.ArgumentException("targetSceneNativeId is required for retarget.");
+    var retargetKeyToken = args["key"];
+    if (retargetKeyToken == null || retargetKeyToken.Type != Newtonsoft.Json.Linq.JTokenType.String || string.IsNullOrEmpty((string)retargetKeyToken))
+        throw new System.ArgumentException("key is required for retarget.");
+    sceneVisitKey = (string)retargetKeyToken;
+    sceneVisitState = System.AppDomain.CurrentDomain.GetData(sceneVisitKey) as System.Collections.Generic.Dictionary<string, object>;
+    if (sceneVisitState == null) throw new System.InvalidOperationException("The scene visit key is unknown or has already been restored.");
+    if (!string.Equals(sceneVisitState["ownerToken"] as string, sceneOwnerToken, System.StringComparison.Ordinal))
+        throw new System.InvalidOperationException("The scene visit belongs to another runtime owner.");
+    if ((sceneVisitState["phase"] as string) != "ready") throw new System.InvalidOperationException("Retarget requires a ready scene visit.");
+    if (System.AppDomain.CurrentDomain.GetData("afallon-compendium.stream-visit.active.v1") != null)
+        throw new System.InvalidOperationException("Restore the active stream visit before retargeting a scene visit.");
+    var retargetDatabase = Il2CppBLINK.RPGBuilder.Managers.GameDatabase.Instance;
+    var retargetScenes = retargetDatabase == null ? null : retargetDatabase.GetGameScenes();
+    if (retargetScenes == null || !retargetScenes.ContainsKey(requestedTargetId) || retargetScenes[requestedTargetId] == null || retargetScenes[requestedTargetId].ID != requestedTargetId)
+        throw new System.ArgumentException("targetSceneNativeId is not present in the runtime scene database.");
+    var retargetNativeScene = retargetScenes[requestedTargetId];
+    if (string.IsNullOrEmpty(retargetNativeScene.entryName) || !UnityEngine.Application.CanStreamedLevelBeLoaded(retargetNativeScene.entryName))
+        throw new System.InvalidOperationException("The retarget scene must be available to the native scene loader.");
+    var retargetLoader = Il2CppBLINK.RPGBuilder.Managers.LoadingScreenManager.Instance;
+    var retargetCurrentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+    var retargetEssentials = Il2CppBLINK.RPGBuilder.LogicMono.RPGBuilderEssentials.Instance;
+    if (retargetLoader == null || retargetEssentials == null || !retargetCurrentScene.isLoaded || !retargetEssentials.SceneInitialized || retargetLoader.isSceneLoading || Il2CppBLINK.RPGBuilder.Managers.LoadingScreenManager.HasSceneReadyHolds)
+        throw new System.InvalidOperationException("The current scene must be ready before retargeting.");
+    sceneVisitState["targetSceneNativeId"] = requestedTargetId;
+    sceneVisitState["phase"] = "loading";
+    sceneVisitState["requestFrame"] = UnityEngine.Time.frameCount;
+    sceneVisitState["restoreRequested"] = false;
+    sceneVisitState["restoreRequestFrame"] = -1;
+    if (requestedTargetId != Il2Cpp.GameState.CurrentGameScene.ID)
+        retargetLoader.LoadGameScene(requestedTargetId);
     return ((System.Func<object>)sceneVisitState["report"])();
 }
 

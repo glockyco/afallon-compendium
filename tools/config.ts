@@ -7,6 +7,8 @@ export interface CompendiumConfig {
   runtimeOutputRoot: string;
   hotreplUrl: string;
   character: string;
+  finalSceneNativeId: number;
+  finalScenePath: string;
   timeoutMs: number;
   mapSpaceProfile?: string;
 }
@@ -18,7 +20,7 @@ export async function loadConfig(file: string): Promise<CompendiumConfig> {
     throw new Error("Configuration must be a JSON object.");
   }
   const input = value as Record<string, unknown>;
-  const allowed: Record<string, true> = { gamePath: true, outputRoot: true, runtimeOutputRoot: true, hotreplUrl: true, character: true, timeoutMs: true, mapSpaceProfile: true };
+  const allowed: Record<string, true> = { gamePath: true, outputRoot: true, runtimeOutputRoot: true, hotreplUrl: true, character: true, finalSceneNativeId: true, finalScenePath: true, timeoutMs: true, mapSpaceProfile: true };
   for (const key of Object.keys(input)) {
     if (!Object.hasOwn(allowed, key)) throw new Error(`Unknown configuration field: ${key}`);
   }
@@ -29,6 +31,11 @@ export async function loadConfig(file: string): Promise<CompendiumConfig> {
     }
     return value;
   }
+  const finalSceneNativeId = input.finalSceneNativeId;
+  if (typeof finalSceneNativeId !== "number" || !Number.isSafeInteger(finalSceneNativeId) || finalSceneNativeId < 0) {
+    throw new Error("finalSceneNativeId must be a non-negative integer.");
+  }
+  const finalScenePath = text("finalScenePath");
   const endpoint = new URL(text("hotreplUrl"));
   if (!["ws:", "wss:"].includes(endpoint.protocol) || endpoint.username || endpoint.password) {
     throw new Error("hotreplUrl must be a WebSocket URL without embedded credentials.");
@@ -50,7 +57,7 @@ export async function loadConfig(file: string): Promise<CompendiumConfig> {
   const outputRoot = await realpath(output);
   if (isWithin(gamePath, outputRoot)) throw new Error("outputRoot must be outside the game installation.");
   const mapSpaceProfile = input.mapSpaceProfile === undefined ? undefined : await realpath(resolve(dirname(location), text("mapSpaceProfile")));
-  return { gamePath, outputRoot, runtimeOutputRoot, hotreplUrl: endpoint.href, character: text("character"), timeoutMs, mapSpaceProfile };
+  return { gamePath, outputRoot, runtimeOutputRoot, hotreplUrl: endpoint.href, character: text("character"), finalSceneNativeId, finalScenePath, timeoutMs, mapSpaceProfile };
 }
 
 export function isWithin(root: string, path: string): boolean {

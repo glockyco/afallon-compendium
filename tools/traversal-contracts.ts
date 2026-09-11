@@ -25,6 +25,7 @@ export const SceneVisitSchema = Type.Object({
   sourceSceneNativeId: count,
   sourceSceneHandle: integer,
   targetSceneNativeId: count,
+  finalSceneNativeId: Type.Optional(count),
   sceneNativeId: Type.Union([count, Type.Null()]),
   sceneReady: Type.Boolean(),
   readiness: Type.Object({

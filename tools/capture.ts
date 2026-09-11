@@ -15,6 +15,8 @@ import {
   CaptureRestorationSchema,
   CaptureSessionSchema,
   CaptureSetSchema,
+  CaptureSweepSchema,
+  type CaptureSweep,
   CaptureTileCheckpointSchema,
   type CapturePlan,
   type CaptureReadiness,
@@ -321,11 +323,26 @@ function hasSelectedBinding(profile: MapSpaceProfile, plan: CapturePlan): boolea
     && binding.scenePath === plan.scenePath && binding.mapSpaceId === plan.mapSpaceId);
 }
 
-export async function capture(
+type CaptureSweepContext = {
+  finalSceneNativeId: number;
+  finalScenePath: string;
+  run: Run;
+  visit?: SceneVisit;
+  transitionOrdinal: number;
+  sceneTransitions: ArtifactRecord[];
+  plans: CaptureSweep["plans"];
+  start: (targetSceneNativeId: number, timeoutMs: number) => Promise<SceneVisit>;
+  retarget: (targetSceneNativeId: number, timeoutMs: number) => Promise<SceneVisit>;
+  restore: (timeoutMs: number) => Promise<SceneVisit>;
+  failure?: { planRunId: string; phase: string };
+};
+
+async function capturePlan(
   runtime: Runtime,
   config: CompendiumConfig,
   identity: Awaited<ReturnType<typeof buildIdentity>>,
   plan: CapturePlan,
+  sweep?: CaptureSweepContext,
 ) {
   validatePlan(plan);
   if (config.mapSpaceProfile === undefined) throw new Error("Capture requires config.mapSpaceProfile.");
@@ -372,6 +389,8 @@ export async function capture(
       timeoutMs: config.timeoutMs,
       mapSpaceProfile: config.mapSpaceProfile,
       runtimeOwnerToken: runtime.ownerToken,
+      sweepRunId: sweep?.run.runId ?? null,
+      sweepManifestPath: sweep?.run.manifestPath ?? null,
       sceneNativeId: plan.sceneNativeId,
       scenePath: plan.scenePath,
       mapSpaceId: plan.mapSpaceId,
@@ -383,40 +402,6 @@ export async function capture(
       completeImagery: false,
     },
   });
-
-  let visitedScene: SceneVisit | undefined;
-  const transitionScene = async (action: "start" | "restore", previous?: SceneVisit): Promise<SceneVisit> => {
-    const deadline = Date.now() + plan.readiness.timeoutMs;
-    const timeout = new Error(`Capture scene ${action} exceeded its readiness deadline.`);
-    const timer = setTimeout(() => runtime.cancel(timeout), plan.readiness.timeoutMs);
-    let key = previous?.key;
-    let started: SceneVisit | undefined = previous;
-    try {
-      let nextAction: "start" | "poll" | "restore" = action;
-      while (true) {
-        runtime.signal.throwIfAborted();
-        if (Date.now() >= deadline) throw timeout;
-        const path = nextAction === "start" ? "scene-start.json" : action === "start" ? "scene-ready.json" : "scene-restored.json";
-        const reply = await runtime.probe(resolve(import.meta.dir, "probes/scene-visit.csx"), resolve(run.directory, path), {
-          parameters: { researchCharacter: config.character, action: nextAction, key, targetSceneNativeId: plan.sceneNativeId },
-        });
-        assertSchema(SceneVisitSchema, reply.value, "Capture scene transition");
-        const state = reply.value;
-        if (key !== undefined && state.key !== key) throw new Error("Capture scene transition returned another owner key.");
-        if (started !== undefined && (state.sourceSceneNativeId !== started.sourceSceneNativeId || state.sourceSceneHandle !== started.sourceSceneHandle || !isDeepStrictEqual(state.sourcePosition, started.sourcePosition) || !isDeepStrictEqual(state.sourceRotation, started.sourceRotation))) throw new Error("Capture scene transition changed its restoration target.");
-        started ??= state;
-        key = state.key;
-        const finished = state.phase === (action === "start" ? "ready" : "restored");
-        if (nextAction === "start" || finished) await registerProbeArtifact(run, path, reply.reference);
-        if (finished) {
-          if (!state.sceneReady || state.sceneNativeId !== (action === "start" ? plan.sceneNativeId : started.sourceSceneNativeId)) throw new Error("Capture scene transition reached another scene.");
-          return state;
-        }
-        nextAction = action === "start" ? "poll" : "restore";
-        await Bun.sleep(500);
-      }
-    } finally { clearTimeout(timer); }
-  };
 
   try {
     await Bun.write(resolve(run.directory, "plan.json"), planText);
@@ -444,7 +429,7 @@ export async function capture(
       }
       tiles.push(result);
     }
-    if (reused.size === plan.tiles.length) {
+    if (reused.size === plan.tiles.length && sweep === undefined) {
       await runtime.complete();
       await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
       await registerArtifact(run, "runtime-cleanup.json");
@@ -485,9 +470,13 @@ export async function capture(
     }
     await Bun.write(resolve(run.directory, "scene-catalog.json"), `${JSON.stringify(sceneCatalog, null, 2)}\n`);
     await registerArtifact(run, "scene-catalog.json");
-    if (inventoryReply.observationContext.completed.gameSceneNativeId !== plan.sceneNativeId) {
-      visitedScene = await transitionScene("start");
-      if (visitedScene.sourceSceneNativeId !== inventoryReply.observationContext.completed.gameSceneNativeId || visitedScene.sourceSceneHandle !== inventoryReply.observationContext.completed.scene.handle) throw new Error("The source scene changed before the capture visit.");
+    if (sweep !== undefined) {
+      if (sweep.visit === undefined) sweep.visit = await sweep.start(plan.sceneNativeId, plan.readiness.timeoutMs);
+      else if (inventoryReply.observationContext.completed.gameSceneNativeId !== plan.sceneNativeId) sweep.visit = await sweep.retarget(plan.sceneNativeId, plan.readiness.timeoutMs);
+      const activeVisit = sweep.visit;
+      if (activeVisit === undefined || activeVisit.sceneNativeId !== plan.sceneNativeId || !activeVisit.sceneReady) {
+        throw new Error("The scene transition did not reach the capture scene.");
+      }
     }
 
     await mkdir(resolve(run.directory, "tiles"), { recursive: true });
@@ -616,18 +605,30 @@ export async function capture(
       throw new Error("Capture cleanup receipt does not confirm native restoration.");
     }
     const captureCleanupArtifact = await registerArtifact(run, "capture-cleanup.json");
-    if (visitedScene !== undefined) await transitionScene("restore", visitedScene);
 
-    await runtime.complete();
-    await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
-    const runtimeCleanupArtifact = await registerArtifact(run, "runtime-cleanup.json");
+    let runtimeCleanupArtifact: ArtifactRecord | undefined;
+    if (sweep === undefined) {
+      await runtime.complete();
+      await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
+      runtimeCleanupArtifact = await registerArtifact(run, "runtime-cleanup.json");
+    }
     for (const checkpoint of checkpoints.values()) {
       if (reused.has(checkpoint.tileId)) continue;
       if (!checkpoint.artifacts.nativeContext.some(reference => reference.path === captureCleanupArtifact.path)) checkpoint.artifacts.nativeContext.push(captureCleanupArtifact);
-      if (!checkpoint.artifacts.nativeContext.some(reference => reference.path === runtimeCleanupArtifact.path)) checkpoint.artifacts.nativeContext.push(runtimeCleanupArtifact);
+      if (runtimeCleanupArtifact !== undefined && !checkpoint.artifacts.nativeContext.some(reference => reference.path === runtimeCleanupArtifact.path)) checkpoint.artifacts.nativeContext.push(runtimeCleanupArtifact);
     }
     await writeCaptureSet(run, plan, identity.buildId, checkpoints, reused);
     await run.succeed();
+    if (sweep !== undefined) {
+      sweep.plans.push({
+        runId: run.runId,
+        manifestPath: run.manifestPath,
+        manifestSha256: await hashFile(run.manifestPath),
+        sceneNativeId: plan.sceneNativeId,
+        scenePath: plan.scenePath,
+        mapSpaceId: plan.mapSpaceId,
+      });
+    }
     const orderedTiles: CaptureTileResult[] = plan.tiles.flatMap(tile => {
       const result = tiles.find(candidate => candidate.tileId === tile.id);
       return result === undefined ? [] : [result];
@@ -641,8 +642,127 @@ export async function capture(
       capturedTiles: orderedTiles.filter(tile => !tile.reused).map(tile => tile.tileId),
     };
   } catch (error) {
+    if (sweep !== undefined) sweep.failure = { planRunId: run.runId, phase: "plan-capture" };
     await run.fail(error);
     console.error(`Failed capture run: ${run.manifestPath}`);
     throw error;
+  }
+}
+
+export async function capture(
+  runtime: Runtime,
+  config: CompendiumConfig,
+  identity: Awaited<ReturnType<typeof buildIdentity>>,
+  plans: CapturePlan[],
+) {
+  if (plans.length === 0) throw new Error("Capture requires at least one plan.");
+  const finalScene = { nativeId: config.finalSceneNativeId, path: config.finalScenePath };
+  plans.forEach(validatePlan);
+  const sweepRun = await beginRun(config.outputRoot, {
+    ...identity,
+    inputHashes: {
+      ...identity.inputHashes,
+      "runtime-owner": runtime.ownerSourceHash,
+      ...Object.fromEntries(plans.map(plan => [`plan:${plan.sceneNativeId}:${plan.mapSpaceId}`, createHash("sha256").update(JSON.stringify(plan)).digest("hex")])),
+    },
+    toolRevision: await toolRevision(),
+    command: "capture-sweep",
+    settings: {
+      character: config.character,
+      mapSpaceProfile: config.mapSpaceProfile,
+      runtimeOwnerToken: runtime.ownerToken,
+      finalScene,
+      planCount: plans.length,
+      completeImagery: false,
+    },
+  });
+  const sweep: CaptureSweepContext = {
+    finalSceneNativeId: finalScene.nativeId,
+    finalScenePath: finalScene.path,
+    run: sweepRun,
+    transitionOrdinal: 0,
+    sceneTransitions: [],
+    plans: [],
+    start: async () => { throw new Error("Sweep scene controller is not initialized."); },
+    retarget: async () => { throw new Error("Sweep scene controller is not initialized."); },
+    restore: async () => { throw new Error("Sweep scene controller is not initialized."); },
+  };
+  const transitionScene = async (action: "start" | "retarget" | "restore", targetSceneNativeId: number, timeoutMs: number): Promise<SceneVisit> => {
+    const deadline = Date.now() + timeoutMs;
+    const timeout = new Error(`Capture scene ${action} exceeded its readiness deadline.`);
+    const previous = sweep.visit;
+    let key = previous?.key;
+    let started: SceneVisit | undefined = previous;
+    const transitionOrdinal = sweep.transitionOrdinal++;
+    let nextAction: "start" | "retarget" | "poll" | "restore" = action;
+    while (true) {
+      runtime.signal.throwIfAborted();
+      if (Date.now() >= deadline) throw timeout;
+      const path = nextAction === "start" ? "scene-start.json" : nextAction === "retarget" ? `scene-retarget-${transitionOrdinal}-${targetSceneNativeId}.json` : action === "restore" ? "scene-final.json" : `scene-ready-${transitionOrdinal}.json`;
+      const parameters: Record<string, unknown> = { researchCharacter: config.character, action: nextAction, key, targetSceneNativeId: action === "restore" ? previous?.targetSceneNativeId : targetSceneNativeId };
+      if (nextAction === "start") {
+        parameters.finalSceneNativeId = sweep.finalSceneNativeId;
+        parameters.finalScenePath = sweep.finalScenePath;
+      }
+      const reply = await runtime.probe(resolve(import.meta.dir, "probes/scene-visit.csx"), resolve(sweep.run.directory, path), { parameters });
+      assertSchema(SceneVisitSchema, reply.value, "Capture scene transition");
+      const state = reply.value;
+      sweep.visit = state;
+      if (key !== undefined && state.key !== key) throw new Error("Capture scene transition returned another owner key.");
+      if (started !== undefined && (state.sourceSceneNativeId !== started.sourceSceneNativeId || state.sourceSceneHandle !== started.sourceSceneHandle || !isDeepStrictEqual(state.sourcePosition, started.sourcePosition) || !isDeepStrictEqual(state.sourceRotation, started.sourceRotation))) throw new Error("Capture scene transition changed its restoration target.");
+      started ??= state;
+      key = state.key;
+      const finished = state.phase === (action === "restore" ? "restored" : "ready");
+      if (nextAction === "start" || nextAction === "retarget" || finished) sweep.sceneTransitions.push(await registerProbeArtifact(sweep.run, path, reply.reference));
+      if (finished) {
+        const expectedScene = action === "restore" ? (state.finalSceneNativeId ?? started.sourceSceneNativeId) : targetSceneNativeId;
+        if (!state.sceneReady || state.sceneNativeId !== expectedScene) throw new Error("Capture scene transition reached another scene.");
+        return state;
+      }
+      nextAction = action === "restore" ? "restore" : "poll";
+      await Bun.sleep(500);
+    }
+  };
+  sweep.start = (target, timeoutMs) => transitionScene("start", target, timeoutMs);
+  sweep.retarget = (target, timeoutMs) => transitionScene("retarget", target, timeoutMs);
+  sweep.restore = (timeoutMs) => transitionScene("restore", sweep.visit?.targetSceneNativeId ?? finalScene.nativeId, timeoutMs);
+  const results: Awaited<ReturnType<typeof capturePlan>>[] = [];
+  try {
+    for (const plan of plans) results.push(await capturePlan(runtime, config, identity, plan, sweep));
+    if (sweep.visit !== undefined && sweep.visit.phase !== "restored") sweep.visit = await sweep.restore(plans.at(-1)!.readiness.timeoutMs);
+    await runtime.complete();
+    await Bun.write(resolve(sweep.run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
+    const runtimeCleanup = await registerArtifact(sweep.run, "runtime-cleanup.json");
+    const sweepEvidence: CaptureSweep = {
+      schemaVersion: "compendium.capture-sweep.v1",
+      runId: sweep.run.runId,
+      ownerToken: runtime.ownerToken,
+      finalScene,
+      plans: sweep.plans,
+      sceneTransitions: sweep.sceneTransitions,
+      runtimeCleanup,
+      completed: true,
+    };
+    assertSchema(CaptureSweepSchema, sweepEvidence, "Capture sweep evidence");
+    await Bun.write(resolve(sweep.run.directory, "sweep.json"), `${JSON.stringify(sweepEvidence, null, 2)}\n`);
+    await registerArtifact(sweep.run, "sweep.json");
+    await sweep.run.succeed();
+    return { plans: results, finalScene, sweepManifest: sweep.run.manifestPath };
+  } catch (error) {
+    let failure = error;
+    if (sweep.visit !== undefined && sweep.visit.phase !== "restored" && !runtime.signal.aborted) {
+      try { sweep.visit = await sweep.restore(plans.at(-1)!.readiness.timeoutMs); }
+      catch (restoreError) {
+        runtime.cancel(restoreError);
+        sweep.failure = { planRunId: sweep.failure?.planRunId ?? sweep.plans.at(-1)?.runId ?? "unknown", phase: "final-scene-transition" };
+        failure = new AggregateError([error, restoreError], "Capture sweep failed and the final scene could not be restored.");
+      }
+    }
+    const planFailure = sweep.failure ?? (sweep.plans.at(-1) === undefined ? undefined : { planRunId: sweep.plans.at(-1)!.runId, phase: "sweep-finalization" });
+    const phase = planFailure?.phase ?? "sweep-finalization";
+    const detail = planFailure === undefined ? "" : ` (plan run ${planFailure.planRunId})`;
+    const sweepFailure = new Error(`Capture sweep failed during ${phase}${detail}.`, { cause: failure });
+    await sweep.run.fail(sweepFailure);
+    throw failure;
   }
 }

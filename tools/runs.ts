@@ -157,8 +157,14 @@ function serializeFailure(error: unknown): FailureRecord {
       message: error.message || String(error),
     };
     if (error.stack) failure.stack = error.stack;
+    if (error instanceof AggregateError) {
+      failure.details = { errors: Array.from(error.errors, nested => serializeFailure(nested)) };
+    }
     if ("cause" in error && error.cause !== undefined) {
-      failure.details = { cause: jsonSafe(error.cause) };
+      failure.details = {
+        ...(failure.details as Record<string, unknown> | undefined),
+        cause: error.cause instanceof Error ? serializeFailure(error.cause) : jsonSafe(error.cause),
+      };
     }
     const own = Object.fromEntries(
       Object.entries(error).filter(([key]) => key !== "name" && key !== "message" && key !== "stack"),

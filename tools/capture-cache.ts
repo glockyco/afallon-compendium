@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { copyFile, mkdir, readFile, realpath, stat } from "node:fs/promises";
-import { isAbsolute, relative, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { Assert } from "typebox/value";
 import type { Static } from "typebox";
@@ -12,6 +12,7 @@ import {
   CaptureRestorationSchema,
   CaptureSessionSchema,
   CaptureSetSchema,
+  CaptureSweepSchema,
   CaptureTileCheckpointSchema,
   type CapturePlan,
   type CaptureSet,
@@ -169,7 +170,7 @@ function findResponseReference(artifacts: TileArtifacts, tileId: string): Artifa
   );
 }
 
-async function validateNativeCleanup(sourceDirectory: string, sourceRun: RunManifest, checkpoint: CaptureTileCheckpoint, outputRoot: string, resourcePrefix: string): Promise<{ artifacts: ArtifactRecord[]; sourcePaths: Map<string, string> }> {
+async function validateNativeCleanup(sourceDirectory: string, sourceRun: RunManifest, checkpoint: CaptureTileCheckpoint, resourcePrefix: string): Promise<{ artifacts: ArtifactRecord[]; sourcePaths: Map<string, string> }> {
   const origin = checkpoint.origin;
   const contextCaptureCleanup = checkpoint.artifacts.nativeContext.find(artifact => artifact.path === "capture-cleanup.json" || artifact.path.endsWith("/origin-capture-cleanup.json"));
   const registeredCaptureCleanup = contextCaptureCleanup ?? sourceRun.artifacts.find(artifact => artifact.path === "capture-cleanup.json" || artifact.path.endsWith("/origin-capture-cleanup.json"));
@@ -183,27 +184,39 @@ async function validateNativeCleanup(sourceDirectory: string, sourceRun: RunMani
     throw new Error("Cache source capture cleanup receipt does not confirm clean native state.");
   }
 
-  const contextRuntimeCleanup = checkpoint.artifacts.nativeContext.find(artifact => artifact.path === "runtime-cleanup.json" || artifact.path.endsWith("/origin-runtime-cleanup.json"));
-  const runtimeCleanup = contextRuntimeCleanup ?? sourceRun.artifacts.find(artifact => artifact.path === "runtime-cleanup.json" || artifact.path.endsWith("/origin-runtime-cleanup.json"));
-  const runtimePath = runtimeCleanup === undefined ? resolve(outputRoot, ".runtime", `${origin.ownerToken}.json`) : resolve(sourceDirectory, runtimeCleanup.path);
+  const sweepManifestPath = sourceRun.input.settings.sweepManifestPath;
+  if (typeof sweepManifestPath !== "string" || sweepManifestPath.length === 0) {
+    throw new Error("Capture cache candidate predates the sweep-run model; no sweep manifest reference is available.");
+  }
+  const sweepManifestBytes = await readFile(sweepManifestPath);
+  const runtimeManifest = JSON.parse(new TextDecoder().decode(sweepManifestBytes)) as RunManifest;
+  if (runtimeManifest.status !== "succeeded" || runtimeManifest.runId !== sourceRun.input.settings.sweepRunId) throw new Error("Cache source sweep manifest is not a succeeded matching run.");
+  const sweepDirectory = dirname(sweepManifestPath);
+  const sweepArtifactMap = artifactMap(runtimeManifest);
+  const sweepEvidenceReference = runtimeManifest.artifacts.find(artifact => artifact.path === "sweep.json");
+  if (sweepEvidenceReference === undefined) throw new Error("Cache source sweep manifest has no sweep evidence.");
+  await verifyFile(sweepDirectory, sweepEvidenceReference, sweepArtifactMap, true);
+  const sweepEvidenceBytes = await readFile(resolve(sweepDirectory, sweepEvidenceReference.path));
+  const sweepEvidence = decodeVerifiedJson(sweepEvidenceBytes, sweepEvidenceReference);
+  Assert(CaptureSweepSchema, sweepEvidence);
+  if (sweepEvidence.runId !== runtimeManifest.runId || sweepEvidence.ownerToken !== origin.ownerToken) throw new Error("Cache source sweep evidence has mismatched ownership.");
+  const planReference = sweepEvidence.plans.find(plan => plan.runId === sourceRun.runId);
+  if (planReference === undefined || planReference.manifestPath !== resolve(sourceDirectory, "manifest.json")) throw new Error("Cache source sweep evidence omits this plan manifest.");
+  const planManifestBytes = await readFile(resolve(sourceDirectory, "manifest.json"));
+  if (createHash("sha256").update(planManifestBytes).digest("hex") !== planReference.manifestSha256) throw new Error("Cache source plan manifest does not match its sweep reference.");
+  const runtimeCleanup = sweepEvidence.runtimeCleanup;
+  await verifyFile(sweepDirectory, runtimeCleanup, sweepArtifactMap, true);
+  const runtimePath = await existingPath(sweepDirectory, runtimeCleanup.path);
   const runtimeBytes = await readFile(runtimePath);
-  const runtimeReference = runtimeCleanup ?? { path: `origin/${origin.ownerToken}/runtime-cleanup.json`, bytes: runtimeBytes.byteLength, sha256: createHash("sha256").update(runtimeBytes).digest("hex") };
-  const runtimeValue = decodeVerifiedJson(runtimeBytes, runtimeReference);
+  const runtimeValue = decodeVerifiedJson(runtimeBytes, runtimeCleanup);
   if (runtimeValue === null || typeof runtimeValue !== "object" || Array.isArray(runtimeValue)) throw new Error("Cache source runtime cleanup receipt is invalid.");
   const runtime = runtimeValue as Record<string, unknown>;
   if (runtime.schemaVersion !== "compendium.runtime-owner.v1" || runtime.token !== origin.ownerToken || typeof runtime.reason !== "string" || runtime.state !== "clean" || runtime.callbacksRemaining !== 0 || !Array.isArray(runtime.cleanupErrors) || runtime.cleanupErrors.length !== 0) {
     throw new Error("Cache source runtime cleanup receipt does not confirm clean native ownership.");
   }
-  if (runtimeCleanup !== undefined) {
-    await verifyFile(sourceDirectory, runtimeCleanup, artifactMap(sourceRun), true);
-  } else {
-    const runtimeAfter = await readFile(runtimePath);
-    const runtimeAfterHash = createHash("sha256").update(runtimeAfter).digest("hex");
-    if (runtimeReference.bytes !== runtimeAfter.byteLength || runtimeReference.sha256 !== runtimeAfterHash) throw new Error("Cache source runtime cleanup receipt changed while it was read.");
-  }
   await verifyFile(sourceDirectory, captureCleanup, artifactMap(sourceRun), registeredCaptureCleanup !== undefined);
-  const sourcePaths = new Map<string, string>([[captureCleanup.path, capturePath], [runtimeReference.path, runtimePath]]);
-  return { artifacts: [captureCleanup, runtimeReference], sourcePaths };
+  const sourcePaths = new Map<string, string>([[captureCleanup.path, capturePath], [runtimeCleanup.path, runtimePath]]);
+  return { artifacts: [captureCleanup, runtimeCleanup], sourcePaths };
 }
 
 function checkpointCoreMatches(fileCheckpoint: CaptureTileCheckpoint, publishedCheckpoint: CaptureTileCheckpoint): boolean {
@@ -230,7 +243,7 @@ function checkpointFromCaptureSet(set: CaptureSet, tileId: string): CaptureTileC
   return checkpoint;
 }
 
-async function validateCheckpoint(sourceDirectory: string, sourceRun: RunManifest, checkpoint: CaptureTileCheckpoint, expectedTile: CaptureTile, expectedPlan: CapturePlan, outputRoot: string): Promise<ReusableCaptureTile> {
+async function validateCheckpoint(sourceDirectory: string, sourceRun: RunManifest, checkpoint: CaptureTileCheckpoint, expectedTile: CaptureTile, expectedPlan: CapturePlan): Promise<ReusableCaptureTile> {
   if (checkpoint.tileId !== expectedTile.id) throw new Error(`Cache checkpoint has mismatched tile ${checkpoint.tileId}.`);
   const records = artifactMap(sourceRun);
   for (const reference of artifactReferences(checkpoint.artifacts)) await verifyFile(sourceDirectory, reference, records, true);
@@ -257,7 +270,7 @@ async function validateCheckpoint(sourceDirectory: string, sourceRun: RunManifes
     Assert(StreamCleanupSchema, streamValue);
     if (streamValue.ownerToken !== checkpoint.origin.ownerToken || streamValue.key !== readinessValue.streamKey || streamValue.sceneHandle !== readinessValue.sceneHandle || streamValue.remainingOwnedRoots !== 0 || streamValue.errors.length !== 0) throw new Error("Cache stream cleanup receipt is not clean.");
   }
-  const cleanup = await validateNativeCleanup(sourceDirectory, sourceRun, checkpoint, outputRoot, responseValue.resourcePrefix);
+  const cleanup = await validateNativeCleanup(sourceDirectory, sourceRun, checkpoint, responseValue.resourcePrefix);
   return { sourceRun, sourceDirectory, checkpoint, cleanupArtifacts: cleanup.artifacts, cleanupSourcePaths: cleanup.sourcePaths };
 }
 
@@ -269,7 +282,7 @@ function setMatchesPlan(set: CaptureSet, buildId: string, plan: CapturePlan): bo
     && set.tiles.length === expectedTiles.size && new Set(set.tiles.map(tile => tile.id)).size === expectedTiles.size && set.tiles.every(tile => expectedTiles.has(tile.id));
 }
 
-async function candidateCheckpoint(entry: { directory: string; manifest: RunManifest }, tile: CaptureTile, plan: CapturePlan, buildId: string, outputRoot: string, selectedSuccess: boolean, expectedKey: string): Promise<ReusableCaptureTile> {
+async function candidateCheckpoint(entry: { directory: string; manifest: RunManifest }, tile: CaptureTile, plan: CapturePlan, buildId: string, selectedSuccess: boolean, expectedKey: string): Promise<ReusableCaptureTile> {
   const checkpointReference = entry.manifest.artifacts.find(artifact => artifact.path === `tiles/${tile.id}.checkpoint.json`);
   if (selectedSuccess) {
     const setReference = entry.manifest.artifacts.find(artifact => artifact.path === "capture-set.json");
@@ -285,14 +298,14 @@ async function candidateCheckpoint(entry: { directory: string; manifest: RunMani
     const checkpointValue = await readCaptureArtifactJson(entry.directory, checkpointReference) as CaptureTileCheckpoint;
     Assert(CaptureTileCheckpointSchema, checkpointValue);
     if (!checkpointCoreMatches(checkpointValue, checkpoint)) throw new Error("Published capture set disagrees with its tile checkpoint.");
-    return validateCheckpoint(entry.directory, entry.manifest, checkpoint, tile, plan, outputRoot);
+    return validateCheckpoint(entry.directory, entry.manifest, checkpoint, tile, plan);
   }
   if (checkpointReference === undefined) throw new Error("Interrupted capture run has no tile checkpoint.");
   await verifyFile(entry.directory, checkpointReference, artifactMap(entry.manifest), true);
   const checkpointValue = await readCaptureArtifactJson(entry.directory, checkpointReference) as CaptureTileCheckpoint;
   Assert(CaptureTileCheckpointSchema, checkpointValue);
   if (checkpointValue.compatibilityKey !== expectedKey) throw new Error("Capture tile inputs have changed.");
-  return validateCheckpoint(entry.directory, entry.manifest, checkpointValue, tile, plan, outputRoot);
+  return validateCheckpoint(entry.directory, entry.manifest, checkpointValue, tile, plan);
 }
 
 export async function findReusableTiles(context: CaptureCacheContext): Promise<Map<string, ReusableCaptureTile>> {
@@ -309,18 +322,25 @@ export async function findReusableTiles(context: CaptureCacheContext): Promise<M
     return leftPriority - rightPriority || right.manifest.timestamps.updatedAt.localeCompare(left.manifest.timestamps.updatedAt);
   });
   const reusable = new Map<string, ReusableCaptureTile>();
+  const reportedRejections = new Set<string>();
   for (const tile of context.plan.tiles) {
     const expectedKey = context.compatibility.get(tile.id);
     if (expectedKey === undefined) continue;
     for (const entry of ordered) {
       if (entry.manifest.runId === context.currentRunId) continue;
       try {
-        const candidate = await candidateCheckpoint(entry, tile, context.plan, context.buildId, context.outputRoot, entry.manifest.status === "succeeded", expectedKey);
+        const candidate = await candidateCheckpoint(entry, tile, context.plan, context.buildId, entry.manifest.status === "succeeded", expectedKey);
         if (candidate.checkpoint.compatibilityKey !== expectedKey) continue;
         reusable.set(tile.id, candidate);
         break;
-      } catch {
+      } catch (error) {
         // A corrupt or incomplete candidate is rejected. The next candidate may still be valid.
+        const reason = error instanceof Error ? error.message : String(error);
+        const rejection = `${entry.manifest.runId}: ${reason}`;
+        if (!reportedRejections.has(rejection)) {
+          reportedRejections.add(rejection);
+          console.warn(`Capture cache candidate rejected: ${rejection}`);
+        }
       }
     }
   }

@@ -100,6 +100,22 @@ export const CaptureCleanupSchema = Type.Object({
   remainingObjects: Type.Literal(0), errors: Type.Array(text, { maxItems: 0 }),
 });
 
+const sweepArtifactReference = Type.Object({ path: text, bytes: count, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) });
+export const CaptureSweepSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.capture-sweep.v1"),
+  runId: text,
+  ownerToken: text,
+  finalScene: Type.Object({ nativeId: count, path: text }),
+  plans: Type.Array(Type.Object({
+    runId: text, manifestPath: text, manifestSha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
+    sceneNativeId: count, scenePath: text, mapSpaceId: text,
+  }), { minItems: 1 }),
+  sceneTransitions: Type.Array(sweepArtifactReference, { minItems: 1 }),
+  runtimeCleanup: sweepArtifactReference,
+  completed: Type.Literal(true),
+});
+export type CaptureSweep = Static<typeof CaptureSweepSchema>;
+
 const geometryBounds = Type.Object({ center: vector, size: vector });
 const queryCounts = Type.Object({ all: count, scene: count, foreign: count });
 const optionalId = Type.Union([integer, Type.Null()]);
