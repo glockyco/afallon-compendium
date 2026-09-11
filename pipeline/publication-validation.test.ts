@@ -1,13 +1,8 @@
 import { expect, test } from "bun:test";
-import sharp from "sharp";
 import { validatePublication } from "./publication-validation";
 import type { PublicationData } from "./public-contracts";
 
 const frame = { origin: { x: 0, y: 0 }, xAxis: { x: 1, y: 0 }, yAxis: { x: 0, y: 1 } };
-
-async function image(pixel: [number, number, number, number]): Promise<Uint8Array> {
-  return sharp(Buffer.from(pixel), { raw: { width: 1, height: 1, channels: 4 } }).png().toBuffer();
-}
 
 function publication(): PublicationData {
   return {
@@ -25,13 +20,9 @@ function publication(): PublicationData {
   };
 }
 
-test("published placements retain height and reject blank finest pixels", async () => {
+test("published placements retain height and coincident identities", () => {
   const data = publication();
-  const visible = await image([255, 255, 255, 255]);
-  await expect(validatePublication(data, new Map([["imagery/pixel.png", visible]]))).resolves.toBe(data);
+  validatePublication(data);
   expect(data.placements.map((placement) => placement.placementId)).toEqual(["stacked-lower", "stacked-upper"]);
   expect(data.placements.map((placement) => placement.height)).toEqual([17.25, 83.5]);
-
-  const blank = await image([0, 0, 0, 0]);
-  await expect(validatePublication(data, new Map([["imagery/pixel.png", blank]]))).rejects.toThrow("blank finest imagery");
 });

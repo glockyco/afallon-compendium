@@ -21,6 +21,7 @@ test("every registered marker reaches the rendered icon layer and atlas", () => 
     placementId: `placement-${category}`,
     mapSpaceId: "fixture-map",
     position: [index, index],
+    height: 0,
     label: markerRegistry[category].label,
     categories: [category],
     entityKeys: [],

@@ -631,7 +631,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const coverageMessages = plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage."] : [];
   if (layout.unplacedMapSpaceIds.length > 0) coverageMessages.push(`Unplaced map spaces: ${layout.unplacedMapSpaceIds.join(", ")}.`);
   const data: PublicationData = { schemaVersion: "compendium.publication.v7", buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: coverageMessages }, world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: layout.offsets, unplacedMapSpaceIds: layout.unplacedMapSpaceIds }, maps: publicMaps, placements, entities: publicEntities, itemSources, tileLayers, illustrations, guide };
-  await validatePublication(data, assetBytes);
+  validatePublication(data);
   const inputHashes: Record<string, string> = { plan: createHash("sha256").update(planBytes).digest("hex"), normalized: plan.normalized.sha256, worldOffsets: plan.worldOffsets.sha256 };
   for (const [index, reference] of plan.pyramids.entries()) inputHashes[`pyramid:${index}`] = reference.sha256;
   for (const [index, reference] of plan.illustrations.entries()) inputHashes[`illustration:${index}`] = reference.sha256;
