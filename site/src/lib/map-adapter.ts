@@ -6,7 +6,6 @@ import {
   type PickingInfo,
 } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
-import { Matrix4 } from "@math.gl/core";
 import { createIconAtlas, type IconAtlasResult } from "./map/icon-atlas";
 import { MARKER_LAYER_ID, markerFor, resolveMarker, type MarkerId } from "./map/marker-registry";
 import { WorldDragController, type WorldOffsetOverrides, worldOffsetDelta } from "./map/world-layout";
@@ -53,12 +52,9 @@ type TileRequest = {
   signal?: AbortSignal;
 };
 
-type TilePayload = {
-  resourceKey: string;
+type LoadedTile = {
   tile: PublicTile;
   image: ImageBitmap;
-  byteLength: number;
-  closed: boolean;
 };
 
 export type MarkerRecord = {
@@ -107,8 +103,6 @@ type ViewInput = {
 };
 
 const VIEW_ID = "map";
-const MAX_TILE_CACHE = 128;
-const MAX_TILE_CACHE_BYTES = 64 * 1024 * 1024;
 
 function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -152,34 +146,6 @@ function translateBounds(bounds: BitmapBounds, x: number, y: number): BitmapBoun
   return bounds.map(([pointX, pointY]) => [pointX + x, pointY + y] as Point) as BitmapBounds;
 }
 
-/**
- * TileLayer's non-geospatial indexing has a tileSize square at z=0 and halves
- * each tile's world span for each higher z. The public pyramid uses the same
- * z order (coarsest zero), while its map coordinates are finest-pixel units.
- * Scaling the model by 2**finestLevel therefore maps every public level to its
- * affine without changing or negating Y independently.
- */
-function coarsestModelMatrix(affine: PublicAffine, finestLevel: number): Matrix4 {
-  const scale = 2 ** finestLevel;
-  return new Matrix4([
-    affine.xAxis.x * scale,
-    affine.xAxis.y * scale,
-    0,
-    0,
-    affine.yAxis.x * scale,
-    affine.yAxis.y * scale,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-    affine.origin.x,
-    affine.origin.y,
-    0,
-    1,
-  ]);
-}
 
 function normalizeView(view: MapViewState | ViewInput | undefined, fallback: MapViewState): MapViewState {
   const target = view?.target;
@@ -403,9 +369,7 @@ export async function createMapAdapter(
   let renderMarkers: readonly MarkerRecord[] = [];
   let imageryLayers: Layer[] = [];
   let imageryKey = "";
-  let imageryResourceNamespace: string | null = null;
   let layers: Layer[] = [];
-  const tileResources = new Map<string, TilePayload>();
   const iconAtlas = await createIconAtlas();
 
   const report = (message: string): void => {
@@ -422,97 +386,65 @@ export async function createMapAdapter(
     return index.get(`${z}/${x}/${y}`) || null;
   };
 
-  const releaseTilePayload = (payload: TilePayload): void => {
-    if (payload.closed) return;
-    const existing = tileResources.get(payload.resourceKey);
-    if (existing === payload) tileResources.delete(payload.resourceKey);
-    payload.closed = true;
-    payload.image.close();
+  // A tile is loaded when its pixels are ready, not before. deck.gl drops the parent tile
+  // the moment this promise resolves, so resolving with anything less than the decoded
+  // image shows a black square until the bytes arrive. The bitmap is never closed here:
+  // deck.gl's tile cache owns its lifetime, so a tile scrolled back into view is drawn
+  // from cache instead of fetched and decoded again.
+  // An authoring drag moves a map's imagery by whole coarsest-level tiles, the same rule
+  // publication applies to persisted offsets. Only a shift by the coarsest tile moves every
+  // level by whole tiles and leaves each 2x2 parent made of the same children, so the
+  // pyramid stays on the global lattice deck.gl indexes: tile (x, y) at zoom z covers
+  // [x * t, y * t, (x + 1) * t, (y + 1) * t] world units with t = tileSize / 2 ** z.
+  const latticeOffset = (tileLayer: PublicTileLayer, delta: { worldX: number; worldY: number }): { tiles: { x: number; y: number }; world: { x: number; y: number } } => {
+    const coarsest = tileLayer.tileSize / 2 ** tileLayer.minZoom;
+    const tiles = { x: Math.round(delta.worldX / coarsest), y: Math.round(delta.worldY / coarsest) };
+    return { tiles, world: { x: tiles.x * coarsest, y: tiles.y * coarsest } };
   };
 
-  const releaseTileNamespace = (namespace: string): void => {
-    for (const payload of tileResources.values()) {
-      if (payload.resourceKey.startsWith(`${namespace}:`)) releaseTilePayload(payload);
-    }
-  };
-
-  const fetchTile = async (tileLayer: PublicTileLayer, namespace: string, props: TileRequest): Promise<TilePayload | null> => {
-    const {index, signal} = props;
-    const tile = getTile(tileLayer, index.z, index.x, index.y);
-    if (!tile || tile.state === "empty" || signal?.aborted) return null;
-    const key = `${namespace}:${tile.z}/${tile.x}/${tile.y}`;
-    const cached = tileResources.get(key);
-    if (cached) return cached;
-    const response = await fetch(tile.url, signal ? {signal} : undefined);
-    if (!response.ok) throw new Error(`Tile ${key} failed to load (${response.status} ${response.statusText})`);
-    const bitmap = await createImageBitmap(await response.blob());
-    if (destroyed || (imageryResourceNamespace !== null && !namespace.startsWith(imageryResourceNamespace)) || signal?.aborted) {
-      bitmap.close();
-      return null;
-    }
-    if (bitmap.width !== tile.width || bitmap.height !== tile.height) {
-      bitmap.close();
-      throw new Error(`Tile ${key} dimensions ${bitmap.width}x${bitmap.height} do not match publication ${tile.width}x${tile.height}`);
-    }
-    const payload: TilePayload = {
-      resourceKey: key,
-      tile,
-      image: bitmap,
-      byteLength: bitmap.width * bitmap.height * 4,
-      closed: false,
-    };
-    const prior = tileResources.get(key);
-    if (prior) releaseTilePayload(prior);
-    tileResources.set(key, payload);
-    return payload;
+  const loadTile = async (tileLayer: PublicTileLayer, offset: { x: number; y: number }, props: TileRequest): Promise<LoadedTile | null> => {
+    // The offset counts coarsest tiles; at zoom z each of those is 2 ** (z - minZoom) tiles.
+    const step = 2 ** (props.index.z - tileLayer.minZoom);
+    const tile = getTile(tileLayer, props.index.z, props.index.x - offset.x * step, props.index.y - offset.y * step);
+    if (!tile || tile.state === "empty") return null;
+    const response = await fetch(tile.url, props.signal ? {signal: props.signal} : undefined);
+    if (!response.ok) throw new Error(`Tile ${tile.z}/${tile.x}/${tile.y} failed to load (${response.status} ${response.statusText})`);
+    // A tile is loaded when its pixels are ready, not before. deck.gl drops the parent tile
+    // the moment this promise resolves, so resolving with anything less than the decoded
+    // image shows a black square until the bytes arrive. The bitmap is never closed here:
+    // deck.gl's tile cache owns its lifetime, so a tile scrolled back into view is drawn
+    // from cache instead of fetched and decoded again.
+    const image = await createImageBitmap(await response.blob());
+    return {tile, image};
   };
 
   const createImagery = (next: MapAdapterUpdate, tileLayersForView: PublicTileLayer[], illustration: PublicIllustration | null): Layer[] => {
     if (tileLayersForView.length > 0) {
-      const keys = tileLayersForView.map((tileLayer) => {
-        const delta = mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets);
-        return `${tileLayer.id}:${tileLayer.mapSpaceId}:${tileLayer.finestLevel}:${tileLayer.width}:${tileLayer.height}:${delta.worldX}:${delta.worldY}`;
-      });
-      const key = `tiles:${next.data.buildId}:${keys.join("|")}`;
+      const placed = tileLayersForView.map((tileLayer) => ({ tileLayer, offset: latticeOffset(tileLayer, mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets)) }));
+      const key = `tiles:${next.data.buildId}:${placed.map(({ tileLayer, offset }) => `${tileLayer.id}:${offset.tiles.x}:${offset.tiles.y}`).join("|")}`;
       if (imageryLayers.length === tileLayersForView.length && imageryKey === key) return imageryLayers;
-      if (imageryResourceNamespace) releaseTileNamespace(imageryResourceNamespace);
       imageryKey = key;
-      imageryResourceNamespace = key;
-      imageryLayers = tileLayersForView.map((tileLayer, layerIndex) => {
-        const delta = mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets);
-        const affine = { ...tileLayer.mapFromPixelEdge, origin: { x: tileLayer.mapFromPixelEdge.origin.x + delta.worldX, y: tileLayer.mapFromPixelEdge.origin.y + delta.worldY } };
-        const coarseScale = 2 ** tileLayer.finestLevel;
-        const coarseWidth = Math.ceil(tileLayer.width / coarseScale);
-        const coarseHeight = Math.ceil(tileLayer.height / coarseScale);
-        const layerKey = `${key}:${layerIndex}`;
-        return new TileLayer<TilePayload | null>({
+      imageryLayers = placed.map(({ tileLayer, offset }) => {
+        const [minX, minY, maxX, maxY] = tileLayer.extent;
+        return new TileLayer<LoadedTile | null>({
           id: `map-imagery-${tileLayer.mapSpaceId}`,
           data: null,
           tileSize: tileLayer.tileSize,
-          minZoom: 0,
-          maxZoom: tileLayer.finestLevel,
-          zoomOffset: Math.ceil(Math.log2(Math.max(Math.hypot(tileLayer.mapFromPixelEdge.xAxis.x, tileLayer.mapFromPixelEdge.xAxis.y), Math.hypot(tileLayer.mapFromPixelEdge.yAxis.x, tileLayer.mapFromPixelEdge.yAxis.y)) * coarseScale * (globalThis.devicePixelRatio || 1))),
-          extent: [0, 0, coarseWidth, coarseHeight],
-          modelMatrix: coarsestModelMatrix(affine, tileLayer.finestLevel),
-          refinementStrategy: "never",
-          maxCacheSize: MAX_TILE_CACHE,
-          maxCacheByteSize: MAX_TILE_CACHE_BYTES,
-          getTileData: props => fetchTile(tileLayer, layerKey, props),
+          minZoom: tileLayer.minZoom,
+          maxZoom: tileLayer.maxZoom,
+          extent: [minX + offset.world.x, minY + offset.world.y, maxX + offset.world.x, maxY + offset.world.y],
+          getTileData: props => loadTile(tileLayer, offset.tiles, props),
           renderSubLayers: props => {
-            const payload = props.data;
-            if (!payload) return null;
+            if (!props.data) return null;
+            const [[west, south], [east, north]] = props.tile.boundingBox as [[number, number], [number, number]];
             return new BitmapLayer({
               id: `${props.id}-bitmap`,
               data: null as never,
-              image: payload.image,
-              bounds: bitmapBounds({ ...payload.tile.mapFromPixelEdge, origin: { x: payload.tile.mapFromPixelEdge.origin.x + delta.worldX, y: payload.tile.mapFromPixelEdge.origin.y + delta.worldY } }, payload.tile.width, payload.tile.height),
+              image: props.data.image,
+              bounds: [west, south, east, north],
               coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
               pickable: false,
             });
-          },
-          onTileUnload: tile => {
-            const payload = tile.content as TilePayload | null;
-            if (payload) releaseTilePayload(payload);
           },
           onTileError: (error, tile) => {
             if (error instanceof Error && error.name === "AbortError") return;
@@ -526,8 +458,6 @@ export async function createMapAdapter(
     if (illustration) {
       const key = `illustration:${next.data.buildId}:${illustration.id}:${illustration.registration}:${illustration.url}`;
       if (imageryLayers.length === 1 && imageryKey === key) return imageryLayers;
-      if (imageryResourceNamespace) releaseTileNamespace(imageryResourceNamespace);
-      imageryResourceNamespace = null;
       imageryKey = key;
       const delta = mapOffsetDelta(next.data, illustration.mapSpaceId, next.worldOffsets);
       const localBounds = illustration.mapFromPixelEdge
@@ -543,8 +473,6 @@ export async function createMapAdapter(
       })];
       return imageryLayers;
     }
-    if (imageryResourceNamespace) releaseTileNamespace(imageryResourceNamespace);
-    imageryResourceNamespace = null;
     imageryLayers = [];
     imageryKey = "";
     return imageryLayers;
@@ -569,8 +497,7 @@ export async function createMapAdapter(
       baseMarkers = buildMarkers(visiblePlacements, next.data, next.worldOffsets);
       baseAreas = buildAreas(visiblePlacements, next.data, next.worldOffsets);
     }
-    const markerViewKey = orientationOnly ? "hidden" : `${Math.round(view.zoom * 1000)}`;
-    const nextGeometryKey = [next.data.buildId, next.layerId, layerKind, nextPlacementKey, offsetKey, next.selectedId || "", hoveredId || "", markerViewKey, next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections"].join("\u001e");
+    const nextGeometryKey = [next.data.buildId, next.layerId, layerKind, nextPlacementKey, offsetKey, next.selectedId || "", hoveredId || "", orientationOnly ? "hidden" : "markers", next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections"].join("\u001e");
     if (nextGeometryKey === geometryKey) return;
     geometryKey = nextGeometryKey;
 
@@ -578,6 +505,22 @@ export async function createMapAdapter(
     const visibleMarkers = next.showConnections || next.authoring ? baseMarkers : baseMarkers.filter((marker) => !marker.isTravel);
     renderMarkers = orientationOnly ? [] : groupCoincidentMarkers(visibleMarkers);
     const markerByPlacement = new Map(baseMarkers.map((marker) => [marker.placementId, marker]));
+    // Ground that a map space declares but no capture has photographed yet must read as
+    // absent imagery, not as the void outside every map. Without this fill, a tile still
+    // loading and a tile that will never exist look identical.
+    const backgroundLayer = orientationOnly ? null : new PolygonLayer<WorldMapBounds>({
+      id: "map-space-background",
+      data: next.data.maps.map((map) => {
+        const delta = mapOffsetDelta(next.data, map.mapSpaceId, next.worldOffsets);
+        return { mapSpaceId: map.mapSpaceId, polygon: [[map.bounds.min.x + delta.worldX, map.bounds.min.y + delta.worldY], [map.bounds.min.x + delta.worldX, map.bounds.max.y + delta.worldY], [map.bounds.max.x + delta.worldX, map.bounds.max.y + delta.worldY], [map.bounds.max.x + delta.worldX, map.bounds.min.y + delta.worldY]] };
+      }),
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: false,
+      stroked: false,
+      filled: true,
+      getPolygon: (map) => map.polygon,
+      getFillColor: [46, 48, 54, 255],
+    });
     const boundsLayer = orientationOnly ? null : new PolygonLayer<WorldMapBounds>({
       id: "world-map-bounds",
       data: next.data.maps.map((map) => {
@@ -699,7 +642,11 @@ export async function createMapAdapter(
 
   const deck: Deck<OrthographicView> = new Deck<OrthographicView>({
     canvas,
-    views: new OrthographicView({id: VIEW_ID, flipY: false, controller: true}),
+    views: new OrthographicView({
+      id: VIEW_ID,
+      flipY: false,
+      controller: {inertia: 300, scrollZoom: {smooth: true}},
+    }),
     viewState: activeView,
     layers: [],
     onViewStateChange: params => {
@@ -771,8 +718,6 @@ export async function createMapAdapter(
     resizeObserver = null;
     if (typeof window !== "undefined") window.removeEventListener("resize", resize);
     deck.finalize();
-    for (const payload of [...tileResources.values()]) releaseTilePayload(payload);
-    tileResources.clear();
     layers = [];
     imageryLayers = [];
     current = null;

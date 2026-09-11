@@ -24,7 +24,7 @@
   import CategoryRow from './map/CategoryRow.svelte';
   import { markerGlyphSvg } from './map/icon-atlas';
   import { downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
-  import type { PublicEntity, PublicItemSource, PublicPlacement, PublicDetailSection, PublicationData } from '../../../pipeline/public-contracts';
+  import { PUBLICATION_SCHEMA_VERSION, type EntityDetailsDocument, type ItemSourcesDocument, type PublicEntity, type PublicEntitySummary, type PublicItemSource, type PublicItemSummary, type PublicPlacement, type PublicDetailSection, type PublicationData } from '../../../pipeline/public-contracts';
 
   type Adapter = {
     update(next: MapAdapterUpdate): void;
@@ -40,8 +40,8 @@
 
 
   type SearchResult = { key: string; name: string; rank: number } & (
-    | { kind: 'item'; item: PublicItemSource }
-    | { kind: 'entity'; entity: PublicEntity }
+    | { kind: 'item'; item: PublicItemSummary }
+    | { kind: 'entity'; entity: PublicEntitySummary }
     | { kind: 'placement'; placement: PublicPlacement }
   );
   const searchKindOrder = { item: 0, placement: 1, entity: 2 };
@@ -67,6 +67,12 @@
   let detailsPanel: HTMLElement;
   let searchInput: HTMLInputElement;
   let publication: PublicationData | null = null;
+  let publicationUrl = '';
+  let entityDetails = new Map<string, PublicEntity>();
+  let itemDetails = new Map<string, PublicItemSource>();
+  let detailRequests = new Map<string, Promise<void>>();
+  let detailLoading = false;
+  let detailError = '';
   let adapter: Adapter | null = null;
   let loading = true;
   let loadError = '';
@@ -99,22 +105,26 @@
   $: currentLayer = layerOptions.find((layer) => layer.id === layerId) ?? null;
   $: orientationOnly = currentLayer?.orientationOnly ?? false;
   $: allMapPlacements = uniquePlacements(publication?.placements ?? []);
-  $: itemContext = findItem(publication, itemKey);
+  $: entityIndexByKey = new Map(publication?.entityIndex.map((entity) => [entity.entityKey, entity]) ?? []);
+  $: itemIndexByKey = new Map(publication?.itemIndex.map((item) => [item.itemKey, item]) ?? []);
+  $: itemContext = itemKey ? itemDetails.get(itemKey) ?? null : null;
   $: sourceSearchEntries = (itemContext?.sources ?? []).map((source) => ({ source, text: [source.label, source.kind, sectionText(source.sections)].join(' ').toLocaleLowerCase() }));
   $: sourceNeedle = itemSourceQuery.trim().toLocaleLowerCase();
   $: filteredItemSources = sourceSearchEntries.filter((entry) => !sourceNeedle || entry.text.includes(sourceNeedle)).map((entry) => entry.source);
   $: itemPlacementIds = new Set(itemContext?.sources.flatMap((source) => source.placementIds) ?? []);
-  $: entityByKey = new Map(publication?.entities.map((entity) => [entity.entityKey, entity]) ?? []);
+  $: entityByKey = entityDetails;
+  $: selectedEntitySummary = selectedEntityKey ? entityIndexByKey.get(selectedEntityKey) ?? null : null;
   $: selectedEntity = selectedEntityKey ? entityByKey.get(selectedEntityKey) ?? null : null;
   $: selectedItemEntity = itemKey ? entityByKey.get(itemKey) ?? null : null;
-  $: entitySearchEntries = (publication?.entities ?? []).filter((entity) => entity.kind !== 'items').map((entity) => ({ entity, text: [entity.name, entity.description ?? ''].join(' ').toLocaleLowerCase() }));
-  $: itemSearchEntries = (publication?.itemSources ?? []).map((item) => ({ item, text: [entityByKey.get(item.itemKey)?.name ?? '', ...item.sources.flatMap((source) => [source.label, source.kind, sectionText(source.sections)])].join(' ').toLocaleLowerCase() }));
-  $: placementSearchText = new Map((publication?.placements ?? []).map((placement) => [placement.placementId, [placement.label, ...placement.categories.map((category) => markerFor(category).label), sectionText(placement.sections), ...placement.entityKeys.flatMap((key) => { const entity = entityByKey.get(key); return entity ? [entity.name, entity.description ?? ''] : []; })].join(' ').toLocaleLowerCase()]));
+  $: entitySearchEntries = (publication?.entityIndex ?? []).filter((entity) => entity.kind !== 'items').map((entity) => ({ entity, text: [entity.name, entity.description ?? ''].join(' ').toLocaleLowerCase() }));
+  $: itemSearchEntries = (publication?.itemIndex ?? []).map((item) => ({ item, text: [item.name, ...item.sourceNames, ...item.sourceKinds].join(' ').toLocaleLowerCase() }));
+  $: placementSearchText = new Map((publication?.placements ?? []).map((placement) => [placement.placementId, placement.searchText.toLocaleLowerCase()]));
   $: searchNeedle = query.trim().toLocaleLowerCase();
   $: matchingEntities = searchNeedle ? entitySearchEntries.filter((entry) => entry.text.includes(searchNeedle)).map((entry) => entry.entity) : [];
   $: matchingItems = searchNeedle ? itemSearchEntries.filter((entry) => entry.text.includes(searchNeedle)).map((entry) => entry.item) : [];
-  $: querySourcePlacementIds = new Set(matchingItems.flatMap((item) => item.sources.flatMap((source) => source.placementIds)));
-  $: matchingPlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && (categories.length === 0 || categories.some((category) => placement.categories.includes(category))) && levelMatches(placement) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId)));
+  $: querySourcePlacementIds = new Set(matchingItems.flatMap((item) => searchIndexes.placementsByItemKey.get(item.itemKey)?.map((placement) => placement.placementId) ?? []));
+  $: queryEntityPlacementIds = new Set(matchingEntities.flatMap((entity) => searchIndexes.placementsByEntityKey.get(entity.entityKey)?.map((placement) => placement.placementId) ?? []));
+  $: matchingPlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && (categories.length === 0 || categories.some((category) => placement.categories.includes(category))) && levelMatches(placement) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId) || queryEntityPlacementIds.has(placement.placementId)));
   $: categoryCounts = getCategoryCounts(matchingPlacements);
   $: categoryFilters = MARKER_IDS.filter((category) => categoryCounts[category] > 0 || markerFor(category).defaultVisible);
   $: markerSections = MARKER_SECTION_ORDER.map((section) => ({
@@ -126,10 +136,14 @@
   $: selectedPlacement = publication?.placements.find((placement) => placement.placementId === selectedId) ?? null;
   $: hoveredPlacement = publication?.placements.find((placement) => placement.placementId === hoveredId) ?? null;
   $: selectedEntities = selectedPlacement ? selectedPlacement.entityKeys.map((key) => entityByKey.get(key)).filter((entity): entity is PublicEntity => Boolean(entity)) : [];
+  $: selectedPlacementDetails = selectedPlacement ? [
+    ...selectedEntities.flatMap((entity) => entity.sections),
+    ...selectedPlacement.itemKeys.flatMap((key) => (itemDetails.get(key)?.sources ?? []).flatMap((source) => source.sections)),
+  ] : [];
   $: resultPlacements = viewportBounds ? viewportPlacements : matchingPlacements;
-  $: rankedResults = rankResults(searchNeedle, matchingItems, matchingEntities, resultPlacements, entityByKey);
+  $: rankedResults = rankResults(searchNeedle, matchingItems, matchingEntities, resultPlacements, entityIndexByKey);
   $: displayedResults = rankedResults.slice(0, RESULT_LIMIT);
-  $: filteredDetail = selectedPlacement ? filteredSections(selectedPlacement.sections, detailQuery) : [];
+  $: filteredDetail = selectedPlacement ? filteredSections(selectedPlacementDetails, detailQuery) : [];
   $: extraSelection = selectedPlacement && !staleSelection && !orientationOnly && !matchingPlacements.some((placement) => placement.placementId === selectedId) ? selectedPlacement : null;
   $: adapterPlacements = extraSelection ? [...matchingPlacements, extraSelection] : matchingPlacements;
 
@@ -157,13 +171,14 @@
     window.addEventListener('popstate', onPopState);
     window.addEventListener('keydown', onKeydown);
     applyUrlState(readMapUrl(window.location.search), false);
-    const publicationUrl = new URL(`${base}/data/publication.json`, window.location.href).toString();
-    fetch(publicationUrl, { signal: metadataRequest.signal })
+    const mapDocumentUrl = new URL(`${base}/data/publication.json`, window.location.href).toString();
+    publicationUrl = mapDocumentUrl;
+    fetch(mapDocumentUrl, { signal: metadataRequest.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`Publication request failed (${response.status})`);
         const json = (await response.json()) as PublicationData;
-        if (json.schemaVersion !== 'compendium.publication.v7') throw new Error('Unsupported publication schema.');
-        return resolvePublicationAssets(json, publicationUrl);
+        if (json.schemaVersion !== PUBLICATION_SCHEMA_VERSION) throw new Error('Unsupported publication schema.');
+        return resolvePublicationAssets(json, mapDocumentUrl);
       })
       .then(async (data) => {
         if (disposed) return;
@@ -171,6 +186,7 @@
         searchIndexes = buildSearchIndexes(data);
         applyUrlState(readMapUrl(window.location.search), false);
         loading = false;
+        void tick().then(() => ensureCurrentSelection());
         await tick();
         if (disposed) return;
         view = readMapUrl(window.location.search).view ?? centerView(publication.world);
@@ -219,6 +235,75 @@
     adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerId, placements: adapterPlacements, selectedId, view, worldOffsets: worldOffsetOverrides, authoring, showConnections });
   }
 
+  async function loadEntityDetailPath(path: string): Promise<void> {
+    const cacheKey = `entity:${path}`;
+    const cached = detailRequests.get(cacheKey);
+    if (cached) return cached;
+    const request = fetch(new URL(path, publicationUrl).toString()).then(async (response) => {
+      if (!response.ok) throw new Error(`Entity detail request failed (${response.status})`);
+      const value = (await response.json()) as EntityDetailsDocument;
+      if (value.schemaVersion !== 'compendium.publication-entity-details.v1' || value.buildId !== publication?.buildId || !Array.isArray(value.entities)) throw new Error('Unsupported entity detail document.');
+      const next = new Map(entityDetails);
+      for (const entity of value.entities) next.set(entity.entityKey, entity);
+      entityDetails = next;
+    });
+    detailRequests.set(cacheKey, request);
+    return request;
+  }
+
+  async function loadItemDetailPath(path: string): Promise<void> {
+    const cacheKey = `item:${path}`;
+    const cached = detailRequests.get(cacheKey);
+    if (cached) return cached;
+    const request = fetch(new URL(path, publicationUrl).toString()).then(async (response) => {
+      if (!response.ok) throw new Error(`Item-source detail request failed (${response.status})`);
+      const value = (await response.json()) as ItemSourcesDocument;
+      if (value.schemaVersion !== 'compendium.publication-item-sources.v1' || value.buildId !== publication?.buildId || !Array.isArray(value.itemSources)) throw new Error('Unsupported item-source detail document.');
+      const next = new Map(itemDetails);
+      for (const item of value.itemSources) next.set(item.itemKey, item);
+      itemDetails = next;
+    });
+    detailRequests.set(cacheKey, request);
+    return request;
+  }
+
+  async function ensureCurrentSelection(): Promise<void> {
+    if (!publication) return;
+    const entityPaths = new Set<string>();
+    const itemPaths = new Set<string>();
+    if (selectedPlacement) {
+      for (const key of selectedPlacement.entityKeys) {
+        const summary = entityIndexByKey.get(key);
+        if (summary) entityPaths.add(summary.detailPath);
+      }
+      for (const key of selectedPlacement.itemKeys) {
+        const summary = itemIndexByKey.get(key);
+        if (summary) itemPaths.add(summary.detailPath);
+      }
+    }
+    if (selectedEntityKey) {
+      const summary = entityIndexByKey.get(selectedEntityKey);
+      if (summary) entityPaths.add(summary.detailPath);
+    }
+    if (itemKey) {
+      const item = itemIndexByKey.get(itemKey);
+      if (item) itemPaths.add(item.detailPath);
+      const entity = entityIndexByKey.get(itemKey);
+      if (entity) entityPaths.add(entity.detailPath);
+    }
+    if (entityPaths.size === 0 && itemPaths.size === 0) return;
+    detailLoading = true;
+    detailError = '';
+    try {
+      await Promise.all([...entityPaths].map((path) => loadEntityDetailPath(path)));
+      await Promise.all([...itemPaths].map((path) => loadItemDetailPath(path)));
+    } catch (error: unknown) {
+      detailError = error instanceof Error ? error.message : 'The selected detail could not be loaded.';
+    } finally {
+      detailLoading = false;
+    }
+  }
+
   function centerView(map: PublicationData['world']): MapViewState {
     const x = (map.bounds.min.x + map.bounds.max.x) / 2;
     const y = (map.bounds.min.y + map.bounds.max.y) / 2;
@@ -258,7 +343,7 @@
     return range ? `(lvl.${range.min}-${range.max})` : '';
   }
 
-  function rankResults(needle: string, items: PublicItemSource[], entities: PublicEntity[], placements: PublicPlacement[], names: ReadonlyMap<string, PublicEntity>): SearchResult[] {
+  function rankResults(needle: string, items: PublicItemSummary[], entities: PublicEntitySummary[], placements: PublicPlacement[], names: ReadonlyMap<string, PublicEntitySummary>): SearchResult[] {
     // The atlas is small enough for exact and substring matching; avoid fuzzy ranking that obscures why a result matched.
     const rank = (name: string): number => {
       const text = name.toLocaleLowerCase();
@@ -266,7 +351,7 @@
     };
     const results: SearchResult[] = [];
     for (const item of items) {
-      const name = names.get(item.itemKey)?.name ?? item.itemKey;
+      const name = names.get(item.itemKey)?.name ?? item.name;
       results.push({ kind: 'item', key: item.itemKey, name, rank: rank(name), item });
     }
     for (const entity of entities) results.push({ kind: 'entity', key: entity.entityKey, name: entity.name, rank: rank(entity.name), entity });
@@ -310,17 +395,18 @@
       }
     }
     const placementsByItemKey = new Map<string, PublicPlacement[]>();
-    for (const item of data.itemSources) {
-      const placements = item.sources.flatMap((source) => source.placementIds.map((id) => placementsById.get(id)).filter((placement): placement is PublicPlacement => Boolean(placement)));
-      placementsByItemKey.set(item.itemKey, placements);
+    for (const placement of data.placements) for (const itemKey of placement.itemKeys) {
+      const placements = placementsByItemKey.get(itemKey) ?? [];
+      placements.push(placement);
+      placementsByItemKey.set(itemKey, placements);
     }
     return {
       placementsById,
       placementsByEntityKey,
       placementsByItemKey,
       placementSummaries: new Map(data.placements.map((placement) => [placement.placementId, summarizePlacements([placement], 'interactiveObject')])),
-      entitySummaries: new Map(data.entities.map((entity) => [entity.entityKey, summarizePlacements(placementsByEntityKey.get(entity.entityKey) ?? [], 'npc')])),
-      itemSummaries: new Map(data.itemSources.map((item) => [item.itemKey, summarizePlacements(placementsByItemKey.get(item.itemKey) ?? [], 'container')])),
+      entitySummaries: new Map(data.entityIndex.map((entity) => [entity.entityKey, summarizePlacements(placementsByEntityKey.get(entity.entityKey) ?? [], 'npc')])),
+      itemSummaries: new Map(data.itemIndex.map((item) => [item.itemKey, summarizePlacements(placementsByItemKey.get(item.itemKey) ?? [], 'container')])),
     };
   }
 
@@ -348,12 +434,12 @@
     categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
     levelMinimum = next.levelMinimum;
     levelMaximum = next.levelMaximum;
-    itemKey = next.itemKey && (!publication || publication.itemSources.some((item) => item.itemKey === next.itemKey)) ? next.itemKey : null;
+    itemKey = next.itemKey && (!publication || publication.itemIndex.some((item) => item.itemKey === next.itemKey)) ? next.itemKey : null;
     const selected = next.selectedId && publication ? publication.placements.find((placement) => placement.placementId === next.selectedId) : null;
     if (next.selectedId && publication && !selected) staleSelection = 'This link refers to a location that is not in the loaded publication.';
     else staleSelection = '';
     selectedId = selected?.placementId ?? (publication ? null : next.selectedId);
-    selectedEntityKey = next.entityKey && (!publication || publication.entities.some((entity) => entity.entityKey === next.entityKey)) ? next.entityKey : null;
+    selectedEntityKey = next.entityKey && (!publication || publication.entityIndex.some((entity) => entity.entityKey === next.entityKey)) ? next.entityKey : null;
     if (selectedEntityKey) itemKey = null;
     else if (next.entityKey && publication) staleSelection = `This link refers to an entity that is not in the loaded publication: ${next.entityKey}.`;
     if (next.itemKey && !itemKey && !selectedEntityKey && publication) staleSelection = `This link refers to an item that is not in the loaded publication: ${next.itemKey}.`;
@@ -395,6 +481,7 @@
     view = { target: [placement.position[0], placement.position[1], 0], zoom };
     viewportBounds = null;
     syncUrl('push');
+    void tick().then(() => ensureCurrentSelection());
     void focusDetails();
   }
 
@@ -403,7 +490,7 @@
     detailsPanel?.querySelector<HTMLElement>('h2')?.focus();
   }
 
-  function selectEntity(entity: PublicEntity, origin: HTMLElement | null = null): void {
+  function selectEntity(entity: PublicEntity | PublicEntitySummary, origin: HTMLElement | null = null): void {
     const item = findItem(publication, entity.entityKey);
     if (item) { selectItem(item, origin); return; }
     selectedEntityKey = entity.entityKey;
@@ -413,16 +500,19 @@
     detailQuery = '';
     detailOrigin = origin;
     syncUrl('push');
+    void tick().then(() => ensureCurrentSelection());
     void focusDetails();
   }
 
   function openEntity(key: string, origin: HTMLElement): void {
-    const entity = entityByKey.get(key);
+    const entity = entityIndexByKey.get(key);
     if (entity) selectEntity(entity, origin);
   }
 
-  function selectItem(item: PublicItemSource, origin: HTMLElement | null = null): void {
-    itemKey = item.itemKey;
+  function selectItem(item: PublicItemSummary | PublicItemSource, origin: HTMLElement | null = null): void {
+    const summary = itemIndexByKey.get(item.itemKey);
+    if (!summary) return;
+    itemKey = summary.itemKey;
     selectedEntityKey = null;
     staleSelection = '';
     itemSourceQuery = '';
@@ -430,6 +520,7 @@
     selectedId = null;
     detailOrigin = origin;
     syncUrl('push');
+    void tick().then(() => ensureCurrentSelection());
     void focusDetails();
   }
 
@@ -535,7 +626,7 @@
   {:else if loadError && !publication}
     <main class="state-card error" role="alert"><h1>Atlas unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p></main>
   {:else if publication}
-    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntity || itemContext || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
+    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
       <aside class:collapsed={panelCollapsed} class="control-panel" aria-label="Atlas controls">
         <div class="panel-header">
           {#if !panelCollapsed}<div><strong>Atlas controls</strong><small>⌘/Ctrl+B to toggle</small></div>{/if}
@@ -585,7 +676,7 @@
               {#if result.kind === 'item'}
                 {@const item = result.item}
                 {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{entityByKey.get(item.itemKey)?.name ?? 'Unnamed item'}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{item.name || 'Unnamed item'}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
               {:else if result.kind === 'entity'}
                 {@const entity = result.entity}
                 {@const summary = resultSummary(result)}
@@ -601,19 +692,21 @@
         </section>
       </section>
 
-      {#if selectedPlacement || selectedEntity || itemContext || staleSelection}
+      {#if selectedPlacement || selectedEntityKey || itemKey || staleSelection}
         <aside class="details-panel" bind:this={detailsPanel} aria-label="Selected details">
           <div class="details-header">
             <div>
-              <span class="eyebrow">{itemContext ? 'Item sources' : selectedEntity ? 'Entity details' : 'Selected location'}</span>
-              <h2 tabindex="-1">{itemContext ? selectedItemEntity?.name ?? 'Unnamed item' : selectedEntity?.name ?? selectedPlacement?.label ?? 'Unavailable selection'}</h2>
+              <span class="eyebrow">{itemKey ? 'Item sources' : selectedEntityKey ? 'Entity details' : 'Selected location'}</span>
+              <h2 tabindex="-1">{itemKey ? selectedItemEntity?.name ?? itemIndexByKey.get(itemKey)?.name ?? 'Unnamed item' : selectedEntity?.name ?? selectedEntitySummary?.name ?? selectedPlacement?.label ?? 'Unavailable selection'}</h2>
             </div>
             <button class="close-button" type="button" on:click={closeDetails} aria-label="Close details">Close</button>
           </div>
           {#if staleSelection}
             <div class="stale-warning" role="alert"><strong>Stale selection</strong><p>{staleSelection}</p><button type="button" class="text-button" on:click={closeDetails}>Show available content</button></div>
           {/if}
-          {#if itemContext}
+          {#if detailLoading}<p class="notice">Loading selected details…</p>{/if}
+          {#if detailError}<p class="inline-error" role="alert">{detailError}</p>{/if}
+          {#if itemKey}
             {#if selectedItemEntity}
               {#if selectedItemEntity.description}<p>{selectedItemEntity.description}</p>{/if}
               <details class="entity-block">
@@ -621,6 +714,7 @@
                 <DetailSections sections={selectedItemEntity.sections} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />
               </details>
             {/if}
+            {#if itemContext && itemContext.sections.length > 0}<DetailSections sections={filteredSections(itemContext.sections, itemSourceQuery)} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />{/if}
             <label class="detail-search" for="source-search">Search item sources and conditions<input id="source-search" bind:value={itemSourceQuery} on:input={scheduleQueryUrl} placeholder="Merchant, loot, requirement" /></label>
             {#if selectedPlacement}<p class="notice">Selected source: {selectedPlacement.label}. The selected item remains active.</p>{/if}
             <div class="item-sources">
@@ -635,13 +729,13 @@
                 </article>
               {/each}
             </div>
-          {:else if selectedEntity}
-            {#if selectedEntity.description}<p>{selectedEntity.description}</p>{/if}
+          {:else if selectedEntityKey}
+            {#if selectedEntity?.description ?? selectedEntitySummary?.description}<p>{selectedEntity?.description ?? selectedEntitySummary?.description}</p>{/if}
             <label class="detail-search" for="detail-search">Search this entity's details<input id="detail-search" bind:value={detailQuery} on:input={scheduleQueryUrl} placeholder="Condition, reward, requirement" /></label>
-            {#each selectedEntity.placementIds as placementId}
+            {#each selectedEntity?.placementIds ?? [] as placementId}
               <button type="button" class="source-location" on:click={(event) => selectPlacement(placementId, event.currentTarget)}>Open location details</button>
             {/each}
-            <DetailSections sections={filteredSections(selectedEntity.sections, detailQuery)} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />
+            {#if selectedEntity}<DetailSections sections={filteredSections(selectedEntity.sections, detailQuery)} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />{/if}
           {:else if selectedPlacement}
             <label class="detail-search" for="detail-search">Search this location's details<input id="detail-search" bind:value={detailQuery} on:input={scheduleQueryUrl} placeholder="Condition, reward, requirement" /></label>
             <div class="location-summary">
@@ -652,8 +746,8 @@
               <article class="entity-block"><div class="entity-heading"><h3>{entity.name}</h3></div>{#if entity.description}<p>{entity.description}</p>{/if}<button type="button" class="inline-link" on:click={(event) => selectEntity(entity, event.currentTarget)}>Open entity details</button></article>
             {/each}
             <DetailSections sections={filteredDetail} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />
-            {#if entityLinks(selectedPlacement.sections).length > 0}
-              <div class="linked-locations"><h3>Linked locations</h3>{#each entityLinks(selectedPlacement.sections) as link}<button class="inline-link" type="button" on:click={(event) => selectPlacement(link.placementId, event.currentTarget)}>{link.label}</button>{/each}</div>
+            {#if entityLinks(selectedPlacementDetails).length > 0}
+              <div class="linked-locations"><h3>Linked locations</h3>{#each entityLinks(selectedPlacementDetails) as link}<button class="inline-link" type="button" on:click={(event) => selectPlacement(link.placementId, event.currentTarget)}>{link.label}</button>{/each}</div>
             {/if}
           {/if}
         </aside>
