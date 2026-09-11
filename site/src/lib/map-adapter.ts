@@ -7,6 +7,7 @@ import {
 } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
 import { createIconAtlas, type IconAtlasResult } from "./map/icon-atlas";
+import { MAP_EVENT_RECOGNIZER_OPTIONS } from "./map/interaction";
 import { MARKER_LAYER_ID, markerFor, resolveMarker, type MarkerId } from "./map/marker-registry";
 import { WorldDragController, type WorldOffsetOverrides, worldOffsetDelta } from "./map/world-layout";
 import {
@@ -650,7 +651,10 @@ export async function createMapAdapter(
       getLineWidth: area => area.placementId === next.selectedId ? 4 : hoveredIds.has(area.placementId) ? 3 : 1,
       lineWidthUnits: "pixels",
       updateTriggers: {getFillColor: [next.selectedId, hoveredKey, offsetKey], getLineColor: [next.selectedId], getLineWidth: [next.selectedId, hoveredKey]},
-      onClick: (info: PickingInfo) => { const id = pickedPlacementId(info); if (id) callbacks.onSelect(id); },
+      onClick: (info: PickingInfo) => {
+        const id = pickedPlacementId(info);
+        if (id) callbacks.onSelect(id);
+      },
     });
     const connectionData: TravelConnection[] = [];
     for (const placement of next.placements) {
@@ -696,8 +700,8 @@ export async function createMapAdapter(
     const selectStacked = (placementId: string) => {
       const stack = stacks.find((marker) => marker.members.includes(placementId));
       if (!stack) return callbacks.onSelect(placementId);
-      const current = stack.members.indexOf(next.selectedId ?? "");
-      return callbacks.onSelect(stack.members[(current + 1) % stack.members.length]!);
+      const selectedIndex = stack.members.indexOf(next.selectedId ?? "");
+      callbacks.onSelect(stack.members[(selectedIndex + 1) % stack.members.length]!);
     };
     const markerLayer = orientationOnly ? null : createPlacementIconLayer(renderMarkers, iconAtlas, next.selectedId, null, selectStacked);
     const stackCounts = orientationOnly || stacks.length === 0 ? null : new TextLayer<MarkerRecord>({
@@ -749,6 +753,7 @@ export async function createMapAdapter(
       controller: {inertia: 500},
     }),
     initialViewState: {...activeView, minZoom: -12, maxZoom: 12},
+    eventRecognizerOptions: MAP_EVENT_RECOGNIZER_OPTIONS,
     layers: [],
     onHover: info => handleHover(pickedPlacementId(info)),
     onViewStateChange: params => {
