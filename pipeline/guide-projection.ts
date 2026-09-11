@@ -128,7 +128,7 @@ function guidePhases(gameplay: unknown): PublicGuideAbilityPhase[] | undefined {
   return phases.length > 0 ? phases : undefined;
 }
 
-function guideStats(gameplay: unknown): PublicGuideStat[] | undefined {
+function guideStats(gameplay: unknown, statLabels: ReadonlyMap<number, { label: string; isPercent?: boolean }>): PublicGuideStat[] | undefined {
   const value = record(gameplay);
   if (!value || !Array.isArray(value.guideStats)) return undefined;
   const stats: PublicGuideStat[] = [];
@@ -137,7 +137,8 @@ function guideStats(gameplay: unknown): PublicGuideStat[] | undefined {
     if (!stat) continue;
     const statId = integer(stat.statId);
     const statValue = number(stat.value);
-    if (statId !== null && statValue !== null) stats.push({ statId, value: statValue });
+    const statLabel = statId === null ? undefined : statLabels.get(statId);
+    if (statId !== null && statValue !== null && statLabel) stats.push({ statId, label: statLabel.label, value: statValue, ...(statLabel.isPercent === undefined ? {} : { isPercent: statLabel.isPercent }) });
   }
   return stats.length > 0 ? stats : undefined;
 }
@@ -174,11 +175,11 @@ function guideLoot(entity: EntityDetail, items: ReadonlyMap<string, EntityDetail
   return [...entries.values()];
 }
 
-function guideBoss(entity: EntityDetail, available: ReadonlySet<string>, items: ReadonlyMap<string, EntityDetail>, dungeonKeys: readonly string[]): PublicGuideBoss | null {
+function guideBoss(entity: EntityDetail, available: ReadonlySet<string>, items: ReadonlyMap<string, EntityDetail>, statLabels: ReadonlyMap<number, { label: string; isPercent?: boolean }>, dungeonKeys: readonly string[]): PublicGuideBoss | null {
   const name = entityDisplayName(entity);
   if (!name) return null;
   const abilities = guidePhases(entity.publicData.gameplay);
-  const stats = guideStats(entity.publicData.gameplay);
+  const stats = guideStats(entity.publicData.gameplay, statLabels);
   return {
     bossKey: entity.entityKey,
     label: name,
@@ -197,6 +198,7 @@ function guideDungeon(
   placements: readonly NormalizedPlacement[],
   available: ReadonlySet<string>,
   items: ReadonlyMap<string, EntityDetail>,
+  statLabels: ReadonlyMap<number, { label: string; isPercent?: boolean }>,
 ): PublicGuideDungeon | null {
   const gameplay = record(entity.publicData.gameplay);
   const name = entityDisplayName(entity);
@@ -210,7 +212,7 @@ function guideDungeon(
     if (npcId === null) continue;
     const boss = allEntities.find((candidate) => candidate.kind === "npcs" && candidate.nativeId === npcId);
     if (!boss || bossKeys.includes(boss.entityKey)) continue;
-    const projectedBoss = guideBoss(boss, available, items, [dungeonKey]);
+    const projectedBoss = guideBoss(boss, available, items, statLabels, [dungeonKey]);
     if (!projectedBoss) continue;
     bossKeys.push(boss.entityKey);
     bosses.push(projectedBoss);
@@ -261,9 +263,15 @@ function guideProperty(entity: EntityDetail, sources: readonly NormalizedMapProj
 export function projectAdventureGuide(input: GuideProjectionInput): PublicAdventureGuide {
   const available = publishedIds(input);
   const items = new Map(input.entities.filter((entity) => entity.kind === "items").map((entity) => [entity.entityKey, entity]));
+  const statLabels = new Map(input.entities.filter((entity) => entity.kind === "stats").flatMap((entity) => {
+    const name = entityDisplayName(entity) ?? text(entity.internalName) ?? String(entity.nativeId);
+    const gameplay = record(entity.publicData.gameplay);
+    const isPercent = typeof gameplay?.isPercentStat === "boolean" ? gameplay.isPercentStat : undefined;
+    return [[entity.nativeId, { label: name, ...(isPercent === undefined ? {} : { isPercent }) }] as const];
+  }));
   const dungeons = input.entities
     .filter((entity) => entity.kind === "scenes")
-    .map((entity) => guideDungeon(entity, input.entities, input.placements, available, items))
+    .map((entity) => guideDungeon(entity, input.entities, input.placements, available, items, statLabels))
     .filter((entity): entity is PublicGuideDungeon => entity !== null);
   const bossMap = new Map<string, PublicGuideBoss>();
   for (const dungeon of dungeons) for (const boss of dungeon.bosses) {

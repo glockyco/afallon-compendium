@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { Assert } from "typebox/value";
 import { PublicationDataSchema, type PublicationData, type PublicAffine, type PublicDetailSection } from "./public-contracts";
 
@@ -22,7 +23,7 @@ function unique<T>(rows: readonly T[], key: (row: T) => string, label: string): 
   return values;
 }
 
-export function validatePublication(value: unknown): asserts value is PublicationData {
+export async function validatePublication(value: unknown, assets?: ReadonlyMap<string, Uint8Array>): Promise<PublicationData> {
   Assert(PublicationDataSchema, value);
   const data = value as PublicationData;
   if (data.mode === "preview" && (data.coverage.complete || data.coverage.messages.length === 0)) throw new Error("A preview must disclose incomplete coverage.");
@@ -115,16 +116,36 @@ export function validatePublication(value: unknown): asserts value is Publicatio
       }
     }
   }
+  const decodedTiles = new Map<string, { data: Buffer; width: number; height: number; channels: number }>();
+  const assertMarkerPixel = async (tile: PublicationData["tileLayers"][number]["tiles"][number], point: readonly [number, number], placementId: string): Promise<void> => {
+    if (!assets) return;
+    const encoded = assets.get(tile.url);
+    if (!encoded) throw new Error(`Publication tile bytes are missing: ${tile.url}`);
+    let decoded = decodedTiles.get(tile.url);
+    if (!decoded) {
+      const result = await sharp(encoded).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      decoded = { data: result.data, width: result.info.width, height: result.info.height, channels: result.info.channels };
+      decodedTiles.set(tile.url, decoded);
+    }
+    const x = Math.floor(point[0]), y = Math.floor(point[1]);
+    if (x < 0 || y < 0 || x >= decoded.width || y >= decoded.height) throw new Error(`Publication marker falls outside decoded tile: ${placementId}`);
+    const offset = (y * decoded.width + x) * decoded.channels;
+    let blank = true;
+    for (let channel = 0; channel < decoded.channels; channel++) if (decoded.data[offset + channel] !== 0) { blank = false; break; }
+    if (blank) throw new Error(`Publication placement falls on blank finest imagery: ${placementId}`);
+  };
   for (const placement of placements.values()) {
     if (placement.levelRange && placement.levelRange.max < placement.levelRange.min) throw new Error(`Publication placement has an inverted level range: ${placement.placementId}`);
     scope(placement.mapSpaceId);
     inside(placement.mapSpaceId, placement.position);
     const layer = data.tileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId);
-    if (!layer || !layer.tiles.some(tile => {
+    const markerTile = layer?.tiles.find(tile => {
       if (tile.z !== layer.finestLevel || tile.state === "empty") return false;
       const point = inversePoint(tile.mapFromPixelEdge, placement.position);
       return point[0] >= 0 && point[1] >= 0 && point[0] < tile.width && point[1] < tile.height;
-    })) throw new Error(`Publication placement lacks finest primary imagery: ${placement.placementId}`);
+    });
+    if (!layer || !markerTile) throw new Error(`Publication placement lacks finest primary imagery: ${placement.placementId}`);
+    await assertMarkerPixel(markerTile, inversePoint(markerTile.mapFromPixelEdge, placement.position), placement.placementId);
     for (const key of placement.entityKeys) if (!entities.has(key)) throw new Error(`Publication placement references absent entity: ${key}`);
     for (const polygon of placement.areas) for (const point of polygon) inside(placement.mapSpaceId, point);
     if (placement.travel) {
@@ -149,4 +170,5 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     if ((illustration.registration === "calibrated") !== (illustration.mapFromPixelEdge !== null)) throw new Error("Publication illustration registration contradicts its transform.");
     if (illustration.mapFromPixelEdge) inversePoint(illustration.mapFromPixelEdge, [0, 0]);
   }
+  return data;
 }

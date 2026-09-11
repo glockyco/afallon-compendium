@@ -19,17 +19,17 @@ const canonicalEntry = Type.Object({
   sourceKey: integer, nativeId: integer, name: nullableText, internalName: nullableText,
   description: nullableText, localization: rawObject, icon: rawObject, gameplay: rawObject,
 });
-export const canonicalKinds = ["items", "npcs", "quests", "lootTables", "scenes", "resources", "regions", "properties"] as const;
-const counts = Type.Object({ items: integer, npcs: integer, quests: integer, lootTables: integer, scenes: integer, resources: integer, regions: integer, properties: integer });
+export const canonicalKinds = ["items", "npcs", "quests", "lootTables", "scenes", "resources", "stats", "regions", "properties"] as const;
+const counts = Type.Object({ items: integer, npcs: integer, quests: integer, lootTables: integer, scenes: integer, resources: integer, stats: integer, regions: integer, properties: integer });
 const guideCoverage = Type.Object({ regionsObserved: integer, regionsExported: integer, regionsOmittedReason: text });
 export const CanonicalSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.canonical.v2"),
+  schemaVersion: Type.Literal("compendium.canonical.v3"),
   databaseAvailable: Type.Literal(true),
   localization: Type.Object({ apiAvailable: Type.Literal(true), language: text, loadedEntryCount: integer }),
   sourceTotals: counts, exportedTotals: counts,
   guideCoverage,
   items: Type.Array(canonicalEntry), npcs: Type.Array(canonicalEntry), quests: Type.Array(canonicalEntry),
-  lootTables: Type.Array(canonicalEntry), scenes: Type.Array(canonicalEntry), resources: Type.Array(canonicalEntry),
+  lootTables: Type.Array(canonicalEntry), scenes: Type.Array(canonicalEntry), resources: Type.Array(canonicalEntry), stats: Type.Array(canonicalEntry),
   regions: Type.Array(canonicalEntry), properties: Type.Array(canonicalEntry),
 });
 export type Canonical = Static<typeof CanonicalSchema>;

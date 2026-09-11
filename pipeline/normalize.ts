@@ -188,7 +188,7 @@ function assertBuild(value: unknown, buildId: string, label: string): void {
 function canonicalEntityRows(value: JsonRecord, buildId: string, ref: ArtifactReference): { entities: NormalizedEntity[]; scenes: Array<{ nativeId: number; path: string; name: string | null }> } {
   const entities: NormalizedEntity[] = [];
   const scenes: Array<{ nativeId: number; path: string; name: string | null }> = [];
-  for (const kind of ["items", "npcs", "quests", "lootTables", "scenes", "resources", "regions", "properties"] as const) {
+  for (const kind of ["items", "npcs", "quests", "lootTables", "scenes", "resources", "stats", "regions", "properties"] as const) {
     for (const [index, raw] of array(value[kind]).entries()) {
       const row = record(raw);
       if (!row || !Number.isSafeInteger(row.nativeId)) continue;

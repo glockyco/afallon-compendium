@@ -2,23 +2,16 @@
   import { browser } from '$app/environment';
   import { base } from '$app/paths';
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
   import GuideBossDetails from './GuideBossDetails.svelte';
-  import type {
-    PublicAdventureGuide,
-    PublicEntity,
-    PublicationData,
-  } from '../../../pipeline/public-contracts';
+  import type { PublicEntity } from '../../../pipeline/public-contracts';
+  import type { GuideData } from './guide-load';
 
   export let section: 'all' | 'dungeons' | 'bosses' | 'regions' | 'properties' = 'all';
 
-  let guide: PublicAdventureGuide | null = null;
-  let entities = new Map<string, PublicEntity>();
-  let loading = true;
-  let error = '';
+  $: guide = $page.data.guide as GuideData;
+  $: counts = $page.data.counts as { dungeons: number; bosses: number; regions: number; properties: number };
+  $: entities = new Map<string, PublicEntity>(((($page.data.entities as PublicEntity[]) ?? []).map((entity) => [entity.entityKey, entity] as const)));
   // The selected record follows the URL, so a link within the guide changes the view.
-  // Reading it through the page store keeps it reactive across client navigation, and the
-  // browser guard keeps the query string untouched while the route prerenders.
   $: requestedKey = browser ? $page.url.searchParams.get('id') : null;
 
   $: requestedDungeon = requestedKey ? guide?.dungeons.find((dungeon) => dungeon.dungeonKey === requestedKey) ?? null : null;
@@ -26,29 +19,6 @@
   $: visibleSection = guide && (section === 'all' || (section === 'dungeons' && guide.dungeons.length > 0) || (section === 'bosses' && guide.bosses.length > 0) || (section === 'regions' && guide.regions.length > 0) || (section === 'properties' && guide.properties.length > 0)) ? section : 'all';
   $: selectedDungeon = visibleSection === 'dungeons' && requestedDungeon ? requestedDungeon : null;
   $: selectedBoss = visibleSection === 'bosses' && requestedBoss ? requestedBoss : null;
-
-  onMount(() => {
-    const controller = new AbortController();
-    const publicationUrl = new URL(`${base}/data/publication.json`, window.location.href).toString();
-    fetch(publicationUrl, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Publication request failed (${response.status})`);
-        const value = (await response.json()) as PublicationData;
-        if (value.schemaVersion !== 'compendium.publication.v6') throw new Error('Unsupported publication schema.');
-        return value;
-      })
-      .then((value) => {
-        guide = value.guide;
-        entities = new Map(value.entities.map((entity) => [entity.entityKey, entity]));
-        loading = false;
-      })
-      .catch((reason: unknown) => {
-        if (reason instanceof DOMException && reason.name === 'AbortError') return;
-        loading = false;
-        error = reason instanceof Error ? reason.message : 'The publication could not be loaded.';
-      });
-    return () => controller.abort();
-  });
 
   function levelLabel(range: { min: number; max: number } | undefined): string {
     return range ? `lvl.${range.min}-${range.max}` : '';
@@ -82,25 +52,20 @@
     <a class="atlas-link" href={`${base}/`}>World atlas</a>
   </header>
 
-  {#if loading}
-    <main class="state-card" aria-live="polite"><h2>Loading the Adventure Guide</h2><p>Only the generated static publication is used.</p></main>
-  {:else if error}
-    <main class="state-card error" role="alert"><h2>Adventure Guide unavailable</h2><p>{error}</p></main>
-  {:else if guide}
-    <nav class="guide-nav" aria-label="Adventure Guide sections">
+  <nav class="guide-nav" aria-label="Adventure Guide sections">
       <a class:active={visibleSection === 'all'} href={`${base}/guide/`}>Overview</a>
-      {#if guide.dungeons.length}<a class:active={visibleSection === 'dungeons'} href={`${base}/guide/dungeons/`}>Dungeons <span>{guide.dungeons.length}</span></a>{/if}
-      {#if guide.bosses.length}<a class:active={visibleSection === 'bosses'} href={`${base}/guide/bosses/`}>Bosses <span>{guide.bosses.length}</span></a>{/if}
-      {#if guide.regions.length}<a class:active={visibleSection === 'regions'} href={`${base}/guide/regions/`}>Regions <span>{guide.regions.length}</span></a>{/if}
-      {#if guide.properties.length}<a class:active={visibleSection === 'properties'} href={`${base}/guide/properties/`}>Properties <span>{guide.properties.length}</span></a>{/if}
+      {#if counts.dungeons}<a class:active={visibleSection === 'dungeons'} href={`${base}/guide/dungeons/`}>Dungeons <span>{counts.dungeons}</span></a>{/if}
+      {#if counts.bosses}<a class:active={visibleSection === 'bosses'} href={`${base}/guide/bosses/`}>Bosses <span>{counts.bosses}</span></a>{/if}
+      {#if counts.regions}<a class:active={visibleSection === 'regions'} href={`${base}/guide/regions/`}>Regions <span>{counts.regions}</span></a>{/if}
+      {#if counts.properties}<a class:active={visibleSection === 'properties'} href={`${base}/guide/properties/`}>Properties <span>{counts.properties}</span></a>{/if}
     </nav>
 
     {#if visibleSection === 'all'}
       <main class="guide-grid">
         {#if guide.dungeons.length}<section class="guide-card"><div class="card-heading"><h2>Dungeons</h2><a href={`${base}/guide/dungeons/`}>View all</a></div><p>Dungeons, their level ranges, and their bosses.</p><ul>{#each guide.dungeons.slice(0, 5) as dungeon}<li><a href={dungeonHref(dungeon.dungeonKey)}>{dungeon.label}</a>{#if dungeon.levelRange}<span>{levelLabel(dungeon.levelRange)}</span>{/if}</li>{/each}</ul></section>{/if}
         {#if guide.bosses.length}<section class="guide-card"><div class="card-heading"><h2>Bosses</h2><a href={`${base}/guide/bosses/`}>View all</a></div><p>Boss abilities, stats, and loot where published.</p><ul>{#each guide.bosses.slice(0, 5) as boss}<li><a href={bossHref(boss.bossKey)}>{boss.label}</a>{#if boss.level !== undefined}<span>lvl.{boss.level}</span>{:else if boss.levelRange}<span>{levelLabel(boss.levelRange)}</span>{/if}</li>{/each}</ul></section>{/if}
-        {#if guide.regions.length}<section class="guide-card"><div class="card-heading"><h2>Regions</h2><a href={`${base}/guide/regions/`}>View all</a></div><p>Regions, their descriptions, and their authored level ranges.</p><ul>{#each guide.regions.slice(0, 5) as region}<li><a href={`${base}/guide/regions/?id=${encodeURIComponent(region.regionKey)}`}>{region.label}</a>{#if region.levelRange}<span>{levelLabel(region.levelRange)}</span>{/if}</li>{/each}</ul></section>{/if}
-        {#if guide.properties.length}<section class="guide-card"><div class="card-heading"><h2>Properties</h2><a href={`${base}/guide/properties/`}>View all</a></div><p>Properties and their published income.</p><ul>{#each guide.properties.slice(0, 5) as property}<li><a href={`${base}/guide/properties/?id=${encodeURIComponent(property.propertyKey)}`}>{property.label}</a></li>{/each}</ul></section>{/if}
+        {#if guide.regions.length}<section class="guide-card"><div class="card-heading"><h2>Regions</h2><a href={`${base}/guide/regions/`}>View all</a></div><p>Regions, their descriptions, and their authored level ranges.</p><ul>{#each guide.regions.slice(0, 5) as region}<li><a href={`${base}/guide/regions/`}>{region.label}</a>{#if region.levelRange}<span>{levelLabel(region.levelRange)}</span>{/if}</li>{/each}</ul></section>{/if}
+        {#if guide.properties.length}<section class="guide-card"><div class="card-heading"><h2>Properties</h2><a href={`${base}/guide/properties/`}>View all</a></div><p>Properties and their published income.</p><ul>{#each guide.properties.slice(0, 5) as property}<li><a href={`${base}/guide/properties/`}>{property.label}</a></li>{/each}</ul></section>{/if}
       </main>
     {:else if visibleSection === 'dungeons'}
       <main class="listing">
@@ -113,7 +78,7 @@
             {#if selectedDungeon.placementIds.length}<div class="locations"><h3>Locations</h3>{#each selectedDungeon.placementIds as placementId}<a href={mapHref(placementId)}>Open on the world atlas</a>{/each}</div>{/if}
             <h3>Bosses</h3>
             {#if selectedDungeon.bosses.length === 0}<p class="muted">No bosses are published for this dungeon.</p>{/if}
-            <div class="boss-list">{#each selectedDungeon.bosses as boss}<article class="boss-card"><header><h4><a href={bossHref(boss.bossKey)}>{boss.label}</a></h4>{#if boss.level !== undefined}<span class="level">lvl.{boss.level}</span>{:else if boss.levelRange}<span class="level">{levelLabel(boss.levelRange)}</span>{/if}</header><GuideBossDetails {boss} entities={entities} /></article>{/each}</div>
+            <div class="boss-list">{#each selectedDungeon.bosses as boss}<article class="boss-card"><header><h4><a href={bossHref(boss.bossKey)}>{boss.label}</a></h4>{#if boss.level !== undefined}<span class="level">lvl.{boss.level}</span>{:else if boss.levelRange}<span class="level">{levelLabel(boss.levelRange)}</span>{/if}</header>{#if 'loot' in boss}<GuideBossDetails {boss} entities={entities} />{:else}<p class="muted">{boss.lootCount} loot {boss.lootCount === 1 ? 'entry' : 'entries'}.</p>{/if}</article>{/each}</div>
           </article>
         {:else}
           <div class="listing-grid">{#each guide.dungeons as dungeon}<a class="listing-card" href={dungeonHref(dungeon.dungeonKey)}><strong>{dungeon.label}</strong>{#if dungeon.levelRange}<span>{levelLabel(dungeon.levelRange)}</span>{/if}<small>{dungeon.bosses.length} {dungeon.bosses.length === 1 ? 'boss' : 'bosses'}</small></a>{/each}</div>
@@ -124,9 +89,9 @@
         <div class="listing-heading"><h2>Bosses</h2><p>Abilities, stats, and loot follow the game's boss groups.</p></div>
         {#if selectedBoss}
           <a class="back-link" href={`${base}/guide/bosses/`}>← All bosses</a>
-          <article class="guide-detail"><header><h2>{selectedBoss.label}</h2>{#if selectedBoss.level !== undefined}<span class="level">lvl.{selectedBoss.level}</span>{:else if selectedBoss.levelRange}<span class="level">{levelLabel(selectedBoss.levelRange)}</span>{/if}</header>{#if selectedBoss.dungeonKeys?.length}<p class="context-links">{#each selectedBoss.dungeonKeys as dungeonKey}<a href={dungeonHref(dungeonKey)}>From {guide.dungeons.find((dungeon) => dungeon.dungeonKey === dungeonKey)?.label ?? dungeonKey}</a>{/each}</p>{/if}{#if selectedBoss.placementIds.length}<div class="locations"><h3>Locations</h3>{#each selectedBoss.placementIds as placementId}<a href={mapHref(placementId)}>Open on the world atlas</a>{/each}</div>{/if}<GuideBossDetails boss={selectedBoss} entities={entities} /></article>
+          <article class="guide-detail"><header><h2>{selectedBoss.label}</h2>{#if selectedBoss.level !== undefined}<span class="level">lvl.{selectedBoss.level}</span>{:else if selectedBoss.levelRange}<span class="level">{levelLabel(selectedBoss.levelRange)}</span>{/if}</header>{#if selectedBoss.dungeonKeys?.length}<p class="context-links">{#each selectedBoss.dungeonKeys as dungeonKey}<a href={dungeonHref(dungeonKey)}>From {guide.dungeons.find((dungeon) => dungeon.dungeonKey === dungeonKey)?.label ?? dungeonKey}</a>{/each}</p>{/if}{#if selectedBoss.placementIds.length}<div class="locations"><h3>Locations</h3>{#each selectedBoss.placementIds as placementId}<a href={mapHref(placementId)}>Open on the world atlas</a>{/each}</div>{/if}{#if 'loot' in selectedBoss}<GuideBossDetails boss={selectedBoss} entities={entities} />{:else}<p class="muted">Select this boss to load its complete guide details.</p>{/if}</article>
         {:else}
-          <div class="listing-grid">{#each guide.bosses as boss}<a class="listing-card" href={bossHref(boss.bossKey)}><strong>{boss.label}</strong>{#if boss.level !== undefined}<span>lvl.{boss.level}</span>{:else if boss.levelRange}<span>{levelLabel(boss.levelRange)}</span>{/if}<small>{boss.loot.length} loot {boss.loot.length === 1 ? 'entry' : 'entries'}</small></a>{/each}</div>
+          <div class="listing-grid">{#each guide.bosses as boss}<a class="listing-card" href={bossHref(boss.bossKey)}><strong>{boss.label}</strong>{#if boss.level !== undefined}<span>lvl.{boss.level}</span>{:else if boss.levelRange}<span>{levelLabel(boss.levelRange)}</span>{/if}<small>{boss.lootCount} loot {boss.lootCount === 1 ? 'entry' : 'entries'}</small></a>{/each}</div>
         {/if}
       </main>
     {:else if visibleSection === 'regions'}
@@ -134,7 +99,6 @@
     {:else}
       <main class="listing"><div class="listing-heading"><h2>Properties</h2><p>Property descriptions and income from the native guide records.</p></div><div class="listing-grid">{#each guide.properties as property}<article class="listing-card"><h3>{property.label}</h3>{#if property.description}<p>{property.description}</p>{/if}{#if property.income !== undefined}<p class="income">Income <strong>{property.income}</strong></p>{/if}{#each property.placementIds as placementId}<a href={mapHref(placementId)}>Open on the world atlas</a>{/each}</article>{/each}</div></main>
     {/if}
-  {/if}
 </div>
 
 <style>
@@ -152,7 +116,7 @@
   .guide-nav a { border-radius: .3rem; padding: .45rem .7rem; text-decoration: none; color: #a9a59b; }
   .guide-nav a.active, .guide-nav a:hover { background: #353127; color: #f1e6c5; }
   .guide-nav span { color: #77756e; font-size: .75rem; }
-  .guide-grid, .listing, .state-card { max-width: 1100px; margin: 0 auto; }
+  .guide-grid, .listing { max-width: 1100px; margin: 0 auto; }
   .guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
   .guide-card, .listing-card, .guide-detail, .boss-card { border: 1px solid #3a3934; border-radius: .5rem; background: #20211f; }
   .guide-card { padding: 1rem; }
@@ -179,9 +143,6 @@
   .boss-card h4 { margin-bottom: 0; font-size: 1.05rem; }
   .guide-detail > h3 { border-bottom: 1px solid #3a3934; padding-bottom: .45rem; font-size: .85rem; letter-spacing: .05em; text-transform: uppercase; color: #b6b2a7; }
   .income { color: #d5b978 !important; }
-  .state-card { border: 1px solid #3a3934; border-radius: .5rem; padding: 2rem; }
-  .state-card p { color: #a9a59b; }
-  .error { border-color: #754f4a; }
   .muted { color: #85837c; }
   @media (max-width: 650px) {
     .guide-header { display: block; }

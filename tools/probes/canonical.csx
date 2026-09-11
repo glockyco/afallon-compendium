@@ -4,6 +4,7 @@ var canonicalQuests = new System.Collections.Generic.List<object>();
 var canonicalLootTables = new System.Collections.Generic.List<object>();
 var canonicalScenes = new System.Collections.Generic.List<object>();
 var canonicalResources = new System.Collections.Generic.List<object>();
+var canonicalStats = new System.Collections.Generic.List<object>();
 var canonicalRegions = new System.Collections.Generic.List<object>();
 var canonicalProperties = new System.Collections.Generic.List<object>();
 
@@ -31,6 +32,7 @@ var quests = databaseAvailable ? database.GetQuests() : null;
 var lootTables = databaseAvailable ? database.GetLootTables() : null;
 var scenes = databaseAvailable ? database.GetGameScenes() : null;
 var resources = databaseAvailable ? database.GetResources() : null;
+var stats = databaseAvailable ? database.GetStats() : null;
 var regions = databaseAvailable ? database.GetRegionTemplates() : null;
 var properties = databaseAvailable ? database.GetProperties() : null;
 
@@ -40,6 +42,7 @@ var sourceQuestTotal = quests == null ? -1 : quests.Count;
 var sourceLootTableTotal = lootTables == null ? -1 : lootTables.Count;
 var sourceSceneTotal = scenes == null ? -1 : scenes.Count;
 var sourceResourceTotal = resources == null ? -1 : resources.Count;
+var sourceStatTotal = stats == null ? -1 : stats.Count;
 var sourceRegionTotal = regions == null ? -1 : regions.Count;
 var sourcePropertyTotal = properties == null ? -1 : properties.Count;
 
@@ -781,6 +784,46 @@ if (resources != null)
     }
 }
 
+if (stats != null)
+{
+    foreach (var statPair in stats)
+    {
+        var stat = statPair.Value;
+        if (stat == null) continue;
+        var statName = stat.entryDisplayName;
+        var statDescription = stat.entryDescription;
+        var statNameKey = "stat." + stat.ID + ".name";
+        var statDescriptionKey = "stat." + stat.ID + ".desc";
+        var statNameResolved = localizationApiAvailable && Il2Cpp.Localize.HasKey(statNameKey);
+        var statDescriptionResolved = localizationApiAvailable && Il2Cpp.Localize.HasKey(statDescriptionKey);
+        var statDisplayName = statNameResolved ? Il2Cpp.Localize.Get(statNameKey, statName) : statName;
+        var statDisplayDescription = statDescriptionResolved ? Il2Cpp.Localize.Get(statDescriptionKey, statDescription) : statDescription;
+        var statIcon = stat.entryIcon;
+        object statIconMetadata;
+        if (statIcon == null)
+        {
+            statIconMetadata = new { available = false, reason = "no authored Sprite reference" };
+        }
+        else
+        {
+            var statRect = statIcon.rect;
+            var statTexture = statIcon.texture;
+            statIconMetadata = new { available = true, name = statIcon.name, rect = new { x = statRect.x, y = statRect.y, width = statRect.width, height = statRect.height }, textureName = statTexture == null ? null : statTexture.name };
+        }
+        canonicalStats.Add(new
+        {
+            sourceKey = statPair.Key,
+            nativeId = stat.ID,
+            name = statDisplayName,
+            internalName = stat.entryName,
+            description = statDisplayDescription,
+            localization = new { apiAvailable = localizationApiAvailable, language = localizationLanguage, displayNameKey = statNameKey, displayName = statDisplayName, displayNameResolved = statNameResolved, descriptionKey = statDescriptionKey, description = statDisplayDescription, descriptionResolved = statDescriptionResolved, authoredInternalName = stat._name, authoredFileName = stat._fileName, authoredDisplayName = stat.displayName, entryName = stat.entryName, entryDisplayName = stat.entryDisplayName, entryFileName = stat.entryFileName, entryDescription = stat.entryDescription },
+            icon = statIconMetadata,
+            gameplay = new { isPercentStat = stat.isPercentStat, isVitalityStat = stat.isVitalityStat, baseValue = stat.baseValue }
+        });
+    }
+}
+
 // RegionTemplate records use string dictionary keys while runtime IDs are -1 in this build.
 // They remain observed but unpublished until the identity contract supports that key.
 
@@ -801,7 +844,7 @@ if (properties != null)
 
 return new
 {
-    schemaVersion = "compendium.canonical.v2",
+    schemaVersion = "compendium.canonical.v3",
     databaseAvailable = databaseAvailable,
     databaseError = databaseError,
     localization = new
@@ -820,6 +863,7 @@ return new
         lootTables = sourceLootTableTotal,
         scenes = sourceSceneTotal,
         resources = sourceResourceTotal,
+        stats = sourceStatTotal,
         regions = sourceRegionTotal,
         properties = sourcePropertyTotal
     },
@@ -831,6 +875,7 @@ return new
         lootTables = canonicalLootTables.Count,
         scenes = canonicalScenes.Count,
         resources = canonicalResources.Count,
+        stats = canonicalStats.Count,
         regions = canonicalRegions.Count,
         properties = canonicalProperties.Count
     },
@@ -841,6 +886,7 @@ return new
     lootTables = canonicalLootTables,
     scenes = canonicalScenes,
     resources = canonicalResources,
+    stats = canonicalStats,
     regions = canonicalRegions,
     properties = canonicalProperties
 };

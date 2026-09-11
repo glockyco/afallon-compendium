@@ -13,11 +13,21 @@ import { IllustrationOutputSchema, type IllustrationOutput } from "../tools/illu
 import { TilePyramidSchema, type TilePyramid } from "./tile-contracts";
 import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement } from "./normalized-contracts";
 import { projectAdventureGuide } from "./guide-projection";
-import { PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicIllustration, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicTravel, type PublicationData } from "./public-contracts";
+import { PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAdventureGuide, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicIllustration, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicTravel, type PublicationData } from "./public-contracts";
 import { WorldOffsetsSchema, type WorldOffsets, buildWorldLayout } from "./world-layout";
 import { affinePoint, inversePoint, validatePublication } from "./publication-validation";
 
 const reference = Type.Object({ path: Type.String({ minLength: 1 }), sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) }, { additionalProperties: false });
+export const GuideDocumentSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.adventure-guide.v1"), buildId: Type.String({ minLength: 1 }),
+  counts: Type.Object({ dungeons: Type.Integer({ minimum: 0 }), bosses: Type.Integer({ minimum: 0 }), regions: Type.Integer({ minimum: 0 }), properties: Type.Integer({ minimum: 0 }) }, { additionalProperties: false }),
+  guide: Type.Object({
+    dungeons: Type.Array(Type.Union([PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema])),
+    bosses: Type.Array(Type.Union([PublicGuideBossSchema, PublicGuideBossSummarySchema])),
+    regions: Type.Array(PublicGuideRegionSchema), properties: Type.Array(PublicGuidePropertySchema),
+  }, { additionalProperties: false }),
+  entities: Type.Array(PublicEntitySchema),
+}, { additionalProperties: false });
 export const PublicationPlanSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.publication-plan.v2"),
   buildId: Type.String({ minLength: 1 }),
@@ -513,7 +523,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const localAreas = spatialAreas(placement, resolver);
     return {
       source: placement,
-      value: { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, position: [placement.mapPosition!.x, placement.mapPosition!.y], label: linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || categories.map(category => categoryLabels[category]).join(" / "), categories, ...(range ? { levelRange: range } : {}), entityKeys: linked.map(entity => entity.entityKey), areas: localAreas, sections: linked.flatMap(entity => entity.sections) },
+      value: { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, position: [placement.mapPosition!.x, placement.mapPosition!.y], height: placement.worldPosition.y, label: linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || categories.map(category => categoryLabels[category]).join(" / "), categories, ...(range ? { levelRange: range } : {}), entityKeys: linked.map(entity => entity.entityKey), areas: localAreas, sections: linked.flatMap(entity => entity.sections) },
     };
   });
   const imageryMapSpaces = new Set(tileLayers.map((layer) => layer.mapSpaceId));
@@ -596,11 +606,32 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   }
   const excludedPlacements = map.placements.length - placements.length;
   const guide = projectAdventureGuide({ entities: entities.entities, placements: selected, sources: map.sources, publishedPlacementIds: selectedIds });
+  const guideSlug = (key: string): string => key.replaceAll(/[^A-Za-z0-9]+/g, "-");
+  const guideItemKeys = new Set(guide.bosses.flatMap((boss) => boss.loot.map((loot) => loot.itemKey)));
+  const guideEntities = publicEntities.filter((entity) => guideItemKeys.has(entity.entityKey));
+  const dungeonSummaries = guide.dungeons.map(({ dungeonKey, label, description, levelRange, placementIds, bosses }) => ({ dungeonKey, label, ...(description ? { description } : {}), ...(levelRange ? { levelRange } : {}), placementIds, bosses: bosses.map(({ bossKey, label, level, levelRange, placementIds, dungeonKeys, loot }) => ({ bossKey, label, ...(level === undefined ? {} : { level }), ...(levelRange ? { levelRange } : {}), placementIds, ...(dungeonKeys ? { dungeonKeys } : {}), lootCount: loot.length })) }));
+  const bossSummaries = guide.bosses.map(({ bossKey, label, level, levelRange, placementIds, dungeonKeys, loot }) => ({ bossKey, label, ...(level === undefined ? {} : { level }), ...(levelRange ? { levelRange } : {}), placementIds, ...(dungeonKeys ? { dungeonKeys } : {}), lootCount: loot.length }));
+  const guideCounts = { dungeons: guide.dungeons.length, bosses: guide.bosses.length, regions: guide.regions.length, properties: guide.properties.length };
+  const guideDocuments: Record<string, unknown> = {
+    overview: { schemaVersion: "compendium.adventure-guide.v1", buildId: plan.buildId, counts: guideCounts, guide: { dungeons: dungeonSummaries, bosses: bossSummaries, regions: guide.regions, properties: guide.properties }, entities: [] },
+    dungeons: { schemaVersion: "compendium.adventure-guide.v1", buildId: plan.buildId, counts: guideCounts, guide: { dungeons: dungeonSummaries, bosses: [], regions: [], properties: [] }, entities: [] },
+    bosses: { schemaVersion: "compendium.adventure-guide.v1", buildId: plan.buildId, counts: guideCounts, guide: { dungeons: dungeonSummaries, bosses: bossSummaries, regions: [], properties: [] }, entities: [] },
+    regions: { schemaVersion: "compendium.adventure-guide.v1", buildId: plan.buildId, counts: guideCounts, guide: { dungeons: [], bosses: [], regions: guide.regions, properties: [] }, entities: [] },
+    properties: { schemaVersion: "compendium.adventure-guide.v1", buildId: plan.buildId, counts: guideCounts, guide: { dungeons: [], bosses: [], regions: [], properties: guide.properties }, entities: [] },
+  };
+  for (const dungeon of guide.dungeons) {
+    const itemKeys = new Set(dungeon.bosses.flatMap((boss) => boss.loot.map((loot) => loot.itemKey)));
+    guideDocuments[`dungeon-${guideSlug(dungeon.dungeonKey)}`] = { schemaVersion: "compendium.adventure-guide.v1", buildId: plan.buildId, counts: guideCounts, guide: { dungeons: [dungeon], bosses: [], regions: [], properties: [] }, entities: publicEntities.filter((entity) => itemKeys.has(entity.entityKey)) };
+  }
+  for (const boss of guide.bosses) {
+    const dungeonKeys = new Set(boss.dungeonKeys ?? []);
+    guideDocuments[`boss-${guideSlug(boss.bossKey)}`] = { schemaVersion: "compendium.adventure-guide.v1", buildId: plan.buildId, counts: guideCounts, guide: { dungeons: dungeonSummaries.filter((dungeon) => dungeonKeys.has(dungeon.dungeonKey)), bosses: [boss], regions: [], properties: [] }, entities: publicEntities.filter((entity) => boss.loot.some((loot) => loot.itemKey === entity.entityKey)) };
+  }
   const complete = Boolean(coverage.complete) && allImageryComplete && coverage.blockers.length === 0 && excludedPlacements === 0 && layout.unplacedMapSpaceIds.length === 0;
   const coverageMessages = plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage."] : [];
   if (layout.unplacedMapSpaceIds.length > 0) coverageMessages.push(`Unplaced map spaces: ${layout.unplacedMapSpaceIds.join(", ")}.`);
-  const data: PublicationData = { schemaVersion: "compendium.publication.v6", buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: coverageMessages }, world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: layout.offsets, unplacedMapSpaceIds: layout.unplacedMapSpaceIds }, maps: publicMaps, placements, entities: publicEntities, itemSources, tileLayers, illustrations, guide };
-  validatePublication(data);
+  const data: PublicationData = { schemaVersion: "compendium.publication.v7", buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: coverageMessages }, world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: layout.offsets, unplacedMapSpaceIds: layout.unplacedMapSpaceIds }, maps: publicMaps, placements, entities: publicEntities, itemSources, tileLayers, illustrations, guide };
+  await validatePublication(data, assetBytes);
   const inputHashes: Record<string, string> = { plan: createHash("sha256").update(planBytes).digest("hex"), normalized: plan.normalized.sha256, worldOffsets: plan.worldOffsets.sha256 };
   for (const [index, reference] of plan.pyramids.entries()) inputHashes[`pyramid:${index}`] = reference.sha256;
   for (const [index, reference] of plan.illustrations.entries()) inputHashes[`illustration:${index}`] = reference.sha256;
@@ -611,6 +642,12 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     await Bun.write(resolve(run.directory, "plan.json"), planBytes); await run.addArtifact("plan.json");
     for (const [url, bytes] of assetBytes) { await Bun.write(resolve(run.directory, "public", url), bytes); await run.addArtifact(`public/${url}`); }
     await Bun.write(resolve(run.directory, "public/publication.json"), `${JSON.stringify(data)}\n`); await run.addArtifact("public/publication.json");
+    for (const [section, document] of Object.entries(guideDocuments)) {
+      Assert(GuideDocumentSchema, document);
+      const relativePath = `public/guide-${section}.json`;
+      await Bun.write(resolve(run.directory, relativePath), `${JSON.stringify(document)}\n`);
+      await run.addArtifact(relativePath);
+    }
     await run.succeed();
     return { manifest: run.manifestPath, publicDirectory: resolve(run.directory, "public"), mode: plan.mode, buildId: plan.buildId, placements: placements.length, entities: publicEntities.length, imageFiles: assetBytes.size, imageBytes: [...assetBytes.values()].reduce((total, bytes) => total + bytes.byteLength, 0), coverage: data.coverage };
   } catch (error) { await run.fail(error); throw error; }

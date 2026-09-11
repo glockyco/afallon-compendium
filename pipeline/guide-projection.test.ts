@@ -143,6 +143,7 @@ test("projects optional phases, stats, regions, properties, and published locati
       icon: null,
     },
   });
+  const stat = entity({ entityKey: "stats:12", kind: "stats", nativeId: 12, name: null, internalName: "HealthStat", publicData: { localization: null, gameplay: {}, icon: null } });
   const region = entity({
     entityKey: "regions:3",
     kind: "regions",
@@ -160,14 +161,14 @@ test("projects optional phases, stats, regions, properties, and published locati
   });
   const source: NormalizedMapProjection["sources"][number] = { sourceId: "property-source", placementId: "property-location", family: "propertyForSaleSign", data: { propertyID: 2 } };
   const guide = projectAdventureGuide({
-    entities: [scene, boss, region, property],
+    entities: [scene, boss, stat, region, property],
     placements: [placement("region-location", 3), placement("property-location", 3)],
     sources: [source],
     publishedPlacementIds: new Set(["region-location", "property-location"]),
   });
   expect(guide.bosses[0]?.levelRange).toEqual({ min: 1, max: 2 });
   expect(guide.bosses[0]?.abilities).toEqual([{ phaseIndex: 0, label: "Opening", requirement: "Below half health", abilityIds: [3, 4] }]);
-  expect(guide.bosses[0]?.stats).toEqual([{ statId: 12, value: 99.5 }]);
+  expect(guide.bosses[0]?.stats).toEqual([{ statId: 12, label: "HealthStat", value: 99.5 }]);
   expect(guide.regions[0]?.placementIds).toEqual(["region-location"]);
   expect(guide.properties[0]?.income).toBe(42);
   expect(guide.properties[0]?.placementIds).toEqual(["property-location"]);
