@@ -1,44 +1,6 @@
 import { expect, test } from "bun:test";
-import { blockingIssues, clippingEvidence, effectiveCaptureFrame } from "./capture-readiness";
-import type { CaptureGeometry, CapturePlan } from "./capture-contracts";
-
-const vector = (x: number, y: number, z: number) => ({ x, y, z });
-
-function plan(): CapturePlan {
-  return {
-    schemaVersion: "compendium.capture-plan.v6",
-    sceneNativeId: 1,
-    scenePath: "Assets/Test.unity",
-    mapSpaceId: "test",
-    width: 100,
-    height: 100,
-    cullingMask: -1,
-    suppression: { shaderFamilies: [], terrainTrees: false },
-    lighting: {
-      ambient: { r: 1, g: 1, b: 1 },
-      directionalIntensity: 1,
-      directionalEuler: vector(0, 0, 0),
-    },
-    readiness: { timeoutMs: 1000, stableFrames: 2, boundaryOverlap: 0, maximumSources: 1 },
-    tiles: [{ id: "tile", frame: { center: { x: 0, z: 0 }, worldSize: { x: 10, z: 10 }, cameraY: 20, nearClip: 1, farClip: 30 } }],
-  };
-}
-
-test("an unreviewed plan leaves the tile frame unchanged", () => {
-  const capturePlan = plan();
-  expect(clippingEvidence(capturePlan)).toEqual({ source: "none", applied: false, clipHeight: null });
-  expect(effectiveCaptureFrame(capturePlan.tiles[0]!, capturePlan)).toEqual(capturePlan.tiles[0]!.frame);
-});
-
-test("a reviewed clip height preserves the original lower visibility bound", () => {
-  const capturePlan: CapturePlan = { ...plan(), clipHeight: 120 };
-  expect(clippingEvidence(capturePlan)).toEqual({ source: "plan", applied: true, clipHeight: 120 });
-  expect(effectiveCaptureFrame(capturePlan.tiles[0]!, capturePlan)).toEqual({
-    ...capturePlan.tiles[0]!.frame,
-    cameraY: 120,
-    farClip: 130,
-  });
-});
+import { blockingIssues } from "./capture-readiness";
+import type { CaptureGeometry } from "./capture-contracts";
 
 test("an authored content defect never blocks readiness, an inventory integrity failure does", () => {
   const geometry = {

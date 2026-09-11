@@ -332,7 +332,7 @@ if (captureAction == "start")
         state["captureTexture"] = captureTexture;
         captureTexture.name = resourcePrefix + ".Texture2D";
         fault("after-texture");
-        return new { schemaVersion = "compendium.capture-session.v4", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
+        return new { schemaVersion = "compendium.capture-session.v5", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
         {
             new { kind = "camera", instanceId = (int?)camera.GetInstanceID(), alive = camera != null && cameraGo != null },
             new { kind = "light", instanceId = (int?)light.GetInstanceID(), alive = light != null && lightGo != null },
@@ -386,7 +386,7 @@ var sessionResources = new System.Func<object>(() =>
 });
 var sessionReport = new System.Func<object>(() => new
 {
-    schemaVersion = "compendium.capture-session.v4",
+    schemaVersion = "compendium.capture-session.v5",
     key = requestedKey,
     phase = sessionState["phase"] as string,
     ownerToken = ownerToken,
@@ -411,7 +411,7 @@ if (captureAction == "restore")
     restoreCleanup();
     return new
     {
-        schemaVersion = "compendium.capture-session.v4",
+        schemaVersion = "compendium.capture-session.v5",
         key = requestedKey,
         phase = "restored",
         ownerToken = ownerToken,
@@ -445,6 +445,21 @@ var directionalEuler = vector(requestedLighting["directionalEuler"], "lighting.d
 if (directionalIntensity < 0f || directionalIntensity > 4f) throw new System.ArgumentException("lighting.directionalIntensity must be between 0 and 4.");
 var cullingMask = integer(args["cullingMask"], "cullingMask");
 var suppression = readCaptureSuppression(args["suppression"]);
+// Cut heights, nearest-plane first. Each becomes one slice rendered with the near plane at
+// that height; the frame's own nearClip renders when the list is empty or absent.
+var cutHeights = new System.Collections.Generic.List<float>();
+var cutToken = args["cutHeights"];
+if (cutToken != null && cutToken.Type != Newtonsoft.Json.Linq.JTokenType.Null)
+{
+    if (cutToken.Type != Newtonsoft.Json.Linq.JTokenType.Array) throw new System.ArgumentException("cutHeights must be an array.");
+    foreach (var entry in cutToken)
+    {
+        if (entry.Type != Newtonsoft.Json.Linq.JTokenType.Float && entry.Type != Newtonsoft.Json.Linq.JTokenType.Integer) throw new System.ArgumentException("cutHeights entries must be numbers.");
+        cutHeights.Add((float)entry);
+    }
+    if (cutHeights.Count > 256) throw new System.ArgumentException("cutHeights allows at most 256 slices.");
+    for (var index = 1; index < cutHeights.Count; index++) if (cutHeights[index] <= cutHeights[index - 1]) throw new System.ArgumentException("cutHeights must increase strictly.");
+}
 var captureWidth = (int)sessionState["width"];
 var captureHeight = (int)sessionState["height"];
 var worldAspect = (double)frameValue["sizeX"] / (double)frameValue["sizeZ"];
@@ -703,8 +718,7 @@ sessionState["pendingFrameRestore"] = restoreFrame;
 var captureFailure = (System.Exception)null;
 var restorationFailure = (System.Exception)null;
 var auditFailure = (System.Exception)null;
-var encodedBytes = (byte[])null;
-var encodedHash = (string)null;
+var encodedSlices = new System.Collections.Generic.List<(int Index, float Cut, byte[] Bytes, string Hash)>();
 var encodedPath = outputPathArgument;
 var projectionSamples = new System.Collections.Generic.List<object>(5);
 object actualCameraFrame = null;
@@ -789,14 +803,34 @@ try
     foreach (var terrain in terrains) if (terrain == null || terrain.drawTreesAndFoliage) throw new System.InvalidOperationException("Rendering changed suppressed terrain trees.");
     foreach (var renderer in player.GetComponentsInChildren<UnityEngine.Renderer>(false)) if (renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy) throw new System.InvalidOperationException("A player renderer remained enabled during capture.");
     fault("after-render");
-    UnityEngine.RenderTexture.active = sessionRenderTexture;
-    sessionTexture.ReadPixels(new UnityEngine.Rect(0, 0, captureWidth, captureHeight), 0, 0, false);
-    sessionTexture.Apply(false, false);
-    var nativeEncoded = UnityEngine.ImageConversion.EncodeToPNG(sessionTexture);
-    if (nativeEncoded == null || nativeEncoded.Length == 0) throw new System.InvalidOperationException("EncodeToPNG returned no bytes.");
-    encodedBytes = (byte[])nativeEncoded;
+    // The first render above verified the controlled state. Each cut now re-renders with the
+    // near plane at that height and encodes its own slice; without cuts the frame's own near
+    // plane is the single slice.
+    var sliceCuts = new System.Collections.Generic.List<float>();
+    if (cutHeights.Count == 0) sliceCuts.Add(actualPosition.y - actualNear);
+    else sliceCuts.AddRange(cutHeights);
+    for (var sliceIndex = 0; sliceIndex < sliceCuts.Count; sliceIndex++)
+    {
+        var cut = sliceCuts[sliceIndex];
+        var near = actualPosition.y - cut;
+        if (near <= 0f || near >= actualFar) throw new System.ArgumentException("A cut height must lie below the camera and above its far plane.");
+        if (sliceIndex > 0 || cutHeights.Count > 0)
+        {
+            sessionCamera.nearClipPlane = near;
+            sessionCamera.Render();
+        }
+        UnityEngine.RenderTexture.active = sessionRenderTexture;
+        sessionTexture.ReadPixels(new UnityEngine.Rect(0, 0, captureWidth, captureHeight), 0, 0, false);
+        sessionTexture.Apply(false, false);
+        var nativeEncoded = UnityEngine.ImageConversion.EncodeToPNG(sessionTexture);
+        if (nativeEncoded == null || nativeEncoded.Length == 0) throw new System.InvalidOperationException("EncodeToPNG returned no bytes.");
+        var sliceBytes = (byte[])nativeEncoded;
+        string sliceHash;
+        using (var digest = System.Security.Cryptography.SHA256.Create()) sliceHash = System.BitConverter.ToString(digest.ComputeHash(sliceBytes)).Replace("-", "").ToLowerInvariant();
+        encodedSlices.Add((sliceIndex, cut, sliceBytes, sliceHash));
+    }
+    sessionCamera.nearClipPlane = actualNear;
     fault("after-encode");
-    using (var digest = System.Security.Cryptography.SHA256.Create()) encodedHash = System.BitConverter.ToString(digest.ComputeHash(encodedBytes)).Replace("-", "").ToLowerInvariant();
     if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected before publishing the capture.");
 }
 catch (System.Exception error) { captureFailure = error; }
@@ -832,32 +866,54 @@ finally
 if (restorationFailure != null) throw restorationFailure;
 if (captureFailure != null) throw captureFailure;
 if (auditFailure != null) throw auditFailure;
-if (encodedBytes == null || encodedHash == null) throw new System.InvalidOperationException("The capture did not produce encoded bytes.");
+if (encodedSlices.Count == 0) throw new System.InvalidOperationException("The capture did not produce encoded slices.");
 if (System.IO.File.Exists(outputPath)) throw new System.IO.IOException("The PNG destination appeared during capture.");
-var temporaryOutput = outputPath + ".tmp." + System.Guid.NewGuid().ToString("N");
+// Slices publish beside the destination as <output>.slice-NNN.png. The host composites them
+// into the destination itself, so the destination stays absent here.
+var slicePath = new System.Func<int, string>(index => outputPath.Substring(0, outputPath.Length - 4) + ".slice-" + index.ToString("D3") + ".png");
+var sliceArgumentPath = new System.Func<int, string>(index => outputPathArgument.Substring(0, outputPathArgument.Length - 4) + ".slice-" + index.ToString("D3") + ".png");
+var published = new System.Collections.Generic.List<string>();
 try
 {
-    using (var stream = new System.IO.FileStream(temporaryOutput, System.IO.FileMode.CreateNew, System.IO.FileAccess.Write, System.IO.FileShare.None))
+    foreach (var slice in encodedSlices)
     {
-        stream.Write(encodedBytes, 0, encodedBytes.Length);
-        stream.Flush(true);
+        var destination = slicePath(slice.Index);
+        if (System.IO.File.Exists(destination)) throw new System.IO.IOException("A slice destination already exists.");
+        var temporaryOutput = destination + ".tmp." + System.Guid.NewGuid().ToString("N");
+        try
+        {
+            using (var stream = new System.IO.FileStream(temporaryOutput, System.IO.FileMode.CreateNew, System.IO.FileAccess.Write, System.IO.FileShare.None))
+            {
+                stream.Write(slice.Bytes, 0, slice.Bytes.Length);
+                stream.Flush(true);
+            }
+            if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected before publishing the capture.");
+            System.IO.File.Move(temporaryOutput, destination);
+            published.Add(destination);
+        }
+        catch (System.Exception)
+        {
+            try { if (System.IO.File.Exists(temporaryOutput)) System.IO.File.Delete(temporaryOutput); } catch (System.Exception) { }
+            throw;
+        }
     }
-    if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected before publishing the capture.");
-    if (System.IO.File.Exists(outputPath)) throw new System.IO.IOException("The PNG destination appeared before publish.");
-    System.IO.File.Move(temporaryOutput, outputPath);
 }
 catch (System.Exception)
 {
-    try { if (System.IO.File.Exists(temporaryOutput)) System.IO.File.Delete(temporaryOutput); } catch (System.Exception) { }
+    foreach (var path in published) { try { System.IO.File.Delete(path); } catch (System.Exception) { } }
     throw;
 }
+var sliceReports = new System.Collections.Generic.List<object>();
+foreach (var slice in encodedSlices) sliceReports.Add(new { index = slice.Index, cut = slice.Cut, path = sliceArgumentPath(slice.Index), sha256 = slice.Hash, byteSize = slice.Bytes.LongLength });
+var firstSlice = encodedSlices[0];
 
 var captureFrameMetadata = new
 {
     tileId = tileId,
     path = encodedPath,
-    sha256 = encodedHash,
-    byteSize = encodedBytes.LongLength,
+    sha256 = firstSlice.Hash,
+    byteSize = firstSlice.Bytes.LongLength,
+    slices = sliceReports.ToArray(),
     width = captureWidth,
     height = captureHeight,
     frame = beforeFrame,

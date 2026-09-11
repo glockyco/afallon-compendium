@@ -87,7 +87,7 @@ export function tileCompatibilityKey(input: TileCompatibilityInput): string {
   if (!SHA256_PATTERN.test(input.profileSha256)) throw new Error("Compatibility profile hash is invalid.");
   const pipelineHashes = sortedHashes(input.pipelineHashes, key => key === "runtime-owner" || key.startsWith("tool:") || key.startsWith("probe:"));
   return hashCanonical({
-    schemaVersion: "compendium.capture-tile-compatibility.v2",
+    schemaVersion: "compendium.capture-tile-compatibility.v3",
     buildId: input.buildId,
     buildHashes: sortedHashes(input.buildHashes, () => true),
     profileSha256: input.profileSha256,
@@ -100,6 +100,9 @@ export function tileCompatibilityKey(input: TileCompatibilityInput): string {
     dimensions: { width: input.plan.width, height: input.plan.height },
     lighting: input.plan.lighting,
     cullingMask: input.plan.cullingMask,
+    suppression: input.plan.suppression,
+    // The survey hash stands for the walkable surface the cut follows; the path is a location.
+    cut: input.plan.cut === undefined ? null : { source: input.plan.cut.source, surveySha256: input.plan.cut.survey.sha256, step: input.plan.cut.step, headroom: input.plan.cut.headroom, cameraAbove: input.plan.cut.cameraAbove },
     readiness: input.plan.readiness,
     frame: input.tile.frame,
   });

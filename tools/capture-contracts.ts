@@ -14,12 +14,31 @@ const frame = Type.Object({
   nearClip: Type.Number({ exclusiveMinimum: 0 }),
   farClip: Type.Number({ exclusiveMinimum: 0, maximum: 100000 }),
 });
-const clippingEvidence = Type.Object({
-  source: Type.Union([Type.Literal("none"), Type.Literal("plan")]),
-  applied: Type.Boolean(),
-  clipHeight: Type.Union([number, Type.Null()]),
+const sha256 = Type.String({ pattern: "^[a-f0-9]{64}$" });
+// A reviewed cut follows the walkable surface. The tile's walkable height field, rasterized
+// from the hashed navigation survey, picks per pixel the slice whose cut sits just above the
+// surface plus headroom. Without a cut, the tile renders with its declared frame.
+export const CaptureCutSchema = Type.Object({
+  source: Type.Literal("navigation"),
+  survey: Type.Object({ path: text, sha256 }),
+  step: Type.Number({ exclusiveMinimum: 0, maximum: 64 }),
+  headroom: Type.Number({ minimum: 0, maximum: 64 }),
+  cameraAbove: Type.Number({ exclusiveMinimum: 0, maximum: 2000 }),
 });
-export type CaptureClippingEvidence = Static<typeof clippingEvidence>;
+export type CaptureCut = Static<typeof CaptureCutSchema>;
+// Per-tile evidence of the cut applied to it. The cut heights are the rendered slices; the
+// walkable range is what the survey holds under the tile. A tile without a cut records null.
+const cutEvidence = Type.Union([
+  Type.Null(),
+  Type.Object({
+    source: Type.Literal("navigation"),
+    surveySha256: sha256,
+    step: number, headroom: number,
+    walkable: Type.Object({ minY: number, maxY: number, coverage: Type.Number({ minimum: 0, maximum: 1 }) }),
+    cutHeights: Type.Array(number, { minItems: 1, maxItems: 256 }),
+  }),
+]);
+export type CaptureCutEvidence = Static<typeof cutEvidence>;
 export const CaptureReadinessProfileSchema = Type.Object({
   timeoutMs: Type.Integer({ minimum: 1000, maximum: 300000 }),
   stableFrames: Type.Integer({ minimum: 2, maximum: 10 }),
@@ -29,7 +48,7 @@ export const CaptureReadinessProfileSchema = Type.Object({
 export const CapturePlanSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-plan.v6"),
   sceneNativeId: count, scenePath: text, mapSpaceId: text,
-  clipHeight: Type.Optional(number),
+  cut: Type.Optional(CaptureCutSchema),
   width: Type.Integer({ minimum: 64, maximum: 2048 }), height: Type.Integer({ minimum: 64, maximum: 2048 }),
   cullingMask: Type.Integer({ minimum: -2147483648, maximum: 2147483647 }),
   // Reviewed capture suppression. Afallon marks foliage with no layer or tag, so a shader-name
@@ -57,9 +76,11 @@ const capture = Type.Object({
   suppressedRenderers: count, visualPolicy: Type.Literal("compendium.capture-visual-policy.v3"),
   cameraFrame: frame,
   projectionSamples: Type.Array(Type.Object({ world: vector, viewport: vector }), { minItems: 3 }),
+  // Every rendered slice of the tile, nearest-plane first. A tile without a cut has one slice.
+  slices: Type.Array(Type.Object({ index: count, cut: number, path: text, sha256, byteSize: count }), { minItems: 1, maxItems: 256 }),
 });
 export const CaptureSessionSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-session.v4"),
+  schemaVersion: Type.Literal("compendium.capture-session.v5"),
   key: text, phase: Type.Union([Type.Literal("ready"), Type.Literal("restored")]),
   ownerToken: text, sceneNativeId: count, scenePath: text, sceneHandle: integer,
   resourcePrefix: text,
@@ -69,13 +90,13 @@ export const CaptureSessionSchema = Type.Object({
 });
 export type CaptureSession = Static<typeof CaptureSessionSchema>;
 export const CaptureRasterSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-raster.v3"),
+  schemaVersion: Type.Literal("compendium.capture-raster.v4"),
   tileId: text, imageSha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
   width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }),
   coordinateSystem: Type.Literal("source-scene-world-xz"),
   pixelConvention: Type.Literal("top-left-edges"),
   cameraFrame: frame,
-  clipping: clippingEvidence,
+  cut: cutEvidence,
   verticalBounds: Type.Object({ minY: number, maxY: number }),
   worldFromPixelEdge: Type.Object({ origin: horizontal, xAxis: horizontal, yAxis: horizontal }),
   maximumProjectionErrorPixels: Type.Number({ minimum: 0, maximum: 0.25 }),
@@ -110,37 +131,8 @@ export const CaptureCleanupSchema = Type.Object({
 });
 
 const sweepArtifactReference = Type.Object({ path: text, bytes: count, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) });
-const reclamationMetric = Type.Object({
-  unityAllocatedBytes: count,
-  unityReservedBytes: count,
-  unityUnusedReservedBytes: count,
-  textureMemoryBytes: count,
-  unityObjectCount: count,
-  gameObjectCount: count,
-  componentCount: count,
-  textureCount: count,
-  renderTextureCount: count,
-  materialCount: count,
-  meshCount: count,
-  gcCollection0: count,
-  gcCollection1: count,
-  gcCollection2: count,
-});
-export const CaptureReclamationSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-reclamation.v4"),
-  key: text,
-  ownerToken: text,
-  sceneNativeId: count,
-  sceneHandle: integer,
-  phase: Type.Union([Type.Literal("unloading"), Type.Literal("complete")]),
-  startedFrame: count,
-  completedFrame: Type.Union([count, Type.Null()]),
-  before: reclamationMetric,
-  after: Type.Union([reclamationMetric, Type.Null()]),
-});
-export type CaptureReclamation = Static<typeof CaptureReclamationSchema>;
 export const CaptureSweepSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-sweep.v2"),
+  schemaVersion: Type.Literal("compendium.capture-sweep.v3"),
   runId: text,
   ownerToken: text,
   finalScene: Type.Object({ nativeId: count, path: text }),
@@ -149,7 +141,6 @@ export const CaptureSweepSchema = Type.Object({
     sceneNativeId: count, scenePath: text, mapSpaceId: text,
   }), { minItems: 1 }),
   sceneTransitions: Type.Array(sweepArtifactReference, { minItems: 1 }),
-  reclamations: Type.Array(sweepArtifactReference, { minItems: 1 }),
   runtimeCleanup: sweepArtifactReference,
   completed: Type.Literal(true),
 });
@@ -193,18 +184,17 @@ export const CaptureGeometrySchema = Type.Object({
 });
 export type CaptureGeometry = Static<typeof CaptureGeometrySchema>;
 export const CaptureReadinessSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-readiness.v2"),
+  schemaVersion: Type.Literal("compendium.capture-readiness.v3"),
   tileId: text, ownerToken: text, sceneNativeId: count, sceneHandle: integer,
   inventoryPath: text, inventorySha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
   observedFrames: Type.Array(count, { minItems: 2 }), stableFrames: count,
   requiredSources: count, excludedSources: count, empty: Type.Boolean(),
   captureFrame: frame,
-  clipping: clippingEvidence,
+  cut: cutEvidence,
   streamKey: Type.Union([text, Type.Null()]),
 });
 export type CaptureReadiness = Static<typeof CaptureReadinessSchema>;
 
-const sha256 = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const artifactReference = Type.Object({ path: text, bytes: count, sha256 });
 const uuid = Type.String({ pattern: "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$" });
 const captureTileOrigin = Type.Object({ runId: uuid, ownerToken: uuid, captureKey: text });

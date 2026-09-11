@@ -111,7 +111,7 @@ async function main() {
       return;
     }
     if (command === "capture") {
-      const result = await capture(runtime, config, identity, plan as CapturePlan[]);
+      const result = await capture(runtime, config, identity, (plan as CapturePlan[]).map((value, index) => ({ plan: value, path: resolve(planPaths[index]!) })));
       console.log(JSON.stringify({ ok: true, buildId: identity.buildId, ...result }, null, 2));
       return;
     }

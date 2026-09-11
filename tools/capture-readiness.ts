@@ -7,11 +7,11 @@ import {
   CaptureGeometrySchema,
   CapturePlanSchema,
   CaptureReadinessSchema,
-  type CaptureClippingEvidence,
   type CaptureGeometry,
   type CapturePlan,
   type CaptureReadiness,
 } from "./capture-contracts";
+import { cutCaptureFrame, type CutPlan } from "./capture-cut";
 import { toRuntimePath, type CompendiumConfig } from "./config";
 import { ObservationContextSchema } from "./contracts";
 import {
@@ -90,23 +90,6 @@ function assertClose(actual: number, expected: number, label: string): void {
 
 type CaptureFrame = CapturePlan["tiles"][number]["frame"];
 
-export function clippingEvidence(plan: CapturePlan): CaptureClippingEvidence {
-  const clipHeight = plan.clipHeight === undefined ? null : plan.clipHeight;
-  return { source: clipHeight === null ? "none" : "plan", applied: clipHeight !== null, clipHeight };
-}
-
-export function effectiveCaptureFrame(tile: CaptureTile, plan: CapturePlan): CaptureFrame {
-  if (plan.clipHeight === undefined) return tile.frame;
-  return {
-    ...tile.frame,
-    cameraY: plan.clipHeight,
-    // Raising the camera to the clipping plane must not raise the far plane with it.
-    // Preserve the tile's original lower visibility bound so lower dungeon geometry
-    // remains inside the capture frustum.
-    farClip: tile.frame.farClip + Math.max(0, plan.clipHeight - tile.frame.cameraY),
-  };
-}
-
 function geometryDirectory(tile: CaptureTile, run: Run): { relative: string; absolute: string } {
   const relative = `tiles/${tile.id}.geometry`;
   return { relative, absolute: resolve(run.directory, relative) };
@@ -136,8 +119,8 @@ function expectedPreloadEnvelope(frustum: CaptureGeometry["frustum"]): CaptureGe
   };
 }
 
-function assertGeometryShape(geometry: CaptureGeometry, tile: CaptureTile, plan: CapturePlan): void {
-  const expected = expectedFrustum(effectiveCaptureFrame(tile, plan), plan.readiness.boundaryOverlap);
+function assertGeometryShape(geometry: CaptureGeometry, frame: CaptureFrame, plan: CapturePlan): void {
+  const expected = expectedFrustum(frame, plan.readiness.boundaryOverlap);
   assertClose(geometry.frustum.center.x, expected.center.x, "Geometry frustum center.x");
   assertClose(geometry.frustum.center.y, expected.center.y, "Geometry frustum center.y");
   assertClose(geometry.frustum.center.z, expected.center.z, "Geometry frustum center.z");
@@ -418,6 +401,7 @@ export async function withCaptureGeometry<T>(
   run: Run,
   plan: CapturePlan,
   tile: CaptureTile,
+  cutPlan: CutPlan | null,
   capture: (readiness: CaptureReadiness) => Promise<T>,
 ): Promise<{ value: T; readiness: CaptureReadiness; readinessPath: string }> {
   let timer: NodeJS.Timeout | undefined;
@@ -432,6 +416,7 @@ export async function withCaptureGeometry<T>(
     const cleanupPath = resolve(run.directory, cleanupRelative);
     const probePath = resolve(import.meta.dir, "probes/capture-geometry.csx");
     const deadlineAt = Date.now() + plan.readiness.timeoutMs;
+    const captureFrame = cutCaptureFrame(tile, cutPlan);
 
     const operation = async (): Promise<{ value: T; readiness: CaptureReadiness; readinessPath: string }> => {
       await mkdir(geometry.absolute, { recursive: true });
@@ -476,7 +461,7 @@ export async function withCaptureGeometry<T>(
             researchCharacter: config.character,
             sceneNativeId: plan.sceneNativeId,
             scenePath: plan.scenePath,
-            frame: effectiveCaptureFrame(tile, plan),
+            frame: captureFrame,
             boundaryOverlap: plan.readiness.boundaryOverlap,
             cullingMask: plan.cullingMask,
             suppression: plan.suppression,
@@ -489,7 +474,7 @@ export async function withCaptureGeometry<T>(
         assertFiniteScalars(value, `Capture geometry observation ${observationIndex}`);
         assertObservationContext(reply.observationContext, config, plan, value.scene.handle, value.frame, `Capture geometry observation ${observationIndex}`);
         await registerProbeArtifact(relativePath, reply.reference, reply.observationContext);
-        assertGeometryShape(value, tile, plan);
+        assertGeometryShape(value, captureFrame, plan);
         assertQueryCounts(value);
         assertVisibleBindings(value);
         sceneHandle = assertScene(value, plan, sceneHandle);
@@ -656,11 +641,10 @@ export async function withCaptureGeometry<T>(
         await run.addArtifact(cleanupRelative);
       };
 
-      const clipping = clippingEvidence(plan);
-      const captureFrame = effectiveCaptureFrame(tile, plan);
+      const cut = cutPlan === null ? null : cutPlan.evidence;
       const empty = latestGeometry.meshes.length === 0 && latestGeometry.terrains.length === 0 && latestGeometry.otherRenderers.length === 0;
       const readiness: CaptureReadiness = {
-        schemaVersion: "compendium.capture-readiness.v2",
+        schemaVersion: "compendium.capture-readiness.v3",
         tileId: tile.id,
         ownerToken: runtime.ownerToken,
         sceneNativeId: plan.sceneNativeId,
@@ -673,7 +657,7 @@ export async function withCaptureGeometry<T>(
         excludedSources: baselineMembership.excluded.length,
         empty,
         captureFrame,
-        clipping,
+        cut,
         streamKey: streamKey ?? null,
       };
       assertSchema(CaptureReadinessSchema, readiness, "Capture readiness evidence");

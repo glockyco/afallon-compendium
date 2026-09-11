@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, stat } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { isDeepStrictEqual } from "node:util";
@@ -8,11 +8,9 @@ import { buildIdentity, hashFile, toolRevision } from "./build";
 import { toRuntimePath, type CompendiumConfig } from "./config";
 import {
   CaptureCleanupSchema,
-  CaptureReclamationSchema,
   CapturePlanSchema,
   CaptureRasterSchema,
   type CaptureRaster,
-  type CaptureReclamation,
   CaptureReadinessSchema,
   CaptureRestorationSchema,
   CaptureSessionSchema,
@@ -34,7 +32,8 @@ import type { Runtime } from "./runtime";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
-import { clippingEvidence, effectiveCaptureFrame, withCaptureGeometry } from "./capture-readiness";
+import { withCaptureGeometry } from "./capture-readiness";
+import { compositeCut, cutCaptureFrame, loadNavigationSurvey, planTileCut, type CutPlan, type NavigationSurvey } from "./capture-cut";
 import {
   captureArtifactReference,
   copyReusableTile,
@@ -80,9 +79,6 @@ function closeEnough(left: number, right: number): boolean {
 export function validateCapturePlan(plan: CapturePlan): void {
   assertSchema(CapturePlanSchema, plan, "Capture plan");
   assertFiniteScalars(plan, "Capture plan");
-  if (plan.clipHeight !== undefined && !Number.isFinite(plan.clipHeight)) {
-    throw new Error("Capture plan clipHeight must be finite when provided.");
-  }
 
   const tileIds = new Set<string>();
   for (const tile of plan.tiles) {
@@ -90,11 +86,6 @@ export function validateCapturePlan(plan: CapturePlan): void {
     tileIds.add(tile.id);
     if (!(tile.frame.nearClip < tile.frame.farClip)) {
       throw new Error(`Tile "${tile.id}" nearClip must be less than farClip.`);
-    }
-    const first = plan.tiles[0]!.frame;
-    if (Math.abs((tile.frame.cameraY - tile.frame.farClip) - (first.cameraY - first.farClip)) > 0.001
-      || Math.abs((tile.frame.cameraY - tile.frame.nearClip) - (first.cameraY - first.nearClip)) > 0.001) {
-      throw new Error(`Tile "${tile.id}" uses another vertical clipping interval.`);
     }
     const worldAspect = tile.frame.worldSize.x / tile.frame.worldSize.z;
     const pixelAspect = plan.width / plan.height;
@@ -169,37 +160,6 @@ async function registerProbeArtifact(
   reference: { sha256: string },
 ): Promise<ArtifactRecord> {
   return registerArtifact(run, path, reference.sha256);
-}
-
-async function reclaimAtSceneBoundary(
-  runtime: Runtime,
-  run: Run,
-  ordinal: number,
-  scene: SceneVisit,
-  timeoutMs: number,
-): Promise<ArtifactRecord> {
-  const path = `reclamation-${ordinal}.json`;
-  const deadline = Date.now() + timeoutMs;
-  let action: "start" | "poll" = "start";
-  let key: string | undefined;
-  while (true) {
-    runtime.signal.throwIfAborted();
-    if (Date.now() >= deadline) throw new Error(`Scene-boundary memory reclamation exceeded its ${timeoutMs} ms deadline.`);
-    const parameters: Record<string, unknown> = { action };
-    if (key !== undefined) parameters.key = key;
-    const reply = await runtime.probe(resolve(import.meta.dir, "probes/capture-reclaim.csx"), resolve(run.directory, path), { parameters });
-    assertSchema(CaptureReclamationSchema, reply.value, "Capture reclamation");
-    const evidence = reply.value as CaptureReclamation;
-    if (evidence.ownerToken !== runtime.ownerToken || evidence.sceneNativeId !== scene.sceneNativeId || evidence.sceneHandle !== scene.sceneHandle) {
-      throw new Error("Capture reclamation returned mismatched ownership or scene evidence.");
-    }
-    if (evidence.phase === "complete") {
-      return registerProbeArtifact(run, path, reply.reference);
-    }
-    key = evidence.key;
-    action = "poll";
-    await Bun.sleep(100);
-  }
 }
 
 async function writeTileCheckpoint(run: Run, checkpoint: CaptureTileCheckpoint): Promise<void> {
@@ -291,7 +251,7 @@ async function hashPng(path: string, expectedWidth: number, expectedHeight: numb
   return { sha256: createHash("sha256").update(bytes).digest("hex"), byteSize: bytes.byteLength };
 }
 
-function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>, clipping: CaptureReadiness["clipping"]): CaptureRaster {
+function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>, image: { sha256: string }, cut: CaptureReadiness["cut"]): CaptureRaster {
   const { center, worldSize, nearClip, farClip } = capture.cameraFrame;
   const origin = { x: center.x - worldSize.x / 2, z: center.z + worldSize.z / 2 };
   const xAxis = { x: worldSize.x / capture.width, z: 0 };
@@ -313,9 +273,9 @@ function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>, cli
     maximumProjectionErrorPixels = Math.max(maximumProjectionErrorPixels, error);
   }
   const raster: CaptureRaster = {
-    schemaVersion: "compendium.capture-raster.v3", tileId: capture.tileId, imageSha256: capture.sha256,
+    schemaVersion: "compendium.capture-raster.v4", tileId: capture.tileId, imageSha256: image.sha256,
     cameraFrame: capture.cameraFrame,
-    clipping,
+    cut,
     verticalBounds: { minY: capture.cameraFrame.cameraY - farClip, maxY: capture.cameraFrame.cameraY - nearClip },
     width: capture.width, height: capture.height, coordinateSystem: "source-scene-world-xz", pixelConvention: "top-left-edges",
     worldFromPixelEdge: { origin, xAxis, yAxis }, maximumProjectionErrorPixels,
@@ -334,7 +294,7 @@ type CaptureTileResult = NonNullable<CaptureSession["lastCapture"]> & {
   origin: CaptureTileCheckpoint["origin"];
 };
 
-async function loadReusedTileResult(run: Run, tile: CapturePlan["tiles"][number], candidate: ReusableCaptureTile, copied: CaptureTileCheckpoint, plan: CapturePlan, config: CompendiumConfig): Promise<CaptureTileResult> {
+async function loadReusedTileResult(run: Run, tile: CapturePlan["tiles"][number], candidate: ReusableCaptureTile, copied: CaptureTileCheckpoint, plan: CapturePlan, config: CompendiumConfig, cutPlan: CutPlan | null): Promise<CaptureTileResult> {
   const responseReference = copied.artifacts.nativeContext.find(reference =>
     reference.path === `tiles/${tile.id}.json` || reference.path === `tiles/${tile.id}.geometry/origin-${tile.id}.json`,
   );
@@ -347,17 +307,17 @@ async function loadReusedTileResult(run: Run, tile: CapturePlan["tiles"][number]
   assertSchema(CaptureReadinessSchema, readiness, `Reused readiness for tile "${tile.id}"`);
   const capture = session.lastCapture;
   if (capture.tileId !== tile.id || capture.width !== plan.width || capture.height !== plan.height || capture.path.length === 0 || capture.frame !== capture.restoredFrame) throw new Error(`Reused tile "${tile.id}" has mismatched capture metadata.`);
-  const expectedClipping = clippingEvidence(plan);
-  if (!isDeepStrictEqual(readiness.clipping, expectedClipping)) throw new Error(`Reused tile "${tile.id}" has incompatible reviewed clip evidence.`);
-  const expectedFrame = effectiveCaptureFrame(tile, plan);
+  const expectedCut = cutPlan === null ? null : cutPlan.evidence;
+  if (!isDeepStrictEqual(readiness.cut, expectedCut)) throw new Error(`Reused tile "${tile.id}" has incompatible reviewed cut evidence.`);
+  const expectedFrame = cutCaptureFrame(tile, cutPlan);
   assertFrameMatches(capture, expectedFrame, tile.id);
   if (!isDeepStrictEqual(capture.cameraFrame, readiness.captureFrame)) throw new Error(`Reused tile "${tile.id}" capture frame disagrees with readiness evidence.`);
-  const raster = await readCaptureArtifactJson(run.directory, copied.artifacts.raster);
-  if (!isDeepStrictEqual(raster, registerRaster(capture, readiness.clipping))) throw new Error("Reused raster disagrees with its native camera controls or clipping evidence.");
   assertRestorationAudit(await readCaptureArtifactJson(run.directory, copied.artifacts.restoration), tile, copied.origin.captureKey, capture.frame, plan.lighting);
   const imagePath = resolve(run.directory, copied.artifacts.image.path);
   const image = await hashPng(imagePath, plan.width, plan.height, tile.id);
-  if (image.sha256 !== capture.sha256 || image.byteSize !== capture.byteSize) throw new Error("Reused image disagrees with its native response.");
+  if (image.sha256 !== copied.artifacts.image.sha256) throw new Error("Reused image disagrees with its checkpoint.");
+  const raster = await readCaptureArtifactJson(run.directory, copied.artifacts.raster);
+  if (!isDeepStrictEqual(raster, registerRaster(capture, image, readiness.cut))) throw new Error("Reused raster disagrees with its native camera controls or cut evidence.");
   return {
     ...capture,
     path: await toRuntimePath(config, imagePath),
@@ -385,9 +345,7 @@ type CaptureSweepContext = {
   run: Run;
   visit?: SceneVisit;
   transitionOrdinal: number;
-  reclamationOrdinal: number;
   sceneTransitions: ArtifactRecord[];
-  reclamations: ArtifactRecord[];
   plans: CaptureSweep["plans"];
   start: (targetSceneNativeId: number, timeoutMs: number) => Promise<SceneVisit>;
   retarget: (targetSceneNativeId: number, timeoutMs: number) => Promise<SceneVisit>;
@@ -400,6 +358,7 @@ async function capturePlan(
   config: CompendiumConfig,
   identity: Awaited<ReturnType<typeof buildIdentity>>,
   plan: CapturePlan,
+  planDirectory: string,
   sweep?: CaptureSweepContext,
 ) {
   validateCapturePlan(plan);
@@ -418,7 +377,7 @@ async function capturePlan(
     plan: createHash("sha256").update(planText).digest("hex"),
     "map-space-profile": spatialProfile.sha256,
   };
-  for (const name of ["world-inventory", "capture-session", "capture-geometry", "capture-visuals", "stream-visit", "scene-visit", "capture-reclaim"]) {
+  for (const name of ["world-inventory", "capture-session", "capture-geometry", "capture-visuals", "stream-visit", "scene-visit"]) {
     inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   }
   for (const name of [
@@ -452,7 +411,7 @@ async function capturePlan(
       sceneNativeId: plan.sceneNativeId,
       scenePath: plan.scenePath,
       mapSpaceId: plan.mapSpaceId,
-      clipHeight: plan.clipHeight ?? null,
+      cut: plan.cut ?? null,
       width: plan.width,
       height: plan.height,
       readiness: plan.readiness,
@@ -471,20 +430,18 @@ async function capturePlan(
     const checkpoints = new Map<string, CaptureTileCheckpoint>();
     const reused = new Set<string>();
     const tiles: CaptureTileResult[] = [];
-    let captureInterval: { cameraY: number; nearClip: number; farClip: number } | undefined;
+    // The cut survey is a plan input: its hash is in every tile's compatibility key, and each
+    // tile derives its own slices from the walkable surface under it.
+    const survey: NavigationSurvey | null = plan.cut === undefined ? null : await loadNavigationSurvey(resolve(planDirectory, plan.cut.survey.path), plan.cut, plan.sceneNativeId);
+    const cutPlans = new Map(plan.tiles.map(tile => [tile.id, survey === null ? null : planTileCut(tile, plan, survey)]));
     for (const tile of plan.tiles) {
       const candidate = reusable.get(tile.id);
       if (candidate === undefined) continue;
       const copied = await copyReusableTile(run, candidate);
-      const result = await loadReusedTileResult(run, tile, candidate, copied.checkpoint, plan, config);
+      const result = await loadReusedTileResult(run, tile, candidate, copied.checkpoint, plan, config, cutPlans.get(tile.id)!);
       await writeTileCheckpoint(run, copied.checkpoint);
       checkpoints.set(tile.id, copied.checkpoint);
       reused.add(tile.id);
-      const reusedFrame = result.cameraFrame;
-      if (captureInterval === undefined) captureInterval = { cameraY: reusedFrame.cameraY, nearClip: reusedFrame.nearClip, farClip: reusedFrame.farClip };
-      else if (!closeEnough(captureInterval.cameraY, reusedFrame.cameraY) || !closeEnough(captureInterval.nearClip, reusedFrame.nearClip) || !closeEnough(captureInterval.farClip, reusedFrame.farClip)) {
-        throw new Error(`Reused tile "${tile.id}" uses another vertical clipping interval.`);
-      }
       tiles.push(result);
     }
     if (reused.size === plan.tiles.length && sweep === undefined) {
@@ -573,16 +530,14 @@ async function capturePlan(
       let imageArtifact: ArtifactRecord | undefined;
       let restorationArtifact: ArtifactRecord | undefined;
       let rasterArtifact: ArtifactRecord | undefined;
-      const prepared = await withCaptureGeometry(runtime, config, run, plan, tile, async readiness => {
+      const cutPlan = cutPlans.get(tile.id)!;
+      const sliceArtifacts: ArtifactRecord[] = [];
+      const prepared = await withCaptureGeometry(runtime, config, run, plan, tile, cutPlan, async readiness => {
         if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
-        const expectedClipping = clippingEvidence(plan);
-        if (!isDeepStrictEqual(readiness.clipping, expectedClipping)) throw new Error(`Capture tile "${tile.id}" readiness disagrees with its reviewed clip setting.`);
-        const expectedFrame = effectiveCaptureFrame(tile, plan);
-        if (!isDeepStrictEqual(expectedFrame, readiness.captureFrame)) throw new Error(`Capture tile "${tile.id}" readiness frame disagrees with its reviewed clip setting.`);
-        if (captureInterval === undefined) captureInterval = { cameraY: expectedFrame.cameraY, nearClip: expectedFrame.nearClip, farClip: expectedFrame.farClip };
-        else if (!closeEnough(captureInterval.cameraY, expectedFrame.cameraY) || !closeEnough(captureInterval.nearClip, expectedFrame.nearClip) || !closeEnough(captureInterval.farClip, expectedFrame.farClip)) {
-          throw new Error(`Tile "${tile.id}" cannot share one vertical clipping interval with the capture plan.`);
-        }
+        const expectedCut = cutPlan === null ? null : cutPlan.evidence;
+        if (!isDeepStrictEqual(readiness.cut, expectedCut)) throw new Error(`Capture tile "${tile.id}" readiness disagrees with its reviewed cut.`);
+        const expectedFrame = cutCaptureFrame(tile, cutPlan);
+        if (!isDeepStrictEqual(expectedFrame, readiness.captureFrame)) throw new Error(`Capture tile "${tile.id}" readiness frame disagrees with its reviewed cut.`);
         const reply = await runtime.probe(probePath, responsePath, {
           preludeFile,
           parameters: {
@@ -593,6 +548,7 @@ async function capturePlan(
             lighting: plan.lighting,
             cullingMask: plan.cullingMask,
             suppression: plan.suppression,
+            cutHeights: cutPlan === null ? null : cutPlan.evidence.cutHeights,
             outputPath: pngRuntimePath,
             restorationPath: restorationRuntimePath,
             ...baseParameters,
@@ -607,10 +563,29 @@ async function capturePlan(
         }
         if (capture.frame < readiness.observedFrames.at(-1)!) throw new Error("Capture preceded its geometry readiness evidence.");
         assertFrameMatches(capture, readiness.captureFrame, tile.id);
-        if (!isDeepStrictEqual(capture.cameraFrame, readiness.captureFrame)) throw new Error(`Capture response for tile "${tile.id}" disagrees with readiness clipping evidence.`);
-        const raster = registerRaster(capture, readiness.clipping);
+        if (!isDeepStrictEqual(capture.cameraFrame, readiness.captureFrame)) throw new Error(`Capture response for tile "${tile.id}" disagrees with readiness cut evidence.`);
+        // Every slice the probe published is verified against its reported hash, then the
+        // composite is written as the tile image. Without a cut the single slice is the image.
+        const expectedCuts = cutPlan === null ? [readiness.captureFrame.cameraY - readiness.captureFrame.nearClip] : cutPlan.evidence.cutHeights;
+        if (capture.slices.length !== expectedCuts.length || capture.slices.some((slice, index) => slice.index !== index || !closeEnough(slice.cut, expectedCuts[index]!))) {
+          throw new Error(`Capture response for tile "${tile.id}" reports slices that disagree with its cut.`);
+        }
+        const slicePaths: string[] = [];
+        for (const slice of capture.slices) {
+          const sliceRelative = `tiles/${tile.id}.slice-${String(slice.index).padStart(3, "0")}.png`;
+          const slicePath = resolve(run.directory, sliceRelative);
+          const hashed = await hashPng(slicePath, plan.width, plan.height, tile.id);
+          if (hashed.sha256 !== slice.sha256 || hashed.byteSize !== slice.byteSize) throw new Error(`Capture slice ${slice.index} for tile "${tile.id}" does not match its PNG artifact.`);
+          sliceArtifacts.push(await registerArtifact(run, sliceRelative, hashed.sha256));
+          slicePaths.push(slicePath);
+        }
+        if (cutPlan === null) await Bun.write(pngPath, Bun.file(slicePaths[0]!));
+        else {
+          const composite = await compositeCut(slicePaths, cutPlan.evidence.cutHeights, cutPlan, plan.width, plan.height);
+          await Bun.write(pngPath, composite.png);
+        }
         const png = await hashPng(pngPath, plan.width, plan.height, tile.id);
-        if (png.sha256 !== capture.sha256 || png.byteSize !== capture.byteSize) throw new Error(`Capture response for tile "${tile.id}" does not match its PNG artifact.`);
+        const raster = registerRaster(capture, png, readiness.cut);
         const restorationBytes = await readFile(restorationPath);
         let restoration: unknown;
         try { restoration = JSON.parse(new TextDecoder().decode(restorationBytes)); } catch (error) { throw new Error(`Restoration audit for tile "${tile.id}" is not valid JSON.`, { cause: error }); }
@@ -629,7 +604,7 @@ async function capturePlan(
       const inventoryArtifact = await captureArtifactReference(run.directory, prepared.readiness.inventoryPath);
       const inventoryContextPath = prepared.readiness.inventoryPath.replace(/\.json$/, ".context.json");
       const inventoryContextArtifact = await captureArtifactReference(run.directory, inventoryContextPath);
-      const nativeContext = [responseArtifact, inventoryArtifact, inventoryContextArtifact];
+      const nativeContext = [responseArtifact, inventoryArtifact, inventoryContextArtifact, ...sliceArtifacts];
       if (prepared.readiness.streamKey !== null) {
         nativeContext.push(await captureArtifactReference(run.directory, `tiles/${tile.id}.geometry/stream-cleanup.json`));
       }
@@ -708,13 +683,16 @@ async function capturePlan(
   }
 }
 
+export type CapturePlanInput = { plan: CapturePlan; path: string };
+
 export async function capture(
   runtime: Runtime,
   config: CompendiumConfig,
   identity: Awaited<ReturnType<typeof buildIdentity>>,
-  plans: CapturePlan[],
+  planInputs: CapturePlanInput[],
 ) {
-  if (plans.length === 0) throw new Error("Capture requires at least one plan.");
+  if (planInputs.length === 0) throw new Error("Capture requires at least one plan.");
+  const plans = planInputs.map(input => input.plan);
   const finalScene = { nativeId: config.finalSceneNativeId, path: config.finalScenePath };
   plans.forEach(validateCapturePlan);
   const sweepRun = await beginRun(config.outputRoot, {
@@ -740,9 +718,7 @@ export async function capture(
     finalScenePath: finalScene.path,
     run: sweepRun,
     transitionOrdinal: 0,
-    reclamationOrdinal: 0,
     sceneTransitions: [],
-    reclamations: [],
     plans: [],
     start: async () => { throw new Error("Sweep scene controller is not initialized."); },
     retarget: async () => { throw new Error("Sweep scene controller is not initialized."); },
@@ -789,31 +765,21 @@ export async function capture(
   sweep.restore = (timeoutMs) => transitionScene("restore", sweep.visit?.targetSceneNativeId ?? finalScene.nativeId, timeoutMs);
   const results: Awaited<ReturnType<typeof capturePlan>>[] = [];
   try {
-    for (const plan of plans) {
-      results.push(await capturePlan(runtime, config, identity, plan, sweep));
-      try {
-        const readyScene = sweep.visit;
-        if (readyScene === undefined || readyScene.phase !== "ready" || readyScene.sceneNativeId === null || !readyScene.sceneReady) {
-          throw new Error("A scene-boundary reclamation requires a ready capture scene.");
-        }
-        sweep.reclamations.push(await reclaimAtSceneBoundary(runtime, sweep.run, sweep.reclamationOrdinal++, readyScene, plan.readiness.timeoutMs));
-      } catch (error) {
-        sweep.failure = { planRunId: sweep.plans.at(-1)?.runId ?? "unknown", phase: "memory-reclamation" };
-        throw error;
-      }
+    for (const input of planInputs) {
+      const plan = input.plan;
+      results.push(await capturePlan(runtime, config, identity, plan, dirname(resolve(input.path)), sweep));
     }
     if (sweep.visit !== undefined && sweep.visit.phase !== "restored") sweep.visit = await sweep.restore(plans.at(-1)!.readiness.timeoutMs);
     await runtime.complete();
     await Bun.write(resolve(sweep.run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
     const runtimeCleanup = await registerArtifact(sweep.run, "runtime-cleanup.json");
     const sweepEvidence: CaptureSweep = {
-      schemaVersion: "compendium.capture-sweep.v2",
+      schemaVersion: "compendium.capture-sweep.v3",
       runId: sweep.run.runId,
       ownerToken: runtime.ownerToken,
       finalScene,
       plans: sweep.plans,
       sceneTransitions: sweep.sceneTransitions,
-      reclamations: sweep.reclamations,
       runtimeCleanup,
       completed: true,
     };

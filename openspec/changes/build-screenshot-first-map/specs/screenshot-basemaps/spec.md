@@ -37,24 +37,26 @@ Overlapping markers from stacked content SHALL remain distinct records at their 
 - **THEN** both remain separately selectable records
 - **AND** the atlas does not merge, hide, or displace either one
 
-### Requirement: Clipping is off unless a reviewer sets a height
+### Requirement: A cut follows the walkable surface
 
-Capture SHALL NOT clip by default. An extent without a reviewed clip height SHALL be captured with the camera frame its plan declares, which is the ordinary case and covers every world surface extent.
+Capture SHALL NOT cut by default. An extent without a reviewed cut SHALL be captured with the camera frame its plan declares, which is the ordinary case and covers every world surface extent.
 
-A capture plan MAY carry a reviewed clip height for a map whose content is covered by geometry above it. Capture SHALL apply that height, exclude the covered geometry through the camera, and record the effective camera frame and the fact that the height came from the plan. Clipping SHALL NOT disable or delete scene objects.
+A capture plan MAY carry a reviewed cut for a map whose content is covered by geometry above it. The cut SHALL cite the hashed navigation survey of the map's scene and declare a slice step, a headroom, and the camera height above the top slice. For each tile, capture SHALL rasterize the highest walkable height under every pixel from that survey, fill pixels without walkable surface from their nearest walkable neighbour, render one slice per step across the tile's walkable range in one frame-local operation, and compose each pixel from the first slice whose cut sits at or above that pixel's walkable height plus headroom. The tile image SHALL be that composite. The artifact SHALL record the walkable range, the slice heights, and the survey hash, and SHALL retain every slice with its hash. A cut SHALL NOT disable or delete scene objects. Capture SHALL NOT use one height for a whole map, because a dungeon's walkable surface spans more than a hundred units inside one tile.
 
-Capture SHALL NOT infer a clip height. Automatic derivation was tried and removed: it made the decision depend on tile size rather than on the scene, and per-map review is a one-time task whose result is easy to check against the rendered image. Renderer names SHALL NOT select ceilings either, because one cave scene contains renderers named `Massive_Cave_Ceiling_*` while a reviewed dungeon scene contains no renderer whose name matches ceiling or roof.
+#### Scenario: An extent needs no cut
+- **WHEN** its plan declares no reviewed cut
+- **THEN** capture renders it with the plan's camera frame as one slice
+- **AND** the artifact records a null cut
 
-#### Scenario: An extent needs no clipping
-- **WHEN** its plan declares no reviewed clip height
-- **THEN** capture renders it with the plan's camera frame
-- **AND** the artifact records the effective frame without a clip height
+#### Scenario: Ledges and floor share one tile
+- **WHEN** a dungeon tile's walkable surface spans from its floor to a ledge far above
+- **THEN** the composite shows the floor under the low cut and the ledge under the high cut
+- **AND** no ceiling above either surface appears
+- **AND** the raster records every slice height and the walkable range
 
-#### Scenario: A reviewer sets a clip height for a covered map
-- **WHEN** the plan carries that height
-- **THEN** capture applies it and the rendered image shows the covered content
-- **AND** the artifact records the height and its reviewed origin
-- **AND** no scene object is deactivated, deleted, or left modified after the capture
+#### Scenario: A cut survey changes
+- **WHEN** the cited navigation survey's hash changes
+- **THEN** every tile of that map is recaptured rather than reused
 
 ### Requirement: Capture chunks compose into a verified tile pyramid
 
@@ -179,7 +181,7 @@ The capture plan SHALL carry a reviewed suppression policy: shader-name prefixes
 The output SHALL include build identity, capture inputs, spatial metadata, tile coordinates, file hashes, and coverage results. Reuse SHALL require compatible inputs and verified file integrity. The tile pyramid SHALL have a single defined finest resolution, explicit empty positions, and no unexplained holes. A failed capture SHALL not replace the last valid artifact set.
 
 #### Scenario: A capture resumes with changed inputs
-- **WHEN** the game build, geometry coverage, calibration, clip height, or capture profile changes
+- **WHEN** the game build, geometry coverage, calibration, cut survey, suppression, or capture profile changes
 - **THEN** incompatible chunks are recaptured rather than reused as current output
 
 #### Scenario: Captured imagery and markers belong to different builds

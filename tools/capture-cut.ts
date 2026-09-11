@@ -1,0 +1,125 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import sharp from "sharp";
+import type { CaptureCut, CaptureCutEvidence, CapturePlan } from "./capture-contracts";
+
+type CaptureTile = CapturePlan["tiles"][number];
+
+export type NavigationSurvey = { vertices: number[]; indices: number[]; scene: { nativeId: number } };
+
+export type CutPlan = {
+  evidence: NonNullable<CaptureCutEvidence>;
+  // Walkable height per pixel with non-walkable pixels filled from their nearest neighbour.
+  field: Float32Array;
+  cameraY: number;
+};
+
+// Loads and verifies the navigation survey the plan's cut cites.
+export async function loadNavigationSurvey(path: string, cut: CaptureCut, sceneNativeId: number): Promise<NavigationSurvey> {
+  const bytes = await readFile(path);
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  if (sha256 !== cut.survey.sha256) throw new Error("Capture cut survey hash does not match its plan.");
+  const value = JSON.parse(bytes.toString("utf8")) as NavigationSurvey;
+  if (!Array.isArray(value.vertices) || !Array.isArray(value.indices) || value.scene?.nativeId !== sceneNativeId) throw new Error("Capture cut survey does not describe the plan's scene.");
+  return value;
+}
+
+// The highest walkable y under each pixel, rasterized from the navmesh triangles under the
+// tile. A pixel with no walkable surface holds -Infinity.
+function walkableHeightField(tile: CaptureTile, width: number, height: number, survey: NavigationSurvey): Float32Array {
+  const field = new Float32Array(width * height).fill(Number.NEGATIVE_INFINITY);
+  const minX = tile.frame.center.x - tile.frame.worldSize.x / 2;
+  const maxZ = tile.frame.center.z + tile.frame.worldSize.z / 2;
+  const scaleX = width / tile.frame.worldSize.x, scaleZ = height / tile.frame.worldSize.z;
+  const v = survey.vertices, idx = survey.indices;
+  for (let t = 0; t + 2 < idx.length; t += 3) {
+    const a = idx[t]! * 3, b = idx[t + 1]! * 3, c = idx[t + 2]! * 3;
+    const ax = (v[a]! - minX) * scaleX, az = (maxZ - v[a + 2]!) * scaleZ, ay = v[a + 1]!;
+    const bx = (v[b]! - minX) * scaleX, bz = (maxZ - v[b + 2]!) * scaleZ, by = v[b + 1]!;
+    const cx = (v[c]! - minX) * scaleX, cz = (maxZ - v[c + 2]!) * scaleZ, cy = v[c + 1]!;
+    const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx))), x1 = Math.min(width - 1, Math.ceil(Math.max(ax, bx, cx)));
+    const z0 = Math.max(0, Math.floor(Math.min(az, bz, cz))), z1 = Math.min(height - 1, Math.ceil(Math.max(az, bz, cz)));
+    if (x0 > x1 || z0 > z1) continue;
+    const area = (bx - ax) * (cz - az) - (cx - ax) * (bz - az);
+    if (Math.abs(area) < 1e-9) continue;
+    for (let pz = z0; pz <= z1; pz++) for (let px = x0; px <= x1; px++) {
+      const qx = px + 0.5, qz = pz + 0.5;
+      const w0 = ((bx - qx) * (cz - qz) - (cx - qx) * (bz - qz)) / area;
+      const w1 = ((cx - qx) * (az - qz) - (ax - qx) * (cz - qz)) / area;
+      const w2 = 1 - w0 - w1;
+      if (w0 < -1e-4 || w1 < -1e-4 || w2 < -1e-4) continue;
+      const y = w0 * ay + w1 * by + w2 * cy;
+      const at = pz * width + px;
+      if (y > field[at]!) field[at] = y;
+    }
+  }
+  return field;
+}
+
+// Fills non-walkable pixels from their nearest walkable neighbour, so walls and rock beside
+// a path cut at that path's height.
+function fillNearest(field: Float32Array, width: number, height: number): Float32Array {
+  const out = Float32Array.from(field);
+  const queue = new Int32Array(out.length);
+  let tail = 0;
+  for (let i = 0; i < out.length; i++) if (Number.isFinite(out[i]!)) queue[tail++] = i;
+  for (let head = 0; head < tail; head++) {
+    const i = queue[head]!;
+    const x = i % width;
+    const y = out[i]!;
+    if (x > 0 && !Number.isFinite(out[i - 1]!)) { out[i - 1] = y; queue[tail++] = i - 1; }
+    if (x < width - 1 && !Number.isFinite(out[i + 1]!)) { out[i + 1] = y; queue[tail++] = i + 1; }
+    if (i >= width && !Number.isFinite(out[i - width]!)) { out[i - width] = y; queue[tail++] = i - width; }
+    if (i + width < out.length && !Number.isFinite(out[i + width]!)) { out[i + width] = y; queue[tail++] = i + width; }
+  }
+  return out;
+}
+
+// Derives the tile's cut: its walkable range, the slice heights that cover it, and the
+// camera height above the highest slice. Returns null when nothing walkable lies under the tile.
+export function planTileCut(tile: CaptureTile, plan: CapturePlan, survey: NavigationSurvey): CutPlan | null {
+  const cut = plan.cut;
+  if (cut === undefined) return null;
+  const raw = walkableHeightField(tile, plan.width, plan.height, survey);
+  let minY = Number.POSITIVE_INFINITY, maxY = Number.NEGATIVE_INFINITY, walkable = 0;
+  for (const y of raw) { if (!Number.isFinite(y)) continue; walkable++; if (y < minY) minY = y; if (y > maxY) maxY = y; }
+  if (walkable === 0) return null;
+  const cutHeights: number[] = [];
+  for (let height = Math.floor((minY + cut.headroom) / cut.step) * cut.step; height <= maxY + cut.headroom + cut.step; height += cut.step) cutHeights.push(Number(height.toFixed(3)));
+  return {
+    evidence: { source: "navigation", surveySha256: cut.survey.sha256, step: cut.step, headroom: cut.headroom, walkable: { minY, maxY, coverage: walkable / raw.length }, cutHeights },
+    field: fillNearest(raw, plan.width, plan.height),
+    cameraY: cutHeights[cutHeights.length - 1]! + cut.cameraAbove,
+  };
+}
+
+// The camera frame a tile renders with: its declared frame, or the cut frame above the highest
+// slice with a far plane that still reaches the tile's declared lower bound.
+export function cutCaptureFrame(tile: CaptureTile, cutPlan: CutPlan | null): CaptureTile["frame"] {
+  if (cutPlan === null) return tile.frame;
+  const lowerBound = tile.frame.cameraY - tile.frame.farClip;
+  return { ...tile.frame, cameraY: cutPlan.cameraY, farClip: cutPlan.cameraY - lowerBound };
+}
+
+// Composites the rendered slices: each pixel takes the first slice whose cut sits at or above
+// the walkable height plus headroom. Returns the PNG bytes and the per-slice pixel counts.
+export async function compositeCut(slicePaths: readonly string[], cutHeights: readonly number[], cutPlan: CutPlan, width: number, height: number): Promise<{ png: Buffer; sliceUse: number[] }> {
+  if (slicePaths.length !== cutHeights.length) throw new Error("Cut slices and cut heights disagree.");
+  const slices = await Promise.all(slicePaths.map(async path => {
+    const decoded = await sharp(path).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    if (decoded.info.width !== width || decoded.info.height !== height || decoded.info.channels !== 4) throw new Error("A cut slice has unexpected dimensions.");
+    return decoded.data;
+  }));
+  const out = Buffer.alloc(width * height * 4);
+  const sliceUse = new Array<number>(slices.length).fill(0);
+  const headroom = cutPlan.evidence.headroom;
+  for (let i = 0; i < width * height; i++) {
+    const target = cutPlan.field[i]! + headroom;
+    let pick = slices.length - 1;
+    for (let s = 0; s < cutHeights.length; s++) if (cutHeights[s]! >= target) { pick = s; break; }
+    sliceUse[pick]!++;
+    slices[pick]!.copy(out, i * 4, i * 4, i * 4 + 4);
+  }
+  const png = await sharp(out, { raw: { width, height, channels: 4 } }).png().toBuffer();
+  return { png, sliceUse };
+}
