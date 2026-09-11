@@ -536,7 +536,9 @@ async function capturePlan(
       cleanupPath: cleanupRuntimePath,
     };
     const startPath = "capture-start.json";
-    const startReply = await runtime.probe(probePath, resolve(run.directory, startPath), { preludeFile, parameters: { action: "start", ...baseParameters } });
+    // Session start allocates the camera, light, and render texture while the scene it just
+    // entered is still settling, so it uses the readiness budget rather than the per-call default.
+    const startReply = await runtime.probe(probePath, resolve(run.directory, startPath), { preludeFile, parameters: { action: "start", ...baseParameters }, timeoutMs: plan.readiness.timeoutMs });
     assertSchema(CaptureSessionSchema, startReply.value, "Capture start response");
     let session = startReply.value as CaptureSession;
     if (session.phase !== "ready" || session.sceneNativeId !== plan.sceneNativeId || session.scenePath !== plan.scenePath) throw new Error("Capture start response has mismatched scene metadata.");
@@ -682,6 +684,7 @@ async function capturePlan(
     const restoredReply = await runtime.probe(probePath, resolve(run.directory, restoredPath), {
       preludeFile,
       parameters: { action: "restore", key: session.key, ...baseParameters },
+      timeoutMs: plan.readiness.timeoutMs,
     });
     assertSchema(CaptureSessionSchema, restoredReply.value, "Capture restore response");
     session = restoredReply.value as CaptureSession;
