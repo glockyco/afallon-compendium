@@ -71,7 +71,9 @@ A creature whose level is unknown SHALL remain visible under a filter rather tha
 
 The atlas SHALL present one navigable world map. Scenes that the game already covers with a shared map texture SHALL occupy one map without manual composition. Maps the game does not position relative to each other, such as caves and dungeons, SHALL be placed on the world map by reviewed manual placement.
 
-Placement SHALL be translation only at a shared world scale. The atlas SHALL NOT rescale or rotate a map to improve the layout. A reviewed placement file SHALL own the offsets, and an authoring mode SHALL allow dragging a map and exporting those offsets for review. A placement override SHALL move a map and its markers together.
+Placement SHALL be translation only at a shared world scale. The atlas SHALL NOT rescale or rotate a map to improve the layout. A reviewed placement file SHALL own the offsets, and an authoring mode SHALL allow dragging a map with its markers and exporting those offsets for review. A placement override SHALL move a map and its markers together.
+
+Each placed map SHALL show its player-facing name above its bounds. The label SHALL move with the map and remain legible without covering its terrain at the map's working zoom.
 
 #### Scenario: Two scenes share one game map texture
 - **WHEN** both are published
@@ -82,6 +84,11 @@ Placement SHALL be translation only at a shared world scale. The atlas SHALL NOT
 - **WHEN** the reviewer drags that dungeon in the authoring mode
 - **THEN** its imagery and its markers move together at unchanged scale
 - **AND** the mode exports the offsets for the reviewed placement file
+
+#### Scenario: A reader inspects a placed map
+- **WHEN** the reader views the map at its working zoom
+- **THEN** the map's name appears above its bounds
+- **AND** the label does not obscure the captured terrain
 
 #### Scenario: A map has no reviewed placement
 - **WHEN** the world map is built
@@ -141,6 +148,26 @@ Hover SHALL NOT replace selection, and it SHALL NOT open a panel that covers the
 - **WHEN** the pointer rests on it
 - **THEN** its name and short description appear
 - **AND** the current selection does not change
+
+### Requirement: Map interaction preserves the reader's context
+
+The rendering adapter SHALL own the live pan and zoom state. Pointer interaction SHALL update that camera directly and report snapshots for URL persistence. Semantic changes, such as selection, filtering, and hover, SHALL NOT send the reported camera back to the adapter or rebuild imagery during a camera change.
+
+Selecting a marker SHALL update selection only. A separate focus or fit action MAY move the camera. Captured imagery and orientation-only illustrations SHALL keep separate camera snapshots, so switching layers does not discard the reader's position in either coordinate space.
+
+#### Scenario: A reader selects a marker
+- **WHEN** the reader selects a visible marker
+- **THEN** the selection and details update
+- **AND** the camera target and zoom remain unchanged
+
+#### Scenario: A reader pans with inertia
+- **WHEN** the reader releases a pan gesture
+- **THEN** the camera continues and settles without snapping back
+- **AND** imagery layers are not reconstructed for each camera update
+
+#### Scenario: A reader switches image coordinate spaces
+- **WHEN** the reader switches from captured imagery to an orientation-only illustration and back
+- **THEN** each layer restores its own last camera target and zoom
 
 ### Requirement: Search connects items to places
 

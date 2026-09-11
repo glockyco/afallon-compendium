@@ -56,6 +56,8 @@
 - [ ] 6.6 Add URL-backed view, selection, query, and filter state, with a layer parameter only where a map offers a choice. Verify reload, browser back/forward, travel navigation with its return control, and stale links in the browser. No map or floor parameter may remain.
 - [x] 6.7 Add keyboard operation, focus restoration, narrow-screen panels, and non-color marker distinctions. Verify the complete search-to-detail journey without a pointer.
 - [x] 6.8 Add build identity and coverage disclosure to the interface. Verify a partial research artifact cannot appear as a complete release.
+- [x] 6.9 Give Deck ownership of the live camera, preserve separate captured and orientation-layer snapshots, and keep selection camera-neutral. Reserve persistent full-height control and detail columns. Verify pan inertia, responsive wheel zoom, explicit zoom and fit commands, URL restoration, unchanged map dimensions when details open, and no layer rebuild during view changes in the browser.
+- [x] 6.10 Label each placed map above its bounds at a common world-unit size. Verify the label moves with authored offsets and stays legible without covering terrain at the map's working zoom.
 
 ## 6a. Single-plane and guide reset
 
@@ -79,7 +81,7 @@ The floor model, the analyst vocabulary, and the map selector are absent. A laye
 Full-world collection starts only after the representative end-to-end milestone in 6.5 passes. That milestone does not reduce the release coverage requirement.
 
 - [ ] 7.1 Run extraction across the complete supported-build inventory. Verify no reachable source or relevant content family remains unresolved in the coverage ledger.
-- [ ] 7.2 Capture all required world surface areas and zones, then generate their tile pyramids and world placements. Verify every expected chunk has a valid result, every published marker samples actual non-blank finest-level pixels, every published placement retains its authored world height, and every published map has a reviewed placement. The current public placement contract omits world height and tile validation checks only tile bounds, so this task remains incomplete.
+- [ ] 7.2 Capture all required world surface areas and zones, then generate their tile pyramids and world placements. Emit every cell in each reviewed rectangular capture grid; placement density cannot create interior holes. Verify every expected chunk has a valid result, every published marker samples actual non-blank finest-level pixels, every published placement retains its authored world height, and every published map has a reviewed placement. The current public placement contract omits world height and tile validation checks only tile bounds, so this task remains incomplete.
 - [ ] 7.3 Build the complete static artifact set and exercise representative map, loot, stock, gathering, quest, and transition journeys. Verify browser behavior, full-build filtering and aggregation performance, and actual download/file-size measurements.
 - [ ] 7.4 Repeat extraction and resume a capture with unchanged inputs. Verify stable placement identities, compatible tile reuse, and no duplicate relationships.
 - [ ] 7.5 Document the real operator commands, supported build, coverage results, and measured limitations. Verify the documented commands reproduce the artifact set from a fresh local run.

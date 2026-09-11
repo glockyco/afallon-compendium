@@ -92,7 +92,7 @@ Every image layer SHALL identify its map, world bounds, orientation, resolution,
 
 ### Requirement: Capture waits for relevant geometry
 
-Capture SHALL prepare the geometry required by each chunk, including streamed objects. Bounds SHALL come from validated spatial evidence, not only marker extents or fixed constants. Every planned chunk SHALL have a captured, verified-empty, or failed result. A timeout or missing streamed source SHALL NOT count as empty terrain.
+Capture SHALL prepare the geometry required by each chunk, including streamed objects. Bounds SHALL come from validated spatial evidence, not only marker extents or fixed constants. A reviewed rectangular capture grid SHALL emit every cell in that rectangle; an empty placement cell SHALL NOT create a hole in otherwise continuous imagery. Every planned chunk SHALL have a captured, verified-empty, or failed result. A timeout or missing streamed source SHALL NOT count as empty terrain.
 
 Required source selection SHALL cover the complete chunk frustum and its configured boundary overlap. Capture SHALL retain inactive-source exclusions, exact loaded-root and handle state, and stable geometry observations from distinct native frames. A combined loaded-or-loading flag SHALL NOT establish readiness. The chunk deadline SHALL include rendering and hold restoration.
 
