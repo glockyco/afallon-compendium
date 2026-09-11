@@ -12,12 +12,16 @@
   } from './publication';
   import {
     MARKER_IDS,
+    MARKER_SECTION_LABELS,
+    MARKER_SECTION_ORDER,
     markerColorCss,
     markerFor,
-    markerRegistry,
     resolveMarker,
+    type MarkerDefinition,
     type MarkerId,
   } from './map/marker-registry';
+  import MapSidebarSection from './map/MapSidebarSection.svelte';
+  import CategoryRow from './map/CategoryRow.svelte';
   import { markerGlyphSvg } from './map/icon-atlas';
   import { downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
   import type { PublicEntity, PublicItemSource, PublicPlacement, PublicDetailSection, PublicationData } from '../../../pipeline/public-contracts';
@@ -41,6 +45,22 @@
     | { kind: 'placement'; placement: PublicPlacement }
   );
   const searchKindOrder = { item: 0, placement: 1, entity: 2 };
+  const RESULT_LIMIT = 200;
+
+  interface ResultSummary {
+    marker: MarkerDefinition;
+    categories: string;
+    levels: string;
+  }
+
+  interface SearchIndexes {
+    placementsById: ReadonlyMap<string, PublicPlacement>;
+    placementsByEntityKey: ReadonlyMap<string, readonly PublicPlacement[]>;
+    placementsByItemKey: ReadonlyMap<string, readonly PublicPlacement[]>;
+    placementSummaries: ReadonlyMap<string, ResultSummary>;
+    entitySummaries: ReadonlyMap<string, ResultSummary>;
+    itemSummaries: ReadonlyMap<string, ResultSummary>;
+  }
 
   let canvas: HTMLCanvasElement;
   let resultList: HTMLElement;
@@ -68,9 +88,11 @@
   let detailOrigin: HTMLElement | null = null;
   let authoring = false;
   let showConnections = true;
+  let panelCollapsed = false;
   let worldOffsetOverrides: WorldOffsetOverrides = {};
   let viewTimer: ReturnType<typeof setTimeout> | null = null;
   let queryTimer: ReturnType<typeof setTimeout> | null = null;
+  let searchIndexes: SearchIndexes = emptySearchIndexes();
 
   $: layerOptions = getLayerOptions(publication);
   $: if (layerOptions.length > 0 && !layerOptions.some((layer) => layer.id === layerId)) layerId = layerOptions[0]!.id;
@@ -95,12 +117,18 @@
   $: matchingPlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && (categories.length === 0 || categories.some((category) => placement.categories.includes(category))) && levelMatches(placement) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId)));
   $: categoryCounts = getCategoryCounts(matchingPlacements);
   $: categoryFilters = MARKER_IDS.filter((category) => categoryCounts[category] > 0 || markerFor(category).defaultVisible);
+  $: markerSections = MARKER_SECTION_ORDER.map((section) => ({
+    id: section,
+    label: MARKER_SECTION_LABELS[section],
+    markers: MARKER_IDS.filter((category) => categoryFilters.includes(category) || categories.includes(category)).map((category) => markerFor(category)).filter((marker) => marker.section === section),
+  })).filter((section) => section.markers.length > 0);
   $: viewportPlacements = matchingPlacements.filter((placement) => inViewport(placement, viewportBounds));
   $: selectedPlacement = publication?.placements.find((placement) => placement.placementId === selectedId) ?? null;
   $: hoveredPlacement = publication?.placements.find((placement) => placement.placementId === hoveredId) ?? null;
   $: selectedEntities = selectedPlacement ? selectedPlacement.entityKeys.map((key) => entityByKey.get(key)).filter((entity): entity is PublicEntity => Boolean(entity)) : [];
   $: resultPlacements = viewportBounds ? viewportPlacements : matchingPlacements;
   $: rankedResults = rankResults(searchNeedle, matchingItems, matchingEntities, resultPlacements, entityByKey);
+  $: displayedResults = rankedResults.slice(0, RESULT_LIMIT);
   $: filteredDetail = selectedPlacement ? filteredSections(selectedPlacement.sections, detailQuery) : [];
   $: extraSelection = selectedPlacement && !staleSelection && !orientationOnly && !matchingPlacements.some((placement) => placement.placementId === selectedId) ? selectedPlacement : null;
   $: adapterPlacements = extraSelection ? [...matchingPlacements, extraSelection] : matchingPlacements;
@@ -108,9 +136,19 @@
   onMount(() => {
     let disposed = false;
     worldOffsetOverrides = loadWorldOffsetOverrides();
+    try {
+      panelCollapsed = localStorage.getItem('afallon-atlas-sidebar') === 'collapsed';
+    } catch {
+      // The expanded sidebar is a safe default when browser storage is unavailable.
+    }
     const metadataRequest = new AbortController();
     const onPopState = () => applyUrlState(readMapUrl(window.location.search), false);
     const onKeydown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'b') {
+        event.preventDefault();
+        togglePanel();
+        return;
+      }
       if (event.key === 'Escape' && !event.defaultPrevented && detailsPanel?.isConnected) {
         event.preventDefault();
         void closeDetails();
@@ -124,12 +162,13 @@
       .then(async (response) => {
         if (!response.ok) throw new Error(`Publication request failed (${response.status})`);
         const json = (await response.json()) as PublicationData;
-        if (json.schemaVersion !== 'compendium.publication.v6') throw new Error('Unsupported publication schema.');
+        if (json.schemaVersion !== 'compendium.publication.v7') throw new Error('Unsupported publication schema.');
         return resolvePublicationAssets(json, publicationUrl);
       })
       .then(async (data) => {
         if (disposed) return;
         publication = data;
+        searchIndexes = buildSearchIndexes(data);
         applyUrlState(readMapUrl(window.location.search), false);
         loading = false;
         await tick();
@@ -220,6 +259,7 @@
   }
 
   function rankResults(needle: string, items: PublicItemSource[], entities: PublicEntity[], placements: PublicPlacement[], names: ReadonlyMap<string, PublicEntity>): SearchResult[] {
+    // The atlas is small enough for exact and substring matching; avoid fuzzy ranking that obscures why a result matched.
     const rank = (name: string): number => {
       const text = name.toLocaleLowerCase();
       return text === needle ? 0 : text.startsWith(needle) ? 1 : text.includes(needle) ? 2 : 3;
@@ -232,6 +272,62 @@
     for (const entity of entities) results.push({ kind: 'entity', key: entity.entityKey, name: entity.name, rank: rank(entity.name), entity });
     for (const placement of placements) results.push({ kind: 'placement', key: placement.placementId, name: placement.label, rank: rank(placement.label), placement });
     return results.sort((a, b) => a.rank - b.rank || searchKindOrder[a.kind] - searchKindOrder[b.kind] || (a.name < b.name ? -1 : a.name > b.name ? 1 : a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  }
+
+  function emptySearchIndexes(): SearchIndexes {
+    return {
+      placementsById: new Map(),
+      placementsByEntityKey: new Map(),
+      placementsByItemKey: new Map(),
+      placementSummaries: new Map(),
+      entitySummaries: new Map(),
+      itemSummaries: new Map(),
+    };
+  }
+
+  function summarizePlacements(placements: readonly PublicPlacement[], fallbackId: MarkerId): ResultSummary {
+    const categoryIds = [...new Set(placements.flatMap((placement) => placement.categories))] as MarkerId[];
+    const marker = markerFor(placements[0] ? (resolveMarker(placements[0]) ?? categoryIds[0] ?? fallbackId) : fallbackId);
+    const ranges = placements.flatMap((placement) => placement.levelRange ? [placement.levelRange] : []);
+    const range = ranges.length > 0
+      ? { min: Math.min(...ranges.map((value) => value.min)), max: Math.max(...ranges.map((value) => value.max)) }
+      : null;
+    return {
+      marker,
+      categories: categoryIds.length > 0 ? categoryIds.map((category) => markerFor(category).label).join(' · ') : 'No map category',
+      levels: range ? levelRangeLabel(range) : 'Level not specified',
+    };
+  }
+
+  function buildSearchIndexes(data: PublicationData): SearchIndexes {
+    const placementsById = new Map(data.placements.map((placement) => [placement.placementId, placement]));
+    const placementsByEntityKey = new Map<string, PublicPlacement[]>();
+    for (const placement of data.placements) {
+      for (const entityKey of placement.entityKeys) {
+        const placements = placementsByEntityKey.get(entityKey) ?? [];
+        placements.push(placement);
+        placementsByEntityKey.set(entityKey, placements);
+      }
+    }
+    const placementsByItemKey = new Map<string, PublicPlacement[]>();
+    for (const item of data.itemSources) {
+      const placements = item.sources.flatMap((source) => source.placementIds.map((id) => placementsById.get(id)).filter((placement): placement is PublicPlacement => Boolean(placement)));
+      placementsByItemKey.set(item.itemKey, placements);
+    }
+    return {
+      placementsById,
+      placementsByEntityKey,
+      placementsByItemKey,
+      placementSummaries: new Map(data.placements.map((placement) => [placement.placementId, summarizePlacements([placement], 'interactiveObject')])),
+      entitySummaries: new Map(data.entities.map((entity) => [entity.entityKey, summarizePlacements(placementsByEntityKey.get(entity.entityKey) ?? [], 'npc')])),
+      itemSummaries: new Map(data.itemSources.map((item) => [item.itemKey, summarizePlacements(placementsByItemKey.get(item.itemKey) ?? [], 'container')])),
+    };
+  }
+
+  function resultSummary(result: SearchResult): ResultSummary {
+    if (result.kind === 'placement') return searchIndexes.placementSummaries.get(result.placement.placementId) ?? summarizePlacements([result.placement], 'interactiveObject');
+    if (result.kind === 'entity') return searchIndexes.entitySummaries.get(result.entity.entityKey) ?? summarizePlacements([], 'npc');
+    return searchIndexes.itemSummaries.get(result.item.itemKey) ?? summarizePlacements([], 'container');
   }
 
   function sectionText(sections: PublicDetailSection[]): string {
@@ -350,6 +446,24 @@
     showConnections = !showConnections;
   }
 
+  function togglePanel(): void {
+    panelCollapsed = !panelCollapsed;
+    try {
+      localStorage.setItem('afallon-atlas-sidebar', panelCollapsed ? 'collapsed' : 'expanded');
+    } catch {
+      // The panel remains usable when browser storage is unavailable.
+    }
+  }
+
+  function toggleAllCategories(ids: readonly MarkerId[]): void {
+    const allSelected = ids.length > 0 && ids.every((id) => categories.includes(id));
+    const next = allSelected
+      ? categories.filter((category) => !ids.includes(category))
+      : [...new Set([...categories, ...ids])];
+    categories = next;
+    syncUrl('push', { categories: next });
+  }
+
   function exportWorldOffsets(): void {
     if (publication) downloadWorldOffsets(worldOffsetOverrides, publication);
   }
@@ -421,15 +535,38 @@
   {:else if loadError && !publication}
     <main class="state-card error" role="alert"><h1>Atlas unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p></main>
   {:else if publication}
-    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntity || itemContext || staleSelection)}>
-      <aside class="control-panel" aria-label="Atlas controls">
-        <div class="control-section search-section"><label for="atlas-search">Search places, entities, and items</label><div class="search-row"><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } }} placeholder="Try a name or item" autocomplete="off" /><button class="quiet-button" type="button" on:click={() => { query = ''; scheduleQueryUrl(); searchInput?.focus(); }} aria-label="Clear search">Clear</button></div><p class="hint">Press Enter to move from search to results.</p></div>
-        {#if layerOptions.length > 1}<div class="control-section"><label for="layer-select">Map layer</label><select id="layer-select" value={layerId} on:change={(event) => chooseLayer((event.currentTarget as HTMLSelectElement).value)}>{#each layerOptions as layer}<option value={layer.id}>{layer.label}</option>{/each}</select>{#if orientationOnly}<p class="notice">Orientation only. Marker navigation is disabled until a screenshot layer is selected.</p>{/if}</div>{/if}
-        <div class="control-section world-tools"><label class="category-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="category-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button><p class="hint">Drag a map boundary to review its placement. Travel lines stay visible while authoring.</p>{/if}</div>
-        <div class="control-section categories"><div class="section-heading"><h2>Categories</h2><span class="count">{allMapPlacements.length}</span></div>{#each categoryFilters.filter((category) => categoryCounts[category] || categories.includes(category)) as category}<label class="category-option"><input type="checkbox" checked={categories.includes(category)} on:change={() => toggleCategory(category)} /><span class="category-symbol" style:background={markerColorCss(markerFor(category))} aria-hidden="true">{@html markerGlyphSvg(markerFor(category))}</span><span>{markerFor(category).pluralLabel}<small>{markerFor(category).label}</small></span><strong>{categoryCounts[category]}</strong></label>{/each}{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Clear category filters</button>{/if}</div>
-        <div class="control-section marker-legend"><div class="section-heading"><h2>Legend</h2></div>{#each Object.values(markerRegistry) as marker}<div class="legend-entry"><span class="category-symbol" style:background={markerColorCss(marker)} aria-hidden="true">{@html markerGlyphSvg(marker)}</span><span>{marker.label}</span></div>{/each}</div>
-        <div class="control-section level-filter"><div class="section-heading"><h2>Creature levels</h2></div><div class="level-fields"><label for="level-min">From<input id="level-min" type="number" min="0" step="1" value={levelMinimum ?? ''} on:input={(event) => updateLevelMinimum((event.currentTarget as HTMLInputElement).value)} /></label><label for="level-max">To<input id="level-max" type="number" min="0" step="1" value={levelMaximum ?? ''} on:input={(event) => updateLevelMaximum((event.currentTarget as HTMLInputElement).value)} /></label></div><p class="hint">Locations without a known level stay visible.</p></div>
-        <div class="coverage-card"><strong>Supported game build {publication.buildId}</strong>{#if !publication.coverage.complete}<p>Incomplete research preview. It does not represent full-world research or imagery coverage.</p>{/if}</div>
+    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntity || itemContext || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
+      <aside class:collapsed={panelCollapsed} class="control-panel" aria-label="Atlas controls">
+        <div class="panel-header">
+          {#if !panelCollapsed}<div><strong>Atlas controls</strong><small>⌘/Ctrl+B to toggle</small></div>{/if}
+          <button class="panel-toggle" type="button" on:click={togglePanel} aria-label={panelCollapsed ? 'Expand atlas controls' : 'Collapse atlas controls'} aria-expanded={!panelCollapsed}>{panelCollapsed ? '»' : '«'}</button>
+        </div>
+        {#if panelCollapsed}
+          <nav class="panel-rail" aria-label="Quick category toggles">
+            {#each markerSections as section}
+              <div class="rail-group" aria-label={section.label}>
+                {#each section.markers as marker (marker.id)}
+                  <CategoryRow marker={marker} checked={categories.includes(marker.id)} count={categoryCounts[marker.id] ?? 0} compact onToggle={() => toggleCategory(marker.id)} />
+                {/each}
+              </div>
+            {/each}
+          </nav>
+        {:else}
+          <div class="panel-body">
+            <div class="control-section search-section"><label for="atlas-search">Search places, entities, and items</label><div class="search-row"><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } }} placeholder="Try a name or item" autocomplete="off" /><button class="quiet-button" type="button" on:click={() => { query = ''; scheduleQueryUrl(); searchInput?.focus(); }} aria-label="Clear search">Clear</button></div><p class="hint">Press Enter to move from search to results.</p></div>
+            {#if layerOptions.length > 1}<div class="control-section"><label for="layer-select">Map layer</label><select id="layer-select" value={layerId} on:change={(event) => chooseLayer((event.currentTarget as HTMLSelectElement).value)}>{#each layerOptions as layer}<option value={layer.id}>{layer.label}</option>{/each}</select>{#if orientationOnly}<p class="notice">Orientation only. Marker navigation is disabled until a screenshot layer is selected.</p>{/if}</div>{/if}
+            <div class="control-section world-tools"><h2>Map options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button><p class="hint">Drag a map boundary to review its placement. Travel lines stay visible while authoring.</p>{/if}</div>
+            <div class="categories-block">
+              <div class="section-heading"><h2>Map categories</h2><span class="count">{allMapPlacements.length}</span></div>
+              {#each markerSections as section (section.id)}
+                <MapSidebarSection title={section.label} categories={section.markers} activeCategories={categories} counts={categoryCounts} storageKey={`afallon-atlas-section-${section.id}`} onToggleCategory={toggleCategory} onToggleAll={toggleAllCategories} />
+              {/each}
+              {#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Clear category filters</button>{/if}
+            </div>
+            <div class="control-section level-filter"><div class="section-heading"><h2>Creature levels</h2>{#if levelMinimum !== null || levelMaximum !== null}<span class="active-filter">{levelMinimum ?? 0}–{levelMaximum ?? '∞'}</span>{/if}</div><div class="level-fields"><label for="level-min">From<input id="level-min" type="number" min="0" step="1" value={levelMinimum ?? ''} on:input={(event) => updateLevelMinimum((event.currentTarget as HTMLInputElement).value)} /></label><label for="level-max">To<input id="level-max" type="number" min="0" step="1" value={levelMaximum ?? ''} on:input={(event) => updateLevelMaximum((event.currentTarget as HTMLInputElement).value)} /></label></div><p class="hint">Locations without a known level stay visible.</p></div>
+            <div class="coverage-card"><strong>Supported game build {publication.buildId}</strong>{#if !publication.coverage.complete}<p>Incomplete research preview. It does not represent full-world research or imagery coverage.</p>{/if}</div>
+          </div>
+        {/if}
       </aside>
 
       <section class="map-column" aria-label="Interactive map">
@@ -437,25 +574,26 @@
         {#if loadError && publication}<div class="inline-error" role="alert">{loadError}</div>{/if}
         <section class="results" aria-labelledby="results-heading" bind:this={resultList}>
           <div class="results-header">
-            <div><h2 id="results-heading">Results</h2><p>{resultPlacements.length} distinct placements{#if viewportBounds}{' in the current viewport'}{/if}{#if matchingItems.length > 0}{' · '}{matchingItems.length} items{/if}{#if matchingEntities.length > 0}{' · '}{matchingEntities.length} entity definitions{/if}</p></div>
+            <div><h2 id="results-heading">Results</h2><p>{resultPlacements.length} distinct placements{#if viewportBounds}{' in the current viewport'}{/if}{#if matchingItems.length > 0}{' · '}{matchingItems.length} items{/if}{#if matchingEntities.length > 0}{' · '}{matchingEntities.length} entity definitions{/if}</p>{#if rankedResults.length > RESULT_LIMIT}<p class="result-limit">Showing the first {displayedResults.length} of {rankedResults.length} results.</p>{/if}</div>
             {#if itemContext}<button class="quiet-button" type="button" on:click={() => { itemKey = null; syncUrl('push'); }}>Exit item context</button>{/if}
           </div>
           {#if resultPlacements.length === 0 && matchingItems.length === 0 && matchingEntities.length === 0}
             <p class="empty">No published places, entities, or items match this search.</p>
           {:else}
             <ol class="result-list">
-              {#each rankedResults as result (result.key)}
+              {#each displayedResults as result (result.key)}
               {#if result.kind === 'item'}
                 {@const item = result.item}
-                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)}><span class="result-marker item-marker" aria-hidden="true"></span><span class="result-copy"><strong>{entityByKey.get(item.itemKey)?.name ?? 'Unnamed item'}</strong><small>Item</small></span></button></li>
+                {@const summary = resultSummary(result)}
+                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{entityByKey.get(item.itemKey)?.name ?? 'Unnamed item'}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
               {:else if result.kind === 'entity'}
                 {@const entity = result.entity}
-                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)}><span class="result-marker entity-marker" aria-hidden="true"></span><span class="result-copy"><strong>{entity.name}</strong><small>Details</small></span></button></li>
+                {@const summary = resultSummary(result)}
+                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{entity.name}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
               {:else}
                 {@const placement = result.placement}
-                {@const markerId = resolveMarker(placement) ?? placement.categories[0]!}
-                {@const marker = markerFor(markerId)}
-                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => hoveredId = placement.placementId} on:mouseleave={() => hoveredId = null}><span class="result-marker" style:background={markerColorCss(marker)} aria-hidden="true">{@html markerGlyphSvg(marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{placement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(placement.levelRange)}</small></span></button></li>
+                {@const summary = resultSummary(result)}
+                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => hoveredId = placement.placementId} on:mouseleave={() => hoveredId = null}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
               {/if}
               {/each}
             </ol>
@@ -540,13 +678,26 @@
   .build-meta strong { color: #e9e4d9; font-weight: 600; }
   .coverage { padding: .25rem .45rem; border: 1px solid #896c47; color: #e4b77c; }
   .coverage.complete { border-color: #657d64; color: #a9c1a2; }
-  .workspace { display: grid; grid-template-columns: 248px minmax(360px, 1fr); height: calc(100dvh - 64px); min-height: 0; }
-  .workspace.has-details { grid-template-columns: 248px minmax(360px, 1fr) minmax(300px, 380px); }
+  .workspace { display: grid; grid-template-columns: 280px minmax(360px, 1fr); height: calc(100dvh - 64px); min-height: 0; }
+  .workspace.has-details { grid-template-columns: 280px minmax(360px, 1fr) minmax(300px, 380px); }
+  .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr); }
+  .workspace.sidebar-collapsed.has-details { grid-template-columns: 56px minmax(360px, 1fr) minmax(300px, 380px); }
   .control-panel, .details-panel { background: #202120; overflow: auto; }
-  .control-panel { border-right: 1px solid #393a38; padding: 1rem .85rem; }
+  .control-panel { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border-right: 1px solid #393a38; }
+  .panel-body, .panel-rail { min-height: 0; flex: 1; overflow: auto; }
+  .control-panel.collapsed { overflow-x: hidden; }
   .details-panel { border-left: 1px solid #393a38; padding: 1rem; }
+  .panel-header { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: .7rem .75rem; border-bottom: 1px solid #393a38; background: #252622; }
+  .panel-header strong, .panel-header small { display: block; }
+  .panel-header strong { color: #eee9dd; font-size: .78rem; }
+  .panel-header small { margin-top: .2rem; color: #92928a; font-size: .66rem; }
+  .panel-toggle { min-width: 28px; min-height: 28px; border: 1px solid #595846; background: transparent; color: #d5b978; font-size: 1.05rem; line-height: 1; }
+  .panel-body { padding: .85rem .75rem; }
+  .panel-rail { padding: .45rem 0; }
+  .rail-group { padding: .25rem 0 .45rem; border-bottom: 1px solid #393a38; }
+  .rail-group:last-child { border-bottom: 0; }
   .control-section { border-bottom: 1px solid #393a38; padding: 0 0 1rem; margin-bottom: 1rem; }
-  label, .section-heading h2, .results-header h2 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b8b5aa; }
+  label, .section-heading h2, .results-header h2, .world-tools h2 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b8b5aa; }
   input, select { width: 100%; border: 1px solid #4a4b47; border-radius: 2px; background: #151616; color: #ece8de; padding: .55rem .6rem; }
   input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid #d5b978; outline-offset: 2px; }
   .search-section > label, .control-section > label:not(.role-option) { display: block; margin-bottom: .45rem; }
@@ -556,18 +707,17 @@
   .quiet-button:hover, .close-button:hover { border-color: #bba779; color: #f1eadb; }
   .hint, .muted { color: #85857e; font-size: .72rem; line-height: 1.45; }
   .section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: .45rem; }
-  .section-heading h2 { margin: 0; }
+  .section-heading h2, .world-tools h2 { margin: 0; }
   .count { color: #d6bd84; font-size: .75rem; }
-  .category-option { display: grid; grid-template-columns: 17px 17px minmax(0,1fr) auto; align-items: start; gap: .4rem; margin: .55rem 0; letter-spacing: normal; text-transform: none; color: #dedbd2; font-size: .78rem; cursor: pointer; }
-  .category-option input { width: 14px; height: 14px; margin: 1px 0 0; accent-color: #bca36e; }
-  .category-symbol, .result-marker { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-top: 0; border: 1px solid rgba(0, 0, 0, .45); border-radius: 50%; color: white; }
-  .category-symbol :global(svg), .result-marker :global(svg) { width: 11px; height: 11px; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .8)); }
-  .category-option small { display: block; margin-top: .15rem; color: #85857e; font-size: .67rem; line-height: 1.25; }
-  .category-option strong { color: #aaa9a0; font-size: .72rem; font-weight: 500; }
-  .legend-entry { display: flex; align-items: center; gap: .45rem; margin: .4rem 0; color: #dedbd2; font-size: .75rem; }
+  .categories-block { margin-bottom: 1rem; }
+  .categories-block > .section-heading { padding-bottom: .35rem; border-bottom: 1px solid #393a38; }
+  .tool-option { display: flex; align-items: center; gap: .45rem; margin: .6rem 0; letter-spacing: normal; text-transform: none; color: #dedbd2; font-size: .78rem; cursor: pointer; }
+  .tool-option input { width: 14px; height: 14px; margin: 0; accent-color: #bca36e; }
+  .world-tools h2 { margin-bottom: .5rem; }
   .level-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; margin-top: .45rem; }
   .level-fields label { letter-spacing: normal; text-transform: none; font-size: .68rem; }
   .level-fields input { margin-top: .3rem; }
+  .active-filter { padding: .2rem .35rem; border: 1px solid #7d6843; color: #e3c681; font-size: .7rem; font-variant-numeric: tabular-nums; }
   .text-button, .inline-link { border: 0; padding: 0; background: none; color: #d5b978; text-decoration: underline; text-underline-offset: 2px; }
   .text-button { font-size: .75rem; }
   .notice, .stale-warning { padding: .55rem; border-left: 2px solid #b98751; background: #2b2721; color: #e2c399; font-size: .73rem; line-height: 1.45; }
@@ -589,12 +739,12 @@
   .results-header, .details-header, .source-title { display: flex; align-items: flex-start; justify-content: space-between; gap: .7rem; }
   .results-header h2, .details-header h2 { margin: 0; color: #eee9dd; font-size: .95rem; letter-spacing: .02em; text-transform: none; }
   .results-header p { margin: .25rem 0 0; color: #8e8e87; font-size: .72rem; }
+  .results-header .result-limit { color: #d6bd84; }
   .result-list { list-style: none; margin: .7rem 0 0; padding: 0; display: grid; gap: .3rem; }
-  .result-list button { display: grid; grid-template-columns: 10px minmax(0,1fr) auto; align-items: center; gap: .55rem; width: 100%; padding: .55rem .5rem; border: 1px solid #383a36; background: #1c1e1d; color: #e9e4d9; text-align: left; }
+  .result-list button { display: grid; grid-template-columns: 22px minmax(0,1fr); align-items: center; gap: .6rem; width: 100%; padding: .6rem .55rem; border: 1px solid #383a36; background: #1c1e1d; color: #e9e4d9; text-align: left; }
   .result-list button:hover, .result-list button.selected-result { border-color: #a78b59; background: #25251f; }
-  .result-marker { border-radius: 50%; }
-  .entity-marker { border-radius: 0; background: transparent; }
-  .item-marker { border-radius: 0; transform: rotate(45deg); background: transparent; }
+  .result-marker { display: inline-grid; place-items: center; width: 22px; height: 22px; border: 1px solid rgba(0, 0, 0, .45); border-radius: 50%; color: white; }
+  .result-marker :global(svg) { width: 13px; height: 13px; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .8)); }
   .result-copy strong, .result-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .result-copy strong { font-size: .78rem; font-weight: 600; }
   .result-copy small { margin-top: .15rem; color: #aaa89d; font-size: .67rem; }
@@ -628,6 +778,7 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (max-width: 1050px) {
     .workspace, .workspace.has-details { grid-template-columns: 220px minmax(0, 1fr); }
+    .workspace.sidebar-collapsed, .workspace.sidebar-collapsed.has-details { grid-template-columns: 56px minmax(0, 1fr); }
     .workspace.has-details { grid-template-rows: minmax(0, 1fr) minmax(0, 45%); }
     .workspace.has-details .control-panel { grid-row: 1 / -1; }
     .workspace.has-details .map-column { grid-column: 2; }
@@ -638,9 +789,11 @@
     .atlas-shell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; }
     .topbar { align-items: flex-start; flex-direction: column; flex-shrink: 0; }
     .build-meta { justify-content: flex-start; }
-    .workspace, .workspace.has-details { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 26dvh) minmax(0, 1fr); height: auto; flex: 1; }
-    .workspace.has-details { grid-template-rows: minmax(0, 12dvh) minmax(0, 1fr) minmax(0, 45dvh); }
-    .control-panel { border-right: 0; border-bottom: 1px solid #393a38; min-height: 0; }
+    .workspace, .workspace.sidebar-collapsed { position: relative; display: block; height: auto; flex: 1; min-height: 0; }
+    .workspace.has-details, .workspace.sidebar-collapsed.has-details { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(45dvh, auto); }
+    .map-column { height: 100%; min-height: 0; grid-template-rows: minmax(280px, 1fr) minmax(180px, 30vh); }
+    .control-panel { position: absolute; z-index: 4; top: 0; bottom: 0; left: 0; width: min(88vw, 300px); border-right: 1px solid #393a38; box-shadow: 5px 0 20px #0008; }
+    .control-panel.collapsed { width: 56px; }
     .workspace.has-details .control-panel { grid-row: auto; }
     .workspace.has-details .map-column, .details-panel { grid-column: 1; }
     .details-panel { border-left: 0; }

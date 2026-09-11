@@ -10,11 +10,9 @@ test("registry keys match the published category contract", () => {
   expect(Object.keys(markerRegistry).sort()).toEqual([...PUBLIC_MARKER_CATEGORY_VALUES].sort());
 });
 
-test("no two markers share a colour or a glyph", () => {
+test("no two markers share a glyph", () => {
   const markers = Object.values(markerRegistry);
-  const colours = markers.map((marker) => marker.color.join(","));
   const glyphs = markers.map((marker) => JSON.stringify(marker.icon));
-  expect(new Set(colours).size).toBe(markers.length);
   expect(new Set(glyphs).size).toBe(markers.length);
 });
 

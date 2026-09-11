@@ -48,8 +48,20 @@ export interface MarkerLayer {
   kind: "icon";
 }
 
+export type MarkerSectionId = "hostile" | "characters" | "gathering" | "travel";
+
+export const MARKER_SECTION_ORDER = ["hostile", "characters", "gathering", "travel"] as const satisfies readonly MarkerSectionId[];
+
+export const MARKER_SECTION_LABELS: Record<MarkerSectionId, string> = {
+  hostile: "Hostile creatures",
+  characters: "Characters & services",
+  gathering: "Gathering & containers",
+  travel: "Travel",
+};
+
 export interface MarkerDefinition {
   id: MarkerId;
+  section: MarkerSectionId;
   label: string;
   pluralLabel: string;
   icon: IconNode;
@@ -68,6 +80,7 @@ export const MARKER_LAYER_ID = markerLayer.id;
 export const markerRegistry = {
   enemy: {
     id: "enemy",
+    section: "hostile",
     label: "Enemy",
     pluralLabel: "Enemies",
     icon: Skull,
@@ -81,6 +94,7 @@ export const markerRegistry = {
   },
   boss: {
     id: "boss",
+    section: "hostile",
     label: "Boss",
     pluralLabel: "Bosses",
     icon: Crown,
@@ -94,6 +108,7 @@ export const markerRegistry = {
   },
   neutral: {
     id: "neutral",
+    section: "characters",
     label: "Neutral",
     pluralLabel: "Neutrals",
     icon: PawPrint,
@@ -107,6 +122,7 @@ export const markerRegistry = {
   },
   ally: {
     id: "ally",
+    section: "characters",
     label: "Ally",
     pluralLabel: "Allies",
     icon: Shield,
@@ -120,6 +136,7 @@ export const markerRegistry = {
   },
   npc: {
     id: "npc",
+    section: "characters",
     label: "NPC",
     pluralLabel: "NPCs",
     icon: User,
@@ -133,6 +150,7 @@ export const markerRegistry = {
   },
   merchant: {
     id: "merchant",
+    section: "characters",
     label: "Merchant",
     pluralLabel: "Merchants",
     icon: Store,
@@ -146,6 +164,7 @@ export const markerRegistry = {
   },
   questGiver: {
     id: "questGiver",
+    section: "characters",
     label: "Quest Giver",
     pluralLabel: "Quest Givers",
     icon: ScrollText,
@@ -159,6 +178,7 @@ export const markerRegistry = {
   },
   interactiveObject: {
     id: "interactiveObject",
+    section: "gathering",
     label: "Interactive Object",
     pluralLabel: "Interactive Objects",
     icon: Hand,
@@ -172,6 +192,7 @@ export const markerRegistry = {
   },
   craftingStation: {
     id: "craftingStation",
+    section: "gathering",
     label: "Crafting Station",
     pluralLabel: "Crafting Stations",
     icon: Hammer,
@@ -185,6 +206,7 @@ export const markerRegistry = {
   },
   resource: {
     id: "resource",
+    section: "gathering",
     label: "Resource",
     pluralLabel: "Resources",
     icon: Pickaxe,
@@ -198,6 +220,7 @@ export const markerRegistry = {
   },
   container: {
     id: "container",
+    section: "gathering",
     label: "Container",
     pluralLabel: "Containers",
     icon: Package,
@@ -211,6 +234,7 @@ export const markerRegistry = {
   },
   travelPoint: {
     id: "travelPoint",
+    section: "travel",
     label: "Travel Point",
     pluralLabel: "Travel Points",
     icon: CircleDot,
