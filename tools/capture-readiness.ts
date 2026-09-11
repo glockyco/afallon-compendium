@@ -233,6 +233,17 @@ function assertMembership(geometry: CaptureGeometry, baseline: SourceMembership 
   return current;
 }
 
+// An issue blocks readiness only when it means the inventory itself cannot be trusted:
+// a loader in an inconsistent state, bounds that could not be read. A missing material or
+// terrain data is a defect of the authored scene, which the game renders exactly as it is;
+// it is recorded as evidence about the content and must never keep a tile waiting, since
+// no number of frames will ever author the material in.
+const INVENTORY_INTEGRITY_ISSUE_KINDS: ReadonlySet<string> = new Set(["source-integrity"]);
+
+export function blockingIssues(geometry: CaptureGeometry): CaptureGeometry["issues"] {
+  return geometry.issues.filter(issue => INVENTORY_INTEGRITY_ISSUE_KINDS.has(issue.kind));
+}
+
 function structuralFingerprint(geometry: CaptureGeometry, membership: SourceMembership): string {
   const sources = geometry.sources.filter(source => membership.candidateIds.has(source.instanceId))
     .sort((left, right) => left.instanceId - right.instanceId)
@@ -584,7 +595,7 @@ export async function withCaptureGeometry<T>(
           return currentSource !== undefined && isSourceReady(currentSource);
         });
         const streamReady = streamKey === undefined || (streamRows !== undefined && [...streamRows.values()].every(row => row.loaded && !row.loading && row.hasHandle && row.rootInstanceId !== null));
-        if (stableCount >= plan.readiness.stableFrames && current.scene.ready && current.issues.length === 0 && sourceReady && streamReady && streamAgrees) {
+        if (stableCount >= plan.readiness.stableFrames && current.scene.ready && blockingIssues(current).length === 0 && sourceReady && streamReady && streamAgrees) {
           latestGeometry = current;
           break;
         }
@@ -594,7 +605,7 @@ export async function withCaptureGeometry<T>(
       if (latestGeometry === undefined || baselineMembership === undefined || stableGeometry === undefined || stableCount < plan.readiness.stableFrames) {
         throw new Error(`Capture geometry for tile "${tile.id}" did not become ready.`);
       }
-      if (!latestGeometry.scene.ready || latestGeometry.issues.length !== 0) {
+      if (!latestGeometry.scene.ready || blockingIssues(latestGeometry).length !== 0) {
         throw new Error(`Capture geometry for tile "${tile.id}" did not become ready.`);
       }
       const finalSourceReady = baselineMembership.required.every(source => {
