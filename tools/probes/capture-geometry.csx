@@ -262,6 +262,9 @@ foreach (var loader in allLoaders)
     row["rootActive"] = rootActive;
     row["holdUntil"] = holdUntil;
     row["loadDistance"] = loadDistance;
+    // The game keeps a loader resident while the player stays within its load distance, so
+    // this distance tells the host whether a loaded source needs a hold at all.
+    row["playerDistance"] = UnityEngine.Vector3.Distance(player.transform.position, transform.position);
     sources.Add(row);
     sourceById.Add(loaderId, row);
 }
@@ -512,7 +515,7 @@ foreach (var terrain in allTerrains)
 
 return new
 {
-    schemaVersion = "compendium.capture-geometry.v3",
+    schemaVersion = "compendium.capture-geometry.v4",
     visualPolicy = "compendium.capture-visual-policy.v3",
     excludedRenderers = excludedRenderers.ToArray(),
     frame = UnityEngine.Time.frameCount,

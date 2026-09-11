@@ -150,12 +150,12 @@ export class Runtime {
     this.initialized = true;
   }
 
-  private async rawEvaluate<T>(code: string): Promise<T> {
+  private async rawEvaluate<T>(code: string, timeoutMs = this.config.timeoutMs): Promise<T> {
     if (this.activeRequest) throw new Error("Another evaluation is already using this runtime operation.");
     const id = `${this.ownerToken}:${this.session.nextId("eval")}`;
     this.activeRequest = id;
     try {
-      const reply = await deadline(this.session.request<EvalResultMessage | EvalErrorMessage>({ type: "eval", id, code, timeoutMs: this.config.timeoutMs }), this.config.timeoutMs + 1000, () => this.cancel(new Error("The runtime evaluation exceeded its host deadline.")));
+      const reply = await deadline(this.session.request<EvalResultMessage | EvalErrorMessage>({ type: "eval", id, code, timeoutMs }), timeoutMs + 1000, () => this.cancel(new Error("The runtime evaluation exceeded its host deadline.")));
       if (reply.type === "eval_error") throw HotReplError.fromEnvelope(reply.error);
       if (reply.type !== "eval_result" || reply.id !== id) throw new Error("The runtime returned a response for another request.");
       if (reply.truncated) throw new Error("HotRepl truncated the result. Use a file artifact instead.");
@@ -229,7 +229,7 @@ export class Runtime {
     }
   }
 
-  private async evaluateOwned<T>(code: string, cancelOnError: boolean): Promise<T> {
+  private async evaluateOwned<T>(code: string, cancelOnError: boolean, timeoutMs = this.config.timeoutMs): Promise<T> {
     this.signal.throwIfAborted();
     if (!this.initialized || this.closing) throw new Error("The runtime operation does not own an active session.");
     try {
@@ -282,16 +282,20 @@ export class Runtime {
             }
           }
         }
-      })()`);
+      })()`, timeoutMs);
     } catch (error) {
       if (cancelOnError) this.cancel(error);
       throw this.signal.aborted ? this.signal.reason : error;
     }
   }
 
-  async evaluate<T>(code: string): Promise<T> {
-    return this.evaluateOwned<T>(code, true);
+  async evaluate<T>(code: string, timeoutMs?: number): Promise<T> {
+    return this.evaluateOwned<T>(code, true, timeoutMs);
   }
+
+  // Probe compilation is bounded by Roslyn, not by the game; the largest probe takes over ten
+  // seconds once per session, so it gets its own deadline instead of the per-call one.
+  private static readonly COMPILE_TIMEOUT_MS = 120000;
 
   async compileProbe(sourceFile: string, preludeFile?: string, context = ""): Promise<void> {
     const body = await readFile(sourceFile, "utf8");
@@ -314,7 +318,7 @@ export class Runtime {
   // frame-local cleanup registrars, so the cached body behaves exactly as an inline one.
   private readonly compiledProbes = new Set<string>();
 
-  async probe(sourceFile: string, outputFile: string, options: { preludeFile?: string; parameters?: Record<string, unknown>; captureContext?: boolean } = {}): Promise<{ reference: ArtifactRef; value: unknown; observationContext?: unknown }> {
+  async probe(sourceFile: string, outputFile: string, options: { preludeFile?: string; parameters?: Record<string, unknown>; captureContext?: boolean; timeoutMs?: number } = {}): Promise<{ reference: ArtifactRef; value: unknown; observationContext?: unknown }> {
     const body = await readFile(sourceFile, "utf8");
     const prelude = options.preludeFile ? await readFile(options.preludeFile, "utf8") : "";
     const output = await toRuntimePath(this.config, outputFile);
@@ -338,10 +342,14 @@ export class Runtime {
           };
         });
         var observationStarted = readObservationContext();` : "";
+      // A local function with an explicit signature binds once; a large lambda passed to a
+      // delegate constructor is bound repeatedly during inference and compiled twice as slowly.
+      // Compilation is a one-time cost per probe and session, so it gets its own long deadline.
       await this.evaluate<boolean>(`new System.Func<object>(() => {
-        var compiledProbe = new ${delegateType}((argsJson, path, registerFrameCleanup, registerRuntimeCleanup, registerRuntimeCleanupWait) => {
+        object __compendiumProbeBody(string argsJson, string path, System.Action<System.Action> registerFrameCleanup, System.Func<System.Action, System.Action> registerRuntimeCleanup, System.Func<System.Func<bool>, System.Action> registerRuntimeCleanupWait) {
           ${contextSetup}
-          var result = new System.Func<object>(() => { var args = argsJson == null ? new Newtonsoft.Json.Linq.JObject() : Newtonsoft.Json.Linq.JObject.Parse(argsJson);\n${prelude}\n${body}\n })();
+          object __compendiumProbeResult() { var args = argsJson == null ? new Newtonsoft.Json.Linq.JObject() : Newtonsoft.Json.Linq.JObject.Parse(argsJson);\n${prelude}\n${body}\n }
+          var result = __compendiumProbeResult();
           ${captureContext ? "var observationCompleted = readObservationContext();" : ""}
           var bytes = System.Text.Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(result));
           System.IO.File.WriteAllBytes(path, bytes);
@@ -350,18 +358,19 @@ export class Runtime {
             hash = System.BitConverter.ToString(digest.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
           }
           return new { uri = new System.Uri(path).AbsoluteUri, path, sha256 = hash, byteSize = bytes.LongLength, contentType = "application/json", finalized = true ${captureContext ? ', observationContext = new { schemaVersion = "compendium.observation-context.v1", started = observationStarted, completed = observationCompleted }' : ""} };
-        });
+        }
+        var compiledProbe = new ${delegateType}(__compendiumProbeBody);
         object probeTable;
         var probes = runtimeOwner.TryGetValue("probes", out probeTable) ? probeTable as System.Collections.Generic.Dictionary<string, object> : null;
         if (probes == null) { probes = new System.Collections.Generic.Dictionary<string, object>(); runtimeOwner["probes"] = probes; }
         probes[${JSON.stringify(probeKey)}] = compiledProbe;
         return true;
-      })()`);
+      })()`, Runtime.COMPILE_TIMEOUT_MS);
       this.compiledProbes.add(probeKey);
     }
     const argsJson = options.parameters === undefined ? "null" : JSON.stringify(JSON.stringify(options.parameters));
     const expression = `((${delegateType})((System.Collections.Generic.Dictionary<string, object>)runtimeOwner["probes"])[${JSON.stringify(probeKey)}])(${argsJson}, ${JSON.stringify(output)}, registerFrameCleanup, registerRuntimeCleanup, registerRuntimeCleanupWait)`;
-    const reference = await this.evaluate<ArtifactRef & { observationContext?: unknown }>(expression);
+    const reference = await this.evaluate<ArtifactRef & { observationContext?: unknown }>(expression, options.timeoutMs);
     if (!reference || reference.finalized !== true || !Number.isSafeInteger(reference.byteSize) || reference.byteSize < 0 || !/^[a-f0-9]{64}$/.test(reference.sha256) || reference.path !== output) {
       throw new Error("The runtime returned invalid artifact metadata.");
     }

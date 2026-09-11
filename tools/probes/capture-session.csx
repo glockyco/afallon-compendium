@@ -433,10 +433,35 @@ if (captureAction == "restore")
 }
 
 if (captureAction != "render") throw new System.InvalidOperationException("Unsupported capture action.");
-var tileId = requiredText(args["tileId"], "tileId");
-if (!System.Text.RegularExpressions.Regex.IsMatch(tileId, "^[a-z0-9]+(?:-[a-z0-9]+)*$") || tileId.Length > 80)
-    throw new System.ArgumentException("tileId has an invalid format.");
-var frameValue = (System.Collections.Generic.Dictionary<string, float>)readFrame(args["frame"]);
+// A render batch: every tile of one readiness, rendered in this one frame-local operation.
+// Each tile carries its own camera frame, cut heights, and raw slice destination prefix.
+var tilesToken = args["tiles"];
+if (tilesToken == null || tilesToken.Type != Newtonsoft.Json.Linq.JTokenType.Array || !tilesToken.HasValues) throw new System.ArgumentException("tiles must be a non-empty array.");
+var batch = new System.Collections.Generic.List<(string TileId, System.Collections.Generic.Dictionary<string, float> Frame, System.Collections.Generic.List<float> Cuts, string SlicePrefixArgument, string SlicePrefix)>();
+foreach (var tileToken in tilesToken)
+{
+    var tileId = requiredText(tileToken["tileId"], "tiles[].tileId");
+    if (!System.Text.RegularExpressions.Regex.IsMatch(tileId, "^[a-z0-9]+(?:-[a-z0-9]+)*$") || tileId.Length > 80)
+        throw new System.ArgumentException("tiles[].tileId has an invalid format.");
+    var frameValue = (System.Collections.Generic.Dictionary<string, float>)readFrame(tileToken["frame"]);
+    var cutHeights = new System.Collections.Generic.List<float>();
+    var cutToken = tileToken["cutHeights"];
+    if (cutToken != null && cutToken.Type != Newtonsoft.Json.Linq.JTokenType.Null)
+    {
+        if (cutToken.Type != Newtonsoft.Json.Linq.JTokenType.Array) throw new System.ArgumentException("tiles[].cutHeights must be an array.");
+        foreach (var entry in cutToken)
+        {
+            if (entry.Type != Newtonsoft.Json.Linq.JTokenType.Float && entry.Type != Newtonsoft.Json.Linq.JTokenType.Integer) throw new System.ArgumentException("tiles[].cutHeights entries must be numbers.");
+            cutHeights.Add((float)entry);
+        }
+        if (cutHeights.Count > 256) throw new System.ArgumentException("tiles[].cutHeights allows at most 256 slices.");
+        for (var index = 1; index < cutHeights.Count; index++) if (cutHeights[index] <= cutHeights[index - 1]) throw new System.ArgumentException("tiles[].cutHeights must increase strictly.");
+    }
+    var slicePrefixArgument = requiredText(tileToken["slicePrefix"], "tiles[].slicePrefix");
+    var slicePrefix = normalizeSafePath(slicePrefixArgument, "tiles[].slicePrefix");
+    batch.Add((tileId, frameValue, cutHeights, slicePrefixArgument, slicePrefix));
+}
+if (batch.Count > 64) throw new System.ArgumentException("A render batch allows at most 64 tiles.");
 var requestedLighting = args["lighting"];
 if (requestedLighting == null || requestedLighting.Type != Newtonsoft.Json.Linq.JTokenType.Object) throw new System.ArgumentException("lighting is required.");
 var ambient = color(requestedLighting["ambient"], "lighting.ambient");
@@ -445,37 +470,21 @@ var directionalEuler = vector(requestedLighting["directionalEuler"], "lighting.d
 if (directionalIntensity < 0f || directionalIntensity > 4f) throw new System.ArgumentException("lighting.directionalIntensity must be between 0 and 4.");
 var cullingMask = integer(args["cullingMask"], "cullingMask");
 var suppression = readCaptureSuppression(args["suppression"]);
-// Cut heights, nearest-plane first. Each becomes one slice rendered with the near plane at
-// that height; the frame's own nearClip renders when the list is empty or absent.
-var cutHeights = new System.Collections.Generic.List<float>();
-var cutToken = args["cutHeights"];
-if (cutToken != null && cutToken.Type != Newtonsoft.Json.Linq.JTokenType.Null)
-{
-    if (cutToken.Type != Newtonsoft.Json.Linq.JTokenType.Array) throw new System.ArgumentException("cutHeights must be an array.");
-    foreach (var entry in cutToken)
-    {
-        if (entry.Type != Newtonsoft.Json.Linq.JTokenType.Float && entry.Type != Newtonsoft.Json.Linq.JTokenType.Integer) throw new System.ArgumentException("cutHeights entries must be numbers.");
-        cutHeights.Add((float)entry);
-    }
-    if (cutHeights.Count > 256) throw new System.ArgumentException("cutHeights allows at most 256 slices.");
-    for (var index = 1; index < cutHeights.Count; index++) if (cutHeights[index] <= cutHeights[index - 1]) throw new System.ArgumentException("cutHeights must increase strictly.");
-}
 var captureWidth = (int)sessionState["width"];
 var captureHeight = (int)sessionState["height"];
-var worldAspect = (double)frameValue["sizeX"] / (double)frameValue["sizeZ"];
 var pixelAspect = (double)captureWidth / (double)captureHeight;
-if (System.Math.Abs(worldAspect - pixelAspect) > 0.000001d) throw new System.ArgumentException("frame world aspect must match the pixel aspect.");
-var outputPathArgument = requiredText(args["outputPath"], "outputPath");
-var outputPath = normalizeSafePath(outputPathArgument, "outputPath");
-if (!outputPath.EndsWith(".png", System.StringComparison.OrdinalIgnoreCase)) throw new System.ArgumentException("outputPath must end with .png.");
-if (System.IO.File.Exists(outputPath)) throw new System.IO.IOException("The PNG destination already exists.");
+foreach (var tile in batch)
+{
+    var worldAspect = (double)tile.Frame["sizeX"] / (double)tile.Frame["sizeZ"];
+    if (System.Math.Abs(worldAspect - pixelAspect) > 0.000001d) throw new System.ArgumentException("tiles[].frame world aspect must match the pixel aspect.");
+}
 var restorationPath = normalizeSafePath(requiredText(args["restorationPath"], "restorationPath"), "restorationPath");
 if (System.IO.File.Exists(restorationPath)) throw new System.IO.IOException("The restoration audit destination already exists.");
-if (string.Equals(outputPath, restorationPath, System.StringComparison.OrdinalIgnoreCase) || string.Equals(outputPath, cleanupFullPath, System.StringComparison.OrdinalIgnoreCase) || string.Equals(restorationPath, cleanupFullPath, System.StringComparison.OrdinalIgnoreCase)) throw new System.ArgumentException("Capture output, restoration audit, and cleanup receipt paths must differ.");
+if (string.Equals(restorationPath, cleanupFullPath, System.StringComparison.OrdinalIgnoreCase)) throw new System.ArgumentException("Restoration audit and cleanup receipt paths must differ.");
 var pauseAfterVisualsMs = args["pauseAfterVisualsMs"] == null || args["pauseAfterVisualsMs"].Type == Newtonsoft.Json.Linq.JTokenType.Null ? 0 : integer(args["pauseAfterVisualsMs"], "pauseAfterVisualsMs");
 if (pauseAfterVisualsMs < 0 || pauseAfterVisualsMs > 1000) throw new System.ArgumentException("pauseAfterVisualsMs must be between 0 and 1000.");
 var signalPath = args["signalPath"] == null || args["signalPath"].Type == Newtonsoft.Json.Linq.JTokenType.Null ? null : normalizeSafePath(requiredText(args["signalPath"], "signalPath"), "signalPath");
-if (signalPath != null && (string.Equals(signalPath, outputPath, System.StringComparison.OrdinalIgnoreCase) || string.Equals(signalPath, restorationPath, System.StringComparison.OrdinalIgnoreCase) || string.Equals(signalPath, cleanupFullPath, System.StringComparison.OrdinalIgnoreCase))) throw new System.ArgumentException("The interruption signal path must differ from capture output paths.");
+if (signalPath != null && (string.Equals(signalPath, restorationPath, System.StringComparison.OrdinalIgnoreCase) || string.Equals(signalPath, cleanupFullPath, System.StringComparison.OrdinalIgnoreCase))) throw new System.ArgumentException("The interruption signal path must differ from capture output paths.");
 var signal = new System.Action(() =>
 {
     if (signalPath != null)
@@ -566,7 +575,14 @@ foreach (var effect in UnityEngine.Object.FindObjectsOfType<Il2CppHighlightPlus.
     highlights.Add(effect); highlightMasks.Add(effect.camerasLayerMask);
     selections.Add(new { kind = "highlight", instanceId = effect.GetInstanceID(), reason = "camera-highlight" });
 }
-var captureBounds = new UnityEngine.Bounds(new UnityEngine.Vector3(frameValue["centerX"], frameValue["cameraY"] - (frameValue["nearClip"] + frameValue["farClip"]) * 0.5f, frameValue["centerZ"]), new UnityEngine.Vector3(frameValue["sizeX"], frameValue["farClip"] - frameValue["nearClip"], frameValue["sizeZ"]));
+// Landmark particles are retained across the union of every frame in the batch.
+var captureBounds = new UnityEngine.Bounds();
+for (var boundsIndex = 0; boundsIndex < batch.Count; boundsIndex++)
+{
+    var boundsFrame = batch[boundsIndex].Frame;
+    var tileBounds = new UnityEngine.Bounds(new UnityEngine.Vector3(boundsFrame["centerX"], boundsFrame["cameraY"] - (boundsFrame["nearClip"] + boundsFrame["farClip"]) * 0.5f, boundsFrame["centerZ"]), new UnityEngine.Vector3(boundsFrame["sizeX"], boundsFrame["farClip"] - boundsFrame["nearClip"], boundsFrame["sizeZ"]));
+    if (boundsIndex == 0) captureBounds = tileBounds; else captureBounds.Encapsulate(tileBounds);
+}
 var retainedParticles = new System.Collections.Generic.List<UnityEngine.ParticleSystemRenderer>();
 foreach (var renderer in allParticles)
     if (renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy && !selectedRenderers.ContainsKey(renderer.GetInstanceID()) && renderer.bounds.Intersects(captureBounds)) retainedParticles.Add(renderer);
@@ -718,10 +734,9 @@ sessionState["pendingFrameRestore"] = restoreFrame;
 var captureFailure = (System.Exception)null;
 var restorationFailure = (System.Exception)null;
 var auditFailure = (System.Exception)null;
-var encodedSlices = new System.Collections.Generic.List<(int Index, float Cut, byte[] Bytes, string Hash)>();
-var encodedPath = outputPathArgument;
-var projectionSamples = new System.Collections.Generic.List<object>(5);
-object actualCameraFrame = null;
+// Per tile: its verified camera frame, projection controls, and raw slices already written.
+var tileResults = new System.Collections.Generic.List<(string TileId, object CameraFrame, object[] ProjectionSamples, System.Collections.Generic.List<object> Slices, string SlicePrefixArgument)>();
+var writtenSlices = new System.Collections.Generic.List<string>();
 object duringVisualState = null;
 var captureAmbientProbe = new UnityEngine.Rendering.SphericalHarmonicsL2();
 var captureAmbientColor = UnityEngine.QualitySettings.activeColorSpace == UnityEngine.ColorSpace.Linear ? ambient.linear : ambient;
@@ -732,35 +747,17 @@ try
 {
     sessionCamera.enabled = false;
     sessionCamera.orthographic = true;
-    sessionCamera.orthographicSize = frameValue["sizeZ"] * 0.5f;
     sessionCamera.aspect = (float)pixelAspect;
-    sessionCamera.nearClipPlane = (float)frameValue["nearClip"];
-    sessionCamera.farClipPlane = (float)frameValue["farClip"];
     sessionCamera.useOcclusionCulling = false;
     sessionCamera.clearFlags = UnityEngine.CameraClearFlags.SolidColor;
     sessionCamera.backgroundColor = UnityEngine.Color.gray;
     sessionCamera.cullingMask = cullingMask;
-    sessionCamera.transform.position = new UnityEngine.Vector3((float)frameValue["centerX"], (float)frameValue["cameraY"], (float)frameValue["centerZ"]);
     sessionCamera.transform.rotation = UnityEngine.Quaternion.Euler(90f, 0f, 0f);
     fault("after-camera");
     sessionCamera.targetTexture = sessionRenderTexture;
     fault("after-target");
     if (!sessionRenderTexture.IsCreated()) throw new System.InvalidOperationException("The capture RenderTexture is no longer created.");
     fault("after-texture");
-    var actualPosition = sessionCamera.transform.position;
-    var actualSizeZ = sessionCamera.orthographicSize * 2f;
-    var actualSizeX = actualSizeZ * sessionCamera.aspect;
-    var actualNear = sessionCamera.nearClipPlane;
-    var actualFar = sessionCamera.farClipPlane;
-    actualCameraFrame = new { center = new { x = actualPosition.x, z = actualPosition.z }, worldSize = new { x = actualSizeX, z = actualSizeZ }, cameraY = actualPosition.y, nearClip = actualNear, farClip = actualFar };
-    for (var sampleIndex = 0; sampleIndex < 5; sampleIndex++)
-    {
-        var offsetX = sampleIndex == 0 ? 0f : ((sampleIndex - 1) & 1) == 0 ? -0.5f : 0.5f;
-        var offsetZ = sampleIndex == 0 ? 0f : sampleIndex <= 2 ? -0.5f : 0.5f;
-        var world = new UnityEngine.Vector3(actualPosition.x + offsetX * actualSizeX, actualPosition.y - (actualNear + actualFar) * 0.5f, actualPosition.z + offsetZ * actualSizeZ);
-        var viewport = sessionCamera.WorldToViewportPoint(world);
-        projectionSamples.Add(new { world = new { x = world.x, y = world.y, z = world.z }, viewport = new { x = viewport.x, y = viewport.y, z = viewport.z } });
-    }
     sessionLight.type = UnityEngine.LightType.Directional;
     sessionLight.intensity = directionalIntensity;
     sessionLight.color = ambient;
@@ -789,49 +786,76 @@ try
     duringVisualState = visualState();
     fault("after-visuals");
     signal();
-    sessionCamera.Render();
-    if (UnityEngine.RenderSettings.sun != sessionLight || UnityEngine.RenderSettings.reflectionIntensity != 0f || !probeEqual(captureAmbientProbe, UnityEngine.RenderSettings.ambientProbe)
-        || UnityEngine.RenderSettings.fog || UnityEngine.RenderSettings.ambientMode != UnityEngine.Rendering.AmbientMode.Flat || UnityEngine.RenderSettings.ambientIntensity != 1f
-        || UnityEngine.RenderSettings.ambientLight != ambient || UnityEngine.RenderSettings.ambientSkyColor != ambient || UnityEngine.RenderSettings.ambientEquatorColor != ambient || UnityEngine.RenderSettings.ambientGroundColor != ambient
-        || !sessionLight.enabled || !sessionLightGo.activeInHierarchy || sessionLight.intensity != directionalIntensity || sessionLight.color != ambient)
-        throw new System.InvalidOperationException("Rendering changed the controlled lighting state.");
-    foreach (var renderer in renderers) if (renderer == null || renderer.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed renderer.");
-    foreach (var light in lights) if (light == null || light.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed light.");
-    foreach (var light in UnityEngine.Object.FindObjectsOfType<UnityEngine.Light>(true)) if (light != null && light != sessionLight && light.enabled && light.gameObject.activeInHierarchy) throw new System.InvalidOperationException("A game light remained active during capture.");
-    foreach (var projector in projectors) if (projector == null || projector.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed projector.");
-    foreach (var effect in highlights) if (effect == null || effect.camerasLayerMask.value != 0) throw new System.InvalidOperationException("Rendering changed a highlight camera mask.");
-    foreach (var terrain in terrains) if (terrain == null || terrain.drawTreesAndFoliage) throw new System.InvalidOperationException("Rendering changed suppressed terrain trees.");
-    foreach (var renderer in player.GetComponentsInChildren<UnityEngine.Renderer>(false)) if (renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy) throw new System.InvalidOperationException("A player renderer remained enabled during capture.");
-    fault("after-render");
-    // The first render above verified the controlled state. Each cut now re-renders with the
-    // near plane at that height and encodes its own slice; without cuts the frame's own near
-    // plane is the single slice.
-    var sliceCuts = new System.Collections.Generic.List<float>();
-    if (cutHeights.Count == 0) sliceCuts.Add(actualPosition.y - actualNear);
-    else sliceCuts.AddRange(cutHeights);
-    for (var sliceIndex = 0; sliceIndex < sliceCuts.Count; sliceIndex++)
+    var verifyControlled = new System.Action(() =>
     {
-        var cut = sliceCuts[sliceIndex];
-        var near = actualPosition.y - cut;
-        if (near <= 0f || near >= actualFar) throw new System.ArgumentException("A cut height must lie below the camera and above its far plane.");
-        if (sliceIndex > 0 || cutHeights.Count > 0)
+        if (UnityEngine.RenderSettings.sun != sessionLight || UnityEngine.RenderSettings.reflectionIntensity != 0f || !probeEqual(captureAmbientProbe, UnityEngine.RenderSettings.ambientProbe)
+            || UnityEngine.RenderSettings.fog || UnityEngine.RenderSettings.ambientMode != UnityEngine.Rendering.AmbientMode.Flat || UnityEngine.RenderSettings.ambientIntensity != 1f
+            || UnityEngine.RenderSettings.ambientLight != ambient || UnityEngine.RenderSettings.ambientSkyColor != ambient || UnityEngine.RenderSettings.ambientEquatorColor != ambient || UnityEngine.RenderSettings.ambientGroundColor != ambient
+            || !sessionLight.enabled || !sessionLightGo.activeInHierarchy || sessionLight.intensity != directionalIntensity || sessionLight.color != ambient)
+            throw new System.InvalidOperationException("Rendering changed the controlled lighting state.");
+        foreach (var renderer in renderers) if (renderer == null || renderer.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed renderer.");
+        foreach (var light in lights) if (light == null || light.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed light.");
+        foreach (var projector in projectors) if (projector == null || projector.enabled) throw new System.InvalidOperationException("Rendering changed a suppressed projector.");
+        foreach (var effect in highlights) if (effect == null || effect.camerasLayerMask.value != 0) throw new System.InvalidOperationException("Rendering changed a highlight camera mask.");
+        foreach (var terrain in terrains) if (terrain == null || terrain.drawTreesAndFoliage) throw new System.InvalidOperationException("Rendering changed suppressed terrain trees.");
+        foreach (var renderer in player.GetComponentsInChildren<UnityEngine.Renderer>(false)) if (renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy) throw new System.InvalidOperationException("A player renderer remained enabled during capture.");
+    });
+    var rawLength = captureWidth * captureHeight * 3;
+    foreach (var tile in batch)
+    {
+        var frameValue = tile.Frame;
+        sessionCamera.orthographicSize = frameValue["sizeZ"] * 0.5f;
+        sessionCamera.nearClipPlane = (float)frameValue["nearClip"];
+        sessionCamera.farClipPlane = (float)frameValue["farClip"];
+        sessionCamera.transform.position = new UnityEngine.Vector3((float)frameValue["centerX"], (float)frameValue["cameraY"], (float)frameValue["centerZ"]);
+        var actualPosition = sessionCamera.transform.position;
+        var actualSizeZ = sessionCamera.orthographicSize * 2f;
+        var actualSizeX = actualSizeZ * sessionCamera.aspect;
+        var actualNear = sessionCamera.nearClipPlane;
+        var actualFar = sessionCamera.farClipPlane;
+        var actualCameraFrame = new { center = new { x = actualPosition.x, z = actualPosition.z }, worldSize = new { x = actualSizeX, z = actualSizeZ }, cameraY = actualPosition.y, nearClip = actualNear, farClip = actualFar };
+        var projectionSamples = new System.Collections.Generic.List<object>(5);
+        for (var sampleIndex = 0; sampleIndex < 5; sampleIndex++)
         {
+            var offsetX = sampleIndex == 0 ? 0f : ((sampleIndex - 1) & 1) == 0 ? -0.5f : 0.5f;
+            var offsetZ = sampleIndex == 0 ? 0f : sampleIndex <= 2 ? -0.5f : 0.5f;
+            var world = new UnityEngine.Vector3(actualPosition.x + offsetX * actualSizeX, actualPosition.y - (actualNear + actualFar) * 0.5f, actualPosition.z + offsetZ * actualSizeZ);
+            var viewport = sessionCamera.WorldToViewportPoint(world);
+            projectionSamples.Add(new { world = new { x = world.x, y = world.y, z = world.z }, viewport = new { x = viewport.x, y = viewport.y, z = viewport.z } });
+        }
+        // One slice per cut, nearest-plane first; the frame's own near plane when uncut. Each
+        // slice is the raw RGBA framebuffer, hashed here and composed on the host.
+        var sliceCuts = new System.Collections.Generic.List<float>();
+        if (tile.Cuts.Count == 0) sliceCuts.Add(actualPosition.y - actualNear);
+        else sliceCuts.AddRange(tile.Cuts);
+        var slices = new System.Collections.Generic.List<object>();
+        for (var sliceIndex = 0; sliceIndex < sliceCuts.Count; sliceIndex++)
+        {
+            var cut = sliceCuts[sliceIndex];
+            var near = actualPosition.y - cut;
+            if (near <= 0f || near >= actualFar) throw new System.ArgumentException("A cut height must lie below the camera and above its far plane.");
             sessionCamera.nearClipPlane = near;
             sessionCamera.Render();
+            verifyControlled();
+            UnityEngine.RenderTexture.active = sessionRenderTexture;
+            sessionTexture.ReadPixels(new UnityEngine.Rect(0, 0, captureWidth, captureHeight), 0, 0, false);
+            sessionTexture.Apply(false, false);
+            var raw = (byte[])sessionTexture.GetRawTextureData();
+            if (raw == null || raw.Length != rawLength) throw new System.InvalidOperationException("The capture texture returned an unexpected raw byte count.");
+            string sliceHash;
+            using (var digest = System.Security.Cryptography.SHA256.Create()) sliceHash = System.BitConverter.ToString(digest.ComputeHash(raw)).Replace("-", "").ToLowerInvariant();
+            var slicePath = tile.SlicePrefix + ".slice-" + sliceIndex.ToString("D3") + ".rgb";
+            if (System.IO.File.Exists(slicePath)) throw new System.IO.IOException("A slice destination already exists.");
+            System.IO.File.WriteAllBytes(slicePath, raw);
+            writtenSlices.Add(slicePath);
+            slices.Add(new { index = sliceIndex, cut = cut, path = tile.SlicePrefixArgument + ".slice-" + sliceIndex.ToString("D3") + ".rgb", sha256 = sliceHash, byteSize = (long)raw.Length });
         }
-        UnityEngine.RenderTexture.active = sessionRenderTexture;
-        sessionTexture.ReadPixels(new UnityEngine.Rect(0, 0, captureWidth, captureHeight), 0, 0, false);
-        sessionTexture.Apply(false, false);
-        var nativeEncoded = UnityEngine.ImageConversion.EncodeToPNG(sessionTexture);
-        if (nativeEncoded == null || nativeEncoded.Length == 0) throw new System.InvalidOperationException("EncodeToPNG returned no bytes.");
-        var sliceBytes = (byte[])nativeEncoded;
-        string sliceHash;
-        using (var digest = System.Security.Cryptography.SHA256.Create()) sliceHash = System.BitConverter.ToString(digest.ComputeHash(sliceBytes)).Replace("-", "").ToLowerInvariant();
-        encodedSlices.Add((sliceIndex, cut, sliceBytes, sliceHash));
+        sessionCamera.nearClipPlane = actualNear;
+        tileResults.Add((tile.TileId, actualCameraFrame, projectionSamples.ToArray(), slices, tile.SlicePrefixArgument));
+        if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected during capture.");
     }
-    sessionCamera.nearClipPlane = actualNear;
+    fault("after-render");
     fault("after-encode");
-    if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected before publishing the capture.");
 }
 catch (System.Exception error) { captureFailure = error; }
 finally
@@ -847,12 +871,12 @@ finally
     }
     var audit = new
     {
-        schemaVersion = "compendium.capture-restoration.v4",
+        schemaVersion = "compendium.capture-restoration.v5",
         visualPolicy = "compendium.capture-visual-policy.v3",
         colorSpace = UnityEngine.QualitySettings.activeColorSpace.ToString(),
         selections = selections.ToArray(), lightingInputs = lightingInputs.ToArray(),
         key = requestedKey,
-        tileId = tileId,
+        tileIds = batch.ConvertAll(entry => entry.TileId).ToArray(),
         frameStarted = beforeFrame,
         frameRestored = UnityEngine.Time.frameCount,
         renderSucceeded = captureFailure == null,
@@ -864,58 +888,27 @@ finally
     try { writeAtomicText(restorationPath, Newtonsoft.Json.JsonConvert.SerializeObject(audit)); } catch (System.Exception error) { auditFailure = error; }
 }
 if (restorationFailure != null) throw restorationFailure;
+if (captureFailure != null || restorationFailure != null) { foreach (var path in writtenSlices) { try { System.IO.File.Delete(path); } catch (System.Exception) { } } }
 if (captureFailure != null) throw captureFailure;
 if (auditFailure != null) throw auditFailure;
-if (encodedSlices.Count == 0) throw new System.InvalidOperationException("The capture did not produce encoded slices.");
-if (System.IO.File.Exists(outputPath)) throw new System.IO.IOException("The PNG destination appeared during capture.");
-// Slices publish beside the destination as <output>.slice-NNN.png. The host composites them
-// into the destination itself, so the destination stays absent here.
-var slicePath = new System.Func<int, string>(index => outputPath.Substring(0, outputPath.Length - 4) + ".slice-" + index.ToString("D3") + ".png");
-var sliceArgumentPath = new System.Func<int, string>(index => outputPathArgument.Substring(0, outputPathArgument.Length - 4) + ".slice-" + index.ToString("D3") + ".png");
-var published = new System.Collections.Generic.List<string>();
-try
+if (tileResults.Count != batch.Count) throw new System.InvalidOperationException("The capture did not render every tile of its batch.");
+var captures = new System.Collections.Generic.List<object>();
+foreach (var result in tileResults)
 {
-    foreach (var slice in encodedSlices)
+    captures.Add(new
     {
-        var destination = slicePath(slice.Index);
-        if (System.IO.File.Exists(destination)) throw new System.IO.IOException("A slice destination already exists.");
-        var temporaryOutput = destination + ".tmp." + System.Guid.NewGuid().ToString("N");
-        try
-        {
-            using (var stream = new System.IO.FileStream(temporaryOutput, System.IO.FileMode.CreateNew, System.IO.FileAccess.Write, System.IO.FileShare.None))
-            {
-                stream.Write(slice.Bytes, 0, slice.Bytes.Length);
-                stream.Flush(true);
-            }
-            if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected before publishing the capture.");
-            System.IO.File.Move(temporaryOutput, destination);
-            published.Add(destination);
-        }
-        catch (System.Exception)
-        {
-            try { if (System.IO.File.Exists(temporaryOutput)) System.IO.File.Delete(temporaryOutput); } catch (System.Exception) { }
-            throw;
-        }
-    }
+        tileId = result.TileId,
+        width = captureWidth,
+        height = captureHeight,
+        frame = beforeFrame,
+        restoredFrame = UnityEngine.Time.frameCount,
+        cameraFrame = result.CameraFrame,
+        projectionSamples = result.ProjectionSamples,
+        slices = result.Slices.ToArray(),
+    });
 }
-catch (System.Exception)
+var batchMetadata = new
 {
-    foreach (var path in published) { try { System.IO.File.Delete(path); } catch (System.Exception) { } }
-    throw;
-}
-var sliceReports = new System.Collections.Generic.List<object>();
-foreach (var slice in encodedSlices) sliceReports.Add(new { index = slice.Index, cut = slice.Cut, path = sliceArgumentPath(slice.Index), sha256 = slice.Hash, byteSize = slice.Bytes.LongLength });
-var firstSlice = encodedSlices[0];
-
-var captureFrameMetadata = new
-{
-    tileId = tileId,
-    path = encodedPath,
-    sha256 = firstSlice.Hash,
-    byteSize = firstSlice.Bytes.LongLength,
-    slices = sliceReports.ToArray(),
-    width = captureWidth,
-    height = captureHeight,
     frame = beforeFrame,
     restoredFrame = UnityEngine.Time.frameCount,
     renderTexturesBefore = renderTexturesBefore,
@@ -925,9 +918,8 @@ var captureFrameMetadata = new
     activeTargetRestored = true,
     suppressedRenderers = renderers.Count,
     visualPolicy = "compendium.capture-visual-policy.v3",
-    cameraFrame = actualCameraFrame,
-    projectionSamples = projectionSamples.ToArray(),
+    captures = captures.ToArray(),
 };
-sessionState["completedCaptures"] = (int)sessionState["completedCaptures"] + 1;
-sessionState["lastCapture"] = captureFrameMetadata;
+sessionState["completedCaptures"] = (int)sessionState["completedCaptures"] + tileResults.Count;
+sessionState["lastCapture"] = batchMetadata;
 return sessionReport();

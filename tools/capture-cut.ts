@@ -84,11 +84,16 @@ export function planTileCut(tile: CaptureTile, plan: CapturePlan, survey: Naviga
   let minY = Number.POSITIVE_INFINITY, maxY = Number.NEGATIVE_INFINITY, walkable = 0;
   for (const y of raw) { if (!Number.isFinite(y)) continue; walkable++; if (y < minY) minY = y; if (y > maxY) maxY = y; }
   if (walkable === 0) return null;
-  const cutHeights: number[] = [];
-  for (let height = Math.floor((minY + cut.headroom) / cut.step) * cut.step; height <= maxY + cut.headroom + cut.step; height += cut.step) cutHeights.push(Number(height.toFixed(3)));
+  const field = fillNearest(raw, plan.width, plan.height);
+  // Only the slice levels some pixel selects are rendered: each pixel wants the first step
+  // boundary at or above its surface plus headroom, so the set of those boundaries is the
+  // set of slices, which is far fewer than every step across the range on a stepped surface.
+  const levels = new Set<number>();
+  for (const y of field) levels.add(Math.ceil((y + cut.headroom) / cut.step) * cut.step);
+  const cutHeights = [...levels].sort((left, right) => left - right).map(height => Number(height.toFixed(3)));
   return {
     evidence: { source: "navigation", surveySha256: cut.survey.sha256, step: cut.step, headroom: cut.headroom, walkable: { minY, maxY, coverage: walkable / raw.length }, cutHeights },
-    field: fillNearest(raw, plan.width, plan.height),
+    field,
     cameraY: cutHeights[cutHeights.length - 1]! + cut.cameraAbove,
   };
 }
@@ -101,25 +106,41 @@ export function cutCaptureFrame(tile: CaptureTile, cutPlan: CutPlan | null): Cap
   return { ...tile.frame, cameraY: cutPlan.cameraY, farClip: cutPlan.cameraY - lowerBound };
 }
 
-// Composites the rendered slices: each pixel takes the first slice whose cut sits at or above
-// the walkable height plus headroom. Returns the PNG bytes and the per-slice pixel counts.
-export async function compositeCut(slicePaths: readonly string[], cutHeights: readonly number[], cutPlan: CutPlan, width: number, height: number): Promise<{ png: Buffer; sliceUse: number[] }> {
-  if (slicePaths.length !== cutHeights.length) throw new Error("Cut slices and cut heights disagree.");
-  const slices = await Promise.all(slicePaths.map(async path => {
-    const decoded = await sharp(path).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    if (decoded.info.width !== width || decoded.info.height !== height || decoded.info.channels !== 4) throw new Error("A cut slice has unexpected dimensions.");
-    return decoded.data;
-  }));
-  const out = Buffer.alloc(width * height * 4);
+// Selects, per pixel, the first slice whose cut sits at or above the walkable height plus
+// headroom. Slices arrive in Unity's bottom-up row order while the field is top-left, so the
+// field row is mirrored; the result keeps the slices' order and is flipped once at encoding.
+export function composeCut(slices: readonly Buffer[], cutHeights: readonly number[], cutPlan: CutPlan, width: number, height: number): { rgb: Buffer; sliceUse: number[] } {
+  if (slices.length !== cutHeights.length) throw new Error("Cut slices and cut heights disagree.");
+  const out = Buffer.alloc(width * height * 3);
   const sliceUse = new Array<number>(slices.length).fill(0);
   const headroom = cutPlan.evidence.headroom;
-  for (let i = 0; i < width * height; i++) {
-    const target = cutPlan.field[i]! + headroom;
-    let pick = slices.length - 1;
-    for (let s = 0; s < cutHeights.length; s++) if (cutHeights[s]! >= target) { pick = s; break; }
-    sliceUse[pick]!++;
-    slices[pick]!.copy(out, i * 4, i * 4, i * 4 + 4);
+  for (let row = 0; row < height; row++) {
+    const fieldRow = height - 1 - row;
+    for (let column = 0; column < width; column++) {
+      const target = cutPlan.field[fieldRow * width + column]! + headroom;
+      let pick = slices.length - 1;
+      for (let s = 0; s < cutHeights.length; s++) if (cutHeights[s]! >= target) { pick = s; break; }
+      sliceUse[pick]!++;
+      const at = (row * width + column) * 3;
+      slices[pick]!.copy(out, at, at, at + 3);
+    }
   }
-  const png = await sharp(out, { raw: { width, height, channels: 4 } }).png().toBuffer();
-  return { png, sliceUse };
+  return { rgb: out, sliceUse };
+}
+
+// Reads the probe's raw RGB24 slices, verifies each against the hash the probe reported,
+// composes the cut, and encodes the tile PNG. Unity's ReadPixels stores row zero at the
+// bottom, so the composite is flipped to the top-left pixel convention the raster declares.
+export async function compositeRawSlices(slicePaths: readonly string[], reported: readonly { index: number; cut: number; sha256: string; byteSize: number }[], cutPlan: CutPlan | null, width: number, height: number, tileId: string): Promise<Buffer> {
+  if (slicePaths.length !== reported.length) throw new Error(`Capture tile "${tileId}" slice paths and reports disagree.`);
+  const expectedBytes = width * height * 3;
+  const slices = await Promise.all(slicePaths.map(async (path, index) => {
+    const bytes = await readFile(path);
+    const report = reported[index]!;
+    if (bytes.byteLength !== expectedBytes || bytes.byteLength !== report.byteSize) throw new Error(`Capture slice ${report.index} for tile "${tileId}" has an unexpected byte count.`);
+    if (createHash("sha256").update(bytes).digest("hex") !== report.sha256) throw new Error(`Capture slice ${report.index} for tile "${tileId}" does not match its reported hash.`);
+    return bytes;
+  }));
+  const rgb = cutPlan === null ? slices[0]! : composeCut(slices, reported.map(slice => slice.cut), cutPlan, width, height).rgb;
+  return sharp(rgb, { raw: { width, height, channels: 3 } }).flip().png().toBuffer();
 }

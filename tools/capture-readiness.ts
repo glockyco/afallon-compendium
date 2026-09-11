@@ -11,7 +11,6 @@ import {
   type CapturePlan,
   type CaptureReadiness,
 } from "./capture-contracts";
-import { cutCaptureFrame, type CutPlan } from "./capture-cut";
 import { toRuntimePath, type CompendiumConfig } from "./config";
 import { ObservationContextSchema } from "./contracts";
 import {
@@ -291,6 +290,12 @@ function structuralFingerprint(geometry: CaptureGeometry, membership: SourceMemb
   });
 }
 
+// Resident: ready now and kept by the game itself because the player stands well inside the
+// loader's load distance. The margin guards against the player drifting to the edge.
+export function isSourceResident(source: CaptureGeometry["sources"][number]): boolean {
+  return isSourceReady(source) && source.playerDistance < source.loadDistance * 0.8;
+}
+
 function isSourceReady(source: CaptureGeometry["sources"][number]): boolean {
   return source.activeInHierarchy && source.enabled && source.loaded && !source.loading && !source.automaticLoadPending
     && source.loadedOrLoading && source.hasHandle && source.rootId !== null && source.rootActive === true;
@@ -395,20 +400,32 @@ function timeoutError(tile: CaptureTile, timeoutMs: number): Error {
   return error;
 }
 
+// Raised after the first inventory when a required source is not resident and the caller asked
+// for a resident-only readiness, so the caller can fall back to streamed per-tile readiness.
+export class NotResidentError extends Error {
+  constructor(readonly sources: number) { super(`${sources} required source(s) are not resident.`); }
+}
+
+export type ReadinessSubject = { tile: CaptureTile; frame: CaptureFrame; kind: "tile" | "extent" };
+
 export async function withCaptureGeometry<T>(
   runtime: Runtime,
   config: CompendiumConfig,
   run: Run,
   plan: CapturePlan,
-  tile: CaptureTile,
-  cutPlan: CutPlan | null,
+  subject: ReadinessSubject,
+  cutEvidence: CaptureReadiness["cut"],
   capture: (readiness: CaptureReadiness) => Promise<T>,
+  options: { requireResident?: boolean } = {},
 ): Promise<{ value: T; readiness: CaptureReadiness; readinessPath: string }> {
   let timer: NodeJS.Timeout | undefined;
+  const tile = subject.tile;
   try {
     assertSchema(CapturePlanSchema, plan, "Capture plan");
-    const plannedTile = plan.tiles.find(candidate => candidate.id === tile.id);
-    if (plannedTile === undefined || !isDeepStrictEqual(plannedTile, tile)) throw new Error(`Tile "${tile.id}" is not part of the capture plan.`);
+    if (subject.kind === "tile") {
+      const plannedTile = plan.tiles.find(candidate => candidate.id === tile.id);
+      if (plannedTile === undefined || !isDeepStrictEqual(plannedTile, tile)) throw new Error(`Tile "${tile.id}" is not part of the capture plan.`);
+    }
     assertFiniteScalars(plan, "Capture plan");
 
     const geometry = geometryDirectory(tile, run);
@@ -416,7 +433,7 @@ export async function withCaptureGeometry<T>(
     const cleanupPath = resolve(run.directory, cleanupRelative);
     const probePath = resolve(import.meta.dir, "probes/capture-geometry.csx");
     const deadlineAt = Date.now() + plan.readiness.timeoutMs;
-    const captureFrame = cutCaptureFrame(tile, cutPlan);
+    const captureFrame = subject.frame;
 
     const operation = async (): Promise<{ value: T; readiness: CaptureReadiness; readinessPath: string }> => {
       await mkdir(geometry.absolute, { recursive: true });
@@ -478,7 +495,7 @@ export async function withCaptureGeometry<T>(
         assertQueryCounts(value);
         assertVisibleBindings(value);
         sceneHandle = assertScene(value, plan, sceneHandle);
-        const membership = assertMembership(value, baselineMembership, plan.readiness.maximumSources);
+        const membership = assertMembership(value, baselineMembership, options.requireResident === true ? Number.POSITIVE_INFINITY : plan.readiness.maximumSources);
         baselineMembership ??= membership;
         for (const mesh of value.meshes) trackedRendererIds.add(mesh.rendererId);
         for (const renderer of value.otherRenderers) trackedRendererIds.add(renderer.instanceId);
@@ -501,6 +518,12 @@ export async function withCaptureGeometry<T>(
 
       const firstGeometry = await observeGeometry();
       const initialRequired = baselineMembership!.required;
+      if (options.requireResident === true) {
+        // A map that needs more sources than one readiness may hold is streamed by definition.
+        if (initialRequired.length > plan.readiness.maximumSources) throw new NotResidentError(initialRequired.length);
+        const notResident = initialRequired.filter(source => !isSourceResident(source)).length;
+        if (notResident > 0) throw new NotResidentError(notResident);
+      }
       let streamKey: string | undefined;
       let streamStartRows: Map<number, StreamVisit["rows"][number]> | undefined;
       let streamRows: Map<number, StreamVisit["rows"][number]> | undefined;
@@ -529,7 +552,10 @@ export async function withCaptureGeometry<T>(
         return value;
       };
 
-      if (initialRequired.length > 0) {
+      // A stream visit loads and holds sources for the tile. A source the game already keeps
+      // resident, loaded with the player inside its load distance, needs neither, so a tile
+      // whose required sources are all resident skips the visit and its polls entirely.
+      if (initialRequired.some(source => !isSourceResident(source))) {
         let preStreamGeometry = firstGeometry;
         while (true) {
           const membership = baselineMembership!;
@@ -641,7 +667,7 @@ export async function withCaptureGeometry<T>(
         await run.addArtifact(cleanupRelative);
       };
 
-      const cut = cutPlan === null ? null : cutPlan.evidence;
+      const cut = cutEvidence;
       const empty = latestGeometry.meshes.length === 0 && latestGeometry.terrains.length === 0 && latestGeometry.otherRenderers.length === 0;
       const readiness: CaptureReadiness = {
         schemaVersion: "compendium.capture-readiness.v3",
@@ -690,6 +716,9 @@ export async function withCaptureGeometry<T>(
     runtime.signal.throwIfAborted();
     return result;
   } catch (error) {
+    // A non-resident answer is a decision for the caller, not a runtime failure: no stream
+    // visit started and no state changed, so the session stays usable for per-tile readiness.
+    if (error instanceof NotResidentError && !runtime.signal.aborted) throw error;
     const reason = runtime.signal.aborted ? runtime.signal.reason : error;
     if (!runtime.signal.aborted) runtime.cancel(reason);
     throw runtime.signal.aborted ? runtime.signal.reason : reason;

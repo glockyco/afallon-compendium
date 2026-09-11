@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, stat } from "node:fs/promises";
+import { mkdir, readFile, rm, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
@@ -11,6 +11,7 @@ import {
   CapturePlanSchema,
   CaptureRasterSchema,
   type CaptureRaster,
+  type CapturedTile,
   CaptureReadinessSchema,
   CaptureRestorationSchema,
   CaptureSessionSchema,
@@ -32,13 +33,15 @@ import type { Runtime } from "./runtime";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
-import { withCaptureGeometry } from "./capture-readiness";
-import { compositeCut, cutCaptureFrame, loadNavigationSurvey, planTileCut, type CutPlan, type NavigationSurvey } from "./capture-cut";
+import { NotResidentError, withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
+import { compositeRawSlices, cutCaptureFrame, loadNavigationSurvey, planTileCut, type CutPlan, type NavigationSurvey } from "./capture-cut";
 import {
   captureArtifactReference,
   copyReusableTile,
+  findResponseReference,
   findReusableTiles,
   readCaptureArtifactJson,
+  readinessCovers,
   tileCompatibilityKey,
   type ReusableCaptureTile,
 } from "./capture-cache";
@@ -118,7 +121,7 @@ export function validateCapturePlan(plan: CapturePlan): void {
   }
 }
 
-function assertFrameMatches(actual: CaptureSession["lastCapture"], expected: CapturePlan["tiles"][number]["frame"], tileId: string): void {
+function assertFrameMatches(actual: CapturedTile | null, expected: CapturePlan["tiles"][number]["frame"], tileId: string): void {
   if (actual === null || typeof actual !== "object") throw new Error(`Capture response for tile "${tileId}" has no capture metadata.`);
   const frame = actual.cameraFrame;
   if (!closeEnough(frame.center.x, expected.center.x) || !closeEnough(frame.center.z, expected.center.z)
@@ -160,6 +163,21 @@ async function registerProbeArtifact(
   reference: { sha256: string },
 ): Promise<ArtifactRecord> {
   return registerArtifact(run, path, reference.sha256);
+}
+
+// One readiness subject covering every pending tile: the horizontal union of their frames and
+// the vertical union of their cut camera intervals, so a static scene is observed once.
+function mapExtentSubject(plan: CapturePlan, pending: readonly CapturePlan["tiles"][number][], cutPlans: ReadonlyMap<string, CutPlan | null>): ReadinessSubject {
+  const frames = pending.map(tile => cutCaptureFrame(tile, cutPlans.get(tile.id)!));
+  const minX = Math.min(...frames.map(frame => frame.center.x - frame.worldSize.x / 2));
+  const maxX = Math.max(...frames.map(frame => frame.center.x + frame.worldSize.x / 2));
+  const minZ = Math.min(...frames.map(frame => frame.center.z - frame.worldSize.z / 2));
+  const maxZ = Math.max(...frames.map(frame => frame.center.z + frame.worldSize.z / 2));
+  const top = Math.max(...frames.map(frame => frame.cameraY - frame.nearClip));
+  const bottom = Math.min(...frames.map(frame => frame.cameraY - frame.farClip));
+  const cameraY = top + 0.1;
+  const frame = { center: { x: (minX + maxX) / 2, z: (minZ + maxZ) / 2 }, worldSize: { x: maxX - minX, z: maxZ - minZ }, cameraY, nearClip: 0.1, farClip: cameraY - bottom };
+  return { tile: { id: `${plan.mapSpaceId}-extent`, frame }, frame, kind: "extent" };
 }
 
 async function writeTileCheckpoint(run: Run, checkpoint: CaptureTileCheckpoint): Promise<void> {
@@ -207,7 +225,7 @@ function pngDimensions(bytes: Uint8Array, path: string): { width: number; height
 function assertRestorationAudit(value: unknown, tile: CapturePlan["tiles"][number], key: string, captureFrame: number, lighting: CapturePlan["lighting"]): void {
   assertSchema(CaptureRestorationSchema, value, `Restoration audit for tile "${tile.id}"`);
   const audit = value;
-  if (audit.key !== key || audit.tileId !== tile.id) throw new Error(`Restoration audit for tile "${tile.id}" has mismatched session metadata.`);
+  if (audit.key !== key || !audit.tileIds.includes(tile.id)) throw new Error(`Restoration audit for tile "${tile.id}" has mismatched session metadata.`);
   if (audit.frameStarted !== audit.frameRestored || audit.frameStarted !== captureFrame) throw new Error(`Restoration audit for tile "${tile.id}" crossed native frames.`);
   if (!audit.renderSucceeded || audit.errors.length !== 0) throw new Error(`Frame restoration failed for tile "${tile.id}".`);
   if (!isDeepStrictEqual(audit.before, audit.after)) throw new Error(`Frame restoration changed visual state for tile "${tile.id}".`);
@@ -251,7 +269,7 @@ async function hashPng(path: string, expectedWidth: number, expectedHeight: numb
   return { sha256: createHash("sha256").update(bytes).digest("hex"), byteSize: bytes.byteLength };
 }
 
-function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>, image: { sha256: string }, cut: CaptureReadiness["cut"]): CaptureRaster {
+function registerRaster(capture: CapturedTile, image: { sha256: string }, cut: CaptureReadiness["cut"]): CaptureRaster {
   const { center, worldSize, nearClip, farClip } = capture.cameraFrame;
   const origin = { x: center.x - worldSize.x / 2, z: center.z + worldSize.z / 2 };
   const xAxis = { x: worldSize.x / capture.width, z: 0 };
@@ -284,7 +302,7 @@ function registerRaster(capture: NonNullable<CaptureSession["lastCapture"]>, ima
   return raster;
 }
 
-type CaptureTileResult = NonNullable<CaptureSession["lastCapture"]> & {
+type CaptureTileResult = CapturedTile & {
   readiness: CaptureReadiness;
   readinessPath: string;
   rasterPath: string;
@@ -295,23 +313,21 @@ type CaptureTileResult = NonNullable<CaptureSession["lastCapture"]> & {
 };
 
 async function loadReusedTileResult(run: Run, tile: CapturePlan["tiles"][number], candidate: ReusableCaptureTile, copied: CaptureTileCheckpoint, plan: CapturePlan, config: CompendiumConfig, cutPlan: CutPlan | null): Promise<CaptureTileResult> {
-  const responseReference = copied.artifacts.nativeContext.find(reference =>
-    reference.path === `tiles/${tile.id}.json` || reference.path === `tiles/${tile.id}.geometry/origin-${tile.id}.json`,
-  );
+  const responseReference = findResponseReference(copied.artifacts, tile.id);
   if (responseReference === undefined) throw new Error(`Reused tile "${tile.id}" has no copied native response.`);
   const response = await readCaptureArtifactJson(run.directory, responseReference);
   assertSchema(CaptureSessionSchema, response, `Reused capture response for tile "${tile.id}"`);
   const session = response as CaptureSession;
-  if (session.lastCapture === null) throw new Error(`Reused tile "${tile.id}" has no capture metadata.`);
+  const capture = session.lastCapture?.captures.find(candidate => candidate.tileId === tile.id);
+  if (capture === undefined) throw new Error(`Reused tile "${tile.id}" has no capture metadata.`);
   const readiness = await readCaptureArtifactJson(run.directory, copied.artifacts.readiness);
   assertSchema(CaptureReadinessSchema, readiness, `Reused readiness for tile "${tile.id}"`);
-  const capture = session.lastCapture;
-  if (capture.tileId !== tile.id || capture.width !== plan.width || capture.height !== plan.height || capture.path.length === 0 || capture.frame !== capture.restoredFrame) throw new Error(`Reused tile "${tile.id}" has mismatched capture metadata.`);
+  if (capture.width !== plan.width || capture.height !== plan.height || capture.frame !== capture.restoredFrame) throw new Error(`Reused tile "${tile.id}" has mismatched capture metadata.`);
   const expectedCut = cutPlan === null ? null : cutPlan.evidence;
   if (!isDeepStrictEqual(readiness.cut, expectedCut)) throw new Error(`Reused tile "${tile.id}" has incompatible reviewed cut evidence.`);
   const expectedFrame = cutCaptureFrame(tile, cutPlan);
   assertFrameMatches(capture, expectedFrame, tile.id);
-  if (!isDeepStrictEqual(capture.cameraFrame, readiness.captureFrame)) throw new Error(`Reused tile "${tile.id}" capture frame disagrees with readiness evidence.`);
+  if (!readinessCovers(readiness as CaptureReadiness, tile)) throw new Error(`Reused tile "${tile.id}" readiness does not cover its frame.`);
   assertRestorationAudit(await readCaptureArtifactJson(run.directory, copied.artifacts.restoration), tile, copied.origin.captureKey, capture.frame, plan.lighting);
   const imagePath = resolve(run.directory, copied.artifacts.image.path);
   const image = await hashPng(imagePath, plan.width, plan.height, tile.id);
@@ -320,7 +336,6 @@ async function loadReusedTileResult(run: Run, tile: CapturePlan["tiles"][number]
   if (!isDeepStrictEqual(raster, registerRaster(capture, image, readiness.cut))) throw new Error("Reused raster disagrees with its native camera controls or cut evidence.");
   return {
     ...capture,
-    path: await toRuntimePath(config, imagePath),
     readiness: readiness as CaptureReadiness,
     readinessPath: copied.artifacts.readiness.path,
     rasterPath: copied.artifacts.raster.path,
@@ -517,107 +532,137 @@ async function capturePlan(
     const captureKey = session.key;
     await registerProbeArtifact(run, startPath, startReply.reference);
 
-    for (const tile of plan.tiles) {
-      if (reused.has(tile.id)) continue;
+    // Renders a batch of tiles under one readiness that covers them all, in one frame-local
+    // probe: verifies every raw slice against its reported hash, composes each tile's cut on
+    // the host, and registers the tile artifacts. Slices are intermediate bytes: their hashes
+    // stay in the native response, the composite is the tile image.
+    type RenderedTile = { capture: CapturedTile; responseArtifact: ArtifactRecord; imageArtifact: ArtifactRecord; restorationArtifact: ArtifactRecord; rasterArtifact: ArtifactRecord };
+    const renderBatch = async (batch: readonly CapturePlan["tiles"][number][], readiness: CaptureReadiness, batchLabel: string): Promise<Map<string, RenderedTile>> => {
       runtime.signal.throwIfAborted();
-      const pngPath = resolve(run.directory, "tiles", `${tile.id}.png`);
-      const restorationPath = resolve(run.directory, "tiles", `${tile.id}.restoration.json`);
-      const responseRelativePath = `tiles/${tile.id}.json`;
+      if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
+      const restorationRelative = `tiles/${batchLabel}.restoration.json`;
+      const restorationPath = resolve(run.directory, restorationRelative);
+      const responseRelativePath = `tiles/${batchLabel}.json`;
       const responsePath = resolve(run.directory, responseRelativePath);
-      const pngRuntimePath = await toRuntimePath(config, pngPath);
-      const restorationRuntimePath = await toRuntimePath(config, restorationPath);
-      let responseArtifact: ArtifactRecord | undefined;
-      let imageArtifact: ArtifactRecord | undefined;
-      let restorationArtifact: ArtifactRecord | undefined;
-      let rasterArtifact: ArtifactRecord | undefined;
-      const cutPlan = cutPlans.get(tile.id)!;
-      const sliceArtifacts: ArtifactRecord[] = [];
-      const prepared = await withCaptureGeometry(runtime, config, run, plan, tile, cutPlan, async readiness => {
-        if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
-        const expectedCut = cutPlan === null ? null : cutPlan.evidence;
-        if (!isDeepStrictEqual(readiness.cut, expectedCut)) throw new Error(`Capture tile "${tile.id}" readiness disagrees with its reviewed cut.`);
-        const expectedFrame = cutCaptureFrame(tile, cutPlan);
-        if (!isDeepStrictEqual(expectedFrame, readiness.captureFrame)) throw new Error(`Capture tile "${tile.id}" readiness frame disagrees with its reviewed cut.`);
-        const reply = await runtime.probe(probePath, responsePath, {
-          preludeFile,
-          parameters: {
-            action: "render",
-            key: session.key,
-            tileId: tile.id,
-            frame: readiness.captureFrame,
-            lighting: plan.lighting,
-            cullingMask: plan.cullingMask,
-            suppression: plan.suppression,
-            cutHeights: cutPlan === null ? null : cutPlan.evidence.cutHeights,
-            outputPath: pngRuntimePath,
-            restorationPath: restorationRuntimePath,
-            ...baseParameters,
-          },
-        });
-        assertSchema(CaptureSessionSchema, reply.value, `Capture response for tile "${tile.id}"`);
-        session = reply.value as CaptureSession;
-        assertSession(session, runtime, captureKey, plan.sceneNativeId, plan.scenePath, sceneHandle, "ready");
-        const capture = session.lastCapture;
-        if (capture === null || capture.tileId !== tile.id || capture.width !== plan.width || capture.height !== plan.height || capture.path !== pngRuntimePath || capture.frame !== capture.restoredFrame) {
-          throw new Error(`Capture response for tile "${tile.id}" has mismatched output metadata.`);
-        }
-        if (capture.frame < readiness.observedFrames.at(-1)!) throw new Error("Capture preceded its geometry readiness evidence.");
-        assertFrameMatches(capture, readiness.captureFrame, tile.id);
-        if (!isDeepStrictEqual(capture.cameraFrame, readiness.captureFrame)) throw new Error(`Capture response for tile "${tile.id}" disagrees with readiness cut evidence.`);
-        // Every slice the probe published is verified against its reported hash, then the
-        // composite is written as the tile image. Without a cut the single slice is the image.
-        const expectedCuts = cutPlan === null ? [readiness.captureFrame.cameraY - readiness.captureFrame.nearClip] : cutPlan.evidence.cutHeights;
+      const observed = readiness.captureFrame;
+      const tileInputs = [];
+      for (const tile of batch) {
+        const cutPlan = cutPlans.get(tile.id)!;
+        const captureFrame = cutCaptureFrame(tile, cutPlan);
+        // The readiness frame is the tile's own frame, or the map extent that contains it.
+        const contains = Math.abs(observed.center.x - captureFrame.center.x) <= (observed.worldSize.x - captureFrame.worldSize.x) / 2 + 1e-6
+          && Math.abs(observed.center.z - captureFrame.center.z) <= (observed.worldSize.z - captureFrame.worldSize.z) / 2 + 1e-6
+          && observed.cameraY - observed.nearClip >= captureFrame.cameraY - captureFrame.nearClip - 1e-6
+          && observed.cameraY - observed.farClip <= captureFrame.cameraY - captureFrame.farClip + 1e-6;
+        if (!contains) throw new Error(`Capture tile "${tile.id}" lies outside its readiness frame.`);
+        tileInputs.push({ tileId: tile.id, frame: captureFrame, cutHeights: cutPlan === null ? null : cutPlan.evidence.cutHeights, slicePrefix: await toRuntimePath(config, resolve(run.directory, "tiles", tile.id)) });
+      }
+      const reply = await runtime.probe(probePath, responsePath, {
+        preludeFile,
+        parameters: {
+          action: "render",
+          key: session.key,
+          tiles: tileInputs,
+          lighting: plan.lighting,
+          cullingMask: plan.cullingMask,
+          suppression: plan.suppression,
+          restorationPath: await toRuntimePath(config, restorationPath),
+          ...baseParameters,
+        },
+        // A batch renders every slice of every tile in one frame-local evaluation; its deadline
+        // is the readiness budget, not the per-call default.
+        timeoutMs: plan.readiness.timeoutMs,
+      });
+      assertSchema(CaptureSessionSchema, reply.value, `Capture response for batch "${batchLabel}"`);
+      session = reply.value as CaptureSession;
+      assertSession(session, runtime, captureKey, plan.sceneNativeId, plan.scenePath, sceneHandle, "ready");
+      const rendered = session.lastCapture;
+      if (rendered === null || rendered.captures.length !== batch.length || rendered.frame !== rendered.restoredFrame) throw new Error(`Capture response for batch "${batchLabel}" has mismatched output metadata.`);
+      if (rendered.frame < readiness.observedFrames.at(-1)!) throw new Error("Capture preceded its geometry readiness evidence.");
+      const restorationBytes = await readFile(restorationPath);
+      let restoration: unknown;
+      try { restoration = JSON.parse(new TextDecoder().decode(restorationBytes)); } catch (error) { throw new Error(`Restoration audit for batch "${batchLabel}" is not valid JSON.`, { cause: error }); }
+      const responseArtifact = await registerProbeArtifact(run, responseRelativePath, reply.reference);
+      const restorationArtifact = await registerArtifact(run, restorationRelative);
+      const results = new Map<string, RenderedTile>();
+      for (const tile of batch) {
+        const cutPlan = cutPlans.get(tile.id)!;
+        const captureFrame = cutCaptureFrame(tile, cutPlan);
+        const capture = rendered.captures.find(candidate => candidate.tileId === tile.id);
+        if (capture === undefined || capture.width !== plan.width || capture.height !== plan.height) throw new Error(`Capture response for tile "${tile.id}" has mismatched output metadata.`);
+        assertFrameMatches(capture, captureFrame, tile.id);
+        if (!isDeepStrictEqual(capture.cameraFrame, captureFrame)) throw new Error(`Capture response for tile "${tile.id}" disagrees with its cut frame.`);
+        const expectedCuts = cutPlan === null ? [captureFrame.cameraY - captureFrame.nearClip] : cutPlan.evidence.cutHeights;
         if (capture.slices.length !== expectedCuts.length || capture.slices.some((slice, index) => slice.index !== index || !closeEnough(slice.cut, expectedCuts[index]!))) {
           throw new Error(`Capture response for tile "${tile.id}" reports slices that disagree with its cut.`);
         }
-        const slicePaths: string[] = [];
-        for (const slice of capture.slices) {
-          const sliceRelative = `tiles/${tile.id}.slice-${String(slice.index).padStart(3, "0")}.png`;
-          const slicePath = resolve(run.directory, sliceRelative);
-          const hashed = await hashPng(slicePath, plan.width, plan.height, tile.id);
-          if (hashed.sha256 !== slice.sha256 || hashed.byteSize !== slice.byteSize) throw new Error(`Capture slice ${slice.index} for tile "${tile.id}" does not match its PNG artifact.`);
-          sliceArtifacts.push(await registerArtifact(run, sliceRelative, hashed.sha256));
-          slicePaths.push(slicePath);
-        }
-        if (cutPlan === null) await Bun.write(pngPath, Bun.file(slicePaths[0]!));
-        else {
-          const composite = await compositeCut(slicePaths, cutPlan.evidence.cutHeights, cutPlan, plan.width, plan.height);
-          await Bun.write(pngPath, composite.png);
-        }
+        const slicePaths = capture.slices.map(slice => resolve(run.directory, "tiles", `${tile.id}.slice-${String(slice.index).padStart(3, "0")}.rgb`));
+        const composite = await compositeRawSlices(slicePaths, capture.slices, cutPlan, plan.width, plan.height, tile.id);
+        const pngPath = resolve(run.directory, "tiles", `${tile.id}.png`);
+        await Bun.write(pngPath, composite);
+        await Promise.all(slicePaths.map(path => rm(path, { force: true })));
         const png = await hashPng(pngPath, plan.width, plan.height, tile.id);
-        const raster = registerRaster(capture, png, readiness.cut);
-        const restorationBytes = await readFile(restorationPath);
-        let restoration: unknown;
-        try { restoration = JSON.parse(new TextDecoder().decode(restorationBytes)); } catch (error) { throw new Error(`Restoration audit for tile "${tile.id}" is not valid JSON.`, { cause: error }); }
+        const raster = registerRaster(capture, png, cutPlan === null ? null : cutPlan.evidence);
         assertRestorationAudit(restoration, tile, session.key, capture.frame, plan.lighting);
-        responseArtifact = await registerProbeArtifact(run, responseRelativePath, reply.reference);
-        imageArtifact = await registerArtifact(run, `tiles/${tile.id}.png`, png.sha256);
-        restorationArtifact = await registerArtifact(run, `tiles/${tile.id}.restoration.json`);
+        const imageArtifact = await registerArtifact(run, `tiles/${tile.id}.png`, png.sha256);
         await Bun.write(resolve(run.directory, `tiles/${tile.id}.raster.json`), `${JSON.stringify(raster, null, 2)}\n`);
-        rasterArtifact = await registerArtifact(run, `tiles/${tile.id}.raster.json`);
-        return capture;
-      });
-      if (responseArtifact === undefined || imageArtifact === undefined || restorationArtifact === undefined || rasterArtifact === undefined) {
-        throw new Error(`Capture tile "${tile.id}" completed without registered output artifacts.`);
+        const rasterArtifact = await registerArtifact(run, `tiles/${tile.id}.raster.json`);
+        results.set(tile.id, { capture, responseArtifact, imageArtifact, restorationArtifact, rasterArtifact });
       }
-      const readinessArtifact = await captureArtifactReference(run.directory, prepared.readinessPath);
-      const inventoryArtifact = await captureArtifactReference(run.directory, prepared.readiness.inventoryPath);
-      const inventoryContextPath = prepared.readiness.inventoryPath.replace(/\.json$/, ".context.json");
+      return results;
+    };
+
+    const checkpointTile = async (tile: CapturePlan["tiles"][number], rendered: RenderedTile, readiness: CaptureReadiness, readinessPath: string): Promise<void> => {
+      const readinessArtifact = await captureArtifactReference(run.directory, readinessPath);
+      const inventoryArtifact = await captureArtifactReference(run.directory, readiness.inventoryPath);
+      const inventoryContextPath = readiness.inventoryPath.replace(/\.json$/, ".context.json");
       const inventoryContextArtifact = await captureArtifactReference(run.directory, inventoryContextPath);
-      const nativeContext = [responseArtifact, inventoryArtifact, inventoryContextArtifact, ...sliceArtifacts];
-      if (prepared.readiness.streamKey !== null) {
-        nativeContext.push(await captureArtifactReference(run.directory, `tiles/${tile.id}.geometry/stream-cleanup.json`));
+      const nativeContext = [rendered.responseArtifact, inventoryArtifact, inventoryContextArtifact];
+      if (readiness.streamKey !== null) {
+        nativeContext.push(await captureArtifactReference(run.directory, `${readinessPath.slice(0, -"/readiness.json".length)}/stream-cleanup.json`));
       }
       const checkpoint: CaptureTileCheckpoint = {
         schemaVersion: "compendium.capture-tile-checkpoint.v1",
         tileId: tile.id,
         compatibilityKey: compatibility.get(tile.id)!,
-        artifacts: { image: imageArtifact, raster: rasterArtifact, readiness: readinessArtifact, restoration: restorationArtifact, nativeContext },
+        artifacts: { image: rendered.imageArtifact, raster: rendered.rasterArtifact, readiness: readinessArtifact, restoration: rendered.restorationArtifact, nativeContext },
         origin: { runId: run.runId, ownerToken: runtime.ownerToken, captureKey },
       };
       await writeTileCheckpoint(run, checkpoint);
       checkpoints.set(tile.id, checkpoint);
-      tiles.push({ ...prepared.value, readiness: prepared.readiness, readinessPath: prepared.readinessPath, rasterPath: rasterArtifact.path, reused: false, nativeObserved: true, compatibilityKey: checkpoint.compatibilityKey, origin: checkpoint.origin });
+      tiles.push({ ...rendered.capture, readiness, readinessPath, rasterPath: rendered.rasterArtifact.path, reused: false, nativeObserved: true, compatibilityKey: checkpoint.compatibilityKey, origin: checkpoint.origin });
+    };
+
+    const pending = plan.tiles.filter(tile => !reused.has(tile.id));
+    // A static scene, one whose required sources are all resident, needs one readiness for the
+    // whole map: nothing loads or unloads between tiles, so every tile renders under the same
+    // observation. A scene with streamed sources keeps per-tile readiness with stream holds.
+    let staticReadiness: { readiness: CaptureReadiness; readinessPath: string } | undefined;
+    if (pending.length > 1) {
+      const extent = mapExtentSubject(plan, pending, cutPlans);
+      try {
+        const observed = await withCaptureGeometry(runtime, config, run, plan, extent, null, async readiness => {
+          if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
+          return readiness;
+        }, { requireResident: true });
+        staticReadiness = { readiness: observed.readiness, readinessPath: observed.readinessPath };
+      } catch (error) {
+        if (!(error instanceof NotResidentError)) throw error;
+      }
+    }
+    if (staticReadiness !== undefined) {
+      const rendered = await renderBatch(pending, staticReadiness.readiness, `${plan.mapSpaceId}-batch`);
+      for (const tile of pending) await checkpointTile(tile, rendered.get(tile.id)!, staticReadiness.readiness, staticReadiness.readinessPath);
+    } else {
+      for (const tile of pending) {
+        const cutPlan = cutPlans.get(tile.id)!;
+        const subject = { tile, frame: cutCaptureFrame(tile, cutPlan), kind: "tile" as const };
+        const prepared = await withCaptureGeometry(runtime, config, run, plan, subject, cutPlan === null ? null : cutPlan.evidence, async readiness => {
+          if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
+          return (await renderBatch([tile], readiness, tile.id)).get(tile.id)!;
+        });
+        await checkpointTile(tile, prepared.value, prepared.readiness, prepared.readinessPath);
+      }
     }
 
     const restoredPath = "capture-restored.json";

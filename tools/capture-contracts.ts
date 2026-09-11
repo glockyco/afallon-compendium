@@ -67,17 +67,23 @@ export const CapturePlanSchema = Type.Object({
 });
 export type CapturePlan = Static<typeof CapturePlanSchema>;
 
+// One rendered tile of a batch: its verified camera frame, projection controls, and raw slices
+// written beside the tile, nearest-plane first. A tile without a cut has one slice.
+const capturedTile = Type.Object({
+  tileId: text, width: count, height: count, frame: count, restoredFrame: count,
+  cameraFrame: frame,
+  projectionSamples: Type.Array(Type.Object({ world: vector, viewport: vector }), { minItems: 3 }),
+  slices: Type.Array(Type.Object({ index: count, cut: number, path: text, sha256, byteSize: count }), { minItems: 1, maxItems: 256 }),
+});
+export type CapturedTile = Static<typeof capturedTile>;
+// One render batch: every tile rendered in one frame-local operation under one restoration.
 const capture = Type.Object({
-  tileId: text, path: text, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), byteSize: count,
-  width: count, height: count, frame: count, restoredFrame: count,
+  frame: count, restoredFrame: count,
   renderTexturesBefore: Type.Array(Type.Object({ instanceId: integer, name: Type.String(), width: count, height: count, depth: count, created: Type.Boolean(), owned: Type.Boolean() })),
   renderTexturesAfter: Type.Array(Type.Object({ instanceId: integer, name: Type.String(), width: count, height: count, depth: count, created: Type.Boolean(), owned: Type.Boolean() })),
   lightingRestored: Type.Literal(true), suppressionRestored: Type.Literal(true), activeTargetRestored: Type.Literal(true),
   suppressedRenderers: count, visualPolicy: Type.Literal("compendium.capture-visual-policy.v3"),
-  cameraFrame: frame,
-  projectionSamples: Type.Array(Type.Object({ world: vector, viewport: vector }), { minItems: 3 }),
-  // Every rendered slice of the tile, nearest-plane first. A tile without a cut has one slice.
-  slices: Type.Array(Type.Object({ index: count, cut: number, path: text, sha256, byteSize: count }), { minItems: 1, maxItems: 256 }),
+  captures: Type.Array(capturedTile, { minItems: 1, maxItems: 64 }),
 });
 export const CaptureSessionSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-session.v5"),
@@ -116,7 +122,7 @@ const visualState = Type.Object({
   highlights: Type.Array(Type.Object({ instanceId: integer, cameraMask: integer })),
 });
 export const CaptureRestorationSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-restoration.v4"), key: text, tileId: text,
+  schemaVersion: Type.Literal("compendium.capture-restoration.v5"), key: text, tileIds: Type.Array(text, { minItems: 1, maxItems: 64 }),
   visualPolicy: Type.Literal("compendium.capture-visual-policy.v3"),
   colorSpace: Type.Union([Type.Literal("Gamma"), Type.Literal("Linear")]),
   frameStarted: count, frameRestored: count, renderSucceeded: Type.Boolean(),
@@ -150,7 +156,7 @@ const geometryBounds = Type.Object({ center: vector, size: vector });
 const queryCounts = Type.Object({ all: count, scene: count, foreign: count });
 const optionalId = Type.Union([integer, Type.Null()]);
 export const CaptureGeometrySchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-geometry.v3"),
+  schemaVersion: Type.Literal("compendium.capture-geometry.v4"),
   visualPolicy: Type.Literal("compendium.capture-visual-policy.v3"),
   excludedRenderers: Type.Array(Type.Object({ instanceId: integer, reason: text })),
   frame: count,
@@ -167,7 +173,7 @@ export const CaptureGeometrySchema = Type.Object({
     loadedOrLoading: Type.Boolean(), loaded: Type.Boolean(), loading: Type.Boolean(), hasHandle: Type.Boolean(),
     automaticLoadPending: Type.Boolean(),
     rootId: optionalId, rootActive: Type.Union([Type.Boolean(), Type.Null()]),
-    holdUntil: number, loadDistance: number,
+    holdUntil: number, loadDistance: number, playerDistance: Type.Number({ minimum: 0 }),
   })),
   meshes: Type.Array(Type.Object({
     rendererId: integer, kind: Type.Union([Type.Literal("mesh"), Type.Literal("skinned")]),

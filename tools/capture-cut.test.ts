@@ -3,7 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
-import { compositeCut, cutCaptureFrame, planTileCut, type NavigationSurvey } from "./capture-cut";
+import { createHash } from "node:crypto";
+import { composeCut, compositeRawSlices, cutCaptureFrame, planTileCut, type NavigationSurvey } from "./capture-cut";
 import type { CapturePlan } from "./capture-contracts";
 
 const SURVEY_SHA = "a".repeat(64);
@@ -51,26 +52,48 @@ test("a tile without walkable surface has no cut and keeps its declared frame", 
   expect(cutCaptureFrame(capturePlan.tiles[0]!, null)).toEqual(capturePlan.tiles[0]!.frame);
 });
 
-test("the composite takes each pixel from the first slice above its walkable height", async () => {
+test("the composite takes each pixel from the first slice above its walkable height", () => {
+  const capturePlan = plan(true);
+  const cut = planTileCut(capturePlan.tiles[0]!, capturePlan, ramp)!;
+  // Each slice is a solid colour whose red channel is its index.
+  const slices = cut.evidence.cutHeights.map((_, index) => {
+    const buffer = Buffer.alloc(8 * 8 * 3);
+    for (let i = 0; i < 64; i++) buffer[i * 3] = index;
+    return buffer;
+  });
+  const { rgb, sliceUse } = composeCut(slices, cut.evidence.cutHeights, cut, 8, 8);
+  // Pixel column 0 sits at the ramp's foot; column 7 is beyond the ramp's top and filled
+  // from its nearest walkable neighbour, so it uses a later slice than column 0.
+  const left = rgb[0]!, right = rgb[7 * 3]!;
+  expect(left).toBeLessThan(right);
+  expect(sliceUse.reduce((sum, count) => sum + count, 0)).toBe(64);
+  // No pixel picks a slice below its own surface plus headroom, across the row mirror.
+  for (let row = 0; row < 8; row++) for (let column = 0; column < 8; column++) {
+    const pick = rgb[(row * 8 + column) * 3]!;
+    expect(cut.evidence.cutHeights[pick]!).toBeGreaterThanOrEqual(cut.field[(7 - row) * 8 + column]! + 2 - 1e-6);
+  }
+});
+
+test("raw slices are verified against their reported hashes before composing", async () => {
   const capturePlan = plan(true);
   const cut = planTileCut(capturePlan.tiles[0]!, capturePlan, ramp)!;
   const directory = await mkdtemp(join(tmpdir(), "cut-"));
   try {
-    // Each slice is a solid colour whose red channel is its index.
-    const paths = await Promise.all(cut.evidence.cutHeights.map(async (_, index) => {
-      const path = join(directory, `slice-${index}.png`);
-      await sharp({ create: { width: 8, height: 8, channels: 4, background: { r: index, g: 0, b: 0, alpha: 1 } } }).png().toFile(path);
-      return path;
-    }));
-    const { png, sliceUse } = await compositeCut(paths, cut.evidence.cutHeights, cut, 8, 8);
-    const raw = await sharp(png).raw().toBuffer();
-    // Pixel column 0 sits at the ramp's foot; column 7 is beyond the ramp's top and filled
-    // from its nearest walkable neighbour, so it uses a later slice than column 0.
-    const left = raw[0]!, right = raw[7 * 4]!;
-    expect(left).toBeLessThan(right);
-    expect(sliceUse.reduce((sum, count) => sum + count, 0)).toBe(64);
-    // No pixel picks a slice below its own surface plus headroom.
-    for (let i = 0; i < 64; i++) expect(cut.evidence.cutHeights[raw[i * 4]!]!).toBeGreaterThanOrEqual(cut.field[i]! + 2 - 1e-6);
+    const paths: string[] = [];
+    const reported: Array<{ index: number; cut: number; sha256: string; byteSize: number }> = [];
+    for (const [index, height] of cut.evidence.cutHeights.entries()) {
+      const bytes = Buffer.alloc(8 * 8 * 3, index);
+      const path = join(directory, `slice-${index}.rgb`);
+      await Bun.write(path, bytes);
+      paths.push(path);
+      reported.push({ index, cut: height, sha256: createHash("sha256").update(bytes).digest("hex"), byteSize: bytes.byteLength });
+    }
+    const png = await compositeRawSlices(paths, reported, cut, 8, 8, "tile");
+    const decoded = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+    expect(decoded.info.width).toBe(8);
+    expect(decoded.info.height).toBe(8);
+    reported[0]!.sha256 = "0".repeat(64);
+    await expect(compositeRawSlices(paths, reported, cut, 8, 8, "tile")).rejects.toThrow("does not match its reported hash");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

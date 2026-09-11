@@ -3,6 +3,7 @@ import { realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
 import { CapturePlanSchema, CaptureRasterSchema, CaptureReadinessSchema, CaptureSetSchema, type CapturePlan, type CaptureRaster, type CaptureReadiness, type CaptureSet } from "../tools/capture-contracts";
+import { readinessCovers } from "../tools/capture-cache";
 import { loadSpatialProfile } from "../tools/spatial-extraction";
 import { loadVerifiedRun } from "../tools/runs";
 import type { MapSpaceProfile } from "../tools/spatial-contracts";
@@ -202,7 +203,10 @@ function validateRasterAgainstFrame(raster: CaptureRaster, capturePlan: CaptureP
     if (raster.cut.surveySha256 !== cut.survey.sha256 || !sameNumber(raster.cut.step, cut.step) || !sameNumber(raster.cut.headroom, cut.headroom)) fail(`raster ${raster.tileId} has incompatible reviewed cut evidence`);
     const heights = raster.cut.cutHeights;
     if (heights.some((height, index) => index > 0 && height <= heights[index - 1]!)) fail(`raster ${raster.tileId} cut heights do not increase`);
-    if (!(heights[0]! <= raster.cut.walkable.minY + cut.headroom + cut.step) || !(heights[heights.length - 1]! >= raster.cut.walkable.maxY + cut.headroom)) fail(`raster ${raster.tileId} cut heights do not cover its walkable range`);
+    // The lowest slice is the first step boundary above the lowest surface; the highest slice is
+    // the first above the highest surface. Any other slice set cannot have come from the field.
+    const boundary = (y: number) => Math.ceil((y + cut.headroom) / cut.step) * cut.step;
+    if (!sameNumber(heights[0]!, boundary(raster.cut.walkable.minY)) || !sameNumber(heights[heights.length - 1]!, boundary(raster.cut.walkable.maxY))) fail(`raster ${raster.tileId} cut heights do not cover its walkable range`);
   }
   const xLength = Math.hypot(raster.worldFromPixelEdge.xAxis.x, raster.worldFromPixelEdge.xAxis.z);
   const yLength = Math.hypot(raster.worldFromPixelEdge.yAxis.x, raster.worldFromPixelEdge.yAxis.z);
@@ -319,7 +323,7 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
     const rasterValue = assertRaster(readJson(rasterFile.bytes, `${tile.id} raster`));
     const readinessValue = assertReadiness(readJson(readinessFile.bytes, `${tile.id} readiness`));
     if (rasterValue.tileId !== tile.id || rasterValue.imageSha256 !== image.sha256 || rasterValue.width !== captureSet.width || rasterValue.height !== captureSet.height) fail(`source ${reference.path} tile ${tile.id} raster identity or dimensions disagree`);
-    if (readinessValue.tileId !== tile.id || readinessValue.sceneNativeId !== captureSet.sceneNativeId || readinessValue.empty && readinessValue.stableFrames < 2) fail(`source ${reference.path} tile ${tile.id} readiness identity is invalid`);
+    if (!readinessCovers(readinessValue, capturePlan.tiles.find(candidate => candidate.id === tile.id)!) || readinessValue.sceneNativeId !== captureSet.sceneNativeId || readinessValue.empty && readinessValue.stableFrames < 2) fail(`source ${reference.path} tile ${tile.id} readiness identity is invalid`);
     if (!sameNumber(readinessValue.captureFrame.center.x, rasterValue.cameraFrame.center.x)
       || !sameNumber(readinessValue.captureFrame.center.z, rasterValue.cameraFrame.center.z)
       || !sameNumber(readinessValue.captureFrame.worldSize.x, rasterValue.cameraFrame.worldSize.x)

@@ -167,9 +167,12 @@ function sameArtifact(left: ArtifactRecord, right: ArtifactRecord): boolean {
   return left.path === right.path && left.bytes === right.bytes && left.sha256 === right.sha256;
 }
 
-function findResponseReference(artifacts: TileArtifacts, tileId: string): ArtifactRecord | undefined {
+// The native response is the tile's own render or the batch render of its map; either sits
+// first in the tile's native context, under its original name or the copied origin name.
+export function findResponseReference(artifacts: TileArtifacts, tileId: string): ArtifactRecord | undefined {
   return artifacts.nativeContext.find(reference =>
-    reference.path === `tiles/${tileId}.json` || reference.path === `tiles/${tileId}.geometry/origin-${tileId}.json`,
+    reference.path === `tiles/${tileId}.json` || reference.path === `tiles/${tileId}.geometry/origin-${tileId}.json`
+    || /^tiles\/[a-z0-9-]+-batch\.json$/.test(reference.path) || /^tiles\/[a-z0-9-]+\.geometry\/origin-[a-z0-9-]+-batch\.json$/.test(reference.path),
   );
 }
 
@@ -257,15 +260,15 @@ async function validateCheckpoint(sourceDirectory: string, sourceRun: RunManifes
   Assert(CaptureReadinessSchema, readinessValue);
   const inventoryReference = checkpoint.artifacts.nativeContext.find(reference => reference.sha256 === readinessValue.inventorySha256);
   if (inventoryReference === undefined || readinessValue.inventorySha256 !== inventoryReference.sha256) throw new Error("Cache readiness inventory hash does not match its native context.");
-  if (readinessValue.tileId !== expectedTile.id || readinessValue.ownerToken !== checkpoint.origin.ownerToken || readinessValue.sceneNativeId !== expectedPlan.sceneNativeId) throw new Error("Cache readiness provenance does not match its tile.");
+  if (!readinessCovers(readinessValue, expectedTile) || readinessValue.ownerToken !== checkpoint.origin.ownerToken || readinessValue.sceneNativeId !== expectedPlan.sceneNativeId) throw new Error("Cache readiness provenance does not match its tile.");
   const restorationValue = await readCaptureArtifactJson(sourceDirectory, checkpoint.artifacts.restoration) as Restoration;
   Assert(CaptureRestorationSchema, restorationValue);
-  if (restorationValue.tileId !== expectedTile.id || restorationValue.key !== checkpoint.origin.captureKey || !restorationValue.renderSucceeded || restorationValue.errors.length !== 0) throw new Error("Cache restoration audit is not successful.");
+  if (!restorationValue.tileIds.includes(expectedTile.id) || restorationValue.key !== checkpoint.origin.captureKey || !restorationValue.renderSucceeded || restorationValue.errors.length !== 0) throw new Error("Cache restoration audit is not successful.");
   const responseReference = findResponseReference(checkpoint.artifacts, expectedTile.id);
   if (responseReference === undefined) throw new Error("Cache tile has no native capture response.");
   const responseValue = await readCaptureArtifactJson(sourceDirectory, responseReference) as Session;
   Assert(CaptureSessionSchema, responseValue);
-  if (responseValue.ownerToken !== checkpoint.origin.ownerToken || responseValue.key !== checkpoint.origin.captureKey || responseValue.sceneNativeId !== expectedPlan.sceneNativeId || responseValue.scenePath !== expectedPlan.scenePath || responseValue.sceneHandle !== readinessValue.sceneHandle || responseValue.lastCapture === null || responseValue.lastCapture.tileId !== expectedTile.id || responseValue.lastCapture.width !== expectedPlan.width || responseValue.lastCapture.height !== expectedPlan.height || responseValue.lastCapture.sha256 !== checkpoint.artifacts.image.sha256) throw new Error("Cache native capture response does not match its tile provenance.");
+  if (responseValue.ownerToken !== checkpoint.origin.ownerToken || responseValue.key !== checkpoint.origin.captureKey || responseValue.sceneNativeId !== expectedPlan.sceneNativeId || responseValue.scenePath !== expectedPlan.scenePath || responseValue.sceneHandle !== readinessValue.sceneHandle || responseValue.lastCapture === null || !responseValue.lastCapture.captures.some(capture => capture.tileId === expectedTile.id && capture.width === expectedPlan.width && capture.height === expectedPlan.height)) throw new Error("Cache native capture response does not match its tile provenance.");
   if (readinessValue.streamKey !== null) {
     const streamReference = checkpoint.artifacts.nativeContext.find(reference => reference.path.endsWith("/stream-cleanup.json"));
     if (streamReference === undefined) throw new Error("Cache streamed tile has no cleanup receipt.");
@@ -422,3 +425,14 @@ export async function captureArtifactReference(root: string, relativePath: strin
   return { path: relativePath, bytes: bytes.byteLength, sha256: createHash("sha256").update(bytes).digest("hex") };
 }
 
+
+// A readiness covers a tile when it is the tile's own or the map extent that contains the tile's
+// frame horizontally and vertically.
+export function readinessCovers(readiness: Readiness, tile: CaptureTile): boolean {
+  if (readiness.tileId === tile.id) return true;
+  if (!readiness.tileId.endsWith("-extent")) return false;
+  const observed = readiness.captureFrame, frame = tile.frame;
+  return Math.abs(observed.center.x - frame.center.x) <= (observed.worldSize.x - frame.worldSize.x) / 2 + 1e-6
+    && Math.abs(observed.center.z - frame.center.z) <= (observed.worldSize.z - frame.worldSize.z) / 2 + 1e-6
+    && observed.cameraY - observed.farClip <= frame.cameraY - frame.farClip + 1e-6;
+}
