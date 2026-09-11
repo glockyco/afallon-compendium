@@ -77,7 +77,7 @@ function closeEnough(left: number, right: number): boolean {
   return Math.abs(left - right) <= scale * 1e-6;
 }
 
-function validatePlan(plan: CapturePlan): void {
+export function validateCapturePlan(plan: CapturePlan): void {
   assertSchema(CapturePlanSchema, plan, "Capture plan");
   assertFiniteScalars(plan, "Capture plan");
   if (plan.clipHeight !== undefined && !Number.isFinite(plan.clipHeight)) {
@@ -101,6 +101,29 @@ function validatePlan(plan: CapturePlan): void {
     if (!closeEnough(worldAspect, pixelAspect)) {
       throw new Error(`Tile "${tile.id}" world and pixel aspect ratios do not match.`);
     }
+  }
+
+  if (plan.mapSpaceId === "world-surface") return;
+  const first = plan.tiles[0]!.frame;
+  for (const tile of plan.tiles) {
+    if (!closeEnough(tile.frame.worldSize.x, first.worldSize.x) || !closeEnough(tile.frame.worldSize.z, first.worldSize.z)) {
+      throw new Error(`Tile "${tile.id}" does not use the interior capture grid size.`);
+    }
+  }
+  const columns = [...new Set(plan.tiles.map(tile => tile.frame.center.x))].sort((left, right) => left - right);
+  const rows = [...new Set(plan.tiles.map(tile => tile.frame.center.z))].sort((left, right) => left - right);
+  for (let index = 1; index < columns.length; index++) {
+    if (!closeEnough(columns[index]! - columns[index - 1]!, first.worldSize.x)) {
+      throw new Error("Interior capture plan has a missing tile column.");
+    }
+  }
+  for (let index = 1; index < rows.length; index++) {
+    if (!closeEnough(rows[index]! - rows[index - 1]!, first.worldSize.z)) {
+      throw new Error("Interior capture plan has a missing tile row.");
+    }
+  }
+  if (columns.length * rows.length !== plan.tiles.length) {
+    throw new Error("Interior capture plan must include every tile in its rectangular grid.");
   }
 }
 
@@ -379,7 +402,7 @@ async function capturePlan(
   plan: CapturePlan,
   sweep?: CaptureSweepContext,
 ) {
-  validatePlan(plan);
+  validateCapturePlan(plan);
   if (config.mapSpaceProfile === undefined) throw new Error("Capture requires config.mapSpaceProfile.");
   const spatialProfile = await loadSpatialProfile(config.mapSpaceProfile);
   if (spatialProfile === null) throw new Error("Capture requires a reviewed map-space profile.");
@@ -692,7 +715,7 @@ export async function capture(
 ) {
   if (plans.length === 0) throw new Error("Capture requires at least one plan.");
   const finalScene = { nativeId: config.finalSceneNativeId, path: config.finalScenePath };
-  plans.forEach(validatePlan);
+  plans.forEach(validateCapturePlan);
   const sweepRun = await beginRun(config.outputRoot, {
     ...identity,
     inputHashes: {
