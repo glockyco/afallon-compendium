@@ -165,6 +165,25 @@ var probeEqual = new System.Func<UnityEngine.Rendering.SphericalHarmonicsL2, Uni
         if (left[rgb, coefficient] != right[rgb, coefficient]) return false;
     return true;
 });
+var renderTextureInventory = new System.Func<object>(() =>
+{
+    var rows = new System.Collections.Generic.List<object>();
+    foreach (var target in UnityEngine.Resources.FindObjectsOfTypeAll<UnityEngine.RenderTexture>())
+    {
+        if (target == null) continue;
+        rows.Add(new
+        {
+            instanceId = target.GetInstanceID(),
+            name = target.name ?? "",
+            width = target.width,
+            height = target.height,
+            depth = target.depth,
+            created = target.IsCreated(),
+            owned = (target.name ?? "").StartsWith("AfallonCapture.", System.StringComparison.Ordinal),
+        });
+    }
+    return rows.ToArray();
+});
 
 var faultAt = args["faultAt"] == null || args["faultAt"].Type == Newtonsoft.Json.Linq.JTokenType.Null ? null : requiredText(args["faultAt"], "faultAt");
 var allowedFault = faultAt == null || faultAt == "after-camera" || faultAt == "after-target" || faultAt == "after-texture" || faultAt == "after-light" || faultAt == "after-visuals" || faultAt == "after-render" || faultAt == "after-encode";
@@ -313,13 +332,13 @@ if (captureAction == "start")
         state["captureTexture"] = captureTexture;
         captureTexture.name = resourcePrefix + ".Texture2D";
         fault("after-texture");
-        return new { schemaVersion = "compendium.capture-session.v3", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
+        return new { schemaVersion = "compendium.capture-session.v4", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
         {
             new { kind = "camera", instanceId = (int?)camera.GetInstanceID(), alive = camera != null && cameraGo != null },
             new { kind = "light", instanceId = (int?)light.GetInstanceID(), alive = light != null && lightGo != null },
             new { kind = "renderTexture", instanceId = (int?)renderTexture.GetInstanceID(), alive = renderTexture != null },
             new { kind = "texture2D", instanceId = (int?)captureTexture.GetInstanceID(), alive = captureTexture != null },
-        }, completedCaptures = 0, lastCapture = (object)null };
+        }, completedCaptures = 0, lastCapture = (object)null, renderTextures = renderTextureInventory() };
     }
     catch (System.Exception error)
     {
@@ -367,7 +386,7 @@ var sessionResources = new System.Func<object>(() =>
 });
 var sessionReport = new System.Func<object>(() => new
 {
-    schemaVersion = "compendium.capture-session.v3",
+    schemaVersion = "compendium.capture-session.v4",
     key = requestedKey,
     phase = sessionState["phase"] as string,
     ownerToken = ownerToken,
@@ -378,6 +397,7 @@ var sessionReport = new System.Func<object>(() => new
     resources = sessionResources(),
     completedCaptures = (int)sessionState["completedCaptures"],
     lastCapture = sessionState["lastCapture"],
+    renderTextures = renderTextureInventory(),
 });
 
 if (captureAction == "inspect")
@@ -391,7 +411,7 @@ if (captureAction == "restore")
     restoreCleanup();
     return new
     {
-        schemaVersion = "compendium.capture-session.v3",
+        schemaVersion = "compendium.capture-session.v4",
         key = requestedKey,
         phase = "restored",
         ownerToken = ownerToken,
@@ -408,6 +428,7 @@ if (captureAction == "restore")
         },
         completedCaptures = (int)sessionState["completedCaptures"],
         lastCapture = sessionState["lastCapture"],
+        renderTextures = renderTextureInventory(),
     };
 }
 
@@ -521,6 +542,8 @@ foreach (var renderer in allParticles)
     if (renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy && !selectedRenderers.ContainsKey(renderer.GetInstanceID()) && renderer.bounds.Intersects(captureBounds)) retainedParticles.Add(renderer);
 
 var beforeFrame = UnityEngine.Time.frameCount;
+var renderTexturesBefore = renderTextureInventory();
+var renderTexturesAfter = (object)new object[0];
 var savedActive = UnityEngine.RenderTexture.active;
 var savedFog = UnityEngine.RenderSettings.fog;
 var savedAmbientMode = UnityEngine.RenderSettings.ambientMode;
@@ -755,6 +778,7 @@ catch (System.Exception error) { captureFailure = error; }
 finally
 {
     try { restoreFrame(); } catch (System.Exception error) { restorationFailure = error; }
+    try { renderTexturesAfter = renderTextureInventory(); } catch (System.Exception error) { if (restorationFailure == null) restorationFailure = error; }
     var afterVisualState = (object)null;
     try { afterVisualState = visualState(); }
     catch (System.Exception error)
@@ -813,6 +837,8 @@ var captureFrameMetadata = new
     height = captureHeight,
     frame = beforeFrame,
     restoredFrame = UnityEngine.Time.frameCount,
+    renderTexturesBefore = renderTexturesBefore,
+    renderTexturesAfter = renderTexturesAfter,
     lightingRestored = true,
     suppressionRestored = true,
     activeTargetRestored = true,

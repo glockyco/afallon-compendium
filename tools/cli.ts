@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { unlink } from "node:fs/promises";
+import { readdir, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { buildIdentity, hashFile, toolRevision } from "./build";
@@ -23,11 +23,11 @@ const { values, positionals } = parseArgs({
 
 async function main() {
   if (values.help || positionals.length === 0) {
-    console.log("Usage: bun run compendium <doctor|inspect|extract|probe|traverse|capture|illustration> --config local/config.json [--probe file.csx] [--prelude file.csx] [--plan file.json ...]\n       bun run compendium <normalize|tiles|publication> --plan file.json --output directory\n\nCapture uses finalSceneNativeId and finalScenePath from the installation config.\nRun through `nix develop --command bun run compendium ...`.\nDoctor verifies the installation, endpoint, build, and shared output path.\nInspect records complete currently-loaded inspection data, not full-game coverage.\nExtract validates canonical records, relationships, loot rules, world inventory, and authored producers with observation context. Load the configured research character first. Runtime commands use exclusive ownership and confirm cleanup before reporting success.\nProbe executes trusted C# with an optional shared prelude; args.researchCharacter comes from the local configuration.\nTraverse requires --plan file.json. It visits bounded scene/stream selections, validates source exports, and restores owned state. Inactive streams remain explicit coverage gaps.\nCapture requires --plan file.json. It visits requested scenes, verifies geometry and raster registration, and does not claim complete imagery coverage.\nIllustration requires --plan file.json. It prepares a hashed optional illustration layer from disk without connecting to the game; it never satisfies primary capture coverage.\nNormalize requires --plan file.json. It builds SQLite and map indexes from hashed extraction manifests without connecting to the game.\nTiles requires --plan file.json. It builds lossless WebP pyramids from verified capture manifests without connecting to the game.\nPublication requires --plan file.json. It validates and prepares an immutable local browser artifact. It does not deploy or upload files.");
+    console.log("Usage: bun run compendium <doctor|inspect|extract|probe|probe-check|traverse|capture|illustration> --config local/config.json [--probe file.csx] [--prelude file.csx] [--plan file.json ...]\n       bun run compendium <normalize|tiles|publication> --plan file.json --output directory\n\nCapture uses finalSceneNativeId and finalScenePath from the installation config.\nRun through `nix develop --command bun run compendium ...`.\nDoctor verifies the installation, endpoint, build, and shared output path.\nInspect records complete currently-loaded inspection data, not full-game coverage.\nExtract validates canonical records, relationships, loot rules, world inventory, and authored producers with observation context. Load the configured research character first. Runtime commands use exclusive ownership and confirm cleanup before reporting success.\nProbe executes trusted C# with an optional shared prelude; args.researchCharacter comes from the local configuration.\nProbe-check compiles every probe against the live runtime without executing probe bodies or writing artifacts.\nTraverse requires --plan file.json. It visits bounded scene/stream selections, validates source exports, and restores owned state. Inactive streams remain explicit coverage gaps.\nCapture requires --plan file.json. It visits requested scenes, verifies geometry and raster registration, and does not claim complete imagery coverage.\nIllustration requires --plan file.json. It prepares a hashed optional illustration layer from disk without connecting to the game; it never satisfies primary capture coverage.\nNormalize requires --plan file.json. It builds SQLite and map indexes from hashed extraction manifests without connecting to the game.\nTiles requires --plan file.json. It builds lossless WebP pyramids from verified capture manifests without connecting to the game.\nPublication requires --plan file.json. It validates and prepares an immutable local browser artifact. It does not deploy or upload files.");
     return;
   }
   const command = positionals[0]!;
-  if (!(["doctor", "inspect", "extract", "probe", "traverse", "capture", "illustration", "normalize", "tiles", "publication"] as string[]).includes(command)) throw new Error("Unknown command. Use --help.");
+  if (!(["doctor", "inspect", "extract", "probe", "probe-check", "traverse", "capture", "illustration", "normalize", "tiles", "publication"] as string[]).includes(command)) throw new Error("Unknown command. Use --help.");
   const optionPlanPaths = values.plan === undefined ? [] : Array.isArray(values.plan) ? values.plan : [values.plan];
   const positionalPlanPaths = command === "capture" ? positionals.slice(1) : [];
   const planPaths = [...optionPlanPaths, ...positionalPlanPaths];
@@ -77,6 +77,37 @@ async function main() {
     if (command === "doctor") {
       await runtime.complete();
       console.log(JSON.stringify({ ok: true, ...identity, installation, endpoint: config.hotreplUrl, sharedOutputVerified: true, outputRoot: config.outputRoot, runtimeOutputRoot: config.runtimeOutputRoot, researchCharacter: config.character, bun: Bun.version, nixShell: process.env.AFALLON_DEV_SHELL === "1", protocol: runtime.handshake.protocolVersion }, null, 2));
+      return;
+    }
+    if (command === "probe-check") {
+      const probeDirectory = resolve(import.meta.dir, "probes");
+      const entries = await readdir(probeDirectory, { withFileTypes: true });
+      const sources = entries.filter(entry => entry.isFile() && entry.name.endsWith(".csx")).sort((left, right) => left.name.localeCompare(right.name));
+      const conditions = resolve(probeDirectory, "conditions.csx");
+      const captureVisuals = resolve(probeDirectory, "capture-visuals.csx");
+      const results: { name: string; error?: string }[] = [];
+      const started = performance.now();
+      for (const entry of sources) {
+        const source = resolve(probeDirectory, entry.name);
+        const stem = entry.name.slice(0, -4);
+        const prelude = ["relationships", "npc-producers", "world-sources"].includes(stem) ? conditions
+          : ["capture-geometry", "capture-session"].includes(stem) ? captureVisuals
+            : undefined;
+        const context = stem === "runtime-owner" ? 'var ownerToken = "compile-check"; var ownerAction = "claim"; var ownerReceiptPath = "compile-check.json"; var ownerReason = "compile-check";' : "";
+        try {
+          await runtime.compileProbe(source, prelude, context);
+          results.push({ name: entry.name });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          results.push({ name: entry.name, error: message.replace(/\\s+/g, " ") });
+        }
+      }
+      const elapsedMs = Math.round(performance.now() - started);
+      for (const result of results.filter(result => result.error === undefined)) console.log(`PASS probes/${result.name}`);
+      for (const result of results.filter(result => result.error !== undefined)) console.log(`FAIL probes/${result.name}: ${result.error}`);
+      const failures = results.filter(result => result.error !== undefined);
+      console.log(`Probe compile check: ${results.length} probes, ${failures.length} failures, ${elapsedMs} ms; live runtime compilation only (probe bodies did not execute).`);
+      if (failures.length > 0) throw new Error(`${failures.length} probe(s) failed live compilation.`);
       return;
     }
     if (command === "capture") {

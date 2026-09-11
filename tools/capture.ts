@@ -8,9 +8,11 @@ import { buildIdentity, hashFile, toolRevision } from "./build";
 import { toRuntimePath, type CompendiumConfig } from "./config";
 import {
   CaptureCleanupSchema,
+  CaptureReclamationSchema,
   CapturePlanSchema,
   CaptureRasterSchema,
   type CaptureRaster,
+  type CaptureReclamation,
   CaptureReadinessSchema,
   CaptureRestorationSchema,
   CaptureSessionSchema,
@@ -144,6 +146,37 @@ async function registerProbeArtifact(
   reference: { sha256: string },
 ): Promise<ArtifactRecord> {
   return registerArtifact(run, path, reference.sha256);
+}
+
+async function reclaimAtSceneBoundary(
+  runtime: Runtime,
+  run: Run,
+  ordinal: number,
+  scene: SceneVisit,
+  timeoutMs: number,
+): Promise<ArtifactRecord> {
+  const path = `reclamation-${ordinal}.json`;
+  const deadline = Date.now() + timeoutMs;
+  let action: "start" | "poll" = "start";
+  let key: string | undefined;
+  while (true) {
+    runtime.signal.throwIfAborted();
+    if (Date.now() >= deadline) throw new Error(`Scene-boundary memory reclamation exceeded its ${timeoutMs} ms deadline.`);
+    const parameters: Record<string, unknown> = { action };
+    if (key !== undefined) parameters.key = key;
+    const reply = await runtime.probe(resolve(import.meta.dir, "probes/capture-reclaim.csx"), resolve(run.directory, path), { parameters });
+    assertSchema(CaptureReclamationSchema, reply.value, "Capture reclamation");
+    const evidence = reply.value as CaptureReclamation;
+    if (evidence.ownerToken !== runtime.ownerToken || evidence.sceneNativeId !== scene.sceneNativeId || evidence.sceneHandle !== scene.sceneHandle) {
+      throw new Error("Capture reclamation returned mismatched ownership or scene evidence.");
+    }
+    if (evidence.phase === "complete") {
+      return registerProbeArtifact(run, path, reply.reference);
+    }
+    key = evidence.key;
+    action = "poll";
+    await Bun.sleep(100);
+  }
 }
 
 async function writeTileCheckpoint(run: Run, checkpoint: CaptureTileCheckpoint): Promise<void> {
@@ -329,7 +362,9 @@ type CaptureSweepContext = {
   run: Run;
   visit?: SceneVisit;
   transitionOrdinal: number;
+  reclamationOrdinal: number;
   sceneTransitions: ArtifactRecord[];
+  reclamations: ArtifactRecord[];
   plans: CaptureSweep["plans"];
   start: (targetSceneNativeId: number, timeoutMs: number) => Promise<SceneVisit>;
   retarget: (targetSceneNativeId: number, timeoutMs: number) => Promise<SceneVisit>;
@@ -360,7 +395,7 @@ async function capturePlan(
     plan: createHash("sha256").update(planText).digest("hex"),
     "map-space-profile": spatialProfile.sha256,
   };
-  for (const name of ["world-inventory", "capture-session", "capture-geometry", "capture-visuals", "stream-visit", "scene-visit"]) {
+  for (const name of ["world-inventory", "capture-session", "capture-geometry", "capture-visuals", "stream-visit", "scene-visit", "capture-reclaim"]) {
     inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   }
   for (const name of [
@@ -681,7 +716,9 @@ export async function capture(
     finalScenePath: finalScene.path,
     run: sweepRun,
     transitionOrdinal: 0,
+    reclamationOrdinal: 0,
     sceneTransitions: [],
+    reclamations: [],
     plans: [],
     start: async () => { throw new Error("Sweep scene controller is not initialized."); },
     retarget: async () => { throw new Error("Sweep scene controller is not initialized."); },
@@ -728,18 +765,31 @@ export async function capture(
   sweep.restore = (timeoutMs) => transitionScene("restore", sweep.visit?.targetSceneNativeId ?? finalScene.nativeId, timeoutMs);
   const results: Awaited<ReturnType<typeof capturePlan>>[] = [];
   try {
-    for (const plan of plans) results.push(await capturePlan(runtime, config, identity, plan, sweep));
+    for (const plan of plans) {
+      results.push(await capturePlan(runtime, config, identity, plan, sweep));
+      try {
+        const readyScene = sweep.visit;
+        if (readyScene === undefined || readyScene.phase !== "ready" || readyScene.sceneNativeId === null || !readyScene.sceneReady) {
+          throw new Error("A scene-boundary reclamation requires a ready capture scene.");
+        }
+        sweep.reclamations.push(await reclaimAtSceneBoundary(runtime, sweep.run, sweep.reclamationOrdinal++, readyScene, plan.readiness.timeoutMs));
+      } catch (error) {
+        sweep.failure = { planRunId: sweep.plans.at(-1)?.runId ?? "unknown", phase: "memory-reclamation" };
+        throw error;
+      }
+    }
     if (sweep.visit !== undefined && sweep.visit.phase !== "restored") sweep.visit = await sweep.restore(plans.at(-1)!.readiness.timeoutMs);
     await runtime.complete();
     await Bun.write(resolve(sweep.run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
     const runtimeCleanup = await registerArtifact(sweep.run, "runtime-cleanup.json");
     const sweepEvidence: CaptureSweep = {
-      schemaVersion: "compendium.capture-sweep.v1",
+      schemaVersion: "compendium.capture-sweep.v2",
       runId: sweep.run.runId,
       ownerToken: runtime.ownerToken,
       finalScene,
       plans: sweep.plans,
       sceneTransitions: sweep.sceneTransitions,
+      reclamations: sweep.reclamations,
       runtimeCleanup,
       completed: true,
     };

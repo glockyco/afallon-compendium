@@ -229,7 +229,7 @@ export class Runtime {
     }
   }
 
-  async evaluate<T>(code: string): Promise<T> {
+  private async evaluateOwned<T>(code: string, cancelOnError: boolean): Promise<T> {
     this.signal.throwIfAborted();
     if (!this.initialized || this.closing) throw new Error("The runtime operation does not own an active session.");
     try {
@@ -284,9 +284,27 @@ export class Runtime {
         }
       })()`);
     } catch (error) {
-      this.cancel(error);
+      if (cancelOnError) this.cancel(error);
       throw this.signal.aborted ? this.signal.reason : error;
     }
+  }
+
+  async evaluate<T>(code: string): Promise<T> {
+    return this.evaluateOwned<T>(code, true);
+  }
+
+  async compileProbe(sourceFile: string, preludeFile?: string, context = ""): Promise<void> {
+    const body = await readFile(sourceFile, "utf8");
+    const prelude = preludeFile === undefined ? "" : await readFile(preludeFile, "utf8");
+    await this.evaluateOwned(`new System.Func<object>(() => {
+      ${context}
+      var args = new Newtonsoft.Json.Linq.JObject();
+      var compileOnly = true;
+      if (compileOnly) return true;
+      ${prelude}
+      ${body}
+      return null;
+    })()`, false);
   }
 
   async probe(sourceFile: string, outputFile: string, options: { preludeFile?: string; parameters?: Record<string, unknown>; captureContext?: boolean } = {}): Promise<{ reference: ArtifactRef; value: unknown; observationContext?: unknown }> {

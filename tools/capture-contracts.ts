@@ -44,13 +44,15 @@ export type CapturePlan = Static<typeof CapturePlanSchema>;
 const capture = Type.Object({
   tileId: text, path: text, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), byteSize: count,
   width: count, height: count, frame: count, restoredFrame: count,
+  renderTexturesBefore: Type.Array(Type.Object({ instanceId: integer, name: Type.String(), width: count, height: count, depth: count, created: Type.Boolean(), owned: Type.Boolean() })),
+  renderTexturesAfter: Type.Array(Type.Object({ instanceId: integer, name: Type.String(), width: count, height: count, depth: count, created: Type.Boolean(), owned: Type.Boolean() })),
   lightingRestored: Type.Literal(true), suppressionRestored: Type.Literal(true), activeTargetRestored: Type.Literal(true),
   suppressedRenderers: count, visualPolicy: Type.Literal("compendium.capture-visual-policy.v2"),
   cameraFrame: frame,
   projectionSamples: Type.Array(Type.Object({ world: vector, viewport: vector }), { minItems: 3 }),
 });
 export const CaptureSessionSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-session.v3"),
+  schemaVersion: Type.Literal("compendium.capture-session.v4"),
   key: text, phase: Type.Union([Type.Literal("ready"), Type.Literal("restored")]),
   ownerToken: text, sceneNativeId: count, scenePath: text, sceneHandle: integer,
   resourcePrefix: text,
@@ -101,8 +103,37 @@ export const CaptureCleanupSchema = Type.Object({
 });
 
 const sweepArtifactReference = Type.Object({ path: text, bytes: count, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) });
+const reclamationMetric = Type.Object({
+  unityAllocatedBytes: count,
+  unityReservedBytes: count,
+  unityUnusedReservedBytes: count,
+  textureMemoryBytes: count,
+  unityObjectCount: count,
+  gameObjectCount: count,
+  componentCount: count,
+  textureCount: count,
+  renderTextureCount: count,
+  materialCount: count,
+  meshCount: count,
+  gcCollection0: count,
+  gcCollection1: count,
+  gcCollection2: count,
+});
+export const CaptureReclamationSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.capture-reclamation.v4"),
+  key: text,
+  ownerToken: text,
+  sceneNativeId: count,
+  sceneHandle: integer,
+  phase: Type.Union([Type.Literal("unloading"), Type.Literal("complete")]),
+  startedFrame: count,
+  completedFrame: Type.Union([count, Type.Null()]),
+  before: reclamationMetric,
+  after: Type.Union([reclamationMetric, Type.Null()]),
+});
+export type CaptureReclamation = Static<typeof CaptureReclamationSchema>;
 export const CaptureSweepSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-sweep.v1"),
+  schemaVersion: Type.Literal("compendium.capture-sweep.v2"),
   runId: text,
   ownerToken: text,
   finalScene: Type.Object({ nativeId: count, path: text }),
@@ -111,6 +142,7 @@ export const CaptureSweepSchema = Type.Object({
     sceneNativeId: count, scenePath: text, mapSpaceId: text,
   }), { minItems: 1 }),
   sceneTransitions: Type.Array(sweepArtifactReference, { minItems: 1 }),
+  reclamations: Type.Array(sweepArtifactReference, { minItems: 1 }),
   runtimeCleanup: sweepArtifactReference,
   completed: Type.Literal(true),
 });
