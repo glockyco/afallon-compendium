@@ -14,27 +14,37 @@ import { prepareIllustration } from "./illustrations";
 import { normalize } from "../pipeline/normalize";
 import { generateTiles } from "../pipeline/tiles";
 import { preparePublication } from "../pipeline/publication";
+import { planCapture } from "./capture-planner";
+import { planTiles } from "./tile-planner";
 
 const { values, positionals } = parseArgs({
   args: Bun.argv.slice(2),
   allowPositionals: true,
-  options: { output: { type: "string" }, config: { type: "string" }, help: { type: "boolean", short: "h" }, probe: { type: "string" }, prelude: { type: "string" }, plan: { type: "string", multiple: true } },
+  options: {
+    output: { type: "string" }, config: { type: "string" }, help: { type: "boolean", short: "h" },
+    probe: { type: "string" }, prelude: { type: "string" }, plan: { type: "string", multiple: true },
+    surveys: { type: "string", multiple: true }, owners: { type: "string" }, database: { type: "string" },
+  },
 });
 
 async function main() {
   if (values.help || positionals.length === 0) {
-    console.log("Usage: bun run compendium <doctor|inspect|extract|probe|probe-check|traverse|capture|illustration> --config local/config.json [--probe file.csx] [--prelude file.csx] [--plan file.json ...]\n       bun run compendium <normalize|tiles|publication> --plan file.json --output directory\n\nCapture uses finalSceneNativeId and finalScenePath from the installation config.\nRun through `nix develop --command bun run compendium ...`.\nDoctor verifies the installation, endpoint, build, and shared output path.\nInspect records complete currently-loaded inspection data, not full-game coverage.\nExtract validates canonical records, relationships, loot rules, world inventory, and authored producers with observation context. Load the configured research character first. Runtime commands use exclusive ownership and confirm cleanup before reporting success.\nProbe executes trusted C# with an optional shared prelude; args.researchCharacter comes from the local configuration.\nProbe-check compiles every probe against the live runtime without executing probe bodies or writing artifacts.\nTraverse requires --plan file.json. It visits bounded scene/stream selections, validates source exports, and restores owned state. Inactive streams remain explicit coverage gaps.\nCapture requires --plan file.json. It visits requested scenes, verifies geometry and raster registration, and does not claim complete imagery coverage.\nIllustration requires --plan file.json. It prepares a hashed optional illustration layer from disk without connecting to the game; it never satisfies primary capture coverage.\nNormalize requires --plan file.json. It builds SQLite and map indexes from hashed extraction manifests without connecting to the game.\nTiles requires --plan file.json. It builds lossless WebP pyramids from verified capture manifests without connecting to the game.\nPublication requires --plan file.json. It validates and prepares an immutable local browser artifact. It does not deploy or upload files.");
+    console.log("Usage: bun run compendium <doctor|inspect|extract|probe|probe-check|traverse|capture|illustration> --config local/config.json [--probe file.csx] [--prelude file.csx] [--plan file.json ...]\n       bun run compendium <plan-capture|plan-tiles> --config local/config.json [--surveys artifacts/scene-survey ...] [--owners local/reviewed-cell-owners.json] [--database artifacts/.../normalized.sqlite]\n       bun run compendium <normalize|tiles|publication> --plan file.json --output directory\n\nCapture uses finalSceneNativeId and finalScenePath from the installation config.\nRun through `nix develop --command bun run compendium ...`.\nDoctor verifies the installation, endpoint, build, and shared output path.\nInspect records complete currently-loaded inspection data, not full-game coverage.\nExtract validates canonical records, relationships, loot rules, world inventory, and authored producers with observation context. Load the configured research character first. Runtime commands use exclusive ownership and confirm cleanup before reporting success.\nProbe executes trusted C# with an optional shared prelude; args.researchCharacter comes from the local configuration.\nProbe-check compiles every probe against the live runtime without executing probe bodies or writing artifacts.\nTraverse requires --plan file.json. It visits bounded scene/stream selections, validates source exports, and restores owned state. Inactive streams remain explicit coverage gaps.\nCapture requires --plan file.json. It visits requested scenes, verifies geometry and raster registration, and does not claim complete imagery coverage.\nPlan-capture writes world capture plans from scene surveys, normalized placements, and the latest successful capture inventories.\nPlan-tiles writes tile plans from successful capture manifests and the current capture-plan tile IDs.\nIllustration requires --plan file.json. It prepares a hashed optional illustration layer from disk without connecting to the game; it never satisfies primary capture coverage.\nNormalize requires --plan file.json. It builds SQLite and map indexes from hashed extraction manifests without connecting to the game.\nTiles requires --plan file.json. It builds lossless WebP pyramids from verified capture manifests without connecting to the game.\nPublication requires --plan file.json. It validates and prepares an immutable local browser artifact. It does not deploy or upload files.");
     return;
   }
   const command = positionals[0]!;
-  if (!(["doctor", "inspect", "extract", "probe", "probe-check", "traverse", "capture", "illustration", "normalize", "tiles", "publication"] as string[]).includes(command)) throw new Error("Unknown command. Use --help.");
+  if (!( ["doctor", "inspect", "extract", "probe", "probe-check", "traverse", "capture", "illustration", "plan-capture", "plan-tiles", "normalize", "tiles", "publication"] as string[]).includes(command)) throw new Error("Unknown command. Use --help.");
   const optionPlanPaths = values.plan === undefined ? [] : Array.isArray(values.plan) ? values.plan : [values.plan];
   const positionalPlanPaths = command === "capture" ? positionals.slice(1) : [];
   const planPaths = [...optionPlanPaths, ...positionalPlanPaths];
   if (command !== "capture" && positionalPlanPaths.length !== 0) throw new Error("Only capture accepts plan paths after the command.");
+  const planning = command === "plan-capture" || command === "plan-tiles";
+  if (!planning && (values.surveys !== undefined || values.owners !== undefined || values.database !== undefined)) throw new Error("--surveys, --owners, and --database are only valid for plan-capture and plan-tiles.");
+  if (planning && command === "plan-tiles" && (values.surveys !== undefined || values.owners !== undefined || values.database !== undefined)) throw new Error("--surveys, --owners, and --database are only valid for plan-capture.");
   const offline = ["normalize", "tiles", "publication"].includes(command);
   if (offline && (!values.output || values.config)) throw new Error("Offline commands require --output directory and do not accept --config.");
-  if (!offline && (!values.config || values.output)) throw new Error("Runtime and illustration commands require --config and do not accept --output.");
+  if (planning && (!values.config || values.output)) throw new Error("Planning commands require --config and do not accept --output.");
+  if (!offline && !planning && (!values.config || values.output)) throw new Error("Runtime and illustration commands require --config and do not accept --output.");
   if (command === "probe" && !values.probe) throw new Error("The probe command requires --probe file.csx.");
   if (command !== "probe" && (values.probe || values.prelude)) throw new Error("--probe and --prelude are only valid for the probe command.");
   const requiresPlan = ["traverse", "capture", "illustration", "normalize", "tiles", "publication"].includes(command);
@@ -55,6 +65,14 @@ async function main() {
   }
   const config = await loadConfig(values.config!);
   const identity = await buildIdentity(config);
+  if (planning) {
+    const surveys = values.surveys === undefined ? undefined : Array.isArray(values.surveys) ? values.surveys : [values.surveys];
+    const result = command === "plan-capture"
+      ? await planCapture({ config, buildId: identity.buildId, surveys, owners: values.owners, database: values.database })
+      : await planTiles({ config, buildId: identity.buildId });
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
   if (command === "illustration") {
     const result = await prepareIllustration(config, identity, resolve(planPaths[0]!));
     console.log(JSON.stringify({ ok: true, ...result }, null, 2));
