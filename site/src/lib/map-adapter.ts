@@ -42,7 +42,7 @@ export type MapAdapterUpdate = {
   worldOffsets: WorldOffsetOverrides;
   authoring: boolean;
   showConnections: boolean;
-  showZoneNames: boolean;
+  showZones: boolean;
 };
 
 type Point = [number, number];
@@ -547,7 +547,7 @@ export async function createMapAdapter(
     const highlightedKey = [...next.highlightedPlacementIds].sort().join(",");
     const hoveredKey = [...next.hoveredPlacementIds].sort().join(",");
     const hoveredIds = new Set(next.hoveredPlacementIds);
-    const nextGeometryKey = [next.data.buildId, [...next.layerIds].sort().join(","), layerKind, nextPlacementKey, nextRegionKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections", next.showZoneNames ? "zone-names" : "no-zone-names"].join("\u001e");
+    const nextGeometryKey = [next.data.buildId, [...next.layerIds].sort().join(","), layerKind, nextPlacementKey, nextRegionKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections", next.showZones ? "zones" : "no-zones"].join("\u001e");
     if (nextGeometryKey === geometryKey) return;
     geometryKey = nextGeometryKey;
 
@@ -626,7 +626,7 @@ export async function createMapAdapter(
       fontFamily: "sans-serif",
       fontWeight: 700,
     });
-    const regionLayers: Layer[] = next.showZoneNames ? [
+    const regionLayers: Layer[] = next.showZones ? [
       new PolygonLayer<RegionRecord>({
         id: "world-region-outlines",
         data: baseRegions,

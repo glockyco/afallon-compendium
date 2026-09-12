@@ -12,7 +12,7 @@ test("map filters survive URL serialization and parsing", () => {
     categories: ["dungeon", "region"],
     levelMinimum: 12,
     levelMaximum: 28,
-    showZoneNames: true,
+    showZones: false,
     itemKey: null,
     entityKey: null,
     view: null,
@@ -35,7 +35,7 @@ test("clearing a map filter removes its URL parameter", () => {
     categories: [],
     levelMinimum: null,
     levelMaximum: 28,
-    showZoneNames: true,
+    showZones: false,
     itemKey: null,
     entityKey: null,
     view: null,
@@ -48,19 +48,19 @@ test("clearing a map filter removes its URL parameter", () => {
 test("categories default to the game's own places and `all` clears the filter", () => {
   expect(readMapUrl("?q=map").categories).toEqual([...DEFAULT_MARKER_IDS]);
   expect(readMapUrl("?categories=all").categories).toEqual([]);
-  const base = { layerIds: [], selectedId: null, query: "", itemSourceQuery: "", detailQuery: "", levelMinimum: null, levelMaximum: null, showZoneNames: true, itemKey: null, entityKey: null, view: null };
+  const base = { layerIds: [], selectedId: null, query: "", itemSourceQuery: "", detailQuery: "", levelMinimum: null, levelMaximum: null, showZones: false, itemKey: null, entityKey: null, view: null };
   expect(writeMapUrl(new URL("https://example.test/atlas"), { ...base, categories: [] }).searchParams.get("categories")).toBe("all");
   expect(writeMapUrl(new URL("https://example.test/atlas?categories=enemy"), { ...base, categories: [...DEFAULT_MARKER_IDS].reverse() }).searchParams.has("categories")).toBe(false);
 });
 
-test("zone names default on and can be disabled in a shared URL", () => {
-  expect(readMapUrl("?q=map").showZoneNames).toBe(true);
+test("zones default off and survive a shared URL", () => {
+  expect(readMapUrl("?q=map").showZones).toBe(false);
   const url = writeMapUrl(new URL("https://example.test/atlas"), {
     layerIds: [], selectedId: null, query: "", itemSourceQuery: "", detailQuery: "", categories: [],
-    levelMinimum: null, levelMaximum: null, showZoneNames: false, itemKey: null, entityKey: null, view: null,
+    levelMinimum: null, levelMaximum: null, showZones: true, itemKey: null, entityKey: null, view: null,
   });
-  expect(url.searchParams.get("zone-names")).toBe("0");
-  expect(readMapUrl(url.search).showZoneNames).toBe(false);
+  expect(url.searchParams.get("zones")).toBe("1");
+  expect(readMapUrl(url.search).showZones).toBe(true);
 });
 
 test("several visible layers survive a round trip and a legacy single layer still reads", () => {
@@ -73,7 +73,7 @@ test("several visible layers survive a round trip and a legacy single layer stil
     categories: [],
     levelMinimum: null,
     levelMaximum: null,
-    showZoneNames: true,
+    showZones: false,
     itemKey: null,
     entityKey: null,
     view: null,

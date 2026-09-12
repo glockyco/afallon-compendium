@@ -2,7 +2,6 @@ import {
   Castle,
   CircleDot,
   Crown,
-  DoorOpen,
   Gem,
   Hammer,
   Landmark,
@@ -18,6 +17,17 @@ import {
   User,
   type IconNode,
 } from "lucide";
+
+// Lucide has no portcullis; this glyph is an arched gateway with a barred grille, drawn on
+// the same 24 unit grid and stroke as the Lucide icons.
+const Portcullis: IconNode = [
+  ["path", { d: "M3 21V11a9 9 0 0 1 18 0v10" }],
+  ["path", { d: "M8 21v-9" }],
+  ["path", { d: "M12 21V9" }],
+  ["path", { d: "M16 21v-9" }],
+  ["path", { d: "M4 15h16" }],
+  ["path", { d: "M4 19h16" }],
+];
 import type {
   PublicMarkerCategory,
   PublicPlacement,
@@ -304,7 +314,7 @@ export const markerRegistry = {
     section: "places",
     label: "Dungeon entrance",
     pluralLabel: "Dungeon entrances",
-    icon: DoorOpen,
+    icon: Portcullis,
     color: [168, 85, 247],
     iconSize: { base: 23, min: 18, max: 48 },
     precedence: 580,
