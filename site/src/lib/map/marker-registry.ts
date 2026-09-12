@@ -3,6 +3,7 @@ import {
   Crown,
   Hammer,
   Hand,
+  House,
   PawPrint,
   Pickaxe,
   ScrollText,
@@ -39,6 +40,7 @@ export const MARKER_IDS = [
   "camp",
   "dungeonEntrance",
   "challengeStone",
+  "property",
 ] as const satisfies readonly MarkerId[];
 export type MarkerRow = Pick<PublicPlacement, "categories">;
 export type RGB = readonly [number, number, number];
@@ -322,6 +324,20 @@ export const markerRegistry = {
     defaultVisible: true,
     layer: markerLayer,
     matches: (row) => row.categories.includes("challengeStone"),
+  },
+  property: {
+    id: "property",
+    section: "places",
+    label: "Property",
+    pluralLabel: "Properties",
+    icon: House,
+    color: [217, 119, 6],
+    iconSize: { base: 22, min: 17, max: 46 },
+    precedence: 545,
+    renderOrder: 545,
+    defaultVisible: true,
+    layer: markerLayer,
+    matches: (row) => row.categories.includes("property"),
   },
 } as const satisfies Record<MarkerId, MarkerDefinition>;
 

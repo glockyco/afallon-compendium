@@ -26,6 +26,7 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
   "camp",
   "dungeonEntrance",
   "challengeStone",
+  "property",
 ] as const;
 export type PublicMarkerCategory = typeof PUBLIC_MARKER_CATEGORY_VALUES[number];
 const publicMarkerCategory = Type.Union([
@@ -33,6 +34,7 @@ const publicMarkerCategory = Type.Union([
   Type.Literal("merchant"), Type.Literal("questGiver"), Type.Literal("interactiveObject"),
   Type.Literal("craftingStation"), Type.Literal("resource"), Type.Literal("container"), Type.Literal("travelPoint"),
   Type.Literal("town"), Type.Literal("fort"), Type.Literal("camp"), Type.Literal("dungeonEntrance"), Type.Literal("challengeStone"),
+  Type.Literal("property"),
 ]);
 
 export const PublicLevelRangeSchema = Type.Object({

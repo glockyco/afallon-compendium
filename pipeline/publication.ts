@@ -174,6 +174,7 @@ const categoryLabels: Record<PublicMarkerCategory, string> = {
   camp: "Camp",
   dungeonEntrance: "Dungeon entrance",
   challengeStone: "Challenge stone",
+  property: "Property",
 };
 const mapIconCategories: Readonly<Record<string, PublicMarkerCategory>> = {
   town: "town",
@@ -198,7 +199,7 @@ const roleCategory: Readonly<Record<string, PublicMarkerCategory | null>> = {
   usefulInteraction: "interactiveObject",
   questLocation: "interactiveObject",
   craftingService: "craftingStation",
-  propertyPurchaseService: "interactiveObject",
+  propertyPurchaseService: "property",
   combatant: null,
   dialogue: "npc",
   inspect: "npc",
