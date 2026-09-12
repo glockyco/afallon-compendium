@@ -187,13 +187,15 @@ async function writeTileCheckpoint(run: Run, checkpoint: CaptureTileCheckpoint):
   await registerArtifact(run, path);
 }
 
-async function writeCaptureSet(run: Run, plan: CapturePlan, buildId: string, checkpoints: Map<string, CaptureTileCheckpoint>, reused: Set<string>): Promise<CaptureSet> {
+async function writeCaptureSet(run: Run, plan: CapturePlan, buildId: string, standingPoint: CapturePosition | null, checkpoints: Map<string, CaptureTileCheckpoint>, reused: Set<string>): Promise<CaptureSet> {
   const set: CaptureSet = {
-    schemaVersion: "compendium.capture-set.v2",
+    schemaVersion: "compendium.capture-set.v3",
     buildId,
     sceneNativeId: plan.sceneNativeId,
     scenePath: plan.scenePath,
     mapSpaceId: plan.mapSpaceId,
+    // Where the player stood for every tile of this set; the game shows objects near this point.
+    standingPoint,
     width: plan.width,
     height: plan.height,
     expectedTiles: plan.tiles.map(tile => tile.id),
@@ -398,6 +400,11 @@ async function capturePlan(
   ]) {
     inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   }
+  // The survey is a plan input: the player stands on the walkable surface it describes, at the
+  // point nearest the map centre. That standing point decides what the game shows, so it is part
+  // of every tile's compatibility key and is recorded with the capture set.
+  const survey: NavigationSurvey | null = plan.survey === undefined ? null : await loadNavigationSurvey(resolve(planDirectory, plan.survey.path), plan.survey, plan.sceneNativeId);
+  const standingPoint: CapturePosition | null = survey === null ? null : capturePositionFor(plan, survey);
   const compatibility = new Map(plan.tiles.map(tile => [tile.id, tileCompatibilityKey({
     buildId: identity.buildId,
     buildHashes: identity.inputHashes,
@@ -406,6 +413,7 @@ async function capturePlan(
     character: config.character,
     plan,
     tile,
+    standingPoint,
   })]));
 
   const run = await beginRun(config.outputRoot, {
@@ -442,9 +450,6 @@ async function capturePlan(
     const checkpoints = new Map<string, CaptureTileCheckpoint>();
     const reused = new Set<string>();
     const tiles: CaptureTileResult[] = [];
-    // The survey is a plan input: its hash is in every tile's compatibility key, and the player
-    // stands on the walkable surface it describes.
-    const survey: NavigationSurvey | null = plan.survey === undefined ? null : await loadNavigationSurvey(resolve(planDirectory, plan.survey.path), plan.survey, plan.sceneNativeId);
     for (const tile of plan.tiles) {
       const candidate = reusable.get(tile.id);
       if (candidate === undefined) continue;
@@ -468,7 +473,7 @@ async function capturePlan(
       await runtime.complete();
       await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
       await registerArtifact(run, "runtime-cleanup.json");
-      await writeCaptureSet(run, plan, identity.buildId, checkpoints, reused);
+      await writeCaptureSet(run, plan, identity.buildId, standingPoint, checkpoints, reused);
       await run.succeed();
       const orderedTiles: CaptureTileResult[] = plan.tiles.flatMap(tile => {
         const result = tiles.find(candidate => candidate.tileId === tile.id);
@@ -507,10 +512,9 @@ async function capturePlan(
     await registerArtifact(run, "scene-catalog.json");
     if (sweep !== undefined) {
       // A map with a survey has a walkable surface, so the player stands on it at the map centre
-      // and the scene is static for capture; an open-world plan keeps the game's arrival point.
-      const capturePosition = survey === null ? null : capturePositionFor(plan, survey);
-      if (sweep.visit === undefined) sweep.visit = await sweep.start(plan.sceneNativeId, plan.readiness.timeoutMs, capturePosition);
-      else if (inventoryReply.observationContext.completed.gameSceneNativeId !== plan.sceneNativeId) sweep.visit = await sweep.retarget(plan.sceneNativeId, plan.readiness.timeoutMs, capturePosition);
+      // and the scene is static for capture; a plan without a survey keeps the arrival point.
+      if (sweep.visit === undefined) sweep.visit = await sweep.start(plan.sceneNativeId, plan.readiness.timeoutMs, standingPoint);
+      else if (inventoryReply.observationContext.completed.gameSceneNativeId !== plan.sceneNativeId) sweep.visit = await sweep.retarget(plan.sceneNativeId, plan.readiness.timeoutMs, standingPoint);
       const activeVisit = sweep.visit;
       if (activeVisit === undefined || activeVisit.sceneNativeId !== plan.sceneNativeId || !activeVisit.sceneReady) {
         throw new Error("The scene transition did not reach the capture scene.");
@@ -681,7 +685,7 @@ async function capturePlan(
       if (!checkpoint.artifacts.nativeContext.some(reference => reference.path === captureCleanupArtifact.path)) checkpoint.artifacts.nativeContext.push(captureCleanupArtifact);
       if (runtimeCleanupArtifact !== undefined && !checkpoint.artifacts.nativeContext.some(reference => reference.path === runtimeCleanupArtifact.path)) checkpoint.artifacts.nativeContext.push(runtimeCleanupArtifact);
     }
-    await writeCaptureSet(run, plan, identity.buildId, checkpoints, reused);
+    await writeCaptureSet(run, plan, identity.buildId, standingPoint, checkpoints, reused);
     await run.succeed();
     if (sweep !== undefined) {
       sweep.plans.push({

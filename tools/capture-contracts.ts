@@ -203,11 +203,13 @@ const captureSetTile = Type.Object({
   origin: captureTileOrigin,
 });
 export const CaptureSetSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-set.v2"),
+  schemaVersion: Type.Literal("compendium.capture-set.v3"),
   buildId: text,
   sceneNativeId: count,
   scenePath: text,
   mapSpaceId: text,
+  // The player's position for every tile of the set, or null when the plan has no survey.
+  standingPoint: Type.Union([vector, Type.Null()]),
   width: Type.Integer({ minimum: 1 }),
   height: Type.Integer({ minimum: 1 }),
   expectedTiles: Type.Array(text, { minItems: 1 }),

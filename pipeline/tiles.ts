@@ -24,6 +24,8 @@ type CellAccumulator = {
   greenPremultiplied: number;
   bluePremultiplied: number;
   alphaSum: number;
+  // Squared distance from the pixel to the standing point of the kept observation.
+  distance: number;
   localX: number;
   localY: number;
 };
@@ -53,6 +55,7 @@ function resetCell(cell: CellAccumulator): void {
   cell.greenPremultiplied = 0;
   cell.bluePremultiplied = 0;
   cell.alphaSum = 0;
+  cell.distance = Number.POSITIVE_INFINITY;
 }
 
 function accumulatePixel(decodedByPath: ReadonlyMap<string, DecodedSource>, candidates: readonly GridSource[], globalX: number, globalY: number, cell: CellAccumulator, sourceTileIds: Set<string>): void {
@@ -72,8 +75,9 @@ function accumulatePixel(decodedByPath: ReadonlyMap<string, DecodedSource>, cand
     const alpha = decodedSource.data[offset + 3]!;
     // Capture clears to transparent, so a fully transparent pixel is a pixel no geometry covered
     // from that standing point. It is absence of evidence, not imagery, and defers to a captured
-    // pixel. Two standing points see a seam cell at different detail levels, so captured pixels
-    // may differ slightly; the first captured candidate in plan order wins.
+    // pixel. The game shows objects near the player, so of several captured pixels the one
+    // observed from the nearest standing point is the most complete; a plan without a standing
+    // point ranks last, and equal distances keep plan order.
     const empty = candidate.tile.empty || alpha === 0;
     cell.covered = true;
     cell.sourceCount++;
@@ -82,14 +86,27 @@ function accumulatePixel(decodedByPath: ReadonlyMap<string, DecodedSource>, cand
       if (!cell.captured) cell.empty = true;
       continue;
     }
-    if (cell.captured) continue;
+    const distance = standingDistance(candidate, cell.localX, cell.localY);
+    if (cell.captured && distance >= cell.distance) continue;
     cell.empty = false;
     cell.captured = true;
+    cell.distance = distance;
     cell.redPremultiplied = red * alpha;
     cell.greenPremultiplied = green * alpha;
     cell.bluePremultiplied = blue * alpha;
     cell.alphaSum = alpha;
   }
+}
+
+// Squared world distance from a capture pixel to the observation's standing point.
+function standingDistance(candidate: GridSource, localX: number, localY: number): number {
+  const standing = candidate.tile.standingPoint;
+  if (standing === null) return Number.POSITIVE_INFINITY;
+  const edge = candidate.tile.rasterValue.worldFromPixelEdge;
+  const px = localX + 0.5, py = localY + 0.5;
+  const worldX = edge.origin.x + edge.xAxis.x * px + edge.yAxis.x * py;
+  const worldZ = edge.origin.z + edge.xAxis.z * px + edge.yAxis.z * py;
+  return (worldX - standing.x) ** 2 + (worldZ - standing.z) ** 2;
 }
 
 function composeTile(grid: TileGrid, decodedByPath: ReadonlyMap<string, DecodedSource>, z: number, maxZoom: number, tileX: number, tileY: number): TileBuffer {
@@ -105,7 +122,7 @@ function composeTile(grid: TileGrid, decodedByPath: ReadonlyMap<string, DecodedS
   let missingPixels = 0;
   let capturedPixels = 0;
   const sourceTileIds = new Set<string>();
-  const cell: CellAccumulator = { covered: false, captured: false, empty: false, sourceCount: 0, redPremultiplied: 0, greenPremultiplied: 0, bluePremultiplied: 0, alphaSum: 0, localX: 0, localY: 0 };
+  const cell: CellAccumulator = { covered: false, captured: false, empty: false, sourceCount: 0, redPremultiplied: 0, greenPremultiplied: 0, bluePremultiplied: 0, alphaSum: 0, distance: Number.POSITIVE_INFINITY, localX: 0, localY: 0 };
   for (let outputY = 0; outputY < DEFAULT_TILE_SIZE; outputY++) {
     for (let outputX = 0; outputX < DEFAULT_TILE_SIZE; outputX++) {
       let redPremultiplied = 0;

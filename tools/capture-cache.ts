@@ -41,6 +41,9 @@ export interface TileCompatibilityInput {
   character: string;
   plan: CapturePlan;
   tile: CaptureTile;
+  // Where the player stands for the plan; it decides what the game shows, so a tile captured
+  // from another standing point is another observation.
+  standingPoint: { x: number; y: number; z: number } | null;
 }
 
 export interface CaptureCacheContext {
@@ -87,7 +90,7 @@ export function tileCompatibilityKey(input: TileCompatibilityInput): string {
   if (!SHA256_PATTERN.test(input.profileSha256)) throw new Error("Compatibility profile hash is invalid.");
   const pipelineHashes = sortedHashes(input.pipelineHashes, key => key === "runtime-owner" || key.startsWith("tool:") || key.startsWith("probe:"));
   return hashCanonical({
-    schemaVersion: "compendium.capture-tile-compatibility.v3",
+    schemaVersion: "compendium.capture-tile-compatibility.v4",
     buildId: input.buildId,
     buildHashes: sortedHashes(input.buildHashes, () => true),
     profileSha256: input.profileSha256,
@@ -104,6 +107,7 @@ export function tileCompatibilityKey(input: TileCompatibilityInput): string {
     surveySha256: input.plan.survey === undefined ? null : input.plan.survey.sha256,
     readiness: input.plan.readiness,
     frame: input.tile.frame,
+    standingPoint: input.standingPoint,
   });
 }
 

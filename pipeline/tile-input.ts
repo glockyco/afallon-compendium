@@ -38,6 +38,8 @@ export type SourceTile = {
   captureSetSha256: string;
   sceneNativeId: number;
   scenePath: string;
+  // Where the player stood for this observation; null for a plan without a survey.
+  standingPoint: { x: number; y: number; z: number } | null;
   mapSpaceId: string;
   width: number;
   height: number;
@@ -148,7 +150,7 @@ function assertCaptureSet(value: unknown): CaptureSet {
   try {
     Assert(CaptureSetSchema, value);
   } catch (error) {
-    fail(`capture set does not satisfy compendium.capture-set.v2: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`capture set does not satisfy compendium.capture-set.v3: ${error instanceof Error ? error.message : String(error)}`);
   }
   return value as CaptureSet;
 }
@@ -251,7 +253,7 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
   const sourceProfileFile = await readRunArtifact(sourceProfileReference, "source map-space profile");
   if (sourceProfileFile.bytes.byteLength !== profileArtifact.bytes) fail(`source run ${reference.path} profile artifact byte count differs from its registered value`);
   const captureCandidates = artifacts.filter(candidate => candidate.path === "capture-set.json" || candidate.path.endsWith("/capture-set.json"));
-  if (captureCandidates.length !== 1) fail(`source run ${reference.path} must contain exactly one capture-set.v2 artifact`);
+  if (captureCandidates.length !== 1) fail(`source run ${reference.path} must contain exactly one capture-set.v3 artifact`);
   const captureArtifact = captureCandidates[0]!;
   const captureReference: TileReference = { path: captureArtifact.path, sha256: captureArtifact.sha256 };
   const captureFile = await readRunArtifact(captureReference, "capture set");
@@ -276,7 +278,7 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
     fail(`source run ${reference.path} profile hash differs from the selected profile`);
   }
   const captureSet = assertCaptureSet(captureSetValue);
-  if (captureSet.schemaVersion !== "compendium.capture-set.v2") fail(`source ${reference.path} is not capture-set.v2`);
+  if (captureSet.schemaVersion !== "compendium.capture-set.v3") fail(`source ${reference.path} is not capture-set.v3`);
   if (captureSet.buildId !== plan.buildId) fail(`source ${reference.path} build differs from plan`);
   if (captureSet.mapSpaceId !== plan.mapSpaceId) fail(`source ${reference.path} map space differs from plan`);
   if (capturePlan.sceneNativeId !== captureSet.sceneNativeId || capturePlan.scenePath !== captureSet.scenePath || capturePlan.mapSpaceId !== captureSet.mapSpaceId || capturePlan.width !== captureSet.width || capturePlan.height !== captureSet.height) {
@@ -327,7 +329,7 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
     const binding = profileBinding(profile, captureSet.sceneNativeId, captureSet.scenePath, plan.mapSpaceId);
     validateDomain(binding, rasterValue);
     if (capturePlan.width !== rasterValue.width || capturePlan.height !== rasterValue.height) fail(`source ${reference.path} tile ${tile.id} has inconsistent raster dimensions`);
-    tiles.push({ id: tile.id, compatibilityKey: tile.compatibilityKey, status: tile.status, empty: readinessValue.empty, origin: tile.origin, imagePath: imageFile.path, imageBytes: imageFile.bytes, image, rasterPath: rasterFile.path, raster, readinessPath: readinessFile.path, readiness, restoration, nativeContext, rasterValue, readinessValue, sourcePath, sourceSha256: reference.sha256, runId, captureSetPath, captureSetSha256, sceneNativeId: captureSet.sceneNativeId, scenePath: captureSet.scenePath, mapSpaceId: captureSet.mapSpaceId, width: captureSet.width, height: captureSet.height });
+    tiles.push({ id: tile.id, compatibilityKey: tile.compatibilityKey, status: tile.status, empty: readinessValue.empty, origin: tile.origin, imagePath: imageFile.path, imageBytes: imageFile.bytes, image, rasterPath: rasterFile.path, raster, readinessPath: readinessFile.path, readiness, restoration, nativeContext, rasterValue, readinessValue, sourcePath, sourceSha256: reference.sha256, runId, captureSetPath, captureSetSha256, sceneNativeId: captureSet.sceneNativeId, scenePath: captureSet.scenePath, standingPoint: captureSet.standingPoint, mapSpaceId: captureSet.mapSpaceId, width: captureSet.width, height: captureSet.height });
   }
   if (tiles.length === 0) fail(`source ${reference.path} has no capture tiles`);
   const settings = asObject(input.settings, `source run ${reference.path}.settings`);
