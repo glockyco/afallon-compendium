@@ -18,6 +18,7 @@ type WorldCollection =
   | "transitions"
   | "mapZones"
   | "regions"
+  | "mapIcons"
   | "services"
   | "conditionSources"
   | "unsupportedSources";
@@ -40,6 +41,7 @@ const WORLD_COLLECTIONS: readonly WorldCollection[] = [
   "transitions",
   "mapZones",
   "regions",
+  "mapIcons",
   "services",
   "conditionSources",
   "unsupportedSources",
