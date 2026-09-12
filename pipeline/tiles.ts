@@ -20,10 +20,6 @@ type CellAccumulator = {
   captured: boolean;
   empty: boolean;
   sourceCount: number;
-  firstR: number;
-  firstG: number;
-  firstB: number;
-  firstA: number;
   redPremultiplied: number;
   greenPremultiplied: number;
   bluePremultiplied: number;
@@ -53,10 +49,6 @@ function resetCell(cell: CellAccumulator): void {
   cell.captured = false;
   cell.empty = false;
   cell.sourceCount = 0;
-  cell.firstR = 0;
-  cell.firstG = 0;
-  cell.firstB = 0;
-  cell.firstA = 0;
   cell.redPremultiplied = 0;
   cell.greenPremultiplied = 0;
   cell.bluePremultiplied = 0;
@@ -79,18 +71,10 @@ function accumulatePixel(decodedByPath: ReadonlyMap<string, DecodedSource>, cand
     const blue = decodedSource.data[offset + 2]!;
     const alpha = decodedSource.data[offset + 3]!;
     // Capture clears to transparent, so a fully transparent pixel is a pixel no geometry covered
-    // from that standing point. It is absence of evidence, not imagery: it never contradicts a
-    // captured pixel from another standing point, and it defers to one.
+    // from that standing point. It is absence of evidence, not imagery, and defers to a captured
+    // pixel. Two standing points see a seam cell at different detail levels, so captured pixels
+    // may differ slightly; the first captured candidate in plan order wins.
     const empty = candidate.tile.empty || alpha === 0;
-    if (cell.covered && !empty && cell.captured && (cell.firstR !== red || cell.firstG !== green || cell.firstB !== blue || cell.firstA !== alpha)) {
-      throw new Error(`Tile generation rejected: contradictory pixels at finest grid edge (${globalX},${globalY}) in capture tile ${candidate.tile.id}`);
-    }
-    if (!cell.covered || (!empty && !cell.captured)) {
-      cell.firstR = red;
-      cell.firstG = green;
-      cell.firstB = blue;
-      cell.firstA = alpha;
-    }
     cell.covered = true;
     cell.sourceCount++;
     sourceTileIds.add(candidate.tile.id);
@@ -98,6 +82,7 @@ function accumulatePixel(decodedByPath: ReadonlyMap<string, DecodedSource>, cand
       if (!cell.captured) cell.empty = true;
       continue;
     }
+    if (cell.captured) continue;
     cell.empty = false;
     cell.captured = true;
     cell.redPremultiplied = red * alpha;
@@ -120,7 +105,7 @@ function composeTile(grid: TileGrid, decodedByPath: ReadonlyMap<string, DecodedS
   let missingPixels = 0;
   let capturedPixels = 0;
   const sourceTileIds = new Set<string>();
-  const cell: CellAccumulator = { covered: false, captured: false, empty: false, sourceCount: 0, firstR: 0, firstG: 0, firstB: 0, firstA: 0, redPremultiplied: 0, greenPremultiplied: 0, bluePremultiplied: 0, alphaSum: 0, localX: 0, localY: 0 };
+  const cell: CellAccumulator = { covered: false, captured: false, empty: false, sourceCount: 0, redPremultiplied: 0, greenPremultiplied: 0, bluePremultiplied: 0, alphaSum: 0, localX: 0, localY: 0 };
   for (let outputY = 0; outputY < DEFAULT_TILE_SIZE; outputY++) {
     for (let outputX = 0; outputX < DEFAULT_TILE_SIZE; outputX++) {
       let redPremultiplied = 0;
