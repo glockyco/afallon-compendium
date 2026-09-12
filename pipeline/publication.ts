@@ -175,6 +175,7 @@ const categoryLabels: Record<PublicMarkerCategory, string> = {
   dungeonEntrance: "Dungeon entrance",
   challengeStone: "Challenge stone",
   property: "Property",
+  graveyard: "Graveyard",
 };
 const mapIconCategories: Readonly<Record<string, PublicMarkerCategory>> = {
   town: "town",
@@ -195,7 +196,7 @@ const roleCategory: Readonly<Record<string, PublicMarkerCategory | null>> = {
   resourceProducer: "resource",
   container: "container",
   transition: "travelPoint",
-  respawnDestination: "travelPoint",
+  respawnDestination: "graveyard",
   usefulInteraction: "interactiveObject",
   questLocation: "interactiveObject",
   craftingService: "craftingStation",
@@ -605,7 +606,7 @@ function travelForPlacement(
 ): PublicTravel | undefined {
   // The transition role names the sources it was derived from (an InteractableObject whose
   // GameActions teleport); the source rows do not carry the role.
-  const roleSourceIds = new Set(placement.roles.filter((role) => role.role === "transition" || role.role === "respawnDestination").flatMap((role) => role.sourceIds));
+  const roleSourceIds = new Set(placement.roles.filter((role) => role.role === "transition").flatMap((role) => role.sourceIds));
   const candidates = sources.filter((source) => source.placementId === placement.placementId && roleSourceIds.has(source.sourceId));
   if (candidates.length === 0 && roleSourceIds.size === 0) return undefined;
   const source = candidates[0];

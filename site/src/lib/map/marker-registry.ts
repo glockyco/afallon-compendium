@@ -13,7 +13,7 @@ import {
   User,
   type IconNode,
 } from "lucide";
-import { BuildingCommunity, BuildingMonument, BuildingTunnel, Coins, DoorExit, TreasureChest } from "./tabler-icons";
+import { BuildingCommunity, BuildingMonument, BuildingTunnel, Coins, DoorExit, Grave2, TreasureChest } from "./tabler-icons";
 
 import type {
   PublicMarkerCategory,
@@ -39,6 +39,7 @@ export const MARKER_IDS = [
   "camp",
   "dungeonEntrance",
   "travelPoint",
+  "graveyard",
   "challengeStone",
   "property",
 ] as const satisfies readonly MarkerId[];
@@ -323,6 +324,20 @@ export const markerRegistry = {
     defaultVisible: true,
     layer: markerLayer,
     matches: (row) => row.categories.includes("challengeStone"),
+  },
+  graveyard: {
+    id: "graveyard",
+    section: "places",
+    label: "Graveyard",
+    pluralLabel: "Graveyards",
+    icon: Grave2,
+    color: [148, 163, 184],
+    iconSize: { base: 22, min: 17, max: 46 },
+    precedence: 548,
+    renderOrder: 548,
+    defaultVisible: true,
+    layer: markerLayer,
+    matches: (row) => row.categories.includes("graveyard"),
   },
   property: {
     id: "property",
