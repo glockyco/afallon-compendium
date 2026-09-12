@@ -238,6 +238,7 @@ if (captureAction == "start")
     state["light"] = null;
     state["renderTexture"] = null;
     state["captureTexture"] = null;
+    state["activatedRoots"] = new System.Collections.Generic.List<UnityEngine.GameObject>();
     System.AppDomain.CurrentDomain.SetData(sessionKey, state);
     System.AppDomain.CurrentDomain.SetData(captureActiveKeyName, sessionKey);
 
@@ -268,6 +269,17 @@ if (captureAction == "start")
         try { if (renderTexture != null) UnityEngine.Object.DestroyImmediate(renderTexture); } catch (System.Exception error) { cleanupErrors.Add("RenderTexture destruction failed: " + formatError(error)); }
         try { if (cameraGo != null) UnityEngine.Object.DestroyImmediate(cameraGo); } catch (System.Exception error) { cleanupErrors.Add("Camera destruction failed: " + formatError(error)); }
         try { if (lightGo != null) UnityEngine.Object.DestroyImmediate(lightGo); } catch (System.Exception error) { cleanupErrors.Add("Light destruction failed: " + formatError(error)); }
+        // Roots the session activated go back to hidden; the game's hider decides again from there.
+        var activatedRoots = state["activatedRoots"] as System.Collections.Generic.List<UnityEngine.GameObject>;
+        if (activatedRoots != null)
+        {
+            foreach (var root in activatedRoots)
+            {
+                try { if (root != null) root.SetActive(false); } catch (System.Exception error) { cleanupErrors.Add("Root deactivation failed: " + formatError(error)); }
+                try { if (root != null && root.activeSelf) cleanupErrors.Add("Root " + root.name + " remained active after restoration."); } catch (System.Exception error) { cleanupErrors.Add("Root verification failed: " + formatError(error)); }
+            }
+            activatedRoots.Clear();
+        }
         var remaining = 0;
         try { if (cameraGo != null) remaining++; } catch (System.Exception) { remaining++; }
         try { if (lightGo != null) remaining++; } catch (System.Exception) { remaining++; }
@@ -304,6 +316,21 @@ if (captureAction == "start")
     {
         state["cleanupAction"] = cleanupSession;
         unregisterRuntimeCleanup = registerRuntimeCleanup(cleanupSession);
+        // The game shows a terrain's objects only while the player stands near it: an ObjectHider
+        // root is inactive elsewhere, and its object loaders sit over neighbouring terrain too. A
+        // map render has no player position, so every hider root of the scene is active for the
+        // session and readiness holds every loader in frame. The roots go back to hidden at restore.
+        var activatedRoots = state["activatedRoots"] as System.Collections.Generic.List<UnityEngine.GameObject>;
+        foreach (var hider in UnityEngine.Resources.FindObjectsOfTypeAll<Il2Cpp.ObjectHider>())
+        {
+            if (hider == null || hider.gameObject.scene.handle != currentScene.handle) continue;
+            var root = hider.gameObject;
+            if (root.activeSelf) continue;
+            root.SetActive(true);
+            if (!root.activeSelf) throw new System.InvalidOperationException("Hider root " + root.name + " could not be activated.");
+            activatedRoots.Add(root);
+        }
+        fault("after-roots");
         var cameraGo = new UnityEngine.GameObject(resourcePrefix + ".Camera");
         state["cameraGo"] = cameraGo;
         cameraGo.SetActive(false);
@@ -332,13 +359,13 @@ if (captureAction == "start")
         state["captureTexture"] = captureTexture;
         captureTexture.name = resourcePrefix + ".Texture2D";
         fault("after-texture");
-        return new { schemaVersion = "compendium.capture-session.v7", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
+        return new { schemaVersion = "compendium.capture-session.v8", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
         {
             new { kind = "camera", instanceId = (int?)camera.GetInstanceID(), alive = camera != null && cameraGo != null },
             new { kind = "light", instanceId = (int?)light.GetInstanceID(), alive = light != null && lightGo != null },
             new { kind = "renderTexture", instanceId = (int?)renderTexture.GetInstanceID(), alive = renderTexture != null },
             new { kind = "texture2D", instanceId = (int?)captureTexture.GetInstanceID(), alive = captureTexture != null },
-        }, completedCaptures = 0, lastCapture = (object)null, renderTextures = renderTextureInventory() };
+        }, completedCaptures = 0, lastCapture = (object)null, activatedRoots = activatedRoots.Count, renderTextures = renderTextureInventory() };
     }
     catch (System.Exception error)
     {
@@ -386,7 +413,7 @@ var sessionResources = new System.Func<object>(() =>
 });
 var sessionReport = new System.Func<object>(() => new
 {
-    schemaVersion = "compendium.capture-session.v7",
+    schemaVersion = "compendium.capture-session.v8",
     key = requestedKey,
     phase = sessionState["phase"] as string,
     ownerToken = ownerToken,
@@ -397,6 +424,7 @@ var sessionReport = new System.Func<object>(() => new
     resources = sessionResources(),
     completedCaptures = (int)sessionState["completedCaptures"],
     lastCapture = sessionState["lastCapture"],
+    activatedRoots = (sessionState["activatedRoots"] as System.Collections.Generic.List<UnityEngine.GameObject>).Count,
     renderTextures = renderTextureInventory(),
 });
 
@@ -411,7 +439,7 @@ if (captureAction == "restore")
     restoreCleanup();
     return new
     {
-        schemaVersion = "compendium.capture-session.v7",
+        schemaVersion = "compendium.capture-session.v8",
         key = requestedKey,
         phase = "restored",
         ownerToken = ownerToken,
@@ -428,6 +456,7 @@ if (captureAction == "restore")
         },
         completedCaptures = (int)sessionState["completedCaptures"],
         lastCapture = sessionState["lastCapture"],
+        activatedRoots = 0,
         renderTextures = renderTextureInventory(),
     };
 }

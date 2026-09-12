@@ -61,13 +61,15 @@ const capture = Type.Object({
   captures: Type.Array(capturedTile, { minItems: 1, maxItems: 64 }),
 });
 export const CaptureSessionSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-session.v7"),
+  schemaVersion: Type.Literal("compendium.capture-session.v8"),
   key: text, phase: Type.Union([Type.Literal("ready"), Type.Literal("restored")]),
   ownerToken: text, sceneNativeId: count, scenePath: text, sceneHandle: integer,
   resourcePrefix: text,
   resources: Type.Array(Type.Object({ kind: text, instanceId: Type.Union([integer, Type.Null()]), alive: Type.Boolean() })),
   completedCaptures: count,
   lastCapture: Type.Union([capture, Type.Null()]),
+  // Hider roots the session activated; every one is hidden again at restore.
+  activatedRoots: count,
 });
 export type CaptureSession = Static<typeof CaptureSessionSchema>;
 export const CaptureRasterSchema = Type.Object({

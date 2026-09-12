@@ -100,8 +100,8 @@ if (action == "start")
     var holdSecondsFloat = (float)holdSeconds;
 
     var idsToken = args["loaderInstanceIds"] as Newtonsoft.Json.Linq.JArray;
-    if (idsToken == null || idsToken.Count < 1 || idsToken.Count > 256)
-        throw new System.ArgumentException("loaderInstanceIds must contain 1 to 256 unique integers.");
+    if (idsToken == null || idsToken.Count < 1 || idsToken.Count > 2048)
+        throw new System.ArgumentException("loaderInstanceIds must contain 1 to 2048 unique integers.");
     var requestedLoaderIds = new System.Collections.Generic.List<int>();
     var requestedLoaderIdSet = new System.Collections.Generic.HashSet<int>();
     foreach (var idToken in idsToken)
