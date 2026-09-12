@@ -278,6 +278,31 @@ export function selectLevelRange(
 
 // Combatant and adventurer-producer are extraction facts, not game map categories.
 // They occur only alongside a mapped NPC or world category in the current run.
+// Every world scene authors its own copy of the game's world map icons, so one icon is
+// observed once per scene (six times for Coalway woods and its challenge-stone variants).
+// The atlas shows one marker per icon: placements that are map icons only, on the same map
+// at the same point with the same icon kind, fold into the one with the lowest id. A titled
+// copy supplies the label; two different titles at one point is an authoring contradiction.
+export function foldMapIcons(placements: readonly NormalizedPlacement[]): NormalizedPlacement[] {
+  const groups = new Map<string, NormalizedPlacement[]>();
+  const result: NormalizedPlacement[] = [];
+  for (const placement of placements) {
+    const iconOnly = placement.roles.length > 0 && placement.roles.every((role) => role.role === "mapIcon");
+    if (!iconOnly || !placement.mapSpaceId || !placement.mapPosition) { result.push(placement); continue; }
+    const scopes = [...new Set(placement.roles.map((role) => String(role.scope)))].sort();
+    const key = JSON.stringify([placement.mapSpaceId, scopes, Math.round(placement.mapPosition.x * 100), Math.round(placement.mapPosition.y * 100)]);
+    const group = groups.get(key);
+    if (group) group.push(placement); else groups.set(key, [placement]);
+  }
+  for (const group of groups.values()) {
+    group.sort((left, right) => left.placementId.localeCompare(right.placementId));
+    const labels = [...new Set(group.map((placement) => placement.label).filter((label): label is string => typeof label === "string" && label.trim().length > 0))];
+    if (labels.length > 1) throw new Error(`Map icons at one point carry different titles: ${labels.join(" / ")}`);
+    result.push(labels.length === 1 && group[0]!.label !== labels[0] ? { ...group[0]!, label: labels[0]! } : group[0]!);
+  }
+  return result.sort((left, right) => left.placementId.localeCompare(right.placementId));
+}
+
 function placementCategories(placement: NormalizedPlacement): PublicMarkerCategory[] {
   const categories = new Set<PublicMarkerCategory>();
   for (const role of placement.roles) {
@@ -712,7 +737,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const categoriesByPlacement = new Map(map.placements.map((placement) => [placement.placementId, placementCategories(placement)]));
   const levelRangesByPlacement = new Map(map.placements.map((placement) => [placement.placementId, placementLevelRange(placement, entities.entities, map.sources)]));
   const eligible = map.placements.filter((placement) => (categoriesByPlacement.get(placement.placementId) ?? []).length > 0);
-  const selected = eligible.filter(covered);
+  const selected = foldMapIcons(eligible.filter(covered));
   const selectedIds = new Set(selected.map(placement => placement.placementId));
   const filterIds = (ids: readonly string[]) => ids.filter(id => selectedIds.has(id));
   const names = new Map(entities.entities.map(entity => [entity.entityKey, plainText(entity.name ?? "") || "Unnamed entry"]));
