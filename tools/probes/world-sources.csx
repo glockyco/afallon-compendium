@@ -523,7 +523,13 @@ var worldSource = new System.Func<UnityEngine.Component, string, int, object>((c
 
 var worldGameActionUnsupported = new System.Func<Il2Cpp.GameActionsData.GameAction, bool>((gameAction) =>
 {
-    if (gameAction == null || gameAction.type != Il2Cpp.GameActionsData.GameActionType.Teleport)
+    if (gameAction == null) return true;
+    // A LootTable game action hands the player the table's loot: a container output.
+    if (gameAction.type == Il2Cpp.GameActionsData.GameActionType.LootTable)
+    {
+        return gameAction.LootTableID < 0 || worldDatabaseLootTables == null || !worldDatabaseLootTables.ContainsKey(gameAction.LootTableID) || worldDatabaseLootTables[gameAction.LootTableID] == null;
+    }
+    if (gameAction.type != Il2Cpp.GameActionsData.GameActionType.Teleport)
     {
         return true;
     }
@@ -566,7 +572,13 @@ var worldGameActionProjection = new System.Func<Il2Cpp.GameActionsData.GameActio
             detail = teleportType == Il2Cpp.GameActionsData.TeleportType.GameScene && gameAction.GameSceneID < 0 ? "GameScene teleport has no authored destination scene ID." : "The nested teleport payload is not a supported resolved destination."
         });
     }
-    else if (diagnoseUnsupported && !isTeleport)
+    var isLootTable = gameAction.type == Il2Cpp.GameActionsData.GameActionType.LootTable;
+    var lootTable = isLootTable && worldDatabaseLootTables != null && worldDatabaseLootTables.ContainsKey(gameAction.LootTableID) ? worldDatabaseLootTables[gameAction.LootTableID] : null;
+    if (diagnoseUnsupported && isLootTable && lootTable == null)
+    {
+        unresolved.Add(new { kind = "unresolvedGameActionLootTable", sourceFieldPath = sourcePath, lootTableID = gameAction.LootTableID, detail = "LootTableID does not resolve to a non-null GameDatabase.LootTables record." });
+    }
+    else if (diagnoseUnsupported && !isTeleport && !isLootTable)
     {
         unresolved.Add(new { kind = "unsupportedGameAction", sourceFieldPath = sourcePath, actionType = gameAction.type.ToString(), detail = "The nested GameAction kind is retained but its effect is not projected." });
     }
@@ -585,6 +597,8 @@ var worldGameActionProjection = new System.Func<Il2Cpp.GameActionsData.GameActio
             position = new { x = gameAction.Position.x, y = gameAction.Position.y, z = gameAction.Position.z },
             rotation = new { x = gameAction.Rotation.x, y = gameAction.Rotation.y, z = gameAction.Rotation.z }
         } : null,
+        lootTableID = isLootTable ? (int?)gameAction.LootTableID : null,
+        lootTable = lootTable == null ? null : (object)worldLootReference(lootTable),
         unsupported = worldGameActionUnsupported(gameAction)
     };
 });
@@ -1368,6 +1382,78 @@ for (var index = 0; index < worldInteractableCount; index++)
         requiredNPCRanksAvailable = nativeRanks != null,
         requiredNPCRankCount = nativeRanks == null ? -1 : rankCount,
         requiredNPCRanks = ranks
+    });
+}
+
+// InteractableTriggerObject: the same authored Actions as InteractableObject, fired by a
+// trigger volume for the tagged collider instead of a click.
+var worldInteractableTriggers = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.InteractableTriggerObject>(true);
+var worldInteractableTriggerCount = worldInteractableTriggers == null ? 0 : worldInteractableTriggers.Length;
+for (var index = 0; index < worldInteractableTriggerCount; index++)
+{
+    var trigger = worldInteractableTriggers[index];
+    if (trigger == null)
+    {
+        unresolved.Add(new { kind = "interactableTrigger", sourceIndex = index, detail = "FindObjectsOfType returned a null InteractableTriggerObject." });
+        continue;
+    }
+    var sourceEvidence = worldSource(trigger, "Il2CppBLINK.RPGBuilder.World.InteractableTriggerObject", index);
+    var sourcePath = "Il2CppBLINK.RPGBuilder.World.InteractableTriggerObject[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+    var actions = new System.Collections.Generic.List<object>();
+    var nativeActions = trigger.Actions;
+    var actionCount = nativeActions == null ? 0 : nativeActions.Count;
+    if (nativeActions == null)
+    {
+        unresolved.Add(new { kind = "interactableTriggerActions", sourceFieldPath = sourcePath + ".Actions", detail = "The authored action list is null; this trigger has no projected action rules." });
+    }
+    for (var actionIndex = 0; actionIndex < actionCount; actionIndex++)
+    {
+        actions.Add(worldActionProjection(nativeActions[actionIndex], sourcePath + ".Actions[" + actionIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]"));
+    }
+    worldInteractions.Add(new
+    {
+        source = sourceEvidence,
+        disposition = "extracted",
+        family = "interactableTrigger",
+        role = "usefulInteraction",
+        roles = new[] { "usefulInteraction" },
+        roleSource = "InteractableTriggerObject exposes authored Actions fired by a trigger volume; no category is inferred from the GameObject name.",
+        state = new { value = (int)trigger.State, name = trigger.State.ToString() },
+        triggerTag = trigger.triggerTag,
+        cooldown = trigger.Cooldown,
+        actionsAvailable = nativeActions != null,
+        actionCount = nativeActions == null ? -1 : actionCount,
+        actions = actions
+    });
+}
+
+// ContainerObject: player storage with a saved slot list, not a loot chest.
+var worldStorageContainers = UnityEngine.Object.FindObjectsOfType<Il2Cpp.ContainerObject>(true);
+var worldStorageContainerCount = worldStorageContainers == null ? 0 : worldStorageContainers.Length;
+for (var index = 0; index < worldStorageContainerCount; index++)
+{
+    var storage = worldStorageContainers[index];
+    if (storage == null)
+    {
+        unresolved.Add(new { kind = "storageContainer", sourceIndex = index, detail = "FindObjectsOfType returned a null ContainerObject." });
+        continue;
+    }
+    var sourceEvidence = worldSource(storage, "Il2Cpp.ContainerObject", index);
+    var sourcePath = "Il2Cpp.ContainerObject[" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+    worldContainers.Add(new
+    {
+        source = sourceEvidence,
+        disposition = "extracted",
+        family = "storageContainer",
+        role = "storage",
+        roles = new[] { "storage" },
+        roleSource = "ContainerObject is a typed player storage component with a saved slot list; the role does not come from the GameObject name.",
+        interactableName = storage.InteractableName,
+        slotAmount = storage.SlotAmount,
+        isClick = storage.IsClick,
+        maxDistance = storage.MaxDistance,
+        uiOffsetY = storage.UIOffsetY,
+        requirementsTemplate = storage.RequirementsTemplate == null ? null : (object)worldTemplateProjection(storage.RequirementsTemplate, sourcePath + ".RequirementsTemplate")
     });
 }
 
@@ -2235,6 +2321,8 @@ var worldSourceTotal = new
     craftingStations = worldCraftingStationCount,
     propertyForSaleSigns = worldPropertySignCount,
     corruptionAltars = worldCorruptionAltarCount,
+    interactableTriggers = worldInteractableTriggerCount,
+    storageContainers = worldStorageContainerCount,
     heroicConsoles = worldHeroicConsoleCount,
     characterGraveyards = worldGraveyardCount,
     enhancedInteractableObjects = worldEnhancedInteractableCount,

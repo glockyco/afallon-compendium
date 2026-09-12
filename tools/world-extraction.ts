@@ -191,6 +191,8 @@ const gameAction = Type.Object({
   nativeRequirementGroupCount: integer,
   requirements: Type.Array(requirementGroup),
   teleport: gameActionTeleport,
+  lootTableID: nullable(integer),
+  lootTable: projectedReference,
   unsupported: boolean,
 });
 const gameActionRow = Type.Union([gameAction, actionUnavailable]);
@@ -479,6 +481,20 @@ const interaction = Type.Union([
   Type.Object({
     source: sourceEvidence,
     disposition: text,
+    family: Type.Literal("interactableTrigger"),
+    role: text,
+    roles: Type.Array(text),
+    roleSource: text,
+    state: enumValue,
+    triggerTag: nullableText,
+    cooldown: number,
+    actionsAvailable: boolean,
+    actionCount: integer,
+    actions: Type.Array(actionRow),
+  }),
+  Type.Object({
+    source: sourceEvidence,
+    disposition: text,
     family: Type.Literal("chest"),
     role: text,
     roles: Type.Array(text),
@@ -505,6 +521,21 @@ const container = Type.Object({
   chestName: Type.Optional(nullableText),
   projection: Type.Union([chestLootProjection, nodeProjection]),
   interaction: Type.Optional(Type.Object({ interactionDistance: number, maxDrops: integer })),
+});
+// ContainerObject: player storage, without loot.
+const storageContainer = Type.Object({
+  source: sourceEvidence,
+  disposition: text,
+  family: Type.Literal("storageContainer"),
+  role: text,
+  roles: Type.Array(text),
+  roleSource: text,
+  interactableName: nullableText,
+  slotAmount: integer,
+  isClick: boolean,
+  maxDistance: number,
+  uiOffsetY: number,
+  requirementsTemplate: requirementTemplate,
 });
 
 const worldQuestReference = Type.Object({
@@ -747,6 +778,8 @@ const diagnostic = Type.Object({
 const sourceTotals = Type.Object({
   oreSpawners: integer,
   interactableObjects: integer,
+  interactableTriggers: integer,
+  storageContainers: integer,
   interactiveNodes: integer,
   chests: integer,
   worldQuestZones: integer,
@@ -801,7 +834,7 @@ export const WorldSourcesSchema = Type.Object({
   nativeNamingUncertainties: Type.Array(text),
   resourceProducers: Type.Array(resourceProducer),
   interactions: Type.Array(interaction),
-  containers: Type.Array(container),
+  containers: Type.Array(Type.Union([container, storageContainer])),
   questZones: Type.Array(questZone),
   transitions: Type.Array(transition),
   mapZones: Type.Array(mapZone),
@@ -1248,6 +1281,8 @@ export function validateWorldSources(value: Static<typeof WorldSourcesSchema>, r
   const sourceArrays = {
     oreSpawners: artifact.resourceProducers.filter((row: AnyRecord) => row.producerFamily === "oreSpawner"),
     interactableObjects: artifact.interactions.filter((row: AnyRecord) => row.family === "interactableObject"),
+    interactableTriggers: artifact.interactions.filter((row: AnyRecord) => row.family === "interactableTrigger"),
+    storageContainers: artifact.containers.filter((row: AnyRecord) => row.family === "storageContainer"),
     interactiveNodes: artifact.interactions.filter((row: AnyRecord) => row.family === "interactiveNode"),
     chests: artifact.containers.filter((row: AnyRecord) => row.family === "chest"),
     worldQuestZones: artifact.questZones.filter((row: AnyRecord) => row.family === "worldQuestZone"),
@@ -1299,10 +1334,10 @@ export function validateWorldSources(value: Static<typeof WorldSourcesSchema>, r
   const unsupportedRows = exportedArrays.unsupportedSources as AnyRecord[];
   if (resourceRows.some(row => row.producerFamily !== "oreSpawner" && row.producerFamily !== "interactiveNode")) throw new Error("World resource producers contain an unknown producer family.");
   if (resourceRows.filter(row => row.producerFamily === "interactiveNode").length !== interactionRows.filter(row => row.family === "interactiveNode" && row.roleEvidence?.resource === true).length) throw new Error("World resource producers do not reconcile interactive-node resource roles.");
-  if (interactionRows.length !== sourceArrays.interactableObjects.length + sourceArrays.interactiveNodes.length + sourceArrays.chests.length) throw new Error("World interactions do not reconcile source families.");
+  if (interactionRows.length !== sourceArrays.interactableObjects.length + sourceArrays.interactableTriggers.length + sourceArrays.interactiveNodes.length + sourceArrays.chests.length) throw new Error("World interactions do not reconcile source families.");
   if (containerRows.some(row => row.family !== "chest" && row.family !== "interactiveNode")) throw new Error("World containers contain an unknown source family.");
   if (containerRows.filter(row => row.family === "interactiveNode").length !== interactionRows.filter(row => row.family === "interactiveNode" && row.roleEvidence?.container === true).length) throw new Error("World containers do not reconcile interactive-node container roles.");
-  if (containerRows.length !== sourceArrays.chests.length + containerRows.filter(row => row.family === "interactiveNode").length) throw new Error("World containers do not reconcile source families.");
+  if (containerRows.length !== sourceArrays.chests.length + sourceArrays.storageContainers.length + containerRows.filter(row => row.family === "interactiveNode").length) throw new Error("World containers do not reconcile source families.");
   if (questRows.some(row => row.family !== "worldQuestZone") || questRows.length !== sourceArrays.worldQuestZones.length) throw new Error("World quest zones do not reconcile source families.");
   if (transitionRows.some(row => row.transitionKind !== "questScenePortal" && row.transitionKind !== "dungeonEntranceTrigger") || transitionRows.length !== sourceArrays.questScenePortals.length + sourceArrays.dungeonEntranceTriggers.length) throw new Error("World transitions do not reconcile source families.");
   if (serviceRows.some(row => row.family !== "craftingStation" && row.family !== "propertyForSaleSign" && row.family !== "corruptionAltar") || serviceRows.length !== sourceArrays.craftingStations.length + sourceArrays.propertyForSaleSigns.length + sourceArrays.corruptionAltars.length) throw new Error("World services do not reconcile source families.");

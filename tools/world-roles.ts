@@ -169,7 +169,7 @@ function validActionReference(
 }
 
 type ResolvedAction = { name: string; evidence: RoleEvidence[] };
-type NestedGameActionsResult = { supported: number; blocked: boolean; evidence: RoleEvidence[] };
+type NestedGameActionsResult = { supported: number; loot: number; blocked: boolean; evidence: RoleEvidence[] };
 
 function nestedActionEvidence(action: RecordValue, actionPath: string): RoleEvidence[] {
   const evidence = refs(`${actionPath}/type`, `${actionPath}/chance`, `${actionPath}/requirements`);
@@ -192,10 +192,11 @@ function validTeleportPosition(value: unknown): boolean {
 
 function inspectNestedGameActionList(value: unknown, listPath: string, issues: RoleIssue[]): NestedGameActionsResult {
   const list = record(value);
-  if (list === null) return { supported: 0, blocked: true, evidence: refs(listPath) };
+  if (list === null) return { supported: 0, loot: 0, blocked: true, evidence: refs(listPath) };
   const actions = array(list.actions);
-  if (list.available !== true || actions === null || actions.length === 0) return { supported: 0, blocked: false, evidence: refs(`${listPath}/available`, `${listPath}/nativeActionCount`, `${listPath}/actions`) };
+  if (list.available !== true || actions === null || actions.length === 0) return { supported: 0, loot: 0, blocked: false, evidence: refs(`${listPath}/available`, `${listPath}/nativeActionCount`, `${listPath}/actions`) };
   let supported = 0;
+  let loot = 0;
   let blocked = false;
   const evidence: RoleEvidence[] = [];
   actions.forEach((value, actionIndex) => {
@@ -227,6 +228,17 @@ function inspectNestedGameActionList(value: unknown, listPath: string, issues: R
       blocked = true;
       return;
     }
+    // A LootTable game action hands over the table's loot: a container output.
+    if (actionType.value === 28 && actionName === "LootTable") {
+      if (!validReference(action.lootTable)) {
+        issue(issues, "unresolvedNestedLootTable", "LootTable game action has no valid resolved loot table reference.", [...actionEvidence, ...refs(`${actionPath}/lootTable`, `${actionPath}/lootTableID`)]);
+        blocked = true;
+        return;
+      }
+      evidence.push(...refs(`${actionPath}/lootTable`));
+      loot++;
+      return;
+    }
     if (actionType.value !== 22 || actionName !== "Teleport") {
       issue(issues, "unsupportedNestedGameAction", `Nested GameAction ${actionName} is retained but its effect is not supported.`, actionEvidence);
       blocked = true;
@@ -252,7 +264,7 @@ function inspectNestedGameActionList(value: unknown, listPath: string, issues: R
     }
     blocked = true;
   });
-  return { supported, blocked, evidence };
+  return { supported, loot, blocked, evidence };
 }
 
 function inspectGameActions(action: RecordValue, actionPath: string, issues: RoleIssue[]): ResolvedAction | null {
@@ -265,12 +277,14 @@ function inspectGameActions(action: RecordValue, actionPath: string, issues: Rol
   const template = gameActions.template === null ? null : inspectNestedGameActionList(gameActions.template, `${actionPath}/gameActions/template`, issues);
   const inline = inspectNestedGameActionList(gameActions.inline, `${actionPath}/gameActions/inline`, issues);
   const supported = (template?.supported ?? 0) + inline.supported;
+  const loot = (template?.loot ?? 0) + inline.loot;
   const blocked = (template?.blocked ?? false) || inline.blocked;
   evidence.push(...(template?.evidence ?? []), ...inline.evidence);
-  if (supported === 0) {
-    if (!blocked) issue(issues, "unsupportedGameAction", "GameActions action has no supported nested teleport payload.", evidence);
+  if (supported === 0 && loot === 0) {
+    if (!blocked) issue(issues, "unsupportedGameAction", "GameActions action has no supported nested teleport or loot payload.", evidence);
     return null;
   }
+  if (supported === 0) return { name: "GameActionsLoot", evidence };
   return { name: "GameActions", evidence };
 }
 
@@ -324,7 +338,7 @@ function collectInteractableActions(row: RecordValue, rowPath: string, facts: Fa
   actions.forEach((value, actionIndex) => {
     const resolved = inspectAction(value, `${rowPath}/actions/${actionIndex}`, issues);
     if (resolved === null) return;
-    if (resolved.name === "Chest") {
+    if (resolved.name === "Chest" || resolved.name === "GameActionsLoot") {
       addFact(facts, "container", resolved.evidence);
       addFact(facts, "usefulInteraction", resolved.evidence);
     } else if (resolved.name === "Quest" || resolved.name === "CompleteTask") {
@@ -466,7 +480,7 @@ function classifyResource(row: RecordValue, rowPath: string, facts: FactBuilder,
 
 function classifyInteraction(row: RecordValue, rowPath: string, facts: FactBuilder, issues: RoleIssue[]): void {
   const family = typeof row.family === "string" ? row.family : "";
-  if (family === "interactableObject") {
+  if (family === "interactableObject" || family === "interactableTrigger") {
     collectInteractableActions(row, rowPath, facts, issues);
     return;
   }
@@ -498,6 +512,10 @@ function classifyContainer(row: RecordValue, rowPath: string, facts: FactBuilder
   }
   if (family === "interactiveNode") {
     nodeRoleEvidence(row, rowPath, facts, issues, "container");
+    return;
+  }
+  if (family === "storageContainer") {
+    addFact(facts, "storage", [...sourceRefs(rowPath, row), ...refs(`${rowPath}/slotAmount`)]);
     return;
   }
   issue(issues, "unsupportedContainerFamily", `Container family ${family || "<missing>"} is not supported.`, refs(`${rowPath}/family`));

@@ -196,6 +196,7 @@ const roleCategory: Readonly<Record<string, PublicMarkerCategory | null>> = {
   questGiver: "questGiver",
   resourceProducer: "resource",
   container: "container",
+  storage: "container",
   transition: "travelPoint",
   respawnDestination: "graveyard",
   usefulInteraction: "interactiveObject",

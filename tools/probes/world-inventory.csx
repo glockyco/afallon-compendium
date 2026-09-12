@@ -635,6 +635,20 @@ var corruptionAltarAllError = (string)null;
 try { corruptionAltarActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.CorruptionAltar>().Length; } catch (System.Exception error) { corruptionAltarActiveError = error.GetType().FullName + ": " + error.Message; }
 try { corruptionAltarAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.CorruptionAltar>(true).Length; } catch (System.Exception error) { corruptionAltarAllError = error.GetType().FullName + ": " + error.Message; }
 addComponentFamily("corruptionAltar", "Il2CppBLINK.RPGBuilder.World.CorruptionAltar", corruptionAltarActive, corruptionAltarAll, corruptionAltarActiveError, corruptionAltarAllError);
+var interactableTriggerActive = -1;
+var interactableTriggerAll = -1;
+var interactableTriggerActiveError = (string)null;
+var interactableTriggerAllError = (string)null;
+try { interactableTriggerActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.InteractableTriggerObject>().Length; } catch (System.Exception error) { interactableTriggerActiveError = error.GetType().FullName + ": " + error.Message; }
+try { interactableTriggerAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.InteractableTriggerObject>(true).Length; } catch (System.Exception error) { interactableTriggerAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("interactableTrigger", "Il2CppBLINK.RPGBuilder.World.InteractableTriggerObject", interactableTriggerActive, interactableTriggerAll, interactableTriggerActiveError, interactableTriggerAllError);
+var storageContainerActive = -1;
+var storageContainerAll = -1;
+var storageContainerActiveError = (string)null;
+var storageContainerAllError = (string)null;
+try { storageContainerActive = UnityEngine.Object.FindObjectsOfType<Il2Cpp.ContainerObject>().Length; } catch (System.Exception error) { storageContainerActiveError = error.GetType().FullName + ": " + error.Message; }
+try { storageContainerAll = UnityEngine.Object.FindObjectsOfType<Il2Cpp.ContainerObject>(true).Length; } catch (System.Exception error) { storageContainerAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("storageContainer", "Il2Cpp.ContainerObject", storageContainerActive, storageContainerAll, storageContainerActiveError, storageContainerAllError);
 
 var heroicConsoleActive = -1;
 var heroicConsoleAll = -1;
