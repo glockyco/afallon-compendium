@@ -141,9 +141,15 @@ if (requestedAction == "start")
     sceneVisitState["researchCharacter"] = requestedResearchCharacter;
     sceneVisitState["phase"] = "loading";
     sceneVisitState["sourceSceneNativeId"] = sourceNativeScene.ID;
+    sceneVisitState["sourceSceneName"] = activeScene.name;
+    sceneVisitState["sawTargetScene"] = false;
     sceneVisitState["sourceSceneHandle"] = activeScene.handle;
     sceneVisitState["sourceScenePath"] = activeScene.path;
     sceneVisitState["targetSceneNativeId"] = requestedTargetId;
+    // A game scene record names its Unity scene by entryName. A challenge-stone variant keeps
+    // its parent's id in GameState.CurrentGameScene while its own Unity scene is loaded, so the
+    // loaded scene is identified by that name, the rule the world inventory applies as well.
+    sceneVisitState["targetSceneName"] = targetNativeScene.entryName;
     sceneVisitState["finalSceneNativeId"] = finalSceneId;
     sceneVisitState["finalScenePath"] = finalNativeScene.entryName;
     sceneVisitState["sourcePosition"] = playerTransform.position;
@@ -168,6 +174,14 @@ if (requestedAction == "start")
         status["frame"] = UnityEngine.Time.frameCount;
         status["sceneHandle"] = currentScene.handle;
         status["sceneNativeId"] = currentNativeScene == null ? (object)null : currentNativeScene.ID;
+        status["sceneName"] = currentScene.name;
+        var loadedSceneNames = new System.Collections.Generic.List<string>();
+        for (var index = 0; index < UnityEngine.SceneManagement.SceneManager.sceneCount; index++)
+        {
+            var loadedScene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(index);
+            loadedSceneNames.Add(loadedScene.name + (loadedScene.isLoaded ? "" : " (loading)"));
+        }
+        status["loadedScenes"] = loadedSceneNames.ToArray();
         status["sceneReady"] = ready;
         var asyncLoad = currentLoader == null ? null : currentLoader.asyncLoad;
         var progressText = currentLoader == null ? null : currentLoader.loadingProgressText;
@@ -294,6 +308,8 @@ if (requestedAction == "start")
             finalSceneNativeId = (int)sceneVisitState["finalSceneNativeId"],
             sceneNativeId = observed["sceneNativeId"],
             sceneReady = (bool)observed["sceneReady"],
+            sceneName = observed["sceneName"],
+            loadedScenes = observed["loadedScenes"],
             readiness = observed["readiness"],
             sourcePosition = vector((UnityEngine.Vector3)sceneVisitState["sourcePosition"]),
             position = observed["position"],
@@ -335,11 +351,12 @@ if (requestedAction == "retarget")
     if (retargetLoader == null || retargetEssentials == null || !retargetCurrentScene.isLoaded || !retargetEssentials.SceneInitialized || retargetLoader.isSceneLoading || Il2CppBLINK.RPGBuilder.Managers.LoadingScreenManager.HasSceneReadyHolds)
         throw new System.InvalidOperationException("The current scene must be ready before retargeting.");
     sceneVisitState["targetSceneNativeId"] = requestedTargetId;
+    sceneVisitState["targetSceneName"] = retargetNativeScene.entryName;
     sceneVisitState["phase"] = "loading";
     sceneVisitState["requestFrame"] = UnityEngine.Time.frameCount;
     sceneVisitState["restoreRequested"] = false;
     sceneVisitState["restoreRequestFrame"] = -1;
-    if (requestedTargetId != Il2Cpp.GameState.CurrentGameScene.ID)
+    if (retargetCurrentScene.name != retargetNativeScene.entryName)
         retargetLoader.LoadGameScene(requestedTargetId);
     return ((System.Func<object>)sceneVisitState["report"])();
 }
@@ -385,10 +402,20 @@ if (requestedAction == "poll")
         var observed = statusDelegate();
         var requestedFrame = (int)sceneVisitState["requestFrame"];
         var observedNativeId = observed["sceneNativeId"] == null ? -1 : (int)observed["sceneNativeId"];
-        if ((int)observed["frame"] > requestedFrame && observedNativeId == (int)sceneVisitState["targetSceneNativeId"] && (bool)observed["sceneReady"])
+        var observedName = observed["sceneName"] as string;
+        var targetReached = observedNativeId == (int)sceneVisitState["targetSceneNativeId"] || observedName == (sceneVisitState["targetSceneName"] as string);
+        if (targetReached) sceneVisitState["sawTargetScene"] = true;
+        if ((int)observed["frame"] > requestedFrame && targetReached && (bool)observed["sceneReady"])
         {
             placeAtCapturePosition();
             sceneVisitState["phase"] = hasCapturePosition ? "settling" : "ready";
+        }
+        // A challenge-stone scene loads and then the game reloads its parent at once: the target
+        // was seen, and the source scene is ready again. Such a scene is not reachable by loading
+        // it, which the visit reports instead of polling to its deadline.
+        else if ((bool)sceneVisitState["sawTargetScene"] && (int)observed["frame"] > requestedFrame && (bool)observed["sceneReady"] && observedName == (sceneVisitState["sourceSceneName"] as string))
+        {
+            sceneVisitState["phase"] = "returned";
         }
     }
     if ((sceneVisitState["phase"] as string) == "settling")

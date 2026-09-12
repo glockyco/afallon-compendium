@@ -9,13 +9,17 @@ const common = {
   key: text,
   // "settling": the scene is loaded and the player was placed at the capture position; the
   // loaders that placement started are still running.
-  phase: Type.Union([Type.Literal("loading"), Type.Literal("settling"), Type.Literal("ready"), Type.Literal("restoring"), Type.Literal("restored")]),
+  // "returned": the target scene loaded and the game reloaded the source scene at once; the
+  // target is not reachable by loading it.
+  phase: Type.Union([Type.Literal("loading"), Type.Literal("settling"), Type.Literal("ready"), Type.Literal("returned"), Type.Literal("restoring"), Type.Literal("restored")]),
   frame: count,
   sceneHandle: integer,
 };
 export const TraversalPlanSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.traversal-plan.v1"),
-  stepTimeoutMs: Type.Integer({ minimum: 1000, maximum: 300000 }),
+  // A challenge-stone scene loads and then reloads its parent area; that returns in under 15 seconds
+  // but a parent area alone loads for near 4 minutes.
+  stepTimeoutMs: Type.Integer({ minimum: 1000, maximum: 900000 }),
   steps: Type.Array(Type.Object({
     sceneNativeId: count,
     streamAssetGuids: Type.Array(Type.String({ pattern: "^[a-f0-9]{32}$" }), { maxItems: 32, uniqueItems: true }),

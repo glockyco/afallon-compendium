@@ -94,7 +94,7 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         const reply = await runtime.probe(resolve(import.meta.dir, `probes/${name}.csx`), resolve(run.directory, prefix, file), { parameters: { ...parameters, ...args } });
         Assert(schema, reply.value);
         const state = reply.value as Static<T>;
-        if (args.action === "start" || state.phase === "ready" || state.phase === "restored") {
+        if (args.action === "start" || state.phase === "ready" || state.phase === "returned" || state.phase === "restored") {
           const record = await run.addArtifact(`${prefix}/${file}`);
           if (record.sha256 !== reply.reference.sha256) throw new Error(`The ${name} control artifact changed before registration.`);
         }
@@ -105,13 +105,24 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
         while (true) {
           const state = await control(name, schema, { action, key, sceneHandle }, file);
           if (state.key !== key) throw new Error("Traversal returned another controller key.");
-          if (state.phase === phase) return state;
+          if (state.phase === phase || state.phase === "returned") return state;
           await Bun.sleep(500);
         }
       }
       try {
         const started = await control("scene-visit", SceneVisitSchema, { action: "start", targetSceneNativeId: step.sceneNativeId }, "scene-start.json");
         const scene = await settle("scene-visit", SceneVisitSchema, started.key, "poll", "ready", "scene-ready.json");
+        if (scene.phase === "returned") {
+          // The game loaded the target scene and then reloaded the source scene: a challenge-stone
+          // scene is an entry into its parent, not a scene that can be observed by loading it.
+          const restored = await settle("scene-visit", SceneVisitSchema, started.key, "restore", "restored", "scene-restored.json");
+          if (!restored.sceneReady || restored.sceneNativeId !== started.sourceSceneNativeId) throw new Error("Traversal did not restore the source scene.");
+          const report = { index, sceneNativeId: step.sceneNativeId, redirectedTo: scene.sceneNativeId, restoration: restored };
+          await Bun.write(resolve(run.directory, prefix, "step.json"), JSON.stringify(report, null, 2) + "\n");
+          await run.addArtifact(`${prefix}/step.json`);
+          steps.push({ index, sceneNativeId: step.sceneNativeId, redirectedTo: scene.sceneNativeId, report: `${prefix}/step.json` });
+          continue;
+        }
         const before = (await artifact("placement-snapshot", `${prefix}/before.json`, PlacementSnapshotSchema)).value;
         if (before.context.scene.handle !== scene.sceneHandle || before.context.gameSceneNativeId !== step.sceneNativeId) throw new Error("Scene changed before stream selection.");
         const requested = new Set(step.streamAssetGuids);
