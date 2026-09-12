@@ -330,6 +330,21 @@ if (captureAction == "start")
             if (!root.activeSelf) throw new System.InvalidOperationException("Hider root " + root.name + " could not be activated.");
             activatedRoots.Add(root);
         }
+        // A terrain without a hider is still switched off by player position through an inactive
+        // ancestor. Every terrain of the scene is active for the render, so each inactive ancestor
+        // of a terrain is activated and recorded the same way.
+        foreach (var terrain in UnityEngine.Object.FindObjectsOfType<UnityEngine.Terrain>(true))
+        {
+            if (terrain == null || terrain.gameObject.scene.handle != currentScene.handle) continue;
+            for (var node = terrain.transform; node != null; node = node.parent)
+            {
+                var go = node.gameObject;
+                if (go.activeSelf) continue;
+                go.SetActive(true);
+                if (!go.activeSelf) throw new System.InvalidOperationException("Terrain ancestor " + go.name + " could not be activated.");
+                activatedRoots.Add(go);
+            }
+        }
         fault("after-roots");
         var cameraGo = new UnityEngine.GameObject(resourcePrefix + ".Camera");
         state["cameraGo"] = cameraGo;
