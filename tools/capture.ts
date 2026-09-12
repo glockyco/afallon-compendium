@@ -33,7 +33,7 @@ import type { Runtime } from "./runtime";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
-import { TooManySourcesError, withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
+import { withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
 import { capturePositionFor, encodeRawFrame, loadNavigationSurvey, type CapturePosition, type NavigationSurvey } from "./capture-position";
 import {
   captureArtifactReference,
@@ -177,7 +177,7 @@ function mapExtentSubject(plan: CapturePlan, pending: readonly CapturePlan["tile
   const bottom = Math.min(...frames.map(frame => frame.cameraY - frame.farClip));
   const cameraY = top + 0.1;
   const frame = { center: { x: (minX + maxX) / 2, z: (minZ + maxZ) / 2 }, worldSize: { x: maxX - minX, z: maxZ - minZ }, cameraY, nearClip: 0.1, farClip: cameraY - bottom };
-  return { tile: { id: `${plan.mapSpaceId}-extent`, frame }, frame, kind: "extent" };
+  return { tile: { id: `${plan.mapSpaceId}-extent`, frame }, frame };
 }
 
 async function writeTileCheckpoint(run: Run, checkpoint: CaptureTileCheckpoint): Promise<void> {
@@ -639,32 +639,14 @@ async function capturePlan(
     const pending = plan.tiles.filter(tile => !reused.has(tile.id));
     // One readiness for the whole map: it holds every required source for the whole batch, so
     // nothing loads or unloads between tiles and every tile renders under the same observation.
-    // A map whose required sources exceed the bound for one observation keeps per-tile readiness.
-    let staticReadiness: { readiness: CaptureReadiness; readinessPath: string } | undefined;
-    if (pending.length > 1) {
+    if (pending.length > 0) {
       const extent = mapExtentSubject(plan, pending);
-      try {
-        const observed = await withCaptureGeometry(runtime, config, run, plan, extent, async readiness => {
-          if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
-          return readiness;
-        }, { singleObservation: true });
-        staticReadiness = { readiness: observed.readiness, readinessPath: observed.readinessPath };
-      } catch (error) {
-        if (!(error instanceof TooManySourcesError)) throw error;
-      }
-    }
-    if (staticReadiness !== undefined) {
-      const rendered = await renderBatch(pending, staticReadiness.readiness, `${plan.mapSpaceId}-batch`);
-      for (const tile of pending) await checkpointTile(tile, rendered.get(tile.id)!, staticReadiness.readiness, staticReadiness.readinessPath);
-    } else {
-      for (const tile of pending) {
-        const subject = { tile, frame: tile.frame, kind: "tile" as const };
-        const prepared = await withCaptureGeometry(runtime, config, run, plan, subject, async readiness => {
-          if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
-          return (await renderBatch([tile], readiness, tile.id)).get(tile.id)!;
-        });
-        await checkpointTile(tile, prepared.value, prepared.readiness, prepared.readinessPath);
-      }
+      const observed = await withCaptureGeometry(runtime, config, run, plan, extent, async readiness => {
+        if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
+        return readiness;
+      });
+      const rendered = await renderBatch(pending, observed.readiness, `${plan.mapSpaceId}-batch`);
+      for (const tile of pending) await checkpointTile(tile, rendered.get(tile.id)!, observed.readiness, observed.readinessPath);
     }
 
     const restoredPath = "capture-restored.json";

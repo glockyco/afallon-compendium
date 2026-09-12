@@ -1,6 +1,5 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { isDeepStrictEqual } from "node:util";
 import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import {
@@ -218,11 +217,8 @@ function sameRequiredMembership(left: Map<number, CaptureGeometry["sources"][num
   return true;
 }
 
-function assertMembership(geometry: CaptureGeometry, baseline: SourceMembership | undefined, maximumSources: number): SourceMembership {
+function assertMembership(geometry: CaptureGeometry, baseline: SourceMembership | undefined): SourceMembership {
   const current = sourceMembership(geometry);
-  if (current.required.length > maximumSources) {
-    throw new Error(`Tile requires ${current.required.length} sources, exceeding the ${maximumSources}-source bound.`);
-  }
   if (baseline !== undefined && !sameRequiredMembership(current.requiredById, baseline.requiredById)) {
     throw new Error("Capture geometry changed its required source membership.");
   }
@@ -419,13 +415,8 @@ function timeoutError(tile: CaptureTile, timeoutMs: number): Error {
   return error;
 }
 
-// Raised after the first inventory when one readiness cannot cover the whole map, so the caller
-// can fall back to per-tile readiness. The source bound is per observation, not per map.
-export class TooManySourcesError extends Error {
-  constructor(readonly sources: number, readonly bound: number) { super(`${sources} required sources exceed the ${bound}-source bound for one readiness.`); }
-}
-
-export type ReadinessSubject = { tile: CaptureTile; frame: CaptureFrame; kind: "tile" | "extent" };
+// The subject of one readiness: the extent that covers every pending tile of the map.
+export type ReadinessSubject = { tile: CaptureTile; frame: CaptureFrame };
 
 export async function withCaptureGeometry<T>(
   runtime: Runtime,
@@ -434,16 +425,11 @@ export async function withCaptureGeometry<T>(
   plan: CapturePlan,
   subject: ReadinessSubject,
   capture: (readiness: CaptureReadiness) => Promise<T>,
-  options: { singleObservation?: boolean } = {},
 ): Promise<{ value: T; readiness: CaptureReadiness; readinessPath: string }> {
   let timer: NodeJS.Timeout | undefined;
   const tile = subject.tile;
   try {
     assertSchema(CapturePlanSchema, plan, "Capture plan");
-    if (subject.kind === "tile") {
-      const plannedTile = plan.tiles.find(candidate => candidate.id === tile.id);
-      if (plannedTile === undefined || !isDeepStrictEqual(plannedTile, tile)) throw new Error(`Tile "${tile.id}" is not part of the capture plan.`);
-    }
     assertFiniteScalars(plan, "Capture plan");
 
     const geometry = geometryDirectory(tile, run);
@@ -514,7 +500,7 @@ export async function withCaptureGeometry<T>(
         assertQueryCounts(value);
         assertVisibleBindings(value);
         sceneHandle = assertScene(value, plan, sceneHandle);
-        const membership = assertMembership(value, settled ? baselineMembership : undefined, options.singleObservation === true ? Number.POSITIVE_INFINITY : plan.readiness.maximumSources);
+        const membership = assertMembership(value, settled ? baselineMembership : undefined);
         baselineMembership ??= membership;
         for (const mesh of value.meshes) trackedRendererIds.add(mesh.rendererId);
         for (const renderer of value.otherRenderers) trackedRendererIds.add(renderer.instanceId);
@@ -553,11 +539,6 @@ export async function withCaptureGeometry<T>(
       }
       settled = true;
       const initialRequired = baselineMembership!.required;
-      // One readiness holds the sources of the whole map for the whole batch. Only a map whose
-      // required sources exceed the bound for one observation needs per-tile readiness.
-      if (options.singleObservation === true && initialRequired.length > plan.readiness.maximumSources) {
-        throw new TooManySourcesError(initialRequired.length, plan.readiness.maximumSources);
-      }
       let streamKey: string | undefined;
       let streamStartRows: Map<number, StreamVisit["rows"][number]> | undefined;
       let streamRows: Map<number, StreamVisit["rows"][number]> | undefined;
@@ -748,9 +729,6 @@ export async function withCaptureGeometry<T>(
     runtime.signal.throwIfAborted();
     return result;
   } catch (error) {
-    // Too many sources is a decision for the caller, not a runtime failure: no stream visit
-    // started and no state changed, so the session stays usable for per-tile readiness.
-    if (error instanceof TooManySourcesError && !runtime.signal.aborted) throw error;
     const reason = runtime.signal.aborted ? runtime.signal.reason : error;
     if (!runtime.signal.aborted) runtime.cancel(reason);
     throw runtime.signal.aborted ? runtime.signal.reason : reason;

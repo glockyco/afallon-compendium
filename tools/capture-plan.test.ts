@@ -4,7 +4,7 @@ import type { CapturePlan } from "./capture-contracts";
 
 function plan(centers: ReadonlyArray<readonly [number, number]>): CapturePlan {
   return {
-    schemaVersion: "compendium.capture-plan.v7",
+    schemaVersion: "compendium.capture-plan.v8",
     sceneNativeId: 1,
     scenePath: "Assets/Test.unity",
     mapSpaceId: "test-interior",
@@ -16,7 +16,7 @@ function plan(centers: ReadonlyArray<readonly [number, number]>): CapturePlan {
       directionalIntensity: 1,
       directionalEuler: { x: 0, y: 0, z: 0 },
     },
-    readiness: { timeoutMs: 1000, stableFrames: 2, settleFrames: 0, boundaryOverlap: 0, maximumSources: 1 },
+    readiness: { timeoutMs: 1000, stableFrames: 2, settleFrames: 0, boundaryOverlap: 0 },
     tiles: centers.map(([x, z], index) => ({
       id: `tile-${index}`,
       frame: {

@@ -16,8 +16,7 @@ const frame = Type.Object({
 });
 const sha256 = Type.String({ pattern: "^[a-f0-9]{64}$" });
 // The navigation survey names the walkable surface of the map's scene. Capture stands the
-// player on it: at the map centre when one standing point shows the whole map, and at each tile
-// when the game hides distant terrain.
+// player on it at the map centre; a plan covers one region the game keeps active from there.
 export const CaptureSurveySchema = Type.Object({ path: text, sha256 }, { additionalProperties: false });
 export type CaptureSurvey = Static<typeof CaptureSurveySchema>;
 export const CaptureReadinessProfileSchema = Type.Object({
@@ -27,10 +26,9 @@ export const CaptureReadinessProfileSchema = Type.Object({
   // terrain off in the frames after the player arrives.
   settleFrames: Type.Integer({ minimum: 0, maximum: 3600 }),
   boundaryOverlap: Type.Number({ minimum: 0, maximum: 1000 }),
-  maximumSources: Type.Integer({ minimum: 1, maximum: 256 }),
 });
 export const CapturePlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-plan.v7"),
+  schemaVersion: Type.Literal("compendium.capture-plan.v8"),
   sceneNativeId: count, scenePath: text, mapSpaceId: text,
   survey: Type.Optional(CaptureSurveySchema),
   width: Type.Integer({ minimum: 64, maximum: 2048 }), height: Type.Integer({ minimum: 64, maximum: 2048 }),
