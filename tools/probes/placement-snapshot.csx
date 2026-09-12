@@ -68,6 +68,7 @@ var queryTypes = new[]
     Il2CppInterop.Runtime.Il2CppType.Of<Il2Cpp.QuestScenePortal>(),
     Il2CppInterop.Runtime.Il2CppType.Of<Il2CppBLINK.RPGBuilder.World.DungeonEntranceTrigger>(),
     Il2CppInterop.Runtime.Il2CppType.Of<Il2CppMapMinimap.MapZone>(),
+    Il2CppInterop.Runtime.Il2CppType.Of<Il2CppMapMinimap.MapIcon>(),
     Il2CppInterop.Runtime.Il2CppType.Of<Il2CppBLINK.RPGBuilder._THMSV.RPGBuilder.Scripts.World.Region>(),
     Il2CppInterop.Runtime.Il2CppType.Of<Il2Cpp.AddressableLoader>()
 };
