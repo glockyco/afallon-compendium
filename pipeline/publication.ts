@@ -12,7 +12,7 @@ import { MapSpaceProfileSchema, type MapSpaceProfile } from "../tools/spatial-co
 import { SceneCatalogSchema, type SceneCatalog } from "../tools/map-contracts";
 import { IllustrationOutputSchema, type IllustrationOutput } from "../tools/illustration-contracts";
 import { TilePyramidSchema, type TilePyramid } from "./tile-contracts";
-import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement } from "./normalized-contracts";
+import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement, NormalizedRegion } from "./normalized-contracts";
 import { projectAdventureGuide } from "./guide-projection";
 import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicRegion, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
 import { WorldOffsetsSchema, type WorldOffsets, buildWorldLayout } from "./world-layout";
@@ -287,14 +287,7 @@ function placementCategories(placement: NormalizedPlacement): PublicMarkerCatego
   return PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => categories.has(category));
 }
 
-type NormalizedRegionForPublication = {
-  regionId: string;
-  name: string;
-  shape: "box" | "sphere";
-  mapSpaceId: string | null;
-  mapGeometry?: unknown;
-  map_geometry_json?: unknown;
-};
+type NormalizedRegionForPublication = Pick<NormalizedRegion, "regionId" | "name" | "shape" | "mapSpaceId" | "mapGeometry">;
 
 type RegionGeometry =
   | { kind: "box"; corners: readonly unknown[] }
@@ -318,7 +311,7 @@ export function publicRegionFromNormalized(
   offset: { worldX: number; worldY: number } = { worldX: 0, worldY: 0 },
 ): PublicRegion | null {
   if (!region.regionId || !region.name.trim() || !region.mapSpaceId) return null;
-  const geometry = regionGeometry(region.mapGeometry ?? region.map_geometry_json, region.shape);
+  const geometry = regionGeometry(region.mapGeometry, region.shape);
   if (!geometry) return null;
   let polygon: [number, number][];
   if (geometry.kind === "box") {
@@ -763,7 +756,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       ...(travel ? { travel } : {}),
     };
   });
-  const normalizedRegions = (map as NormalizedMapProjection & { regions?: readonly NormalizedRegionForPublication[] }).regions ?? [];
+  const normalizedRegions: readonly NormalizedRegionForPublication[] = map.regions;
   const regions: PublicRegion[] = normalizedRegions
     .map((region) => {
       if (!region.mapSpaceId) return null;
