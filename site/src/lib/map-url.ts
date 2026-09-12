@@ -8,8 +8,6 @@ export interface MapUrlState {
   itemSourceQuery: string;
   detailQuery: string;
   categories: string[];
-  levelMinimum: number | null;
-  levelMaximum: number | null;
   showZones: boolean;
   itemKey: string | null;
   entityKey: string | null;
@@ -38,8 +36,6 @@ export function readMapUrl(search: string): MapUrlState {
   const categories = requestedCategories.length === 0 ? [...DEFAULT_MARKER_IDS] : requestedCategories.includes('all') ? [] : requestedCategories;
   // A single `layer` is the older one-of-N form; a shared link keeps working as a one-entry list.
   const layerIds = [...params.getAll('layers'), ...params.getAll('layer')].flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
-  const minimum = finiteNumber(params.get('level-min'));
-  const maximum = finiteNumber(params.get('level-max'));
   const showZones = params.get('zones') === '1';
   return {
     layerIds: [...new Set(layerIds)],
@@ -48,8 +44,6 @@ export function readMapUrl(search: string): MapUrlState {
     itemSourceQuery: params.get('source-q') ?? '',
     detailQuery: params.get('detail-q') ?? '',
     categories: [...new Set(categories)],
-    levelMinimum: minimum !== null && Number.isInteger(minimum) && minimum >= 0 ? minimum : null,
-    levelMaximum: maximum !== null && Number.isInteger(maximum) && maximum >= 0 ? maximum : null,
     showZones,
     itemKey: params.get('item'),
     entityKey: params.get('entity'),
@@ -65,8 +59,6 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
     ['q', state.query.trim() || null],
     ['source-q', state.itemSourceQuery.trim() || null],
     ['detail-q', state.detailQuery.trim() || null],
-    ['level-min', state.levelMinimum === null ? null : String(state.levelMinimum)],
-    ['level-max', state.levelMaximum === null ? null : String(state.levelMaximum)],
     ['zones', state.showZones ? '1' : null],
     ['item', state.itemKey],
     ['entity', state.entityKey]
@@ -78,6 +70,8 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
     else params.delete(key);
   }
   params.delete('roles');
+  params.delete('level-min');
+  params.delete('level-max');
   params.delete('categories');
   if (state.categories.length === 0) params.set('categories', 'all');
   else if (!sameSet(state.categories, DEFAULT_MARKER_IDS)) params.set('categories', state.categories.join(','));

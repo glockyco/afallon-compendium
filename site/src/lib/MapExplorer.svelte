@@ -74,8 +74,6 @@
   let selectedId: string | null = null;
   let query = '';
   let categories: MarkerId[] = [];
-  let levelMinimum: number | null = null;
-  let levelMaximum: number | null = null;
   let itemKey: string | null = null;
   let selectedEntityKey: string | null = null;
   let itemSourceQuery = '';
@@ -127,7 +125,7 @@
   $: queryEntityPlacementIds = new Set(matchingEntities.flatMap((entity) => searchIndexes.placementsByEntityKey.get(entity.entityKey)?.map((placement) => placement.placementId) ?? []));
   // Placements that pass every filter except the category selection: the sidebar counts
   // each category against these, so an unselected category keeps its count and its row.
-  $: candidatePlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && levelMatches(placement) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId) || queryEntityPlacementIds.has(placement.placementId)));
+  $: candidatePlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId) || queryEntityPlacementIds.has(placement.placementId)));
   $: matchingPlacements = candidatePlacements.filter((placement) => categories.length === 0 || categories.some((category) => placement.categories.includes(category)));
   $: categoryCounts = getCategoryCounts(candidatePlacements);
   $: publishedCounts = getCategoryCounts(allMapPlacements);
@@ -344,12 +342,6 @@
     return counts;
   }
 
-  function levelMatches(placement: PublicPlacement): boolean {
-    if (levelMinimum === null && levelMaximum === null) return true;
-    if (!placement.levelRange) return true;
-    return (levelMinimum === null || placement.levelRange.max >= levelMinimum) && (levelMaximum === null || placement.levelRange.min <= levelMaximum);
-  }
-
   function levelRangeLabel(range: { min: number; max: number } | undefined): string {
     return range ? `(lvl.${range.min}-${range.max})` : '';
   }
@@ -478,8 +470,6 @@
     layerIds = requested.length > 0 ? requested : defaultLayers(publication);
     query = next.query;
     categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
-    levelMinimum = next.levelMinimum;
-    levelMaximum = next.levelMaximum;
     showZones = next.showZones;
     itemKey = next.itemKey && (!publication || publication.itemIndex.some((item) => item.itemKey === next.itemKey)) ? next.itemKey : null;
     const selected = next.selectedId && publication ? publication.placements.find((placement) => placement.placementId === next.selectedId) : null;
@@ -497,11 +487,11 @@
     }
   }
 
-  function currentUrl(overrides: Partial<Pick<MapUrlState, 'categories' | 'levelMinimum' | 'levelMaximum'>> = {}): URL {
-    return writeMapUrl(new URL(window.location.href), { layerIds, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, levelMinimum: overrides.levelMinimum !== undefined ? overrides.levelMinimum : levelMinimum, levelMaximum: overrides.levelMaximum !== undefined ? overrides.levelMaximum : levelMaximum, showZones, itemKey, entityKey: selectedEntityKey, view });
+  function currentUrl(overrides: Partial<Pick<MapUrlState, 'categories'>> = {}): URL {
+    return writeMapUrl(new URL(window.location.href), { layerIds, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, showZones, itemKey, entityKey: selectedEntityKey, view });
   }
 
-  function syncUrl(mode: 'push' | 'replace', overrides: Partial<Pick<MapUrlState, 'categories' | 'levelMinimum' | 'levelMaximum'>> = {}): void {
+  function syncUrl(mode: 'push' | 'replace', overrides: Partial<Pick<MapUrlState, 'categories'>> = {}): void {
     // The framework router owns history, so its own helpers must be used; calling
     // window.history directly desynchronises the page store from the address bar.
     const next = currentUrl(overrides);
@@ -660,20 +650,6 @@
     syncUrl('push', { categories: next });
   }
 
-  function updateLevelMinimum(value: string): void {
-    const parsed = Number(value);
-    const next = value.trim() && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
-    levelMinimum = next;
-    syncUrl('replace', { levelMinimum: next });
-  }
-
-  function updateLevelMaximum(value: string): void {
-    const parsed = Number(value);
-    const next = value.trim() && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
-    levelMaximum = next;
-    syncUrl('replace', { levelMaximum: next });
-  }
-
   function submitSearch(): void {
     syncUrl('push');
     const first = resultList?.querySelector<HTMLButtonElement>('button[data-result]');
@@ -709,10 +685,9 @@
 
 <div class="atlas-shell">
   <header class="topbar">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">A</span><div><strong>Afallon Compendium</strong><small>Static world atlas</small></div></div>
+    <div class="brand"><span class="brand-mark" aria-hidden="true">A</span><div><strong>Afallon Compendium</strong></div></div>
     <div class="build-meta" aria-label="Publication status">
       <a href={`${base}/guide/`}>Adventure Guide</a>
-      {#if publication}<span>Supported build <strong>{publication.buildId}</strong></span><span class:complete={publication.coverage.complete} class="coverage">{publication.coverage.complete ? 'Complete coverage' : 'Preview · incomplete coverage'}</span>{/if}
     </div>
   </header>
 
@@ -783,8 +758,6 @@
               {/each}
               {#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Show every category</button>{/if}
             </div>
-            <div class="control-section level-filter"><div class="section-heading"><h2>Creature levels</h2>{#if levelMinimum !== null || levelMaximum !== null}<span class="active-filter">{levelMinimum ?? 0}–{levelMaximum ?? '∞'}</span>{/if}</div><div class="level-fields"><label for="level-min">From<input id="level-min" type="number" min="0" step="1" value={levelMinimum ?? ''} on:input={(event) => updateLevelMinimum((event.currentTarget as HTMLInputElement).value)} /></label><label for="level-max">To<input id="level-max" type="number" min="0" step="1" value={levelMaximum ?? ''} on:input={(event) => updateLevelMaximum((event.currentTarget as HTMLInputElement).value)} /></label></div><p class="hint">Locations without a known level stay visible.</p></div>
-            <div class="coverage-card"><strong>Supported game build {publication.buildId}</strong>{#if !publication.coverage.complete}<p>Incomplete research preview. It does not represent full-world research or imagery coverage.</p>{/if}</div>
           </div>
         {/if}
       </aside>
@@ -901,8 +874,6 @@
   .build-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .65rem; color: #aaa9a0; font-size: .72rem; }
   .build-meta a { color: #d5b978; }
   .build-meta strong { color: #e9e4d9; font-weight: 600; }
-  .coverage { padding: .25rem .45rem; border: 1px solid #896c47; color: #e4b77c; }
-  .coverage.complete { border-color: #657d64; color: #a9c1a2; }
   .workspace { display: grid; grid-template-columns: 280px minmax(360px, 1fr) minmax(300px, 380px); height: calc(100dvh - 64px); min-height: 0; }
   .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr) minmax(300px, 380px); }
   .control-panel, .details-panel { background: #202120; overflow: auto; }
@@ -939,16 +910,10 @@
   .tool-option { display: flex; align-items: center; gap: .45rem; margin: .6rem 0; letter-spacing: normal; text-transform: none; color: #dedbd2; font-size: .78rem; cursor: pointer; }
   .tool-option input { width: 14px; height: 14px; margin: 0; accent-color: #bca36e; }
   .world-tools h2 { margin-bottom: .5rem; }
-  .level-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; margin-top: .45rem; }
-  .level-fields label { letter-spacing: normal; text-transform: none; font-size: .68rem; }
-  .level-fields input { margin-top: .3rem; }
   .active-filter { padding: .2rem .35rem; border: 1px solid #7d6843; color: #e3c681; font-size: .7rem; font-variant-numeric: tabular-nums; }
   .text-button, .inline-link { border: 0; padding: 0; background: none; color: #d5b978; text-decoration: underline; text-underline-offset: 2px; }
   .text-button { font-size: .75rem; }
   .notice, .stale-warning { padding: .55rem; border-left: 2px solid #b98751; background: #2b2721; color: #e2c399; font-size: .73rem; line-height: 1.45; }
-  .coverage-card { margin-top: .9rem; padding: .7rem; border: 1px solid #66523b; background: #28241f; color: #d2bd9a; font-size: .72rem; line-height: 1.4; }
-  .coverage-card strong { color: #ebd1a2; }
-  .coverage-card p { margin: .35rem 0; }
   .map-column { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(260px, 1fr) minmax(180px, 30vh); background: #121313; }
   .map-frame { position: relative; min-height: 0; overflow: hidden; border-bottom: 1px solid #393a38; background: #151716; }
   canvas { display: block; width: 100%; height: 100%; }
