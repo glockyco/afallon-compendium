@@ -22,15 +22,77 @@ import { validateEntityDetails, validateItemSources, validatePublication } from 
 // budget a browser can upload and a reader can download.
 const ILLUSTRATION_MAX_EDGE = 4096;
 
-// A reviewed transform maps source pixels to world units. Publishing a smaller image shrinks the
-// pixel domain, so each axis covers proportionally more world per published pixel. The origin is a
-// world position and does not scale.
-function scaleAffine(affine: PublicAffine, scale: number): PublicAffine {
-  if (scale === 1) return affine;
+// Resamples a calibrated illustration onto the world tile lattice. The lattice is the one captured
+// imagery uses: a tile at zoom z covers 256 / 2 ** z world units on each axis, and image row zero
+// is the northern edge. Only the part inside the map's reviewed bounds is published, and the
+// finest level is the one closest to the artwork's own resolution, so no pixel is invented.
+async function tileIllustration(
+  layerId: string,
+  mapSpaceId: string,
+  bytes: Uint8Array,
+  image: { width: number; height: number },
+  affine: PublicAffine,
+  bounds: { min: { x: number; y: number }; max: { x: number; y: number } },
+  assetBytes: Map<string, Uint8Array>,
+): Promise<PublicTileLayer> {
+  if (affine.xAxis.y !== 0 || affine.yAxis.x !== 0 || affine.xAxis.x <= 0 || affine.yAxis.y >= 0) {
+    throw new Error(`Illustration "${layerId}" is not axis-aligned north-up; tiling a rotated or mirrored transform is not implemented.`);
+  }
+  const unitsPerPixelX = affine.xAxis.x, unitsPerPixelY = -affine.yAxis.y;
+  // World rectangle the artwork covers, clipped to the map's bounds.
+  const artwork = { minX: affine.origin.x, maxX: affine.origin.x + image.width * unitsPerPixelX, maxY: affine.origin.y, minY: affine.origin.y - image.height * unitsPerPixelY };
+  const clip = { minX: Math.max(artwork.minX, bounds.min.x), maxX: Math.min(artwork.maxX, bounds.max.x), minY: Math.max(artwork.minY, bounds.min.y), maxY: Math.min(artwork.maxY, bounds.max.y) };
+  if (clip.minX >= clip.maxX || clip.minY >= clip.maxY) throw new Error(`Illustration "${layerId}" does not overlap its map's bounds.`);
+  // Finest level: the zoom whose lattice pixel is no finer than the artwork pixel.
+  const maxZoom = Math.floor(Math.log2(1 / Math.max(unitsPerPixelX, unitsPerPixelY)));
+  const span = Math.max(clip.maxX - clip.minX, clip.maxY - clip.minY);
+  const minZoom = Math.min(maxZoom, Math.floor(Math.log2(256 / span)));
+  const tiles: PublicTileLayer["tiles"] = [];
+  const cropped = sharp(bytes, { limitInputPixels: false }).extract({
+    left: Math.floor((clip.minX - artwork.minX) / unitsPerPixelX),
+    top: Math.floor((artwork.maxY - clip.maxY) / unitsPerPixelY),
+    width: Math.ceil((clip.maxX - clip.minX) / unitsPerPixelX),
+    height: Math.ceil((clip.maxY - clip.minY) / unitsPerPixelY),
+  });
+  const croppedBytes = await cropped.png().toBuffer();
+  for (let z = maxZoom; z >= minZoom; z--) {
+    const unitsPerTile = 256 / 2 ** z;
+    const pixelsPerUnit = 2 ** z;
+    const tileMinX = Math.floor(clip.minX / unitsPerTile), tileMaxX = Math.ceil(clip.maxX / unitsPerTile);
+    const tileMinY = Math.floor(clip.minY / unitsPerTile), tileMaxY = Math.ceil(clip.maxY / unitsPerTile);
+    const canvasWidth = (tileMaxX - tileMinX) * 256, canvasHeight = (tileMaxY - tileMinY) * 256;
+    // Place the clipped artwork on a transparent canvas that starts at the lattice corner.
+    const left = Math.round((clip.minX - tileMinX * unitsPerTile) * pixelsPerUnit);
+    const top = Math.round((tileMaxY * unitsPerTile - clip.maxY) * pixelsPerUnit);
+    const width = Math.max(1, Math.round((clip.maxX - clip.minX) * pixelsPerUnit));
+    const height = Math.max(1, Math.round((clip.maxY - clip.minY) * pixelsPerUnit));
+    const resized = await sharp(croppedBytes, { limitInputPixels: false }).resize({ width, height, fit: "fill" }).ensureAlpha().raw().toBuffer();
+    const canvas = await sharp({ create: { width: canvasWidth, height: canvasHeight, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: resized, raw: { width, height, channels: 4 }, left, top }])
+      .raw().toBuffer();
+    for (let ty = tileMinY; ty < tileMaxY; ty++) for (let tx = tileMinX; tx < tileMaxX; tx++) {
+      // Canvas row zero is the northern edge, which is the lattice's highest y.
+      const canvasX = (tx - tileMinX) * 256, canvasY = (tileMaxY - 1 - ty) * 256;
+      const tilePixels = Buffer.alloc(256 * 256 * 4);
+      let opaque = 0;
+      for (let row = 0; row < 256; row++) {
+        const from = ((canvasY + row) * canvasWidth + canvasX) * 4;
+        canvas.copy(tilePixels, row * 256 * 4, from, from + 256 * 4);
+      }
+      for (let index = 3; index < tilePixels.length; index += 4) if (tilePixels[index]! !== 0) opaque++;
+      const state = opaque === 0 ? "empty" : opaque === 256 * 256 ? "captured" : "partial";
+      const webp = await sharp(tilePixels, { raw: { width: 256, height: 256, channels: 4 } }).webp({ quality: 82 }).toBuffer();
+      const sha256 = createHash("sha256").update(webp).digest("hex"), url = `imagery/${sha256}.webp`;
+      assetBytes.set(url, webp);
+      tiles.push({ z, x: tx, y: ty, width: 256, height: 256, url, sha256, bytes: webp.byteLength, state });
+    }
+  }
+  // The extent is the union of the finest tiles, which is what the reader's lattice covers.
+  const finest = 256 / 2 ** maxZoom;
   return {
-    origin: affine.origin,
-    xAxis: { x: affine.xAxis.x / scale, y: affine.xAxis.y / scale },
-    yAxis: { x: affine.yAxis.x / scale, y: affine.yAxis.y / scale },
+    id: layerId, mapSpaceId, tileSize: 256, minZoom, maxZoom,
+    extent: [Math.floor(clip.minX / finest) * finest, Math.floor(clip.minY / finest) * finest, Math.ceil(clip.maxX / finest) * finest, Math.ceil(clip.maxY / finest) * finest],
+    tiles,
   };
 }
 
@@ -675,10 +737,17 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     if (value.mapSpaceProfile.sha256 !== profileRecord.reference.sha256) throw new Error("Publication illustration uses different calibration.");
     const image = await source.readArtifact(value.image.path);
     if (image.reference.sha256 !== value.image.sha256 || image.reference.bytes !== value.image.bytes) throw new Error("Publication illustration image reference mismatch.");
-    // A reader downloads this layer whole, and the browser holds it as one texture. The source
-    // artwork is 7540x8192, which is 236 MB of RGBA and wedges the renderer, so the published
-    // layer is bounded and lossy. The declared size is the size that ships, not the source size.
-    if (value.image.width !== (await sharp(image.bytes).metadata()).width) throw new Error("Publication illustration dimensions mismatch.");
+    if (value.image.width !== (await sharp(image.bytes, { limitInputPixels: false }).metadata()).width) throw new Error("Publication illustration dimensions mismatch.");
+    if (value.registration.kind === "calibrated") {
+      const space = publicMaps.find((candidate) => candidate.mapSpaceId === value.mapSpaceId);
+      if (!space) throw new Error(`Publication illustration "${value.layerId}" names a map space that publishes no imagery.`);
+      const layer = await tileIllustration(value.layerId, value.mapSpaceId, image.bytes, value.image, value.registration.mapFromPixelEdge, space.bounds, assetBytes);
+      illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: "calibrated", layer });
+      continue;
+    }
+    // Without a reviewed transform the image has no lattice position, so it ships as one bounded
+    // image. The source can be 236 MB of RGBA decoded, which wedges a renderer, so the widest edge
+    // is capped and the declared size is the size that ships.
     const scale = Math.min(1, ILLUSTRATION_MAX_EDGE / Math.max(value.image.width, value.image.height));
     const converted = await sharp(image.bytes, { limitInputPixels: false })
       .resize({ width: Math.round(value.image.width * scale), height: Math.round(value.image.height * scale), fit: "fill" })
@@ -686,7 +755,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       .toBuffer({ resolveWithObject: true });
     const hash = createHash("sha256").update(converted.data).digest("hex"), url = `imagery/${hash}.webp`;
     assetBytes.set(url, converted.data);
-    illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: value.registration.kind, url, width: converted.info.width, height: converted.info.height, mapFromPixelEdge: value.registration.kind === "calibrated" ? scaleAffine(value.registration.mapFromPixelEdge, scale) : null });
+    illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: "orientation-only", url, width: converted.info.width, height: converted.info.height });
   }
   // A reviewer's domain box decides that a placement is not part of any map. Those decisions are
   // reported with their reasons and evidence; they are not omitted coverage.

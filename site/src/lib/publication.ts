@@ -8,7 +8,9 @@ export function resolvePublicationAssets(data: PublicationData, publicationUrl: 
       ...layer,
       tiles: layer.tiles.map((tile) => ({ ...tile, url: resolve(tile.url) }))
     })),
-    illustrations: data.illustrations.map((illustration) => ({ ...illustration, url: resolve(illustration.url) }))
+    illustrations: data.illustrations.map((illustration) => illustration.registration === 'calibrated'
+      ? { ...illustration, layer: { ...illustration.layer, tiles: illustration.layer.tiles.map((tile) => ({ ...tile, url: resolve(tile.url) })) } }
+      : { ...illustration, url: resolve(illustration.url) })
   };
 }
 

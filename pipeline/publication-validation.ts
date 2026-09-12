@@ -64,7 +64,8 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     if (map.levelRange && map.levelRange.max < map.levelRange.min) throw new Error(`Publication map has an inverted level range: ${map.mapSpaceId}`);
     if (!data.tileLayers.some(layer => layer.mapSpaceId === map.mapSpaceId)) throw new Error(`Publication map lacks primary imagery: ${map.mapSpaceId}`);
   }
-  for (const layer of data.tileLayers) {
+  // Captured pyramids and calibrated illustration pyramids share one lattice contract.
+  const validateTileLayer = (layer: PublicationData["tileLayers"][number]): void => {
     scope(layer.mapSpaceId);
     if (layer.minZoom > layer.maxZoom) throw new Error(`Publication tile layer has inverted zoom range: ${layer.mapSpaceId}`);
     if (!(layer.extent[2] > layer.extent[0] && layer.extent[3] > layer.extent[1])) throw new Error(`Publication tile layer has empty extent: ${layer.mapSpaceId}`);
@@ -100,7 +101,8 @@ export function validatePublication(value: unknown): asserts value is Publicatio
         if (!hasChild && tile.state !== "empty") throw new Error("Publication coarse tile is neither a parent of finer tiles nor transparent.");
       }
     }
-  }
+  };
+  for (const layer of data.tileLayers) validateTileLayer(layer);
   for (const placement of placements.values()) {
     if (placement.levelRange && placement.levelRange.max < placement.levelRange.min) throw new Error(`Publication placement has an inverted level range: ${placement.placementId}`);
     scope(placement.mapSpaceId);
@@ -130,8 +132,10 @@ export function validatePublication(value: unknown): asserts value is Publicatio
   }
   for (const illustration of data.illustrations) {
     scope(illustration.mapSpaceId);
-    if ((illustration.registration === "calibrated") !== (illustration.mapFromPixelEdge !== null)) throw new Error("Publication illustration registration contradicts its transform.");
-    if (illustration.mapFromPixelEdge) inversePoint(illustration.mapFromPixelEdge, [0, 0]);
+    if (illustration.registration === "calibrated") {
+      if (illustration.layer.mapSpaceId !== illustration.mapSpaceId) throw new Error("Publication illustration pyramid names a different map space.");
+      validateTileLayer(illustration.layer);
+    }
   }
 }
 

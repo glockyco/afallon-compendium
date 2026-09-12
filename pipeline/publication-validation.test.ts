@@ -4,7 +4,7 @@ import type { PublicationData } from "./public-contracts";
 
 function publication(): PublicationData {
   return {
-    schemaVersion: "compendium.publication.v9", buildId: "build", mode: "release",
+    schemaVersion: "compendium.publication.v10", buildId: "build", mode: "release",
     coverage: { complete: true, excludedPlacements: 0, messages: [] },
     world: { mapSpaceId: "world", label: "World", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "reviewed", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: "world", label: "World", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } } }],
