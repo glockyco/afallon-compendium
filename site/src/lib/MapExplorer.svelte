@@ -97,9 +97,14 @@
   let searchIndexes: SearchIndexes = emptySearchIndexes();
 
   $: layerOptions = getLayerOptions(publication);
-  $: tileLayerOptions = (publication?.tileLayers ?? []).map((tileLayer) => ({ id: tileLayer.id, label: mapLabel(publication, tileLayer.mapSpaceId) }));
+  $: tileLayerOptions = (publication?.tileLayers ?? []).map((tileLayer) => ({ id: tileLayer.id, label: mapLabel(publication, tileLayer.mapSpaceId) })).sort((left, right) => left.label.localeCompare(right.label));
   $: illustrationOptions = layerOptions.filter((option) => option.kind === 'illustration');
-  $: activeIllustration = illustrationOptions.find((option) => layerIds.includes(option.id)) ?? null;
+  $: gameMapOptions = illustrationOptions.filter((option) => !option.orientationOnly).sort((left, right) => left.label.localeCompare(right.label));
+  $: looseIllustrationOptions = illustrationOptions.filter((option) => option.orientationOnly);
+  $: visibleGameMapIds = layerIds.includes('game-maps') ? gameMapOptions.map((option) => option.id) : gameMapOptions.filter((option) => layerIds.includes(option.id)).map((option) => option.id);
+  $: gameMapsChecked = visibleGameMapIds.length > 0;
+  $: gameMapsPartial = visibleGameMapIds.length > 0 && visibleGameMapIds.length < gameMapOptions.length;
+  $: activeIllustration = looseIllustrationOptions.find((option) => layerIds.includes(option.id)) ?? null;
   $: approximateIllustration = activeIllustration?.orientationOnly ?? false;
   $: visibleTileLayerIds = layerIds.includes('captured') ? tileLayerOptions.map((option) => option.id) : tileLayerOptions.filter((option) => layerIds.includes(option.id)).map((option) => option.id);
   $: capturedChecked = visibleTileLayerIds.length > 0;
@@ -314,6 +319,20 @@
     return { target: [x, y, 0], zoom: Math.log2(scale * 0.9) };
   }
 
+  // The game's own maps are the familiar view, so they are on by default. Captured screenshots
+  // default on only for the world surface, where they add terrain the drawing lacks.
+  function defaultLayers(data: PublicationData | null): string[] {
+    const layers: string[] = [];
+    if (data?.illustrations.some((illustration) => illustration.registration === 'calibrated')) layers.push('game-maps');
+    // Captured screenshots stay on for maps the game itself places in the world (the surface),
+    // where they add terrain the drawing lacks; interiors open on their game map alone.
+    const native = new Set((data?.world.offsets ?? []).filter((offset) => offset.source === 'native').map((offset) => offset.mapSpaceId));
+    const surfaces = (data?.tileLayers ?? []).filter((layer) => native.has(layer.mapSpaceId));
+    if (surfaces.length > 0) layers.push(...surfaces.map((layer) => layer.id));
+    else if (data && data.tileLayers.length > 0) layers.push('captured');
+    return layers.length > 0 ? layers : ['captured'];
+  }
+
   function getLayerOptions(data: PublicationData | null): LayerOption[] {
     if (!data) return [];
     const options: LayerOption[] = data.tileLayers.length > 0 ? [{ id: 'captured', label: 'Captured screenshots', kind: 'screenshot', orientationOnly: false }] : [];
@@ -465,9 +484,9 @@
   function applyUrlState(next: MapUrlState): void {
     itemSourceQuery = next.itemSourceQuery;
     detailQuery = next.detailQuery;
-    const known = new Set([...getLayerOptions(publication).map((option) => option.id), ...(publication?.tileLayers ?? []).map((tileLayer) => tileLayer.id)]);
+    const known = new Set(['game-maps', ...getLayerOptions(publication).map((option) => option.id), ...(publication?.tileLayers ?? []).map((tileLayer) => tileLayer.id)]);
     const requested = next.layerIds.filter((id) => known.has(id));
-    layerIds = requested.length > 0 ? requested : ['captured'];
+    layerIds = requested.length > 0 ? requested : defaultLayers(publication);
     query = next.query;
     categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
     levelMinimum = next.levelMinimum;
@@ -575,9 +594,14 @@
   function setLayers(next: string[]): void {
     const tileIds = tileLayerOptions.map((option) => option.id);
     const chosenTiles = next.filter((id) => tileIds.includes(id));
-    const normalised = next.includes('captured') || (tileIds.length > 0 && chosenTiles.length === tileIds.length)
+    const withTiles = next.includes('captured') || (tileIds.length > 0 && chosenTiles.length === tileIds.length)
       ? [...next.filter((id) => !tileIds.includes(id) && id !== 'captured'), 'captured']
       : next.filter((id) => id !== 'captured');
+    const gameIds = gameMapOptions.map((option) => option.id);
+    const chosenGame = withTiles.filter((id) => gameIds.includes(id));
+    const normalised = withTiles.includes('game-maps') || (gameIds.length > 0 && chosenGame.length === gameIds.length)
+      ? [...withTiles.filter((id) => !gameIds.includes(id) && id !== 'game-maps'), 'game-maps']
+      : withTiles.filter((id) => id !== 'game-maps');
     layerIds = [...new Set(normalised)];
     syncUrl('push');
   }
@@ -591,6 +615,17 @@
   function toggleMapLayer(id: string): void {
     const expanded = visibleTileLayerIds.includes(id) ? visibleTileLayerIds.filter((current) => current !== id) : [...visibleTileLayerIds, id];
     setLayers([...layerIds.filter((current) => !tileLayerOptions.some((option) => option.id === current) && current !== 'captured'), ...expanded]);
+  }
+
+  function toggleGameMaps(): void {
+    setLayers(gameMapsChecked
+      ? layerIds.filter((id) => id !== 'game-maps' && !gameMapOptions.some((option) => option.id === id))
+      : [...layerIds, 'game-maps']);
+  }
+
+  function toggleGameMap(id: string): void {
+    const expanded = visibleGameMapIds.includes(id) ? visibleGameMapIds.filter((current) => current !== id) : [...visibleGameMapIds, id];
+    setLayers([...layerIds.filter((current) => !gameMapOptions.some((option) => option.id === current) && current !== 'game-maps'), ...expanded]);
   }
 
   function toggleIllustration(option: LayerOption): void {
@@ -731,7 +766,22 @@
                     </details>
                   {/if}
                 {/if}
-                {#each illustrationOptions as option (option.id)}
+                {#if gameMapOptions.length > 0}
+                  <label class="tool-option">
+                    <input type="checkbox" checked={gameMapsChecked} indeterminate={gameMapsPartial} on:change={toggleGameMaps} />
+                    <span>Game maps</span>
+                    <span class="count">{visibleGameMapIds.length}/{gameMapOptions.length}</span>
+                  </label>
+                  {#if gameMapOptions.length > 1}
+                    <details class="layer-maps" open={gameMapsPartial}>
+                      <summary>Individual game maps</summary>
+                      {#each gameMapOptions as option (option.id)}
+                        <label class="tool-option nested"><input type="checkbox" checked={visibleGameMapIds.includes(option.id)} on:change={() => toggleGameMap(option.id)} /><span>{option.label}</span></label>
+                      {/each}
+                    </details>
+                  {/if}
+                {/if}
+                {#each looseIllustrationOptions as option (option.id)}
                   <label class="tool-option"><input type="checkbox" checked={layerIds.includes(option.id)} on:change={() => toggleIllustration(option)} /><span>{option.label}</span></label>
                 {/each}
                 {#if approximateIllustration}<p class="notice">The artwork has no reviewed registration yet. It draws behind the captured imagery, fitted to the map's world bounds, so marker positions over it are approximate.</p>{/if}

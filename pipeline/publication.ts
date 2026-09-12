@@ -24,8 +24,10 @@ const ILLUSTRATION_MAX_EDGE = 4096;
 
 // Resamples a calibrated illustration onto the world tile lattice. The lattice is the one captured
 // imagery uses: a tile at zoom z covers 256 / 2 ** z world units on each axis, and image row zero
-// is the northern edge. Only the part inside the map's reviewed bounds is published, and the
-// finest level is the one closest to the artwork's own resolution, so no pixel is invented.
+// is the northern edge. Each lattice pixel is mapped back through the inverse transform and
+// sampled bilinearly from the artwork, so a rotated zone is handled the same way as an aligned one.
+// Only the part inside the map's reviewed bounds is published, and the finest level is the one
+// closest to the artwork's own resolution, so no pixel is invented.
 async function tileIllustration(
   layerId: string,
   mapSpaceId: string,
@@ -33,53 +35,67 @@ async function tileIllustration(
   image: { width: number; height: number },
   affine: PublicAffine,
   bounds: { min: { x: number; y: number }; max: { x: number; y: number } },
+  coarsestZoom: number,
   assetBytes: Map<string, Uint8Array>,
 ): Promise<PublicTileLayer> {
-  if (affine.xAxis.y !== 0 || affine.yAxis.x !== 0 || affine.xAxis.x <= 0 || affine.yAxis.y >= 0) {
-    throw new Error(`Illustration "${layerId}" is not axis-aligned north-up; tiling a rotated or mirrored transform is not implemented.`);
-  }
-  const unitsPerPixelX = affine.xAxis.x, unitsPerPixelY = -affine.yAxis.y;
-  // World rectangle the artwork covers, clipped to the map's bounds.
-  const artwork = { minX: affine.origin.x, maxX: affine.origin.x + image.width * unitsPerPixelX, maxY: affine.origin.y, minY: affine.origin.y - image.height * unitsPerPixelY };
+  const { xAxis, yAxis, origin } = affine;
+  const determinant = xAxis.x * yAxis.y - xAxis.y * yAxis.x;
+  if (!Number.isFinite(determinant) || determinant === 0) throw new Error(`Illustration "${layerId}" has a degenerate transform.`);
+  // Inverse of [xAxis yAxis]: world delta -> artwork pixel.
+  const inverse = { a: yAxis.y / determinant, b: -yAxis.x / determinant, c: -xAxis.y / determinant, d: xAxis.x / determinant };
+  const toArtwork = (wx: number, wy: number): [number, number] => {
+    const dx = wx - origin.x, dy = wy - origin.y;
+    return [inverse.a * dx + inverse.b * dy, inverse.c * dx + inverse.d * dy];
+  };
+  const toWorld = (px: number, py: number): [number, number] => [origin.x + xAxis.x * px + yAxis.x * py, origin.y + xAxis.y * px + yAxis.y * py];
+  const corners = [toWorld(0, 0), toWorld(image.width, 0), toWorld(0, image.height), toWorld(image.width, image.height)];
+  const artwork = { minX: Math.min(...corners.map((c) => c[0])), maxX: Math.max(...corners.map((c) => c[0])), minY: Math.min(...corners.map((c) => c[1])), maxY: Math.max(...corners.map((c) => c[1])) };
   const clip = { minX: Math.max(artwork.minX, bounds.min.x), maxX: Math.min(artwork.maxX, bounds.max.x), minY: Math.max(artwork.minY, bounds.min.y), maxY: Math.min(artwork.maxY, bounds.max.y) };
   if (clip.minX >= clip.maxX || clip.minY >= clip.maxY) throw new Error(`Illustration "${layerId}" does not overlap its map's bounds.`);
-  // Finest level: the zoom whose lattice pixel is no finer than the artwork pixel.
-  const maxZoom = Math.floor(Math.log2(1 / Math.max(unitsPerPixelX, unitsPerPixelY)));
+  // World units per artwork pixel along each axis; the finest zoom whose lattice pixel is no
+  // finer than the artwork pixel.
+  const unitsPerPixel = Math.min(Math.hypot(xAxis.x, xAxis.y), Math.hypot(yAxis.x, yAxis.y));
+  const maxZoom = Math.floor(Math.log2(1 / unitsPerPixel));
   const span = Math.max(clip.maxX - clip.minX, clip.maxY - clip.minY);
-  const minZoom = Math.min(maxZoom, Math.floor(Math.log2(256 / span)));
+  // No coarser than the map's own pyramid: world offsets are aligned to that lattice, not beyond it.
+  const minZoom = Math.max(coarsestZoom, Math.min(maxZoom, Math.floor(Math.log2(256 / span))));
+  const source = await sharp(bytes, { limitInputPixels: false }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const tiles: PublicTileLayer["tiles"] = [];
-  const cropped = sharp(bytes, { limitInputPixels: false }).extract({
-    left: Math.floor((clip.minX - artwork.minX) / unitsPerPixelX),
-    top: Math.floor((artwork.maxY - clip.maxY) / unitsPerPixelY),
-    width: Math.ceil((clip.maxX - clip.minX) / unitsPerPixelX),
-    height: Math.ceil((clip.maxY - clip.minY) / unitsPerPixelY),
-  });
-  const croppedBytes = await cropped.png().toBuffer();
   for (let z = maxZoom; z >= minZoom; z--) {
     const unitsPerTile = 256 / 2 ** z;
     const pixelsPerUnit = 2 ** z;
+    // Sample from a copy shrunk to about the lattice resolution so minification averages rather than aliases.
+    const shrink = Math.min(1, pixelsPerUnit * unitsPerPixel);
+    const sampled = shrink < 1
+      ? await sharp(source.data, { raw: { width: source.info.width, height: source.info.height, channels: 4 } }).resize({ width: Math.max(1, Math.round(source.info.width * shrink)), height: Math.max(1, Math.round(source.info.height * shrink)), fit: "fill" }).raw().toBuffer({ resolveWithObject: true })
+      : source;
+    const scaleX = sampled.info.width / image.width, scaleY = sampled.info.height / image.height;
     const tileMinX = Math.floor(clip.minX / unitsPerTile), tileMaxX = Math.ceil(clip.maxX / unitsPerTile);
     const tileMinY = Math.floor(clip.minY / unitsPerTile), tileMaxY = Math.ceil(clip.maxY / unitsPerTile);
-    const canvasWidth = (tileMaxX - tileMinX) * 256, canvasHeight = (tileMaxY - tileMinY) * 256;
-    // Place the clipped artwork on a transparent canvas that starts at the lattice corner.
-    const left = Math.round((clip.minX - tileMinX * unitsPerTile) * pixelsPerUnit);
-    const top = Math.round((tileMaxY * unitsPerTile - clip.maxY) * pixelsPerUnit);
-    const width = Math.max(1, Math.round((clip.maxX - clip.minX) * pixelsPerUnit));
-    const height = Math.max(1, Math.round((clip.maxY - clip.minY) * pixelsPerUnit));
-    const resized = await sharp(croppedBytes, { limitInputPixels: false }).resize({ width, height, fit: "fill" }).ensureAlpha().raw().toBuffer();
-    const canvas = await sharp({ create: { width: canvasWidth, height: canvasHeight, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-      .composite([{ input: resized, raw: { width, height, channels: 4 }, left, top }])
-      .raw().toBuffer();
     for (let ty = tileMinY; ty < tileMaxY; ty++) for (let tx = tileMinX; tx < tileMaxX; tx++) {
-      // Canvas row zero is the northern edge, which is the lattice's highest y.
-      const canvasX = (tx - tileMinX) * 256, canvasY = (tileMaxY - 1 - ty) * 256;
       const tilePixels = Buffer.alloc(256 * 256 * 4);
       let opaque = 0;
+      const worldLeft = tx * unitsPerTile, worldTop = (ty + 1) * unitsPerTile;
       for (let row = 0; row < 256; row++) {
-        const from = ((canvasY + row) * canvasWidth + canvasX) * 4;
-        canvas.copy(tilePixels, row * 256 * 4, from, from + 256 * 4);
+        const wy = worldTop - (row + 0.5) / pixelsPerUnit;
+        for (let column = 0; column < 256; column++) {
+          const wx = worldLeft + (column + 0.5) / pixelsPerUnit;
+          if (wx < clip.minX || wx >= clip.maxX || wy < clip.minY || wy >= clip.maxY) continue;
+          const [ax, ay] = toArtwork(wx, wy);
+          const sx = ax * scaleX - 0.5, sy = ay * scaleY - 0.5;
+          if (sx < -0.5 || sy < -0.5 || sx >= sampled.info.width - 0.5 || sy >= sampled.info.height - 0.5) continue;
+          const x0 = Math.max(0, Math.floor(sx)), y0 = Math.max(0, Math.floor(sy));
+          const x1 = Math.min(sampled.info.width - 1, x0 + 1), y1 = Math.min(sampled.info.height - 1, y0 + 1);
+          const fx = Math.min(1, Math.max(0, sx - x0)), fy = Math.min(1, Math.max(0, sy - y0));
+          const at = (row * 256 + column) * 4;
+          for (let channel = 0; channel < 4; channel++) {
+            const p00 = sampled.data[(y0 * sampled.info.width + x0) * 4 + channel]!, p10 = sampled.data[(y0 * sampled.info.width + x1) * 4 + channel]!;
+            const p01 = sampled.data[(y1 * sampled.info.width + x0) * 4 + channel]!, p11 = sampled.data[(y1 * sampled.info.width + x1) * 4 + channel]!;
+            tilePixels[at + channel] = Math.round((p00 * (1 - fx) + p10 * fx) * (1 - fy) + (p01 * (1 - fx) + p11 * fx) * fy);
+          }
+          if (tilePixels[at + 3]! !== 0) opaque++;
+        }
       }
-      for (let index = 3; index < tilePixels.length; index += 4) if (tilePixels[index]! !== 0) opaque++;
       const state = opaque === 0 ? "empty" : opaque === 256 * 256 ? "captured" : "partial";
       const webp = await sharp(tilePixels, { raw: { width: 256, height: 256, channels: 4 } }).webp({ quality: 82 }).toBuffer();
       const sha256 = createHash("sha256").update(webp).digest("hex"), url = `imagery/${sha256}.webp`;
@@ -560,9 +576,8 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     new Set([...bindingsPerMap].filter(([, count]) => count > 1).map(([mapSpaceId]) => mapSpaceId)),
   );
   const offsetByMap = new Map(layout.offsets.map((offset) => [offset.mapSpaceId, offset]));
-  tileLayers = localTileLayers.map((layer) => {
-    const offset = offsetByMap.get(layer.mapSpaceId);
-    if (!offset) throw new Error(`World layout has no offset for map space: ${layer.mapSpaceId}`);
+  // Moves a pyramid from its map's local coordinates to the published world by a lattice-aligned offset.
+  const shiftLayer = (layer: PublicTileLayer, offset: { worldX: number; worldY: number }): PublicTileLayer => {
     const finestPixel = 1 / 2 ** layer.maxZoom;
     const shiftX = offset.worldX / finestPixel;
     const shiftY = offset.worldY / finestPixel;
@@ -576,6 +591,11 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       extent: [layer.extent[0] + offset.worldX, layer.extent[1] + offset.worldY, layer.extent[2] + offset.worldX, layer.extent[3] + offset.worldY] as [number, number, number, number],
       tiles: layer.tiles.map((tile) => ({ ...tile, x: tile.x + Math.round(offset.worldX / (layer.tileSize / 2 ** tile.z)), y: tile.y + Math.round(offset.worldY / (layer.tileSize / 2 ** tile.z)) })),
     };
+  };
+  tileLayers = localTileLayers.map((layer) => {
+    const offset = offsetByMap.get(layer.mapSpaceId);
+    if (!offset) throw new Error(`World layout has no offset for map space: ${layer.mapSpaceId}`);
+    return shiftLayer(layer, offset);
   });
   const covered = (placement: NormalizedPlacement): boolean => {
     if (!placement.mapPosition || !placement.mapSpaceId) return false;
@@ -739,9 +759,13 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     if (image.reference.sha256 !== value.image.sha256 || image.reference.bytes !== value.image.bytes) throw new Error("Publication illustration image reference mismatch.");
     if (value.image.width !== (await sharp(image.bytes, { limitInputPixels: false }).metadata()).width) throw new Error("Publication illustration dimensions mismatch.");
     if (value.registration.kind === "calibrated") {
-      const space = publicMaps.find((candidate) => candidate.mapSpaceId === value.mapSpaceId);
-      if (!space) throw new Error(`Publication illustration "${value.layerId}" names a map space that publishes no imagery.`);
-      const layer = await tileIllustration(value.layerId, value.mapSpaceId, image.bytes, value.image, value.registration.mapFromPixelEdge, space.bounds, assetBytes);
+      // The transform is in the map's own coordinates, so clip against the local pyramid and
+      // move the result by the same world offset the captured pyramid received.
+      const local = localTileLayers.find((candidate) => candidate.mapSpaceId === value.mapSpaceId);
+      const offset = offsetByMap.get(value.mapSpaceId);
+      if (!local || !offset) throw new Error(`Publication illustration "${value.layerId}" names a map space that publishes no imagery.`);
+      const localBounds = { min: { x: local.extent[0], y: local.extent[1] }, max: { x: local.extent[2], y: local.extent[3] } };
+      const layer = shiftLayer(await tileIllustration(value.layerId, value.mapSpaceId, image.bytes, value.image, value.registration.mapFromPixelEdge, localBounds, local.minZoom, assetBytes), offset);
       illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: "calibrated", layer });
       continue;
     }

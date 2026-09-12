@@ -360,8 +360,10 @@ function matchingTileLayers(data: PublicationData, layerIds: readonly string[]):
   return data.tileLayers.filter((layer) => layerIds.includes(layer.id));
 }
 
+// 'game-maps' stands for every calibrated illustration, as 'captured' stands for every pyramid.
 function matchingIllustrations(data: PublicationData, layerIds: readonly string[]): PublicIllustration[] {
-  return data.illustrations.filter((illustration) => layerIds.includes(illustration.id));
+  const all = layerIds.includes("game-maps");
+  return data.illustrations.filter((illustration) => layerIds.includes(illustration.id) || (all && illustration.registration === "calibrated"));
 }
 
 // An illustration without a reviewed transform still needs somewhere to draw. Its map space's
