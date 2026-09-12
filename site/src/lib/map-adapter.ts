@@ -646,8 +646,11 @@ export async function createMapAdapter(
         pickable: false,
         getPosition: (region) => polygonCentroid(region.polygon),
         getText: (region) => region.name,
-        getSize: 16,
-        sizeUnits: "pixels",
+        // World units, as the map-space labels: zone names shrink with the map and stay
+        // legible only where the zone itself has room on screen.
+        getSize: 20,
+        sizeUnits: "common",
+        sizeMaxPixels: 16,
         getColor: [235, 220, 180, 235],
         getTextAnchor: "middle",
         getAlignmentBaseline: "center",
