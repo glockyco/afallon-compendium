@@ -26,10 +26,10 @@ export async function encodeRawFrame(path: string, reported: { sha256: string; b
 
 export type CapturePosition = { x: number; y: number; z: number };
 
-// The walkable point nearest the plan's horizontal centre. Standing there keeps every source of
-// the map resident, so the scene is static for capture.
+// The walkable point nearest the centre of the plan's standing box: the box the plan declares,
+// which does not change when its tile set changes, or else the tiles' extent.
 export function capturePositionFor(plan: CapturePlan, survey: NavigationSurvey): CapturePosition {
-  return walkablePointNearest(planBox(plan), survey, "capture plan");
+  return walkablePointNearest(plan.standing ?? planBox(plan), survey, "capture plan standing box");
 }
 
 function planBox(plan: CapturePlan): { minX: number; maxX: number; minZ: number; maxZ: number } {

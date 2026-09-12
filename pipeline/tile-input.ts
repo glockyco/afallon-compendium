@@ -141,7 +141,7 @@ function assertCapturePlan(value: unknown): CapturePlan {
   try {
     Assert(CapturePlanSchema, value);
   } catch (error) {
-    fail(`capture plan does not satisfy compendium.capture-plan.v8: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`capture plan does not satisfy compendium.capture-plan.v9: ${error instanceof Error ? error.message : String(error)}`);
   }
   return value as CapturePlan;
 }
@@ -269,7 +269,7 @@ async function loadSource(reference: TileReference, planDirectory: string, profi
   if (planFile.bytes.byteLength !== planItem.bytes) fail(`source run ${reference.path} capture plan byte count differs from its registered value`);
   const capturePlan = assertCapturePlan(readJson(planFile.bytes, `capture plan ${planReference.path}`));
   const capturePlanPath = planFile.path;
-  if (capturePlan.schemaVersion !== "compendium.capture-plan.v8") fail(`source run ${reference.path} uses an unsupported capture plan`);
+  if (capturePlan.schemaVersion !== "compendium.capture-plan.v9") fail(`source run ${reference.path} uses an unsupported capture plan`);
   const capturePlanTileIds = new Set(capturePlan.tiles.map(tile => tile.id));
   if (capturePlanTileIds.size !== capturePlan.tiles.length) fail(`source run ${reference.path} capture plan repeats a tile ID`);
   const inputHashes = asObject(input.inputHashes, `source run ${reference.path}.inputHashes`);

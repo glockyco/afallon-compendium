@@ -28,9 +28,12 @@ export const CaptureReadinessProfileSchema = Type.Object({
   boundaryOverlap: Type.Number({ minimum: 0, maximum: 1000 }),
 });
 export const CapturePlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-plan.v8"),
+  schemaVersion: Type.Literal("compendium.capture-plan.v9"),
   sceneNativeId: count, scenePath: text, mapSpaceId: text,
   survey: Type.Optional(CaptureSurveySchema),
+  // The box whose centre the player stands nearest to. Declared by the planner so that the
+  // standing point, and with it every tile's compatibility key, survives a change of tile set.
+  standing: Type.Optional(Type.Object({ minX: number, maxX: number, minZ: number, maxZ: number })),
   width: Type.Integer({ minimum: 64, maximum: 2048 }), height: Type.Integer({ minimum: 64, maximum: 2048 }),
   cullingMask: Type.Integer({ minimum: -2147483648, maximum: 2147483647 }),
   lighting: Type.Object({ ambient: color, directionalIntensity: Type.Number({ minimum: 0, maximum: 4 }), directionalEuler: vector }),
