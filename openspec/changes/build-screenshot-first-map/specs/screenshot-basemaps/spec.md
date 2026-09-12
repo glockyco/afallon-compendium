@@ -46,24 +46,24 @@ Overlapping markers from stacked content SHALL remain distinct records at their 
 - **THEN** both remain separately selectable records
 - **AND** the atlas does not merge, hide, or displace either one
 
-### Requirement: A cut follows the walkable surface
+### Requirement: Capture renders each tile with its declared frame
 
-Capture SHALL NOT cut by default. An extent without a reviewed cut SHALL be captured with the camera frame its plan declares, which is the ordinary case and covers every world surface extent.
+Capture SHALL render every tile with the camera frame its plan declares, as one frame, and SHALL NOT slice, cut, or composite along any surface. Only the world surface is captured; each interior publishes the map the game draws for it.
 
-A capture plan MAY carry a reviewed cut for a map whose content is covered by geometry above it. The cut SHALL cite the hashed navigation survey of the map's scene and declare a slice step, a headroom, and the camera height above the top slice. For each tile, capture SHALL rasterize the highest walkable height under every pixel from that survey, fill pixels without walkable surface from their nearest walkable neighbour, render one slice per step across the tile's walkable range in one frame-local operation, and compose each pixel from the first slice whose cut sits at or above that pixel's walkable height plus headroom. The tile image SHALL be that composite. The artifact SHALL record the walkable range, the slice heights, and the survey hash, and SHALL retain every slice with its hash. A cut SHALL NOT disable or delete scene objects. Capture SHALL NOT use one height for a whole map, because a dungeon's walkable surface spans more than a hundred units inside one tile.
+A capture plan MAY cite the hashed navigation survey of its scene. When it does, capture SHALL stand the player on the walkable point nearest the map's centre before observing, and the survey hash SHALL be part of every tile's compatibility key.
 
-#### Scenario: An extent needs no cut
-- **WHEN** its plan declares no reviewed cut
-- **THEN** capture renders it with the plan's camera frame as one slice
-- **AND** the artifact records a null cut
+The game switches a terrain's objects off unless the player stands inside that terrain. When one observation of the whole map leaves such switched-off loaders inside its envelope, or loses a required source to that switch during its stream visit, capture SHALL observe each tile under its own readiness so the artifact records exactly what that tile's frame saw. A loader the game switched off during a visit SHALL NOT count as a restoration leak.
 
-#### Scenario: Ledges and floor share one tile
-- **WHEN** a dungeon tile's walkable surface spans from its floor to a ledge far above
-- **THEN** the composite shows the floor under the low cut and the ledge under the high cut
-- **AND** no ceiling above either surface appears
-- **AND** the raster records every slice height and the walkable range
+#### Scenario: One standing point shows the whole map
+- **WHEN** the map's observation finds no switched-off loader inside its envelope
+- **THEN** every tile renders under that one observation
 
-#### Scenario: A cut survey changes
+#### Scenario: The game hides terrain the player is not standing in
+- **WHEN** the map's observation finds switched-off loaders inside its envelope
+- **THEN** each tile is observed and rendered under its own readiness
+- **AND** a tile whose frame spans two such terrains records the hidden region as empty rather than inventing it
+
+#### Scenario: A survey changes
 - **WHEN** the cited navigation survey's hash changes
 - **THEN** every tile of that map is recaptured rather than reused
 
@@ -190,7 +190,7 @@ The capture plan SHALL carry a reviewed suppression policy: shader-name prefixes
 The output SHALL include build identity, capture inputs, spatial metadata, tile coordinates, file hashes, and coverage results. Reuse SHALL require compatible inputs and verified file integrity. The tile pyramid SHALL have a single defined finest resolution, explicit empty positions, and no unexplained holes. A failed capture SHALL not replace the last valid artifact set.
 
 #### Scenario: A capture resumes with changed inputs
-- **WHEN** the game build, geometry coverage, calibration, cut survey, suppression, or capture profile changes
+- **WHEN** the game build, geometry coverage, calibration, navigation survey, suppression, or capture profile changes
 - **THEN** incompatible chunks are recaptured rather than reused as current output
 
 #### Scenario: Captured imagery and markers belong to different builds

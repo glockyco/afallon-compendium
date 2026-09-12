@@ -33,8 +33,8 @@ import type { Runtime } from "./runtime";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
-import { HiddenSourceError, TooManySourcesError, withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
-import { capturePositionFor, compositeRawSlices, cutCaptureFrame, loadNavigationSurvey, planTileCut, tileCapturePositionFor, type CapturePosition, type CutPlan, type NavigationSurvey } from "./capture-cut";
+import { TooManySourcesError, withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
+import { capturePositionFor, encodeRawFrame, loadNavigationSurvey, type CapturePosition, type NavigationSurvey } from "./capture-position";
 import {
   captureArtifactReference,
   copyReusableTile,
@@ -166,9 +166,9 @@ async function registerProbeArtifact(
 }
 
 // One readiness subject covering every pending tile: the horizontal union of their frames and
-// the vertical union of their cut camera intervals, so a static scene is observed once.
-function mapExtentSubject(plan: CapturePlan, pending: readonly CapturePlan["tiles"][number][], cutPlans: ReadonlyMap<string, CutPlan | null>): ReadinessSubject {
-  const frames = pending.map(tile => cutCaptureFrame(tile, cutPlans.get(tile.id)!));
+// the vertical union of their camera intervals, so a static scene is observed once.
+function mapExtentSubject(plan: CapturePlan, pending: readonly CapturePlan["tiles"][number][]): ReadinessSubject {
+  const frames = pending.map(tile => tile.frame);
   const minX = Math.min(...frames.map(frame => frame.center.x - frame.worldSize.x / 2));
   const maxX = Math.max(...frames.map(frame => frame.center.x + frame.worldSize.x / 2));
   const minZ = Math.min(...frames.map(frame => frame.center.z - frame.worldSize.z / 2));
@@ -269,7 +269,7 @@ async function hashPng(path: string, expectedWidth: number, expectedHeight: numb
   return { sha256: createHash("sha256").update(bytes).digest("hex"), byteSize: bytes.byteLength };
 }
 
-function registerRaster(capture: CapturedTile, image: { sha256: string }, cut: CaptureReadiness["cut"]): CaptureRaster {
+function registerRaster(capture: CapturedTile, image: { sha256: string }): CaptureRaster {
   const { center, worldSize, nearClip, farClip } = capture.cameraFrame;
   const origin = { x: center.x - worldSize.x / 2, z: center.z + worldSize.z / 2 };
   const xAxis = { x: worldSize.x / capture.width, z: 0 };
@@ -291,9 +291,8 @@ function registerRaster(capture: CapturedTile, image: { sha256: string }, cut: C
     maximumProjectionErrorPixels = Math.max(maximumProjectionErrorPixels, error);
   }
   const raster: CaptureRaster = {
-    schemaVersion: "compendium.capture-raster.v4", tileId: capture.tileId, imageSha256: image.sha256,
+    schemaVersion: "compendium.capture-raster.v5", tileId: capture.tileId, imageSha256: image.sha256,
     cameraFrame: capture.cameraFrame,
-    cut,
     verticalBounds: { minY: capture.cameraFrame.cameraY - farClip, maxY: capture.cameraFrame.cameraY - nearClip },
     width: capture.width, height: capture.height, coordinateSystem: "source-scene-world-xz", pixelConvention: "top-left-edges",
     worldFromPixelEdge: { origin, xAxis, yAxis }, maximumProjectionErrorPixels,
@@ -312,7 +311,7 @@ type CaptureTileResult = CapturedTile & {
   origin: CaptureTileCheckpoint["origin"];
 };
 
-async function loadReusedTileResult(directory: string, tile: CapturePlan["tiles"][number], candidate: ReusableCaptureTile, copied: CaptureTileCheckpoint, plan: CapturePlan, cutPlan: CutPlan | null): Promise<CaptureTileResult> {
+async function loadReusedTileResult(directory: string, tile: CapturePlan["tiles"][number], candidate: ReusableCaptureTile, copied: CaptureTileCheckpoint, plan: CapturePlan): Promise<CaptureTileResult> {
   const responseReference = findResponseReference(copied.artifacts, tile.id);
   if (responseReference === undefined) throw new Error(`Reused tile "${tile.id}" has no copied native response.`);
   const response = await readCaptureArtifactJson(directory, responseReference);
@@ -323,10 +322,7 @@ async function loadReusedTileResult(directory: string, tile: CapturePlan["tiles"
   const readiness = await readCaptureArtifactJson(directory, copied.artifacts.readiness);
   assertSchema(CaptureReadinessSchema, readiness, `Reused readiness for tile "${tile.id}"`);
   if (capture.width !== plan.width || capture.height !== plan.height || capture.frame !== capture.restoredFrame) throw new Error(`Reused tile "${tile.id}" has mismatched capture metadata.`);
-  // The tile's own readiness carries its cut; a map-extent readiness carries none.
-  const expectedCut = cutPlan === null ? null : cutPlan.evidence;
-  if (!isDeepStrictEqual(readiness.tileId === tile.id ? readiness.cut : null, readiness.tileId === tile.id ? expectedCut : null)) throw new Error(`Reused tile "${tile.id}" has incompatible reviewed cut evidence.`);
-  const expectedFrame = cutCaptureFrame(tile, cutPlan);
+  const expectedFrame = tile.frame;
   assertFrameMatches(capture, expectedFrame, tile.id);
   if (!readinessCovers(readiness as CaptureReadiness, tile)) throw new Error(`Reused tile "${tile.id}" readiness does not cover its frame.`);
   assertRestorationAudit(await readCaptureArtifactJson(directory, copied.artifacts.restoration), tile, copied.origin.captureKey, capture.frame, plan.lighting);
@@ -334,7 +330,7 @@ async function loadReusedTileResult(directory: string, tile: CapturePlan["tiles"
   const image = await hashPng(imagePath, plan.width, plan.height, tile.id);
   if (image.sha256 !== copied.artifacts.image.sha256) throw new Error("Reused image disagrees with its checkpoint.");
   const raster = await readCaptureArtifactJson(directory, copied.artifacts.raster);
-  if (!isDeepStrictEqual(raster, registerRaster(capture, image, expectedCut))) throw new Error("Reused raster disagrees with its native camera controls or cut evidence.");
+  if (!isDeepStrictEqual(raster, registerRaster(capture, image))) throw new Error("Reused raster disagrees with its native camera controls.");
   return {
     ...capture,
     readiness: readiness as CaptureReadiness,
@@ -397,7 +393,7 @@ async function capturePlan(
     inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   }
   for (const name of [
-    "capture", "capture-cache", "capture-contracts", "capture-cut", "capture-readiness", "traversal-contracts", "runtime", "runs", "build", "config", "contracts", "world-inventory",
+    "capture", "capture-cache", "capture-contracts", "capture-position", "capture-readiness", "traversal-contracts", "runtime", "runs", "build", "config", "contracts", "world-inventory",
     "map-calibration", "map-contracts", "map-spaces", "spatial-contracts", "spatial-extraction",
   ]) {
     inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
@@ -427,7 +423,7 @@ async function capturePlan(
       sceneNativeId: plan.sceneNativeId,
       scenePath: plan.scenePath,
       mapSpaceId: plan.mapSpaceId,
-      cut: plan.cut ?? null,
+      survey: plan.survey ?? null,
       width: plan.width,
       height: plan.height,
       readiness: plan.readiness,
@@ -446,10 +442,9 @@ async function capturePlan(
     const checkpoints = new Map<string, CaptureTileCheckpoint>();
     const reused = new Set<string>();
     const tiles: CaptureTileResult[] = [];
-    // The cut survey is a plan input: its hash is in every tile's compatibility key, and each
-    // tile derives its own slices from the walkable surface under it.
-    const survey: NavigationSurvey | null = plan.cut === undefined ? null : await loadNavigationSurvey(resolve(planDirectory, plan.cut.survey.path), plan.cut, plan.sceneNativeId);
-    const cutPlans = new Map(plan.tiles.map(tile => [tile.id, survey === null ? null : planTileCut(tile, plan, survey)]));
+    // The survey is a plan input: its hash is in every tile's compatibility key, and the player
+    // stands on the walkable surface it describes.
+    const survey: NavigationSurvey | null = plan.survey === undefined ? null : await loadNavigationSurvey(resolve(planDirectory, plan.survey.path), plan.survey, plan.sceneNativeId);
     for (const tile of plan.tiles) {
       const candidate = reusable.get(tile.id);
       if (candidate === undefined) continue;
@@ -457,13 +452,13 @@ async function capturePlan(
       // captured again, the same outcome the cache gives a candidate it rejects itself. The
       // check runs against the source run before anything is copied or registered here.
       try {
-        await loadReusedTileResult(candidate.sourceDirectory, tile, candidate, candidate.checkpoint, plan, cutPlans.get(tile.id)!);
+        await loadReusedTileResult(candidate.sourceDirectory, tile, candidate, candidate.checkpoint, plan);
       } catch (error) {
         console.warn(`Capture cache candidate rejected: ${candidate.sourceRun.runId}: ${error instanceof Error ? error.message : String(error)}`);
         continue;
       }
       const copied = await copyReusableTile(run, candidate);
-      const result = await loadReusedTileResult(run.directory, tile, candidate, copied.checkpoint, plan, cutPlans.get(tile.id)!);
+      const result = await loadReusedTileResult(run.directory, tile, candidate, copied.checkpoint, plan);
       await writeTileCheckpoint(run, copied.checkpoint);
       checkpoints.set(tile.id, copied.checkpoint);
       reused.add(tile.id);
@@ -511,7 +506,7 @@ async function capturePlan(
     await Bun.write(resolve(run.directory, "scene-catalog.json"), `${JSON.stringify(sceneCatalog, null, 2)}\n`);
     await registerArtifact(run, "scene-catalog.json");
     if (sweep !== undefined) {
-      // A cut map has a surveyed walkable surface, so the player stands on it at the map centre
+      // A map with a survey has a walkable surface, so the player stands on it at the map centre
       // and the scene is static for capture; an open-world plan keeps the game's arrival point.
       const capturePosition = survey === null ? null : capturePositionFor(plan, survey);
       if (sweep.visit === undefined) sweep.visit = await sweep.start(plan.sceneNativeId, plan.readiness.timeoutMs, capturePosition);
@@ -548,9 +543,9 @@ async function capturePlan(
     await registerProbeArtifact(run, startPath, startReply.reference);
 
     // Renders a batch of tiles under one readiness that covers them all, in one frame-local
-    // probe: verifies every raw slice against its reported hash, composes each tile's cut on
-    // the host, and registers the tile artifacts. Slices are intermediate bytes: their hashes
-    // stay in the native response, the composite is the tile image.
+    // probe: verifies each raw frame against its reported hash, encodes it on the host, and
+    // registers the tile artifacts. The raw frame is intermediate bytes: its hash stays in the
+    // native response, the PNG is the tile image.
     type RenderedTile = { capture: CapturedTile; responseArtifact: ArtifactRecord; imageArtifact: ArtifactRecord; restorationArtifact: ArtifactRecord; rasterArtifact: ArtifactRecord };
     const renderBatch = async (batch: readonly CapturePlan["tiles"][number][], readiness: CaptureReadiness, batchLabel: string): Promise<Map<string, RenderedTile>> => {
       runtime.signal.throwIfAborted();
@@ -562,15 +557,14 @@ async function capturePlan(
       const observed = readiness.captureFrame;
       const tileInputs = [];
       for (const tile of batch) {
-        const cutPlan = cutPlans.get(tile.id)!;
-        const captureFrame = cutCaptureFrame(tile, cutPlan);
+        const captureFrame = tile.frame;
         // The readiness frame is the tile's own frame, or the map extent that contains it.
         const contains = Math.abs(observed.center.x - captureFrame.center.x) <= (observed.worldSize.x - captureFrame.worldSize.x) / 2 + 1e-6
           && Math.abs(observed.center.z - captureFrame.center.z) <= (observed.worldSize.z - captureFrame.worldSize.z) / 2 + 1e-6
           && observed.cameraY - observed.nearClip >= captureFrame.cameraY - captureFrame.nearClip - 1e-6
           && observed.cameraY - observed.farClip <= captureFrame.cameraY - captureFrame.farClip + 1e-6;
         if (!contains) throw new Error(`Capture tile "${tile.id}" lies outside its readiness frame.`);
-        tileInputs.push({ tileId: tile.id, frame: captureFrame, cutHeights: cutPlan === null ? null : cutPlan.evidence.cutHeights, slicePrefix: await toRuntimePath(config, resolve(run.directory, "tiles", tile.id)) });
+        tileInputs.push({ tileId: tile.id, frame: captureFrame, rawPath: await toRuntimePath(config, resolve(run.directory, "tiles", `${tile.id}.rgba`)) });
       }
       const reply = await runtime.probe(probePath, responsePath, {
         preludeFile,
@@ -584,8 +578,8 @@ async function capturePlan(
           restorationPath: await toRuntimePath(config, restorationPath),
           ...baseParameters,
         },
-        // A batch renders every slice of every tile in one frame-local evaluation; its deadline
-        // is the readiness budget, not the per-call default.
+        // A batch renders every tile in one frame-local evaluation; its deadline is the
+        // readiness budget, not the per-call default.
         timeoutMs: plan.readiness.timeoutMs,
       });
       assertSchema(CaptureSessionSchema, reply.value, `Capture response for batch "${batchLabel}"`);
@@ -601,23 +595,18 @@ async function capturePlan(
       const restorationArtifact = await registerArtifact(run, restorationRelative);
       const results = new Map<string, RenderedTile>();
       for (const tile of batch) {
-        const cutPlan = cutPlans.get(tile.id)!;
-        const captureFrame = cutCaptureFrame(tile, cutPlan);
+        const captureFrame = tile.frame;
         const capture = rendered.captures.find(candidate => candidate.tileId === tile.id);
         if (capture === undefined || capture.width !== plan.width || capture.height !== plan.height) throw new Error(`Capture response for tile "${tile.id}" has mismatched output metadata.`);
         assertFrameMatches(capture, captureFrame, tile.id);
-        if (!isDeepStrictEqual(capture.cameraFrame, captureFrame)) throw new Error(`Capture response for tile "${tile.id}" disagrees with its cut frame.`);
-        const expectedCuts = cutPlan === null ? [captureFrame.cameraY - captureFrame.nearClip] : cutPlan.evidence.cutHeights;
-        if (capture.slices.length !== expectedCuts.length || capture.slices.some((slice, index) => slice.index !== index || !closeEnough(slice.cut, expectedCuts[index]!))) {
-          throw new Error(`Capture response for tile "${tile.id}" reports slices that disagree with its cut.`);
-        }
-        const slicePaths = capture.slices.map(slice => resolve(run.directory, "tiles", `${tile.id}.slice-${String(slice.index).padStart(3, "0")}.rgba`));
-        const composite = await compositeRawSlices(slicePaths, capture.slices, cutPlan, plan.width, plan.height, tile.id);
+        if (!isDeepStrictEqual(capture.cameraFrame, captureFrame)) throw new Error(`Capture response for tile "${tile.id}" disagrees with its frame.`);
+        const rawPath = resolve(run.directory, "tiles", `${tile.id}.rgba`);
+        const encoded = await encodeRawFrame(rawPath, capture.raw, plan.width, plan.height, tile.id);
         const pngPath = resolve(run.directory, "tiles", `${tile.id}.png`);
-        await Bun.write(pngPath, composite);
-        await Promise.all(slicePaths.map(path => rm(path, { force: true })));
+        await Bun.write(pngPath, encoded);
+        await rm(rawPath, { force: true });
         const png = await hashPng(pngPath, plan.width, plan.height, tile.id);
-        const raster = registerRaster(capture, png, cutPlan === null ? null : cutPlan.evidence);
+        const raster = registerRaster(capture, png);
         assertRestorationAudit(restoration, tile, session.key, capture.frame, plan.lighting);
         const imageArtifact = await registerArtifact(run, `tiles/${tile.id}.png`, png.sha256);
         await Bun.write(resolve(run.directory, `tiles/${tile.id}.raster.json`), `${JSON.stringify(raster, null, 2)}\n`);
@@ -653,21 +642,16 @@ async function capturePlan(
     // nothing loads or unloads between tiles and every tile renders under the same observation.
     // A map whose required sources exceed the bound for one observation keeps per-tile readiness.
     let staticReadiness: { readiness: CaptureReadiness; readinessPath: string } | undefined;
-    // The game hides a terrain's objects unless the player stands inside it, so a map whose one
-    // standing point leaves loaders hidden in view is captured tile by tile with the player moved.
-    let standPerTile = false;
     if (pending.length > 1) {
-      const extent = mapExtentSubject(plan, pending, cutPlans);
+      const extent = mapExtentSubject(plan, pending);
       try {
-        const observed = await withCaptureGeometry(runtime, config, run, plan, extent, null, async readiness => {
+        const observed = await withCaptureGeometry(runtime, config, run, plan, extent, async readiness => {
           if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
           return readiness;
         }, { singleObservation: true });
-        if (observed.readiness.hiddenSources > 0) standPerTile = true;
-        else staticReadiness = { readiness: observed.readiness, readinessPath: observed.readinessPath };
+        staticReadiness = { readiness: observed.readiness, readinessPath: observed.readinessPath };
       } catch (error) {
-        if (error instanceof HiddenSourceError) standPerTile = true;
-        else if (!(error instanceof TooManySourcesError)) throw error;
+        if (!(error instanceof TooManySourcesError)) throw error;
       }
     }
     if (staticReadiness !== undefined) {
@@ -675,29 +659,11 @@ async function capturePlan(
       for (const tile of pending) await checkpointTile(tile, rendered.get(tile.id)!, staticReadiness.readiness, staticReadiness.readinessPath);
     } else {
       for (const tile of pending) {
-        const cutPlan = cutPlans.get(tile.id)!;
-        const subject = { tile, frame: cutCaptureFrame(tile, cutPlan), kind: "tile" as const };
-        const observe = () => withCaptureGeometry(runtime, config, run, plan, subject, cutPlan === null ? null : cutPlan.evidence, async readiness => {
+        const subject = { tile, frame: tile.frame, kind: "tile" as const };
+        const prepared = await withCaptureGeometry(runtime, config, run, plan, subject, async readiness => {
           if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
           return (await renderBatch([tile], readiness, tile.id)).get(tile.id)!;
         });
-        const stand = async (target?: { x: number; z: number }): Promise<void> => {
-          if (!standPerTile || survey === null || sweep === undefined) return;
-          // Moving within the same scene is a retarget to it with a new standing point.
-          sweep.visit = await sweep.retarget(plan.sceneNativeId, plan.readiness.timeoutMs, tileCapturePositionFor(tile, plan, survey, target));
-          if (sweep.visit.sceneHandle !== sceneHandle) throw new Error("Standing at a tile changed the scene instance.");
-        };
-        await stand();
-        let prepared: Awaited<ReturnType<typeof observe>>;
-        try {
-          prepared = await observe();
-        } catch (error) {
-          // A tile can straddle two terrains, and the game shows only the one the player stands
-          // in. Standing nearest the hidden source is the one other place to look from.
-          if (!(error instanceof HiddenSourceError) || !standPerTile) throw error;
-          await stand({ x: error.position.x, z: error.position.z });
-          prepared = await observe();
-        }
         await checkpointTile(tile, prepared.value, prepared.readiness, prepared.readinessPath);
       }
     }

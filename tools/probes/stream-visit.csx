@@ -177,7 +177,6 @@ if (action == "start")
         row["assetGuid"] = target.addressableAsset.AssetGUID;
         row["initiallyLoaded"] = initialRoot != null;
         row["initialRoot"] = initialRoot;
-        row["initialRootInstanceId"] = initialRoot == null ? (int?)null : (int?)initialRoot.GetInstanceID();
         row["originalHoldUntil"] = getHold(target);
         row["skippedReason"] = !target.gameObject.activeInHierarchy ? "inactive" : (!target.enabled ? "disabled" : null);
         row["releaseRequested"] = false;
@@ -301,9 +300,7 @@ if (action == "start")
             if (!(bool)row["holdChanged"]) continue;
             var target = row["loader"] as Il2Cpp.AddressableLoader;
             var targetAlive = target != null && target.gameObject != null;
-            var initialRootIdValue = row["initialRootInstanceId"];
             var initiallyLoaded = (bool)row["initiallyLoaded"];
-            var initialRootId = initialRootIdValue == null ? (int?)null : (int)initialRootIdValue;
             if (!targetAlive)
                 throw new System.InvalidOperationException("The owned loader was destroyed before its load and release state could be confirmed.");
 
@@ -323,14 +320,9 @@ if (action == "start")
                 if (ownedAfterRelease != null)
                     allRestored = false;
             }
-            else
-            {
-                // A loader the game switched off during the visit unloads its own root; that is the
-                // game's ObjectHider at work, not a leak of ours. Only an active loader whose root
-                // changed is a restoration failure.
-                if (initialRootId.HasValue && (currentRoot == null || currentRoot.GetInstanceID() != initialRootId.Value) && target.gameObject.activeInHierarchy)
-                    throw new System.InvalidOperationException("An initially loaded AddressableLoader root changed during restoration.");
-            }
+            // Restoration undoes the visit's footprint: the holds it set and the loads it requested.
+            // A loader that was loaded before the visit was never loaded or released by it, so its
+            // root is the game's and is not checked here.
             if (getHold(target) != (float)row["originalHoldUntil"])
                 allRestored = false;
         }

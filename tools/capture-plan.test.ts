@@ -4,7 +4,7 @@ import type { CapturePlan } from "./capture-contracts";
 
 function plan(centers: ReadonlyArray<readonly [number, number]>): CapturePlan {
   return {
-    schemaVersion: "compendium.capture-plan.v6",
+    schemaVersion: "compendium.capture-plan.v7",
     sceneNativeId: 1,
     scenePath: "Assets/Test.unity",
     mapSpaceId: "test-interior",

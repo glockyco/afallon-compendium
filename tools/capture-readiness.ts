@@ -176,13 +176,6 @@ function sourceMembership(geometry: CaptureGeometry): SourceMembership {
   return { required, excluded, requiredById, candidateIds };
 }
 
-// An excluded source inside the envelope is a loader the scene keeps but has switched off. The
-// game's ObjectHider does that by whether the player stands inside a terrain's bounds, so such a
-// source is hidden from here rather than absent, and the player has to stand nearer to see it.
-function hiddenSourceCount(membership: SourceMembership): number {
-  return membership.excluded.filter(source => source.coversEnvelope || source.coversFrustum || source.intersectsFrustum).length;
-}
-
 function assertVisibleBindings(geometry: CaptureGeometry): void {
   const sources = new Map(geometry.sources.map(source => [source.instanceId, source]));
   const bindings: Array<{ sourceLoaderId: number | null; label: string }> = [];
@@ -326,9 +319,6 @@ function assertStreamRows(
   for (const source of baseline.required) {
     const row = rows.get(source.instanceId);
     if (row === undefined) throw new Error(`Stream visit omitted required source ${source.instanceId}.`);
-    if (row.assetGuid === source.assetGuid && row.skippedReason === null && row.enabled && !row.activeInHierarchy) {
-      throw new HiddenSourceError(source.instanceId, source.position);
-    }
     if (row.assetGuid !== source.assetGuid || row.skippedReason !== null || !row.activeInHierarchy || !row.enabled) {
       throw new Error(`Stream visit returned inconsistent metadata for source ${source.instanceId}.`);
     }
@@ -355,6 +345,25 @@ function geometryAgreesWithStream(geometry: CaptureGeometry, rows: Map<number, S
   return true;
 }
 
+// Rows of a restoration reply: the same sources, by identity. Whether they are active is the
+// scene's business, not the visit's.
+function restoreRows(stream: StreamVisit, streamKey: string, sceneHandle: number, required: CaptureGeometry["sources"]): Map<number, StreamVisit["rows"][number]> {
+  assertSchema(StreamVisitSchema, stream, "Stream restore response");
+  if (stream.key !== streamKey) throw new Error("Stream restore returned another key.");
+  if (stream.sceneHandle !== sceneHandle) throw new Error("Stream restore returned another scene handle.");
+  const rows = streamRowsById(stream.rows);
+  if (rows.size !== required.length) throw new Error("Stream restore returned an unexpected source count.");
+  for (const source of required) {
+    const row = rows.get(source.instanceId);
+    if (row === undefined) throw new Error(`Stream restore omitted source ${source.instanceId}.`);
+    if (row.assetGuid !== source.assetGuid) throw new Error(`Stream restore returned another asset for source ${source.instanceId}.`);
+  }
+  return rows;
+}
+
+// Restoration is verified against the visit's own footprint: every hold is back to its original
+// value, and every source the visit loaded is released. A source that was loaded before the visit
+// belongs to the game, which may switch it off or reload it at will; the visit never touched it.
 function assertRestoredRows(
   rows: Map<number, StreamVisit["rows"][number]>,
   initialRows: Map<number, StreamVisit["rows"][number]>,
@@ -369,11 +378,7 @@ function assertRestoredRows(
       throw new Error(`Restored stream visit changed source metadata for ${source.instanceId}.`);
     }
     if (restored.holdUntil !== restored.originalHoldUntil) throw new Error(`Restored stream visit did not restore the hold for source ${source.instanceId}.`);
-    if (initial.initiallyLoaded) {
-      if (!restored.loaded || restored.loading || !restored.hasHandle || restored.rootInstanceId !== initial.rootInstanceId) {
-        throw new Error(`Restored stream visit changed initially loaded root ${source.instanceId}.`);
-      }
-    } else if (restored.loaded || restored.loading || restored.hasHandle || restored.rootInstanceId !== null) {
+    if (!initial.initiallyLoaded && (restored.loaded || restored.loading || restored.hasHandle || restored.rootInstanceId !== null)) {
       throw new Error(`Restored stream visit retained a newly owned root or handle for source ${source.instanceId}.`);
     }
   }
@@ -406,15 +411,6 @@ function timeoutError(tile: CaptureTile, timeoutMs: number): Error {
 
 // Raised after the first inventory when one readiness cannot cover the whole map, so the caller
 // can fall back to per-tile readiness. The source bound is per observation, not per map.
-// A required source the game switched off during the visit: its terrain hid its objects because
-// the player is not inside it. The observation cannot complete from this standing point.
-export class HiddenSourceError extends Error {
-  constructor(readonly instanceId: number, readonly position: { x: number; y: number; z: number }) {
-    super(`Source ${instanceId} was hidden during the stream visit.`);
-    this.name = "HiddenSourceError";
-  }
-}
-
 export class TooManySourcesError extends Error {
   constructor(readonly sources: number, readonly bound: number) { super(`${sources} required sources exceed the ${bound}-source bound for one readiness.`); }
 }
@@ -427,7 +423,6 @@ export async function withCaptureGeometry<T>(
   run: Run,
   plan: CapturePlan,
   subject: ReadinessSubject,
-  cutEvidence: CaptureReadiness["cut"],
   capture: (readiness: CaptureReadiness) => Promise<T>,
   options: { singleObservation?: boolean } = {},
 ): Promise<{ value: T; readiness: CaptureReadiness; readinessPath: string }> {
@@ -653,7 +648,7 @@ export async function withCaptureGeometry<T>(
           streamRestoreIndex += 1;
           const restoreRelative = `${geometry.relative}/stream-restore-${String(streamRestoreIndex).padStart(4, "0")}.json`;
           const restored = await registerStream(restoreRelative, resolve(run.directory, restoreRelative), "restore", streamKey);
-          streamRows = assertStreamRows(restored, streamKey, sceneHandle!, baselineMembership!, streamStartRows);
+          streamRows = restoreRows(restored, streamKey, sceneHandle!, baselineMembership!.required);
           if (restored.phase === "restored") break;
           await sleepForFrame();
         }
@@ -678,10 +673,9 @@ export async function withCaptureGeometry<T>(
         await run.addArtifact(cleanupRelative);
       };
 
-      const cut = cutEvidence;
       const empty = latestGeometry.meshes.length === 0 && latestGeometry.terrains.length === 0 && latestGeometry.otherRenderers.length === 0;
       const readiness: CaptureReadiness = {
-        schemaVersion: "compendium.capture-readiness.v4",
+        schemaVersion: "compendium.capture-readiness.v5",
         tileId: tile.id,
         ownerToken: runtime.ownerToken,
         sceneNativeId: plan.sceneNativeId,
@@ -692,10 +686,8 @@ export async function withCaptureGeometry<T>(
         stableFrames: plan.readiness.stableFrames,
         requiredSources: baselineMembership.required.length,
         excludedSources: baselineMembership.excluded.length,
-        hiddenSources: hiddenSourceCount(baselineMembership),
         empty,
         captureFrame,
-        cut,
         streamKey: streamKey ?? null,
       };
       assertSchema(CaptureReadinessSchema, readiness, "Capture readiness evidence");
@@ -728,8 +720,8 @@ export async function withCaptureGeometry<T>(
     runtime.signal.throwIfAborted();
     return result;
   } catch (error) {
-    // A non-resident answer is a decision for the caller, not a runtime failure: no stream
-    // visit started and no state changed, so the session stays usable for per-tile readiness.
+    // Too many sources is a decision for the caller, not a runtime failure: no stream visit
+    // started and no state changed, so the session stays usable for per-tile readiness.
     if (error instanceof TooManySourcesError && !runtime.signal.aborted) throw error;
     const reason = runtime.signal.aborted ? runtime.signal.reason : error;
     if (!runtime.signal.aborted) runtime.cancel(reason);

@@ -332,7 +332,7 @@ if (captureAction == "start")
         state["captureTexture"] = captureTexture;
         captureTexture.name = resourcePrefix + ".Texture2D";
         fault("after-texture");
-        return new { schemaVersion = "compendium.capture-session.v6", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
+        return new { schemaVersion = "compendium.capture-session.v7", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
         {
             new { kind = "camera", instanceId = (int?)camera.GetInstanceID(), alive = camera != null && cameraGo != null },
             new { kind = "light", instanceId = (int?)light.GetInstanceID(), alive = light != null && lightGo != null },
@@ -386,7 +386,7 @@ var sessionResources = new System.Func<object>(() =>
 });
 var sessionReport = new System.Func<object>(() => new
 {
-    schemaVersion = "compendium.capture-session.v6",
+    schemaVersion = "compendium.capture-session.v7",
     key = requestedKey,
     phase = sessionState["phase"] as string,
     ownerToken = ownerToken,
@@ -411,7 +411,7 @@ if (captureAction == "restore")
     restoreCleanup();
     return new
     {
-        schemaVersion = "compendium.capture-session.v6",
+        schemaVersion = "compendium.capture-session.v7",
         key = requestedKey,
         phase = "restored",
         ownerToken = ownerToken,
@@ -434,32 +434,20 @@ if (captureAction == "restore")
 
 if (captureAction != "render") throw new System.InvalidOperationException("Unsupported capture action.");
 // A render batch: every tile of one readiness, rendered in this one frame-local operation.
-// Each tile carries its own camera frame, cut heights, and raw slice destination prefix.
+// Each tile carries its own camera frame and the destination of its raw frame.
 var tilesToken = args["tiles"];
 if (tilesToken == null || tilesToken.Type != Newtonsoft.Json.Linq.JTokenType.Array || !tilesToken.HasValues) throw new System.ArgumentException("tiles must be a non-empty array.");
-var batch = new System.Collections.Generic.List<(string TileId, System.Collections.Generic.Dictionary<string, float> Frame, System.Collections.Generic.List<float> Cuts, string SlicePrefixArgument, string SlicePrefix)>();
+var batch = new System.Collections.Generic.List<(string TileId, System.Collections.Generic.Dictionary<string, float> Frame, string RawPathArgument, string RawPath)>();
 foreach (var tileToken in tilesToken)
 {
     var tileId = requiredText(tileToken["tileId"], "tiles[].tileId");
     if (!System.Text.RegularExpressions.Regex.IsMatch(tileId, "^[a-z0-9]+(?:-[a-z0-9]+)*$") || tileId.Length > 80)
         throw new System.ArgumentException("tiles[].tileId has an invalid format.");
     var frameValue = (System.Collections.Generic.Dictionary<string, float>)readFrame(tileToken["frame"]);
-    var cutHeights = new System.Collections.Generic.List<float>();
-    var cutToken = tileToken["cutHeights"];
-    if (cutToken != null && cutToken.Type != Newtonsoft.Json.Linq.JTokenType.Null)
-    {
-        if (cutToken.Type != Newtonsoft.Json.Linq.JTokenType.Array) throw new System.ArgumentException("tiles[].cutHeights must be an array.");
-        foreach (var entry in cutToken)
-        {
-            if (entry.Type != Newtonsoft.Json.Linq.JTokenType.Float && entry.Type != Newtonsoft.Json.Linq.JTokenType.Integer) throw new System.ArgumentException("tiles[].cutHeights entries must be numbers.");
-            cutHeights.Add((float)entry);
-        }
-        if (cutHeights.Count > 256) throw new System.ArgumentException("tiles[].cutHeights allows at most 256 slices.");
-        for (var index = 1; index < cutHeights.Count; index++) if (cutHeights[index] <= cutHeights[index - 1]) throw new System.ArgumentException("tiles[].cutHeights must increase strictly.");
-    }
-    var slicePrefixArgument = requiredText(tileToken["slicePrefix"], "tiles[].slicePrefix");
-    var slicePrefix = normalizeSafePath(slicePrefixArgument, "tiles[].slicePrefix");
-    batch.Add((tileId, frameValue, cutHeights, slicePrefixArgument, slicePrefix));
+    var rawPathArgument = requiredText(tileToken["rawPath"], "tiles[].rawPath");
+    var rawPath = normalizeSafePath(rawPathArgument, "tiles[].rawPath");
+    if (!rawPath.EndsWith(".rgba", System.StringComparison.Ordinal)) throw new System.ArgumentException("tiles[].rawPath must end with .rgba.");
+    batch.Add((tileId, frameValue, rawPathArgument, rawPath));
 }
 if (batch.Count > 64) throw new System.ArgumentException("A render batch allows at most 64 tiles.");
 var requestedLighting = args["lighting"];
@@ -734,9 +722,9 @@ sessionState["pendingFrameRestore"] = restoreFrame;
 var captureFailure = (System.Exception)null;
 var restorationFailure = (System.Exception)null;
 var auditFailure = (System.Exception)null;
-// Per tile: its verified camera frame, projection controls, and raw slices already written.
-var tileResults = new System.Collections.Generic.List<(string TileId, object CameraFrame, object[] ProjectionSamples, System.Collections.Generic.List<object> Slices, string SlicePrefixArgument)>();
-var writtenSlices = new System.Collections.Generic.List<string>();
+// Per tile: its verified camera frame, projection controls, and the raw frame already written.
+var tileResults = new System.Collections.Generic.List<(string TileId, object CameraFrame, object[] ProjectionSamples, object Raw)>();
+var writtenFrames = new System.Collections.Generic.List<string>();
 object duringVisualState = null;
 var captureAmbientProbe = new UnityEngine.Rendering.SphericalHarmonicsL2();
 var captureAmbientColor = UnityEngine.QualitySettings.activeColorSpace == UnityEngine.ColorSpace.Linear ? ambient.linear : ambient;
@@ -826,35 +814,20 @@ try
             var viewport = sessionCamera.WorldToViewportPoint(world);
             projectionSamples.Add(new { world = new { x = world.x, y = world.y, z = world.z }, viewport = new { x = viewport.x, y = viewport.y, z = viewport.z } });
         }
-        // One slice per cut, nearest-plane first; the frame's own near plane when uncut. Each
-        // slice is the raw RGBA framebuffer, hashed here and composed on the host.
-        var sliceCuts = new System.Collections.Generic.List<float>();
-        if (tile.Cuts.Count == 0) sliceCuts.Add(actualPosition.y - actualNear);
-        else sliceCuts.AddRange(tile.Cuts);
-        var slices = new System.Collections.Generic.List<object>();
-        for (var sliceIndex = 0; sliceIndex < sliceCuts.Count; sliceIndex++)
-        {
-            var cut = sliceCuts[sliceIndex];
-            var near = actualPosition.y - cut;
-            if (near <= 0f || near >= actualFar) throw new System.ArgumentException("A cut height must lie below the camera and above its far plane.");
-            sessionCamera.nearClipPlane = near;
-            sessionCamera.Render();
-            verifyControlled();
-            UnityEngine.RenderTexture.active = sessionRenderTexture;
-            sessionTexture.ReadPixels(new UnityEngine.Rect(0, 0, captureWidth, captureHeight), 0, 0, false);
-            sessionTexture.Apply(false, false);
-            var raw = (byte[])sessionTexture.GetRawTextureData();
-            if (raw == null || raw.Length != rawLength) throw new System.InvalidOperationException("The capture texture returned an unexpected raw byte count.");
-            string sliceHash;
-            using (var digest = System.Security.Cryptography.SHA256.Create()) sliceHash = System.BitConverter.ToString(digest.ComputeHash(raw)).Replace("-", "").ToLowerInvariant();
-            var slicePath = tile.SlicePrefix + ".slice-" + sliceIndex.ToString("D3") + ".rgba";
-            if (System.IO.File.Exists(slicePath)) throw new System.IO.IOException("A slice destination already exists.");
-            System.IO.File.WriteAllBytes(slicePath, raw);
-            writtenSlices.Add(slicePath);
-            slices.Add(new { index = sliceIndex, cut = cut, path = tile.SlicePrefixArgument + ".slice-" + sliceIndex.ToString("D3") + ".rgba", sha256 = sliceHash, byteSize = (long)raw.Length });
-        }
-        sessionCamera.nearClipPlane = actualNear;
-        tileResults.Add((tile.TileId, actualCameraFrame, projectionSamples.ToArray(), slices, tile.SlicePrefixArgument));
+        // The raw RGBA framebuffer, hashed here and encoded on the host.
+        sessionCamera.Render();
+        verifyControlled();
+        UnityEngine.RenderTexture.active = sessionRenderTexture;
+        sessionTexture.ReadPixels(new UnityEngine.Rect(0, 0, captureWidth, captureHeight), 0, 0, false);
+        sessionTexture.Apply(false, false);
+        var raw = (byte[])sessionTexture.GetRawTextureData();
+        if (raw == null || raw.Length != rawLength) throw new System.InvalidOperationException("The capture texture returned an unexpected raw byte count.");
+        string rawHash;
+        using (var digest = System.Security.Cryptography.SHA256.Create()) rawHash = System.BitConverter.ToString(digest.ComputeHash(raw)).Replace("-", "").ToLowerInvariant();
+        if (System.IO.File.Exists(tile.RawPath)) throw new System.IO.IOException("A raw frame destination already exists.");
+        System.IO.File.WriteAllBytes(tile.RawPath, raw);
+        writtenFrames.Add(tile.RawPath);
+        tileResults.Add((tile.TileId, actualCameraFrame, projectionSamples.ToArray(), new { path = tile.RawPathArgument, sha256 = rawHash, byteSize = (long)raw.Length }));
         if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected during capture.");
     }
     fault("after-render");
@@ -891,7 +864,7 @@ finally
     try { writeAtomicText(restorationPath, Newtonsoft.Json.JsonConvert.SerializeObject(audit)); } catch (System.Exception error) { auditFailure = error; }
 }
 if (restorationFailure != null) throw restorationFailure;
-if (captureFailure != null || restorationFailure != null) { foreach (var path in writtenSlices) { try { System.IO.File.Delete(path); } catch (System.Exception) { } } }
+if (captureFailure != null || restorationFailure != null) { foreach (var path in writtenFrames) { try { System.IO.File.Delete(path); } catch (System.Exception) { } } }
 if (captureFailure != null) throw captureFailure;
 if (auditFailure != null) throw auditFailure;
 if (tileResults.Count != batch.Count) throw new System.InvalidOperationException("The capture did not render every tile of its batch.");
@@ -907,7 +880,7 @@ foreach (var result in tileResults)
         restoredFrame = UnityEngine.Time.frameCount,
         cameraFrame = result.CameraFrame,
         projectionSamples = result.ProjectionSamples,
-        slices = result.Slices.ToArray(),
+        raw = result.Raw,
     });
 }
 var batchMetadata = new

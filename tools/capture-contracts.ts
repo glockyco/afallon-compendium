@@ -15,30 +15,11 @@ const frame = Type.Object({
   farClip: Type.Number({ exclusiveMinimum: 0, maximum: 100000 }),
 });
 const sha256 = Type.String({ pattern: "^[a-f0-9]{64}$" });
-// A reviewed cut follows the walkable surface. The tile's walkable height field, rasterized
-// from the hashed navigation survey, picks per pixel the slice whose cut sits just above the
-// surface plus headroom. Without a cut, the tile renders with its declared frame.
-export const CaptureCutSchema = Type.Object({
-  source: Type.Literal("navigation"),
-  survey: Type.Object({ path: text, sha256 }),
-  step: Type.Number({ exclusiveMinimum: 0, maximum: 64 }),
-  headroom: Type.Number({ minimum: 0, maximum: 64 }),
-  cameraAbove: Type.Number({ exclusiveMinimum: 0, maximum: 2000 }),
-});
-export type CaptureCut = Static<typeof CaptureCutSchema>;
-// Per-tile evidence of the cut applied to it. The cut heights are the rendered slices; the
-// walkable range is what the survey holds under the tile. A tile without a cut records null.
-const cutEvidence = Type.Union([
-  Type.Null(),
-  Type.Object({
-    source: Type.Literal("navigation"),
-    surveySha256: sha256,
-    step: number, headroom: number,
-    walkable: Type.Object({ minY: number, maxY: number, coverage: Type.Number({ minimum: 0, maximum: 1 }) }),
-    cutHeights: Type.Array(number, { minItems: 1, maxItems: 256 }),
-  }),
-]);
-export type CaptureCutEvidence = Static<typeof cutEvidence>;
+// The navigation survey names the walkable surface of the map's scene. Capture stands the
+// player on it: at the map centre when one standing point shows the whole map, and at each tile
+// when the game hides distant terrain.
+export const CaptureSurveySchema = Type.Object({ path: text, sha256 }, { additionalProperties: false });
+export type CaptureSurvey = Static<typeof CaptureSurveySchema>;
 export const CaptureReadinessProfileSchema = Type.Object({
   timeoutMs: Type.Integer({ minimum: 1000, maximum: 300000 }),
   stableFrames: Type.Integer({ minimum: 2, maximum: 10 }),
@@ -46,9 +27,9 @@ export const CaptureReadinessProfileSchema = Type.Object({
   maximumSources: Type.Integer({ minimum: 1, maximum: 256 }),
 });
 export const CapturePlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-plan.v6"),
+  schemaVersion: Type.Literal("compendium.capture-plan.v7"),
   sceneNativeId: count, scenePath: text, mapSpaceId: text,
-  cut: Type.Optional(CaptureCutSchema),
+  survey: Type.Optional(CaptureSurveySchema),
   width: Type.Integer({ minimum: 64, maximum: 2048 }), height: Type.Integer({ minimum: 64, maximum: 2048 }),
   cullingMask: Type.Integer({ minimum: -2147483648, maximum: 2147483647 }),
   // Reviewed capture suppression. Afallon marks foliage with no layer or tag, so a shader-name
@@ -67,13 +48,13 @@ export const CapturePlanSchema = Type.Object({
 });
 export type CapturePlan = Static<typeof CapturePlanSchema>;
 
-// One rendered tile of a batch: its verified camera frame, projection controls, and raw slices
-// written beside the tile, nearest-plane first. A tile without a cut has one slice.
+// One rendered tile of a batch: its verified camera frame, projection controls, and the raw RGBA
+// frame written beside the tile.
 const capturedTile = Type.Object({
   tileId: text, width: count, height: count, frame: count, restoredFrame: count,
   cameraFrame: frame,
   projectionSamples: Type.Array(Type.Object({ world: vector, viewport: vector }), { minItems: 3 }),
-  slices: Type.Array(Type.Object({ index: count, cut: number, path: text, sha256, byteSize: count }), { minItems: 1, maxItems: 256 }),
+  raw: Type.Object({ path: text, sha256, byteSize: count }, { additionalProperties: false }),
 });
 export type CapturedTile = Static<typeof capturedTile>;
 // One render batch: every tile rendered in one frame-local operation under one restoration.
@@ -86,7 +67,7 @@ const capture = Type.Object({
   captures: Type.Array(capturedTile, { minItems: 1, maxItems: 64 }),
 });
 export const CaptureSessionSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-session.v6"),
+  schemaVersion: Type.Literal("compendium.capture-session.v7"),
   key: text, phase: Type.Union([Type.Literal("ready"), Type.Literal("restored")]),
   ownerToken: text, sceneNativeId: count, scenePath: text, sceneHandle: integer,
   resourcePrefix: text,
@@ -96,13 +77,12 @@ export const CaptureSessionSchema = Type.Object({
 });
 export type CaptureSession = Static<typeof CaptureSessionSchema>;
 export const CaptureRasterSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-raster.v4"),
+  schemaVersion: Type.Literal("compendium.capture-raster.v5"),
   tileId: text, imageSha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
   width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }),
   coordinateSystem: Type.Literal("source-scene-world-xz"),
   pixelConvention: Type.Literal("top-left-edges"),
   cameraFrame: frame,
-  cut: cutEvidence,
   verticalBounds: Type.Object({ minY: number, maxY: number }),
   worldFromPixelEdge: Type.Object({ origin: horizontal, xAxis: horizontal, yAxis: horizontal }),
   maximumProjectionErrorPixels: Type.Number({ minimum: 0, maximum: 0.25 }),
@@ -190,13 +170,12 @@ export const CaptureGeometrySchema = Type.Object({
 });
 export type CaptureGeometry = Static<typeof CaptureGeometrySchema>;
 export const CaptureReadinessSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-readiness.v4"),
+  schemaVersion: Type.Literal("compendium.capture-readiness.v5"),
   tileId: text, ownerToken: text, sceneNativeId: count, sceneHandle: integer,
   inventoryPath: text, inventorySha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
   observedFrames: Type.Array(count, { minItems: 2 }), stableFrames: count,
-  requiredSources: count, excludedSources: count, hiddenSources: count, empty: Type.Boolean(),
+  requiredSources: count, excludedSources: count, empty: Type.Boolean(),
   captureFrame: frame,
-  cut: cutEvidence,
   streamKey: Type.Union([text, Type.Null()]),
 });
 export type CaptureReadiness = Static<typeof CaptureReadinessSchema>;

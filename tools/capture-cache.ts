@@ -101,8 +101,8 @@ export function tileCompatibilityKey(input: TileCompatibilityInput): string {
     lighting: input.plan.lighting,
     cullingMask: input.plan.cullingMask,
     suppression: input.plan.suppression,
-    // The survey hash stands for the walkable surface the cut follows; the path is a location.
-    cut: input.plan.cut === undefined ? null : { source: input.plan.cut.source, surveySha256: input.plan.cut.survey.sha256, step: input.plan.cut.step, headroom: input.plan.cut.headroom, cameraAbove: input.plan.cut.cameraAbove },
+    // The survey hash stands for the walkable surface the player stands on; the path is a location.
+    surveySha256: input.plan.survey === undefined ? null : input.plan.survey.sha256,
     readiness: input.plan.readiness,
     frame: input.tile.frame,
   });
