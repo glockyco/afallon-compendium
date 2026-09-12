@@ -283,6 +283,15 @@ export function selectLevelRange(
 // The atlas shows one marker per icon: placements that are map icons only, on the same map
 // at the same point with the same icon kind, fold into the one with the lowest id. A titled
 // copy supplies the label; two different titles at one point is an authoring contradiction.
+export function foldRegions(regions: readonly PublicRegion[]): PublicRegion[] {
+  const seen = new Map<string, PublicRegion>();
+  for (const region of [...regions].sort((left, right) => left.id.localeCompare(right.id))) {
+    const key = JSON.stringify([region.mapSpaceId, region.name, region.shape, region.polygon.map(([x, y]) => [Math.round(x * 10), Math.round(y * 10)])]);
+    if (!seen.has(key)) seen.set(key, region);
+  }
+  return [...seen.values()].sort((left, right) => left.id.localeCompare(right.id));
+}
+
 export function foldMapIcons(placements: readonly NormalizedPlacement[]): NormalizedPlacement[] {
   const groups = new Map<string, NormalizedPlacement[]>();
   const result: NormalizedPlacement[] = [];
@@ -782,7 +791,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     };
   });
   const normalizedRegions: readonly NormalizedRegionForPublication[] = map.regions;
-  const regions: PublicRegion[] = normalizedRegions
+  const allRegions: PublicRegion[] = normalizedRegions
     .map((region) => {
       if (!region.mapSpaceId) return null;
       const offset = offsetByMap.get(region.mapSpaceId);
@@ -791,6 +800,9 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     })
     .filter((region): region is PublicRegion => region !== null)
     .sort((left, right) => left.id.localeCompare(right.id));
+  // Regions repeat once per scene that authors them, as the map icons do; one polygon per
+  // name and shape on one map is published.
+  const regions = foldRegions(allRegions);
   const itemSources: PublicItemSource[] = items.items.map(item => {
     const rawSources = item.sources.map(source => {
       const ownerKeys = source.context.ownerEntityKeys;

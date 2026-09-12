@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { categoryForRole, foldMapIcons, publicRegionFromNormalized } from "./publication";
+import { categoryForRole, foldMapIcons, foldRegions, publicRegionFromNormalized } from "./publication";
 import type { NormalizedPlacement } from "./normalized-contracts";
 
 const offset = { worldX: 100, worldY: -20 };
@@ -49,7 +49,12 @@ function iconPlacement(placementId: string, scene: number, label: string | null,
 }
 
 test("one map icon observed from several scenes publishes once, titled by any titled copy", () => {
-  const folded = foldMapIcons([iconPlacement("c", 41, null), iconPlacement("a", 3, "Aradia's camp"), iconPlacement("b", 9, "Aradia's camp"), iconPlacement("d", 38, null, [{ role: "mapIcon", npcId: null, scope: "fort", sourceIds: ["s"] }]), iconPlacement("e", 3, null, [{ role: "npc", npcId: 4, scope: null, sourceIds: ["s"] }])]);
+  const folded = foldMapIcons([iconPlacement("c", 41, null), iconPlacement("a", 3, "Aradia's camp"), iconPlacement("b", 9, "Aradia's camp"), iconPlacement("d", 38, null, [{ role: "mapIcon", npcId: null, scope: "fort", sourceIds: ["s"] }]), iconPlacement("e", 3, null, [{ role: "npc", npcId: 4, scope: "authored", sourceIds: ["s"] }])]);
   expect(folded.map((placement) => [placement.placementId, placement.label])).toEqual([["a", "Aradia's camp"], ["d", null], ["e", null]]);
   expect(() => foldMapIcons([iconPlacement("a", 3, "Aradia's camp"), iconPlacement("b", 9, "Oakreach Trading Post")])).toThrow(/different titles/);
+});
+
+test("a region authored by several scenes publishes once", () => {
+  const box = (id: string, name: string, dx = 0) => ({ id, mapSpaceId: "world-surface", name, shape: "box" as const, polygon: [[0 + dx, 0], [10 + dx, 0], [10 + dx, 10], [0 + dx, 10]] as Array<[number, number]> });
+  expect(foldRegions([box("b", "Briarstead"), box("a", "Briarstead"), box("c", "Briarstead", 5), box("d", "Fellgrove")]).map((region) => region.id)).toEqual(["a", "c", "d"]);
 });
