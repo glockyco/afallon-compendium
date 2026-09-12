@@ -684,13 +684,6 @@
 </svelte:head>
 
 <div class="atlas-shell">
-  <header class="topbar">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">A</span><div><strong>Afallon Compendium</strong></div></div>
-    <div class="build-meta" aria-label="Publication status">
-      <a href={`${base}/guide/`}>Adventure Guide</a>
-    </div>
-  </header>
-
   {#if loading}
     <main class="state-card" aria-live="polite"><div class="spinner" aria-hidden="true"></div><h1>Loading the published atlas</h1><p>Only the generated static publication is used.</p></main>
   {:else if loadError && !publication}
@@ -866,15 +859,7 @@
   :global(button), :global(input), :global(select) { font: inherit; }
   :global(button), :global(select) { cursor: pointer; }
   .atlas-shell { min-height: 100vh; background: #171818; }
-  .topbar { min-height: 64px; padding: .75rem 1.15rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #393a38; background: #202120; }
-  .brand { display: flex; align-items: center; gap: .7rem; letter-spacing: .01em; }
-  .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #bba779; color: #d7c395; font-family: Georgia, serif; font-size: 1.1rem; }
-  .brand strong { display: block; font-size: .95rem; }
-  .brand small { display: block; margin-top: .12rem; color: #9e9d95; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; }
-  .build-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .65rem; color: #aaa9a0; font-size: .72rem; }
-  .build-meta a { color: #d5b978; }
-  .build-meta strong { color: #e9e4d9; font-weight: 600; }
-  .workspace { display: grid; grid-template-columns: 280px minmax(360px, 1fr) minmax(300px, 380px); height: calc(100dvh - 64px); min-height: 0; }
+  .workspace { display: grid; grid-template-columns: 280px minmax(360px, 1fr) minmax(300px, 380px); height: 100dvh; min-height: 0; }
   .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr) minmax(300px, 380px); }
   .control-panel, .details-panel { background: #202120; overflow: auto; }
   .control-panel { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border-right: 1px solid #393a38; }
@@ -973,8 +958,6 @@
   }
   @media (max-width: 680px) {
     .atlas-shell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; }
-    .topbar { align-items: flex-start; flex-direction: column; flex-shrink: 0; }
-    .build-meta { justify-content: flex-start; }
     .workspace, .workspace.sidebar-collapsed { position: relative; display: grid; grid-template-columns: minmax(280px, 1fr) 280px; height: auto; flex: 1; min-height: 0; overflow-x: auto; }
     .map-column { height: 100%; min-height: 0; grid-template-rows: minmax(280px, 1fr) minmax(180px, 30vh); }
     .control-panel { position: absolute; z-index: 6; top: 0; bottom: 0; left: 0; width: min(88vw, 300px); border-right: 1px solid #393a38; box-shadow: 5px 0 20px #0008; }
