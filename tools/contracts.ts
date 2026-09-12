@@ -19,11 +19,17 @@ const canonicalEntry = Type.Object({
   sourceKey: integer, nativeId: integer, name: nullableText, internalName: nullableText,
   description: nullableText, localization: rawObject, icon: rawObject, gameplay: rawObject,
 });
-export const canonicalKinds = ["items", "npcs", "quests", "lootTables", "scenes", "resources", "stats", "regions", "properties"] as const;
-const counts = Type.Object({ items: integer, npcs: integer, quests: integer, lootTables: integer, scenes: integer, resources: integer, stats: integer, regions: integer, properties: integer });
+const vector = Type.Object({ x: Type.Number(), y: Type.Number(), z: Type.Number() });
+// RPGWorldPosition: the arrival point of the first entry into a scene (RPGGameScene.startPositionID).
+const canonicalWorldPosition = Type.Object({
+  sourceKey: integer, nativeId: integer, name: nullableText, internalName: nullableText,
+  position: vector, useRotation: Type.Boolean(), rotation: vector,
+});
+export const canonicalKinds = ["items", "npcs", "quests", "lootTables", "scenes", "resources", "stats", "regions", "properties", "worldPositions"] as const;
+const counts = Type.Object({ items: integer, npcs: integer, quests: integer, lootTables: integer, scenes: integer, resources: integer, stats: integer, regions: integer, properties: integer, worldPositions: integer });
 const guideCoverage = Type.Object({ regionsObserved: integer, regionsExported: integer, regionsOmittedReason: text });
 export const CanonicalSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.canonical.v3"),
+  schemaVersion: Type.Literal("compendium.canonical.v4"),
   databaseAvailable: Type.Literal(true),
   localization: Type.Object({ apiAvailable: Type.Literal(true), language: text, loadedEntryCount: integer }),
   sourceTotals: counts, exportedTotals: counts,
@@ -31,6 +37,7 @@ export const CanonicalSchema = Type.Object({
   items: Type.Array(canonicalEntry), npcs: Type.Array(canonicalEntry), quests: Type.Array(canonicalEntry),
   lootTables: Type.Array(canonicalEntry), scenes: Type.Array(canonicalEntry), resources: Type.Array(canonicalEntry), stats: Type.Array(canonicalEntry),
   regions: Type.Array(canonicalEntry), properties: Type.Array(canonicalEntry),
+  worldPositions: Type.Array(canonicalWorldPosition),
 });
 export type Canonical = Static<typeof CanonicalSchema>;
 

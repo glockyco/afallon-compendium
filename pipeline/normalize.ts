@@ -1018,7 +1018,20 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
         if (identity && placementId) sourceDetails.push({ sourceId: identity.sourceId, placementId, family: row.family ?? row.producerFamily ?? row.transitionKind ?? (family === "mapIcons" ? "mapIcon" : family), data: row });
       }
     }
-    const mapProjection: NormalizedMapProjection = { schemaVersion: "compendium.map-projections.v3" as const, buildId: plan.buildId, mapSpaces: profileData.mapSpaces.map((space) => ({ mapSpaceId: space.id, label: space.label, placementIds: mapPlacements.filter((placement) => placement.mapSpaceId === space.id).map((placement) => placement.placementId).sort(compareText) })), placements: mapPlacements, regions: normalizedRegions, sources: sourceDetails, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
+    // The first entry into a scene lands at the RPGWorldPosition its startPositionID names
+    // (RPGBuilderEssentials.InitializeGameState); a scene whose id resolves to no record has no
+    // authored arrival point and is left out.
+    const worldPositions = new Map(array(canonical.worldPositions).map((raw) => record(raw)).filter((row): row is Record<string, unknown> => row !== null).map((row) => [row.nativeId, record(row.position)] as const));
+    const sceneSpawns: NormalizedMapProjection["sceneSpawns"] = [];
+    for (const raw of array(canonical.scenes)) {
+      const scene = record(raw); const gameplay = record(scene?.gameplay);
+      if (!scene || !gameplay || !Number.isSafeInteger(scene.nativeId) || !Number.isSafeInteger(gameplay.startPositionId)) continue;
+      const position = worldPositions.get(gameplay.startPositionId);
+      if (!position || typeof position.x !== "number" || typeof position.y !== "number" || typeof position.z !== "number") continue;
+      sceneSpawns.push({ sceneNativeId: scene.nativeId as number, startPositionId: gameplay.startPositionId as number, position: { x: position.x, y: position.y, z: position.z } });
+    }
+    sceneSpawns.sort((a, b) => a.sceneNativeId - b.sceneNativeId);
+    const mapProjection: NormalizedMapProjection = { schemaVersion: "compendium.map-projections.v4" as const, buildId: plan.buildId, mapSpaces: profileData.mapSpaces.map((space) => ({ mapSpaceId: space.id, label: space.label, placementIds: mapPlacements.filter((placement) => placement.mapSpaceId === space.id).map((placement) => placement.placementId).sort(compareText) })), placements: mapPlacements, regions: normalizedRegions, sceneSpawns, sources: sourceDetails, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
     const categoryProjection = { schemaVersion: "compendium.category-metadata.v1" as const, buildId: plan.buildId, categories, provenance: { plan: planRef, sources: sourceFiles.map((source) => source.reference) } };
     const entityProjection = { schemaVersion: "compendium.entity-details.v1" as const, buildId: plan.buildId, entities: entityDetailsRows, provenance: { plan: planRef, sources: sourceFiles.map((source) => source.reference) } };
     const itemProjection: NormalizedItemSources = { schemaVersion: "compendium.item-sources.v1", buildId: plan.buildId, items: itemSources, conditions: [...new Map(conditions.map((condition) => [condition.conditionId, condition])).values()], provenance: { plan: planRef, sources: sourceFiles.map((source) => source.reference) } };

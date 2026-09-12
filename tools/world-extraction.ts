@@ -225,6 +225,16 @@ const action = Type.Object({
   referenceId: nullable(integer),
   reference: projectedReference,
   effect: projectedReference,
+  // Set when the referenced RPGEffect is of type Teleport: the door's destination, exact to the
+  // authored teleportPOS for both gameScene and position teleports.
+  effectTeleport: nullable(Type.Object({
+    sourceFieldPath: text,
+    rankCount: integer,
+    type: enumValue,
+    sceneNativeId: integer,
+    destinationScene: nullable(Type.Object({ nativeId: integer, name: nullableText, internalName: nullableText, fileName: nullableText })),
+    position: Type.Object({ x: number, y: number, z: number }),
+  })),
   quest: projectedReference,
   point: projectedReference,
   skill: projectedReference,
@@ -757,7 +767,7 @@ const exportedTotals = Type.Object({
 });
 
 export const WorldSourcesSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.world-sources.v6"),
+  schemaVersion: Type.Literal("compendium.world-sources.v7"),
   coverage: Type.Object({
     scope: text,
     fullGameCoverage: boolean,
@@ -1216,7 +1226,7 @@ function validateCondition(reference: Reference, rowValue: unknown, index: numbe
 
 export function validateWorldSources(value: Static<typeof WorldSourcesSchema>, reference: Reference): void {
   const artifact = value as unknown as AnyRecord;
-  if (artifact.schemaVersion !== "compendium.world-sources.v6") throw new Error("World source schema version is invalid.");
+  if (artifact.schemaVersion !== "compendium.world-sources.v7") throw new Error("World source schema version is invalid.");
   const totals = record(artifact.totals, "totals");
   const sourceTotalsValue = record(totals.source, "totals.source");
   const exportedTotalsValue = record(totals.exported, "totals.exported");

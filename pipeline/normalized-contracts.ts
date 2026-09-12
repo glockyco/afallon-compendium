@@ -137,11 +137,14 @@ export interface NormalizedSpawnCandidate {
 }
 
 export interface NormalizedMapProjection {
-  schemaVersion: "compendium.map-projections.v3";
+  schemaVersion: "compendium.map-projections.v4";
   buildId: string;
   mapSpaces: Array<{ mapSpaceId: string; label: string; placementIds: string[] }>;
   placements: NormalizedPlacement[];
   regions: NormalizedRegion[];
+  // Where the first entry into a scene lands the player: the RPGWorldPosition record that the
+  // scene's startPositionID names. Later entries land where the player last left the scene.
+  sceneSpawns: Array<{ sceneNativeId: number; startPositionId: number; position: { x: number; y: number; z: number } }>;
   sources: Array<{ sourceId: string; placementId: string; family: string; data: Record<string, unknown> }>;
   provenance: { plan: ArtifactReference; profile: ArtifactReference; sources: ArtifactReference[] };
 }

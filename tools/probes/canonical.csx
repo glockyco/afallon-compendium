@@ -7,6 +7,7 @@ var canonicalResources = new System.Collections.Generic.List<object>();
 var canonicalStats = new System.Collections.Generic.List<object>();
 var canonicalRegions = new System.Collections.Generic.List<object>();
 var canonicalProperties = new System.Collections.Generic.List<object>();
+var canonicalWorldPositions = new System.Collections.Generic.List<object>();
 
 var database = Il2CppBLINK.RPGBuilder.Managers.GameDatabase.Instance;
 var databaseAvailable = database != null;
@@ -35,6 +36,7 @@ var resources = databaseAvailable ? database.GetResources() : null;
 var stats = databaseAvailable ? database.GetStats() : null;
 var regions = databaseAvailable ? database.GetRegionTemplates() : null;
 var properties = databaseAvailable ? database.GetProperties() : null;
+var worldPositions = databaseAvailable ? database.GetWorldPositions() : null;
 
 var sourceItemTotal = items == null ? -1 : items.Count;
 var sourceNpcTotal = npcs == null ? -1 : npcs.Count;
@@ -45,6 +47,7 @@ var sourceResourceTotal = resources == null ? -1 : resources.Count;
 var sourceStatTotal = stats == null ? -1 : stats.Count;
 var sourceRegionTotal = regions == null ? -1 : regions.Count;
 var sourcePropertyTotal = properties == null ? -1 : properties.Count;
+var sourceWorldPositionTotal = worldPositions == null ? -1 : worldPositions.Count;
 
 if (items != null)
 {
@@ -842,9 +845,35 @@ if (properties != null)
     }
 }
 
+// RPGWorldPosition records: RPGGameScene.startPositionID selects one as the arrival point of
+// the first entry into a scene (RPGBuilderEssentials.InitializeGameState); later entries land
+// where the player last left the scene.
+if (worldPositions != null)
+{
+    foreach (var positionPair in worldPositions)
+    {
+        var worldPosition = positionPair.Value;
+        if (worldPosition == null)
+        {
+            canonicalWorldPositions.Add(new { sourceKey = positionPair.Key, nativeId = (int?)null, name = (string)null, internalName = (string)null, position = (object)null, useRotation = false, rotation = (object)null, unavailable = "Database returned a null RPGWorldPosition record." });
+            continue;
+        }
+        canonicalWorldPositions.Add(new
+        {
+            sourceKey = positionPair.Key,
+            nativeId = worldPosition.ID,
+            name = worldPosition.displayName ?? worldPosition.entryDisplayName ?? worldPosition.entryName,
+            internalName = worldPosition.entryName,
+            position = new { x = worldPosition.position.x, y = worldPosition.position.y, z = worldPosition.position.z },
+            useRotation = worldPosition.useRotation,
+            rotation = new { x = worldPosition.rotation.x, y = worldPosition.rotation.y, z = worldPosition.rotation.z }
+        });
+    }
+}
+
 return new
 {
-    schemaVersion = "compendium.canonical.v3",
+    schemaVersion = "compendium.canonical.v4",
     databaseAvailable = databaseAvailable,
     databaseError = databaseError,
     localization = new
@@ -865,7 +894,8 @@ return new
         resources = sourceResourceTotal,
         stats = sourceStatTotal,
         regions = sourceRegionTotal,
-        properties = sourcePropertyTotal
+        properties = sourcePropertyTotal,
+        worldPositions = sourceWorldPositionTotal
     },
     exportedTotals = new
     {
@@ -877,7 +907,8 @@ return new
         resources = canonicalResources.Count,
         stats = canonicalStats.Count,
         regions = canonicalRegions.Count,
-        properties = canonicalProperties.Count
+        properties = canonicalProperties.Count,
+        worldPositions = canonicalWorldPositions.Count
     },
     guideCoverage = new { regionsObserved = regions == null ? 0 : regions.Count, regionsExported = canonicalRegions.Count, regionsOmittedReason = "RegionTemplate runtime IDs are -1; the dictionary key is a string and is outside the integer identity contract." },
     items = canonicalItems,
@@ -888,5 +919,6 @@ return new
     resources = canonicalResources,
     stats = canonicalStats,
     regions = canonicalRegions,
-    properties = canonicalProperties
+    properties = canonicalProperties,
+    worldPositions = canonicalWorldPositions
 };

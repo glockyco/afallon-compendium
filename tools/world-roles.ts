@@ -309,10 +309,12 @@ function inspectAction(value: unknown, actionPath: string, issues: RoleIssue[]):
   }
   if (isTyped && !validActionReference(action, actionName, actionPath, issues)) return null;
   const payloadName = typedActionPayloads[actionName];
-  return {
-    name: actionName,
-    evidence: [...typeEvidence, ...(payloadName === undefined ? [] : refs(`${actionPath}/${payloadName}`))],
-  };
+  const evidence = [...typeEvidence, ...(payloadName === undefined ? [] : refs(`${actionPath}/${payloadName}`))];
+  // An Effect action whose effect is a Teleport is a door; the probe projects the destination.
+  if (actionName === "Effect" && record(action.effectTeleport) !== null) {
+    return { name: "TeleportEffect", evidence: [...evidence, ...refs(`${actionPath}/effectTeleport`)] };
+  }
+  return { name: actionName, evidence };
 }
 
 function collectInteractableActions(row: RecordValue, rowPath: string, facts: FactBuilder, issues: RoleIssue[]): void {
@@ -328,7 +330,7 @@ function collectInteractableActions(row: RecordValue, rowPath: string, facts: Fa
     } else if (resolved.name === "Quest" || resolved.name === "CompleteTask") {
       addFact(facts, "questLocation", resolved.evidence);
       addFact(facts, "usefulInteraction", resolved.evidence);
-    } else if (resolved.name === "GameActions") {
+    } else if (resolved.name === "GameActions" || resolved.name === "TeleportEffect") {
       addFact(facts, "transition", resolved.evidence);
       addFact(facts, "usefulInteraction", resolved.evidence);
     } else {
@@ -550,6 +552,9 @@ function classifyMapIcon(row: RecordValue, rowPath: string, facts: FactBuilder):
 }
 
 function classifyTransition(row: RecordValue, rowPath: string, facts: FactBuilder, issues: RoleIssue[]): void {
+  // DungeonEntranceTrigger.OnTriggerEnter (build 25153357) records its scene and opens a UI
+  // panel; it loads nothing. The door into the dungeon is a Teleport effect nearby.
+  if (row.transitionKind === "dungeonEntranceTrigger") return;
   const evidence = [...sourceRefs(rowPath, row), ...refs(`${rowPath}/transitionKind`, `${rowPath}/destinationSceneName` )];
   if (row.destinationResolved !== true || !validReference(row.destinationScene)) {
     issue(issues, "unresolvedTransitionDestination", "The transition destination is not a valid resolved native scene reference.", refs(`${rowPath}/destinationScene`, `${rowPath}/destinationResolved`, `${rowPath}/destinationReferenceStatus`));

@@ -487,7 +487,7 @@ function spatialAreas(placement: NormalizedPlacement, resolver: ReturnType<typeo
 }
 
 type TravelTarget = { sceneNativeId: number; position: { x: number; y: number; z: number } };
-type TravelResolution = { target: TravelTarget | null; reason?: string };
+type TravelResolution = { target: { sceneNativeId: number; position: TravelTarget["position"] | null } | null; reason?: string };
 
 function discriminator(value: unknown, expectedValue: number, expectedName: string): "match" | "contradictory" | "missing" {
   const candidate = record(value);
@@ -509,6 +509,23 @@ function nestedTravelResolution(data: Record<string, unknown>, sourceSceneNative
   for (const row of actions) {
     const action = record(row);
     if (!action) return { target: null, reason: "A nested action row is unavailable." };
+    // A Teleport effect lands exactly at its authored teleportPOS: TeleportToGameScene stores it
+    // as the scene entry's LastPosition for gameScene teleports, and position teleports move the
+    // player within the scene.
+    const effectTeleport = record(action.effectTeleport);
+    if (effectTeleport) {
+      const gameScene = discriminator(effectTeleport.type, 0, "gameScene");
+      const position = discriminator(effectTeleport.type, 1, "position");
+      if (gameScene === "contradictory" || position === "contradictory") return { target: null, reason: "A teleport effect type discriminator is contradictory." };
+      if (!finitePosition(effectTeleport.position)) return { target: null, reason: "Teleport effect has no verified position." };
+      if (position === "match") return { target: { sceneNativeId: sourceSceneNativeId, position: effectTeleport.position } };
+      if (gameScene === "match") {
+        const destination = record(effectTeleport.destinationScene);
+        if (!destination || typeof destination.nativeId !== "number" || !Number.isInteger(destination.nativeId)) return { target: null, reason: "Teleport effect destination scene is unresolved." };
+        return { target: { sceneNativeId: destination.nativeId, position: effectTeleport.position } };
+      }
+      return { target: null, reason: "Teleport effect has an unsupported destination type." };
+    }
     const actionDiscriminator = discriminator(action.type, 9, "GameActions");
     if (actionDiscriminator === "contradictory") return { target: null, reason: "A GameActions discriminator is contradictory." };
     if (actionDiscriminator === "match") {
@@ -544,8 +561,9 @@ function nestedTravelResolution(data: Record<string, unknown>, sourceSceneNative
       }
       if (gameSceneType === "match") {
         if (typeof teleport.sceneNativeId !== "number" || !Number.isInteger(teleport.sceneNativeId) || teleport.sceneNativeId < 0) return { target: null, reason: "GameScene teleport has no verified destination scene." };
-        if (!finitePosition(teleport.position)) return { target: null, reason: "GameScene teleport has no verified arrival position." };
-        return { target: { sceneNativeId: teleport.sceneNativeId, position: teleport.position } };
+        // GameActionsManager.TriggerGameActions loads the scene by id and never reads the authored
+        // position (build 25153357), so the arrival is the destination scene's own rule.
+        return { target: { sceneNativeId: teleport.sceneNativeId, position: null } };
       }
       return { target: null, reason: "Teleport has an unsupported destination type." };
     }
@@ -583,24 +601,27 @@ function travelForPlacement(
   sceneCatalog: SceneCatalog,
   offsets: ReadonlyMap<string, { worldX: number; worldY: number }>,
   imageryMapSpaces: ReadonlySet<string>,
+  sceneSpawns: ReadonlyMap<number, { x: number; y: number; z: number }>,
 ): PublicTravel | undefined {
-  const candidates = sources.filter((source) => source.placementId === placement.placementId && (source.data.role === "transition" || source.data.transitionKind !== undefined || (Array.isArray(source.data.roles) && source.data.roles.includes("transition"))));
-  if (candidates.length === 0 && !placement.roles.some((role) => role.role === "transition" || role.role === "respawnDestination")) return undefined;
+  // The transition role names the sources it was derived from (an InteractableObject whose
+  // GameActions teleport); the source rows do not carry the role.
+  const roleSourceIds = new Set(placement.roles.filter((role) => role.role === "transition" || role.role === "respawnDestination").flatMap((role) => role.sourceIds));
+  const candidates = sources.filter((source) => source.placementId === placement.placementId && roleSourceIds.has(source.sourceId));
+  if (candidates.length === 0 && roleSourceIds.size === 0) return undefined;
   const source = candidates[0];
   if (!source) return { transitionId: placement.placementId, enabled: true, destination: { status: "unresolved", reason: "No normalized transition source is available." } };
   const data = source.data;
   const transitionId = typeof data.transitionId === "string" ? data.transitionId : source.sourceId;
-  let resolution: TravelResolution;
-  const destinationScene = record(data.destinationScene);
-  if (destinationScene && data.destinationResolved === true && typeof destinationScene.nativeId === "number" && Number.isInteger(destinationScene.nativeId)) {
-    resolution = { target: null, reason: "Destination scene is known, but its verified arrival position is not published." };
-  } else if (Array.isArray(data.actions)) {
-    resolution = nestedTravelResolution(data, placement.sceneNativeId);
-  } else {
-    resolution = { target: null, reason: "Transition destination is unresolved." };
-  }
+  const resolution = Array.isArray(data.actions) ? nestedTravelResolution(data, placement.sceneNativeId) : { target: null, reason: "Transition destination is unresolved." };
   if (!resolution.target) return { transitionId, enabled: mapSourceEnabled(data), destination: { status: "unresolved", reason: resolution.reason ?? "Transition destination is unresolved." } };
-  const destination = worldPointForTarget(resolution.target, placement.scenePath, resolver, sceneCatalog, offsets, imageryMapSpaces);
+  // A scene load lands the first entry at the scene's start position; later entries land where
+  // the player last left the scene, so the start position is the one authored arrival point.
+  const spawn = resolution.target.position === null ? sceneSpawns.get(resolution.target.sceneNativeId) : undefined;
+  const target = resolution.target.position !== null
+    ? { sceneNativeId: resolution.target.sceneNativeId, position: resolution.target.position }
+    : spawn ? { sceneNativeId: resolution.target.sceneNativeId, position: spawn } : null;
+  if (!target) return { transitionId, enabled: mapSourceEnabled(data), destination: { status: "unresolved", reason: "Destination scene has no start position record." } };
+  const destination = worldPointForTarget(target, placement.scenePath, resolver, sceneCatalog, offsets, imageryMapSpaces);
   if (!destination) return { transitionId, enabled: mapSourceEnabled(data), destination: { status: "unresolved", reason: "Verified destination has no published map position." } };
   return { transitionId, enabled: mapSourceEnabled(data), destination: { status: "resolved", mapSpaceId: destination.mapSpaceId, position: destination.position } };
 }
@@ -614,7 +635,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const reviewedOffsets = await readWorldOffsets(resolve(planDirectory, plan.worldOffsets.path), plan.worldOffsets.sha256, plan.buildId);
   const load = (reference: PublicationPlan["normalized"], command: string) => loadVerifiedRun(resolve(planDirectory, reference.path), reference.sha256, plan.buildId, command);
   const normalized = await load(plan.normalized, "normalize");
-  const map = await jsonArtifact<NormalizedMapProjection>(normalized, "projections/map-projections.json", "compendium.map-projections.v3");
+  const map = await jsonArtifact<NormalizedMapProjection>(normalized, "projections/map-projections.json", "compendium.map-projections.v4");
   const entities = await jsonArtifact<NormalizedEntityDetails>(normalized, "projections/entity-details.json", "compendium.entity-details.v1");
   const items = await jsonArtifact<NormalizedItemSources>(normalized, "projections/item-sources.json", "compendium.item-sources.v1");
   const coverage = await jsonArtifact<NormalizedCoverageSummary>(normalized, "projections/coverage-summary.json", "compendium.normalized-coverage.v3");
@@ -780,10 +801,11 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     };
   });
   const imageryMapSpaces = new Set(tileLayers.map((layer) => layer.mapSpaceId));
+  const sceneSpawns = new Map(map.sceneSpawns.map((spawn) => [spawn.sceneNativeId, spawn.position]));
   const offsetPlacements = localPlacements.map(({ source, value }) => {
     const offset = offsetByMap.get(value.mapSpaceId);
     if (!offset) throw new Error(`World layout has no offset for map space: ${value.mapSpaceId}`);
-    const travel = travelForPlacement(source, map.sources, resolver, catalogValue as SceneCatalog, offsetByMap, imageryMapSpaces);
+    const travel = travelForPlacement(source, map.sources, resolver, catalogValue as SceneCatalog, offsetByMap, imageryMapSpaces, sceneSpawns);
     return {
       ...value,
       position: [value.position[0] + offset.worldX, value.position[1] + offset.worldY],
@@ -889,6 +911,9 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const points: Array<[number, number]> = [];
     for (const layer of tileLayers.filter(layer => layer.mapSpaceId === space.mapSpaceId)) points.push([layer.extent[0], layer.extent[1]], [layer.extent[2], layer.extent[3]]);
     for (const placement of placements.filter(placement => placement.mapSpaceId === space.mapSpaceId)) points.push(...placement.areas.flat());
+    // A door's arrival point is a published coordinate on the destination map, whether or not
+    // the map's imagery reaches it.
+    for (const placement of placements) if (placement.travel?.destination.status === "resolved" && placement.travel.destination.mapSpaceId === space.mapSpaceId && placement.travel.destination.position) points.push(placement.travel.destination.position);
     for (const region of regions.filter((candidate) => candidate.mapSpaceId === space.mapSpaceId)) points.push(...region.polygon);
     const range = mapLevelRanges.get(space.mapSpaceId);
     return { mapSpaceId: space.mapSpaceId, label: space.label, ...(range ? { levelRange: range } : {}), bounds: { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } } };

@@ -145,6 +145,12 @@ var worldSceneEvidence = new System.Func<UnityEngine.SceneManagement.Scene, obje
     };
 });
 
+var worldFindSceneById = new System.Func<int, Il2Cpp.RPGGameScene>((sceneId) =>
+{
+    if (worldDatabaseScenes == null || !worldDatabaseScenes.ContainsKey(sceneId)) return null;
+    return worldDatabaseScenes[sceneId];
+});
+
 var worldFindScene = new System.Func<string, object>((destination) =>
 {
     if (destination == null || destination.Length == 0)
@@ -636,11 +642,39 @@ var worldActionProjection = new System.Func<Il2CppBLINK.RPGBuilder.World.Interac
     var supportedReference = (object)null;
     var referenceKind = (string)null;
     var referenceId = (int?)null;
+    // An Effect action whose RPGEffect is of type Teleport is a door: CombatManager.EFFECTS_LOGIC
+    // (build 25153357) calls RPGBuilderEssentials.TeleportToGameScene(gameSceneID, teleportPOS)
+    // for gameScene teleports, and the character controller's teleport for position teleports.
+    var effectTeleport = (object)null;
     if (action.type == Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.Effect)
     {
         referenceKind = "effect";
         referenceId = action.Effect == null ? (int?)null : (int?)action.Effect.ID;
         supportedReference = action.Effect == null ? null : (object)projectEntry(action.Effect);
+        if (action.Effect != null && action.Effect.effectType == Il2Cpp.RPGEffect.EFFECT_TYPE.Teleport)
+        {
+            var effectRanks = action.Effect.ranks;
+            var effectRank = effectRanks == null || effectRanks.Count == 0 ? null : effectRanks[0];
+            if (effectRank == null)
+            {
+                unresolved.Add(new { kind = "teleportEffectRank", sourceFieldPath = sourcePath + ".Effect.ranks", effectID = action.Effect.ID, detail = "The teleport effect has no rank data, so its destination is unavailable." });
+            }
+            else
+            {
+                var teleportScene = effectRank.teleportType == Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene ? worldFindSceneById(effectRank.gameSceneID) : null;
+                if (effectRank.teleportType == Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene && teleportScene == null)
+                    unresolved.Add(new { kind = "transitionDestinationReference", transitionKind = "teleportEffect", sourceFieldPath = sourcePath + ".Effect.ranks[0].gameSceneID", destinationSceneID = effectRank.gameSceneID, detail = "gameSceneID does not resolve to a non-null GameDatabase.GameScenes record." });
+                effectTeleport = new
+                {
+                    sourceFieldPath = sourcePath + ".Effect.ranks[0]",
+                    rankCount = effectRanks.Count,
+                    type = new { value = (int)effectRank.teleportType, name = effectRank.teleportType.ToString() },
+                    sceneNativeId = effectRank.teleportType == Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene ? effectRank.gameSceneID : -1,
+                    destinationScene = teleportScene == null ? null : (object)new { nativeId = teleportScene.ID, name = getEntryName(teleportScene), internalName = teleportScene.entryName, fileName = teleportScene.entryFileName },
+                    position = new { x = effectRank.teleportPOS.x, y = effectRank.teleportPOS.y, z = effectRank.teleportPOS.z }
+                };
+            }
+        }
     }
     else if (action.type == Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.Quest)
     {
@@ -723,6 +757,7 @@ var worldActionProjection = new System.Func<Il2CppBLINK.RPGBuilder.World.Interac
         referenceId = referenceId,
         reference = supportedReference,
         effect = action.Effect == null ? null : (object)projectEntry(action.Effect),
+        effectTeleport = effectTeleport,
         quest = action.Quest == null ? null : (object)worldQuestReference(action.Quest),
         point = action.Point == null ? null : (object)projectEntry(action.Point),
         skill = action.Skill == null ? null : (object)worldSkillReference(action.Skill),
@@ -2199,7 +2234,7 @@ var worldExportedTotal = new
 
 return new
 {
-    schemaVersion = "compendium.world-sources.v6",
+    schemaVersion = "compendium.world-sources.v7",
     coverage = new
     {
         scope = "currently loaded Unity scenes and candidate prefab assets visible to the current process",
