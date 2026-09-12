@@ -851,6 +851,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const points: Array<[number, number]> = [];
     for (const layer of tileLayers.filter(layer => layer.mapSpaceId === space.mapSpaceId)) points.push([layer.extent[0], layer.extent[1]], [layer.extent[2], layer.extent[3]]);
     for (const placement of placements.filter(placement => placement.mapSpaceId === space.mapSpaceId)) points.push(...placement.areas.flat());
+    for (const region of regions.filter((candidate) => candidate.mapSpaceId === space.mapSpaceId)) points.push(...region.polygon);
     const range = mapLevelRanges.get(space.mapSpaceId);
     return { mapSpaceId: space.mapSpaceId, label: space.label, ...(range ? { levelRange: range } : {}), bounds: { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } } };
   });
