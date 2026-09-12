@@ -33,8 +33,8 @@ import type { Runtime } from "./runtime";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "./spatial-contracts";
 import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
-import { TooManySourcesError, withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
-import { capturePositionFor, compositeRawSlices, cutCaptureFrame, loadNavigationSurvey, planTileCut, type CapturePosition, type CutPlan, type NavigationSurvey } from "./capture-cut";
+import { HiddenSourceError, TooManySourcesError, withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
+import { capturePositionFor, compositeRawSlices, cutCaptureFrame, loadNavigationSurvey, planTileCut, tileCapturePositionFor, type CapturePosition, type CutPlan, type NavigationSurvey } from "./capture-cut";
 import {
   captureArtifactReference,
   copyReusableTile,
@@ -653,6 +653,9 @@ async function capturePlan(
     // nothing loads or unloads between tiles and every tile renders under the same observation.
     // A map whose required sources exceed the bound for one observation keeps per-tile readiness.
     let staticReadiness: { readiness: CaptureReadiness; readinessPath: string } | undefined;
+    // The game hides a terrain's objects unless the player stands inside it, so a map whose one
+    // standing point leaves loaders hidden in view is captured tile by tile with the player moved.
+    let standPerTile = false;
     if (pending.length > 1) {
       const extent = mapExtentSubject(plan, pending, cutPlans);
       try {
@@ -660,9 +663,11 @@ async function capturePlan(
           if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
           return readiness;
         }, { singleObservation: true });
-        staticReadiness = { readiness: observed.readiness, readinessPath: observed.readinessPath };
+        if (observed.readiness.hiddenSources > 0) standPerTile = true;
+        else staticReadiness = { readiness: observed.readiness, readinessPath: observed.readinessPath };
       } catch (error) {
-        if (!(error instanceof TooManySourcesError)) throw error;
+        if (error instanceof HiddenSourceError) standPerTile = true;
+        else if (!(error instanceof TooManySourcesError)) throw error;
       }
     }
     if (staticReadiness !== undefined) {
@@ -672,10 +677,27 @@ async function capturePlan(
       for (const tile of pending) {
         const cutPlan = cutPlans.get(tile.id)!;
         const subject = { tile, frame: cutCaptureFrame(tile, cutPlan), kind: "tile" as const };
-        const prepared = await withCaptureGeometry(runtime, config, run, plan, subject, cutPlan === null ? null : cutPlan.evidence, async readiness => {
+        const observe = () => withCaptureGeometry(runtime, config, run, plan, subject, cutPlan === null ? null : cutPlan.evidence, async readiness => {
           if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
           return (await renderBatch([tile], readiness, tile.id)).get(tile.id)!;
         });
+        const stand = async (target?: { x: number; z: number }): Promise<void> => {
+          if (!standPerTile || survey === null || sweep === undefined) return;
+          // Moving within the same scene is a retarget to it with a new standing point.
+          sweep.visit = await sweep.retarget(plan.sceneNativeId, plan.readiness.timeoutMs, tileCapturePositionFor(tile, plan, survey, target));
+          if (sweep.visit.sceneHandle !== sceneHandle) throw new Error("Standing at a tile changed the scene instance.");
+        };
+        await stand();
+        let prepared: Awaited<ReturnType<typeof observe>>;
+        try {
+          prepared = await observe();
+        } catch (error) {
+          // A tile can straddle two terrains, and the game shows only the one the player stands
+          // in. Standing nearest the hidden source is the one other place to look from.
+          if (!(error instanceof HiddenSourceError) || !standPerTile) throw error;
+          await stand({ x: error.position.x, z: error.position.z });
+          prepared = await observe();
+        }
         await checkpointTile(tile, prepared.value, prepared.readiness, prepared.readinessPath);
       }
     }

@@ -29,8 +29,7 @@
   interface LayerOption {
     id: string;
     label: string;
-    kind: 'screenshot' | 'illustration';
-    orientationOnly: boolean;
+    kind: 'captured' | 'game-map';
   }
 
 
@@ -96,19 +95,15 @@
   let queryTimer: ReturnType<typeof setTimeout> | null = null;
   let searchIndexes: SearchIndexes = emptySearchIndexes();
 
-  $: layerOptions = getLayerOptions(publication);
-  $: tileLayerOptions = (publication?.tileLayers ?? []).map((tileLayer) => ({ id: tileLayer.id, label: mapLabel(publication, tileLayer.mapSpaceId) })).sort((left, right) => left.label.localeCompare(right.label));
-  $: illustrationOptions = layerOptions.filter((option) => option.kind === 'illustration');
-  $: gameMapOptions = illustrationOptions.filter((option) => !option.orientationOnly).sort((left, right) => left.label.localeCompare(right.label));
-  $: looseIllustrationOptions = illustrationOptions.filter((option) => option.orientationOnly);
-  $: visibleGameMapIds = layerIds.includes('game-maps') ? gameMapOptions.map((option) => option.id) : gameMapOptions.filter((option) => layerIds.includes(option.id)).map((option) => option.id);
-  $: gameMapsChecked = visibleGameMapIds.length > 0;
-  $: gameMapsPartial = visibleGameMapIds.length > 0 && visibleGameMapIds.length < gameMapOptions.length;
-  $: activeIllustration = looseIllustrationOptions.find((option) => layerIds.includes(option.id)) ?? null;
-  $: approximateIllustration = activeIllustration?.orientationOnly ?? false;
+  $: layerOptions = (publication?.tileLayers ?? []).map((layer): LayerOption => ({ id: layer.id, label: mapLabel(publication, layer.mapSpaceId), kind: layer.kind })).sort((left, right) => left.label.localeCompare(right.label));
+  $: tileLayerOptions = layerOptions.filter((option) => option.kind === 'captured');
+  $: gameMapOptions = layerOptions.filter((option) => option.kind === 'game-map');
   $: visibleTileLayerIds = layerIds.includes('captured') ? tileLayerOptions.map((option) => option.id) : tileLayerOptions.filter((option) => layerIds.includes(option.id)).map((option) => option.id);
   $: capturedChecked = visibleTileLayerIds.length > 0;
   $: capturedPartial = visibleTileLayerIds.length > 0 && visibleTileLayerIds.length < tileLayerOptions.length;
+  $: visibleGameMapIds = layerIds.includes('game-maps') ? gameMapOptions.map((option) => option.id) : gameMapOptions.filter((option) => layerIds.includes(option.id)).map((option) => option.id);
+  $: gameMapsChecked = visibleGameMapIds.length > 0;
+  $: gameMapsPartial = visibleGameMapIds.length > 0 && visibleGameMapIds.length < gameMapOptions.length;
   $: allMapPlacements = uniquePlacements(publication?.placements ?? []);
   $: entityIndexByKey = new Map(publication?.entityIndex.map((entity) => [entity.entityKey, entity]) ?? []);
   $: itemIndexByKey = new Map(publication?.itemIndex.map((item) => [item.itemKey, item]) ?? []);
@@ -319,26 +314,15 @@
     return { target: [x, y, 0], zoom: Math.log2(scale * 0.9) };
   }
 
-  // The game's own maps are the familiar view, so they are on by default. Captured screenshots
-  // default on only for the world surface, where they add terrain the drawing lacks.
+  // Game maps are the backdrop and captured screenshots draw over them, so both start on; a
+  // reader hides either per map.
   function defaultLayers(data: PublicationData | null): string[] {
     const layers: string[] = [];
-    if (data?.illustrations.some((illustration) => illustration.registration === 'calibrated')) layers.push('game-maps');
-    // Captured screenshots stay on for maps the game itself places in the world (the surface),
-    // where they add terrain the drawing lacks; interiors open on their game map alone.
-    const native = new Set((data?.world.offsets ?? []).filter((offset) => offset.source === 'native').map((offset) => offset.mapSpaceId));
-    const surfaces = (data?.tileLayers ?? []).filter((layer) => native.has(layer.mapSpaceId));
-    if (surfaces.length > 0) layers.push(...surfaces.map((layer) => layer.id));
-    else if (data && data.tileLayers.length > 0) layers.push('captured');
+    if (data?.tileLayers.some((layer) => layer.kind === 'game-map')) layers.push('game-maps');
+    if (data?.tileLayers.some((layer) => layer.kind === 'captured')) layers.push('captured');
     return layers.length > 0 ? layers : ['captured'];
   }
 
-  function getLayerOptions(data: PublicationData | null): LayerOption[] {
-    if (!data) return [];
-    const options: LayerOption[] = data.tileLayers.length > 0 ? [{ id: 'captured', label: 'Captured screenshots', kind: 'screenshot', orientationOnly: false }] : [];
-    options.push(...data.illustrations.map((illustration): LayerOption => ({ id: illustration.id, label: `${illustration.label}${illustration.registration === 'orientation-only' ? ' (orientation only)' : ''}`, kind: 'illustration', orientationOnly: illustration.registration === 'orientation-only' })));
-    return options;
-  }
 
   function uniquePlacements(placements: PublicPlacement[]): PublicPlacement[] {
     const seen = new Set<string>();
@@ -484,7 +468,7 @@
   function applyUrlState(next: MapUrlState): void {
     itemSourceQuery = next.itemSourceQuery;
     detailQuery = next.detailQuery;
-    const known = new Set(['game-maps', ...getLayerOptions(publication).map((option) => option.id), ...(publication?.tileLayers ?? []).map((tileLayer) => tileLayer.id)]);
+    const known = new Set(['captured', 'game-maps', ...(publication?.tileLayers ?? []).map((tileLayer) => tileLayer.id)]);
     const requested = next.layerIds.filter((id) => known.has(id));
     layerIds = requested.length > 0 ? requested : defaultLayers(publication);
     query = next.query;
@@ -628,9 +612,6 @@
     setLayers([...layerIds.filter((current) => !gameMapOptions.some((option) => option.id === current) && current !== 'game-maps'), ...expanded]);
   }
 
-  function toggleIllustration(option: LayerOption): void {
-    setLayers(layerIds.includes(option.id) ? layerIds.filter((id) => id !== option.id) : [...layerIds, option.id]);
-  }
 
   function toggleAuthoring(): void {
     authoring = !authoring;
@@ -748,7 +729,7 @@
         {:else}
           <div class="panel-body">
             <div class="control-section search-section"><label for="atlas-search">Search places, entities, and items</label><div class="search-row"><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } }} placeholder="Try a name or item" autocomplete="off" /><button class="quiet-button" type="button" on:click={() => { query = ''; scheduleQueryUrl(); searchInput?.focus(); }} aria-label="Clear search">Clear</button></div><p class="hint">Press Enter to move from search to results.</p></div>
-            {#if tileLayerOptions.length > 0 || illustrationOptions.length > 0}
+            {#if layerOptions.length > 0}
               <div class="control-section layer-section">
                 <h2>Map layers</h2>
                 {#if tileLayerOptions.length > 0}
@@ -781,10 +762,6 @@
                     </details>
                   {/if}
                 {/if}
-                {#each looseIllustrationOptions as option (option.id)}
-                  <label class="tool-option"><input type="checkbox" checked={layerIds.includes(option.id)} on:change={() => toggleIllustration(option)} /><span>{option.label}</span></label>
-                {/each}
-                {#if approximateIllustration}<p class="notice">The artwork has no reviewed registration yet. It draws behind the captured imagery, fitted to the map's world bounds, so marker positions over it are approximate.</p>{/if}
               </div>
             {/if}
             <div class="control-section world-tools"><h2>Map options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button><p class="hint">Drag a map boundary to review its placement. Travel lines stay visible while authoring.</p>{/if}</div>
@@ -802,7 +779,7 @@
       </aside>
 
       <section class="map-column" aria-label="Interactive map">
-        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(12, view.zoom + 0.5) })}>+</button><button type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(-12, view.zoom - 0.5) })}>−</button><button type="button" on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(hoveredPlacement.levelRange)}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}{#if approximateIllustration}{' · artwork placement approximate'}{/if}</div></div>
+        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(12, view.zoom + 0.5) })}>+</button><button type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(-12, view.zoom - 0.5) })}>−</button><button type="button" on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(hoveredPlacement.levelRange)}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div></div>
         {#if loadError && publication}<div class="inline-error" role="alert">{loadError}</div>{/if}
         <section class="results" aria-labelledby="results-heading" bind:this={resultList}>
           <div class="results-header">

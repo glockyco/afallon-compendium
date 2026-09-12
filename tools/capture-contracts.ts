@@ -190,11 +190,11 @@ export const CaptureGeometrySchema = Type.Object({
 });
 export type CaptureGeometry = Static<typeof CaptureGeometrySchema>;
 export const CaptureReadinessSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-readiness.v3"),
+  schemaVersion: Type.Literal("compendium.capture-readiness.v4"),
   tileId: text, ownerToken: text, sceneNativeId: count, sceneHandle: integer,
   inventoryPath: text, inventorySha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
   observedFrames: Type.Array(count, { minItems: 2 }), stableFrames: count,
-  requiredSources: count, excludedSources: count, empty: Type.Boolean(),
+  requiredSources: count, excludedSources: count, hiddenSources: count, empty: Type.Boolean(),
   captureFrame: frame,
   cut: cutEvidence,
   streamKey: Type.Union([text, Type.Null()]),

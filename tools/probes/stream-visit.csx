@@ -325,7 +325,10 @@ if (action == "start")
             }
             else
             {
-                if (initialRootId.HasValue && (currentRoot == null || currentRoot.GetInstanceID() != initialRootId.Value))
+                // A loader the game switched off during the visit unloads its own root; that is the
+                // game's ObjectHider at work, not a leak of ours. Only an active loader whose root
+                // changed is a restoration failure.
+                if (initialRootId.HasValue && (currentRoot == null || currentRoot.GetInstanceID() != initialRootId.Value) && target.gameObject.activeInHierarchy)
                     throw new System.InvalidOperationException("An initially loaded AddressableLoader root changed during restoration.");
             }
             if (getHold(target) != (float)row["originalHoldUntil"])

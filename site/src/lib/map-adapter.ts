@@ -19,7 +19,6 @@ import {
   TextLayer,
 } from "@deck.gl/layers";
 import type {
-  PublicIllustration,
   PublicPlacement,
   PublicTile,
   PublicTileLayer,
@@ -115,18 +114,6 @@ function point(value: readonly number[] | null | undefined): Point | null {
 }
 
 
-function ownImageBounds(width: number, height: number): BitmapBounds {
-  return [
-    [0, 0],
-    [0, height],
-    [width, height],
-    [width, 0],
-  ];
-}
-
-function translateBounds(bounds: BitmapBounds, x: number, y: number): BitmapBounds {
-  return bounds.map(([pointX, pointY]) => [pointX + x, pointY + y] as Point) as BitmapBounds;
-}
 
 function normalizeView(view: MapViewState | ViewInput | undefined, fallback: MapViewState): MapViewState {
   const target = view?.target;
@@ -355,29 +342,11 @@ function viewportBounds(view: MapViewState, canvas: HTMLCanvasElement): Bounds {
   ];
 }
 
+// 'captured' stands for every captured pyramid and 'game-maps' for every game map, as masters
+// over the individual layer ids.
 function matchingTileLayers(data: PublicationData, layerIds: readonly string[]): PublicTileLayer[] {
-  if (layerIds.includes("captured")) return data.tileLayers;
-  return data.tileLayers.filter((layer) => layerIds.includes(layer.id));
-}
-
-// 'game-maps' stands for every calibrated illustration, as 'captured' stands for every pyramid.
-function matchingIllustrations(data: PublicationData, layerIds: readonly string[]): PublicIllustration[] {
-  const all = layerIds.includes("game-maps");
-  return data.illustrations.filter((illustration) => layerIds.includes(illustration.id) || (all && illustration.registration === "calibrated"));
-}
-
-// An illustration without a reviewed transform still needs somewhere to draw. Its map space's
-// world bounds are the honest provisional choice: the drawing covers that map and nothing claims
-// pixel accuracy inside it. A reviewed transform replaces this the moment one exists.
-function provisionalBounds(data: PublicationData, illustration: Extract<PublicIllustration, { registration: "orientation-only" }>): BitmapBounds {
-  const space = data.maps.find((map) => map.mapSpaceId === illustration.mapSpaceId);
-  if (!space) return ownImageBounds(illustration.width, illustration.height);
-  const { min, max } = space.bounds;
-  const width = max.x - min.x, height = max.y - min.y;
-  const scale = Math.min(width / illustration.width, height / illustration.height);
-  const drawWidth = illustration.width * scale, drawHeight = illustration.height * scale;
-  const left = min.x + (width - drawWidth) / 2, bottom = min.y + (height - drawHeight) / 2;
-  return [[left, bottom], [left, bottom + drawHeight], [left + drawWidth, bottom + drawHeight], [left + drawWidth, bottom]];
+  const allCaptured = layerIds.includes("captured"), allGameMaps = layerIds.includes("game-maps");
+  return data.tileLayers.filter((layer) => layerIds.includes(layer.id) || (allCaptured && layer.kind === "captured") || (allGameMaps && layer.kind === "game-map"));
 }
 
 export type MapAdapter = {
@@ -456,55 +425,15 @@ export async function createMapAdapter(
     return {tile, image};
   };
 
-  // An illustration is one image rather than a pyramid, and it is decoded here for the same reason
-  // tiles are: the layer draws nothing until the pixels exist, and a decoded bitmap is what the
-  // renderer can upload. A layer built while the decode is in flight redraws when it lands.
-  const illustrationImages = new Map<string, ImageBitmap>();
-  const illustrationLoads = new Set<string>();
-  const illustrationImage = (url: string): ImageBitmap | null => {
-    const ready = illustrationImages.get(url);
-    if (ready) return ready;
-    if (!illustrationLoads.has(url)) {
-      illustrationLoads.add(url);
-      void (async () => {
-        try {
-          const response = await fetch(url);
-          if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-          illustrationImages.set(url, await createImageBitmap(await response.blob()));
-          if (current && !destroyed) update(current);
-        } catch (error) {
-          report(`Unable to load the illustration layer: ${textFromError(error)}`);
-        }
-      })();
-    }
-    return null;
-  };
-
-  const createIllustrationLayers = (next: MapAdapterUpdate, illustrations: readonly PublicIllustration[]): Layer[] => illustrations.flatMap((illustration) => {
-    const delta = mapOffsetDelta(next.data, illustration.mapSpaceId, next.worldOffsets);
-    if (illustration.registration === "calibrated") {
-      return [pyramidLayer(`map-illustration-${illustration.id}`, illustration.layer, latticeOffset(illustration.layer, delta))];
-    }
-    const image = illustrationImage(illustration.url);
-    if (!image) return [];
-    const localBounds = provisionalBounds(next.data, illustration);
-    return [new BitmapLayer({
-      id: `map-illustration-${illustration.id}`,
-      data: null as never,
-      image,
-      bounds: translateBounds(localBounds, delta.worldX, delta.worldY),
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: false,
-    })];
-  });
-
   const createImagery = (next: MapAdapterUpdate, tileLayersForView: PublicTileLayer[]): Layer[] => {
     if (tileLayersForView.length > 0) {
-      const placed = tileLayersForView.map((tileLayer) => ({ tileLayer, offset: latticeOffset(tileLayer, mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets)) }));
+      // Game maps are the backdrop; captured imagery draws over them.
+      const ordered = [...tileLayersForView].sort((left, right) => Number(left.kind === "captured") - Number(right.kind === "captured"));
+      const placed = ordered.map((tileLayer) => ({ tileLayer, offset: latticeOffset(tileLayer, mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets)) }));
       const key = `tiles:${next.data.buildId}:${placed.map(({ tileLayer, offset }) => `${tileLayer.id}:${offset.tiles.x}:${offset.tiles.y}`).join("|")}`;
       if (imageryLayers.length === tileLayersForView.length && imageryKey === key) return imageryLayers;
       imageryKey = key;
-      imageryLayers = placed.map(({ tileLayer, offset }) => pyramidLayer(`map-imagery-${tileLayer.mapSpaceId}`, tileLayer, offset));
+      imageryLayers = placed.map(({ tileLayer, offset }) => pyramidLayer(`map-imagery-${tileLayer.id}`, tileLayer, offset));
       return imageryLayers;
     }
     imageryLayers = [];
@@ -512,7 +441,7 @@ export async function createMapAdapter(
     return imageryLayers;
   };
 
-  // One deck TileLayer per published pyramid. Captured imagery and calibrated illustrations share
+  // One deck TileLayer per published pyramid. Captured imagery and game maps share
   // the lattice, the loader, and the cache; only their draw order differs.
   const pyramidLayer = (id: string, tileLayer: PublicTileLayer, offset: ReturnType<typeof latticeOffset>): Layer => {
         const [minX, minY, maxX, maxY] = tileLayer.extent;
@@ -551,12 +480,8 @@ export async function createMapAdapter(
 
   const refreshLayers = (next: MapAdapterUpdate): void => {
     const tileLayersForView = matchingTileLayers(next.data, next.layerIds);
-    const illustrations = matchingIllustrations(next.data, next.layerIds);
-    // An illustration is an ordinary backdrop layer. Markers, labels, and areas belong to the
-    // world, not to whichever imagery is switched on, so nothing about them depends on it.
-    // Readiness belongs in the key: a decode that lands later changes the layers this builds, and
-    // an unchanged key would skip that rebuild and leave the illustration undrawn.
-    const layerKind = `tiles:${tileLayersForView.map((layer) => layer.id).join(",")}|art:${illustrations.map((illustration) => `${illustration.id}:${illustration.registration === "calibrated" || illustrationImages.has(illustration.url) ? "ready" : "loading"}`).join(",")}`;
+    // Markers, labels, and areas belong to the world, not to whichever imagery is switched on.
+    const layerKind = `tiles:${tileLayersForView.map((layer) => layer.id).join(",")}`;
     const visiblePlacements = next.placements;
     const nextPlacementKey = placementSignature(visiblePlacements);
     const offsetKey = Object.entries(next.worldOffsets).sort(([left], [right]) => left.localeCompare(right)).map(([mapSpaceId, offset]) => `${mapSpaceId}:${offset.worldX},${offset.worldY}`).join("|");
@@ -573,7 +498,7 @@ export async function createMapAdapter(
     if (nextGeometryKey === geometryKey) return;
     geometryKey = nextGeometryKey;
 
-    const imageLayers = [...createIllustrationLayers(next, illustrations), ...createImagery(next, tileLayersForView)];
+    const imageLayers = createImagery(next, tileLayersForView);
     const visibleMarkers = next.showConnections || next.authoring ? baseMarkers : baseMarkers.filter((marker) => !marker.isTravel);
     renderMarkers = groupCoincidentMarkers(visibleMarkers);
     const markerByPlacement = new Map(baseMarkers.map((marker) => [marker.placementId, marker]));
@@ -751,9 +676,8 @@ export async function createMapAdapter(
     const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6);
     layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
 
-    // Hiding every layer is a reader choice, and a layer still decoding is not a failure either.
-    const pendingIllustration = illustrations.some((illustration) => illustration.registration === "orientation-only" && !illustrationImages.has(illustration.url));
-    const requestedImagery = next.layerIds.length > 0 && !pendingIllustration;
+    // Hiding every layer is a reader choice; only a layer that cannot be drawn is a failure.
+    const requestedImagery = next.layerIds.length > 0;
     if (imageLayers.length === 0 && requestedImagery) {
       const warningKey = `${next.data.buildId}:${[...next.layerIds].sort().join(",")}`;
       if (warningKey !== missingLayerWarningKey) {

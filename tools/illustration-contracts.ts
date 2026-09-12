@@ -31,12 +31,6 @@ const landmarkControl = Type.Object({
   reviewed: Type.Literal(true),
 });
 
-const orientationOnlyRegistration = Type.Object({
-  kind: Type.Literal("orientation-only"),
-  reason: text,
-  reviewEvidence: Type.Array(IllustrationEvidenceInputSchema, { minItems: 1, maxItems: 64 }),
-});
-
 const calibratedRegistration = Type.Object({
   kind: Type.Literal("calibrated"),
   mapFromPixelEdge: affineFrame,
@@ -45,10 +39,7 @@ const calibratedRegistration = Type.Object({
   reviewEvidence: Type.Array(IllustrationEvidenceInputSchema, { minItems: 1, maxItems: 64 }),
 });
 
-export const IllustrationRegistrationInputSchema = Type.Union([
-  orientationOnlyRegistration,
-  calibratedRegistration,
-]);
+export const IllustrationRegistrationInputSchema = calibratedRegistration;
 export type IllustrationRegistrationInput = Static<typeof IllustrationRegistrationInputSchema>;
 
 export const IllustrationPlanSchema = Type.Object({
@@ -86,12 +77,6 @@ const residualCheck = Type.Object({
   independentResidualPixels: Type.Number({ minimum: 0, maximum: 0.25 }),
 });
 
-const orientationOnlyOutput = Type.Object({
-  kind: Type.Literal("orientation-only"),
-  reason: text,
-  reviewEvidence: Type.Array(evidenceOutput, { minItems: 1, maxItems: 64 }),
-});
-
 const calibratedOutput = Type.Object({
   kind: Type.Literal("calibrated"),
   mapFromPixelEdge: affineFrame,
@@ -101,10 +86,7 @@ const calibratedOutput = Type.Object({
   reviewEvidence: Type.Array(evidenceOutput, { minItems: 1, maxItems: 64 }),
 });
 
-export const IllustrationRegistrationOutputSchema = Type.Union([
-  orientationOnlyOutput,
-  calibratedOutput,
-]);
+export const IllustrationRegistrationOutputSchema = calibratedOutput;
 export type IllustrationRegistrationOutput = Static<typeof IllustrationRegistrationOutputSchema>;
 
 const imageOutput = Type.Object({

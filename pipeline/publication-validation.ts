@@ -1,16 +1,6 @@
 import { Assert } from "typebox/value";
-import { EntityDetailsDocumentSchema, ItemSourcesDocumentSchema, PublicationDataSchema, type EntityDetailsDocument, type ItemSourcesDocument, type PublicationData, type PublicAffine, type PublicDetailSection } from "./public-contracts";
+import { EntityDetailsDocumentSchema, ItemSourcesDocumentSchema, PublicationDataSchema, type EntityDetailsDocument, type ItemSourcesDocument, type PublicationData, type PublicDetailSection } from "./public-contracts";
 
-export function affinePoint(frame: PublicAffine, x: number, y: number): [number, number] {
-  return [frame.origin.x + frame.xAxis.x * x + frame.yAxis.x * y, frame.origin.y + frame.xAxis.y * x + frame.yAxis.y * y];
-}
-
-export function inversePoint(frame: PublicAffine, point: readonly [number, number]): [number, number] {
-  const determinant = frame.xAxis.x * frame.yAxis.y - frame.xAxis.y * frame.yAxis.x;
-  if (!Number.isFinite(determinant) || Math.abs(determinant) < 1e-15) throw new Error("Publication has a degenerate image transform.");
-  const x = point[0] - frame.origin.x, y = point[1] - frame.origin.y;
-  return [(frame.yAxis.y * x - frame.yAxis.x * y) / determinant, (frame.xAxis.x * y - frame.xAxis.y * x) / determinant];
-}
 
 function unique<T>(rows: readonly T[], key: (row: T) => string, label: string): Map<string, T> {
   const values = new Map<string, T>();
@@ -32,8 +22,7 @@ export function validatePublication(value: unknown): asserts value is Publicatio
   const entities = unique(data.entityIndex, row => row.entityKey, "entity index");
   const items = unique(data.itemIndex, row => row.itemKey, "item index");
   unique(data.tileLayers, row => row.id, "tile layer");
-  unique(data.tileLayers, row => row.mapSpaceId, "map pyramid");
-  unique(data.illustrations, row => row.id, "illustration");
+  unique(data.tileLayers, row => `${row.mapSpaceId}:${row.kind}`, "map pyramid of one kind");
   const offsets = unique(data.world.offsets, row => row.mapSpaceId, "world offset");
   const unplaced = new Set(data.world.unplacedMapSpaceIds);
   for (const mapSpaceId of unplaced) {
@@ -62,7 +51,7 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     if (!offsets.has(map.mapSpaceId)) throw new Error(`Publication map lacks a world offset: ${map.mapSpaceId}`);
     if (!(map.bounds.max.x > map.bounds.min.x && map.bounds.max.y > map.bounds.min.y)) throw new Error(`Publication map has empty bounds: ${map.mapSpaceId}`);
     if (map.levelRange && map.levelRange.max < map.levelRange.min) throw new Error(`Publication map has an inverted level range: ${map.mapSpaceId}`);
-    if (!data.tileLayers.some(layer => layer.mapSpaceId === map.mapSpaceId)) throw new Error(`Publication map lacks primary imagery: ${map.mapSpaceId}`);
+    if (!data.tileLayers.some(layer => layer.mapSpaceId === map.mapSpaceId)) throw new Error(`Publication map lacks imagery: ${map.mapSpaceId}`);
   }
   // Captured pyramids and calibrated illustration pyramids share one lattice contract.
   const validateTileLayer = (layer: PublicationData["tileLayers"][number]): void => {
@@ -107,15 +96,13 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     if (placement.levelRange && placement.levelRange.max < placement.levelRange.min) throw new Error(`Publication placement has an inverted level range: ${placement.placementId}`);
     scope(placement.mapSpaceId);
     inside(placement.mapSpaceId, placement.position);
-    const layer = data.tileLayers.find(layer => layer.mapSpaceId === placement.mapSpaceId);
-    const markerTile = layer?.tiles.find(tile => {
+    const layers = data.tileLayers.filter(layer => layer.mapSpaceId === placement.mapSpaceId);
+    const hasImagery = layers.some(layer => layer.tiles.some(tile => {
       if (tile.z !== layer.maxZoom || tile.state === "empty") return false;
       const tileSize = layer.tileSize / 2 ** layer.maxZoom;
-      const tileX = Math.floor(placement.position[0] / tileSize);
-      const tileY = Math.floor(placement.position[1] / tileSize);
-      return tile.x === tileX && tile.y === tileY;
-    });
-    if (!layer || !markerTile) throw new Error(`Publication placement lacks finest primary imagery: ${placement.placementId}`);
+      return tile.x === Math.floor(placement.position[0] / tileSize) && tile.y === Math.floor(placement.position[1] / tileSize);
+    }));
+    if (!hasImagery) throw new Error(`Publication placement lacks finest imagery: ${placement.placementId}`);
     for (const key of placement.entityKeys) if (!entities.has(key)) throw new Error(`Publication placement references absent entity: ${key}`);
     for (const key of placement.itemKeys) if (!items.has(key)) throw new Error(`Publication placement references absent item: ${key}`);
     for (const polygon of placement.areas) for (const point of polygon) inside(placement.mapSpaceId, point);
@@ -128,13 +115,6 @@ export function validatePublication(value: unknown): asserts value is Publicatio
       } else if (!destination.reason || destination.mapSpaceId !== undefined || destination.position !== undefined || destination.placementId !== undefined) {
         throw new Error(`Unresolved travel destination has a guessed position: ${placement.placementId}`);
       }
-    }
-  }
-  for (const illustration of data.illustrations) {
-    scope(illustration.mapSpaceId);
-    if (illustration.registration === "calibrated") {
-      if (illustration.layer.mapSpaceId !== illustration.mapSpaceId) throw new Error("Publication illustration pyramid names a different map space.");
-      validateTileLayer(illustration.layer);
     }
   }
 }

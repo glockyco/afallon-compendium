@@ -134,30 +134,19 @@ export const PublicTileSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicTile = Static<typeof PublicTileSchema>;
 
+// A map's imagery is one or more pyramids on the world lattice. `captured` is rendered by this
+// project from the game build; `game-map` is the texture the game itself draws for that zone,
+// registered through the zone's own world-to-map conversion.
 export const PublicTileLayerSchema = Type.Object({
-  id: text, mapSpaceId: text,
+  id: text, mapSpaceId: text, label: text,
+  kind: Type.Union([Type.Literal("captured"), Type.Literal("game-map")]),
   tileSize: Type.Literal(256), minZoom: Type.Integer(), maxZoom: Type.Integer(),
   extent: Type.Tuple([number, number, number, number]),
   tiles: Type.Array(PublicTileSchema, { minItems: 1 }),
 }, { additionalProperties: false });
 export type PublicTileLayer = Static<typeof PublicTileLayerSchema>;
 
-// A calibrated illustration is published as a tile pyramid on the world lattice, exactly like
-// captured imagery, so the reader loads only the tiles in view. An illustration without a reviewed
-// transform has no world position, so it stays one bounded image the atlas fits to its map.
-export const PublicIllustrationSchema = Type.Union([
-  Type.Object({
-    id: text, label: text, mapSpaceId: text,
-    registration: Type.Literal("calibrated"),
-    layer: PublicTileLayerSchema,
-  }, { additionalProperties: false }),
-  Type.Object({
-    id: text, label: text, mapSpaceId: text,
-    registration: Type.Literal("orientation-only"),
-    url, width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }),
-  }, { additionalProperties: false }),
-]);
-export type PublicIllustration = Static<typeof PublicIllustrationSchema>;
+
 
 const guidePlacementIds = Type.Array(text, { uniqueItems: true });
 const guideDescription = Type.Optional(Type.String({ minLength: 1 }));
@@ -267,7 +256,7 @@ const publicMapSchema = Type.Object({
   bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
 }, { additionalProperties: false });
 
-export const PUBLICATION_SCHEMA_VERSION = "compendium.publication.v10";
+export const PUBLICATION_SCHEMA_VERSION = "compendium.publication.v11";
 
 export const PublicationDataSchema = Type.Object({
   schemaVersion: Type.Literal(PUBLICATION_SCHEMA_VERSION), buildId: text,
@@ -278,7 +267,6 @@ export const PublicationDataSchema = Type.Object({
   placements: Type.Array(PublicPlacementSchema),
   entityIndex: Type.Array(PublicEntitySummarySchema), itemIndex: Type.Array(PublicItemSummarySchema),
   tileLayers: Type.Array(PublicTileLayerSchema, { minItems: 1 }),
-  illustrations: Type.Array(PublicIllustrationSchema),
 }, { additionalProperties: false });
 export type PublicationData = Static<typeof PublicationDataSchema>;
 

@@ -166,7 +166,7 @@ function assertReadiness(value: unknown): CaptureReadiness {
   try {
     Assert(CaptureReadinessSchema, value);
   } catch (error) {
-    fail(`readiness does not satisfy compendium.capture-readiness.v3: ${error instanceof Error ? error.message : String(error)}`);
+    fail(`readiness does not satisfy compendium.capture-readiness.v4: ${error instanceof Error ? error.message : String(error)}`);
   }
   return value as CaptureReadiness;
 }

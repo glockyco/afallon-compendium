@@ -203,12 +203,6 @@ function validateMapRegistration(
 ): IllustrationRegistrationOutput {
   const registration = plan.registration;
   validateEvidenceList(registration.reviewEvidence, "Illustration registration reviewEvidence");
-  if (registration.kind === "orientation-only") {
-    if (registration.reason.trim().length === 0) throw new Error("Orientation-only illustration registration requires a reason.");
-    // Deliberately return no transform. Distorted artwork must never acquire a marker transform.
-    return { kind: "orientation-only", reason: registration.reason, reviewEvidence: [] };
-  }
-
   const frame = registration.mapFromPixelEdge as AffineFrame;
   determinant(frame);
   const inverse = inverseFrame(frame);

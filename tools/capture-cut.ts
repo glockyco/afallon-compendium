@@ -150,19 +150,42 @@ export type CapturePosition = { x: number; y: number; z: number };
 // The walkable point nearest the plan's horizontal centre. Standing there keeps every source of
 // the map resident, so the scene is static for capture.
 export function capturePositionFor(plan: CapturePlan, survey: NavigationSurvey): CapturePosition {
-  const minX = Math.min(...plan.tiles.map(tile => tile.frame.center.x - tile.frame.worldSize.x / 2));
-  const maxX = Math.max(...plan.tiles.map(tile => tile.frame.center.x + tile.frame.worldSize.x / 2));
-  const minZ = Math.min(...plan.tiles.map(tile => tile.frame.center.z - tile.frame.worldSize.z / 2));
-  const maxZ = Math.max(...plan.tiles.map(tile => tile.frame.center.z + tile.frame.worldSize.z / 2));
-  const centerX = (minX + maxX) / 2, centerZ = (minZ + maxZ) / 2;
+  return walkablePointNearest(planBox(plan), survey, "capture plan");
+}
+
+// The walkable point nearest a tile's centre. The game hides a terrain's objects unless the player
+// stands inside that terrain, so a map spanning several terrains stands the player at each tile.
+export function tileCapturePositionFor(tile: CapturePlan["tiles"][number], plan: CapturePlan, survey: NavigationSurvey, target?: { x: number; z: number }): CapturePosition {
+  const half = { x: tile.frame.worldSize.x / 2, z: tile.frame.worldSize.z / 2 };
+  const tileBox = { minX: tile.frame.center.x - half.x, maxX: tile.frame.center.x + half.x, minZ: tile.frame.center.z - half.z, maxZ: tile.frame.center.z + half.z };
+  const aim = target ?? { x: tile.frame.center.x, z: tile.frame.center.z };
+  try {
+    return walkablePointNearest(tileBox, survey, `tile ${tile.id}`, aim);
+  } catch {
+    // A tile with no walkable surface of its own stands at the map's walkable point nearest it.
+    return walkablePointNearest(planBox(plan), survey, "capture plan", aim);
+  }
+}
+
+function planBox(plan: CapturePlan): { minX: number; maxX: number; minZ: number; maxZ: number } {
+  return {
+    minX: Math.min(...plan.tiles.map(tile => tile.frame.center.x - tile.frame.worldSize.x / 2)),
+    maxX: Math.max(...plan.tiles.map(tile => tile.frame.center.x + tile.frame.worldSize.x / 2)),
+    minZ: Math.min(...plan.tiles.map(tile => tile.frame.center.z - tile.frame.worldSize.z / 2)),
+    maxZ: Math.max(...plan.tiles.map(tile => tile.frame.center.z + tile.frame.worldSize.z / 2)),
+  };
+}
+
+function walkablePointNearest(box: { minX: number; maxX: number; minZ: number; maxZ: number }, survey: NavigationSurvey, label: string, target?: { x: number; z: number }): CapturePosition {
+  const centerX = target?.x ?? (box.minX + box.maxX) / 2, centerZ = target?.z ?? (box.minZ + box.maxZ) / 2;
   const v = survey.vertices;
   let best = -1, bestDistance = Number.POSITIVE_INFINITY;
   for (let i = 0; i + 2 < v.length; i += 3) {
     const x = v[i]!, z = v[i + 2]!;
-    if (x < minX || x > maxX || z < minZ || z > maxZ) continue;
+    if (x < box.minX || x > box.maxX || z < box.minZ || z > box.maxZ) continue;
     const distance = (x - centerX) ** 2 + (z - centerZ) ** 2;
     if (distance < bestDistance) { bestDistance = distance; best = i; }
   }
-  if (best < 0) throw new Error("The navigation survey has no walkable vertex inside the capture plan.");
+  if (best < 0) throw new Error(`The navigation survey has no walkable vertex inside the ${label}.`);
   return { x: v[best]!, y: v[best + 1]!, z: v[best + 2]! };
 }

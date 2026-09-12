@@ -14,13 +14,10 @@ import { IllustrationOutputSchema, type IllustrationOutput } from "../tools/illu
 import { TilePyramidSchema, type TilePyramid } from "./tile-contracts";
 import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement } from "./normalized-contracts";
 import { projectAdventureGuide } from "./guide-projection";
-import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicIllustration, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
+import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
 import { WorldOffsetsSchema, type WorldOffsets, buildWorldLayout } from "./world-layout";
 import { validateEntityDetails, validateItemSources, validatePublication } from "./publication-validation";
 
-// The widest edge a published illustration may have. One texture of this size stays inside the
-// budget a browser can upload and a reader can download.
-const ILLUSTRATION_MAX_EDGE = 4096;
 
 // Resamples a calibrated illustration onto the world tile lattice. The lattice is the one captured
 // imagery uses: a tile at zoom z covers 256 / 2 ** z world units on each axis, and image row zero
@@ -37,7 +34,8 @@ async function tileIllustration(
   bounds: { min: { x: number; y: number }; max: { x: number; y: number } },
   coarsestZoom: number,
   assetBytes: Map<string, Uint8Array>,
-): Promise<PublicTileLayer> {
+  alphaMasks: Map<string, { bytes: Uint8Array; width: number; height: number }>,
+): Promise<Omit<PublicTileLayer, "kind" | "label">> {
   const { xAxis, yAxis, origin } = affine;
   const determinant = xAxis.x * yAxis.y - xAxis.y * yAxis.x;
   if (!Number.isFinite(determinant) || determinant === 0) throw new Error(`Illustration "${layerId}" has a degenerate transform.`);
@@ -100,6 +98,8 @@ async function tileIllustration(
       const webp = await sharp(tilePixels, { raw: { width: 256, height: 256, channels: 4 } }).webp({ quality: 82 }).toBuffer();
       const sha256 = createHash("sha256").update(webp).digest("hex"), url = `imagery/${sha256}.webp`;
       assetBytes.set(url, webp);
+      // Coverage reads the pixel under a placement, so the game map's alpha counts like a capture's.
+      if (!alphaMasks.has(url)) alphaMasks.set(url, { bytes: tilePixels, width: 256, height: 256 });
       tiles.push({ z, x: tx, y: ty, width: 256, height: 256, url, sha256, bytes: webp.byteLength, state });
     }
   }
@@ -537,7 +537,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const pyramid = await jsonArtifact<TilePyramid>(source, "tile-index.json", "compendium.tile-pyramid.v3");
     Assert(TilePyramidSchema, pyramid);
     if (pyramid.profile.sha256 !== profileRecord.reference.sha256) throw new Error("Publication pyramid uses different calibration.");
-    const layer: PublicTileLayer = { id: pyramid.mapSpaceId, mapSpaceId: pyramid.mapSpaceId, tileSize: 256, minZoom: pyramid.minZoom, maxZoom: pyramid.maxZoom, extent: pyramid.extent, tiles: [] };
+    const layer: PublicTileLayer = { id: pyramid.mapSpaceId, mapSpaceId: pyramid.mapSpaceId, label: "Captured screenshots", kind: "captured", tileSize: 256, minZoom: pyramid.minZoom, maxZoom: pyramid.maxZoom, extent: pyramid.extent, tiles: [] };
     let files = 0, bytes = 0;
     for (const level of pyramid.levels) for (const tile of level.tiles) {
       if (tile.coverage.state === "missing") throw new Error("A missing tile cannot have an image artifact.");
@@ -560,6 +560,31 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     allImageryComplete &&= pyramid.coverage.complete && !pyramid.coverage.blocker;
     tileLayers.push(layer);
   }
+  // Game maps: the texture the game draws for a zone, registered by the zone's own conversion and
+  // resampled onto the lattice. Clipped to the map's reviewed box, which is the map's frame whether
+  // or not a captured pyramid exists for it.
+  const reviewedBox = (mapSpaceId: string): { min: { x: number; y: number }; max: { x: number; y: number } } | null => {
+    const boxes = profile.bindings.filter((binding) => binding.mapSpaceId === mapSpaceId).flatMap((binding) => binding.domain.kind === "boxes" ? binding.domain.boxes : []);
+    if (boxes.length === 0) return null;
+    return { min: { x: Math.min(...boxes.map((box) => box.min.x)), y: Math.min(...boxes.map((box) => box.min.z)) }, max: { x: Math.max(...boxes.map((box) => box.max.x)), y: Math.max(...boxes.map((box) => box.max.z)) } };
+  };
+  for (const reference of plan.illustrations) {
+    const source = await load(reference, "illustration");
+    const value = await jsonArtifact<IllustrationOutput>(source, "illustration.json", "compendium.illustration.v1");
+    Assert(IllustrationOutputSchema, value);
+    if (value.mapSpaceProfile.sha256 !== profileRecord.reference.sha256) throw new Error("Publication illustration uses different calibration.");
+    const image = await source.readArtifact(value.image.path);
+    if (image.reference.sha256 !== value.image.sha256 || image.reference.bytes !== value.image.bytes) throw new Error("Publication illustration image reference mismatch.");
+    if (value.image.width !== (await sharp(image.bytes, { limitInputPixels: false }).metadata()).width) throw new Error("Publication illustration dimensions mismatch.");
+    const captured = tileLayers.find((candidate) => candidate.mapSpaceId === value.mapSpaceId && candidate.kind === "captured");
+    const box = reviewedBox(value.mapSpaceId);
+    const bounds = captured
+      ? { min: { x: Math.min(captured.extent[0], box?.min.x ?? captured.extent[0]), y: Math.min(captured.extent[1], box?.min.y ?? captured.extent[1]) }, max: { x: Math.max(captured.extent[2], box?.max.x ?? captured.extent[2]), y: Math.max(captured.extent[3], box?.max.y ?? captured.extent[3]) } }
+      : box;
+    if (!bounds) throw new Error(`Illustration "${value.layerId}" has neither a captured pyramid nor a reviewed box to frame it.`);
+    const layer = await tileIllustration(value.layerId, value.mapSpaceId, image.bytes, value.image, value.registration.mapFromPixelEdge, bounds, captured?.minZoom ?? Number.NEGATIVE_INFINITY, assetBytes, alphaMasks);
+    tileLayers.push({ ...layer, label: "Game map", kind: "game-map" });
+  }
   const localTileLayers = tileLayers;
   const tileBounds = (layer: PublicTileLayer): { min: { x: number; y: number }; max: { x: number; y: number } } => ({
     min: { x: layer.extent[0], y: layer.extent[1] },
@@ -569,8 +594,10 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   for (const binding of profile.bindings) bindingsPerMap.set(binding.mapSpaceId, (bindingsPerMap.get(binding.mapSpaceId) ?? 0) + 1);
   const layout = buildWorldLayout(
     profile.mapSpaces.map((space) => {
-      const layer = localTileLayers.find((candidate) => candidate.mapSpaceId === space.id);
-      return { mapSpaceId: space.id, bounds: layer ? tileBounds(layer) : null, ...(layer ? { coarsestTileSize: layer.tileSize / 2 ** layer.minZoom } : {}) };
+      const layers = localTileLayers.filter((candidate) => candidate.mapSpaceId === space.id);
+      if (layers.length === 0) return { mapSpaceId: space.id, bounds: null };
+      const bounds = layers.map(tileBounds).reduce((union, next) => ({ min: { x: Math.min(union.min.x, next.min.x), y: Math.min(union.min.y, next.min.y) }, max: { x: Math.max(union.max.x, next.max.x), y: Math.max(union.max.y, next.max.y) } }));
+      return { mapSpaceId: space.id, bounds, coarsestTileSize: Math.max(...layers.map((layer) => layer.tileSize / 2 ** layer.minZoom)) };
     }),
     reviewedOffsets,
     new Set([...bindingsPerMap].filter(([, count]) => count > 1).map(([mapSpaceId]) => mapSpaceId)),
@@ -599,8 +626,10 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   });
   const covered = (placement: NormalizedPlacement): boolean => {
     if (!placement.mapPosition || !placement.mapSpaceId) return false;
-    const layer = localTileLayers.find(candidate => candidate.mapSpaceId === placement.mapSpaceId);
-    if (!layer) return false;
+    return localTileLayers.filter(candidate => candidate.mapSpaceId === placement.mapSpaceId).some(layer => coveredBy(layer, placement));
+  };
+  const coveredBy = (layer: PublicTileLayer, placement: NormalizedPlacement): boolean => {
+    if (!placement.mapPosition) return false;
     const tileWorldSize = 256 / 2 ** layer.maxZoom;
     const tileX = Math.floor(placement.mapPosition.x / tileWorldSize);
     const tileY = Math.floor(placement.mapPosition.y / tileWorldSize);
@@ -749,38 +778,6 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const worldPoints = publicMaps.flatMap((map) => [[map.bounds.min.x, map.bounds.min.y], [map.bounds.max.x, map.bounds.max.y]] as Array<[number, number]>);
   if (worldPoints.length === 0) throw new Error("Publication has no renderable world map bounds.");
   const worldBounds = { min: { x: Math.min(...worldPoints.map((point) => point[0])), y: Math.min(...worldPoints.map((point) => point[1])) }, max: { x: Math.max(...worldPoints.map((point) => point[0])), y: Math.max(...worldPoints.map((point) => point[1])) } };
-  const illustrations: PublicIllustration[] = [];
-  for (const reference of plan.illustrations) {
-    const source = await load(reference, "illustration");
-    const value = await jsonArtifact<IllustrationOutput>(source, "illustration.json", "compendium.illustration.v1");
-    Assert(IllustrationOutputSchema, value);
-    if (value.mapSpaceProfile.sha256 !== profileRecord.reference.sha256) throw new Error("Publication illustration uses different calibration.");
-    const image = await source.readArtifact(value.image.path);
-    if (image.reference.sha256 !== value.image.sha256 || image.reference.bytes !== value.image.bytes) throw new Error("Publication illustration image reference mismatch.");
-    if (value.image.width !== (await sharp(image.bytes, { limitInputPixels: false }).metadata()).width) throw new Error("Publication illustration dimensions mismatch.");
-    if (value.registration.kind === "calibrated") {
-      // The transform is in the map's own coordinates, so clip against the local pyramid and
-      // move the result by the same world offset the captured pyramid received.
-      const local = localTileLayers.find((candidate) => candidate.mapSpaceId === value.mapSpaceId);
-      const offset = offsetByMap.get(value.mapSpaceId);
-      if (!local || !offset) throw new Error(`Publication illustration "${value.layerId}" names a map space that publishes no imagery.`);
-      const localBounds = { min: { x: local.extent[0], y: local.extent[1] }, max: { x: local.extent[2], y: local.extent[3] } };
-      const layer = shiftLayer(await tileIllustration(value.layerId, value.mapSpaceId, image.bytes, value.image, value.registration.mapFromPixelEdge, localBounds, local.minZoom, assetBytes), offset);
-      illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: "calibrated", layer });
-      continue;
-    }
-    // Without a reviewed transform the image has no lattice position, so it ships as one bounded
-    // image. The source can be 236 MB of RGBA decoded, which wedges a renderer, so the widest edge
-    // is capped and the declared size is the size that ships.
-    const scale = Math.min(1, ILLUSTRATION_MAX_EDGE / Math.max(value.image.width, value.image.height));
-    const converted = await sharp(image.bytes, { limitInputPixels: false })
-      .resize({ width: Math.round(value.image.width * scale), height: Math.round(value.image.height * scale), fit: "fill" })
-      .webp({ quality: 82 })
-      .toBuffer({ resolveWithObject: true });
-    const hash = createHash("sha256").update(converted.data).digest("hex"), url = `imagery/${hash}.webp`;
-    assetBytes.set(url, converted.data);
-    illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: "orientation-only", url, width: converted.info.width, height: converted.info.height });
-  }
   // A reviewer's domain box decides that a placement is not part of any map. Those decisions are
   // reported with their reasons and evidence; they are not omitted coverage.
   const deliberateExclusions = coverage.exclusions.filter((exclusion) => map.placements.some((placement) => placement.placementId === exclusion.key));
@@ -811,7 +808,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const complete = Boolean(coverage.complete) && allImageryComplete && coverage.blockers.length === 0 && excludedPlacements === 0 && layout.unplacedMapSpaceIds.length === 0;
   const coverageMessages = plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage."] : [];
   if (layout.unplacedMapSpaceIds.length > 0) coverageMessages.push(`Unplaced map spaces: ${layout.unplacedMapSpaceIds.join(", ")}.`);
-  const data: PublicationData = { schemaVersion: PUBLICATION_SCHEMA_VERSION, buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: coverageMessages }, world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: layout.offsets, unplacedMapSpaceIds: layout.unplacedMapSpaceIds }, maps: publicMaps, placements, entityIndex, itemIndex, tileLayers, illustrations };
+  const data: PublicationData = { schemaVersion: PUBLICATION_SCHEMA_VERSION, buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: coverageMessages }, world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: layout.offsets, unplacedMapSpaceIds: layout.unplacedMapSpaceIds }, maps: publicMaps, placements, entityIndex, itemIndex, tileLayers };
   validatePublication(data);
   const entityDocuments: Array<[string, unknown]> = [];
   for (const [index, entity] of publicEntities.entries()) {

@@ -176,6 +176,13 @@ function sourceMembership(geometry: CaptureGeometry): SourceMembership {
   return { required, excluded, requiredById, candidateIds };
 }
 
+// An excluded source inside the envelope is a loader the scene keeps but has switched off. The
+// game's ObjectHider does that by whether the player stands inside a terrain's bounds, so such a
+// source is hidden from here rather than absent, and the player has to stand nearer to see it.
+function hiddenSourceCount(membership: SourceMembership): number {
+  return membership.excluded.filter(source => source.coversEnvelope || source.coversFrustum || source.intersectsFrustum).length;
+}
+
 function assertVisibleBindings(geometry: CaptureGeometry): void {
   const sources = new Map(geometry.sources.map(source => [source.instanceId, source]));
   const bindings: Array<{ sourceLoaderId: number | null; label: string }> = [];
@@ -319,6 +326,9 @@ function assertStreamRows(
   for (const source of baseline.required) {
     const row = rows.get(source.instanceId);
     if (row === undefined) throw new Error(`Stream visit omitted required source ${source.instanceId}.`);
+    if (row.assetGuid === source.assetGuid && row.skippedReason === null && row.enabled && !row.activeInHierarchy) {
+      throw new HiddenSourceError(source.instanceId, source.position);
+    }
     if (row.assetGuid !== source.assetGuid || row.skippedReason !== null || !row.activeInHierarchy || !row.enabled) {
       throw new Error(`Stream visit returned inconsistent metadata for source ${source.instanceId}.`);
     }
@@ -396,6 +406,15 @@ function timeoutError(tile: CaptureTile, timeoutMs: number): Error {
 
 // Raised after the first inventory when one readiness cannot cover the whole map, so the caller
 // can fall back to per-tile readiness. The source bound is per observation, not per map.
+// A required source the game switched off during the visit: its terrain hid its objects because
+// the player is not inside it. The observation cannot complete from this standing point.
+export class HiddenSourceError extends Error {
+  constructor(readonly instanceId: number, readonly position: { x: number; y: number; z: number }) {
+    super(`Source ${instanceId} was hidden during the stream visit.`);
+    this.name = "HiddenSourceError";
+  }
+}
+
 export class TooManySourcesError extends Error {
   constructor(readonly sources: number, readonly bound: number) { super(`${sources} required sources exceed the ${bound}-source bound for one readiness.`); }
 }
@@ -662,7 +681,7 @@ export async function withCaptureGeometry<T>(
       const cut = cutEvidence;
       const empty = latestGeometry.meshes.length === 0 && latestGeometry.terrains.length === 0 && latestGeometry.otherRenderers.length === 0;
       const readiness: CaptureReadiness = {
-        schemaVersion: "compendium.capture-readiness.v3",
+        schemaVersion: "compendium.capture-readiness.v4",
         tileId: tile.id,
         ownerToken: runtime.ownerToken,
         sceneNativeId: plan.sceneNativeId,
@@ -673,6 +692,7 @@ export async function withCaptureGeometry<T>(
         stableFrames: plan.readiness.stableFrames,
         requiredSources: baselineMembership.required.length,
         excludedSources: baselineMembership.excluded.length,
+        hiddenSources: hiddenSourceCount(baselineMembership),
         empty,
         captureFrame,
         cut,
