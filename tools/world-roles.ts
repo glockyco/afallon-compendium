@@ -10,7 +10,8 @@ export type WorldRoleRow = {
     | "transitions"
     | "services"
     | "conditionSources"
-    | "unsupportedSources";
+    | "unsupportedSources"
+    | "mapIcons";
   index: number;
   families: string[];
   facts: RoleFact[];
@@ -30,6 +31,7 @@ const collections: readonly Collection[] = [
   "services",
   "conditionSources",
   "unsupportedSources",
+  "mapIcons",
 ];
 
 const typedActionPayloads: Readonly<Record<string, string>> = {
@@ -87,11 +89,11 @@ function issue(issues: RoleIssue[], reason: string, detail: string, evidence: re
   issues.push({ reason, detail, evidence: [...evidence] });
 }
 
-function addFact(facts: FactBuilder, role: string, evidence: readonly RoleEvidence[]): void {
+function addFact(facts: FactBuilder, role: string, evidence: readonly RoleEvidence[], scope: RoleFact["scope"] = "authored"): void {
   if (evidence.length === 0) return;
   const prior = facts.get(role);
   if (prior === undefined) {
-    facts.set(role, { role, npcId: null, scope: "authored", evidence: [...evidence] });
+    facts.set(role, { role, npcId: null, scope, evidence: [...evidence] });
     return;
   }
   const seen = new Set(prior.evidence.map(value => value.pointer));
@@ -120,6 +122,7 @@ function referenceMatchesId(value: unknown, id: unknown): boolean {
 }
 
 function familyFor(collection: Collection, row: RecordValue): string {
+  if (collection === "mapIcons") return "mapIcon";
   const key = collection === "resourceProducers" ? "producerFamily" : collection === "transitions" ? "transitionKind" : "family";
   return typeof row[key] === "string" && row[key].length > 0 ? row[key] as string : collection;
 }
@@ -540,6 +543,12 @@ function classifyQuestZone(row: RecordValue, rowPath: string, facts: FactBuilder
   addFact(facts, "questLocation", evidence.length > 0 ? evidence : sourceRefs(rowPath, row));
 }
 
+function classifyMapIcon(row: RecordValue, rowPath: string, facts: FactBuilder): void {
+  const kind = row.iconKind;
+  if (kind !== "town" && kind !== "fort" && kind !== "camp" && kind !== "dungeon" && kind !== "challengeStone") return;
+  addFact(facts, "mapIcon", [...sourceRefs(rowPath, row), ...refs(`${rowPath}/iconKind`, `${rowPath}/title`)], kind);
+}
+
 function classifyTransition(row: RecordValue, rowPath: string, facts: FactBuilder, issues: RoleIssue[]): void {
   const evidence = [...sourceRefs(rowPath, row), ...refs(`${rowPath}/transitionKind`, `${rowPath}/destinationSceneName` )];
   if (row.destinationResolved !== true || !validReference(row.destinationScene)) {
@@ -665,6 +674,7 @@ function classify(collection: Collection, row: RecordValue, rowPath: string): { 
     case "services": classifyService(row, rowPath, facts, issues); break;
     case "conditionSources": classifyCondition(row, rowPath, facts, issues); break;
     case "unsupportedSources": classifyUnsupported(row, rowPath, issues); break;
+    case "mapIcons": classifyMapIcon(row, rowPath, facts); break;
   }
   return { families: [family], facts: [...facts.values()], issues };
 }

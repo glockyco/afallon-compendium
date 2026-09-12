@@ -8,8 +8,9 @@ export const RoleEvidenceSchema = Type.Object({
   pointer: Type.String({ pattern: "^/" }),
 });
 export type RoleEvidence = Static<typeof RoleEvidenceSchema>;
-export const RoleFactSchema = Type.Object({ role: text, npcId: nullableId, scope: Type.Union([Type.Literal("authored"), Type.Literal("player-state")]), evidence: Type.Array(RoleEvidenceSchema, { minItems: 1 }) });
+export const RoleFactSchema = Type.Object({ role: text, npcId: nullableId, scope: Type.Union([Type.Literal("authored"), Type.Literal("player-state"), Type.Literal("town"), Type.Literal("fort"), Type.Literal("camp"), Type.Literal("dungeon"), Type.Literal("challengeStone")]), evidence: Type.Array(RoleEvidenceSchema, { minItems: 1 }) });
 export type RoleFact = Static<typeof RoleFactSchema>;
+export type RoleScope = RoleFact["scope"];
 export const RoleIssueSchema = Type.Object({ reason: text, detail: text, evidence: Type.Array(RoleEvidenceSchema, { minItems: 1 }) });
 export type RoleIssue = Static<typeof RoleIssueSchema>;
 export const PlacementRolesSchema = Type.Object({
@@ -20,6 +21,7 @@ export const PlacementRolesSchema = Type.Object({
   placements: Type.Array(Type.Object({
     placementId: text,
     position: Type.Object({ x: Type.Number(), y: Type.Number(), z: Type.Number() }),
+    label: Type.Optional(Type.Union([text, Type.Null()])),
     sourceIds: Type.Array(text, { minItems: 1, uniqueItems: true }),
     roles: Type.Array(Type.Object({ ...RoleFactSchema.properties, sourceIds: Type.Array(text, { minItems: 1, uniqueItems: true }) })),
   })),

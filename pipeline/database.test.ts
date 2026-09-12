@@ -13,7 +13,7 @@ test("rejects unset table identities without partially adding definitions", asyn
     const reference = { path: "input.json", sha256: "0".repeat(64) };
     const input: NormalizedDatabaseInput = {
       buildId: "test", identityResults: [], entities: [], scenes: [], mapSpaces: [], bindings: [],
-      placements: [], sources: [], roles: [], conditions: [], spawnCandidates: [],
+      placements: [], sources: [], roles: [], regions: [], conditions: [], spawnCandidates: [],
       merchantTables: [{ nativeId: 7, name: "Existing stock" }], merchantBindings: [], merchantStock: [],
       lootTables: [{ nativeId: 11, levelBandGear: false }], lootBindings: [], lootEntries: [], linkedNpcRules: [],
       resourceYields: [], questAssociations: [], transitions: [], itemSources: [], blockers: [], inputCoverage: null,

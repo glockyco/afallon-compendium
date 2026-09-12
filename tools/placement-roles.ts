@@ -10,7 +10,7 @@ type Binding = PlacementIdentityResult["identities"][number];
 type EvidenceMap = Map<string, RoleEvidence>;
 type RoleState = { role: string; npcId: number | null; scope: RoleFact["scope"]; evidence: EvidenceMap; sourceIds: Set<string> };
 type SourceState = { sourceId: string; placementId: string; families: Set<string>; evidence: EvidenceMap };
-type PlacementState = { placementId: string; position: Binding["position"]; sourceIds: Set<string>; roles: Map<string, RoleState> };
+type PlacementState = { placementId: string; position: Binding["position"]; label: string | null; sourceIds: Set<string>; roles: Map<string, RoleState> };
 
 function addEvidence(destination: EvidenceMap, values: readonly RoleEvidence[]): void {
   for (const value of values) destination.set(`${value.artifact}\0${value.pointer}`, value);
@@ -100,10 +100,15 @@ export function collectPlacementRoles(
     addEvidence(source.evidence, [evidence]);
     let placement = placements.get(binding.placementId);
     if (!placement) {
-      placement = { placementId: binding.placementId, position: binding.position, sourceIds: new Set(), roles: new Map() };
+      placement = { placementId: binding.placementId, position: binding.position, label: null, sourceIds: new Set(), roles: new Map() };
       placements.set(binding.placementId, placement);
     }
     if (placement.position.x !== binding.position.x || placement.position.y !== binding.position.y || placement.position.z !== binding.position.z) throw new Error("One placement has conflicting snapshot positions.");
+    if (families.includes("mapIcon")) {
+      const title = typeof sourceEvidence?.title === "string" ? sourceEvidence.title : null;
+      if (placement.label !== null && title !== null && placement.label !== title) throw new Error("One map icon placement has conflicting titles.");
+      if (placement.label === null) placement.label = title;
+    }
     placement.sourceIds.add(binding.sourceId);
     for (const fact of facts) {
       const key = JSON.stringify([fact.role, fact.npcId, fact.scope]);
@@ -146,11 +151,16 @@ export function collectPlacementRoles(
     collect(manager, evidence, ["adventurerPopulationManager"], [], []);
   });
   for (const row of collectWorldRoleFacts(world)) {
+    if (row.collection === "mapIcons" && row.facts.length === 0) continue;
     const evidence: RoleEvidence = { artifact: "world-sources", pointer: `/${row.collection}/${row.index}` };
-    collect((world[row.collection][row.index] as Row)?.source, evidence, row.families, row.facts, row.issues);
+    const source = (world[row.collection][row.index] as Row)?.source;
+    const sourceEvidence = row.collection === "mapIcons" && source
+      ? { ...source, title: (world[row.collection][row.index] as Row)?.title }
+      : source;
+    collect(sourceEvidence, evidence, row.families, row.facts, row.issues);
   }
   const placementRows = [...placements.values()].sort((a, b) => a.placementId.localeCompare(b.placementId)).map(placement => ({
-    placementId: placement.placementId, position: placement.position, sourceIds: [...placement.sourceIds].sort(),
+    placementId: placement.placementId, position: placement.position, label: placement.label, sourceIds: [...placement.sourceIds].sort(),
     roles: [...placement.roles.values()].sort((a, b) => a.role.localeCompare(b.role) || (a.npcId ?? -1) - (b.npcId ?? -1)).map(role => ({ role: role.role, npcId: role.npcId, scope: role.scope, sourceIds: [...role.sourceIds].sort(), evidence: orderedEvidence(role.evidence) })),
   }));
   const result: PlacementRoles = {

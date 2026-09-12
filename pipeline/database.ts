@@ -83,6 +83,22 @@ export function openNormalizedDatabase(path: string): Database {
         CHECK((map_x IS NULL AND map_y IS NULL) OR (map_x IS NOT NULL AND map_y IS NOT NULL)),
         UNIQUE(build_id, placement_id)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS regions (
+        region_id TEXT PRIMARY KEY NOT NULL,
+        build_id TEXT NOT NULL REFERENCES normalized_builds(build_id),
+        scene_native_id INTEGER NOT NULL,
+        scene_path TEXT NOT NULL,
+        name TEXT NOT NULL,
+        internal_name TEXT,
+        shape TEXT NOT NULL CHECK(shape IN ('box', 'sphere')),
+        world_geometry_json TEXT NOT NULL,
+        map_space_id TEXT,
+        map_geometry_json TEXT,
+        provenance_json TEXT NOT NULL,
+        FOREIGN KEY(build_id, scene_native_id) REFERENCES identity_scenes,
+        FOREIGN KEY(build_id, map_space_id) REFERENCES map_spaces,
+        CHECK((map_space_id IS NULL AND map_geometry_json IS NULL) OR (map_space_id IS NOT NULL AND map_geometry_json IS NOT NULL))
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS placement_sources (
         placement_id TEXT NOT NULL REFERENCES placements(placement_id),
         source_id TEXT NOT NULL REFERENCES source_identities(source_id),
@@ -95,7 +111,7 @@ export function openNormalizedDatabase(path: string): Database {
         source_id TEXT NOT NULL REFERENCES source_identities(source_id),
         role TEXT NOT NULL,
         npc_entity_key TEXT,
-        scope TEXT NOT NULL CHECK(scope IN ('authored', 'player-state')),
+        scope TEXT NOT NULL CHECK(scope IN ('authored', 'player-state', 'town', 'fort', 'camp', 'dungeon', 'challengeStone')),
         evidence_json TEXT NOT NULL,
         FOREIGN KEY(npc_entity_key) REFERENCES canonical_entities(entity_key)
       ) STRICT;
@@ -329,7 +345,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
   for (const identity of input.identityResults) recordPlacementIdentities(db, { runId: identity.runId, snapshotId: identity.snapshotId, snapshotPrefix: identity.snapshotPrefix, snapshotSha256: identity.snapshotSha256, character: identity.character, sceneHandle: identity.sceneHandle }, identity.result);
   const byEntity = new Map(input.entities.map((entity) => [entity.entityKey, entity]));
   db.transaction(() => {
-    insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, "compendium.normalized-output.v4", json(input.provenance)]);
+    insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, "compendium.normalized-output.v5", json(input.provenance)]);
     for (const source of sourceFiles) addSourceManifest(db, input.buildId, source.key, source.kind, source.ref.path, source.ref.sha256);
 
     const sceneRows = new Map<number, { nativeId: number; path: string; name: string | null }>();
@@ -345,6 +361,9 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
 
     for (const placement of input.placements) {
       insertChecked(db, "placements", ["placement_id"], ["placement_id", "build_id", "scene_native_id", "scene_path", "map_space_id", "world_x", "world_y", "world_z", "map_x", "map_y", "shape_json", "provenance_json"], [placement.placementId, input.buildId, placement.sceneNativeId, placement.scenePath, placement.mapSpaceId, placement.worldPosition.x, placement.worldPosition.y, placement.worldPosition.z, placement.mapPosition?.x ?? null, placement.mapPosition?.y ?? null, json(placement.shape), json(placement.provenance)]);
+    }
+    for (const region of input.regions) {
+      insertChecked(db, "regions", ["region_id"], ["region_id", "build_id", "scene_native_id", "scene_path", "name", "internal_name", "shape", "world_geometry_json", "map_space_id", "map_geometry_json", "provenance_json"], [region.regionId, input.buildId, region.sceneNativeId, region.scenePath, region.name, region.internalName, region.shape, json(region.worldGeometry), region.mapSpaceId, json(region.mapGeometry), json(region.provenance)]);
     }
     for (const source of input.sources) {
       if (!db.query("SELECT 1 AS present FROM source_identities WHERE source_id = ?").get(source.sourceId)) throw new Error(`Source ${source.sourceId} references no persisted identity record.`);
@@ -419,9 +438,9 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
 
 export function databaseCounts(db: Database): NormalizedOutputCounts {
   const count = (table: string): number => Number(db.query<{ count: number }, []>(`SELECT count(*) AS count FROM ${table}`).get()?.count ?? 0);
-  return { entities: count("canonical_entities"), placements: count("placements"), sources: count("source_identities"), roles: count("placement_roles"), conditions: count("conditions"), domainRelations: count("merchant_stock") + count("loot_bindings") + count("loot_entries") + count("resource_ranks") + count("resource_yields") + count("quest_associations") + count("transitions"), blockers: count("unresolved_coverage") };
+  return { entities: count("canonical_entities"), placements: count("placements"), regions: count("regions"), sources: count("source_identities"), roles: count("placement_roles"), conditions: count("conditions"), domainRelations: count("merchant_stock") + count("loot_bindings") + count("loot_entries") + count("resource_ranks") + count("resource_yields") + count("quest_associations") + count("transitions"), blockers: count("unresolved_coverage") };
 }
 
-export interface NormalizedOutputCounts { entities: number; placements: number; sources: number; roles: number; conditions: number; domainRelations: number; blockers: number }
+export interface NormalizedOutputCounts { entities: number; placements: number; regions: number; sources: number; roles: number; conditions: number; domainRelations: number; blockers: number }
 
 export function hashRelation(kind: string, payload: unknown): string { return hash([kind, payload]); }

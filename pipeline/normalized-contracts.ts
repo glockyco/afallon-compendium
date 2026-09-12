@@ -1,9 +1,10 @@
 import { Type, type Static } from "typebox";
 import { Assert } from "typebox/value";
 import type { PlacementIdentityResult } from "../tools/placement-contracts";
+import type { RoleScope } from "../tools/role-contracts";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v4" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v5" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });
@@ -59,17 +60,36 @@ export interface NormalizedPlacementIdentity {
   loaderSourceId: string | null;
 }
 
+export type NormalizedRegionGeometry =
+  | { kind: "box"; corners: [[number, number], [number, number], [number, number], [number, number]] }
+  | { kind: "sphere"; center: [number, number]; radius: number };
+
+export interface NormalizedRegion {
+  regionId: string;
+  buildId: string;
+  sceneNativeId: number;
+  scenePath: string;
+  name: string;
+  internalName: string | null;
+  shape: "box" | "sphere";
+  worldGeometry: NormalizedRegionGeometry;
+  mapSpaceId: string | null;
+  mapGeometry: NormalizedRegionGeometry | null;
+  provenance: ProvenanceReference[];
+}
+
 export interface NormalizedPlacement {
   placementId: string;
   buildId: string;
   sceneNativeId: number;
   scenePath: string;
   identity: NormalizedPlacementIdentity | null;
+  label?: string | null;
   mapSpaceId: string | null;
   worldPosition: { x: number; y: number; z: number };
   mapPosition: { x: number; y: number } | null;
   sourceIds: string[];
-  roles: Array<{ role: string; npcId: number | null; scope: "authored" | "player-state"; sourceIds: string[] }>;
+  roles: Array<{ role: string; npcId: number | null; scope: RoleScope; sourceIds: string[] }>;
   shape: Record<string, unknown> | null;
   provenance: ProvenanceReference[];
 }
@@ -117,10 +137,11 @@ export interface NormalizedSpawnCandidate {
 }
 
 export interface NormalizedMapProjection {
-  schemaVersion: "compendium.map-projections.v2";
+  schemaVersion: "compendium.map-projections.v3";
   buildId: string;
   mapSpaces: Array<{ mapSpaceId: string; label: string; placementIds: string[] }>;
   placements: NormalizedPlacement[];
+  regions: NormalizedRegion[];
   sources: Array<{ sourceId: string; placementId: string; family: string; data: Record<string, unknown> }>;
   provenance: { plan: ArtifactReference; profile: ArtifactReference; sources: ArtifactReference[] };
 }
@@ -223,6 +244,7 @@ export interface NormalizedOutput {
   counts: {
     entities: number;
     placements: number;
+    regions: number;
     sources: number;
     roles: number;
     conditions: number;
@@ -242,7 +264,8 @@ export interface NormalizedDatabaseInput {
   bindings: Array<{ id: string; mapSpaceId: string; sceneNativeId: number; scenePath: string; frame: unknown; domain: { kind: "scene" } | { kind: "boxes"; boxes: unknown } }>;
   placements: NormalizedPlacement[];
   sources: NormalizedSource[];
-  roles: Array<{ placementId: string; sourceId: string; role: string; npcId: number | null; scope: string; evidence: unknown }>;
+  roles: Array<{ placementId: string; sourceId: string; role: string; npcId: number | null; scope: RoleScope; evidence: unknown }>;
+  regions: NormalizedRegion[];
   conditions: NormalizedCondition[];
   spawnCandidates: NormalizedSpawnCandidate[];
   merchantTables: Array<Record<string, unknown>>;
