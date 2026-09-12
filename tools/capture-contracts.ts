@@ -57,7 +57,7 @@ const capture = Type.Object({
   renderTexturesBefore: Type.Array(Type.Object({ instanceId: integer, name: Type.String(), width: count, height: count, depth: count, created: Type.Boolean(), owned: Type.Boolean() })),
   renderTexturesAfter: Type.Array(Type.Object({ instanceId: integer, name: Type.String(), width: count, height: count, depth: count, created: Type.Boolean(), owned: Type.Boolean() })),
   lightingRestored: Type.Literal(true), suppressionRestored: Type.Literal(true), activeTargetRestored: Type.Literal(true),
-  suppressedRenderers: count, visualPolicy: Type.Literal("compendium.capture-visual-policy.v4"),
+  suppressedRenderers: count, visualPolicy: Type.Literal("compendium.capture-visual-policy.v5"),
   captures: Type.Array(capturedTile, { minItems: 1, maxItems: 64 }),
 });
 export const CaptureSessionSchema = Type.Object({
@@ -97,7 +97,7 @@ const visualState = Type.Object({
 });
 export const CaptureRestorationSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-restoration.v5"), key: text, tileIds: Type.Array(text, { minItems: 1, maxItems: 64 }),
-  visualPolicy: Type.Literal("compendium.capture-visual-policy.v4"),
+  visualPolicy: Type.Literal("compendium.capture-visual-policy.v5"),
   colorSpace: Type.Union([Type.Literal("Gamma"), Type.Literal("Linear")]),
   frameStarted: count, frameRestored: count, renderSucceeded: Type.Boolean(),
   selections: Type.Array(Type.Object({ kind: text, instanceId: integer, reason: text })),
@@ -131,7 +131,7 @@ const queryCounts = Type.Object({ all: count, scene: count, foreign: count });
 const optionalId = Type.Union([integer, Type.Null()]);
 export const CaptureGeometrySchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-geometry.v5"),
-  visualPolicy: Type.Literal("compendium.capture-visual-policy.v4"),
+  visualPolicy: Type.Literal("compendium.capture-visual-policy.v5"),
   excludedRenderers: Type.Array(Type.Object({ instanceId: integer, reason: text })),
   frame: count,
   scene: Type.Object({ nativeId: count, handle: integer, path: text, ready: Type.Boolean() }),

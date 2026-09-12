@@ -565,6 +565,12 @@ var renderTexturesBefore = renderTextureInventory();
 var renderTexturesAfter = (object)new object[0];
 var savedActive = UnityEngine.RenderTexture.active;
 var savedFog = UnityEngine.RenderSettings.fog;
+// Level of detail is a perspective-distance trade. An orthographic capture has no viewing
+// distance: a large LOD group scaled to a 512-unit frame falls under its cull height and vanishes
+// with the terrain hole cut for it. Capture renders every group at full detail and restores.
+var savedLodBias = UnityEngine.QualitySettings.lodBias;
+var savedMaximumLodLevel = UnityEngine.QualitySettings.maximumLODLevel;
+const float CAPTURE_LOD_BIAS = 1000f;
 var savedAmbientMode = UnityEngine.RenderSettings.ambientMode;
 var savedAmbientLight = UnityEngine.RenderSettings.ambientLight;
 var savedSkyColor = UnityEngine.RenderSettings.ambientSkyColor;
@@ -602,6 +608,8 @@ var visualState = new System.Func<object>(() =>
     return new
     {
         fog = UnityEngine.RenderSettings.fog,
+        lodBias = UnityEngine.QualitySettings.lodBias,
+        maximumLodLevel = UnityEngine.QualitySettings.maximumLODLevel,
         ambientMode = (int)UnityEngine.RenderSettings.ambientMode,
         ambientLight = rgba(UnityEngine.RenderSettings.ambientLight),
         ambientSky = rgba(UnityEngine.RenderSettings.ambientSkyColor),
@@ -657,6 +665,8 @@ restoreFrame = new System.Action(() =>
     attemptRestore("reflection intensity", () => { UnityEngine.RenderSettings.reflectionIntensity = savedReflectionIntensity; });
     attemptRestore("active render target", () => { UnityEngine.RenderTexture.active = savedActive; });
     attemptRestore("fog", () => { UnityEngine.RenderSettings.fog = savedFog; });
+    attemptRestore("lod bias", () => { UnityEngine.QualitySettings.lodBias = savedLodBias; });
+    attemptRestore("maximum lod level", () => { UnityEngine.QualitySettings.maximumLODLevel = savedMaximumLodLevel; });
     attemptRestore("ambient mode", () => { UnityEngine.RenderSettings.ambientMode = savedAmbientMode; });
     attemptRestore("ambient light", () => { UnityEngine.RenderSettings.ambientLight = savedAmbientLight; });
     attemptRestore("ambient sky", () => { UnityEngine.RenderSettings.ambientSkyColor = savedSkyColor; });
@@ -681,6 +691,8 @@ restoreFrame = new System.Action(() =>
     for (var index = 0; index < projectors.Count; index++) if (projectors[index] == null || projectors[index].enabled != projectorFlags[index]) restorationErrors.Add("projector: verification failed.");
     for (var index = 0; index < highlights.Count; index++) if (highlights[index] == null || highlights[index].camerasLayerMask.value != highlightMasks[index].value) restorationErrors.Add("highlight mask: verification failed.");
     if (UnityEngine.RenderSettings.fog != savedFog) restorationErrors.Add("fog: verification failed.");
+    if (UnityEngine.QualitySettings.lodBias != savedLodBias) restorationErrors.Add("lod bias: verification failed.");
+    if (UnityEngine.QualitySettings.maximumLODLevel != savedMaximumLodLevel) restorationErrors.Add("maximum lod level: verification failed.");
     if (UnityEngine.RenderSettings.ambientMode != savedAmbientMode) restorationErrors.Add("ambient mode: verification failed.");
     if (UnityEngine.RenderSettings.ambientLight != savedAmbientLight) restorationErrors.Add("ambient light: verification failed.");
     if (UnityEngine.RenderSettings.ambientSkyColor != savedSkyColor) restorationErrors.Add("ambient sky: verification failed.");
@@ -733,6 +745,8 @@ try
     sessionLight.transform.rotation = UnityEngine.Quaternion.Euler(directionalEuler);
     fault("after-light");
     UnityEngine.RenderSettings.fog = false;
+    UnityEngine.QualitySettings.lodBias = CAPTURE_LOD_BIAS;
+    UnityEngine.QualitySettings.maximumLODLevel = 0;
     UnityEngine.RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
     UnityEngine.RenderSettings.ambientLight = ambient;
     UnityEngine.RenderSettings.ambientSkyColor = ambient;
@@ -757,6 +771,7 @@ try
     {
         if (UnityEngine.RenderSettings.sun != sessionLight || UnityEngine.RenderSettings.reflectionIntensity != 0f || !probeEqual(captureAmbientProbe, UnityEngine.RenderSettings.ambientProbe)
             || UnityEngine.RenderSettings.fog || UnityEngine.RenderSettings.ambientMode != UnityEngine.Rendering.AmbientMode.Flat || UnityEngine.RenderSettings.ambientIntensity != 1f
+            || UnityEngine.QualitySettings.lodBias != CAPTURE_LOD_BIAS || UnityEngine.QualitySettings.maximumLODLevel != 0
             || UnityEngine.RenderSettings.ambientLight != ambient || UnityEngine.RenderSettings.ambientSkyColor != ambient || UnityEngine.RenderSettings.ambientEquatorColor != ambient || UnityEngine.RenderSettings.ambientGroundColor != ambient
             || !sessionLight.enabled || !sessionLightGo.activeInHierarchy || sessionLight.intensity != directionalIntensity || sessionLight.color != ambient)
             throw new System.InvalidOperationException("Rendering changed the controlled lighting state.");
@@ -823,7 +838,7 @@ finally
     var audit = new
     {
         schemaVersion = "compendium.capture-restoration.v5",
-        visualPolicy = "compendium.capture-visual-policy.v4",
+        visualPolicy = "compendium.capture-visual-policy.v5",
         colorSpace = UnityEngine.QualitySettings.activeColorSpace.ToString(),
         selections = selections.ToArray(), lightingInputs = lightingInputs.ToArray(),
         key = requestedKey,
@@ -868,7 +883,7 @@ var batchMetadata = new
     suppressionRestored = true,
     activeTargetRestored = true,
     suppressedRenderers = renderers.Count,
-    visualPolicy = "compendium.capture-visual-policy.v4",
+    visualPolicy = "compendium.capture-visual-policy.v5",
     captures = captures.ToArray(),
 };
 sessionState["completedCaptures"] = (int)sessionState["completedCaptures"] + tileResults.Count;

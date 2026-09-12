@@ -504,7 +504,7 @@ foreach (var terrain in allTerrains)
 return new
 {
     schemaVersion = "compendium.capture-geometry.v5",
-    visualPolicy = "compendium.capture-visual-policy.v4",
+    visualPolicy = "compendium.capture-visual-policy.v5",
     excludedRenderers = excludedRenderers.ToArray(),
     frame = UnityEngine.Time.frameCount,
     scene = new { nativeId = (int)nativeScene.ID, handle = scene.handle, path = scene.path, ready = sceneReady },
