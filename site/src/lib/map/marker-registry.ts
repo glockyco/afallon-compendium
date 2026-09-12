@@ -330,6 +330,9 @@ export const markerRegistry = {
 } as const satisfies Record<MarkerId, MarkerDefinition>;
 
 const allMarkers = Object.values(markerRegistry) as readonly MarkerDefinition[];
+// The atlas opens with the game's own world map markers (places), bosses, and travel points;
+// the visitor chooses the other categories.
+export const DEFAULT_MARKER_IDS: readonly MarkerId[] = allMarkers.filter((marker) => marker.section === "places" || marker.id === "boss" || marker.id === "travelPoint").map((marker) => marker.id);
 const markersByPrecedence = [...allMarkers].sort((left, right) => right.precedence - left.precedence);
 
 export function markerFor(id: MarkerId): MarkerDefinition {

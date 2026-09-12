@@ -1,4 +1,5 @@
 import type { MapViewState } from './map-adapter';
+import { DEFAULT_MARKER_IDS } from './map/marker-registry';
 
 export interface MapUrlState {
   layerIds: string[];
@@ -21,6 +22,10 @@ function finiteNumber(value: string | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function sameSet(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value) => right.includes(value));
+}
+
 export function readMapUrl(search: string): MapUrlState {
   const params = new URLSearchParams(search);
   const x = finiteNumber(params.get('x'));
@@ -28,7 +33,9 @@ export function readMapUrl(search: string): MapUrlState {
   const z = finiteNumber(params.get('z'));
   const zoom = finiteNumber(params.get('zoom'));
   const view = x !== null && y !== null && z === 0 && zoom !== null && zoom >= -12 && zoom <= 12 ? { target: [x, y, z] as [number, number, number], zoom } : null;
-  const categories = params.getAll('categories').flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
+  // No `categories`: the default places. `categories=all`: every placement (an empty list).
+  const requestedCategories = params.getAll('categories').flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
+  const categories = requestedCategories.length === 0 ? [...DEFAULT_MARKER_IDS] : requestedCategories.includes('all') ? [] : requestedCategories;
   // A single `layer` is the older one-of-N form; a shared link keeps working as a one-entry list.
   const layerIds = [...params.getAll('layers'), ...params.getAll('layer')].flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
   const minimum = finiteNumber(params.get('level-min'));
@@ -72,7 +79,8 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
   }
   params.delete('roles');
   params.delete('categories');
-  if (state.categories.length > 0) params.set('categories', state.categories.join(','));
+  if (state.categories.length === 0) params.set('categories', 'all');
+  else if (!sameSet(state.categories, DEFAULT_MARKER_IDS)) params.set('categories', state.categories.join(','));
   if (state.view) {
     params.set('x', String(state.view.target[0]));
     params.set('y', String(state.view.target[1]));

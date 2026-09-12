@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { readMapUrl, writeMapUrl } from "./map-url";
+import { DEFAULT_MARKER_IDS } from "./map/marker-registry";
 
 test("map filters survive URL serialization and parsing", () => {
   const url = writeMapUrl(new URL("https://example.test/atlas?categories=old&level-min=1"), {
@@ -42,6 +43,14 @@ test("clearing a map filter removes its URL parameter", () => {
 
   expect(url.searchParams.has("level-min")).toBe(false);
   expect(readMapUrl(url.search).levelMaximum).toBe(28);
+});
+
+test("categories default to the game's own places and `all` clears the filter", () => {
+  expect(readMapUrl("?q=map").categories).toEqual([...DEFAULT_MARKER_IDS]);
+  expect(readMapUrl("?categories=all").categories).toEqual([]);
+  const base = { layerIds: [], selectedId: null, query: "", itemSourceQuery: "", detailQuery: "", levelMinimum: null, levelMaximum: null, showZoneNames: true, itemKey: null, entityKey: null, view: null };
+  expect(writeMapUrl(new URL("https://example.test/atlas"), { ...base, categories: [] }).searchParams.get("categories")).toBe("all");
+  expect(writeMapUrl(new URL("https://example.test/atlas?categories=enemy"), { ...base, categories: [...DEFAULT_MARKER_IDS].reverse() }).searchParams.has("categories")).toBe(false);
 });
 
 test("zone names default on and can be disabled in a shared URL", () => {

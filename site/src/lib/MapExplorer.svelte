@@ -777,7 +777,7 @@
               {#each markerSections as section (section.id)}
                 <MapSidebarSection title={section.label} categories={section.markers} activeCategories={categories} counts={categoryCounts} storageKey={`afallon-atlas-section-${section.id}`} onToggleCategory={toggleCategory} onToggleAll={toggleAllCategories} />
               {/each}
-              {#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Clear category filters</button>{/if}
+              {#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Show every category</button>{/if}
             </div>
             <div class="control-section level-filter"><div class="section-heading"><h2>Creature levels</h2>{#if levelMinimum !== null || levelMaximum !== null}<span class="active-filter">{levelMinimum ?? 0}–{levelMaximum ?? '∞'}</span>{/if}</div><div class="level-fields"><label for="level-min">From<input id="level-min" type="number" min="0" step="1" value={levelMinimum ?? ''} on:input={(event) => updateLevelMinimum((event.currentTarget as HTMLInputElement).value)} /></label><label for="level-max">To<input id="level-max" type="number" min="0" step="1" value={levelMaximum ?? ''} on:input={(event) => updateLevelMaximum((event.currentTarget as HTMLInputElement).value)} /></label></div><p class="hint">Locations without a known level stay visible.</p></div>
             <div class="coverage-card"><strong>Supported game build {publication.buildId}</strong>{#if !publication.coverage.complete}<p>Incomplete research preview. It does not represent full-world research or imagery coverage.</p>{/if}</div>
