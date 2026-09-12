@@ -14,7 +14,7 @@ import { IllustrationOutputSchema, type IllustrationOutput } from "../tools/illu
 import { TilePyramidSchema, type TilePyramid } from "./tile-contracts";
 import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement } from "./normalized-contracts";
 import { projectAdventureGuide } from "./guide-projection";
-import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
+import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicRegion, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
 import { WorldOffsetsSchema, type WorldOffsets, buildWorldLayout } from "./world-layout";
 import { validateEntityDetails, validateItemSources, validatePublication } from "./publication-validation";
 
@@ -169,6 +169,18 @@ const categoryLabels: Record<PublicMarkerCategory, string> = {
   resource: "Resource",
   container: "Container",
   travelPoint: "Travel Point",
+  town: "Town",
+  fort: "Fort",
+  camp: "Camp",
+  dungeonEntrance: "Dungeon entrance",
+  challengeStone: "Challenge stone",
+};
+const mapIconCategories: Readonly<Record<string, PublicMarkerCategory>> = {
+  town: "town",
+  fort: "fort",
+  camp: "camp",
+  dungeon: "dungeonEntrance",
+  challengeStone: "challengeStone",
 };
 const roleCategory: Readonly<Record<string, PublicMarkerCategory | null>> = {
   enemy: "enemy",
@@ -194,6 +206,11 @@ const roleCategory: Readonly<Record<string, PublicMarkerCategory | null>> = {
   adventurerProducer: null,
   adventurerPopulationManager: null,
 };
+
+export function categoryForRole(role: { role: string; scope?: unknown }): PublicMarkerCategory | null {
+  if (role.role === "mapIcon") return typeof role.scope === "string" ? mapIconCategories[role.scope] ?? null : null;
+  return roleCategory[role.role] ?? null;
+}
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -264,10 +281,67 @@ export function selectLevelRange(
 function placementCategories(placement: NormalizedPlacement): PublicMarkerCategory[] {
   const categories = new Set<PublicMarkerCategory>();
   for (const role of placement.roles) {
-    const category = roleCategory[role.role];
+    const category = categoryForRole(role);
     if (category) categories.add(category);
   }
   return PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => categories.has(category));
+}
+
+type NormalizedRegionForPublication = {
+  regionId: string;
+  name: string;
+  shape: "box" | "sphere";
+  mapSpaceId: string | null;
+  mapGeometry?: unknown;
+  map_geometry_json?: unknown;
+};
+
+type RegionGeometry =
+  | { kind: "box"; corners: readonly unknown[] }
+  | { kind: "sphere"; center: readonly unknown[]; radius: unknown };
+
+function regionGeometry(value: unknown, shape: NormalizedRegionForPublication["shape"]): RegionGeometry | null {
+  const geometry = record(value);
+  if (!geometry || geometry.kind !== shape) return null;
+  if (shape === "box" && Array.isArray(geometry.corners)) return { kind: "box", corners: geometry.corners };
+  if (shape === "sphere" && Array.isArray(geometry.center)) return { kind: "sphere", center: geometry.center, radius: geometry.radius };
+  return null;
+}
+
+function finitePointPair(value: unknown): [number, number] | null {
+  if (!Array.isArray(value) || value.length !== 2 || typeof value[0] !== "number" || !Number.isFinite(value[0]) || typeof value[1] !== "number" || !Number.isFinite(value[1])) return null;
+  return [value[0], value[1]];
+}
+
+export function publicRegionFromNormalized(
+  region: NormalizedRegionForPublication,
+  offset: { worldX: number; worldY: number } = { worldX: 0, worldY: 0 },
+): PublicRegion | null {
+  if (!region.regionId || !region.name.trim() || !region.mapSpaceId) return null;
+  const geometry = regionGeometry(region.mapGeometry ?? region.map_geometry_json, region.shape);
+  if (!geometry) return null;
+  let polygon: [number, number][];
+  if (geometry.kind === "box") {
+    if (geometry.corners.length !== 4) return null;
+    const corners = geometry.corners.map(finitePointPair);
+    if (corners.some((corner): corner is null => corner === null)) return null;
+    polygon = corners as [number, number][];
+  } else {
+    const center = finitePointPair(geometry.center);
+    const radius = geometry.radius;
+    if (!center || typeof radius !== "number" || !Number.isFinite(radius) || radius <= 0) return null;
+    polygon = Array.from({ length: 32 }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / 32;
+      return [center[0] + Math.cos(angle) * radius, center[1] + Math.sin(angle) * radius] as [number, number];
+    });
+  }
+  return {
+    id: region.regionId,
+    mapSpaceId: region.mapSpaceId,
+    name: region.name.trim(),
+    shape: region.shape,
+    polygon: polygon.map(([x, y]) => [x + offset.worldX, y + offset.worldY]),
+  };
 }
 
 function sourceKindLabel(kind: string): string {
@@ -512,7 +586,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const reviewedOffsets = await readWorldOffsets(resolve(planDirectory, plan.worldOffsets.path), plan.worldOffsets.sha256, plan.buildId);
   const load = (reference: PublicationPlan["normalized"], command: string) => loadVerifiedRun(resolve(planDirectory, reference.path), reference.sha256, plan.buildId, command);
   const normalized = await load(plan.normalized, "normalize");
-  const map = await jsonArtifact<NormalizedMapProjection>(normalized, "projections/map-projections.json", "compendium.map-projections.v2");
+  const map = await jsonArtifact<NormalizedMapProjection>(normalized, "projections/map-projections.json", "compendium.map-projections.v3");
   const entities = await jsonArtifact<NormalizedEntityDetails>(normalized, "projections/entity-details.json", "compendium.entity-details.v1");
   const items = await jsonArtifact<NormalizedItemSources>(normalized, "projections/item-sources.json", "compendium.item-sources.v1");
   const coverage = await jsonArtifact<NormalizedCoverageSummary>(normalized, "projections/coverage-summary.json", "compendium.normalized-coverage.v3");
@@ -670,9 +744,11 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     if (!categories.length) throw new Error(`Publication placement has no game category: ${placement.placementId}`);
     const range = levelRangesByPlacement.get(placement.placementId);
     const localAreas = spatialAreas(placement, resolver);
+    const authoredLabel = (placement as NormalizedPlacement & { label?: string | null }).label;
+    const labelFromPlacement = typeof authoredLabel === "string" && authoredLabel.trim().length > 0 ? authoredLabel.trim() : null;
     return {
       source: placement,
-      value: { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, position: [placement.mapPosition!.x, placement.mapPosition!.y], height: placement.worldPosition.y, label: linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || categories.map(category => categoryLabels[category]).join(" / "), categories, ...(range ? { levelRange: range } : {}), entityKeys: linked.map(entity => entity.entityKey), areas: localAreas, sections: linked.flatMap(entity => entity.sections) },
+      value: { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, position: [placement.mapPosition!.x, placement.mapPosition!.y], height: placement.worldPosition.y, label: labelFromPlacement || linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || categories.map(category => categoryLabels[category]).join(" / "), categories, ...(range ? { levelRange: range } : {}), entityKeys: linked.map(entity => entity.entityKey), areas: localAreas, sections: linked.flatMap(entity => entity.sections) },
     };
   });
   const imageryMapSpaces = new Set(tileLayers.map((layer) => layer.mapSpaceId));
@@ -687,6 +763,16 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       ...(travel ? { travel } : {}),
     };
   });
+  const normalizedRegions = (map as NormalizedMapProjection & { regions?: readonly NormalizedRegionForPublication[] }).regions ?? [];
+  const regions: PublicRegion[] = normalizedRegions
+    .map((region) => {
+      if (!region.mapSpaceId) return null;
+      const offset = offsetByMap.get(region.mapSpaceId);
+      if (!offset) return null;
+      return publicRegionFromNormalized(region, offset);
+    })
+    .filter((region): region is PublicRegion => region !== null)
+    .sort((left, right) => left.id.localeCompare(right.id));
   const itemSources: PublicItemSource[] = items.items.map(item => {
     const rawSources = item.sources.map(source => {
       const ownerKeys = source.context.ownerEntityKeys;
@@ -808,7 +894,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const complete = Boolean(coverage.complete) && allImageryComplete && coverage.blockers.length === 0 && excludedPlacements === 0 && layout.unplacedMapSpaceIds.length === 0;
   const coverageMessages = plan.mode === "preview" ? ["Incomplete research preview. It does not represent full-world extraction or imagery coverage."] : [];
   if (layout.unplacedMapSpaceIds.length > 0) coverageMessages.push(`Unplaced map spaces: ${layout.unplacedMapSpaceIds.join(", ")}.`);
-  const data: PublicationData = { schemaVersion: PUBLICATION_SCHEMA_VERSION, buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: coverageMessages }, world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: layout.offsets, unplacedMapSpaceIds: layout.unplacedMapSpaceIds }, maps: publicMaps, placements, entityIndex, itemIndex, tileLayers };
+  const data: PublicationData = { schemaVersion: PUBLICATION_SCHEMA_VERSION, buildId: plan.buildId, mode: plan.mode, coverage: { complete: plan.mode === "release" && complete, excludedPlacements, messages: coverageMessages }, world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: layout.offsets, unplacedMapSpaceIds: layout.unplacedMapSpaceIds }, maps: publicMaps, placements, regions, entityIndex, itemIndex, tileLayers };
   validatePublication(data);
   const entityDocuments: Array<[string, unknown]> = [];
   for (const [index, entity] of publicEntities.entries()) {

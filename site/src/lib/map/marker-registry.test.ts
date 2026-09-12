@@ -3,11 +3,16 @@ import { PUBLIC_MARKER_CATEGORY_VALUES } from "../../../../pipeline/public-contr
 import type { PublicPlacement } from "../../../../pipeline/public-contracts";
 import { createPlacementIconLayer, markerRecordsForPlacements } from "../map-adapter";
 import { iconAtlasMapping } from "./icon-atlas";
-import { MARKER_IDS, MARKER_LAYER_ID, markerRegistry, resolveMarker } from "./marker-registry";
+import { MARKER_IDS, MARKER_LAYER_ID, markerFor, markerRegistry, resolveMarker } from "./marker-registry";
 
 test("registry keys match the published category contract", () => {
   expect([...MARKER_IDS]).toEqual([...PUBLIC_MARKER_CATEGORY_VALUES]);
   expect(Object.keys(markerRegistry).sort()).toEqual([...PUBLIC_MARKER_CATEGORY_VALUES].sort());
+});
+
+test("place markers are default-visible while legacy markers stay opt-in", () => {
+  expect(["town", "fort", "camp", "dungeonEntrance", "challengeStone"].map((id) => markerFor(id as typeof MARKER_IDS[number]).defaultVisible)).toEqual([true, true, true, true, true]);
+  expect(["enemy", "travelPoint"].map((id) => markerFor(id as typeof MARKER_IDS[number]).defaultVisible)).toEqual([false, false]);
 });
 
 test("no two markers share a glyph", () => {

@@ -89,6 +89,7 @@
   let detailOrigin: HTMLElement | null = null;
   let authoring = false;
   let showConnections = true;
+  let showZoneNames = true;
   let panelCollapsed = false;
   let worldOffsetOverrides: WorldOffsetOverrides = {};
   let viewTimer: ReturnType<typeof setTimeout> | null = null;
@@ -235,7 +236,7 @@
   });
 
   $: if (adapterReady && adapter && publication) {
-    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: worldOffsetOverrides, authoring, showConnections });
+    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: worldOffsetOverrides, authoring, showConnections, showZoneNames });
   }
 
   async function loadEntityDetailPath(path: string): Promise<void> {
@@ -475,6 +476,7 @@
     categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
     levelMinimum = next.levelMinimum;
     levelMaximum = next.levelMaximum;
+    showZoneNames = next.showZoneNames;
     itemKey = next.itemKey && (!publication || publication.itemIndex.some((item) => item.itemKey === next.itemKey)) ? next.itemKey : null;
     const selected = next.selectedId && publication ? publication.placements.find((placement) => placement.placementId === next.selectedId) : null;
     if (next.selectedId && publication && !selected) staleSelection = 'This link refers to a location that is not in the loaded publication.';
@@ -492,7 +494,7 @@
   }
 
   function currentUrl(overrides: Partial<Pick<MapUrlState, 'categories' | 'levelMinimum' | 'levelMaximum'>> = {}): URL {
-    return writeMapUrl(new URL(window.location.href), { layerIds, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, levelMinimum: overrides.levelMinimum !== undefined ? overrides.levelMinimum : levelMinimum, levelMaximum: overrides.levelMaximum !== undefined ? overrides.levelMaximum : levelMaximum, itemKey, entityKey: selectedEntityKey, view });
+    return writeMapUrl(new URL(window.location.href), { layerIds, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, levelMinimum: overrides.levelMinimum !== undefined ? overrides.levelMinimum : levelMinimum, levelMaximum: overrides.levelMaximum !== undefined ? overrides.levelMaximum : levelMaximum, showZoneNames, itemKey, entityKey: selectedEntityKey, view });
   }
 
   function syncUrl(mode: 'push' | 'replace', overrides: Partial<Pick<MapUrlState, 'categories' | 'levelMinimum' | 'levelMaximum'>> = {}): void {
@@ -619,6 +621,11 @@
 
   function toggleConnections(): void {
     showConnections = !showConnections;
+  }
+
+  function toggleZoneNames(): void {
+    showZoneNames = !showZoneNames;
+    syncUrl('push');
   }
 
   function togglePanel(): void {
@@ -764,7 +771,7 @@
                 {/if}
               </div>
             {/if}
-            <div class="control-section world-tools"><h2>Map options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button><p class="hint">Drag a map boundary to review its placement. Travel lines stay visible while authoring.</p>{/if}</div>
+            <div class="control-section world-tools"><h2>Map options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="tool-option"><input type="checkbox" checked={showZoneNames} on:change={toggleZoneNames} /><span>Zone names</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button><p class="hint">Drag a map boundary to review its placement. Travel lines stay visible while authoring.</p>{/if}</div>
             <div class="categories-block">
               <div class="section-heading"><h2>Map categories</h2><span class="count">{allMapPlacements.length}</span></div>
               {#each markerSections as section (section.id)}

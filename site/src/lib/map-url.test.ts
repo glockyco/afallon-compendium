@@ -11,6 +11,7 @@ test("map filters survive URL serialization and parsing", () => {
     categories: ["dungeon", "region"],
     levelMinimum: 12,
     levelMaximum: 28,
+    showZoneNames: true,
     itemKey: null,
     entityKey: null,
     view: null,
@@ -33,6 +34,7 @@ test("clearing a map filter removes its URL parameter", () => {
     categories: [],
     levelMinimum: null,
     levelMaximum: 28,
+    showZoneNames: true,
     itemKey: null,
     entityKey: null,
     view: null,
@@ -40,6 +42,16 @@ test("clearing a map filter removes its URL parameter", () => {
 
   expect(url.searchParams.has("level-min")).toBe(false);
   expect(readMapUrl(url.search).levelMaximum).toBe(28);
+});
+
+test("zone names default on and can be disabled in a shared URL", () => {
+  expect(readMapUrl("?q=map").showZoneNames).toBe(true);
+  const url = writeMapUrl(new URL("https://example.test/atlas"), {
+    layerIds: [], selectedId: null, query: "", itemSourceQuery: "", detailQuery: "", categories: [],
+    levelMinimum: null, levelMaximum: null, showZoneNames: false, itemKey: null, entityKey: null, view: null,
+  });
+  expect(url.searchParams.get("zone-names")).toBe("0");
+  expect(readMapUrl(url.search).showZoneNames).toBe(false);
 });
 
 test("several visible layers survive a round trip and a legacy single layer still reads", () => {
@@ -52,6 +64,7 @@ test("several visible layers survive a round trip and a legacy single layer stil
     categories: [],
     levelMinimum: null,
     levelMaximum: null,
+    showZoneNames: true,
     itemKey: null,
     entityKey: null,
     view: null,

@@ -20,6 +20,7 @@ import {
 } from "@deck.gl/layers";
 import type {
   PublicPlacement,
+  PublicRegion,
   PublicTile,
   PublicTileLayer,
   PublicationData,
@@ -41,6 +42,7 @@ export type MapAdapterUpdate = {
   worldOffsets: WorldOffsetOverrides;
   authoring: boolean;
   showConnections: boolean;
+  showZoneNames: boolean;
 };
 
 type Point = [number, number];
@@ -75,6 +77,14 @@ type AreaRecord = {
   mapSpaceId: string;
   polygon: Point[];
   markerId: MarkerId;
+};
+
+type RegionRecord = {
+  id: string;
+  mapSpaceId: string;
+  name: string;
+  shape: PublicRegion["shape"];
+  polygon: Point[];
 };
 
 type WorldMapBounds = {
@@ -252,6 +262,41 @@ function createHighlightLayers(
   ];
 }
 
+function regionSignature(regions: readonly PublicRegion[]): string {
+  return regions.map((region) => `${region.id}:${region.mapSpaceId}:${region.shape}:${region.name}:${region.polygon.map(([x, y]) => `${x},${y}`).join(";")}`).join("\u001f");
+}
+
+function buildRegions(regions: readonly PublicRegion[], data: PublicationData, overrides: WorldOffsetOverrides): RegionRecord[] {
+  return regions.map((region) => {
+    const delta = mapOffsetDelta(data, region.mapSpaceId, overrides);
+    return {
+      id: region.id,
+      mapSpaceId: region.mapSpaceId,
+      name: region.name,
+      shape: region.shape,
+      polygon: region.polygon.map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point),
+    };
+  });
+}
+
+function polygonCentroid(polygon: readonly Point[]): Point {
+  if (polygon.length < 3) return polygon[0] ?? [0, 0];
+  let areaTwice = 0, centroidX = 0, centroidY = 0;
+  for (let index = 0; index < polygon.length; index++) {
+    const current = polygon[index]!;
+    const next = polygon[(index + 1) % polygon.length]!;
+    const cross = current[0] * next[1] - next[0] * current[1];
+    areaTwice += cross;
+    centroidX += (current[0] + next[0]) * cross;
+    centroidY += (current[1] + next[1]) * cross;
+  }
+  if (areaTwice === 0) {
+    const total = polygon.reduce(([x, y], [nextX, nextY]) => [x + nextX, y + nextY] as Point, [0, 0]);
+    return [total[0] / polygon.length, total[1] / polygon.length];
+  }
+  return [centroidX / (3 * areaTwice), centroidY / (3 * areaTwice)];
+}
+
 function buildAreas(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}): AreaRecord[] {
   const areas: AreaRecord[] = [];
   for (const placement of placements) {
@@ -372,6 +417,8 @@ export async function createMapAdapter(
   let basePlacementKey = "";
   let baseMarkers: MarkerRecord[] = [];
   let baseAreas: AreaRecord[] = [];
+  let baseRegions: RegionRecord[] = [];
+  let baseRegionKey = "";
   let renderMarkers: readonly MarkerRecord[] = [];
   let imageryLayers: Layer[] = [];
   let imageryKey = "";
@@ -484,17 +531,23 @@ export async function createMapAdapter(
     const layerKind = `tiles:${tileLayersForView.map((layer) => layer.id).join(",")}`;
     const visiblePlacements = next.placements;
     const nextPlacementKey = placementSignature(visiblePlacements);
+    const nextRegionKey = regionSignature(next.data.regions);
     const offsetKey = Object.entries(next.worldOffsets).sort(([left], [right]) => left.localeCompare(right)).map(([mapSpaceId, offset]) => `${mapSpaceId}:${offset.worldX},${offset.worldY}`).join("|");
-    if (nextPlacementKey !== basePlacementKey || offsetKey !== offsetGeometryKey) {
+    const offsetChanged = offsetKey !== offsetGeometryKey;
+    if (nextPlacementKey !== basePlacementKey || offsetChanged) {
       basePlacementKey = nextPlacementKey;
       offsetGeometryKey = offsetKey;
       baseMarkers = buildMarkers(visiblePlacements, next.data, next.worldOffsets);
       baseAreas = buildAreas(visiblePlacements, next.data, next.worldOffsets);
     }
+    if (nextRegionKey !== baseRegionKey || offsetChanged) {
+      baseRegionKey = nextRegionKey;
+      baseRegions = buildRegions(next.data.regions, next.data, next.worldOffsets);
+    }
     const highlightedKey = [...next.highlightedPlacementIds].sort().join(",");
     const hoveredKey = [...next.hoveredPlacementIds].sort().join(",");
     const hoveredIds = new Set(next.hoveredPlacementIds);
-    const nextGeometryKey = [next.data.buildId, [...next.layerIds].sort().join(","), layerKind, nextPlacementKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections"].join("\u001e");
+    const nextGeometryKey = [next.data.buildId, [...next.layerIds].sort().join(","), layerKind, nextPlacementKey, nextRegionKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections", next.showZoneNames ? "zone-names" : "no-zone-names"].join("\u001e");
     if (nextGeometryKey === geometryKey) return;
     geometryKey = nextGeometryKey;
 
@@ -573,6 +626,39 @@ export async function createMapAdapter(
       fontFamily: "sans-serif",
       fontWeight: 700,
     });
+    const regionLayers: Layer[] = next.showZoneNames ? [
+      new PolygonLayer<RegionRecord>({
+        id: "world-region-outlines",
+        data: baseRegions,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        pickable: false,
+        stroked: true,
+        filled: false,
+        getPolygon: (region) => region.polygon,
+        getLineColor: [214, 188, 134, 190],
+        getLineWidth: 2,
+        lineWidthUnits: "pixels",
+      }),
+      new TextLayer<RegionRecord>({
+        id: "world-region-labels",
+        data: baseRegions,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        pickable: false,
+        getPosition: (region) => polygonCentroid(region.polygon),
+        getText: (region) => region.name,
+        getSize: 16,
+        sizeUnits: "pixels",
+        getColor: [235, 220, 180, 235],
+        getTextAnchor: "middle",
+        getAlignmentBaseline: "center",
+        characterSet: "auto",
+        fontSettings: { sdf: true },
+        outlineColor: [18, 20, 24, 255],
+        outlineWidth: 3,
+        fontFamily: "sans-serif",
+        fontWeight: 600,
+      }),
+    ] : [];
     const areaLayer = new PolygonLayer<AreaRecord>({
       id: "map-placement-areas",
       data: baseAreas,
@@ -674,7 +760,7 @@ export async function createMapAdapter(
     const hoverHighlightLayers = createHighlightLayers("hover-highlight", hoverSelection, [250, 204, 21, 255], [250, 204, 21, 40], 2);
     const groupHighlightLayers = createHighlightLayers("selection-group-highlight", selectedGroup, [255, 255, 255, 255], [255, 255, 255, 40], 2);
     const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6);
-    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
+    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, ...regionLayers, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
 
     // Hiding every layer is a reader choice; only a layer that cannot be drawn is a failure.
     const requestedImagery = next.layerIds.length > 0;

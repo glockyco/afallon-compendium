@@ -9,6 +9,7 @@ export interface MapUrlState {
   categories: string[];
   levelMinimum: number | null;
   levelMaximum: number | null;
+  showZoneNames: boolean;
   itemKey: string | null;
   entityKey: string | null;
   view: MapViewState | null;
@@ -32,6 +33,7 @@ export function readMapUrl(search: string): MapUrlState {
   const layerIds = [...params.getAll('layers'), ...params.getAll('layer')].flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
   const minimum = finiteNumber(params.get('level-min'));
   const maximum = finiteNumber(params.get('level-max'));
+  const showZoneNames = params.get('zone-names') !== '0';
   return {
     layerIds: [...new Set(layerIds)],
     selectedId: params.get('selected'),
@@ -41,6 +43,7 @@ export function readMapUrl(search: string): MapUrlState {
     categories: [...new Set(categories)],
     levelMinimum: minimum !== null && Number.isInteger(minimum) && minimum >= 0 ? minimum : null,
     levelMaximum: maximum !== null && Number.isInteger(maximum) && maximum >= 0 ? maximum : null,
+    showZoneNames,
     itemKey: params.get('item'),
     entityKey: params.get('entity'),
     view
@@ -57,6 +60,7 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
     ['detail-q', state.detailQuery.trim() || null],
     ['level-min', state.levelMinimum === null ? null : String(state.levelMinimum)],
     ['level-max', state.levelMaximum === null ? null : String(state.levelMaximum)],
+    ['zone-names', state.showZoneNames ? '1' : '0'],
     ['item', state.itemKey],
     ['entity', state.entityKey]
   ]);

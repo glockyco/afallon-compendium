@@ -21,12 +21,18 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
   "resource",
   "container",
   "travelPoint",
+  "town",
+  "fort",
+  "camp",
+  "dungeonEntrance",
+  "challengeStone",
 ] as const;
 export type PublicMarkerCategory = typeof PUBLIC_MARKER_CATEGORY_VALUES[number];
 const publicMarkerCategory = Type.Union([
   Type.Literal("enemy"), Type.Literal("boss"), Type.Literal("neutral"), Type.Literal("ally"), Type.Literal("npc"),
   Type.Literal("merchant"), Type.Literal("questGiver"), Type.Literal("interactiveObject"),
   Type.Literal("craftingStation"), Type.Literal("resource"), Type.Literal("container"), Type.Literal("travelPoint"),
+  Type.Literal("town"), Type.Literal("fort"), Type.Literal("camp"), Type.Literal("dungeonEntrance"), Type.Literal("challengeStone"),
 ]);
 
 export const PublicLevelRangeSchema = Type.Object({
@@ -85,6 +91,16 @@ export const PublicPlacementSchema = Type.Object({
   travel: Type.Optional(PublicTravelSchema),
 }, { additionalProperties: false });
 export type PublicPlacement = Static<typeof PublicPlacementSchema>;
+
+const publicRegionShape = Type.Union([Type.Literal("box"), Type.Literal("sphere")]);
+export const PublicRegionSchema = Type.Object({
+  id: text,
+  mapSpaceId: text,
+  name: text,
+  shape: publicRegionShape,
+  polygon: Type.Array(position, { minItems: 3 }),
+}, { additionalProperties: false });
+export type PublicRegion = Static<typeof PublicRegionSchema>;
 
 export const PublicEntitySummarySchema = Type.Object({
   entityKey: text, kind: text, nativeId: Type.Integer(), name: text,
@@ -256,7 +272,7 @@ const publicMapSchema = Type.Object({
   bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
 }, { additionalProperties: false });
 
-export const PUBLICATION_SCHEMA_VERSION = "compendium.publication.v11";
+export const PUBLICATION_SCHEMA_VERSION = "compendium.publication.v12";
 
 export const PublicationDataSchema = Type.Object({
   schemaVersion: Type.Literal(PUBLICATION_SCHEMA_VERSION), buildId: text,
@@ -265,6 +281,7 @@ export const PublicationDataSchema = Type.Object({
   world: PublicWorldSchema,
   maps: Type.Array(publicMapSchema, { minItems: 1 }),
   placements: Type.Array(PublicPlacementSchema),
+  regions: Type.Array(PublicRegionSchema),
   entityIndex: Type.Array(PublicEntitySummarySchema), itemIndex: Type.Array(PublicItemSummarySchema),
   tileLayers: Type.Array(PublicTileLayerSchema, { minItems: 1 }),
 }, { additionalProperties: false });
