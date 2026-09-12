@@ -11,6 +11,7 @@ test("map filters survive URL serialization and parsing", () => {
     detailQuery: "",
     categories: ["dungeon", "region"],
     showZones: false,
+    showConnections: false,
     itemKey: null,
     entityKey: null,
     view: null,
@@ -24,7 +25,7 @@ test("zones default off and survive a shared URL", () => {
   expect(readMapUrl("?q=map").showZones).toBe(false);
   const url = writeMapUrl(new URL("https://example.test/atlas"), {
     layerIds: [], selectedId: null, query: "", itemSourceQuery: "", detailQuery: "", categories: [],
-    showZones: true, itemKey: null, entityKey: null, view: null,
+    showZones: true, showConnections: false, itemKey: null, entityKey: null, view: null,
   });
   expect(url.searchParams.get("zones")).toBe("1");
   expect(readMapUrl(url.search).showZones).toBe(true);
@@ -39,6 +40,7 @@ test("several visible layers survive a round trip and a legacy single layer stil
     detailQuery: "",
     categories: [],
     showZones: false,
+    showConnections: false,
     itemKey: null,
     entityKey: null,
     view: null,

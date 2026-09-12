@@ -9,6 +9,7 @@ export interface MapUrlState {
   detailQuery: string;
   categories: string[];
   showZones: boolean;
+  showConnections: boolean;
   itemKey: string | null;
   entityKey: string | null;
   view: MapViewState | null;
@@ -37,6 +38,7 @@ export function readMapUrl(search: string): MapUrlState {
   // A single `layer` is the older one-of-N form; a shared link keeps working as a one-entry list.
   const layerIds = [...params.getAll('layers'), ...params.getAll('layer')].flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
   const showZones = params.get('zones') === '1';
+  const showConnections = params.get('connections') === '1';
   return {
     layerIds: [...new Set(layerIds)],
     selectedId: params.get('selected'),
@@ -45,6 +47,7 @@ export function readMapUrl(search: string): MapUrlState {
     detailQuery: params.get('detail-q') ?? '',
     categories: [...new Set(categories)],
     showZones,
+    showConnections,
     itemKey: params.get('item'),
     entityKey: params.get('entity'),
     view
@@ -60,6 +63,7 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
     ['source-q', state.itemSourceQuery.trim() || null],
     ['detail-q', state.detailQuery.trim() || null],
     ['zones', state.showZones ? '1' : null],
+    ['connections', state.showConnections ? '1' : null],
     ['item', state.itemKey],
     ['entity', state.entityKey]
   ]);

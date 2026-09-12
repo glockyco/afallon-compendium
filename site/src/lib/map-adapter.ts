@@ -552,7 +552,8 @@ export async function createMapAdapter(
     geometryKey = nextGeometryKey;
 
     const imageLayers = createImagery(next, tileLayersForView);
-    const visibleMarkers = next.showConnections || next.authoring ? baseMarkers : baseMarkers.filter((marker) => !marker.isTravel);
+    // Travel markers are a category like any other; the connections toggle draws only the lines.
+    const visibleMarkers = baseMarkers;
     renderMarkers = groupCoincidentMarkers(visibleMarkers);
     const markerByPlacement = new Map(baseMarkers.map((marker) => [marker.placementId, marker]));
     // Ground that a map space declares but no capture has photographed yet must read as

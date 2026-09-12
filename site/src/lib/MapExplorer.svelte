@@ -86,7 +86,7 @@
   let adapterReady = false;
   let detailOrigin: HTMLElement | null = null;
   let authoring = false;
-  let showConnections = true;
+  let showConnections = false;
   let showZones = false;
   let panelCollapsed = false;
   let worldOffsetOverrides: WorldOffsetOverrides = {};
@@ -471,6 +471,7 @@
     query = next.query;
     categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
     showZones = next.showZones;
+    showConnections = next.showConnections;
     itemKey = next.itemKey && (!publication || publication.itemIndex.some((item) => item.itemKey === next.itemKey)) ? next.itemKey : null;
     const selected = next.selectedId && publication ? publication.placements.find((placement) => placement.placementId === next.selectedId) : null;
     if (next.selectedId && publication && !selected) staleSelection = 'This link refers to a location that is not in the loaded publication.';
@@ -488,7 +489,7 @@
   }
 
   function currentUrl(overrides: Partial<Pick<MapUrlState, 'categories'>> = {}): URL {
-    return writeMapUrl(new URL(window.location.href), { layerIds, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, showZones, itemKey, entityKey: selectedEntityKey, view });
+    return writeMapUrl(new URL(window.location.href), { layerIds, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, showZones, showConnections, itemKey, entityKey: selectedEntityKey, view });
   }
 
   function syncUrl(mode: 'push' | 'replace', overrides: Partial<Pick<MapUrlState, 'categories'>> = {}): void {
@@ -615,6 +616,7 @@
 
   function toggleConnections(): void {
     showConnections = !showConnections;
+    syncUrl('push');
   }
 
   function toggleZones(): void {
