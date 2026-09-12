@@ -125,13 +125,17 @@
   $: matchingItems = searchNeedle ? itemSearchEntries.filter((entry) => entry.text.includes(searchNeedle)).map((entry) => entry.item) : [];
   $: querySourcePlacementIds = new Set(matchingItems.flatMap((item) => searchIndexes.placementsByItemKey.get(item.itemKey)?.map((placement) => placement.placementId) ?? []));
   $: queryEntityPlacementIds = new Set(matchingEntities.flatMap((entity) => searchIndexes.placementsByEntityKey.get(entity.entityKey)?.map((placement) => placement.placementId) ?? []));
-  $: matchingPlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && (categories.length === 0 || categories.some((category) => placement.categories.includes(category))) && levelMatches(placement) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId) || queryEntityPlacementIds.has(placement.placementId)));
-  $: categoryCounts = getCategoryCounts(matchingPlacements);
-  $: categoryFilters = MARKER_IDS.filter((category) => categoryCounts[category] > 0 || markerFor(category).defaultVisible);
+  // Placements that pass every filter except the category selection: the sidebar counts
+  // each category against these, so an unselected category keeps its count and its row.
+  $: candidatePlacements = allMapPlacements.filter((placement) => (!itemKey || itemPlacementIds.has(placement.placementId)) && levelMatches(placement) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId) || queryEntityPlacementIds.has(placement.placementId)));
+  $: matchingPlacements = candidatePlacements.filter((placement) => categories.length === 0 || categories.some((category) => placement.categories.includes(category)));
+  $: categoryCounts = getCategoryCounts(candidatePlacements);
+  $: publishedCounts = getCategoryCounts(allMapPlacements);
+  // Every category the publication carries stays listed, selected or not.
   $: markerSections = MARKER_SECTION_ORDER.map((section) => ({
     id: section,
     label: MARKER_SECTION_LABELS[section],
-    markers: MARKER_IDS.filter((category) => categoryFilters.includes(category) || categories.includes(category)).map((category) => markerFor(category)).filter((marker) => marker.section === section),
+    markers: MARKER_IDS.filter((category) => publishedCounts[category] > 0 || categories.includes(category)).map((category) => markerFor(category)).filter((marker) => marker.section === section),
   })).filter((section) => section.markers.length > 0);
   $: viewportPlacements = matchingPlacements.filter((placement) => inViewport(placement, viewportBounds));
   $: selectedPlacement = publication?.placements.find((placement) => placement.placementId === selectedId) ?? null;
