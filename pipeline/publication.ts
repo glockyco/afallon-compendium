@@ -176,6 +176,7 @@ const categoryLabels: Record<PublicMarkerCategory, string> = {
   challengeStone: "Challenge stone",
   property: "Property",
   graveyard: "Graveyard",
+  corruptionAltar: "Altar of corruption",
 };
 const mapIconCategories: Readonly<Record<string, PublicMarkerCategory>> = {
   town: "town",
@@ -201,6 +202,7 @@ const roleCategory: Readonly<Record<string, PublicMarkerCategory | null>> = {
   questLocation: "interactiveObject",
   craftingService: "craftingStation",
   propertyPurchaseService: "property",
+  corruptionAltar: "corruptionAltar",
   combatant: null,
   dialogue: "npc",
   inspect: "npc",

@@ -628,6 +628,13 @@ var propertyForSaleSignAllError = (string)null;
 try { propertyForSaleSignActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.PropertyForSaleSign>().Length; } catch (System.Exception error) { propertyForSaleSignActiveError = error.GetType().FullName + ": " + error.Message; }
 try { propertyForSaleSignAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.PropertyForSaleSign>(true).Length; } catch (System.Exception error) { propertyForSaleSignAllError = error.GetType().FullName + ": " + error.Message; }
 addComponentFamily("propertyForSaleSign", "Il2CppBLINK.RPGBuilder.World.PropertyForSaleSign", propertyForSaleSignActive, propertyForSaleSignAll, propertyForSaleSignActiveError, propertyForSaleSignAllError);
+var corruptionAltarActive = -1;
+var corruptionAltarAll = -1;
+var corruptionAltarActiveError = (string)null;
+var corruptionAltarAllError = (string)null;
+try { corruptionAltarActive = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.CorruptionAltar>().Length; } catch (System.Exception error) { corruptionAltarActiveError = error.GetType().FullName + ": " + error.Message; }
+try { corruptionAltarAll = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.CorruptionAltar>(true).Length; } catch (System.Exception error) { corruptionAltarAllError = error.GetType().FullName + ": " + error.Message; }
+addComponentFamily("corruptionAltar", "Il2CppBLINK.RPGBuilder.World.CorruptionAltar", corruptionAltarActive, corruptionAltarAll, corruptionAltarActiveError, corruptionAltarAllError);
 
 var heroicConsoleActive = -1;
 var heroicConsoleAll = -1;

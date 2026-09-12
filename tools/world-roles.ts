@@ -595,6 +595,10 @@ function classifyService(row: RecordValue, rowPath: string, facts: FactBuilder, 
     addFact(facts, "propertyPurchaseService", evidence);
     return;
   }
+  if (family === "corruptionAltar") {
+    addFact(facts, "corruptionAltar", [...sourceRefs(rowPath, row), ...refs(`${rowPath}/altarName`)]);
+    return;
+  }
   issue(issues, "unsupportedServiceFamily", `Service family ${family || "<missing>"} is not supported.`, refs(`${rowPath}/family`));
 }
 

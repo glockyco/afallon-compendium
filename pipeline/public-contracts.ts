@@ -26,6 +26,7 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
   "dungeonEntrance",
   "travelPoint",
   "graveyard",
+  "corruptionAltar",
   "challengeStone",
   "property",
 ] as const;
@@ -35,7 +36,7 @@ const publicMarkerCategory = Type.Union([
   Type.Literal("merchant"), Type.Literal("questGiver"), Type.Literal("interactiveObject"),
   Type.Literal("craftingStation"), Type.Literal("resource"), Type.Literal("container"), Type.Literal("travelPoint"),
   Type.Literal("town"), Type.Literal("fort"), Type.Literal("camp"), Type.Literal("dungeonEntrance"), Type.Literal("challengeStone"),
-  Type.Literal("property"), Type.Literal("graveyard"),
+  Type.Literal("property"), Type.Literal("graveyard"), Type.Literal("corruptionAltar"),
 ]);
 
 export const PublicLevelRangeSchema = Type.Object({

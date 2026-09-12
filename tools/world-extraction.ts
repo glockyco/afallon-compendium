@@ -597,7 +597,21 @@ const propertyService = Type.Object({
   uiOffsetY: number,
   signVisualObject: nullable(Type.Object({ name: text, activeSelf: boolean, activeInHierarchy: boolean })),
 });
-const service = Type.Union([craftingService, propertyService]);
+const altarService = Type.Object({
+  source: sourceEvidence,
+  disposition: text,
+  family: Type.Literal("corruptionAltar"),
+  role: text,
+  roles: Type.Array(text),
+  roleSource: text,
+  altarName: nullableText,
+  countdownFromNumber: integer,
+  maxInteractionDistance: number,
+  uiOffsetY: number,
+  barrierObject: nullable(Type.Object({ name: text, activeSelf: boolean, activeInHierarchy: boolean })),
+  consumedVisualObject: nullable(Type.Object({ name: text, activeSelf: boolean, activeInHierarchy: boolean })),
+});
+const service = Type.Union([craftingService, propertyService, altarService]);
 
 const conditionCommon = {
   source: sourceEvidence,
@@ -740,6 +754,7 @@ const sourceTotals = Type.Object({
   dungeonEntranceTriggers: integer,
   craftingStations: integer,
   propertyForSaleSigns: integer,
+  corruptionAltars: integer,
   heroicConsoles: integer,
   characterGraveyards: integer,
   enhancedInteractableObjects: integer,
@@ -1240,6 +1255,7 @@ export function validateWorldSources(value: Static<typeof WorldSourcesSchema>, r
     dungeonEntranceTriggers: artifact.transitions.filter((row: AnyRecord) => row.transitionKind === "dungeonEntranceTrigger"),
     craftingStations: artifact.services.filter((row: AnyRecord) => row.family === "craftingStation"),
     propertyForSaleSigns: artifact.services.filter((row: AnyRecord) => row.family === "propertyForSaleSign"),
+    corruptionAltars: artifact.services.filter((row: AnyRecord) => row.family === "corruptionAltar"),
     heroicConsoles: artifact.unsupportedSources.filter((row: AnyRecord) => row.family === "heroicConsole"),
     characterGraveyards: artifact.conditionSources.filter((row: AnyRecord) => row.family === "characterGraveyard"),
     enhancedInteractableObjects: artifact.conditionSources.filter((row: AnyRecord) => row.family === "enhancedInteractableObject"),
@@ -1289,7 +1305,7 @@ export function validateWorldSources(value: Static<typeof WorldSourcesSchema>, r
   if (containerRows.length !== sourceArrays.chests.length + containerRows.filter(row => row.family === "interactiveNode").length) throw new Error("World containers do not reconcile source families.");
   if (questRows.some(row => row.family !== "worldQuestZone") || questRows.length !== sourceArrays.worldQuestZones.length) throw new Error("World quest zones do not reconcile source families.");
   if (transitionRows.some(row => row.transitionKind !== "questScenePortal" && row.transitionKind !== "dungeonEntranceTrigger") || transitionRows.length !== sourceArrays.questScenePortals.length + sourceArrays.dungeonEntranceTriggers.length) throw new Error("World transitions do not reconcile source families.");
-  if (serviceRows.some(row => row.family !== "craftingStation" && row.family !== "propertyForSaleSign") || serviceRows.length !== sourceArrays.craftingStations.length + sourceArrays.propertyForSaleSigns.length) throw new Error("World services do not reconcile source families.");
+  if (serviceRows.some(row => row.family !== "craftingStation" && row.family !== "propertyForSaleSign" && row.family !== "corruptionAltar") || serviceRows.length !== sourceArrays.craftingStations.length + sourceArrays.propertyForSaleSigns.length + sourceArrays.corruptionAltars.length) throw new Error("World services do not reconcile source families.");
   const conditionFamilies = new Set(["characterGraveyard", "enhancedInteractableObject", "activeRequirement", "timedActiveRequirement", "disableRequirement"]);
   if (conditionRows.some(row => !conditionFamilies.has(row.family)) || conditionRows.length !== sourceArrays.characterGraveyards.length + sourceArrays.enhancedInteractableObjects.length + sourceArrays.activeRequirements.length + sourceArrays.timedActiveRequirements.length + sourceArrays.disableRequirements.length) throw new Error("World condition sources do not reconcile source families.");
   const unsupportedFamilies = new Set(["heroicConsole", "randomActivator", "interactiveZone"]);

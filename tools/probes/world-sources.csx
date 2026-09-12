@@ -1601,6 +1601,35 @@ for (var index = 0; index < worldPropertySignCount; index++)
     });
 }
 
+// Altars of corruption: their own IPlayerInteractable component, not an InteractableObject.
+var worldCorruptionAltars = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.CorruptionAltar>(true);
+var worldCorruptionAltarCount = worldCorruptionAltars == null ? 0 : worldCorruptionAltars.Length;
+for (var index = 0; index < worldCorruptionAltarCount; index++)
+{
+    var altar = worldCorruptionAltars[index];
+    if (altar == null)
+    {
+        unresolved.Add(new { kind = "corruptionAltar", sourceIndex = index, detail = "FindObjectsOfType returned a null CorruptionAltar." });
+        continue;
+    }
+    var sourceEvidence = worldSource(altar, "Il2CppBLINK.RPGBuilder.World.CorruptionAltar", index);
+    worldServices.Add(new
+    {
+        source = sourceEvidence,
+        disposition = "extracted",
+        family = "corruptionAltar",
+        role = "corruptionAltar",
+        roles = new[] { "corruptionAltar" },
+        roleSource = "CorruptionAltar is a typed component implementing IPlayerInteractable; the role does not come from the GameObject name.",
+        altarName = altar.AltarName,
+        countdownFromNumber = altar.CountdownFromNumber,
+        maxInteractionDistance = altar.MaxInteractionDistance,
+        uiOffsetY = altar.UIOffsetY,
+        barrierObject = altar.BarrierObject == null ? null : (object)new { name = altar.BarrierObject.name, activeSelf = altar.BarrierObject.activeSelf, activeInHierarchy = altar.BarrierObject.activeInHierarchy },
+        consumedVisualObject = altar.ConsumedVisualObject == null ? null : (object)new { name = altar.ConsumedVisualObject.name, activeSelf = altar.ConsumedVisualObject.activeSelf, activeInHierarchy = altar.ConsumedVisualObject.activeInHierarchy }
+    });
+}
+
 var worldHeroicConsoles = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.HeroicConsole>(true);
 var worldHeroicConsoleCount = worldHeroicConsoles == null ? 0 : worldHeroicConsoles.Length;
 for (var index = 0; index < worldHeroicConsoleCount; index++)
@@ -2205,6 +2234,7 @@ var worldSourceTotal = new
     dungeonEntranceTriggers = worldDungeonEntranceCount,
     craftingStations = worldCraftingStationCount,
     propertyForSaleSigns = worldPropertySignCount,
+    corruptionAltars = worldCorruptionAltarCount,
     heroicConsoles = worldHeroicConsoleCount,
     characterGraveyards = worldGraveyardCount,
     enhancedInteractableObjects = worldEnhancedInteractableCount,

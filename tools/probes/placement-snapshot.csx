@@ -55,6 +55,7 @@ var queryTypes = new[]
     Il2CppInterop.Runtime.Il2CppType.Of<Il2CppBLINK.RPGBuilder.World.Chest>(),
     Il2CppInterop.Runtime.Il2CppType.Of<Il2CppBLINK.RPGBuilder.World.CraftingStation>(),
     Il2CppInterop.Runtime.Il2CppType.Of<Il2CppBLINK.RPGBuilder.World.PropertyForSaleSign>(),
+    Il2CppInterop.Runtime.Il2CppType.Of<Il2CppBLINK.RPGBuilder.World.CorruptionAltar>(),
     Il2CppInterop.Runtime.Il2CppType.Of<Il2CppBLINK.RPGBuilder.World.HeroicConsole>(),
     Il2CppInterop.Runtime.Il2CppType.Of<Il2CppBLINK.RPGBuilder.World.CharacterGraveyard>(),
     Il2CppInterop.Runtime.Il2CppType.Of<Il2Cpp.EnhancedInteractableObject>(),
