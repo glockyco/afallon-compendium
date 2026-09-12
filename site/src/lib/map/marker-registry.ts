@@ -34,11 +34,11 @@ export const MARKER_IDS = [
   "craftingStation",
   "resource",
   "container",
-  "travelPoint",
   "town",
   "fort",
   "camp",
   "dungeonEntrance",
+  "travelPoint",
   "challengeStone",
   "property",
 ] as const satisfies readonly MarkerId[];
@@ -56,15 +56,14 @@ export interface MarkerLayer {
   kind: "icon";
 }
 
-export type MarkerSectionId = "hostile" | "characters" | "gathering" | "travel" | "places";
+export type MarkerSectionId = "hostile" | "characters" | "gathering" | "places";
 
-export const MARKER_SECTION_ORDER = ["hostile", "characters", "gathering", "travel", "places"] as const satisfies readonly MarkerSectionId[];
+export const MARKER_SECTION_ORDER = ["hostile", "characters", "gathering", "places"] as const satisfies readonly MarkerSectionId[];
 
 export const MARKER_SECTION_LABELS: Record<MarkerSectionId, string> = {
   hostile: "Hostile creatures",
   characters: "Characters & services",
   gathering: "Gathering & containers",
-  travel: "Travel",
   places: "Places",
 };
 
@@ -243,7 +242,7 @@ export const markerRegistry = {
   },
   travelPoint: {
     id: "travelPoint",
-    section: "travel",
+    section: "places",
     label: "Travel Point",
     pluralLabel: "Travel Points",
     icon: DoorExit,
@@ -251,7 +250,7 @@ export const markerRegistry = {
     iconSize: { base: 23, min: 18, max: 48 },
     precedence: 550,
     renderOrder: 550,
-    defaultVisible: false,
+    defaultVisible: true,
     layer: markerLayer,
     matches: (row) => row.categories.includes("travelPoint"),
   },

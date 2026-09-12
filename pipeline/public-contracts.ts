@@ -20,11 +20,11 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
   "craftingStation",
   "resource",
   "container",
-  "travelPoint",
   "town",
   "fort",
   "camp",
   "dungeonEntrance",
+  "travelPoint",
   "challengeStone",
   "property",
 ] as const;

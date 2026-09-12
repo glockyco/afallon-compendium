@@ -12,7 +12,7 @@ test("registry keys match the published category contract", () => {
 
 test("place markers are default-visible while legacy markers stay opt-in", () => {
   expect(["town", "fort", "camp", "dungeonEntrance", "challengeStone", "property"].map((id) => markerFor(id as typeof MARKER_IDS[number]).defaultVisible)).toEqual([true, true, true, true, true, true]);
-  expect(["enemy", "travelPoint"].map((id) => markerFor(id as typeof MARKER_IDS[number]).defaultVisible)).toEqual([false, false]);
+  expect(["enemy", "travelPoint"].map((id) => markerFor(id as typeof MARKER_IDS[number]).defaultVisible)).toEqual([false, true]);
 });
 
 test("no two markers share a glyph", () => {
