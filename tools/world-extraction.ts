@@ -700,6 +700,20 @@ const region = Type.Object({
   regionTemplateProjection: nullable(Type.Object({})),
   captureBoundsValidated: boolean,
 });
+// One of the game's own world map icons, as authored in the scene. iconKind names the sprite's
+// meaning; "quest", "worldQuest", and "player" icons are runtime state, not places.
+export const MAP_ICON_KINDS = ["town", "fort", "camp", "dungeon", "challengeStone", "quest", "worldQuest", "player", "other"] as const;
+const mapIcon = Type.Object({
+  source: sourceEvidence,
+  disposition: Type.Literal("extracted"),
+  iconKind: Type.Union(MAP_ICON_KINDS.map(kind => Type.Literal(kind))),
+  sprite: nullable(text),
+  title: nullable(text),
+  description: nullable(text),
+  mapIconType: Type.Object({ value: integer, name: text }),
+  position: Type.Object({ x: number, y: number, z: number }),
+});
+export type WorldMapIcon = Static<typeof mapIcon>;
 const diagnostic = Type.Object({
   kind: text,
   detail: text,
@@ -726,6 +740,7 @@ const sourceTotals = Type.Object({
   interactiveZones: integer,
   mapZones: integer,
   regions: integer,
+  mapIcons: integer,
 });
 const exportedTotals = Type.Object({
   resourceProducers: integer,
@@ -738,10 +753,11 @@ const exportedTotals = Type.Object({
   unsupportedSources: integer,
   mapZones: integer,
   regions: integer,
+  mapIcons: integer,
 });
 
 export const WorldSourcesSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.world-sources.v5"),
+  schemaVersion: Type.Literal("compendium.world-sources.v6"),
   coverage: Type.Object({
     scope: text,
     fullGameCoverage: boolean,
@@ -765,6 +781,7 @@ export const WorldSourcesSchema = Type.Object({
   transitions: Type.Array(transition),
   mapZones: Type.Array(mapZone),
   regions: Type.Array(region),
+  mapIcons: Type.Array(mapIcon),
   services: Type.Array(service),
   conditionSources: Type.Array(conditionSource),
   unsupportedSources: Type.Array(unsupportedSource),
@@ -1199,7 +1216,7 @@ function validateCondition(reference: Reference, rowValue: unknown, index: numbe
 
 export function validateWorldSources(value: Static<typeof WorldSourcesSchema>, reference: Reference): void {
   const artifact = value as unknown as AnyRecord;
-  if (artifact.schemaVersion !== "compendium.world-sources.v5") throw new Error("World source schema version is invalid.");
+  if (artifact.schemaVersion !== "compendium.world-sources.v6") throw new Error("World source schema version is invalid.");
   const totals = record(artifact.totals, "totals");
   const sourceTotalsValue = record(totals.source, "totals.source");
   const exportedTotalsValue = record(totals.exported, "totals.exported");

@@ -5,6 +5,7 @@ var worldQuestZones = new System.Collections.Generic.List<object>();
 var worldTransitions = new System.Collections.Generic.List<object>();
 var worldMapZones = new System.Collections.Generic.List<object>();
 var worldRegions = new System.Collections.Generic.List<object>();
+var worldMapIcons = new System.Collections.Generic.List<object>();
 var worldServices = new System.Collections.Generic.List<object>();
 var worldConditionSources = new System.Collections.Generic.List<object>();
 var worldUnsupportedSources = new System.Collections.Generic.List<object>();
@@ -2113,6 +2114,51 @@ for (var index = 0; index < worldRegionCount; index++)
     });
 }
 
+// The game's own world map icons: MapMinimap.MapIcon components the scene authors under its
+// "World map icons" object, one per town, fort, camp, dungeon entrance, or challenge stone. The
+// icon's sprite names its kind; quest and world-quest icons are runtime state and are recorded
+// with their kind so the pipeline can leave them out.
+var mapIconKind = new System.Func<string, string>(sprite =>
+{
+    switch (sprite)
+    {
+        case "Icon_Town": return "town";
+        case "Icon_Castle": return "fort";
+        case "Icon_Camp": return "camp";
+        case "Icon_Crown": return "dungeon";
+        case "Icon_Runes": return "challengeStone";
+        case "Icon_Quest": case "Icon_Question": case "Icon_fight": return "quest";
+        case "Icon_Symbol": return "player";
+        default: return sprite != null && System.Text.RegularExpressions.Regex.IsMatch(sprite, "^[0-9a-f]{8}-") ? "worldQuest" : "other";
+    }
+});
+var worldMapIconsNative = UnityEngine.Object.FindObjectsOfType<Il2CppMapMinimap.MapIcon>(true);
+var worldMapIconCount = worldMapIconsNative == null ? 0 : worldMapIconsNative.Length;
+for (var index = 0; index < worldMapIconCount; index++)
+{
+    var icon = worldMapIconsNative[index];
+    if (icon == null)
+    {
+        unresolved.Add(new { kind = "mapIcon", sourceIndex = index, detail = "FindObjectsOfType returned a null MapIcon." });
+        continue;
+    }
+    var sourceEvidence = worldSource(icon, "Il2CppMapMinimap.MapIcon", index);
+    UnityEngine.Vector3 iconWorld;
+    try { iconWorld = icon.GetWorldPos(); } catch (System.Exception) { iconWorld = icon.transform.position; }
+    var sprite = icon.icon == null ? null : icon.icon.name;
+    worldMapIcons.Add(new
+    {
+        source = sourceEvidence,
+        disposition = "extracted",
+        iconKind = mapIconKind(sprite),
+        sprite = sprite,
+        title = string.IsNullOrWhiteSpace(icon.title) ? null : icon.title.Trim(),
+        description = string.IsNullOrWhiteSpace(icon.desc) ? null : icon.desc.Trim(),
+        mapIconType = new { value = (int)icon.type, name = icon.type.ToString() },
+        position = new { x = iconWorld.x, y = iconWorld.y, z = iconWorld.z }
+    });
+}
+
 var worldSourceTotal = new
 {
     oreSpawners = worldOreSpawnerCount,
@@ -2133,7 +2179,8 @@ var worldSourceTotal = new
     randomActivators = worldRandomActivatorCount,
     interactiveZones = worldInteractiveZoneCount,
     mapZones = worldMapZoneCount,
-    regions = worldRegionCount
+    regions = worldRegionCount,
+    mapIcons = worldMapIconCount
 };
 var worldExportedTotal = new
 {
@@ -2146,12 +2193,13 @@ var worldExportedTotal = new
     conditionSources = worldConditionSources.Count,
     unsupportedSources = worldUnsupportedSources.Count,
     mapZones = worldMapZones.Count,
-    regions = worldRegions.Count
+    regions = worldRegions.Count,
+    mapIcons = worldMapIcons.Count
 };
 
 return new
 {
-    schemaVersion = "compendium.world-sources.v5",
+    schemaVersion = "compendium.world-sources.v6",
     coverage = new
     {
         scope = "currently loaded Unity scenes and candidate prefab assets visible to the current process",
@@ -2185,6 +2233,7 @@ return new
     transitions = worldTransitions,
     mapZones = worldMapZones,
     regions = worldRegions,
+    mapIcons = worldMapIcons,
     services = worldServices,
     conditionSources = worldConditionSources,
     unsupportedSources = worldUnsupportedSources,
