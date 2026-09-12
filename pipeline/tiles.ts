@@ -78,10 +78,14 @@ function accumulatePixel(decodedByPath: ReadonlyMap<string, DecodedSource>, cand
     const green = decodedSource.data[offset + 1]!;
     const blue = decodedSource.data[offset + 2]!;
     const alpha = decodedSource.data[offset + 3]!;
-    if (cell.covered && (cell.firstR !== red || cell.firstG !== green || cell.firstB !== blue || cell.firstA !== alpha)) {
+    // Capture clears to transparent, so a fully transparent pixel is a pixel no geometry covered
+    // from that standing point. It is absence of evidence, not imagery: it never contradicts a
+    // captured pixel from another standing point, and it defers to one.
+    const empty = candidate.tile.empty || alpha === 0;
+    if (cell.covered && !empty && cell.captured && (cell.firstR !== red || cell.firstG !== green || cell.firstB !== blue || cell.firstA !== alpha)) {
       throw new Error(`Tile generation rejected: contradictory pixels at finest grid edge (${globalX},${globalY}) in capture tile ${candidate.tile.id}`);
     }
-    if (!cell.covered) {
+    if (!cell.covered || (!empty && !cell.captured)) {
       cell.firstR = red;
       cell.firstG = green;
       cell.firstB = blue;
@@ -89,15 +93,17 @@ function accumulatePixel(decodedByPath: ReadonlyMap<string, DecodedSource>, cand
     }
     cell.covered = true;
     cell.sourceCount++;
-    // Capture clears to transparent, so a fully transparent pixel is a pixel no geometry covered.
-    // It is observed emptiness rather than imagery, and a layer behind it stays visible.
-    if (candidate.tile.empty || alpha === 0) cell.empty = true;
-    else cell.captured = true;
-    cell.redPremultiplied += red * alpha;
-    cell.greenPremultiplied += green * alpha;
-    cell.bluePremultiplied += blue * alpha;
-    cell.alphaSum += alpha;
     sourceTileIds.add(candidate.tile.id);
+    if (empty) {
+      if (!cell.captured) cell.empty = true;
+      continue;
+    }
+    cell.empty = false;
+    cell.captured = true;
+    cell.redPremultiplied = red * alpha;
+    cell.greenPremultiplied = green * alpha;
+    cell.bluePremultiplied = blue * alpha;
+    cell.alphaSum = alpha;
   }
 }
 
