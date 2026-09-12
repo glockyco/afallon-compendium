@@ -1011,7 +1011,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
         const componentId = integerOrNull(record(row.source)?.componentInstanceId ?? row.componentInstanceId);
         const identity = componentId === null ? undefined : context.sourceByComponent.get(componentId);
         const placementId = identity ? placementData.sourcePlacement.get(identity.sourceId) : undefined;
-        if (identity && placementId) sourceDetails.push({ sourceId: identity.sourceId, placementId, family: row.family ?? row.producerFamily ?? row.transitionKind ?? family, data: row });
+        if (identity && placementId) sourceDetails.push({ sourceId: identity.sourceId, placementId, family: row.family ?? row.producerFamily ?? row.transitionKind ?? (family === "mapIcons" ? "mapIcon" : family), data: row });
       }
     }
     const mapProjection: NormalizedMapProjection = { schemaVersion: "compendium.map-projections.v3" as const, buildId: plan.buildId, mapSpaces: profileData.mapSpaces.map((space) => ({ mapSpaceId: space.id, label: space.label, placementIds: mapPlacements.filter((placement) => placement.mapSpaceId === space.id).map((placement) => placement.placementId).sort(compareText) })), placements: mapPlacements, regions: normalizedRegions, sources: sourceDetails, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
