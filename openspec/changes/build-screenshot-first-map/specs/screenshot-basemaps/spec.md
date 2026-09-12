@@ -6,9 +6,18 @@ Provide recognizable Afallon terrain imagery through reproducible in-game captur
 
 ### Requirement: In-game imagery is the primary layer
 
-Each published reachable map SHALL use imagery captured by this project from the supported game build as its default basemap. The world surface and zones SHALL remain in scope. Illustrated maps SHALL be separate optional orientation layers. Shipped map textures, illustrations, and community map images SHALL NOT substitute for primary imagery or fill missing capture tiles. Missing or failed project captures SHALL block a complete release and appear in coverage reports.
+Each published reachable map SHALL carry imagery captured by this project from the supported game build. The world surface and zones SHALL remain in scope. Missing or failed project captures SHALL block a complete release and appear in coverage reports. Community map images SHALL NOT substitute for that imagery or fill missing capture tiles.
 
-A shipped `MapZone` texture MAY serve as a review reference for framing and cut height, because the game renders its own zone maps as top-down terrain images. That comparison SHALL remain review evidence and SHALL NOT enter the published artifact set.
+Where the game ships its own map for a zone as a `MapZone` texture, the publication SHALL also carry that texture as a calibrated layer registered through the game's own world-to-map conversion, dumped from the running game at the supported build. That layer is what a player already knows, so the atlas SHALL open an interior on its game map with captured screenshots as a toggle, and SHALL open the world surface on both. A game map SHALL NOT count toward capture coverage.
+
+#### Scenario: A zone ships its own map
+- **WHEN** a scene carries a `MapZone` with a texture
+- **THEN** the publication carries that texture as a calibrated pyramid registered by the zone's own conversion
+- **AND** the atlas opens that map on the game map with captured imagery available as a layer
+
+#### Scenario: A zone reuses another zone's texture
+- **WHEN** a scene's `MapZone` names a texture the game also shows for another zone
+- **THEN** the publication carries it as the game shows it and records the shared texture name
 
 #### Scenario: A map has both image sources
 - **WHEN** a reader opens the map without a saved layer choice
