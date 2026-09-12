@@ -148,7 +148,6 @@ function translateBounds(bounds: BitmapBounds, x: number, y: number): BitmapBoun
   return bounds.map(([pointX, pointY]) => [pointX + x, pointY + y] as Point) as BitmapBounds;
 }
 
-
 function normalizeView(view: MapViewState | ViewInput | undefined, fallback: MapViewState): MapViewState {
   const target = view?.target;
   const zoom = view?.zoom;
@@ -376,24 +375,27 @@ function viewportBounds(view: MapViewState, canvas: HTMLCanvasElement): Bounds {
   ];
 }
 
-function orientationView(canvas: HTMLCanvasElement, illustration: PublicIllustration): MapViewState {
-  const width = Math.max(canvas.clientWidth, 1);
-  const height = Math.max(canvas.clientHeight, 1);
-  const scale = Math.min(width / Math.max(illustration.width, 1), height / Math.max(illustration.height, 1));
-  return {
-    target: [illustration.width / 2, illustration.height / 2, 0],
-    zoom: Math.log2(Math.max(scale, Number.MIN_VALUE)),
-  };
-}
-
 function matchingTileLayers(data: PublicationData, layerIds: readonly string[]): PublicTileLayer[] {
   if (layerIds.includes("captured")) return data.tileLayers;
   return data.tileLayers.filter((layer) => layerIds.includes(layer.id));
 }
 
-// An orientation-only illustration carries no world registration, so it occupies the view alone.
-function matchingIllustration(data: PublicationData, layerIds: readonly string[]): PublicIllustration | null {
-  return data.illustrations.find((illustration) => layerIds.includes(illustration.id)) || null;
+function matchingIllustrations(data: PublicationData, layerIds: readonly string[]): PublicIllustration[] {
+  return data.illustrations.filter((illustration) => layerIds.includes(illustration.id));
+}
+
+// An illustration without a reviewed transform still needs somewhere to draw. Its map space's
+// world bounds are the honest provisional choice: the drawing covers that map and nothing claims
+// pixel accuracy inside it. A reviewed transform replaces this the moment one exists.
+function provisionalBounds(data: PublicationData, illustration: PublicIllustration): BitmapBounds {
+  const space = data.maps.find((map) => map.mapSpaceId === illustration.mapSpaceId);
+  if (!space) return ownImageBounds(illustration.width, illustration.height);
+  const { min, max } = space.bounds;
+  const width = max.x - min.x, height = max.y - min.y;
+  const scale = Math.min(width / illustration.width, height / illustration.height);
+  const drawWidth = illustration.width * scale, drawHeight = illustration.height * scale;
+  const left = min.x + (width - drawWidth) / 2, bottom = min.y + (height - drawHeight) / 2;
+  return [[left, bottom], [left, bottom + drawHeight], [left + drawWidth, bottom + drawHeight], [left + drawWidth, bottom]];
 }
 
 export type MapAdapter = {
@@ -472,7 +474,48 @@ export async function createMapAdapter(
     return {tile, image};
   };
 
-  const createImagery = (next: MapAdapterUpdate, tileLayersForView: PublicTileLayer[], illustration: PublicIllustration | null): Layer[] => {
+  // An illustration is one image rather than a pyramid, and it is decoded here for the same reason
+  // tiles are: the layer draws nothing until the pixels exist, and a decoded bitmap is what the
+  // renderer can upload. A layer built while the decode is in flight redraws when it lands.
+  const illustrationImages = new Map<string, ImageBitmap>();
+  const illustrationLoads = new Set<string>();
+  const illustrationImage = (url: string): ImageBitmap | null => {
+    const ready = illustrationImages.get(url);
+    if (ready) return ready;
+    if (!illustrationLoads.has(url)) {
+      illustrationLoads.add(url);
+      void (async () => {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+          illustrationImages.set(url, await createImageBitmap(await response.blob()));
+          if (current && !destroyed) update(current);
+        } catch (error) {
+          report(`Unable to load the illustration layer: ${textFromError(error)}`);
+        }
+      })();
+    }
+    return null;
+  };
+
+  const createIllustrationLayers = (next: MapAdapterUpdate, illustrations: readonly PublicIllustration[]): Layer[] => illustrations.flatMap((illustration) => {
+    const image = illustrationImage(illustration.url);
+    if (!image) return [];
+    const delta = mapOffsetDelta(next.data, illustration.mapSpaceId, next.worldOffsets);
+    const localBounds = illustration.mapFromPixelEdge
+      ? bitmapBounds(illustration.mapFromPixelEdge, illustration.width, illustration.height)
+      : provisionalBounds(next.data, illustration);
+    return [new BitmapLayer({
+      id: `map-illustration-${illustration.id}`,
+      data: null as never,
+      image,
+      bounds: translateBounds(localBounds, delta.worldX, delta.worldY),
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable: false,
+    })];
+  });
+
+  const createImagery = (next: MapAdapterUpdate, tileLayersForView: PublicTileLayer[]): Layer[] => {
     if (tileLayersForView.length > 0) {
       const placed = tileLayersForView.map((tileLayer) => ({ tileLayer, offset: latticeOffset(tileLayer, mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets)) }));
       const key = `tiles:${next.data.buildId}:${placed.map(({ tileLayer, offset }) => `${tileLayer.id}:${offset.tiles.x}:${offset.tiles.y}`).join("|")}`;
@@ -509,24 +552,6 @@ export async function createMapAdapter(
       });
       return imageryLayers;
     }
-    if (illustration) {
-      const key = `illustration:${next.data.buildId}:${illustration.id}:${illustration.registration}:${illustration.url}`;
-      if (imageryLayers.length === 1 && imageryKey === key) return imageryLayers;
-      imageryKey = key;
-      const delta = mapOffsetDelta(next.data, illustration.mapSpaceId, next.worldOffsets);
-      const localBounds = illustration.mapFromPixelEdge
-        ? bitmapBounds(illustration.mapFromPixelEdge, illustration.width, illustration.height)
-        : ownImageBounds(illustration.width, illustration.height);
-      imageryLayers = [new BitmapLayer({
-        id: `map-illustration-${illustration.id}`,
-        data: null as never,
-        image: illustration.url,
-        bounds: translateBounds(localBounds, delta.worldX, delta.worldY),
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        pickable: false,
-      })];
-      return imageryLayers;
-    }
     imageryLayers = [];
     imageryKey = "";
     return imageryLayers;
@@ -539,9 +564,12 @@ export async function createMapAdapter(
 
   const refreshLayers = (next: MapAdapterUpdate): void => {
     const tileLayersForView = matchingTileLayers(next.data, next.layerIds);
-    const illustration = matchingIllustration(next.data, next.layerIds);
-    const orientationOnly = Boolean(illustration && illustration.registration === "orientation-only");
-    const layerKind = tileLayersForView.length > 0 ? `tiles:${tileLayersForView.map((layer) => layer.id).join(",")}` : illustration ? `illustration:${illustration.id}:${illustration.registration}` : "missing";
+    const illustrations = matchingIllustrations(next.data, next.layerIds);
+    // An illustration is an ordinary backdrop layer. Markers, labels, and areas belong to the
+    // world, not to whichever imagery is switched on, so nothing about them depends on it.
+    // Readiness belongs in the key: a decode that lands later changes the layers this builds, and
+    // an unchanged key would skip that rebuild and leave the illustration undrawn.
+    const layerKind = `tiles:${tileLayersForView.map((layer) => layer.id).join(",")}|art:${illustrations.map((illustration) => `${illustration.id}:${illustrationImages.has(illustration.url) ? "ready" : "loading"}`).join(",")}`;
     const visiblePlacements = next.placements;
     const nextPlacementKey = placementSignature(visiblePlacements);
     const offsetKey = Object.entries(next.worldOffsets).sort(([left], [right]) => left.localeCompare(right)).map(([mapSpaceId, offset]) => `${mapSpaceId}:${offset.worldX},${offset.worldY}`).join("|");
@@ -554,18 +582,18 @@ export async function createMapAdapter(
     const highlightedKey = [...next.highlightedPlacementIds].sort().join(",");
     const hoveredKey = [...next.hoveredPlacementIds].sort().join(",");
     const hoveredIds = new Set(next.hoveredPlacementIds);
-    const nextGeometryKey = [next.data.buildId, [...next.layerIds].sort().join(","), layerKind, nextPlacementKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, orientationOnly ? "hidden" : "markers", next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections"].join("\u001e");
+    const nextGeometryKey = [next.data.buildId, [...next.layerIds].sort().join(","), layerKind, nextPlacementKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections"].join("\u001e");
     if (nextGeometryKey === geometryKey) return;
     geometryKey = nextGeometryKey;
 
-    const imageLayers = createImagery(next, tileLayersForView, illustration);
+    const imageLayers = [...createIllustrationLayers(next, illustrations), ...createImagery(next, tileLayersForView)];
     const visibleMarkers = next.showConnections || next.authoring ? baseMarkers : baseMarkers.filter((marker) => !marker.isTravel);
-    renderMarkers = orientationOnly ? [] : groupCoincidentMarkers(visibleMarkers);
+    renderMarkers = groupCoincidentMarkers(visibleMarkers);
     const markerByPlacement = new Map(baseMarkers.map((marker) => [marker.placementId, marker]));
     // Ground that a map space declares but no capture has photographed yet must read as
     // absent imagery, not as the void outside every map. Without this fill, a tile still
     // loading and a tile that will never exist look identical.
-    const backgroundLayer = orientationOnly ? null : new PolygonLayer<WorldMapBounds>({
+    const backgroundLayer = new PolygonLayer<WorldMapBounds>({
       id: "map-space-background",
       data: next.data.maps.map((map) => {
         const delta = mapOffsetDelta(next.data, map.mapSpaceId, next.worldOffsets);
@@ -578,7 +606,7 @@ export async function createMapAdapter(
       getPolygon: (map) => map.polygon,
       getFillColor: [46, 48, 54, 255],
     });
-    const boundsLayer = orientationOnly ? null : new PolygonLayer<WorldMapBounds>({
+    const boundsLayer = new PolygonLayer<WorldMapBounds>({
       id: "world-map-bounds",
       data: next.data.maps.map((map) => {
         const delta = mapOffsetDelta(next.data, map.mapSpaceId, next.worldOffsets);
@@ -605,7 +633,7 @@ export async function createMapAdapter(
       },
       onDragEnd: () => dragController.end(),
     });
-    const mapLabelLayer = orientationOnly ? null : new TextLayer({
+    const mapLabelLayer = new TextLayer({
       id: "map-space-labels",
       data: next.data.maps.map((map) => {
         const delta = mapOffsetDelta(next.data, map.mapSpaceId, next.worldOffsets);
@@ -633,7 +661,7 @@ export async function createMapAdapter(
       fontFamily: "sans-serif",
       fontWeight: 700,
     });
-    const areaLayer = orientationOnly ? null : new PolygonLayer<AreaRecord>({
+    const areaLayer = new PolygonLayer<AreaRecord>({
       id: "map-placement-areas",
       data: baseAreas,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -666,7 +694,7 @@ export async function createMapAdapter(
       connectionData.push({ placementId: placement.placementId, source: [source.position[0], source.position[1]], target: [placement.travel.destination.position[0] + targetDelta.worldX, placement.travel.destination.position[1] + targetDelta.worldY], enabled: placement.travel.enabled });
     }
     const hoveredConnectionIds = new Set(next.hoveredPlacementIds);
-    const connectionLines = !orientationOnly && (next.showConnections || next.authoring) ? new LineLayer<TravelConnection>({
+    const connectionLines = next.showConnections || next.authoring ? new LineLayer<TravelConnection>({
       id: "world-travel-connections",
       data: connectionData,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -682,7 +710,7 @@ export async function createMapAdapter(
       widthUnits: "pixels",
       updateTriggers: {getColor: [next.selectedId, next.hoveredPlacementIds], getWidth: [next.selectedId, next.hoveredPlacementIds]},
     }) : null;
-    const connectionDestinations = !orientationOnly && (next.showConnections || next.authoring) ? new ScatterplotLayer<TravelConnection>({
+    const connectionDestinations = next.showConnections || next.authoring ? new ScatterplotLayer<TravelConnection>({
       id: "world-travel-destinations",
       data: connectionData,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -704,8 +732,8 @@ export async function createMapAdapter(
       const selectedIndex = stack.members.indexOf(next.selectedId ?? "");
       callbacks.onSelect(stack.members[(selectedIndex + 1) % stack.members.length]!);
     };
-    const markerLayer = orientationOnly ? null : createPlacementIconLayer(renderMarkers, iconAtlas, next.selectedId, null, selectStacked);
-    const stackCounts = orientationOnly || stacks.length === 0 ? null : new TextLayer<MarkerRecord>({
+    const markerLayer = createPlacementIconLayer(renderMarkers, iconAtlas, next.selectedId, null, selectStacked);
+    const stackCounts = stacks.length === 0 ? null : new TextLayer<MarkerRecord>({
       id: "map-placement-stack-counts",
       data: stacks,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -725,7 +753,6 @@ export async function createMapAdapter(
       fontFamily: "sans-serif",
     });
     const groupedMarkersFor = (placementIds: readonly string[]): readonly MarkerRecord[] => {
-      if (orientationOnly) return [];
       const ids = new Set(placementIds);
       return groupCoincidentMarkers(baseMarkers.filter(marker => ids.has(marker.placementId)));
     };
@@ -737,9 +764,10 @@ export async function createMapAdapter(
     const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6);
     layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
 
-    // Hiding every layer is a reader choice; only a layer that cannot be drawn is a failure.
-    const requestedImagery = next.layerIds.length > 0;
-    if (imageLayers.length === 0 && !illustration && requestedImagery) {
+    // Hiding every layer is a reader choice, and a layer still decoding is not a failure either.
+    const pendingIllustration = illustrations.some((illustration) => !illustrationImages.has(illustration.url));
+    const requestedImagery = next.layerIds.length > 0 && !pendingIllustration;
+    if (imageLayers.length === 0 && requestedImagery) {
       const warningKey = `${next.data.buildId}:${[...next.layerIds].sort().join(",")}`;
       if (warningKey !== missingLayerWarningKey) {
         missingLayerWarningKey = warningKey;
@@ -818,20 +846,14 @@ export async function createMapAdapter(
   const update = (next: MapAdapterUpdate): void => {
     if (destroyed) return;
     current = next;
-    const illustration = matchingIllustration(next.data, next.layerIds);
-    const orientationOnly = Boolean(illustration && illustration.registration === "orientation-only");
-    const nextViewSpaceKey = orientationOnly && illustration ? `orientation:${illustration.id}` : `map:${next.mapSpaceId}`;
+    // Every layer now shares the world's coordinates, so switching imagery keeps the camera.
+    const nextViewSpaceKey = `map:${next.mapSpaceId}`;
     if (viewSpaceKey !== nextViewSpaceKey) {
       if (viewSpaceKey) viewsBySpace.set(viewSpaceKey, activeView);
       viewSpaceKey = nextViewSpaceKey;
       const savedView = viewsBySpace.get(nextViewSpaceKey);
-      if (savedView) {
-        setDeckView(savedView);
-      } else if (orientationOnly && illustration) {
-        setDeckView(orientationView(canvas, illustration));
-      } else {
-        viewsBySpace.set(nextViewSpaceKey, activeView);
-      }
+      if (savedView) setDeckView(savedView);
+      else viewsBySpace.set(nextViewSpaceKey, activeView);
     }
     refreshLayers(next);
     deck.setProps({layers: [...layers, ...pointerHoverLayers]});

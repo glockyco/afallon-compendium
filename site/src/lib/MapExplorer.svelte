@@ -100,8 +100,8 @@
   $: tileLayerOptions = (publication?.tileLayers ?? []).map((tileLayer) => ({ id: tileLayer.id, label: mapLabel(publication, tileLayer.mapSpaceId) }));
   $: illustrationOptions = layerOptions.filter((option) => option.kind === 'illustration');
   $: activeIllustration = illustrationOptions.find((option) => layerIds.includes(option.id)) ?? null;
-  $: orientationOnly = activeIllustration?.orientationOnly ?? false;
-  $: visibleTileLayerIds = orientationOnly ? [] : layerIds.includes('captured') ? tileLayerOptions.map((option) => option.id) : tileLayerOptions.filter((option) => layerIds.includes(option.id)).map((option) => option.id);
+  $: approximateIllustration = activeIllustration?.orientationOnly ?? false;
+  $: visibleTileLayerIds = layerIds.includes('captured') ? tileLayerOptions.map((option) => option.id) : tileLayerOptions.filter((option) => layerIds.includes(option.id)).map((option) => option.id);
   $: capturedChecked = visibleTileLayerIds.length > 0;
   $: capturedPartial = visibleTileLayerIds.length > 0 && visibleTileLayerIds.length < tileLayerOptions.length;
   $: allMapPlacements = uniquePlacements(publication?.placements ?? []);
@@ -144,7 +144,7 @@
   $: rankedResults = rankResults(searchNeedle, matchingItems, matchingEntities, resultPlacements, entityIndexByKey);
   $: displayedResults = rankedResults.slice(0, RESULT_LIMIT);
   $: filteredDetail = selectedPlacement ? filteredSections(selectedPlacementDetails, detailQuery) : [];
-  $: extraSelection = selectedPlacement && !staleSelection && !orientationOnly && !matchingPlacements.some((placement) => placement.placementId === selectedId) ? selectedPlacement : null;
+  $: extraSelection = selectedPlacement && !staleSelection && !matchingPlacements.some((placement) => placement.placementId === selectedId) ? selectedPlacement : null;
   $: adapterPlacements = extraSelection ? [...matchingPlacements, extraSelection] : matchingPlacements;
   $: highlightedPlacementIds = selectionHighlightIds(selectedPlacement, selectedEntityKey, itemKey, searchIndexes);
   $: hoveredPlacementIds = resultHighlightIds(hoveredResult, searchIndexes);
@@ -523,8 +523,6 @@
     selectedEntityKey = null;
     staleSelection = '';
     detailOrigin = origin;
-    // A marker cannot be shown over an unregistered illustration, so selecting one restores captured imagery.
-    if (orientationOnly) layerIds = ['captured'];
     syncUrl('push');
     void tick().then(() => ensureCurrentSelection());
     void focusDetails();
@@ -585,21 +583,18 @@
   }
 
   function toggleCaptured(): void {
-    setLayers(capturedChecked ? layerIds.filter((id) => id !== 'captured' && !tileLayerOptions.some((option) => option.id === id)) : [...layerIds.filter((id) => !illustrationOptions.some((option) => option.id === id && option.orientationOnly)), 'captured']);
+    setLayers(capturedChecked
+      ? layerIds.filter((id) => id !== 'captured' && !tileLayerOptions.some((option) => option.id === id))
+      : [...layerIds, 'captured']);
   }
 
   function toggleMapLayer(id: string): void {
     const expanded = visibleTileLayerIds.includes(id) ? visibleTileLayerIds.filter((current) => current !== id) : [...visibleTileLayerIds, id];
-    setLayers([...layerIds.filter((current) => !tileLayerOptions.some((option) => option.id === current) && current !== 'captured' && !(activeIllustration?.orientationOnly && current === activeIllustration.id)), ...expanded]);
+    setLayers([...layerIds.filter((current) => !tileLayerOptions.some((option) => option.id === current) && current !== 'captured'), ...expanded]);
   }
 
   function toggleIllustration(option: LayerOption): void {
-    if (layerIds.includes(option.id)) {
-      setLayers(layerIds.filter((id) => id !== option.id).length > 0 ? layerIds.filter((id) => id !== option.id) : ['captured']);
-      return;
-    }
-    // Without world registration the illustration cannot share a frame with captured imagery.
-    setLayers(option.orientationOnly ? [option.id] : [...layerIds, option.id]);
+    setLayers(layerIds.includes(option.id) ? layerIds.filter((id) => id !== option.id) : [...layerIds, option.id]);
   }
 
   function toggleAuthoring(): void {
@@ -731,7 +726,7 @@
                     <details class="layer-maps" open={capturedPartial}>
                       <summary>Individual maps</summary>
                       {#each tileLayerOptions as option (option.id)}
-                        <label class="tool-option nested"><input type="checkbox" checked={visibleTileLayerIds.includes(option.id)} disabled={orientationOnly} on:change={() => toggleMapLayer(option.id)} /><span>{option.label}</span></label>
+                        <label class="tool-option nested"><input type="checkbox" checked={visibleTileLayerIds.includes(option.id)} on:change={() => toggleMapLayer(option.id)} /><span>{option.label}</span></label>
                       {/each}
                     </details>
                   {/if}
@@ -739,7 +734,7 @@
                 {#each illustrationOptions as option (option.id)}
                   <label class="tool-option"><input type="checkbox" checked={layerIds.includes(option.id)} on:change={() => toggleIllustration(option)} /><span>{option.label}</span></label>
                 {/each}
-                {#if orientationOnly}<p class="notice">Orientation only. This illustration has no verified world registration, so it replaces captured imagery and hides markers.</p>{/if}
+                {#if approximateIllustration}<p class="notice">The artwork has no reviewed registration yet. It draws behind the captured imagery, fitted to the map's world bounds, so marker positions over it are approximate.</p>{/if}
               </div>
             {/if}
             <div class="control-section world-tools"><h2>Map options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button><p class="hint">Drag a map boundary to review its placement. Travel lines stay visible while authoring.</p>{/if}</div>
@@ -757,7 +752,7 @@
       </aside>
 
       <section class="map-column" aria-label="Interactive map">
-        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(12, view.zoom + 0.5) })}>+</button><button type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(-12, view.zoom - 0.5) })}>−</button><button type="button" disabled={orientationOnly} on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(hoveredPlacement.levelRange)}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}{#if orientationOnly}{' · orientation layer'}{/if}</div></div>
+        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(12, view.zoom + 0.5) })}>+</button><button type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(-12, view.zoom - 0.5) })}>−</button><button type="button" on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(hoveredPlacement.levelRange)}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}{#if approximateIllustration}{' · artwork placement approximate'}{/if}</div></div>
         {#if loadError && publication}<div class="inline-error" role="alert">{loadError}</div>{/if}
         <section class="results" aria-labelledby="results-heading" bind:this={resultList}>
           <div class="results-header">

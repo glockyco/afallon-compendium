@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import sharp from "sharp";
 import { Type, type Static } from "typebox";
 import { Assert } from "typebox/value";
+
 import { beginRun, loadVerifiedRun, type VerifiedRun } from "../tools/runs";
 import { toolRevision } from "../tools/build";
 import { compileMapSpaces } from "../tools/map-spaces";
@@ -13,9 +14,25 @@ import { IllustrationOutputSchema, type IllustrationOutput } from "../tools/illu
 import { TilePyramidSchema, type TilePyramid } from "./tile-contracts";
 import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement } from "./normalized-contracts";
 import { projectAdventureGuide } from "./guide-projection";
-import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicIllustration, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
+import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicIllustration, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
 import { WorldOffsetsSchema, type WorldOffsets, buildWorldLayout } from "./world-layout";
 import { validateEntityDetails, validateItemSources, validatePublication } from "./publication-validation";
+
+// The widest edge a published illustration may have. One texture of this size stays inside the
+// budget a browser can upload and a reader can download.
+const ILLUSTRATION_MAX_EDGE = 4096;
+
+// A reviewed transform maps source pixels to world units. Publishing a smaller image shrinks the
+// pixel domain, so each axis covers proportionally more world per published pixel. The origin is a
+// world position and does not scale.
+function scaleAffine(affine: PublicAffine, scale: number): PublicAffine {
+  if (scale === 1) return affine;
+  return {
+    origin: affine.origin,
+    xAxis: { x: affine.xAxis.x / scale, y: affine.xAxis.y / scale },
+    yAxis: { x: affine.yAxis.x / scale, y: affine.yAxis.y / scale },
+  };
+}
 
 const reference = Type.Object({ path: Type.String({ minLength: 1 }), sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) }, { additionalProperties: false });
 export const GuideDocumentSchema = Type.Object({
@@ -658,11 +675,18 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     if (value.mapSpaceProfile.sha256 !== profileRecord.reference.sha256) throw new Error("Publication illustration uses different calibration.");
     const image = await source.readArtifact(value.image.path);
     if (image.reference.sha256 !== value.image.sha256 || image.reference.bytes !== value.image.bytes) throw new Error("Publication illustration image reference mismatch.");
-    const converted = await sharp(image.bytes).webp({ lossless: true }).toBuffer({ resolveWithObject: true });
-    if (converted.info.width !== value.image.width || converted.info.height !== value.image.height) throw new Error("Publication illustration dimensions mismatch.");
+    // A reader downloads this layer whole, and the browser holds it as one texture. The source
+    // artwork is 7540x8192, which is 236 MB of RGBA and wedges the renderer, so the published
+    // layer is bounded and lossy. The declared size is the size that ships, not the source size.
+    if (value.image.width !== (await sharp(image.bytes).metadata()).width) throw new Error("Publication illustration dimensions mismatch.");
+    const scale = Math.min(1, ILLUSTRATION_MAX_EDGE / Math.max(value.image.width, value.image.height));
+    const converted = await sharp(image.bytes, { limitInputPixels: false })
+      .resize({ width: Math.round(value.image.width * scale), height: Math.round(value.image.height * scale), fit: "fill" })
+      .webp({ quality: 82 })
+      .toBuffer({ resolveWithObject: true });
     const hash = createHash("sha256").update(converted.data).digest("hex"), url = `imagery/${hash}.webp`;
     assetBytes.set(url, converted.data);
-    illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: value.registration.kind, url, width: value.image.width, height: value.image.height, mapFromPixelEdge: value.registration.kind === "calibrated" ? value.registration.mapFromPixelEdge : null });
+    illustrations.push({ id: value.layerId, label: label(value.layerId), mapSpaceId: value.mapSpaceId, registration: value.registration.kind, url, width: converted.info.width, height: converted.info.height, mapFromPixelEdge: value.registration.kind === "calibrated" ? scaleAffine(value.registration.mapFromPixelEdge, scale) : null });
   }
   // A reviewer's domain box decides that a placement is not part of any map. Those decisions are
   // reported with their reasons and evidence; they are not omitted coverage.
