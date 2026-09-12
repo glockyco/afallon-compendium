@@ -424,6 +424,7 @@ export async function createMapAdapter(
   let imageryKey = "";
   let layers: Layer[] = [];
   let pointerHoverLayers: Layer[] = [];
+  let allConnections: TravelConnection[] = [];
   const iconAtlas = await createIconAtlas();
 
   const report = (message: string): void => {
@@ -696,9 +697,13 @@ export async function createMapAdapter(
       connectionData.push({ placementId: placement.placementId, source: [source.position[0], source.position[1]], target: [placement.travel.destination.position[0] + targetDelta.worldX, placement.travel.destination.position[1] + targetDelta.worldY], enabled: placement.travel.enabled });
     }
     const hoveredConnectionIds = new Set(next.hoveredPlacementIds);
-    const connectionLines = next.showConnections || next.authoring ? new LineLayer<TravelConnection>({
+    // With the option off, only the selected and hovered markers show their lines; the pointer
+    // hover adds its own line in handleHover.
+    allConnections = connectionData;
+    const focusedConnections = next.showConnections || next.authoring ? connectionData : connectionData.filter((connection) => connection.placementId === next.selectedId || hoveredConnectionIds.has(connection.placementId));
+    const connectionLines = focusedConnections.length > 0 ? new LineLayer<TravelConnection>({
       id: "world-travel-connections",
-      data: connectionData,
+      data: focusedConnections,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       pickable: false,
       getSourcePosition: (connection) => connection.source,
@@ -712,9 +717,9 @@ export async function createMapAdapter(
       widthUnits: "pixels",
       updateTriggers: {getColor: [next.selectedId, next.hoveredPlacementIds], getWidth: [next.selectedId, next.hoveredPlacementIds]},
     }) : null;
-    const connectionDestinations = next.showConnections || next.authoring ? new ScatterplotLayer<TravelConnection>({
+    const connectionDestinations = focusedConnections.length > 0 ? new ScatterplotLayer<TravelConnection>({
       id: "world-travel-destinations",
-      data: connectionData,
+      data: focusedConnections,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       pickable: false,
       radiusUnits: "pixels",
@@ -808,6 +813,14 @@ export async function createMapAdapter(
     pointerHoverLayers = marker
       ? createHighlightLayers("pointer-hover-highlight", [marker], [250, 204, 21, 255], [250, 204, 21, 40], 2)
       : [];
+    // A hovered door shows where it leads even while the connections option is off.
+    const hoveredConnections = marker && current && !current.showConnections && !current.authoring ? allConnections.filter((connection) => marker.members.includes(connection.placementId)) : [];
+    if (hoveredConnections.length > 0) {
+      pointerHoverLayers.push(
+        new LineLayer<TravelConnection>({ id: "pointer-hover-connections", data: hoveredConnections, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: false, getSourcePosition: (connection) => connection.source, getTargetPosition: (connection) => connection.target, getColor: (connection) => connection.enabled ? [100, 230, 255, 255] : [120, 120, 120, 180], getWidth: 4, widthUnits: "pixels" }),
+        new ScatterplotLayer<TravelConnection>({ id: "pointer-hover-destinations", data: hoveredConnections, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: false, radiusUnits: "pixels", getPosition: (connection) => connection.target, getRadius: 5, getFillColor: (connection) => connection.enabled ? [100, 210, 255, 220] : [120, 120, 120, 190], getLineColor: [20, 40, 50, 230], stroked: true, lineWidthMinPixels: 1 }),
+      );
+    }
     deck.setProps({layers: [...layers, ...pointerHoverLayers]});
     callbacks.onHover(placementId);
   };
