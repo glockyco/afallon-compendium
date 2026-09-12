@@ -57,19 +57,19 @@ test("the composite takes each pixel from the first slice above its walkable hei
   const cut = planTileCut(capturePlan.tiles[0]!, capturePlan, ramp)!;
   // Each slice is a solid colour whose red channel is its index.
   const slices = cut.evidence.cutHeights.map((_, index) => {
-    const buffer = Buffer.alloc(8 * 8 * 3);
-    for (let i = 0; i < 64; i++) buffer[i * 3] = index;
+    const buffer = Buffer.alloc(8 * 8 * 4);
+    for (let i = 0; i < 64; i++) { buffer[i * 4] = index; buffer[i * 4 + 3] = 255; }
     return buffer;
   });
-  const { rgb, sliceUse } = composeCut(slices, cut.evidence.cutHeights, cut, 8, 8);
+  const { rgba, sliceUse } = composeCut(slices, cut.evidence.cutHeights, cut, 8, 8);
   // Pixel column 0 sits at the ramp's foot; column 7 is beyond the ramp's top and filled
   // from its nearest walkable neighbour, so it uses a later slice than column 0.
-  const left = rgb[0]!, right = rgb[7 * 3]!;
+  const left = rgba[0]!, right = rgba[7 * 4]!;
   expect(left).toBeLessThan(right);
   expect(sliceUse.reduce((sum, count) => sum + count, 0)).toBe(64);
   // No pixel picks a slice below its own surface plus headroom, across the row mirror.
   for (let row = 0; row < 8; row++) for (let column = 0; column < 8; column++) {
-    const pick = rgb[(row * 8 + column) * 3]!;
+    const pick = rgba[(row * 8 + column) * 4]!;
     expect(cut.evidence.cutHeights[pick]!).toBeGreaterThanOrEqual(cut.field[(7 - row) * 8 + column]! + 2 - 1e-6);
   }
 });
@@ -82,8 +82,8 @@ test("raw slices are verified against their reported hashes before composing", a
     const paths: string[] = [];
     const reported: Array<{ index: number; cut: number; sha256: string; byteSize: number }> = [];
     for (const [index, height] of cut.evidence.cutHeights.entries()) {
-      const bytes = Buffer.alloc(8 * 8 * 3, index);
-      const path = join(directory, `slice-${index}.rgb`);
+      const bytes = Buffer.alloc(8 * 8 * 4, index);
+      const path = join(directory, `slice-${index}.rgba`);
       await Bun.write(path, bytes);
       paths.push(path);
       reported.push({ index, cut: height, sha256: createHash("sha256").update(bytes).digest("hex"), byteSize: bytes.byteLength });

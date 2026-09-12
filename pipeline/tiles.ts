@@ -89,7 +89,9 @@ function accumulatePixel(decodedByPath: ReadonlyMap<string, DecodedSource>, cand
     }
     cell.covered = true;
     cell.sourceCount++;
-    if (candidate.tile.empty) cell.empty = true;
+    // Capture clears to transparent, so a fully transparent pixel is a pixel no geometry covered.
+    // It is observed emptiness rather than imagery, and a layer behind it stays visible.
+    if (candidate.tile.empty || alpha === 0) cell.empty = true;
     else cell.captured = true;
     cell.redPremultiplied += red * alpha;
     cell.greenPremultiplied += green * alpha;

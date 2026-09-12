@@ -327,12 +327,12 @@ if (captureAction == "start")
         renderTexture.Create();
         if (!renderTexture.IsCreated()) throw new System.InvalidOperationException("RenderTexture.Create did not create a live target.");
         fault("after-target");
-        var captureTexture = new UnityEngine.Texture2D(requestedWidth, requestedHeight, UnityEngine.TextureFormat.RGB24, false);
+        var captureTexture = new UnityEngine.Texture2D(requestedWidth, requestedHeight, UnityEngine.TextureFormat.RGBA32, false);
         if (captureTexture == null) throw new System.InvalidOperationException("Texture2D allocation returned null.");
         state["captureTexture"] = captureTexture;
         captureTexture.name = resourcePrefix + ".Texture2D";
         fault("after-texture");
-        return new { schemaVersion = "compendium.capture-session.v5", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
+        return new { schemaVersion = "compendium.capture-session.v6", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
         {
             new { kind = "camera", instanceId = (int?)camera.GetInstanceID(), alive = camera != null && cameraGo != null },
             new { kind = "light", instanceId = (int?)light.GetInstanceID(), alive = light != null && lightGo != null },
@@ -386,7 +386,7 @@ var sessionResources = new System.Func<object>(() =>
 });
 var sessionReport = new System.Func<object>(() => new
 {
-    schemaVersion = "compendium.capture-session.v5",
+    schemaVersion = "compendium.capture-session.v6",
     key = requestedKey,
     phase = sessionState["phase"] as string,
     ownerToken = ownerToken,
@@ -411,7 +411,7 @@ if (captureAction == "restore")
     restoreCleanup();
     return new
     {
-        schemaVersion = "compendium.capture-session.v5",
+        schemaVersion = "compendium.capture-session.v6",
         key = requestedKey,
         phase = "restored",
         ownerToken = ownerToken,
@@ -750,7 +750,10 @@ try
     sessionCamera.aspect = (float)pixelAspect;
     sessionCamera.useOcclusionCulling = false;
     sessionCamera.clearFlags = UnityEngine.CameraClearFlags.SolidColor;
-    sessionCamera.backgroundColor = UnityEngine.Color.gray;
+    // A pixel the camera clears is a pixel no geometry covered. Clearing transparent keeps that
+    // distinguishable from terrain that is genuinely grey, so coverage can report it as empty
+    // and a layer behind the imagery stays visible through it.
+    sessionCamera.backgroundColor = UnityEngine.Color.clear;
     sessionCamera.cullingMask = cullingMask;
     sessionCamera.transform.rotation = UnityEngine.Quaternion.Euler(90f, 0f, 0f);
     fault("after-camera");
@@ -800,7 +803,7 @@ try
         foreach (var terrain in terrains) if (terrain == null || terrain.drawTreesAndFoliage) throw new System.InvalidOperationException("Rendering changed suppressed terrain trees.");
         foreach (var renderer in player.GetComponentsInChildren<UnityEngine.Renderer>(false)) if (renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy) throw new System.InvalidOperationException("A player renderer remained enabled during capture.");
     });
-    var rawLength = captureWidth * captureHeight * 3;
+    var rawLength = captureWidth * captureHeight * 4;
     foreach (var tile in batch)
     {
         var frameValue = tile.Frame;
@@ -844,11 +847,11 @@ try
             if (raw == null || raw.Length != rawLength) throw new System.InvalidOperationException("The capture texture returned an unexpected raw byte count.");
             string sliceHash;
             using (var digest = System.Security.Cryptography.SHA256.Create()) sliceHash = System.BitConverter.ToString(digest.ComputeHash(raw)).Replace("-", "").ToLowerInvariant();
-            var slicePath = tile.SlicePrefix + ".slice-" + sliceIndex.ToString("D3") + ".rgb";
+            var slicePath = tile.SlicePrefix + ".slice-" + sliceIndex.ToString("D3") + ".rgba";
             if (System.IO.File.Exists(slicePath)) throw new System.IO.IOException("A slice destination already exists.");
             System.IO.File.WriteAllBytes(slicePath, raw);
             writtenSlices.Add(slicePath);
-            slices.Add(new { index = sliceIndex, cut = cut, path = tile.SlicePrefixArgument + ".slice-" + sliceIndex.ToString("D3") + ".rgb", sha256 = sliceHash, byteSize = (long)raw.Length });
+            slices.Add(new { index = sliceIndex, cut = cut, path = tile.SlicePrefixArgument + ".slice-" + sliceIndex.ToString("D3") + ".rgba", sha256 = sliceHash, byteSize = (long)raw.Length });
         }
         sessionCamera.nearClipPlane = actualNear;
         tileResults.Add((tile.TileId, actualCameraFrame, projectionSamples.ToArray(), slices, tile.SlicePrefixArgument));

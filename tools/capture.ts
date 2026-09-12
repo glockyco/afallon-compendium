@@ -611,7 +611,7 @@ async function capturePlan(
         if (capture.slices.length !== expectedCuts.length || capture.slices.some((slice, index) => slice.index !== index || !closeEnough(slice.cut, expectedCuts[index]!))) {
           throw new Error(`Capture response for tile "${tile.id}" reports slices that disagree with its cut.`);
         }
-        const slicePaths = capture.slices.map(slice => resolve(run.directory, "tiles", `${tile.id}.slice-${String(slice.index).padStart(3, "0")}.rgb`));
+        const slicePaths = capture.slices.map(slice => resolve(run.directory, "tiles", `${tile.id}.slice-${String(slice.index).padStart(3, "0")}.rgba`));
         const composite = await compositeRawSlices(slicePaths, capture.slices, cutPlan, plan.width, plan.height, tile.id);
         const pngPath = resolve(run.directory, "tiles", `${tile.id}.png`);
         await Bun.write(pngPath, composite);

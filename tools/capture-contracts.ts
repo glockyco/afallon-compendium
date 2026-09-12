@@ -86,7 +86,7 @@ const capture = Type.Object({
   captures: Type.Array(capturedTile, { minItems: 1, maxItems: 64 }),
 });
 export const CaptureSessionSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-session.v5"),
+  schemaVersion: Type.Literal("compendium.capture-session.v6"),
   key: text, phase: Type.Union([Type.Literal("ready"), Type.Literal("restored")]),
   ownerToken: text, sceneNativeId: count, scenePath: text, sceneHandle: integer,
   resourcePrefix: text,
