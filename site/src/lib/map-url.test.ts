@@ -3,7 +3,7 @@ import { readMapUrl, writeMapUrl } from "./map-url";
 
 test("map filters survive URL serialization and parsing", () => {
   const url = writeMapUrl(new URL("https://example.test/atlas?categories=old&level-min=1"), {
-    layerId: "surface",
+    layerIds: ["surface"],
     selectedId: null,
     query: "",
     itemSourceQuery: "",
@@ -25,7 +25,7 @@ test("map filters survive URL serialization and parsing", () => {
 
 test("clearing a map filter removes its URL parameter", () => {
   const url = writeMapUrl(new URL("https://example.test/atlas?level-min=12&level-max=28"), {
-    layerId: null,
+    layerIds: [],
     selectedId: null,
     query: "",
     itemSourceQuery: "",
@@ -40,4 +40,24 @@ test("clearing a map filter removes its URL parameter", () => {
 
   expect(url.searchParams.has("level-min")).toBe(false);
   expect(readMapUrl(url.search).levelMaximum).toBe(28);
+});
+
+test("several visible layers survive a round trip and a legacy single layer still reads", () => {
+  const url = writeMapUrl(new URL("https://example.test/atlas?layer=captured"), {
+    layerIds: ["captured", "overworld-artwork"],
+    selectedId: null,
+    query: "",
+    itemSourceQuery: "",
+    detailQuery: "",
+    categories: [],
+    levelMinimum: null,
+    levelMaximum: null,
+    itemKey: null,
+    entityKey: null,
+    view: null,
+  });
+
+  expect(url.searchParams.has("layer")).toBe(false);
+  expect(readMapUrl(url.search).layerIds).toEqual(["captured", "overworld-artwork"]);
+  expect(readMapUrl("?layer=duskfall-depths").layerIds).toEqual(["duskfall-depths"]);
 });

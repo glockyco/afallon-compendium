@@ -35,7 +35,7 @@ export type MapViewState = {
 export type MapAdapterUpdate = {
   data: PublicationData;
   mapSpaceId: string;
-  layerId: string;
+  layerIds: readonly string[];
   placements: PublicPlacement[];
   selectedId: string | null;
   highlightedPlacementIds: readonly string[];
@@ -386,13 +386,14 @@ function orientationView(canvas: HTMLCanvasElement, illustration: PublicIllustra
   };
 }
 
-function matchingTileLayers(data: PublicationData, layerId: string): PublicTileLayer[] {
-  if (layerId === "captured") return data.tileLayers;
-  return data.tileLayers.filter((layer) => layer.id === layerId);
+function matchingTileLayers(data: PublicationData, layerIds: readonly string[]): PublicTileLayer[] {
+  if (layerIds.includes("captured")) return data.tileLayers;
+  return data.tileLayers.filter((layer) => layerIds.includes(layer.id));
 }
 
-function matchingIllustration(data: PublicationData, layerId: string): PublicIllustration | null {
-  return data.illustrations.find((illustration) => illustration.id === layerId) || null;
+// An orientation-only illustration carries no world registration, so it occupies the view alone.
+function matchingIllustration(data: PublicationData, layerIds: readonly string[]): PublicIllustration | null {
+  return data.illustrations.find((illustration) => layerIds.includes(illustration.id)) || null;
 }
 
 export type MapAdapter = {
@@ -537,8 +538,8 @@ export async function createMapAdapter(
   );
 
   const refreshLayers = (next: MapAdapterUpdate): void => {
-    const tileLayersForView = matchingTileLayers(next.data, next.layerId);
-    const illustration = matchingIllustration(next.data, next.layerId);
+    const tileLayersForView = matchingTileLayers(next.data, next.layerIds);
+    const illustration = matchingIllustration(next.data, next.layerIds);
     const orientationOnly = Boolean(illustration && illustration.registration === "orientation-only");
     const layerKind = tileLayersForView.length > 0 ? `tiles:${tileLayersForView.map((layer) => layer.id).join(",")}` : illustration ? `illustration:${illustration.id}:${illustration.registration}` : "missing";
     const visiblePlacements = next.placements;
@@ -553,7 +554,7 @@ export async function createMapAdapter(
     const highlightedKey = [...next.highlightedPlacementIds].sort().join(",");
     const hoveredKey = [...next.hoveredPlacementIds].sort().join(",");
     const hoveredIds = new Set(next.hoveredPlacementIds);
-    const nextGeometryKey = [next.data.buildId, next.layerId, layerKind, nextPlacementKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, orientationOnly ? "hidden" : "markers", next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections"].join("\u001e");
+    const nextGeometryKey = [next.data.buildId, [...next.layerIds].sort().join(","), layerKind, nextPlacementKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, orientationOnly ? "hidden" : "markers", next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections"].join("\u001e");
     if (nextGeometryKey === geometryKey) return;
     geometryKey = nextGeometryKey;
 
@@ -736,12 +737,17 @@ export async function createMapAdapter(
     const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6);
     layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
 
-    if (imageLayers.length === 0 && !illustration) {
-      const warningKey = `${next.data.buildId}:${next.layerId}`;
+    // Hiding every layer is a reader choice; only a layer that cannot be drawn is a failure.
+    const requestedImagery = next.layerIds.length > 0;
+    if (imageLayers.length === 0 && !illustration && requestedImagery) {
+      const warningKey = `${next.data.buildId}:${[...next.layerIds].sort().join(",")}`;
       if (warningKey !== missingLayerWarningKey) {
         missingLayerWarningKey = warningKey;
         report("The selected map layer is not available.");
       }
+    } else if (missingLayerWarningKey !== null) {
+      missingLayerWarningKey = null;
+      report("");
     }
   };
 
@@ -812,7 +818,7 @@ export async function createMapAdapter(
   const update = (next: MapAdapterUpdate): void => {
     if (destroyed) return;
     current = next;
-    const illustration = matchingIllustration(next.data, next.layerId);
+    const illustration = matchingIllustration(next.data, next.layerIds);
     const orientationOnly = Boolean(illustration && illustration.registration === "orientation-only");
     const nextViewSpaceKey = orientationOnly && illustration ? `orientation:${illustration.id}` : `map:${next.mapSpaceId}`;
     if (viewSpaceKey !== nextViewSpaceKey) {

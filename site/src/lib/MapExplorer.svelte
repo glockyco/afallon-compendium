@@ -71,7 +71,7 @@
   let adapter: MapAdapter | null = null;
   let loading = true;
   let loadError = '';
-  let layerId = 'captured';
+  let layerIds: string[] = ['captured'];
   let selectedId: string | null = null;
   let query = '';
   let categories: MarkerId[] = [];
@@ -97,9 +97,13 @@
   let searchIndexes: SearchIndexes = emptySearchIndexes();
 
   $: layerOptions = getLayerOptions(publication);
-  $: if (layerOptions.length > 0 && !layerOptions.some((layer) => layer.id === layerId)) layerId = layerOptions[0]!.id;
-  $: currentLayer = layerOptions.find((layer) => layer.id === layerId) ?? null;
-  $: orientationOnly = currentLayer?.orientationOnly ?? false;
+  $: tileLayerOptions = (publication?.tileLayers ?? []).map((tileLayer) => ({ id: tileLayer.id, label: mapLabel(publication, tileLayer.mapSpaceId) }));
+  $: illustrationOptions = layerOptions.filter((option) => option.kind === 'illustration');
+  $: activeIllustration = illustrationOptions.find((option) => layerIds.includes(option.id)) ?? null;
+  $: orientationOnly = activeIllustration?.orientationOnly ?? false;
+  $: visibleTileLayerIds = orientationOnly ? [] : layerIds.includes('captured') ? tileLayerOptions.map((option) => option.id) : tileLayerOptions.filter((option) => layerIds.includes(option.id)).map((option) => option.id);
+  $: capturedChecked = visibleTileLayerIds.length > 0;
+  $: capturedPartial = visibleTileLayerIds.length > 0 && visibleTileLayerIds.length < tileLayerOptions.length;
   $: allMapPlacements = uniquePlacements(publication?.placements ?? []);
   $: entityIndexByKey = new Map(publication?.entityIndex.map((entity) => [entity.entityKey, entity]) ?? []);
   $: itemIndexByKey = new Map(publication?.itemIndex.map((item) => [item.itemKey, item]) ?? []);
@@ -231,7 +235,7 @@
   });
 
   $: if (adapterReady && adapter && publication) {
-    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerId, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: worldOffsetOverrides, authoring, showConnections });
+    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: worldOffsetOverrides, authoring, showConnections });
   }
 
   async function loadEntityDetailPath(path: string): Promise<void> {
@@ -461,8 +465,9 @@
   function applyUrlState(next: MapUrlState): void {
     itemSourceQuery = next.itemSourceQuery;
     detailQuery = next.detailQuery;
-    const options = getLayerOptions(publication);
-    layerId = options.some((layer) => layer.id === next.layerId) ? next.layerId ?? options[0]?.id ?? 'captured' : options[0]?.id ?? 'captured';
+    const known = new Set([...getLayerOptions(publication).map((option) => option.id), ...(publication?.tileLayers ?? []).map((tileLayer) => tileLayer.id)]);
+    const requested = next.layerIds.filter((id) => known.has(id));
+    layerIds = requested.length > 0 ? requested : ['captured'];
     query = next.query;
     categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
     levelMinimum = next.levelMinimum;
@@ -484,7 +489,7 @@
   }
 
   function currentUrl(overrides: Partial<Pick<MapUrlState, 'categories' | 'levelMinimum' | 'levelMaximum'>> = {}): URL {
-    return writeMapUrl(new URL(window.location.href), { layerId, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, levelMinimum: overrides.levelMinimum !== undefined ? overrides.levelMinimum : levelMinimum, levelMaximum: overrides.levelMaximum !== undefined ? overrides.levelMaximum : levelMaximum, itemKey, entityKey: selectedEntityKey, view });
+    return writeMapUrl(new URL(window.location.href), { layerIds, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, levelMinimum: overrides.levelMinimum !== undefined ? overrides.levelMinimum : levelMinimum, levelMaximum: overrides.levelMaximum !== undefined ? overrides.levelMaximum : levelMaximum, itemKey, entityKey: selectedEntityKey, view });
   }
 
   function syncUrl(mode: 'push' | 'replace', overrides: Partial<Pick<MapUrlState, 'categories' | 'levelMinimum' | 'levelMaximum'>> = {}): void {
@@ -518,7 +523,8 @@
     selectedEntityKey = null;
     staleSelection = '';
     detailOrigin = origin;
-    if (!layerOptions.some((option) => option.id === layerId) || orientationOnly) layerId = layerOptions.find((option) => option.kind === 'screenshot')?.id ?? layerOptions[0]?.id ?? '';
+    // A marker cannot be shown over an unregistered illustration, so selecting one restores captured imagery.
+    if (orientationOnly) layerIds = ['captured'];
     syncUrl('push');
     void tick().then(() => ensureCurrentSelection());
     void focusDetails();
@@ -563,9 +569,37 @@
     void focusDetails();
   }
 
-  function chooseLayer(nextLayerId: string): void {
-    layerId = nextLayerId;
+  function mapLabel(data: PublicationData | null, mapSpaceId: string): string {
+    return data?.maps.find((map) => map.mapSpaceId === mapSpaceId)?.label ?? mapSpaceId;
+  }
+
+  // 'captured' stands for every tile layer, so unchecking one map expands it to the explicit rest.
+  function setLayers(next: string[]): void {
+    const tileIds = tileLayerOptions.map((option) => option.id);
+    const chosenTiles = next.filter((id) => tileIds.includes(id));
+    const normalised = next.includes('captured') || (tileIds.length > 0 && chosenTiles.length === tileIds.length)
+      ? [...next.filter((id) => !tileIds.includes(id) && id !== 'captured'), 'captured']
+      : next.filter((id) => id !== 'captured');
+    layerIds = [...new Set(normalised)];
     syncUrl('push');
+  }
+
+  function toggleCaptured(): void {
+    setLayers(capturedChecked ? layerIds.filter((id) => id !== 'captured' && !tileLayerOptions.some((option) => option.id === id)) : [...layerIds.filter((id) => !illustrationOptions.some((option) => option.id === id && option.orientationOnly)), 'captured']);
+  }
+
+  function toggleMapLayer(id: string): void {
+    const expanded = visibleTileLayerIds.includes(id) ? visibleTileLayerIds.filter((current) => current !== id) : [...visibleTileLayerIds, id];
+    setLayers([...layerIds.filter((current) => !tileLayerOptions.some((option) => option.id === current) && current !== 'captured' && !(activeIllustration?.orientationOnly && current === activeIllustration.id)), ...expanded]);
+  }
+
+  function toggleIllustration(option: LayerOption): void {
+    if (layerIds.includes(option.id)) {
+      setLayers(layerIds.filter((id) => id !== option.id).length > 0 ? layerIds.filter((id) => id !== option.id) : ['captured']);
+      return;
+    }
+    // Without world registration the illustration cannot share a frame with captured imagery.
+    setLayers(option.orientationOnly ? [option.id] : [...layerIds, option.id]);
   }
 
   function toggleAuthoring(): void {
@@ -684,7 +718,30 @@
         {:else}
           <div class="panel-body">
             <div class="control-section search-section"><label for="atlas-search">Search places, entities, and items</label><div class="search-row"><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } }} placeholder="Try a name or item" autocomplete="off" /><button class="quiet-button" type="button" on:click={() => { query = ''; scheduleQueryUrl(); searchInput?.focus(); }} aria-label="Clear search">Clear</button></div><p class="hint">Press Enter to move from search to results.</p></div>
-            {#if layerOptions.length > 1}<div class="control-section"><label for="layer-select">Map layer</label><select id="layer-select" value={layerId} on:change={(event) => chooseLayer((event.currentTarget as HTMLSelectElement).value)}>{#each layerOptions as layer}<option value={layer.id}>{layer.label}</option>{/each}</select>{#if orientationOnly}<p class="notice">Orientation only. Marker navigation is disabled until a screenshot layer is selected.</p>{/if}</div>{/if}
+            {#if tileLayerOptions.length > 0 || illustrationOptions.length > 0}
+              <div class="control-section layer-section">
+                <h2>Map layers</h2>
+                {#if tileLayerOptions.length > 0}
+                  <label class="tool-option">
+                    <input type="checkbox" checked={capturedChecked} indeterminate={capturedPartial} on:change={toggleCaptured} />
+                    <span>Captured screenshots</span>
+                    <span class="count">{visibleTileLayerIds.length}/{tileLayerOptions.length}</span>
+                  </label>
+                  {#if tileLayerOptions.length > 1}
+                    <details class="layer-maps" open={capturedPartial}>
+                      <summary>Individual maps</summary>
+                      {#each tileLayerOptions as option (option.id)}
+                        <label class="tool-option nested"><input type="checkbox" checked={visibleTileLayerIds.includes(option.id)} disabled={orientationOnly} on:change={() => toggleMapLayer(option.id)} /><span>{option.label}</span></label>
+                      {/each}
+                    </details>
+                  {/if}
+                {/if}
+                {#each illustrationOptions as option (option.id)}
+                  <label class="tool-option"><input type="checkbox" checked={layerIds.includes(option.id)} on:change={() => toggleIllustration(option)} /><span>{option.label}</span></label>
+                {/each}
+                {#if orientationOnly}<p class="notice">Orientation only. This illustration has no verified world registration, so it replaces captured imagery and hides markers.</p>{/if}
+              </div>
+            {/if}
             <div class="control-section world-tools"><h2>Map options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button><p class="hint">Drag a map boundary to review its placement. Travel lines stay visible while authoring.</p>{/if}</div>
             <div class="categories-block">
               <div class="section-heading"><h2>Map categories</h2><span class="count">{allMapPlacements.length}</span></div>

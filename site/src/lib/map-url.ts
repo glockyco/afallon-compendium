@@ -1,7 +1,7 @@
 import type { MapViewState } from './map-adapter';
 
 export interface MapUrlState {
-  layerId: string | null;
+  layerIds: string[];
   selectedId: string | null;
   query: string;
   itemSourceQuery: string;
@@ -28,10 +28,12 @@ export function readMapUrl(search: string): MapUrlState {
   const zoom = finiteNumber(params.get('zoom'));
   const view = x !== null && y !== null && z === 0 && zoom !== null && zoom >= -12 && zoom <= 12 ? { target: [x, y, z] as [number, number, number], zoom } : null;
   const categories = params.getAll('categories').flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
+  // A single `layer` is the older one-of-N form; a shared link keeps working as a one-entry list.
+  const layerIds = [...params.getAll('layers'), ...params.getAll('layer')].flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
   const minimum = finiteNumber(params.get('level-min'));
   const maximum = finiteNumber(params.get('level-max'));
   return {
-    layerId: params.get('layer'),
+    layerIds: [...new Set(layerIds)],
     selectedId: params.get('selected'),
     query: params.get('q') ?? '',
     itemSourceQuery: params.get('source-q') ?? '',
@@ -48,7 +50,7 @@ export function readMapUrl(search: string): MapUrlState {
 export function writeMapUrl(url: URL, state: MapUrlState): URL {
   const params = url.searchParams;
   const optional = new Map<string, string | null>([
-    ['layer', state.layerId],
+    ['layers', state.layerIds.join(',') || null],
     ['selected', state.selectedId],
     ['q', state.query.trim() || null],
     ['source-q', state.itemSourceQuery.trim() || null],
@@ -59,6 +61,7 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
     ['entity', state.entityKey]
   ]);
   params.delete('map');
+  params.delete('layer');
   for (const [key, value] of optional) {
     if (value) params.set(key, value);
     else params.delete(key);
