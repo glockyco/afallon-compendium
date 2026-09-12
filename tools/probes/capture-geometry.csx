@@ -66,7 +66,6 @@ var boundaryOverlap = readNumber(args["boundaryOverlap"], "boundaryOverlap");
 if (boundaryOverlap < 0f || boundaryOverlap > 1000f)
     throw new System.ArgumentException("boundaryOverlap must be between 0 and 1000.");
 var cullingMask = readInteger(args["cullingMask"], "cullingMask");
-var suppression = readCaptureSuppression(args["suppression"]);
 
 var character = Il2CppBLINK.RPGBuilder.Characters.Character.Instance;
 var characterData = character == null ? null : character.CharacterData;
@@ -326,11 +325,6 @@ visitCaptureVisualRenderers(visualSelection.Roots, (renderer, reason) =>
     var id = renderer.GetInstanceID();
     if (!excludedRendererReasons.ContainsKey(id)) excludedRendererReasons.Add(id, reason);
 });
-visitReviewedShaderRenderers(suppression.ShaderFamilies, (renderer, reason) =>
-{
-    var id = renderer.GetInstanceID();
-    if (!excludedRendererReasons.ContainsKey(id)) excludedRendererReasons.Add(id, reason);
-});
 var allRenderers = UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true);
 var excludedRenderers = new System.Collections.Generic.List<object>();
 var meshes = new System.Collections.Generic.List<object>();
@@ -462,26 +456,23 @@ var transformTerrainBounds = new System.Func<UnityEngine.TerrainData, UnityEngin
 var terrains = new System.Collections.Generic.List<object>();
 var allTerrains = UnityEngine.Object.FindObjectsOfType<UnityEngine.Terrain>(true);
 var terrainSceneCount = 0;
+// Every terrain of the scene is recorded with its state. The inventory is evidence; whether a
+// terrain renders is read from that evidence on the host, not decided here.
 foreach (var terrain in allTerrains)
 {
     if (terrain == null || terrain.gameObject == null || terrain.transform == null) continue;
     if (terrain.gameObject.scene.handle != scene.handle) continue;
     terrainSceneCount++;
-    if (!terrain.gameObject.activeInHierarchy || !terrain.enabled || !isMaskVisible(terrain.gameObject)) continue;
     var sourceLoaderId = findSourceLoader(terrain.transform);
     var data = terrain.terrainData;
+    var name = terrain.gameObject.name;
+    var active = terrain.gameObject.activeInHierarchy;
+    var enabled = terrain.enabled;
+    var visible = isMaskVisible(terrain.gameObject);
     if (data == null)
     {
         addIssue(issues, "missing-terrain", terrain.GetInstanceID(), "Terrain.terrainData is missing.");
-        terrains.Add(new
-        {
-            instanceId = terrain.GetInstanceID(),
-            dataId = (int?)null,
-            dataName = (string)null,
-            bounds = (object)null,
-            heightmapResolution = (int?)null,
-            sourceLoaderId = sourceLoaderId
-        });
+        terrains.Add(new { instanceId = terrain.GetInstanceID(), name = name, active = active, enabled = enabled, visible = visible, intersectsFrustum = false, dataId = (int?)null, dataName = (string)null, bounds = (object)null, heightmapResolution = (int?)null, sourceLoaderId = sourceLoaderId });
         continue;
     }
     UnityEngine.Bounds terrainBounds;
@@ -489,22 +480,19 @@ foreach (var terrain in allTerrains)
     catch (System.Exception error)
     {
         addIssue(issues, "source-integrity", terrain.GetInstanceID(), "TerrainData bounds could not be transformed: " + error.GetType().FullName + ": " + error.Message);
-        terrains.Add(new
-        {
-            instanceId = terrain.GetInstanceID(),
-            dataId = (int?)data.GetInstanceID(),
-            dataName = string.IsNullOrEmpty(data.name) ? null : data.name,
-            bounds = (object)null,
-            heightmapResolution = (int?)data.heightmapResolution,
-            sourceLoaderId = sourceLoaderId
-        });
+        terrains.Add(new { instanceId = terrain.GetInstanceID(), name = name, active = active, enabled = enabled, visible = visible, intersectsFrustum = false, dataId = (int?)data.GetInstanceID(), dataName = string.IsNullOrEmpty(data.name) ? null : data.name, bounds = (object)null, heightmapResolution = (int?)data.heightmapResolution, sourceLoaderId = sourceLoaderId });
         continue;
     }
-    if (!terrainBounds.Intersects(frustum)) continue;
-    markSourceIntersection(sourceLoaderId);
+    var intersects = terrainBounds.Intersects(frustum);
+    if (intersects && active && enabled && visible) markSourceIntersection(sourceLoaderId);
     terrains.Add(new
     {
         instanceId = terrain.GetInstanceID(),
+        name = name,
+        active = active,
+        enabled = enabled,
+        visible = visible,
+        intersectsFrustum = intersects,
         dataId = (int?)data.GetInstanceID(),
         dataName = string.IsNullOrEmpty(data.name) ? null : data.name,
         bounds = boundsObject(terrainBounds),
@@ -515,8 +503,8 @@ foreach (var terrain in allTerrains)
 
 return new
 {
-    schemaVersion = "compendium.capture-geometry.v4",
-    visualPolicy = "compendium.capture-visual-policy.v3",
+    schemaVersion = "compendium.capture-geometry.v5",
+    visualPolicy = "compendium.capture-visual-policy.v4",
     excludedRenderers = excludedRenderers.ToArray(),
     frame = UnityEngine.Time.frameCount,
     scene = new { nativeId = (int)nativeScene.ID, handle = scene.handle, path = scene.path, ready = sceneReady },

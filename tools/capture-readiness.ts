@@ -144,6 +144,12 @@ function assertQueryCounts(geometry: CaptureGeometry): void {
   }
 }
 
+// A terrain renders in the frame when the game has it active and enabled on a visible layer and
+// its bounds meet the frustum. The inventory records every terrain; this is the judgement.
+function renderedTerrains(geometry: CaptureGeometry): CaptureGeometry["terrains"] {
+  return geometry.terrains.filter(terrain => terrain.active && terrain.enabled && terrain.visible && terrain.intersectsFrustum);
+}
+
 function sourceMembership(geometry: CaptureGeometry): SourceMembership {
   const sourceIds = new Set<number>();
   for (const source of geometry.sources) {
@@ -159,7 +165,7 @@ function sourceMembership(geometry: CaptureGeometry): SourceMembership {
   }
 
   const boundSourceIds = new Set<number>();
-  for (const bindings of [geometry.meshes, geometry.terrains, geometry.otherRenderers]) {
+  for (const bindings of [geometry.meshes, renderedTerrains(geometry), geometry.otherRenderers]) {
     for (const binding of bindings) {
       if (binding.sourceLoaderId !== null) boundSourceIds.add(binding.sourceLoaderId);
     }
@@ -180,7 +186,7 @@ function assertVisibleBindings(geometry: CaptureGeometry): void {
   const sources = new Map(geometry.sources.map(source => [source.instanceId, source]));
   const bindings: Array<{ sourceLoaderId: number | null; label: string }> = [];
   for (const mesh of geometry.meshes) bindings.push({ sourceLoaderId: mesh.sourceLoaderId, label: `mesh ${mesh.rendererId}` });
-  for (const terrain of geometry.terrains) bindings.push({ sourceLoaderId: terrain.sourceLoaderId, label: `terrain ${terrain.instanceId}` });
+  for (const terrain of renderedTerrains(geometry)) bindings.push({ sourceLoaderId: terrain.sourceLoaderId, label: `terrain ${terrain.instanceId}` });
   for (const renderer of geometry.otherRenderers) bindings.push({ sourceLoaderId: renderer.sourceLoaderId, label: `renderer ${renderer.instanceId}` });
   for (const binding of bindings) {
     if (binding.sourceLoaderId === null) continue;
@@ -269,6 +275,10 @@ function structuralFingerprint(geometry: CaptureGeometry, membership: SourceMemb
     .sort((left, right) => left.instanceId - right.instanceId)
     .map(terrain => ({
       instanceId: terrain.instanceId,
+      active: terrain.active,
+      enabled: terrain.enabled,
+      visible: terrain.visible,
+      intersectsFrustum: terrain.intersectsFrustum,
       dataId: terrain.dataId,
       dataName: terrain.dataName,
       heightmapResolution: terrain.heightmapResolution,
@@ -286,7 +296,7 @@ function structuralFingerprint(geometry: CaptureGeometry, membership: SourceMemb
     terrains,
     otherRenderers,
     issues,
-    empty: meshes.length === 0 && terrains.length === 0 && otherRenderers.length === 0,
+    empty: meshes.length === 0 && renderedTerrains(geometry).length === 0 && otherRenderers.length === 0,
   });
 }
 
@@ -451,6 +461,8 @@ export async function withCaptureGeometry<T>(
       let lastGeometryFrame = -1;
       let sceneHandle: number | undefined;
       let baselineMembership: SourceMembership | undefined;
+      // Until the baseline has held for the stable-frame count, a membership change replaces it.
+      let settled = false;
       let latestGeometry: CaptureGeometry | undefined;
       let latestInventoryRelative = "";
       let latestInventorySha256 = "";
@@ -489,7 +501,6 @@ export async function withCaptureGeometry<T>(
             frame: captureFrame,
             boundaryOverlap: plan.readiness.boundaryOverlap,
             cullingMask: plan.cullingMask,
-            suppression: plan.suppression,
             trackedRendererIds: [...trackedRendererIds],
           },
           captureContext: true,
@@ -503,7 +514,7 @@ export async function withCaptureGeometry<T>(
         assertQueryCounts(value);
         assertVisibleBindings(value);
         sceneHandle = assertScene(value, plan, sceneHandle);
-        const membership = assertMembership(value, baselineMembership, options.singleObservation === true ? Number.POSITIVE_INFINITY : plan.readiness.maximumSources);
+        const membership = assertMembership(value, settled ? baselineMembership : undefined, options.singleObservation === true ? Number.POSITIVE_INFINITY : plan.readiness.maximumSources);
         baselineMembership ??= membership;
         for (const mesh of value.meshes) trackedRendererIds.add(mesh.rendererId);
         for (const renderer of value.otherRenderers) trackedRendererIds.add(renderer.instanceId);
@@ -524,7 +535,23 @@ export async function withCaptureGeometry<T>(
         checkDeadline();
       };
 
-      const firstGeometry = await observeGeometry();
+      // The game settles a scene after the player arrives: terrains far from the player switch
+      // off over the following frames. The baseline is the first observation whose membership
+      // has held for the plan's settle window, so the contract observes a settled scene.
+      let firstGeometry = await observeGeometry();
+      let baselineFrame = firstGeometry.frame;
+      while (firstGeometry.frame - baselineFrame < plan.readiness.settleFrames) {
+        await sleepForFrame();
+        const next = await observeGeometry();
+        if (!sameRequiredMembership(sourceMembership(next).requiredById, baselineMembership!.requiredById)) {
+          baselineMembership = sourceMembership(next);
+          baselineFrame = next.frame;
+          observedFrames.length = 0;
+          observedFrames.push(next.frame);
+        }
+        firstGeometry = next;
+      }
+      settled = true;
       const initialRequired = baselineMembership!.required;
       // One readiness holds the sources of the whole map for the whole batch. Only a map whose
       // required sources exceed the bound for one observation needs per-tile readiness.
@@ -673,7 +700,7 @@ export async function withCaptureGeometry<T>(
         await run.addArtifact(cleanupRelative);
       };
 
-      const empty = latestGeometry.meshes.length === 0 && latestGeometry.terrains.length === 0 && latestGeometry.otherRenderers.length === 0;
+      const empty = latestGeometry.meshes.length === 0 && renderedTerrains(latestGeometry).length === 0 && latestGeometry.otherRenderers.length === 0;
       const readiness: CaptureReadiness = {
         schemaVersion: "compendium.capture-readiness.v5",
         tileId: tile.id,
@@ -684,6 +711,7 @@ export async function withCaptureGeometry<T>(
         inventorySha256: latestInventorySha256,
         observedFrames: observedFrames.slice(-plan.readiness.stableFrames),
         stableFrames: plan.readiness.stableFrames,
+        settleFrames: plan.readiness.settleFrames,
         requiredSources: baselineMembership.required.length,
         excludedSources: baselineMembership.excluded.length,
         empty,

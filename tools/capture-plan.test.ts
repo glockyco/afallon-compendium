@@ -11,13 +11,12 @@ function plan(centers: ReadonlyArray<readonly [number, number]>): CapturePlan {
     width: 100,
     height: 100,
     cullingMask: -1,
-    suppression: { shaderFamilies: [], terrainTrees: false },
     lighting: {
       ambient: { r: 1, g: 1, b: 1 },
       directionalIntensity: 1,
       directionalEuler: { x: 0, y: 0, z: 0 },
     },
-    readiness: { timeoutMs: 1000, stableFrames: 2, boundaryOverlap: 0, maximumSources: 1 },
+    readiness: { timeoutMs: 1000, stableFrames: 2, settleFrames: 0, boundaryOverlap: 0, maximumSources: 1 },
     tiles: centers.map(([x, z], index) => ({
       id: `tile-${index}`,
       frame: {

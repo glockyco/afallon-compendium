@@ -574,7 +574,6 @@ async function capturePlan(
           tiles: tileInputs,
           lighting: plan.lighting,
           cullingMask: plan.cullingMask,
-          suppression: plan.suppression,
           restorationPath: await toRuntimePath(config, restorationPath),
           ...baseParameters,
         },

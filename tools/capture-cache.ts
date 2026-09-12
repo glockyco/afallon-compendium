@@ -100,7 +100,6 @@ export function tileCompatibilityKey(input: TileCompatibilityInput): string {
     dimensions: { width: input.plan.width, height: input.plan.height },
     lighting: input.plan.lighting,
     cullingMask: input.plan.cullingMask,
-    suppression: input.plan.suppression,
     // The survey hash stands for the walkable surface the player stands on; the path is a location.
     surveySha256: input.plan.survey === undefined ? null : input.plan.survey.sha256,
     readiness: input.plan.readiness,

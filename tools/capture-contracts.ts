@@ -23,6 +23,9 @@ export type CaptureSurvey = Static<typeof CaptureSurveySchema>;
 export const CaptureReadinessProfileSchema = Type.Object({
   timeoutMs: Type.Integer({ minimum: 1000, maximum: 300000 }),
   stableFrames: Type.Integer({ minimum: 2, maximum: 10 }),
+  // Frames the required membership must hold before the baseline is taken; the game switches
+  // terrain off in the frames after the player arrives.
+  settleFrames: Type.Integer({ minimum: 0, maximum: 3600 }),
   boundaryOverlap: Type.Number({ minimum: 0, maximum: 1000 }),
   maximumSources: Type.Integer({ minimum: 1, maximum: 256 }),
 });
@@ -32,13 +35,6 @@ export const CapturePlanSchema = Type.Object({
   survey: Type.Optional(CaptureSurveySchema),
   width: Type.Integer({ minimum: 64, maximum: 2048 }), height: Type.Integer({ minimum: 64, maximum: 2048 }),
   cullingMask: Type.Integer({ minimum: -2147483648, maximum: 2147483647 }),
-  // Reviewed capture suppression. Afallon marks foliage with no layer or tag, so a shader-name
-  // prefix identifies renderers to hide during capture; terrainTrees hides terrain-instanced
-  // trees and details. Both are restored after every tile.
-  suppression: Type.Object({
-    shaderFamilies: Type.Array(text, { maxItems: 32 }),
-    terrainTrees: Type.Boolean(),
-  }),
   lighting: Type.Object({ ambient: color, directionalIntensity: Type.Number({ minimum: 0, maximum: 4 }), directionalEuler: vector }),
   readiness: CaptureReadinessProfileSchema,
   tiles: Type.Array(Type.Object({
@@ -63,7 +59,7 @@ const capture = Type.Object({
   renderTexturesBefore: Type.Array(Type.Object({ instanceId: integer, name: Type.String(), width: count, height: count, depth: count, created: Type.Boolean(), owned: Type.Boolean() })),
   renderTexturesAfter: Type.Array(Type.Object({ instanceId: integer, name: Type.String(), width: count, height: count, depth: count, created: Type.Boolean(), owned: Type.Boolean() })),
   lightingRestored: Type.Literal(true), suppressionRestored: Type.Literal(true), activeTargetRestored: Type.Literal(true),
-  suppressedRenderers: count, visualPolicy: Type.Literal("compendium.capture-visual-policy.v3"),
+  suppressedRenderers: count, visualPolicy: Type.Literal("compendium.capture-visual-policy.v4"),
   captures: Type.Array(capturedTile, { minItems: 1, maxItems: 64 }),
 });
 export const CaptureSessionSchema = Type.Object({
@@ -103,7 +99,7 @@ const visualState = Type.Object({
 });
 export const CaptureRestorationSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-restoration.v5"), key: text, tileIds: Type.Array(text, { minItems: 1, maxItems: 64 }),
-  visualPolicy: Type.Literal("compendium.capture-visual-policy.v3"),
+  visualPolicy: Type.Literal("compendium.capture-visual-policy.v4"),
   colorSpace: Type.Union([Type.Literal("Gamma"), Type.Literal("Linear")]),
   frameStarted: count, frameRestored: count, renderSucceeded: Type.Boolean(),
   selections: Type.Array(Type.Object({ kind: text, instanceId: integer, reason: text })),
@@ -136,8 +132,8 @@ const geometryBounds = Type.Object({ center: vector, size: vector });
 const queryCounts = Type.Object({ all: count, scene: count, foreign: count });
 const optionalId = Type.Union([integer, Type.Null()]);
 export const CaptureGeometrySchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-geometry.v4"),
-  visualPolicy: Type.Literal("compendium.capture-visual-policy.v3"),
+  schemaVersion: Type.Literal("compendium.capture-geometry.v5"),
+  visualPolicy: Type.Literal("compendium.capture-visual-policy.v4"),
   excludedRenderers: Type.Array(Type.Object({ instanceId: integer, reason: text })),
   frame: count,
   scene: Type.Object({ nativeId: count, handle: integer, path: text, ready: Type.Boolean() }),
@@ -160,8 +156,10 @@ export const CaptureGeometrySchema = Type.Object({
     meshId: optionalId, meshName: Type.Union([text, Type.Null()]), vertices: Type.Union([count, Type.Null()]),
     bounds: geometryBounds, intersectsFrustum: Type.Boolean(), sourceLoaderId: optionalId, materialIds: Type.Array(optionalId),
   })),
+  // Every terrain of the scene, with the state that decides whether it renders.
   terrains: Type.Array(Type.Object({
-    instanceId: integer, dataId: optionalId, dataName: Type.Union([text, Type.Null()]),
+    instanceId: integer, name: text, active: Type.Boolean(), enabled: Type.Boolean(), visible: Type.Boolean(), intersectsFrustum: Type.Boolean(),
+    dataId: optionalId, dataName: Type.Union([text, Type.Null()]),
     bounds: Type.Union([geometryBounds, Type.Null()]), heightmapResolution: Type.Union([count, Type.Null()]),
     sourceLoaderId: optionalId,
   })),
@@ -173,7 +171,7 @@ export const CaptureReadinessSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-readiness.v5"),
   tileId: text, ownerToken: text, sceneNativeId: count, sceneHandle: integer,
   inventoryPath: text, inventorySha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
-  observedFrames: Type.Array(count, { minItems: 2 }), stableFrames: count,
+  observedFrames: Type.Array(count, { minItems: 2 }), stableFrames: count, settleFrames: count,
   requiredSources: count, excludedSources: count, empty: Type.Boolean(),
   captureFrame: frame,
   streamKey: Type.Union([text, Type.Null()]),
