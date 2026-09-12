@@ -488,8 +488,12 @@ function collectRegions(contexts: SceneContext[], buildId: string, resolver: { r
         continue;
       }
       const identity = context.sourceByComponent.get(component);
-      const hierarchyPath = typeof source?.hierarchyPath === "string" && source.hierarchyPath.length > 0 ? source.hierarchyPath : `component:${String(component)}`;
-      const identityMaterial = identity ? [identity.componentPathId, identity.serializedFile, identity.gameObjectPathId] : [hierarchyPath];
+      const hierarchyPath = typeof source?.hierarchyPath === "string" && source.hierarchyPath.length > 0 ? source.hierarchyPath : null;
+      if (!identity && hierarchyPath === null) {
+        blockers.push({ kind: "region-issue", key, detail: "Region has neither a verified serialized identity nor a GameObject hierarchy path.", provenance });
+        continue;
+      }
+      const identityMaterial = identity ? [identity.componentPathId, identity.serializedFile, identity.gameObjectPathId] : [hierarchyPath!];
       const regionId = jsonHash(["region", buildId, context.scenePath, ...identityMaterial]);
       const projection = projectRegionGeometry(regionGeometry, context, resolver);
       if (!projection) blockers.push({ kind: "unresolved-region-space", key: regionId, detail: "Region geometry does not resolve to one reviewed map space.", provenance: [...provenance, pointer(context.mapGeometryReference, `/regions/${geometryRow.index}`)] });
