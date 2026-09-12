@@ -756,7 +756,7 @@ var captureFailure = (System.Exception)null;
 var restorationFailure = (System.Exception)null;
 var auditFailure = (System.Exception)null;
 // Per tile: its verified camera frame, projection controls, and the raw frame already written.
-var tileResults = new System.Collections.Generic.List<(string TileId, object CameraFrame, object[] ProjectionSamples, object Raw)>();
+var tileResults = new System.Collections.Generic.List<(string TileId, object CameraFrame, object[] ProjectionSamples, object Raw, object RendererState)>();
 var writtenFrames = new System.Collections.Generic.List<string>();
 object duringVisualState = null;
 var captureAmbientProbe = new UnityEngine.Rendering.SphericalHarmonicsL2();
@@ -848,6 +848,36 @@ try
             var viewport = sessionCamera.WorldToViewportPoint(world);
             projectionSamples.Add(new { world = new { x = world.x, y = world.y, z = world.z }, viewport = new { x = viewport.x, y = viewport.y, z = viewport.z } });
         }
+        // Renderer states inside this tile's frame at render time, as evidence of what the frame
+        // could contain: a renderer that is active and enabled but forced off or outside the
+        // camera's culling is invisible to the frame without any inventory saying so.
+        var frameMinX = actualPosition.x - actualSizeX * 0.5f; var frameMaxX = actualPosition.x + actualSizeX * 0.5f;
+        var frameMinZ = actualPosition.z - actualSizeZ * 0.5f; var frameMaxZ = actualPosition.z + actualSizeZ * 0.5f;
+        var inactiveRoots = new System.Collections.Generic.Dictionary<string, int>();
+        var stateTotal = 0; var stateEnabled = 0; var stateForcedOff = 0; var stateInactive = 0; var stateTallForcedOff = 0; var stateTallEnabled = 0;
+        foreach (var r in UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true))
+        {
+            if (r == null || r.gameObject.scene.handle != (int)sessionState["sceneHandle"]) continue;
+            var b = r.bounds;
+            if (b.max.x < frameMinX || b.min.x > frameMaxX || b.max.z < frameMinZ || b.min.z > frameMaxZ) continue;
+            stateTotal++;
+            if (!r.gameObject.activeInHierarchy)
+            {
+                stateInactive++;
+                // The nearest inactive ancestor is the object that switched this renderer off.
+                var node = r.transform;
+                while (node.parent != null && !node.parent.gameObject.activeInHierarchy) node = node.parent;
+                var key = node.gameObject.name + " < " + (node.parent == null ? "(root)" : node.parent.name);
+                int count;
+                inactiveRoots[key] = inactiveRoots.TryGetValue(key, out count) ? count + 1 : 1;
+                continue;
+            }
+            if (r.forceRenderingOff) { stateForcedOff++; if (b.max.y > 30f) stateTallForcedOff++; continue; }
+            if (r.enabled) { stateEnabled++; if (b.max.y > 30f) stateTallEnabled++; }
+        }
+        var inactiveRootRows = new System.Collections.Generic.List<object>();
+        foreach (var pair in inactiveRoots) inactiveRootRows.Add(new { root = pair.Key, renderers = pair.Value });
+        var rendererState = new { total = stateTotal, inactive = stateInactive, forcedOff = stateForcedOff, enabled = stateEnabled, tallForcedOff = stateTallForcedOff, tallEnabled = stateTallEnabled, inactiveRoots = inactiveRootRows.ToArray() };
         // The raw RGBA framebuffer, hashed here and encoded on the host.
         sessionCamera.Render();
         verifyControlled();
@@ -861,7 +891,7 @@ try
         if (System.IO.File.Exists(tile.RawPath)) throw new System.IO.IOException("A raw frame destination already exists.");
         System.IO.File.WriteAllBytes(tile.RawPath, raw);
         writtenFrames.Add(tile.RawPath);
-        tileResults.Add((tile.TileId, actualCameraFrame, projectionSamples.ToArray(), new { path = tile.RawPathArgument, sha256 = rawHash, byteSize = (long)raw.Length }));
+        tileResults.Add((tile.TileId, actualCameraFrame, projectionSamples.ToArray(), new { path = tile.RawPathArgument, sha256 = rawHash, byteSize = (long)raw.Length }, rendererState));
         if (!ownerConnected()) throw new System.OperationCanceledException("The runtime owner socket disconnected during capture.");
     }
     fault("after-render");
@@ -915,6 +945,7 @@ foreach (var result in tileResults)
         cameraFrame = result.CameraFrame,
         projectionSamples = result.ProjectionSamples,
         raw = result.Raw,
+        rendererState = result.RendererState,
     });
 }
 var batchMetadata = new

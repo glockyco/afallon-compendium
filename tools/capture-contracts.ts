@@ -52,6 +52,8 @@ const capturedTile = Type.Object({
   cameraFrame: frame,
   projectionSamples: Type.Array(Type.Object({ world: vector, viewport: vector }), { minItems: 3 }),
   raw: Type.Object({ path: text, sha256, byteSize: count }, { additionalProperties: false }),
+  // Renderers whose bounds meet the tile frame at render time, by state; tall means above y 30.
+  rendererState: Type.Object({ total: count, inactive: count, forcedOff: count, enabled: count, tallForcedOff: count, tallEnabled: count, inactiveRoots: Type.Array(Type.Object({ root: text, renderers: count })) }),
 });
 export type CapturedTile = Static<typeof capturedTile>;
 // One render batch: every tile rendered in one frame-local operation under one restoration.

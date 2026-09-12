@@ -643,14 +643,16 @@ async function capturePlan(
     const pending = plan.tiles.filter(tile => !reused.has(tile.id));
     // One readiness for the whole map: it holds every required source for the whole batch, so
     // nothing loads or unloads between tiles and every tile renders under the same observation.
+    // The render runs inside the readiness scope: readiness holds every required loader only
+    // until it returns, and a loader beyond the player's load distance unloads the moment its
+    // hold is released, taking its objects out of the frame.
     if (pending.length > 0) {
       const extent = mapExtentSubject(plan, pending);
       const observed = await withCaptureGeometry(runtime, config, run, plan, extent, async readiness => {
         if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
-        return readiness;
+        return renderBatch(pending, readiness, `${plan.mapSpaceId}-batch`);
       });
-      const rendered = await renderBatch(pending, observed.readiness, `${plan.mapSpaceId}-batch`);
-      for (const tile of pending) await checkpointTile(tile, rendered.get(tile.id)!, observed.readiness, observed.readinessPath);
+      for (const tile of pending) await checkpointTile(tile, observed.value.get(tile.id)!, observed.readiness, observed.readinessPath);
     }
 
     const restoredPath = "capture-restored.json";
