@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { CompendiumConfig } from "./config";
 
@@ -27,9 +28,24 @@ export async function buildIdentity(config: CompendiumConfig) {
   return { buildId: buildIds[0]![1]!, inputHashes };
 }
 
+// The revision is read from the repository files, not from a git process: once sharp has run in
+// this process, Bun 1.3 child processes return no output, and the tests exercise that path.
 export async function toolRevision(): Promise<string> {
-  const process = Bun.spawn(["git", "rev-parse", "HEAD"], { cwd: resolve(import.meta.dir, ".."), stdout: "pipe", stderr: "pipe" });
-  const revision = (await new Response(process.stdout).text()).trim();
-  if (await process.exited !== 0) throw new Error("Cannot identify the tool repository revision.");
+  const gitDirectory = resolve(import.meta.dir, "..", ".git");
+  const head = (await readFile(resolve(gitDirectory, "HEAD"), "utf8")).trim();
+  const reference = head.startsWith("ref: ") ? head.slice("ref: ".length) : null;
+  const revision = reference === null ? head : await resolveReference(gitDirectory, reference);
+  if (!/^[0-9a-f]{40}$/.test(revision)) throw new Error("Cannot identify the tool repository revision.");
   return revision;
+}
+
+async function resolveReference(gitDirectory: string, reference: string): Promise<string> {
+  const loose = Bun.file(resolve(gitDirectory, reference));
+  if (await loose.exists()) return (await loose.text()).trim();
+  const packed = await readFile(resolve(gitDirectory, "packed-refs"), "utf8");
+  for (const line of packed.split("\n")) {
+    const [sha, name] = line.split(" ");
+    if (name === reference && sha !== undefined) return sha;
+  }
+  throw new Error(`Cannot resolve git reference ${reference}.`);
 }
