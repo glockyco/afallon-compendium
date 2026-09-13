@@ -100,16 +100,6 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     if (placement.levelRange && placement.levelRange.max < placement.levelRange.min) throw new Error(`Publication placement has an inverted level range: ${placement.placementId}`);
     scope(placement.mapSpaceId);
     inside(placement.mapSpaceId, placement.position);
-    const layers = data.tileLayers.filter(layer => layer.mapSpaceId === placement.mapSpaceId);
-    // Pyramids are map-local; the placement is in the world, so it moves back by the map's offset.
-    const offset = offsets.get(placement.mapSpaceId)!;
-    const local: [number, number] = [placement.position[0] - offset.worldX, placement.position[1] - offset.worldY];
-    const hasImagery = layers.some(layer => layer.tiles.some(tile => {
-      if (tile.z !== layer.maxZoom || tile.state === "empty") return false;
-      const tileSize = layer.tileSize / 2 ** layer.maxZoom;
-      return tile.x === Math.floor(local[0] / tileSize) && tile.y === Math.floor(local[1] / tileSize);
-    }));
-    if (!hasImagery) throw new Error(`Publication placement lacks finest imagery: ${placement.placementId}`);
     for (const key of placement.entityKeys) if (!entities.has(key)) throw new Error(`Publication placement references absent entity: ${key}`);
     for (const key of placement.itemKeys) if (!items.has(key)) throw new Error(`Publication placement references absent item: ${key}`);
     for (const polygon of placement.areas) for (const point of polygon) inside(placement.mapSpaceId, point);

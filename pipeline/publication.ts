@@ -34,7 +34,6 @@ async function tileIllustration(
   bounds: { min: { x: number; y: number }; max: { x: number; y: number } },
   coarsestZoom: number,
   assetBytes: Map<string, Uint8Array>,
-  alphaMasks: Map<string, { bytes: Uint8Array; width: number; height: number }>,
 ): Promise<Omit<PublicTileLayer, "kind" | "label">> {
   const { xAxis, yAxis, origin } = affine;
   const determinant = xAxis.x * yAxis.y - xAxis.y * yAxis.x;
@@ -99,7 +98,6 @@ async function tileIllustration(
       const sha256 = createHash("sha256").update(webp).digest("hex"), url = `imagery/${sha256}.webp`;
       assetBytes.set(url, webp);
       // Coverage reads the pixel under a placement, so the game map's alpha counts like a capture's.
-      if (!alphaMasks.has(url)) alphaMasks.set(url, { bytes: tilePixels, width: 256, height: 256 });
       tiles.push({ z, x: tx, y: ty, width: 256, height: 256, url, sha256, bytes: webp.byteLength, state });
     }
   }
@@ -656,7 +654,6 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   if (profile.buildId !== plan.buildId || (catalogValue as SceneCatalog).buildId !== plan.buildId) throw new Error("Publication calibration build mismatch.");
   const resolver = compileMapSpaces(profile, catalogValue as SceneCatalog);
   const assetBytes = new Map<string, Uint8Array>();
-  const alphaMasks = new Map<string, { bytes: Uint8Array; width: number; height: number }>();
   let tileLayers: PublicTileLayer[] = [];
   let allImageryComplete = true;
   for (const reference of plan.pyramids) {
@@ -672,13 +669,9 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       if (image.reference.sha256 !== tile.sha256 || image.reference.bytes !== tile.bytes) throw new Error("Publication tile index disagrees with its registered image.");
       const url = `imagery/${tile.sha256}.webp`;
       if (!assetBytes.has(url)) {
-        const decoded = await sharp(image.bytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-        if (decoded.info.width !== tile.width || decoded.info.height !== tile.height || decoded.info.channels !== 4) throw new Error("Publication tile dimensions disagree with its decoded image.");
+        const decoded = await sharp(image.bytes).metadata();
+        if (decoded.width !== tile.width || decoded.height !== tile.height) throw new Error("Publication tile dimensions disagree with its decoded image.");
         assetBytes.set(url, image.bytes);
-        alphaMasks.set(url, { bytes: decoded.data, width: tile.width, height: tile.height });
-      } else {
-        const decoded = alphaMasks.get(url)!;
-        if (decoded.width !== tile.width || decoded.height !== tile.height) throw new Error("One tile image has contradictory dimensions.");
       }
       layer.tiles.push({ z: tile.z, x: tile.x, y: tile.y, width: tile.width, height: tile.height, url, sha256: tile.sha256, bytes: tile.bytes, state: tile.coverage.state });
       files++; bytes += tile.bytes;
@@ -709,7 +702,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       ? { min: { x: Math.min(captured.extent[0], box?.min.x ?? captured.extent[0]), y: Math.min(captured.extent[1], box?.min.y ?? captured.extent[1]) }, max: { x: Math.max(captured.extent[2], box?.max.x ?? captured.extent[2]), y: Math.max(captured.extent[3], box?.max.y ?? captured.extent[3]) } }
       : box;
     if (!bounds) throw new Error(`Illustration "${value.layerId}" has neither a captured pyramid nor a reviewed box to frame it.`);
-    const layer = await tileIllustration(value.layerId, value.mapSpaceId, image.bytes, value.image, value.registration.mapFromPixelEdge, bounds, captured?.minZoom ?? Number.NEGATIVE_INFINITY, assetBytes, alphaMasks);
+    const layer = await tileIllustration(value.layerId, value.mapSpaceId, image.bytes, value.image, value.registration.mapFromPixelEdge, bounds, captured?.minZoom ?? Number.NEGATIVE_INFINITY, assetBytes);
     tileLayers.push({ ...layer, label: "Game map", kind: "game-map" });
   }
   const localTileLayers = tileLayers;
@@ -733,28 +726,15 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   // Pyramids publish in their map's local coordinates; the atlas translates each one by its
   // world offset when drawing, so an offset needs no alignment to the tile lattice.
   tileLayers = localTileLayers;
-  const covered = (placement: NormalizedPlacement): boolean => {
-    if (!placement.mapPosition || !placement.mapSpaceId) return false;
-    return localTileLayers.filter(candidate => candidate.mapSpaceId === placement.mapSpaceId).some(layer => coveredBy(layer, placement));
-  };
-  const coveredBy = (layer: PublicTileLayer, placement: NormalizedPlacement): boolean => {
-    if (!placement.mapPosition) return false;
-    const tileWorldSize = 256 / 2 ** layer.maxZoom;
-    const tileX = Math.floor(placement.mapPosition.x / tileWorldSize);
-    const tileY = Math.floor(placement.mapPosition.y / tileWorldSize);
-    const tile = layer.tiles.find(candidate => candidate.z === layer.maxZoom && candidate.x === tileX && candidate.y === tileY);
-    if (!tile || tile.state === "empty") return false;
-    const mask = alphaMasks.get(tile.url);
-    if (!mask) return false;
-    const localX = Math.floor((placement.mapPosition.x - tileX * tileWorldSize) / (tileWorldSize / 256));
-    const localY = Math.floor(((tileY + 1) * tileWorldSize - placement.mapPosition.y) / (tileWorldSize / 256));
-    return localX >= 0 && localX < mask.width && localY >= 0 && localY < mask.height
-      && mask.bytes[(localY * mask.width + localX) * 4 + 3]! > 0;
-  };
+  const imageryMapSpaces = new Set(tileLayers.map((layer) => layer.mapSpaceId));
   const categoriesByPlacement = new Map(map.placements.map((placement) => [placement.placementId, placementCategories(placement)]));
   const levelRangesByPlacement = new Map(map.placements.map((placement) => [placement.placementId, placementLevelRange(placement, entities.entities, map.sources)]));
   const eligible = map.placements.filter((placement) => (categoriesByPlacement.get(placement.placementId) ?? []).length > 0);
-  const selected = foldMapIcons(eligible.filter(covered));
+  // A placement publishes when it resolves to a map, whether or not that map's imagery reaches
+  // it: a game's map art can be smaller than its level (the Sanctum's entrance hall), and a
+  // marker on bare ground is still a true location. Placements outside every reviewed domain
+  // remain excluded by normalization.
+  const selected = foldMapIcons(eligible.filter((placement) => placement.mapPosition !== null && placement.mapSpaceId !== null && offsetByMap.has(placement.mapSpaceId) && imageryMapSpaces.has(placement.mapSpaceId)));
   const selectedIds = new Set(selected.map(placement => placement.placementId));
   const filterIds = (ids: readonly string[]) => ids.filter(id => selectedIds.has(id));
   const names = new Map(entities.entities.map(entity => [entity.entityKey, plainText(entity.name ?? "") || "Unnamed entry"]));
@@ -786,7 +766,6 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       value: { placementId: placement.placementId, mapSpaceId: placement.mapSpaceId!, position: [placement.mapPosition!.x, placement.mapPosition!.y], height: placement.worldPosition.y, label: labelFromPlacement || linked.filter(entity => entity.kind === "npcs").map(entity => entity.name).join(" / ") || sourceNamesByPlacement.get(placement.placementId) || categories.map(category => categoryLabels[category]).join(" / "), categories, ...(range ? { levelRange: range } : {}), entityKeys: linked.map(entity => entity.entityKey), areas: localAreas, sections: linked.flatMap(entity => entity.sections) },
     };
   });
-  const imageryMapSpaces = new Set(tileLayers.map((layer) => layer.mapSpaceId));
   const sceneSpawns = new Map(map.sceneSpawns.map((spawn) => [spawn.sceneNativeId, spawn.position]));
   const offsetPlacements = localPlacements.map(({ source, value }) => {
     const offset = offsetByMap.get(value.mapSpaceId);
@@ -899,7 +878,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       const offset = offsetByMap.get(layer.mapSpaceId)!;
       points.push([layer.extent[0] + offset.worldX, layer.extent[1] + offset.worldY], [layer.extent[2] + offset.worldX, layer.extent[3] + offset.worldY]);
     }
-    for (const placement of placements.filter(placement => placement.mapSpaceId === space.mapSpaceId)) points.push(...placement.areas.flat());
+    for (const placement of placements.filter(placement => placement.mapSpaceId === space.mapSpaceId)) points.push(placement.position, ...placement.areas.flat());
     for (const region of regions.filter((candidate) => candidate.mapSpaceId === space.mapSpaceId)) points.push(...region.polygon);
     const range = mapLevelRanges.get(space.mapSpaceId);
     return { mapSpaceId: space.mapSpaceId, label: space.label, ...(range ? { levelRange: range } : {}), bounds: { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } } };
