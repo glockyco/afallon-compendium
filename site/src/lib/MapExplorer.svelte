@@ -13,6 +13,7 @@
   } from './publication';
   import {
     MARKER_IDS,
+    DEFAULT_MARKER_IDS,
     MARKER_SECTION_LABELS,
     MARKER_SECTION_ORDER,
     markerColorCss,
@@ -131,6 +132,7 @@
   $: categoryCounts = getCategoryCounts(candidatePlacements);
   $: publishedCounts = getCategoryCounts(allMapPlacements);
   // Every category the publication carries stays listed, selected or not.
+  $: isDefaultCategories = categories.length === DEFAULT_MARKER_IDS.length && DEFAULT_MARKER_IDS.every((id) => categories.includes(id));
   $: markerSections = MARKER_SECTION_ORDER.map((section) => ({
     id: section,
     label: MARKER_SECTION_LABELS[section],
@@ -327,13 +329,12 @@
     return { target: [x, y, 0], zoom: Math.log2(scale * 0.9) };
   }
 
-  // Game maps are the backdrop and captured screenshots draw over them, so both start on; a
-  // reader hides either per map.
+  // The game's maps are the familiar default. Overworld tiles remain optional, and are the
+  // fallback only when a publication has no game-map layer.
   function defaultLayers(data: PublicationData | null): string[] {
-    const layers: string[] = [];
-    if (data?.tileLayers.some((layer) => layer.kind === 'game-map')) layers.push('game-maps');
-    if (data?.tileLayers.some((layer) => layer.kind === 'captured')) layers.push('captured');
-    return layers.length > 0 ? layers : ['captured'];
+    if (data?.tileLayers.some((layer) => layer.kind === 'game-map')) return ['game-maps'];
+    if (data?.tileLayers.some((layer) => layer.kind === 'captured')) return ['captured'];
+    return [];
   }
 
 
@@ -726,7 +727,7 @@
           <div class="panel-body">
             <div class="control-section search-section"><div class="search-field"><span class="search-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg></span><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } if (event.key === 'Escape' && query) { event.preventDefault(); query = ''; scheduleQueryUrl(); } }} placeholder="Search..." aria-label="Search places, entities, and items" autocomplete="off" /><kbd class="search-key" aria-hidden="true">⌘K</kbd></div></div>
             <div class="categories-block">
-              <div class="section-heading"><h2>Categories</h2>{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Show all</button>{/if}<span class="count">{allMapPlacements.length}</span></div>
+              <div class="section-heading"><h2>Categories</h2><span class="heading-actions">{#if !isDefaultCategories}<button type="button" class="text-button" on:click={() => { categories = [...DEFAULT_MARKER_IDS]; syncUrl('push'); }}>Reset</button>{/if}{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Show all</button>{/if}</span><span class="count">{allMapPlacements.length}</span></div>
               {#each markerSections as section (section.id)}
                 <MapSidebarSection title={section.label} categories={section.markers} activeCategories={categories} counts={categoryCounts} storageKey={`afallon-atlas-section-${section.id}`} onToggleCategory={toggleCategory} onToggleAll={toggleAllCategories} />
               {/each}
@@ -737,7 +738,7 @@
                 {#if tileLayerOptions.length > 0}
                   <label class="tool-option">
                     <input type="checkbox" checked={capturedChecked} indeterminate={capturedPartial} on:change={toggleCaptured} />
-                    <span>Captured Screenshots</span>
+                    <span>Overworld Tiles</span>
                     <span class="count">{visibleTileLayerIds.length}/{tileLayerOptions.length}</span>
                   </label>
                   {#if tileLayerOptions.length > 1}
@@ -766,7 +767,7 @@
                 {/if}
               </div>
             {/if}
-            <div class="control-section world-tools"><h2>Map Options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel Connections</span></label><label class="tool-option"><input type="checkbox" checked={showZones} on:change={toggleZones} /><span>Zone Areas and Names</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring Mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export World Offsets</button>{#if Object.keys(worldOffsetOverrides).length > 0}<button type="button" class="quiet-button" on:click={discardWorldOffsets}>Discard {Object.keys(worldOffsetOverrides).length} Dragged Offsets</button>{/if}<p class="hint">Drag a map anywhere inside its rectangle to review its placement. Dragged offsets show only while authoring and stay in this browser until exported or discarded.</p>{/if}</div>
+            <div class="control-section world-tools"><h2>Map Options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel Connections</span></label><label class="tool-option"><input type="checkbox" checked={showZones} on:change={toggleZones} /><span>Zone Areas and Names</span></label>{#if dev}<label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring Mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export World Offsets</button>{#if Object.keys(worldOffsetOverrides).length > 0}<button type="button" class="quiet-button" on:click={discardWorldOffsets}>Discard {Object.keys(worldOffsetOverrides).length} Dragged Offsets</button>{/if}<p class="hint">Drag a map anywhere inside its rectangle to review its placement. Dragged offsets show only while authoring and stay in this browser until exported or discarded.</p>{/if}{/if}</div>
           </div>
         {/if}
       </aside>
@@ -898,9 +899,9 @@
   .rail-group:last-child { border-bottom: 0; }
   .control-section { border-bottom: 1px solid #393a38; padding: 0 0 1rem; margin-bottom: 1rem; }
   label, .section-heading h2, .results-header h2, .world-tools h2, .layer-section h2 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b8b5aa; }
-  input, select { width: 100%; border: 1px solid #4a4b47; border-radius: 2px; background: #151616; color: #ece8de; padding: .55rem .6rem; }
-  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid #d5b978; outline-offset: 2px; }
-  .control-section > label:not(.role-option) { display: block; margin-bottom: .45rem; }
+  input { width: 100%; border: 1px solid #4a4b47; border-radius: 2px; background: #151616; color: #ece8de; padding: .55rem .6rem; }
+  input:focus-visible, button:focus-visible { outline: 2px solid #d5b978; outline-offset: 2px; }
+  .control-section > label:not(.role-option):not(.tool-option) { display: block; margin-bottom: .45rem; }
   .search-field { position: relative; display: flex; align-items: center; }
   .search-field input { padding-left: 2.1rem; padding-right: 2.8rem; }
   .search-glyph { position: absolute; left: .7rem; display: flex; color: #85857e; pointer-events: none; }
@@ -912,14 +913,13 @@
   .world-tools h2, .layer-section h2 { margin: 0 0 .45rem; }
   .section-heading h2 { margin: 0; }
   .section-heading h2, .section-heading .text-button { white-space: nowrap; }
-  .section-heading .text-button { margin-left: auto; margin-right: .6rem; }
+  .heading-actions { display: flex; gap: .6rem; margin-left: auto; margin-right: .6rem; }
   .count { color: #d6bd84; font-size: .75rem; }
   .categories-block { margin-bottom: 1rem; }
   .categories-block > .section-heading { padding-bottom: .35rem; border-bottom: 1px solid #393a38; }
   .tool-option { display: flex; align-items: center; gap: .45rem; margin: .6rem 0; letter-spacing: normal; text-transform: none; color: #dedbd2; font-size: .78rem; cursor: pointer; }
   .tool-option input { width: 14px; height: 14px; margin: 0; accent-color: #bca36e; }
   .world-tools h2 { margin-bottom: .5rem; }
-  .active-filter { padding: .2rem .35rem; border: 1px solid #7d6843; color: #e3c681; font-size: .7rem; font-variant-numeric: tabular-nums; }
   .text-button, .inline-link { border: 0; padding: 0; background: none; color: #d5b978; text-decoration: underline; text-underline-offset: 2px; }
   .text-button { font-size: .75rem; }
   .notice, .stale-warning { padding: .55rem; border-left: 2px solid #b98751; background: #2b2721; color: #e2c399; font-size: .73rem; line-height: 1.45; }
