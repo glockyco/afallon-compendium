@@ -252,7 +252,7 @@ Preview mode, coverage figures, diagnostic totals, and exclusion reasons SHALL l
 
 ### Requirement: Shared map links carry Afallon identity
 
-The root map SHALL publish square favicon and touch-icon assets. It SHALL publish a `1200 × 630` PNG through absolute Open Graph and Twitter card metadata.
+The root map SHALL publish square favicon and touch-icon assets. It SHALL publish a `1200 × 630` PNG through absolute Open Graph and Twitter card metadata. The expanded atlas sidebar SHALL identify the Afallon Compendium while preserving its home navigation.
 
 #### Scenario: A reader shares the map in Discord
 - **WHEN** Discord fetches the root map metadata
@@ -262,3 +262,8 @@ The root map SHALL publish square favicon and touch-icon assets. It SHALL publis
 #### Scenario: A reader opens the map in a browser
 - **WHEN** the browser requests a favicon or touch icon
 - **THEN** the response returns a square Afallon `A` compass mark
+
+#### Scenario: A reader uses the atlas sidebar
+- **WHEN** the atlas sidebar is expanded
+- **THEN** its header displays the Afallon compass mark and name
+- **AND** activating that brand returns to the compendium home page

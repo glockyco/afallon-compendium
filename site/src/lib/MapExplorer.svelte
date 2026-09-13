@@ -743,7 +743,7 @@
     <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || staleSelection)} class:sidebar-collapsed={panelCollapsed} class:no-details={!dev}>
       <aside class:collapsed={panelCollapsed} class="control-panel" aria-label="Atlas controls">
         <div class="panel-header">
-          {#if !panelCollapsed}<a class="home-link" href="{base}/"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h5v-6h4v6h5V10" /></svg><span>Home</span></a>{/if}
+          {#if !panelCollapsed}<a class="home-link" href="{base}/" aria-label="Afallon Compendium home"><img src="{base}/logo.png" alt="" /><span class="brand-copy"><strong>Afallon</strong><span>Compendium</span></span></a>{/if}
           <button class="panel-toggle" type="button" on:click={togglePanel} aria-label={panelCollapsed ? 'Expand atlas controls' : 'Collapse atlas controls'} title="⌘/Ctrl+B" aria-expanded={!panelCollapsed}>{panelCollapsed ? '»' : '«'}</button>
         </div>
         {#if panelCollapsed}
@@ -928,8 +928,12 @@
   .details-empty { display: grid; gap: .45rem; align-content: center; min-height: 100%; color: #aaa89f; }
   .details-empty p { margin: 0; font-size: .82rem; }
   .panel-header { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: .7rem .75rem; border-bottom: 1px solid #393a38; background: #252622; }
-  .home-link { display: inline-flex; align-items: center; gap: .5rem; color: #eee9dd; font-size: .9rem; text-decoration: none; }
-  .home-link:hover { color: #d5b978; }
+  .home-link { display: inline-flex; min-width: 0; align-items: center; gap: .55rem; color: #eee9dd; text-decoration: none; }
+  .home-link img { width: 32px; height: 32px; flex: none; object-fit: contain; }
+  .brand-copy { display: grid; min-width: 0; line-height: 1; }
+  .brand-copy strong { font-size: .82rem; letter-spacing: .02em; }
+  .brand-copy span { margin-top: .22rem; color: #d5b978; font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .home-link:hover strong { color: #d5b978; }
   .panel-toggle { min-width: 28px; min-height: 28px; border: 1px solid #595846; background: transparent; color: #d5b978; font-size: 1.05rem; line-height: 1; }
   .panel-body { padding: .85rem .75rem; }
   .panel-rail { padding: .45rem 0; }
