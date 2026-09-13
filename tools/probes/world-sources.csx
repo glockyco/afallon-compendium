@@ -32,6 +32,7 @@ catch (System.Exception error)
 var worldDatabaseScenes = (Il2CppSystem.Collections.Generic.Dictionary<int, Il2Cpp.RPGGameScene>)null;
 var worldDatabaseSkills = (Il2CppSystem.Collections.Generic.Dictionary<int, Il2Cpp.RPGSkill>)null;
 var worldDatabaseLootTables = (Il2CppSystem.Collections.Generic.Dictionary<int, Il2Cpp.RPGLootTable>)null;
+var worldDatabaseEffects = (Il2CppSystem.Collections.Generic.Dictionary<int, Il2Cpp.RPGEffect>)null;
 var worldDatabaseItems = (Il2CppSystem.Collections.Generic.Dictionary<int, Il2Cpp.RPGItem>)null;
 var worldDatabaseCurrencies = (Il2CppSystem.Collections.Generic.Dictionary<int, Il2Cpp.RPGCurrency>)null;
 var worldDatabaseCraftingStations = (Il2CppSystem.Collections.Generic.Dictionary<int, Il2Cpp.RPGCraftingStation>)null;
@@ -63,6 +64,14 @@ if (worldDatabase != null)
     catch (System.Exception error)
     {
         unresolved.Add(new { kind = "gameDatabaseLootTables", sourceFieldPath = "GameDatabase.GetLootTables()", detail = error.GetType().FullName + ": " + error.Message });
+    }
+    try
+    {
+        worldDatabaseEffects = worldDatabase.GetEffects();
+    }
+    catch (System.Exception error)
+    {
+        unresolved.Add(new { kind = "gameDatabaseEffects", sourceFieldPath = "GameDatabase.GetEffects()", detail = error.GetType().FullName + ": " + error.Message });
     }
     try
     {
@@ -521,9 +530,49 @@ var worldSource = new System.Func<UnityEngine.Component, string, int, object>((c
     };
 });
 
+// Projects an RPGEffect of type Teleport as a door destination (null for other effects): the
+// first rank's teleportType, gameSceneID, and teleportPOS, which CombatManager.EFFECTS_LOGIC
+// hands to TeleportToGameScene or the character controller.
+var worldTeleportEffectProjection = new System.Func<Il2Cpp.RPGEffect, string, object>((effect, sourcePath) =>
+{
+    if (effect == null || effect.effectType != Il2Cpp.RPGEffect.EFFECT_TYPE.Teleport) return null;
+    var effectRanks = effect.ranks;
+    var effectRank = effectRanks == null || effectRanks.Count == 0 ? null : effectRanks[0];
+    if (effectRank == null)
+    {
+        unresolved.Add(new { kind = "teleportEffectRank", sourceFieldPath = sourcePath + ".ranks", effectID = effect.ID, detail = "The teleport effect has no rank data, so its destination is unavailable." });
+        return null;
+    }
+    var teleportScene = effectRank.teleportType == Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene ? worldFindSceneById(effectRank.gameSceneID) : null;
+    if (effectRank.teleportType == Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene && teleportScene == null)
+        unresolved.Add(new { kind = "transitionDestinationReference", transitionKind = "teleportEffect", sourceFieldPath = sourcePath + ".ranks[0].gameSceneID", destinationSceneID = effectRank.gameSceneID, detail = "gameSceneID does not resolve to a non-null GameDatabase.GameScenes record." });
+    return new
+    {
+        sourceFieldPath = sourcePath + ".ranks[0]",
+        rankCount = effectRanks.Count,
+        type = new { value = (int)effectRank.teleportType, name = effectRank.teleportType.ToString() },
+        sceneNativeId = effectRank.teleportType == Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene ? effectRank.gameSceneID : -1,
+        destinationScene = teleportScene == null ? null : (object)new { nativeId = teleportScene.ID, name = getEntryName(teleportScene), internalName = teleportScene.entryName, fileName = teleportScene.entryFileName },
+        position = new { x = effectRank.teleportPOS.x, y = effectRank.teleportPOS.y, z = effectRank.teleportPOS.z }
+    };
+});
+
+var worldGameActionEffect = new System.Func<Il2Cpp.GameActionsData.GameAction, Il2Cpp.RPGEffect>((gameAction) =>
+{
+    if (gameAction == null || gameAction.type != Il2Cpp.GameActionsData.GameActionType.Effect) return null;
+    if (worldDatabaseEffects == null || !worldDatabaseEffects.ContainsKey(gameAction.EffectID)) return null;
+    return worldDatabaseEffects[gameAction.EffectID];
+});
+
 var worldGameActionUnsupported = new System.Func<Il2Cpp.GameActionsData.GameAction, bool>((gameAction) =>
 {
     if (gameAction == null) return true;
+    // An Effect game action whose effect is a Teleport is a door, like the interactable's own Effect action.
+    if (gameAction.type == Il2Cpp.GameActionsData.GameActionType.Effect)
+    {
+        var effect = worldGameActionEffect(gameAction);
+        return effect == null || effect.effectType != Il2Cpp.RPGEffect.EFFECT_TYPE.Teleport;
+    }
     // A LootTable game action hands the player the table's loot: a container output.
     if (gameAction.type == Il2Cpp.GameActionsData.GameActionType.LootTable)
     {
@@ -572,13 +621,19 @@ var worldGameActionProjection = new System.Func<Il2Cpp.GameActionsData.GameActio
             detail = teleportType == Il2Cpp.GameActionsData.TeleportType.GameScene && gameAction.GameSceneID < 0 ? "GameScene teleport has no authored destination scene ID." : "The nested teleport payload is not a supported resolved destination."
         });
     }
+    var nestedEffect = worldGameActionEffect(gameAction);
+    var nestedEffectTeleport = nestedEffect == null ? null : worldTeleportEffectProjection(nestedEffect, sourcePath + ".Effect");
+    if (diagnoseUnsupported && gameAction.type == Il2Cpp.GameActionsData.GameActionType.Effect && nestedEffect == null)
+    {
+        unresolved.Add(new { kind = "unresolvedGameActionEffect", sourceFieldPath = sourcePath, effectID = gameAction.EffectID, detail = "EffectID does not resolve to a non-null GameDatabase.Effects record." });
+    }
     var isLootTable = gameAction.type == Il2Cpp.GameActionsData.GameActionType.LootTable;
     var lootTable = isLootTable && worldDatabaseLootTables != null && worldDatabaseLootTables.ContainsKey(gameAction.LootTableID) ? worldDatabaseLootTables[gameAction.LootTableID] : null;
     if (diagnoseUnsupported && isLootTable && lootTable == null)
     {
         unresolved.Add(new { kind = "unresolvedGameActionLootTable", sourceFieldPath = sourcePath, lootTableID = gameAction.LootTableID, detail = "LootTableID does not resolve to a non-null GameDatabase.LootTables record." });
     }
-    else if (diagnoseUnsupported && !isTeleport && !isLootTable)
+    else if (diagnoseUnsupported && !isTeleport && !isLootTable && nestedEffectTeleport == null)
     {
         unresolved.Add(new { kind = "unsupportedGameAction", sourceFieldPath = sourcePath, actionType = gameAction.type.ToString(), detail = "The nested GameAction kind is retained but its effect is not projected." });
     }
@@ -599,6 +654,9 @@ var worldGameActionProjection = new System.Func<Il2Cpp.GameActionsData.GameActio
         } : null,
         lootTableID = isLootTable ? (int?)gameAction.LootTableID : null,
         lootTable = lootTable == null ? null : (object)worldLootReference(lootTable),
+        effectID = gameAction.type == Il2Cpp.GameActionsData.GameActionType.Effect ? (int?)gameAction.EffectID : null,
+        effect = nestedEffect == null ? null : (object)projectEntry(nestedEffect),
+        effectTeleport = nestedEffectTeleport,
         unsupported = worldGameActionUnsupported(gameAction)
     };
 });
@@ -665,30 +723,7 @@ var worldActionProjection = new System.Func<Il2CppBLINK.RPGBuilder.World.Interac
         referenceKind = "effect";
         referenceId = action.Effect == null ? (int?)null : (int?)action.Effect.ID;
         supportedReference = action.Effect == null ? null : (object)projectEntry(action.Effect);
-        if (action.Effect != null && action.Effect.effectType == Il2Cpp.RPGEffect.EFFECT_TYPE.Teleport)
-        {
-            var effectRanks = action.Effect.ranks;
-            var effectRank = effectRanks == null || effectRanks.Count == 0 ? null : effectRanks[0];
-            if (effectRank == null)
-            {
-                unresolved.Add(new { kind = "teleportEffectRank", sourceFieldPath = sourcePath + ".Effect.ranks", effectID = action.Effect.ID, detail = "The teleport effect has no rank data, so its destination is unavailable." });
-            }
-            else
-            {
-                var teleportScene = effectRank.teleportType == Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene ? worldFindSceneById(effectRank.gameSceneID) : null;
-                if (effectRank.teleportType == Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene && teleportScene == null)
-                    unresolved.Add(new { kind = "transitionDestinationReference", transitionKind = "teleportEffect", sourceFieldPath = sourcePath + ".Effect.ranks[0].gameSceneID", destinationSceneID = effectRank.gameSceneID, detail = "gameSceneID does not resolve to a non-null GameDatabase.GameScenes record." });
-                effectTeleport = new
-                {
-                    sourceFieldPath = sourcePath + ".Effect.ranks[0]",
-                    rankCount = effectRanks.Count,
-                    type = new { value = (int)effectRank.teleportType, name = effectRank.teleportType.ToString() },
-                    sceneNativeId = effectRank.teleportType == Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene ? effectRank.gameSceneID : -1,
-                    destinationScene = teleportScene == null ? null : (object)new { nativeId = teleportScene.ID, name = getEntryName(teleportScene), internalName = teleportScene.entryName, fileName = teleportScene.entryFileName },
-                    position = new { x = effectRank.teleportPOS.x, y = effectRank.teleportPOS.y, z = effectRank.teleportPOS.z }
-                };
-            }
-        }
+        effectTeleport = worldTeleportEffectProjection(action.Effect, sourcePath + ".Effect");
     }
     else if (action.type == Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.Quest)
     {

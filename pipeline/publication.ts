@@ -545,6 +545,23 @@ function nestedTravelResolution(data: Record<string, unknown>, sourceSceneNative
     for (const row of listValue) {
       const action = record(row);
       if (!action) return { target: null, reason: "A nested teleport row is unavailable." };
+      // A nested Effect game action carries the same teleport projection as an interactable's
+      // Effect action and lands at the effect's authored position.
+      const nestedEffectTeleport = record(action.effectTeleport);
+      if (nestedEffectTeleport) {
+        sawTeleport = true;
+        const gameScene = discriminator(nestedEffectTeleport.type, 0, "gameScene");
+        const position = discriminator(nestedEffectTeleport.type, 1, "position");
+        if (gameScene === "contradictory" || position === "contradictory") return { target: null, reason: "A teleport effect type discriminator is contradictory." };
+        if (!finitePosition(nestedEffectTeleport.position)) return { target: null, reason: "Teleport effect has no verified position." };
+        if (position === "match") return { target: { sceneNativeId: sourceSceneNativeId, position: nestedEffectTeleport.position } };
+        if (gameScene === "match") {
+          const destination = record(nestedEffectTeleport.destinationScene);
+          if (!destination || typeof destination.nativeId !== "number" || !Number.isInteger(destination.nativeId)) return { target: null, reason: "Teleport effect destination scene is unresolved." };
+          return { target: { sceneNativeId: destination.nativeId, position: nestedEffectTeleport.position } };
+        }
+        return { target: null, reason: "Teleport effect has an unsupported destination type." };
+      }
       const actionDiscriminator = discriminator(action.type, 22, "Teleport");
       if (actionDiscriminator === "contradictory") return { target: null, reason: "A Teleport action discriminator is contradictory." };
       if (actionDiscriminator !== "match") continue;

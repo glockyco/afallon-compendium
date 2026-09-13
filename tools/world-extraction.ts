@@ -177,6 +177,16 @@ const requirementTemplate = nullable(Type.Object({
 }));
 
 const actionUnavailable = Type.Object({ sourceFieldPath: text, unavailable: text });
+// Set when a referenced RPGEffect is of type Teleport: the door's destination, exact to the
+// authored teleportPOS for both gameScene and position teleports.
+const effectTeleport = nullable(Type.Object({
+  sourceFieldPath: text,
+  rankCount: integer,
+  type: enumValue,
+  sceneNativeId: integer,
+  destinationScene: nullable(Type.Object({ nativeId: integer, name: nullableText, internalName: nullableText, fileName: nullableText })),
+  position: Type.Object({ x: number, y: number, z: number }),
+}));
 const gameActionTeleport = nullable(Type.Object({
   type: enumValue,
   sceneNativeId: integer,
@@ -193,6 +203,9 @@ const gameAction = Type.Object({
   teleport: gameActionTeleport,
   lootTableID: nullable(integer),
   lootTable: projectedReference,
+  effectID: nullable(integer),
+  effect: projectedReference,
+  effectTeleport: effectTeleport,
   unsupported: boolean,
 });
 const gameActionRow = Type.Union([gameAction, actionUnavailable]);
@@ -227,16 +240,7 @@ const action = Type.Object({
   referenceId: nullable(integer),
   reference: projectedReference,
   effect: projectedReference,
-  // Set when the referenced RPGEffect is of type Teleport: the door's destination, exact to the
-  // authored teleportPOS for both gameScene and position teleports.
-  effectTeleport: nullable(Type.Object({
-    sourceFieldPath: text,
-    rankCount: integer,
-    type: enumValue,
-    sceneNativeId: integer,
-    destinationScene: nullable(Type.Object({ nativeId: integer, name: nullableText, internalName: nullableText, fileName: nullableText })),
-    position: Type.Object({ x: number, y: number, z: number }),
-  })),
+  effectTeleport: effectTeleport,
   quest: projectedReference,
   point: projectedReference,
   skill: projectedReference,

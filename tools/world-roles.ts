@@ -239,6 +239,12 @@ function inspectNestedGameActionList(value: unknown, listPath: string, issues: R
       loot++;
       return;
     }
+    // An Effect game action whose effect is a Teleport is a door with a projected destination.
+    if (actionType.value === 4 && actionName === "Effect" && record(action.effectTeleport) !== null) {
+      evidence.push(...refs(`${actionPath}/effectTeleport`));
+      supported++;
+      return;
+    }
     if (actionType.value !== 22 || actionName !== "Teleport") {
       issue(issues, "unsupportedNestedGameAction", `Nested GameAction ${actionName} is retained but its effect is not supported.`, actionEvidence);
       blocked = true;
