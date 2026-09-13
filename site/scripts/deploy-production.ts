@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { Resolver } from "node:dns/promises";
 import { readdirSync } from "node:fs";
+import { request } from "node:https";
 import { join, resolve } from "node:path";
 import { deploymentPaths } from "../deployment-paths.mjs";
 import { stagePublication, type DeploymentMetadata } from "./stage-publication.ts";
@@ -82,7 +84,48 @@ async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: 
   }
 }
 
-function freshFetch(url: string): Promise<Response> {
+async function freshFetch(url: string): Promise<Response> {
   const separator = url.includes("?") ? "&" : "?";
-  return fetch(`${url}${separator}smoke=${Date.now()}`, { headers: { "cache-control": "no-cache" } });
+  const target = `${url}${separator}smoke=${Date.now()}`;
+  try {
+    return await fetch(target, { headers: { "cache-control": "no-cache" } });
+  } catch {
+    return fetchThroughPublicDns(target);
+  }
+}
+
+async function fetchThroughPublicDns(target: string): Promise<Response> {
+  const url = new URL(target);
+  const resolver = new Resolver();
+  resolver.setServers(["1.1.1.1", "8.8.8.8"]);
+  const [address] = await resolver.resolve4(url.hostname);
+  if (!address) throw new Error(`Public DNS did not resolve ${url.hostname}.`);
+
+  return new Promise<Response>((resolveResponse, reject) => {
+    const upstream = request({
+      hostname: address,
+      port: 443,
+      servername: url.hostname,
+      path: `${url.pathname}${url.search}`,
+      method: "GET",
+      headers: { host: url.hostname, "cache-control": "no-cache" },
+    }, (response) => {
+      const chunks: Buffer[] = [];
+      response.on("data", (chunk: Buffer) => chunks.push(chunk));
+      response.on("end", () => {
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(response.headers)) {
+          if (Array.isArray(value)) value.forEach((item) => headers.append(name, item));
+          else if (value !== undefined) headers.set(name, value);
+        }
+        resolveResponse(new Response(Buffer.concat(chunks), {
+          status: response.statusCode ?? 502,
+          statusText: response.statusMessage,
+          headers,
+        }));
+      });
+    });
+    upstream.on("error", reject);
+    upstream.end();
+  });
 }

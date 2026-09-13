@@ -94,4 +94,4 @@ Full-world collection starts only after the representative end-to-end milestone 
 ## 8. Publication handoff
 
 - [x] 8.1 Select artifact storage from measured byte and file-count limits. Confirm no proprietary source, raw evidence, secrets, or save files enter the source repository or public artifact set.
-- [ ] 8.2 Prepare a versioned deployment and rollback procedure after publication authorization. Production may host a validated preview only while it retains its incomplete disclosure; only a complete artifact may use release mode. Verify a local deployment smoke and restoration of the prior artifact set before any public release.
+- [x] 8.2 Prepare a versioned deployment and rollback procedure after publication authorization. Production may host a validated preview without a user-facing completeness disclosure while its machine-readable publication metadata remains in preview mode; only a complete artifact may use release mode. Verify a local deployment smoke and restoration of the prior artifact set before any public release.

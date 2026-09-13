@@ -233,19 +233,19 @@ The atlas SHALL support keyboard navigation and narrow screens. Search and a syn
 - **THEN** the details are operable without a pointer
 - **AND** focus returns to a useful originating control
 
-### Requirement: Evidence limits live outside the map
+### Requirement: Evidence limits stay outside the interface
 
-The atlas SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. It SHALL name the supported build and mark an incomplete preview once, in shared wording, without listing counts on the map or in detail panels.
+The atlas SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. It SHALL NOT display completeness disclosures, coverage counts, or unresolved-semantics notices.
 
-Coverage figures, diagnostic totals, and exclusion reasons SHALL live in the generated run manifest and coverage report, which own those measurements. The interface MAY link to a data-status surface that reads them. Progressive map loading SHALL NOT require downloading full-resolution imagery before interaction.
+Preview mode, coverage figures, diagnostic totals, and exclusion reasons SHALL live in the generated publication metadata, run manifest, and coverage report, which own those measurements. Progressive map loading SHALL NOT require downloading full-resolution imagery before interaction.
 
 #### Scenario: A reader opens a partial research snapshot
 - **WHEN** coverage is incomplete
-- **THEN** the interface marks the preview as incomplete in one place
-- **AND** it does not present the preview as the complete release
-- **AND** no marker, panel, or control repeats coverage counts
+- **THEN** the publication metadata remains in preview mode
+- **AND** the interface does not claim that the snapshot is complete
+- **AND** no marker, panel, or control displays completeness or coverage notices
 
-#### Scenario: A reader wants the coverage detail
-- **WHEN** the reader opens the data-status surface
-- **THEN** it reports the build, the coverage figures, and the exclusions from the generated artifacts
-- **AND** those values are not restated anywhere else in the interface
+#### Scenario: An operator audits publication coverage
+- **WHEN** the operator reads the generated publication metadata and run manifest
+- **THEN** those artifacts report the build, mode, coverage figures, and exclusions
+- **AND** the interface does not restate those values

@@ -111,7 +111,7 @@ The compendium's information architecture mirrors the in-game Adventure Guide: d
 
 Guide publication contains no artwork or boss portraits. `RPGGameScene.adventureGuideImageKey` is extracted as scene gameplay metadata. Canonical NPC records expose `entryIcon` metadata with a name, rect, and texture name. The native `ADVENTURE_GUIDE_BOSS` record contains only `npcID`; it has no portrait reference. `RegionTemplate.adventureGuideImage` is a Sprite reference, but `RegionTemplate` records are unpublished because their runtime identity is a string key outside the integer identity contract. Real guide artwork requires an asset path that resolves image keys, serializes sprite and texture bytes, hashes and validates the assets, and adds image references to the guide publication and site. That extraction and publication path is absent.
 
-Evidence honesty belongs to the producer that owns each measurement. Coverage figures and diagnostic totals live in the run manifest and coverage report. The interface marks an incomplete preview once and never repeats counts or unresolved-semantics notices in panels. This follows the sibling compendium's availability pattern, where a shared notice marks a flag and no page renders an unremarkable field.
+Evidence honesty belongs to the producer that owns each measurement. Coverage figures, preview mode, and diagnostic totals live in the run manifest, publication metadata, and coverage report. The interface does not display completeness disclosures, counts, or unresolved-semantics notices.
 
 ### 6. Screenshot layers use their own capture extent
 
@@ -205,7 +205,7 @@ Captured source images, tile pyramids, calibration, and marker projections carry
 
 Publish WebP delivery tiles with `tileSize: 256` and global integer `(x, y)` indices. At zoom `z`, tile `(x, y)` covers world `[x·256/2^z, (x+1)·256/2^z] × [y·256/2^z, (y+1)·256/2^z]`. Set `maxZoom = log2(1024 / captureEdge)`, merge each coarser level from a 2×2 child group, and keep contiguous levels through `minZoom`. Pixel row zero is the top edge. The published extent is the union of the finest tile bounds, and all coordinates use the same map-space system as placements. A reviewed rectangular capture grid emits every cell in that rectangle. Placement density cannot remove an interior cell because that would create missing imagery during zoom transitions. Tile generation emits dimensions, byte totals, and file counts so hosting limits remain visible. Do not commit generated images or raw game data.
 
-The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation can proceed without that checkpoint. The first production build measures 7,722 files, 99,231,451 bytes in total, and 4,844,373 bytes for its largest file. Use a files-only Cloudflare Workers Static Assets service: these measurements fit the 20,000-file Free limit and 25 MiB per-file limit, and static requests do not invoke or require a Worker. R2, Pages, an assets binding, and request-time code add no value for this artifact.
+The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation can proceed without that checkpoint. The first production build measures 7,722 files, 99,231,440 bytes in total, and 4,844,373 bytes for its largest file. Use a files-only Cloudflare Workers Static Assets service: these measurements fit the 20,000-file Free limit and 25 MiB per-file limit, and static requests do not invoke or require a Worker. R2, Pages, an assets binding, and request-time code add no value for this artifact.
 
 ### 9. Small previews, persistent details, and source navigation
 
@@ -268,7 +268,7 @@ The representative world surface and zone path covers extraction, repeat-load id
 
 The current pipeline has no floor domains, floor resolution, ceiling selectors, per-floor pyramids, floor scoping, or floor and map URL state. The current build baseline is 25153357; artifacts for 25144591 remain frozen reference data and cannot mix with it.
 
-The mechanism is implemented and measured, but it does not reduce the complete-release coverage gate. After explicit user authorization, production may host a validated preview that preserves its incomplete disclosure. Only a complete artifact may use release mode. A validated successful artifact set remains available for rollback.
+The mechanism is implemented and measured, but it does not reduce the complete-release coverage gate. After explicit user authorization, production may host a validated preview without a user-facing completeness disclosure. Its machine-readable publication metadata remains in preview mode. Only a complete artifact may use release mode. A validated successful artifact set remains available for rollback.
 
 ## Open Questions
 
