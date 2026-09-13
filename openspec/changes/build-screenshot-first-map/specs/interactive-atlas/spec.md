@@ -248,6 +248,12 @@ The atlas SHALL support keyboard navigation and narrow screens. Search and a syn
 - **THEN** the map retains the same basemap and vector geometry
 - **AND** no picking color, stray line, or malformed primitive reaches the visible canvas
 
+#### Scenario: A phone reader browses the atlas
+- **WHEN** the viewport is no wider than 680 CSS pixels
+- **THEN** the map and results use the full viewport width without horizontal scrolling
+- **AND** the closed category panel occupies only one touch target
+- **AND** the open category panel appears as a dismissible drawer above the map
+
 ### Requirement: Evidence limits stay outside the interface
 
 The atlas SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. It SHALL NOT display completeness disclosures, coverage counts, or unresolved-semantics notices.
