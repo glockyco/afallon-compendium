@@ -113,6 +113,8 @@ Guide publication contains no artwork or boss portraits. `RPGGameScene.adventure
 
 Evidence honesty belongs to the producer that owns each measurement. Coverage figures, preview mode, and diagnostic totals live in the run manifest, publication metadata, and coverage report. The interface does not display completeness disclosures, counts, or unresolved-semantics notices.
 
+The Afallon identity uses a gold `A` integrated with a compass rose, a charcoal field, and restrained teal enamel. The square mark remains legible as a favicon and Steam guide cover. A separate `1200 × 630` Open Graph card pairs the mark with the site name and `Interactive Map`; Discord and other link unfurlers receive that raster asset through absolute metadata URLs.
+
 ### 6. Screenshot layers use their own capture extent
 
 Primary imagery comes only from this project's capture pipeline against the supported game build. Do not substitute shipped map textures, illustrations, or community map images for primary captures, including missing tiles. Retain missing or failed captures as coverage gaps. Illustrations remain a separate optional layer.
@@ -205,7 +207,7 @@ Captured source images, tile pyramids, calibration, and marker projections carry
 
 Publish WebP delivery tiles with `tileSize: 256` and global integer `(x, y)` indices. At zoom `z`, tile `(x, y)` covers world `[x·256/2^z, (x+1)·256/2^z] × [y·256/2^z, (y+1)·256/2^z]`. Set `maxZoom = log2(1024 / captureEdge)`, merge each coarser level from a 2×2 child group, and keep contiguous levels through `minZoom`. Pixel row zero is the top edge. The published extent is the union of the finest tile bounds, and all coordinates use the same map-space system as placements. A reviewed rectangular capture grid emits every cell in that rectangle. Placement density cannot remove an interior cell because that would create missing imagery during zoom transitions. Tile generation emits dimensions, byte totals, and file counts so hosting limits remain visible. Do not commit generated images or raw game data.
 
-The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation can proceed without that checkpoint. The first production build measures 7,722 files, 99,231,440 bytes in total, and 4,844,373 bytes for its largest file. Use a files-only Cloudflare Workers Static Assets service: these measurements fit the 20,000-file Free limit and 25 MiB per-file limit, and static requests do not invoke or require a Worker. R2, Pages, an assets binding, and request-time code add no value for this artifact.
+The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation can proceed without that checkpoint. The branded production build measures 7,728 files, 99,974,342 bytes in total, and 4,844,373 bytes for its largest file. Use a files-only Cloudflare Workers Static Assets service: these measurements fit the 20,000-file Free limit and 25 MiB per-file limit, and static requests do not invoke or require a Worker. R2, Pages, an assets binding, and request-time code add no value for this artifact.
 
 ### 9. Small previews, persistent details, and source navigation
 

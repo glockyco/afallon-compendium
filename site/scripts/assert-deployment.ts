@@ -13,12 +13,12 @@ interface Publication {
 
 const FREE_ASSET_LIMIT = 20_000;
 const MAX_ASSET_BYTES = 25 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = new Set([".html", ".json", ".js", ".css", ".webp", ""]);
+const ALLOWED_EXTENSIONS = new Set([".html", ".json", ".js", ".css", ".webp", ".png", ".ico", ""]);
 const siteDir = resolve(import.meta.dirname, "..");
 const outputDir = deploymentPaths(siteDir).outputDir;
 const files = listFiles(outputDir);
 
-for (const required of ["index.html", "404.html", "guide/index.html", "data/publication.json", "_deployment.json", "_headers"]) {
+for (const required of ["index.html", "404.html", "guide/index.html", "data/publication.json", "_deployment.json", "_headers", "favicon.ico", "favicon-32x32.png", "apple-touch-icon.png", "logo.png", "og-default.png"]) {
   if (!files.includes(required)) throw new Error(`Deployment output is missing ${required}.`);
 }
 if (files.length > FREE_ASSET_LIMIT) {

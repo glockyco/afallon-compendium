@@ -249,3 +249,16 @@ Preview mode, coverage figures, diagnostic totals, and exclusion reasons SHALL l
 - **WHEN** the operator reads the generated publication metadata and run manifest
 - **THEN** those artifacts report the build, mode, coverage figures, and exclusions
 - **AND** the interface does not restate those values
+
+### Requirement: Shared map links carry Afallon identity
+
+The root map SHALL publish square favicon and touch-icon assets. It SHALL publish a `1200 × 630` PNG through absolute Open Graph and Twitter card metadata.
+
+#### Scenario: A reader shares the map in Discord
+- **WHEN** Discord fetches the root map metadata
+- **THEN** the response names the Afallon Compendium interactive map
+- **AND** the social image URL resolves to the Afallon logo card
+
+#### Scenario: A reader opens the map in a browser
+- **WHEN** the browser requests a favicon or touch icon
+- **THEN** the response returns a square Afallon `A` compass mark
