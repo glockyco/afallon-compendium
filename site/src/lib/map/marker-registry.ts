@@ -5,14 +5,13 @@ import {
   Hand,
   House,
   PawPrint,
-  Pickaxe,
   ScrollText,
   Skull,
   Tent,
   User,
   type IconNode,
 } from "lucide";
-import { BuildingCommunity, BuildingMonument, BuildingTunnel, Coins, Diamonds, DoorExit, Grave2, TreasureChest } from "./tabler-icons";
+import { BuildingCommunity, BuildingMonument, BuildingTunnel, Coins, Diamonds, DoorExit, Fish, Grave2, Leaf, Mushroom, Pick, TreasureChest } from "./tabler-icons";
 
 import type {
   PublicMarkerCategory,
@@ -28,17 +27,20 @@ export const MARKER_IDS = [
   "merchant",
   "questGiver",
   "townsfolk",
+  "corruptionAltar",
+  "challengeStone",
   "craftingStation",
   "container",
-  "resource",
+  "oreVein",
+  "herb",
+  "mushroom",
+  "fishingSpot",
   "interactiveObject",
   "town",
   "fort",
   "camp",
   "property",
   "dungeonEntrance",
-  "corruptionAltar",
-  "challengeStone",
   "graveyard",
   "travelPoint",
 ] as const satisfies readonly MarkerId[];
@@ -56,14 +58,15 @@ export interface MarkerLayer {
   kind: "icon";
 }
 
-export type MarkerSectionId = "creatures" | "people" | "objects" | "places";
+export type MarkerSectionId = "creatures" | "people" | "objects" | "resources" | "places";
 
-export const MARKER_SECTION_ORDER = ["creatures", "people", "objects", "places"] as const satisfies readonly MarkerSectionId[];
+export const MARKER_SECTION_ORDER = ["creatures", "people", "objects", "resources", "places"] as const satisfies readonly MarkerSectionId[];
 
 export const MARKER_SECTION_LABELS: Record<MarkerSectionId, string> = {
   creatures: "Creatures",
   people: "People",
   objects: "Objects",
+  resources: "Resources",
   places: "Places",
 };
 
@@ -110,7 +113,7 @@ export const markerRegistry = {
     iconSize: { base: 27, min: 20, max: 54 },
     precedence: 800,
     renderOrder: 800,
-    defaultVisible: false,
+    defaultVisible: true,
     layer: markerLayer,
     matches: (row) => row.categories.includes("boss"),
   },
@@ -198,19 +201,61 @@ export const markerRegistry = {
     layer: markerLayer,
     matches: (row) => row.categories.includes("craftingStation"),
   },
-  resource: {
-    id: "resource",
-    section: "objects",
-    label: "Resource",
-    pluralLabel: "Resources",
-    icon: Pickaxe,
+  oreVein: {
+    id: "oreVein",
+    section: "resources",
+    label: "Ore Vein",
+    pluralLabel: "Ore Veins",
+    icon: Pick,
+    color: [120, 120, 130],
+    iconSize: { base: 20, min: 15, max: 42 },
+    precedence: 103,
+    renderOrder: 103,
+    defaultVisible: false,
+    layer: markerLayer,
+    matches: (row) => row.categories.includes("oreVein"),
+  },
+  herb: {
+    id: "herb",
+    section: "resources",
+    label: "Herb",
+    pluralLabel: "Herbs",
+    icon: Leaf,
     color: [132, 204, 22],
     iconSize: { base: 20, min: 15, max: 42 },
-    precedence: 200,
+    precedence: 102,
+    renderOrder: 102,
+    defaultVisible: false,
+    layer: markerLayer,
+    matches: (row) => row.categories.includes("herb"),
+  },
+  mushroom: {
+    id: "mushroom",
+    section: "resources",
+    label: "Mushroom",
+    pluralLabel: "Mushrooms",
+    icon: Mushroom,
+    color: [217, 119, 6],
+    iconSize: { base: 20, min: 15, max: 42 },
+    precedence: 101,
+    renderOrder: 101,
+    defaultVisible: false,
+    layer: markerLayer,
+    matches: (row) => row.categories.includes("mushroom"),
+  },
+  fishingSpot: {
+    id: "fishingSpot",
+    section: "resources",
+    label: "Fishing Spot",
+    pluralLabel: "Fishing Spots",
+    icon: Fish,
+    color: [14, 165, 233],
+    iconSize: { base: 20, min: 15, max: 42 },
+    precedence: 100,
     renderOrder: 100,
     defaultVisible: false,
     layer: markerLayer,
-    matches: (row) => row.categories.includes("resource"),
+    matches: (row) => row.categories.includes("fishingSpot"),
   },
   container: {
     id: "container",
@@ -298,7 +343,7 @@ export const markerRegistry = {
   },
   challengeStone: {
     id: "challengeStone",
-    section: "places",
+    section: "objects",
     label: "Challenge Stone",
     pluralLabel: "Challenge Stones",
     icon: BuildingMonument,
@@ -326,7 +371,7 @@ export const markerRegistry = {
   },
   corruptionAltar: {
     id: "corruptionAltar",
-    section: "places",
+    section: "objects",
     label: "Altar of Corruption",
     pluralLabel: "Altars of Corruption",
     icon: Diamonds,
@@ -357,7 +402,7 @@ export const markerRegistry = {
 const allMarkers = Object.values(markerRegistry) as readonly MarkerDefinition[];
 // The atlas opens with the game's own world map markers (places) and bosses; the visitor
 // chooses the other categories.
-export const DEFAULT_MARKER_IDS: readonly MarkerId[] = allMarkers.filter((marker) => marker.section === "places" || marker.id === "boss").map((marker) => marker.id);
+export const DEFAULT_MARKER_IDS: readonly MarkerId[] = allMarkers.filter((marker) => marker.defaultVisible).map((marker) => marker.id);
 const markersByPrecedence = [...allMarkers].sort((left, right) => right.precedence - left.precedence);
 
 export function markerFor(id: MarkerId): MarkerDefinition {

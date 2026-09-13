@@ -459,6 +459,25 @@ function nodeRoleEvidence(row: RecordValue, rowPath: string, facts: FactBuilder,
   }
 }
 
+// The kind of node a spawner produces. The gathering skill separates ore, herbs, and fishing
+// spots; mushrooms are Herbalism nodes that the level designer names as mushroom spawners,
+// because neither the vein prefabs nor the items carry an authored herb-or-mushroom category.
+function resourceKind(row: RecordValue, rowPath: string, issues: RoleIssue[]): { role: string; refs: string[] } | null {
+  const skill = validReference(row.gatheringSkill) ? record(row.gatheringSkill) : record(record(row.gatheringRole)?.skill);
+  const skillName = typeof skill?.name === "string" ? skill.name : "";
+  const nodes = array(record(record(row.source)?.source)?.hierarchyNodes);
+  const objectName = nodes === null ? null : record(nodes[nodes.length - 1])?.name;
+  const namePath = `${rowPath}/source/source/hierarchyPath`;
+  if (skillName === "Mining") return { role: "oreVein", refs: [] };
+  if (skillName === "Fishing") return { role: "fishingHole", refs: [] };
+  if (skillName === "Herbalism") {
+    if (typeof objectName === "string" && /mushroom/i.test(objectName)) return { role: "mushroom", refs: [namePath] };
+    return { role: "herb", refs: [] };
+  }
+  issue(issues, "unsupportedGatheringSkill", `Gathering skill ${skillName || "<missing>"} has no resource kind.`, refs(`${rowPath}/gatheringSkill`));
+  return null;
+}
+
 function classifyResource(row: RecordValue, rowPath: string, facts: FactBuilder, issues: RoleIssue[]): void {
   const family = typeof row.producerFamily === "string" ? row.producerFamily : "";
   if (family === "oreSpawner") {
@@ -470,6 +489,8 @@ function classifyResource(row: RecordValue, rowPath: string, facts: FactBuilder,
       issue(issues, "missingGatheringSkill", "OreSpawner has no valid gatheringSkill reference; its producer name and native MiningSkillID are not sufficient to classify a resource role.", refs(`${rowPath}/gatheringSkill`, `${rowPath}/gatheringSkillID`, `${rowPath}/gatheringRole/skill`));
     } else {
       addFact(facts, "resourceProducer", refs(skill));
+      const kind = resourceKind(row, rowPath, issues);
+      if (kind !== null) addFact(facts, kind.role, refs(skill, ...kind.refs));
     }
     if (gatheringRole !== null && gatheringRole.kind !== undefined && gatheringRole.kind !== "resource") {
       issue(issues, "unsupportedGatheringRole", "OreSpawner gatheringRole.kind is not the recovered resource semantic.", refs(`${rowPath}/gatheringRole/kind`));
