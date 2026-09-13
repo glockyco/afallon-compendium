@@ -656,6 +656,19 @@ export async function createMapAdapter(
     });
     const regionLayers: Layer[] = next.showZones ? [
       new PolygonLayer<RegionRecord>({
+        id: "world-region-outline-halo",
+        data: baseRegions,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        pickable: false,
+        stroked: true,
+        filled: true,
+        getPolygon: (region) => region.polygon,
+        getFillColor: [24, 20, 14, 24],
+        getLineColor: [22, 18, 12, 210],
+        getLineWidth: 6,
+        lineWidthUnits: "pixels",
+      }),
+      new PolygonLayer<RegionRecord>({
         id: "world-region-outlines",
         data: baseRegions,
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -663,7 +676,7 @@ export async function createMapAdapter(
         stroked: true,
         filled: false,
         getPolygon: (region) => region.polygon,
-        getLineColor: [214, 188, 134, 190],
+        getLineColor: [235, 205, 139, 245],
         getLineWidth: 2,
         lineWidthUnits: "pixels",
       }),
