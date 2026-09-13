@@ -9,17 +9,16 @@ const url = Type.String({ minLength: 1, pattern: "^(?!/)(?!.*\\.\\.)(?!.*:)[a-zA
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 
 export const PUBLIC_MARKER_CATEGORY_VALUES = [
-  "enemy",
   "boss",
+  "enemy",
   "neutral",
-  "ally",
-  "npc",
   "merchant",
   "questGiver",
-  "interactiveObject",
+  "townsfolk",
   "craftingStation",
-  "resource",
   "container",
+  "resource",
+  "interactiveObject",
   "town",
   "fort",
   "camp",
@@ -32,11 +31,25 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
 ] as const;
 export type PublicMarkerCategory = typeof PUBLIC_MARKER_CATEGORY_VALUES[number];
 const publicMarkerCategory = Type.Union([
-  Type.Literal("enemy"), Type.Literal("boss"), Type.Literal("neutral"), Type.Literal("ally"), Type.Literal("npc"),
-  Type.Literal("merchant"), Type.Literal("questGiver"), Type.Literal("interactiveObject"),
-  Type.Literal("craftingStation"), Type.Literal("resource"), Type.Literal("container"), Type.Literal("travelPoint"),
-  Type.Literal("town"), Type.Literal("fort"), Type.Literal("camp"), Type.Literal("dungeonEntrance"), Type.Literal("challengeStone"),
-  Type.Literal("property"), Type.Literal("graveyard"), Type.Literal("corruptionAltar"),
+  Type.Literal("boss"),
+  Type.Literal("enemy"),
+  Type.Literal("neutral"),
+  Type.Literal("merchant"),
+  Type.Literal("questGiver"),
+  Type.Literal("townsfolk"),
+  Type.Literal("craftingStation"),
+  Type.Literal("container"),
+  Type.Literal("resource"),
+  Type.Literal("interactiveObject"),
+  Type.Literal("town"),
+  Type.Literal("fort"),
+  Type.Literal("camp"),
+  Type.Literal("property"),
+  Type.Literal("dungeonEntrance"),
+  Type.Literal("corruptionAltar"),
+  Type.Literal("challengeStone"),
+  Type.Literal("graveyard"),
+  Type.Literal("travelPoint"),
 ]);
 
 export const PublicLevelRangeSchema = Type.Object({

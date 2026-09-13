@@ -408,7 +408,7 @@
       placementsByEntityKey,
       placementsByItemKey,
       placementSummaries: new Map(data.placements.map((placement) => [placement.placementId, summarizePlacements([placement], 'interactiveObject')])),
-      entitySummaries: new Map(data.entityIndex.map((entity) => [entity.entityKey, summarizePlacements(placementsByEntityKey.get(entity.entityKey) ?? [], 'npc')])),
+      entitySummaries: new Map(data.entityIndex.map((entity) => [entity.entityKey, summarizePlacements(placementsByEntityKey.get(entity.entityKey) ?? [], 'townsfolk')])),
       itemSummaries: new Map(data.itemIndex.map((item) => [item.itemKey, summarizePlacements(placementsByItemKey.get(item.itemKey) ?? [], 'container')])),
     };
   }
@@ -449,7 +449,7 @@
 
   function resultSummary(result: SearchResult): ResultSummary {
     if (result.kind === 'placement') return searchIndexes.placementSummaries.get(result.placement.placementId) ?? summarizePlacements([result.placement], 'interactiveObject');
-    if (result.kind === 'entity') return searchIndexes.entitySummaries.get(result.entity.entityKey) ?? summarizePlacements([], 'npc');
+    if (result.kind === 'entity') return searchIndexes.entitySummaries.get(result.entity.entityKey) ?? summarizePlacements([], 'townsfolk');
     return searchIndexes.itemSummaries.get(result.item.itemKey) ?? summarizePlacements([], 'container');
   }
 
@@ -715,6 +715,12 @@
         {:else}
           <div class="panel-body">
             <div class="control-section search-section"><label for="atlas-search">Search places, entities, and items</label><div class="search-row"><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } }} placeholder="Try a name or item" autocomplete="off" /><button class="quiet-button" type="button" on:click={() => { query = ''; scheduleQueryUrl(); searchInput?.focus(); }} aria-label="Clear search">Clear</button></div><p class="hint">Press Enter to move from search to results.</p></div>
+            <div class="categories-block">
+              <div class="section-heading"><h2>Map categories</h2>{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Show every category</button>{/if}<span class="count">{allMapPlacements.length}</span></div>
+              {#each markerSections as section (section.id)}
+                <MapSidebarSection title={section.label} categories={section.markers} activeCategories={categories} counts={categoryCounts} storageKey={`afallon-atlas-section-${section.id}`} onToggleCategory={toggleCategory} onToggleAll={toggleAllCategories} />
+              {/each}
+            </div>
             {#if layerOptions.length > 0}
               <div class="control-section layer-section">
                 <h2>Map layers</h2>
@@ -751,13 +757,6 @@
               </div>
             {/if}
             <div class="control-section world-tools"><h2>Map options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="tool-option"><input type="checkbox" checked={showZones} on:change={toggleZones} /><span>Zone areas and names</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button>{#if Object.keys(worldOffsetOverrides).length > 0}<button type="button" class="quiet-button" on:click={discardWorldOffsets}>Discard {Object.keys(worldOffsetOverrides).length} dragged offsets</button>{/if}<p class="hint">Drag a map anywhere inside its rectangle to review its placement. Dragged offsets show only while authoring and stay in this browser until exported or discarded.</p>{/if}</div>
-            <div class="categories-block">
-              <div class="section-heading"><h2>Map categories</h2><span class="count">{allMapPlacements.length}</span></div>
-              {#each markerSections as section (section.id)}
-                <MapSidebarSection title={section.label} categories={section.markers} activeCategories={categories} counts={categoryCounts} storageKey={`afallon-atlas-section-${section.id}`} onToggleCategory={toggleCategory} onToggleAll={toggleAllCategories} />
-              {/each}
-              {#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Show every category</button>{/if}
-            </div>
           </div>
         {/if}
       </aside>
@@ -885,7 +884,7 @@
   .rail-group { padding: .25rem 0 .45rem; border-bottom: 1px solid #393a38; }
   .rail-group:last-child { border-bottom: 0; }
   .control-section { border-bottom: 1px solid #393a38; padding: 0 0 1rem; margin-bottom: 1rem; }
-  label, .section-heading h2, .results-header h2, .world-tools h2 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b8b5aa; }
+  label, .section-heading h2, .results-header h2, .world-tools h2, .layer-section h2 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b8b5aa; }
   input, select { width: 100%; border: 1px solid #4a4b47; border-radius: 2px; background: #151616; color: #ece8de; padding: .55rem .6rem; }
   input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid #d5b978; outline-offset: 2px; }
   .search-section > label, .control-section > label:not(.role-option) { display: block; margin-bottom: .45rem; }
@@ -895,7 +894,8 @@
   .quiet-button:hover, .close-button:hover { border-color: #bba779; color: #f1eadb; }
   .hint, .muted { color: #85857e; font-size: .72rem; line-height: 1.45; }
   .section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: .45rem; }
-  .section-heading h2, .world-tools h2 { margin: 0; }
+  .section-heading h2, .world-tools h2, .layer-section h2 { margin: 0 0 .45rem; }
+  .section-heading .text-button { margin-left: auto; margin-right: .6rem; }
   .count { color: #d6bd84; font-size: .75rem; }
   .categories-block { margin-bottom: 1rem; }
   .categories-block > .section-heading { padding-bottom: .35rem; border-bottom: 1px solid #393a38; }

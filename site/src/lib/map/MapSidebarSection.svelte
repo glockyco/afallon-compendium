@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import CategoryRow from './CategoryRow.svelte';
-  import { markerColorCss, type MarkerDefinition, type MarkerId } from './marker-registry';
-  import { markerGlyphSvg } from './icon-atlas';
+  import type { MarkerDefinition, MarkerId } from './marker-registry';
 
   export let title: string;
   export let categories: readonly MarkerDefinition[] = [];
@@ -19,7 +18,6 @@
   $: allSelected = categories.length > 0 && selectedCount === categories.length;
   $: partiallySelected = selectedCount > 0 && !allSelected;
   $: if (toggleInput) toggleInput.indeterminate = partiallySelected;
-  $: sectionMarker = categories[0] ?? null;
 
   onMount(() => {
     if (!storageKey) return;
@@ -54,10 +52,7 @@
       aria-label={`Toggle all ${title}`}
     />
     <button class="section-trigger" type="button" aria-expanded={expanded} on:click={toggleExpanded}>
-      {#if sectionMarker}
-        <span class="section-symbol" style:background={markerColorCss(sectionMarker)} aria-hidden="true">{@html markerGlyphSvg(sectionMarker)}</span>
-      {/if}
-      <span>{title}</span>
+      <span class="section-title">{title}</span>
       <span class="section-count">{selectedCount}/{categories.length}</span>
       <span class="chevron" aria-hidden="true">{expanded ? '⌃' : '⌄'}</span>
     </button>
@@ -94,7 +89,7 @@
   }
   .section-trigger {
     display: grid;
-    grid-template-columns: 20px minmax(0, 1fr) auto 14px;
+    grid-template-columns: minmax(0, 1fr) auto 14px;
     align-items: center;
     gap: .4rem;
     min-width: 0;
@@ -108,20 +103,7 @@
     text-align: left;
     text-transform: uppercase;
   }
-  .section-symbol {
-    display: inline-grid;
-    place-items: center;
-    width: 19px;
-    height: 19px;
-    border: 1px solid rgba(0, 0, 0, .45);
-    border-radius: 50%;
-    color: white;
-  }
-  .section-symbol :global(svg) {
-    width: 11px;
-    height: 11px;
-    filter: drop-shadow(0 0 1px rgba(0, 0, 0, .8));
-  }
+  .section-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .section-count {
     color: #9a998f;
     font-size: .62rem;

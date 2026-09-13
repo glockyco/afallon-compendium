@@ -7,7 +7,6 @@ import {
   PawPrint,
   Pickaxe,
   ScrollText,
-  Shield,
   Skull,
   Tent,
   User,
@@ -23,17 +22,16 @@ import type {
 export type MarkerId = PublicMarkerCategory;
 
 export const MARKER_IDS = [
-  "enemy",
   "boss",
+  "enemy",
   "neutral",
-  "ally",
-  "npc",
   "merchant",
   "questGiver",
-  "interactiveObject",
+  "townsfolk",
   "craftingStation",
-  "resource",
   "container",
+  "resource",
+  "interactiveObject",
   "town",
   "fort",
   "camp",
@@ -58,14 +56,14 @@ export interface MarkerLayer {
   kind: "icon";
 }
 
-export type MarkerSectionId = "hostile" | "characters" | "gathering" | "places";
+export type MarkerSectionId = "creatures" | "people" | "objects" | "places";
 
-export const MARKER_SECTION_ORDER = ["hostile", "characters", "gathering", "places"] as const satisfies readonly MarkerSectionId[];
+export const MARKER_SECTION_ORDER = ["creatures", "people", "objects", "places"] as const satisfies readonly MarkerSectionId[];
 
 export const MARKER_SECTION_LABELS: Record<MarkerSectionId, string> = {
-  hostile: "Hostile creatures",
-  characters: "Characters & services",
-  gathering: "Gathering & containers",
+  creatures: "Creatures",
+  people: "People",
+  objects: "Objects",
   places: "Places",
 };
 
@@ -90,7 +88,7 @@ export const MARKER_LAYER_ID = markerLayer.id;
 export const markerRegistry = {
   enemy: {
     id: "enemy",
-    section: "hostile",
+    section: "creatures",
     label: "Enemy",
     pluralLabel: "Enemies",
     icon: Skull,
@@ -104,7 +102,7 @@ export const markerRegistry = {
   },
   boss: {
     id: "boss",
-    section: "hostile",
+    section: "creatures",
     label: "Boss",
     pluralLabel: "Bosses",
     icon: Crown,
@@ -118,9 +116,9 @@ export const markerRegistry = {
   },
   neutral: {
     id: "neutral",
-    section: "characters",
-    label: "Neutral",
-    pluralLabel: "Neutrals",
+    section: "creatures",
+    label: "Neutral creature",
+    pluralLabel: "Neutral creatures",
     icon: PawPrint,
     color: [245, 158, 11],
     iconSize: { base: 21, min: 16, max: 44 },
@@ -130,37 +128,9 @@ export const markerRegistry = {
     layer: markerLayer,
     matches: (row) => row.categories.includes("neutral"),
   },
-  ally: {
-    id: "ally",
-    section: "characters",
-    label: "Ally",
-    pluralLabel: "Allies",
-    icon: Shield,
-    color: [16, 185, 129],
-    iconSize: { base: 21, min: 16, max: 44 },
-    precedence: 680,
-    renderOrder: 680,
-    defaultVisible: false,
-    layer: markerLayer,
-    matches: (row) => row.categories.includes("ally"),
-  },
-  npc: {
-    id: "npc",
-    section: "characters",
-    label: "NPC",
-    pluralLabel: "NPCs",
-    icon: User,
-    color: [59, 130, 246],
-    iconSize: { base: 20, min: 16, max: 42 },
-    precedence: 500,
-    renderOrder: 500,
-    defaultVisible: false,
-    layer: markerLayer,
-    matches: (row) => row.categories.includes("npc"),
-  },
   merchant: {
     id: "merchant",
-    section: "characters",
+    section: "people",
     label: "Merchant",
     pluralLabel: "Merchants",
     icon: Coins,
@@ -174,7 +144,7 @@ export const markerRegistry = {
   },
   questGiver: {
     id: "questGiver",
-    section: "characters",
+    section: "people",
     label: "Quest Giver",
     pluralLabel: "Quest Givers",
     icon: ScrollText,
@@ -186,9 +156,23 @@ export const markerRegistry = {
     layer: markerLayer,
     matches: (row) => row.categories.includes("questGiver"),
   },
+  townsfolk: {
+    id: "townsfolk",
+    section: "people",
+    label: "Townsfolk",
+    pluralLabel: "Townsfolk",
+    icon: User,
+    color: [59, 130, 246],
+    iconSize: { base: 22, min: 17, max: 46 },
+    precedence: 500,
+    renderOrder: 500,
+    defaultVisible: false,
+    layer: markerLayer,
+    matches: (row) => row.categories.includes("townsfolk"),
+  },
   interactiveObject: {
     id: "interactiveObject",
-    section: "gathering",
+    section: "objects",
     label: "Interactive Object",
     pluralLabel: "Interactive Objects",
     icon: Hand,
@@ -202,7 +186,7 @@ export const markerRegistry = {
   },
   craftingStation: {
     id: "craftingStation",
-    section: "gathering",
+    section: "objects",
     label: "Crafting Station",
     pluralLabel: "Crafting Stations",
     icon: Hammer,
@@ -216,7 +200,7 @@ export const markerRegistry = {
   },
   resource: {
     id: "resource",
-    section: "gathering",
+    section: "objects",
     label: "Resource",
     pluralLabel: "Resources",
     icon: Pickaxe,
@@ -230,7 +214,7 @@ export const markerRegistry = {
   },
   container: {
     id: "container",
-    section: "gathering",
+    section: "objects",
     label: "Container",
     pluralLabel: "Containers",
     icon: TreasureChest,

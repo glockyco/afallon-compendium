@@ -154,27 +154,26 @@ function label(value: string): string {
   return value.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll(/[-_]/g, " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
-const categoryLabels: Record<PublicMarkerCategory, string> = {
-  enemy: "Enemy",
+const categoryLabels: Readonly<Record<PublicMarkerCategory, string>> = {
   boss: "Boss",
-  neutral: "Neutral",
-  ally: "Ally",
-  npc: "NPC",
+  enemy: "Enemy",
+  neutral: "Neutral creature",
   merchant: "Merchant",
-  questGiver: "Quest Giver",
-  interactiveObject: "Interactive Object",
-  craftingStation: "Crafting Station",
-  resource: "Resource",
+  questGiver: "Quest giver",
+  townsfolk: "Townsfolk",
+  craftingStation: "Crafting station",
   container: "Container",
-  travelPoint: "Travel Point",
+  resource: "Resource",
+  interactiveObject: "Interactive object",
   town: "Town",
   fort: "Fort",
   camp: "Camp",
-  dungeonEntrance: "Dungeon entrance",
-  challengeStone: "Challenge stone",
   property: "Property",
-  graveyard: "Graveyard",
+  dungeonEntrance: "Dungeon entrance",
   corruptionAltar: "Altar of corruption",
+  challengeStone: "Challenge stone",
+  graveyard: "Graveyard",
+  travelPoint: "Travel point",
 };
 const mapIconCategories: Readonly<Record<string, PublicMarkerCategory>> = {
   town: "town",
@@ -188,8 +187,8 @@ const roleCategory: Readonly<Record<string, PublicMarkerCategory | null>> = {
   boss: "boss",
   elite: "enemy",
   neutral: "neutral",
-  friendly: "ally",
-  npc: "npc",
+  friendly: "townsfolk",
+  npc: null,
   merchant: "merchant",
   questGiver: "questGiver",
   resourceProducer: "resource",
@@ -203,9 +202,9 @@ const roleCategory: Readonly<Record<string, PublicMarkerCategory | null>> = {
   propertyPurchaseService: "property",
   corruptionAltar: "corruptionAltar",
   combatant: null,
-  dialogue: "npc",
-  inspect: "npc",
-  trade: "npc",
+  dialogue: null,
+  inspect: null,
+  trade: null,
   adventurerProducer: null,
   adventurerPopulationManager: null,
 };
@@ -321,6 +320,8 @@ function placementCategories(placement: NormalizedPlacement): PublicMarkerCatego
     const category = categoryForRole(role);
     if (category) categories.add(category);
   }
+  // A friendly character with a service is listed by the service, not also as townsfolk.
+  if (categories.has("townsfolk") && (categories.has("merchant") || categories.has("questGiver"))) categories.delete("townsfolk");
   return PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => categories.has(category));
 }
 
