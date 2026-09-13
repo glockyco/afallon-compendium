@@ -322,6 +322,9 @@ export function foldMapIcons(placements: readonly NormalizedPlacement[]): Normal
 }
 
 function placementCategories(placement: NormalizedPlacement): PublicMarkerCategory[] {
+  // Adventurers are hired companions the game spawns from one staging point; they have no
+  // place of their own, so their spawner publishes no marker.
+  if (placement.roles.some((role) => role.role === "adventurer")) return [];
   const categories = new Set<PublicMarkerCategory>();
   for (const role of placement.roles) {
     const category = categoryForRole(role);
