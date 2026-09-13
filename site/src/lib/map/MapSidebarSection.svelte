@@ -54,7 +54,7 @@
     <button class="section-trigger" type="button" aria-expanded={expanded} on:click={toggleExpanded}>
       <span class="section-title">{title}</span>
       <span class="section-count">{selectedCount}/{categories.length}</span>
-      <span class="chevron" aria-hidden="true">{expanded ? '⌃' : '⌄'}</span>
+      <svg class:expanded class="chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m3.5 6 4.5 4.5L12.5 6" /></svg>
     </button>
   </div>
   {#if expanded}
@@ -112,11 +112,17 @@
     white-space: nowrap;
   }
   .chevron {
+    width: 14px;
+    height: 14px;
     color: #bca36e;
-    font-size: 1rem;
-    line-height: 1;
-    text-align: center;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 160ms ease;
   }
+  .chevron.expanded { transform: rotate(180deg); }
   .section-body {
     padding: .35rem .55rem .45rem;
   }
