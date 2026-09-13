@@ -7,7 +7,7 @@ function plan(centers: ReadonlyArray<readonly [number, number]>): CapturePlan {
     schemaVersion: "compendium.capture-plan.v9",
     sceneNativeId: 1,
     scenePath: "Assets/Test.unity",
-    mapSpaceId: "test-interior",
+    mapSpaceId: "world-surface",
     width: 100,
     height: 100,
     cullingMask: -1,
@@ -30,11 +30,13 @@ function plan(centers: ReadonlyArray<readonly [number, number]>): CapturePlan {
   };
 }
 
-test("an interior capture plan includes its complete rectangular grid", () => {
-  expect(() => validateCapturePlan(plan([[0, 0], [0, 10], [10, 0], [10, 10]]))).not.toThrow();
+test("a capture plan is refused for a map other than the overworld", () => {
+  const interior = { ...plan([[0, 0]]), mapSpaceId: "cellar-cave-coalway-woods" } as unknown as CapturePlan;
+  expect(() => validateCapturePlan(interior)).toThrow();
 });
 
-test("an interior capture plan rejects a missing grid cell", () => {
-  expect(() => validateCapturePlan(plan([[0, 0], [0, 10], [10, 0]])))
-    .toThrow("Interior capture plan must include every tile in its rectangular grid.");
+test("a capture plan tile keeps the world and pixel aspect ratios equal", () => {
+  const skewed = plan([[0, 0]]);
+  skewed.tiles[0]!.frame.worldSize = { x: 10, z: 20 };
+  expect(() => validateCapturePlan(skewed)).toThrow("world and pixel aspect ratios do not match");
 });

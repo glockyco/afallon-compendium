@@ -97,28 +97,6 @@ export function validateCapturePlan(plan: CapturePlan): void {
     }
   }
 
-  if (plan.mapSpaceId === "world-surface") return;
-  const first = plan.tiles[0]!.frame;
-  for (const tile of plan.tiles) {
-    if (!closeEnough(tile.frame.worldSize.x, first.worldSize.x) || !closeEnough(tile.frame.worldSize.z, first.worldSize.z)) {
-      throw new Error(`Tile "${tile.id}" does not use the interior capture grid size.`);
-    }
-  }
-  const columns = [...new Set(plan.tiles.map(tile => tile.frame.center.x))].sort((left, right) => left - right);
-  const rows = [...new Set(plan.tiles.map(tile => tile.frame.center.z))].sort((left, right) => left - right);
-  for (let index = 1; index < columns.length; index++) {
-    if (!closeEnough(columns[index]! - columns[index - 1]!, first.worldSize.x)) {
-      throw new Error("Interior capture plan has a missing tile column.");
-    }
-  }
-  for (let index = 1; index < rows.length; index++) {
-    if (!closeEnough(rows[index]! - rows[index - 1]!, first.worldSize.z)) {
-      throw new Error("Interior capture plan has a missing tile row.");
-    }
-  }
-  if (columns.length * rows.length !== plan.tiles.length) {
-    throw new Error("Interior capture plan must include every tile in its rectangular grid.");
-  }
 }
 
 function assertFrameMatches(actual: CapturedTile | null, expected: CapturePlan["tiles"][number]["frame"], tileId: string): void {

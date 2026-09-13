@@ -29,7 +29,8 @@ export const CaptureReadinessProfileSchema = Type.Object({
 });
 export const CapturePlanSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-plan.v9"),
-  sceneNativeId: count, scenePath: text, mapSpaceId: text,
+  // Screenshot capture covers the overworld only; interiors publish the game's own maps.
+  sceneNativeId: count, scenePath: text, mapSpaceId: Type.Literal("world-surface"),
   survey: Type.Optional(CaptureSurveySchema),
   // The box whose centre the player stands nearest to. Declared by the planner so that the
   // standing point, and with it every tile's compatibility key, survives a change of tile set.
