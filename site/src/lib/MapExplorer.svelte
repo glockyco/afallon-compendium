@@ -1,5 +1,6 @@
 <script lang="ts">
   import { pushState, replaceState } from '$app/navigation';
+  import { dev } from '$app/environment';
   import { base } from '$app/paths';
   import { onMount, tick } from 'svelte';
   import type { MapAdapter, MapAdapterUpdate, MapViewState } from './map-adapter';
@@ -138,6 +139,8 @@
   $: viewportPlacements = matchingPlacements.filter((placement) => inViewport(placement, viewportBounds));
   $: selectedPlacement = publication?.placements.find((placement) => placement.placementId === selectedId) ?? null;
   $: hoveredPlacement = publication?.placements.find((placement) => placement.placementId === hoveredId) ?? null;
+  // The map preview names the hovered placement, and falls back to the selection.
+  $: previewPlacement = hoveredPlacement ?? selectedPlacement;
   $: selectedEntities = selectedPlacement ? selectedPlacement.entityKeys.map((key) => entityByKey.get(key)).filter((entity): entity is PublicEntity => Boolean(entity)) : [];
   $: selectedPlacementDetails = selectedPlacement ? [
     ...selectedEntities.flatMap((entity) => entity.sections),
@@ -703,7 +706,7 @@
   {:else if loadError && !publication}
     <main class="state-card error" role="alert"><h1>Atlas unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p></main>
   {:else if publication}
-    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
+    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || staleSelection)} class:sidebar-collapsed={panelCollapsed} class:no-details={!dev}>
       <aside class:collapsed={panelCollapsed} class="control-panel" aria-label="Atlas controls">
         <div class="panel-header">
           {#if !panelCollapsed}<a class="home-link" href="{base}/"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h5v-6h4v6h5V10" /></svg><span>Home</span></a>{/if}
@@ -769,7 +772,7 @@
       </aside>
 
       <section class="map-column" aria-label="Interactive map">
-        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(12, view.zoom + 0.5) })}>+</button><button type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(-12, view.zoom - 0.5) })}>−</button><button type="button" on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button></div>{#if hoveredPlacement && hoveredId !== selectedId}<div class="hover-preview"><strong>{hoveredPlacement.label}</strong><span>{hoveredPlacement.categories.map((category) => markerFor(category).label).join(' · ')} {levelRangeLabel(hoveredPlacement.levelRange)}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div></div>
+        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(12, view.zoom + 0.5) })}>+</button><button type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(-12, view.zoom - 0.5) })}>−</button><button type="button" on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button></div>{#if previewPlacement}<div class="hover-preview"><strong>{previewPlacement.label}</strong><span>{previewPlacement.categories.map((category) => markerFor(category).label).join(' · ')}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div></div>
         {#if loadError && publication}<div class="inline-error" role="alert">{loadError}</div>{/if}
         <section class="results" aria-labelledby="results-heading" bind:this={resultList}>
           <div class="results-header">
@@ -800,6 +803,7 @@
         </section>
       </section>
 
+      {#if dev}
       <aside class="details-panel" bind:this={detailsPanel} aria-label="Selected details">
         {#if selectedPlacement || selectedEntityKey || itemKey || staleSelection}
           <div class="details-header">
@@ -862,6 +866,7 @@
           <div class="details-empty"><span class="eyebrow">Location details</span><p>Select a marker or a result to inspect it.</p></div>
         {/if}
       </aside>
+      {/if}
     </main>
   {/if}
 </div>
@@ -874,6 +879,8 @@
   .atlas-shell { min-height: 100vh; background: #171818; }
   .workspace { display: grid; grid-template-columns: 280px minmax(360px, 1fr) minmax(300px, 380px); height: 100dvh; min-height: 0; }
   .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr) minmax(300px, 380px); }
+  .workspace.no-details { grid-template-columns: 280px minmax(360px, 1fr); }
+  .workspace.no-details.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr); }
   .control-panel, .details-panel { background: #202120; overflow: auto; }
   .control-panel { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border-right: 1px solid #393a38; }
   .panel-body, .panel-rail { min-height: 0; flex: 1; overflow: auto; }
@@ -971,11 +978,14 @@
   @media (max-width: 1050px) {
     .workspace { grid-template-columns: 220px minmax(0, 1fr) minmax(280px, 340px); }
     .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr) minmax(280px, 340px); }
+    .workspace.no-details { grid-template-columns: 220px minmax(0, 1fr); }
+    .workspace.no-details.sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr); }
     .map-column { grid-template-rows: minmax(0, 3fr) minmax(0, 1fr); }
   }
   @media (max-width: 680px) {
     .atlas-shell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; }
     .workspace, .workspace.sidebar-collapsed { position: relative; display: grid; grid-template-columns: minmax(280px, 1fr) 280px; height: auto; flex: 1; min-height: 0; overflow-x: auto; }
+    .workspace.no-details, .workspace.no-details.sidebar-collapsed { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
     .map-column { height: 100%; min-height: 0; grid-template-rows: minmax(280px, 1fr) minmax(180px, 30vh); }
     .control-panel { position: absolute; z-index: 6; top: 0; bottom: 0; left: 0; width: min(88vw, 300px); border-right: 1px solid #393a38; box-shadow: 5px 0 20px #0008; }
     .control-panel.collapsed { width: 56px; }

@@ -117,8 +117,8 @@ export const markerRegistry = {
   neutral: {
     id: "neutral",
     section: "creatures",
-    label: "Neutral Creature",
-    pluralLabel: "Neutral Creatures",
+    label: "Neutral",
+    pluralLabel: "Neutrals",
     icon: PawPrint,
     color: [245, 158, 11],
     iconSize: { base: 21, min: 16, max: 44 },

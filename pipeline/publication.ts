@@ -157,7 +157,7 @@ function label(value: string): string {
 const categoryLabels: Readonly<Record<PublicMarkerCategory, string>> = {
   boss: "Boss",
   enemy: "Enemy",
-  neutral: "Neutral creature",
+  neutral: "Neutral",
   merchant: "Merchant",
   questGiver: "Quest giver",
   townsfolk: "Townsfolk",
