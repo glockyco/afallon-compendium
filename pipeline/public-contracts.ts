@@ -23,12 +23,12 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
   "town",
   "fort",
   "camp",
+  "property",
   "dungeonEntrance",
-  "travelPoint",
-  "graveyard",
   "corruptionAltar",
   "challengeStone",
-  "property",
+  "graveyard",
+  "travelPoint",
 ] as const;
 export type PublicMarkerCategory = typeof PUBLIC_MARKER_CATEGORY_VALUES[number];
 const publicMarkerCategory = Type.Union([

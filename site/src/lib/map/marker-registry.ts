@@ -37,12 +37,12 @@ export const MARKER_IDS = [
   "town",
   "fort",
   "camp",
+  "property",
   "dungeonEntrance",
-  "travelPoint",
-  "graveyard",
   "corruptionAltar",
   "challengeStone",
-  "property",
+  "graveyard",
+  "travelPoint",
 ] as const satisfies readonly MarkerId[];
 export type MarkerRow = Pick<PublicPlacement, "categories">;
 export type RGB = readonly [number, number, number];
