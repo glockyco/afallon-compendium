@@ -236,12 +236,17 @@ The URL SHALL preserve the map, the selected place, the basemap choice, and rele
 
 ### Requirement: Accessible responsive browsing
 
-The atlas SHALL support keyboard navigation and narrow screens. Search and a synchronized result list SHALL provide access to marker details without pointer-only map interaction. Selection panels SHALL have predictable focus behavior and a visible close action. Marker meaning SHALL NOT depend on color alone.
+The atlas SHALL support keyboard navigation and narrow screens. Search and a synchronized result list SHALL provide access to marker details without pointer-only map interaction. Selection panels SHALL have predictable focus behavior and a visible close action. Marker meaning SHALL NOT depend on color alone. Map geometry SHALL remain visually stable in current Chromium and Firefox-based browsers while hovering and selecting results.
 
 #### Scenario: A keyboard reader selects a search result
 - **WHEN** the reader opens the result details and then closes them
 - **THEN** the details are operable without a pointer
 - **AND** focus returns to a useful originating control
+
+#### Scenario: A Firefox reader previews a result
+- **WHEN** hovering the result updates highlight and travel-connection layers
+- **THEN** the map retains the same basemap and vector geometry
+- **AND** no picking color, stray line, or malformed primitive reaches the visible canvas
 
 ### Requirement: Evidence limits stay outside the interface
 

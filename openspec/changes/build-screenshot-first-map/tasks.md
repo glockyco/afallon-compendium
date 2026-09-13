@@ -99,3 +99,4 @@ Full-world collection starts only after the representative end-to-end milestone 
 - [x] 8.4 Replace the atlas sidebar's generic Home label with a compact Afallon Compendium brand link, and verify the expanded and collapsed layouts in the live interface.
 - [x] 8.5 Keep the map canvas behind its loading surface until Deck has rendered at the displayed dimensions, and verify that first paint never exposes the browser's default stretched canvas.
 - [x] 8.6 Resolve merged marker glyphs from enabled categories so disabling dungeon entrances cannot leave their glyph visible through the travel-point category, and keep a regression test.
+- [ ] 8.7 Pin the map renderer to the sibling-proven deck.gl `9.3.7` and Luma `9.3.3` stack after the user observed corrupted geometry in Zen Browser on Windows 10. Verify dependency coherence, build output, and Chromium hover behavior; retain Firefox-family verification as the affected-machine acceptance check.
