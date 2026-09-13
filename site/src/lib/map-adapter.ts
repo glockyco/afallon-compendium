@@ -15,6 +15,7 @@ import {
   BitmapLayer,
   IconLayer,
   LineLayer,
+  PathLayer,
   PolygonLayer,
   ScatterplotLayer,
   TextLayer,
@@ -44,6 +45,7 @@ export type MapAdapterUpdate = {
   worldOffsets: WorldOffsetOverrides;
   authoring: boolean;
   showConnections: boolean;
+  showMovement: boolean;
   showZones: boolean;
 };
 
@@ -99,6 +101,26 @@ type TravelConnection = {
   source: Point;
   target: Point;
   enabled: boolean;
+};
+
+type MovementPath = {
+  movementId: string;
+  placementId: string;
+  kind: "patrol" | "poi";
+  points: Point[];
+};
+
+type MovementRadius = {
+  movementId: string;
+  placementId: string;
+  kind: "roaming" | "poi";
+  center: Point;
+  radius: number;
+};
+
+type MovementGeometry = {
+  paths: MovementPath[];
+  radii: MovementRadius[];
 };
 
 type AdapterCallbacks = {
@@ -328,6 +350,57 @@ function buildAreas(placements: readonly PublicPlacement[], data: PublicationDat
   return areas;
 }
 
+function buildMovementGeometry(placements: readonly PublicPlacement[], data: PublicationData, overrides: WorldOffsetOverrides): MovementGeometry {
+  const paths: MovementPath[] = [];
+  const radii: MovementRadius[] = [];
+  const seen = new Set<string>();
+  for (const placement of placements) {
+    const delta = mapOffsetDelta(data, placement.mapSpaceId, overrides);
+    const placementCenter = point(placement.position);
+    for (let movementIndex = 0; movementIndex < placement.movement.length; movementIndex++) {
+      const movement = placement.movement[movementIndex]!;
+      if (movement.kind === "roaming") {
+        if (movement.usePois && movement.poiPath?.status === "resolved" && movement.poiPath.points) {
+          const poiPoints = movement.poiPath.points.map(point).filter((value): value is Point => value !== null).map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point);
+          const pathKey = `poi:${poiPoints.map((value) => value.join(",")).join(";")}`;
+          if (poiPoints.length > 1 && !seen.has(`${placement.placementId}:${pathKey}`)) {
+            seen.add(`${placement.placementId}:${pathKey}`);
+            paths.push({ movementId: `${placement.placementId}:${movementIndex}:poi`, placementId: placement.placementId, kind: "poi", points: poiPoints });
+          }
+          if (typeof movement.poiRoamRadius === "number" && movement.poiRoamRadius > 0) {
+            for (let pointIndex = 0; pointIndex < poiPoints.length; pointIndex++) {
+              const center = poiPoints[pointIndex]!;
+              const radiusKey = `poi:${center.join(",")}:${movement.poiRoamRadius}`;
+              if (seen.has(`${placement.placementId}:${radiusKey}`)) continue;
+              seen.add(`${placement.placementId}:${radiusKey}`);
+              radii.push({ movementId: `${placement.placementId}:${movementIndex}:poi:${pointIndex}`, placementId: placement.placementId, kind: "poi", center, radius: movement.poiRoamRadius });
+            }
+          }
+        } else if (!movement.usePois && placementCenter && movement.distance > 0) {
+          const center: Point = [placementCenter[0] + delta.worldX, placementCenter[1] + delta.worldY];
+          const radiusKey = `roaming:${center.join(",")}:${movement.distance}`;
+          if (seen.has(`${placement.placementId}:${radiusKey}`)) continue;
+          seen.add(`${placement.placementId}:${radiusKey}`);
+          radii.push({ movementId: `${placement.placementId}:${movementIndex}:roaming`, placementId: placement.placementId, kind: "roaming", center, radius: movement.distance });
+        }
+        continue;
+      }
+      for (let pathIndex = 0; pathIndex < movement.paths.length; pathIndex++) {
+        const path = movement.paths[pathIndex]!;
+        if (path.status !== "resolved" || !path.points) continue;
+        const pathPoints = path.points.map(point).filter((value): value is Point => value !== null).map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point);
+        if (pathPoints.length < 2) continue;
+        if (path.looping && (pathPoints[0]![0] !== pathPoints.at(-1)![0] || pathPoints[0]![1] !== pathPoints.at(-1)![1])) pathPoints.push(pathPoints[0]!);
+        const pathKey = `patrol:${pathPoints.map((value) => value.join(",")).join(";")}`;
+        if (seen.has(`${placement.placementId}:${pathKey}`)) continue;
+        seen.add(`${placement.placementId}:${pathKey}`);
+        paths.push({ movementId: `${placement.placementId}:${movementIndex}:patrol:${pathIndex}`, placementId: placement.placementId, kind: "patrol", points: pathPoints });
+      }
+    }
+  }
+  return { paths, radii };
+}
+
 // Markers render individually at every zoom. Only placements that share a position
 // exactly are grouped, because otherwise they would draw on top of each other and the
 // hidden ones could never be picked.
@@ -422,6 +495,7 @@ export async function createMapAdapter(
   let basePlacementKey = "";
   let baseMarkers: MarkerRecord[] = [];
   let baseAreas: AreaRecord[] = [];
+  let baseMovement: MovementGeometry = { paths: [], radii: [] };
   let baseRegions: RegionRecord[] = [];
   let baseRegionKey = "";
   let renderMarkers: readonly MarkerRecord[] = [];
@@ -434,6 +508,48 @@ export async function createMapAdapter(
 
   const report = (message: string): void => {
     if (!destroyed) callbacks.onError(message);
+  };
+
+  const createMovementLayers = (idPrefix: string, geometry: MovementGeometry, selectedIds: ReadonlySet<string>, hoveredIds: ReadonlySet<string>, pickable: boolean): Layer[] => {
+    const pathLayer = geometry.paths.length > 0 ? new PathLayer<MovementPath>({
+      id: `${idPrefix}-paths`,
+      data: geometry.paths,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable,
+      autoHighlight: pickable,
+      highlightColor: [255, 255, 255, 255],
+      getPath: movement => movement.points,
+      getColor: movement => selectedIds.has(movement.placementId) ? [250, 204, 21, 255] : hoveredIds.has(movement.placementId) ? [255, 255, 255, 255] : movement.kind === "patrol" ? [190, 120, 255, 225] : [70, 210, 190, 225],
+      getWidth: movement => selectedIds.has(movement.placementId) ? 5 : hoveredIds.has(movement.placementId) ? 4 : 3,
+      widthUnits: "pixels",
+      widthMinPixels: 2,
+      jointRounded: true,
+      capRounded: true,
+      onClick: pickable ? (info: PickingInfo) => { const id = pickedPlacementId(info); if (id) callbacks.onSelect(id); } : undefined,
+    }) : null;
+    const radiusLayer = geometry.radii.length > 0 ? new ScatterplotLayer<MovementRadius>({
+      id: `${idPrefix}-radii`,
+      data: geometry.radii,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      pickable,
+      autoHighlight: pickable,
+      highlightColor: [255, 255, 255, 70],
+      getPosition: movement => movement.center,
+      getRadius: movement => movement.radius,
+      radiusUnits: "common",
+      radiusMinPixels: 3,
+      stroked: true,
+      filled: true,
+      getFillColor: movement => selectedIds.has(movement.placementId) ? [250, 204, 21, 72] : hoveredIds.has(movement.placementId) ? [255, 255, 255, 62] : [70, 210, 190, 40],
+      getLineColor: movement => selectedIds.has(movement.placementId) ? [250, 204, 21, 255] : hoveredIds.has(movement.placementId) ? [255, 255, 255, 255] : [70, 210, 190, 220],
+      getLineWidth: movement => selectedIds.has(movement.placementId) ? 4 : hoveredIds.has(movement.placementId) ? 3 : 2,
+      lineWidthUnits: "pixels",
+      onClick: pickable ? (info: PickingInfo) => { const id = pickedPlacementId(info); if (id) callbacks.onSelect(id); } : undefined,
+    }) : null;
+    const movementLayers: Layer[] = [];
+    if (radiusLayer) movementLayers.push(radiusLayer);
+    if (pathLayer) movementLayers.push(pathLayer);
+    return movementLayers;
   };
 
   const tileIndexes = new WeakMap<PublicTileLayer, Map<string, PublicTile>>();
@@ -586,6 +702,7 @@ export async function createMapAdapter(
       offsetGeometryKey = offsetKey;
       baseMarkers = buildMarkers(visiblePlacements, next.data, next.worldOffsets, activeCategories);
       baseAreas = buildAreas(visiblePlacements, next.data, next.worldOffsets, activeCategories);
+      baseMovement = buildMovementGeometry(visiblePlacements, next.data, next.worldOffsets);
     }
     if (nextRegionKey !== baseRegionKey || offsetChanged) {
       baseRegionKey = nextRegionKey;
@@ -594,7 +711,7 @@ export async function createMapAdapter(
     const highlightedKey = [...next.highlightedPlacementIds].sort().join(",");
     const hoveredKey = [...next.hoveredPlacementIds].sort().join(",");
     const hoveredIds = new Set(next.hoveredPlacementIds);
-    const nextGeometryKey = [next.data.buildId, [...next.layerIds].sort().join(","), layerKind, nextPlacementKey, nextRegionKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections", next.showZones ? "zones" : "no-zones"].join("\u001e");
+    const nextGeometryKey = [next.data.buildId, [...next.layerIds].sort().join(","), layerKind, nextPlacementKey, nextRegionKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections", next.showMovement ? "movement" : "no-movement", next.showZones ? "zones" : "no-zones"].join("\u001e");
     if (nextGeometryKey === geometryKey) return;
     geometryKey = nextGeometryKey;
 
@@ -714,6 +831,23 @@ export async function createMapAdapter(
         fontWeight: 600,
       }),
     ] : [];
+    const expandMarkerMembers = (placementIds: readonly string[]): Set<string> => {
+      const expanded = new Set(placementIds);
+      for (const marker of renderMarkers) {
+        if (marker.members.some((id) => expanded.has(id))) marker.members.forEach((id) => expanded.add(id));
+      }
+      return expanded;
+    };
+    const selectedMovementIds = expandMarkerMembers(next.selectedId ? [next.selectedId] : []);
+    const emphasizedMovementIds = expandMarkerMembers([...next.hoveredPlacementIds, ...next.highlightedPlacementIds]);
+    const focusedMovementIds = new Set([...selectedMovementIds, ...emphasizedMovementIds]);
+    const visibleMovement = next.showMovement
+      ? baseMovement
+      : {
+          paths: baseMovement.paths.filter((movement) => focusedMovementIds.has(movement.placementId)),
+          radii: baseMovement.radii.filter((movement) => focusedMovementIds.has(movement.placementId)),
+        };
+    const movementLayers = createMovementLayers("world-movement", visibleMovement, selectedMovementIds, emphasizedMovementIds, true);
     const areaLayer = new PolygonLayer<AreaRecord>({
       id: "map-placement-areas",
       data: baseAreas,
@@ -819,7 +953,7 @@ export async function createMapAdapter(
     const hoverHighlightLayers = createHighlightLayers("hover-highlight", hoverSelection, [250, 204, 21, 255], [250, 204, 21, 40], 2);
     const groupHighlightLayers = createHighlightLayers("selection-group-highlight", selectedGroup, [255, 255, 255, 255], [255, 255, 255, 40], 2);
     const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6);
-    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, ...regionLayers, connectionLines, connectionDestinations, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
+    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, ...regionLayers, connectionLines, connectionDestinations, ...movementLayers, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
 
     // Hiding every layer is a reader choice; only a layer that cannot be drawn is a failure.
     const requestedImagery = next.layerIds.length > 0;
@@ -886,6 +1020,14 @@ export async function createMapAdapter(
         new LineLayer<TravelConnection>({ id: "pointer-hover-connections", data: hoveredConnections, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: false, getSourcePosition: (connection) => connection.source, getTargetPosition: (connection) => connection.target, getColor: (connection) => connection.enabled ? [100, 230, 255, 255] : [120, 120, 120, 180], getWidth: 4, widthUnits: "pixels" }),
         new ScatterplotLayer<TravelConnection>({ id: "pointer-hover-destinations", data: hoveredConnections, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: false, radiusUnits: "pixels", getPosition: (connection) => connection.target, getRadius: 5, getFillColor: (connection) => connection.enabled ? [100, 210, 255, 220] : [120, 120, 120, 190], getLineColor: [20, 40, 50, 230], stroked: true, lineWidthMinPixels: 1 }),
       );
+    }
+    if (marker && current) {
+      const memberIds = new Set(marker.members);
+      const hoveredMovement = {
+        paths: baseMovement.paths.filter((movement) => memberIds.has(movement.placementId)),
+        radii: baseMovement.radii.filter((movement) => memberIds.has(movement.placementId)),
+      };
+      pointerHoverLayers.push(...createMovementLayers("pointer-hover-movement", hoveredMovement, new Set(), memberIds, false));
     }
     deck.setProps({layers: [...layers, ...pointerHoverLayers]});
     callbacks.onHover(placementId);

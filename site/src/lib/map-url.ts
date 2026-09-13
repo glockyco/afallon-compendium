@@ -10,6 +10,7 @@ export interface MapUrlState {
   categories: string[];
   showZones: boolean;
   showConnections: boolean;
+  showMovement: boolean;
   itemKey: string | null;
   entityKey: string | null;
   view: MapViewState | null;
@@ -39,6 +40,7 @@ export function readMapUrl(search: string): MapUrlState {
   const layerIds = [...params.getAll('layers'), ...params.getAll('layer')].flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean);
   const showZones = params.get('zones') === '1';
   const showConnections = params.get('connections') === '1';
+  const showMovement = params.get('movement') === '1';
   return {
     layerIds: [...new Set(layerIds)],
     selectedId: params.get('selected'),
@@ -48,6 +50,7 @@ export function readMapUrl(search: string): MapUrlState {
     categories: [...new Set(categories)],
     showZones,
     showConnections,
+    showMovement,
     itemKey: params.get('item'),
     entityKey: params.get('entity'),
     view
@@ -64,6 +67,7 @@ export function writeMapUrl(url: URL, state: MapUrlState): URL {
     ['detail-q', state.detailQuery.trim() || null],
     ['zones', state.showZones ? '1' : null],
     ['connections', state.showConnections ? '1' : null],
+    ['movement', state.showMovement ? '1' : null],
     ['item', state.itemKey],
     ['entity', state.entityKey]
   ]);

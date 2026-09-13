@@ -11,7 +11,7 @@ test("map filters survive URL serialization and parsing", () => {
     detailQuery: "",
     categories: ["dungeon", "region"],
     showZones: false,
-    showConnections: false,
+    showConnections: false, showMovement: false,
     itemKey: null,
     entityKey: null,
     view: null,
@@ -21,14 +21,15 @@ test("map filters survive URL serialization and parsing", () => {
   expect(readMapUrl(url.search)).toMatchObject({ categories: ["dungeon", "region"] });
 });
 
-test("zones default off and survive a shared URL", () => {
-  expect(readMapUrl("?q=map").showZones).toBe(false);
+test("map options default off and survive a shared URL", () => {
+  expect(readMapUrl("?q=map")).toMatchObject({ showZones: false, showMovement: false });
   const url = writeMapUrl(new URL("https://example.test/atlas"), {
     layerIds: [], selectedId: null, query: "", itemSourceQuery: "", detailQuery: "", categories: [],
-    showZones: true, showConnections: false, itemKey: null, entityKey: null, view: null,
+    showZones: true, showConnections: false, showMovement: true, itemKey: null, entityKey: null, view: null,
   });
   expect(url.searchParams.get("zones")).toBe("1");
-  expect(readMapUrl(url.search).showZones).toBe(true);
+  expect(url.searchParams.get("movement")).toBe("1");
+  expect(readMapUrl(url.search)).toMatchObject({ showZones: true, showMovement: true });
 });
 
 test("several visible layers survive a round trip and a legacy single layer still reads", () => {
@@ -40,7 +41,7 @@ test("several visible layers survive a round trip and a legacy single layer stil
     detailQuery: "",
     categories: [],
     showZones: false,
-    showConnections: false,
+    showConnections: false, showMovement: false,
     itemKey: null,
     entityKey: null,
     view: null,
