@@ -91,6 +91,7 @@
   let showConnections = false;
   let showZones = false;
   let panelCollapsed = false;
+  let resultsCollapsed = false;
   let worldOffsetOverrides: WorldOffsetOverrides = {};
   let viewTimer: ReturnType<typeof setTimeout> | null = null;
   let queryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -162,8 +163,9 @@
     worldOffsetOverrides = loadWorldOffsetOverrides();
     try {
       panelCollapsed = localStorage.getItem('afallon-atlas-sidebar') === 'collapsed';
+      resultsCollapsed = localStorage.getItem('afallon-atlas-results') === 'collapsed';
     } catch {
-      // The expanded sidebar is a safe default when browser storage is unavailable.
+      // Expanded panels are a safe default when browser storage is unavailable.
     }
     const metadataRequest = new AbortController();
     const onPopState = () => applyUrlState(readMapUrl(window.location.search));
@@ -644,6 +646,19 @@
     }
   }
 
+  function setResultsCollapsed(collapsed: boolean): void {
+    resultsCollapsed = collapsed;
+    try {
+      localStorage.setItem('afallon-atlas-results', collapsed ? 'collapsed' : 'expanded');
+    } catch {
+      // The results panel remains usable when browser storage is unavailable.
+    }
+  }
+
+  function toggleResults(): void {
+    setResultsCollapsed(!resultsCollapsed);
+  }
+
   function toggleAllCategories(ids: readonly MarkerId[]): void {
     const allSelected = ids.length > 0 && ids.every((id) => categories.includes(id));
     const next = allSelected
@@ -668,8 +683,12 @@
     syncUrl('push', { categories: next });
   }
 
-  function submitSearch(): void {
+  async function submitSearch(): Promise<void> {
     syncUrl('push');
+    if (resultsCollapsed) {
+      setResultsCollapsed(false);
+      await tick();
+    }
     const first = resultList?.querySelector<HTMLButtonElement>('button[data-result]');
     first?.focus();
   }
@@ -772,14 +791,18 @@
         {/if}
       </aside>
 
-      <section class="map-column" aria-label="Interactive map">
+      <section class:results-collapsed={resultsCollapsed} class="map-column" aria-label="Interactive map">
         <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(12, view.zoom + 0.5) })}>+</button><button type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(-12, view.zoom - 0.5) })}>−</button><button type="button" on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button></div>{#if previewPlacement}<div class="hover-preview"><strong>{previewPlacement.label}</strong><span>{previewPlacement.categories.map((category) => markerFor(category).label).join(' · ')}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div></div>
         {#if loadError && publication}<div class="inline-error" role="alert">{loadError}</div>{/if}
-        <section class="results" aria-labelledby="results-heading" bind:this={resultList}>
+        <section class:collapsed={resultsCollapsed} class="results" aria-labelledby="results-heading" bind:this={resultList}>
           <div class="results-header">
             <div><h2 id="results-heading">Results</h2><p>{resultPlacements.length} distinct placements{#if viewportBounds}{' in the current viewport'}{/if}{#if matchingItems.length > 0}{' · '}{matchingItems.length} items{/if}{#if matchingEntities.length > 0}{' · '}{matchingEntities.length} entity definitions{/if}</p>{#if rankedResults.length > RESULT_LIMIT}<p class="result-limit">Showing the first {displayedResults.length} of {rankedResults.length} results.</p>{/if}</div>
-            {#if itemContext}<button class="quiet-button" type="button" on:click={() => { itemKey = null; syncUrl('push'); }}>Exit item context</button>{/if}
+            <div class="results-actions">
+              {#if itemContext}<button class="quiet-button" type="button" on:click={() => { itemKey = null; syncUrl('push'); }}>Exit item context</button>{/if}
+              <button class="quiet-button" type="button" aria-controls="results-content" aria-expanded={!resultsCollapsed} on:click={toggleResults}>{resultsCollapsed ? 'Show results' : 'Hide results'}</button>
+            </div>
           </div>
+          <div id="results-content" hidden={resultsCollapsed}>
           {#if resultPlacements.length === 0 && matchingItems.length === 0 && matchingEntities.length === 0}
             <p class="empty">No published places, entities, or items match this search.</p>
           {:else}
@@ -801,6 +824,7 @@
               {/each}
             </ol>
           {/if}
+          </div>
         </section>
       </section>
 
@@ -924,6 +948,7 @@
   .text-button { font-size: .75rem; }
   .notice, .stale-warning { padding: .55rem; border-left: 2px solid #b98751; background: #2b2721; color: #e2c399; font-size: .73rem; line-height: 1.45; }
   .map-column { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(260px, 1fr) minmax(180px, 30vh); background: #121313; }
+  .map-column.results-collapsed { grid-template-rows: minmax(260px, 1fr) auto; }
   .map-frame { position: relative; min-height: 0; overflow: hidden; border-bottom: 1px solid #393a38; background: #151716; }
   canvas { display: block; width: 100%; height: 100%; }
   .map-controls { position: absolute; right: .75rem; top: .75rem; display: flex; gap: .3rem; }
@@ -935,7 +960,11 @@
   .hover-preview span { margin-top: .15rem; color: #b9b5a9; }
   .inline-error { position: absolute; z-index: 2; left: .8rem; right: .8rem; top: 3.5rem; padding: .55rem; border: 1px solid #864c45; background: #2b1f1f; color: #e5afa6; font-size: .75rem; }
   .results { padding: .8rem; overflow: auto; min-height: 0; }
+  .results.collapsed { overflow: hidden; padding-block: .55rem; }
+  .results.collapsed .results-header { align-items: center; }
+  .results.collapsed .results-header p { display: none; }
   .results-header, .details-header, .source-title { display: flex; align-items: flex-start; justify-content: space-between; gap: .7rem; }
+  .results-actions { display: flex; flex: 0 0 auto; gap: .45rem; }
   .results-header h2, .details-header h2 { margin: 0; color: #eee9dd; font-size: .95rem; letter-spacing: .02em; text-transform: none; }
   .results-header p { margin: .25rem 0 0; color: #8e8e87; font-size: .72rem; }
   .results-header .result-limit { color: #d6bd84; }
