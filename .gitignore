@@ -6,6 +6,8 @@
 /node_modules/
 /site/node_modules/
 /site/.svelte-kit/
+/site/.stage/
+/site/.wrangler/
 /site/build/
 /site/static/data
 /.venv/

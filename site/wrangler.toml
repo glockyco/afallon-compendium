@@ -1,0 +1,16 @@
+name = "afallon-compendium-site"
+compatibility_date = "2026-09-13"
+
+workers_dev = false
+
+[build]
+command = "bun run assert:deployment"
+
+[[routes]]
+pattern = "afallon.compendiums.org"
+custom_domain = true
+
+# This site has no request-time code. Cloudflare serves the generated files directly.
+[assets]
+directory = ".stage/production/output"
+not_found_handling = "404-page"

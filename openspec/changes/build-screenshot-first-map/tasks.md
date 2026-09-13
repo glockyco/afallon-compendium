@@ -15,7 +15,7 @@
 
 - [x] 2.6 Integrate NPC-producer and world-source probes into the normal extraction command. Verify schemas, source counts, canonical references, and per-observation scene/character context. A required probe failure must preserve the previous successful snapshot.
 - [x] 2.7 Enforce single-owner runtime access for extraction, traversal, and capture. Verify a competing operation cannot displace the owner or receive its artifacts. Cancellation and disconnection must confirm cleanup before affected state is reused.
-- [x] 2.8 Record the user-directed asset-use decision. The user reports that the developer welcomes a wiki or similar project and instructed us not to pursue a separate permission check. Asset preparation may proceed; public deployment still requires explicit user authorization.
+- [x] 2.8 Record the user-directed asset-use decision. The user reports that the developer welcomes a wiki or similar project and instructed us not to pursue a separate permission check. Asset preparation may proceed; the later production authorization is recorded in task 8.2.
 
 ## 3. World inventory and placement coverage
 
@@ -93,5 +93,5 @@ Full-world collection starts only after the representative end-to-end milestone 
 
 ## 8. Publication handoff
 
-- [ ] 8.1 Select artifact storage from measured byte and file-count limits. Confirm no proprietary source, raw evidence, secrets, or save files enter the source repository or public artifact set.
-- [ ] 8.2 Prepare a versioned deployment and rollback procedure after publication authorization. Verify a local deployment smoke and restoration of the prior artifact set before any public release.
+- [x] 8.1 Select artifact storage from measured byte and file-count limits. Confirm no proprietary source, raw evidence, secrets, or save files enter the source repository or public artifact set.
+- [ ] 8.2 Prepare a versioned deployment and rollback procedure after publication authorization. Production may host a validated preview only while it retains its incomplete disclosure; only a complete artifact may use release mode. Verify a local deployment smoke and restoration of the prior artifact set before any public release.

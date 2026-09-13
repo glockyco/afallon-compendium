@@ -205,7 +205,7 @@ Captured source images, tile pyramids, calibration, and marker projections carry
 
 Publish WebP delivery tiles with `tileSize: 256` and global integer `(x, y)` indices. At zoom `z`, tile `(x, y)` covers world `[x·256/2^z, (x+1)·256/2^z] × [y·256/2^z, (y+1)·256/2^z]`. Set `maxZoom = log2(1024 / captureEdge)`, merge each coarser level from a 2×2 child group, and keep contiguous levels through `minZoom`. Pixel row zero is the top edge. The published extent is the union of the finest tile bounds, and all coordinates use the same map-space system as placements. A reviewed rectangular capture grid emits every cell in that rectangle. Placement density cannot remove an interior cell because that would create missing imagery during zoom transitions. Tile generation emits dimensions, byte totals, and file counts so hosting limits remain visible. Do not commit generated images or raw game data.
 
-The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation can proceed without that checkpoint. Select external artifact storage only after measured size and file counts are available. Deployment still requires explicit user authorization.
+The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation can proceed without that checkpoint. The first production build measures 7,722 files, 99,231,451 bytes in total, and 4,844,373 bytes for its largest file. Use a files-only Cloudflare Workers Static Assets service: these measurements fit the 20,000-file Free limit and 25 MiB per-file limit, and static requests do not invoke or require a Worker. R2, Pages, an assets binding, and request-time code add no value for this artifact.
 
 ### 9. Small previews, persistent details, and source navigation
 
@@ -268,7 +268,7 @@ The representative world surface and zone path covers extraction, repeat-load id
 
 The current pipeline has no floor domains, floor resolution, ceiling selectors, per-floor pyramids, floor scoping, or floor and map URL state. The current build baseline is 25153357; artifacts for 25144591 remain frozen reference data and cannot mix with it.
 
-The mechanism is implemented and measured, but it does not reduce release coverage. Full-world collection, complete UI and performance checks, and publication authorization remain required before release. A validated successful artifact set remains available for rollback.
+The mechanism is implemented and measured, but it does not reduce the complete-release coverage gate. After explicit user authorization, production may host a validated preview that preserves its incomplete disclosure. Only a complete artifact may use release mode. A validated successful artifact set remains available for rollback.
 
 ## Open Questions
 
@@ -276,6 +276,5 @@ The mechanism is implemented and measured, but it does not reduce release covera
 - Mixed world surface and zone scenes remain open. Settle each scene through complete geometry inventory and rendered-image review.
 - The Adventure Guide displays the authored entry rate rounded to one decimal place. It does not compose an effective probability from outer rates, drop limits, or the minimum-drop pass. Evidence: `research/spikes/guide-drop-chance-result.json`.
 - Illustrated-layer registration remains open for layers without four reviewed landmark controls. Keep those layers orientation-only until the controls and residual checks are available.
-- Static asset-host selection remains open. Select a host after complete pyramid byte and file-count measurements are compared with its limits.
 
 These decisions are parameters within the defined capture and publication contracts. They do not remove any required map coverage.

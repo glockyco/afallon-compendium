@@ -5,8 +5,14 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "build:production": "SITE_STAGE=production vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "stage:production": "bun run scripts/stage-publication.ts",
+    "assert:deployment": "bun run scripts/assert-deployment.ts",
+    "verify:deployment": "bun run scripts/verify-deployment.ts",
+    "deploy:production": "bun run scripts/deploy-production.ts",
+    "rollback:production": "wrangler rollback"
   },
   "dependencies": {
     "@deck.gl/core": "9.4.0",
@@ -22,6 +28,7 @@
     "svelte": "5.57.0",
     "svelte-check": "4.4.2",
     "typescript": "5.9.3",
-    "vite": "8.2.2"
+    "vite": "8.2.2",
+    "wrangler": "4.131.1"
   }
 }
