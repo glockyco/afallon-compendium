@@ -174,9 +174,14 @@ Hover SHALL NOT replace selection, and it SHALL NOT open a panel that covers the
 
 ### Requirement: Map interaction preserves the reader's context
 
-The rendering adapter SHALL own the live pan and zoom state. Pointer interaction SHALL update that camera directly and report snapshots for URL persistence. Semantic changes, such as selection, filtering, and hover, SHALL NOT send the reported camera back to the adapter or rebuild imagery during a camera change.
+The rendering adapter SHALL own the live pan and zoom state. Pointer interaction SHALL update that camera directly and report snapshots for URL persistence. Semantic changes, such as selection, filtering, and hover, SHALL NOT send the reported camera back to the adapter or rebuild imagery during a camera change. The interface SHALL reveal the canvas only after the renderer has produced a frame at the canvas's displayed dimensions.
 
 Selecting a marker SHALL update selection only. A separate focus or fit action MAY move the camera. The selected physical placement SHALL have a primary highlight. Other placements that carry the same exact entity identity SHALL have a distinct group highlight. Group membership SHALL NOT use a shared label or category. Hovering or focusing a result SHALL highlight the exact placements that result resolves: one placement for a location, all placements for an entity, and all known source placements for an item. A result hover SHALL render above a group highlight and below the primary selection. Captured imagery and orientation-only illustrations SHALL keep separate camera snapshots, so switching layers does not discard the reader's position in either coordinate space.
+
+#### Scenario: A reader opens the atlas
+- **WHEN** the renderer is still sizing its canvas
+- **THEN** the interface keeps that canvas hidden behind the map loading surface
+- **AND** reveals it only after a correctly sized frame has rendered
 
 #### Scenario: A reader selects a marker
 - **WHEN** the reader selects a visible marker

@@ -105,6 +105,7 @@ type AdapterCallbacks = {
   onSelect: (placementId: string) => void;
   onHover: (placementId: string | null) => void;
   onWorldOffsetChange: (mapSpaceId: string, offset: { worldX: number; worldY: number }) => void;
+  onReady: () => void;
   onError: (message: string) => void;
 };
 
@@ -824,6 +825,16 @@ export async function createMapAdapter(
     }
   };
 
+  let deckLoaded = false;
+  let readyReported = false;
+  const reportReadyWhenSized = (): void => {
+    if (destroyed || readyReported || !deckLoaded || !current) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0 || canvas.width < Math.floor(rect.width) || canvas.height < Math.floor(rect.height)) return;
+    readyReported = true;
+    callbacks.onReady();
+  };
+
   const deck: Deck<OrthographicView> = new Deck<OrthographicView>({
     canvas,
     views: new OrthographicView({
@@ -842,6 +853,11 @@ export async function createMapAdapter(
       if (viewSpaceKey) viewsBySpace.set(viewSpaceKey, activeView);
       notifyView();
     },
+    onLoad: () => {
+      deckLoaded = true;
+      reportReadyWhenSized();
+    },
+    onAfterRender: reportReadyWhenSized,
     onError: error => report(`Map rendering error: ${textFromError(error)}`),
   });
 
