@@ -322,6 +322,8 @@ function placementCategories(placement: NormalizedPlacement): PublicMarkerCatego
   }
   // A friendly character with a service is listed by the service, not also as townsfolk.
   if (categories.has("townsfolk") && (categories.has("merchant") || categories.has("questGiver"))) categories.delete("townsfolk");
+  // A door is a travel point; its interaction is how a player uses it, not a second category.
+  if (categories.has("travelPoint")) categories.delete("interactiveObject");
   return PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => categories.has(category));
 }
 
