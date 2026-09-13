@@ -116,6 +116,10 @@ export class WorldDragController {
     return true;
   }
 
+  get active(): boolean {
+    return this.mapSpaceId !== null;
+  }
+
   move(coordinate: [number, number]): boolean {
     if (!this.mapSpaceId || !this.start || !this.origin) return false;
     this.onUpdate(this.mapSpaceId, { worldX: this.origin.worldX + coordinate[0] - this.start[0], worldY: this.origin.worldY + coordinate[1] - this.start[1] });

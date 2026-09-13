@@ -44,6 +44,10 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     const map = maps.get(mapSpaceId)!;
     if (point[0] < map.bounds.min.x - 1e-7 || point[0] > map.bounds.max.x + 1e-7 || point[1] < map.bounds.min.y - 1e-7 || point[1] > map.bounds.max.y + 1e-7) throw new Error(`Publication coordinate is outside ${mapSpaceId} bounds.`);
   };
+  const near = (mapSpaceId: string, point: readonly [number, number], margin: number) => {
+    const map = maps.get(mapSpaceId)!;
+    if (point[0] < map.bounds.min.x - margin || point[0] > map.bounds.max.x + margin || point[1] < map.bounds.min.y - margin || point[1] > map.bounds.max.y + margin) throw new Error(`Publication travel destination is far outside ${mapSpaceId} bounds.`);
+  };
   const checkPlacementRefs = (ids: readonly string[]) => {
     for (const id of ids) if (!placements.has(id)) throw new Error(`Publication references absent placement: ${id}`);
   };
@@ -97,10 +101,13 @@ export function validatePublication(value: unknown): asserts value is Publicatio
     scope(placement.mapSpaceId);
     inside(placement.mapSpaceId, placement.position);
     const layers = data.tileLayers.filter(layer => layer.mapSpaceId === placement.mapSpaceId);
+    // Pyramids are map-local; the placement is in the world, so it moves back by the map's offset.
+    const offset = offsets.get(placement.mapSpaceId)!;
+    const local: [number, number] = [placement.position[0] - offset.worldX, placement.position[1] - offset.worldY];
     const hasImagery = layers.some(layer => layer.tiles.some(tile => {
       if (tile.z !== layer.maxZoom || tile.state === "empty") return false;
       const tileSize = layer.tileSize / 2 ** layer.maxZoom;
-      return tile.x === Math.floor(placement.position[0] / tileSize) && tile.y === Math.floor(placement.position[1] / tileSize);
+      return tile.x === Math.floor(local[0] / tileSize) && tile.y === Math.floor(local[1] / tileSize);
     }));
     if (!hasImagery) throw new Error(`Publication placement lacks finest imagery: ${placement.placementId}`);
     for (const key of placement.entityKeys) if (!entities.has(key)) throw new Error(`Publication placement references absent entity: ${key}`);
@@ -111,7 +118,9 @@ export function validatePublication(value: unknown): asserts value is Publicatio
       if (destination.status === "resolved") {
         if (destination.reason !== undefined || destination.mapSpaceId === undefined || destination.position === undefined || destination.placementId !== undefined) throw new Error(`Resolved travel destination is incomplete: ${placement.placementId}`);
         scope(destination.mapSpaceId);
-        inside(destination.mapSpaceId, destination.position);
+        // An arrival point may lie a few units outside the imagery (a door in a wall), so it is
+        // only required to be near its map, not inside it.
+        near(destination.mapSpaceId, destination.position, 256);
       } else if (!destination.reason || destination.mapSpaceId !== undefined || destination.position !== undefined || destination.placementId !== undefined) {
         throw new Error(`Unresolved travel destination has a guessed position: ${placement.placementId}`);
       }

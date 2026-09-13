@@ -730,27 +730,9 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     new Set([...bindingsPerMap].filter(([, count]) => count > 1).map(([mapSpaceId]) => mapSpaceId)),
   );
   const offsetByMap = new Map(layout.offsets.map((offset) => [offset.mapSpaceId, offset]));
-  // Moves a pyramid from its map's local coordinates to the published world by a lattice-aligned offset.
-  const shiftLayer = (layer: PublicTileLayer, offset: { worldX: number; worldY: number }): PublicTileLayer => {
-    const finestPixel = 1 / 2 ** layer.maxZoom;
-    const shiftX = offset.worldX / finestPixel;
-    const shiftY = offset.worldY / finestPixel;
-    if (!Number.isInteger(shiftX) || !Number.isInteger(shiftY)) throw new Error(`World offset for ${layer.mapSpaceId} is not aligned to the finest tile lattice.`);
-    for (const tile of layer.tiles) {
-      const tileWorldSize = layer.tileSize / 2 ** tile.z;
-      if (!Number.isInteger(offset.worldX / tileWorldSize) || !Number.isInteger(offset.worldY / tileWorldSize)) throw new Error(`World offset for ${layer.mapSpaceId} is not aligned to zoom ${tile.z}.`);
-    }
-    return {
-      ...layer,
-      extent: [layer.extent[0] + offset.worldX, layer.extent[1] + offset.worldY, layer.extent[2] + offset.worldX, layer.extent[3] + offset.worldY] as [number, number, number, number],
-      tiles: layer.tiles.map((tile) => ({ ...tile, x: tile.x + Math.round(offset.worldX / (layer.tileSize / 2 ** tile.z)), y: tile.y + Math.round(offset.worldY / (layer.tileSize / 2 ** tile.z)) })),
-    };
-  };
-  tileLayers = localTileLayers.map((layer) => {
-    const offset = offsetByMap.get(layer.mapSpaceId);
-    if (!offset) throw new Error(`World layout has no offset for map space: ${layer.mapSpaceId}`);
-    return shiftLayer(layer, offset);
-  });
+  // Pyramids publish in their map's local coordinates; the atlas translates each one by its
+  // world offset when drawing, so an offset needs no alignment to the tile lattice.
+  tileLayers = localTileLayers;
   const covered = (placement: NormalizedPlacement): boolean => {
     if (!placement.mapPosition || !placement.mapSpaceId) return false;
     return localTileLayers.filter(candidate => candidate.mapSpaceId === placement.mapSpaceId).some(layer => coveredBy(layer, placement));
@@ -913,11 +895,11 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const mapLevelRanges = new Map(map.mapSpaces.map((space) => [space.mapSpaceId, consistentLevelRange(map.placements.filter((placement) => placement.mapSpaceId === space.mapSpaceId).map((placement) => sceneRanges.get(placement.sceneNativeId)))]));
   const publicMaps: PublicationData["maps"] = map.mapSpaces.filter(space => tileLayers.some(layer => layer.mapSpaceId === space.mapSpaceId)).map(space => {
     const points: Array<[number, number]> = [];
-    for (const layer of tileLayers.filter(layer => layer.mapSpaceId === space.mapSpaceId)) points.push([layer.extent[0], layer.extent[1]], [layer.extent[2], layer.extent[3]]);
+    for (const layer of tileLayers.filter(layer => layer.mapSpaceId === space.mapSpaceId)) {
+      const offset = offsetByMap.get(layer.mapSpaceId)!;
+      points.push([layer.extent[0] + offset.worldX, layer.extent[1] + offset.worldY], [layer.extent[2] + offset.worldX, layer.extent[3] + offset.worldY]);
+    }
     for (const placement of placements.filter(placement => placement.mapSpaceId === space.mapSpaceId)) points.push(...placement.areas.flat());
-    // A door's arrival point is a published coordinate on the destination map, whether or not
-    // the map's imagery reaches it.
-    for (const placement of placements) if (placement.travel?.destination.status === "resolved" && placement.travel.destination.mapSpaceId === space.mapSpaceId && placement.travel.destination.position) points.push(placement.travel.destination.position);
     for (const region of regions.filter((candidate) => candidate.mapSpaceId === space.mapSpaceId)) points.push(...region.polygon);
     const range = mapLevelRanges.get(space.mapSpaceId);
     return { mapSpaceId: space.mapSpaceId, label: space.label, ...(range ? { levelRange: range } : {}), bounds: { min: { x: Math.min(...points.map(point => point[0])), y: Math.min(...points.map(point => point[1])) }, max: { x: Math.max(...points.map(point => point[0])), y: Math.max(...points.map(point => point[1])) } } };

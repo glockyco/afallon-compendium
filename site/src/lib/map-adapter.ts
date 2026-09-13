@@ -6,6 +6,7 @@ import {
   type PickingInfo,
 } from "@deck.gl/core";
 import { TileLayer } from "@deck.gl/geo-layers";
+import { Matrix4 } from "@math.gl/core";
 import { createIconAtlas, type IconAtlasResult } from "./map/icon-atlas";
 import { MAP_EVENT_RECOGNIZER_OPTIONS } from "./map/interaction";
 import { MARKER_LAYER_ID, markerFor, resolveMarker, type MarkerId } from "./map/marker-registry";
@@ -446,21 +447,8 @@ export async function createMapAdapter(
   // image shows a black square until the bytes arrive. The bitmap is never closed here:
   // deck.gl's tile cache owns its lifetime, so a tile scrolled back into view is drawn
   // from cache instead of fetched and decoded again.
-  // An authoring drag moves a map's imagery by whole coarsest-level tiles, the same rule
-  // publication applies to persisted offsets. Only a shift by the coarsest tile moves every
-  // level by whole tiles and leaves each 2x2 parent made of the same children, so the
-  // pyramid stays on the global lattice deck.gl indexes: tile (x, y) at zoom z covers
-  // [x * t, y * t, (x + 1) * t, (y + 1) * t] world units with t = tileSize / 2 ** z.
-  const latticeOffset = (tileLayer: PublicTileLayer, delta: { worldX: number; worldY: number }): { tiles: { x: number; y: number }; world: { x: number; y: number } } => {
-    const coarsest = tileLayer.tileSize / 2 ** tileLayer.minZoom;
-    const tiles = { x: Math.round(delta.worldX / coarsest), y: Math.round(delta.worldY / coarsest) };
-    return { tiles, world: { x: tiles.x * coarsest, y: tiles.y * coarsest } };
-  };
-
-  const loadTile = async (tileLayer: PublicTileLayer, offset: { x: number; y: number }, props: TileRequest): Promise<LoadedTile | null> => {
-    // The offset counts coarsest tiles; at zoom z each of those is 2 ** (z - minZoom) tiles.
-    const step = 2 ** (props.index.z - tileLayer.minZoom);
-    const tile = getTile(tileLayer, props.index.z, props.index.x - offset.x * step, props.index.y - offset.y * step);
+  const loadTile = async (tileLayer: PublicTileLayer, props: TileRequest): Promise<LoadedTile | null> => {
+    const tile = getTile(tileLayer, props.index.z, props.index.x, props.index.y);
     if (!tile || tile.state === "empty") return null;
     const response = await fetch(tile.url, props.signal ? {signal: props.signal} : undefined);
     if (!response.ok) throw new Error(`Tile ${tile.z}/${tile.x}/${tile.y} failed to load (${response.status} ${response.statusText})`);
@@ -477,8 +465,11 @@ export async function createMapAdapter(
     if (tileLayersForView.length > 0) {
       // Game maps are the backdrop; captured imagery draws over them.
       const ordered = [...tileLayersForView].sort((left, right) => Number(left.kind === "captured") - Number(right.kind === "captured"));
-      const placed = ordered.map((tileLayer) => ({ tileLayer, offset: latticeOffset(tileLayer, mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets)) }));
-      const key = `tiles:${next.data.buildId}:${placed.map(({ tileLayer, offset }) => `${tileLayer.id}:${offset.tiles.x}:${offset.tiles.y}`).join("|")}`;
+      // A pyramid is published in its map's local coordinates, so it moves by the whole effective
+      // offset, unlike markers and bounds, which publication has already placed and which move by
+      // the delta from that placement.
+      const placed = ordered.map((tileLayer) => { const base = next.data.world.offsets.find((offset) => offset.mapSpaceId === tileLayer.mapSpaceId); const delta = mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets); return { tileLayer, offset: { worldX: (base?.worldX ?? 0) + delta.worldX, worldY: (base?.worldY ?? 0) + delta.worldY } }; });
+      const key = `tiles:${next.data.buildId}:${placed.map(({ tileLayer, offset }) => `${tileLayer.id}:${offset.worldX}:${offset.worldY}`).join("|")}`;
       if (imageryLayers.length === tileLayersForView.length && imageryKey === key) return imageryLayers;
       imageryKey = key;
       imageryLayers = placed.map(({ tileLayer, offset }) => pyramidLayer(`map-imagery-${tileLayer.id}`, tileLayer, offset));
@@ -489,27 +480,32 @@ export async function createMapAdapter(
     return imageryLayers;
   };
 
-  // One deck TileLayer per published pyramid. Captured imagery and game maps share
-  // the lattice, the loader, and the cache; only their draw order differs.
-  const pyramidLayer = (id: string, tileLayer: PublicTileLayer, offset: ReturnType<typeof latticeOffset>): Layer => {
-        const [minX, minY, maxX, maxY] = tileLayer.extent;
+  // One deck TileLayer per published pyramid. Each pyramid keeps its own local lattice and is
+  // translated into the world by a model matrix, so a map can sit at any world offset; tile
+  // selection goes through the matrix inverse. Captured imagery and game maps share the
+  // loader and the cache; only their draw order differs.
+  const pyramidLayer = (id: string, tileLayer: PublicTileLayer, offset: { worldX: number; worldY: number }): Layer => {
         return new TileLayer<LoadedTile | null>({
           id,
           data: null,
           tileSize: tileLayer.tileSize,
           minZoom: tileLayer.minZoom,
           maxZoom: tileLayer.maxZoom,
-          extent: [minX + offset.world.x, minY + offset.world.y, maxX + offset.world.x, maxY + offset.world.y],
-          getTileData: props => loadTile(tileLayer, offset.tiles, props),
+          extent: tileLayer.extent,
+          modelMatrix: new Matrix4().translate([offset.worldX, offset.worldY, 0]),
+          getTileData: props => loadTile(tileLayer, props),
           renderSubLayers: props => {
             if (!props.data) return null;
             const [[west, south], [east, north]] = props.tile.boundingBox as [[number, number], [number, number]];
+            // The tile's bounding box is in the pyramid's local space; the sublayer carries the
+            // same model matrix as its parent to land in the world.
             return new BitmapLayer({
               id: `${props.id}-bitmap`,
               data: null as never,
               image: props.data.image,
               bounds: [west, south, east, north],
               coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+              modelMatrix: props.modelMatrix,
               pickable: false,
             });
           },
@@ -525,6 +521,45 @@ export async function createMapAdapter(
     (mapSpaceId, offset) => callbacks.onWorldOffsetChange(mapSpaceId, offset),
     () => undefined,
   );
+  // deck.gl picks asynchronously, so a layer's onDragStart runs after the controller has
+  // already begun panning. A map drag is decided here instead, on the raw pointerdown before
+  // the controller sees it: a synchronous pick on the bounds layer starts the drag and turns
+  // the controller's pan off until the pointer is released.
+  const setDragPan = (enabled: boolean): void => {
+    deck.setProps({ views: new OrthographicView({ id: VIEW_ID, flipY: false, controller: { inertia: 500, dragPan: enabled } }) });
+  };
+  const unprojectPointer = (event: PointerEvent): [number, number] | null => {
+    const rect = canvas.getBoundingClientRect();
+    const viewport = deck.getViewports().find((candidate) => candidate.id === VIEW_ID);
+    const world = viewport?.unproject([event.clientX - rect.left, event.clientY - rect.top]);
+    const x = world?.[0], y = world?.[1];
+    return typeof x === "number" && typeof y === "number" && Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+  };
+  const onPointerDown = (event: PointerEvent): void => {
+    if (!current?.authoring || event.button !== 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const info = deck.pickObject({ x: event.clientX - rect.left, y: event.clientY - rect.top, radius: 1, layerIds: ["world-map-bounds"] });
+    const object = info?.object as WorldMapBounds | null | undefined;
+    const coordinate = unprojectPointer(event);
+    if (!object || !coordinate) return;
+    if (current.data.world.offsets.find((offset) => offset.mapSpaceId === object.mapSpaceId)?.source === "native") return;
+    const data = current;
+    const offsets = new Map(data.data.world.offsets.map((offset) => { const delta = mapOffsetDelta(data.data, offset.mapSpaceId, data.worldOffsets); return [offset.mapSpaceId, { worldX: offset.worldX + delta.worldX, worldY: offset.worldY + delta.worldY }] as const; }));
+    if (dragController.tryStart({ layerId: "world-map-bounds", mapSpaceId: object.mapSpaceId, coordinate }, true, offsets)) setDragPan(false);
+  };
+  const onPointerMove = (event: PointerEvent): void => {
+    const coordinate = unprojectPointer(event);
+    if (coordinate) dragController.move(coordinate);
+  };
+  const onPointerUp = (): void => {
+    if (dragController.active) { dragController.end(); setDragPan(true); }
+  };
+  // deck.gl may wrap the canvas; the listener sits on the host element in the capture phase
+  // so it runs before deck.gl's own pointer handling on any descendant.
+  const pointerHost: HTMLElement = canvas.parentElement ?? canvas;
+  pointerHost.addEventListener("pointerdown", onPointerDown, true);
+  window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", onPointerUp);
 
   const refreshLayers = (next: MapAdapterUpdate): void => {
     const tileLayersForView = matchingTileLayers(next.data, next.layerIds);
@@ -582,23 +617,14 @@ export async function createMapAdapter(
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       pickable: next.authoring,
       stroked: true,
-      filled: false,
+      // In authoring mode the whole rectangle is a drag surface, so a map can be grabbed
+      // anywhere inside it; outside authoring only the outline draws.
+      filled: next.authoring,
+      getFillColor: (map) => next.data.world.unplacedMapSpaceIds.includes(map.mapSpaceId) ? [220, 150, 50, 30] : [120, 180, 220, 20],
       getPolygon: (map) => map.polygon,
       getLineColor: (map) => next.data.world.unplacedMapSpaceIds.includes(map.mapSpaceId) ? [220, 150, 50, 220] : [120, 180, 220, 170],
       getLineWidth: 2,
       lineWidthUnits: "pixels",
-      onDragStart: (info: PickingInfo) => {
-        const object = info.object as WorldMapBounds | null | undefined;
-        const coordinate = point(info.coordinate as readonly number[] | undefined);
-        if (!object || !coordinate) return false;
-        const offsets = new Map(next.data.world.offsets.map((offset) => { const delta = mapOffsetDelta(next.data, offset.mapSpaceId, next.worldOffsets); return [offset.mapSpaceId, { worldX: offset.worldX + delta.worldX, worldY: offset.worldY + delta.worldY }] as const; }));
-        return dragController.tryStart({ layerId: info.layer?.id, mapSpaceId: object.mapSpaceId, coordinate }, next.authoring, offsets);
-      },
-      onDrag: (info: PickingInfo) => {
-        const coordinate = point(info.coordinate as readonly number[] | undefined);
-        if (coordinate) dragController.move(coordinate);
-      },
-      onDragEnd: () => dragController.end(),
     });
     const mapLabelLayer = new TextLayer({
       id: "map-space-labels",
@@ -885,6 +911,9 @@ export async function createMapAdapter(
     resizeObserver?.disconnect();
     resizeObserver = null;
     if (typeof window !== "undefined") window.removeEventListener("resize", resize);
+    pointerHost.removeEventListener("pointerdown", onPointerDown, true);
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
     deck.finalize();
     layers = [];
     pointerHoverLayers = [];

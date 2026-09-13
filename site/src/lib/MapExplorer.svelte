@@ -23,7 +23,7 @@
   import MapSidebarSection from './map/MapSidebarSection.svelte';
   import CategoryRow from './map/CategoryRow.svelte';
   import { markerGlyphSvg } from './map/icon-atlas';
-  import { downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
+  import { clearWorldOffsetOverrides, downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
   import { PUBLICATION_SCHEMA_VERSION, type EntityDetailsDocument, type ItemSourcesDocument, type PublicEntity, type PublicEntitySummary, type PublicItemSource, type PublicItemSummary, type PublicPlacement, type PublicDetailSection, type PublicationData } from '../../../pipeline/public-contracts';
 
   interface LayerOption {
@@ -238,7 +238,7 @@
   });
 
   $: if (adapterReady && adapter && publication) {
-    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: worldOffsetOverrides, authoring, showConnections, showZones });
+    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: authoring ? worldOffsetOverrides : {}, authoring, showConnections, showZones });
   }
 
   async function loadEntityDetailPath(path: string): Promise<void> {
@@ -646,6 +646,11 @@
     if (publication) downloadWorldOffsets(worldOffsetOverrides, publication);
   }
 
+  function discardWorldOffsets(): void {
+    worldOffsetOverrides = {};
+    clearWorldOffsetOverrides();
+  }
+
   function toggleCategory(category: MarkerId): void {
     const next = categories.includes(category) ? categories.filter((value) => value !== category) : [...categories, category];
     categories = next;
@@ -745,7 +750,7 @@
                 {/if}
               </div>
             {/if}
-            <div class="control-section world-tools"><h2>Map options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="tool-option"><input type="checkbox" checked={showZones} on:change={toggleZones} /><span>Zone areas and names</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button><p class="hint">Drag a map boundary to review its placement. Travel lines stay visible while authoring.</p>{/if}</div>
+            <div class="control-section world-tools"><h2>Map options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="tool-option"><input type="checkbox" checked={showZones} on:change={toggleZones} /><span>Zone areas and names</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button>{#if Object.keys(worldOffsetOverrides).length > 0}<button type="button" class="quiet-button" on:click={discardWorldOffsets}>Discard {Object.keys(worldOffsetOverrides).length} dragged offsets</button>{/if}<p class="hint">Drag a map anywhere inside its rectangle to review its placement. Dragged offsets show only while authoring and stay in this browser until exported or discarded.</p>{/if}</div>
             <div class="categories-block">
               <div class="section-heading"><h2>Map categories</h2><span class="count">{allMapPlacements.length}</span></div>
               {#each markerSections as section (section.id)}
