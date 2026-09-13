@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { categoryForRole, foldMapIcons, foldRegions, publicRegionFromNormalized } from "./publication";
+import { categoryForRole, foldTravelPlacements, foldMapIcons, foldRegions, publicRegionFromNormalized } from "./publication";
+import type { PublicPlacement } from "./public-contracts";
 import type { NormalizedPlacement } from "./normalized-contracts";
 
 const offset = { worldX: 100, worldY: -20 };
@@ -57,4 +58,33 @@ test("one map icon observed from several scenes publishes once, titled by any ti
 test("a region authored by several scenes publishes once", () => {
   const box = (id: string, name: string, dx = 0) => ({ id, mapSpaceId: "world-surface", name, shape: "box" as const, polygon: [[0 + dx, 0], [10 + dx, 0], [10 + dx, 10], [0 + dx, 10]] as Array<[number, number]> });
   expect(foldRegions([box("b", "Briarstead"), box("a", "Briarstead"), box("c", "Briarstead", 5), box("d", "Fellgrove")]).map((region) => region.id)).toEqual(["a", "c", "d"]);
+});
+
+function publicPlacement(placementId: string, mapSpaceId: string, position: [number, number], categories: PublicPlacement["categories"], label: string, destination?: { mapSpaceId: string; position: [number, number] }): PublicPlacement {
+  return {
+    placementId, mapSpaceId, position, height: 0, label, categories, entityKeys: [], itemKeys: [], areas: [], searchText: label,
+    ...(destination ? { travel: { transitionId: `transition-${placementId}`, enabled: true, destination: { status: "resolved", ...destination } } } : {}),
+  };
+}
+
+test("a dungeon marker absorbs equivalent normal and corrupted entrances", () => {
+  const dungeon = publicPlacement("dungeon", "world", [100, 100], ["dungeonEntrance"], "Dungeon entrance");
+  const normal = publicPlacement("normal", "world", [103, 100], ["travelPoint"], "Duskfall Depths", { mapSpaceId: "duskfall", position: [500, 600] });
+  const corrupted = publicPlacement("corrupted", "world", [104, 100], ["travelPoint"], "Duskfall Depths", { mapSpaceId: "duskfall", position: [500, 600] });
+  const corruptedUnresolved = { ...publicPlacement("corrupted-unresolved", "world", [104.5, 100], ["travelPoint"], "Duskfall Depths Corrupted"), travel: { transitionId: "corrupted-unresolved", enabled: true, destination: { status: "unresolved" as const, reason: "Destination scene is unresolved." } } };
+  const interiorEntrance = publicPlacement("interior", "duskfall", [510, 600], ["travelPoint"], "Coalway Swamp", { mapSpaceId: "world", position: [100, 100] });
+  const caveNormal = publicPlacement("cave-a", "world", [20, 20], ["travelPoint"], "Cave", { mapSpaceId: "cave", position: [700, 800] });
+  const caveCorrupted = publicPlacement("cave-b", "world", [20.02, 20], ["travelPoint"], "Cave", { mapSpaceId: "cave", position: [700, 800] });
+  const unresolvedNormal = { ...publicPlacement("unresolved-a", "world", [40, 40], ["travelPoint"], "Challenge Stone"), travel: { transitionId: "unresolved-a", enabled: true, destination: { status: "unresolved" as const, reason: "Destination is not published." } } };
+  const unresolvedCorrupted = { ...unresolvedNormal, placementId: "unresolved-b", travel: { ...unresolvedNormal.travel, transitionId: "unresolved-b" } };
+  const result = foldTravelPlacements([dungeon, normal, corrupted, corruptedUnresolved, interiorEntrance, caveNormal, caveCorrupted, unresolvedNormal, unresolvedCorrupted]);
+
+  expect(result.placements.map((placement) => placement.placementId)).toEqual(["dungeon", "interior", "cave-a", "unresolved-a"]);
+  expect(result.placements[0]).toMatchObject({ label: "Duskfall Depths", categories: ["dungeonEntrance", "travelPoint"], travel: normal.travel });
+  expect(result.replacementIds.get("normal")).toBe("dungeon");
+  expect(result.replacementIds.get("corrupted")).toBe("dungeon");
+  expect(result.replacementIds.get("corrupted-unresolved")).toBe("dungeon");
+  expect(result.placements[1]).toBe(interiorEntrance);
+  expect(result.replacementIds.get("cave-b")).toBe("cave-a");
+  expect(result.replacementIds.get("unresolved-b")).toBe("unresolved-a");
 });

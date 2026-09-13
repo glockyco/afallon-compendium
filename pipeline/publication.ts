@@ -301,6 +301,95 @@ export function foldRegions(regions: readonly PublicRegion[]): PublicRegion[] {
   return [...seen.values()].sort((left, right) => left.id.localeCompare(right.id));
 }
 
+const DUNGEON_TRAVEL_MERGE_DISTANCE = 6;
+
+function sameTravelDestination(left: PublicTravel, right: PublicTravel): boolean {
+  const a = left.destination, b = right.destination;
+  if (a.status !== b.status || a.mapSpaceId !== b.mapSpaceId || a.placementId !== b.placementId) return false;
+  if (a.status === "unresolved") return a.reason === b.reason && a.position === undefined && b.position === undefined;
+  return a.position !== undefined && b.position !== undefined
+    && Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1]) <= 0.1;
+}
+
+export function foldTravelPlacements(placements: readonly PublicPlacement[]): { placements: PublicPlacement[]; replacementIds: ReadonlyMap<string, string> } {
+  const replacementIds = new Map<string, string>();
+  const claimed = new Set<string>();
+  const travelPoints = placements.filter((placement) => placement.categories.includes("travelPoint") && placement.travel !== undefined);
+  const mergedTravel = new Map<string, PublicPlacement>();
+
+  // Normal and corrupted scene variants author separate copies of the same door. Collapse only
+  // copies with the same source point and resolved destination; nearby distinct doors stay separate.
+  for (const representative of [...travelPoints].sort((left, right) => left.placementId.localeCompare(right.placementId))) {
+    const representativeTravel = representative.travel;
+    if (claimed.has(representative.placementId) || !representativeTravel) continue;
+    const equivalents = travelPoints.filter((travel) => travel.travel !== undefined
+      && travel.mapSpaceId === representative.mapSpaceId
+      && Math.hypot(travel.position[0] - representative.position[0], travel.position[1] - representative.position[1]) <= 0.1
+      && sameTravelDestination(representativeTravel, travel.travel));
+    if (equivalents.length < 2) continue;
+    const labels = equivalents.map((travel) => travel.label).filter((value) => value !== "0" && value.toLocaleLowerCase() !== "travel point");
+    const mergedLabel = labels.sort((left, right) => left.localeCompare(right))[0] ?? representative.label;
+    const categories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => equivalents.some((travel) => travel.categories.includes(category)));
+    for (const travel of equivalents) {
+      if (travel.placementId === representative.placementId) continue;
+      claimed.add(travel.placementId);
+      replacementIds.set(travel.placementId, representative.placementId);
+    }
+    mergedTravel.set(representative.placementId, {
+      ...representative,
+      label: mergedLabel,
+      categories,
+      entityKeys: [...new Set(equivalents.flatMap((travel) => travel.entityKeys))].sort(),
+      itemKeys: [...new Set(equivalents.flatMap((travel) => travel.itemKeys))].sort(),
+      searchText: [mergedLabel, ...categories.map((category) => categoryLabels[category])].join(" "),
+    });
+  }
+
+  const deduplicated = placements.filter((placement) => !claimed.has(placement.placementId)).map((placement) => mergedTravel.get(placement.placementId) ?? placement);
+  const dungeons = deduplicated.filter((placement) => placement.categories.includes("dungeonEntrance"));
+  const deduplicatedTravel = deduplicated.filter((placement) => placement.categories.includes("travelPoint") && placement.travel !== undefined);
+  const mergedByDungeon = new Map<string, PublicPlacement>();
+
+  for (const dungeon of dungeons) {
+    const nearby = deduplicatedTravel
+      .filter((travel) => {
+        const travelData = travel.travel;
+        return !claimed.has(travel.placementId)
+          && travel.mapSpaceId === dungeon.mapSpaceId
+          && travelData !== undefined
+          && (travelData.destination.status === "unresolved" || travelData.destination.mapSpaceId !== dungeon.mapSpaceId)
+          && Math.hypot(travel.position[0] - dungeon.position[0], travel.position[1] - dungeon.position[1]) <= DUNGEON_TRAVEL_MERGE_DISTANCE;
+      })
+      .sort((left, right) => Number(right.travel?.destination.status === "resolved") - Number(left.travel?.destination.status === "resolved")
+        || Math.hypot(left.position[0] - dungeon.position[0], left.position[1] - dungeon.position[1]) - Math.hypot(right.position[0] - dungeon.position[0], right.position[1] - dungeon.position[1])
+        || left.placementId.localeCompare(right.placementId));
+    const representative = nearby[0];
+    const representativeTravel = representative?.travel;
+    if (!representative || representativeTravel?.destination.status !== "resolved") continue;
+    const equivalents = nearby.filter((travel) => travel.travel !== undefined && (travel.travel.destination.status === "unresolved" || sameTravelDestination(representativeTravel, travel.travel)));
+    for (const travel of equivalents) {
+      claimed.add(travel.placementId);
+      replacementIds.set(travel.placementId, dungeon.placementId);
+    }
+    const categories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => category === "travelPoint" || dungeon.categories.includes(category));
+    const mergedLabel = representative.label !== "0" && representative.label.toLocaleLowerCase() !== "travel point" ? representative.label : dungeon.label;
+    mergedByDungeon.set(dungeon.placementId, {
+      ...dungeon,
+      label: mergedLabel,
+      categories,
+      entityKeys: [...new Set([...dungeon.entityKeys, ...equivalents.flatMap((travel) => travel.entityKeys)])].sort(),
+      itemKeys: [...new Set([...dungeon.itemKeys, ...equivalents.flatMap((travel) => travel.itemKeys)])].sort(),
+      travel: representativeTravel,
+      searchText: [mergedLabel, ...categories.map((category) => categoryLabels[category])].join(" "),
+    });
+  }
+
+  return {
+    placements: deduplicated.filter((placement) => !claimed.has(placement.placementId)).map((placement) => mergedByDungeon.get(placement.placementId) ?? placement),
+    replacementIds,
+  };
+}
+
 export function foldMapIcons(placements: readonly NormalizedPlacement[]): NormalizedPlacement[] {
   const groups = new Map<string, NormalizedPlacement[]>();
   const result: NormalizedPlacement[] = [];
@@ -891,7 +980,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     keys.add(item.itemKey);
     itemKeysByPlacement.set(placementId, keys);
   }
-  const placements: PublicPlacement[] = offsetPlacements.map((value) => {
+  const unfoldedPlacements: PublicPlacement[] = offsetPlacements.map((value) => {
     const { sections, ...placement } = value;
     const itemKeys = [...(itemKeysByPlacement.get(placement.placementId) ?? [])].sort();
     // Spreading widens the fixed-length position to number[], so it is restated as the pair
@@ -901,6 +990,18 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const position: [number, number] = [positionX, positionY];
     return { ...placement, position, itemKeys, searchText: [placement.label, ...placement.categories.map((category) => categoryLabels[category])].join(" ") };
   });
+  const foldedDungeonTravel = foldTravelPlacements(unfoldedPlacements);
+  const placements = foldedDungeonTravel.placements;
+  const replacePlacementIds = (ids: readonly string[]): string[] => [...new Set(ids.map((id) => {
+    let replacement = id;
+    for (;;) {
+      const next = foldedDungeonTravel.replacementIds.get(replacement);
+      if (next === undefined) return replacement;
+      replacement = next;
+    }
+  }))];
+  for (const entity of publicEntities) entity.placementIds = replacePlacementIds(entity.placementIds);
+  for (const item of itemSources) for (const source of item.sources) source.placementIds = replacePlacementIds(source.placementIds);
   const sceneRanges = new Map(entities.entities.filter((entity) => entity.kind === "scenes").map((entity) => [entity.nativeId, sceneLevelRange(entity)]));
   const mapLevelRanges = new Map(map.mapSpaces.map((space) => [space.mapSpaceId, consistentLevelRange(map.placements.filter((placement) => placement.mapSpaceId === space.mapSpaceId).map((placement) => sceneRanges.get(placement.sceneNativeId)))]));
   const publicMaps: PublicationData["maps"] = map.mapSpaces.filter(space => tileLayers.some(layer => layer.mapSpaceId === space.mapSpaceId)).map(space => {
