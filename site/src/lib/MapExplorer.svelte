@@ -163,6 +163,13 @@
     const metadataRequest = new AbortController();
     const onPopState = () => applyUrlState(readMapUrl(window.location.search));
     const onKeydown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
+        event.preventDefault();
+        if (panelCollapsed) togglePanel();
+        searchInput?.focus();
+        searchInput?.select();
+        return;
+      }
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'b') {
         event.preventDefault();
         togglePanel();
@@ -699,8 +706,8 @@
     <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
       <aside class:collapsed={panelCollapsed} class="control-panel" aria-label="Atlas controls">
         <div class="panel-header">
-          {#if !panelCollapsed}<div><strong>Atlas controls</strong><small>⌘/Ctrl+B to toggle</small></div>{/if}
-          <button class="panel-toggle" type="button" on:click={togglePanel} aria-label={panelCollapsed ? 'Expand atlas controls' : 'Collapse atlas controls'} aria-expanded={!panelCollapsed}>{panelCollapsed ? '»' : '«'}</button>
+          {#if !panelCollapsed}<a class="home-link" href="{base}/"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h5v-6h4v6h5V10" /></svg><span>Home</span></a>{/if}
+          <button class="panel-toggle" type="button" on:click={togglePanel} aria-label={panelCollapsed ? 'Expand atlas controls' : 'Collapse atlas controls'} title="⌘/Ctrl+B" aria-expanded={!panelCollapsed}>{panelCollapsed ? '»' : '«'}</button>
         </div>
         {#if panelCollapsed}
           <nav class="panel-rail" aria-label="Quick category toggles">
@@ -714,9 +721,9 @@
           </nav>
         {:else}
           <div class="panel-body">
-            <div class="control-section search-section"><label for="atlas-search">Search places, entities, and items</label><div class="search-row"><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } }} placeholder="Try a name or item" autocomplete="off" /><button class="quiet-button" type="button" on:click={() => { query = ''; scheduleQueryUrl(); searchInput?.focus(); }} aria-label="Clear search">Clear</button></div><p class="hint">Press Enter to move from search to results.</p></div>
+            <div class="control-section search-section"><div class="search-field"><span class="search-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg></span><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } if (event.key === 'Escape' && query) { event.preventDefault(); query = ''; scheduleQueryUrl(); } }} placeholder="Search..." aria-label="Search places, entities, and items" autocomplete="off" /><kbd class="search-key" aria-hidden="true">⌘K</kbd></div></div>
             <div class="categories-block">
-              <div class="section-heading"><h2>Map categories</h2>{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Show every category</button>{/if}<span class="count">{allMapPlacements.length}</span></div>
+              <div class="section-heading"><h2>Categories</h2>{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Show all</button>{/if}<span class="count">{allMapPlacements.length}</span></div>
               {#each markerSections as section (section.id)}
                 <MapSidebarSection title={section.label} categories={section.markers} activeCategories={categories} counts={categoryCounts} storageKey={`afallon-atlas-section-${section.id}`} onToggleCategory={toggleCategory} onToggleAll={toggleAllCategories} />
               {/each}
@@ -875,9 +882,8 @@
   .details-empty { display: grid; gap: .45rem; align-content: center; min-height: 100%; color: #aaa89f; }
   .details-empty p { margin: 0; font-size: .82rem; }
   .panel-header { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: .7rem .75rem; border-bottom: 1px solid #393a38; background: #252622; }
-  .panel-header strong, .panel-header small { display: block; }
-  .panel-header strong { color: #eee9dd; font-size: .78rem; }
-  .panel-header small { margin-top: .2rem; color: #92928a; font-size: .66rem; }
+  .home-link { display: inline-flex; align-items: center; gap: .5rem; color: #eee9dd; font-size: .9rem; text-decoration: none; }
+  .home-link:hover { color: #d5b978; }
   .panel-toggle { min-width: 28px; min-height: 28px; border: 1px solid #595846; background: transparent; color: #d5b978; font-size: 1.05rem; line-height: 1; }
   .panel-body { padding: .85rem .75rem; }
   .panel-rail { padding: .45rem 0; }
@@ -887,14 +893,18 @@
   label, .section-heading h2, .results-header h2, .world-tools h2, .layer-section h2 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b8b5aa; }
   input, select { width: 100%; border: 1px solid #4a4b47; border-radius: 2px; background: #151616; color: #ece8de; padding: .55rem .6rem; }
   input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid #d5b978; outline-offset: 2px; }
-  .search-section > label, .control-section > label:not(.role-option) { display: block; margin-bottom: .45rem; }
-  .search-row { display: flex; gap: .35rem; }
-  .search-row input { min-width: 0; }
+  .control-section > label:not(.role-option) { display: block; margin-bottom: .45rem; }
+  .search-field { position: relative; display: flex; align-items: center; }
+  .search-field input { padding-left: 2.1rem; padding-right: 2.8rem; }
+  .search-glyph { position: absolute; left: .7rem; display: flex; color: #85857e; pointer-events: none; }
+  .search-key { position: absolute; right: .55rem; padding: .1rem .35rem; border: 1px solid #4a4b47; border-radius: 3px; background: #1f201f; color: #85857e; font: 600 .68rem/1.3 inherit; pointer-events: none; }
   .quiet-button, .close-button { border: 1px solid #55564f; background: transparent; color: #c5c1b7; padding: .45rem .55rem; border-radius: 2px; }
   .quiet-button:hover, .close-button:hover { border-color: #bba779; color: #f1eadb; }
   .hint, .muted { color: #85857e; font-size: .72rem; line-height: 1.45; }
   .section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: .45rem; }
-  .section-heading h2, .world-tools h2, .layer-section h2 { margin: 0 0 .45rem; }
+  .world-tools h2, .layer-section h2 { margin: 0 0 .45rem; }
+  .section-heading h2 { margin: 0; }
+  .section-heading h2, .section-heading .text-button { white-space: nowrap; }
   .section-heading .text-button { margin-left: auto; margin-right: .6rem; }
   .count { color: #d6bd84; font-size: .75rem; }
   .categories-block { margin-bottom: 1rem; }
