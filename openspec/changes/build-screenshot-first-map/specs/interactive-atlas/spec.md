@@ -255,6 +255,11 @@ The atlas SHALL support keyboard navigation and narrow screens. Search and a syn
 - **AND** the open category panel appears as a dismissible drawer above the map
 - **AND** touch zoom stays within useful map bounds without browser gesture interference
 
+#### Scenario: The portfolio embeds the atlas
+- **WHEN** `glockyco.com` frames the published atlas as a project demo
+- **THEN** the browser permits the trusted frame origin
+- **AND** other external origins remain unable to frame the atlas
+
 ### Requirement: Evidence limits stay outside the interface
 
 The atlas SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. It SHALL NOT display completeness disclosures, coverage counts, or unresolved-semantics notices.

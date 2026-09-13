@@ -101,3 +101,4 @@ Full-world collection starts only after the representative end-to-end milestone 
 - [x] 8.6 Resolve merged marker glyphs from enabled categories so disabling dungeon entrances cannot leave their glyph visible through the travel-point category, and keep a regression test.
 - [ ] 8.7 Pin the map renderer to the sibling-proven deck.gl `9.3.7` and Luma `9.3.3` stack after the user observed corrupted geometry in Zen Browser on Windows 10. Verify dependency coherence, build output, and Chromium hover behavior; retain Firefox-family verification as the affected-machine acceptance check.
 - [x] 8.8 Replace the persistent mobile category rail with a compact trigger and dismissible drawer. Keep the map toolbar, map status, results, and bounded touch zoom within the viewport at phone widths.
+- [x] 8.9 Allow the trusted `glockyco.com` portfolio to embed the atlas without permitting arbitrary framing.
