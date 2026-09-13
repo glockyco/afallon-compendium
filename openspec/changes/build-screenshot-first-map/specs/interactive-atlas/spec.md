@@ -19,6 +19,11 @@ Overlapping categories SHALL NOT create duplicate physical markers. Dense views 
 - **THEN** that NPC has one physical marker carrying both
 - **AND** selection exposes both its stock and its quests
 
+#### Scenario: A reader hides one role of an overlapping marker
+- **WHEN** a placement's highest-precedence category is disabled while another category remains enabled
+- **THEN** the placement resolves its glyph from the enabled category
+- **AND** it does not continue to appear as the disabled category
+
 #### Scenario: A friendly character sells items
 - **WHEN** the publication builds that character's categories
 - **THEN** the character is a merchant and not also townsfolk

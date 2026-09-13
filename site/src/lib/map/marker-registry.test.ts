@@ -47,3 +47,21 @@ test("overlapping categories resolve to one marker", () => {
   const marker = resolveMarker({ categories: ["merchant", "questGiver"] });
   expect(marker).toBe("questGiver");
 });
+
+test("an overlapping placement resolves from its enabled categories", () => {
+  const placement: PublicPlacement = {
+    placementId: "dungeon-door",
+    mapSpaceId: "fixture-map",
+    position: [0, 0],
+    height: 0,
+    label: "Dungeon Door",
+    categories: ["dungeonEntrance", "travelPoint"],
+    entityKeys: [],
+    itemKeys: [],
+    searchText: "Dungeon Door",
+    areas: [],
+  };
+
+  expect(markerRecordsForPlacements([placement], ["dungeonEntrance"])[0]?.markerId).toBe("dungeonEntrance");
+  expect(markerRecordsForPlacements([placement], ["travelPoint"])[0]?.markerId).toBe("travelPoint");
+});

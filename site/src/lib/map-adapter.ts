@@ -36,6 +36,7 @@ export type MapAdapterUpdate = {
   data: PublicationData;
   mapSpaceId: string;
   layerIds: readonly string[];
+  categories: readonly MarkerId[];
   placements: PublicPlacement[];
   selectedId: string | null;
   highlightedPlacementIds: readonly string[];
@@ -163,11 +164,12 @@ function validPlacement(placement: PublicPlacement): boolean {
   return Boolean(placement.placementId && point(placement.position));
 }
 
-function buildMarkers(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}): MarkerRecord[] {
+function buildMarkers(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null): MarkerRecord[] {
   const byId = new Map<string, MarkerRecord>();
   for (const placement of placements) {
     if (!validPlacement(placement) || byId.has(placement.placementId)) continue;
-    const markerId = resolveMarker(placement);
+    const categories = activeCategories ? placement.categories.filter((category) => activeCategories.has(category)) : placement.categories;
+    const markerId = resolveMarker({categories});
     if (!markerId) continue;
     const position = point(placement.position)!;
     const delta = data ? mapOffsetDelta(data, placement.mapSpaceId, overrides) : { worldX: 0, worldY: 0 };
@@ -176,7 +178,7 @@ function buildMarkers(placements: readonly PublicPlacement[], data: PublicationD
       mapSpaceId: placement.mapSpaceId,
       position: [position[0] + delta.worldX, position[1] + delta.worldY, 0],
       label: placement.label,
-      categories: [...placement.categories],
+      categories: [...categories],
       markerId,
       members: [placement.placementId],
       enabled: placement.travel?.enabled ?? true,
@@ -186,8 +188,8 @@ function buildMarkers(placements: readonly PublicPlacement[], data: PublicationD
   return [...byId.values()].sort((left, right) => markerFor(left.markerId).renderOrder - markerFor(right.markerId).renderOrder || left.placementId.localeCompare(right.placementId));
 }
 
-export function markerRecordsForPlacements(placements: readonly PublicPlacement[]): MarkerRecord[] {
-  return buildMarkers(placements);
+export function markerRecordsForPlacements(placements: readonly PublicPlacement[], activeCategories?: readonly MarkerId[]): MarkerRecord[] {
+  return buildMarkers(placements, null, {}, activeCategories ? new Set(activeCategories) : null);
 }
 
 export function createPlacementIconLayer(
@@ -299,7 +301,7 @@ function polygonCentroid(polygon: readonly Point[]): Point {
   return [centroidX / (3 * areaTwice), centroidY / (3 * areaTwice)];
 }
 
-function buildAreas(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}): AreaRecord[] {
+function buildAreas(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null): AreaRecord[] {
   const areas: AreaRecord[] = [];
   for (const placement of placements) {
     for (let index = 0; index < placement.areas.length; index++) {
@@ -311,7 +313,8 @@ function buildAreas(placements: readonly PublicPlacement[], data: PublicationDat
         .filter((value): value is Point => value !== null)
         .map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point);
       if (polygon.length < 3) continue;
-      const markerId = resolveMarker(placement);
+      const categories = activeCategories ? placement.categories.filter((category) => activeCategories.has(category)) : placement.categories;
+      const markerId = resolveMarker({categories});
       if (!markerId) continue;
       areas.push({
         areaId: `${placement.placementId}:${index}`,
@@ -567,15 +570,17 @@ export async function createMapAdapter(
     // Markers, labels, and areas belong to the world, not to whichever imagery is switched on.
     const layerKind = `tiles:${tileLayersForView.map((layer) => layer.id).join(",")}`;
     const visiblePlacements = next.placements;
-    const nextPlacementKey = placementSignature(visiblePlacements);
+    const activeCategories = next.categories.length > 0 ? new Set(next.categories) : null;
+    const categoryKey = [...next.categories].sort().join(",");
+    const nextPlacementKey = `${placementSignature(visiblePlacements)}\u001d${categoryKey}`;
     const nextRegionKey = regionSignature(next.data.regions);
     const offsetKey = Object.entries(next.worldOffsets).sort(([left], [right]) => left.localeCompare(right)).map(([mapSpaceId, offset]) => `${mapSpaceId}:${offset.worldX},${offset.worldY}`).join("|");
     const offsetChanged = offsetKey !== offsetGeometryKey;
     if (nextPlacementKey !== basePlacementKey || offsetChanged) {
       basePlacementKey = nextPlacementKey;
       offsetGeometryKey = offsetKey;
-      baseMarkers = buildMarkers(visiblePlacements, next.data, next.worldOffsets);
-      baseAreas = buildAreas(visiblePlacements, next.data, next.worldOffsets);
+      baseMarkers = buildMarkers(visiblePlacements, next.data, next.worldOffsets, activeCategories);
+      baseAreas = buildAreas(visiblePlacements, next.data, next.worldOffsets, activeCategories);
     }
     if (nextRegionKey !== baseRegionKey || offsetChanged) {
       baseRegionKey = nextRegionKey;
