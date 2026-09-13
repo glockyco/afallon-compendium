@@ -235,6 +235,14 @@ Panels present player questions in the game's words. They carry no coordinates, 
 
 There is one world map, so there is no map selector, no floor selector, and no layer selector unless a map actually has an alternative layer. The sidebar carries game-vocabulary category sections and a level filter, following the sibling atlases.
 
+Interiors are not captured. Each interior ships the game's own map, so a screenshot pyramid of the same rooms added capture time, artifact bytes, and a second calibration without adding anything a player recognises; 280 interior capture runs were deleted with the code paths that planned them. Capture plans name the world surface only.
+
+A placed map's pyramid is indexed in that map's own coordinates, and the atlas translates the layer by the reviewed offset with a model matrix. The earlier rule that snapped an offset to the map's coarsest tile made a reviewed drag land up to half a tile away from where it was dropped and rejected layouts whose gaps were not tile multiples. The reviewed layout is a ring: the four corner maps have their centres 2432 units left or right and 2304 units above or below the overworld centre, and each side's maps are spaced evenly between its corners. That gives every map the same 320-unit gap to the overworld, and the file lives in `local/reviewed-world-offsets.json`.
+
+A placement publishes when it resolves to a placed map. The earlier rule that dropped a placement whose position lay outside the map art's opaque pixels excluded the Sanctum of the Veilpiercer's entire population, because its arrival hall lies south of what the game draws; map bounds now include every placement. Doors come from three authored shapes: an interactable Effect action whose RPGEffect is a teleport, a GameActions template with a nested teleport action, and a GameActions template whose nested Effect game action applies a teleport effect. Duskfall Depths is entered only through the third shape.
+
+Categories: every character was also an NPC and every friendly character an ally, so both categories were removed. Neutral creatures list with bosses and enemies, and friendly characters publish as townsfolk unless they are a merchant or quest giver.
+
 The URL owns view, selection, search, and relevant filters, plus the layer only where a choice exists. A keyboard-operable result list mirrors spatial results. Categories remain discoverable with counts, and overlapping roles do not duplicate markers. A common generated detail model supports both panels and later entity pages.
 
 The site consumes published contracts only. SQL projections and spatial conversion belong in the pipeline, not components or a large presentation-heavy map query.
@@ -265,7 +273,6 @@ The mechanism is implemented and measured, but it does not reduce release covera
 ## Open Questions
 
 - The finest resolution and tile dimensions remain open. Select them after complete-build detail and byte-size measurements.
-- Every interior plan carries a walkable-surface cut with step 6, headroom 5, and camera 400 above the top slice. The values are one review across all maps; a map whose composite shows a wrong cut adjusts them in its own plan.
 - Mixed world surface and zone scenes remain open. Settle each scene through complete geometry inventory and rendered-image review.
 - The Adventure Guide displays the authored entry rate rounded to one decimal place. It does not compose an effective probability from outer rates, drop limits, or the minimum-drop pass. Evidence: `research/spikes/guide-drop-chance-result.json`.
 - Illustrated-layer registration remains open for layers without four reviewed landmark controls. Keep those layers orientation-only until the controls and residual checks are available.

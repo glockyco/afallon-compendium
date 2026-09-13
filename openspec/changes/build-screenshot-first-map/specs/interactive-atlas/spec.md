@@ -6,7 +6,9 @@ Let Afallon players find places, creatures, services, and item sources on maps t
 
 ### Requirement: Categories use the game's own vocabulary
 
-Marker categories SHALL use the terms the game shows its players. The source of that vocabulary is the game's interaction and nameplate model: merchant, quest giver, interactive object, crafting station, and enemy entity, with enemy, neutral, and ally alignment. Resources, containers, and travel points SHALL use the words the game uses for them in its own interface.
+Marker categories SHALL use the terms the game shows its players. The source of that vocabulary is the game's interaction and nameplate model: merchant, quest giver, interactive object, crafting station, and enemy entity, with enemy, neutral, and friendly alignment. Resources, containers, and travel points SHALL use the words the game uses for them in its own interface.
+
+Each category SHALL add information. A category that every character carries, or that a service category already implies, SHALL NOT exist. Bosses, enemies, and neutral creatures form one section. Merchants, quest givers, and townsfolk form one section, where townsfolk are the friendly characters with no service. Sections SHALL carry a short single-line name and no glyph, and each row and section SHALL show its marker count.
 
 Extraction vocabulary SHALL NOT appear on the player surface. The interface SHALL NOT show placement roles, source families, source identities, map spaces, authored flags, component names, or coverage counts.
 
@@ -16,6 +18,11 @@ Overlapping categories SHALL NOT create duplicate physical markers. Dense views 
 - **WHEN** a reader enables both the merchant and quest-giver categories
 - **THEN** that NPC has one physical marker carrying both
 - **AND** selection exposes both its stock and its quests
+
+#### Scenario: A friendly character sells items
+- **WHEN** the publication builds that character's categories
+- **THEN** the character is a merchant and not also townsfolk
+- **AND** a friendly character with no service is townsfolk
 
 #### Scenario: A category has no player-facing name
 - **WHEN** extracted content cannot be described in the game's vocabulary
@@ -73,6 +80,10 @@ The atlas SHALL present one navigable world map. Scenes that the game already co
 
 Placement SHALL be translation only at a shared world scale. The atlas SHALL NOT rescale or rotate a map to improve the layout. A reviewed placement file SHALL own the offsets, and an authoring mode SHALL allow dragging a map with its markers and exporting those offsets for review. A placement override SHALL move a map and its markers together.
 
+An offset MAY be any world translation. Publication SHALL NOT snap an offset to the tile lattice; a placed map's pyramid is indexed in that map's own coordinates and the atlas translates it when drawing. The reviewed layout places interiors on a ring around the overworld: the four corner maps have their centres at one distance from the overworld centre on each axis, and the maps on each side are spaced evenly between the corners, so every map keeps the same gap to the overworld.
+
+A placement SHALL publish when it resolves to a placed map, whether or not that map's imagery covers its position, and a map's bounds SHALL include every published placement. A door SHALL resolve to the published position of its arrival point through every action kind the game uses for a teleport: an interactable Effect action, a nested GameActions teleport, or a nested Effect game action whose effect teleports. Every published interior SHALL have at least one resolved door into it.
+
 Each placed map SHALL show its player-facing name above its bounds. The label SHALL move with the map and remain legible without covering its terrain at the map's working zoom.
 
 #### Scenario: Two scenes share one game map texture
@@ -93,6 +104,16 @@ Each placed map SHALL show its player-facing name above its bounds. The label SH
 #### Scenario: A map has no reviewed placement
 - **WHEN** the world map is built
 - **THEN** the run reports that map as unplaced
+
+#### Scenario: A door teleports through a nested effect
+- **WHEN** a placement's only teleport is a GameActions template whose nested Effect game action applies a Teleport effect
+- **THEN** the door resolves to that effect's arrival position on its destination map
+- **AND** the atlas draws the connection when the door is selected or hovered
+
+#### Scenario: A placement lies outside the map art
+- **WHEN** a resolved placement sits where its map's imagery has no opaque pixels
+- **THEN** the placement still publishes with its position
+- **AND** the map's bounds grow to include it
 - **AND** it does not guess a position from unrelated scene coordinates
 
 ### Requirement: Travel connections are drawn on the world map

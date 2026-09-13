@@ -6,14 +6,14 @@ Provide recognizable Afallon terrain imagery through reproducible in-game captur
 
 ### Requirement: In-game imagery is the primary layer
 
-Each published reachable map SHALL carry imagery captured by this project from the supported game build. The world surface and zones SHALL remain in scope. Missing or failed project captures SHALL block a complete release and appear in coverage reports. Community map images SHALL NOT substitute for that imagery or fill missing capture tiles.
+The world surface SHALL carry imagery captured by this project from the supported game build. Screenshot capture covers the overworld only: capture plans SHALL name the world surface, and interiors SHALL publish the game's own map instead. Missing or failed overworld captures SHALL block a complete release and appear in coverage reports. Community map images SHALL NOT substitute for that imagery or fill missing capture tiles.
 
-Where the game ships its own map for a zone as a `MapZone` texture, the publication SHALL also carry that texture as a calibrated layer registered through the game's own world-to-map conversion, dumped from the running game at the supported build. That layer is what a player already knows, so the atlas SHALL open an interior on its game map with captured screenshots as a toggle, and SHALL open the world surface on both. A game map SHALL NOT count toward capture coverage.
+Where the game ships its own map for a zone as a `MapZone` texture, the publication SHALL also carry that texture as a calibrated layer registered through the game's own world-to-map conversion, dumped from the running game at the supported build. That layer is what a player already knows, so the atlas SHALL open an interior on its game map, and SHALL open the world surface on both its game map and its captured imagery. A game map SHALL NOT count toward capture coverage.
 
 #### Scenario: A zone ships its own map
 - **WHEN** a scene carries a `MapZone` with a texture
 - **THEN** the publication carries that texture as a calibrated pyramid registered by the zone's own conversion
-- **AND** the atlas opens that map on the game map with captured imagery available as a layer
+- **AND** the atlas opens that map on the game map
 
 #### Scenario: A zone reuses another zone's texture
 - **WHEN** a scene's `MapZone` names a texture the game also shows for another zone
