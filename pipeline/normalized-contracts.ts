@@ -136,12 +136,25 @@ export interface NormalizedSpawnCandidate {
   provenance: ProvenanceReference[];
 }
 
+export interface NormalizedPatrolPath {
+  sceneNativeId: number;
+  scenePath: string;
+  name: string;
+  looping: boolean;
+  groupPatrol: boolean;
+  groupSpacing: number;
+  poiRadius: number;
+  worldPoints: Array<{ x: number; y: number; z: number }>;
+  provenance: ProvenanceReference[];
+}
+
 export interface NormalizedMapProjection {
-  schemaVersion: "compendium.map-projections.v4";
+  schemaVersion: "compendium.map-projections.v5";
   buildId: string;
   mapSpaces: Array<{ mapSpaceId: string; label: string; placementIds: string[] }>;
   placements: NormalizedPlacement[];
   regions: NormalizedRegion[];
+  patrolPaths: NormalizedPatrolPath[];
   // Where the first entry into a scene lands the player: the RPGWorldPosition record that the
   // scene's startPositionID names. Later entries land where the player last left the scene.
   sceneSpawns: Array<{ sceneNativeId: number; startPositionId: number; position: { x: number; y: number; z: number } }>;

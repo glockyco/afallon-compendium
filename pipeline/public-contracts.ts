@@ -103,6 +103,55 @@ export const PublicTravelSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicTravel = Static<typeof PublicTravelSchema>;
 
+const publicPatrolPathStatus = Type.Union([Type.Literal("resolved"), Type.Literal("unresolved")]);
+export const PublicPatrolPathSchema = Type.Object({
+  name: text,
+  status: publicPatrolPathStatus,
+  reason: Type.Optional(text),
+  looping: Type.Optional(Type.Boolean()),
+  groupPatrol: Type.Optional(Type.Boolean()),
+  groupSpacing: Type.Optional(number),
+  poiRadius: Type.Optional(number),
+  points: Type.Optional(Type.Array(position, { minItems: 1 })),
+}, { additionalProperties: false });
+export type PublicPatrolPath = Static<typeof PublicPatrolPathSchema>;
+
+export const PublicMovementOwnerSchema = Type.Union([
+  Type.Object({
+    kind: Type.Literal("npcBehavior"),
+    entityKey: text,
+    phaseIndex: count,
+    behaviorIndex: count,
+    chance: number,
+  }, { additionalProperties: false }),
+  Type.Object({ kind: Type.Literal("spawnerOverride") }, { additionalProperties: false }),
+]);
+export type PublicMovementOwner = Static<typeof PublicMovementOwnerSchema>;
+
+const publicMovementBase = { owner: PublicMovementOwnerSchema };
+export const PublicRoamingMovementSchema = Type.Object({
+  ...publicMovementBase,
+  kind: Type.Literal("roaming"),
+  distance: number,
+  aroundSpawner: Type.Boolean(),
+  usePois: Type.Boolean(),
+  poiPathName: Type.Optional(text),
+  poiPath: Type.Optional(PublicPatrolPathSchema),
+  poiRoamRadius: Type.Optional(number),
+}, { additionalProperties: false });
+export type PublicRoamingMovement = Static<typeof PublicRoamingMovementSchema>;
+
+export const PublicPatrolMovementSchema = Type.Object({
+  ...publicMovementBase,
+  kind: Type.Literal("patrol"),
+  randomPath: Type.Boolean(),
+  paths: Type.Array(PublicPatrolPathSchema, { minItems: 1 }),
+}, { additionalProperties: false });
+export type PublicPatrolMovement = Static<typeof PublicPatrolMovementSchema>;
+
+export const PublicMovementSchema = Type.Union([PublicRoamingMovementSchema, PublicPatrolMovementSchema]);
+export type PublicMovement = Static<typeof PublicMovementSchema>;
+
 export const PublicPlacementSchema = Type.Object({
   placementId: text, mapSpaceId: text, position, height: number, label: text,
   categories: Type.Array(publicMarkerCategory, { minItems: 1, uniqueItems: true }),
@@ -111,6 +160,7 @@ export const PublicPlacementSchema = Type.Object({
   itemKeys: Type.Array(text, { uniqueItems: true }),
   searchText: text,
   areas: Type.Array(Type.Array(position, { minItems: 3 })),
+  movement: Type.Array(PublicMovementSchema),
   travel: Type.Optional(PublicTravelSchema),
 }, { additionalProperties: false });
 export type PublicPlacement = Static<typeof PublicPlacementSchema>;
@@ -295,7 +345,7 @@ const publicMapSchema = Type.Object({
   bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
 }, { additionalProperties: false });
 
-export const PUBLICATION_SCHEMA_VERSION = "compendium.publication.v12";
+export const PUBLICATION_SCHEMA_VERSION = "compendium.publication.v13";
 
 export const PublicationDataSchema = Type.Object({
   schemaVersion: Type.Literal(PUBLICATION_SCHEMA_VERSION), buildId: text,

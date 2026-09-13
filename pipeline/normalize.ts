@@ -15,7 +15,7 @@ import { WorldSourcesSchema } from "../tools/world-extraction";
 import { CoverageLedgerSchema } from "../tools/coverage";
 import type { SceneCatalog } from "../tools/map-contracts";
 import type { SpatialResolution } from "../tools/spatial-contracts";
-import type { NormalizedOutput, NormalizationPlan, ArtifactReference, NormalizedCondition, NormalizedDatabaseInput, NormalizedEntity, NormalizedItemSources, NormalizedMapProjection, NormalizedPlacement, NormalizedRegion, NormalizedRegionGeometry, NormalizedSource, NormalizedSpawnCandidate, EntityDetail, CategoryMetadata, NormalizedCoverageSummary, SceneSnapshotReference } from "./normalized-contracts";
+import type { NormalizedOutput, NormalizationPlan, ArtifactReference, NormalizedCondition, NormalizedDatabaseInput, NormalizedEntity, NormalizedItemSources, NormalizedMapProjection, NormalizedPlacement, NormalizedRegion, NormalizedRegionGeometry, NormalizedPatrolPath, NormalizedSource, NormalizedSpawnCandidate, EntityDetail, CategoryMetadata, NormalizedCoverageSummary, SceneSnapshotReference } from "./normalized-contracts";
 import { assertNormalizationPlan, entityKey, publicEntityDetails, stableJson } from "./normalized-contracts";
 import { databaseCounts, hashRelation, openNormalizedDatabase, populateNormalizedDatabase } from "./database";
 import { identitySnapshotId } from "../tools/identity-store";
@@ -556,6 +556,46 @@ function producerRows(contexts: SceneContext[], sourceForComponent: Map<string, 
   return { conditions, candidates };
 }
 
+function collectPatrolPaths(contexts: SceneContext[], blockers: Blocker[]): NormalizedPatrolPath[] {
+  const paths: NormalizedPatrolPath[] = [];
+  const identities = new Set<string>();
+  for (const context of contexts) {
+    for (const [index, raw] of array(context.npc?.patrolPaths).entries()) {
+      const row = record(raw);
+      const source = record(row?.source);
+      if (!row || !source || typeof row.name !== "string" || row.name.length === 0) {
+        blockers.push({ kind: "unresolved-patrol-path", key: `${context.sceneNativeId}:${index}`, detail: "Patrol path identity is incomplete.", provenance: [pointer(context.npcReference, `/patrolPaths/${index}`)] });
+        continue;
+      }
+      const identity = `${context.sceneNativeId}:${String(source.hierarchyPath)}:${String(source.componentIndex)}`;
+      if (identities.has(identity)) continue;
+      identities.add(identity);
+      const worldPoints: NormalizedPatrolPath["worldPoints"] = [];
+      for (const [pointIndex, rawPoint] of array(row.points).entries()) {
+        const point = record(rawPoint);
+        const position = record(point?.position);
+        if (!position || typeof position.x !== "number" || !Number.isFinite(position.x) || typeof position.y !== "number" || !Number.isFinite(position.y) || typeof position.z !== "number" || !Number.isFinite(position.z)) {
+          blockers.push({ kind: "unresolved-patrol-point", key: `${identity}:${pointIndex}`, detail: "Patrol path point has no finite world position.", provenance: [pointer(context.npcReference, `/patrolPaths/${index}/points/${pointIndex}`)] });
+          continue;
+        }
+        worldPoints.push({ x: position.x, y: position.y, z: position.z });
+      }
+      paths.push({
+        sceneNativeId: context.sceneNativeId,
+        scenePath: context.scenePath,
+        name: row.name,
+        looping: row.looping === true,
+        groupPatrol: row.groupPatrol === true,
+        groupSpacing: typeof row.groupSpacing === "number" ? row.groupSpacing : 0,
+        poiRadius: typeof row.poiRadius === "number" ? row.poiRadius : 0,
+        worldPoints,
+        provenance: [pointer(context.npcReference, `/patrolPaths/${index}`)],
+      });
+    }
+  }
+  return paths.sort((left, right) => left.sceneNativeId - right.sceneNativeId || compareText(left.name, right.name));
+}
+
 function collectWorldConditions(contexts: SceneContext[], sourceForComponent: Map<string, string>, blockers: Blocker[], provenance: ArtifactReference): NormalizedCondition[] {
   const conditions: NormalizedCondition[] = [];
   for (const context of contexts) {
@@ -1006,6 +1046,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     const counts = databaseCounts(db);
     db.close();
     const categories: CategoryMetadata[] = categoryData(mapPlacements, placementData.roles);
+    const normalizedPatrolPaths = collectPatrolPaths(sceneData.contexts, blockers);
     const entityDetailsRows = entityDetails(canonicalData.entities, placementData.roles, itemSources, conditions, { merchantBindings: relationData.merchantBindings, merchantStock: relationData.merchantStock, lootBindings: relationData.lootBindings, lootEntries: relationData.lootEntries, resourceYields: [...relationData.resourceYields, ...worldData.resourceYields], questAssociations: [...relationData.questAssociations, ...worldData.questAssociations], transitions: worldData.transitions });
     const sourceDetails: NormalizedMapProjection["sources"] = [];
     for (const context of sceneData.contexts) {
@@ -1031,7 +1072,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
       sceneSpawns.push({ sceneNativeId: scene.nativeId as number, startPositionId: gameplay.startPositionId as number, position: { x: position.x, y: position.y, z: position.z } });
     }
     sceneSpawns.sort((a, b) => a.sceneNativeId - b.sceneNativeId);
-    const mapProjection: NormalizedMapProjection = { schemaVersion: "compendium.map-projections.v4" as const, buildId: plan.buildId, mapSpaces: profileData.mapSpaces.map((space) => ({ mapSpaceId: space.id, label: space.label, placementIds: mapPlacements.filter((placement) => placement.mapSpaceId === space.id).map((placement) => placement.placementId).sort(compareText) })), placements: mapPlacements, regions: normalizedRegions, sceneSpawns, sources: sourceDetails, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
+    const mapProjection: NormalizedMapProjection = { schemaVersion: "compendium.map-projections.v5" as const, buildId: plan.buildId, mapSpaces: profileData.mapSpaces.map((space) => ({ mapSpaceId: space.id, label: space.label, placementIds: mapPlacements.filter((placement) => placement.mapSpaceId === space.id).map((placement) => placement.placementId).sort(compareText) })), placements: mapPlacements, regions: normalizedRegions, patrolPaths: normalizedPatrolPaths, sceneSpawns, sources: sourceDetails, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
     const categoryProjection = { schemaVersion: "compendium.category-metadata.v1" as const, buildId: plan.buildId, categories, provenance: { plan: planRef, sources: sourceFiles.map((source) => source.reference) } };
     const entityProjection = { schemaVersion: "compendium.entity-details.v1" as const, buildId: plan.buildId, entities: entityDetailsRows, provenance: { plan: planRef, sources: sourceFiles.map((source) => source.reference) } };
     const itemProjection: NormalizedItemSources = { schemaVersion: "compendium.item-sources.v1", buildId: plan.buildId, items: itemSources, conditions: [...new Map(conditions.map((condition) => [condition.conditionId, condition])).values()], provenance: { plan: planRef, sources: sourceFiles.map((source) => source.reference) } };

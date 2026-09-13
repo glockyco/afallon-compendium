@@ -14,7 +14,7 @@ import { IllustrationOutputSchema, type IllustrationOutput } from "../tools/illu
 import { TilePyramidSchema, type TilePyramid } from "./tile-contracts";
 import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement, NormalizedRegion } from "./normalized-contracts";
 import { projectAdventureGuide } from "./guide-projection";
-import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicPlacement, type PublicRegion, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
+import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicMovement, type PublicPatrolPath, type PublicPlacement, type PublicRegion, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
 import { WorldOffsetsSchema, type WorldOffsets, buildWorldLayout } from "./world-layout";
 import { validateEntityDetails, validateItemSources, validatePublication } from "./publication-validation";
 
@@ -591,6 +591,89 @@ function spatialAreas(placement: NormalizedPlacement, resolver: ReturnType<typeo
   return [polygon];
 }
 
+function resolvedPatrolPath(
+  name: string,
+  placement: NormalizedPlacement,
+  paths: NormalizedMapProjection["patrolPaths"],
+  resolver: ReturnType<typeof compileMapSpaces>,
+  offset: { worldX: number; worldY: number },
+): PublicPatrolPath {
+  const matches = paths.filter((path) => path.sceneNativeId === placement.sceneNativeId && path.name === name);
+  if (matches.length === 0) return { name, status: "unresolved", reason: "The source scene has no patrol path with this name." };
+  if (matches.length > 1) return { name, status: "unresolved", reason: "The source scene has more than one patrol path with this name." };
+  const path = matches[0]!;
+  if (path.worldPoints.length === 0) return { name, status: "unresolved", reason: "The patrol path has no authored points." };
+  const points: Array<[number, number]> = [];
+  for (const point of path.worldPoints) {
+    const candidates = resolver.resolve(path.sceneNativeId, path.scenePath, point).candidates.filter((candidate) => candidate.mapSpaceId === placement.mapSpaceId);
+    if (candidates.length !== 1) return { name, status: "unresolved", reason: "A patrol point does not resolve uniquely to the placement map." };
+    points.push([candidates[0]!.mapPosition.x + offset.worldX, candidates[0]!.mapPosition.y + offset.worldY]);
+  }
+  return { name, status: "resolved", looping: path.looping, groupPatrol: path.groupPatrol, groupSpacing: path.groupSpacing, poiRadius: path.poiRadius, points };
+}
+
+function movementForPlacement(
+  placement: NormalizedPlacement,
+  entities: readonly EntityDetail[],
+  sources: readonly NormalizedMapProjection["sources"][number][],
+  paths: NormalizedMapProjection["patrolPaths"],
+  resolver: ReturnType<typeof compileMapSpaces>,
+  offset: { worldX: number; worldY: number },
+): PublicMovement[] {
+  const movements: PublicMovement[] = [];
+  const npcIds = [...new Set(placement.roles.flatMap((role) => role.npcId === null ? [] : [role.npcId]))];
+  for (const npcId of npcIds) {
+    const entity = entities.find((candidate) => candidate.entityKey === `npcs:${npcId}`);
+    const gameplay = record(entity?.publicData.gameplay);
+    for (const rawPhase of Array.isArray(gameplay?.aiPhases) ? gameplay.aiPhases : []) {
+      const phase = record(rawPhase);
+      if (!phase || !Number.isSafeInteger(phase.phaseIndex)) continue;
+      for (const rawBehavior of Array.isArray(phase.behaviors) ? phase.behaviors : []) {
+        const behavior = record(rawBehavior);
+        const movement = record(behavior?.movement);
+        if (!behavior || !movement || !Number.isSafeInteger(behavior.behaviorIndex) || typeof behavior.chance !== "number") continue;
+        const owner = { kind: "npcBehavior" as const, entityKey: `npcs:${npcId}`, phaseIndex: phase.phaseIndex as number, behaviorIndex: behavior.behaviorIndex as number, chance: behavior.chance };
+        if (movement.kind === "roaming" && typeof movement.roamDistance === "number" && typeof movement.roamAroundSpawner === "boolean" && typeof movement.usePOIs === "boolean") {
+          const poiPathName = typeof movement.poiPathName === "string" && movement.poiPathName.length > 0 ? movement.poiPathName : undefined;
+          movements.push({
+            owner,
+            kind: "roaming",
+            distance: movement.roamDistance,
+            aroundSpawner: movement.roamAroundSpawner,
+            usePois: movement.usePOIs,
+            ...(poiPathName ? { poiPathName, poiPath: resolvedPatrolPath(poiPathName, placement, paths, resolver, offset) } : {}),
+            ...(typeof movement.poiRoamRadius === "number" ? { poiRoamRadius: movement.poiRoamRadius } : {}),
+          });
+        } else if (movement.kind === "patrol" && typeof movement.randomPath === "boolean") {
+          const names = movement.randomPath
+            ? (Array.isArray(movement.patrolPathNames) ? movement.patrolPathNames : []).filter((value): value is string => typeof value === "string" && value.length > 0)
+            : typeof movement.patrolPathName === "string" && movement.patrolPathName.length > 0 ? [movement.patrolPathName] : [];
+          if (names.length === 0) throw new Error(`NPC ${npcId} has a patrol behavior without a path name.`);
+          movements.push({ owner, kind: "patrol", randomPath: movement.randomPath, paths: [...new Set(names)].map((name) => resolvedPatrolPath(name, placement, paths, resolver, offset)) });
+        }
+      }
+    }
+  }
+  for (const source of sources.filter((candidate) => candidate.placementId === placement.placementId && candidate.family === "npcProducer")) {
+    const patrol = record(record(source.data.overrides)?.patrol);
+    const path = record(patrol?.path);
+    if (patrol?.enabled !== true || !path || typeof path.name !== "string" || path.name.length === 0) continue;
+    const rawPoints = Array.isArray(path.points) ? path.points : [];
+    const points: Array<[number, number]> = [];
+    for (const rawPoint of rawPoints) {
+      const world = record(record(rawPoint)?.position);
+      if (!world || typeof world.x !== "number" || typeof world.y !== "number" || typeof world.z !== "number") continue;
+      const candidates = resolver.resolve(placement.sceneNativeId, placement.scenePath, { x: world.x, y: world.y, z: world.z }).candidates.filter((candidate) => candidate.mapSpaceId === placement.mapSpaceId);
+      if (candidates.length === 1) points.push([candidates[0]!.mapPosition.x + offset.worldX, candidates[0]!.mapPosition.y + offset.worldY]);
+    }
+    const publicPath: PublicPatrolPath = points.length === rawPoints.length && points.length > 0
+      ? { name: path.name, status: "resolved", looping: path.looping === true, groupPatrol: path.groupPatrol === true, groupSpacing: typeof path.groupSpacing === "number" ? path.groupSpacing : 0, poiRadius: typeof path.poiRadius === "number" ? path.poiRadius : 0, points }
+      : { name: path.name, status: "unresolved", reason: "A spawner patrol path point does not resolve uniquely to the placement map." };
+    movements.push({ owner: { kind: "spawnerOverride" }, kind: "patrol", randomPath: false, paths: [publicPath] });
+  }
+  return movements;
+}
+
 type TravelTarget = { sceneNativeId: number; position: { x: number; y: number; z: number } };
 type TravelResolution = { target: { sceneNativeId: number; position: TravelTarget["position"] | null } | null; reason?: string };
 
@@ -757,7 +840,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const reviewedOffsets = await readWorldOffsets(resolve(planDirectory, plan.worldOffsets.path), plan.worldOffsets.sha256, plan.buildId);
   const load = (reference: PublicationPlan["normalized"], command: string) => loadVerifiedRun(resolve(planDirectory, reference.path), reference.sha256, plan.buildId, command);
   const normalized = await load(plan.normalized, "normalize");
-  const map = await jsonArtifact<NormalizedMapProjection>(normalized, "projections/map-projections.json", "compendium.map-projections.v4");
+  const map = await jsonArtifact<NormalizedMapProjection>(normalized, "projections/map-projections.json", "compendium.map-projections.v5");
   const entities = await jsonArtifact<NormalizedEntityDetails>(normalized, "projections/entity-details.json", "compendium.entity-details.v1");
   const items = await jsonArtifact<NormalizedItemSources>(normalized, "projections/item-sources.json", "compendium.item-sources.v1");
   const coverage = await jsonArtifact<NormalizedCoverageSummary>(normalized, "projections/coverage-summary.json", "compendium.normalized-coverage.v3");
@@ -870,7 +953,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
     const name = [source.data.interactableName, source.data.chestName, referenceName(source.data.station), referenceName(source.data.property)].find((value) => typeof value === "string" && value.trim());
     if (typeof name === "string") sourceNamesByPlacement.set(source.placementId, plainText(name));
   }
-  const localPlacements: Array<{ source: NormalizedPlacement; value: Omit<PublicPlacement, "itemKeys" | "searchText"> & { sections: PublicDetailSection[] } }> = selected.map(placement => {
+  const localPlacements: Array<{ source: NormalizedPlacement; value: Omit<PublicPlacement, "itemKeys" | "searchText" | "movement"> & { sections: PublicDetailSection[] } }> = selected.map(placement => {
     const resolution = resolver.resolve(placement.sceneNativeId, placement.scenePath, placement.worldPosition);
     const candidates = resolution.candidates.filter(candidate => candidate.mapSpaceId === placement.mapSpaceId);
     if (candidates.length !== 1 || Math.hypot(candidates[0]!.mapPosition.x - placement.mapPosition!.x, candidates[0]!.mapPosition.y - placement.mapPosition!.y) > 1e-6) throw new Error(`Publication placement contradicts reviewed spatial membership: ${placement.placementId}`);
@@ -895,6 +978,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
       ...value,
       position: [value.position[0] + offset.worldX, value.position[1] + offset.worldY],
       areas: value.areas.map((polygon: Array<[number, number]>) => polygon.map(([x, y]: [number, number]) => [x + offset.worldX, y + offset.worldY] as [number, number])),
+      movement: movementForPlacement(source, entities.entities, map.sources, map.patrolPaths, resolver, offset),
       ...(travel ? { travel } : {}),
     };
   });

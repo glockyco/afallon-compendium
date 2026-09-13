@@ -33,6 +33,7 @@ test("every registered marker reaches the rendered icon layer and atlas", () => 
     itemKeys: [],
     searchText: markerRegistry[category].label,
     areas: [],
+    movement: [],
   }));
   const atlas = { atlas: {} as HTMLCanvasElement, mapping: iconAtlasMapping() };
   const records = markerRecordsForPlacements(placements);
@@ -60,6 +61,7 @@ test("an overlapping placement resolves from its enabled categories", () => {
     itemKeys: [],
     searchText: "Dungeon Door",
     areas: [],
+    movement: [],
   };
 
   expect(markerRecordsForPlacements([placement], ["dungeonEntrance"])[0]?.markerId).toBe("dungeonEntrance");

@@ -275,22 +275,69 @@ if (npcs != null)
                 var requirementTemplate = template.EnterPhaseRequirementsTemplate;
                 var requirement = requirementTemplate == null ? null : (requirementTemplate.entryDisplayName ?? requirementTemplate.entryName);
                 var abilityIds = new System.Collections.Generic.List<int>();
+                var behaviors = new System.Collections.Generic.List<object>();
                 if (template.PotentialBehaviors != null)
                 {
-                    foreach (var potential in template.PotentialBehaviors)
+                    for (var behaviorIndex = 0; behaviorIndex < template.PotentialBehaviors.Count; behaviorIndex++)
                     {
+                        var potential = template.PotentialBehaviors[behaviorIndex];
                         var behavior = potential == null ? null : potential.BehaviorTemplate;
-                        if (behavior == null || behavior.PotentialAbilities == null) continue;
-                        foreach (var potentialAbilities in behavior.PotentialAbilities)
+                        if (behavior == null) continue;
+                        if (behavior.PotentialAbilities != null)
                         {
-                            var abilitiesTemplate = potentialAbilities == null ? null : potentialAbilities.AbilitiesTemplate;
-                            if (abilitiesTemplate == null || abilitiesTemplate.Abilities == null) continue;
-                            foreach (var ability in abilitiesTemplate.Abilities) if (ability != null && !abilityIds.Contains(ability.abilityID)) abilityIds.Add(ability.abilityID);
+                            foreach (var potentialAbilities in behavior.PotentialAbilities)
+                            {
+                                var abilitiesTemplate = potentialAbilities == null ? null : potentialAbilities.AbilitiesTemplate;
+                                if (abilitiesTemplate == null || abilitiesTemplate.Abilities == null) continue;
+                                foreach (var ability in abilitiesTemplate.Abilities) if (ability != null && !abilityIds.Contains(ability.abilityID)) abilityIds.Add(ability.abilityID);
+                            }
                         }
 
+                        var state = behavior.DefaultState;
+                        var stateTemplate = behavior.DefaultStateTemplate;
+                        var roaming = stateTemplate == null ? null : stateTemplate.TryCast<Il2CppBLINK.RPGBuilder.AI.AIStateRoamingTemplate>();
+                        var patrol = stateTemplate == null ? null : stateTemplate.TryCast<Il2CppBLINK.RPGBuilder.AI.AIStatePatrolTemplate>();
+                        object movement = null;
+                        if (roaming != null)
+                        {
+                            movement = new
+                            {
+                                kind = "roaming",
+                                roamDistance = roaming.RoamDistance,
+                                roamAroundSpawner = roaming.roamAroundSpawner,
+                                usePOIs = roaming.UsePOIs,
+                                poiPathName = roaming.POIPathName,
+                                poiRoamRadius = roaming.POIRoamRadius
+                            };
+                        }
+                        else if (patrol != null)
+                        {
+                            var patrolPathNames = new System.Collections.Generic.List<string>();
+                            if (patrol.PatrolPathNames != null)
+                                for (var pathNameIndex = 0; pathNameIndex < patrol.PatrolPathNames.Count; pathNameIndex++) patrolPathNames.Add(patrol.PatrolPathNames[pathNameIndex]);
+                            movement = new
+                            {
+                                kind = "patrol",
+                                patrolPathName = patrol.PatrolPathName,
+                                randomPath = patrol.RandomPath,
+                                patrolPathNames = patrolPathNames,
+                                pauseAtFirstPointSeconds = patrol.PauseAtFirstPointDuration,
+                                pauseAtPointSeconds = patrol.PauseAtPointDuration,
+                                pauseAtLastPointSeconds = patrol.PauseAtLastPointDuration
+                            };
+                        }
+                        behaviors.Add(new
+                        {
+                            behaviorIndex,
+                            chance = potential.chance,
+                            name = behavior.entryDisplayName ?? behavior.entryName,
+                            defaultStateType = state == null ? null : state.GetType().FullName,
+                            defaultStateTemplateType = stateTemplate == null ? null : stateTemplate.GetType().FullName,
+                            movement
+                        });
                     }
                 }
-                npcAiPhases.Add(new { phaseIndex = phaseIndex, name = phaseName, requirement = requirement, abilityIds = abilityIds });
+                npcAiPhases.Add(new { phaseIndex = phaseIndex, name = phaseName, requirement = requirement, abilityIds = abilityIds, behaviors });
             }
         }
         var npcGuideStatsById = new System.Collections.Generic.Dictionary<int, float>();

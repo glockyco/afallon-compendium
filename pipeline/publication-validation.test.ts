@@ -4,13 +4,13 @@ import type { PublicationData } from "./public-contracts";
 
 function publication(): PublicationData {
   return {
-    schemaVersion: "compendium.publication.v12", buildId: "build", mode: "release",
+    schemaVersion: "compendium.publication.v13", buildId: "build", mode: "release",
     coverage: { complete: true, excludedPlacements: 0, messages: [] },
     world: { mapSpaceId: "world", label: "World", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "reviewed", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: "world", label: "World", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } } }],
     placements: [
-      { placementId: "stacked-lower", mapSpaceId: "world", position: [0.5, 0.5], height: 17.25, label: "Enemy", categories: ["enemy"], entityKeys: [], itemKeys: [], searchText: "Enemy", areas: [] },
-      { placementId: "stacked-upper", mapSpaceId: "world", position: [0.5, 0.5], height: 83.5, label: "Enemy", categories: ["enemy"], entityKeys: [], itemKeys: [], searchText: "Enemy", areas: [] },
+      { placementId: "stacked-lower", mapSpaceId: "world", position: [0.5, 0.5], height: 17.25, label: "Enemy", categories: ["enemy"], entityKeys: [], itemKeys: [], searchText: "Enemy", areas: [], movement: [] },
+      { placementId: "stacked-upper", mapSpaceId: "world", position: [0.5, 0.5], height: 83.5, label: "Enemy", categories: ["enemy"], entityKeys: [], itemKeys: [], searchText: "Enemy", areas: [], movement: [] },
     ],
     regions: [],
     entityIndex: [], itemIndex: [],

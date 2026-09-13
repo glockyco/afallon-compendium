@@ -219,6 +219,33 @@ const producerUnavailable = Type.Object({
   enabled: Type.Null(),
   unavailable: text,
 });
+const patrolPoint = Type.Union([
+  Type.Object({
+    sourceIndex: integer,
+    name: text,
+    sourceScene,
+    source,
+    position: vector3,
+    activeSelf: boolean,
+    activeInHierarchy: boolean,
+    enabled: Type.Null(),
+  }),
+  Type.Object({ sourceIndex: integer, unavailable: text }),
+]);
+const patrolPath = Type.Object({
+  nativeType: text,
+  name: text,
+  sourceScene,
+  source,
+  looping: boolean,
+  groupPatrol: boolean,
+  groupSpacing: number,
+  poiRadius: number,
+  pointsAvailable: boolean,
+  pointCount: integer,
+  points: Type.Array(patrolPoint),
+});
+
 const producer = Type.Union([
   producerUnavailable,
   Type.Object({
@@ -292,31 +319,7 @@ const producer = Type.Union([
         enabled: boolean,
         pointPauseSeconds: number,
         pathAvailable: boolean,
-        path: Type.Union([Type.Null(), Type.Object({
-          nativeType: text,
-          name: text,
-          sourceScene,
-          source,
-          looping: boolean,
-          groupPatrol: boolean,
-          groupSpacing: number,
-          poiRadius: number,
-          pointsAvailable: boolean,
-          pointCount: integer,
-          points: Type.Array(Type.Union([
-            Type.Object({
-              sourceIndex: integer,
-              name: text,
-              sourceScene,
-              source,
-              position: vector3,
-              activeSelf: boolean,
-              activeInHierarchy: boolean,
-              enabled: Type.Null(),
-            }),
-            Type.Object({ sourceIndex: integer, unavailable: text }),
-          ])),
-        })]),
+        path: Type.Union([Type.Null(), patrolPath]),
       }),
       leash: Type.Object({ enabled: boolean, range: number }),
     }),
@@ -450,6 +453,7 @@ const observation = Type.Object({
 
 const totals = Type.Object({
   producers: integer,
+  patrolPaths: integer,
   observations: integer,
   sourceNPCSpawnerComponents: integer,
   exportedProducers: integer,
@@ -486,17 +490,18 @@ const totals = Type.Object({
 });
 
 export const NpcProducersSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.npc-producers.v2"),
+  schemaVersion: Type.Literal("compendium.npc-producers.v3"),
   coverage: Type.Object({
     scope: text,
     includesInactiveComponents: boolean,
     sourceComponentType: text,
     sourceCount: integer,
     additionalSourceComponentTypes: Type.Array(text),
-    additionalSourceCounts: Type.Object({ adventurerSpawnZones: integer, adventurerPopulationManagers: integer }),
+    additionalSourceCounts: Type.Object({ adventurerSpawnZones: integer, adventurerPopulationManagers: integer, patrolPaths: integer }),
     note: text,
   }),
   producers: Type.Array(producer),
+  patrolPaths: Type.Array(patrolPath),
   adventurerProducers: Type.Array(zone),
   adventurerPopulationManagers: Type.Array(manager),
   observations: Type.Object({ currentNPCs: Type.Array(observation), currentPersistentNPCs: Type.Array(observation), currentAdventurers: Type.Array(observation) }),
@@ -504,6 +509,7 @@ export const NpcProducersSchema = Type.Object({
   runtimeNamingUncertainties: Type.Array(Type.Object({ member: text, detail: text })),
   sourceTotals: Type.Object({
     producers: integer,
+    patrolPaths: integer,
     npcSpawnerComponents: integer,
     spawnDataCandidates: integer,
     currentNPCs: integer,
@@ -519,6 +525,7 @@ export const NpcProducersSchema = Type.Object({
   }),
   exportedTotals: Type.Object({
     producers: integer,
+    patrolPaths: integer,
     observations: integer,
     spawnDataCandidates: integer,
     currentNPCs: integer,
@@ -538,6 +545,7 @@ export type NpcReference = (source: string, targetKind: string, nativeId: number
 
 type Requirement = Static<typeof requirement>;
 type Producer = Static<typeof producer>;
+type PatrolPath = Static<typeof patrolPath>;
 type Observation = Static<typeof observation>;
 type Manager = Static<typeof manager>;
 type Zone = Static<typeof zone>;
@@ -622,6 +630,20 @@ function validateSource(sourceValue: Static<typeof source>, sourcePath: string, 
   if (sourceValue.componentIndex < -1) fail(`Invalid component index at ${sourcePath}.`);
 }
 
+function validatePatrolPath(row: PatrolPath, sourcePath: string, reference: NpcReference): void {
+  if (row.pointCount >= 0) assertCount(row.points.length, row.pointCount, `${sourcePath}.points`);
+  validateScene(row.sourceScene, sourcePath, reference);
+  validateSource(row.source, sourcePath, reference);
+  for (let index = 0; index < row.points.length; index++) {
+    const point = row.points[index]!;
+    if (point.sourceIndex !== index) fail(`Patrol point rows are not ordered at ${sourcePath}.`);
+    if (!("unavailable" in point)) {
+      validateScene(point.sourceScene, `${sourcePath}.points[${index}]`, reference);
+      validateSource(point.source, `${sourcePath}.points[${index}]`, reference);
+    }
+  }
+}
+
 function validateProducer(row: Producer, sourcePath: string, reference: NpcReference): void {
   if ("unavailable" in row) return;
   validateScene(row.sourceScene, sourcePath, reference);
@@ -653,19 +675,7 @@ function validateProducer(row: Producer, sourcePath: string, reference: NpcRefer
     validateEntry(row.overrides.species.value, `${sourcePath}.overrides.species`, reference);
     reference(`${sourcePath}.overrides.species`, "species", row.overrides.species.value.nativeId);
   }
-  if (row.overrides.patrol.path !== null) {
-    if (row.overrides.patrol.path.pointCount >= 0) assertCount(row.overrides.patrol.path.points.length, row.overrides.patrol.path.pointCount, `${sourcePath}.patrol.points`);
-    validateScene(row.overrides.patrol.path.sourceScene, `${sourcePath}.patrol.path`, reference);
-    validateSource(row.overrides.patrol.path.source, `${sourcePath}.patrol.path`, reference);
-    for (let index = 0; index < row.overrides.patrol.path.points.length; index++) {
-      const point = row.overrides.patrol.path.points[index]!;
-      if (point.sourceIndex !== index) fail(`Patrol point rows are not ordered at ${sourcePath}.`);
-      if (!("unavailable" in point)) {
-        validateScene(point.sourceScene, `${sourcePath}.patrol.points[${index}]`, reference);
-        validateSource(point.source, `${sourcePath}.patrol.points[${index}]`, reference);
-      }
-    }
-  }
+  if (row.overrides.patrol.path !== null) validatePatrolPath(row.overrides.patrol.path, `${sourcePath}.overrides.patrol.path`, reference);
   if (row.persistence.savedState.available) {
     if (row.persistence.savedState.persistentNPCCount >= 0) assertCount(row.persistence.savedState.persistentNPCs.length, row.persistence.savedState.persistentNPCCount, `${sourcePath}.savedState.persistentNPCs`);
     for (let index = 0; index < row.persistence.savedState.persistentNPCs.length; index++) {
@@ -720,9 +730,12 @@ export function validateNpcProducers(value: NpcProducers, reference: NpcReferenc
   const { sourceTotals, exportedTotals, totals } = value;
   for (const [label, count] of Object.entries(sourceTotals)) assertNonNegativeCount(count, `sourceTotals.${label}`);
   if (value.coverage.sourceCount !== sourceTotals.producers || sourceTotals.npcSpawnerComponents !== sourceTotals.producers) fail("NPC producer coverage count differs from source totals.");
-  if (value.coverage.additionalSourceCounts.adventurerSpawnZones !== sourceTotals.adventurerSpawnZones || value.coverage.additionalSourceCounts.adventurerPopulationManagers !== sourceTotals.adventurerPopulationManagers) fail("NPC producer family coverage counts differ from source totals.");
+  if (value.coverage.additionalSourceCounts.adventurerSpawnZones !== sourceTotals.adventurerSpawnZones || value.coverage.additionalSourceCounts.adventurerPopulationManagers !== sourceTotals.adventurerPopulationManagers || value.coverage.additionalSourceCounts.patrolPaths !== sourceTotals.patrolPaths) fail("NPC producer family coverage counts differ from source totals.");
   if (sourceTotals.producers >= 0) assertCount(value.producers.length, sourceTotals.producers, "producers");
+  if (sourceTotals.patrolPaths >= 0) assertCount(value.patrolPaths.length, sourceTotals.patrolPaths, "patrol paths");
   assertCount(value.producers.length, exportedTotals.producers, "exported producers");
+  assertCount(value.patrolPaths.length, exportedTotals.patrolPaths, "exported patrol paths");
+  value.patrolPaths.forEach((row, index) => validatePatrolPath(row, `patrolPaths[${index}]`, reference));
   assertCount(value.adventurerProducers.length, exportedTotals.adventurerSpawnZones, "adventurer spawn zones");
   assertCount(value.adventurerPopulationManagers.length, exportedTotals.adventurerPopulationManagers, "adventurer population managers");
   if (sourceTotals.adventurerSpawnZones >= 0) assertCount(value.adventurerProducers.length, sourceTotals.adventurerSpawnZones, "adventurer spawn zone source");
@@ -867,6 +880,7 @@ export function validateNpcProducers(value: NpcProducers, reference: NpcReferenc
 
   for (const template of value.requirementTemplates) validateTemplate(template, `requirementTemplate:${template.sourceFieldPath}`, reference);
   assertCount(totals.producers, value.producers.length, "totals.producers");
+  assertCount(totals.patrolPaths, value.patrolPaths.length, "totals.patrolPaths");
   assertCount(totals.observations, value.observations.currentNPCs.length + value.observations.currentPersistentNPCs.length, "totals.observations");
   if (totals.sourceNPCSpawnerComponents !== sourceTotals.npcSpawnerComponents || totals.exportedProducers !== exportedTotals.producers || totals.sourceSpawnDataCandidates !== sourceTotals.spawnDataCandidates || totals.exportedSpawnDataCandidates !== exportedTotals.spawnDataCandidates) fail("NPC totals do not reconcile.");
   if (totals.sourceCurrentNPCs !== sourceTotals.currentNPCs || totals.sourceCurrentPersistentNPCs !== sourceTotals.currentPersistentNPCs || totals.sourceAllObservations !== sourceTotals.allObservations) fail("NPC observation totals do not reconcile.");

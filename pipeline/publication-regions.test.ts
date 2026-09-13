@@ -62,7 +62,7 @@ test("a region authored by several scenes publishes once", () => {
 
 function publicPlacement(placementId: string, mapSpaceId: string, position: [number, number], categories: PublicPlacement["categories"], label: string, destination?: { mapSpaceId: string; position: [number, number] }): PublicPlacement {
   return {
-    placementId, mapSpaceId, position, height: 0, label, categories, entityKeys: [], itemKeys: [], areas: [], searchText: label,
+    placementId, mapSpaceId, position, height: 0, label, categories, entityKeys: [], itemKeys: [], areas: [], movement: [], searchText: label,
     ...(destination ? { travel: { transitionId: `transition-${placementId}`, enabled: true, destination: { status: "resolved", ...destination } } } : {}),
   };
 }

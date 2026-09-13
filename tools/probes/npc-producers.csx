@@ -1,4 +1,5 @@
 var npcProducers = new System.Collections.Generic.List<object>();
+var patrolPaths = new System.Collections.Generic.List<object>();
 var currentNPCObservations = new System.Collections.Generic.List<object>();
 var currentPersistentNPCObservations = new System.Collections.Generic.List<object>();
 var currentNPCSeenInstanceIds = new System.Collections.Generic.List<int>();
@@ -1013,6 +1014,40 @@ var collectAdventurerObservationList = new System.Action<Il2CppSystem.Collection
     }
 });
 
+Il2Cpp.PatrolPath[] loadedPatrolPaths = null;
+try
+{
+    loadedPatrolPaths = UnityEngine.Object.FindObjectsOfType<Il2Cpp.PatrolPath>(true);
+}
+catch (System.Exception error)
+{
+    unresolved.Add(new
+    {
+        kind = "npcPatrolPathScan",
+        sourceFieldPath = "UnityEngine.Object.FindObjectsOfType<Il2Cpp.PatrolPath>(includeInactive:true)",
+        detail = error.GetType().FullName + ": " + error.Message
+    });
+}
+if (loadedPatrolPaths != null)
+{
+    for (var pathIndex = 0; pathIndex < loadedPatrolPaths.Length; pathIndex++)
+    {
+        var path = loadedPatrolPaths[pathIndex];
+        if (path == null)
+        {
+            unresolved.Add(new
+            {
+                kind = "npcPatrolPath",
+                sourceFieldPath = "PatrolPath[" + pathIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]",
+                detail = "FindObjectsOfType returned a null PatrolPath component."
+            });
+            continue;
+        }
+        var pathScene = projectSourceScene(path.gameObject.scene);
+        patrolPaths.Add(projectPatrolPath(path, "PatrolPath[" + pathIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]", pathScene.Item1));
+    }
+}
+
 Il2CppBLINK.RPGBuilder.AI.NPCSpawner[] npcSpawners = null;
 try
 {
@@ -1959,7 +1994,7 @@ else
 
 return new
 {
-    schemaVersion = "compendium.npc-producers.v2",
+    schemaVersion = "compendium.npc-producers.v3",
     coverage = new
     {
         scope = "currently loaded Unity scenes",
@@ -1969,16 +2004,19 @@ return new
         additionalSourceComponentTypes = new[]
         {
             "Il2CppBLINK.RPGBuilder.AI.AdventurerSpawnZone",
-            "Il2CppBLINK.RPGBuilder.AI.AdventurerPopulationManager"
+            "Il2CppBLINK.RPGBuilder.AI.AdventurerPopulationManager",
+            "Il2Cpp.PatrolPath"
         },
         additionalSourceCounts = new
         {
             adventurerSpawnZones = sourceAdventurerZoneCount,
-            adventurerPopulationManagers = sourceAdventurerPopulationManagerCount
+            adventurerPopulationManagers = sourceAdventurerPopulationManagerCount,
+            patrolPaths = loadedPatrolPaths == null ? -1 : loadedPatrolPaths.Length
         },
         note = "Authored producers are separate from CurrentNPCs, CurrentPersistentNPCs, and AdventurerSpawnZone runtime observations."
     },
     producers = npcProducers,
+    patrolPaths = patrolPaths,
     adventurerProducers = adventurerProducers,
     adventurerPopulationManagers = adventurerPopulationManagers,
     observations = new
@@ -1992,6 +2030,7 @@ return new
     sourceTotals = new
     {
         producers = sourceSpawnerCount,
+        patrolPaths = loadedPatrolPaths == null ? -1 : loadedPatrolPaths.Length,
         npcSpawnerComponents = sourceSpawnerCount,
         spawnDataCandidates = sourceCandidateCount,
         currentNPCs = currentNPCSourceCount,
@@ -2008,6 +2047,7 @@ return new
     exportedTotals = new
     {
         producers = npcProducers.Count,
+        patrolPaths = patrolPaths.Count,
         observations = currentNPCObservations.Count + currentPersistentNPCObservations.Count,
         spawnDataCandidates = exportedCandidateCount,
         currentNPCs = currentNPCObservations.Count,
@@ -2021,6 +2061,7 @@ return new
     totals = new
     {
         producers = npcProducers.Count,
+        patrolPaths = patrolPaths.Count,
         observations = currentNPCObservations.Count + currentPersistentNPCObservations.Count,
         sourceNPCSpawnerComponents = sourceSpawnerCount,
         exportedProducers = npcProducers.Count,
