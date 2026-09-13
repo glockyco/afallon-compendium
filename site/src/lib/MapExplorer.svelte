@@ -44,6 +44,7 @@
   const searchKindOrder = { item: 0, placement: 1, entity: 2 };
   const RESULT_LIMIT = 200;
   const KOFI_URL = 'https://ko-fi.com/wowmuch';
+  const WEBGL_STARTUP_FAILURE = /failed to create webgl context|webgl creation failed|webgl is not supported|exhausted gl driver options/i;
 
   interface ResultSummary {
     marker: MarkerDefinition;
@@ -74,6 +75,7 @@
   let adapter: MapAdapter | null = null;
   let loading = true;
   let mapReady = false;
+  let mapUnavailable = false;
   let loadError = '';
   let layerIds: string[] = ['captured'];
   let selectedId: string | null = null;
@@ -152,7 +154,7 @@
     ...selectedEntities.flatMap((entity) => entity.sections),
     ...selectedPlacement.itemKeys.flatMap((key) => (itemDetails.get(key)?.sources ?? []).flatMap((source) => source.sections)),
   ] : [];
-  $: resultPlacements = viewportBounds ? viewportPlacements : matchingPlacements;
+  $: resultPlacements = !mapUnavailable && viewportBounds ? viewportPlacements : matchingPlacements;
   $: rankedResults = rankResults(searchNeedle, matchingItems, matchingEntities, resultPlacements, entityIndexByKey);
   $: displayedResults = rankedResults.slice(0, RESULT_LIMIT);
   $: filteredDetail = selectedPlacement ? filteredSections(selectedPlacementDetails, detailQuery) : [];
@@ -160,6 +162,15 @@
   $: adapterPlacements = extraSelection ? [...matchingPlacements, extraSelection] : matchingPlacements;
   $: highlightedPlacementIds = selectionHighlightIds(selectedPlacement, selectedEntityKey, itemKey, searchIndexes);
   $: hoveredPlacementIds = resultHighlightIds(hoveredResult, searchIndexes);
+
+  function handleMapError(message: string): void {
+    if (WEBGL_STARTUP_FAILURE.test(message)) {
+      mapUnavailable = true;
+      loadError = '';
+      return;
+    }
+    loadError = message;
+  }
 
   onMount(() => {
     let disposed = false;
@@ -236,7 +247,7 @@
             mapReady = true;
           },
           onError(message) {
-            loadError = message;
+            handleMapError(message);
           }
         });
         adapterReady = true;
@@ -244,7 +255,9 @@
       .catch((error: unknown) => {
         if (!disposed) {
           loading = false;
-          loadError = error instanceof Error ? error.message : 'The publication could not be loaded.';
+          const message = error instanceof Error ? error.message : 'The publication could not be loaded.';
+          if (publication) handleMapError(message);
+          else loadError = message;
         }
       });
     return () => {
@@ -813,11 +826,27 @@
       {#if !panelCollapsed}<button class="panel-backdrop" type="button" aria-label="Close atlas controls" on:click={togglePanel}></button>{/if}
 
       <section class:results-collapsed={resultsCollapsed} class="map-column" aria-label="Interactive map">
-        <div class="map-frame"><canvas class:ready={mapReady} bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas>{#if !mapReady}<div class="map-loading" role="status"><div class="loading-indicator"><div class="spinner" aria-hidden="true"></div><span>Loading map...</span></div></div>{/if}<div class="map-controls"><button class="icon-button" type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}>+</button><button class="icon-button" type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })}>−</button><button type="button" on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button><a class="kofi-button" href={KOFI_URL} aria-label="Support on Ko-fi" title="Support on Ko-fi"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682.028-1.682.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z" /></svg><span>Support on Ko-fi</span></a></div>{#if previewPlacement}<div class="hover-preview"><strong>{previewPlacement.label}</strong><span>{previewPlacement.categories.map((category) => markerFor(category).label).join(' · ')}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div></div>
-        {#if loadError && publication}<div class="inline-error" role="alert">{loadError}</div>{/if}
+        <div class="map-frame">
+          <canvas class:ready={mapReady} bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas>
+          {#if mapUnavailable}
+            <div class="map-unavailable" role="alert">
+              <div>
+                <h2>Interactive map unavailable</h2>
+                <p>This browser could not start the map's WebGL2 renderer.</p>
+                <a href="https://get.webgl.org/webgl2/" target="_blank" rel="noreferrer">Check WebGL2 support</a>
+              </div>
+            </div>
+          {:else}
+            {#if !mapReady}<div class="map-loading" role="status"><div class="loading-indicator"><div class="spinner" aria-hidden="true"></div><span>Loading map...</span></div></div>{/if}
+            <div class="map-controls"><button class="icon-button" type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}>+</button><button class="icon-button" type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })}>−</button><button type="button" on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button><a class="kofi-button" href={KOFI_URL} aria-label="Support on Ko-fi" title="Support on Ko-fi"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682.028-1.682.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z" /></svg><span>Support on Ko-fi</span></a></div>
+            {#if previewPlacement}<div class="hover-preview"><strong>{previewPlacement.label}</strong><span>{previewPlacement.categories.map((category) => markerFor(category).label).join(' · ')}</span></div>{/if}
+            <div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div>
+          {/if}
+        </div>
+        {#if loadError && publication && !mapUnavailable}<div class="inline-error" role="alert">{loadError}</div>{/if}
         <section class:collapsed={resultsCollapsed} class="results" aria-labelledby="results-heading" bind:this={resultList}>
           <div class="results-header">
-            <div><h2 id="results-heading">Results</h2><p>{resultPlacements.length} distinct placements{#if viewportBounds}{' in the current viewport'}{/if}{#if matchingItems.length > 0}{' · '}{matchingItems.length} items{/if}{#if matchingEntities.length > 0}{' · '}{matchingEntities.length} entity definitions{/if}</p>{#if rankedResults.length > RESULT_LIMIT}<p class="result-limit">Showing the first {displayedResults.length} of {rankedResults.length} results.</p>{/if}</div>
+            <div><h2 id="results-heading">Results</h2><p>{resultPlacements.length} distinct placements{#if viewportBounds && !mapUnavailable}{' in the current viewport'}{/if}{#if matchingItems.length > 0}{' · '}{matchingItems.length} items{/if}{#if matchingEntities.length > 0}{' · '}{matchingEntities.length} entity definitions{/if}</p>{#if rankedResults.length > RESULT_LIMIT}<p class="result-limit">Showing the first {displayedResults.length} of {rankedResults.length} results.</p>{/if}</div>
             <div class="results-actions">
               {#if itemContext}<button class="quiet-button" type="button" on:click={() => { itemKey = null; syncUrl('push'); }}>Exit item context</button>{/if}
               <button class="quiet-button" type="button" aria-controls="results-content" aria-expanded={!resultsCollapsed} on:click={toggleResults}>{resultsCollapsed ? 'Show results' : 'Hide results'}</button>
@@ -979,6 +1008,12 @@
   canvas { display: block; width: 100%; height: 100%; opacity: 0; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   canvas.ready { opacity: 1; }
   .map-loading { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; background: #151716; }
+  .map-unavailable { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; padding: 1.5rem; background: #151716; text-align: center; }
+  .map-unavailable > div { display: grid; max-width: 32rem; gap: .7rem; justify-items: center; }
+  .map-unavailable h2, .map-unavailable p { margin: 0; }
+  .map-unavailable h2 { color: #eee9dd; font-family: Georgia, serif; font-size: 1.25rem; font-weight: 500; }
+  .map-unavailable p { color: #aaa9a0; font-size: .85rem; line-height: 1.5; }
+  .map-unavailable a { color: #d5b978; text-underline-offset: .2em; }
   .loading-indicator { display: grid; place-items: center; gap: .65rem; color: #aaa9a0; font-size: .78rem; }
   .loading-indicator .spinner { margin: 0; }
   .map-controls { position: absolute; right: .75rem; top: .75rem; display: flex; gap: .5rem; }

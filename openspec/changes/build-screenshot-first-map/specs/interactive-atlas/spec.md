@@ -260,6 +260,12 @@ The atlas SHALL support keyboard navigation and narrow screens. Search and a syn
 - **THEN** the browser permits the trusted frame origin
 - **AND** other external origins remain unable to frame the atlas
 
+#### Scenario: WebGL2 cannot start
+- **WHEN** the browser cannot create the WebGL2 renderer
+- **THEN** the atlas replaces the loading state and raw driver error with a concise compatibility message
+- **AND** links to the WebGL2 support check
+- **AND** keeps search and reference results available
+
 ### Requirement: Evidence limits stay outside the interface
 
 The atlas SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. It SHALL NOT display completeness disclosures, coverage counts, or unresolved-semantics notices.
