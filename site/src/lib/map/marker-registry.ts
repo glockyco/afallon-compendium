@@ -117,8 +117,8 @@ export const markerRegistry = {
   neutral: {
     id: "neutral",
     section: "creatures",
-    label: "Neutral creature",
-    pluralLabel: "Neutral creatures",
+    label: "Neutral Creature",
+    pluralLabel: "Neutral Creatures",
     icon: PawPrint,
     color: [245, 158, 11],
     iconSize: { base: 21, min: 16, max: 44 },
@@ -285,8 +285,8 @@ export const markerRegistry = {
   dungeonEntrance: {
     id: "dungeonEntrance",
     section: "places",
-    label: "Dungeon entrance",
-    pluralLabel: "Dungeon entrances",
+    label: "Dungeon Entrance",
+    pluralLabel: "Dungeon Entrances",
     icon: BuildingTunnel,
     color: [168, 85, 247],
     iconSize: { base: 23, min: 18, max: 48 },
@@ -299,8 +299,8 @@ export const markerRegistry = {
   challengeStone: {
     id: "challengeStone",
     section: "places",
-    label: "Challenge stone",
-    pluralLabel: "Challenge stones",
+    label: "Challenge Stone",
+    pluralLabel: "Challenge Stones",
     icon: BuildingMonument,
     color: [14, 165, 233],
     iconSize: { base: 22, min: 17, max: 46 },
@@ -327,8 +327,8 @@ export const markerRegistry = {
   corruptionAltar: {
     id: "corruptionAltar",
     section: "places",
-    label: "Altar of corruption",
-    pluralLabel: "Altars of corruption",
+    label: "Altar of Corruption",
+    pluralLabel: "Altars of Corruption",
     icon: Diamonds,
     color: [220, 38, 38],
     iconSize: { base: 22, min: 17, max: 46 },

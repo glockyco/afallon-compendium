@@ -730,16 +730,16 @@
             </div>
             {#if layerOptions.length > 0}
               <div class="control-section layer-section">
-                <h2>Map layers</h2>
+                <h2>Map Layers</h2>
                 {#if tileLayerOptions.length > 0}
                   <label class="tool-option">
                     <input type="checkbox" checked={capturedChecked} indeterminate={capturedPartial} on:change={toggleCaptured} />
-                    <span>Captured screenshots</span>
+                    <span>Captured Screenshots</span>
                     <span class="count">{visibleTileLayerIds.length}/{tileLayerOptions.length}</span>
                   </label>
                   {#if tileLayerOptions.length > 1}
                     <details class="layer-maps" open={capturedPartial}>
-                      <summary>Individual maps</summary>
+                      <summary>Individual Maps</summary>
                       {#each tileLayerOptions as option (option.id)}
                         <label class="tool-option nested"><input type="checkbox" checked={visibleTileLayerIds.includes(option.id)} on:change={() => toggleMapLayer(option.id)} /><span>{option.label}</span></label>
                       {/each}
@@ -749,12 +749,12 @@
                 {#if gameMapOptions.length > 0}
                   <label class="tool-option">
                     <input type="checkbox" checked={gameMapsChecked} indeterminate={gameMapsPartial} on:change={toggleGameMaps} />
-                    <span>Game maps</span>
+                    <span>Game Maps</span>
                     <span class="count">{visibleGameMapIds.length}/{gameMapOptions.length}</span>
                   </label>
                   {#if gameMapOptions.length > 1}
                     <details class="layer-maps" open={gameMapsPartial}>
-                      <summary>Individual game maps</summary>
+                      <summary>Individual Game Maps</summary>
                       {#each gameMapOptions as option (option.id)}
                         <label class="tool-option nested"><input type="checkbox" checked={visibleGameMapIds.includes(option.id)} on:change={() => toggleGameMap(option.id)} /><span>{option.label}</span></label>
                       {/each}
@@ -763,7 +763,7 @@
                 {/if}
               </div>
             {/if}
-            <div class="control-section world-tools"><h2>Map options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel connections</span></label><label class="tool-option"><input type="checkbox" checked={showZones} on:change={toggleZones} /><span>Zone areas and names</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export world offsets</button>{#if Object.keys(worldOffsetOverrides).length > 0}<button type="button" class="quiet-button" on:click={discardWorldOffsets}>Discard {Object.keys(worldOffsetOverrides).length} dragged offsets</button>{/if}<p class="hint">Drag a map anywhere inside its rectangle to review its placement. Dragged offsets show only while authoring and stay in this browser until exported or discarded.</p>{/if}</div>
+            <div class="control-section world-tools"><h2>Map Options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel Connections</span></label><label class="tool-option"><input type="checkbox" checked={showZones} on:change={toggleZones} /><span>Zone Areas and Names</span></label><label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring Mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export World Offsets</button>{#if Object.keys(worldOffsetOverrides).length > 0}<button type="button" class="quiet-button" on:click={discardWorldOffsets}>Discard {Object.keys(worldOffsetOverrides).length} Dragged Offsets</button>{/if}<p class="hint">Drag a map anywhere inside its rectangle to review its placement. Dragged offsets show only while authoring and stay in this browser until exported or discarded.</p>{/if}</div>
           </div>
         {/if}
       </aside>
