@@ -253,6 +253,7 @@ The atlas SHALL support keyboard navigation and narrow screens. Search and a syn
 - **THEN** the map and results use the full viewport width without horizontal scrolling
 - **AND** the closed category panel occupies only one touch target
 - **AND** the open category panel appears as a dismissible drawer above the map
+- **AND** touch zoom stays within useful map bounds without browser gesture interference
 
 ### Requirement: Evidence limits stay outside the interface
 

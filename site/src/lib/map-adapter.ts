@@ -8,7 +8,7 @@ import {
 import { TileLayer } from "@deck.gl/geo-layers";
 import { Matrix4 } from "@math.gl/core";
 import { createIconAtlas, type IconAtlasResult } from "./map/icon-atlas";
-import { MAP_EVENT_RECOGNIZER_OPTIONS } from "./map/interaction";
+import { MAP_EVENT_RECOGNIZER_OPTIONS, MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from "./map/interaction";
 import { MARKER_LAYER_ID, markerFor, resolveMarker, type MarkerId } from "./map/marker-registry";
 import { WorldDragController, type WorldOffsetOverrides, worldOffsetDelta } from "./map/world-layout";
 import {
@@ -137,7 +137,7 @@ function normalizeView(view: MapViewState | ViewInput | undefined, fallback: Map
       finite(target?.[1]) ? target[1] : fallback.target[1],
       0,
     ],
-    zoom: finite(zoom) ? Math.max(-12, Math.min(12, zoom)) : fallback.zoom,
+    zoom: finite(zoom) ? Math.max(MIN_VIEW_ZOOM, Math.min(MAX_VIEW_ZOOM, zoom)) : fallback.zoom,
   };
 }
 
@@ -530,7 +530,7 @@ export async function createMapAdapter(
   // the controller sees it: a synchronous pick on the bounds layer starts the drag and turns
   // the controller's pan off until the pointer is released.
   const setDragPan = (enabled: boolean): void => {
-    deck.setProps({ views: new OrthographicView({ id: VIEW_ID, flipY: false, controller: { inertia: 500, dragPan: enabled } }) });
+    deck.setProps({ views: new OrthographicView({ id: VIEW_ID, flipY: false, controller: { inertia: false, dragPan: enabled, dragRotate: false } }) });
   };
   const unprojectPointer = (event: PointerEvent): [number, number] | null => {
     const rect = canvas.getBoundingClientRect();
@@ -561,6 +561,11 @@ export async function createMapAdapter(
   // deck.gl may wrap the canvas; the listener sits on the host element in the capture phase
   // so it runs before deck.gl's own pointer handling on any descendant.
   const pointerHost: HTMLElement = canvas.parentElement ?? canvas;
+  const browserUiEvents = ["contextmenu", "selectstart", "gesturestart", "gesturechange", "gestureend"] as const;
+  const preventCanvasBrowserUi = (event: Event): void => {
+    if (event.target instanceof HTMLCanvasElement) event.preventDefault();
+  };
+  for (const type of browserUiEvents) pointerHost.addEventListener(type, preventCanvasBrowserUi, {passive: false});
   pointerHost.addEventListener("pointerdown", onPointerDown, true);
   window.addEventListener("pointermove", onPointerMove);
   window.addEventListener("pointerup", onPointerUp);
@@ -845,9 +850,9 @@ export async function createMapAdapter(
     views: new OrthographicView({
       id: VIEW_ID,
       flipY: false,
-      controller: {inertia: 500},
+      controller: {inertia: false, dragRotate: false},
     }),
-    initialViewState: {...activeView, minZoom: -12, maxZoom: 12},
+    initialViewState: {...activeView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM},
     eventRecognizerOptions: MAP_EVENT_RECOGNIZER_OPTIONS,
     layers: [],
     onHover: info => handleHover(pickedPlacementId(info)),
@@ -857,6 +862,7 @@ export async function createMapAdapter(
       activeView = nextView;
       if (viewSpaceKey) viewsBySpace.set(viewSpaceKey, activeView);
       notifyView();
+      return {...params.viewState, ...nextView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM};
     },
     onLoad: () => {
       deckLoaded = true;
@@ -913,7 +919,7 @@ export async function createMapAdapter(
   const setDeckView = (next: MapViewState): void => {
     activeView = normalizeView(next, activeView);
     if (viewSpaceKey) viewsBySpace.set(viewSpaceKey, activeView);
-    deck.setProps({initialViewState: {...activeView, minZoom: -12, maxZoom: 12}});
+    deck.setProps({initialViewState: {...activeView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM}});
     notifyView();
   };
 
@@ -945,6 +951,7 @@ export async function createMapAdapter(
     resizeObserver?.disconnect();
     resizeObserver = null;
     if (typeof window !== "undefined") window.removeEventListener("resize", resize);
+    for (const type of browserUiEvents) pointerHost.removeEventListener(type, preventCanvasBrowserUi);
     pointerHost.removeEventListener("pointerdown", onPointerDown, true);
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", onPointerUp);
