@@ -159,6 +159,38 @@ export function collectPlacementRoles(
       : source;
     collect(sourceEvidence, evidence, row.families, row.facts, row.issues);
   }
+  // A loot chest on a child object of an interactable is what that interactable opens
+  // (Backpack/Loot, Treasure chest/Loot): one thing in the game, so one placement. The chest's
+  // roles and sources move to the opener; the chest's own placement is dropped.
+  const placementByGameObject = new Map<number, PlacementState>();
+  for (const binding of bindings.values()) {
+    const placement = placements.get(binding.placementId);
+    if (placement) placementByGameObject.set(binding.gameObjectInstanceId, placement);
+  }
+  const interactableSourceIds = new Set([...sources.values()].filter(source => source.families.has("interactableObject")).map(source => source.sourceId));
+  for (const source of [...sources.values()]) {
+    if (!source.families.has("chest")) continue;
+    const binding = [...bindings.values()].find(candidate => candidate.sourceId === source.sourceId);
+    if (!binding) continue;
+    let parentId = nodes.get(binding.gameObjectInstanceId)?.parentInstanceId ?? null;
+    let opener: PlacementState | undefined;
+    for (let depth = 0; parentId !== null && depth < 8 && !opener; depth++) {
+      const candidate = placementByGameObject.get(parentId);
+      if (candidate && [...candidate.sourceIds].some(id => interactableSourceIds.has(id))) opener = candidate;
+      parentId = nodes.get(parentId)?.parentInstanceId ?? null;
+    }
+    if (!opener) continue;
+    const chestPlacement = placements.get(source.placementId);
+    if (!chestPlacement || chestPlacement === opener) continue;
+    for (const [key, role] of chestPlacement.roles) {
+      let target = opener.roles.get(key);
+      if (!target) { target = { role: role.role, npcId: role.npcId, scope: role.scope, evidence: new Map(), sourceIds: new Set() }; opener.roles.set(key, target); }
+      for (const id of role.sourceIds) target.sourceIds.add(id);
+      for (const [evidenceKey, evidence] of role.evidence) target.evidence.set(evidenceKey, evidence);
+    }
+    for (const id of chestPlacement.sourceIds) { opener.sourceIds.add(id); const moved = sources.get(id); if (moved) moved.placementId = opener.placementId; }
+    placements.delete(chestPlacement.placementId);
+  }
   const placementRows = [...placements.values()].sort((a, b) => a.placementId.localeCompare(b.placementId)).map(placement => ({
     placementId: placement.placementId, position: placement.position, label: placement.label, sourceIds: [...placement.sourceIds].sort(),
     roles: [...placement.roles.values()].sort((a, b) => a.role.localeCompare(b.role) || (a.npcId ?? -1) - (b.npcId ?? -1)).map(role => ({ role: role.role, npcId: role.npcId, scope: role.scope, sourceIds: [...role.sourceIds].sort(), evidence: orderedEvidence(role.evidence) })),
