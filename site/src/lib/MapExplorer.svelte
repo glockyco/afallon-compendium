@@ -42,6 +42,7 @@
   );
   const searchKindOrder = { item: 0, placement: 1, entity: 2 };
   const RESULT_LIMIT = 200;
+  const KOFI_URL = 'https://ko-fi.com/wowmuch';
 
   interface ResultSummary {
     marker: MarkerDefinition;
@@ -716,8 +717,8 @@
 </script>
 
 <svelte:head>
-  <title>Afallon Compendium Atlas</title>
-  <meta name="description" content="A static Afallon world atlas with verified placement and item source details." />
+  <title>Afallon Compendium</title>
+  <meta name="description" content="Afallon interactive map — find bosses, dungeons, merchants, quests, resources, travel points, and item sources across the world." />
 </svelte:head>
 
 <div class="atlas-shell">
@@ -792,7 +793,7 @@
       </aside>
 
       <section class:results-collapsed={resultsCollapsed} class="map-column" aria-label="Interactive map">
-        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(12, view.zoom + 0.5) })}>+</button><button type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(-12, view.zoom - 0.5) })}>−</button><button type="button" on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button></div>{#if previewPlacement}<div class="hover-preview"><strong>{previewPlacement.label}</strong><span>{previewPlacement.categories.map((category) => markerFor(category).label).join(' · ')}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div></div>
+        <div class="map-frame"><canvas bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas><div class="map-controls"><button class="icon-button" type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(12, view.zoom + 0.5) })}>+</button><button class="icon-button" type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(-12, view.zoom - 0.5) })}>−</button><button type="button" on:click={() => { if (publication) setMapView(centerView(publication.world)); }}>Fit map</button><a class="kofi-button" href={KOFI_URL} aria-label="Support on Ko-fi" title="Support on Ko-fi"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682.028-1.682.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z" /></svg><span>Support on Ko-fi</span></a></div>{#if previewPlacement}<div class="hover-preview"><strong>{previewPlacement.label}</strong><span>{previewPlacement.categories.map((category) => markerFor(category).label).join(' · ')}</span></div>{/if}<div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div></div>
         {#if loadError && publication}<div class="inline-error" role="alert">{loadError}</div>{/if}
         <section class:collapsed={resultsCollapsed} class="results" aria-labelledby="results-heading" bind:this={resultList}>
           <div class="results-header">
@@ -952,8 +953,12 @@
   .map-frame { position: relative; min-height: 0; overflow: hidden; border-bottom: 1px solid #393a38; background: #151716; }
   canvas { display: block; width: 100%; height: 100%; }
   .map-controls { position: absolute; right: .75rem; top: .75rem; display: flex; gap: .3rem; }
-  .map-controls button { min-width: 34px; min-height: 34px; border: 1px solid #706548; border-radius: 2px; background: #252622; color: #eee9dd; }
+  .map-controls button, .map-controls a { display: flex; align-items: center; justify-content: center; min-width: 34px; min-height: 34px; padding: 0 .6rem; border: 1px solid #706548; border-radius: 2px; background: #252622; color: #eee9dd; text-decoration: none; }
+  .map-controls .icon-button { width: 34px; padding: 0; }
   .map-controls button:disabled { opacity: .45; cursor: default; }
+  .map-controls button:not(:disabled):hover, .map-controls a:hover { border-color: #bba779; background: #302f29; color: #d5b978; }
+  .kofi-button { gap: .4rem; }
+  .kofi-button svg { order: 1; width: 20px; height: 20px; transform: translateX(1px); }
   .map-status { position: absolute; left: .75rem; bottom: .7rem; padding: .35rem .5rem; background: rgb(18 19 19 / 88%); color: #aaa9a0; font-size: .7rem; }
   .hover-preview { position: absolute; left: 50%; top: .75rem; transform: translateX(-50%); padding: .45rem .6rem; background: #252622; border: 1px solid #706548; box-shadow: 0 3px 12px #0008; font-size: .75rem; pointer-events: none; }
   .hover-preview strong, .hover-preview span { display: block; }
