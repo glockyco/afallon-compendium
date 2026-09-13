@@ -969,7 +969,7 @@
   .map-column.results-collapsed { grid-template-rows: minmax(260px, 1fr) auto; }
   .map-frame { position: relative; min-height: 0; overflow: hidden; border-bottom: 1px solid #393a38; background: #151716; }
   canvas { display: block; width: 100%; height: 100%; }
-  .map-controls { position: absolute; right: .75rem; top: .75rem; display: flex; gap: .3rem; }
+  .map-controls { position: absolute; right: .75rem; top: .75rem; display: flex; gap: .5rem; }
   .map-controls button, .map-controls a { display: flex; align-items: center; justify-content: center; min-width: 34px; min-height: 34px; padding: 0 .6rem; border: 1px solid #706548; border-radius: 2px; background: #252622; color: #eee9dd; text-decoration: none; }
   .map-controls .icon-button { width: 34px; padding: 0; }
   .map-controls button:disabled { opacity: .45; cursor: default; }
