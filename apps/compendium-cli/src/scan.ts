@@ -3,6 +3,7 @@ import { mkdir, readdir, rm } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
 import {
+  ObservationContextSchema,
   RuntimeScanStateSchema,
   ScanPlanSchema,
   ScanTargetEnvelopeSchema,
@@ -145,6 +146,7 @@ function requireCollector(bundles: readonly ScanCollectorBundle[], name: string)
 
 function scanSchemaIdentities(bundles: readonly ScanCollectorBundle[]): SchemaIdentityReference[] {
   const identities = [
+    schemaRegistry.identify(ObservationContextSchema),
     schemaRegistry.identify(ScanPlanSchema),
     schemaRegistry.identify(ScanTargetEnvelopeSchema),
     schemaRegistry.identify(RuntimeScanStateSchema),
@@ -156,6 +158,7 @@ function scanSchemaIdentities(bundles: readonly ScanCollectorBundle[]): SchemaId
 async function registerTargetDirectory(store: ArtifactStore, run: ArtifactRun, workingDirectory: string, envelope: ScanTargetEnvelope): Promise<void> {
   const directory = resolve(workingDirectory, `target-${envelope.targetIndex}`);
   const schemaByFile = new Map(envelope.artifacts.map(artifact => [`${artifact.name}.json`, artifact.schema.id]));
+  for (const artifact of envelope.artifacts.filter(artifact => artifact.family !== "coverage")) schemaByFile.set(`${artifact.name}.context.json`, schemaRegistry.identify(ObservationContextSchema).id);
   schemaByFile.set("envelope.json", schemaRegistry.identify(ScanTargetEnvelopeSchema).id);
   schemaByFile.set("state-started.json", schemaRegistry.identify(RuntimeScanStateSchema).id);
   schemaByFile.set("state-completed.json", schemaRegistry.identify(RuntimeScanStateSchema).id);

@@ -285,7 +285,7 @@ Canonical metadata uses the current `entryDisplayName`, `entryName`, `entryDescr
 
 The loot-rule probe compares the native eligibility method with extracted item-level rules for all four level-band tables. It temporarily checks both values of the research character's `FirstGearDropDone` flag and restores the original value in `finally`, before the next gameplay frame. The verified run made 142,072 native comparisons and confirmed restoration. It does not roll drops, award items, or publish effective drop probabilities. Source-condition interpretation, authored-world coverage, and publication gates remain separate unfinished tasks.
 
-Custom probes can use `--prelude tools/probes/conditions.csx` for the shared requirement projection. The injected `args.researchCharacter` value comes from the local configuration. Raw artifacts, recovered declarations, save data, and screenshots stay outside Git.
+Custom probes can use `--prelude packages/scan/src/probes/collectors/conditions.csx` for the shared requirement projection. The injected `args.researchCharacter` value comes from the local configuration. Raw artifacts, recovered declarations, save data, and screenshots stay outside Git.
 
 ## Merchant interface verification
 
@@ -376,8 +376,8 @@ The same replay accounted for all 3,712 source entries, retained all 421 loader 
 Run these commands sequentially from the default Nix development shell. HotRepl admits one session; concurrent clients can displace each other.
 
 ```sh
-bun run tools/cli.ts probe --config local/config.json --probe tools/probes/npc-producers.csx --prelude tools/probes/conditions.csx
-bun run tools/cli.ts probe --config local/config.json --probe tools/probes/world-sources.csx --prelude tools/probes/conditions.csx
+bun run tools/cli.ts probe --config local/config.json --probe packages/scan/src/probes/collectors/npc-producers.csx --prelude packages/scan/src/probes/collectors/conditions.csx
+bun run tools/cli.ts probe --config local/config.json --probe packages/scan/src/probes/collectors/world-sources.csx --prelude packages/scan/src/probes/collectors/conditions.csx
 ```
 
 NPC run `da13ea47-aead-48f9-b48b-f9cf47fa6530` exported 800 NPCSpawner producers and 800 authored candidates, separately from live observations. It also exported 29 adventurer zones and one population manager with eight roster candidates. Native roster counts are captured before projection; an unavailable entry remains explicit and does not discard later entries. Per-zone roster assignment and spawn selection semantics remain unresolved. This raw probe records identity candidates; the serialized-identity stage supplies verified placement bindings.
@@ -404,7 +404,7 @@ The integrated run reports 1,028 unresolved raw requirement ID fields, all conta
 
 `tools/serialized-assets.py` indexes installed scene and prefab hierarchies with pinned UnityPy 1.25.3. `indexSerializedAsset` in `tools/serialized-assets.ts` invokes the locked Python environment and validates its output. The reader decodes GameObject, Transform, RectTransform, and MonoScript metadata, plus MonoBehaviour headers; it does not decode custom gameplay payloads. It preserves signed 64-bit path IDs as decimal strings and retains null component slots. Scene provenance comes from a `levelN` file beside its BuildSettings metadata, not a display-name match. Bundle selection requires the exact asset container path. Source files and metadata dependencies actually read are hashed. Transforms and shared script metadata are parsed once.
 
-`tools/probes/placement-snapshot.csx` records the same 23 source-family queries, their deduplicated component union, all-component slot indexes, ancestors, and loaded stream roots. `tools/probes/addressable-locations.csx` reads GUID locations and bundle dependencies without loading assets. Catalog run `bbba3983-7cab-4305-aaf9-2ba6eef50117` recorded 421 GUIDs and 880 resource locations.
+`packages/scan/src/probes/collectors/placement-snapshot.csx` records the same 23 source-family queries, their deduplicated component union, all-component slot indexes, ancestors, and loaded stream roots. `packages/scan/src/probes/collectors/addressable-locations.csx` reads GUID locations and bundle dependencies without loading assets. Catalog run `bbba3983-7cab-4305-aaf9-2ba6eef50117` recorded 421 GUIDs and 880 resource locations.
 
 `resolvePlacementIdentities` in `tools/placement-identities.ts` matches native hierarchy observations to serialized records. Scene-root sibling indexes are not trusted. Child names and indexes establish correspondence; they are not persistent keys. Streamed objects use an explicitly identified prefab root and the serialized identity of their loader. Placement hashes include the build, canonical scene provenance, serialized source file, and GameObject path ID. Source hashes also include the component path ID. Runtime IDs and coordinates are observations only. Missing, ambiguous, foreign-scene, and colliding bindings remain unresolved. A rejected loader cannot leave resolved descendants.
 
@@ -483,7 +483,7 @@ The NPC-producer and `WorldSources` contracts in `tools/npc-extraction.ts` and `
 
 World sources also retain the scene handle and use the all-component GameObject slot. This slot agrees with the identity snapshot. A same-type component count cannot supply this slot. Missing observations, different scene instances, and incompatible component slots cannot fall back to names or coordinates.
 
-`tools/probes/faction-roles.csx` records faction definitions, player standing, both alignment directions, and sampled native NPC alignments. Hash-checked native analysis is in `research/ghidra/25144591/faction-alignment-functions.json`. `FactionManager.GetAlignment` selects the first Unity-equal stance and reads `AlignementToPlayer`, not the legacy `playerAlignment` field. No matching stance returns Neutral. The observed stance assets all had database ID `-1`. Their observation identities remain distinct.
+`packages/scan/src/probes/collectors/faction-roles.csx` records faction definitions, player standing, both alignment directions, and sampled native NPC alignments. Hash-checked native analysis is in `research/ghidra/25144591/faction-alignment-functions.json`. `FactionManager.GetAlignment` selects the first Unity-equal stance and reads `AlignementToPlayer`, not the legacy `playerAlignment` field. No matching stance returns Neutral. The observed stance assets all had database ID `-1`. Their observation identities remain distinct.
 
 Native Enemy, Ally, and Neutral NPC samples matched the recovered rules, and player standing remained unchanged.
 

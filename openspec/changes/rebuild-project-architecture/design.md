@@ -248,6 +248,8 @@ Migration parity compares observable semantics from a frozen successful build:
 
 Expected differences are declared before comparison: normalized issue totals replace occurrence-inflated totals; static filenames and resource grouping change; deprecated commands, paths, and URL aliases disappear; game imagery remains the default even where the older planning text said otherwise.
 
+The unified current-scene run `f6ad6218-d221-48cb-812f-408ed8a7c4dc` was compared with frozen extraction run `1b0a696b-b55c-40e6-ab0c-cb21bba4c944`. All 12 legacy raw families are present. Canonical, localization, loot-rule, relationship, and support bytes are identical. Faction, geometry, producer, placement, inventory, and world-source bytes differ only in live observation fields, such as frames, runtime instance IDs, and the current roaming actors. The unified run adds addressable-location and target-coverage evidence and stores a validated observation context for every runtime collector. Its target envelope succeeded. The same unified collector list also ran for current-scene and build-scene targets, while the frozen traversal used a smaller per-step collector subset; the added families remove that legacy drift.
+
 File-for-file equality was rejected because the new catalog layout and static sharding are intentional. Count-only parity was rejected because equal totals can hide identity or provenance regressions.
 
 ## Risks / Trade-offs

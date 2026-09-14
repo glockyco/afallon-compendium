@@ -1,14 +1,17 @@
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import type { TSchema } from "typebox";
+import { Assert } from "typebox/value";
 import {
   AddressableGraphSchema,
   CanonicalSchema,
   FactionRolesSchema,
+  LocalizationSchema,
   LootRulesSchema,
   MapGeometrySchema,
   NavigationGeometrySchema,
   NpcProducersSchema,
+  ObservationContextSchema,
   PlacementSnapshotSchema,
   RelationshipsSchema,
   ScanCoverageSchema,
@@ -17,6 +20,7 @@ import {
   WorldSourcesSchema,
   canonicalJson,
   schemaRegistry,
+  type ObservationContext,
   type ScanCollectorFamily,
   type ScanCoverage,
   type ScanEvidenceArtifact,
@@ -41,11 +45,12 @@ export interface ScanCollectorBundle {
 export interface CollectedScanEvidence {
   readonly artifact: ScanEvidenceArtifact;
   readonly value: unknown;
-  readonly observationContext: unknown | null;
+  readonly observationContext: ObservationContext | null;
 }
 
 const DEFINITIONS: readonly CollectorDefinition[] = [
   { family: "canonical", name: "canonical", schema: CanonicalSchema, modules: ["canonical"] },
+  { family: "canonical", name: "localization", schema: LocalizationSchema, modules: ["localization"] },
   { family: "inventory", name: "world-inventory", schema: WorldInventorySchema, modules: ["world-inventory"] },
   { family: "inventory", name: "addressable-locations", schema: AddressableGraphSchema, modules: ["addressable-locations"] },
   { family: "producers", name: "npc-producers", schema: NpcProducersSchema, modules: ["conditions", "npc-producers"] },
@@ -66,7 +71,7 @@ export async function createScanCollectorBundles(): Promise<readonly ScanCollect
     bundle: await createProbeBundle({
       id: `scan/${definition.name}`,
       schema: definition.schema,
-      modules: definition.modules.map(name => ({ id: `collector/${name}`, path: resolve(import.meta.dir, "../../../tools/probes", `${name}.csx`) })),
+      modules: definition.modules.map(name => ({ id: `collector/${name}`, path: resolve(import.meta.dir, "probes/collectors", `${name}.csx`) })),
     }),
   })));
 }
@@ -88,6 +93,11 @@ export class ScanCollectorSuite {
         parameters: { researchCharacter: this.character },
         captureContext: true,
       });
+      Assert(ObservationContextSchema, result.observationContext);
+      const context = result.observationContext;
+      if (context.started.researchCharacter !== this.character || context.completed.researchCharacter !== this.character) throw new Error(`Collector ${collector.name} observed another character.`);
+      if (context.started.scene.handle !== context.completed.scene.handle || context.started.gameSceneNativeId !== context.completed.gameSceneNativeId || context.completed.frame < context.started.frame) throw new Error(`Collector ${collector.name} crossed its observation boundary.`);
+      await Bun.write(resolve(outputDirectory, `${collector.name}.context.json`), `${canonicalJson(context)}\n`);
       results.push({
         artifact: {
           family: collector.family,
@@ -97,7 +107,7 @@ export class ScanCollectorSuite {
           authoredIdentities: authoredIdentities(result.value),
         },
         value: result.value,
-        observationContext: result.observationContext ?? null,
+        observationContext: context,
       });
     }
     const coverage = buildCoverage(target, results);

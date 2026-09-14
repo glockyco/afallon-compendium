@@ -36,7 +36,7 @@
 - [x] 4.7 Implement streamed-source targets through the same state machine; verify unreachable, unsupported, failed, succeeded, and not-attempted outcomes remain distinct with source evidence.
 - [x] 4.8 Integrate all canonical, inventory, producer, placement, role, relationship, spatial, and coverage collectors into scan; verify current-scene and traversal plans produce the same artifact families and stable authored identities.
 - [x] 4.9 Add the `compendium scan` composition command and verified run finalization; verify a multi-target failure preserves per-target diagnostics and does not replace the latest successful complete scan.
-- [ ] 4.10 Compare unified scan output with the frozen extraction and traversal baseline, declare justified differences, then remove the old commands and duplicate orchestration; verify no package imports the removed modules.
+- [x] 4.10 Compare unified scan output with the frozen extraction and traversal baseline, declare justified differences, then remove the old commands and duplicate orchestration; verify no package imports the removed modules.
 
 ## 5. Capture Package
 

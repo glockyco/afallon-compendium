@@ -461,7 +461,7 @@ async function capturePlan(
 
     await mkdir(resolve(run.directory, "raw"), { recursive: true });
     const inventoryPath = resolve(run.directory, "raw/world-inventory.json");
-    const inventoryReply = await runtime.probe(resolve(import.meta.dir, "probes/world-inventory.csx"), inventoryPath, {
+    const inventoryReply = await runtime.probe(resolve(import.meta.dir, "../packages/scan/src/probes/collectors/world-inventory.csx"), inventoryPath, {
       parameters: { researchCharacter: config.character },
       captureContext: true,
     });

@@ -255,7 +255,7 @@ export async function prepareSceneIdentities(
   checkSignal(runtime);
 
   const locationPath = artifactPath(outputDirectory, "addressable-locations.json");
-  const graphResult = await runtime.probe(resolve(import.meta.dir, "probes/addressable-locations.csx"), locationPath, { parameters: { researchCharacter: config.character } });
+  const graphResult = await runtime.probe(resolve(import.meta.dir, "../packages/scan/src/probes/collectors/addressable-locations.csx"), locationPath, { parameters: { researchCharacter: config.character } });
   checkSignal(runtime);
   Assert(AddressableGraphSchema, graphResult.value);
   if (await hashFile(locationPath) !== graphResult.reference.sha256) throw new Error("Native addressable graph hash does not match its artifact.");
