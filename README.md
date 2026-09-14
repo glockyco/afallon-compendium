@@ -37,6 +37,17 @@ Runtime extraction requires a locally installed copy of Afallon with the HotRepl
 
 The pipeline writes versioned extraction, normalization, imagery, and publication artifacts under `artifacts/`. Generated artifacts, local configuration, and extracted game assets are not committed.
 
+## Deployment
+
+Deploy a successful publication run from the `site` directory:
+
+```sh
+cd site
+bun run deploy:production ../artifacts/<publication-group>/<build-id>/<run-id>
+```
+
+The command stages the publication, builds and validates the site, deploys it with Wrangler, and smoke-tests production.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
