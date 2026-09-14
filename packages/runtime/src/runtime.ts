@@ -5,8 +5,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, relative, resolve, sep, win32 } from "node:path";
+import type { Static, TSchema } from "typebox";
 import { Assert } from "typebox/value";
 import { RuntimeCleanupReceiptSchema, type CompendiumConfig, type RuntimeCleanupReceipt } from "@afallon/contracts";
+import type { ProbeBundle, ProbeResult } from "./probes";
 
 async function deadline<T>(operation: Promise<T>, milliseconds: number, expire: () => void): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
@@ -101,6 +103,20 @@ export async function withRuntime<T>(config: CompendiumConfig, operation: (runti
       try { lock.exec("ROLLBACK"); } finally { lock.close(); }
     }
   }
+}
+
+export interface ProbeOptions {
+  readonly preludeFile?: string;
+  readonly parameters?: Record<string, unknown>;
+  readonly captureContext?: boolean;
+  readonly timeoutMs?: number;
+}
+
+interface ProbeExecution<T> {
+  readonly reference: ArtifactRef;
+  readonly value: T;
+  readonly observationContext?: unknown;
+  readonly compiled: boolean;
 }
 
 export class Runtime {
@@ -309,14 +325,27 @@ export class Runtime {
   // frame-local cleanup registrars, so the cached body behaves exactly as an inline one.
   private readonly compiledProbes = new Set<string>();
 
-  async probe(sourceFile: string, outputFile: string, options: { preludeFile?: string; parameters?: Record<string, unknown>; captureContext?: boolean; timeoutMs?: number } = {}): Promise<{ reference: ArtifactRef; value: unknown; observationContext?: unknown }> {
+  async probe(sourceFile: string, outputFile: string, options: ProbeOptions = {}): Promise<{ reference: ArtifactRef; value: unknown; observationContext?: unknown }> {
     const body = await readFile(sourceFile, "utf8");
     const prelude = options.preludeFile ? await readFile(options.preludeFile, "utf8") : "";
+    const probeKey = createHash("sha256").update(JSON.stringify([prelude, body, options.captureContext === true, this.config.character])).digest("hex");
+    const result = await this.executeProbe(`${prelude}\n${body}`, probeKey, outputFile, options);
+    return { reference: result.reference, value: result.value, observationContext: result.observationContext };
+  }
+
+  async runProbe<T extends TSchema>(bundle: ProbeBundle<T>, outputFile: string, options: Omit<ProbeOptions, "preludeFile"> = {}): Promise<ProbeResult<T>> {
+    const probeKey = createHash("sha256").update(JSON.stringify([bundle.sha256, options.captureContext === true, this.config.character])).digest("hex");
+    const result = await this.executeProbe<Static<T>>(bundle.source, probeKey, outputFile, options);
+    Assert(bundle.schema, result.value);
+    return { ...result, bundleSha256: bundle.sha256 };
+  }
+
+  private async executeProbe<T = unknown>(source: string, probeKey: string, outputFile: string, options: Omit<ProbeOptions, "preludeFile">): Promise<ProbeExecution<T>> {
     const output = await toRuntimePath(this.config, outputFile);
     const captureContext = options.captureContext === true;
-    const probeKey = createHash("sha256").update(JSON.stringify([prelude, body, captureContext, this.config.character])).digest("hex");
     const delegateType = "System.Func<string, string, System.Action<System.Action>, System.Func<System.Action, System.Action>, System.Func<System.Func<bool>, System.Action>, object>";
-    if (!this.compiledProbes.has(probeKey)) {
+    const compiled = !this.compiledProbes.has(probeKey);
+    if (compiled) {
       const contextSetup = captureContext ? `
         var readObservationContext = new System.Func<object>(() => {
           var character = Il2CppBLINK.RPGBuilder.Characters.Character.Instance;
@@ -339,7 +368,7 @@ export class Runtime {
       await this.evaluate<boolean>(`new System.Func<object>(() => {
         object __compendiumProbeBody(string argsJson, string path, System.Action<System.Action> registerFrameCleanup, System.Func<System.Action, System.Action> registerRuntimeCleanup, System.Func<System.Func<bool>, System.Action> registerRuntimeCleanupWait) {
           ${contextSetup}
-          object __compendiumProbeResult() { var args = argsJson == null ? new Newtonsoft.Json.Linq.JObject() : Newtonsoft.Json.Linq.JObject.Parse(argsJson);\n${prelude}\n${body}\n }
+          object __compendiumProbeResult() { var args = argsJson == null ? new Newtonsoft.Json.Linq.JObject() : Newtonsoft.Json.Linq.JObject.Parse(argsJson);\n${source}\n }
           var result = __compendiumProbeResult();
           ${captureContext ? "var observationCompleted = readObservationContext();" : ""}
           var bytes = System.Text.Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(result));
@@ -365,8 +394,8 @@ export class Runtime {
     if (!reference || reference.finalized !== true || !Number.isSafeInteger(reference.byteSize) || reference.byteSize < 0 || !/^[a-f0-9]{64}$/.test(reference.sha256) || reference.path !== output) {
       throw new Error("The runtime returned invalid artifact metadata.");
     }
-    const value = await readRuntimeArtifact(this.config, reference);
-    return { reference, value: JSON.parse(new TextDecoder().decode(value)), observationContext: reference.observationContext };
+    const value: unknown = JSON.parse(new TextDecoder().decode(await readRuntimeArtifact(this.config, reference)));
+    return { reference, value: value as T, observationContext: reference.observationContext, compiled };
   }
 }
 
