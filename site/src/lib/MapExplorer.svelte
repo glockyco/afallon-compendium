@@ -844,8 +844,10 @@
             </div>
           {:else}
             {#if !mapReady}<div class="map-loading" role="status"><div class="loading-indicator"><div class="spinner" aria-hidden="true"></div><span>Loading map...</span></div></div>{/if}
-            <div class="map-controls"><button class="icon-button" type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}>+</button><button class="icon-button" type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })}>−</button><button type="button" disabled={!mapReady} on:click={fitMap}>Fit map</button><a class="kofi-button" href={KOFI_URL} aria-label="Support on Ko-fi" title="Support on Ko-fi"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682.028-1.682.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z" /></svg><span>Support on Ko-fi</span></a></div>
-            {#if previewPlacement}<div class="hover-preview"><strong>{previewPlacement.label}</strong><span>{[...previewPlacement.categories.map((category) => markerFor(category).label), previewPlacement.movement.some((movement) => movement.kind === 'patrol') ? 'Patrolling' : '', previewPlacement.movement.some((movement) => movement.kind === 'roaming') ? 'Roaming' : ''].filter(Boolean).join(' · ')}</span></div>{/if}
+            <div class="map-top-overlay">
+              <div class="map-controls"><button class="icon-button" type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}>+</button><button class="icon-button" type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })}>−</button><button type="button" disabled={!mapReady} on:click={fitMap}>Fit map</button><a class="kofi-button" href={KOFI_URL} aria-label="Support on Ko-fi" title="Support on Ko-fi"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682.028-1.682.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z" /></svg><span>Support on Ko-fi</span></a></div>
+              {#if previewPlacement}<div class="hover-preview"><strong>{previewPlacement.label}</strong><span>{[...previewPlacement.categories.map((category) => markerFor(category).label), previewPlacement.movement.some((movement) => movement.kind === 'patrol') ? 'Patrolling' : '', previewPlacement.movement.some((movement) => movement.kind === 'roaming') ? 'Roaming' : ''].filter(Boolean).join(' · ')}</span></div>{/if}
+            </div>
             <div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div>
           {/if}
         </div>
@@ -1010,7 +1012,7 @@
   .notice, .stale-warning { padding: .55rem; border-left: 2px solid #b98751; background: #2b2721; color: #e2c399; font-size: .73rem; line-height: 1.45; }
   .map-column { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(260px, 1fr) minmax(180px, 30vh); background: #121313; }
   .map-column.results-collapsed { grid-template-rows: minmax(260px, 1fr) auto; }
-  .map-frame { position: relative; min-height: 0; overflow: hidden; border-bottom: 1px solid #393a38; background: #151716; }
+  .map-frame { position: relative; container: map-frame / inline-size; min-height: 0; overflow: hidden; border-bottom: 1px solid #393a38; background: #151716; }
   canvas { display: block; width: 100%; height: 100%; opacity: 0; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   canvas.ready { opacity: 1; }
   .map-loading { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; background: #151716; }
@@ -1022,7 +1024,8 @@
   .map-unavailable a { color: #d5b978; text-underline-offset: .2em; }
   .loading-indicator { display: grid; place-items: center; gap: .65rem; color: #aaa9a0; font-size: .78rem; }
   .loading-indicator .spinner { margin: 0; }
-  .map-controls { position: absolute; right: .75rem; top: .75rem; display: flex; gap: .5rem; }
+  .map-top-overlay { position: absolute; inset: .75rem .75rem auto; pointer-events: none; }
+  .map-controls { position: absolute; top: 0; right: 0; display: flex; gap: .5rem; pointer-events: auto; }
   .map-controls button, .map-controls a { display: flex; align-items: center; justify-content: center; min-width: 34px; min-height: 34px; padding: 0 .6rem; border: 1px solid #706548; border-radius: 2px; background: #252622; color: #eee9dd; text-decoration: none; }
   .map-controls .icon-button { width: 34px; padding: 0; }
   .map-controls button:disabled { opacity: .45; cursor: default; }
@@ -1030,7 +1033,7 @@
   .kofi-button { gap: .4rem; }
   .kofi-button svg { order: 1; width: 20px; height: 20px; transform: translateX(1px); }
   .map-status { position: absolute; left: .75rem; bottom: .7rem; padding: .35rem .5rem; background: rgb(18 19 19 / 88%); color: #aaa9a0; font-size: .7rem; }
-  .hover-preview { position: absolute; left: 50%; top: .75rem; transform: translateX(-50%); padding: .45rem .6rem; background: #252622; border: 1px solid #706548; box-shadow: 0 3px 12px #0008; font-size: .75rem; pointer-events: none; }
+  .hover-preview { position: absolute; top: 0; left: 50%; max-width: min(20rem, 100%); transform: translateX(-50%); overflow-wrap: anywhere; padding: .45rem .6rem; background: #252622; border: 1px solid #706548; box-shadow: 0 3px 12px #0008; font-size: .75rem; text-align: center; pointer-events: none; }
   .hover-preview strong, .hover-preview span { display: block; }
   .hover-preview span { margin-top: .15rem; color: #b9b5a9; }
   .inline-error { position: absolute; z-index: 2; left: .8rem; right: .8rem; top: 3.5rem; padding: .55rem; border: 1px solid #864c45; background: #2b1f1f; color: #e5afa6; font-size: .75rem; }
@@ -1080,6 +1083,20 @@
   .state-card.error { border-color: #75473f; }
   .spinner { width: 22px; height: 22px; margin-bottom: 1rem; border: 2px solid #514f45; border-top-color: #d4b875; border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @container map-frame (max-width: 1024px) {
+    .map-top-overlay { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+    .map-controls { position: static; align-self: flex-end; }
+    .hover-preview { position: static; transform: none; }
+  }
+  @container map-frame (max-width: 680px) {
+    .map-top-overlay { inset: .5rem .5rem auto; }
+    .map-controls { gap: .35rem; }
+    .map-controls button, .map-controls a { min-width: 40px; min-height: 40px; padding-inline: .65rem; }
+    .map-controls .icon-button { width: 40px; }
+    .map-controls .kofi-button { width: 40px; padding: 0; }
+    .kofi-button span { display: none; }
+    .map-status { right: .5rem; bottom: .5rem; left: .5rem; width: max-content; max-width: calc(100% - 1rem); }
+  }
   @media (max-width: 1050px) {
     .workspace { grid-template-columns: 220px minmax(0, 1fr) minmax(280px, 340px); }
     .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr) minmax(280px, 340px); }
@@ -1097,13 +1114,6 @@
     .control-panel.collapsed .panel-header { min-height: 44px; padding: 0; border: 0; background: transparent; }
     .control-panel.collapsed .panel-toggle { width: 44px; height: 44px; background: #252622; box-shadow: 0 3px 12px #0008; }
     .control-panel.collapsed .panel-rail { display: none; }
-    .map-controls { top: .5rem; right: .5rem; gap: .35rem; }
-    .map-controls button, .map-controls a { min-width: 40px; min-height: 40px; padding-inline: .65rem; }
-    .map-controls .icon-button { width: 40px; }
-    .map-controls .kofi-button { width: 40px; padding: 0; }
-    .kofi-button span { display: none; }
-    .hover-preview { top: 3.4rem; max-width: calc(100% - 1rem); }
-    .map-status { right: .5rem; bottom: .5rem; left: .5rem; width: max-content; max-width: calc(100% - 1rem); }
     .results { padding: .75rem; }
     .result-list button { min-height: 48px; }
     .state-card { margin: 2rem .8rem; padding: 1.2rem; }
