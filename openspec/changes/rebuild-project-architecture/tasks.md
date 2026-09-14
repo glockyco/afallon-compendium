@@ -61,8 +61,8 @@
 - [x] 7.1 Define and validate the root manifest, map shard, compact search index, entity detail, item source, coverage, and imagery metadata contracts; verify every contract rejects mismatched build, catalog, schema, or resource identity.
 - [x] 7.2 Generate map-specific placement, region, and connection shards directly from catalog queries; verify opening one map does not require another map's records and deterministic inputs produce identical resource hashes.
 - [x] 7.3 Generate compact global entity and item search indexes plus independently addressable detail resources; verify a selected detail loads without downloading unrelated detail bodies.
-- [ ] 7.4 Migrate game-map and captured imagery generation to content-addressed publication assets; verify registrations, tile hashes, marker sampling, and layer metadata remain valid.
-- [ ] 7.5 Implement candidate-directory validation and atomic publication selection; verify a missing resource, hash mismatch, gate failure, or build mismatch preserves the previous selected publication.
+- [x] 7.4 Migrate game-map and captured imagery generation to content-addressed publication assets; verify registrations, tile hashes, marker sampling, and layer metadata remain valid.
+- [x] 7.5 Implement candidate-directory validation and atomic publication selection; verify a missing resource, hash mismatch, gate failure, or build mismatch preserves the previous selected publication.
 - [ ] 7.6 Wire SvelteKit static builds and Cloudflare Static Assets input to the selected publication; verify a production-like static server supports map navigation, search, filtering, selection, and layer changes without dynamic requests.
 - [ ] 7.7 Compare public semantics and initial-map transfer against the frozen publication, record expected sharding differences, and remove map projection, entity-detail, item-source, and coverage-summary intermediates after parity passes.
 
