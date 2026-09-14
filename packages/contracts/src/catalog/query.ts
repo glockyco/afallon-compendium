@@ -148,18 +148,19 @@ export interface NormalizedPatrolPath {
   provenance: ProvenanceReference[];
 }
 
-export interface NormalizedMapProjection {
-  schemaVersion: "compendium.map-projections.v5";
-  buildId: string;
-  mapSpaces: Array<{ mapSpaceId: string; label: string; placementIds: string[] }>;
-  placements: NormalizedPlacement[];
-  regions: NormalizedRegion[];
-  patrolPaths: NormalizedPatrolPath[];
-  // Where the first entry into a scene lands the player: the RPGWorldPosition record that the
-  // scene's startPositionID names. Later entries land where the player last left the scene.
-  sceneSpawns: Array<{ sceneNativeId: number; startPositionId: number; position: { x: number; y: number; z: number } }>;
-  sources: Array<{ sourceId: string; placementId: string; family: string; data: Record<string, unknown> }>;
-  provenance: { plan: ArtifactReference; profile: ArtifactReference; sources: ArtifactReference[] };
+export interface NormalizedSourceDetail {
+  sourceId: string;
+  placementId: string;
+  family: string;
+  data: Record<string, unknown>;
+}
+
+// Where the first entry into a scene lands the player: the RPGWorldPosition record that the
+// scene's startPositionID names. Later entries land where the player last left the scene.
+export interface NormalizedSceneSpawn {
+  sceneNativeId: number;
+  startPositionId: number;
+  position: { x: number; y: number; z: number };
 }
 
 export interface CategoryMetadata {
@@ -168,13 +169,6 @@ export interface CategoryMetadata {
   placementIds: string[];
   entityKeys: string[];
   roleCount: number;
-}
-
-export interface NormalizedCategoryMetadata {
-  schemaVersion: "compendium.category-metadata.v1";
-  buildId: string;
-  categories: CategoryMetadata[];
-  provenance: { plan: ArtifactReference; sources: ArtifactReference[] };
 }
 
 export interface EntityRelationshipProjection {
@@ -202,13 +196,6 @@ export interface EntityDetail {
   provenance: ProvenanceReference[];
 }
 
-export interface NormalizedEntityDetails {
-  schemaVersion: "compendium.entity-details.v1";
-  buildId: string;
-  entities: EntityDetail[];
-  provenance: { plan: ArtifactReference; sources: ArtifactReference[] };
-}
-
 export interface ItemSource {
   itemKey: string;
   itemId: number;
@@ -222,25 +209,13 @@ export interface ItemSource {
   }>;
 }
 
-export interface NormalizedItemSources {
-  schemaVersion: "compendium.item-sources.v1";
-  buildId: string;
-  items: ItemSource[];
-  conditions: NormalizedCondition[];
-  provenance: { plan: ArtifactReference; sources: ArtifactReference[] };
-}
-
-export interface NormalizedCoverageSummary {
-  schemaVersion: "compendium.normalized-coverage.v3";
-  buildId: string;
+export interface CatalogCoverageState {
   complete: false;
   blockers: Array<{ kind: string; key: string; detail: string; provenance: ProvenanceReference[] }>;
   // A reviewed domain box decides what a map shows. A placement outside every box of its scene's
   // bindings is a deliberate, evidence-backed exclusion, not an unresolved gap.
   exclusions: Array<{ kind: "outside-reviewed-domain"; key: string; detail: string; mapSpaceIds: string[]; provenance: ProvenanceReference[] }>;
   unresolved: { unplacedSources: number; unresolvedIssues: number; missingReferences: number };
-  inputCoverage: unknown | null;
-  provenance: { plan: ArtifactReference; profile: ArtifactReference; sources: ArtifactReference[] };
 }
 
 export interface NormalizedOutput {
@@ -260,7 +235,7 @@ export interface NormalizedOutput {
     domainRelations: number;
     blockers: number;
   };
-  coverage: Pick<NormalizedCoverageSummary, "complete" | "unresolved">;
+  coverage: Pick<CatalogCoverageState, "complete" | "unresolved">;
   provenance: { plan: ArtifactReference; profile: ArtifactReference; sources: ArtifactReference[] };
 }
 
@@ -289,10 +264,10 @@ export interface NormalizedDatabaseInput {
   transitions: Array<Record<string, unknown>>;
   itemSources: ItemSource[];
   entityDetails: EntityDetail[];
-  sourceDetails: NormalizedMapProjection["sources"];
+  sourceDetails: NormalizedSourceDetail[];
   patrolPaths: NormalizedPatrolPath[];
-  sceneSpawns: NormalizedMapProjection["sceneSpawns"];
-  blockers: NormalizedCoverageSummary["blockers"];
+  sceneSpawns: NormalizedSceneSpawn[];
+  blockers: CatalogCoverageState["blockers"];
   coverageOccurrences: Array<{
     kind: string;
     subjectKey: string;
@@ -302,7 +277,7 @@ export interface NormalizedDatabaseInput {
     recordPath: string;
     evidence: unknown;
   }>;
-  exclusions: NormalizedCoverageSummary["exclusions"];
+  exclusions: CatalogCoverageState["exclusions"];
   inputCoverage: unknown | null;
   provenance: { plan: ArtifactReference; profile: ArtifactReference; sources: ArtifactReference[] };
 }

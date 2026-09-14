@@ -4,11 +4,11 @@ Provide recognizable Afallon terrain imagery through reproducible in-game captur
 
 ## ADDED Requirements
 
-### Requirement: In-game imagery is the primary layer
+### Requirement: Game-provided maps are the default imagery
 
-The world surface SHALL carry imagery captured by this project from the supported game build. Screenshot capture covers the overworld only: capture plans SHALL name the world surface, and interiors SHALL publish the game's own map instead. Missing or failed overworld captures SHALL block a complete release and appear in coverage reports. Community map images SHALL NOT substitute for that imagery or fill missing capture tiles.
+The world surface MAY carry terrain imagery captured by this project from the supported game build. Screenshot capture covers the overworld only: capture plans SHALL name the world surface, and interiors SHALL publish the game's own map instead. Missing or failed captures SHALL remain explicit in capture coverage. They SHALL NOT block publication of a verified game-provided map.
 
-Where the game ships its own map for a zone as a `MapZone` texture, the publication SHALL also carry that texture as a calibrated layer registered through the game's own world-to-map conversion, dumped from the running game at the supported build. That layer is what a player already knows, so the atlas SHALL open an interior on its game map, and SHALL open the world surface on both its game map and its captured imagery. A game map SHALL NOT count toward capture coverage.
+Where the game ships its own map for a zone as a `MapZone` texture, publication SHALL carry that texture as a calibrated layer registered through the game's own world-to-map conversion. The atlas SHALL enable game-provided maps by default for the world surface and every interior. Captured terrain SHALL remain disabled until a reader selects it and SHALL NOT replace game-provided imagery.
 
 #### Scenario: A zone ships its own map
 - **WHEN** a scene carries a `MapZone` with a texture
@@ -20,15 +20,15 @@ Where the game ships its own map for a zone as a `MapZone` texture, the publicat
 - **THEN** the publication carries it as the game shows it and records the shared texture name
 
 #### Scenario: A map has both image sources
-- **WHEN** a reader opens the map without a saved layer choice
-- **THEN** the map displays captured in-game terrain
-- **AND** the reader can select the illustrated layer without losing map context
+- **WHEN** a reader opens the atlas without a saved layer choice
+- **THEN** the atlas displays the game-provided map
+- **AND** captured terrain remains available but disabled
+- **AND** changing layers preserves the shared world location
 
-#### Scenario: Only an existing map image is available
-- **WHEN** an illustration or shipped map texture exists but the project capture is missing or failed
-- **THEN** primary imagery coverage remains pending or failed
-- **AND** the existing image is not used as the default basemap or a replacement capture tile
-- **AND** the complete-release gate rejects the incomplete map
+#### Scenario: Only a game-provided map is available
+- **WHEN** a shipped map texture exists but project capture is missing or failed
+- **THEN** the game-provided map remains the default basemap
+- **AND** capture coverage retains the missing or failed state
 
 ### Requirement: Each map is one horizontal plane
 

@@ -11,11 +11,7 @@ Read the selected file under `local/` before launch. Use its `gamePath`, `hotrep
 
 Do not assume a port. Afallon and another instrumented game can use different ports. A connection to the wrong game can return valid HotRepl data.
 
-Run `doctor` before all other repository commands. It verifies the game assembly, product, endpoint, character, and shared output mapping.
-
-```sh
-bun run compendium doctor --config local/<config>.json
-```
+Use only `scan` or `capture` for durable runtime work. Each command validates the local installation identity and verifies that the connected product is Afallon before it claims runtime ownership.
 
 ## Launch through CrossOver
 
@@ -56,18 +52,16 @@ Do not use a character saved inside a challenge-stone instance for scene travers
 
 HotRepl accepts one WebSocket client. A new client disconnects the current client, including one that only requests a handshake.
 
-Do not run `doctor`, a standalone probe, or another HotRepl client while `extract`, `traverse`, or `capture` owns the connection.
+Do not run another HotRepl client while `scan` or `capture` owns the connection.
 
 Use repository commands for durable work:
 
 ```sh
-bun run compendium probe --config local/<config>.json --probe tools/probes/<probe>.csx
-bun run compendium extract --config local/<config>.json
-bun run compendium traverse --config local/<config>.json --plan local/<plan>.json
-bun run compendium capture --config local/<config>.json --plan local/<plan>.json
+bun run compendium scan --config local/<config>.json --plan local/<scan-plan>.json
+bun run compendium capture --config local/<config>.json --plan local/<capture-plan>.json
 ```
 
-Keep exploratory probes under ignored `local/` or `research/`. Move a proven projection into `tools/probes/` with a TypeBox contract before publication uses it.
+Keep exploratory probes under ignored `local/` or `research/`. Move a proven collector into `packages/scan/src/probes/` or `packages/capture/src/probes/` and register its TypeBox contract in `packages/contracts` before publication uses it.
 
 ## Shut down cleanly
 
@@ -84,5 +78,5 @@ If Steam launched a second Afallon process, identify its Windows process ID with
 - `EXPLORATION.md:806-817` records connection ownership and cleanup behavior.
 - `EXPLORATION.md:837-839` records per-game port isolation and wrong-game rejection.
 - `EXPLORATION.md:909-940` records challenge-stone save and stale-listener failures.
-- `tools/runtime.ts` implements the configured HotRepl connection and ownership cleanup.
-- `tools/cli.ts` defines the supported repository commands.
+- `packages/runtime/src/runtime.ts` implements the configured HotRepl connection and ownership cleanup.
+- `apps/compendium-cli/src/cli.ts` defines the supported repository commands.

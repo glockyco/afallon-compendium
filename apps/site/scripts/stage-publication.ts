@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { cpSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { Assert } from "typebox/value";
 import { StaticRootManifestSchema, type StaticRootManifest, type StaticResourceReference } from "@afallon/contracts/public";
@@ -44,7 +44,9 @@ export function stagePublication(publicationRoot: string, siteDir = resolve(impo
   rmSync(paths.root, { recursive: true, force: true });
   mkdirSync(paths.staticDir, { recursive: true });
   copyTrackedStatic(join(siteDir, "static"), paths.staticDir);
-  symlinkSync(publicDir, join(paths.staticDir, "data"), "dir");
+  const stagedPublication = join(paths.staticDir, "data");
+  cpSync(publicDir, stagedPublication, { recursive: true });
+  makeWritable(stagedPublication);
 
   const metadata: DeploymentMetadata = {
     schemaVersion: "afallon.deployment.v2",
@@ -58,6 +60,17 @@ export function stagePublication(publicationRoot: string, siteDir = resolve(impo
   };
   writeFileSync(join(paths.staticDir, "_deployment.json"), `${JSON.stringify(metadata)}\n`);
   return metadata;
+}
+
+function makeWritable(root: string): void {
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) {
+      chmodSync(path, 0o755);
+      makeWritable(path);
+    } else if (entry.isFile()) chmodSync(path, 0o644);
+    else throw new Error(`Staged publication contains an unsupported entry: ${relative(root, path)}.`);
+  }
 }
 
 function copyTrackedStatic(source: string, target: string): void {

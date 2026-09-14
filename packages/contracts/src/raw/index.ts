@@ -8,7 +8,7 @@ import {
   SupportSchema,
 } from "./database";
 import { FactionRolesSchema } from "./faction-roles";
-import { NpcProducersSchema, NpcProducersV2Schema } from "./npc-producers";
+import { NpcProducersSchema } from "./npc-producers";
 import { AddressableGraphSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, SceneSourceIssuesSchema, SerializedAssetIndexSchema } from "./placement";
 import { RuntimeScanStateSchema, ScanCollectorDispositionSchema, ScanCoverageSchema, ScanEvidenceArtifactSchema, ScanPlanSchema, ScanSourceEvidenceSchema, ScanTargetEnvelopeSchema, ScanTargetSchema, SceneVisitSchema, StreamCleanupSchema, StreamVisitSchema, TraversalPlanSchema } from "./traversal";
 import { WorldInventorySchema } from "./world-inventory";
@@ -21,7 +21,6 @@ schemaRegistry.register("compendium.support.v1", SupportSchema);
 schemaRegistry.register("compendium.relationships.v1", RelationshipsSchema);
 schemaRegistry.register("compendium.loot-rules.v1", LootRulesSchema);
 schemaRegistry.register("compendium.faction-roles.v1", FactionRolesSchema);
-schemaRegistry.register("compendium.npc-producers.v2", NpcProducersV2Schema);
 schemaRegistry.register("compendium.npc-producers.v3", NpcProducersSchema);
 schemaRegistry.register("compendium.addressable-locations.v1", AddressableGraphSchema);
 schemaRegistry.register("compendium.scene-source-issues.v2", SceneSourceIssuesSchema);

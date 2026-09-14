@@ -1,17 +1,18 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { beginRun, compileMapSpaces, loadSpatialProfile, loadVerifiedRun, type VerifiedRun } from "@afallon/capture";
-import { toolRevision } from "../tools/build";
+import { fingerprintStep } from "@afallon/artifacts";
+import { toolRevision } from "./build";
 import { decodeContract, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, type MapGeometry } from "@afallon/contracts"
 import { PlacementIdentityResultSchema, PlacementSnapshotSchema, type Canonical, type LootRules, type NpcProducersInput, type PlacementIdentityResult, type PlacementSnapshot, type Relationships, type WorldSources } from "@afallon/contracts";
 import { CanonicalSchema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema } from "@afallon/contracts";
 import { NormalizationPlanSchema, PlacementRolesSchema, type PlacementRoles } from "@afallon/contracts/catalog";
-import { NpcProducersSchema, NpcProducersV2Schema } from "@afallon/contracts";
+import { NpcProducersSchema } from "@afallon/contracts";
 import { WorldSourcesSchema } from "@afallon/contracts";
 import { CoverageLedgerSchema, type CoverageLedger } from "@afallon/contracts";
 import type { SpatialResolution } from "@afallon/contracts"
-import type { NormalizedOutput, NormalizationPlan, ArtifactReference, NormalizedCondition, NormalizedDatabaseInput, NormalizedEntity, NormalizedItemSources, NormalizedMapProjection, NormalizedPlacement, NormalizedRegion, NormalizedRegionGeometry, NormalizedPatrolPath, NormalizedSource, NormalizedSpawnCandidate, EntityDetail, CategoryMetadata, NormalizedCoverageSummary, SceneSnapshotReference } from "@afallon/contracts/catalog"
+import type { NormalizedOutput, NormalizationPlan, ArtifactReference, NormalizedCondition, NormalizedDatabaseInput, NormalizedEntity, ItemSource, NormalizedPlacement, NormalizedRegion, NormalizedRegionGeometry, NormalizedPatrolPath, NormalizedSource, NormalizedSourceDetail, NormalizedSceneSpawn, NormalizedSpawnCandidate, EntityDetail, CategoryMetadata, CatalogCoverageState, SceneSnapshotReference } from "@afallon/contracts/catalog"
 import { assertNormalizationPlan, entityKey, publicEntityDetails, stableJson } from "@afallon/contracts/catalog"
 import { catalogLogicalIdentity, databaseCounts, hashRelation, identitySnapshotId, openNormalizedDatabase, populateNormalizedDatabase } from "@afallon/catalog";
 
@@ -19,8 +20,8 @@ type JsonRecord = Record<string, unknown>;
 type JsonArray = unknown[];
 type ResolvedReference = { reference: ArtifactReference; absolutePath: string; value: unknown; bytes: Uint8Array };
 type SourceRecord = { key: string; kind: string; reference: ArtifactReference; value: unknown; bytes: Uint8Array };
-type Blocker = NormalizedCoverageSummary["blockers"][number];
-type Exclusion = NormalizedCoverageSummary["exclusions"][number];
+type Blocker = CatalogCoverageState["blockers"][number];
+type Exclusion = CatalogCoverageState["exclusions"][number];
 type SourceIdentityRow = {
   identityIndex: number;
   sourceId: string;
@@ -87,15 +88,6 @@ function pointer(ref: ArtifactReference, jsonPointer: string): ArtifactReference
 function sorted<T>(values: Iterable<T>, compare: (a: T, b: T) => number): T[] { return [...values].sort(compare); }
 function compareText(a: string, b: string): number { return a.localeCompare(b); }
 function compareNumber(a: number, b: number): number { return a - b; }
-
-async function fileHash(absolutePath: string): Promise<string> {
-  const digest = createHash("sha256");
-  const file = Bun.file(absolutePath);
-  if (!(await file.exists())) throw new Error(`Normalization input does not exist: ${absolutePath}`);
-  const stream = file.stream();
-  for await (const chunk of stream) digest.update(chunk);
-  return digest.digest("hex");
-}
 
 function planReference(value: unknown, label: string): ArtifactReference {
   const row = record(value);
@@ -265,8 +257,7 @@ function sceneContexts(planDirectory: string, plan: NormalizationPlan): Promise<
       const identityValue = decodeContract(PlacementIdentityResultSchema, identities.value, { objectId: identities.reference.sha256, target: target("placementIdentities") });
       const roleValue = decodeContract(PlacementRolesSchema, roles.value, { objectId: roles.reference.sha256, target: target("placementRoles") });
       const snapshotValue = decodeContract(PlacementSnapshotSchema, snapshotRows.value, { objectId: snapshotRows.reference.sha256, target: target("placementSnapshot") });
-      const npcSchema = record(npc.value)?.schemaVersion === "compendium.npc-producers.v2" ? NpcProducersV2Schema : NpcProducersSchema;
-      const npcValue: NpcProducersInput = decodeContract(npcSchema, npc.value, { objectId: npc.reference.sha256, target: target("npcProducers") });
+      const npcValue: NpcProducersInput = decodeContract(NpcProducersSchema, npc.value, { objectId: npc.reference.sha256, target: target("npcProducers") });
       const worldValue = decodeContract(WorldSourcesSchema, world.value, { objectId: world.reference.sha256, target: target("worldSources") });
       const geometryValue = decodeContract(MapGeometrySchema, mapGeometry.value, { objectId: mapGeometry.reference.sha256, target: target("mapGeometry") });
       const scene = sceneFromSnapshot(record(identityValue), record(roleValue), record(snapshotValue), record(npcValue));
@@ -627,14 +618,14 @@ function canonicalDefinitions(value: unknown, kind: string): Map<number, JsonRec
   return new Map(array(source[kind]).flatMap((raw) => { const row = record(raw); return row && isSafeInteger(row.nativeId) ? [[row.nativeId, row] as const] : []; }));
 }
 
-function addSourceIndex(index: Map<number, Map<string, ItemSourceAccumulator>>, itemId: unknown, sourceKind: NormalizedItemSources["items"][number]["sources"][number]["sourceKind"], sourceKey: string, placementIds: Iterable<string>, conditionIds: Iterable<string>, context: Record<string, unknown>): void {
+function addSourceIndex(index: Map<number, Map<string, ItemSourceAccumulator>>, itemId: unknown, sourceKind: ItemSource["sources"][number]["sourceKind"], sourceKey: string, placementIds: Iterable<string>, conditionIds: Iterable<string>, context: Record<string, unknown>): void {
   if (typeof itemId !== "number" || !isSafeInteger(itemId) || itemId < 0) return;
   let rows = index.get(itemId); if (!rows) { rows = new Map(); index.set(itemId, rows); }
   const key = `${sourceKind}:${sourceKey}`; const previous = rows.get(key);
   if (previous) { previous.placementIds = [...new Set([...previous.placementIds, ...placementIds])].sort(compareText); previous.conditionIds = [...new Set([...previous.conditionIds, ...conditionIds])].sort(compareText); return; }
   rows.set(key, { sourceKind, sourceKey, placementIds: [...new Set(placementIds)].sort(compareText), conditionIds: [...new Set(conditionIds)].sort(compareText), context });
 }
-type ItemSourceAccumulator = Omit<NormalizedItemSources["items"][number]["sources"][number], "probability">;
+type ItemSourceAccumulator = Omit<ItemSource["sources"][number], "probability">;
 
 function relationRows(value: Relationships, canonicalValue: Canonical, nativeLootRules: LootRules, roles: NormalizedDatabaseInput["roles"], knownEntities: ReadonlySet<string>, blockers: Blocker[]) {
   const merchantBindings: JsonRecord[] = [], merchantStock: JsonRecord[] = [], lootBindings: JsonRecord[] = [], lootEntries: JsonRecord[] = [];
@@ -827,7 +818,7 @@ function categoryData(placements: NormalizedPlacement[], roles: NormalizedDataba
   return sorted([...byRole.entries()].map(([category, group]) => ({ category, label: category.replaceAll(/([a-z])([A-Z])/g, "$1 $2"), placementIds: sorted(group.placements, compareText), entityKeys: sorted(group.entities, compareText), roleCount: group.count })), (a, b) => compareText(a.category, b.category));
 }
 
-function entityDetails(entities: NormalizedEntity[], roles: NormalizedDatabaseInput["roles"], itemSources: NormalizedItemSources["items"], conditions: NormalizedCondition[], relationData: { merchantBindings: JsonRecord[]; merchantStock: JsonRecord[]; lootBindings: JsonRecord[]; lootEntries: JsonRecord[]; resourceYields: JsonRecord[]; questAssociations: JsonRecord[]; transitions: JsonRecord[] }): EntityDetail[] {
+function entityDetails(entities: NormalizedEntity[], roles: NormalizedDatabaseInput["roles"], itemSources: ItemSource[], conditions: NormalizedCondition[], relationData: { merchantBindings: JsonRecord[]; merchantStock: JsonRecord[]; lootBindings: JsonRecord[]; lootEntries: JsonRecord[]; resourceYields: JsonRecord[]; questAssociations: JsonRecord[]; transitions: JsonRecord[] }): EntityDetail[] {
   const merchantOwners = new Map<number, number[]>();
   const enabledMerchants = new Set<number>(), enabledQuestGivers = new Set<number>();
   for (const entity of entities) if (entity.kind === "npcs") {
@@ -860,23 +851,17 @@ function entityDetails(entities: NormalizedEntity[], roles: NormalizedDatabaseIn
   return sorted(result, (a, b) => compareText(a.entityKey, b.entityKey));
 }
 
-function coverageSummary(buildId: string, planRef: ArtifactReference, profileRef: ArtifactReference, sourceRefs: ArtifactReference[], blockers: Blocker[], exclusions: Exclusion[], inputCoverage: unknown): NormalizedCoverageSummary {
+function coverageSummary(blockers: Blocker[], exclusions: Exclusion[]): CatalogCoverageState {
   const unresolved = { unplacedSources: blockers.filter((row) => row.kind === "unplaced-source").length, unresolvedIssues: blockers.filter((row) => row.kind.includes("issue") || row.kind.includes("unresolved")).length, missingReferences: blockers.filter((row) => row.kind === "missing-reference").length };
   return {
-    schemaVersion: "compendium.normalized-coverage.v3",
-    buildId,
     complete: false,
     blockers: sorted(new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values(), (a, b) => a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key)),
     exclusions: sorted(new Map(exclusions.map((row) => [row.key, row])).values(), (a, b) => a.key.localeCompare(b.key)),
     unresolved,
-    inputCoverage,
-    provenance: { plan: planRef, profile: profileRef, sources: sourceRefs },
   };
 }
 
-function jsonOutput(value: unknown): string { return `${JSON.stringify(value, null, 2)}\n`; }
-
-export async function normalize(planPath: string, outputRoot: string): Promise<NormalizedOutput> {
+export async function runCatalogCommand(planPath: string, outputRoot: string): Promise<NormalizedOutput> {
   const absolutePlan = path.resolve(planPath);
   const planDirectory = path.dirname(absolutePlan);
   const planBytes = await readFile(absolutePlan);
@@ -1001,7 +986,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     if (source.sourceKind === "world-loot") owners.push(`loot:world:world:${context.bindingIndex}`);
     source.conditionIds = [...new Set([...source.conditionIds, ...owners.flatMap((owner) => conditionsByOwner.get(owner) ?? [])])].sort(compareText);
   }
-  const itemSources: NormalizedItemSources["items"] = sorted(canonicalDefinitions(canonical, "items").keys(), compareNumber).map((itemId) => ({ itemKey: entityKey("items", itemId), itemId, sources: sorted(itemIndex.get(itemId)?.values() ?? [], (a, b) => `${a.sourceKind}:${a.sourceKey}`.localeCompare(`${b.sourceKind}:${b.sourceKey}`)).map((source) => ({ ...source, probability: null })) }));
+  const itemSources: ItemSource[] = sorted(canonicalDefinitions(canonical, "items").keys(), compareNumber).map((itemId) => ({ itemKey: entityKey("items", itemId), itemId, sources: sorted(itemIndex.get(itemId)?.values() ?? [], (a, b) => `${a.sourceKind}:${a.sourceKey}`.localeCompare(`${b.sourceKind}:${b.sourceKey}`)).map((source) => ({ ...source, probability: null })) }));
   const linkedRules = array(record(topLevel.get("lootRules")?.value)?.linkedNpcs).flatMap((row) => {
     const value = record(row); if (!value) return [];
     const npcId = integerOrNull(value.npcId); if (npcId === null || !knownEntityKeys.has(entityKey("npcs", npcId))) { blockers.push({ kind: "missing-reference", key: `linked-npc:${String(value.npcId)}`, detail: "Linked-NPC loot rule has no canonical NPC entity.", provenance: [] }); return []; }
@@ -1040,7 +1025,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     });
   }
   const inputCoverage = { discoveryClosed: false, ledgers: coverageSources.map((source) => ({ reference: source.reference, runId: source.value.runId, discoveryClosed: source.value.discoveryClosed, summary: source.value.summary })) };
-  const coverage = coverageSummary(plan.buildId, planRef, profile.reference, sourceFiles.map((source) => source.reference), blockers, exclusions, inputCoverage);
+  const coverage = coverageSummary(blockers, exclusions);
   coverage.blockers.push({ kind: "input-coverage-incomplete", key: "coverage", detail: "Source coverage ledgers are bounded observations, not a closed-world coverage review.", provenance: coverageSources.map((source) => source.reference) });
   coverage.blockers = sorted(new Map(coverage.blockers.map((row) => [`${row.kind}:${row.key}`, row])).values(), (a, b) => a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key));
   const mapPlacements = placementData.placements;
@@ -1049,7 +1034,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
   const identityResults = [...new Map(sceneData.contexts.map((context) => [context.snapshotId, { runId: context.snapshotRunId, snapshotId: context.snapshotId, snapshotPrefix: context.snapshotPrefix, snapshotSha256: context.snapshotReference.sha256, character: context.character, sceneHandle: context.sceneHandle, result: context.identityResult }])).values()];
   const normalizedPatrolPaths = collectPatrolPaths(sceneData.contexts, blockers);
   const entityDetailsRows = entityDetails(canonicalData.entities, placementData.roles, itemSources, conditions, { merchantBindings: relationData.merchantBindings, merchantStock: relationData.merchantStock, lootBindings: relationData.lootBindings, lootEntries: relationData.lootEntries, resourceYields: [...relationData.resourceYields, ...worldData.resourceYields], questAssociations: [...relationData.questAssociations, ...worldData.questAssociations], transitions: worldData.transitions });
-  const sourceDetails: NormalizedMapProjection["sources"] = [];
+  const sourceDetails: NormalizedSourceDetail[] = [];
   for (const context of sceneData.contexts) {
     const collections: Array<readonly [string, unknown[]]> = [
       ["resourceProducers", context.world?.resourceProducers ?? []], ["interactions", context.world?.interactions ?? []],
@@ -1068,7 +1053,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     }
   }
   const worldPositions = new Map(canonical.worldPositions.map((row) => [row.nativeId, row.position] as const));
-  const sceneSpawns: NormalizedMapProjection["sceneSpawns"] = [];
+  const sceneSpawns: NormalizedSceneSpawn[] = [];
   for (const scene of canonical.scenes) {
     const gameplay = record(scene.gameplay);
     if (!gameplay || !isSafeInteger(gameplay.startPositionId)) continue;
@@ -1078,45 +1063,27 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
   }
   sceneSpawns.sort((a, b) => a.sceneNativeId - b.sceneNativeId);
   const input: NormalizedDatabaseInput = { buildId: plan.buildId, identityResults, entities: canonicalData.entities, scenes: [...reviewedScenes, ...canonicalData.scenes.filter((scene) => !reviewedSceneIds.has(scene.nativeId))], mapSpaces: profileData.mapSpaces, bindings: profileData.bindings, placements: mapPlacements, sources: placementData.sources, roles: placementData.roles, regions: normalizedRegions, conditions, spawnCandidates: npcRows.candidates, merchantTables: relationData.merchantTables, lootTables: relationData.lootTables, merchantBindings: relationData.merchantBindings, merchantStock: relationData.merchantStock, lootBindings: relationData.lootBindings, lootEntries: relationData.lootEntries, linkedNpcRules: linkedRules, resourceYields: [...relationData.resourceYields, ...worldData.resourceYields], questAssociations: [...relationData.questAssociations, ...worldData.questAssociations], transitions: worldData.transitions, itemSources, entityDetails: entityDetailsRows, sourceDetails, patrolPaths: normalizedPatrolPaths, sceneSpawns, blockers: coverage.blockers, coverageOccurrences, exclusions: coverage.exclusions, inputCoverage, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
-  const implementationHashes = {
-    "tool:pipeline-normalize": await fileHash(path.resolve(import.meta.dir, "normalize.ts")),
-    "tool:catalog-database": await fileHash(path.resolve(import.meta.dir, "../packages/catalog/src/database.ts")),
-    "tool:catalog-identity-store": await fileHash(path.resolve(import.meta.dir, "../packages/catalog/src/identity-store.ts")),
-    "tool:pipeline-contracts": await fileHash(path.resolve(import.meta.dir, "../packages/contracts/src/catalog/query.ts")),
-    "tool:map-spaces": await fileHash(path.resolve(import.meta.dir, "../packages/capture/src/map-spaces.ts")),
-    "tool:spatial-extraction": await fileHash(path.resolve(import.meta.dir, "../packages/capture/src/spatial-extraction.ts")),
-    "tool:spatial-map-contract": await fileHash(path.resolve(import.meta.dir, "../packages/contracts/src/spatial/map.ts")),
-    "tool:build": await fileHash(path.resolve(import.meta.dir, "../tools/build.ts")),
-    "tool:run-reader": await fileHash(path.resolve(import.meta.dir, "../packages/capture/src/runs.ts")),
-    "tool:cli": await fileHash(path.resolve(import.meta.dir, "../tools/cli.ts")),
-    "package": await fileHash(path.resolve(import.meta.dir, "../package.json")),
-    "lockfile": await fileHash(path.resolve(import.meta.dir, "../bun.lock")),
-  };
-  const assemblerFingerprint = createHash("sha256").update(stableJson(implementationHashes)).digest("hex");
+  const catalogInputs = Object.fromEntries([
+    ["plan", { sha256: planRef.sha256, bytes: planBytes.byteLength }],
+    ...sourceFiles.map((source) => [`${source.kind}:${source.reference.path}:${source.reference.sha256}`, { sha256: source.reference.sha256, bytes: source.bytes.byteLength }] as const),
+  ]);
+  const fingerprint = await fingerprintStep({
+    entrypoint: import.meta.path,
+    buildId: plan.buildId,
+    settings: { planSchemaVersion: plan.schemaVersion },
+    schemas: [],
+    inputs: catalogInputs,
+  });
+  const assemblerFingerprint = fingerprint.implementation;
   const catalogId = catalogLogicalIdentity({
     buildId: plan.buildId,
     schemaVersion: "compendium.catalog.v1",
     settings: { planSchemaVersion: plan.schemaVersion },
-    inputs: Object.fromEntries([
-      ["plan", { sha256: planRef.sha256, bytes: planBytes.byteLength }],
-      ...sourceFiles.map((source) => [`${source.kind}:${source.reference.path}:${source.reference.sha256}`, { sha256: source.reference.sha256, bytes: source.bytes.byteLength }] as const),
-    ]),
+    inputs: catalogInputs,
     assemblerFingerprint,
   });
-  const run = await beginRun(outputRoot, { buildId: plan.buildId, toolRevision: await toolRevision(), command: "normalize", settings: { planPath: path.basename(absolutePlan), planSchemaVersion: plan.schemaVersion }, inputHashes: { ...Object.fromEntries(sourceFiles.map((source) => [source.key, source.reference.sha256])), plan: planRef.sha256, mapSpaceProfile: profile.reference.sha256, sceneCatalog: topLevel.get("sceneCatalog")!.reference.sha256, ...implementationHashes } });
+  const run = await beginRun(outputRoot, { buildId: plan.buildId, toolRevision: await toolRevision(), command: "normalize", settings: { planPath: path.basename(absolutePlan), planSchemaVersion: plan.schemaVersion }, inputHashes: { ...Object.fromEntries(sourceFiles.map((source) => [source.key, source.reference.sha256])), plan: planRef.sha256, mapSpaceProfile: profile.reference.sha256, sceneCatalog: topLevel.get("sceneCatalog")!.reference.sha256, implementation: fingerprint.implementation } });
   try {
-    const inputsDirectory = path.join(run.directory, "inputs");
-    const sourceManifestDirectory = path.join(inputsDirectory, "source-manifests");
-    await mkdir(sourceManifestDirectory, { recursive: true });
-    await writeFile(path.join(inputsDirectory, "plan.json"), planBytes);
-    await writeFile(path.join(inputsDirectory, "map-space-profile.json"), profile.bytes);
-    await writeFile(path.join(inputsDirectory, "scene-catalog.json"), topLevel.get("sceneCatalog")!.bytes);
-    const archivedManifests = sourceFiles.filter((source) => source.kind === "canonicalManifest" || source.kind === "sceneManifest").map((source) => {
-      const fileName = `${source.kind}-${source.reference.sha256}.json`;
-      return { ...source, archivePath: `inputs/source-manifests/${fileName}` };
-    });
-    for (const source of archivedManifests) await writeFile(path.join(run.directory, source.archivePath), source.bytes);
-    await writeFile(path.join(inputsDirectory, "source-manifests.json"), jsonOutput(archivedManifests.map((source) => ({ path: source.archivePath, sha256: source.reference.sha256, kind: source.kind, originalPath: source.reference.path }))));
     const databasePath = path.join(run.directory, "normalized.sqlite");
     const db = openNormalizedDatabase(databasePath);
     populateNormalizedDatabase(db, input, sourceFiles.map((source) => ({ key: source.key, kind: source.kind, ref: source.reference })));
@@ -1124,11 +1091,6 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     const counts = databaseCounts(db);
     db.close();
     await run.addArtifact("normalized.sqlite");
-    await run.addArtifact("inputs/plan.json");
-    await run.addArtifact("inputs/map-space-profile.json");
-    await run.addArtifact("inputs/scene-catalog.json");
-    await run.addArtifact("inputs/source-manifests.json");
-    for (const source of archivedManifests) await run.addArtifact(source.archivePath);
     await run.succeed();
     const output: NormalizedOutput = { schemaVersion: "compendium.normalized-output.v5", buildId: plan.buildId, runId: run.runId, manifest: run.manifestPath, directory: run.directory, database: databasePath, counts: { ...counts, blockers: coverage.blockers.length }, coverage: { complete: coverage.complete, unresolved: coverage.unresolved }, provenance: input.provenance };
     return output;

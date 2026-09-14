@@ -32,8 +32,16 @@ function build(runDirectory: string): DeploymentMetadata {
   run("bun", ["run", "build:production"]);
   run("bun", ["run", "assert:deployment"]);
   const actual = JSON.parse(readFileSync(join(deploymentPaths(siteDir).outputDir, "_deployment.json"), "utf8")) as DeploymentMetadata;
-  if (actual.runId !== expected.runId || actual.publicationSha256 !== expected.publicationSha256) {
-    throw new Error(`Built deployment does not match staged publication ${expected.runId}.`);
+  if (
+    actual.publicationId !== expected.publicationId
+    || actual.buildId !== expected.buildId
+    || actual.catalogId !== expected.catalogId
+    || actual.mode !== expected.mode
+    || actual.coverageComplete !== expected.coverageComplete
+    || actual.selectionSha256 !== expected.selectionSha256
+    || actual.publicationSha256 !== expected.publicationSha256
+  ) {
+    throw new Error(`Built deployment does not match staged publication ${expected.publicationId}.`);
   }
   return actual;
 }

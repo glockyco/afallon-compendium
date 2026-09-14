@@ -79,9 +79,9 @@
 
 ## 9. Cutover and Cleanup
 
-- [ ] 9.1 Switch root scripts, operator commands, and deployment paths to `apps/compendium-cli` and `apps/site`; verify documented scan, capture, catalog, publish, preview, and deploy commands invoke only new packages.
-- [ ] 9.2 Remove the old `tools/`, `pipeline/`, copied run layout, deprecated commands, compatibility readers, duplicate schemas, projection formats, and URL alias parsing; verify repository references and dependency analysis find no remaining caller.
-- [ ] 9.3 Update operator documentation and the active `build-screenshot-first-map` planning text for new commands, artifact paths, catalog/publication flow, game-imagery defaults, captured-terrain opt-in, and development-only details; verify documentation examples match actual command help and behavior.
-- [ ] 9.4 Run focused runtime, artifact integrity, catalog parity, static publication, and browser smoke scenarios; verify all new capability scenarios have recorded evidence and no unexplained regression remains.
-- [ ] 9.5 Run workspace type checks, dependency-cycle checks, package tests, the complete existing test suite, the production static build, and OpenSpec validation; verify every command succeeds before selecting new latest-success and publication references.
-- [ ] 9.6 Exercise rollback by restoring prior source and selected references without reverse migration; verify the previous CLI inputs and static publication remain usable and all retained artifacts still pass integrity checks.
+- [x] 9.1 Switch root scripts, operator commands, and deployment paths to `apps/compendium-cli` and `apps/site`; verify documented scan, capture, catalog, publish, preview, and deploy commands invoke only new packages.
+- [x] 9.2 Remove the old `tools/`, `pipeline/`, copied run layout, deprecated commands, compatibility readers, duplicate schemas, projection formats, and URL alias parsing; verify repository references and dependency analysis find no remaining caller.
+- [x] 9.3 Update operator documentation and the active `build-screenshot-first-map` planning text for new commands, artifact paths, catalog/publication flow, game-imagery defaults, captured-terrain opt-in, and development-only details; verify documentation examples match actual command help and behavior.
+- [x] 9.4 Run focused runtime, artifact integrity, catalog parity, static publication, and browser smoke scenarios; verify all new capability scenarios have recorded evidence and no unexplained regression remains.
+- [x] 9.5 Run workspace type checks, dependency-cycle checks, package tests, the complete existing test suite, the production static build, and OpenSpec validation; verify every command succeeds before selecting new latest-success and publication references.
+- [x] 9.6 Exercise rollback by restoring prior source and selected references without reverse migration; verify the previous CLI inputs and static publication remain usable and all retained artifacts still pass integrity checks.

@@ -540,22 +540,8 @@ export const NpcProducersSchema = Type.Object({
   unresolved: Type.Array(Type.Object({ kind: text, sourceFieldPath: text, detail: text })),
 });
 
-export const NpcProducersV2Schema = Type.Intersect([
-  Type.Omit(NpcProducersSchema, ["schemaVersion", "coverage", "patrolPaths", "sourceTotals", "exportedTotals", "totals"]),
-  Type.Object({
-    schemaVersion: Type.Literal("compendium.npc-producers.v2"),
-    coverage: Type.Intersect([
-      Type.Omit(NpcProducersSchema.properties.coverage, ["additionalSourceCounts"]),
-      Type.Object({ additionalSourceCounts: Type.Object({ adventurerSpawnZones: integer, adventurerPopulationManagers: integer }) }),
-    ]),
-    sourceTotals: Type.Omit(NpcProducersSchema.properties.sourceTotals, ["patrolPaths"]),
-    exportedTotals: Type.Omit(NpcProducersSchema.properties.exportedTotals, ["patrolPaths"]),
-    totals: Type.Omit(totals, ["patrolPaths"]),
-  }),
-]);
-
 export type NpcProducers = Static<typeof NpcProducersSchema>;
-export type NpcProducersInput = NpcProducers | Static<typeof NpcProducersV2Schema>;
+export type NpcProducersInput = NpcProducers;
 export type NpcReference = (source: string, targetKind: string, nativeId: number) => void;
 
 type Requirement = Static<typeof requirement>;

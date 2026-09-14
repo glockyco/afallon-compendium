@@ -83,7 +83,7 @@ A creature whose level is unknown SHALL remain visible under a filter rather tha
 
 The atlas SHALL present one navigable world map. Scenes that the game already covers with a shared map texture SHALL occupy one map without manual composition. Maps the game does not position relative to each other, such as caves and dungeons, SHALL be placed on the world map by reviewed manual placement.
 
-Placement SHALL be translation only at a shared world scale. The atlas SHALL NOT rescale or rotate a map to improve the layout. A reviewed placement file SHALL own the offsets, and an authoring mode SHALL allow dragging a map with its markers and exporting those offsets for review. A placement override SHALL move a map and its markers together.
+Placement SHALL be translation only at a shared world scale. The atlas SHALL NOT rescale or rotate a map to improve the layout. A reviewed placement file SHALL own the offsets. A development-only authoring mode MAY allow dragging a map with its markers and exporting those offsets for review. Production SHALL NOT include authoring controls. A placement override SHALL move a map and its markers together.
 
 An offset MAY be any world translation. Publication SHALL NOT snap an offset to the tile lattice; a placed map's pyramid is indexed in that map's own coordinates and the atlas translates it when drawing. The reviewed layout places interiors on a ring around the overworld: the four corner maps have their centres at one distance from the overworld centre on each axis, and the maps on each side are spaced evenly between the corners, so every map keeps the same gap to the overworld.
 
@@ -148,9 +148,9 @@ The authoring mode SHALL render connections while a reviewer positions maps, bec
 
 ### Requirement: Details answer player questions
 
-Selection SHALL show the name, category, level, and location, then the facts a player wants: what a creature drops, what a vendor sells and for how much, what a resource yields and what gathering it requires, what a container holds, and where a travel point leads. Requirements and conditions SHALL stay attached to the entries they gate. Large lists SHALL remain searchable without covering the map.
+Production selection SHALL show the public name, category, level, and location without loading an authoring or evidence panel. A development build MAY load independently addressable entity and item details for review: what a creature drops, what a vendor sells and for how much, what a resource yields and what gathering it requires, what a container holds, and where a travel point leads. Requirements and conditions SHALL stay attached to the entries they gate. Large lists SHALL remain searchable without covering the map.
 
-Detail panels SHALL NOT show unresolved-semantics notices, provenance, hashes, or raw configuration dumps.
+Development detail panels SHALL NOT appear in production. They SHALL NOT show unresolved-semantics notices, provenance, hashes, or raw configuration dumps.
 
 #### Scenario: A vendor has several progression stock groups
 - **WHEN** a reader selects that vendor

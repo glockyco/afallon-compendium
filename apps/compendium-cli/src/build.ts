@@ -31,7 +31,7 @@ export async function buildIdentity(config: CompendiumConfig) {
 // The revision is read from the repository files, not from a git process: once sharp has run in
 // this process, Bun 1.3 child processes return no output, and the tests exercise that path.
 export async function toolRevision(): Promise<string> {
-  const gitDirectory = resolve(import.meta.dir, "..", ".git");
+  const gitDirectory = resolve(import.meta.dir, "..", "..", "..", ".git");
   const head = (await readFile(resolve(gitDirectory, "HEAD"), "utf8")).trim();
   const reference = head.startsWith("ref: ") ? head.slice("ref: ".length) : null;
   const revision = reference === null ? head : await resolveReference(gitDirectory, reference);

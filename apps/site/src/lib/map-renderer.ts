@@ -776,7 +776,14 @@ export async function createMapAdapter(
   const resize = (): void => {
     if (destroyed) return;
     const host = canvas.parentElement || canvas;
-    if (host.clientWidth > 0 && host.clientHeight > 0) deck.setProps({width: host.clientWidth, height: host.clientHeight});
+    if (host.clientWidth > 0 && host.clientHeight > 0) {
+      const pixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+      const width = Math.ceil(host.clientWidth * pixelRatio);
+      const height = Math.ceil(host.clientHeight * pixelRatio);
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      deck.setProps({width: host.clientWidth, height: host.clientHeight});
+    }
     notifyView();
   };
   let resizeObserver: ResizeObserver | null = null;

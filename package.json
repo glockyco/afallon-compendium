@@ -5,8 +5,16 @@
   "packageManager": "bun@1.3.13",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "compendium": "bun tools/cli.ts",
-    "check": "tsc --noEmit && tsc -b tsconfig.packages.json",
+    "compendium": "bun apps/compendium-cli/src/cli.ts",
+    "dev": "bun run --cwd apps/site dev",
+    "build": "bun run --cwd apps/site build",
+    "build:production": "bun run --cwd apps/site build:production",
+    "preview": "bun run --cwd apps/site preview",
+    "stage:production": "bun apps/site/scripts/stage-publication.ts",
+    "verify:deployment": "bun apps/site/scripts/verify-deployment.ts",
+    "deploy:production": "bun apps/site/scripts/deploy-production.ts",
+    "rollback:production": "bun run --cwd apps/site rollback:production",
+    "check": "tsc -b tsconfig.packages.json",
     "check:packages": "tsc -b tsconfig.packages.json",
     "check:dependencies": "depcruise --config .dependency-cruiser.cjs apps/compendium-cli/src apps/site/src packages/*/src",
     "test": "bun test"

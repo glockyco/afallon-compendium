@@ -19,15 +19,15 @@ Development requires [Bun](https://bun.sh/). Install dependencies and run the re
 ```sh
 bun install
 bun run check
+bun run check:dependencies
 bun test
-cd site && bun run check
+bun run build:production
 ```
 
-The site requires a generated publication. Stage a local publication run, then start the development server:
+The site requires a selected static publication. Stage it from the project root, then start the development server:
 
 ```sh
-cd site
-bun run stage:production /path/to/publication-run
+bun run stage:production /path/to/publication-root
 bun run dev
 ```
 
@@ -35,18 +35,29 @@ bun run dev
 
 Runtime extraction requires a locally installed copy of Afallon with the HotRepl host loaded. [`config.example.json`](config.example.json) lists the required runtime paths and connection settings.
 
-The pipeline writes versioned extraction, normalization, imagery, and publication artifacts under `artifacts/`. Generated artifacts, local configuration, and extracted game assets are not committed.
+The workspace exposes one operator CLI:
+
+```sh
+bun run compendium scan --config local/config.json --plan local/scan-plan.json
+bun run compendium capture --config local/config.json --plan local/capture-plan.json
+bun run compendium catalog --plan local/catalog-plan.json --output artifacts
+bun run compendium publish --plan local/publish-plan.json
+```
+
+`scan` and `capture` write immutable, content-addressed evidence. `catalog` validates that evidence into one SQLite source of truth. `publish` queries the selected catalog and atomically selects a static publication. The atlas loads every map shard together at its reviewed world offset. Game-provided maps are enabled by default; captured terrain is available only when a reader selects it.
+
+Generated artifacts, local configuration, and extracted game assets are not committed.
 
 ## Deployment
 
-Deploy a successful publication run from the `site` directory:
+Preview or deploy a selected publication from the project root:
 
 ```sh
-cd site
-bun run deploy:production ../artifacts/<publication-group>/<build-id>/<run-id>
+bun run compendium preview
+bun run compendium deploy /path/to/publication-root
 ```
 
-The command stages the publication, builds and validates the site, deploys it with Wrangler, and smoke-tests production.
+The deploy command stages the selected immutable publication, builds and validates `apps/site`, deploys Cloudflare Static Assets with Wrangler, and smoke-tests production. Production excludes database access, runtime probes, authoring controls, and development detail panels.
 
 ## License
 

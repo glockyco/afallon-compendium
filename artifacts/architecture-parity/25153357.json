@@ -236,6 +236,25 @@
     "development": {
       "detailsPanelCount": 1,
       "authoringControlCount": 1
+    },
+    "productionPublication": {
+      "publicationId": "e380d37dc7cb15990c041f3946db65f1a3a1f8da6e3e6d2da4b326ae8298dfe9",
+      "gameMapsEnabled": "19/19",
+      "capturedTerrainEnabled": "0/1",
+      "mapSelectorCount": 0,
+      "detailPanelCount": 0,
+      "authoringControlCount": 0,
+      "screenshot": "artifacts/architecture-parity/atlas-production-final.png"
+    }
+  },
+  "cutoverVerification": {
+    "artifactIntegrityTests": { "passed": 3, "failed": 0 },
+    "catalogMapParity": { "maps": 19, "placements": 3763, "regions": 61, "missing": 0, "extra": 0, "fieldMismatches": 0 },
+    "deployment": { "files": 7765, "bytes": 102369853, "coverageComplete": false },
+    "rollback": {
+      "priorPublicationId": "8bc4e37ba2faaaad11a5a9a25b27597b4b756e1a78f622bc309d41a28d92c809",
+      "restoredCurrentPublicationId": "e380d37dc7cb15990c041f3946db65f1a3a1f8da6e3e6d2da4b326ae8298dfe9",
+      "reverseMigrationRequired": false
     }
   }
 }

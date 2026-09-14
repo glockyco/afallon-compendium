@@ -361,18 +361,6 @@ export const PublicationDataSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicationData = Static<typeof PublicationDataSchema>;
 
-export const EntityDetailsDocumentSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.publication-entity-details.v1"), buildId: text,
-  entities: Type.Array(PublicEntitySchema),
-}, { additionalProperties: false });
-export type EntityDetailsDocument = Static<typeof EntityDetailsDocumentSchema>;
-
-export const ItemSourcesDocumentSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.publication-item-sources.v1"), buildId: text,
-  itemSources: Type.Array(PublicItemSourceSchema),
-}, { additionalProperties: false });
-export type ItemSourcesDocument = Static<typeof ItemSourcesDocumentSchema>;
-
 export const GuideDocumentSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.adventure-guide.v1"),
   buildId: text,
@@ -559,6 +547,4 @@ schemaRegistry.register("compendium.public-guide-property.v1", PublicGuideProper
 schemaRegistry.register("compendium.public-adventure-guide.v1", PublicAdventureGuideSchema);
 schemaRegistry.register("compendium.public-adventure-guide-summary.v1", PublicAdventureGuideSummarySchema);
 schemaRegistry.register(PUBLICATION_SCHEMA_VERSION, PublicationDataSchema);
-schemaRegistry.register("compendium.publication-entity-details.v1", EntityDetailsDocumentSchema);
-schemaRegistry.register("compendium.publication-item-sources.v1", ItemSourcesDocumentSchema);
 schemaRegistry.register("compendium.adventure-guide.v1", GuideDocumentSchema);
