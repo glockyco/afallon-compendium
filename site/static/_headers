@@ -1,7 +1,7 @@
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Content-Security-Policy: frame-ancestors 'self' https://glockyco.com https://*.glockyco.com
+  Content-Security-Policy: frame-ancestors 'self' https://glockyco.com https://*.glockyco.com http://127.0.0.1:*
   Permissions-Policy: camera=(), geolocation=(), microphone=()
 
 /_app/immutable/*
