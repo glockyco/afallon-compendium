@@ -12,6 +12,8 @@ const input: ArtifactRunInput = {
   settings: { target: "current-scene" },
   schemas: [{ id: "compendium.world-sources.v7", sha256: "a".repeat(64) }],
   implementationFingerprint: "b".repeat(64),
+  cacheKey: "c".repeat(64),
+  probeHashes: {},
   diagnosticRevision: "test",
   inputs: {},
 };

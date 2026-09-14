@@ -13,6 +13,8 @@ const input: ArtifactRunInput = {
   settings: {},
   schemas: [],
   implementationFingerprint: "a".repeat(64),
+  cacheKey: "b".repeat(64),
+  probeHashes: {},
   diagnosticRevision: "test",
   inputs: {},
 };

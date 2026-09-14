@@ -1,3 +1,4 @@
+export * from "./fingerprints";
 export * from "./gc";
 export * from "./leases";
 export * from "./references";

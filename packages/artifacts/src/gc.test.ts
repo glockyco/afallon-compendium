@@ -9,7 +9,7 @@ import { beginArtifactRun } from "./runs";
 import { ArtifactStore } from "./store";
 
 function input(operation: string): ArtifactRunInput {
-  return { buildId: "25153357", operation, settings: {}, schemas: [], implementationFingerprint: "a".repeat(64), diagnosticRevision: "test", inputs: {} };
+  return { buildId: "25153357", operation, settings: {}, schemas: [], implementationFingerprint: "a".repeat(64), cacheKey: "b".repeat(64), probeHashes: {}, diagnosticRevision: "test", inputs: {} };
 }
 
 async function failedRun(store: ArtifactStore, operation: string, object: ContentIdentity) {

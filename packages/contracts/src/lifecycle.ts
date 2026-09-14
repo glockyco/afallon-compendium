@@ -70,12 +70,23 @@ const LogicalArtifactDefinition = Type.Object({
 export const LogicalArtifactSchema = schemaRegistry.register("compendium.logical-artifact.v1", LogicalArtifactDefinition).schema;
 export type LogicalArtifact = Static<typeof LogicalArtifactSchema>;
 
+const StepFingerprintDefinition = Type.Object({
+  implementation: Sha256,
+  cacheKey: Sha256,
+  transitiveModuleCount: Type.Integer({ minimum: 1 }),
+  probeHashes: Type.Record(Type.String(), Sha256),
+}, { additionalProperties: false });
+export const StepFingerprintSchema = schemaRegistry.register("compendium.step-fingerprint.v1", StepFingerprintDefinition).schema;
+export type StepFingerprint = Static<typeof StepFingerprintSchema>;
+
 const ArtifactRunInputDefinition = Type.Object({
   buildId: NonEmptyString,
   operation: NonEmptyString,
   settings: UnknownRecord,
   schemas: Type.Array(SchemaIdentityReferenceSchema),
   implementationFingerprint: Sha256,
+  cacheKey: Sha256,
+  probeHashes: Type.Record(Type.String(), Sha256),
   diagnosticRevision: NonEmptyString,
   inputs: Type.Record(Type.String({ minLength: 1 }), ContentIdentitySchema),
 }, { additionalProperties: false });
