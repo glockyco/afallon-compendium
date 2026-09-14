@@ -28,7 +28,8 @@ import { ObservationContextSchema } from "@afallon/contracts"
 import { collectSceneCatalog } from "./map-calibration";
 import { compileMapSpaces } from "./map-spaces";
 import type { ArtifactRecord } from "@afallon/contracts";
-import { beginRun, type Run } from "./runs";
+import type { Run } from "./runs";
+import { beginCaptureRun } from "./content-run";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "@afallon/contracts"
 import { WorldInventorySchema, type WorldInventory } from "@afallon/contracts"
@@ -409,36 +410,9 @@ async function capturePlan(
     standingPoint,
   })]));
 
-  const run = await beginRun(config.outputRoot, {
-    ...identity,
-    inputHashes,
-    toolRevision: identity.diagnosticRevision,
-    command: "capture",
-    settings: {
-      character: config.character,
-      timeoutMs: config.timeoutMs,
-      mapSpaceProfile: config.mapSpaceProfile,
-      runtimeOwnerToken: runtime.ownerToken,
-      sweepRunId: sweep?.run.runId ?? null,
-      sweepManifestPath: sweep?.run.manifestPath ?? null,
-      sceneNativeId: plan.sceneNativeId,
-      scenePath: plan.scenePath,
-      mapSpaceId: plan.mapSpaceId,
-      survey: plan.survey ?? null,
-      width: plan.width,
-      height: plan.height,
-      readiness: plan.readiness,
-      visualPolicy: "compendium.capture-visual-policy.v3",
-      completeImagery: false,
-    },
-  });
+  const run = await beginCaptureRun(store, fingerprintInput);
 
   try {
-    await Bun.write(resolve(run.directory, "plan.json"), planText);
-    await registerArtifact(run, "plan.json", inputHashes.plan);
-    await Bun.write(resolve(run.directory, "map-space-profile.json"), spatialProfile.bytes);
-    await registerArtifact(run, "map-space-profile.json", spatialProfile.sha256);
-
     const reusable = await findReusableTiles({ outputRoot: config.outputRoot, buildId: identity.buildId, currentRunId: run.runId, compatibility, plan });
     const checkpoints = new Map<string, CaptureTileCheckpoint>();
     const reused = new Set<string>();
@@ -728,24 +702,21 @@ export async function capture(
   const plans = planInputs.map(input => input.plan);
   const finalScene = { nativeId: config.finalSceneNativeId, path: config.finalScenePath };
   plans.forEach(validateCapturePlan);
-  const sweepRun = await beginRun(config.outputRoot, {
-    ...identity,
-    inputHashes: {
-      ...identity.inputHashes,
-      "runtime-owner": runtime.ownerSourceHash,
-      ...Object.fromEntries(plans.map(plan => [`plan:${plan.sceneNativeId}:${plan.mapSpaceId}`, createHash("sha256").update(JSON.stringify(plan)).digest("hex")])),
-    },
-    toolRevision: identity.diagnosticRevision,
-    command: "capture-sweep",
-    settings: {
-      character: config.character,
-      mapSpaceProfile: config.mapSpaceProfile,
-      runtimeOwnerToken: runtime.ownerToken,
-      finalScene,
-      planCount: plans.length,
-      completeImagery: false,
-    },
+  if (config.mapSpaceProfile === undefined) throw new Error("Capture requires config.mapSpaceProfile.");
+  const sweepStore = new ArtifactStore(config.outputRoot);
+  const combinedPlan = await sweepStore.putBytes(new TextEncoder().encode(`${JSON.stringify(plans)}\n`));
+  const profile = await sweepStore.putFile(config.mapSpaceProfile);
+  const sweepInput = await captureRunInput({
+    buildId: identity.buildId,
+    diagnosticRevision: identity.diagnosticRevision,
+    character: config.character,
+    policy: "compendium.capture-visual-policy.v3",
+    plan: { sha256: combinedPlan.sha256, bytes: combinedPlan.bytes },
+    profile: { sha256: profile.sha256, bytes: profile.bytes },
+    survey: null,
+    settings: { finalScene, planCount: plans.length },
   });
+  const sweepRun = await beginCaptureRun(sweepStore, { ...sweepInput, operation: "capture-sweep" });
   const sweep: CaptureSweepContext = {
     finalSceneNativeId: finalScene.nativeId,
     finalScenePath: finalScene.path,

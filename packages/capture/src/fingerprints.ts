@@ -22,6 +22,7 @@ export interface CaptureFingerprintInput {
   readonly plan: ContentIdentity;
   readonly profile: ContentIdentity;
   readonly survey: ContentIdentity | null;
+  readonly settings?: Readonly<Record<string, unknown>>;
 }
 
 export async function captureRunInput(input: CaptureFingerprintInput): Promise<ArtifactRunInput> {
@@ -35,19 +36,20 @@ export async function captureRunInput(input: CaptureFingerprintInput): Promise<A
     CaptureSetSchema,
     CaptureSweepSchema,
   ].map(schema => schemaRegistry.identify(schema)).map(schema => ({ id: schema.id, sha256: schema.sha256 })).sort((left, right) => left.id.localeCompare(right.id));
+  const settings = { character: input.character, policy: input.policy, ...input.settings };
   const inputs: Record<string, ContentIdentity> = { plan: input.plan, profile: input.profile };
   if (input.survey !== null) inputs.survey = input.survey;
   const fingerprint = await fingerprintStep({
     entrypoint: resolve(import.meta.dir, "capture-step.ts"),
     buildId: input.buildId,
-    settings: { character: input.character, policy: input.policy },
+    settings,
     schemas,
     inputs,
   });
   return {
     buildId: input.buildId,
     operation: "capture",
-    settings: { character: input.character, policy: input.policy },
+    settings,
     schemas,
     implementationFingerprint: fingerprint.implementation,
     cacheKey: fingerprint.cacheKey,

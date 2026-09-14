@@ -21,6 +21,7 @@
     "@luma.gl/webgl": "9.3.3"
   },
   "dependencies": {
+    "@afallon/artifacts": "workspace:*",
     "@afallon/capture": "workspace:*",
     "@afallon/contracts": "workspace:*",
     "@afallon/runtime": "workspace:*",

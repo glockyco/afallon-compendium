@@ -5,6 +5,7 @@
     "": {
       "name": "afallon-compendium",
       "dependencies": {
+        "@afallon/artifacts": "workspace:*",
         "@afallon/capture": "workspace:*",
         "@afallon/contracts": "workspace:*",
         "@afallon/runtime": "workspace:*",

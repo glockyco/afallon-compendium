@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import sharp from "sharp";
-import { beginRun } from "@afallon/capture";
+import { beginCaptureRun } from "@afallon/capture";
+import { ArtifactStore } from "@afallon/artifacts";
 import { toolRevision } from "../tools/build";
 import { loadTileInputs, type SourceTile } from "./tile-input";
 import { makeTileGrid, type GridSource, type TileGrid } from "./tile-grid";
@@ -244,25 +245,33 @@ async function generatePyramid(planPath: string, outputRoot: string): Promise<Ti
       });
     }
   });
-  const run = await beginRun(outputRoot, {
-    buildId: inputs.plan.buildId,
-    toolRevision: await toolRevision(),
-    command: "tiles",
-    settings: {
-      planPath: inputs.planPath,
-      mapSpaceId: inputs.plan.mapSpaceId,
-      tileSize,
-      zoomConvention: "global-lattice-fine-max",
-      sourceCount: inputs.sources.length,
-    },
+  const store = new ArtifactStore(outputRoot);
+  const planObject = await store.putFile(inputs.planPath);
+  const profileObject = await store.putFile(inputs.profilePath);
+  const settings = {
+    mapSpaceId: inputs.plan.mapSpaceId,
+    tileSize,
+    zoomConvention: "global-lattice-fine-max",
+    sourceCount: inputs.sources.length,
     inputHashes,
+  };
+  const implementationFingerprint = inputHashes["tool:tile-implementation"]!;
+  const cacheKey = createHash("sha256").update(JSON.stringify(settings)).digest("hex");
+  const run = await beginCaptureRun(store, {
+    buildId: inputs.plan.buildId,
+    operation: "tiles",
+    settings,
+    schemas: [],
+    implementationFingerprint,
+    cacheKey,
+    probeHashes: {},
+    diagnosticRevision: await toolRevision(),
+    inputs: {
+      plan: { sha256: planObject.sha256, bytes: planObject.bytes },
+      profile: { sha256: profileObject.sha256, bytes: profileObject.bytes },
+    },
   });
   try {
-    await mkdir(resolve(run.directory, "inputs"), { recursive: true });
-    await Bun.write(resolve(run.directory, "inputs/plan.json"), await Bun.file(inputs.planPath).bytes());
-    await Bun.write(resolve(run.directory, "inputs/map-space-profile.json"), await Bun.file(inputs.profilePath).bytes());
-    await run.addArtifact("inputs/plan.json");
-    await run.addArtifact("inputs/map-space-profile.json");
     const decodedByPath = await decodeSources(grid);
     const levels: TileLevel[] = [];
     const emittedFiles: TileFile[] = [];
