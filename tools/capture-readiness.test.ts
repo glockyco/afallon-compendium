@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { blockingIssues } from "./capture-readiness";
-import type { CaptureGeometry } from "./capture-contracts";
+import type { CaptureGeometry } from "@afallon/contracts"
 
 test("an authored content defect never blocks readiness, an inventory integrity failure does", () => {
   const geometry = {

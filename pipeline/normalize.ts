@@ -5,25 +5,23 @@ import { beginRun, loadVerifiedRun, type VerifiedRun } from "../tools/runs";
 import { toolRevision } from "../tools/build";
 import { loadSpatialProfile } from "../tools/spatial-extraction";
 import { compileMapSpaces } from "../tools/map-spaces";
-import { MapGeometrySchema, SceneCatalogSchema, type MapGeometry } from "../tools/map-contracts";
-import { Assert } from "typebox/value";
-import { PlacementIdentityResultSchema, PlacementSnapshotSchema, type PlacementIdentityResult } from "../tools/placement-contracts";
-import { CanonicalSchema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema } from "../tools/contracts";
-import { PlacementRolesSchema } from "../tools/role-contracts";
-import { NpcProducersSchema } from "../tools/npc-extraction";
-import { WorldSourcesSchema } from "../tools/world-extraction";
-import { CoverageLedgerSchema } from "../tools/coverage";
-import type { SceneCatalog } from "../tools/map-contracts";
-import type { SpatialResolution } from "../tools/spatial-contracts";
-import type { NormalizedOutput, NormalizationPlan, ArtifactReference, NormalizedCondition, NormalizedDatabaseInput, NormalizedEntity, NormalizedItemSources, NormalizedMapProjection, NormalizedPlacement, NormalizedRegion, NormalizedRegionGeometry, NormalizedPatrolPath, NormalizedSource, NormalizedSpawnCandidate, EntityDetail, CategoryMetadata, NormalizedCoverageSummary, SceneSnapshotReference } from "./normalized-contracts";
-import { assertNormalizationPlan, entityKey, publicEntityDetails, stableJson } from "./normalized-contracts";
+import { decodeContract, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, type MapGeometry } from "@afallon/contracts"
+import { PlacementIdentityResultSchema, PlacementSnapshotSchema, type Canonical, type LootRules, type NpcProducersInput, type PlacementIdentityResult, type PlacementSnapshot, type Relationships, type WorldSources } from "@afallon/contracts";
+import { CanonicalSchema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema } from "@afallon/contracts";
+import { NormalizationPlanSchema, PlacementRolesSchema, type PlacementRoles } from "@afallon/contracts/catalog";
+import { NpcProducersSchema, NpcProducersV2Schema } from "@afallon/contracts";
+import { WorldSourcesSchema } from "@afallon/contracts";
+import { CoverageLedgerSchema, type CoverageLedger } from "@afallon/contracts";
+import type { SpatialResolution } from "@afallon/contracts"
+import type { NormalizedOutput, NormalizationPlan, ArtifactReference, NormalizedCondition, NormalizedDatabaseInput, NormalizedEntity, NormalizedItemSources, NormalizedMapProjection, NormalizedPlacement, NormalizedRegion, NormalizedRegionGeometry, NormalizedPatrolPath, NormalizedSource, NormalizedSpawnCandidate, EntityDetail, CategoryMetadata, NormalizedCoverageSummary, SceneSnapshotReference } from "@afallon/contracts/catalog"
+import { assertNormalizationPlan, entityKey, publicEntityDetails, stableJson } from "@afallon/contracts/catalog"
 import { databaseCounts, hashRelation, openNormalizedDatabase, populateNormalizedDatabase } from "./database";
 import { identitySnapshotId } from "../tools/identity-store";
 
-type JsonRecord = Record<string, any>;
-type JsonArray = any[];
-type ResolvedReference = { reference: ArtifactReference; absolutePath: string; value: any; bytes: Uint8Array };
-type SourceRecord = { key: string; kind: string; reference: ArtifactReference; value: any; bytes: Uint8Array };
+type JsonRecord = Record<string, unknown>;
+type JsonArray = unknown[];
+type ResolvedReference = { reference: ArtifactReference; absolutePath: string; value: unknown; bytes: Uint8Array };
+type SourceRecord = { key: string; kind: string; reference: ArtifactReference; value: unknown; bytes: Uint8Array };
 type Blocker = NormalizedCoverageSummary["blockers"][number];
 type Exclusion = NormalizedCoverageSummary["exclusions"][number];
 type SourceIdentityRow = {
@@ -44,10 +42,10 @@ type SourceIdentityRow = {
   position: { x: number; y: number; z: number };
 };
 type SceneContext = {
-  role: JsonRecord | null;
-  identities: JsonRecord | null;
-  npc: JsonRecord | null;
-  world: JsonRecord | null;
+  role: PlacementRoles;
+  identities: PlacementIdentityResult;
+  npc: NpcProducersInput;
+  world: WorldSources;
   mapGeometry: MapGeometry;
   mapGeometryReference: ArtifactReference;
   sceneNativeId: number;
@@ -80,8 +78,11 @@ function requiredText(value: unknown, label: string): string {
 function numberOrNull(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
+function isSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value);
+}
 function integerOrNull(value: unknown): number | null {
-  return typeof value === "number" && Number.isSafeInteger(value) ? value : null;
+  return isSafeInteger(value) ? value : null;
 }
 function jsonHash(value: unknown): string { return createHash("sha256").update(stableJson(value)).digest("hex"); }
 function hashCondition(ownerType: string, ownerKey: string, ordinal: number, payload: unknown): string { return hashRelation("condition", [ownerType, ownerKey, ordinal, payload]); }
@@ -109,8 +110,10 @@ function planReference(value: unknown, label: string): ArtifactReference {
   return ref;
 }
 
-function parsePlan(value: unknown): NormalizationPlan {
-  assertNormalizationPlan(value);
+function parsePlan(value: unknown, objectId: string): NormalizationPlan {
+  const decoded = decodeContract(NormalizationPlanSchema, value, { objectId, target: "normalization plan" });
+  assertNormalizationPlan(decoded);
+  value = decoded;
   const row = record(value);
   if (!row) throw new TypeError("Normalization plan must be an object.");
   const sceneSnapshots: SceneSnapshotReference[] = array(row.sceneSnapshots).map((snapshot, index) => {
@@ -188,13 +191,11 @@ function assertBuild(value: unknown, buildId: string, label: string): void {
   if (candidate !== null && candidate !== buildId) throw new Error(`${label} belongs to build ${candidate}, expected ${buildId}.`);
 }
 
-function canonicalEntityRows(value: JsonRecord, buildId: string, ref: ArtifactReference): { entities: NormalizedEntity[]; scenes: Array<{ nativeId: number; path: string; name: string | null }> } {
+function canonicalEntityRows(value: Canonical, buildId: string, ref: ArtifactReference): { entities: NormalizedEntity[]; scenes: Array<{ nativeId: number; path: string; name: string | null }> } {
   const entities: NormalizedEntity[] = [];
   const scenes: Array<{ nativeId: number; path: string; name: string | null }> = [];
   for (const kind of ["items", "npcs", "quests", "lootTables", "scenes", "resources", "stats", "regions", "properties"] as const) {
-    for (const [index, raw] of array(value[kind]).entries()) {
-      const row = record(raw);
-      if (!row || !Number.isSafeInteger(row.nativeId)) continue;
+    for (const [index, row] of value[kind].entries()) {
       const details = publicEntityDetails(row);
       const entity: NormalizedEntity = { entityKey: entityKey(kind, row.nativeId), buildId, kind, nativeId: row.nativeId, name: details.name, internalName: details.internalName, description: details.description, sourceKey: integerOrNull(row.sourceKey), publicData: { localization: row.localization ?? null, gameplay: row.gameplay ?? null, icon: row.icon ?? null }, provenance: [pointer(ref, `/${kind}/${index}`)] };
       entities.push(entity);
@@ -204,26 +205,38 @@ function canonicalEntityRows(value: JsonRecord, buildId: string, ref: ArtifactRe
   return { entities: sorted(new Map(entities.map((row) => [row.entityKey, row])).values(), (a, b) => compareText(a.entityKey, b.entityKey)), scenes: sorted(new Map(scenes.map((row) => [row.nativeId, row])).values(), (a, b) => compareNumber(a.nativeId, b.nativeId)) };
 }
 
-function sourceIdentityRows(value: JsonRecord | null): SourceIdentityRow[] {
-  if (!value) return [];
-  return array(value.identities).map((raw, identityIndex) => {
-    const row = record(raw); const pos = record(row?.position);
-    if (!row || !pos || typeof row.sourceId !== "string" || typeof row.placementId !== "string" || !Number.isSafeInteger(row.componentInstanceId) || !Number.isSafeInteger(row.gameObjectInstanceId) || typeof row.typeName !== "string" || typeof row.assembly !== "string" || typeof row.componentPathId !== "string" || typeof row.sceneSourceSha256 !== "string" || typeof row.sourceSha256 !== "string" || typeof row.serializedFile !== "string" || typeof row.gameObjectPathId !== "string" || (row.origin !== "scene" && row.origin !== "streamed-prefab") || (row.loaderSourceId !== null && typeof row.loaderSourceId !== "string") || typeof pos.x !== "number" || typeof pos.y !== "number" || typeof pos.z !== "number") throw new Error(`Verified identity row ${identityIndex} does not match the supported source contract.`);
-    return { identityIndex, sourceId: row.sourceId, placementId: row.placementId, componentInstanceId: row.componentInstanceId, gameObjectInstanceId: row.gameObjectInstanceId, typeName: row.typeName, assembly: row.assembly, componentPathId: row.componentPathId, sceneSourceSha256: row.sceneSourceSha256, sourceSha256: row.sourceSha256, serializedFile: row.serializedFile, gameObjectPathId: row.gameObjectPathId, origin: row.origin, loaderSourceId: row.loaderSourceId, position: { x: pos.x, y: pos.y, z: pos.z } } satisfies SourceIdentityRow;
-  });
+function sourceIdentityRows(value: PlacementIdentityResult): SourceIdentityRow[] {
+  return value.identities.map((row, identityIndex) => ({
+    identityIndex,
+    sourceId: row.sourceId,
+    placementId: row.placementId,
+    componentInstanceId: row.componentInstanceId,
+    gameObjectInstanceId: row.gameObjectInstanceId,
+    typeName: row.typeName,
+    assembly: row.assembly,
+    componentPathId: row.componentPathId,
+    sceneSourceSha256: row.sceneSourceSha256,
+    sourceSha256: row.sourceSha256,
+    serializedFile: row.serializedFile,
+    gameObjectPathId: row.gameObjectPathId,
+    origin: row.origin,
+    loaderSourceId: row.loaderSourceId,
+    position: row.position,
+  }));
 }
 
 function sceneFromSnapshot(identity: JsonRecord | null, roles: JsonRecord | null, snapshot: JsonRecord | null, fallback: JsonRecord | null): { sceneNativeId: number; scenePath: string; sceneHandle: number; character: string } {
   const candidates = [identity, snapshot, roles, fallback];
   for (const candidate of candidates) {
     const context = record(candidate?.context);
-    if (candidate && Number.isSafeInteger(candidate.sceneNativeId) && typeof candidate.scenePath === "string") {
-      const handle = context && record(context.scene) && Number.isSafeInteger(record(context.scene)?.handle) ? Number(record(context.scene)!.handle) : null;
+    if (candidate && isSafeInteger(candidate.sceneNativeId) && typeof candidate.scenePath === "string") {
+      const handle = context && record(context.scene) && isSafeInteger(record(context.scene)?.handle) ? Number(record(context.scene)!.handle) : null;
       const character = context && typeof context.character === "string" ? context.character : null;
       if (handle === null || character === null) continue;
       return { sceneNativeId: candidate.sceneNativeId, scenePath: candidate.scenePath, sceneHandle: handle, character };
     }
-    if (context && Number.isSafeInteger(context.gameSceneNativeId) && record(context.scene) && typeof context.scene.path === "string" && Number.isSafeInteger(context.scene.handle) && typeof context.character === "string") return { sceneNativeId: context.gameSceneNativeId, scenePath: context.scene.path, sceneHandle: context.scene.handle, character: context.character };
+    const scene = record(context?.scene);
+    if (context && scene && isSafeInteger(context.gameSceneNativeId) && typeof scene.path === "string" && isSafeInteger(scene.handle) && typeof context.character === "string") return { sceneNativeId: context.gameSceneNativeId, scenePath: scene.path, sceneHandle: scene.handle, character: context.character };
   }
   throw new Error("Scene snapshot does not identify a native scene, path, handle, and character.");
 }
@@ -249,31 +262,30 @@ function sceneContexts(planDirectory: string, plan: NormalizationPlan): Promise<
       const world = await load("worldSources");
       const mapGeometry = await load("mapGeometry");
       const sourceCoverage = await load("coverage");
-      Assert(CoverageLedgerSchema, sourceCoverage.value);
-      if (sourceCoverage.value.buildId !== plan.buildId || sourceCoverage.value.runId !== sceneManifest.run.manifest.runId) throw new Error("Scene coverage belongs to another build or source run.");
-      const identityValue = record(identities.value);
-      const roleValue = record(roles.value);
-      Assert(PlacementIdentityResultSchema, identityValue);
-      Assert(PlacementRolesSchema, roleValue);
-      Assert(PlacementSnapshotSchema, snapshotRows.value);
-      Assert(NpcProducersSchema, npc.value);
-      Assert(WorldSourcesSchema, world.value);
-      Assert(MapGeometrySchema, mapGeometry.value);
-      const identityResult = identityValue as PlacementIdentityResult;
-      const scene = sceneFromSnapshot(identityValue, roleValue, record(snapshotRows.value), record(npc.value));
+      const target = (field: string) => `sceneSnapshots[${index}].${field}`;
+      const coverageValue = decodeContract(CoverageLedgerSchema, sourceCoverage.value, { objectId: sourceCoverage.reference.sha256, target: target("coverage") });
+      if (coverageValue.buildId !== plan.buildId || coverageValue.runId !== sceneManifest.run.manifest.runId) throw new Error("Scene coverage belongs to another build or source run.");
+      const identityValue = decodeContract(PlacementIdentityResultSchema, identities.value, { objectId: identities.reference.sha256, target: target("placementIdentities") });
+      const roleValue = decodeContract(PlacementRolesSchema, roles.value, { objectId: roles.reference.sha256, target: target("placementRoles") });
+      const snapshotValue = decodeContract(PlacementSnapshotSchema, snapshotRows.value, { objectId: snapshotRows.reference.sha256, target: target("placementSnapshot") });
+      const npcSchema = record(npc.value)?.schemaVersion === "compendium.npc-producers.v2" ? NpcProducersV2Schema : NpcProducersSchema;
+      const npcValue: NpcProducersInput = decodeContract(npcSchema, npc.value, { objectId: npc.reference.sha256, target: target("npcProducers") });
+      const worldValue = decodeContract(WorldSourcesSchema, world.value, { objectId: world.reference.sha256, target: target("worldSources") });
+      const geometryValue = decodeContract(MapGeometrySchema, mapGeometry.value, { objectId: mapGeometry.reference.sha256, target: target("mapGeometry") });
+      const scene = sceneFromSnapshot(record(identityValue), record(roleValue), record(snapshotValue), record(npcValue));
       assertBuild(identityValue, plan.buildId, `sceneSnapshots[${index}].placementIdentities`);
       assertBuild(roleValue, plan.buildId, `sceneSnapshots[${index}].placementRoles`);
-      assertBuild(snapshotRows.value, plan.buildId, `sceneSnapshots[${index}].placementSnapshot`);
-      assertBuild(npc.value, plan.buildId, `sceneSnapshots[${index}].npcProducers`);
-      assertBuild(world.value, plan.buildId, `sceneSnapshots[${index}].worldSources`);
-      if (mapGeometry.value.scene.nativeId !== scene.sceneNativeId || mapGeometry.value.scene.path !== scene.scenePath || mapGeometry.value.scene.handle !== scene.sceneHandle) throw new Error(`sceneSnapshots[${index}].mapGeometry crosses a scene instance boundary.`);
+      assertBuild(snapshotValue, plan.buildId, `sceneSnapshots[${index}].placementSnapshot`);
+      assertBuild(npcValue, plan.buildId, `sceneSnapshots[${index}].npcProducers`);
+      assertBuild(worldValue, plan.buildId, `sceneSnapshots[${index}].worldSources`);
+      if (geometryValue.scene.nativeId !== scene.sceneNativeId || geometryValue.scene.path !== scene.scenePath || geometryValue.scene.handle !== scene.sceneHandle) throw new Error(`sceneSnapshots[${index}].mapGeometry crosses a scene instance boundary.`);
       const identitiesRows = sourceIdentityRows(identityValue);
       const sourceByComponent = new Map<number, SourceIdentityRow>();
       const sourceById = new Map<string, SourceIdentityRow>();
       for (const row of identitiesRows) { if (sourceByComponent.has(row.componentInstanceId)) throw new Error(`Duplicate source component ${row.componentInstanceId} in scene snapshot ${index}.`); sourceByComponent.set(row.componentInstanceId, row); sourceById.set(row.sourceId, row); }
       const snapshotRunId = sceneManifest.run.manifest.runId;
       const snapshotPrefix = snapshot.prefix ? snapshot.prefix.replaceAll("\\", "/").split("/").filter(Boolean).join("/") : "";
-      contexts.push({ role: roleValue, identities: identityValue, npc: record(npc.value), world: record(world.value), mapGeometry: mapGeometry.value as MapGeometry, mapGeometryReference: mapGeometry.reference, sceneNativeId: scene.sceneNativeId, scenePath: scene.scenePath, sourceByComponent, sourceById, roleReference: roles.reference, identityReference: identities.reference, npcReference: npc.reference, worldReference: world.reference, snapshotReference: snapshotRows.reference, snapshotRunId, snapshotPrefix, snapshotId: identitySnapshotId(snapshotRunId, snapshotPrefix), identityResult, sceneHandle: scene.sceneHandle, character: scene.character });
+      contexts.push({ role: roleValue, identities: identityValue, npc: npcValue, world: worldValue, mapGeometry: geometryValue, mapGeometryReference: mapGeometry.reference, sceneNativeId: scene.sceneNativeId, scenePath: scene.scenePath, sourceByComponent, sourceById, roleReference: roles.reference, identityReference: identities.reference, npcReference: npc.reference, worldReference: world.reference, snapshotReference: snapshotRows.reference, snapshotRunId, snapshotPrefix, snapshotId: identitySnapshotId(snapshotRunId, snapshotPrefix), identityResult: identityValue, sceneHandle: scene.sceneHandle, character: scene.character });
     }
     return { contexts, sourceFiles: references };
   })();
@@ -328,20 +340,18 @@ function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabase
       sourceForComponent.set(`${context.sceneNativeId}:${row.componentInstanceId}`, row.sourceId);
       sourcePlacement.set(row.sourceId, row.placementId);
     }
-    const sources = new Map<string, JsonRecord>();
-    for (const raw of array(roleRows?.sources)) { const row = record(raw); if (row && typeof row.sourceId === "string") sources.set(row.sourceId, row); }
+    const sources = new Map(roleRows.sources.map((row) => [row.sourceId, row]));
     for (const [sourceId, raw] of sources) {
       const normalized = sourceById.get(sourceId);
       if (!normalized) { blockers.push({ kind: "unresolved-source-identity", key: sourceId, detail: "Placement role source has no matching verified serialized source identity.", provenance: [] }); continue; }
-      normalized.families = [...new Set([...normalized.families, ...array(raw.families).filter((value): value is string => typeof value === "string")])].sort(compareText);
-      normalized.provenance.push(...array(raw.evidence).flatMap((evidence) => [pointer(context.roleReference, typeof record(evidence)?.pointer === "string" ? record(evidence)!.pointer : "/sources")]));
+      normalized.families = [...new Set([...normalized.families, ...raw.families])].sort(compareText);
+      normalized.provenance.push(...raw.evidence.map((evidence) => pointer(context.roleReference, evidence.pointer)));
     }
-    for (const raw of array(roleRows?.placements)) {
-      const row = record(raw); const position = record(row?.position);
-      if (!row || typeof row.placementId !== "string" || !position || typeof position.x !== "number" || typeof position.y !== "number" || typeof position.z !== "number") continue;
+    for (const row of roleRows.placements) {
+      const position = row.position;
       const resolved = bindingResolution({ x: position.x, y: position.y, z: position.z }, profile, resolver, context.sceneNativeId, context.scenePath);
       recordPlacementResolution(resolved, row.placementId, `No reviewed map-space binding resolves ${context.scenePath}.`, profile, profileRef, blockers, exclusions);
-      const requestedSourceIds = array(row.sourceIds).filter((value): value is string => typeof value === "string").sort(compareText);
+      const requestedSourceIds = [...row.sourceIds].sort(compareText);
       for (const sourceId of requestedSourceIds) if (!sourceById.has(sourceId)) blockers.push({ kind: "unresolved-source-identity", key: sourceId, detail: `Placement ${row.placementId} references an unverified source identity.`, provenance: [] });
       const sourceIds = requestedSourceIds.filter((sourceId) => sourceById.has(sourceId));
       const identity = identityByPlacement.get(row.placementId);
@@ -360,10 +370,9 @@ function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabase
         source.buildId = "";
         sourceById.set(sourceId, source);
       }
-      for (const roleRaw of array(row.roles)) {
-        const role = record(roleRaw); if (!role || typeof role.role !== "string") continue;
-        const npcId = integerOrNull(role.npcId);
-        for (const sourceId of array(role.sourceIds).filter((value): value is string => typeof value === "string").sort(compareText)) {
+      for (const role of row.roles) {
+        const npcId = role.npcId;
+        for (const sourceId of [...role.sourceIds].sort(compareText)) {
           if (!sourceById.has(sourceId)) { blockers.push({ kind: "unresolved-source-identity", key: sourceId, detail: `Role ${role.role} has no verified source identity.`, provenance: [] }); continue; }
           roles.push({ placementId: row.placementId, sourceId, role: role.role, npcId, scope: role.scope, evidence: role.evidence ?? [] });
         }
@@ -375,11 +384,11 @@ function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabase
       recordPlacementResolution(resolved, identity.placementId, "Identity-only placement has no reviewed map-space binding.", profile, profileRef, blockers, exclusions);
       placementById.set(identity.placementId, { placementId: identity.placementId, buildId: "", sceneNativeId: context.sceneNativeId, scenePath: context.scenePath, identity: { sceneSourceSha256: identity.sceneSourceSha256, sourceSha256: identity.sourceSha256, serializedFile: identity.serializedFile, gameObjectPathId: identity.gameObjectPathId, origin: identity.origin, loaderSourceId: identity.loaderSourceId }, label: null, mapSpaceId: resolved.binding?.mapSpaceId ?? null, worldPosition: identity.position, mapPosition: resolved.mapPosition, sourceIds: [identity.sourceId], roles: [], shape: null, provenance: [pointer(profileRef, `/bindings/${resolved.binding?.id ?? "unresolved"}`), pointer(identityRef, "/identities")] });
     }
-    for (const raw of array(roleRows?.unplacedSources)) {
-      const row = record(raw); blockers.push({ kind: "unplaced-source", key: `${context.sceneNativeId}:${stableJson(row ?? raw)}`, detail: "Role evidence has no verified serialized placement and remains unplaced.", provenance: [] });
+    for (const row of roleRows.unplacedSources) {
+      blockers.push({ kind: "unplaced-source", key: `${context.sceneNativeId}:${stableJson(row)}`, detail: "Role evidence has no verified serialized placement and remains unplaced.", provenance: [] });
     }
-    for (const raw of array(roleRows?.unresolved)) {
-      const row = record(raw); blockers.push({ kind: "placement-role-issue", key: `${context.sceneNativeId}:${stableJson(row ?? raw)}`, detail: typeof row?.detail === "string" ? row.detail : "Placement role resolution reported an unresolved issue.", provenance: [] });
+    for (const row of roleRows.unresolved) {
+      blockers.push({ kind: "placement-role-issue", key: `${context.sceneNativeId}:${stableJson(row)}`, detail: row.detail, provenance: [] });
     }
   }
   for (const placement of placementById.values()) {
@@ -515,9 +524,10 @@ function attachShapes(contexts: SceneContext[], sourceForComponent: Map<string, 
       const row = record(raw); const componentId = record(row?.source)?.componentInstanceId ?? row?.componentInstanceId;
       if (typeof componentId !== "number") continue;
       const sourceId = sourceForComponent.get(`${context.sceneNativeId}:${componentId}`); const placement = sourceId ? bySource.get(sourceId) : undefined;
-      if (!placement || !row?.shape) continue;
-      if (placement.shape !== null && stableJson(placement.shape) !== stableJson(row.shape)) blockers.push({ kind: "conflicting-placement-shape", key: placement.placementId, detail: "Multiple source roles on one placement report different authored shapes.", provenance: [] });
-      else placement.shape = row.shape;
+      const shape = record(row?.shape);
+      if (!placement || !shape) continue;
+      if (placement.shape !== null && stableJson(placement.shape) !== stableJson(shape)) blockers.push({ kind: "conflicting-placement-shape", key: placement.placementId, detail: "Multiple source roles on one placement report different authored shapes.", provenance: [] });
+      else placement.shape = shape;
     }
   }
 }
@@ -532,8 +542,10 @@ function conditionRowsFor(ownerType: string, ownerKey: string, raw: JsonRecord, 
   const candidates: Array<[string, string]> = [["requirementsTemplate", "requirements-template"], ["inlineRequirements", "inline-requirements"], ["activationRequirement", "activation-requirement"], ["activationRequirements", "activation-requirements"], ["deactivationRequirements", "deactivation-requirements"], ["requirements", "requirements"]];
   let ordinal = 0;
   for (const [field, semantics] of candidates) {
-    if (raw[field] === undefined || raw[field] === null) continue;
-    values.push({ conditionId: hashCondition(ownerType, ownerKey, ordinal, raw[field]), ownerType, ownerKey, ordinal, semantics, sourceFieldPath: typeof record(raw[field])?.sourceFieldPath === "string" ? record(raw[field])!.sourceFieldPath : null, payload: raw[field], provenance: [pointer(provenance, `/${field}`)] }); ordinal++;
+    const payload = raw[field];
+    if (payload === undefined || payload === null) continue;
+    const payloadRow = record(payload);
+    values.push({ conditionId: hashCondition(ownerType, ownerKey, ordinal, payload), ownerType, ownerKey, ordinal, semantics, sourceFieldPath: typeof payloadRow?.sourceFieldPath === "string" ? payloadRow.sourceFieldPath : null, payload, provenance: [pointer(provenance, `/${field}`)] }); ordinal++;
   }
   return values;
 }
@@ -560,7 +572,8 @@ function collectPatrolPaths(contexts: SceneContext[], blockers: Blocker[]): Norm
   const paths: NormalizedPatrolPath[] = [];
   const identities = new Set<string>();
   for (const context of contexts) {
-    for (const [index, raw] of array(context.npc?.patrolPaths).entries()) {
+    const patrolPaths = "patrolPaths" in context.npc ? context.npc.patrolPaths : [];
+    for (const [index, raw] of patrolPaths.entries()) {
       const row = record(raw);
       const source = record(row?.source);
       if (!row || !source || typeof row.name !== "string" || row.name.length === 0) {
@@ -611,12 +624,14 @@ function collectWorldConditions(contexts: SceneContext[], sourceForComponent: Ma
   return conditions;
 }
 
-function canonicalDefinitions(value: JsonRecord, kind: string): Map<number, JsonRecord> {
-  return new Map(array(value[kind]).flatMap((raw) => { const row = record(raw); return row && Number.isSafeInteger(row.nativeId) ? [[row.nativeId, row] as const] : []; }));
+function canonicalDefinitions(value: unknown, kind: string): Map<number, JsonRecord> {
+  const source = record(value);
+  if (source === null) return new Map();
+  return new Map(array(source[kind]).flatMap((raw) => { const row = record(raw); return row && isSafeInteger(row.nativeId) ? [[row.nativeId, row] as const] : []; }));
 }
 
 function addSourceIndex(index: Map<number, Map<string, ItemSourceAccumulator>>, itemId: unknown, sourceKind: NormalizedItemSources["items"][number]["sources"][number]["sourceKind"], sourceKey: string, placementIds: Iterable<string>, conditionIds: Iterable<string>, context: Record<string, unknown>): void {
-  if (typeof itemId !== "number" || !Number.isSafeInteger(itemId) || itemId < 0) return;
+  if (typeof itemId !== "number" || !isSafeInteger(itemId) || itemId < 0) return;
   let rows = index.get(itemId); if (!rows) { rows = new Map(); index.set(itemId, rows); }
   const key = `${sourceKind}:${sourceKey}`; const previous = rows.get(key);
   if (previous) { previous.placementIds = [...new Set([...previous.placementIds, ...placementIds])].sort(compareText); previous.conditionIds = [...new Set([...previous.conditionIds, ...conditionIds])].sort(compareText); return; }
@@ -624,10 +639,10 @@ function addSourceIndex(index: Map<number, Map<string, ItemSourceAccumulator>>, 
 }
 type ItemSourceAccumulator = Omit<NormalizedItemSources["items"][number]["sources"][number], "probability">;
 
-function relationRows(value: JsonRecord, canonicalValue: JsonRecord, nativeLootRules: JsonRecord, roles: NormalizedDatabaseInput["roles"], knownEntities: ReadonlySet<string>, blockers: Blocker[]) {
+function relationRows(value: Relationships, canonicalValue: Canonical, nativeLootRules: LootRules, roles: NormalizedDatabaseInput["roles"], knownEntities: ReadonlySet<string>, blockers: Blocker[]) {
   const merchantBindings: JsonRecord[] = [], merchantStock: JsonRecord[] = [], lootBindings: JsonRecord[] = [], lootEntries: JsonRecord[] = [];
   const resourceYields: JsonRecord[] = [], questAssociations: JsonRecord[] = [], transitions: JsonRecord[] = [];
-  const linkedNpcRules = array(value.dynamicLevelBandGearLinks).map(record).filter((row): row is JsonRecord => row !== null);
+  const linkedNpcRules = value.dynamicLevelBandGearLinks.map(record).filter((row): row is JsonRecord => row !== null);
   const itemIndex = new Map<number, Map<string, ItemSourceAccumulator>>();
   const itemDefs = canonicalDefinitions(canonicalValue, "items");
   const npcDefs = canonicalDefinitions(canonicalValue, "npcs");
@@ -642,44 +657,46 @@ function relationRows(value: JsonRecord, canonicalValue: JsonRecord, nativeLootR
   for (const role of roles) if (role.npcId !== null) {
     const ids = npcPlacements.get(role.npcId) ?? []; if (!ids.includes(role.placementId)) ids.push(role.placementId); npcPlacements.set(role.npcId, ids);
   }
-  const merchantByTable = new Map<number, JsonRecord[]>(), npcLootByTable = new Map<number, JsonRecord[]>(), worldLootByTable = new Map<number, JsonRecord[]>();
-  const group = (index: Map<number, JsonRecord[]>, row: JsonRecord, tableId: number) => { const rows = index.get(tableId) ?? []; rows.push(row); index.set(tableId, rows); };
-  for (const raw of array(value.merchantBindings)) {
-    const row = record(raw); if (!row || !validReference("npcs", row.ownerNativeId, "merchant-owner") || !validReference("merchantTables", row.merchantTableID, "merchant-binding-table", merchantTables)) continue;
-    merchantBindings.push(row);
+  const merchantByTable = new Map<number, Relationships["merchantBindings"]>();
+  const npcLootByTable = new Map<number, Relationships["npcLootBindings"]>();
+  const worldLootByTable = new Map<number, Relationships["worldLootBindings"]>();
+  const group = <Row>(index: Map<number, Row[]>, row: Row, tableId: number) => { const rows = index.get(tableId) ?? []; rows.push(row); index.set(tableId, rows); };
+  for (const row of value.merchantBindings) {
+    if (!validReference("npcs", row.ownerNativeId, "merchant-owner") || !validReference("merchantTables", row.merchantTableID, "merchant-binding-table", merchantTables)) continue;
+    merchantBindings.push({ ...row });
     if (record(npcDefs.get(row.ownerNativeId)?.gameplay)?.isMerchant === true) group(merchantByTable, row, row.merchantTableID);
   }
-  for (const raw of array(value.merchantStock)) {
-    const row = record(raw); if (!row || !validReference("merchantTables", row.merchantTableID, "merchant-stock-table", merchantTables) || !validReference("items", row.itemID, "merchant-stock") || !validReference("currencies", row.currencyID, "merchant-currency")) continue;
-    merchantStock.push(row);
+  for (const row of value.merchantStock) {
+    if (!validReference("merchantTables", row.merchantTableID, "merchant-stock-table", merchantTables) || !validReference("items", row.itemID, "merchant-stock") || !validReference("currencies", row.currencyID, "merchant-currency")) continue;
+    merchantStock.push({ ...row });
     for (const binding of merchantByTable.get(row.merchantTableID) ?? []) addSourceIndex(itemIndex, row.itemID, "merchant", [binding.ownerNativeId, binding.bindingIndex, row.stockIndex].join(":"), npcPlacements.get(binding.ownerNativeId) ?? [], [], {
       ownerEntityKeys: [entityKey("npcs", binding.ownerNativeId)], ownerNativeId: binding.ownerNativeId, bindingIndex: binding.bindingIndex,
       merchantTableId: row.merchantTableID, stockIndex: row.stockIndex, currencyId: row.currencyID, cost: row.cost, costSemantics: row.costSemantics,
       requirementsTemplate: binding.requirementsTemplate
     });
   }
-  for (const raw of array(value.npcLootBindings)) {
-    const row = record(raw); if (!row || !validReference("npcs", row.ownerNativeId, "npc-loot-owner") || !validReference("lootTables", row.lootTableID, "npc-loot-table")) continue;
+  for (const row of value.npcLootBindings) {
+    if (!validReference("npcs", row.ownerNativeId, "npc-loot-owner") || !validReference("lootTables", row.lootTableID, "npc-loot-table")) continue;
     lootBindings.push({ ...row, context: "npc" }); group(npcLootByTable, row, row.lootTableID);
   }
-  for (const raw of array(value.worldLootBindings)) {
-    const row = record(raw); if (!row || !validReference("lootTables", row.lootTableID, "world-loot-table")) continue;
+  for (const row of value.worldLootBindings) {
+    if (!validReference("lootTables", row.lootTableID, "world-loot-table")) continue;
     lootBindings.push({ ...row, context: "world" }); group(worldLootByTable, row, row.lootTableID);
   }
   const tables = canonicalDefinitions(value, "lootTables");
   const eligibility = new Map<string, JsonRecord>();
-  for (const table of array(nativeLootRules.dynamicTables)) for (const entry of array(table.entries)) eligibility.set([table.tableId, entry.entryIndex].join(":"), {
+  for (const table of nativeLootRules.dynamicTables) for (const entry of table.entries) eligibility.set([table.tableId, entry.entryIndex].join(":"), {
     requiredLevel: entry.requiredLevel, beforeFirstGear: entry.beforeFirstGear, afterFirstGear: entry.afterFirstGear,
     observedPlayerLevel: nativeLootRules.observation.playerLevel, referenceLevelDomain: nativeLootRules.referenceLevelDomain,
     levelBand: nativeLootRules.levelBand, firstGearRule: nativeLootRules.firstGearRule
   });
-  const specializations = new Map<number, JsonRecord>(array(nativeLootRules.linkedNpcs).map((row) => [row.npcId, {
+  const specializations = new Map<number, JsonRecord>(nativeLootRules.linkedNpcs.map((row) => [row.npcId, {
     hasLinkedNpc: row.hasLinkedNpc, authoredLinkedNpcId: row.authoredLinkedNpcId, resolvedLinkedNpcId: row.resolvedLinkedNpcId,
     resolvedLootSpecNpcId: row.resolvedLootSpecNpcId, hasLootSpecialization: row.hasLootSpecialization, specializationSource: row.specializationSource
   }]));
-  for (const raw of array(value.lootEntries)) {
-    const row = record(raw); if (!row || !validReference("items", row.itemID, "loot-entry") || !validReference("lootTables", row.lootTableID, "loot-entry-table")) continue;
-    lootEntries.push(row);
+  for (const row of value.lootEntries) {
+    if (!validReference("items", row.itemID, "loot-entry") || !validReference("lootTables", row.lootTableID, "loot-entry-table")) continue;
+    lootEntries.push({ ...row });
     const table = tables.get(row.lootTableID)!;
     const context = { lootTableId: row.lootTableID, entryIndex: row.entryIndex, min: row.min, max: row.max, rawRate: row.dropRate,
       tableRules: { limitDroppedItems: table.limitDroppedItems, maxDroppedItems: table.maxDroppedItems, hasMinimumDrops: table.hasMinimumDrops,
@@ -695,36 +712,37 @@ function relationRows(value: JsonRecord, canonicalValue: JsonRecord, nativeLootR
       requirementsTemplate: binding.requirementsTemplate, worldLootSettings: value.worldLootSettings
     });
   }
-  const cloth = record(value.clothDrops);
-  if (cloth) for (const tier of array(cloth.tiers)) if (validReference("items", tier.itemID, "supplemental-cloth")) addSourceIndex(itemIndex, tier.itemID, "world-loot", "cloth:" + tier.tierIndex, [], [], {
+  const cloth = value.clothDrops;
+  for (const tier of cloth.tiers) if (validReference("items", tier.itemID, "supplemental-cloth")) addSourceIndex(itemIndex, tier.itemID, "world-loot", "cloth:" + tier.tierIndex, [], [], {
     sourceLabel: "Supplemental cloth loot", tier, rawRate: cloth.dropChance, min: cloth.minimumCount, max: cloth.maximumCount,
-    semantics: cloth.semantics, locationScope: "NPC eligibility for this supplemental source is not established."
+    semantics: record(cloth)?.semantics, locationScope: "NPC eligibility for this supplemental source is not established."
   });
   const questOwners = new Map<number, number[]>();
-  for (const raw of array(value.npcQuestBindings)) {
-    const row = record(raw); if (!row || !validReference("npcs", row.ownerNativeId, "npc-quest-owner") || !validReference("quests", row.questID, "npc-quest")) continue;
+  for (const row of value.npcQuestBindings) {
+    if (!validReference("npcs", row.ownerNativeId, "npc-quest-owner") || !validReference("quests", row.questID, "npc-quest")) continue;
     questAssociations.push({ ...row, associationId: ["npc", row.ownerNativeId, row.association, row.associationIndex].join(":"), associationKind: "npc-quest" });
     if (record(npcDefs.get(row.ownerNativeId)?.gameplay)?.isQuestGiver !== true) continue;
     const owners = questOwners.get(row.questID) ?? []; if (!owners.includes(row.ownerNativeId)) owners.push(row.ownerNativeId); questOwners.set(row.questID, owners);
   }
-  for (const raw of array(value.questObjectives)) {
-    const row = record(raw); if (!row || !validReference("quests", row.questID, "quest-objective") || !validReference("tasks", row.taskID, "quest-task")) continue;
+  for (const row of value.questObjectives) {
+    if (!validReference("quests", row.questID, "quest-objective") || !validReference("tasks", row.taskID, "quest-task")) continue;
     questAssociations.push({ ...row, associationId: ["objective", row.questID, row.objectiveIndex].join(":"), associationKind: "quest-objective" });
   }
-  for (const [collection, kind] of [["questItemsGiven", "given"], ["questRewards", "reward"]] as const) for (const raw of array(value[collection])) {
-    const row = record(raw); if (!row || !validReference("quests", row.questID, "quest-output")) continue;
-    const associationId = [kind, row.questID, row.rewardSource ?? "", row.rewardIndex ?? row.itemIndex].join(":");
-    questAssociations.push({ ...row, associationId, associationKind: kind === "given" ? "quest-item-given" : "quest-reward" });
-    if (typeof row.itemID === "number" && row.itemID >= 0 && validReference("items", row.itemID, "quest-item")) {
+  for (const [collection, kind] of [["questItemsGiven", "given"], ["questRewards", "reward"]] as const) for (const row of value[collection]) {
+    if (!validReference("quests", row.questID, "quest-output")) continue;
+    const details = record(row)!;
+    const associationId = [kind, row.questID, details.rewardSource ?? "", details.rewardIndex ?? details.itemIndex].join(":");
+    questAssociations.push({ ...details, associationId, associationKind: kind === "given" ? "quest-item-given" : "quest-reward" });
+    if (row.itemID >= 0 && validReference("items", row.itemID, "quest-item")) {
       const owners = questOwners.get(row.questID) ?? [];
       addSourceIndex(itemIndex, row.itemID, "quest", associationId, owners.flatMap((owner) => npcPlacements.get(owner) ?? []), [], {
-        ownerEntityKeys: [entityKey("quests", row.questID)], questId: row.questID, rewardSource: row.rewardSource ?? "itemsGiven", rewardType: row.rewardType ?? "item", count: row.count,
+        ownerEntityKeys: [entityKey("quests", row.questID)], questId: row.questID, rewardSource: details.rewardSource ?? "itemsGiven", rewardType: details.rewardType ?? "item", count: details.count,
         association: kind === "given" ? "Item given by the quest" : "Quest reward", locationScope: "Associated quest NPCs; reward delivery at each NPC is not established."
       });
     }
   }
-  for (const [index, raw] of array(value.resourceYields).entries()) {
-    const row = record(raw); if (!row || !validReference("items", row.itemID, "resource-yield")) continue;
+  for (const [index, row] of value.resourceYields.entries()) {
+    if (!validReference("items", row.itemID, "resource-yield")) continue;
     resourceYields.push({ ...row, yieldId: "relationship:" + index });
     addSourceIndex(itemIndex, row.itemID, "resource", "relationship:" + index, [], [], { resourceId: row.resourceID, rank: row.rank, min: row.min, max: row.max });
   }
@@ -791,7 +809,7 @@ function worldRelations(contexts: SceneContext[], sourcePlacement: Map<string, s
     }
     for (const [index, raw] of array(context.world?.questZones).entries()) {
       const row = record(raw), quest = record(row?.worldQuest);
-      if (row && quest && Number.isSafeInteger(quest.nativeId)) {
+      if (row && quest && isSafeInteger(quest.nativeId)) {
         const identity = identityFor(row);
         questAssociations.push({ associationId: hashRelation("world-quest-zone", [identity?.sourceId ?? context.sceneNativeId, quest.nativeId, index]), associationKind: "world-quest-zone", questID: integerOrNull(record(quest.quest)?.nativeId), sourceId: identity?.sourceId ?? null, payload: row });
       }
@@ -866,7 +884,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
   const planDirectory = path.dirname(absolutePlan);
   const planBytes = await readFile(absolutePlan);
   const planRef: ArtifactReference = { path: path.basename(absolutePlan), sha256: createHash("sha256").update(planBytes).digest("hex"), kind: "normalization-plan" };
-  const plan = parsePlan(JSON.parse(planBytes.toString("utf8")));
+  const plan = parsePlan(JSON.parse(planBytes.toString("utf8")), planRef.sha256);
   const topLevel = new Map<string, ResolvedReference>();
   const sourceFiles: SourceRecord[] = [];
   const canonicalManifest = await loadVerifiedManifest(planDirectory, plan.canonicalManifest, plan.buildId, "canonicalManifest");
@@ -880,21 +898,24 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     topLevel.set(key, loaded);
     sourceFiles.push({ key, kind: key, reference: loaded.reference, value: loaded.value, bytes: loaded.bytes });
   }
-  Assert(CanonicalSchema, topLevel.get("canonical")!.value);
-  Assert(RelationshipsSchema, topLevel.get("relationships")!.value);
-  Assert(LootRulesSchema, topLevel.get("lootRules")!.value);
-  Assert(SupportSchema, topLevel.get("support")!.value);
-  Assert(LocalizationSchema, topLevel.get("localization")!.value);
+  const canonicalSource = topLevel.get("canonical")!;
+  const relationshipsSource = topLevel.get("relationships")!;
+  const lootRulesSource = topLevel.get("lootRules")!;
+  const supportSource = topLevel.get("support")!;
+  const localizationSource = topLevel.get("localization")!;
+  const canonical = decodeContract(CanonicalSchema, canonicalSource.value, { objectId: canonicalSource.reference.sha256, target: "canonicalManifest.canonical" });
+  const relationships = decodeContract(RelationshipsSchema, relationshipsSource.value, { objectId: relationshipsSource.reference.sha256, target: "canonicalManifest.relationships" });
+  const lootRules = decodeContract(LootRulesSchema, lootRulesSource.value, { objectId: lootRulesSource.reference.sha256, target: "canonicalManifest.lootRules" });
+  decodeContract(SupportSchema, supportSource.value, { objectId: supportSource.reference.sha256, target: "canonicalManifest.support" });
+  decodeContract(LocalizationSchema, localizationSource.value, { objectId: localizationSource.reference.sha256, target: "canonicalManifest.localization" });
   const profile = await resolveReference(planDirectory, plan.mapSpaceProfile, "mapSpaceProfile");
+  decodeContract(MapSpaceProfileSchema, profile.value, { objectId: profile.reference.sha256, target: "mapSpaceProfile" });
   const spatial = await loadSpatialProfile(profile.absolutePath);
   if (spatial === null || spatial.sha256 !== profile.reference.sha256) throw new Error("Reviewed map-space profile changed during normalization.");
   sourceFiles.push({ key: "mapSpaceProfile", kind: "mapSpaceProfile", reference: profile.reference, value: spatial.profile, bytes: profile.bytes });
-  const catalogValue = topLevel.get("sceneCatalog")?.value;
-  Assert(SceneCatalogSchema, catalogValue);
-  const sceneCatalog = catalogValue as SceneCatalog;
+  const catalogSource = topLevel.get("sceneCatalog")!;
+  const sceneCatalog = decodeContract(SceneCatalogSchema, catalogSource.value, { objectId: catalogSource.reference.sha256, target: "canonicalManifest.sceneCatalog" });
   const compiledMapSpaces = compileMapSpaces(spatial.profile, sceneCatalog);
-  const canonical = record(topLevel.get("canonical")?.value); if (!canonical) throw new Error("Canonical extraction is required.");
-  const relationships = record(topLevel.get("relationships")?.value); if (!relationships) throw new Error("Relationships extraction is required.");
   const profileData: Pick<NormalizedDatabaseInput, "mapSpaces" | "bindings"> = {
     mapSpaces: spatial.profile.mapSpaces.map((space) => ({ id: space.id, label: space.label })),
     bindings: spatial.profile.bindings.map((binding) => ({ id: binding.id, mapSpaceId: binding.mapSpaceId, sceneNativeId: binding.sceneNativeId, scenePath: binding.scenePath, frame: binding.frame, domain: binding.domain })),
@@ -917,9 +938,9 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
   const entityKeys = new Set(canonicalData.entities.map((entity) => entity.entityKey));
   const relationshipsRef = topLevel.get("relationships")!.reference;
   const canonicalRef = topLevel.get("canonical")!.reference;
-  for (const kind of ["currencies", "tasks", "skills", "effects", "properties", "classes", "races", "treePoints"] as const) {
-    for (const raw of array(relationships[kind])) {
-      const row = record(raw); if (!row || !Number.isSafeInteger(row.nativeId)) continue;
+  for (const kind of ["currencies", "tasks"] as const) {
+    for (const raw of relationships[kind]) {
+      const row = record(raw); if (!row || !isSafeInteger(row.nativeId)) continue;
       const key = entityKey(kind, row.nativeId); if (entityKeys.has(key)) continue;
       const details = publicEntityDetails(row);
       canonicalData.entities.push({ entityKey: key, buildId: plan.buildId, kind, nativeId: row.nativeId, name: details.name, internalName: details.internalName, description: details.description, sourceKey: integerOrNull(row.sourceKey), publicData: { localization: row.localization ?? null, gameplay: row.gameplay ?? null, icon: row.icon ?? null }, provenance: [pointer(relationshipsRef, `/${kind}/${row.nativeId}`)] }); entityKeys.add(key);
@@ -941,11 +962,11 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     }
   }
   const conditions = [...npcRows.conditions, ...collectWorldConditions(sceneData.contexts, placementData.sourceForComponent, blockers, worldReference)];
-  for (const kind of ["lootTables", "quests", "tasks", "resources"]) for (const [index, raw] of array(relationships[kind]).entries()) {
+  for (const kind of ["lootTables", "quests", "tasks", "resources"] as const) for (const [index, raw] of relationships[kind].entries()) {
     const row = record(raw);
-    if (row && Number.isSafeInteger(row.nativeId)) conditions.push(...conditionRowsFor("entity", entityKey(kind, row.nativeId), row, pointer(relationshipsRef, `/${kind}/${index}`)));
+    if (row && isSafeInteger(row.nativeId)) conditions.push(...conditionRowsFor("entity", entityKey(kind, row.nativeId), row, pointer(relationshipsRef, `/${kind}/${index}`)));
   }
-  const relationData = relationRows(relationships, canonical, topLevel.get("lootRules")!.value, placementData.roles, knownEntityKeys, blockers);
+  const relationData = relationRows(relationships, canonical, lootRules, placementData.roles, knownEntityKeys, blockers);
   for (const row of relationData.merchantBindings) {
     if (row.requirementsTemplate === null || row.requirementsTemplate === undefined) continue;
     const ownerKey = `merchant:${String(row.ownerNativeId)}:${String(row.bindingIndex)}`;
@@ -999,7 +1020,11 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
   });
   const allRoles = placementData.roles;
   for (const placement of placementData.placements) placement.roles = allRoles.filter((row) => row.placementId === placement.placementId).map((row) => ({ role: row.role, npcId: row.npcId, scope: row.scope, sourceIds: [row.sourceId] })).sort((a, b) => a.role.localeCompare(b.role) || (a.npcId ?? -1) - (b.npcId ?? -1) || a.sourceIds[0]!.localeCompare(b.sourceIds[0]!));
-  const coverageSources = sourceFiles.filter((source) => source.kind === "coverage");
+  const coverageSources = sourceFiles.flatMap((source): Array<SourceRecord & { value: CoverageLedger }> => {
+    if (source.kind !== "coverage") return [];
+    const value = decodeContract(CoverageLedgerSchema, source.value, { objectId: source.reference.sha256, target: source.key });
+    return [{ ...source, value }];
+  });
   for (const source of coverageSources) for (const diagnostic of source.value.diagnostics) {
     if (diagnostic.category === "unset") continue;
     blockers.push({ kind: `source-coverage-${diagnostic.category}`, key: `${source.reference.sha256}:${diagnostic.sourceKey}:${diagnostic.issueType}`, detail: diagnostic.details.map((row: { detail: string }) => row.detail).join("; "), provenance: [source.reference] });
@@ -1016,10 +1041,10 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
   const implementationHashes = {
     "tool:pipeline-normalize": await fileHash(path.resolve(import.meta.dir, "normalize.ts")),
     "tool:pipeline-database": await fileHash(path.resolve(import.meta.dir, "database.ts")),
-    "tool:pipeline-contracts": await fileHash(path.resolve(import.meta.dir, "normalized-contracts.ts")),
+    "tool:pipeline-contracts": await fileHash(path.resolve(import.meta.dir, "../packages/contracts/src/catalog/query.ts")),
     "tool:map-spaces": await fileHash(path.resolve(import.meta.dir, "../tools/map-spaces.ts")),
     "tool:spatial-extraction": await fileHash(path.resolve(import.meta.dir, "../tools/spatial-extraction.ts")),
-    "tool:map-contracts": await fileHash(path.resolve(import.meta.dir, "../tools/map-contracts.ts")),
+    "tool:spatial-map-contract": await fileHash(path.resolve(import.meta.dir, "../packages/contracts/src/spatial/map.ts")),
     "tool:build": await fileHash(path.resolve(import.meta.dir, "../tools/build.ts")),
     "tool:run-reader": await fileHash(path.resolve(import.meta.dir, "../tools/runs.ts")),
     "tool:cli": await fileHash(path.resolve(import.meta.dir, "../tools/cli.ts")),
@@ -1050,26 +1075,33 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     const entityDetailsRows = entityDetails(canonicalData.entities, placementData.roles, itemSources, conditions, { merchantBindings: relationData.merchantBindings, merchantStock: relationData.merchantStock, lootBindings: relationData.lootBindings, lootEntries: relationData.lootEntries, resourceYields: [...relationData.resourceYields, ...worldData.resourceYields], questAssociations: [...relationData.questAssociations, ...worldData.questAssociations], transitions: worldData.transitions });
     const sourceDetails: NormalizedMapProjection["sources"] = [];
     for (const context of sceneData.contexts) {
-      const collections = [...["resourceProducers", "interactions", "containers", "services", "questZones", "transitions", "conditionSources", "mapIcons"].map((family) => [family, array(context.world?.[family])] as const), ["npcProducer", array(context.npc?.producers)] as const];
-      for (const [family, rows] of collections) for (const raw of rows) {
+      const collections: Array<readonly [string, unknown[]]> = [
+        ["resourceProducers", context.world?.resourceProducers ?? []], ["interactions", context.world?.interactions ?? []],
+        ["containers", context.world?.containers ?? []], ["services", context.world?.services ?? []],
+        ["questZones", context.world?.questZones ?? []], ["transitions", context.world?.transitions ?? []],
+        ["conditionSources", context.world?.conditionSources ?? []], ["mapIcons", context.world?.mapIcons ?? []],
+        ["npcProducer", context.npc?.producers ?? []],
+      ];
+      for (const [collection, rows] of collections) for (const raw of rows) {
         const row = record(raw); if (!row) continue;
         const componentId = integerOrNull(record(row.source)?.componentInstanceId ?? row.componentInstanceId);
         const identity = componentId === null ? undefined : context.sourceByComponent.get(componentId);
         const placementId = identity ? placementData.sourcePlacement.get(identity.sourceId) : undefined;
-        if (identity && placementId) sourceDetails.push({ sourceId: identity.sourceId, placementId, family: row.family ?? row.producerFamily ?? row.transitionKind ?? (family === "mapIcons" ? "mapIcon" : family), data: row });
+        const family = row.family ?? row.producerFamily ?? row.transitionKind ?? (collection === "mapIcons" ? "mapIcon" : collection);
+        if (identity && placementId && typeof family === "string") sourceDetails.push({ sourceId: identity.sourceId, placementId, family, data: row });
       }
     }
     // The first entry into a scene lands at the RPGWorldPosition its startPositionID names
     // (RPGBuilderEssentials.InitializeGameState); a scene whose id resolves to no record has no
     // authored arrival point and is left out.
-    const worldPositions = new Map(array(canonical.worldPositions).map((raw) => record(raw)).filter((row): row is Record<string, unknown> => row !== null).map((row) => [row.nativeId, record(row.position)] as const));
+    const worldPositions = new Map(canonical.worldPositions.map((row) => [row.nativeId, row.position] as const));
     const sceneSpawns: NormalizedMapProjection["sceneSpawns"] = [];
-    for (const raw of array(canonical.scenes)) {
-      const scene = record(raw); const gameplay = record(scene?.gameplay);
-      if (!scene || !gameplay || !Number.isSafeInteger(scene.nativeId) || !Number.isSafeInteger(gameplay.startPositionId)) continue;
+    for (const scene of canonical.scenes) {
+      const gameplay = record(scene.gameplay);
+      if (!gameplay || !isSafeInteger(gameplay.startPositionId)) continue;
       const position = worldPositions.get(gameplay.startPositionId);
-      if (!position || typeof position.x !== "number" || typeof position.y !== "number" || typeof position.z !== "number") continue;
-      sceneSpawns.push({ sceneNativeId: scene.nativeId as number, startPositionId: gameplay.startPositionId as number, position: { x: position.x, y: position.y, z: position.z } });
+      if (!position) continue;
+      sceneSpawns.push({ sceneNativeId: scene.nativeId, startPositionId: gameplay.startPositionId, position: { x: position.x, y: position.y, z: position.z } });
     }
     sceneSpawns.sort((a, b) => a.sceneNativeId - b.sceneNativeId);
     const mapProjection: NormalizedMapProjection = { schemaVersion: "compendium.map-projections.v5" as const, buildId: plan.buildId, mapSpaces: profileData.mapSpaces.map((space) => ({ mapSpaceId: space.id, label: space.label, placementIds: mapPlacements.filter((placement) => placement.mapSpaceId === space.id).map((placement) => placement.placementId).sort(compareText) })), placements: mapPlacements, regions: normalizedRegions, patrolPaths: normalizedPatrolPaths, sceneSpawns, sources: sourceDetails, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };

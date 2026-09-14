@@ -27,6 +27,7 @@ export const CaptureReadinessProfileSchema = Type.Object({
   settleFrames: Type.Integer({ minimum: 0, maximum: 3600 }),
   boundaryOverlap: Type.Number({ minimum: 0, maximum: 1000 }),
 });
+export type CaptureReadinessProfile = Static<typeof CaptureReadinessProfileSchema>;
 export const CapturePlanSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-plan.v9"),
   // Screenshot capture covers the overworld only; interiors publish the game's own maps.
@@ -112,11 +113,13 @@ export const CaptureRestorationSchema = Type.Object({
   lightingInputs: Type.Array(Type.Object({ instanceId: integer, type: integer, enabled: Type.Boolean(), active: Type.Boolean(), color: rgba, intensity: number, range: number, cullingMask: integer, position: vector })),
   before: visualState, during: Type.Union([visualState, Type.Null()]), after: Type.Union([visualState, Type.Null()]), errors: Type.Array(text),
 });
+export type CaptureRestoration = Static<typeof CaptureRestorationSchema>;
 export const CaptureCleanupSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.capture-cleanup.v1"),
   key: text, ownerToken: text, resourcePrefix: text, phase: Type.Literal("restored"), frame: count,
   remainingObjects: Type.Literal(0), errors: Type.Array(text, { maxItems: 0 }),
 });
+export type CaptureCleanup = Static<typeof CaptureCleanupSchema>;
 
 const sweepArtifactReference = Type.Object({ path: text, bytes: count, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) });
 export const CaptureSweepSchema = Type.Object({

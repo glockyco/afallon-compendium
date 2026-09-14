@@ -1,6 +1,6 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import type { PublicEntity, PublicGuideBoss } from '../../../../pipeline/public-contracts';
+  import type { PublicEntity, PublicGuideBoss } from '@afallon/contracts/public';
 
   export let boss: PublicGuideBoss;
   export let entities: ReadonlyMap<string, PublicEntity>;

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { PUBLIC_MARKER_CATEGORY_VALUES } from "../../../../../pipeline/public-contracts";
-import type { PublicPlacement } from "../../../../../pipeline/public-contracts";
+import { PUBLIC_MARKER_CATEGORY_VALUES } from "@afallon/contracts/public"
+import type { PublicPlacement } from "@afallon/contracts/public"
 import { createPlacementIconLayer, markerRecordsForPlacements } from "../map-adapter";
 import { iconAtlasMapping } from "./icon-atlas";
 import { MARKER_IDS, MARKER_LAYER_ID, markerFor, markerRegistry, resolveMarker } from "./marker-registry";

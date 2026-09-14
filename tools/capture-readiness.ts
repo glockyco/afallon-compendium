@@ -2,27 +2,23 @@ import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
-import {
-  CaptureGeometrySchema,
-  CapturePlanSchema,
-  CaptureReadinessSchema,
-  type CaptureGeometry,
-  type CapturePlan,
-  type CaptureReadiness,
-} from "./capture-contracts";
-import { toRuntimePath, type CompendiumConfig } from "./config";
-import { ObservationContextSchema } from "./contracts";
-import {
-  StreamCleanupSchema,
-  StreamVisitSchema,
-} from "./traversal-contracts";
+import { CaptureGeometrySchema,
+CapturePlanSchema,
+CaptureReadinessSchema,
+type CaptureGeometry,
+type CapturePlan,
+type CaptureReadiness, } from "@afallon/contracts"
+import type { CompendiumConfig } from "@afallon/contracts";
+import { toRuntimePath } from "./config";
+import { ObservationContextSchema } from "@afallon/contracts"
+import { StreamCleanupSchema,
+StreamVisitSchema,
+type StreamCleanup,
+type StreamVisit, } from "@afallon/contracts"
 import type { Run } from "./runs";
 import type { Runtime } from "./runtime";
 
 type CaptureTile = CapturePlan["tiles"][number];
-type StreamVisit = Static<typeof StreamVisitSchema>;
-type StreamCleanup = Static<typeof StreamCleanupSchema>;
-
 type SourceMembership = {
   required: CaptureGeometry["sources"];
   excluded: CaptureGeometry["sources"];

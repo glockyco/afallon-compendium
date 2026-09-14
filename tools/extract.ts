@@ -3,17 +3,19 @@ import { relative, resolve } from "node:path";
 import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
-import type { CompendiumConfig } from "./config";
-import { CanonicalSchema, LocalizationSchema, LootRulesSchema, ObservationContextSchema, RelationshipsSchema, SupportSchema, canonicalKinds, validateCanonicalIdentityAndCounts } from "./contracts";
-import { NpcProducersSchema, validateNpcProducers } from "./npc-extraction";
-import { WorldSourcesSchema, validateWorldSources } from "./world-extraction";
-import { WorldInventorySchema, validateWorldInventory } from "./world-inventory";
-import { FactionRolesSchema, collectFactionRoleFacts } from "./faction-roles";
-import { PlacementSnapshotSchema } from "./placement-contracts";
+import type { CompendiumConfig } from "@afallon/contracts";
+import { CanonicalSchema, FactionRolesSchema, LocalizationSchema, LootRulesSchema, ObservationContextSchema, RelationshipsSchema, SupportSchema, canonicalKinds, validateCanonicalIdentityAndCounts } from "@afallon/contracts";
+import { NpcProducersSchema, validateNpcProducers } from "@afallon/contracts"
+import { WorldSourcesSchema } from "@afallon/contracts";
+import { WorldInventorySchema } from "@afallon/contracts";
+import { validateWorldInventory } from "./world-inventory-validation";
+import { validateWorldSources } from "./world-sources-validation";
+import { collectFactionRoleFacts } from "./faction-roles";
+import { PlacementSnapshotSchema } from "@afallon/contracts"
 import { prepareSceneIdentities } from "./scene-identities";
 import { collectNpcRoleFacts } from "./npc-roles";
 import { collectPlacementRoles } from "./placement-roles";
-import { MapGeometrySchema, NavigationGeometrySchema, NativeMapRegistrationSetSchema } from "./map-contracts";
+import { MapGeometrySchema, NavigationGeometrySchema, NativeMapRegistrationSetSchema } from "@afallon/contracts"
 import { collectSceneCatalog, fitNativeMapRegistration, validateSceneGeometry } from "./map-calibration";
 import { createCoverageLedger } from "./coverage";
 import { loadSpatialProfile, collectSpatialSnapshot } from "./spatial-extraction";
@@ -40,7 +42,7 @@ export async function extract(runtime: Runtime, config: CompendiumConfig, identi
     inputHashes["map-space-profile"] = spatialProfile.sha256;
   }
   for (const name of names) inputHashes[name] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "extract", "contracts", "npc-extraction", "world-extraction", "condition-references", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-contracts", "placement-identities", "scene-identities", "serialized-assets", "map-contracts", "map-calibration", "config", "spatial-contracts", "spatial-extraction", "map-spaces", "map-regions"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "extract", "../packages/contracts/src/raw/database", "../packages/contracts/src/raw/npc-producers", "../packages/contracts/src/raw/world-sources", "../packages/contracts/src/condition-references", "../packages/contracts/src/raw/world-inventory", "world-inventory-validation", "world-sources-validation", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "../packages/contracts/src/catalog/roles", "npc-roles", "world-roles", "placement-roles", "../packages/contracts/src/raw/placement", "placement-identities", "scene-identities", "serialized-assets", "../packages/contracts/src/spatial/map", "map-calibration", "config", "../packages/contracts/src/spatial/reviewed", "spatial-extraction", "map-spaces", "map-regions"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   for (const path of ["probes/addressable-locations.csx", "serialized-assets.py", "../pyproject.toml", "../uv.lock"]) inputHashes[`tool:${path}`] = await hashFile(resolve(import.meta.dir, path));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "extract",

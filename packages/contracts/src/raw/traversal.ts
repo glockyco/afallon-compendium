@@ -80,3 +80,4 @@ export const StreamCleanupSchema = Type.Object({
   rows: StreamVisitSchema.properties.rows,
   remainingOwnedRoots: Type.Literal(0), errors: Type.Array(text, { maxItems: 0 }),
 });
+export type StreamCleanup = Static<typeof StreamCleanupSchema>;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PublicDetailSection, PublicEntity } from '../../../../pipeline/public-contracts';
+  import type { PublicDetailSection, PublicEntity } from '@afallon/contracts/public';
 
   export let sections: PublicDetailSection[];
   export let entities: ReadonlyMap<string, PublicEntity>;

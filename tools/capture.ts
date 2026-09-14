@@ -5,34 +5,34 @@ import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { isDeepStrictEqual } from "node:util";
 import { buildIdentity, hashFile, toolRevision } from "./build";
-import { toRuntimePath, type CompendiumConfig } from "./config";
-import {
-  CaptureCleanupSchema,
-  CapturePlanSchema,
-  CaptureRasterSchema,
-  type CaptureRaster,
-  type CapturedTile,
-  CaptureReadinessSchema,
-  CaptureRestorationSchema,
-  CaptureSessionSchema,
-  CaptureSetSchema,
-  CaptureSweepSchema,
-  type CaptureSweep,
-  CaptureTileCheckpointSchema,
-  type CapturePlan,
-  type CaptureReadiness,
-  type CaptureSession,
-  type CaptureSet,
-  type CaptureTileCheckpoint,
-} from "./capture-contracts";
-import { ObservationContextSchema } from "./contracts";
+import type { CompendiumConfig } from "@afallon/contracts";
+import { toRuntimePath } from "./config";
+import { CaptureCleanupSchema,
+CapturePlanSchema,
+CaptureRasterSchema,
+type CaptureRaster,
+type CapturedTile,
+CaptureReadinessSchema,
+CaptureRestorationSchema,
+CaptureSessionSchema,
+CaptureSetSchema,
+CaptureSweepSchema,
+type CaptureSweep,
+CaptureTileCheckpointSchema,
+type CapturePlan,
+type CaptureReadiness,
+type CaptureSession,
+type CaptureSet,
+type CaptureTileCheckpoint, } from "@afallon/contracts"
+import { ObservationContextSchema } from "@afallon/contracts"
 import { collectSceneCatalog } from "./map-calibration";
 import { compileMapSpaces } from "./map-spaces";
-import { beginRun, type ArtifactRecord, type Run } from "./runs";
+import type { ArtifactRecord } from "@afallon/contracts";
+import { beginRun, type Run } from "./runs";
 import type { Runtime } from "./runtime";
 import { loadSpatialProfile } from "./spatial-extraction";
-import type { MapSpaceProfile } from "./spatial-contracts";
-import { WorldInventorySchema, type WorldInventory } from "./world-inventory";
+import type { MapSpaceProfile } from "@afallon/contracts"
+import { WorldInventorySchema, type WorldInventory } from "@afallon/contracts"
 import { withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
 import { capturePositionFor, encodeRawFrame, loadNavigationSurvey, type CapturePosition, type NavigationSurvey } from "./capture-position";
 import {
@@ -45,7 +45,7 @@ import {
   tileCompatibilityKey,
   type ReusableCaptureTile,
 } from "./capture-cache";
-import { SceneVisitSchema, type SceneVisit } from "./traversal-contracts";
+import { SceneVisitSchema, type SceneVisit } from "@afallon/contracts"
 
 function assertSchema<T extends TSchema>(schema: T, value: unknown, label: string): asserts value is Static<T> {
   try {
@@ -373,8 +373,8 @@ async function capturePlan(
     inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
   }
   for (const name of [
-    "capture", "capture-cache", "capture-contracts", "capture-position", "capture-readiness", "traversal-contracts", "runtime", "runs", "build", "config", "contracts", "world-inventory",
-    "map-calibration", "map-contracts", "map-spaces", "spatial-contracts", "spatial-extraction",
+    "capture", "capture-cache", "../packages/contracts/src/capture/evidence", "capture-position", "capture-readiness", "../packages/contracts/src/raw/traversal", "runtime", "runs", "build", "config", "../packages/contracts/src/raw/database", "../packages/contracts/src/raw/world-inventory",
+    "map-calibration", "../packages/contracts/src/spatial/map", "map-spaces", "../packages/contracts/src/spatial/reviewed", "spatial-extraction",
   ]) {
     inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   }

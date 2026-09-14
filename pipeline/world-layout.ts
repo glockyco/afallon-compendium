@@ -1,19 +1,5 @@
-import { Type, type Static } from "typebox";
-import type { PublicWorldOffset } from "./public-contracts";
-
-const text = Type.String({ minLength: 1 });
-const number = Type.Number();
-
-export const WorldOffsetsSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.world-offsets.v1"),
-  buildId: text,
-  offsets: Type.Array(Type.Object({
-    mapSpaceId: text,
-    worldX: number,
-    worldY: number,
-  }, { additionalProperties: false }), { uniqueItems: true }),
-}, { additionalProperties: false });
-export type WorldOffsets = Static<typeof WorldOffsetsSchema>;
+import type { WorldOffsets } from "@afallon/contracts";
+import type { PublicWorldOffset } from "@afallon/contracts/public";
 
 export type LayoutBounds = { min: { x: number; y: number }; max: { x: number; y: number } };
 export type LayoutMap = { mapSpaceId: string; bounds: LayoutBounds | null; coarsestTileSize?: number };

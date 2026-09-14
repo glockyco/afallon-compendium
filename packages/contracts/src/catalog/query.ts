@@ -1,7 +1,7 @@
 import { Type, type Static } from "typebox";
 import { Assert } from "typebox/value";
-import type { PlacementIdentityResult } from "../tools/placement-contracts";
-import type { RoleScope } from "../tools/role-contracts";
+import type { PlacementIdentityResult } from "../raw/placement";
+import type { RoleScope } from "./roles";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
 export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v5" as const;
@@ -319,9 +319,20 @@ export function stableJson(value: unknown): string {
   return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${stableJson(object[key])}`).join(",")}}`;
 }
 
-export function publicEntityDetails(row: Record<string, unknown>): { name: string | null; internalName: string | null; description: string | null } {
+export function publicEntityDetails(row: { name?: unknown; internalName?: unknown; description?: unknown }): { name: string | null; internalName: string | null; description: string | null } {
   const textOrNull = (value: unknown): string | null => typeof value === "string" ? value : null;
   return { name: textOrNull(row.name), internalName: textOrNull(row.internalName), description: textOrNull(row.description) };
 }
 
 export type NormalizedOutputStatic = Pick<NormalizedOutput, "schemaVersion" | "buildId" | "runId" | "manifest" | "directory" | "database">;
+
+export const PublicationPlanSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.publication-plan.v2"),
+  buildId: text,
+  mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
+  normalized: ArtifactReferenceSchema,
+  pyramids: Type.Array(ArtifactReferenceSchema, { minItems: 1 }),
+  illustrations: Type.Array(ArtifactReferenceSchema),
+  worldOffsets: ArtifactReferenceSchema,
+}, { additionalProperties: false });
+export type PublicationPlan = Static<typeof PublicationPlanSchema>;

@@ -1,8 +1,8 @@
 import { dirname, resolve } from "node:path";
 import { Assert } from "typebox/value";
-import { MapSpaceProfileSchema, SpatialSnapshotSchema, type MapSpaceProfile, type SpatialSnapshot } from "./spatial-contracts";
-import type { MapGeometry, SceneCatalog } from "./map-contracts";
-import { PlacementRolesSchema, type PlacementRoles } from "./role-contracts";
+import { MapSpaceProfileSchema, SpatialSnapshotSchema, type MapSpaceProfile, type SpatialSnapshot } from "@afallon/contracts"
+import type { MapGeometry, SceneCatalog } from "@afallon/contracts"
+import { PlacementRolesSchema, type PlacementRoles } from "@afallon/contracts/catalog"
 import { compileMapSpaces } from "./map-spaces";
 import { compileAuthoredRegions } from "./map-regions";
 

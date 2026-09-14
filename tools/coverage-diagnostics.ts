@@ -1,4 +1,5 @@
-import type { CoverageDiagnostic, CoverageEntry, CoverageInput } from "./coverage";
+import type { CoverageDiagnostic, CoverageEntry } from "@afallon/contracts";
+import type { CoverageInput } from "./coverage";
 
 type Artifact = CoverageDiagnostic["evidence"][number]["artifact"];
 type Category = CoverageDiagnostic["category"];

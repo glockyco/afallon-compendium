@@ -1,8 +1,8 @@
 import { Assert } from "typebox/value";
-import type { NpcProducers } from "./npc-extraction";
-import type { PlacementIdentityResult, PlacementSnapshot } from "./placement-contracts";
-import { PlacementRolesSchema, type PlacementRoles, type RoleEvidence, type RoleFact, type RoleIssue } from "./role-contracts";
-import type { WorldSources } from "./world-extraction";
+import type { NpcProducers } from "@afallon/contracts"
+import type { PlacementIdentityResult, PlacementSnapshot } from "@afallon/contracts"
+import { PlacementRolesSchema, type PlacementRoles, type RoleEvidence, type RoleFact, type RoleIssue } from "@afallon/contracts/catalog"
+import type { WorldSources } from "@afallon/contracts"
 import { collectWorldRoleFacts } from "./world-roles";
 
 type Row = Record<string, any>;

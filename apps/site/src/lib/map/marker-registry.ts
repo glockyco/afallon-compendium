@@ -13,10 +13,8 @@ import {
 } from "lucide";
 import { BuildingCommunity, BuildingMonument, BuildingTunnel, Coins, Diamonds, DoorExit, Fish, Grave2, Leaf, Mushroom, Pick, TreasureChest } from "./tabler-icons";
 
-import type {
-  PublicMarkerCategory,
-  PublicPlacement,
-} from "../../../../../pipeline/public-contracts";
+import type { PublicMarkerCategory,
+PublicPlacement, } from "@afallon/contracts/public"
 
 export type MarkerId = PublicMarkerCategory;
 

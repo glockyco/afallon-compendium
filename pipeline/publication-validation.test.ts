@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { validatePublication } from "./publication-validation";
-import type { PublicationData } from "./public-contracts";
+import type { PublicationData } from "@afallon/contracts/public"
 
 function publication(): PublicationData {
   return {

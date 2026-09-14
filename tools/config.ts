@@ -1,17 +1,7 @@
 import { mkdir, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep, win32 } from "node:path";
-
-export interface CompendiumConfig {
-  gamePath: string;
-  outputRoot: string;
-  runtimeOutputRoot: string;
-  hotreplUrl: string;
-  character: string;
-  finalSceneNativeId: number;
-  finalScenePath: string;
-  timeoutMs: number;
-  mapSpaceProfile?: string;
-}
+import { CompendiumConfigInputSchema, type CompendiumConfig } from "@afallon/contracts";
+import { Assert } from "typebox/value";
 
 export async function loadConfig(file: string): Promise<CompendiumConfig> {
   const location = resolve(file);
@@ -48,6 +38,7 @@ export async function loadConfig(file: string): Promise<CompendiumConfig> {
   if (typeof timeoutMs !== "number" || !Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 120000) {
     throw new Error("timeoutMs must be an integer from 100 to 120000.");
   }
+  Assert(CompendiumConfigInputSchema, value);
   const gamePath = await realpath(resolve(dirname(location), text("gamePath")));
   for (const name of ["Afallon.exe", "GameAssembly.dll", "Afallon_Data/il2cpp_data/Metadata/global-metadata.dat"]) {
     if (!(await stat(resolve(gamePath, name))).isFile()) throw new Error(`Missing game file: ${name}`);

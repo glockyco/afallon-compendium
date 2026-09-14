@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { compileMapSpaces } from "./map-spaces";
-import type { SceneCatalog } from "./map-contracts";
-import type { MapSpaceProfile } from "./spatial-contracts";
+import type { SceneCatalog } from "@afallon/contracts"
+import type { MapSpaceProfile } from "@afallon/contracts"
 
 function fixture(): { profile: MapSpaceProfile; catalog: SceneCatalog } {
   return {

@@ -53,3 +53,14 @@ export type SpatialSnapshot = Static<typeof SpatialSnapshotSchema>;
 export type SpatialResolution = SpatialSnapshot["placements"][number]["resolution"];
 export type SpatialCandidate = SpatialResolution["candidates"][number];
 export type AuthoredRegionResolution = SpatialSnapshot["placements"][number]["regions"];
+
+export const WorldOffsetsSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.world-offsets.v1"),
+  buildId: text,
+  offsets: Type.Array(Type.Object({
+    mapSpaceId: text,
+    worldX: Type.Number(),
+    worldY: Type.Number(),
+  }, { additionalProperties: false }), { uniqueItems: true }),
+}, { additionalProperties: false });
+export type WorldOffsets = Static<typeof WorldOffsetsSchema>;

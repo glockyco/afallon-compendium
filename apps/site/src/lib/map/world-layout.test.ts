@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { PublicationData } from "../../../../../pipeline/public-contracts";
+import type { PublicationData } from "@afallon/contracts/public"
 import { exportWorldOffsets, WorldDragController } from "./world-layout";
 
 const publication = {

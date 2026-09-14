@@ -9,7 +9,7 @@ import { beginRun } from "./runs";
 import { withRuntime } from "./runtime";
 import { traverse } from "./traversal";
 import { capture } from "./capture";
-import type { CapturePlan } from "./capture-contracts";
+import type { CapturePlan } from "@afallon/contracts"
 import { prepareIllustration } from "./illustrations";
 import { normalize } from "../pipeline/normalize";
 import { generateTiles } from "../pipeline/tiles";

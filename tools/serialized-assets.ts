@@ -1,9 +1,7 @@
 import { resolve } from "node:path";
 import { Assert, AssertError } from "typebox/value";
-import {
-  SerializedAssetIndexSchema,
-  type SerializedAssetIndex,
-} from "./placement-contracts";
+import { SerializedAssetIndexSchema,
+type SerializedAssetIndex, } from "@afallon/contracts"
 
 const REPOSITORY_ROOT = resolve(import.meta.dir, "..");
 const READER_PATH = resolve(import.meta.dir, "serialized-assets.py");

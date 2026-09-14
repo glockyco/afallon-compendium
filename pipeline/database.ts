@@ -1,7 +1,7 @@
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 import { createHash } from "node:crypto";
 import { openIdentityDatabase, recordPlacementIdentities } from "../tools/identity-store";
-import type { NormalizedDatabaseInput, NormalizedEntity } from "./normalized-contracts";
+import type { NormalizedDatabaseInput, NormalizedEntity } from "@afallon/contracts/catalog"
 
 function json(value: unknown): string {
   return JSON.stringify(value ?? null);

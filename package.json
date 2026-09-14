@@ -8,7 +8,7 @@
     "compendium": "bun tools/cli.ts",
     "check": "tsc --noEmit && tsc -b tsconfig.packages.json",
     "check:packages": "tsc -b tsconfig.packages.json",
-    "check:dependencies": "depcruise --config .dependency-cruiser.cjs apps/compendium-cli/src packages/*/src",
+    "check:dependencies": "depcruise --config .dependency-cruiser.cjs apps/compendium-cli/src apps/site/src packages/*/src",
     "test": "bun test"
   },
   "overrides": {
@@ -21,6 +21,7 @@
     "@luma.gl/webgl": "9.3.3"
   },
   "dependencies": {
+    "@afallon/contracts": "workspace:*",
     "@hotrepl/protocol": "4.0.1",
     "@hotrepl/sdk": "4.0.1",
     "sharp": "0.35.4",

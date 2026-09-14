@@ -6,7 +6,7 @@ import { beginRun } from "../tools/runs";
 import { toolRevision } from "../tools/build";
 import { loadTileInputs, type SourceTile } from "./tile-input";
 import { makeTileGrid, type GridSource, type TileGrid } from "./tile-grid";
-import type { TileCoverage, TileFile, TileGenerationResult, TileLevel, TilePyramid } from "./tile-contracts";
+import type { TileCoverage, TileFile, TileGenerationResult, TileLevel, TilePyramid } from "@afallon/contracts"
 
 const DEFAULT_TILE_SIZE = 256;
 const CHANNELS = 4;
@@ -196,7 +196,7 @@ function sourceTileKey(tile: SourceTile): string {
 
 async function tileImplementationHash(): Promise<string> {
   const hash = createHash("sha256");
-  for (const fileName of ["../package.json", "../bun.lock", "../tools/runs.ts", "../tools/cli.ts", "tile-contracts.ts", "tile-input.ts", "tile-grid.ts", "tiles.ts"]) {
+  for (const fileName of ["../package.json", "../bun.lock", "../tools/runs.ts", "../tools/cli.ts", "../packages/contracts/src/capture/tiles.ts", "tile-input.ts", "tile-grid.ts", "tiles.ts"]) {
     const bytes = await Bun.file(resolve(import.meta.dir, fileName)).bytes();
     hash.update(fileName).update("\0").update(String(bytes.byteLength)).update("\0").update(bytes);
   }

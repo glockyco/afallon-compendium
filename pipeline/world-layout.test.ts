@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { buildWorldLayout, type LayoutMap, type WorldOffsets } from "./world-layout";
+import type { WorldOffsets } from "@afallon/contracts";
+import { buildWorldLayout, type LayoutMap } from "./world-layout";
 
 const maps: LayoutMap[] = [
   { mapSpaceId: "native", bounds: { min: { x: 0, y: 0 }, max: { x: 100, y: 100 } } },

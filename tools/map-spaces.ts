@@ -1,8 +1,8 @@
 import { Assert, AssertError } from "typebox/value";
-import type { MapSpaceProfile, SpatialBox, SpatialCandidate, SpatialPosition, SpatialResolution } from "./spatial-contracts";
-import { MapSpaceProfileSchema } from "./spatial-contracts";
-import type { SceneCatalog } from "./map-contracts";
-import { SceneCatalogSchema } from "./map-contracts";
+import type { MapSpaceProfile, SpatialBox, SpatialCandidate, SpatialPosition, SpatialResolution } from "@afallon/contracts"
+import { MapSpaceProfileSchema } from "@afallon/contracts"
+import type { SceneCatalog } from "@afallon/contracts"
+import { SceneCatalogSchema } from "@afallon/contracts"
 
 type MapSpace = MapSpaceProfile["mapSpaces"][number];
 type Binding = MapSpaceProfile["bindings"][number];

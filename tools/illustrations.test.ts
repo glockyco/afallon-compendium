@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { hashFile } from "./build";
-import type { CompendiumConfig } from "./config";
-import type { IllustrationPlan } from "./illustration-contracts";
+import type { CompendiumConfig } from "@afallon/contracts";
+import type { IllustrationPlan } from "@afallon/contracts"
 import { prepareIllustration } from "./illustrations";
 
 async function fixture(check: (context: {

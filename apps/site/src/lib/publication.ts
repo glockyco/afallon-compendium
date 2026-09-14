@@ -1,4 +1,4 @@
-import type { PublicationData, PublicItemSummary } from '../../../../pipeline/public-contracts';
+import type { PublicationData, PublicItemSummary } from '@afallon/contracts/public';
 
 export function resolvePublicationAssets(data: PublicationData, publicationUrl: string): PublicationData {
   const resolve = (asset: string) => new URL(asset, publicationUrl).toString();

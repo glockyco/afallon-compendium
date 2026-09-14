@@ -1,4 +1,5 @@
-import type { CoverageEntry, CoverageInput } from "./coverage";
+import type { CoverageEntry } from "@afallon/contracts";
+import type { CoverageInput } from "./coverage";
 
 type ArtifactKey = keyof CoverageInput["observations"];
 type ObservationContext = CoverageInput["observations"][ArtifactKey]["completed"];

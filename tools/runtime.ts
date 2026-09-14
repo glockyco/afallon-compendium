@@ -5,9 +5,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
-import { Type, type Static } from "typebox";
 import { Assert } from "typebox/value";
-import { toHostPath, toRuntimePath, type CompendiumConfig } from "./config";
+import { RuntimeCleanupReceiptSchema, type CompendiumConfig, type RuntimeCleanupReceipt } from "@afallon/contracts";
+import { toHostPath, toRuntimePath } from "./config";
 
 async function deadline<T>(operation: Promise<T>, milliseconds: number, expire: () => void): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
@@ -25,14 +25,6 @@ async function deadline<T>(operation: Promise<T>, milliseconds: number, expire: 
     clearTimeout(timer!);
   }
 }
-
-const cleanupReceiptSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.runtime-owner.v1"),
-  token: Type.String(), state: Type.String(), reason: Type.String(),
-  cleanupErrors: Type.Array(Type.String()),
-  callbacksRemaining: Type.Integer({ minimum: 0 }), frame: Type.Integer(),
-});
-type CleanupReceipt = Static<typeof cleanupReceiptSchema>;
 
 export async function withRuntime<T>(config: CompendiumConfig, operation: (runtime: Runtime) => Promise<T>): Promise<T> {
   const lockPath = resolve(homedir(), ".cache/afallon-compendium/runtime-owner.sqlite");
@@ -121,7 +113,7 @@ export class Runtime {
   private initialized = false;
   private completed = false;
   private closing = false;
-  private cleanup: Promise<CleanupReceipt> | undefined;
+  private cleanup: Promise<RuntimeCleanupReceipt> | undefined;
 
   constructor(readonly config: CompendiumConfig, private readonly session: Session, readonly ownerToken: string, readonly cleanupReceiptPath: string, private readonly ownerSource: string) {
     this.ownerSourceHash = createHash("sha256").update(ownerSource).digest("hex");
@@ -166,7 +158,7 @@ export class Runtime {
     }
   }
 
-  private async control(action: "claim" | "release", reason: string): Promise<CleanupReceipt> {
+  private async control(action: "claim" | "release", reason: string): Promise<RuntimeCleanupReceipt> {
     const result = await this.rawEvaluate<unknown>(`new System.Func<object>(() => {
       var ownerToken = ${JSON.stringify(this.ownerToken)};
       var ownerAction = ${JSON.stringify(action)};
@@ -174,11 +166,11 @@ export class Runtime {
       var ownerReason = ${JSON.stringify(reason)};
       ${this.ownerSource}
     })()`);
-    Assert(cleanupReceiptSchema, result);
+    Assert(RuntimeCleanupReceiptSchema, result);
     return result;
   }
 
-  private finishCleanup(reason: string): Promise<CleanupReceipt> {
+  private finishCleanup(reason: string): Promise<RuntimeCleanupReceipt> {
     this.closing = true;
     return this.cleanup ??= (async () => {
       let releaseError: unknown;
@@ -197,7 +189,7 @@ export class Runtime {
           }
           throw error;
         }
-        Assert(cleanupReceiptSchema, receipt);
+        Assert(RuntimeCleanupReceiptSchema, receipt);
         if (receipt.token !== this.ownerToken) throw new Error("The cleanup receipt belongs to another runtime owner.");
         if (receipt.state !== "clean" || receipt.callbacksRemaining !== 0 || receipt.cleanupErrors.length !== 0) {
           throw new Error(`Runtime cleanup failed: ${receipt.cleanupErrors.join("; ") || receipt.state}.`);

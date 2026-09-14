@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Assert } from "typebox/value";
-import { GuideDocumentSchema } from "./publication";
+import { GuideDocumentSchema } from "@afallon/contracts/public";
 
 const counts = { dungeons: 1, bosses: 1, regions: 0, properties: 0 };
 const summaryBoss = { bossKey: "npcs:7", label: "A Guide Boss", placementIds: [], lootCount: 2 };

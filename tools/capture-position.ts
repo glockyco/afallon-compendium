@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import sharp from "sharp";
-import type { CapturePlan, CaptureSurvey } from "./capture-contracts";
+import type { CapturePlan, CaptureSurvey } from "@afallon/contracts"
 
 export type NavigationSurvey = { vertices: number[]; indices: number[]; scene: { nativeId: number } };
 

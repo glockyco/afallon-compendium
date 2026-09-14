@@ -6,9 +6,8 @@ import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { readdir, unlink } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
-import { Type, type Static } from 'typebox';
 import { Assert } from 'typebox/value';
-import type { CompendiumConfig } from './config';
+import { ReviewedCellOwnersSchema, type CompendiumConfig, type ReviewedCellOwners } from '@afallon/contracts';
 
 // A tile costs about 3.4 seconds while entering a scene costs about 80, so detail is cheap.
 // A zone tile covers at most 256 world units at 1024 pixels, giving 0.25 units per pixel.
@@ -25,16 +24,6 @@ const NAVIGATION_NEIGHBOURHOOD = 2;
 // explicitly. The build identity still comes from the configured installation.
 const DEFAULT_NORMALIZED_RUN_ID = 'ca9be50a-a463-4a9b-a9b2-1fbe1672efd5';
 const BASE_WORLD_SCENES: Record<number, true> = { 3: true, 9: true, 11: true };
-
-const reviewedCellOwner = Type.Object({
-  minX: Type.Number(), minZ: Type.Number(), sceneNativeId: Type.Integer({ minimum: 0 }), reason: Type.String({ minLength: 1 }),
-}, { additionalProperties: false });
-export const ReviewedCellOwnersSchema = Type.Object({
-  schemaVersion: Type.Literal('compendium.reviewed-cell-owners.v1'),
-  mapSpaceId: Type.Literal('world-surface'),
-  cells: Type.Array(reviewedCellOwner),
-}, { additionalProperties: false });
-export type ReviewedCellOwners = Static<typeof ReviewedCellOwnersSchema>;
 
 export interface CapturePlannerOptions {
   config: CompendiumConfig;

@@ -7,13 +7,13 @@
 
 ## 2. Contracts and Trust Boundaries
 
-- [ ] 2.1 Implement canonical JSON serialization and the central schema registry in `packages/contracts`; verify key-order independence, unsupported-value rejection, and stable schema identity with focused tests.
-- [ ] 2.2 Move configuration, artifact lifecycle, and run manifest schemas with their derived types into `packages/contracts`; migrate callers and verify the affected CLI configuration and run lifecycle tests pass before deleting old declarations.
-- [ ] 2.3 Move raw runtime evidence schemas by artifact family into `packages/contracts`; migrate each producer and consumer to the same schema export and verify all representative frozen artifacts decode.
-- [ ] 2.4 Move reviewed spatial, capture-plan, and tile evidence schemas into `packages/contracts`; migrate callers and verify existing calibration, capture-plan, and tile-contract tests pass before deleting old declarations.
-- [ ] 2.5 Move canonical query and public static-resource contracts into exported contract subpaths; migrate the site to the public-only subpath and verify dependency rules reject imports from non-public contract subpaths.
-- [ ] 2.6 Replace `any`-based normalization inputs with `unknown` decoding and validated derived types; verify malformed representative records fail with artifact identity and JSON path while valid frozen inputs assemble.
-- [ ] 2.7 Remove duplicate schema constants, interfaces, and re-exports after all callers migrate; verify workspace references and a repository search show one owner for every schema identity.
+- [x] 2.1 Implement canonical JSON serialization and the central schema registry in `packages/contracts`; verify key-order independence, unsupported-value rejection, and stable schema identity with focused tests.
+- [x] 2.2 Move configuration, artifact lifecycle, and run manifest schemas with their derived types into `packages/contracts`; migrate callers and verify the affected CLI configuration and run lifecycle tests pass before deleting old declarations.
+- [x] 2.3 Move raw runtime evidence schemas by artifact family into `packages/contracts`; migrate each producer and consumer to the same schema export and verify all representative frozen artifacts decode.
+- [x] 2.4 Move reviewed spatial, capture-plan, and tile evidence schemas into `packages/contracts`; migrate callers and verify existing calibration, capture-plan, and tile-contract tests pass before deleting old declarations.
+- [x] 2.5 Move canonical query and public static-resource contracts into exported contract subpaths; migrate the site to the public-only subpath and verify dependency rules reject imports from non-public contract subpaths.
+- [x] 2.6 Replace `any`-based normalization inputs with `unknown` decoding and validated derived types; verify malformed representative records fail with artifact identity and JSON path while valid frozen inputs assemble.
+- [x] 2.7 Remove duplicate schema constants, interfaces, and re-exports after all callers migrate; verify workspace references and a repository search show one owner for every schema identity.
 
 ## 3. Artifact Lifecycle
 

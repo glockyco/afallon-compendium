@@ -15,6 +15,7 @@
     "rollback:production": "wrangler rollback"
   },
   "dependencies": {
+    "@afallon/contracts": "workspace:*",
     "@deck.gl/core": "9.3.7",
     "@deck.gl/geo-layers": "9.3.7",
     "@deck.gl/layers": "9.3.7",

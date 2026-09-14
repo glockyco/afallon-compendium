@@ -1,14 +1,12 @@
 import { createHash } from "node:crypto";
 import { Assert } from "typebox/value";
 import type { TSchema } from "typebox";
-import {
-  PlacementIdentityResultSchema,
-  PlacementSnapshotSchema,
-  SerializedAssetIndexSchema,
-  type PlacementIdentityResult,
-  type PlacementSnapshot,
-  type SerializedAssetIndex,
-} from "./placement-contracts";
+import { PlacementIdentityResultSchema,
+PlacementSnapshotSchema,
+SerializedAssetIndexSchema,
+type PlacementIdentityResult,
+type PlacementSnapshot,
+type SerializedAssetIndex, } from "@afallon/contracts"
 
 type SerializedObject = SerializedAssetIndex["objects"][number];
 type NativeNode = PlacementSnapshot["nodes"][number];

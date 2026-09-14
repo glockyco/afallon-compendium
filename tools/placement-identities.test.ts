@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { PlacementSnapshot, SerializedAssetIndex } from "./placement-contracts";
+import type { PlacementSnapshot, SerializedAssetIndex } from "@afallon/contracts"
 import { comparePlacementIdentities, resolvePlacementIdentities } from "./placement-identities";
 
 const guid = "1".repeat(32);

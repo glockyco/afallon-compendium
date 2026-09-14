@@ -1,14 +1,12 @@
 import { Assert } from "typebox/value";
-import {
-  NativeMapRegistrationSchema,
-  SceneCatalogSchema,
-  type MapGeometry,
-  type NavigationGeometry,
-  type NativeMapRegistration,
-  type NativeMapTransform,
-  type SceneCatalog,
-} from "./map-contracts";
-import type { WorldInventory } from "./world-inventory";
+import { NativeMapRegistrationSchema,
+SceneCatalogSchema,
+type MapGeometry,
+type NavigationGeometry,
+type NativeMapRegistration,
+type NativeMapTransform,
+type SceneCatalog, } from "@afallon/contracts"
+import type { WorldInventory } from "@afallon/contracts"
 
 type MapZone = MapGeometry["mapZones"][number];
 type CalibrationSample = NonNullable<MapZone["calibration"]>["samples"][number];

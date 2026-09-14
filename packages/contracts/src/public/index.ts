@@ -1,4 +1,5 @@
 import { Type, type Static } from "typebox";
+import { schemaRegistry } from "../schema-registry";
 
 const text = Type.String({ minLength: 1 });
 const number = Type.Number();
@@ -371,3 +372,59 @@ export const ItemSourcesDocumentSchema = Type.Object({
   itemSources: Type.Array(PublicItemSourceSchema),
 }, { additionalProperties: false });
 export type ItemSourcesDocument = Static<typeof ItemSourcesDocumentSchema>;
+
+export const GuideDocumentSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.adventure-guide.v1"),
+  buildId: text,
+  counts: Type.Object({
+    dungeons: count,
+    bosses: count,
+    regions: count,
+    properties: count,
+  }, { additionalProperties: false }),
+  guide: Type.Object({
+    dungeons: Type.Array(Type.Union([PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema])),
+    bosses: Type.Array(Type.Union([PublicGuideBossSchema, PublicGuideBossSummarySchema])),
+    regions: Type.Array(PublicGuideRegionSchema),
+    properties: Type.Array(PublicGuidePropertySchema),
+  }, { additionalProperties: false }),
+  entities: Type.Array(PublicEntitySchema),
+}, { additionalProperties: false });
+export type GuideDocument = Static<typeof GuideDocumentSchema>;
+
+schemaRegistry.register("compendium.public-level-range.v1", PublicLevelRangeSchema);
+schemaRegistry.register("compendium.public-affine.v1", PublicAffineSchema);
+schemaRegistry.register("compendium.public-detail-row.v1", PublicDetailRowSchema);
+schemaRegistry.register("compendium.public-detail-section.v1", PublicDetailSectionSchema);
+schemaRegistry.register("compendium.public-entity.v1", PublicEntitySchema);
+schemaRegistry.register("compendium.public-travel-destination.v1", PublicTravelDestinationSchema);
+schemaRegistry.register("compendium.public-travel.v1", PublicTravelSchema);
+schemaRegistry.register("compendium.public-patrol-path.v1", PublicPatrolPathSchema);
+schemaRegistry.register("compendium.public-movement-owner.v1", PublicMovementOwnerSchema);
+schemaRegistry.register("compendium.public-roaming-movement.v1", PublicRoamingMovementSchema);
+schemaRegistry.register("compendium.public-patrol-movement.v1", PublicPatrolMovementSchema);
+schemaRegistry.register("compendium.public-movement.v1", PublicMovementSchema);
+schemaRegistry.register("compendium.public-placement.v1", PublicPlacementSchema);
+schemaRegistry.register("compendium.public-region.v1", PublicRegionSchema);
+schemaRegistry.register("compendium.public-entity-summary.v1", PublicEntitySummarySchema);
+schemaRegistry.register("compendium.public-item-summary.v1", PublicItemSummarySchema);
+schemaRegistry.register("compendium.public-world-offset.v1", PublicWorldOffsetSchema);
+schemaRegistry.register("compendium.public-world.v1", PublicWorldSchema);
+schemaRegistry.register("compendium.public-item-source.v1", PublicItemSourceSchema);
+schemaRegistry.register("compendium.public-tile.v1", PublicTileSchema);
+schemaRegistry.register("compendium.public-tile-layer.v1", PublicTileLayerSchema);
+schemaRegistry.register("compendium.public-guide-loot.v1", PublicGuideLootSchema);
+schemaRegistry.register("compendium.public-guide-ability-phase.v1", PublicGuideAbilityPhaseSchema);
+schemaRegistry.register("compendium.public-guide-stat.v1", PublicGuideStatSchema);
+schemaRegistry.register("compendium.public-guide-boss.v1", PublicGuideBossSchema);
+schemaRegistry.register("compendium.public-guide-boss-summary.v1", PublicGuideBossSummarySchema);
+schemaRegistry.register("compendium.public-guide-dungeon.v1", PublicGuideDungeonSchema);
+schemaRegistry.register("compendium.public-guide-dungeon-summary.v1", PublicGuideDungeonSummarySchema);
+schemaRegistry.register("compendium.public-guide-region.v1", PublicGuideRegionSchema);
+schemaRegistry.register("compendium.public-guide-property.v1", PublicGuidePropertySchema);
+schemaRegistry.register("compendium.public-adventure-guide.v1", PublicAdventureGuideSchema);
+schemaRegistry.register("compendium.public-adventure-guide-summary.v1", PublicAdventureGuideSummarySchema);
+schemaRegistry.register(PUBLICATION_SCHEMA_VERSION, PublicationDataSchema);
+schemaRegistry.register("compendium.publication-entity-details.v1", EntityDetailsDocumentSchema);
+schemaRegistry.register("compendium.publication-item-sources.v1", ItemSourcesDocumentSchema);
+schemaRegistry.register("compendium.adventure-guide.v1", GuideDocumentSchema);

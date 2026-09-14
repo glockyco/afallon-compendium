@@ -2,12 +2,12 @@ import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
-import { CapturePlanSchema, CaptureRasterSchema, CaptureReadinessSchema, CaptureSetSchema, type CapturePlan, type CaptureRaster, type CaptureReadiness, type CaptureSet } from "../tools/capture-contracts";
+import { CapturePlanSchema, CaptureRasterSchema, CaptureReadinessSchema, CaptureSetSchema, type CapturePlan, type CaptureRaster, type CaptureReadiness, type CaptureSet } from "@afallon/contracts"
 import { readinessCovers } from "../tools/capture-cache";
 import { loadSpatialProfile } from "../tools/spatial-extraction";
 import { loadVerifiedRun } from "../tools/runs";
-import type { MapSpaceProfile } from "../tools/spatial-contracts";
-import { TilePlanSchema, type TilePlan, type TileReference, type TileSourceProvenance } from "./tile-contracts";
+import type { MapSpaceProfile } from "@afallon/contracts"
+import { TilePlanSchema, type TilePlan, type TileReference, type TileSourceProvenance } from "@afallon/contracts"
 
 const HASH = /^[a-f0-9]{64}$/;
 const EPSILON = 1e-7;

@@ -1,4 +1,4 @@
-import type { PublicWorldOffset, PublicationData } from '../../../../../pipeline/public-contracts';
+import type { PublicWorldOffset, PublicationData } from '@afallon/contracts/public';
 
 export type WorldOffsetOverride = { worldX: number; worldY: number };
 export type WorldOffsetOverrides = Record<string, WorldOffsetOverride>;

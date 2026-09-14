@@ -1,6 +1,6 @@
-import type { Canonical, Relationships } from "./contracts";
+import type { Canonical, Relationships } from "@afallon/contracts"
 import type { FactionRoleFacts } from "./faction-roles";
-import type { RoleEvidence, RoleFact, RoleIssue } from "./role-contracts";
+import type { RoleEvidence, RoleFact, RoleIssue } from "@afallon/contracts/catalog"
 
 type RecordValue = Record<string, unknown>;
 type NpcRoleResult = { facts: RoleFact[]; issues: RoleIssue[] };

@@ -1,5 +1,5 @@
-import type { WorldSources } from "./world-extraction";
-import type { RoleEvidence, RoleFact, RoleIssue } from "./role-contracts";
+import type { WorldSources } from "@afallon/contracts"
+import type { RoleEvidence, RoleFact, RoleIssue } from "@afallon/contracts/catalog"
 
 export type WorldRoleRow = {
   collection:

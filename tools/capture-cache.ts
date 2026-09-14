@@ -4,34 +4,31 @@ import { copyFile, mkdir, readFile, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { Assert } from "typebox/value";
-import type { Static } from "typebox";
-import {
-  CaptureCleanupSchema,
-  CaptureRasterSchema,
-  CaptureReadinessSchema,
-  CaptureRestorationSchema,
-  CaptureSessionSchema,
-  CaptureSetSchema,
-  CaptureSweepSchema,
-  CaptureTileCheckpointSchema,
-  type CapturePlan,
-  type CaptureSet,
-  type CaptureTileCheckpoint,
-} from "./capture-contracts";
-import { StreamCleanupSchema } from "./traversal-contracts";
-import { listRunManifests, readLatestSuccess, type ArtifactRecord, type LatestSuccessPointer, type Run, type RunManifest } from "./runs";
+import { CaptureCleanupSchema,
+CaptureRasterSchema,
+CaptureReadinessSchema,
+CaptureRestorationSchema,
+CaptureSessionSchema,
+CaptureSetSchema,
+CaptureSweepSchema,
+CaptureTileCheckpointSchema,
+type CaptureCleanup,
+type CapturePlan,
+type CaptureRaster,
+type CaptureReadiness as Readiness,
+type CaptureRestoration as Restoration,
+type CaptureSession as Session,
+type CaptureSet,
+type CaptureTileCheckpoint, } from "@afallon/contracts"
+import { StreamCleanupSchema, type StreamCleanup } from "@afallon/contracts"
+import type { ArtifactRecord, LatestSuccessPointer, RunManifest } from "@afallon/contracts";
+import { listRunManifests, readLatestSuccess, type Run } from "./runs";
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const CAPTURE_COMMAND = "capture";
 
 type CaptureTile = CapturePlan["tiles"][number];
 type TileArtifacts = CaptureTileCheckpoint["artifacts"];
-type CaptureCleanup = Static<typeof CaptureCleanupSchema>;
-type CaptureRaster = Static<typeof CaptureRasterSchema>;
-type Readiness = Static<typeof CaptureReadinessSchema>;
-type Restoration = Static<typeof CaptureRestorationSchema>;
-type Session = Static<typeof CaptureSessionSchema>;
-type StreamCleanup = Static<typeof StreamCleanupSchema>;
 
 export interface TileCompatibilityInput {
   buildId: string;

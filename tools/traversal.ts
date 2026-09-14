@@ -4,21 +4,24 @@ import { relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
-import { toRuntimePath, type CompendiumConfig } from "./config";
-import { CanonicalSchema, SupportSchema, RelationshipsSchema, ObservationContextSchema, validateCanonicalIdentityAndCounts } from "./contracts";
+import type { CompendiumConfig } from "@afallon/contracts";
+import { toRuntimePath } from "./config";
+import { CanonicalSchema, FactionRolesSchema, SupportSchema, RelationshipsSchema, ObservationContextSchema, validateCanonicalIdentityAndCounts } from "@afallon/contracts";
 import { createCoverageLedger, type CoverageInput } from "./coverage";
-import { NpcProducersSchema, validateNpcProducers } from "./npc-extraction";
-import { PlacementSnapshotSchema, type PlacementSnapshot } from "./placement-contracts";
+import { NpcProducersSchema, validateNpcProducers } from "@afallon/contracts"
+import { PlacementSnapshotSchema, type PlacementSnapshot } from "@afallon/contracts"
 import { beginRun } from "./runs";
 import type { Runtime } from "./runtime";
-import { SceneVisitSchema, StreamVisitSchema, StreamCleanupSchema, TraversalPlanSchema, type TraversalPlan } from "./traversal-contracts";
-import { WorldInventorySchema, validateWorldInventory } from "./world-inventory";
-import { WorldSourcesSchema, validateWorldSources } from "./world-extraction";
-import { FactionRolesSchema, collectFactionRoleFacts } from "./faction-roles";
+import { SceneVisitSchema, StreamVisitSchema, StreamCleanupSchema, TraversalPlanSchema, type TraversalPlan } from "@afallon/contracts"
+import { WorldInventorySchema } from "@afallon/contracts";
+import { WorldSourcesSchema } from "@afallon/contracts";
+import { validateWorldInventory } from "./world-inventory-validation";
+import { validateWorldSources } from "./world-sources-validation";
+import { collectFactionRoleFacts } from "./faction-roles";
 import { prepareSceneIdentities } from "./scene-identities";
 import { collectNpcRoleFacts } from "./npc-roles";
 import { collectPlacementRoles } from "./placement-roles";
-import { MapGeometrySchema, NavigationGeometrySchema, NativeMapRegistrationSetSchema } from "./map-contracts";
+import { MapGeometrySchema, NavigationGeometrySchema, NativeMapRegistrationSetSchema } from "@afallon/contracts"
 import { collectSceneCatalog, fitNativeMapRegistration, validateSceneGeometry } from "./map-calibration";
 import { loadSpatialProfile, collectSpatialSnapshot } from "./spatial-extraction";
 
@@ -33,7 +36,7 @@ export async function traverse(runtime: Runtime, config: CompendiumConfig, ident
   }
   const probeNames = ["scene-visit", "stream-visit", "placement-snapshot", "canonical", "support", "relationships", "conditions", "npc-producers", "world-sources", "world-inventory", "faction-roles", "addressable-locations", "map-geometry", "navigation-geometry"];
   for (const name of probeNames) inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  for (const name of ["runtime", "traversal", "traversal-contracts", "contracts", "placement-contracts", "npc-extraction", "world-extraction", "condition-references", "world-inventory", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "role-contracts", "npc-roles", "world-roles", "placement-roles", "placement-identities", "scene-identities", "serialized-assets", "map-contracts", "map-calibration", "config", "spatial-contracts", "spatial-extraction", "map-spaces", "map-regions"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
+  for (const name of ["runtime", "traversal", "../packages/contracts/src/raw/traversal", "../packages/contracts/src/raw/database", "../packages/contracts/src/raw/placement", "../packages/contracts/src/raw/npc-producers", "../packages/contracts/src/raw/world-sources", "../packages/contracts/src/condition-references", "../packages/contracts/src/raw/world-inventory", "world-inventory-validation", "world-sources-validation", "coverage", "coverage-sources", "coverage-diagnostics", "runs", "faction-roles", "../packages/contracts/src/catalog/roles", "npc-roles", "world-roles", "placement-roles", "placement-identities", "scene-identities", "serialized-assets", "../packages/contracts/src/spatial/map", "map-calibration", "config", "../packages/contracts/src/spatial/reviewed", "spatial-extraction", "map-spaces", "map-regions"]) inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   for (const path of ["serialized-assets.py", "../pyproject.toml", "../uv.lock"]) inputHashes[`tool:${path}`] = await hashFile(resolve(import.meta.dir, path));
   const run = await beginRun(config.outputRoot, {
     ...identity, inputHashes, toolRevision: await toolRevision(), command: "traverse",

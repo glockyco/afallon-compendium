@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { openIdentityDatabase, recordPlacementIdentities } from "./identity-store";
-import type { PlacementIdentityResult } from "./placement-contracts";
+import type { PlacementIdentityResult } from "@afallon/contracts"
 
 function fixture(): PlacementIdentityResult {
   const identities: PlacementIdentityResult["identities"] = [];

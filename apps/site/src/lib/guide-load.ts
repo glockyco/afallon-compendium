@@ -1,5 +1,5 @@
 import { base } from '$app/paths';
-import type { PublicAdventureGuide, PublicAdventureGuideSummary, PublicEntity, PublicGuideBoss, PublicGuideBossSummary, PublicGuideDungeon, PublicGuideDungeonSummary } from '../../../../pipeline/public-contracts';
+import type { PublicAdventureGuide, PublicAdventureGuideSummary, PublicEntity, PublicGuideBoss, PublicGuideBossSummary, PublicGuideDungeon, PublicGuideDungeonSummary } from '@afallon/contracts/public';
 
 export type GuideCounts = { dungeons: number; bosses: number; regions: number; properties: number };
 export type GuideBoss = PublicGuideBoss | PublicGuideBossSummary;

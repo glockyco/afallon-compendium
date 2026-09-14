@@ -20,13 +20,11 @@ import {
   ScatterplotLayer,
   TextLayer,
 } from "@deck.gl/layers";
-import type {
-  PublicPlacement,
-  PublicRegion,
-  PublicTile,
-  PublicTileLayer,
-  PublicationData,
-} from "../../../../pipeline/public-contracts";
+import type { PublicPlacement,
+PublicRegion,
+PublicTile,
+PublicTileLayer,
+PublicationData, } from "@afallon/contracts/public"
 
 export type MapViewState = {
   target: [number, number, number];

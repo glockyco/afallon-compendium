@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import type { CompendiumConfig } from "./config";
+import type { CompendiumConfig } from "@afallon/contracts";
 
 export async function hashFile(path: string): Promise<string> {
   const hash = createHash("sha256");

@@ -11,6 +11,48 @@ const vector = Type.Object({ x: Type.Number(), y: Type.Number(), z: Type.Number(
 const rotation = Type.Object({ x: Type.Number(), y: Type.Number(), z: Type.Number(), w: Type.Number() });
 const file = Type.Object({ path: text, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), bytes: count });
 
+export const AddressableGraphSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.addressable-locations.v1"),
+  frame: count,
+  dataPath: text,
+  scene: Type.Object({ path: text, handle: integer, buildIndex: integer }),
+  assets: Type.Array(Type.Object({ guid: text, locationIds: Type.Array(count) })),
+  locations: Type.Array(Type.Object({
+    id: count,
+    primaryKey: text,
+    internalId: text,
+    transformedInternalId: text,
+    providerId: text,
+    resourceType: text,
+    dependencyIds: Type.Array(count),
+  })),
+});
+export type AddressableGraph = Static<typeof AddressableGraphSchema>;
+
+export const SceneSourceIssuesSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.scene-source-issues.v2"),
+  scope: Type.Literal("queried-source-components"),
+  buildId: text,
+  sceneNativeId: count,
+  scenePath: text,
+  snapshotFrame: count,
+  issues: Type.Array(Type.Object({
+    streamComponentInstanceId: nullableInteger,
+    assetGuid: nullableText,
+    reason: text,
+    detail: text,
+    candidates: Type.Array(text),
+  })),
+  skippedStreams: Type.Array(Type.Object({
+    componentInstanceId: integer,
+    assetGuid: nullableText,
+    loadedRootInstanceId: nullableInteger,
+    reason: Type.Literal("no-queried-source-components"),
+  })),
+  summary: Type.Object({ loadedStreams: count, sourceStreams: count, resolvedStreams: count, unresolvedStreams: count, indexedPrefabs: count }),
+});
+export type SceneSourceIssues = Static<typeof SceneSourceIssuesSchema>;
+
 export const SerializedAssetIndexSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.serialized-assets.v1"),
   source: Type.Object({ path: text, sha256: file.properties.sha256, bytes: count, serializedFile: text, unityVersion: text, scenePath: nullableText, buildIndex: nullableInteger, assetName: nullableText }),

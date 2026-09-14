@@ -100,3 +100,4 @@ export const NativeMapRegistrationSetSchema = Type.Object({
   source: Type.Object({ path: Type.String({ minLength: 1 }), sha256: Type.String({ pattern: "^[0-9a-f]{64}$" }) }),
   registrations: Type.Array(NativeMapRegistrationSchema),
 });
+export type NativeMapRegistrationSet = Static<typeof NativeMapRegistrationSetSchema>;

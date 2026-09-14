@@ -2,20 +2,19 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import sharp from "sharp";
-import { Type, type Static } from "typebox";
 import { Assert } from "typebox/value";
 
 import { beginRun, loadVerifiedRun, type VerifiedRun } from "../tools/runs";
 import { toolRevision } from "../tools/build";
 import { compileMapSpaces } from "../tools/map-spaces";
-import { MapSpaceProfileSchema, type MapSpaceProfile } from "../tools/spatial-contracts";
-import { SceneCatalogSchema, type SceneCatalog } from "../tools/map-contracts";
-import { IllustrationOutputSchema, type IllustrationOutput } from "../tools/illustration-contracts";
-import { TilePyramidSchema, type TilePyramid } from "./tile-contracts";
-import type { EntityDetail, NormalizedEntityDetails, NormalizedItemSources, NormalizedMapProjection, NormalizedCoverageSummary, NormalizedPlacement, NormalizedRegion } from "./normalized-contracts";
+import { MapSpaceProfileSchema, type MapSpaceProfile } from "@afallon/contracts"
+import { SceneCatalogSchema, type SceneCatalog } from "@afallon/contracts"
+import { IllustrationOutputSchema, type IllustrationOutput } from "@afallon/contracts"
+import { TilePyramidSchema, WorldOffsetsSchema, type TilePyramid, type WorldOffsets } from "@afallon/contracts";
+import { PublicationPlanSchema, type EntityDetail, type NormalizedEntityDetails, type NormalizedItemSources, type NormalizedMapProjection, type NormalizedCoverageSummary, type NormalizedPlacement, type NormalizedRegion, type PublicationPlan } from "@afallon/contracts/catalog";
 import { projectAdventureGuide } from "./guide-projection";
-import { PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicMovement, type PublicPatrolPath, type PublicPlacement, type PublicRegion, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "./public-contracts";
-import { WorldOffsetsSchema, type WorldOffsets, buildWorldLayout } from "./world-layout";
+import { GuideDocumentSchema, PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicMovement, type PublicPatrolPath, type PublicPlacement, type PublicRegion, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "@afallon/contracts/public"
+import { buildWorldLayout } from "./world-layout";
 import { validateEntityDetails, validateItemSources, validatePublication } from "./publication-validation";
 
 
@@ -109,28 +108,6 @@ async function tileIllustration(
     tiles,
   };
 }
-
-const reference = Type.Object({ path: Type.String({ minLength: 1 }), sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) }, { additionalProperties: false });
-export const GuideDocumentSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.adventure-guide.v1"), buildId: Type.String({ minLength: 1 }),
-  counts: Type.Object({ dungeons: Type.Integer({ minimum: 0 }), bosses: Type.Integer({ minimum: 0 }), regions: Type.Integer({ minimum: 0 }), properties: Type.Integer({ minimum: 0 }) }, { additionalProperties: false }),
-  guide: Type.Object({
-    dungeons: Type.Array(Type.Union([PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema])),
-    bosses: Type.Array(Type.Union([PublicGuideBossSchema, PublicGuideBossSummarySchema])),
-    regions: Type.Array(PublicGuideRegionSchema), properties: Type.Array(PublicGuidePropertySchema),
-  }, { additionalProperties: false }),
-  entities: Type.Array(PublicEntitySchema),
-}, { additionalProperties: false });
-export const PublicationPlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.publication-plan.v2"),
-  buildId: Type.String({ minLength: 1 }),
-  mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
-  normalized: reference,
-  pyramids: Type.Array(reference, { minItems: 1 }),
-  illustrations: Type.Array(reference),
-  worldOffsets: reference,
-}, { additionalProperties: false });
-export type PublicationPlan = Static<typeof PublicationPlanSchema>;
 
 async function jsonArtifact<T extends { schemaVersion: string; buildId: string }>(run: VerifiedRun, path: string, schemaVersion: T["schemaVersion"]): Promise<T> {
   const { bytes } = await run.readArtifact(path);
@@ -1149,7 +1126,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const inputHashes: Record<string, string> = { plan: createHash("sha256").update(planBytes).digest("hex"), normalized: plan.normalized.sha256, worldOffsets: plan.worldOffsets.sha256 };
   for (const [index, reference] of plan.pyramids.entries()) inputHashes[`pyramid:${index}`] = reference.sha256;
   for (const [index, reference] of plan.illustrations.entries()) inputHashes[`illustration:${index}`] = reference.sha256;
-  for (const file of ["publication.ts", "public-contracts.ts", "publication-validation.ts", "../tools/runs.ts", "../tools/cli.ts", "../package.json", "../bun.lock"]) inputHashes[`tool:${file}`] = createHash("sha256").update(await readFile(resolve(import.meta.dir, file))).digest("hex");
+  for (const file of ["publication.ts", "../packages/contracts/src/public/index.ts", "publication-validation.ts", "../tools/runs.ts", "../tools/cli.ts", "../package.json", "../bun.lock"]) inputHashes[`tool:${file}`] = createHash("sha256").update(await readFile(resolve(import.meta.dir, file))).digest("hex");
   const run = await beginRun(outputRoot, { buildId: plan.buildId, command: "publication", toolRevision: await toolRevision(), settings: { mode: plan.mode }, inputHashes });
   try {
     await mkdir(resolve(run.directory, "public/imagery"), { recursive: true });

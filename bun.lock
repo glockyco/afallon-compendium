@@ -5,6 +5,7 @@
     "": {
       "name": "afallon-compendium",
       "dependencies": {
+        "@afallon/contracts": "workspace:*",
         "@hotrepl/protocol": "4.0.1",
         "@hotrepl/sdk": "4.0.1",
         "sharp": "0.35.4",
@@ -31,6 +32,7 @@
     "apps/site": {
       "name": "@afallon-compendium/site",
       "dependencies": {
+        "@afallon/contracts": "workspace:*",
         "@deck.gl/core": "9.3.7",
         "@deck.gl/geo-layers": "9.3.7",
         "@deck.gl/layers": "9.3.7",

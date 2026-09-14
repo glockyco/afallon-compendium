@@ -28,7 +28,7 @@ module.exports = {
       name: "no-unresolved-workspace-imports",
       severity: "error",
       from: { path: "^(apps|packages)/" },
-      to: { couldNotResolve: true },
+      to: { couldNotResolve: true, pathNot: "^\\$(?:app|lib)(?:/|$)" },
     },
     {
       name: "packages-do-not-import-apps-or-legacy",
@@ -41,6 +41,12 @@ module.exports = {
       severity: "error",
       from: { path: "^apps/compendium-cli/" },
       to: { path: "^(tools|pipeline|site)/" },
+    },
+    {
+      name: "site-imports-public-contracts-only",
+      severity: "error",
+      from: { path: "^apps/site/" },
+      to: { path: "^(tools|pipeline|site|packages/(?!contracts/src/public(?:/|$)))" },
     },
     ...packageRules,
   ],

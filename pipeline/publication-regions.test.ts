@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { categoryForRole, foldTravelPlacements, foldMapIcons, foldRegions, publicRegionFromNormalized } from "./publication";
-import type { PublicPlacement } from "./public-contracts";
-import type { NormalizedPlacement } from "./normalized-contracts";
+import type { PublicPlacement } from "@afallon/contracts/public"
+import type { NormalizedPlacement } from "@afallon/contracts/catalog"
 
 const offset = { worldX: 100, worldY: -20 };
 

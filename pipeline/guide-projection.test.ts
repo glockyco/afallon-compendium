@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { EntityDetail, NormalizedMapProjection, NormalizedPlacement } from "./normalized-contracts";
+import type { EntityDetail, NormalizedMapProjection, NormalizedPlacement } from "@afallon/contracts/catalog"
 import { projectAdventureGuide } from "./guide-projection";
 
 const placement = (placementId: string, sceneNativeId: number): NormalizedPlacement => ({

@@ -15,6 +15,7 @@ export const ObservationContextSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.observation-context.v1"),
   started: observationState, completed: observationState,
 });
+export type ObservationContext = Static<typeof ObservationContextSchema>;
 const canonicalEntry = Type.Object({
   sourceKey: integer, nativeId: integer, name: nullableText, internalName: nullableText,
   description: nullableText, localization: rawObject, icon: rawObject, gameplay: rawObject,
@@ -64,6 +65,7 @@ export const LocalizationSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.localization.v1"), language: text, sourceCount: integer,
   entries: Type.Array(Type.Object({ key: text, text })),
 });
+export type Localization = Static<typeof LocalizationSchema>;
 export const SupportSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.support.v1"), language: text,
   sourceTotals: Type.Record(text, integer),
@@ -76,8 +78,8 @@ const template = Type.Union([Type.Null(), Type.Object({ nativeId: integer, sourc
 export const RelationshipsSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.relationships.v1"),
   merchantBindings: Type.Array(Type.Object({ ownerNativeId: integer, merchantTableID: integer, bindingIndex: integer, requirementsTemplate: template })),
-  merchantTables: Type.Array(definition), currencies: Type.Array(definition),
-  merchantStock: Type.Array(Type.Object({ merchantTableID: integer, stockIndex: integer, itemID: integer, currencyID: integer, cost: integer })),
+  merchantTables: Type.Array(definition), currencies: Type.Array(definition), resources: rawRows,
+  merchantStock: Type.Array(Type.Object({ merchantTableID: integer, stockIndex: integer, itemID: integer, currencyID: integer, cost: integer, costSemantics: text })),
   npcLootBindings: Type.Array(Type.Object({ ownerNativeId: integer, lootTableID: integer, bindingIndex: integer, dropRate: Type.Number() })),
   worldLootBindings: Type.Array(Type.Object({ lootTableID: integer, bindingIndex: integer, dropRate: Type.Number(), minimumNPCLevel: integer, maximumNPCLevel: integer, requirementsTemplate: template })),
   worldLootSettings: Type.Object({ minimumNPCRank: integer, maximumItemsPerNPC: integer, sourceBindingCount: integer }),
@@ -91,6 +93,8 @@ export const RelationshipsSchema = Type.Object({
   questRewards: Type.Array(Type.Object({ questID: integer, rewardType: text, itemID: integer, currencyID: integer, treePointID: integer, factionID: integer, weaponTemplateID: integer })),
   requirementsTemplates: Type.Array(Type.Object({ nativeId: integer, sourceName: text, groups: rawRows })),
   requirementGroups: rawRows, requirements: rawRows, unresolved: rawRows,
+  dynamicLevelBandGearLinks: rawRows,
+  resourceYields: Type.Array(Type.Object({ itemID: integer, resourceID: integer, rank: integer, min: integer, max: integer })),
   reconciliation: rawObject,
 });
 export type Relationships = Static<typeof RelationshipsSchema>;
@@ -102,5 +106,9 @@ export const LootRulesSchema = Type.Object({
   dynamicTables: Type.Array(Type.Object({ tableId: integer, sourceEntryCount: integer, entries: Type.Array(Type.Object({ entryIndex: integer, itemId: integer, requiredLevel: integer, beforeFirstGear: intervals, afterFirstGear: intervals })) })),
   itemLevels: Type.Array(Type.Object({ itemId: integer, requiredLevel: integer })),
   linkedNpcs: Type.Array(Type.Object({ npcId: integer, hasLinkedNpc: Type.Boolean(), authoredLinkedNpcId: integer, resolvedLinkedNpcId: Type.Union([integer, Type.Null()]), resolvedLootSpecNpcId: Type.Union([integer, Type.Null()]), hasLootSpecialization: Type.Boolean(), specializationSource: Type.Union([Type.Literal("linked-npc"), Type.Literal("self"), Type.Literal("none")]), nativeRuleVerified: Type.Literal(true) })),
+  referenceLevelDomain: rawObject,
+  levelBand: rawObject,
+  firstGearRule: rawObject,
   unresolved: rawRows,
 });
+export type LootRules = Static<typeof LootRulesSchema>;

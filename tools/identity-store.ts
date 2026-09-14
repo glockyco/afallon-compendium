@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { Assert } from "typebox/value";
-import { PlacementIdentityResultSchema, type PlacementIdentityResult } from "./placement-contracts";
+import { PlacementIdentityResultSchema, type PlacementIdentityResult } from "@afallon/contracts"
 
 export function openIdentityDatabase(path: string): Database {
   const db = new Database(path, { create: true, strict: true });

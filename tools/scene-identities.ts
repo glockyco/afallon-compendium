@@ -1,20 +1,20 @@
 import { Assert } from "typebox/value";
-import { Type, type Static } from "typebox";
 import { hashFile } from "./build";
-import { isWithin, type CompendiumConfig } from "./config";
+import type { CompendiumConfig } from "@afallon/contracts";
+import { isWithin } from "./config";
 import { indexSerializedAsset } from "./serialized-assets";
 import { resolvePlacementIdentities } from "./placement-identities";
-import {
-  PlacementSnapshotSchema,
-  type PlacementIdentityResult,
-  type PlacementSnapshot,
-  type SerializedAssetIndex,
-} from "./placement-contracts";
+import { AddressableGraphSchema,
+PlacementSnapshotSchema,
+type AddressableGraph,
+type PlacementIdentityResult,
+type PlacementSnapshot,
+type SceneSourceIssues,
+type SerializedAssetIndex, } from "@afallon/contracts"
 import type { Runtime } from "./runtime";
 import { mkdir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep, win32 } from "node:path";
 
-const ADDRESSABLE_GRAPH_SCHEMA_VERSION = "compendium.addressable-locations.v1";
 const BUNDLED_ASSET_PROVIDER = "UnityEngine.ResourceManagement.ResourceProviders.BundledAssetProvider";
 const ASSET_BUNDLE_PROVIDER = "UnityEngine.ResourceManagement.ResourceProviders.AssetBundleProvider";
 const GAME_OBJECT_RESOURCE = "UnityEngine.GameObject";
@@ -22,51 +22,9 @@ const ASSET_BUNDLE_RESOURCE = "UnityEngine.ResourceManagement.ResourceProviders.
 const SHA256 = /^[a-f0-9]{64}$/;
 const GUID = /^[a-f0-9]{32}$/;
 
-const AddressableGraphSchema = Type.Object({
-  schemaVersion: Type.Literal(ADDRESSABLE_GRAPH_SCHEMA_VERSION),
-  frame: Type.Integer({ minimum: 0 }),
-  dataPath: Type.String({ minLength: 1 }),
-  scene: Type.Object({ path: Type.String({ minLength: 1 }), handle: Type.Integer(), buildIndex: Type.Integer() }),
-  assets: Type.Array(Type.Object({ guid: Type.String({ minLength: 1 }), locationIds: Type.Array(Type.Integer({ minimum: 0 })) })),
-  locations: Type.Array(Type.Object({
-    id: Type.Integer({ minimum: 0 }),
-    primaryKey: Type.String({ minLength: 1 }),
-    internalId: Type.String({ minLength: 1 }),
-    transformedInternalId: Type.String({ minLength: 1 }),
-    providerId: Type.String({ minLength: 1 }),
-    resourceType: Type.String({ minLength: 1 }),
-    dependencyIds: Type.Array(Type.Integer({ minimum: 0 })),
-  })),
-});
-type AddressableGraph = Static<typeof AddressableGraphSchema>;
 type AddressableAsset = AddressableGraph["assets"][number];
 type AddressableLocation = AddressableGraph["locations"][number];
-
-type SourceIssue = {
-  streamComponentInstanceId: number | null;
-  assetGuid: string | null;
-  reason: string;
-  detail: string;
-  candidates: string[];
-};
-
-type SourceIssuesArtifact = {
-  schemaVersion: "compendium.scene-source-issues.v2";
-  scope: "queried-source-components";
-  buildId: string;
-  sceneNativeId: number;
-  scenePath: string;
-  snapshotFrame: number;
-  issues: SourceIssue[];
-  skippedStreams: { componentInstanceId: number; assetGuid: string | null; loadedRootInstanceId: number | null; reason: "no-queried-source-components" }[];
-  summary: {
-    loadedStreams: number;
-    sourceStreams: number;
-    resolvedStreams: number;
-    unresolvedStreams: number;
-    indexedPrefabs: number;
-  };
-};
+type SourceIssue = SceneSourceIssues["issues"][number];
 
 type SourceExpectation = {
   path: string;
@@ -395,7 +353,7 @@ export async function prepareSceneIdentities(
   checkSignal(runtime);
   const issuesPath = artifactPath(outputDirectory, "source-issues.json");
   const resolvedStreamCount = sourceStreams.filter(stream => stream.assetGuid !== null && indexedGuids.has(stream.assetGuid)).length;
-  const issueArtifact: SourceIssuesArtifact = {
+  const issueArtifact: SceneSourceIssues = {
     schemaVersion: "compendium.scene-source-issues.v2", scope: "queried-source-components", buildId,
     sceneNativeId: snapshot.context.gameSceneNativeId, scenePath: snapshot.context.scene.path, snapshotFrame: snapshot.frame,
     issues: issues.sort((left, right) => (left.streamComponentInstanceId ?? 0) - (right.streamComponentInstanceId ?? 0) || left.reason.localeCompare(right.reason)),

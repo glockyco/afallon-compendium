@@ -1,19 +1,15 @@
-import type {
-  EntityDetail,
-  NormalizedMapProjection,
-  NormalizedPlacement,
-} from "./normalized-contracts";
-import type {
-  PublicAdventureGuide,
-  PublicGuideAbilityPhase,
-  PublicGuideBoss,
-  PublicGuideDungeon,
-  PublicGuideLoot,
-  PublicGuideProperty,
-  PublicGuideRegion,
-  PublicGuideStat,
-  PublicLevelRange,
-} from "./public-contracts";
+import type { EntityDetail,
+NormalizedMapProjection,
+NormalizedPlacement, } from "@afallon/contracts/catalog"
+import type { PublicAdventureGuide,
+PublicGuideAbilityPhase,
+PublicGuideBoss,
+PublicGuideDungeon,
+PublicGuideLoot,
+PublicGuideProperty,
+PublicGuideRegion,
+PublicGuideStat,
+PublicLevelRange, } from "@afallon/contracts/public"
 
 export interface GuideProjectionInput {
   entities: readonly EntityDetail[];

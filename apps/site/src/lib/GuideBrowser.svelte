@@ -3,7 +3,7 @@
   import { base } from '$app/paths';
   import { page } from '$app/stores';
   import GuideBossDetails from './GuideBossDetails.svelte';
-  import type { PublicEntity } from '../../../../pipeline/public-contracts';
+  import type { PublicEntity } from '@afallon/contracts/public';
   import type { GuideData } from './guide-load';
 
   export let section: 'all' | 'dungeons' | 'bosses' | 'regions' | 'properties' = 'all';

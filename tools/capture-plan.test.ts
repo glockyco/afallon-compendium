@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { validateCapturePlan } from "./capture";
-import type { CapturePlan } from "./capture-contracts";
+import type { CapturePlan } from "@afallon/contracts"
 
 function plan(centers: ReadonlyArray<readonly [number, number]>): CapturePlan {
   return {

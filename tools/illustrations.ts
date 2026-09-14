@@ -3,20 +3,19 @@ import { basename, dirname, resolve } from "node:path";
 import sharp from "sharp";
 import { Assert, AssertError } from "typebox/value";
 import type { TSchema } from "typebox";
-import type { CompendiumConfig } from "./config";
+import type { CompendiumConfig } from "@afallon/contracts";
 import { hashFile, toolRevision } from "./build";
-import {
-  IllustrationOutputSchema,
-  IllustrationPlanSchema,
-  type IllustrationEvidenceInput,
-  type IllustrationOutput,
-  type IllustrationPlan,
-  type IllustrationRegistrationOutput,
-} from "./illustration-contracts";
-import type { MapSpaceProfile } from "./spatial-contracts";
+import { IllustrationOutputSchema,
+IllustrationPlanSchema,
+type IllustrationEvidenceInput,
+type IllustrationOutput,
+type IllustrationPlan,
+type IllustrationRegistrationOutput, } from "@afallon/contracts"
+import type { MapSpaceProfile } from "@afallon/contracts"
 import { loadSpatialProfile, resolveEvidencePointer } from "./spatial-extraction";
 import { indexMapSpaceDefinitions } from "./map-spaces";
-import { beginRun, type ArtifactRecord } from "./runs";
+import type { ArtifactRecord } from "@afallon/contracts";
+import { beginRun } from "./runs";
 
 const PIXEL_RESIDUAL_EPSILON = 1e-9;
 const FRAME_DETERMINANT_EPSILON = Number.EPSILON;
@@ -358,7 +357,7 @@ export async function prepareIllustration(
     evidence,
     file: await checkedFile(resolve(dirname(planPath), evidence.path), evidence.sha256),
   })));
-  const toolFiles = ["illustrations", "illustration-contracts", "runs", "build", "config", "spatial-contracts", "spatial-extraction", "map-spaces"] as const;
+  const toolFiles = ["illustrations", "../packages/contracts/src/capture/illustration", "runs", "build", "config", "../packages/contracts/src/spatial/reviewed", "spatial-extraction", "map-spaces"] as const;
   const inputHashes: Record<string, string> = {
     ...identity.inputHashes,
     plan: planFile.sha256,

@@ -2,57 +2,16 @@ import { createHash, randomUUID } from "node:crypto";
 import { open, mkdir, realpath, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import * as path from "node:path";
-
-export interface RunInput {
-  buildId: string;
-  toolRevision: string;
-  command: string;
-  settings: Record<string, unknown>;
-  inputHashes: Record<string, string>;
-}
-
-export interface ArtifactRecord {
-  path: string;
-  bytes: number;
-  sha256: string;
-}
-
-export type RunStatus = "running" | "succeeded" | "failed";
-
-type RunTimestamps = {
-  createdAt: string;
-  startedAt: string;
-  updatedAt: string;
-  completedAt: string | null;
-};
-
-type FailureRecord = {
-  name: string;
-  message: string;
-  stack?: string;
-  details?: unknown;
-};
-
-export type RunManifest = {
-  schemaVersion: 1;
-  runId: string;
-  input: RunInput;
-  timestamps: RunTimestamps;
-  status: RunStatus;
-  artifacts: ArtifactRecord[];
-  failure: FailureRecord | null;
-};
-
-export type LatestSuccessPointer = {
-  schemaVersion: 1;
-  buildId: string;
-  command: string;
-  runId: string;
-  status: "succeeded";
-  manifestPath: string;
-  directory: string;
-  selectedAt: string;
-};
+import {
+  LatestSuccessPointerSchema,
+  RunManifestSchema,
+  type ArtifactRecord,
+  type FailureRecord,
+  type LatestSuccessPointer,
+  type RunInput,
+  type RunManifest,
+} from "@afallon/contracts";
+import { Assert } from "typebox/value";
 
 export interface Run {
   readonly runId: string;
@@ -317,56 +276,24 @@ function now(): string {
 }
 
 function parseRunManifest(value: unknown, source: string): RunManifest {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error(`Run manifest is invalid: ${source}`);
-  const manifest = value as Record<string, unknown>;
-  if (manifest.schemaVersion !== 1 || typeof manifest.runId !== "string" || manifest.input === null || typeof manifest.input !== "object" || Array.isArray(manifest.input)
-    || manifest.timestamps === null || typeof manifest.timestamps !== "object" || Array.isArray(manifest.timestamps)
-    || !["running", "succeeded", "failed"].includes(manifest.status as string) || !Array.isArray(manifest.artifacts)) {
+  try {
+    Assert(RunManifestSchema, value);
+  } catch {
     throw new Error(`Run manifest is invalid: ${source}`);
   }
-  const input = manifest.input as Record<string, unknown>;
-  const timestamps = manifest.timestamps as Record<string, unknown>;
-  if (typeof input.buildId !== "string" || typeof input.command !== "string" || typeof input.toolRevision !== "string"
-    || input.settings === null || typeof input.settings !== "object" || Array.isArray(input.settings)
-    || input.inputHashes === null || typeof input.inputHashes !== "object" || Array.isArray(input.inputHashes)
-    || typeof timestamps.createdAt !== "string" || typeof timestamps.startedAt !== "string"
-    || typeof timestamps.updatedAt !== "string" || (timestamps.completedAt !== null && typeof timestamps.completedAt !== "string")) {
-    throw new Error(`Run manifest input or timestamps are invalid: ${source}`);
-  }
-  const artifacts: ArtifactRecord[] = [];
   const artifactPaths = new Set<string>();
-  for (const artifact of manifest.artifacts) {
-    if (artifact === null || typeof artifact !== "object" || Array.isArray(artifact)) throw new Error(`Run manifest artifact is invalid: ${source}`);
-    const record = artifact as Record<string, unknown>;
-    const bytes = record.bytes;
-    if (typeof record.path !== "string" || typeof bytes !== "number" || !Number.isSafeInteger(bytes) || bytes < 0
-      || typeof record.sha256 !== "string" || !SHA256_PATTERN.test(record.sha256)) {
-      throw new Error(`Run manifest artifact is invalid: ${source}`);
-    }
+  const artifacts = value.artifacts.map((artifact) => {
     let normalizedPath: string;
     try {
-      normalizedPath = requireArtifactPath(record.path).split(path.sep).join("/");
+      normalizedPath = requireArtifactPath(artifact.path).split(path.sep).join("/");
     } catch {
       throw new Error(`Run manifest artifact is invalid: ${source}`);
     }
     if (artifactPaths.has(normalizedPath)) throw new Error(`Run manifest contains duplicate artifacts: ${source}`);
     artifactPaths.add(normalizedPath);
-    artifacts.push({ path: normalizedPath, bytes, sha256: record.sha256 });
-  }
-  return {
-    schemaVersion: 1,
-    runId: manifest.runId,
-    input: input as unknown as RunInput,
-    timestamps: {
-      createdAt: timestamps.createdAt,
-      startedAt: timestamps.startedAt,
-      updatedAt: timestamps.updatedAt,
-      completedAt: timestamps.completedAt as string | null,
-    },
-    status: manifest.status as RunStatus,
-    artifacts,
-    failure: (manifest.failure ?? null) as FailureRecord | null,
-  };
+    return { ...artifact, path: normalizedPath };
+  });
+  return { ...value, artifacts };
 }
 
 export async function readRunManifest(manifestPath: string): Promise<RunManifest> {
@@ -417,22 +344,15 @@ export async function readLatestSuccess(outputRoot: string, buildId: string, com
   const pointerPath = path.join(buildRoot, `${requireSafeSegment(command, "command")}-latest-success.json`);
   try {
     const value = JSON.parse(await readFile(pointerPath, "utf8")) as unknown;
-    if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error(`Latest success pointer is invalid: ${pointerPath}`);
-    const pointer = value as Record<string, unknown>;
-    if (pointer.schemaVersion !== 1 || pointer.buildId !== buildId || pointer.command !== command
-      || pointer.status !== "succeeded" || typeof pointer.runId !== "string" || typeof pointer.manifestPath !== "string" || typeof pointer.directory !== "string") {
+    try {
+      Assert(LatestSuccessPointerSchema, value);
+    } catch {
       throw new Error(`Latest success pointer is invalid: ${pointerPath}`);
     }
-    return {
-      schemaVersion: 1,
-      buildId,
-      command,
-      runId: pointer.runId,
-      status: "succeeded",
-      manifestPath: pointer.manifestPath,
-      directory: pointer.directory,
-      selectedAt: typeof pointer.selectedAt === "string" ? pointer.selectedAt : "",
-    };
+    if (value.buildId !== buildId || value.command !== command) {
+      throw new Error(`Latest success pointer is invalid: ${pointerPath}`);
+    }
+    return value;
   } catch (error) {
     if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") return null;
     throw error;

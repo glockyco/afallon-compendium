@@ -1,5 +1,5 @@
 import { Assert } from "typebox/value";
-import { EntityDetailsDocumentSchema, ItemSourcesDocumentSchema, PublicationDataSchema, type EntityDetailsDocument, type ItemSourcesDocument, type PublicationData, type PublicDetailSection } from "./public-contracts";
+import { EntityDetailsDocumentSchema, ItemSourcesDocumentSchema, PublicationDataSchema, type EntityDetailsDocument, type ItemSourcesDocument, type PublicationData, type PublicDetailSection } from "@afallon/contracts/public"
 
 
 function unique<T>(rows: readonly T[], key: (row: T) => string, label: string): Map<string, T> {

@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openNormalizedDatabase, populateNormalizedDatabase } from "./database";
-import type { NormalizedDatabaseInput } from "./normalized-contracts";
+import type { NormalizedDatabaseInput } from "@afallon/contracts/catalog"
 
 test("rejects unset table identities without partially adding definitions", async () => {
   const root = await mkdtemp(join(tmpdir(), "afallon-normalized-"));

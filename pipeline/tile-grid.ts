@@ -1,5 +1,5 @@
-import type { MapSpaceProfile } from "../tools/spatial-contracts";
-import type { TileBounds } from "./tile-contracts";
+import type { MapSpaceProfile } from "@afallon/contracts"
+import type { TileBounds } from "@afallon/contracts"
 import type { LoadedTileInputs, SourceTile } from "./tile-input";
 
 const EPSILON = 1e-7;

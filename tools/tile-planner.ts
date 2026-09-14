@@ -4,7 +4,7 @@ import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { readdir } from 'node:fs/promises';
 import { relative, resolve, sep } from 'node:path';
-import type { CompendiumConfig } from './config';
+import type { CompendiumConfig } from '@afallon/contracts';
 
 export interface TilePlannerOptions {
   config: CompendiumConfig;
