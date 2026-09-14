@@ -121,7 +121,7 @@ type MovementGeometry = {
   radii: MovementRadius[];
 };
 
-type AdapterCallbacks = {
+export type AdapterCallbacks = {
   onViewChange: (view: MapViewState, bounds: Bounds) => void;
   onSelect: (placementId: string) => void;
   onHover: (placementId: string | null) => void;
@@ -1105,4 +1105,49 @@ export async function createMapAdapter(
   };
 
   return {update, setView, destroy};
+}
+
+export type MapRendererFactory = (
+  canvas: HTMLCanvasElement,
+  initialView: MapViewState,
+  callbacks: AdapterCallbacks,
+) => Promise<MapAdapter>;
+
+export class MapRendererController {
+  #adapter: MapAdapter | null = null;
+  #generation = 0;
+  readonly #factory: MapRendererFactory;
+  readonly #fallback: (message: string) => void;
+
+  constructor(fallback: (message: string) => void, factory: MapRendererFactory = createMapAdapter) {
+    this.#fallback = fallback;
+    this.#factory = factory;
+  }
+
+  get adapter(): MapAdapter | null { return this.#adapter; }
+
+  async replace(canvas: HTMLCanvasElement, initialView: MapViewState, callbacks: AdapterCallbacks): Promise<MapAdapter | null> {
+    const generation = ++this.#generation;
+    this.#adapter?.destroy();
+    this.#adapter = null;
+    try {
+      const adapter = await this.#factory(canvas, initialView, callbacks);
+      if (generation !== this.#generation) {
+        adapter.destroy();
+        return null;
+      }
+      this.#adapter = adapter;
+      this.#fallback("");
+      return adapter;
+    } catch (error) {
+      if (generation === this.#generation) this.#fallback(`WebGL map unavailable: ${textFromError(error)}`);
+      return null;
+    }
+  }
+
+  destroy(): void {
+    this.#generation++;
+    this.#adapter?.destroy();
+    this.#adapter = null;
+  }
 }

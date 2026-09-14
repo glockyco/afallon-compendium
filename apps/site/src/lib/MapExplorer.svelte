@@ -3,7 +3,7 @@
   import { dev } from '$app/environment';
   import { base } from '$app/paths';
   import { onMount, tick } from 'svelte';
-  import type { MapAdapter, MapAdapterUpdate, MapViewState } from './map-adapter';
+  import type { MapAdapter, MapAdapterUpdate, MapRendererController, MapViewState } from './map-renderer';
   import { readAtlasUrl, writeAtlasUrl, type AtlasState } from './atlas-state';
   import { filteredSections, linksFromSections } from './detail-utils';
   import DetailSections from './DetailSections.svelte';
@@ -72,6 +72,7 @@
   let detailLoading = false;
   let detailError = '';
   let adapter: MapAdapter | null = null;
+  let renderer: MapRendererController | null = null;
   let loading = true;
   let mapReady = false;
   let mapUnavailable = false;
@@ -227,9 +228,10 @@
         if (disposed) return;
         const requestedView = readAtlasUrl(window.location.search).view;
         view = requestedView ? { target: [requestedView.target[0], requestedView.target[1], requestedView.target[2]], zoom: requestedView.zoom } : centerView(publication.world);
-        const module = await import('./map-adapter');
+        const module = await import('./map-renderer');
         if (disposed) return;
-        adapter = await module.createMapAdapter(canvas, view, {
+        renderer = new module.MapRendererController(handleMapError);
+        adapter = await renderer.replace(canvas, view, {
           onViewChange(nextView, bounds) {
             view = nextView;
             viewportBounds = bounds;
@@ -253,7 +255,7 @@
             handleMapError(message);
           }
         });
-        adapterReady = true;
+        adapterReady = adapter !== null;
       })
       .catch((error: unknown) => {
         if (!disposed) {
@@ -270,7 +272,8 @@
       window.removeEventListener('keydown', onKeydown);
       if (viewTimer) clearTimeout(viewTimer);
       if (queryTimer) clearTimeout(queryTimer);
-      adapter?.destroy();
+      renderer?.destroy();
+      adapter = null;
     };
   });
 
