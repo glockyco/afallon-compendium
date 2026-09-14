@@ -2,11 +2,16 @@
   import { pushState, replaceState } from '$app/navigation';
   import { dev } from '$app/environment';
   import { base } from '$app/paths';
+  import './MapExplorer.css';
   import { onMount, tick } from 'svelte';
   import type { MapAdapter, MapAdapterUpdate, MapRendererController, MapViewState } from './map-renderer';
   import { readAtlasUrl, writeAtlasUrl, type AtlasState } from './atlas-state';
   import { filteredSections, linksFromSections } from './detail-utils';
-  import DetailSections from './DetailSections.svelte';
+  import AtlasDevelopmentDetails from './map/AtlasDevelopmentDetails.svelte';
+  import AtlasCanvasShell from './map/AtlasCanvasShell.svelte';
+  import AtlasSearchResults, { type ResultSummary, type SearchResult } from './map/AtlasSearchResults.svelte';
+  import AtlasSidebar from './map/AtlasSidebar.svelte';
+  import type { LayerOption } from './map/AtlasLayerControls.svelte';
   import {
     findItem,
     resolvePublicationAssets,
@@ -16,40 +21,18 @@
     DEFAULT_MARKER_IDS,
     MARKER_SECTION_LABELS,
     MARKER_SECTION_ORDER,
-    markerColorCss,
     markerFor,
     resolveMarker,
     type MarkerDefinition,
     type MarkerId,
   } from './map/marker-registry';
-  import MapSidebarSection from './map/MapSidebarSection.svelte';
-  import CategoryRow from './map/CategoryRow.svelte';
-  import { markerGlyphSvg } from './map/icon-atlas';
   import { MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from './map/interaction';
   import { clearWorldOffsetOverrides, downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
   import { PUBLICATION_SCHEMA_VERSION, type EntityDetailsDocument, type ItemSourcesDocument, type PublicEntity, type PublicEntitySummary, type PublicItemSource, type PublicItemSummary, type PublicPlacement, type PublicDetailSection, type PublicationData } from '@afallon/contracts/public';
 
-  interface LayerOption {
-    id: string;
-    label: string;
-    kind: 'captured' | 'game-map';
-  }
-
-
-  type SearchResult = { key: string; name: string; rank: number } & (
-    | { kind: 'item'; item: PublicItemSummary }
-    | { kind: 'entity'; entity: PublicEntitySummary }
-    | { kind: 'placement'; placement: PublicPlacement }
-  );
   const searchKindOrder = { item: 0, placement: 1, entity: 2 };
   const RESULT_LIMIT = 200;
-  const KOFI_URL = 'https://ko-fi.com/wowmuch';
   const WEBGL_STARTUP_FAILURE = /failed to create webgl context|webgl creation failed|webgl is not supported|exhausted gl driver options/i;
-
-  interface ResultSummary {
-    marker: MarkerDefinition;
-    categories: string;
-  }
 
   interface SearchIndexes {
     placementsById: ReadonlyMap<string, PublicPlacement>;
@@ -379,10 +362,6 @@
     const counts = Object.fromEntries(MARKER_IDS.map((id) => [id, 0])) as Record<MarkerId, number>;
     for (const placement of placements) for (const category of placement.categories) counts[category] += 1;
     return counts;
-  }
-
-  function levelRangeLabel(range: { min: number; max: number } | undefined): string {
-    return range ? `(lvl.${range.min}-${range.max})` : '';
   }
 
   function rankResults(needle: string, items: PublicItemSummary[], entities: PublicEntitySummary[], placements: PublicPlacement[], names: ReadonlyMap<string, PublicEntitySummary>): SearchResult[] {
@@ -773,357 +752,45 @@
     <main class="state-card error" role="alert"><h1>Atlas unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p></main>
   {:else if publication}
     <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || staleSelection)} class:sidebar-collapsed={panelCollapsed} class:no-details={!dev}>
-      <aside class:collapsed={panelCollapsed} class="control-panel" aria-label="Atlas controls">
-        <div class="panel-header">
-          {#if !panelCollapsed}<a class="home-link" href="{base}/" aria-label="Afallon Compendium home"><img src="{base}/logo.png" alt="" /><span class="brand-copy"><strong>Afallon</strong><span>Compendium</span></span></a>{/if}
-          <button class="panel-toggle" type="button" on:click={togglePanel} aria-label={panelCollapsed ? 'Expand atlas controls' : 'Collapse atlas controls'} title="⌘/Ctrl+B" aria-expanded={!panelCollapsed}>{panelCollapsed ? '»' : '«'}</button>
-        </div>
-        {#if panelCollapsed}
-          <nav class="panel-rail" aria-label="Quick category toggles">
-            {#each markerSections as section}
-              <div class="rail-group" aria-label={section.label}>
-                {#each section.markers as marker (marker.id)}
-                  <CategoryRow marker={marker} checked={categories.includes(marker.id)} count={categoryCounts[marker.id] ?? 0} compact onToggle={() => toggleCategory(marker.id)} />
-                {/each}
-              </div>
-            {/each}
-          </nav>
-        {:else}
-          <div class="panel-body">
-            <div class="control-section search-section"><div class="search-field"><span class="search-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg></span><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => { query = (event.currentTarget as HTMLInputElement).value; scheduleQueryUrl(); }} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitSearch(); } if (event.key === 'Escape' && query) { event.preventDefault(); query = ''; scheduleQueryUrl(); } }} placeholder="Search..." aria-label="Search places, entities, and items" autocomplete="off" /><kbd class="search-key" aria-hidden="true">⌘K</kbd></div></div>
-            <div class="categories-block">
-              <div class="section-heading"><h2>Categories</h2><span class="heading-actions">{#if !isDefaultCategories}<button type="button" class="text-button" on:click={() => { categories = [...DEFAULT_MARKER_IDS]; syncUrl('push'); }}>Reset</button>{/if}{#if categories.length > 0}<button type="button" class="text-button" on:click={() => { categories = []; syncUrl('push'); }}>Show all</button>{/if}</span><span class="count">{allMapPlacements.length}</span></div>
-              {#each markerSections as section (section.id)}
-                <MapSidebarSection title={section.label} categories={section.markers} activeCategories={categories} counts={categoryCounts} storageKey={`afallon-atlas-section-${section.id}`} onToggleCategory={toggleCategory} onToggleAll={toggleAllCategories} />
-              {/each}
-            </div>
-            {#if layerOptions.length > 0}
-              <div class="control-section layer-section">
-                <h2>Map Layers</h2>
-                {#if tileLayerOptions.length > 0}
-                  <label class="tool-option">
-                    <input type="checkbox" checked={capturedChecked} indeterminate={capturedPartial} on:change={toggleCaptured} />
-                    <span>Overworld Tiles</span>
-                    <span class="count">{visibleTileLayerIds.length}/{tileLayerOptions.length}</span>
-                  </label>
-                  {#if tileLayerOptions.length > 1}
-                    <details class="layer-maps" open={capturedPartial}>
-                      <summary>Individual Maps</summary>
-                      {#each tileLayerOptions as option (option.id)}
-                        <label class="tool-option nested"><input type="checkbox" checked={visibleTileLayerIds.includes(option.id)} on:change={() => toggleMapLayer(option.id)} /><span>{option.label}</span></label>
-                      {/each}
-                    </details>
-                  {/if}
-                {/if}
-                {#if gameMapOptions.length > 0}
-                  <label class="tool-option">
-                    <input type="checkbox" checked={gameMapsChecked} indeterminate={gameMapsPartial} on:change={toggleGameMaps} />
-                    <span>Game Maps</span>
-                    <span class="count">{visibleGameMapIds.length}/{gameMapOptions.length}</span>
-                  </label>
-                  {#if gameMapOptions.length > 1}
-                    <details class="layer-maps" open={gameMapsPartial}>
-                      <summary>Individual Game Maps</summary>
-                      {#each gameMapOptions as option (option.id)}
-                        <label class="tool-option nested"><input type="checkbox" checked={visibleGameMapIds.includes(option.id)} on:change={() => toggleGameMap(option.id)} /><span>{option.label}</span></label>
-                      {/each}
-                    </details>
-                  {/if}
-                {/if}
-              </div>
-            {/if}
-            <div class="control-section world-tools"><h2>Map Options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={toggleConnections} /><span>Travel Connections</span></label><label class="tool-option"><input type="checkbox" checked={showMovement} on:change={toggleMovement} /><span>NPC Movement</span></label><label class="tool-option"><input type="checkbox" checked={showZones} on:change={toggleZones} /><span>Zone Areas and Names</span></label>{#if dev}<label class="tool-option"><input type="checkbox" checked={authoring} on:change={toggleAuthoring} /><span>Authoring Mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={exportWorldOffsets}>Export World Offsets</button>{#if Object.keys(worldOffsetOverrides).length > 0}<button type="button" class="quiet-button" on:click={discardWorldOffsets}>Discard {Object.keys(worldOffsetOverrides).length} Dragged Offsets</button>{/if}<p class="hint">Drag a map anywhere inside its rectangle to review its placement. Dragged offsets show only while authoring and stay in this browser until exported or discarded.</p>{/if}{/if}</div>
-          </div>
-        {/if}
-      </aside>
+      <AtlasSidebar
+        collapsed={panelCollapsed} logoBase={base} bind:searchInput {query} sections={markerSections} {categories} {categoryCounts}
+        placementCount={allMapPlacements.length} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
+        {visibleTileLayerIds} {visibleGameMapIds} {capturedChecked} {capturedPartial} {gameMapsChecked} {gameMapsPartial}
+        {showConnections} {showMovement} {showZones} {dev} {authoring} {worldOffsetOverrides} onToggle={togglePanel}
+        onQuery={(next) => { query = next; scheduleQueryUrl(); }} onSubmitSearch={submitSearch}
+        onResetCategories={() => { categories = [...DEFAULT_MARKER_IDS]; syncUrl('push'); }}
+        onShowAllCategories={() => { categories = []; syncUrl('push'); }} onToggleCategory={toggleCategory}
+        onToggleAllCategories={toggleAllCategories} onToggleCaptured={toggleCaptured} onToggleMapLayer={toggleMapLayer}
+        onToggleGameMaps={toggleGameMaps} onToggleGameMap={toggleGameMap} onToggleConnections={toggleConnections}
+        onToggleMovement={toggleMovement} onToggleZones={toggleZones} onToggleAuthoring={toggleAuthoring}
+        onExportWorldOffsets={exportWorldOffsets} onDiscardWorldOffsets={discardWorldOffsets}
+      />
       {#if !panelCollapsed}<button class="panel-backdrop" type="button" aria-label="Close atlas controls" on:click={togglePanel}></button>{/if}
 
       <section class:results-collapsed={resultsCollapsed} class="map-column" aria-label="Interactive map">
-        <div class="map-frame">
-          <canvas class:ready={mapReady} bind:this={canvas} aria-label="Afallon map. Use the result list for keyboard navigation."></canvas>
-          {#if mapUnavailable}
-            <div class="map-unavailable" role="alert">
-              <div>
-                <h2>Interactive map unavailable</h2>
-                <p>This browser could not start the map's WebGL2 renderer.</p>
-                <a href="https://get.webgl.org/webgl2/" target="_blank" rel="noreferrer">Check WebGL2 support</a>
-              </div>
-            </div>
-          {:else}
-            {#if !mapReady}<div class="map-loading" role="status"><div class="loading-indicator"><div class="spinner" aria-hidden="true"></div><span>Loading map...</span></div></div>{/if}
-            <div class="map-top-overlay">
-              <div class="map-controls"><button class="icon-button" type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}>+</button><button class="icon-button" type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })}>−</button><button type="button" disabled={!mapReady} on:click={fitMap}>Fit map</button><a class="kofi-button" href={KOFI_URL} aria-label="Support on Ko-fi" title="Support on Ko-fi"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682.028-1.682.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z" /></svg><span>Support on Ko-fi</span></a></div>
-              {#if previewPlacement}<div class="hover-preview"><div class="preview-title">{#if previewMarker}<span class="marker-badge" style:background={markerColorCss(previewMarker)} aria-hidden="true">{@html markerGlyphSvg(previewMarker)}</span>{/if}<strong>{previewPlacement.label}</strong></div><span class="preview-meta">{[...previewPlacement.categories.map((category) => markerFor(category).label), previewPlacement.movement.some((movement) => movement.kind === 'patrol') ? 'Patrolling' : '', previewPlacement.movement.some((movement) => movement.kind === 'roaming') ? 'Roaming' : ''].filter(Boolean).join(' · ')}</span></div>{/if}
-            </div>
-            <div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div>
-          {/if}
-        </div>
+        <AtlasCanvasShell bind:canvas {mapReady} {mapUnavailable} {previewPlacement} {previewMarker}
+          matchingCount={matchingPlacements.length} viewportCount={resultPlacements.length} showsExtraSelection={Boolean(extraSelection)}
+          onZoomIn={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}
+          onZoomOut={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })} onFit={fitMap}
+        />
         {#if loadError && publication && !mapUnavailable}<div class="inline-error" role="alert">{loadError}</div>{/if}
-        <section class:collapsed={resultsCollapsed} class="results" aria-labelledby="results-heading" bind:this={resultList}>
-          <div class="results-header">
-            <div><h2 id="results-heading">Results</h2><p>{resultPlacements.length} distinct placements{#if viewportBounds && !mapUnavailable}{' in the current viewport'}{/if}{#if matchingItems.length > 0}{' · '}{matchingItems.length} items{/if}{#if matchingEntities.length > 0}{' · '}{matchingEntities.length} entity definitions{/if}</p>{#if rankedResults.length > RESULT_LIMIT}<p class="result-limit">Showing the first {displayedResults.length} of {rankedResults.length} results.</p>{/if}</div>
-            <div class="results-actions">
-              {#if itemContext}<button class="quiet-button" type="button" on:click={() => { itemKey = null; syncUrl('push'); }}>Exit item context</button>{/if}
-              <button class="quiet-button" type="button" aria-controls="results-content" aria-expanded={!resultsCollapsed} on:click={toggleResults}>{resultsCollapsed ? 'Show results' : 'Hide results'}</button>
-            </div>
-          </div>
-          <div id="results-content" hidden={resultsCollapsed}>
-          {#if resultPlacements.length === 0 && matchingItems.length === 0 && matchingEntities.length === 0}
-            <p class="empty">No published places, entities, or items match this search.</p>
-          {:else}
-            <ol class="result-list">
-              {#each displayedResults as result (result.key)}
-              {#if result.kind === 'item'}
-                {@const item = result.item}
-                {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{item.name || 'Unnamed item'}</strong><small>{summary.categories}</small></span></button></li>
-              {:else if result.kind === 'entity'}
-                {@const entity = result.entity}
-                {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{entity.name}</strong><small>{summary.categories}</small></span></button></li>
-              {:else}
-                {@const placement = result.placement}
-                {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{summary.categories}</small></span></button></li>
-              {/if}
-              {/each}
-            </ol>
-          {/if}
-          </div>
-        </section>
+        <AtlasSearchResults bind:resultList collapsed={resultsCollapsed} {displayedResults} totalResults={rankedResults.length}
+          resultLimit={RESULT_LIMIT} placementCount={resultPlacements.length} itemCount={matchingItems.length} entityCount={matchingEntities.length}
+          hasViewport={Boolean(viewportBounds)} {mapUnavailable} itemContextActive={Boolean(itemContext)} selectedItemKey={itemKey}
+          {selectedEntityKey} selectedPlacementId={selectedId} summaryFor={resultSummary} onToggle={toggleResults}
+          onExitItemContext={() => { itemKey = null; syncUrl('push'); }} onSelectItem={selectItem} onSelectEntity={selectEntity}
+          onSelectPlacement={selectPlacement} onHover={setResultHover} onClearHover={clearResultHover}
+        />
       </section>
 
       {#if dev}
-      <aside class="details-panel" bind:this={detailsPanel} aria-label="Selected details">
-        {#if selectedPlacement || selectedEntityKey || itemKey || staleSelection}
-          <div class="details-header">
-            <div>
-              <span class="eyebrow">{itemKey ? 'Item sources' : selectedEntityKey ? 'Entity details' : 'Selected location'}</span>
-              <h2 tabindex="-1">{itemKey ? selectedItemEntity?.name ?? itemIndexByKey.get(itemKey)?.name ?? 'Unnamed item' : selectedEntity?.name ?? selectedEntitySummary?.name ?? selectedPlacement?.label ?? 'Unavailable selection'}</h2>
-            </div>
-            <button class="close-button" type="button" on:click={closeDetails} aria-label="Close details">Close</button>
-          </div>
-          {#if staleSelection}
-            <div class="stale-warning" role="alert"><strong>Stale selection</strong><p>{staleSelection}</p><button type="button" class="text-button" on:click={closeDetails}>Show available content</button></div>
-          {/if}
-          {#if detailLoading}<p class="notice">Loading selected details…</p>{/if}
-          {#if detailError}<p class="inline-error" role="alert">{detailError}</p>{/if}
-          {#if itemKey}
-            {#if selectedItemEntity}
-              {#if selectedItemEntity.description}<p>{selectedItemEntity.description}</p>{/if}
-              <details class="entity-block">
-                <summary>Item properties and relationships</summary>
-                <DetailSections sections={selectedItemEntity.sections} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />
-              </details>
-            {/if}
-            {#if itemContext && itemContext.sections.length > 0}<DetailSections sections={filteredSections(itemContext.sections, itemSourceQuery)} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />{/if}
-            <label class="detail-search" for="source-search">Search item sources and conditions<input id="source-search" bind:value={itemSourceQuery} on:input={scheduleQueryUrl} placeholder="Merchant, loot, requirement" /></label>
-            {#if selectedPlacement}<p class="notice">Selected source: {selectedPlacement.label}. The selected item remains active.</p>{/if}
-            <div class="item-sources">
-              {#if filteredItemSources.length === 0}<p class="empty">No item sources match this search.</p>{/if}
-              {#each filteredItemSources as source}
-                <article class="source-card">
-                  <div class="source-title"><strong>{source.label}</strong><span>{source.kind}</span></div>
-                  <DetailSections sections={sourceRows(source, itemSourceQuery)} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />
-                  {#each source.placementIds as placementId}
-                    <button type="button" class="source-location" on:click={(event) => selectPlacement(placementId, event.currentTarget)}>Open source location</button>
-                  {/each}
-                </article>
-              {/each}
-            </div>
-          {:else if selectedEntityKey}
-            {#if selectedEntity?.description ?? selectedEntitySummary?.description}<p>{selectedEntity?.description ?? selectedEntitySummary?.description}</p>{/if}
-            <label class="detail-search" for="detail-search">Search this entity's details<input id="detail-search" bind:value={detailQuery} on:input={scheduleQueryUrl} placeholder="Condition, reward, requirement" /></label>
-            {#each selectedEntity?.placementIds ?? [] as placementId}
-              <button type="button" class="source-location" on:click={(event) => selectPlacement(placementId, event.currentTarget)}>Open location details</button>
-            {/each}
-            {#if selectedEntity}<DetailSections sections={filteredSections(selectedEntity.sections, detailQuery)} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />{/if}
-          {:else if selectedPlacement}
-            <label class="detail-search" for="detail-search">Search this location's details<input id="detail-search" bind:value={detailQuery} on:input={scheduleQueryUrl} placeholder="Condition, reward, requirement" /></label>
-            <div class="location-summary">
-              <p class="category-line">{selectedPlacement.categories.map((category) => markerFor(category).label).join(' · ')}</p>
-              {#if selectedPlacement.levelRange}<p class="level-line">{levelRangeLabel(selectedPlacement.levelRange)}</p>{/if}
-            </div>
-            {#each selectedEntities as entity}
-              <article class="entity-block"><div class="entity-heading"><h3>{entity.name}</h3></div>{#if entity.description}<p>{entity.description}</p>{/if}<button type="button" class="inline-link" on:click={(event) => selectEntity(entity, event.currentTarget)}>Open entity details</button></article>
-            {/each}
-            <DetailSections sections={filteredDetail} entities={entityByKey} onEntity={openEntity} onPlacement={selectPlacement} />
-            {#if entityLinks(selectedPlacementDetails).length > 0}
-              <div class="linked-locations"><h3>Linked locations</h3>{#each entityLinks(selectedPlacementDetails) as link}<button class="inline-link" type="button" on:click={(event) => selectPlacement(link.placementId, event.currentTarget)}>{link.label}</button>{/each}</div>
-            {/if}
-          {/if}
-        {:else}
-          <div class="details-empty"><span class="eyebrow">Location details</span><p>Select a marker or a result to inspect it.</p></div>
-        {/if}
-      </aside>
+        <AtlasDevelopmentDetails bind:detailsPanel {selectedPlacement} {selectedEntityKey} {itemKey} {staleSelection}
+          {selectedItemEntity} {itemIndexByKey} {selectedEntity} {selectedEntitySummary} {detailLoading} {detailError}
+          {itemContext} {entityByKey} {filteredItemSources} itemContextSections={filteredSections(itemContext?.sections ?? [], itemSourceQuery)} {selectedEntities} {filteredDetail} {selectedPlacementDetails}
+          bind:itemSourceQuery bind:detailQuery {sourceRows} {entityLinks} onClose={closeDetails} onQueryChange={scheduleQueryUrl}
+          onOpenEntity={openEntity} onSelectPlacement={selectPlacement} onSelectEntity={selectEntity}
+        />
       {/if}
     </main>
   {/if}
 </div>
-
-<style>
-  :global(*) { box-sizing: border-box; }
-  :global(body) { margin: 0; background: #171818; color: #e9e4d9; font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
-  :global(button), :global(input), :global(select) { font: inherit; }
-  :global(button), :global(select) { cursor: pointer; }
-  .atlas-shell { min-height: 100vh; background: #171818; }
-  .workspace { display: grid; grid-template-columns: 280px minmax(360px, 1fr) minmax(300px, 380px); height: 100dvh; min-height: 0; }
-  .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr) minmax(300px, 380px); }
-  .workspace.no-details { grid-template-columns: 280px minmax(360px, 1fr); }
-  .workspace.no-details.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr); }
-  .control-panel, .details-panel { background: #202120; overflow: auto; }
-  .control-panel { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border-right: 1px solid #393a38; }
-  .panel-backdrop { display: none; }
-  .panel-body, .panel-rail { min-height: 0; flex: 1; overflow: auto; }
-  .control-panel.collapsed { overflow-x: hidden; }
-  .details-panel { min-width: 0; border-left: 1px solid #393a38; padding: 1rem; }
-  .details-empty { display: grid; gap: .45rem; align-content: center; min-height: 100%; color: #aaa89f; }
-  .details-empty p { margin: 0; font-size: .82rem; }
-  .panel-header { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: .7rem .75rem; border-bottom: 1px solid #393a38; background: #252622; }
-  .home-link { display: inline-flex; min-width: 0; align-items: center; gap: .55rem; color: #eee9dd; text-decoration: none; }
-  .home-link img { width: 32px; height: 32px; flex: none; object-fit: contain; }
-  .brand-copy { display: grid; min-width: 0; line-height: 1; }
-  .brand-copy strong { font-size: .82rem; letter-spacing: .02em; }
-  .brand-copy span { margin-top: .22rem; color: #d5b978; font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-  .home-link:hover strong { color: #d5b978; }
-  .panel-toggle { min-width: 28px; min-height: 28px; border: 1px solid #595846; background: transparent; color: #d5b978; font-size: 1.05rem; line-height: 1; }
-  .panel-body { padding: .85rem .75rem; }
-  .panel-rail { padding: .45rem 0; }
-  .rail-group { padding: .25rem 0 .45rem; border-bottom: 1px solid #393a38; }
-  .rail-group:last-child { border-bottom: 0; }
-  .control-section { border-bottom: 1px solid #393a38; padding: 0 0 1rem; margin-bottom: 1rem; }
-  label, .section-heading h2, .results-header h2, .world-tools h2, .layer-section h2 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b8b5aa; }
-  input { width: 100%; border: 1px solid #4a4b47; border-radius: 2px; background: #151616; color: #ece8de; padding: .55rem .6rem; }
-  input:focus-visible, button:focus-visible { outline: 2px solid #d5b978; outline-offset: 2px; }
-  .control-section > label:not(.role-option):not(.tool-option) { display: block; margin-bottom: .45rem; }
-  .search-field { position: relative; display: flex; align-items: center; }
-  .search-field input { padding-left: 2.1rem; padding-right: 2.8rem; }
-  .search-glyph { position: absolute; left: .7rem; display: flex; color: #85857e; pointer-events: none; }
-  .search-key { position: absolute; right: .55rem; padding: .1rem .35rem; border: 1px solid #4a4b47; border-radius: 3px; background: #1f201f; color: #85857e; font: 600 .68rem/1.3 inherit; pointer-events: none; }
-  .quiet-button, .close-button { border: 1px solid #55564f; background: transparent; color: #c5c1b7; padding: .45rem .55rem; border-radius: 2px; }
-  .quiet-button:hover, .close-button:hover { border-color: #bba779; color: #f1eadb; }
-  .hint, .muted { color: #85857e; font-size: .72rem; line-height: 1.45; }
-  .section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: .45rem; }
-  .world-tools h2, .layer-section h2 { margin: 0 0 .45rem; }
-  .section-heading h2 { margin: 0; }
-  .section-heading h2, .section-heading .text-button { white-space: nowrap; }
-  .heading-actions { display: flex; gap: .6rem; margin-left: auto; margin-right: .6rem; }
-  .count { color: #d6bd84; font-size: .75rem; }
-  .categories-block { margin-bottom: 1rem; }
-  .categories-block > .section-heading { padding-bottom: .35rem; border-bottom: 1px solid #393a38; }
-  .tool-option { display: flex; align-items: center; gap: .45rem; margin: .6rem 0; letter-spacing: normal; text-transform: none; color: #dedbd2; font-size: .78rem; cursor: pointer; }
-  .tool-option input { width: 14px; height: 14px; margin: 0; accent-color: #bca36e; }
-  .world-tools h2 { margin-bottom: .5rem; }
-  .text-button, .inline-link { border: 0; padding: 0; background: none; color: #d5b978; text-decoration: underline; text-underline-offset: 2px; }
-  .text-button { font-size: .75rem; }
-  .notice, .stale-warning { padding: .55rem; border-left: 2px solid #b98751; background: #2b2721; color: #e2c399; font-size: .73rem; line-height: 1.45; }
-  .map-column { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(260px, 1fr) minmax(180px, 30vh); background: #121313; }
-  .map-column.results-collapsed { grid-template-rows: minmax(260px, 1fr) auto; }
-  .map-frame { position: relative; container: map-frame / inline-size; min-height: 0; overflow: hidden; border-bottom: 1px solid #393a38; background: #151716; }
-  canvas { display: block; width: 100%; height: 100%; opacity: 0; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-  canvas.ready { opacity: 1; }
-  .map-loading { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; background: #151716; }
-  .map-unavailable { position: absolute; z-index: 1; inset: 0; display: grid; place-items: center; padding: 1.5rem; background: #151716; text-align: center; }
-  .map-unavailable > div { display: grid; max-width: 32rem; gap: .7rem; justify-items: center; }
-  .map-unavailable h2, .map-unavailable p { margin: 0; }
-  .map-unavailable h2 { color: #eee9dd; font-family: Georgia, serif; font-size: 1.25rem; font-weight: 500; }
-  .map-unavailable p { color: #aaa9a0; font-size: .85rem; line-height: 1.5; }
-  .map-unavailable a { color: #d5b978; text-underline-offset: .2em; }
-  .loading-indicator { display: grid; place-items: center; gap: .65rem; color: #aaa9a0; font-size: .78rem; }
-  .loading-indicator .spinner { margin: 0; }
-  .map-top-overlay { position: absolute; inset: .75rem .75rem auto; pointer-events: none; }
-  .map-controls { position: absolute; top: 0; right: 0; display: flex; gap: .5rem; pointer-events: auto; }
-  .map-controls button, .map-controls a { display: flex; align-items: center; justify-content: center; min-width: 34px; min-height: 34px; padding: 0 .6rem; border: 1px solid #706548; border-radius: 2px; background: #252622; color: #eee9dd; text-decoration: none; }
-  .map-controls .icon-button { width: 34px; padding: 0; }
-  .map-controls button:disabled { opacity: .45; cursor: default; }
-  .map-controls button:not(:disabled):hover, .map-controls a:hover { border-color: #bba779; background: #302f29; color: #d5b978; }
-  .kofi-button { gap: .4rem; }
-  .kofi-button svg { order: 1; width: 20px; height: 20px; transform: translateX(1px); }
-  .map-status { position: absolute; left: .75rem; bottom: .7rem; padding: .35rem .5rem; background: rgb(18 19 19 / 88%); color: #aaa9a0; font-size: .7rem; }
-  .hover-preview { position: absolute; top: 0; left: 50%; max-width: min(20rem, 100%); transform: translateX(-50%); overflow-wrap: anywhere; padding: .45rem .6rem; background: #252622; border: 1px solid #706548; box-shadow: 0 3px 12px #0008; font-size: .75rem; text-align: center; pointer-events: none; }
-  .preview-title { display: flex; align-items: center; justify-content: center; gap: .4rem; }
-  .preview-title strong { min-width: 0; }
-  .preview-meta { display: block; margin-top: .15rem; color: #b9b5a9; }
-  .inline-error { position: absolute; z-index: 2; left: .8rem; right: .8rem; top: 3.5rem; padding: .55rem; border: 1px solid #864c45; background: #2b1f1f; color: #e5afa6; font-size: .75rem; }
-  .results { padding: .8rem; overflow: auto; min-height: 0; }
-  .results.collapsed { overflow: hidden; padding-block: .55rem; }
-  .results.collapsed .results-header { align-items: center; }
-  .results.collapsed .results-header p { display: none; }
-  .results-header, .details-header, .source-title { display: flex; align-items: flex-start; justify-content: space-between; gap: .7rem; }
-  .results-actions { display: flex; flex: 0 0 auto; gap: .45rem; }
-  .results-header h2, .details-header h2 { margin: 0; color: #eee9dd; font-size: .95rem; letter-spacing: .02em; text-transform: none; }
-  .results-header p { margin: .25rem 0 0; color: #8e8e87; font-size: .72rem; }
-  .results-header .result-limit { color: #d6bd84; }
-  .result-list { list-style: none; margin: .7rem 0 0; padding: 0; display: grid; gap: .3rem; }
-  .result-list button { display: grid; grid-template-columns: 22px minmax(0,1fr); align-items: center; gap: .6rem; width: 100%; padding: .6rem .55rem; border: 1px solid #383a36; background: #1c1e1d; color: #e9e4d9; text-align: left; }
-  .result-list button:hover, .result-list button.selected-result { border-color: #a78b59; background: #25251f; }
-  .marker-badge { display: inline-grid; flex: none; place-items: center; width: 22px; height: 22px; border: 1px solid rgba(0, 0, 0, .45); border-radius: 50%; color: white; }
-  .marker-badge :global(svg) { width: 13px; height: 13px; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .8)); }
-  .result-copy strong, .result-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .result-copy strong { font-size: .78rem; font-weight: 600; }
-  .result-copy small { margin-top: .15rem; color: #aaa89d; font-size: .67rem; }
-  .empty { color: #98978e; font-size: .78rem; }
-  .eyebrow { color: #bca36e; font-size: .64rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-  .details-header { padding-bottom: .9rem; border-bottom: 1px solid #393a38; }
-  .details-header h2 { margin-top: .25rem; line-height: 1.25; }
-  .close-button { font-size: .7rem; }
-  .stale-warning { margin: .8rem 0; }
-  .stale-warning p { margin: .35rem 0; }
-  .detail-search { display: block; margin: .8rem 0; }
-  .detail-search input { margin-top: .4rem; }
-  .category-line { margin: .8rem 0 .25rem; color: #d4bc86; font-size: .77rem; }
-  .level-line { margin: 0 0 .8rem; color: #aaa89d; font-size: .7rem; }
-  .entity-heading h3, .linked-locations h3 { margin: 0 0 .4rem; color: #d7d2c6; font-size: .75rem; letter-spacing: .04em; }
-  .source-card, .entity-block { padding: .65rem; margin: .65rem 0; border: 1px solid #3a3b37; background: #1b1c1b; }
-  .source-title strong { font-size: .8rem; }
-  .source-title span { color: #aaa89d; font-size: .68rem; }
-  .source-location { width: 100%; margin-top: .5rem; padding: .5rem; border: 1px solid #806d4a; background: #2a261e; color: #e4ce99; font-size: .72rem; text-align: center; }
-  .source-location:disabled { opacity: .5; cursor: default; }
-  summary { cursor: pointer; color: #d4bc86; font-size: .8rem; }
-  .entity-heading h3 { margin-top: .15rem; font-size: .85rem; }
-  .entity-block > p { color: #c1beb4; font-size: .75rem; line-height: 1.45; }
-  .linked-locations { margin-top: 1rem; }
-  .linked-locations .inline-link { display: block; margin: .4rem 0; font-size: .73rem; }
-  .initial-loading { display: grid; min-height: 100dvh; place-items: center; }
-  .state-card { max-width: 600px; margin: 12vh auto; padding: 2rem; border: 1px solid #3e403b; background: #202120; }
-  .state-card h1 { margin-top: 0; font-size: 1.25rem; }
-  .state-card p { color: #aaa9a0; font-size: .85rem; line-height: 1.5; }
-  .state-card.error { border-color: #75473f; }
-  .spinner { width: 22px; height: 22px; margin-bottom: 1rem; border: 2px solid #514f45; border-top-color: #d4b875; border-radius: 50%; animation: spin .8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @container map-frame (max-width: 1024px) {
-    .map-top-overlay { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
-    .map-controls { position: static; align-self: flex-end; }
-    .hover-preview { position: static; transform: none; }
-  }
-  @container map-frame (max-width: 680px) {
-    .map-top-overlay { inset: .5rem .5rem auto; }
-    .map-controls { gap: .35rem; }
-    .map-controls button, .map-controls a { min-width: 40px; min-height: 40px; padding-inline: .65rem; }
-    .map-controls .icon-button { width: 40px; }
-    .map-controls .kofi-button { width: 40px; padding: 0; }
-    .kofi-button span { display: none; }
-    .map-status { right: .5rem; bottom: .5rem; left: .5rem; width: max-content; max-width: calc(100% - 1rem); }
-  }
-  @media (max-width: 1050px) {
-    .workspace { grid-template-columns: 220px minmax(0, 1fr) minmax(280px, 340px); }
-    .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr) minmax(280px, 340px); }
-    .workspace.no-details { grid-template-columns: 220px minmax(0, 1fr); }
-    .workspace.no-details.sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr); }
-    .map-column { grid-template-rows: minmax(0, 3fr) minmax(0, 1fr); }
-  }
-  @media (max-width: 680px) {
-    .atlas-shell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; }
-    .workspace, .workspace.sidebar-collapsed, .workspace.no-details, .workspace.no-details.sidebar-collapsed { position: relative; display: block; height: auto; flex: 1; min-height: 0; overflow: hidden; }
-    .map-column { width: 100%; height: 100%; min-height: 0; grid-template-rows: minmax(280px, 1fr) minmax(180px, 36dvh); }
-    .control-panel { position: absolute; z-index: 6; inset: 0 auto 0 0; width: min(88vw, 320px); border-right: 1px solid #393a38; box-shadow: 5px 0 20px #0008; }
-    .panel-backdrop { position: absolute; z-index: 5; inset: 0 0 0 min(88vw, 320px); display: block; width: auto; height: 100%; padding: 0; border: 0; background: rgb(0 0 0 / 58%); }
-    .control-panel.collapsed { inset: .5rem auto auto .5rem; width: 44px; height: 44px; overflow: hidden; border: 0; background: transparent; box-shadow: none; }
-    .control-panel.collapsed .panel-header { min-height: 44px; padding: 0; border: 0; background: transparent; }
-    .control-panel.collapsed .panel-toggle { width: 44px; height: 44px; background: #252622; box-shadow: 0 3px 12px #0008; }
-    .control-panel.collapsed .panel-rail { display: none; }
-    .results { padding: .75rem; }
-    .result-list button { min-height: 48px; }
-    .state-card { margin: 2rem .8rem; padding: 1.2rem; }
-  }
-</style>
