@@ -1,3 +1,4 @@
+export * from "./collectors";
 export * from "./plan";
 export * from "./probes";
 export * from "./scene-target";

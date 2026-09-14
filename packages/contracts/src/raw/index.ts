@@ -10,7 +10,7 @@ import {
 import { FactionRolesSchema } from "./faction-roles";
 import { NpcProducersSchema, NpcProducersV2Schema } from "./npc-producers";
 import { AddressableGraphSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, SceneSourceIssuesSchema, SerializedAssetIndexSchema } from "./placement";
-import { RuntimeScanStateSchema, ScanCollectorDispositionSchema, ScanPlanSchema, ScanSourceEvidenceSchema, ScanTargetEnvelopeSchema, ScanTargetSchema, SceneVisitSchema, StreamCleanupSchema, StreamVisitSchema, TraversalPlanSchema } from "./traversal";
+import { RuntimeScanStateSchema, ScanCollectorDispositionSchema, ScanCoverageSchema, ScanEvidenceArtifactSchema, ScanPlanSchema, ScanSourceEvidenceSchema, ScanTargetEnvelopeSchema, ScanTargetSchema, SceneVisitSchema, StreamCleanupSchema, StreamVisitSchema, TraversalPlanSchema } from "./traversal";
 import { WorldInventorySchema } from "./world-inventory";
 import { WorldSourcesSchema } from "./world-sources";
 
@@ -32,6 +32,8 @@ schemaRegistry.register("compendium.traversal-plan.v1", TraversalPlanSchema);
 schemaRegistry.register("compendium.scan-target.v1", ScanTargetSchema);
 schemaRegistry.register("compendium.scan-plan.v1", ScanPlanSchema);
 schemaRegistry.register("compendium.scan-collector-disposition.v1", ScanCollectorDispositionSchema);
+schemaRegistry.register("compendium.scan-coverage.v1", ScanCoverageSchema);
+schemaRegistry.register("compendium.scan-evidence-artifact.v1", ScanEvidenceArtifactSchema);
 schemaRegistry.register("compendium.runtime-scan-state.v1", RuntimeScanStateSchema);
 schemaRegistry.register("compendium.scan-source-evidence.v1", ScanSourceEvidenceSchema);
 schemaRegistry.register("compendium.scan-target-envelope.v1", ScanTargetEnvelopeSchema);

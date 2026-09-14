@@ -6,6 +6,7 @@ import {
   ScanTargetEnvelopeSchema,
   type RuntimeScanState,
   type ScanBuildSceneTarget,
+  type ScanEvidenceArtifact,
   type ScanSourceEvidence,
   type ScanStreamedSourceTarget,
   type ScanTarget,
@@ -37,7 +38,10 @@ export interface ScanTargetExecution {
   readonly outcome: Exclude<ScanTargetEnvelope["outcome"], "not-attempted">;
   readonly sourceEvidence?: ScanSourceEvidence;
   readonly diagnostics?: readonly { code: string; message: string }[];
+  readonly artifacts?: readonly ScanEvidenceArtifact[];
 }
+
+export type ScanCollectorOperation = (outputDirectory: string) => Promise<readonly ScanEvidenceArtifact[]>;
 
 export interface StreamedSourceVisitor {
   visit(target: ScanStreamedSourceTarget, started: RuntimeScanState, outputDirectory: string, collect: () => Promise<void>): Promise<ScanTargetExecution>;
@@ -62,16 +66,24 @@ export class ScanStateMachine {
 
   constructor(private readonly options: ScanStateMachineOptions) {}
 
-  scanCurrentScene(targetIndex: number): Promise<ScanTargetEnvelope> {
-    return this.execute({ kind: "current-scene" }, targetIndex, async () => {});
+  scanCurrentScene(targetIndex: number, collect?: ScanCollectorOperation): Promise<ScanTargetEnvelope> {
+    return this.execute({ kind: "current-scene" }, targetIndex, async directory => ({ outcome: "succeeded", artifacts: collect === undefined ? [] : await collect(directory) }));
   }
 
-  scanBuildScene(target: ScanBuildSceneTarget, targetIndex: number, visitor: BuildSceneVisitor, collect: () => Promise<void> = async () => {}): Promise<ScanTargetEnvelope> {
-    return this.execute(target, targetIndex, directory => visitor.visit(target.sceneNativeId, directory, collect));
+  scanBuildScene(target: ScanBuildSceneTarget, targetIndex: number, visitor: BuildSceneVisitor, collect?: ScanCollectorOperation): Promise<ScanTargetEnvelope> {
+    return this.execute(target, targetIndex, async directory => {
+      let artifacts: readonly ScanEvidenceArtifact[] = [];
+      await visitor.visit(target.sceneNativeId, directory, async () => { artifacts = collect === undefined ? [] : await collect(directory); });
+      return { outcome: "succeeded", artifacts };
+    });
   }
 
-  scanStreamedSource(target: ScanStreamedSourceTarget, targetIndex: number, visitor: StreamedSourceVisitor, collect: () => Promise<void> = async () => {}): Promise<ScanTargetEnvelope> {
-    return this.execute(target, targetIndex, (directory, started) => visitor.visit(target, started, directory, collect));
+  scanStreamedSource(target: ScanStreamedSourceTarget, targetIndex: number, visitor: StreamedSourceVisitor, collect?: ScanCollectorOperation): Promise<ScanTargetEnvelope> {
+    return this.execute(target, targetIndex, async (directory, started) => {
+      let artifacts: readonly ScanEvidenceArtifact[] = [];
+      const execution = await visitor.visit(target, started, directory, async () => { artifacts = collect === undefined ? [] : await collect(directory); });
+      return { ...execution, artifacts };
+    });
   }
 
   async notAttempted(target: ScanTarget, targetIndex: number, sourceEvidence: ScanSourceEvidence | null, reason: string): Promise<ScanTargetEnvelope> {
@@ -84,6 +96,7 @@ export class ScanStateMachine {
       outcome: "not-attempted",
       observation: { started: null, completed: null },
       collectors: [...collectorApplicability(target)],
+      artifacts: [],
       sourceEvidence,
       diagnostics: [{ code: "not-attempted", message: reason }],
     };
@@ -100,6 +113,7 @@ export class ScanStateMachine {
     const diagnostics: Array<{ code: string; message: string }> = [];
     let outcome: ScanTargetEnvelope["outcome"] = "succeeded";
     let sourceEvidence: ScanSourceEvidence | null = null;
+    let artifacts: readonly ScanEvidenceArtifact[] = [];
     try {
       started = await this.options.stateReader.read(resolve(directory, "state-started.json"));
       if (started.character !== this.options.character) throw new Error(`Loaded character ${JSON.stringify(started.character)} does not match ${JSON.stringify(this.options.character)}.`);
@@ -108,6 +122,7 @@ export class ScanStateMachine {
         outcome = execution.outcome;
         sourceEvidence = execution.sourceEvidence ?? null;
         diagnostics.push(...(execution.diagnostics ?? []));
+        artifacts = execution.artifacts ?? [];
       }
       completed = await this.options.stateReader.read(resolve(directory, "state-completed.json"));
       assertRestored(started, completed);
@@ -131,6 +146,7 @@ export class ScanStateMachine {
       outcome,
       observation: { started, completed },
       collectors: [...collectorApplicability(target)],
+      artifacts: [...artifacts],
       sourceEvidence,
       diagnostics,
     };

@@ -97,6 +97,14 @@ export const ScanSourceEvidenceSchema = Type.Object({
   detail: text,
 }, { additionalProperties: false });
 export type ScanSourceEvidence = Static<typeof ScanSourceEvidenceSchema>;
+export const ScanEvidenceArtifactSchema = Type.Object({
+  family: ScanCollectorFamilySchema,
+  name: text,
+  schema: Type.Object({ id: text, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) }, { additionalProperties: false }),
+  content: Type.Object({ sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), bytes: count }, { additionalProperties: false }),
+  authoredIdentities: Type.Array(text),
+}, { additionalProperties: false });
+export type ScanEvidenceArtifact = Static<typeof ScanEvidenceArtifactSchema>;
 export const ScanTargetEnvelopeSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.scan-target-envelope.v1"),
   buildId: text,
@@ -109,10 +117,17 @@ export const ScanTargetEnvelopeSchema = Type.Object({
     completed: Type.Union([RuntimeScanStateSchema, Type.Null()]),
   }, { additionalProperties: false }),
   collectors: Type.Array(ScanCollectorDispositionSchema),
+  artifacts: Type.Array(ScanEvidenceArtifactSchema),
   sourceEvidence: Type.Union([ScanSourceEvidenceSchema, Type.Null()]),
   diagnostics: Type.Array(Type.Object({ code: text, message: text }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type ScanTargetEnvelope = Static<typeof ScanTargetEnvelopeSchema>;
+export const ScanCoverageSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.scan-coverage.v1"),
+  targetIdentity: text,
+  issues: Type.Array(Type.Object({ collector: text, recordPath: text, detail: text }, { additionalProperties: false })),
+}, { additionalProperties: false });
+export type ScanCoverage = Static<typeof ScanCoverageSchema>;
 
 export const SceneVisitSchema = Type.Object({
   ...common,
