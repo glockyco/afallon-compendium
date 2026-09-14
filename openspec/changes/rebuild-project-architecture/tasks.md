@@ -49,8 +49,8 @@
 
 - [x] 6.1 Define the new catalog schema with typed queried columns, retained evidence JSON, strict constraints, and separate `coverage_issues` and `coverage_occurrences`; verify schema creation and foreign-key checks succeed on a temporary database.
 - [x] 6.2 Implement stable issue and occurrence identities that exclude diagnostic wording; verify repeated evidence creates one issue with multiple occurrences and distinct semantic subjects remain separate.
-- [ ] 6.3 Implement transactional catalog assembly from validated artifact references in deterministic input and row order; verify malformed input, reference failure, and identity collision roll back the complete candidate.
-- [ ] 6.4 Implement logical catalog identity and independent SQLite object hashing; verify equivalent inputs produce the same logical identity and any build, schema, setting, input, or assembler change produces a different identity.
+- [x] 6.3 Implement transactional catalog assembly from validated artifact references in deterministic input and row order; verify malformed input, reference failure, and identity collision roll back the complete candidate.
+- [x] 6.4 Implement logical catalog identity and independent SQLite object hashing; verify equivalent inputs produce the same logical identity and any build, schema, setting, input, or assembler change produces a different identity.
 - [ ] 6.5 Migrate canonical entities, sources, placements, observations, roles, conditions, relationships, spatial registration, exclusions, and provenance into the new schema; verify sampled rows and provenance chains match the parity manifest.
 - [ ] 6.6 Implement release and preview gates against distinct unresolved issues, occurrences, exclusions, build identity, references, and spatial bounds; verify repeated occurrences do not inflate blocker counts and preview cannot satisfy release.
 - [ ] 6.7 Implement deterministic read-only catalog queries for maps, search summaries, entity details, item sources, imagery metadata, and coverage; verify repeated queries return stable ordering and exact catalog identity.

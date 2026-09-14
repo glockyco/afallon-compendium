@@ -286,6 +286,16 @@ export function openNormalizedDatabase(path: string): Database {
         probability_json TEXT NOT NULL CHECK(probability_json = 'null'),
         PRIMARY KEY(item_entity_key, source_kind, source_key)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS coverage_exclusions (
+        exclusion_id TEXT PRIMARY KEY NOT NULL CHECK(length(exclusion_id) = 64),
+        build_id TEXT NOT NULL REFERENCES normalized_builds(build_id),
+        kind TEXT NOT NULL,
+        subject_key TEXT NOT NULL,
+        detail TEXT NOT NULL,
+        map_space_ids_json TEXT NOT NULL,
+        provenance_json TEXT NOT NULL,
+        UNIQUE(build_id, kind, subject_key)
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS coverage_issues (
         issue_id TEXT PRIMARY KEY NOT NULL CHECK(length(issue_id) = 64),
         build_id TEXT NOT NULL REFERENCES normalized_builds(build_id),
@@ -489,6 +499,13 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
       if (!byEntity.has(itemKey)) throw new Error(`Item-source index references missing item ${itemKey}.`);
       for (const source of item.sources) insertChecked(db, "item_sources", ["item_entity_key", "source_kind", "source_key"], ["item_entity_key", "source_kind", "source_key", "placement_ids_json", "condition_ids_json", "context_json", "probability_json"], [itemKey, source.sourceKind, source.sourceKey, json([...source.placementIds].sort()), json([...source.conditionIds].sort()), json(source.context), "null"]);
     }
+    for (const exclusion of input.exclusions) insertChecked(
+      db,
+      "coverage_exclusions",
+      ["build_id", "kind", "subject_key"],
+      ["exclusion_id", "build_id", "kind", "subject_key", "detail", "map_space_ids_json", "provenance_json"],
+      [hash([input.buildId, exclusion.kind, exclusion.key]), input.buildId, exclusion.kind, exclusion.key, exclusion.detail, json([...exclusion.mapSpaceIds].sort()), json(exclusion.provenance)],
+    );
     for (const blocker of input.blockers) {
       const provenance = blocker.provenance[0];
       recordCoverageIssue(db, {
