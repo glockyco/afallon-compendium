@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { SceneVisitSchema, StreamVisitSchema } from "@afallon/contracts";
+import { RuntimeScanStateSchema, SceneVisitSchema, StreamVisitSchema } from "@afallon/contracts";
 import { createProbeBundle, type ProbeBundle } from "@afallon/runtime";
 
 export interface TraversalProbeBundles {
@@ -8,6 +8,14 @@ export interface TraversalProbeBundles {
 }
 
 const RESPONSIBILITIES = ["support", "traversal", "inspection", "cleanup", "serialization"] as const;
+
+export function createRuntimeStateProbeBundle(): Promise<ProbeBundle<typeof RuntimeScanStateSchema>> {
+  return createProbeBundle({
+    id: "runtime-state",
+    schema: RuntimeScanStateSchema,
+    modules: [{ id: "runtime-state/inspection", path: resolve(import.meta.dir, "probes", "state.csx") }],
+  });
+}
 
 export async function createTraversalProbeBundles(): Promise<TraversalProbeBundles> {
   const sceneModules = RESPONSIBILITIES.map(responsibility => ({

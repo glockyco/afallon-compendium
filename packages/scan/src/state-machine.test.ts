@@ -1,0 +1,55 @@
+import { expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { RuntimeScanState } from "@afallon/contracts";
+import { ScanStateMachine, type ScanStateReader } from "./state-machine";
+
+const state: RuntimeScanState = {
+  schemaVersion: "compendium.runtime-scan-state.v1",
+  frame: 100,
+  character: "AtlasSurvey",
+  scene: { name: "Coalway woods", path: "Assets/SCENES/Coalway woods.unity", handle: 3, isLoaded: true },
+  gameSceneNativeId: 3,
+  position: { x: 1, y: 2, z: 3 },
+  rotation: { x: 0, y: 0, z: 0, w: 1 },
+};
+
+class SequenceStateReader implements ScanStateReader {
+  #index = 0;
+  constructor(private readonly states: readonly RuntimeScanState[]) {}
+  async read(): Promise<RuntimeScanState> {
+    const value = this.states[this.#index++];
+    if (value === undefined) throw new Error("State fixture exhausted.");
+    return structuredClone(value);
+  }
+}
+
+test("current-scene scan emits a common envelope without changing runtime state", async () => {
+  const root = await mkdtemp(join(tmpdir(), "afallon-current-scan-"));
+  try {
+    const completed = { ...state, frame: 101 };
+    const scanner = new ScanStateMachine({ buildId: "25153357", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, completed]) });
+    const envelope = await scanner.scanCurrentScene(0);
+    expect(envelope.outcome).toBe("succeeded");
+    expect(envelope.target).toEqual({ kind: "current-scene" });
+    expect(envelope.observation).toEqual({ started: state, completed });
+    expect(envelope.collectors.map(row => row.family)).toEqual(["canonical", "inventory", "producers", "placements", "roles", "relationships", "spatial", "coverage"]);
+    expect(await Bun.file(join(root, "target-0", "envelope.json")).json()).toEqual(envelope);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state mismatch makes the target fail with restoration evidence", async () => {
+  const root = await mkdtemp(join(tmpdir(), "afallon-current-scan-failure-"));
+  try {
+    const moved = { ...state, frame: 101, position: { x: 2, y: 2, z: 3 } };
+    const scanner = new ScanStateMachine({ buildId: "25153357", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, moved]) });
+    const envelope = await scanner.scanCurrentScene(0);
+    expect(envelope.outcome).toBe("failed");
+    expect(envelope.diagnostics[0]?.message).toContain("did not restore");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

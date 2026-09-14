@@ -66,6 +66,40 @@ export const ScanCollectorDispositionSchema = Type.Object({
 }, { additionalProperties: false });
 export type ScanCollectorDisposition = Static<typeof ScanCollectorDispositionSchema>;
 
+export const RuntimeScanStateSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.runtime-scan-state.v1"),
+  frame: count,
+  character: text,
+  scene: Type.Object({ name: text, path: text, handle: integer, isLoaded: Type.Literal(true) }, { additionalProperties: false }),
+  gameSceneNativeId: Type.Union([count, Type.Null()]),
+  position: vector,
+  rotation,
+}, { additionalProperties: false });
+export type RuntimeScanState = Static<typeof RuntimeScanStateSchema>;
+export const ScanTargetOutcomeSchema = Type.Union([
+  Type.Literal("succeeded"),
+  Type.Literal("failed"),
+  Type.Literal("unsupported"),
+  Type.Literal("unreachable"),
+  Type.Literal("not-attempted"),
+]);
+export type ScanTargetOutcome = Static<typeof ScanTargetOutcomeSchema>;
+export const ScanTargetEnvelopeSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.scan-target-envelope.v1"),
+  buildId: text,
+  targetIndex: count,
+  target: ScanTargetSchema,
+  targetIdentity: text,
+  outcome: ScanTargetOutcomeSchema,
+  observation: Type.Object({
+    started: Type.Union([RuntimeScanStateSchema, Type.Null()]),
+    completed: Type.Union([RuntimeScanStateSchema, Type.Null()]),
+  }, { additionalProperties: false }),
+  collectors: Type.Array(ScanCollectorDispositionSchema),
+  diagnostics: Type.Array(Type.Object({ code: text, message: text }, { additionalProperties: false })),
+}, { additionalProperties: false });
+export type ScanTargetEnvelope = Static<typeof ScanTargetEnvelopeSchema>;
+
 export const SceneVisitSchema = Type.Object({
   ...common,
   sourceSceneNativeId: count,

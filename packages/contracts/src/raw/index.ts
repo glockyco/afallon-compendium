@@ -10,7 +10,7 @@ import {
 import { FactionRolesSchema } from "./faction-roles";
 import { NpcProducersSchema, NpcProducersV2Schema } from "./npc-producers";
 import { AddressableGraphSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, SceneSourceIssuesSchema, SerializedAssetIndexSchema } from "./placement";
-import { ScanCollectorDispositionSchema, ScanPlanSchema, ScanTargetSchema, SceneVisitSchema, StreamCleanupSchema, StreamVisitSchema, TraversalPlanSchema } from "./traversal";
+import { RuntimeScanStateSchema, ScanCollectorDispositionSchema, ScanPlanSchema, ScanTargetEnvelopeSchema, ScanTargetSchema, SceneVisitSchema, StreamCleanupSchema, StreamVisitSchema, TraversalPlanSchema } from "./traversal";
 import { WorldInventorySchema } from "./world-inventory";
 import { WorldSourcesSchema } from "./world-sources";
 
@@ -32,6 +32,8 @@ schemaRegistry.register("compendium.traversal-plan.v1", TraversalPlanSchema);
 schemaRegistry.register("compendium.scan-target.v1", ScanTargetSchema);
 schemaRegistry.register("compendium.scan-plan.v1", ScanPlanSchema);
 schemaRegistry.register("compendium.scan-collector-disposition.v1", ScanCollectorDispositionSchema);
+schemaRegistry.register("compendium.runtime-scan-state.v1", RuntimeScanStateSchema);
+schemaRegistry.register("compendium.scan-target-envelope.v1", ScanTargetEnvelopeSchema);
 schemaRegistry.register("compendium.scene-visit.v1", SceneVisitSchema);
 schemaRegistry.register("compendium.stream-visit.v1", StreamVisitSchema);
 schemaRegistry.register("compendium.stream-cleanup.v1", StreamCleanupSchema);

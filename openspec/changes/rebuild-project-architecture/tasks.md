@@ -31,7 +31,7 @@
 - [x] 4.2 Implement deterministic probe bundles from explicit imported C# source modules and schema identities; verify bundle hashes include every imported probe and one collector compiles only once per runtime session.
 - [x] 4.3 Split oversized probes along support, inspection, traversal, serialization, and cleanup boundaries without changing their raw envelopes; verify frozen or live probe comparisons match the parity manifest for representative scenes.
 - [x] 4.4 Implement the closed `ScanTarget` union, ordered scan-plan schema, target validation, and collector applicability table; verify unknown targets fail before runtime ownership and inapplicable families emit evidence-backed dispositions.
-- [ ] 4.5 Implement the shared scan state machine and current-scene target; verify it emits the common envelope, records scene and character context, and preserves runtime state.
+- [x] 4.5 Implement the shared scan state machine and current-scene target; verify it emits the common envelope, records scene and character context, and preserves runtime state.
 - [ ] 4.6 Implement build-scene targets through the same state machine; verify scene transitions restore the original scene, position, and rotation on success, failure, and cancellation.
 - [ ] 4.7 Implement streamed-source targets through the same state machine; verify unreachable, unsupported, failed, succeeded, and not-attempted outcomes remain distinct with source evidence.
 - [ ] 4.8 Integrate all canonical, inventory, producer, placement, role, relationship, spatial, and coverage collectors into scan; verify current-scene and traversal plans produce the same artifact families and stable authored identities.
