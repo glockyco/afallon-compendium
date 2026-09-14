@@ -27,6 +27,7 @@
     type MarkerId,
   } from './map/marker-registry';
   import { MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from './map/interaction';
+  import { canonicalLayerIds, resolveLayerIds, NO_IMAGERY_LAYER_ID } from './map/layer-policy';
   import { clearWorldOffsetOverrides, downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
   import { PUBLICATION_SCHEMA_VERSION, type EntityDetailsDocument, type ItemSourcesDocument, type PublicEntity, type PublicEntitySummary, type PublicItemSource, type PublicItemSummary, type PublicPlacement, type PublicDetailSection, type PublicationData } from '@afallon/contracts/public';
 
@@ -60,7 +61,7 @@
   let mapReady = false;
   let mapUnavailable = false;
   let loadError = '';
-  let layerIds: string[] = ['captured'];
+  let layerIds: string[] = [];
   let selectedId: string | null = null;
   let query = '';
   let categories: MarkerId[] = [];
@@ -261,7 +262,7 @@
   });
 
   $: if (adapterReady && adapter && publication) {
-    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds, categories, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: authoring ? worldOffsetOverrides : {}, authoring, showConnections, showMovement, showZones });
+    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds: layerIds.filter((id) => id !== NO_IMAGERY_LAYER_ID), categories, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: authoring ? worldOffsetOverrides : {}, authoring, showConnections, showMovement, showZones });
   }
 
   async function loadEntityDetailPath(path: string): Promise<void> {
@@ -338,14 +339,6 @@
     const y = (map.bounds.min.y + map.bounds.max.y) / 2;
     const scale = Math.min((canvas?.clientWidth || 640) / (map.bounds.max.x - map.bounds.min.x), (canvas?.clientHeight || 480) / (map.bounds.max.y - map.bounds.min.y));
     return { target: [x, y, 0], zoom: Math.log2(scale * 0.9) };
-  }
-
-  // The game's maps are the familiar default. Overworld tiles remain optional, and are the
-  // fallback only when a publication has no game-map layer.
-  function defaultLayers(data: PublicationData | null): string[] {
-    if (data?.tileLayers.some((layer) => layer.kind === 'game-map')) return ['game-maps'];
-    if (data?.tileLayers.some((layer) => layer.kind === 'captured')) return ['captured'];
-    return [];
   }
 
 
@@ -478,9 +471,7 @@
   function applyUrlState(next: AtlasState): void {
     itemSourceQuery = next.itemSourceQuery;
     detailQuery = next.detailQuery;
-    const known = new Set(['captured', 'game-maps', ...(publication?.tileLayers ?? []).map((tileLayer) => tileLayer.id)]);
-    const requested = next.layerIds.filter((id) => known.has(id));
-    layerIds = requested.length > 0 ? requested : defaultLayers(publication);
+    layerIds = resolveLayerIds(next.layerIds, publication?.tileLayers ?? []);
     query = next.query;
     categories = next.categories.filter((category): category is MarkerId => MARKER_IDS.includes(category as MarkerId));
     showZones = next.showZones;
@@ -603,7 +594,7 @@
     const normalised = withTiles.includes('game-maps') || (gameIds.length > 0 && chosenGame.length === gameIds.length)
       ? [...withTiles.filter((id) => !gameIds.includes(id) && id !== 'game-maps'), 'game-maps']
       : withTiles.filter((id) => id !== 'game-maps');
-    layerIds = [...new Set(normalised)];
+    layerIds = canonicalLayerIds(normalised);
     syncUrl('push');
   }
 

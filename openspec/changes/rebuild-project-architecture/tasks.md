@@ -73,7 +73,7 @@
 - [x] 8.3 Split deck.gl lifecycle, view synchronization, hit testing, and WebGL fallback into `map-renderer`; verify renderer replacement and component teardown release every deck.gl resource.
 - [x] 8.4 Split imagery, marker, region, connection, and movement layer construction into pure modules; verify representative public rows produce the existing coordinates, picking identities, visibility, and styles.
 - [x] 8.5 Split sidebar, search results, layer controls, canvas shell, and development details into focused Svelte components with `MapExplorer.svelte` as composition only; verify site checks pass with no pipeline or non-public package imports.
-- [ ] 8.6 Implement the default-layer policy so game-provided imagery is selected for overworld and interiors while captured terrain remains disabled until explicitly selected; verify saved canonical choices restore and layer changes preserve world location.
+- [x] 8.6 Implement the default-layer policy so game-provided imagery is selected for overworld and interiors while captured terrain remains disabled until explicitly selected; verify saved canonical choices restore and layer changes preserve world location.
 - [ ] 8.7 Preserve the compile-time development boundary around detail panels and authoring controls; verify production output does not render them and a development build retains both interfaces.
 - [ ] 8.8 Exercise the actual atlas in a browser across search, filtering, marker selection, map navigation, imagery switching, URL reload, WebGL fallback, and production/development modes; verify behavior against the static-publication scenarios and retain screenshots or logs as evidence.
 
