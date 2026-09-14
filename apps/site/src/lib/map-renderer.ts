@@ -5,21 +5,16 @@ import {
   type Layer,
   type PickingInfo,
 } from "@deck.gl/core";
-import { TileLayer } from "@deck.gl/geo-layers";
-import { Matrix4 } from "@math.gl/core";
-import { createIconAtlas, type IconAtlasResult } from "./map/icon-atlas";
+import { createIconAtlas } from "./map/icon-atlas";
+import { createConnectionLayers, createHoverConnectionLayers, type TravelConnection } from "./map/layers/connections";
+import { createImageryLayer, orderImageryLayers, type LoadedTile, type TileRequest } from "./map/layers/imagery";
+import { markerColor, createPlacementIconLayer } from "./map/layers/markers";
+import { createMovementLayers, type MovementGeometry, type MovementPath, type MovementRadius } from "./map/layers/movement";
+import { createRegionLayers, type RegionRecord } from "./map/layers/regions";
 import { MAP_EVENT_RECOGNIZER_OPTIONS, MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from "./map/interaction";
 import { MARKER_LAYER_ID, markerFor, resolveMarker, type MarkerId } from "./map/marker-registry";
 import { WorldDragController, type WorldOffsetOverrides, worldOffsetDelta } from "./map/world-layout";
-import {
-  BitmapLayer,
-  IconLayer,
-  LineLayer,
-  PathLayer,
-  PolygonLayer,
-  ScatterplotLayer,
-  TextLayer,
-} from "@deck.gl/layers";
+import { PolygonLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { PublicPlacement,
 PublicRegion,
 PublicTile,
@@ -51,16 +46,6 @@ type Point = [number, number];
 type Bounds = [number, number, number, number];
 type BitmapBounds = [Point, Point, Point, Point];
 
-type TileRequest = {
-  index: {z: number; x: number; y: number};
-  signal?: AbortSignal;
-};
-
-type LoadedTile = {
-  tile: PublicTile;
-  image: ImageBitmap;
-};
-
 export type MarkerRecord = {
   placementId: string;
   mapSpaceId: string;
@@ -81,44 +66,9 @@ type AreaRecord = {
   markerId: MarkerId;
 };
 
-type RegionRecord = {
-  id: string;
-  mapSpaceId: string;
-  name: string;
-  shape: PublicRegion["shape"];
-  polygon: Point[];
-};
-
 type WorldMapBounds = {
   mapSpaceId: string;
   polygon: Point[];
-};
-
-type TravelConnection = {
-  placementId: string;
-  source: Point;
-  target: Point;
-  enabled: boolean;
-};
-
-type MovementPath = {
-  movementId: string;
-  placementId: string;
-  kind: "patrol" | "poi";
-  points: Point[];
-};
-
-type MovementRadius = {
-  movementId: string;
-  placementId: string;
-  kind: "roaming" | "poi";
-  center: Point;
-  radius: number;
-};
-
-type MovementGeometry = {
-  paths: MovementPath[];
-  radii: MovementRadius[];
 };
 
 export type AdapterCallbacks = {
@@ -159,14 +109,6 @@ function normalizeView(view: MapViewState | ViewInput | undefined, fallback: Map
     ],
     zoom: finite(zoom) ? Math.max(MIN_VIEW_ZOOM, Math.min(MAX_VIEW_ZOOM, zoom)) : fallback.zoom,
   };
-}
-
-function markerColor(markerId: MarkerId, selected: boolean, hovered: boolean, enabled = true): [number, number, number, number] {
-  if (selected) return [255, 196, 0, 255];
-  if (hovered) return [255, 255, 255, 255];
-  if (!enabled) return [112, 112, 112, 220];
-  const color = markerFor(markerId).color;
-  return [color[0], color[1], color[2], 235];
 }
 
 function mapOffsetDelta(data: PublicationData, mapSpaceId: string, overrides: WorldOffsetOverrides): { worldX: number; worldY: number } {
@@ -210,38 +152,6 @@ function buildMarkers(placements: readonly PublicPlacement[], data: PublicationD
 
 export function markerRecordsForPlacements(placements: readonly PublicPlacement[], activeCategories?: readonly MarkerId[]): MarkerRecord[] {
   return buildMarkers(placements, null, {}, activeCategories ? new Set(activeCategories) : null);
-}
-
-export function createPlacementIconLayer(
-  markers: readonly MarkerRecord[],
-  iconAtlas: IconAtlasResult,
-  selectedId: string | null = null,
-  hoveredId: string | null = null,
-  onSelect?: (placementId: string) => void,
-  onHover?: (placementId: string | null) => void,
-): IconLayer<MarkerRecord> {
-  return new IconLayer<MarkerRecord>({
-    id: MARKER_LAYER_ID,
-    data: markers,
-    iconAtlas: iconAtlas.atlas as unknown as string,
-    iconMapping: iconAtlas.mapping,
-    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-    pickable: true,
-    billboard: false,
-    getPosition: (marker) => marker.position,
-    getIcon: (marker) => marker.markerId,
-    getSize: (marker) => markerFor(marker.markerId).iconSize.base,
-    getColor: (marker) => markerColor(marker.markerId, marker.members.includes(selectedId || ""), marker.members.includes(hoveredId || ""), marker.enabled),
-    sizeUnits: "pixels",
-    sizeMinPixels: 14,
-    sizeMaxPixels: 44,
-    updateTriggers: { getColor: [selectedId, hoveredId], getSize: [selectedId, hoveredId] },
-    onClick: onSelect ? (info) => {
-      const placementId = pickedPlacementId(info);
-      if (placementId) onSelect(placementId);
-    } : undefined,
-    onHover: onHover ? (info) => onHover(pickedPlacementId(info)) : undefined,
-  });
 }
 
 function createHighlightLayers(
@@ -301,24 +211,6 @@ function buildRegions(regions: readonly PublicRegion[], data: PublicationData, o
       polygon: region.polygon.map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point),
     };
   });
-}
-
-function polygonCentroid(polygon: readonly Point[]): Point {
-  if (polygon.length < 3) return polygon[0] ?? [0, 0];
-  let areaTwice = 0, centroidX = 0, centroidY = 0;
-  for (let index = 0; index < polygon.length; index++) {
-    const current = polygon[index]!;
-    const next = polygon[(index + 1) % polygon.length]!;
-    const cross = current[0] * next[1] - next[0] * current[1];
-    areaTwice += cross;
-    centroidX += (current[0] + next[0]) * cross;
-    centroidY += (current[1] + next[1]) * cross;
-  }
-  if (areaTwice === 0) {
-    const total = polygon.reduce(([x, y], [nextX, nextY]) => [x + nextX, y + nextY] as Point, [0, 0]);
-    return [total[0] / polygon.length, total[1] / polygon.length];
-  }
-  return [centroidX / (3 * areaTwice), centroidY / (3 * areaTwice)];
 }
 
 function buildAreas(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null): AreaRecord[] {
@@ -508,48 +400,6 @@ export async function createMapAdapter(
     if (!destroyed) callbacks.onError(message);
   };
 
-  const createMovementLayers = (idPrefix: string, geometry: MovementGeometry, selectedIds: ReadonlySet<string>, hoveredIds: ReadonlySet<string>, pickable: boolean): Layer[] => {
-    const pathLayer = geometry.paths.length > 0 ? new PathLayer<MovementPath>({
-      id: `${idPrefix}-paths`,
-      data: geometry.paths,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable,
-      autoHighlight: pickable,
-      highlightColor: [255, 255, 255, 255],
-      getPath: movement => movement.points,
-      getColor: movement => selectedIds.has(movement.placementId) ? [250, 204, 21, 255] : hoveredIds.has(movement.placementId) ? [255, 255, 255, 255] : movement.kind === "patrol" ? [190, 120, 255, 225] : [70, 210, 190, 225],
-      getWidth: movement => selectedIds.has(movement.placementId) ? 5 : hoveredIds.has(movement.placementId) ? 4 : 3,
-      widthUnits: "pixels",
-      widthMinPixels: 2,
-      jointRounded: true,
-      capRounded: true,
-      onClick: pickable ? (info: PickingInfo) => { const id = pickedPlacementId(info); if (id) callbacks.onSelect(id); } : undefined,
-    }) : null;
-    const radiusLayer = geometry.radii.length > 0 ? new ScatterplotLayer<MovementRadius>({
-      id: `${idPrefix}-radii`,
-      data: geometry.radii,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable,
-      autoHighlight: pickable,
-      highlightColor: [255, 255, 255, 70],
-      getPosition: movement => movement.center,
-      getRadius: movement => movement.radius,
-      radiusUnits: "common",
-      radiusMinPixels: 3,
-      stroked: true,
-      filled: true,
-      getFillColor: movement => selectedIds.has(movement.placementId) ? [250, 204, 21, 72] : hoveredIds.has(movement.placementId) ? [255, 255, 255, 62] : [70, 210, 190, 40],
-      getLineColor: movement => selectedIds.has(movement.placementId) ? [250, 204, 21, 255] : hoveredIds.has(movement.placementId) ? [255, 255, 255, 255] : [70, 210, 190, 220],
-      getLineWidth: movement => selectedIds.has(movement.placementId) ? 4 : hoveredIds.has(movement.placementId) ? 3 : 2,
-      lineWidthUnits: "pixels",
-      onClick: pickable ? (info: PickingInfo) => { const id = pickedPlacementId(info); if (id) callbacks.onSelect(id); } : undefined,
-    }) : null;
-    const movementLayers: Layer[] = [];
-    if (radiusLayer) movementLayers.push(radiusLayer);
-    if (pathLayer) movementLayers.push(pathLayer);
-    return movementLayers;
-  };
-
   const tileIndexes = new WeakMap<PublicTileLayer, Map<string, PublicTile>>();
   const getTile = (tileLayer: PublicTileLayer, z: number, x: number, y: number): PublicTile | null => {
     let index = tileIndexes.get(tileLayer);
@@ -582,57 +432,19 @@ export async function createMapAdapter(
   const createImagery = (next: MapAdapterUpdate, tileLayersForView: PublicTileLayer[]): Layer[] => {
     if (tileLayersForView.length > 0) {
       // Game maps are the backdrop; captured imagery draws over them.
-      const ordered = [...tileLayersForView].sort((left, right) => Number(left.kind === "captured") - Number(right.kind === "captured"));
       // A pyramid is published in its map's local coordinates, so it moves by the whole effective
       // offset, unlike markers and bounds, which publication has already placed and which move by
       // the delta from that placement.
-      const placed = ordered.map((tileLayer) => { const base = next.data.world.offsets.find((offset) => offset.mapSpaceId === tileLayer.mapSpaceId); const delta = mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets); return { tileLayer, offset: { worldX: (base?.worldX ?? 0) + delta.worldX, worldY: (base?.worldY ?? 0) + delta.worldY } }; });
+      const placed = orderImageryLayers(tileLayersForView.map((tileLayer) => { const base = next.data.world.offsets.find((offset) => offset.mapSpaceId === tileLayer.mapSpaceId); const delta = mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets); return { tileLayer, offset: { worldX: (base?.worldX ?? 0) + delta.worldX, worldY: (base?.worldY ?? 0) + delta.worldY } }; }));
       const key = `tiles:${next.data.buildId}:${placed.map(({ tileLayer, offset }) => `${tileLayer.id}:${offset.worldX}:${offset.worldY}`).join("|")}`;
       if (imageryLayers.length === tileLayersForView.length && imageryKey === key) return imageryLayers;
       imageryKey = key;
-      imageryLayers = placed.map(({ tileLayer, offset }) => pyramidLayer(`map-imagery-${tileLayer.id}`, tileLayer, offset));
+      imageryLayers = placed.map(({ tileLayer, offset }) => createImageryLayer(`map-imagery-${tileLayer.id}`, tileLayer, offset, loadTile, report));
       return imageryLayers;
     }
     imageryLayers = [];
     imageryKey = "";
     return imageryLayers;
-  };
-
-  // One deck TileLayer per published pyramid. Each pyramid keeps its own local lattice and is
-  // translated into the world by a model matrix, so a map can sit at any world offset; tile
-  // selection goes through the matrix inverse. Captured imagery and game maps share the
-  // loader and the cache; only their draw order differs.
-  const pyramidLayer = (id: string, tileLayer: PublicTileLayer, offset: { worldX: number; worldY: number }): Layer => {
-        return new TileLayer<LoadedTile | null>({
-          id,
-          data: null,
-          tileSize: tileLayer.tileSize,
-          minZoom: tileLayer.minZoom,
-          maxZoom: tileLayer.maxZoom,
-          extent: tileLayer.extent,
-          modelMatrix: new Matrix4().translate([offset.worldX, offset.worldY, 0]),
-          getTileData: props => loadTile(tileLayer, props),
-          renderSubLayers: props => {
-            if (!props.data) return null;
-            const [[west, south], [east, north]] = props.tile.boundingBox as [[number, number], [number, number]];
-            // The tile's bounding box is in the pyramid's local space; the sublayer carries the
-            // same model matrix as its parent to land in the world.
-            return new BitmapLayer({
-              id: `${props.id}-bitmap`,
-              data: null as never,
-              image: props.data.image,
-              bounds: [west, south, east, north],
-              coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-              modelMatrix: props.modelMatrix,
-              pickable: false,
-            });
-          },
-          onTileError: (error, tile) => {
-            if (error instanceof Error && error.name === "AbortError") return;
-            const tileKey = tile ? `${tile.index.z}/${tile.index.x}/${tile.index.y}` : "unknown";
-            report(`Unable to load tile ${tileKey}: ${textFromError(error)}`);
-          },
-        });
   };
 
   const dragController = new WorldDragController(
@@ -780,55 +592,7 @@ export async function createMapAdapter(
       fontFamily: "sans-serif",
       fontWeight: 700,
     });
-    const regionLayers: Layer[] = next.showZones ? [
-      new PolygonLayer<RegionRecord>({
-        id: "world-region-outline-halo",
-        data: baseRegions,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        pickable: false,
-        stroked: true,
-        filled: true,
-        getPolygon: (region) => region.polygon,
-        getFillColor: [24, 20, 14, 24],
-        getLineColor: [22, 18, 12, 210],
-        getLineWidth: 6,
-        lineWidthUnits: "pixels",
-      }),
-      new PolygonLayer<RegionRecord>({
-        id: "world-region-outlines",
-        data: baseRegions,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        pickable: false,
-        stroked: true,
-        filled: false,
-        getPolygon: (region) => region.polygon,
-        getLineColor: [235, 205, 139, 245],
-        getLineWidth: 2,
-        lineWidthUnits: "pixels",
-      }),
-      new TextLayer<RegionRecord>({
-        id: "world-region-labels",
-        data: baseRegions,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        pickable: false,
-        getPosition: (region) => polygonCentroid(region.polygon),
-        getText: (region) => region.name,
-        // World units, as the map-space labels: zone names shrink with the map and stay
-        // legible only where the zone itself has room on screen.
-        getSize: 20,
-        sizeUnits: "common",
-        sizeMaxPixels: 16,
-        getColor: [235, 220, 180, 235],
-        getTextAnchor: "middle",
-        getAlignmentBaseline: "center",
-        characterSet: "auto",
-        fontSettings: { sdf: true },
-        outlineColor: [18, 20, 24, 255],
-        outlineWidth: 3,
-        fontFamily: "sans-serif",
-        fontWeight: 600,
-      }),
-    ] : [];
+    const regionLayers = next.showZones ? createRegionLayers(baseRegions) : [];
     const expandMarkerMembers = (placementIds: readonly string[]): Set<string> => {
       const expanded = new Set(placementIds);
       for (const marker of renderMarkers) {
@@ -845,7 +609,7 @@ export async function createMapAdapter(
           paths: baseMovement.paths.filter((movement) => focusedMovementIds.has(movement.placementId)),
           radii: baseMovement.radii.filter((movement) => focusedMovementIds.has(movement.placementId)),
         };
-    const movementLayers = createMovementLayers("world-movement", visibleMovement, selectedMovementIds, emphasizedMovementIds, true);
+    const movementLayers = createMovementLayers("world-movement", visibleMovement, selectedMovementIds, emphasizedMovementIds, true, callbacks.onSelect);
     const areaLayer = new PolygonLayer<AreaRecord>({
       id: "map-placement-areas",
       data: baseAreas,
@@ -883,35 +647,7 @@ export async function createMapAdapter(
     // hover adds its own line in handleHover.
     allConnections = connectionData;
     const focusedConnections = next.showConnections || next.authoring ? connectionData : connectionData.filter((connection) => connection.placementId === next.selectedId || hoveredConnectionIds.has(connection.placementId));
-    const connectionLines = focusedConnections.length > 0 ? new LineLayer<TravelConnection>({
-      id: "world-travel-connections",
-      data: focusedConnections,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: false,
-      getSourcePosition: (connection) => connection.source,
-      getTargetPosition: (connection) => connection.target,
-      getColor: (connection) => !connection.enabled
-        ? connection.placementId === next.selectedId ? [185, 160, 115, 255] : [120, 120, 120, 180]
-        : connection.placementId === next.selectedId
-          ? [250, 204, 21, 255]
-          : hoveredConnectionIds.has(connection.placementId) ? [100, 230, 255, 255] : [100, 210, 255, 205],
-      getWidth: (connection) => connection.placementId === next.selectedId ? 5 : hoveredConnectionIds.has(connection.placementId) ? 4 : 3,
-      widthUnits: "pixels",
-      updateTriggers: {getColor: [next.selectedId, next.hoveredPlacementIds], getWidth: [next.selectedId, next.hoveredPlacementIds]},
-    }) : null;
-    const connectionDestinations = focusedConnections.length > 0 ? new ScatterplotLayer<TravelConnection>({
-      id: "world-travel-destinations",
-      data: focusedConnections,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: false,
-      radiusUnits: "pixels",
-      getPosition: (connection) => connection.target,
-      getRadius: 5,
-      getFillColor: (connection) => connection.enabled ? [100, 210, 255, 220] : [120, 120, 120, 190],
-      getLineColor: [20, 40, 50, 230],
-      stroked: true,
-      lineWidthMinPixels: 1,
-    }) : null;
+    const connectionLayers = createConnectionLayers(focusedConnections, next.selectedId, hoveredConnectionIds);
     const stacks = renderMarkers.filter((marker) => marker.members.length > 1);
     // Every marker draws as its own icon. A stack of placements at one position selects
     // the next member on each click, so a hidden member is still reachable.
@@ -951,7 +687,7 @@ export async function createMapAdapter(
     const hoverHighlightLayers = createHighlightLayers("hover-highlight", hoverSelection, [250, 204, 21, 255], [250, 204, 21, 40], 2);
     const groupHighlightLayers = createHighlightLayers("selection-group-highlight", selectedGroup, [255, 255, 255, 255], [255, 255, 255, 40], 2);
     const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6);
-    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, ...regionLayers, connectionLines, connectionDestinations, ...movementLayers, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
+    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, ...regionLayers, ...connectionLayers, ...movementLayers, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
 
     // Hiding every layer is a reader choice; only a layer that cannot be drawn is a failure.
     const requestedImagery = next.layerIds.length > 0;
@@ -1015,19 +751,14 @@ export async function createMapAdapter(
       : [];
     // A hovered door shows where it leads even while the connections option is off.
     const hoveredConnections = marker && current && !current.showConnections && !current.authoring ? allConnections.filter((connection) => marker.members.includes(connection.placementId)) : [];
-    if (hoveredConnections.length > 0) {
-      pointerHoverLayers.push(
-        new LineLayer<TravelConnection>({ id: "pointer-hover-connections", data: hoveredConnections, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: false, getSourcePosition: (connection) => connection.source, getTargetPosition: (connection) => connection.target, getColor: (connection) => connection.enabled ? [100, 230, 255, 255] : [120, 120, 120, 180], getWidth: 4, widthUnits: "pixels" }),
-        new ScatterplotLayer<TravelConnection>({ id: "pointer-hover-destinations", data: hoveredConnections, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: false, radiusUnits: "pixels", getPosition: (connection) => connection.target, getRadius: 5, getFillColor: (connection) => connection.enabled ? [100, 210, 255, 220] : [120, 120, 120, 190], getLineColor: [20, 40, 50, 230], stroked: true, lineWidthMinPixels: 1 }),
-      );
-    }
+    pointerHoverLayers.push(...createHoverConnectionLayers(hoveredConnections));
     if (marker && current) {
       const memberIds = new Set(marker.members);
       const hoveredMovement = {
         paths: baseMovement.paths.filter((movement) => memberIds.has(movement.placementId)),
         radii: baseMovement.radii.filter((movement) => memberIds.has(movement.placementId)),
       };
-      pointerHoverLayers.push(...createMovementLayers("pointer-hover-movement", hoveredMovement, new Set(), memberIds, false));
+      pointerHoverLayers.push(...createMovementLayers("pointer-hover-movement", hoveredMovement, new Set(), memberIds, false, callbacks.onSelect));
     }
     deck.setProps({layers: [...layers, ...pointerHoverLayers]});
     callbacks.onHover(placementId);

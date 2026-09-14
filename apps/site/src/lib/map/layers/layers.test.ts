@@ -1,0 +1,47 @@
+import { expect, test } from "bun:test";
+import { createConnectionLayers, type TravelConnection } from "./connections";
+import { orderImageryLayers } from "./imagery";
+import { markerColor } from "./markers";
+import { createMovementLayers, type MovementGeometry } from "./movement";
+import { createRegionLayers, polygonCentroid, type RegionRecord } from "./regions";
+
+function property<T>(layer: { props: unknown }, name: string): T {
+  return (layer.props as Record<string, unknown>)[name] as T;
+}
+
+test("region layers preserve coordinates and label centroids", () => {
+  const region: RegionRecord = { id: "region", mapSpaceId: "map", name: "Town", shape: "box", polygon: [[0, 0], [4, 0], [4, 2], [0, 2]] };
+  const layers = createRegionLayers([region]);
+  expect(layers.map(layer => layer.id)).toEqual(["world-region-outline-halo", "world-region-outlines", "world-region-labels"]);
+  expect(polygonCentroid(region.polygon)).toEqual([2, 1]);
+  expect(property<(value: RegionRecord) => unknown>(layers[0]!, "getPolygon")(region)).toEqual(region.polygon);
+});
+
+test("connection layers preserve picking identity and selected style", () => {
+  const connection: TravelConnection = { placementId: "door", source: [1, 2], target: [3, 4], enabled: true };
+  const [line, destination] = createConnectionLayers([connection], "door", new Set());
+  expect(property<(value: TravelConnection) => unknown>(line!, "getSourcePosition")(connection)).toEqual([1, 2]);
+  expect(property<(value: TravelConnection) => unknown>(line!, "getTargetPosition")(connection)).toEqual([3, 4]);
+  expect(property<(value: TravelConnection) => unknown>(line!, "getColor")(connection)).toEqual([250, 204, 21, 255]);
+  expect(destination!.id).toBe("world-travel-destinations");
+});
+
+test("movement layer visibility and styles follow supplied state", () => {
+  const geometry: MovementGeometry = { paths: [{ movementId: "move", placementId: "npc", kind: "patrol", points: [[1, 2], [3, 4]] }], radii: [] };
+  expect(createMovementLayers("movement", { paths: [], radii: [] }, new Set(), new Set(), true, () => undefined)).toEqual([]);
+  const [path] = createMovementLayers("movement", geometry, new Set(["npc"]), new Set(), true, () => undefined);
+  expect(property<(value: MovementGeometry["paths"][number]) => unknown>(path!, "getPath")(geometry.paths[0]!)).toEqual([[1, 2], [3, 4]]);
+  expect(property<(value: MovementGeometry["paths"][number]) => unknown>(path!, "getColor")(geometry.paths[0]!)).toEqual([250, 204, 21, 255]);
+});
+
+test("imagery ordering keeps game maps below captures", () => {
+  const layer = (id: string, kind: "game-map" | "captured") => ({ tileLayer: { id, kind } as never, offset: { worldX: 0, worldY: 0 } });
+  expect(orderImageryLayers([layer("capture", "captured"), layer("game", "game-map")]).map(value => value.tileLayer.id)).toEqual(["game", "capture"]);
+});
+
+test("marker styles preserve selection, hover, disabled, and category colors", () => {
+  expect(markerColor("travelPoint", true, false)).toEqual([255, 196, 0, 255]);
+  expect(markerColor("travelPoint", false, true)).toEqual([255, 255, 255, 255]);
+  expect(markerColor("travelPoint", false, false, false)).toEqual([112, 112, 112, 220]);
+  expect(markerColor("travelPoint", false, false)[3]).toBe(235);
+});
