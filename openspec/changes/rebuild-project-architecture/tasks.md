@@ -1,9 +1,9 @@
 ## 1. Baseline and Boundaries
 
-- [ ] 1.1 Record a parity manifest for one frozen successful build, including run hashes, public counts, sampled identities, gate outcomes, and known expected differences; verify every referenced artifact exists and matches its recorded hash.
-- [ ] 1.2 Create the `apps/` and `packages/` Bun workspace manifests, TypeScript project references, and package export maps; verify the empty dependency graph type-checks without changing the selected CLI or site.
-- [ ] 1.3 Add dependency-cruiser rules for the design's allowed import graph, package exports, cross-package relative imports, and cycles; verify each rule rejects a temporary known-bad fixture and accepts the workspace graph.
-- [ ] 1.4 Move the SvelteKit application from `site/` to `apps/site/` without changing its imports or behavior; verify its existing check, build, and static preview smoke scenario pass from the new workspace path.
+- [x] 1.1 Record a parity manifest for one frozen successful build, including run hashes, public counts, sampled identities, gate outcomes, and known expected differences; verify every referenced artifact exists and matches its recorded hash.
+- [x] 1.2 Create the `apps/` and `packages/` Bun workspace manifests, TypeScript project references, and package export maps; verify the empty dependency graph type-checks without changing the selected CLI or site.
+- [x] 1.3 Add dependency-cruiser rules for the design's allowed import graph, package exports, cross-package relative imports, and cycles; verify each rule rejects a temporary known-bad fixture and accepts the workspace graph.
+- [x] 1.4 Move the SvelteKit application from `site/` to `apps/site/` without changing its imports or behavior; verify its existing check, build, and static preview smoke scenario pass from the new workspace path.
 
 ## 2. Contracts and Trust Boundaries
 

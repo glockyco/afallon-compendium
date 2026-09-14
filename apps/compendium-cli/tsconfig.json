@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "composite": true, "rootDir": "src", "outDir": "node_modules/.cache/types", "tsBuildInfoFile": "node_modules/.cache/tsconfig.tsbuildinfo" },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/artifacts" },
+    { "path": "../../packages/runtime" },
+    { "path": "../../packages/scan" },
+    { "path": "../../packages/capture" },
+    { "path": "../../packages/catalog" },
+    { "path": "../../packages/publication" }
+  ]
+}

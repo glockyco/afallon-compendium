@@ -1,0 +1,12 @@
+{
+  "name": "@afallon/scan",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@afallon/artifacts": "workspace:*",
+    "@afallon/contracts": "workspace:*",
+    "@afallon/runtime": "workspace:*",
+    "typebox": "1.3.27"
+  }
+}

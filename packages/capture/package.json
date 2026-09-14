@@ -1,0 +1,13 @@
+{
+  "name": "@afallon/capture",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@afallon/artifacts": "workspace:*",
+    "@afallon/contracts": "workspace:*",
+    "@afallon/runtime": "workspace:*",
+    "sharp": "0.35.4",
+    "typebox": "1.3.27"
+  }
+}

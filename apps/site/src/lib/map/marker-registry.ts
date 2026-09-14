@@ -16,7 +16,7 @@ import { BuildingCommunity, BuildingMonument, BuildingTunnel, Coins, Diamonds, D
 import type {
   PublicMarkerCategory,
   PublicPlacement,
-} from "../../../../pipeline/public-contracts";
+} from "../../../../../pipeline/public-contracts";
 
 export type MarkerId = PublicMarkerCategory;
 

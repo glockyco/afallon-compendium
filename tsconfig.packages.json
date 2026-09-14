@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "apps/compendium-cli" },
+    { "path": "packages/contracts" },
+    { "path": "packages/artifacts" },
+    { "path": "packages/runtime" },
+    { "path": "packages/scan" },
+    { "path": "packages/capture" },
+    { "path": "packages/catalog" },
+    { "path": "packages/publication" }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "composite": true, "rootDir": "src", "outDir": "node_modules/.cache/types", "tsBuildInfoFile": "node_modules/.cache/tsconfig.tsbuildinfo" },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../contracts" },
+    { "path": "../artifacts" },
+    { "path": "../runtime" }
+  ]
+}

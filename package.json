@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.13",
-  "workspaces": ["site"],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "compendium": "bun tools/cli.ts",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && tsc -b tsconfig.packages.json",
+    "check:packages": "tsc -b tsconfig.packages.json",
+    "check:dependencies": "depcruise --config .dependency-cruiser.cjs apps/compendium-cli/src packages/*/src",
     "test": "bun test"
   },
   "overrides": {
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@types/bun": "1.3.14",
+    "dependency-cruiser": "^18.3.0",
     "typescript": "5.9.3"
   }
 }

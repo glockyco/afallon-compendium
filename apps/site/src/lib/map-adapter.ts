@@ -26,7 +26,7 @@ import type {
   PublicTile,
   PublicTileLayer,
   PublicationData,
-} from "../../../pipeline/public-contracts";
+} from "../../../../pipeline/public-contracts";
 
 export type MapViewState = {
   target: [number, number, number];

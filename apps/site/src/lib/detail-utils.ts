@@ -1,4 +1,4 @@
-import type { PublicDetailSection } from '../../../pipeline/public-contracts';
+import type { PublicDetailSection } from '../../../../pipeline/public-contracts';
 
 export interface DetailLink {
   label: string;

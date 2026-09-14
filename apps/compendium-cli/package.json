@@ -1,0 +1,14 @@
+{
+  "name": "@afallon/compendium-cli",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@afallon/artifacts": "workspace:*",
+    "@afallon/capture": "workspace:*",
+    "@afallon/catalog": "workspace:*",
+    "@afallon/contracts": "workspace:*",
+    "@afallon/publication": "workspace:*",
+    "@afallon/runtime": "workspace:*",
+    "@afallon/scan": "workspace:*"
+  }
+}

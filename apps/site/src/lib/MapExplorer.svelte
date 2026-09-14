@@ -27,7 +27,7 @@
   import { markerGlyphSvg } from './map/icon-atlas';
   import { MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from './map/interaction';
   import { clearWorldOffsetOverrides, downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
-  import { PUBLICATION_SCHEMA_VERSION, type EntityDetailsDocument, type ItemSourcesDocument, type PublicEntity, type PublicEntitySummary, type PublicItemSource, type PublicItemSummary, type PublicPlacement, type PublicDetailSection, type PublicationData } from '../../../pipeline/public-contracts';
+  import { PUBLICATION_SCHEMA_VERSION, type EntityDetailsDocument, type ItemSourcesDocument, type PublicEntity, type PublicEntitySummary, type PublicItemSource, type PublicItemSummary, type PublicPlacement, type PublicDetailSection, type PublicationData } from '../../../../pipeline/public-contracts';
 
   interface LayerOption {
     id: string;
