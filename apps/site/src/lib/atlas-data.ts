@@ -1,6 +1,7 @@
 import { Assert } from "typebox/value";
 import type { TSchema, Static } from "typebox";
 import {
+  StaticCoverageSchema,
   StaticEntityDetailSchema,
   StaticEntitySearchSchema,
   StaticImagerySchema,
@@ -9,6 +10,8 @@ import {
   StaticMapShardSchema,
   StaticRootManifestSchema,
   assertStaticResourceIdentity,
+  type PublicationData,
+  type StaticCoverage,
   type StaticEntityDetail,
   type StaticEntitySearch,
   type StaticImagery,
@@ -35,6 +38,30 @@ export interface AtlasMapData {
 export interface AtlasIndexes {
   entities: StaticEntitySearch;
   items: StaticItemSearch;
+}
+
+export function atlasPublicationData(root: StaticRootManifest, mapData: AtlasMapData, indexes: AtlasIndexes, coverage: StaticCoverage): PublicationData {
+  const summary = root.maps.find((map) => map.mapSpaceId === mapData.map.mapSpaceId);
+  if (!summary) throw new Error(`Publication has no map ${mapData.map.mapSpaceId}.`);
+  return {
+    schemaVersion: "compendium.publication.v13",
+    buildId: root.buildId,
+    mode: root.mode,
+    coverage: { complete: coverage.complete, messages: [...coverage.messages], excludedPlacements: coverage.exclusionCount },
+    world: {
+      mapSpaceId: summary.mapSpaceId,
+      label: summary.label,
+      bounds: summary.bounds,
+      offsets: [{ mapSpaceId: summary.mapSpaceId, worldX: 0, worldY: 0, source: "native", status: "placed" }],
+      unplacedMapSpaceIds: [],
+    },
+    maps: [{ mapSpaceId: summary.mapSpaceId, label: summary.label, bounds: summary.bounds }],
+    placements: mapData.map.placements,
+    regions: mapData.map.regions,
+    entityIndex: indexes.entities.entities,
+    itemIndex: indexes.items.items.map(({ itemKey, name, sourceNames, sourceKinds, detailPath }) => ({ itemKey, name, sourceNames, sourceKinds, detailPath })),
+    tileLayers: mapData.imagery.layers,
+  };
 }
 
 export class AtlasDataLoader {
@@ -75,6 +102,11 @@ export class AtlasDataLoader {
       this.#loadReference(root.itemSearch, StaticItemSearchSchema, root),
     ]);
     return { entities, items };
+  }
+
+  async loadCoverage(): Promise<StaticCoverage> {
+    const root = await this.loadRoot();
+    return this.#loadReference(root.coverage, StaticCoverageSchema, root);
   }
 
   async loadEntity(entityKey: string): Promise<StaticEntityDetail> {

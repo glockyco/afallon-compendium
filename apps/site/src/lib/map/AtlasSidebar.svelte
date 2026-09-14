@@ -5,6 +5,7 @@
   import AtlasLayerControls, { type LayerOption } from './AtlasLayerControls.svelte';
   import type { MarkerDefinition, MarkerId } from './marker-registry';
   import type { WorldOffsetOverrides } from './world-layout';
+  import type { StaticMapSummary } from '@afallon/contracts/public';
 
   export let collapsed: boolean;
   export let logoBase: string;
@@ -14,6 +15,8 @@
   export let categories: MarkerId[];
   export let categoryCounts: Record<MarkerId, number>;
   export let placementCount: number;
+  export let maps: StaticMapSummary[];
+  export let mapSpaceId: string;
   export let isDefaultCategories: boolean;
   export let layerOptions: LayerOption[];
   export let tileLayerOptions: LayerOption[];
@@ -32,6 +35,7 @@
   export let onToggle: () => void;
   export let onQuery: (query: string) => void;
   export let onSubmitSearch: () => void;
+  export let onSelectMap: (mapSpaceId: string) => void;
   export let onResetCategories: () => void;
   export let onShowAllCategories: () => void;
   export let onToggleCategory: (category: MarkerId) => void;
@@ -58,6 +62,7 @@
   {:else}
     <div class="panel-body">
       <div class="control-section search-section"><div class="search-field"><span class="search-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg></span><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => onQuery(event.currentTarget.value)} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onSubmitSearch(); } if (event.key === 'Escape' && query) { event.preventDefault(); onQuery(''); } }} placeholder="Search..." aria-label="Search places, entities, and items" autocomplete="off" /><kbd class="search-key" aria-hidden="true">⌘K</kbd></div></div>
+      <div class="control-section map-navigation"><label for="atlas-map">Map</label><select id="atlas-map" value={mapSpaceId} on:change={(event) => onSelectMap(event.currentTarget.value)}>{#each maps as map (map.mapSpaceId)}<option value={map.mapSpaceId}>{map.label}</option>{/each}</select></div>
       <div class="categories-block"><div class="section-heading"><h2>Categories</h2><span class="heading-actions">{#if !isDefaultCategories}<button type="button" class="text-button" on:click={onResetCategories}>Reset</button>{/if}{#if categories.length > 0}<button type="button" class="text-button" on:click={onShowAllCategories}>Show all</button>{/if}</span><span class="count">{placementCount}</span></div>{#each sections as section (section.id)}<MapSidebarSection title={section.label} categories={section.markers} activeCategories={categories} counts={categoryCounts} storageKey={`afallon-atlas-section-${section.id}`} onToggleCategory={onToggleCategory} onToggleAll={onToggleAllCategories} />{/each}</div>
       <AtlasLayerControls {layerOptions} {tileLayerOptions} {gameMapOptions} {visibleTileLayerIds} {visibleGameMapIds} {capturedChecked} {capturedPartial} {gameMapsChecked} {gameMapsPartial} toggleCaptured={onToggleCaptured} toggleMapLayer={onToggleMapLayer} toggleGameMaps={onToggleGameMaps} toggleGameMap={onToggleGameMap} />
       <div class="control-section world-tools"><h2>Map Options</h2><label class="tool-option"><input type="checkbox" checked={showConnections} on:change={onToggleConnections} /><span>Travel Connections</span></label><label class="tool-option"><input type="checkbox" checked={showMovement} on:change={onToggleMovement} /><span>NPC Movement</span></label><label class="tool-option"><input type="checkbox" checked={showZones} on:change={onToggleZones} /><span>Zone Areas and Names</span></label>{#if dev}<label class="tool-option"><input type="checkbox" checked={authoring} on:change={onToggleAuthoring} /><span>Authoring Mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={onExportWorldOffsets}>Export World Offsets</button>{#if Object.keys(worldOffsetOverrides).length > 0}<button type="button" class="quiet-button" on:click={onDiscardWorldOffsets}>Discard {Object.keys(worldOffsetOverrides).length} Dragged Offsets</button>{/if}<p class="hint">Drag a map anywhere inside its rectangle to review its placement. Dragged offsets show only while authoring and stay in this browser until exported or discarded.</p>{/if}{/if}</div>

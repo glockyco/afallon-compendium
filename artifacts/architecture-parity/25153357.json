@@ -162,5 +162,33 @@
     "Copied run inputs and normalized projection documents are removed.",
     "Deprecated URL parameter aliases are removed.",
     "Game-provided imagery remains the default and captured terrain remains opt-in."
-  ]
+  ],
+  "atlasBrowserVerification": {
+    "publicationSchemaVersion": "compendium.static-root.v1",
+    "fixtureBuildId": "browser-smoke",
+    "scenarios": [
+      "search",
+      "category-filter",
+      "marker-selection",
+      "map-navigation",
+      "imagery-switch",
+      "canonical-url-reload",
+      "webgl-fallback",
+      "production-boundary",
+      "development-boundary"
+    ],
+    "canonicalUrl": "http://127.0.0.1:4180/?map=beta&layers=captured%2Cgame-maps&selected=beta%3Aboss&q=Ash+Warden&x=50&y=50&z=0&zoom=2.5",
+    "screenshots": [
+      "artifacts/architecture-parity/atlas-sharded-browser.png",
+      "artifacts/architecture-parity/atlas-webgl-fallback.png"
+    ],
+    "production": {
+      "detailsPanelCount": 0,
+      "authoringControlCount": 0
+    },
+    "development": {
+      "detailsPanelCount": 1,
+      "authoringControlCount": 1
+    }
+  }
 }

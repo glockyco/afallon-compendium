@@ -5,6 +5,7 @@
   import './MapExplorer.css';
   import { onMount, tick } from 'svelte';
   import type { MapAdapter, MapAdapterUpdate, MapRendererController, MapViewState } from './map-renderer';
+  import { AtlasDataLoader, atlasPublicationData, type AtlasIndexes } from './atlas-data';
   import { readAtlasUrl, writeAtlasUrl, type AtlasState } from './atlas-state';
   import { filteredSections, linksFromSections } from './detail-utils';
   import AtlasDevelopmentDetails from './map/AtlasDevelopmentDetails.svelte';
@@ -29,7 +30,7 @@
   import { MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from './map/interaction';
   import { canonicalLayerIds, resolveLayerIds, NO_IMAGERY_LAYER_ID } from './map/layer-policy';
   import { clearWorldOffsetOverrides, downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, type WorldOffsetOverrides } from './map/world-layout';
-  import { PUBLICATION_SCHEMA_VERSION, type EntityDetailsDocument, type ItemSourcesDocument, type PublicEntity, type PublicEntitySummary, type PublicItemSource, type PublicItemSummary, type PublicPlacement, type PublicDetailSection, type PublicationData } from '@afallon/contracts/public';
+  import type { PublicEntity, PublicEntitySummary, PublicItemSource, PublicItemSummary, PublicPlacement, PublicDetailSection, PublicationData, StaticRootManifest } from '@afallon/contracts/public';
 
   const searchKindOrder = { item: 0, placement: 1, entity: 2 };
   const RESULT_LIMIT = 200;
@@ -49,10 +50,13 @@
   let detailsPanel: HTMLElement;
   let searchInput: HTMLInputElement;
   let publication: PublicationData | null = null;
-  let publicationUrl = '';
+  let rootManifest: StaticRootManifest | null = null;
+  let atlasLoader: AtlasDataLoader | null = null;
+  let atlasIndexes: AtlasIndexes | null = null;
+  let mapSpaceId: string | null = null;
+  let mapRequestVersion = 0;
   let entityDetails = new Map<string, PublicEntity>();
   let itemDetails = new Map<string, PublicItemSource>();
-  let detailRequests = new Map<string, Promise<void>>();
   let detailLoading = false;
   let detailError = '';
   let adapter: MapAdapter | null = null;
@@ -169,8 +173,11 @@
     } catch {
       // Expanded panels are a safe default when browser storage is unavailable.
     }
-    const metadataRequest = new AbortController();
-    const onPopState = () => applyUrlState(readAtlasUrl(window.location.search));
+    const onPopState = () => {
+      const state = readAtlasUrl(window.location.search);
+      if (state.mapSpaceId && state.mapSpaceId !== mapSpaceId) void selectMap(state.mapSpaceId, false);
+      else applyUrlState(state);
+    };
     const onKeydown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault();
@@ -191,67 +198,46 @@
     };
     window.addEventListener('popstate', onPopState);
     window.addEventListener('keydown', onKeydown);
-    applyUrlState(readAtlasUrl(window.location.search));
-    const mapDocumentUrl = new URL(`${base}/data/publication.json`, window.location.href).toString();
-    publicationUrl = mapDocumentUrl;
-    fetch(mapDocumentUrl, { signal: metadataRequest.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Publication request failed (${response.status})`);
-        const json = (await response.json()) as PublicationData;
-        if (json.schemaVersion !== PUBLICATION_SCHEMA_VERSION) throw new Error('Unsupported publication schema.');
-        return resolvePublicationAssets(json, mapDocumentUrl);
-      })
-      .then(async (data) => {
+    const rootUrl = new URL(`${base}/data/publication.json`, window.location.href);
+    atlasLoader = new AtlasDataLoader(fetch, new URL('.', rootUrl));
+    void (async () => {
+      try {
+        const requestedState = readAtlasUrl(window.location.search);
+        const root = await atlasLoader!.loadRoot();
+        const nextMapSpaceId = root.maps.some((map) => map.mapSpaceId === requestedState.mapSpaceId) ? requestedState.mapSpaceId! : root.maps[0]?.mapSpaceId;
+        if (!nextMapSpaceId) throw new Error('The publication contains no maps.');
+        const [mapData, indexes, coverage] = await Promise.all([atlasLoader!.loadMap(nextMapSpaceId), atlasLoader!.loadIndexes(), atlasLoader!.loadCoverage()]);
         if (disposed) return;
-        publication = data;
-        searchIndexes = buildSearchIndexes(data);
-        applyUrlState(readAtlasUrl(window.location.search));
+        rootManifest = root;
+        atlasIndexes = indexes;
+        mapSpaceId = nextMapSpaceId;
+        publication = resolvePublicationAssets(atlasPublicationData(root, mapData, indexes, coverage), rootUrl.toString());
+        searchIndexes = buildSearchIndexes(publication);
+        applyUrlState(requestedState);
         loading = false;
-        void tick().then(() => ensureCurrentSelection());
         await tick();
         if (disposed) return;
-        const requestedView = readAtlasUrl(window.location.search).view;
-        view = requestedView ? { target: [requestedView.target[0], requestedView.target[1], requestedView.target[2]], zoom: requestedView.zoom } : centerView(publication.world);
+        view = requestedState.view ? { target: [requestedState.view.target[0], requestedState.view.target[1], requestedState.view.target[2]], zoom: requestedState.view.zoom } : centerView(publication.world);
         const module = await import('./map-renderer');
         if (disposed) return;
         renderer = new module.MapRendererController(handleMapError);
         adapter = await renderer.replace(canvas, view, {
-          onViewChange(nextView, bounds) {
-            view = nextView;
-            viewportBounds = bounds;
-            scheduleViewUrl();
-          },
-          onSelect(placementId) {
-            selectPlacement(placementId, canvas);
-          },
-          onHover(placementId) {
-            hoveredResult = null;
-            hoveredId = placementId;
-          },
-          onWorldOffsetChange(mapSpaceId, offset) {
-            worldOffsetOverrides = { ...worldOffsetOverrides, [mapSpaceId]: offset };
-            saveWorldOffsetOverrides(worldOffsetOverrides);
-          },
-          onReady() {
-            mapReady = true;
-          },
-          onError(message) {
-            handleMapError(message);
-          }
+          onViewChange(nextView, bounds) { view = nextView; viewportBounds = bounds; scheduleViewUrl(); },
+          onSelect(placementId) { selectPlacement(placementId, canvas); },
+          onHover(placementId) { hoveredResult = null; hoveredId = placementId; },
+          onWorldOffsetChange(changedMapSpaceId, offset) { worldOffsetOverrides = { ...worldOffsetOverrides, [changedMapSpaceId]: offset }; saveWorldOffsetOverrides(worldOffsetOverrides); },
+          onReady() { mapReady = true; },
+          onError(message) { handleMapError(message); },
         });
         adapterReady = adapter !== null;
-      })
-      .catch((error: unknown) => {
-        if (!disposed) {
-          loading = false;
-          const message = error instanceof Error ? error.message : 'The publication could not be loaded.';
-          if (publication) handleMapError(message);
-          else loadError = message;
-        }
-      });
+        void ensureCurrentSelection();
+        syncUrl('replace');
+      } catch (error: unknown) {
+        if (!disposed) { loading = false; loadError = error instanceof Error ? error.message : 'The publication could not be loaded.'; }
+      }
+    })();
     return () => {
       disposed = true;
-      metadataRequest.abort();
       window.removeEventListener('popstate', onPopState);
       window.removeEventListener('keydown', onKeydown);
       if (viewTimer) clearTimeout(viewTimer);
@@ -265,68 +251,29 @@
     adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds: layerIds.filter((id) => id !== NO_IMAGERY_LAYER_ID), categories, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: authoring ? worldOffsetOverrides : {}, authoring, showConnections, showMovement, showZones });
   }
 
-  async function loadEntityDetailPath(path: string): Promise<void> {
-    const cacheKey = `entity:${path}`;
-    const cached = detailRequests.get(cacheKey);
-    if (cached) return cached;
-    const request = fetch(new URL(path, publicationUrl).toString()).then(async (response) => {
-      if (!response.ok) throw new Error(`Entity detail request failed (${response.status})`);
-      const value = (await response.json()) as EntityDetailsDocument;
-      if (value.schemaVersion !== 'compendium.publication-entity-details.v1' || value.buildId !== publication?.buildId || !Array.isArray(value.entities)) throw new Error('Unsupported entity detail document.');
-      const next = new Map(entityDetails);
-      for (const entity of value.entities) next.set(entity.entityKey, entity);
-      entityDetails = next;
-    });
-    detailRequests.set(cacheKey, request);
-    return request;
-  }
-
-  async function loadItemDetailPath(path: string): Promise<void> {
-    const cacheKey = `item:${path}`;
-    const cached = detailRequests.get(cacheKey);
-    if (cached) return cached;
-    const request = fetch(new URL(path, publicationUrl).toString()).then(async (response) => {
-      if (!response.ok) throw new Error(`Item-source detail request failed (${response.status})`);
-      const value = (await response.json()) as ItemSourcesDocument;
-      if (value.schemaVersion !== 'compendium.publication-item-sources.v1' || value.buildId !== publication?.buildId || !Array.isArray(value.itemSources)) throw new Error('Unsupported item-source detail document.');
-      const next = new Map(itemDetails);
-      for (const item of value.itemSources) next.set(item.itemKey, item);
-      itemDetails = next;
-    });
-    detailRequests.set(cacheKey, request);
-    return request;
-  }
-
   async function ensureCurrentSelection(): Promise<void> {
-    if (!publication) return;
-    const entityPaths = new Set<string>();
-    const itemPaths = new Set<string>();
+    if (!atlasLoader) return;
+    const entityKeys = new Set<string>();
+    const itemKeys = new Set<string>();
     if (selectedPlacement) {
-      for (const key of selectedPlacement.entityKeys) {
-        const summary = entityIndexByKey.get(key);
-        if (summary) entityPaths.add(summary.detailPath);
-      }
-      for (const key of selectedPlacement.itemKeys) {
-        const summary = itemIndexByKey.get(key);
-        if (summary) itemPaths.add(summary.detailPath);
-      }
+      selectedPlacement.entityKeys.forEach((key) => entityKeys.add(key));
+      selectedPlacement.itemKeys.forEach((key) => itemKeys.add(key));
     }
-    if (selectedEntityKey) {
-      const summary = entityIndexByKey.get(selectedEntityKey);
-      if (summary) entityPaths.add(summary.detailPath);
-    }
+    if (selectedEntityKey) entityKeys.add(selectedEntityKey);
     if (itemKey) {
-      const item = itemIndexByKey.get(itemKey);
-      if (item) itemPaths.add(item.detailPath);
-      const entity = entityIndexByKey.get(itemKey);
-      if (entity) entityPaths.add(entity.detailPath);
+      itemKeys.add(itemKey);
+      if (entityIndexByKey.has(itemKey)) entityKeys.add(itemKey);
     }
-    if (entityPaths.size === 0 && itemPaths.size === 0) return;
+    if (entityKeys.size === 0 && itemKeys.size === 0) return;
     detailLoading = true;
     detailError = '';
     try {
-      await Promise.all([...entityPaths].map((path) => loadEntityDetailPath(path)));
-      await Promise.all([...itemPaths].map((path) => loadItemDetailPath(path)));
+      const [entities, items] = await Promise.all([
+        Promise.all([...entityKeys].map((key) => atlasLoader!.loadEntity(key))),
+        Promise.all([...itemKeys].map((key) => atlasLoader!.loadItemSource(key))),
+      ]);
+      entityDetails = new Map([...entityDetails, ...entities.map((detail) => [detail.entity.entityKey, detail.entity] as const)]);
+      itemDetails = new Map([...itemDetails, ...items.map((detail) => [detail.itemSource.itemKey, detail.itemSource] as const)]);
     } catch (error: unknown) {
       detailError = error instanceof Error ? error.message : 'The selected detail could not be loaded.';
     } finally {
@@ -468,6 +415,35 @@
     return placement.position[0] >= bounds[0] && placement.position[0] <= bounds[2] && placement.position[1] >= bounds[1] && placement.position[1] <= bounds[3];
   }
 
+  async function selectMap(nextMapSpaceId: string, push = true): Promise<void> {
+    if (!atlasLoader || !rootManifest || !atlasIndexes || nextMapSpaceId === mapSpaceId) return;
+    const requestVersion = ++mapRequestVersion;
+    loadError = '';
+    try {
+      const [mapData, coverage] = await Promise.all([atlasLoader.loadMap(nextMapSpaceId), atlasLoader.loadCoverage()]);
+      if (requestVersion !== mapRequestVersion) return;
+      const rootUrl = new URL(`${base}/data/publication.json`, window.location.href);
+      mapSpaceId = nextMapSpaceId;
+      publication = resolvePublicationAssets(atlasPublicationData(rootManifest, mapData, atlasIndexes, coverage), rootUrl.toString());
+      searchIndexes = buildSearchIndexes(publication);
+      selectedId = null;
+      selectedEntityKey = null;
+      itemKey = null;
+      staleSelection = '';
+      viewportBounds = null;
+      if (push) {
+        layerIds = resolveLayerIds([], publication.tileLayers);
+        view = centerView(publication.world);
+        adapter?.setView(view);
+        syncUrl('push');
+      } else {
+        applyUrlState(readAtlasUrl(window.location.search));
+      }
+    } catch (error: unknown) {
+      if (requestVersion === mapRequestVersion) handleMapError(error instanceof Error ? error.message : 'The selected map could not be loaded.');
+    }
+  }
+
   function applyUrlState(next: AtlasState): void {
     itemSourceQuery = next.itemSourceQuery;
     detailQuery = next.detailQuery;
@@ -495,7 +471,7 @@
   }
 
   function currentUrl(overrides: Partial<Pick<AtlasState, 'categories'>> = {}): URL {
-    return writeAtlasUrl(new URL(window.location.href), { mapSpaceId: null, layerIds, selectedPlacementId: selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, showZones, showConnections, showMovement, itemKey, entityKey: selectedEntityKey, view });
+    return writeAtlasUrl(new URL(window.location.href), { mapSpaceId, layerIds, selectedPlacementId: selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, showZones, showConnections, showMovement, itemKey, entityKey: selectedEntityKey, view });
   }
 
   function syncUrl(mode: 'push' | 'replace', overrides: Partial<Pick<AtlasState, 'categories'>> = {}): void {
@@ -745,10 +721,10 @@
     <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || staleSelection)} class:sidebar-collapsed={panelCollapsed} class:no-details={!dev}>
       <AtlasSidebar
         collapsed={panelCollapsed} logoBase={base} bind:searchInput {query} sections={markerSections} {categories} {categoryCounts}
-        placementCount={allMapPlacements.length} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
+        placementCount={allMapPlacements.length} maps={rootManifest?.maps ?? []} mapSpaceId={mapSpaceId ?? ''} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
         {visibleTileLayerIds} {visibleGameMapIds} {capturedChecked} {capturedPartial} {gameMapsChecked} {gameMapsPartial}
         {showConnections} {showMovement} {showZones} {authoring} {worldOffsetOverrides} onToggle={togglePanel}
-        onQuery={(next) => { query = next; scheduleQueryUrl(); }} onSubmitSearch={submitSearch}
+        onQuery={(next) => { query = next; scheduleQueryUrl(); }} onSubmitSearch={submitSearch} onSelectMap={(id) => { void selectMap(id); }}
         onResetCategories={() => { categories = [...DEFAULT_MARKER_IDS]; syncUrl('push'); }}
         onShowAllCategories={() => { categories = []; syncUrl('push'); }} onToggleCategory={toggleCategory}
         onToggleAllCategories={toggleAllCategories} onToggleCaptured={toggleCaptured} onToggleMapLayer={toggleMapLayer}
