@@ -11,6 +11,7 @@ import {
   type FailureRecord,
   type LogicalArtifact,
 } from "@afallon/contracts";
+import { selectLatestSuccess } from "./references";
 import { ArtifactStore, type StoredObject } from "./store";
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
@@ -121,6 +122,7 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
         const manifest = snapshot("succeeded", null);
         await writeImmutableJson(manifestPath, manifest);
         state = "succeeded";
+        await selectLatestSuccess(store, manifestPath);
         return structuredClone(manifest);
       });
     },

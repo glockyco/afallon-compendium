@@ -146,6 +146,21 @@ const ArtifactRunManifestDefinition = Type.Object({
 export const ArtifactRunManifestSchema = schemaRegistry.register("compendium.artifact-run.v1", ArtifactRunManifestDefinition).schema;
 export type ArtifactRunManifest = Static<typeof ArtifactRunManifestSchema>;
 
+const ArtifactLatestSuccessDefinition = Type.Object({
+  schemaVersion: Type.Literal("compendium.artifact-latest-success.v1"),
+  buildId: NonEmptyString,
+  operation: NonEmptyString,
+  runId: NonEmptyString,
+  manifest: Type.Object({
+    path: NonEmptyString,
+    sha256: Sha256,
+    bytes: Type.Integer({ minimum: 0 }),
+  }, { additionalProperties: false }),
+  selectedAt: NonEmptyString,
+}, { additionalProperties: false });
+export const ArtifactLatestSuccessSchema = schemaRegistry.register("compendium.artifact-latest-success.v1", ArtifactLatestSuccessDefinition).schema;
+export type ArtifactLatestSuccess = Static<typeof ArtifactLatestSuccessSchema>;
+
 const RunManifestDefinition = Type.Object({
   schemaVersion: Type.Literal(1),
   runId: NonEmptyString,
