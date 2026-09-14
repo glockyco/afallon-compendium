@@ -986,7 +986,7 @@ export async function createMapAdapter(
       flipY: false,
       controller: {inertia: false, dragRotate: false},
     }),
-    initialViewState: {...activeView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM},
+    viewState: {...activeView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM},
     eventRecognizerOptions: MAP_EVENT_RECOGNIZER_OPTIONS,
     layers: [],
     onHover: info => handleHover(pickedPlacementId(info)),
@@ -995,8 +995,10 @@ export async function createMapAdapter(
       const nextView = normalizeView(params.viewState, activeView);
       activeView = nextView;
       if (viewSpaceKey) viewsBySpace.set(viewSpaceKey, activeView);
+      const controlledView = {...params.viewState, ...nextView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM};
+      deck.setProps({viewState: controlledView});
       notifyView();
-      return {...params.viewState, ...nextView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM};
+      return controlledView;
     },
     onLoad: () => {
       deckLoaded = true;
@@ -1061,7 +1063,7 @@ export async function createMapAdapter(
   const setDeckView = (next: MapViewState): void => {
     activeView = normalizeView(next, activeView);
     if (viewSpaceKey) viewsBySpace.set(viewSpaceKey, activeView);
-    deck.setProps({initialViewState: {...activeView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM}});
+    deck.setProps({viewState: {...activeView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM}});
     notifyView();
   };
 
