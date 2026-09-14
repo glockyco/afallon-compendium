@@ -49,7 +49,6 @@
   interface ResultSummary {
     marker: MarkerDefinition;
     categories: string;
-    levels: string;
   }
 
   interface SearchIndexes {
@@ -410,14 +409,9 @@
   function summarizePlacements(placements: readonly PublicPlacement[], fallbackId: MarkerId): ResultSummary {
     const categoryIds = [...new Set(placements.flatMap((placement) => placement.categories))] as MarkerId[];
     const marker = markerFor(placements[0] ? (resolveMarker(placements[0]) ?? categoryIds[0] ?? fallbackId) : fallbackId);
-    const ranges = placements.flatMap((placement) => placement.levelRange ? [placement.levelRange] : []);
-    const range = ranges.length > 0
-      ? { min: Math.min(...ranges.map((value) => value.min)), max: Math.max(...ranges.map((value) => value.max)) }
-      : null;
     return {
       marker,
       categories: categoryIds.length > 0 ? categoryIds.map((category) => markerFor(category).label).join(' · ') : 'No map category',
-      levels: range ? levelRangeLabel(range) : 'Level not specified',
     };
   }
 
@@ -868,15 +862,15 @@
               {#if result.kind === 'item'}
                 {@const item = result.item}
                 {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{item.name || 'Unnamed item'}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{item.name || 'Unnamed item'}</strong><small>{summary.categories}</small></span></button></li>
               {:else if result.kind === 'entity'}
                 {@const entity = result.entity}
                 {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{entity.name}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{entity.name}</strong><small>{summary.categories}</small></span></button></li>
               {:else}
                 {@const placement = result.placement}
                 {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{summary.categories} · {summary.levels}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{summary.categories}</small></span></button></li>
               {/if}
               {/each}
             </ol>
