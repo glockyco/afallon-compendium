@@ -9,6 +9,7 @@ test("canonical JSON is independent of object key order", () => {
   const right = { a: "value", z: [3, { a: null, b: true }] };
   expect(canonicalJson(left)).toBe(canonicalJson(right));
   expect(canonicalJsonSha256(left)).toBe(canonicalJsonSha256(right));
+  expect(canonicalJsonSha256(null)).toBe("74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b");
 });
 
 test("canonical JSON rejects values that JSON would lose or coerce", () => {
