@@ -66,7 +66,7 @@ function validateInput(input: CatalogAssemblyInput): void {
   if (!input.identity || typeof input.identity.schemaVersion !== "string" || input.identity.schemaVersion.length === 0) throw new TypeError("Catalog assembly requires a schema version.");
   if (!input.identity.settings || typeof input.identity.settings !== "object" || Array.isArray(input.identity.settings)) throw new TypeError("Catalog assembly requires settings.");
   if (!/^[a-f0-9]{64}$/.test(input.identity.assemblerFingerprint)) throw new TypeError("Catalog assembly requires an assembler fingerprint.");
-  for (const key of ["identityResults", "entities", "scenes", "mapSpaces", "bindings", "placements", "sources", "roles", "regions", "conditions", "spawnCandidates", "merchantTables", "merchantBindings", "merchantStock", "lootTables", "lootBindings", "lootEntries", "linkedNpcRules", "resourceYields", "questAssociations", "transitions", "itemSources", "blockers", "exclusions"] as const) {
+  for (const key of ["identityResults", "entities", "scenes", "mapSpaces", "bindings", "placements", "sources", "roles", "regions", "conditions", "spawnCandidates", "merchantTables", "merchantBindings", "merchantStock", "lootTables", "lootBindings", "lootEntries", "linkedNpcRules", "resourceYields", "questAssociations", "transitions", "itemSources", "blockers", "coverageOccurrences", "exclusions"] as const) {
     if (!Array.isArray(input.normalized[key])) throw new TypeError(`Catalog assembly requires normalized.${key} to be an array.`);
   }
   const seen = new Set<string>();
@@ -100,6 +100,13 @@ export async function assembleCatalog(store: ArtifactStore, destination: string,
       kind: source.kind,
       ref: { path: store.objectPath(source.identity.sha256), sha256: source.identity.sha256 },
     })));
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run(
+      catalogId,
+      input.normalized.buildId,
+      input.identity.schemaVersion,
+      canonicalJson(input.identity.settings),
+      input.identity.assemblerFingerprint,
+    );
     const violations = db.query("PRAGMA foreign_key_check").all();
     if (violations.length > 0) throw new Error(`Catalog candidate has ${violations.length} foreign-key violations.`);
     const counts = databaseCounts(db);

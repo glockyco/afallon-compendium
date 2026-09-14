@@ -51,10 +51,10 @@
 - [x] 6.2 Implement stable issue and occurrence identities that exclude diagnostic wording; verify repeated evidence creates one issue with multiple occurrences and distinct semantic subjects remain separate.
 - [x] 6.3 Implement transactional catalog assembly from validated artifact references in deterministic input and row order; verify malformed input, reference failure, and identity collision roll back the complete candidate.
 - [x] 6.4 Implement logical catalog identity and independent SQLite object hashing; verify equivalent inputs produce the same logical identity and any build, schema, setting, input, or assembler change produces a different identity.
-- [ ] 6.5 Migrate canonical entities, sources, placements, observations, roles, conditions, relationships, spatial registration, exclusions, and provenance into the new schema; verify sampled rows and provenance chains match the parity manifest.
-- [ ] 6.6 Implement release and preview gates against distinct unresolved issues, occurrences, exclusions, build identity, references, and spatial bounds; verify repeated occurrences do not inflate blocker counts and preview cannot satisfy release.
-- [ ] 6.7 Implement deterministic read-only catalog queries for maps, search summaries, entity details, item sources, imagery metadata, and coverage; verify repeated queries return stable ordering and exact catalog identity.
-- [ ] 6.8 Assemble the frozen build with old and new paths, compare identities, relations, exclusions, issue semantics, and gate decisions, and record every justified difference; verify no unexplained parity difference remains.
+- [x] 6.5 Migrate canonical entities, sources, placements, observations, roles, conditions, relationships, spatial registration, exclusions, and provenance into the new schema; verify sampled rows and provenance chains match the parity manifest.
+- [x] 6.6 Implement release and preview gates against distinct unresolved issues, occurrences, exclusions, build identity, references, and spatial bounds; verify repeated occurrences do not inflate blocker counts and preview cannot satisfy release.
+- [x] 6.7 Implement deterministic read-only catalog queries for maps, search summaries, entity details, item sources, imagery metadata, and coverage; verify repeated queries return stable ordering and exact catalog identity.
+- [x] 6.8 Assemble the frozen build with old and new paths, compare identities, relations, exclusions, issue semantics, and gate decisions, and record every justified difference; verify no unexplained parity difference remains.
 
 ## 7. Static Publication
 

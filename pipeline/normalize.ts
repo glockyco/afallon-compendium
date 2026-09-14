@@ -13,7 +13,7 @@ import { CoverageLedgerSchema, type CoverageLedger } from "@afallon/contracts";
 import type { SpatialResolution } from "@afallon/contracts"
 import type { NormalizedOutput, NormalizationPlan, ArtifactReference, NormalizedCondition, NormalizedDatabaseInput, NormalizedEntity, NormalizedItemSources, NormalizedMapProjection, NormalizedPlacement, NormalizedRegion, NormalizedRegionGeometry, NormalizedPatrolPath, NormalizedSource, NormalizedSpawnCandidate, EntityDetail, CategoryMetadata, NormalizedCoverageSummary, SceneSnapshotReference } from "@afallon/contracts/catalog"
 import { assertNormalizationPlan, entityKey, publicEntityDetails, stableJson } from "@afallon/contracts/catalog"
-import { databaseCounts, hashRelation, identitySnapshotId, openNormalizedDatabase, populateNormalizedDatabase } from "@afallon/catalog";
+import { catalogLogicalIdentity, databaseCounts, hashRelation, identitySnapshotId, openNormalizedDatabase, populateNormalizedDatabase } from "@afallon/catalog";
 
 type JsonRecord = Record<string, unknown>;
 type JsonArray = unknown[];
@@ -1022,9 +1022,22 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     const value = decodeContract(CoverageLedgerSchema, source.value, { objectId: source.reference.sha256, target: source.key });
     return [{ ...source, value }];
   });
-  for (const source of coverageSources) for (const diagnostic of source.value.diagnostics) {
+  const coverageOccurrences: NormalizedDatabaseInput["coverageOccurrences"] = [];
+  for (const source of coverageSources) for (const [diagnosticIndex, diagnostic] of source.value.diagnostics.entries()) {
     if (diagnostic.category === "unset") continue;
-    blockers.push({ kind: `source-coverage-${diagnostic.category}`, key: `${source.reference.sha256}:${diagnostic.sourceKey}:${diagnostic.issueType}`, detail: diagnostic.details.map((row: { detail: string }) => row.detail).join("; "), provenance: [source.reference] });
+    const kind = `source-coverage-${diagnostic.category}`;
+    const subjectKey = `${diagnostic.sourceKey}:${diagnostic.issueType}`;
+    blockers.push({ kind, key: subjectKey, detail: diagnostic.details.map((row: { detail: string }) => row.detail).join("; "), provenance: [source.reference] });
+    const recordPaths = diagnostic.sourceEntryIds.length > 0 ? diagnostic.sourceEntryIds : [`diagnostics/${diagnosticIndex}`];
+    for (const recordPath of recordPaths) coverageOccurrences.push({
+      kind,
+      subjectKey,
+      semanticDiscriminator: "",
+      artifactHash: source.reference.sha256,
+      sourceKey: diagnostic.sourceKey,
+      recordPath,
+      evidence: { category: diagnostic.category, issueType: diagnostic.issueType, details: diagnostic.details, evidence: diagnostic.evidence },
+    });
   }
   const inputCoverage = { discoveryClosed: false, ledgers: coverageSources.map((source) => ({ reference: source.reference, runId: source.value.runId, discoveryClosed: source.value.discoveryClosed, summary: source.value.summary })) };
   const coverage = coverageSummary(plan.buildId, planRef, profile.reference, sourceFiles.map((source) => source.reference), blockers, exclusions, inputCoverage);
@@ -1034,21 +1047,32 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
   const reviewedScenes = profileData.bindings.map((binding) => ({ nativeId: binding.sceneNativeId, path: binding.scenePath, name: binding.scenePath.split("/").pop()?.replace(/\.unity$/, "") ?? null }));
   const reviewedSceneIds = new Set(reviewedScenes.map((scene) => scene.nativeId));
   const identityResults = [...new Map(sceneData.contexts.map((context) => [context.snapshotId, { runId: context.snapshotRunId, snapshotId: context.snapshotId, snapshotPrefix: context.snapshotPrefix, snapshotSha256: context.snapshotReference.sha256, character: context.character, sceneHandle: context.sceneHandle, result: context.identityResult }])).values()];
-  const input: NormalizedDatabaseInput = { buildId: plan.buildId, identityResults, entities: canonicalData.entities, scenes: [...reviewedScenes, ...canonicalData.scenes.filter((scene) => !reviewedSceneIds.has(scene.nativeId))], mapSpaces: profileData.mapSpaces, bindings: profileData.bindings, placements: mapPlacements, sources: placementData.sources, roles: placementData.roles, regions: normalizedRegions, conditions, spawnCandidates: npcRows.candidates, merchantTables: relationData.merchantTables, lootTables: relationData.lootTables, merchantBindings: relationData.merchantBindings, merchantStock: relationData.merchantStock, lootBindings: relationData.lootBindings, lootEntries: relationData.lootEntries, linkedNpcRules: linkedRules, resourceYields: [...relationData.resourceYields, ...worldData.resourceYields], questAssociations: [...relationData.questAssociations, ...worldData.questAssociations], transitions: worldData.transitions, itemSources, blockers: coverage.blockers, exclusions: coverage.exclusions, inputCoverage, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
+  const input: NormalizedDatabaseInput = { buildId: plan.buildId, identityResults, entities: canonicalData.entities, scenes: [...reviewedScenes, ...canonicalData.scenes.filter((scene) => !reviewedSceneIds.has(scene.nativeId))], mapSpaces: profileData.mapSpaces, bindings: profileData.bindings, placements: mapPlacements, sources: placementData.sources, roles: placementData.roles, regions: normalizedRegions, conditions, spawnCandidates: npcRows.candidates, merchantTables: relationData.merchantTables, lootTables: relationData.lootTables, merchantBindings: relationData.merchantBindings, merchantStock: relationData.merchantStock, lootBindings: relationData.lootBindings, lootEntries: relationData.lootEntries, linkedNpcRules: linkedRules, resourceYields: [...relationData.resourceYields, ...worldData.resourceYields], questAssociations: [...relationData.questAssociations, ...worldData.questAssociations], transitions: worldData.transitions, itemSources, blockers: coverage.blockers, coverageOccurrences, exclusions: coverage.exclusions, inputCoverage, provenance: { plan: planRef, profile: profile.reference, sources: sourceFiles.map((source) => source.reference) } };
   const implementationHashes = {
     "tool:pipeline-normalize": await fileHash(path.resolve(import.meta.dir, "normalize.ts")),
     "tool:catalog-database": await fileHash(path.resolve(import.meta.dir, "../packages/catalog/src/database.ts")),
     "tool:catalog-identity-store": await fileHash(path.resolve(import.meta.dir, "../packages/catalog/src/identity-store.ts")),
     "tool:pipeline-contracts": await fileHash(path.resolve(import.meta.dir, "../packages/contracts/src/catalog/query.ts")),
-    "tool:map-spaces": await fileHash(path.resolve(import.meta.dir, "../tools/map-spaces.ts")),
-    "tool:spatial-extraction": await fileHash(path.resolve(import.meta.dir, "../tools/spatial-extraction.ts")),
+    "tool:map-spaces": await fileHash(path.resolve(import.meta.dir, "../packages/capture/src/map-spaces.ts")),
+    "tool:spatial-extraction": await fileHash(path.resolve(import.meta.dir, "../packages/capture/src/spatial-extraction.ts")),
     "tool:spatial-map-contract": await fileHash(path.resolve(import.meta.dir, "../packages/contracts/src/spatial/map.ts")),
     "tool:build": await fileHash(path.resolve(import.meta.dir, "../tools/build.ts")),
-    "tool:run-reader": await fileHash(path.resolve(import.meta.dir, "../tools/runs.ts")),
+    "tool:run-reader": await fileHash(path.resolve(import.meta.dir, "../packages/capture/src/runs.ts")),
     "tool:cli": await fileHash(path.resolve(import.meta.dir, "../tools/cli.ts")),
     "package": await fileHash(path.resolve(import.meta.dir, "../package.json")),
     "lockfile": await fileHash(path.resolve(import.meta.dir, "../bun.lock")),
   };
+  const assemblerFingerprint = createHash("sha256").update(stableJson(implementationHashes)).digest("hex");
+  const catalogId = catalogLogicalIdentity({
+    buildId: plan.buildId,
+    schemaVersion: "compendium.catalog.v1",
+    settings: { planSchemaVersion: plan.schemaVersion },
+    inputs: Object.fromEntries([
+      ["plan", { sha256: planRef.sha256, bytes: planBytes.byteLength }],
+      ...sourceFiles.map((source) => [`${source.kind}:${source.reference.path}:${source.reference.sha256}`, { sha256: source.reference.sha256, bytes: source.bytes.byteLength }] as const),
+    ]),
+    assemblerFingerprint,
+  });
   const run = await beginRun(outputRoot, { buildId: plan.buildId, toolRevision: await toolRevision(), command: "normalize", settings: { planPath: path.basename(absolutePlan), planSchemaVersion: plan.schemaVersion }, inputHashes: { ...Object.fromEntries(sourceFiles.map((source) => [source.key, source.reference.sha256])), plan: planRef.sha256, mapSpaceProfile: profile.reference.sha256, sceneCatalog: topLevel.get("sceneCatalog")!.reference.sha256, ...implementationHashes } });
   try {
     const inputsDirectory = path.join(run.directory, "inputs");
@@ -1066,6 +1090,7 @@ export async function normalize(planPath: string, outputRoot: string): Promise<N
     const databasePath = path.join(run.directory, "normalized.sqlite");
     const db = openNormalizedDatabase(databasePath);
     populateNormalizedDatabase(db, input, sourceFiles.map((source) => ({ key: source.key, kind: source.kind, ref: source.reference })));
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run(catalogId, plan.buildId, "compendium.catalog.v1", stableJson({ planSchemaVersion: plan.schemaVersion }), assemblerFingerprint);
     const counts = databaseCounts(db);
     db.close();
     const categories: CategoryMetadata[] = categoryData(mapPlacements, placementData.roles);

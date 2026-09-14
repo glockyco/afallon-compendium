@@ -1,0 +1,166 @@
+{
+  "schemaVersion": "compendium.architecture-parity.v1",
+  "buildId": "25153357",
+  "recordedAt": "2026-09-14T00:00:00.000Z",
+  "source": "latest successful local artifacts selected before rebuild-project-architecture",
+  "runs": {
+    "extract": {
+      "runId": "1b0a696b-b55c-40e6-ab0c-cb21bba4c944",
+      "manifestPath": "1b0a696b-b55c-40e6-ab0c-cb21bba4c944/manifest.json",
+      "manifestSha256": "ccd08fc044eff2da0ca65f69c6abca59a1f103e1ea563b8b36a513a5ca178e77",
+      "artifactCount": 38,
+      "verifiedArtifactCount": 38,
+      "verifiedBytes": 218813776
+    },
+    "traverse": {
+      "runId": "84c475a5-c86b-4117-acde-e2a8eb64e885",
+      "manifestPath": "84c475a5-c86b-4117-acde-e2a8eb64e885/manifest.json",
+      "manifestSha256": "7204d928194914bf08d002c5595e9f22d5f53413026bd3831455eb7c09ec8494",
+      "artifactCount": 179,
+      "verifiedArtifactCount": 179,
+      "verifiedBytes": 235527504
+    },
+    "normalize": {
+      "runId": "b43ebc1c-efce-4d4e-b79d-de0feebcd904",
+      "manifestPath": "b43ebc1c-efce-4d4e-b79d-de0feebcd904/manifest.json",
+      "manifestSha256": "32af7cac5f4547f0d6608d1c716b75a7fd46d5acb23202234ee31ca1125f4c6c",
+      "artifactCount": 15,
+      "verifiedArtifactCount": 15,
+      "verifiedBytes": 535624016
+    },
+    "tiles": {
+      "runId": "44383d44-b691-4daa-abf8-0b366edb6e54",
+      "manifestPath": "44383d44-b691-4daa-abf8-0b366edb6e54/manifest.json",
+      "manifestSha256": "81ee5b95116c289892347b9ea998384d2d30b2e3f511fc6331436773c8bba763",
+      "artifactCount": 772,
+      "verifiedArtifactCount": 772,
+      "verifiedBytes": 56446464
+    },
+    "publication": {
+      "runId": "ed647f74-8e33-41ab-9895-097432463057",
+      "manifestPath": "ed647f74-8e33-41ab-9895-097432463057/manifest.json",
+      "manifestSha256": "8bb77eaf59a4f1c9a6b365b1561c9b31c6075e8f696b57c8fb989fcbe080e991",
+      "artifactCount": 7683,
+      "verifiedArtifactCount": 7683,
+      "verifiedBytes": 98011801
+    }
+  },
+  "catalog": {
+    "databasePath": "b43ebc1c-efce-4d4e-b79d-de0feebcd904/normalized.sqlite",
+    "counts": {
+      "canonical_entities": 2057,
+      "conditions": 3732,
+      "identity_runs": 30,
+      "identity_scenes": 40,
+      "item_sources": 23967,
+      "linked_npc_rules": 357,
+      "loot_bindings": 232,
+      "loot_entries": 1213,
+      "loot_tables": 208,
+      "map_space_bindings": 31,
+      "map_spaces": 21,
+      "merchant_bindings": 157,
+      "merchant_stock": 368,
+      "merchant_tables": 47,
+      "normalized_builds": 1,
+      "placement_identities": 7172,
+      "placement_roles": 9444,
+      "placement_sources": 8232,
+      "placements": 7172,
+      "quest_associations": 881,
+      "regions": 161,
+      "resource_ranks": 0,
+      "resource_yields": 17344,
+      "source_identities": 8122,
+      "source_manifests": 222,
+      "source_observations": 10236,
+      "spawn_candidates": 1652,
+      "transitions": 5,
+      "unresolved_coverage": 15384
+    },
+    "projectionBytes": {
+      "category-metadata.json": 794433,
+      "coverage-summary.json": 8334702,
+      "entity-details.json": 46952879,
+      "item-sources.json": 49724407,
+      "map-projections.json": 327087280
+    }
+  },
+  "publication": {
+    "schemaVersion": "compendium.publication.v12",
+    "mode": "preview",
+    "publicationJsonSha256": "7807526bbed97b2f473d262fddd2d2bb00727cd8c735c8638f50431d9866220b",
+    "publicationJsonBytes": 4844373,
+    "complete": false,
+    "excludedPlacements": 3291,
+    "unplacedMapSpaceIds": [
+      "ice-cave-1-chillwind",
+      "tutorial-cave"
+    ],
+    "counts": {
+      "maps": 19,
+      "placements": 3763,
+      "regions": 61,
+      "entities": 2057,
+      "items": 1076,
+      "tileLayers": 20
+    }
+  },
+  "samples": {
+    "entityKeys": [
+      "currencies:0",
+      "currencies:1",
+      "items:0",
+      "items:1",
+      "items:10"
+    ],
+    "placementIds": [
+      "00161cbed3eab11b8a33c93382985fc3b4ee6261bfad8ffb1324a8e576452d73",
+      "001a55edbf468903a468097bc24b7b093cc38efd5aa4315d3ffdff923931ba31",
+      "001bbf0b77afc390434915a1de44af336703ff8008912f11b122cbf0cc8833f6",
+      "0025aeef9475beb1d4c7e71dee2aa5f648046fd2ed8d416170d0ef1d7b680469",
+      "002e8aa813f33d6254c3dc556586bd3f396cc1f8c7ad5a07e47a9be781c83a46"
+    ],
+    "coverageBlockerIds": [
+      "00061717ff1944f61fc531b9334a3e3505b8f4755d2ca3bd1f5d80b0b20234f1",
+      "0008b87671e154b1473f5950262e6ff57be5138e477f7d35e65fd3376b416433",
+      "000ce49a83a76721ef33dc9c792c803c2ed3896219fbe027b385ff9badbb719e",
+      "000f32ee4c8327485460e96f73ba56680fda0b6f453a5c13ee2046ed49948544",
+      "00100708c82cb053da7bc13a6c6e5666b9d5358cf1090ca74a702f8ca57ec3d7"
+    ]
+  },
+  "catalogParity": {
+    "runId": "5275bd55-7631-4f9f-99ab-6fb0c7e75310",
+    "catalogId": "c3497eb21cf673c664659ae5261f875a9452e18f99879f4071891c10df84b948",
+    "sqliteSha256": "64742c364069907d5cb8cbada5242dd95341166ce1e1692af9a652558261e234",
+    "sqliteBytes": 115699712,
+    "unchangedFactTables": true,
+    "sampledEntityIdentitiesMatch": true,
+    "sampledPlacementIdentitiesMatch": true,
+    "sampledProvenancePresent": true,
+    "foreignKeyViolations": 0,
+    "coverage": {
+      "legacyBlockerOccurrences": 15384,
+      "distinctUnresolvedIssues": 11969,
+      "occurrences": 15384,
+      "exclusions": 118
+    },
+    "gates": {
+      "previewAccepted": true,
+      "releaseAccepted": false
+    },
+    "justifiedDifferences": [
+      "Coverage identities exclude artifact hashes and diagnostic wording, so repeated semantic subjects collapse from 15384 blocker occurrences to 11969 distinct unresolved issues.",
+      "The catalog retains all 15384 evidence occurrences separately.",
+      "Reviewed exclusions are first-class catalog rows instead of projection-only records."
+    ]
+  },
+  "expectedDifferences": [
+    "Coverage blockers become distinct issues with separately counted occurrences.",
+    "Static filenames and resource grouping change to content-addressed shards.",
+    "The extract and traverse commands are replaced by scan.",
+    "Copied run inputs and normalized projection documents are removed.",
+    "Deprecated URL parameter aliases are removed.",
+    "Game-provided imagery remains the default and captured terrain remains opt-in."
+  ]
+}

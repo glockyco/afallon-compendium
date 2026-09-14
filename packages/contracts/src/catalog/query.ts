@@ -296,6 +296,15 @@ export interface NormalizedDatabaseInput {
   transitions: Array<Record<string, unknown>>;
   itemSources: ItemSource[];
   blockers: NormalizedCoverageSummary["blockers"];
+  coverageOccurrences: Array<{
+    kind: string;
+    subjectKey: string;
+    semanticDiscriminator: string;
+    artifactHash: string;
+    sourceKey: string;
+    recordPath: string;
+    evidence: unknown;
+  }>;
   exclusions: NormalizedCoverageSummary["exclusions"];
   inputCoverage: unknown | null;
   provenance: { plan: ArtifactReference; profile: ArtifactReference; sources: ArtifactReference[] };

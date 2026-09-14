@@ -17,7 +17,7 @@ test("rejects unset table identities without partially adding definitions", asyn
       placements: [], sources: [], roles: [], regions: [], conditions: [], spawnCandidates: [],
       merchantTables: [{ nativeId: 7, name: "Existing stock" }], merchantBindings: [], merchantStock: [],
       lootTables: [{ nativeId: 11, levelBandGear: false }], lootBindings: [], lootEntries: [], linkedNpcRules: [],
-      resourceYields: [], questAssociations: [], transitions: [], itemSources: [], blockers: [], exclusions: [], inputCoverage: null,
+      resourceYields: [], questAssociations: [], transitions: [], itemSources: [], blockers: [], coverageOccurrences: [], exclusions: [], inputCoverage: null,
       provenance: { plan: reference, profile: reference, sources: [] },
     };
     populateNormalizedDatabase(db, input, []);
@@ -52,7 +52,7 @@ test("stores SQL NULL for a region without a map space", async () => {
       }],
       conditions: [], spawnCandidates: [], merchantTables: [], merchantBindings: [], merchantStock: [],
       lootTables: [], lootBindings: [], lootEntries: [], linkedNpcRules: [], resourceYields: [],
-      questAssociations: [], transitions: [], itemSources: [], blockers: [], exclusions: [], inputCoverage: null,
+      questAssociations: [], transitions: [], itemSources: [], blockers: [], coverageOccurrences: [], exclusions: [], inputCoverage: null,
       provenance: { plan: reference, profile: reference, sources: [] },
     };
 

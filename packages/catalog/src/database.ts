@@ -23,6 +23,13 @@ export function openNormalizedDatabase(path: string): Database {
         schema_version TEXT NOT NULL,
         provenance_json TEXT NOT NULL
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS catalog_metadata (
+        catalog_id TEXT PRIMARY KEY NOT NULL CHECK(length(catalog_id) = 64),
+        build_id TEXT NOT NULL UNIQUE REFERENCES normalized_builds(build_id),
+        schema_version TEXT NOT NULL,
+        settings_json TEXT NOT NULL,
+        assembler_fingerprint TEXT NOT NULL CHECK(length(assembler_fingerprint) = 64)
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS source_manifests (
         source_key TEXT PRIMARY KEY NOT NULL,
         kind TEXT NOT NULL,
@@ -286,6 +293,18 @@ export function openNormalizedDatabase(path: string): Database {
         probability_json TEXT NOT NULL CHECK(probability_json = 'null'),
         PRIMARY KEY(item_entity_key, source_kind, source_key)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS imagery_assets (
+        asset_id TEXT PRIMARY KEY NOT NULL,
+        build_id TEXT NOT NULL REFERENCES normalized_builds(build_id),
+        map_space_id TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK(kind IN ('game-map', 'captured')),
+        sha256 TEXT NOT NULL CHECK(length(sha256) = 64),
+        bytes INTEGER NOT NULL CHECK(bytes >= 0),
+        metadata_json TEXT NOT NULL,
+        provenance_json TEXT NOT NULL,
+        UNIQUE(build_id, map_space_id, kind, asset_id),
+        FOREIGN KEY(build_id, map_space_id) REFERENCES map_spaces
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS coverage_exclusions (
         exclusion_id TEXT PRIMARY KEY NOT NULL CHECK(length(exclusion_id) = 64),
         build_id TEXT NOT NULL REFERENCES normalized_builds(build_id),
@@ -506,7 +525,21 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
       ["exclusion_id", "build_id", "kind", "subject_key", "detail", "map_space_ids_json", "provenance_json"],
       [hash([input.buildId, exclusion.kind, exclusion.key]), input.buildId, exclusion.kind, exclusion.key, exclusion.detail, json([...exclusion.mapSpaceIds].sort()), json(exclusion.provenance)],
     );
+    const occurrenceIssues = new Set(input.coverageOccurrences.map((occurrence) => `${occurrence.kind}\0${occurrence.subjectKey}\0${occurrence.semanticDiscriminator}`));
+    for (const occurrence of input.coverageOccurrences) recordCoverageIssue(db, {
+      buildId: input.buildId,
+      kind: occurrence.kind,
+      subjectKey: occurrence.subjectKey,
+      semanticDiscriminator: occurrence.semanticDiscriminator,
+      state: "unresolved",
+      runId: input.buildId,
+      artifactHash: occurrence.artifactHash,
+      sourceKey: occurrence.sourceKey,
+      recordPath: occurrence.recordPath,
+      evidence: occurrence.evidence,
+    });
     for (const blocker of input.blockers) {
+      if (occurrenceIssues.has(`${blocker.kind}\0${blocker.key}\0`)) continue;
       const provenance = blocker.provenance[0];
       recordCoverageIssue(db, {
         buildId: input.buildId,
