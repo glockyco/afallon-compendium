@@ -5,6 +5,7 @@ import {
   RuntimeScanStateSchema,
   ScanTargetEnvelopeSchema,
   type RuntimeScanState,
+  type ScanBuildSceneTarget,
   type ScanTarget,
   type ScanTargetEnvelope,
 } from "@afallon/contracts";
@@ -26,6 +27,10 @@ export class RuntimeProbeStateReader implements ScanStateReader {
   }
 }
 
+export interface BuildSceneVisitor {
+  visit(sceneNativeId: number, outputDirectory: string, collect: () => Promise<void>): Promise<void>;
+}
+
 export interface ScanStateMachineOptions {
   readonly buildId: string;
   readonly character: string;
@@ -42,7 +47,11 @@ export class ScanStateMachine {
     return this.execute({ kind: "current-scene" }, targetIndex, async () => {});
   }
 
-  protected async execute(target: ScanTarget, targetIndex: number, operation: () => Promise<void>): Promise<ScanTargetEnvelope> {
+  scanBuildScene(target: ScanBuildSceneTarget, targetIndex: number, visitor: BuildSceneVisitor, collect: () => Promise<void> = async () => {}): Promise<ScanTargetEnvelope> {
+    return this.execute(target, targetIndex, directory => visitor.visit(target.sceneNativeId, directory, collect));
+  }
+
+  protected async execute(target: ScanTarget, targetIndex: number, operation: (directory: string) => Promise<void>): Promise<ScanTargetEnvelope> {
     if (this.#active) throw new Error("The scan state machine is already processing a target.");
     this.#active = true;
     const directory = resolve(this.options.outputDirectory, `target-${targetIndex}`);
@@ -54,7 +63,7 @@ export class ScanStateMachine {
     try {
       started = await this.options.stateReader.read(resolve(directory, "state-started.json"));
       if (started.character !== this.options.character) throw new Error(`Loaded character ${JSON.stringify(started.character)} does not match ${JSON.stringify(this.options.character)}.`);
-      await operation();
+      await operation(directory);
       completed = await this.options.stateReader.read(resolve(directory, "state-completed.json"));
       assertRestored(started, completed);
     } catch (error) {

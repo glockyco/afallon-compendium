@@ -41,6 +41,27 @@ test("current-scene scan emits a common envelope without changing runtime state"
   }
 });
 
+test("build-scene targets use the shared envelope after restoration", async () => {
+  const root = await mkdtemp(join(tmpdir(), "afallon-build-scan-"));
+  try {
+    let visited = false;
+    const visitor = {
+      async visit(sceneNativeId: number, _outputDirectory: string, collect: () => Promise<void>): Promise<void> {
+        expect(sceneNativeId).toBe(7);
+        visited = true;
+        await collect();
+      },
+    };
+    const scanner = new ScanStateMachine({ buildId: "25153357", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: 120 }]) });
+    const envelope = await scanner.scanBuildScene({ kind: "build-scene", sceneNativeId: 7 }, 2, visitor);
+    expect(visited).toBe(true);
+    expect(envelope.targetIdentity).toBe("build-scene:7");
+    expect(envelope.outcome).toBe("succeeded");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("state mismatch makes the target fail with restoration evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "afallon-current-scan-failure-"));
   try {

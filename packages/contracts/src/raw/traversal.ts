@@ -27,18 +27,21 @@ export const TraversalPlanSchema = Type.Object({
 });
 export type TraversalPlan = Static<typeof TraversalPlanSchema>;
 
-const ScanCurrentSceneTargetSchema = Type.Object({
+export const ScanCurrentSceneTargetSchema = Type.Object({
   kind: Type.Literal("current-scene"),
 }, { additionalProperties: false });
-const ScanBuildSceneTargetSchema = Type.Object({
+export type ScanCurrentSceneTarget = Static<typeof ScanCurrentSceneTargetSchema>;
+export const ScanBuildSceneTargetSchema = Type.Object({
   kind: Type.Literal("build-scene"),
   sceneNativeId: count,
 }, { additionalProperties: false });
-const ScanStreamedSourceTargetSchema = Type.Object({
+export type ScanBuildSceneTarget = Static<typeof ScanBuildSceneTargetSchema>;
+export const ScanStreamedSourceTargetSchema = Type.Object({
   kind: Type.Literal("streamed-source"),
   sceneNativeId: count,
   sourceKey: text,
 }, { additionalProperties: false });
+export type ScanStreamedSourceTarget = Static<typeof ScanStreamedSourceTargetSchema>;
 export const ScanTargetSchema = Type.Union([ScanCurrentSceneTargetSchema, ScanBuildSceneTargetSchema, ScanStreamedSourceTargetSchema]);
 export type ScanTarget = Static<typeof ScanTargetSchema>;
 export const ScanPlanSchema = Type.Object({
