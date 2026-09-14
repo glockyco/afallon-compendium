@@ -6,7 +6,7 @@ import { buildIdentity, hashFile, toolRevision } from "./build";
 import { loadConfig } from "./config";
 import { extract } from "./extract";
 import { beginRun } from "./runs";
-import { withRuntime } from "./runtime";
+import { withRuntime } from "@afallon/runtime";
 import { traverse } from "./traversal";
 import { capture } from "./capture";
 import type { CapturePlan } from "@afallon/contracts"
@@ -100,13 +100,16 @@ async function main() {
     if (command === "probe-check") {
       const probeDirectory = resolve(import.meta.dir, "probes");
       const entries = await readdir(probeDirectory, { withFileTypes: true });
-      const sources = entries.filter(entry => entry.isFile() && entry.name.endsWith(".csx")).sort((left, right) => left.name.localeCompare(right.name));
+      const sources = [
+        ...entries.filter(entry => entry.isFile() && entry.name.endsWith(".csx")).map(entry => ({ name: entry.name, path: resolve(probeDirectory, entry.name) })),
+        { name: "runtime-owner.csx", path: resolve(import.meta.dir, "../packages/runtime/src/probes/runtime-owner.csx") },
+      ].sort((left, right) => left.name.localeCompare(right.name));
       const conditions = resolve(probeDirectory, "conditions.csx");
       const captureVisuals = resolve(probeDirectory, "capture-visuals.csx");
       const results: { name: string; error?: string }[] = [];
       const started = performance.now();
       for (const entry of sources) {
-        const source = resolve(probeDirectory, entry.name);
+        const source = entry.path;
         const stem = entry.name.slice(0, -4);
         const prelude = ["relationships", "npc-producers", "world-sources"].includes(stem) ? conditions
           : ["capture-geometry", "capture-session"].includes(stem) ? captureVisuals
@@ -146,7 +149,7 @@ async function main() {
     const source = command === "probe" ? resolve(values.probe!) : resolve(import.meta.dir, "probes/inspect.csx");
     const run = await beginRun(config.outputRoot, {
       ...identity,
-      inputHashes: { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, "tool:runtime": await hashFile(resolve(import.meta.dir, "runtime.ts")), probe: await hashFile(source), ...(preludeFile ? { prelude: await hashFile(preludeFile) } : {}) },
+      inputHashes: { ...identity.inputHashes, "runtime-owner": runtime.ownerSourceHash, "tool:runtime": await hashFile(resolve(import.meta.dir, "../packages/runtime/src/runtime.ts")), probe: await hashFile(source), ...(preludeFile ? { prelude: await hashFile(preludeFile) } : {}) },
       toolRevision: await toolRevision(),
       command,
       settings: { character: config.character, endpoint: config.hotreplUrl, timeoutMs: config.timeoutMs, runtimeOwnerToken: runtime.ownerToken },

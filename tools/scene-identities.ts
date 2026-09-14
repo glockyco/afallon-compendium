@@ -11,7 +11,7 @@ type PlacementIdentityResult,
 type PlacementSnapshot,
 type SceneSourceIssues,
 type SerializedAssetIndex, } from "@afallon/contracts"
-import type { Runtime } from "./runtime";
+import type { Runtime } from "@afallon/runtime";
 import { mkdir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep, win32 } from "node:path";
 

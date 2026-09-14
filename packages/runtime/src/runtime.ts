@@ -2,12 +2,11 @@ import { Artifact, connect, HotReplError, type Session } from "@hotrepl/sdk";
 import type { ArtifactRef, EvalErrorMessage, EvalResultMessage } from "@hotrepl/protocol";
 import { Database } from "bun:sqlite";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep, win32 } from "node:path";
 import { Assert } from "typebox/value";
 import { RuntimeCleanupReceiptSchema, type CompendiumConfig, type RuntimeCleanupReceipt } from "@afallon/contracts";
-import { toHostPath, toRuntimePath } from "./config";
 
 async function deadline<T>(operation: Promise<T>, milliseconds: number, expire: () => void): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
@@ -369,6 +368,28 @@ export class Runtime {
     const value = await readRuntimeArtifact(this.config, reference);
     return { reference, value: JSON.parse(new TextDecoder().decode(value)), observationContext: reference.observationContext };
   }
+}
+
+export async function toRuntimePath(config: CompendiumConfig, hostFile: string): Promise<string> {
+  const parent = await realpath(dirname(resolve(hostFile)));
+  const target = resolve(parent, hostFile.split(sep).at(-1)!);
+  if (!isWithin(config.outputRoot, target)) throw new Error("Artifact path escapes outputRoot.");
+  return `${config.runtimeOutputRoot}/${relative(config.outputRoot, target).split(sep).join("/")}`;
+}
+
+export async function toHostPath(config: CompendiumConfig, runtimeFile: string): Promise<string> {
+  const suffix = win32.relative(config.runtimeOutputRoot, runtimeFile);
+  if (!suffix || win32.isAbsolute(suffix) || suffix === ".." || suffix.startsWith("..\\")) {
+    throw new Error("Runtime artifact path escapes runtimeOutputRoot.");
+  }
+  const target = await realpath(resolve(config.outputRoot, ...suffix.split("\\")));
+  if (!isWithin(config.outputRoot, target)) throw new Error("Artifact symlink escapes outputRoot.");
+  return target;
+}
+
+function isWithin(root: string, candidate: string): boolean {
+  const suffix = relative(root, candidate);
+  return suffix === "" || (!isAbsolute(suffix) && suffix !== ".." && !suffix.startsWith(`..${sep}`));
 }
 
 export async function readRuntimeArtifact(config: CompendiumConfig, reference: ArtifactRef): Promise<Uint8Array> {

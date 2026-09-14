@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@afallon/contracts": "workspace:*",
+    "@afallon/runtime": "workspace:*",
     "@hotrepl/protocol": "4.0.1",
     "@hotrepl/sdk": "4.0.1",
     "sharp": "0.35.4",

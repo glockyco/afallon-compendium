@@ -5,13 +5,12 @@ import { Assert } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { buildIdentity, hashFile, toolRevision } from "./build";
 import type { CompendiumConfig } from "@afallon/contracts";
-import { toRuntimePath } from "./config";
+import { toRuntimePath, type Runtime } from "@afallon/runtime";
 import { CanonicalSchema, FactionRolesSchema, SupportSchema, RelationshipsSchema, ObservationContextSchema, validateCanonicalIdentityAndCounts } from "@afallon/contracts";
 import { createCoverageLedger, type CoverageInput } from "./coverage";
 import { NpcProducersSchema, validateNpcProducers } from "@afallon/contracts"
 import { PlacementSnapshotSchema, type PlacementSnapshot } from "@afallon/contracts"
 import { beginRun } from "./runs";
-import type { Runtime } from "./runtime";
 import { SceneVisitSchema, StreamVisitSchema, StreamCleanupSchema, TraversalPlanSchema, type TraversalPlan } from "@afallon/contracts"
 import { WorldInventorySchema } from "@afallon/contracts";
 import { WorldSourcesSchema } from "@afallon/contracts";

@@ -20,7 +20,7 @@ import { collectSceneCatalog, fitNativeMapRegistration, validateSceneGeometry } 
 import { createCoverageLedger } from "./coverage";
 import { loadSpatialProfile, collectSpatialSnapshot } from "./spatial-extraction";
 import { beginRun } from "./runs";
-import type { Runtime } from "./runtime";
+import type { Runtime } from "@afallon/runtime";
 
 function parseArtifact<T extends TSchema>(schema: T, value: unknown): Static<T> {
   try {

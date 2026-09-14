@@ -6,7 +6,7 @@ import type { Static, TSchema } from "typebox";
 import { isDeepStrictEqual } from "node:util";
 import { buildIdentity, hashFile, toolRevision } from "./build";
 import type { CompendiumConfig } from "@afallon/contracts";
-import { toRuntimePath } from "./config";
+import { toRuntimePath, type Runtime } from "@afallon/runtime";
 import { CaptureCleanupSchema,
 CapturePlanSchema,
 CaptureRasterSchema,
@@ -29,7 +29,6 @@ import { collectSceneCatalog } from "./map-calibration";
 import { compileMapSpaces } from "./map-spaces";
 import type { ArtifactRecord } from "@afallon/contracts";
 import { beginRun, type Run } from "./runs";
-import type { Runtime } from "./runtime";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "@afallon/contracts"
 import { WorldInventorySchema, type WorldInventory } from "@afallon/contracts"

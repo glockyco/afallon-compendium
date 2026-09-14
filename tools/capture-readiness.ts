@@ -9,14 +9,13 @@ type CaptureGeometry,
 type CapturePlan,
 type CaptureReadiness, } from "@afallon/contracts"
 import type { CompendiumConfig } from "@afallon/contracts";
-import { toRuntimePath } from "./config";
+import { toRuntimePath, type Runtime } from "@afallon/runtime";
 import { ObservationContextSchema } from "@afallon/contracts"
 import { StreamCleanupSchema,
 StreamVisitSchema,
 type StreamCleanup,
 type StreamVisit, } from "@afallon/contracts"
 import type { Run } from "./runs";
-import type { Runtime } from "./runtime";
 
 type CaptureTile = CapturePlan["tiles"][number];
 type SourceMembership = {

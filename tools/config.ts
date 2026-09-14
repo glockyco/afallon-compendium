@@ -1,5 +1,5 @@
 import { mkdir, realpath, stat } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve, sep, win32 } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { CompendiumConfigInputSchema, type CompendiumConfig } from "@afallon/contracts";
 import { Assert } from "typebox/value";
 
@@ -54,21 +54,4 @@ export async function loadConfig(file: string): Promise<CompendiumConfig> {
 export function isWithin(root: string, path: string): boolean {
   const suffix = relative(root, path);
   return suffix === "" || (!isAbsolute(suffix) && suffix !== ".." && !suffix.startsWith(`..${sep}`));
-}
-
-export async function toRuntimePath(config: CompendiumConfig, hostFile: string): Promise<string> {
-  const parent = await realpath(dirname(resolve(hostFile)));
-  const target = resolve(parent, hostFile.split(sep).at(-1)!);
-  if (!isWithin(config.outputRoot, target)) throw new Error("Artifact path escapes outputRoot.");
-  return `${config.runtimeOutputRoot}/${relative(config.outputRoot, target).split(sep).join("/")}`;
-}
-
-export async function toHostPath(config: CompendiumConfig, runtimeFile: string): Promise<string> {
-  const suffix = win32.relative(config.runtimeOutputRoot, runtimeFile);
-  if (!suffix || win32.isAbsolute(suffix) || suffix === ".." || suffix.startsWith("..\\")) {
-    throw new Error("Runtime artifact path escapes runtimeOutputRoot.");
-  }
-  const target = await realpath(resolve(config.outputRoot, ...suffix.split("\\")));
-  if (!isWithin(config.outputRoot, target)) throw new Error("Artifact symlink escapes outputRoot.");
-  return target;
 }
