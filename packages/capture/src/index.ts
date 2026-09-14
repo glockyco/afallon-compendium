@@ -3,6 +3,7 @@ export * from "./capture-cache";
 export * from "./capture-position";
 export * from "./capture-planner";
 export * from "./capture-readiness";
+export * from "./fingerprints";
 export * from "./map-calibration";
 export * from "./map-spaces";
 export * from "./spatial-extraction";

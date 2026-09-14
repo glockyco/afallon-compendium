@@ -5,6 +5,7 @@ import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { isDeepStrictEqual } from "node:util";
 import type { CompendiumConfig } from "@afallon/contracts";
+import { ArtifactStore } from "@afallon/artifacts";
 import { toRuntimePath, type Runtime } from "@afallon/runtime";
 import { CaptureCleanupSchema,
 CapturePlanSchema,
@@ -44,6 +45,7 @@ import {
   type ReusableCaptureTile,
 } from "./capture-cache";
 import { SceneVisitSchema, type SceneVisit } from "@afallon/contracts"
+import { captureRunInput } from "./fingerprints";
 
 export interface CaptureBuildIdentity {
   readonly buildId: string;
@@ -367,28 +369,34 @@ async function capturePlan(
   }
 
   const planText = `${JSON.stringify(plan, null, 2)}\n`;
+  const planBytes = new TextEncoder().encode(planText);
+  const store = new ArtifactStore(config.outputRoot);
+  const storedPlan = await store.putBytes(planBytes);
+  const storedProfile = await store.putBytes(spatialProfile.bytes);
+  const surveyPath = plan.survey === undefined ? null : resolve(planDirectory, plan.survey.path);
+  const storedSurvey = surveyPath === null ? null : await store.putFile(surveyPath);
+  const policy = "compendium.capture-visual-policy.v3";
+  const fingerprintInput = await captureRunInput({
+    buildId: identity.buildId,
+    diagnosticRevision: identity.diagnosticRevision,
+    character: config.character,
+    policy,
+    plan: { sha256: storedPlan.sha256, bytes: storedPlan.bytes },
+    profile: { sha256: storedProfile.sha256, bytes: storedProfile.bytes },
+    survey: storedSurvey === null ? null : { sha256: storedSurvey.sha256, bytes: storedSurvey.bytes },
+  });
   const inputHashes: Record<string, string> = {
     ...identity.inputHashes,
     "runtime-owner": runtime.ownerSourceHash,
-    plan: createHash("sha256").update(planText).digest("hex"),
-    "map-space-profile": spatialProfile.sha256,
+    plan: storedPlan.sha256,
+    "map-space-profile": storedProfile.sha256,
+    "tool:capture-fingerprint": fingerprintInput.cacheKey,
+    ...Object.fromEntries(Object.entries(fingerprintInput.probeHashes).map(([name, sha256]) => [`probe:${name}`, sha256])),
   };
-  const probePaths: Readonly<Record<string, string>> = {
-    "world-inventory": resolve(import.meta.dir, "../../scan/src/probes/collectors/world-inventory.csx"),
-    "capture-session": resolve(import.meta.dir, "probes/capture-session.csx"),
-    "capture-geometry": resolve(import.meta.dir, "probes/capture-geometry.csx"),
-    "capture-visuals": resolve(import.meta.dir, "probes/capture-visuals.csx"),
-    "stream-visit": resolve(import.meta.dir, "probes/stream-visit.csx"),
-    "scene-visit": resolve(import.meta.dir, "probes/scene-visit.csx"),
-  };
-  for (const [name, path] of Object.entries(probePaths)) inputHashes[`probe:${name}`] = await hashFile(path);
-  for (const name of ["capture", "capture-cache", "capture-position", "capture-readiness", "runs", "map-calibration", "map-spaces", "spatial-extraction"]) {
-    inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
-  }
   // The survey is a plan input: the player stands on the walkable surface it describes, at the
   // point nearest the map centre. That standing point decides what the game shows, so it is part
   // of every tile's compatibility key and is recorded with the capture set.
-  const survey: NavigationSurvey | null = plan.survey === undefined ? null : await loadNavigationSurvey(resolve(planDirectory, plan.survey.path), plan.survey, plan.sceneNativeId);
+  const survey: NavigationSurvey | null = surveyPath === null ? null : await loadNavigationSurvey(surveyPath, plan.survey!, plan.sceneNativeId);
   const standingPoint: CapturePosition | null = survey === null ? null : capturePositionFor(plan, survey);
   const compatibility = new Map(plan.tiles.map(tile => [tile.id, tileCompatibilityKey({
     buildId: identity.buildId,
