@@ -46,6 +46,13 @@ const RuntimeCleanupReceiptDefinition = Type.Object({
 export const RuntimeCleanupReceiptSchema = schemaRegistry.register("compendium.runtime-owner.v1", RuntimeCleanupReceiptDefinition).schema;
 export type RuntimeCleanupReceipt = Static<typeof RuntimeCleanupReceiptSchema>;
 
+const ContentIdentityDefinition = Type.Object({
+  sha256: Sha256,
+  bytes: Type.Integer({ minimum: 0 }),
+}, { additionalProperties: false });
+export const ContentIdentitySchema = schemaRegistry.register("compendium.content-identity.v1", ContentIdentityDefinition).schema;
+export type ContentIdentity = Static<typeof ContentIdentitySchema>;
+
 const RunInputDefinition = Type.Object({
   buildId: NonEmptyString,
   toolRevision: NonEmptyString,

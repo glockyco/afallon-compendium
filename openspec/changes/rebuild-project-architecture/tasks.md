@@ -17,7 +17,7 @@
 
 ## 3. Artifact Lifecycle
 
-- [ ] 3.1 Implement streaming writes to `objects/sha256/` with temporary files, flush, atomic rename, existing-object verification, and collision rejection; verify identical bytes deduplicate and corrupted objects fail integrity tests.
+- [x] 3.1 Implement streaming writes to `objects/sha256/` with temporary files, flush, atomic rename, existing-object verification, and collision rejection; verify identical bytes deduplicate and corrupted objects fail integrity tests.
 - [ ] 3.2 Implement immutable running, succeeded, and failed manifests with logical artifact references; verify completed manifests reject mutation and partial failure retains diagnostics.
 - [ ] 3.3 Implement atomic build-and-operation latest-success references; verify a failed run and an unverified output cannot replace the prior successful reference.
 - [ ] 3.4 Implement active-operation leases and reference-tracing garbage-collection reporting; verify retained, shared, latest-success, and active objects survive a dry run while unreachable objects are reported once.
