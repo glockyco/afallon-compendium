@@ -39,7 +39,12 @@ export async function selectLatestSuccess(store: ArtifactStore, manifestPath: st
   return pointer;
 }
 
-export async function readLatestSuccess(store: ArtifactStore, buildId: string, operation: string): Promise<{ pointer: ArtifactLatestSuccess; manifest: ArtifactRunManifest } | null> {
+export interface SelectedArtifactRun {
+  readonly pointer: ArtifactLatestSuccess;
+  readonly manifest: ArtifactRunManifest;
+}
+
+export async function readLatestSuccess(store: ArtifactStore, buildId: string, operation: string): Promise<SelectedArtifactRun | null> {
   const pointerPath = path.join(store.root, "refs", safeSegment(buildId, "buildId"), safeSegment(operation, "operation"), "latest-success.json");
   let value: unknown;
   try {

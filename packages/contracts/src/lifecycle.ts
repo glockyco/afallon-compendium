@@ -146,6 +146,7 @@ const ArtifactRunManifestDefinition = Type.Object({
   runId: NonEmptyString,
   input: ArtifactRunInputSchema,
   outputs: Type.Array(LogicalArtifactSchema),
+  reuse: Type.Union([Type.Null(), Type.Object({ sourceRunId: NonEmptyString, outputNames: Type.Array(NonEmptyString) }, { additionalProperties: false })]),
   timestamps: Type.Object({
     createdAt: NonEmptyString,
     updatedAt: NonEmptyString,

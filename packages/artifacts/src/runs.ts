@@ -13,6 +13,7 @@ import {
 } from "@afallon/contracts";
 import { createArtifactLease } from "./leases";
 import { selectLatestSuccess } from "./references";
+import { sameCacheInput } from "./reuse";
 import { ArtifactStore, type StoredObject } from "./store";
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
@@ -31,6 +32,7 @@ export interface ArtifactRun {
   readonly runId: string;
   readonly manifestPath: string;
   addArtifact(name: string, object: StoredObject, metadata: ArtifactMetadata): Promise<LogicalArtifact>;
+  reuseFrom(source: ArtifactRunManifest): Promise<readonly LogicalArtifact[]>;
   succeed(): Promise<ArtifactRunManifest>;
   fail(error: unknown): Promise<ArtifactRunManifest>;
 }
@@ -55,6 +57,7 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
   await mkdir(revisionsDirectory);
   const createdAt = new Date().toISOString();
   const outputs: LogicalArtifact[] = [];
+  let reuse: ArtifactRunManifest["reuse"] = null;
   let revision = 0;
   let state: ArtifactRunManifest["status"] = "running";
 
@@ -66,6 +69,7 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
       runId,
       input: normalizedInput,
       outputs: outputs.map((output) => structuredClone(output)),
+      reuse: reuse === null ? null : structuredClone(reuse),
       timestamps: { createdAt, updatedAt, completedAt: status === "running" ? null : updatedAt },
       status,
       failure,
@@ -119,6 +123,29 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
           throw error;
         }
         return structuredClone(artifact);
+      });
+    },
+    reuseFrom(source) {
+      return enqueue(async () => {
+        requireRunning();
+        if (outputs.length > 0 || reuse !== null) throw new RunStateError("A run can reuse outputs only before it registers outputs.");
+        if (source.status !== "succeeded" || !sameCacheInput(source.input, normalizedInput)) throw new RunStateError(`Run ${source.runId} is not a matching reusable result.`);
+        for (const output of source.outputs) {
+          await store.verify(output.content);
+          await lease.protect(output.content);
+        }
+        outputs.push(...source.outputs.map((output) => structuredClone(output)));
+        reuse = { sourceRunId: source.runId, outputNames: outputs.map((output) => output.name).sort() };
+        revision += 1;
+        try {
+          await writeImmutableJson(path.join(revisionsDirectory, revisionName(revision)), snapshot("running", null));
+        } catch (error) {
+          outputs.length = 0;
+          reuse = null;
+          revision -= 1;
+          throw error;
+        }
+        return outputs.map((output) => structuredClone(output));
       });
     },
     succeed() {
