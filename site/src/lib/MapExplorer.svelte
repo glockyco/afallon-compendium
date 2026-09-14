@@ -149,6 +149,8 @@
   $: hoveredPlacement = publication?.placements.find((placement) => placement.placementId === hoveredId) ?? null;
   // The map preview names the hovered placement, and falls back to the selection.
   $: previewPlacement = hoveredPlacement ?? selectedPlacement;
+  $: previewMarkerId = previewPlacement ? resolveMarker(previewPlacement) : null;
+  $: previewMarker = previewMarkerId ? markerFor(previewMarkerId) : null;
   $: selectedEntities = selectedPlacement ? selectedPlacement.entityKeys.map((key) => entityByKey.get(key)).filter((entity): entity is PublicEntity => Boolean(entity)) : [];
   $: selectedPlacementDetails = selectedPlacement ? [
     ...selectedEntities.flatMap((entity) => entity.sections),
@@ -846,7 +848,7 @@
             {#if !mapReady}<div class="map-loading" role="status"><div class="loading-indicator"><div class="spinner" aria-hidden="true"></div><span>Loading map...</span></div></div>{/if}
             <div class="map-top-overlay">
               <div class="map-controls"><button class="icon-button" type="button" aria-label="Zoom in" on:click={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}>+</button><button class="icon-button" type="button" aria-label="Zoom out" on:click={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })}>−</button><button type="button" disabled={!mapReady} on:click={fitMap}>Fit map</button><a class="kofi-button" href={KOFI_URL} aria-label="Support on Ko-fi" title="Support on Ko-fi"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682.028-1.682.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z" /></svg><span>Support on Ko-fi</span></a></div>
-              {#if previewPlacement}<div class="hover-preview"><strong>{previewPlacement.label}</strong><span>{[...previewPlacement.categories.map((category) => markerFor(category).label), previewPlacement.movement.some((movement) => movement.kind === 'patrol') ? 'Patrolling' : '', previewPlacement.movement.some((movement) => movement.kind === 'roaming') ? 'Roaming' : ''].filter(Boolean).join(' · ')}</span></div>{/if}
+              {#if previewPlacement}<div class="hover-preview"><div class="preview-title">{#if previewMarker}<span class="marker-badge" style:background={markerColorCss(previewMarker)} aria-hidden="true">{@html markerGlyphSvg(previewMarker)}</span>{/if}<strong>{previewPlacement.label}</strong></div><span class="preview-meta">{[...previewPlacement.categories.map((category) => markerFor(category).label), previewPlacement.movement.some((movement) => movement.kind === 'patrol') ? 'Patrolling' : '', previewPlacement.movement.some((movement) => movement.kind === 'roaming') ? 'Roaming' : ''].filter(Boolean).join(' · ')}</span></div>{/if}
             </div>
             <div class="map-status" aria-live="polite">{matchingPlacements.length} matching placements · {resultPlacements.length} in viewport{#if extraSelection}{' · selected location also shown'}{/if}</div>
           {/if}
@@ -869,15 +871,15 @@
               {#if result.kind === 'item'}
                 {@const item = result.item}
                 {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{item.name || 'Unnamed item'}</strong><small>{summary.categories}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={item.itemKey === itemKey} on:click={(event) => selectItem(item, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{item.name || 'Unnamed item'}</strong><small>{summary.categories}</small></span></button></li>
               {:else if result.kind === 'entity'}
                 {@const entity = result.entity}
                 {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{entity.name}</strong><small>{summary.categories}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={entity.entityKey === selectedEntityKey} on:click={(event) => selectEntity(entity, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{entity.name}</strong><small>{summary.categories}</small></span></button></li>
               {:else}
                 {@const placement = result.placement}
                 {@const summary = resultSummary(result)}
-                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="result-marker" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{summary.categories}</small></span></button></li>
+                <li><button data-result type="button" class:selected-result={placement.placementId === selectedId} on:click={(event) => selectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => setResultHover(result)} on:mouseleave={clearResultHover} on:focus={() => setResultHover(result)} on:blur={clearResultHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{summary.categories}</small></span></button></li>
               {/if}
               {/each}
             </ol>
@@ -1034,8 +1036,9 @@
   .kofi-button svg { order: 1; width: 20px; height: 20px; transform: translateX(1px); }
   .map-status { position: absolute; left: .75rem; bottom: .7rem; padding: .35rem .5rem; background: rgb(18 19 19 / 88%); color: #aaa9a0; font-size: .7rem; }
   .hover-preview { position: absolute; top: 0; left: 50%; max-width: min(20rem, 100%); transform: translateX(-50%); overflow-wrap: anywhere; padding: .45rem .6rem; background: #252622; border: 1px solid #706548; box-shadow: 0 3px 12px #0008; font-size: .75rem; text-align: center; pointer-events: none; }
-  .hover-preview strong, .hover-preview span { display: block; }
-  .hover-preview span { margin-top: .15rem; color: #b9b5a9; }
+  .preview-title { display: flex; align-items: center; justify-content: center; gap: .4rem; }
+  .preview-title strong { min-width: 0; }
+  .preview-meta { display: block; margin-top: .15rem; color: #b9b5a9; }
   .inline-error { position: absolute; z-index: 2; left: .8rem; right: .8rem; top: 3.5rem; padding: .55rem; border: 1px solid #864c45; background: #2b1f1f; color: #e5afa6; font-size: .75rem; }
   .results { padding: .8rem; overflow: auto; min-height: 0; }
   .results.collapsed { overflow: hidden; padding-block: .55rem; }
@@ -1049,8 +1052,8 @@
   .result-list { list-style: none; margin: .7rem 0 0; padding: 0; display: grid; gap: .3rem; }
   .result-list button { display: grid; grid-template-columns: 22px minmax(0,1fr); align-items: center; gap: .6rem; width: 100%; padding: .6rem .55rem; border: 1px solid #383a36; background: #1c1e1d; color: #e9e4d9; text-align: left; }
   .result-list button:hover, .result-list button.selected-result { border-color: #a78b59; background: #25251f; }
-  .result-marker { display: inline-grid; place-items: center; width: 22px; height: 22px; border: 1px solid rgba(0, 0, 0, .45); border-radius: 50%; color: white; }
-  .result-marker :global(svg) { width: 13px; height: 13px; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .8)); }
+  .marker-badge { display: inline-grid; flex: none; place-items: center; width: 22px; height: 22px; border: 1px solid rgba(0, 0, 0, .45); border-radius: 50%; color: white; }
+  .marker-badge :global(svg) { width: 13px; height: 13px; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .8)); }
   .result-copy strong, .result-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .result-copy strong { font-size: .78rem; font-weight: 600; }
   .result-copy small { margin-top: .15rem; color: #aaa89d; font-size: .67rem; }
