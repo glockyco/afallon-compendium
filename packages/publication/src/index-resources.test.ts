@@ -16,6 +16,11 @@ test("indexes compact summaries and stores each detail independently", async () 
       "build", "items", 1, "items:1", "Item", null, "Item description", null, "{}", "[]",
       "build", "npcs", 2, "npcs:2", "NPC", null, "NPC description", null, "{}", "[]",
     );
+    const detail = (entityKey: string, kind: string, nativeId: number, name: string, description: string) => JSON.stringify({ entityKey, kind, nativeId, name, internalName: null, description, publicData: { localization: null, gameplay: null, icon: null }, roles: [], placementIds: [], sources: [], relationships: { merchantTables: [], merchantStock: [], lootTables: [], lootEntries: [], resourceYields: [], questAssociations: [], transitions: [], conditions: [] }, provenance: [] });
+    db.query("INSERT INTO entity_details VALUES (?, ?), (?, ?)").run(
+      "items:1", detail("items:1", "items", 1, "Item", "Item description"),
+      "npcs:2", detail("npcs:2", "npcs", 2, "NPC", "NPC description"),
+    );
     db.query("INSERT INTO item_sources VALUES (?, ?, ?, ?, ?, ?, ?)").run("items:1", "merchant", "merchant:1", "[]", "[]", "{}", "null");
     const store = new ArtifactStore(join(root, "objects"));
     const generated = await generateIndexResources(db, store);

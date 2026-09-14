@@ -20,12 +20,22 @@ test("writes one deterministic resource per map without unrelated records", asyn
       db.query("INSERT INTO source_identities VALUES (?, ?, ?, ?, ?, ?, ?)").run(`source-${map}`, id, "build", 1, String(x), "Container", "Assembly-CSharp");
       db.query("INSERT INTO placement_roles VALUES (?, ?, ?, ?, ?, ?)").run(id, `source-${map}`, "container", null, "authored", "{}");
     }
+    for (const [id, component] of [["icon-a", "10"], ["icon-b", "11"]] as const) {
+      db.query("INSERT INTO placements (placement_id, build_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, label, shape_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(id, "build", 1, "scene", "a", 5, 0, 5, 5, 5, null, "null", "[]");
+      db.query("INSERT INTO placement_identities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(id, "build", 1, "d".repeat(64), id.padEnd(64, "0"), "scene", component, "scene", null);
+      db.query("INSERT INTO source_identities VALUES (?, ?, ?, ?, ?, ?, ?)").run(`source-${id}`, id, "build", 1, component, "MapIcon", "Assembly-CSharp");
+      db.query("INSERT INTO placement_roles VALUES (?, ?, ?, ?, ?, ?)").run(id, `source-${id}`, "mapIcon", null, "town", "{}");
+    }
+    for (const [id, x] of [["region-a", 0], ["region-b", 0.01]] as const) {
+      db.query("INSERT INTO regions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(id, "build", 1, "scene", "Shared Region", null, "box", JSON.stringify({ corners: [[x, x], [x + 2, x], [x + 2, x + 2], [x, x + 2]] }), "a", JSON.stringify({ corners: [[x, x], [x + 2, x], [x + 2, x + 2], [x, x + 2]] }), "[]");
+    }
     const store = new ArtifactStore(join(root, "objects"));
     const first = await generateMapShards(db, store);
     const second = await generateMapShards(db, store);
     expect(first.map((map) => map.resource.identity.sha256)).toEqual(second.map((map) => map.resource.identity.sha256));
     expect(first.map((map) => map.summary.mapSpaceId)).toEqual(["a", "b"]);
-    expect(first[0]!.resource.value.placements.map((placement) => placement.placementId)).toEqual(["placement-a"]);
+    expect(first[0]!.resource.value.placements.map((placement) => placement.placementId)).toEqual(["icon-a", "placement-a"]);
+    expect(first[0]!.resource.value.regions.map((region) => region.id)).toEqual(["region-a"]);
     expect(first[0]!.resource.value.mapSpaceId).toBe("a");
     expect(first[0]!.resource.value).not.toEqual(expect.objectContaining({ mapSpaceId: "b" }));
   } finally {

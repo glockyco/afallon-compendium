@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { Assert } from "typebox/value";
 import { ArtifactStore } from "@afallon/artifacts";
-import { queryCatalogEntity, queryCatalogItemSources, queryCatalogSearch } from "@afallon/catalog";
+import { queryCatalogFullEntity, queryCatalogItemSources, queryCatalogSearch } from "@afallon/catalog";
 import {
   StaticEntityDetailSchema,
   StaticEntitySearchSchema,
@@ -13,6 +13,7 @@ import {
   type StaticItemSearch,
   type StaticItemSource,
 } from "@afallon/contracts/public";
+import { projectPublicEntities } from "./entity-projection";
 import { writeStaticJson, type GeneratedStaticResource } from "./resources";
 
 export interface GeneratedIndexResources {
@@ -24,23 +25,21 @@ export interface GeneratedIndexResources {
 
 export async function generateIndexResources(db: Database, store: ArtifactStore): Promise<GeneratedIndexResources> {
   const search = queryCatalogSearch(db);
+  const fullEntities = search.records.map((summary) => {
+    const queried = queryCatalogFullEntity(db, summary.entityKey);
+    if (queried.records === null) throw new Error(`Catalog entity disappeared during publication: ${summary.entityKey}.`);
+    return queried.records;
+  });
+  const publicEntities = new Map(projectPublicEntities(fullEntities).map((entity) => [entity.entityKey, entity]));
   const entityDetails = new Map<string, GeneratedStaticResource<StaticEntityDetail>>();
   for (const summary of search.records) {
-    const queried = queryCatalogEntity(db, summary.entityKey);
-    if (queried.records === null) throw new Error(`Catalog entity disappeared during publication: ${summary.entityKey}.`);
+    const entity = publicEntities.get(summary.entityKey);
+    if (!entity) throw new Error(`Catalog entity projection disappeared during publication: ${summary.entityKey}.`);
     const detail: StaticEntityDetail = {
       schemaVersion: "compendium.static-entity-detail.v1",
       buildId: search.buildId,
       catalogId: search.catalogId,
-      entity: {
-        entityKey: summary.entityKey,
-        kind: summary.kind,
-        nativeId: summary.nativeId,
-        name: summary.name?.trim() || summary.entityKey,
-        description: summary.description,
-        placementIds: queried.records.placementIds,
-        sections: [],
-      },
+      entity,
     };
     Assert(StaticEntityDetailSchema, detail);
     entityDetails.set(summary.entityKey, await writeStaticJson(store, detail.schemaVersion, detail));

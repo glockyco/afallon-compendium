@@ -428,6 +428,7 @@ export const StaticRootManifestSchema = Type.Object({
   ...StaticResourceIdentityFields,
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   complete: Type.Boolean(),
+  world: PublicWorldSchema,
   maps: Type.Array(StaticMapSummarySchema),
   entitySearch: StaticResourceReferenceSchema,
   itemSearch: StaticResourceReferenceSchema,

@@ -30,8 +30,6 @@ button, select { cursor: pointer; }
   .control-section { border-bottom: 1px solid #393a38; padding: 0 0 1rem; margin-bottom: 1rem; }
   .control-section > label, .detail-search, .section-heading h2, .results-header h2, .world-tools h2, .layer-section h2 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b8b5aa; }
   input { width: 100%; border: 1px solid #4a4b47; border-radius: 2px; background: #151616; color: #ece8de; padding: .55rem .6rem; }
-  .map-navigation { display: grid; gap: .4rem; }
-  .map-navigation select { width: 100%; border: 1px solid #4a4b47; border-radius: 2px; background: #151616; color: #ece8de; padding: .5rem .6rem; }
   input:focus-visible, button:focus-visible { outline: 2px solid #d5b978; outline-offset: 2px; }
   .control-section > label:not(.role-option):not(.tool-option) { display: block; margin-bottom: .45rem; }
   .search-field { position: relative; display: flex; align-items: center; }

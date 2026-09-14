@@ -11,7 +11,7 @@ import { SceneCatalogSchema, type SceneCatalog } from "@afallon/contracts"
 import { IllustrationOutputSchema, type IllustrationOutput } from "@afallon/contracts"
 import { TilePyramidSchema, WorldOffsetsSchema, type TilePyramid, type WorldOffsets } from "@afallon/contracts";
 import { PublicationPlanSchema, type EntityDetail, type NormalizedEntityDetails, type NormalizedItemSources, type NormalizedMapProjection, type NormalizedCoverageSummary, type NormalizedPlacement, type NormalizedRegion, type PublicationPlan } from "@afallon/contracts/catalog";
-import { projectAdventureGuide } from "./guide-projection";
+import { projectAdventureGuide } from "../packages/publication/src/guide-projection";
 import { GuideDocumentSchema, PUBLICATION_SCHEMA_VERSION, PublicEntitySchema, PublicGuideBossSchema, PublicGuideBossSummarySchema, PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema, PublicGuidePropertySchema, PublicGuideRegionSchema, PUBLIC_MARKER_CATEGORY_VALUES, type PublicAffine, type PublicDetailSection, type PublicDetailRow, type PublicEntity, type PublicItemSource, type PublicLevelRange, type PublicMarkerCategory, type PublicMovement, type PublicPatrolPath, type PublicPlacement, type PublicRegion, type PublicTileLayer, type PublicTravel, type PublicationData, type PublicEntitySummary, type PublicItemSummary } from "@afallon/contracts/public"
 import { buildWorldLayout } from "./world-layout";
 import { validateEntityDetails, validateItemSources, validatePublication } from "./publication-validation";
@@ -1083,7 +1083,7 @@ export async function preparePublication(planPath: string, outputRoot: string) {
   const deliberateExclusions = coverage.exclusions.filter((exclusion) => map.placements.some((placement) => placement.placementId === exclusion.key));
   const excludedPlacements = map.placements.length - placements.length - deliberateExclusions.length;
   const exclusionReport = { schemaVersion: "compendium.publication-exclusions.v1", buildId: plan.buildId, exclusions: deliberateExclusions };
-  const guide = projectAdventureGuide({ entities: entities.entities, placements: selected, sources: map.sources, publishedPlacementIds: selectedIds });
+  const guide = projectAdventureGuide({ entities: entities.entities, placements: selected, publishedPlacementIds: selectedIds });
   const guideSlug = (key: string): string => key.replaceAll(/[^A-Za-z0-9]+/g, "-");
   const guideItemKeys = new Set(guide.bosses.flatMap((boss) => boss.loot.map((loot) => loot.itemKey)));
   const guideEntities = publicEntities.filter((entity) => guideItemKeys.has(entity.entityKey));

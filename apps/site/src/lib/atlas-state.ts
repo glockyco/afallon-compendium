@@ -6,7 +6,6 @@ export interface AtlasView {
 }
 
 export interface AtlasState {
-  readonly mapSpaceId: string | null;
   readonly layerIds: readonly string[];
   readonly selectedPlacementId: string | null;
   readonly query: string;
@@ -22,7 +21,6 @@ export interface AtlasState {
 }
 
 export type AtlasAction =
-  | { type: "select-map"; mapSpaceId: string; layerIds: readonly string[] }
   | { type: "select-layers"; layerIds: readonly string[] }
   | { type: "select-placement"; placementId: string | null }
   | { type: "search"; query: string; itemSourceQuery: string; detailQuery: string }
@@ -32,7 +30,6 @@ export type AtlasAction =
   | { type: "replace"; state: AtlasState };
 
 export const DEFAULT_ATLAS_STATE: AtlasState = Object.freeze({
-  mapSpaceId: null,
   layerIds: Object.freeze([]),
   selectedPlacementId: null,
   query: "",
@@ -53,7 +50,6 @@ function unique(values: readonly string[]): readonly string[] {
 
 export function transitionAtlasState(state: AtlasState, action: AtlasAction): AtlasState {
   if (action.type === "replace") return freezeState(action.state);
-  if (action.type === "select-map") return freezeState({ ...state, mapSpaceId: action.mapSpaceId, layerIds: action.layerIds, selectedPlacementId: null });
   if (action.type === "select-layers") return freezeState({ ...state, layerIds: action.layerIds });
   if (action.type === "select-placement") return freezeState({ ...state, selectedPlacementId: action.placementId });
   if (action.type === "search") return freezeState({ ...state, query: action.query, itemSourceQuery: action.itemSourceQuery, detailQuery: action.detailQuery });
@@ -94,7 +90,6 @@ export function readAtlasUrl(search: string): AtlasState {
   const requestedCategories = params.getAll("categories").flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
   const categories = requestedCategories.length === 0 ? DEFAULT_MARKER_IDS : requestedCategories.includes("all") ? [] : requestedCategories;
   return freezeState({
-    mapSpaceId: params.get("map"),
     layerIds: params.getAll("layers").flatMap((value) => value.split(",")),
     selectedPlacementId: params.get("selected"),
     query: params.get("q") ?? "",
@@ -113,7 +108,7 @@ export function readAtlasUrl(search: string): AtlasState {
 export function writeAtlasUrl(url: URL, state: AtlasState): URL {
   const params = new URLSearchParams();
   const entries: Array<[string, string | null]> = [
-    ["map", state.mapSpaceId], ["layers", state.layerIds.join(",") || null], ["selected", state.selectedPlacementId],
+    ["layers", state.layerIds.join(",") || null], ["selected", state.selectedPlacementId],
     ["q", state.query.trim() || null], ["source-q", state.itemSourceQuery.trim() || null], ["detail-q", state.detailQuery.trim() || null],
     ["zones", state.showZones ? "1" : null], ["connections", state.showConnections ? "1" : null], ["movement", state.showMovement ? "1" : null],
     ["item", state.itemKey], ["entity", state.entityKey],

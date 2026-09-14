@@ -155,9 +155,49 @@
       "Reviewed exclusions are first-class catalog rows instead of projection-only records."
     ]
   },
+  "staticPublicationParity": {
+    "catalogRunId": "27005002-d304-41e7-89e3-e3f11fd8a105",
+    "catalogPath": "local/catalog-rich/25153357/27005002-d304-41e7-89e3-e3f11fd8a105/normalized.sqlite",
+    "worldBoundsMatch": true,
+    "reviewedWorldOffsetsMatch": true,
+    "publishedMapCounts": { "frozen": 19, "rebuilt": 19 },
+    "publishedPlacementCounts": { "frozen": 3763, "rebuilt": 3763 },
+    "publishedRegionCounts": { "frozen": 61, "rebuilt": 61 },
+    "missingPlacementIds": 0,
+    "extraPlacementIds": 0,
+    "mapLabelMismatches": 0,
+    "placementFieldMismatches": {
+      "position": 0,
+      "height": 0,
+      "categories": 0,
+      "entityKeys": 0,
+      "itemKeys": 0,
+      "label": 0,
+      "searchText": 0,
+      "levelRange": 0,
+      "areas": 0,
+      "movement": 0,
+      "travel": 0
+    },
+    "unplacedMapSpaceIds": ["ice-cave-1-chillwind", "tutorial-cave"],
+    "initialSharedWorldTransfer": {
+      "frozenBytes": 4844373,
+      "rebuiltBytes": 6820010,
+      "differenceBytes": 1975637,
+      "rebuiltRequestCount": 42,
+      "includes": ["root manifest", "19 map shards", "19 imagery manifests", "entity search index", "item search index", "coverage summary"],
+      "excludes": ["tile image bodies", "entity detail bodies", "item source bodies", "guide bodies"]
+    },
+    "projectionIntermediates": {
+      "map-projections.json": false,
+      "entity-details.json": false,
+      "item-sources.json": false,
+      "coverage-summary.json": false
+    }
+  },
   "expectedDifferences": [
     "Coverage blockers become distinct issues with separately counted occurrences.",
-    "Static filenames and resource grouping change to content-addressed shards.",
+    "Static filenames and resource grouping change to content-addressed shards. Loading all maps together increases initial static JSON by 1975637 bytes and 41 requests versus the frozen monolith; shards remain cache and integrity boundaries, not map-selection boundaries.",
     "The extract and traverse commands are replaced by scan.",
     "Copied run inputs and normalized projection documents are removed.",
     "Deprecated URL parameter aliases are removed.",
@@ -170,15 +210,22 @@
       "search",
       "category-filter",
       "marker-selection",
-      "map-navigation",
+      "simultaneous-map-composition",
       "imagery-switch",
       "canonical-url-reload",
       "webgl-fallback",
       "production-boundary",
       "development-boundary"
     ],
-    "canonicalUrl": "http://127.0.0.1:4180/?map=beta&layers=captured%2Cgame-maps&selected=beta%3Aboss&q=Ash+Warden&x=50&y=50&z=0&zoom=2.5",
+    "canonicalUrl": "http://127.0.0.1:4190/",
+    "sharedWorldComposition": {
+      "loadedMaps": "2/2",
+      "alphaEntityVisible": true,
+      "betaEntityVisible": true,
+      "mapSelectorPresent": false
+    },
     "screenshots": [
+      "artifacts/architecture-parity/atlas-shared-world.png",
       "artifacts/architecture-parity/atlas-sharded-browser.png",
       "artifacts/architecture-parity/atlas-webgl-fallback.png"
     ],

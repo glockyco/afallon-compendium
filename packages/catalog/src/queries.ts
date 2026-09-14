@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { EntityDetail, EntityRelationshipProjection } from "@afallon/contracts/catalog";
+import type { EntityDetail, NormalizedPatrolPath } from "@afallon/contracts/catalog";
 
 export interface CatalogQueryIdentity {
   buildId: string;
@@ -15,13 +15,17 @@ export interface CatalogMapSummary {
 
 export interface CatalogMapPlacement {
   placementId: string;
+  sceneNativeId: number;
+  scenePath: string;
   mapSpaceId: string;
+  worldPosition: { x: number; y: number; z: number };
   position: [number, number];
   height: number;
   label: string | null;
   shape: unknown;
   roles: Array<{ role: string; scope: string; npcEntityKey: string | null }>;
   itemEntityKeys: string[];
+  sourceDetails: Array<{ sourceId: string; family: string; data: Record<string, unknown> }>;
 }
 
 export interface CatalogMapRegion {
@@ -37,6 +41,12 @@ export interface CatalogMapConnection {
   sourcePlacementId: string | null;
   destinationMapSpaceId: string | null;
   kind: string;
+}
+
+export interface CatalogSpatialContext {
+  bindings: Array<{ mapSpaceId: string; sceneNativeId: number; scenePath: string; frame: Record<string, unknown>; domain: Record<string, unknown> }>;
+  sceneSpawns: Array<{ sceneNativeId: number; position: { x: number; y: number; z: number } }>;
+  patrolPaths: NormalizedPatrolPath[];
 }
 
 export interface CatalogMapFacts {
@@ -103,6 +113,15 @@ function identity(db: Database): CatalogQueryIdentity {
 }
 
 function parse(value: string): unknown { return JSON.parse(value); }
+function object(value: string): Record<string, unknown> {
+  const parsed = parse(value);
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Catalog JSON column does not contain an object.");
+  return parsed as Record<string, unknown>;
+}
+function recordPosition(value: unknown): { x: number; y: number; z: number } | null {
+  if (value === null || typeof value !== "object" || !("x" in value) || !("y" in value) || !("z" in value)) return null;
+  return typeof value.x === "number" && Number.isFinite(value.x) && typeof value.y === "number" && Number.isFinite(value.y) && typeof value.z === "number" && Number.isFinite(value.z) ? { x: value.x, y: value.y, z: value.z } : null;
+}
 function textArray(value: string): string[] {
   const parsed = parse(value);
   if (!Array.isArray(parsed) || parsed.some((entry) => typeof entry !== "string")) throw new Error("Catalog JSON column does not contain a string array.");
@@ -142,9 +161,19 @@ export function queryCatalogMap(db: Database, mapSpaceId: string): CatalogQueryR
     items.push(row.item_entity_key);
     itemsByPlacement.set(row.placement_id, items);
   }
-  const placements = db.query<{ placement_id: string; map_space_id: string; map_x: number; map_y: number; world_y: number; label: string | null; shape_json: string | null }, [string]>(
-    "SELECT placement_id, map_space_id, map_x, map_y, world_y, label, shape_json FROM placements WHERE map_space_id = ? AND map_x IS NOT NULL AND map_y IS NOT NULL ORDER BY placement_id",
-  ).all(mapSpaceId).map((row) => ({ placementId: row.placement_id, mapSpaceId: row.map_space_id, position: [row.map_x, row.map_y] as [number, number], height: row.world_y, label: row.label, shape: row.shape_json === null ? null : parse(row.shape_json), roles: rolesByPlacement.get(row.placement_id) ?? [], itemEntityKeys: itemsByPlacement.get(row.placement_id) ?? [] }));
+  const sourceDetailsByPlacement = new Map<string, CatalogMapPlacement["sourceDetails"]>();
+  for (const row of db.query<{ placement_id: string; source_id: string; family: string; data_json: string }, [string]>(`
+    SELECT d.placement_id, d.source_id, d.family, d.data_json FROM source_details d
+    JOIN placements p ON p.placement_id = d.placement_id
+    WHERE p.map_space_id = ? ORDER BY d.placement_id, d.source_id, d.family, d.detail_id
+  `).all(mapSpaceId)) {
+    const details = sourceDetailsByPlacement.get(row.placement_id) ?? [];
+    details.push({ sourceId: row.source_id, family: row.family, data: object(row.data_json) });
+    sourceDetailsByPlacement.set(row.placement_id, details);
+  }
+  const placements = db.query<{ placement_id: string; scene_native_id: number; scene_path: string; map_space_id: string; world_x: number; world_y: number; world_z: number; map_x: number; map_y: number; label: string | null; shape_json: string | null }, [string]>(
+    "SELECT placement_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, label, shape_json FROM placements WHERE map_space_id = ? AND map_x IS NOT NULL AND map_y IS NOT NULL ORDER BY placement_id",
+  ).all(mapSpaceId).map((row) => ({ placementId: row.placement_id, sceneNativeId: row.scene_native_id, scenePath: row.scene_path, mapSpaceId: row.map_space_id, worldPosition: { x: row.world_x, y: row.world_y, z: row.world_z }, position: [row.map_x, row.map_y] as [number, number], height: row.world_y, label: row.label, shape: row.shape_json === null ? null : parse(row.shape_json), roles: rolesByPlacement.get(row.placement_id) ?? [], itemEntityKeys: itemsByPlacement.get(row.placement_id) ?? [], sourceDetails: sourceDetailsByPlacement.get(row.placement_id) ?? [] }));
   const regions = db.query<{ region_id: string; map_space_id: string; name: string; shape: "box" | "sphere"; map_geometry_json: string }, [string]>(
     "SELECT region_id, map_space_id, name, shape, map_geometry_json FROM regions WHERE map_space_id = ? AND map_geometry_json IS NOT NULL ORDER BY region_id",
   ).all(mapSpaceId).map((row) => ({ regionId: row.region_id, mapSpaceId: row.map_space_id, name: row.name, shape: row.shape, geometry: parse(row.map_geometry_json) }));
@@ -156,6 +185,19 @@ export function queryCatalogMap(db: Database, mapSpaceId: string): CatalogQueryR
     WHERE p.map_space_id = ? ORDER BY t.transition_id, COALESCE(ps.placement_id, '')
   `).all(mapSpaceId).map((row) => ({ transitionId: row.transition_id, sourcePlacementId: row.source_placement_id, destinationMapSpaceId: row.destination_map_space_id, kind: row.transition_kind }));
   return { ...identity(db), records: { mapSpaceId: map.map_space_id, label: map.label, placements, regions, connections } };
+}
+
+export function queryCatalogSpatialContext(db: Database): CatalogQueryResult<CatalogSpatialContext> {
+  const bindings = db.query<{ map_space_id: string; scene_native_id: number; scene_path: string; frame_json: string; domain_json: string }, []>(
+    "SELECT map_space_id, scene_native_id, scene_path, frame_json, domain_json FROM map_space_bindings ORDER BY map_space_id, binding_id",
+  ).all().map((row) => ({ mapSpaceId: row.map_space_id, sceneNativeId: row.scene_native_id, scenePath: row.scene_path, frame: object(row.frame_json), domain: object(row.domain_json) }));
+  const sceneSpawns = db.query<{ scene_native_id: number; detail_json: string }, []>("SELECT scene_native_id, detail_json FROM scene_spawns ORDER BY scene_native_id").all().map((row) => {
+    const detail = object(row.detail_json), position = recordPosition(detail.position);
+    if (!position) throw new Error(`Scene spawn ${row.scene_native_id} has no finite position.`);
+    return { sceneNativeId: row.scene_native_id, position };
+  });
+  const patrolPaths = db.query<{ detail_json: string }, []>("SELECT detail_json FROM patrol_paths ORDER BY path_key").all().map((row) => parse(row.detail_json) as NormalizedPatrolPath);
+  return { ...identity(db), records: { bindings, sceneSpawns, patrolPaths } };
 }
 
 export function queryCatalogSearch(db: Database): CatalogQueryResult<CatalogSearchSummary[]> {
@@ -180,6 +222,11 @@ export function queryCatalogEntity(db: Database, entityKey: string): CatalogQuer
   return { ...identity(db), records };
 }
 
+export function queryCatalogFullEntity(db: Database, entityKey: string): CatalogQueryResult<EntityDetail | null> {
+  const row = db.query<{ detail_json: string }, [string]>("SELECT detail_json FROM entity_details WHERE entity_key = ?").get(entityKey);
+  return { ...identity(db), records: row ? parse(row.detail_json) as EntityDetail : null };
+}
+
 export function queryCatalogItemSources(db: Database, itemEntityKey: string): CatalogQueryResult<CatalogItemSource[]> {
   const records = db.query<{ item_entity_key: string; source_kind: string; source_key: string; placement_ids_json: string; condition_ids_json: string; context_json: string }, [string]>(
     "SELECT item_entity_key, source_kind, source_key, placement_ids_json, condition_ids_json, context_json FROM item_sources WHERE item_entity_key = ? ORDER BY source_kind, source_key",
@@ -189,30 +236,10 @@ export function queryCatalogItemSources(db: Database, itemEntityKey: string): Ca
 
 export function queryCatalogGuide(db: Database): CatalogQueryResult<CatalogGuideFacts> {
   const search = queryCatalogSearch(db);
-  const lootByOwner = new Map<string, EntityRelationshipProjection["lootEntries"]>();
-  const lootRows = db.query<{ owner_entity_key: string; loot_table_id: number; entry_index: number; item_id: number; min_count: number; max_count: number; raw_rate: number | null }, []>(`
-    SELECT b.owner_entity_key, e.loot_table_id, e.entry_index, item.native_id AS item_id,
-      e.min_count, e.max_count, COALESCE(e.raw_rate, b.raw_rate) AS raw_rate
-    FROM loot_bindings b
-    JOIN loot_entries e ON e.build_id = b.build_id AND e.loot_table_id = b.loot_table_id
-    JOIN canonical_entities item ON item.entity_key = e.item_entity_key
-    WHERE b.owner_entity_key IS NOT NULL
-    ORDER BY b.owner_entity_key, e.loot_table_id, e.entry_index, item.entity_key
-  `).all();
-  for (const row of lootRows) {
-    const entries = lootByOwner.get(row.owner_entity_key) ?? [];
-    entries.push({ lootTableId: row.loot_table_id, entryIndex: row.entry_index, itemId: row.item_id, min: row.min_count, max: row.max_count, rawRate: row.raw_rate });
-    lootByOwner.set(row.owner_entity_key, entries);
-  }
-  const entities = search.records.map((summary): EntityDetail => {
-    const queried = queryCatalogEntity(db, summary.entityKey).records;
-    if (!queried) throw new Error(`Catalog entity disappeared during guide query: ${summary.entityKey}.`);
-    const publicData = queried.details as EntityDetail["publicData"];
-    if (!publicData || typeof publicData !== "object" || !("localization" in publicData) || !("gameplay" in publicData) || !("icon" in publicData)) throw new Error(`Catalog entity has invalid public data: ${summary.entityKey}.`);
-    const sources = queryCatalogItemSources(db, summary.entityKey).records.map((source) => ({ sourceKind: source.sourceKind, sourceKey: source.sourceKey, placementIds: source.placementIds, conditionIds: source.conditionIds, context: source.context as Record<string, unknown> }));
-    const roles = db.query<{ role: string }, [string]>("SELECT DISTINCT role FROM placement_roles WHERE npc_entity_key = ? ORDER BY role").all(summary.entityKey).map((row) => row.role);
-    const relationships: EntityRelationshipProjection = { merchantStock: [], lootBindings: [], lootEntries: lootByOwner.get(summary.entityKey) ?? [], resourceYields: [], questAssociations: [], transitions: [], conditions: [] };
-    return { entityKey: summary.entityKey, kind: summary.kind, nativeId: summary.nativeId, name: summary.name, internalName: queried.internalName, description: summary.description, publicData, roles, placementIds: queried.placementIds, sources, relationships, provenance: Array.isArray(queried.provenance) ? queried.provenance as EntityDetail["provenance"] : [] };
+  const entities = search.records.map((summary) => {
+    const detail = queryCatalogFullEntity(db, summary.entityKey).records;
+    if (!detail) throw new Error(`Catalog entity disappeared during guide query: ${summary.entityKey}.`);
+    return detail;
   });
   const placements = db.query<{ placement_id: string; scene_native_id: number }, []>("SELECT placement_id, scene_native_id FROM placements WHERE map_x IS NOT NULL AND map_y IS NOT NULL ORDER BY placement_id").all().map((row) => ({ placementId: row.placement_id, sceneNativeId: row.scene_native_id }));
   return { buildId: search.buildId, catalogId: search.catalogId, records: { entities, placements } };

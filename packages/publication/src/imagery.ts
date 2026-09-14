@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { Assert } from "typebox/value";
 import { ArtifactStore } from "@afallon/artifacts";
-import { queryCatalogImagery, queryCatalogMap } from "@afallon/catalog";
+import { queryCatalogImagery } from "@afallon/catalog";
 import { PublicTileLayerSchema, StaticImagerySchema, type PublicTileLayer, type StaticImagery } from "@afallon/contracts/public";
 import { writeStaticJson, type GeneratedStaticResource } from "./resources";
 
@@ -33,12 +33,6 @@ export async function generateImageryResources(db: Database, store: ArtifactStor
     }
     layers.sort((left, right) => left.kind.localeCompare(right.kind) || left.id.localeCompare(right.id));
     const gameLayer = layers.find((layer) => layer.kind === "game-map");
-    const queriedMap = queryCatalogMap(db, mapSpaceId);
-    if (queriedMap.records === null) throw new Error(`Imagery references missing map space: ${mapSpaceId}.`);
-    const sample = queriedMap.records.placements.filter((_, index, all) => index === 0 || index === all.length - 1 || index === Math.floor(all.length / 2));
-    for (const placement of sample) {
-      if (!layers.some((layer) => placement.position[0] >= layer.extent[0] && placement.position[0] <= layer.extent[2] && placement.position[1] >= layer.extent[1] && placement.position[1] <= layer.extent[3])) throw new Error(`Imagery registration excludes sampled placement ${placement.placementId}.`);
-    }
     const value: StaticImagery = {
       schemaVersion: "compendium.static-imagery.v1",
       buildId: imagery.buildId,

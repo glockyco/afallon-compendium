@@ -18,7 +18,7 @@ The related `build-screenshot-first-map` change is still active, so its capabili
 - Make invalid runtime data unable to enter the trusted catalog.
 - Make the catalog the sole normalized boundary for validation and publication.
 - Preserve runtime restoration, evidence provenance, stable identity, and strict release gates.
-- Bound browser downloads by map, index, and selected detail instead of catalog size.
+- Bound individual static resources and selected-detail downloads while preserving the complete shared world view.
 - Provide an atomic migration with measured semantic parity and a simple rollback.
 
 **Non-Goals:**
@@ -209,7 +209,7 @@ assets/data/coverage/<hash>.json
 assets/imagery/<hash>.webp
 ```
 
-The root contains build and catalog identities, schema versions, map summaries, bounds, layer metadata, resource URLs, hashes, and counts. Map shards contain only that map's placements, regions, and connections. Compact global indexes support search without shipping detail bodies. Details and item-source records load by selected key. Filenames include content hashes, so Cloudflare may cache them immutably; only the selected root needs short-lived cache behavior.
+The root contains build and catalog identities, schema versions, shared world bounds and reviewed offsets, map summaries, layer metadata, resource URLs, hashes, and counts. Map shards contain only that map's placements, regions, and connections. The browser loads every map shard and composes them in the shared world view; the shards are transport and immutable-cache boundaries, not selectable maps. Compact global indexes support search without shipping detail bodies. Details and item-source records load by selected key. Filenames include content hashes, so Cloudflare may cache them immutably; only the selected root needs short-lived cache behavior.
 
 Publication writes a candidate directory, validates every referenced resource and release gate, then atomically selects it. SvelteKit copies only selected publication files into its static build. The browser verifies manifest/schema compatibility; deployment verification checks file hashes before upload.
 
@@ -228,7 +228,7 @@ Layer constructors are separate pure modules for imagery, markers, regions, conn
 
 `MapExplorer.svelte` remains the page composition shell rather than the data store and renderer implementation. The production detail panel and authoring controls remain inside a compile-time `dev` branch. The refactor does not make them public.
 
-Default-layer selection is a pure policy: select all applicable `game-map` layers for the initial map and select no `captured` layer unless canonical saved state explicitly names it. This applies to overworld and interiors. Switching layers preserves world coordinates and selection.
+Default-layer selection is a pure policy: select all applicable `game-map` layers across the shared world and select no `captured` layer unless canonical saved state explicitly names it. This applies to the overworld and every interior. Switching layers preserves world coordinates and selection.
 
 URL parsing accepts only the canonical parameter set. The singular legacy `layer` alias and other deprecated forms are removed at cutover rather than retained as compatibility branches.
 
@@ -259,7 +259,7 @@ File-for-file equality was rejected because the new catalog layout and static sh
 - [Bun bundle output could create unstable fingerprints] → Pin Bun, normalize metafile ordering, hash emitted bytes rather than paths, and verify repeat fingerprints in separate clean directories.
 - [Splitting probe bundles can change runtime timing or cleanup] → Preserve the runtime owner unchanged first, compare raw envelopes from the same scene, and exercise cancellation, disconnect, scene restoration, and frame cleanup before removing old probes.
 - [A new SQLite layout can change fact semantics] → Import the same frozen evidence into both assemblers and compare stable identities, relations, provenance, exclusions, issue identities, and gate decisions before cutover.
-- [Static sharding adds browser requests] → Keep root and search indexes compact, load map resources concurrently, cache content-addressed assets immutably, and measure first-map bytes and requests against the current publication.
+- [Static sharding adds browser requests] → Keep root and search indexes compact, load every map resource concurrently, cache content-addressed assets immutably, and measure initial shared-world bytes and requests against the current publication.
 - [Canonical URL cleanup breaks old shared links] → Treat this as the declared breaking cutover, document the canonical parameter set, and verify new links round-trip. Do not add a permanent alias reader.
 - [The active earlier OpenSpec change contains a conflicting image-default statement] → Record the newer game-imagery policy in `static-publication`, update affected implementation tasks to follow it, and reconcile the older change before either change is archived.
 

@@ -15,6 +15,7 @@ const root: StaticRootManifest = {
   catalogId: "b".repeat(64),
   mode: "preview",
   complete: false,
+  world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
   maps: [],
   entitySearch: { ...reference, schemaId: "compendium.static-entity-search.v1" },
   itemSearch: { ...reference, schemaId: "compendium.static-item-search.v1" },

@@ -42,27 +42,22 @@ export interface AtlasIndexes {
   items: StaticItemSearch;
 }
 
-export function atlasPublicationData(root: StaticRootManifest, mapData: AtlasMapData, indexes: AtlasIndexes, coverage: StaticCoverage): PublicationData {
-  const summary = root.maps.find((map) => map.mapSpaceId === mapData.map.mapSpaceId);
-  if (!summary) throw new Error(`Publication has no map ${mapData.map.mapSpaceId}.`);
+export function atlasPublicationData(root: StaticRootManifest, maps: readonly AtlasMapData[], indexes: AtlasIndexes, coverage: StaticCoverage): PublicationData {
+  if (maps.length !== root.maps.length) throw new Error("Atlas did not load every published map shard.");
+  const loadedIds = new Set(maps.map(({ map }) => map.mapSpaceId));
+  if (root.maps.some((map) => !loadedIds.has(map.mapSpaceId))) throw new Error("Atlas map shard set does not match the root manifest.");
   return {
     schemaVersion: "compendium.publication.v13",
     buildId: root.buildId,
     mode: root.mode,
     coverage: { complete: coverage.complete, messages: [...coverage.messages], excludedPlacements: coverage.exclusionCount },
-    world: {
-      mapSpaceId: summary.mapSpaceId,
-      label: summary.label,
-      bounds: summary.bounds,
-      offsets: [{ mapSpaceId: summary.mapSpaceId, worldX: 0, worldY: 0, source: "native", status: "placed" }],
-      unplacedMapSpaceIds: [],
-    },
-    maps: [{ mapSpaceId: summary.mapSpaceId, label: summary.label, bounds: summary.bounds }],
-    placements: mapData.map.placements,
-    regions: mapData.map.regions,
+    world: root.world,
+    maps: root.maps.map(({ mapSpaceId, label, bounds }) => ({ mapSpaceId, label, bounds })),
+    placements: maps.flatMap(({ map }) => map.placements),
+    regions: maps.flatMap(({ map }) => map.regions),
     entityIndex: indexes.entities.entities,
     itemIndex: indexes.items.items.map(({ itemKey, name, sourceNames, sourceKinds, detailPath }) => ({ itemKey, name, sourceNames, sourceKinds, detailPath })),
-    tileLayers: mapData.imagery.layers,
+    tileLayers: maps.flatMap(({ imagery }) => imagery.layers),
   };
 }
 
@@ -95,6 +90,11 @@ export class AtlasDataLoader {
     ]);
     if (map.mapSpaceId !== mapSpaceId || imagery.mapSpaceId !== mapSpaceId) throw new Error(`Map resource identity mismatch for ${mapSpaceId}.`);
     return { map, imagery };
+  }
+
+  async loadMaps(): Promise<AtlasMapData[]> {
+    const root = await this.loadRoot();
+    return Promise.all(root.maps.map((map) => this.loadMap(map.mapSpaceId)));
   }
 
   async loadIndexes(): Promise<AtlasIndexes> {

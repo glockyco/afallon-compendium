@@ -13,7 +13,7 @@ function normalized(): NormalizedDatabaseInput {
     placements: [], sources: [], roles: [], regions: [], conditions: [], spawnCandidates: [],
     merchantTables: [], merchantBindings: [], merchantStock: [], lootTables: [], lootBindings: [],
     lootEntries: [], linkedNpcRules: [], resourceYields: [], questAssociations: [], transitions: [],
-    itemSources: [], blockers: [], coverageOccurrences: [], exclusions: [], inputCoverage: null,
+    itemSources: [], entityDetails: [], sourceDetails: [], patrolPaths: [], sceneSpawns: [], blockers: [], coverageOccurrences: [], exclusions: [], inputCoverage: null,
     provenance: { plan: reference, profile: reference, sources: [] },
   };
 }

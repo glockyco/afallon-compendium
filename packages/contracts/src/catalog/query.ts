@@ -250,13 +250,6 @@ export interface NormalizedOutput {
   manifest: string;
   directory: string;
   database: string;
-  projections: {
-    map: string;
-    categories: string;
-    entities: string;
-    itemSources: string;
-    coverage: string;
-  };
   counts: {
     entities: number;
     placements: number;
@@ -295,6 +288,10 @@ export interface NormalizedDatabaseInput {
   questAssociations: Array<Record<string, unknown>>;
   transitions: Array<Record<string, unknown>>;
   itemSources: ItemSource[];
+  entityDetails: EntityDetail[];
+  sourceDetails: NormalizedMapProjection["sources"];
+  patrolPaths: NormalizedPatrolPath[];
+  sceneSpawns: NormalizedMapProjection["sceneSpawns"];
   blockers: NormalizedCoverageSummary["blockers"];
   coverageOccurrences: Array<{
     kind: string;

@@ -6,12 +6,13 @@ Publish a validated static Afallon atlas that loads bounded data on demand, pres
 
 ### Requirement: Publication emits bounded static resources
 
-Publication SHALL emit a small root manifest and independently addressable static resources for map summaries, map placements, search data, entity details, item sources, coverage, and image layers. Opening one map SHALL NOT require downloading detailed records for every other map or one whole-catalog projection document. Every resource SHALL carry or inherit the publication schema, game build, and source catalog identity.
+Publication SHALL emit a small root manifest and independently addressable static resources for map placements, search data, entity details, item sources, coverage, and image layers. The atlas SHALL load and compose every published map shard so all maps remain visible together at their reviewed world offsets. Sharding SHALL bound individual files and enable immutable caching; it SHALL NOT introduce an active-map selection model or change world positions. Every resource SHALL carry or inherit the publication schema, game build, and source catalog identity.
 
-#### Scenario: A reader opens one map
-- **WHEN** the atlas loads a map from a fresh session
-- **THEN** it can render that map after loading the root manifest and resources required for that map
-- **AND** it does not download placement or detail records for unrelated maps
+#### Scenario: A reader opens the atlas
+- **WHEN** the atlas loads from a fresh session
+- **THEN** it loads every published map shard and renders all maps in the shared world view
+- **AND** every map, marker, region, movement path, and image layer retains its reviewed world position
+- **AND** it does not download unrelated entity or item detail records
 
 #### Scenario: A reader opens one entity detail
 - **WHEN** the selected entity's detail is not already loaded
@@ -24,7 +25,7 @@ The built site SHALL operate from versioned static files and image tiles on Clou
 
 #### Scenario: Static hosting serves a publication
 - **WHEN** the publication directory is deployed without application code
-- **THEN** a reader can navigate maps, search loaded indexes, filter markers, and select available layers
+- **THEN** a reader can pan across the complete shared world, search loaded indexes, filter markers, and select available layers
 - **AND** no interaction requires a dynamic server response
 
 ### Requirement: Game imagery is the default

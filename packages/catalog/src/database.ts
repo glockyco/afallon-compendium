@@ -53,6 +53,27 @@ export function openNormalizedDatabase(path: string): Database {
         UNIQUE(entity_key),
         CHECK(entity_key = kind || ':' || native_id)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS entity_details (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key),
+        detail_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS source_details (
+        detail_id TEXT PRIMARY KEY NOT NULL,
+        source_id TEXT NOT NULL REFERENCES source_identities(source_id),
+        placement_id TEXT NOT NULL REFERENCES placements(placement_id),
+        family TEXT NOT NULL,
+        data_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS patrol_paths (
+        path_key TEXT PRIMARY KEY NOT NULL,
+        scene_native_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        detail_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS scene_spawns (
+        scene_native_id INTEGER PRIMARY KEY NOT NULL,
+        detail_json TEXT NOT NULL
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS map_spaces (
         build_id TEXT NOT NULL REFERENCES normalized_builds(build_id),
         map_space_id TEXT NOT NULL,
@@ -443,6 +464,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     }
     for (const row of [...sceneRows.values()].sort((a, b) => a.nativeId - b.nativeId)) insertChecked(db, "identity_scenes", ["build_id", "scene_native_id"], ["build_id", "scene_native_id", "scene_path"], [input.buildId, row.nativeId, row.path]);
     ensureCanonical(db, input.buildId, byEntity);
+    for (const row of input.entityDetails) insertChecked(db, "entity_details", ["entity_key"], ["entity_key", "detail_json"], [row.entityKey, json(row)]);
     for (const row of input.mapSpaces) insertChecked(db, "map_spaces", ["build_id", "map_space_id"], ["build_id", "map_space_id", "label"], [input.buildId, row.id, row.label]);
     for (const binding of input.bindings) insertChecked(db, "map_space_bindings", ["build_id", "binding_id"], ["build_id", "binding_id", "map_space_id", "scene_native_id", "scene_path", "frame_json", "domain_json"], [input.buildId, binding.id, binding.mapSpaceId, binding.sceneNativeId, binding.scenePath, json(binding.frame), json(binding.domain)]);
 
@@ -462,6 +484,9 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
         insertChecked(db, "placement_sources", ["placement_id", "source_id"], ["placement_id", "source_id", "families_json", "provenance_json"], [placement.placementId, sourceId, json(source.families), json(source.provenance)]);
       }
     }
+    for (const detail of input.sourceDetails) insertChecked(db, "source_details", ["detail_id"], ["detail_id", "source_id", "placement_id", "family", "data_json"], [hash(detail), detail.sourceId, detail.placementId, detail.family, json(detail.data)]);
+    for (const row of input.patrolPaths) insertChecked(db, "patrol_paths", ["path_key"], ["path_key", "scene_native_id", "name", "detail_json"], [hash(row), row.sceneNativeId, row.name, json(row)]);
+    for (const row of input.sceneSpawns) insertChecked(db, "scene_spawns", ["scene_native_id"], ["scene_native_id", "detail_json"], [row.sceneNativeId, json(row)]);
     for (const role of input.roles) {
       if (role.npcId !== null && !byEntity.has(`npcs:${role.npcId}`)) throw new Error(`Role ${role.role} references missing NPC ${role.npcId}.`);
       insertChecked(db, "placement_roles", ["placement_id", "source_id", "role", "npc_entity_key", "scope"], ["placement_id", "source_id", "role", "npc_entity_key", "scope", "evidence_json"], [role.placementId, role.sourceId, role.role, role.npcId === null ? null : `npcs:${role.npcId}`, role.scope, json(role.evidence)]);
