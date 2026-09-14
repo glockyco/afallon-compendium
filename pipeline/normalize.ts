@@ -13,8 +13,7 @@ import { CoverageLedgerSchema, type CoverageLedger } from "@afallon/contracts";
 import type { SpatialResolution } from "@afallon/contracts"
 import type { NormalizedOutput, NormalizationPlan, ArtifactReference, NormalizedCondition, NormalizedDatabaseInput, NormalizedEntity, NormalizedItemSources, NormalizedMapProjection, NormalizedPlacement, NormalizedRegion, NormalizedRegionGeometry, NormalizedPatrolPath, NormalizedSource, NormalizedSpawnCandidate, EntityDetail, CategoryMetadata, NormalizedCoverageSummary, SceneSnapshotReference } from "@afallon/contracts/catalog"
 import { assertNormalizationPlan, entityKey, publicEntityDetails, stableJson } from "@afallon/contracts/catalog"
-import { databaseCounts, hashRelation, openNormalizedDatabase, populateNormalizedDatabase } from "./database";
-import { identitySnapshotId } from "../tools/identity-store";
+import { databaseCounts, hashRelation, identitySnapshotId, openNormalizedDatabase, populateNormalizedDatabase } from "@afallon/catalog";
 
 type JsonRecord = Record<string, unknown>;
 type JsonArray = unknown[];

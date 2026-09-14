@@ -1,6 +1,6 @@
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 import { createHash } from "node:crypto";
-import { openIdentityDatabase, recordPlacementIdentities } from "../tools/identity-store";
+import { openIdentityDatabase, recordPlacementIdentities } from "./identity-store";
 import type { NormalizedDatabaseInput, NormalizedEntity } from "@afallon/contracts/catalog"
 
 function json(value: unknown): string {
@@ -286,14 +286,26 @@ export function openNormalizedDatabase(path: string): Database {
         probability_json TEXT NOT NULL CHECK(probability_json = 'null'),
         PRIMARY KEY(item_entity_key, source_kind, source_key)
       ) STRICT;
-      CREATE TABLE IF NOT EXISTS unresolved_coverage (
-        blocker_id TEXT PRIMARY KEY NOT NULL,
+      CREATE TABLE IF NOT EXISTS coverage_issues (
+        issue_id TEXT PRIMARY KEY NOT NULL CHECK(length(issue_id) = 64),
         build_id TEXT NOT NULL REFERENCES normalized_builds(build_id),
         kind TEXT NOT NULL,
-        blocker_key TEXT NOT NULL,
-        detail TEXT NOT NULL,
-        provenance_json TEXT NOT NULL,
-        UNIQUE(build_id, kind, blocker_key)
+        subject_key TEXT NOT NULL,
+        semantic_discriminator TEXT NOT NULL,
+        state TEXT NOT NULL CHECK(state IN ('unresolved', 'resolved', 'excluded')),
+        resolution_evidence_json TEXT,
+        first_seen_run TEXT NOT NULL,
+        last_seen_run TEXT NOT NULL,
+        UNIQUE(build_id, kind, subject_key, semantic_discriminator)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS coverage_occurrences (
+        occurrence_id TEXT PRIMARY KEY NOT NULL CHECK(length(occurrence_id) = 64),
+        issue_id TEXT NOT NULL REFERENCES coverage_issues(issue_id) ON DELETE CASCADE,
+        artifact_hash TEXT NOT NULL CHECK(length(artifact_hash) = 64),
+        source_key TEXT NOT NULL,
+        record_path TEXT NOT NULL,
+        evidence_json TEXT NOT NULL,
+        UNIQUE(issue_id, artifact_hash, source_key, record_path)
       ) STRICT;
       CREATE INDEX IF NOT EXISTS placements_map_idx ON placements(build_id, map_space_id);
       CREATE INDEX IF NOT EXISTS placement_roles_role_idx ON placement_roles(role, placement_id);
@@ -338,6 +350,51 @@ function ensureCanonical(db: Database, buildId: string, entities: ReadonlyMap<st
 
 function addSourceManifest(db: Database, buildId: string, sourceKey: string, kind: string, path: string, sha256: string): void {
   insertChecked(db, "source_manifests", ["source_key"], ["source_key", "kind", "path", "sha256", "build_id"], [sourceKey, kind, path, sha256, buildId]);
+}
+
+export interface CoverageIssueEvidence {
+  buildId: string;
+  kind: string;
+  subjectKey: string;
+  semanticDiscriminator: string;
+  state: "unresolved" | "resolved" | "excluded";
+  resolutionEvidence?: unknown;
+  runId: string;
+  artifactHash: string;
+  sourceKey: string;
+  recordPath: string;
+  evidence: unknown;
+}
+
+export function coverageIssueId(evidence: Pick<CoverageIssueEvidence, "buildId" | "kind" | "subjectKey" | "semanticDiscriminator">): string {
+  return hash([evidence.buildId, evidence.kind, evidence.subjectKey, evidence.semanticDiscriminator]);
+}
+
+export function coverageOccurrenceId(issueId: string, evidence: Pick<CoverageIssueEvidence, "artifactHash" | "sourceKey" | "recordPath">): string {
+  return hash([issueId, evidence.artifactHash, evidence.sourceKey, evidence.recordPath]);
+}
+
+export function recordCoverageIssue(db: Database, evidence: CoverageIssueEvidence): { issueId: string; occurrenceId: string } {
+  const issueId = coverageIssueId(evidence);
+  const occurrenceId = coverageOccurrenceId(issueId, evidence);
+  db.query(`INSERT INTO coverage_issues
+      (issue_id, build_id, kind, subject_key, semantic_discriminator, state, resolution_evidence_json, first_seen_run, last_seen_run)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(issue_id) DO UPDATE SET
+        state = excluded.state,
+        resolution_evidence_json = excluded.resolution_evidence_json,
+        last_seen_run = excluded.last_seen_run`).run(
+    issueId, evidence.buildId, evidence.kind, evidence.subjectKey, evidence.semanticDiscriminator,
+    evidence.state, evidence.resolutionEvidence === undefined ? null : json(evidence.resolutionEvidence),
+    evidence.runId, evidence.runId,
+  );
+  db.query(`INSERT INTO coverage_occurrences
+      (occurrence_id, issue_id, artifact_hash, source_key, record_path, evidence_json)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(occurrence_id) DO NOTHING`).run(
+    occurrenceId, issueId, evidence.artifactHash, evidence.sourceKey, evidence.recordPath, json(evidence.evidence),
+  );
+  return { issueId, occurrenceId };
 }
 
 export function populateNormalizedDatabase(db: Database, input: NormalizedDatabaseInput, sourceFiles: ReadonlyArray<{ key: string; kind: string; ref: { path: string; sha256: string } }>): void {
@@ -432,13 +489,27 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
       if (!byEntity.has(itemKey)) throw new Error(`Item-source index references missing item ${itemKey}.`);
       for (const source of item.sources) insertChecked(db, "item_sources", ["item_entity_key", "source_kind", "source_key"], ["item_entity_key", "source_kind", "source_key", "placement_ids_json", "condition_ids_json", "context_json", "probability_json"], [itemKey, source.sourceKind, source.sourceKey, json([...source.placementIds].sort()), json([...source.conditionIds].sort()), json(source.context), "null"]);
     }
-    for (const blocker of input.blockers) insertChecked(db, "unresolved_coverage", ["build_id", "kind", "blocker_key"], ["blocker_id", "build_id", "kind", "blocker_key", "detail", "provenance_json"], [hash([input.buildId, blocker.kind, blocker.key]), input.buildId, blocker.kind, blocker.key, blocker.detail, json(blocker.provenance)]);
+    for (const blocker of input.blockers) {
+      const provenance = blocker.provenance[0];
+      recordCoverageIssue(db, {
+        buildId: input.buildId,
+        kind: blocker.kind,
+        subjectKey: blocker.key,
+        semanticDiscriminator: "",
+        state: "unresolved",
+        runId: input.buildId,
+        artifactHash: provenance?.sha256 ?? "0".repeat(64),
+        sourceKey: provenance?.path ?? "normalized-input",
+        recordPath: blocker.key,
+        evidence: { detail: blocker.detail, provenance: blocker.provenance },
+      });
+    }
   })();
 }
 
 export function databaseCounts(db: Database): NormalizedOutputCounts {
   const count = (table: string): number => Number(db.query<{ count: number }, []>(`SELECT count(*) AS count FROM ${table}`).get()?.count ?? 0);
-  return { entities: count("canonical_entities"), placements: count("placements"), regions: count("regions"), sources: count("source_identities"), roles: count("placement_roles"), conditions: count("conditions"), domainRelations: count("merchant_stock") + count("loot_bindings") + count("loot_entries") + count("resource_ranks") + count("resource_yields") + count("quest_associations") + count("transitions"), blockers: count("unresolved_coverage") };
+  return { entities: count("canonical_entities"), placements: count("placements"), regions: count("regions"), sources: count("source_identities"), roles: count("placement_roles"), conditions: count("conditions"), domainRelations: count("merchant_stock") + count("loot_bindings") + count("loot_entries") + count("resource_ranks") + count("resource_yields") + count("quest_associations") + count("transitions"), blockers: Number(db.query<{ count: number }, []>("SELECT count(*) AS count FROM coverage_issues WHERE state = 'unresolved'").get()?.count ?? 0) };
 }
 
 export interface NormalizedOutputCounts { entities: number; placements: number; regions: number; sources: number; roles: number; conditions: number; domainRelations: number; blockers: number }

@@ -3,7 +3,7 @@ import type { Database } from "bun:sqlite";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openNormalizedDatabase, populateNormalizedDatabase } from "./database";
+import { coverageIssueId, openNormalizedDatabase, populateNormalizedDatabase, recordCoverageIssue } from "./database";
 import type { NormalizedDatabaseInput } from "@afallon/contracts/catalog"
 
 test("rejects unset table identities without partially adding definitions", async () => {
@@ -62,4 +62,37 @@ test("stores SQL NULL for a region without a map space", async () => {
     db?.close();
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("creates a strict catalog schema with enforced coverage references", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    expect(db.query<{ strict: number }, []>("SELECT strict FROM pragma_table_list WHERE name = 'coverage_issues'").get()).toEqual({ strict: 1 });
+    expect(db.query<{ foreign_keys: number }, []>("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
+    expect(() => db.query("INSERT INTO coverage_occurrences VALUES (?, ?, ?, ?, ?, ?)").run(
+      "a".repeat(64), "b".repeat(64), "c".repeat(64), "source", "records/0", "{}",
+    )).toThrow();
+  } finally { db.close(); }
+});
+
+test("deduplicates semantic issues without using diagnostic wording", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "schema", "{}");
+    const base = {
+      buildId: "build", kind: "missing-reference", subjectKey: "items:7", semanticDiscriminator: "owner",
+      state: "unresolved" as const, runId: "run-1", artifactHash: "a".repeat(64), sourceKey: "items",
+    };
+    const first = recordCoverageIssue(db, { ...base, recordPath: "records/1", evidence: { detail: "first wording" } });
+    const second = recordCoverageIssue(db, { ...base, recordPath: "records/2", evidence: { detail: "different wording" } });
+    const duplicate = recordCoverageIssue(db, { ...base, recordPath: "records/1", evidence: { detail: "changed wording" } });
+    const distinct = recordCoverageIssue(db, { ...base, subjectKey: "items:8", recordPath: "records/3", evidence: { detail: "first wording" } });
+
+    expect(first.issueId).toBe(second.issueId);
+    expect(first.occurrenceId).toBe(duplicate.occurrenceId);
+    expect(distinct.issueId).not.toBe(first.issueId);
+    expect(coverageIssueId(base)).toBe(first.issueId);
+    expect(db.query("SELECT count(*) AS count FROM coverage_issues").get()).toEqual({ count: 2 });
+    expect(db.query("SELECT count(*) AS count FROM coverage_occurrences").get()).toEqual({ count: 3 });
+  } finally { db.close(); }
 });

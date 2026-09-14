@@ -23,6 +23,7 @@
   "dependencies": {
     "@afallon/artifacts": "workspace:*",
     "@afallon/capture": "workspace:*",
+    "@afallon/catalog": "workspace:*",
     "@afallon/contracts": "workspace:*",
     "@afallon/runtime": "workspace:*",
     "@hotrepl/protocol": "4.0.1",
