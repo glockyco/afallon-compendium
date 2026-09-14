@@ -1,10 +1,8 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import * as path from "node:path";
-import { beginRun, loadVerifiedRun, type VerifiedRun } from "../tools/runs";
+import { beginRun, compileMapSpaces, loadSpatialProfile, loadVerifiedRun, type VerifiedRun } from "@afallon/capture";
 import { toolRevision } from "../tools/build";
-import { loadSpatialProfile } from "../tools/spatial-extraction";
-import { compileMapSpaces } from "../tools/map-spaces";
 import { decodeContract, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, type MapGeometry } from "@afallon/contracts"
 import { PlacementIdentityResultSchema, PlacementSnapshotSchema, type Canonical, type LootRules, type NpcProducersInput, type PlacementIdentityResult, type PlacementSnapshot, type Relationships, type WorldSources } from "@afallon/contracts";
 import { CanonicalSchema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema } from "@afallon/contracts";

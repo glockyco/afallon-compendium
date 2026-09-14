@@ -12,10 +12,8 @@ type IllustrationOutput,
 type IllustrationPlan,
 type IllustrationRegistrationOutput, } from "@afallon/contracts"
 import type { MapSpaceProfile } from "@afallon/contracts"
-import { loadSpatialProfile, resolveEvidencePointer } from "./spatial-extraction";
-import { indexMapSpaceDefinitions } from "./map-spaces";
+import { beginRun, indexMapSpaceDefinitions, loadSpatialProfile, resolveEvidencePointer } from "@afallon/capture";
 import type { ArtifactRecord } from "@afallon/contracts";
-import { beginRun } from "./runs";
 
 const PIXEL_RESIDUAL_EPSILON = 1e-9;
 const FRAME_DETERMINANT_EPSILON = Number.EPSILON;

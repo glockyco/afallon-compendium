@@ -4,9 +4,8 @@ import { dirname, resolve } from "node:path";
 import sharp from "sharp";
 import { Assert } from "typebox/value";
 
-import { beginRun, loadVerifiedRun, type VerifiedRun } from "../tools/runs";
+import { beginRun, compileMapSpaces, loadVerifiedRun, type VerifiedRun } from "@afallon/capture";
 import { toolRevision } from "../tools/build";
-import { compileMapSpaces } from "../tools/map-spaces";
 import { MapSpaceProfileSchema, type MapSpaceProfile } from "@afallon/contracts"
 import { SceneCatalogSchema, type SceneCatalog } from "@afallon/contracts"
 import { IllustrationOutputSchema, type IllustrationOutput } from "@afallon/contracts"

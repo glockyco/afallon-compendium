@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import sharp from "sharp";
-import { beginRun } from "../tools/runs";
+import { beginRun } from "@afallon/capture";
 import { toolRevision } from "../tools/build";
 import { loadTileInputs, type SourceTile } from "./tile-input";
 import { makeTileGrid, type GridSource, type TileGrid } from "./tile-grid";

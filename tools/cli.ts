@@ -4,15 +4,13 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { buildIdentity, hashFile, toolRevision } from "./build";
 import { loadConfig } from "./config";
-import { beginRun } from "./runs";
+import { beginRun, capture, planCapture } from "@afallon/capture";
 import { withRuntime } from "@afallon/runtime";
-import { capture } from "./capture";
 import type { CapturePlan } from "@afallon/contracts"
 import { prepareIllustration } from "./illustrations";
 import { normalize } from "../pipeline/normalize";
 import { generateTiles } from "../pipeline/tiles";
 import { preparePublication } from "../pipeline/publication";
-import { planCapture } from "./capture-planner";
 import { planTiles } from "./tile-planner";
 import { runScanCommand } from "../apps/compendium-cli/src";
 
@@ -131,7 +129,7 @@ async function main() {
       return;
     }
     if (command === "capture") {
-      const result = await capture(runtime, config, identity, (plan as CapturePlan[]).map((value, index) => ({ plan: value, path: resolve(planPaths[index]!) })));
+      const result = await capture(runtime, config, { ...identity, diagnosticRevision: await toolRevision() }, (plan as CapturePlan[]).map((value, index) => ({ plan: value, path: resolve(planPaths[index]!) })));
       console.log(JSON.stringify({ ok: true, buildId: identity.buildId, ...result }, null, 2));
       return;
     }

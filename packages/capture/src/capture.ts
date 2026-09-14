@@ -4,7 +4,6 @@ import { dirname, resolve } from "node:path";
 import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { isDeepStrictEqual } from "node:util";
-import { buildIdentity, hashFile, toolRevision } from "./build";
 import type { CompendiumConfig } from "@afallon/contracts";
 import { toRuntimePath, type Runtime } from "@afallon/runtime";
 import { CaptureCleanupSchema,
@@ -45,6 +44,12 @@ import {
   type ReusableCaptureTile,
 } from "./capture-cache";
 import { SceneVisitSchema, type SceneVisit } from "@afallon/contracts"
+
+export interface CaptureBuildIdentity {
+  readonly buildId: string;
+  readonly inputHashes: Readonly<Record<string, string>>;
+  readonly diagnosticRevision: string;
+}
 
 function assertSchema<T extends TSchema>(schema: T, value: unknown, label: string): asserts value is Static<T> {
   try {
@@ -347,7 +352,7 @@ type CaptureSweepContext = {
 async function capturePlan(
   runtime: Runtime,
   config: CompendiumConfig,
-  identity: Awaited<ReturnType<typeof buildIdentity>>,
+  identity: CaptureBuildIdentity,
   plan: CapturePlan,
   planDirectory: string,
   sweep?: CaptureSweepContext,
@@ -368,13 +373,16 @@ async function capturePlan(
     plan: createHash("sha256").update(planText).digest("hex"),
     "map-space-profile": spatialProfile.sha256,
   };
-  for (const name of ["world-inventory", "capture-session", "capture-geometry", "capture-visuals", "stream-visit", "scene-visit"]) {
-    inputHashes[`probe:${name}`] = await hashFile(resolve(import.meta.dir, `probes/${name}.csx`));
-  }
-  for (const name of [
-    "capture", "capture-cache", "../packages/contracts/src/capture/evidence", "capture-position", "capture-readiness", "../packages/contracts/src/raw/traversal", "runtime", "runs", "build", "config", "../packages/contracts/src/raw/database", "../packages/contracts/src/raw/world-inventory",
-    "map-calibration", "../packages/contracts/src/spatial/map", "map-spaces", "../packages/contracts/src/spatial/reviewed", "spatial-extraction",
-  ]) {
+  const probePaths: Readonly<Record<string, string>> = {
+    "world-inventory": resolve(import.meta.dir, "../../scan/src/probes/collectors/world-inventory.csx"),
+    "capture-session": resolve(import.meta.dir, "probes/capture-session.csx"),
+    "capture-geometry": resolve(import.meta.dir, "probes/capture-geometry.csx"),
+    "capture-visuals": resolve(import.meta.dir, "probes/capture-visuals.csx"),
+    "stream-visit": resolve(import.meta.dir, "probes/stream-visit.csx"),
+    "scene-visit": resolve(import.meta.dir, "probes/scene-visit.csx"),
+  };
+  for (const [name, path] of Object.entries(probePaths)) inputHashes[`probe:${name}`] = await hashFile(path);
+  for (const name of ["capture", "capture-cache", "capture-position", "capture-readiness", "runs", "map-calibration", "map-spaces", "spatial-extraction"]) {
     inputHashes[`tool:${name}`] = await hashFile(resolve(import.meta.dir, `${name}.ts`));
   }
   // The survey is a plan input: the player stands on the walkable surface it describes, at the
@@ -396,7 +404,7 @@ async function capturePlan(
   const run = await beginRun(config.outputRoot, {
     ...identity,
     inputHashes,
-    toolRevision: await toolRevision(),
+    toolRevision: identity.diagnosticRevision,
     command: "capture",
     settings: {
       character: config.character,
@@ -461,7 +469,7 @@ async function capturePlan(
 
     await mkdir(resolve(run.directory, "raw"), { recursive: true });
     const inventoryPath = resolve(run.directory, "raw/world-inventory.json");
-    const inventoryReply = await runtime.probe(resolve(import.meta.dir, "../packages/scan/src/probes/collectors/world-inventory.csx"), inventoryPath, {
+    const inventoryReply = await runtime.probe(resolve(import.meta.dir, "../../scan/src/probes/collectors/world-inventory.csx"), inventoryPath, {
       parameters: { researchCharacter: config.character },
       captureContext: true,
     });
@@ -698,10 +706,14 @@ async function capturePlan(
 
 export type CapturePlanInput = { plan: CapturePlan; path: string };
 
+async function hashFile(path: string): Promise<string> {
+  return createHash("sha256").update(await readFile(path)).digest("hex");
+}
+
 export async function capture(
   runtime: Runtime,
   config: CompendiumConfig,
-  identity: Awaited<ReturnType<typeof buildIdentity>>,
+  identity: CaptureBuildIdentity,
   planInputs: CapturePlanInput[],
 ) {
   if (planInputs.length === 0) throw new Error("Capture requires at least one plan.");
@@ -715,7 +727,7 @@ export async function capture(
       "runtime-owner": runtime.ownerSourceHash,
       ...Object.fromEntries(plans.map(plan => [`plan:${plan.sceneNativeId}:${plan.mapSpaceId}`, createHash("sha256").update(JSON.stringify(plan)).digest("hex")])),
     },
-    toolRevision: await toolRevision(),
+    toolRevision: identity.diagnosticRevision,
     command: "capture-sweep",
     settings: {
       character: config.character,

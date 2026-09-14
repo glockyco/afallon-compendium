@@ -40,7 +40,7 @@
 
 ## 5. Capture Package
 
-- [ ] 5.1 Move capture planning, readiness, rendering, restoration, and tile evidence into `packages/capture` while retaining the runtime package as its only game-state owner; verify existing capture contract and cleanup scenarios pass.
+- [x] 5.1 Move capture planning, readiness, rendering, restoration, and tile evidence into `packages/capture` while retaining the runtime package as its only game-state owner; verify existing capture contract and cleanup scenarios pass.
 - [ ] 5.2 Replace copied capture inputs and manual revision lists with artifact references and automatic fingerprints; verify a changed plan, survey, geometry input, probe source, or capture policy invalidates reuse.
 - [ ] 5.3 Write capture chunks and pyramids directly to the content store and finalize them through immutable run manifests; verify interruption preserves the prior latest-success reference and leaves no published partial object.
 - [ ] 5.4 Run one representative capture smoke scenario against the instrumented game; verify tile registration, readiness evidence, visual restoration, and cleanup receipt match the declared capture contract.
