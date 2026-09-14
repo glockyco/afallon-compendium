@@ -12,6 +12,40 @@ export interface CatalogMapSummary {
   regionCount: number;
 }
 
+export interface CatalogMapPlacement {
+  placementId: string;
+  mapSpaceId: string;
+  position: [number, number];
+  height: number;
+  label: string | null;
+  shape: unknown;
+  roles: Array<{ role: string; scope: string; npcEntityKey: string | null }>;
+  itemEntityKeys: string[];
+}
+
+export interface CatalogMapRegion {
+  regionId: string;
+  mapSpaceId: string;
+  name: string;
+  shape: "box" | "sphere";
+  geometry: unknown;
+}
+
+export interface CatalogMapConnection {
+  transitionId: string;
+  sourcePlacementId: string | null;
+  destinationMapSpaceId: string | null;
+  kind: string;
+}
+
+export interface CatalogMapFacts {
+  mapSpaceId: string;
+  label: string;
+  placements: CatalogMapPlacement[];
+  regions: CatalogMapRegion[];
+  connections: CatalogMapConnection[];
+}
+
 export interface CatalogSearchSummary {
   entityKey: string;
   kind: string;
@@ -22,6 +56,7 @@ export interface CatalogSearchSummary {
 
 export interface CatalogEntityDetail extends CatalogSearchSummary {
   internalName: string | null;
+  placementIds: string[];
   details: unknown;
   provenance: unknown;
 }
@@ -78,6 +113,45 @@ export function queryCatalogMaps(db: Database): CatalogQueryResult<CatalogMapSum
   return { ...identity(db), records };
 }
 
+export function queryCatalogMap(db: Database, mapSpaceId: string): CatalogQueryResult<CatalogMapFacts | null> {
+  const map = db.query<{ map_space_id: string; label: string }, [string]>("SELECT map_space_id, label FROM map_spaces WHERE map_space_id = ?").get(mapSpaceId);
+  if (map === null) return { ...identity(db), records: null };
+  const rolesByPlacement = new Map<string, CatalogMapPlacement["roles"]>();
+  for (const row of db.query<{ placement_id: string; role: string; scope: string; npc_entity_key: string | null }, [string]>(`
+    SELECT r.placement_id, r.role, r.scope, r.npc_entity_key FROM placement_roles r
+    JOIN placements p ON p.placement_id = r.placement_id
+    WHERE p.map_space_id = ? ORDER BY r.placement_id, r.role, r.scope, COALESCE(r.npc_entity_key, '')
+  `).all(mapSpaceId)) {
+    const roles = rolesByPlacement.get(row.placement_id) ?? [];
+    roles.push({ role: row.role, scope: row.scope, npcEntityKey: row.npc_entity_key });
+    rolesByPlacement.set(row.placement_id, roles);
+  }
+  const itemsByPlacement = new Map<string, string[]>();
+  for (const row of db.query<{ placement_id: string; item_entity_key: string }, [string]>(`
+    SELECT DISTINCT p.placement_id, s.item_entity_key FROM placements p
+    JOIN item_sources s JOIN json_each(s.placement_ids_json) j ON j.value = p.placement_id
+    WHERE p.map_space_id = ? ORDER BY p.placement_id, s.item_entity_key
+  `).all(mapSpaceId)) {
+    const items = itemsByPlacement.get(row.placement_id) ?? [];
+    items.push(row.item_entity_key);
+    itemsByPlacement.set(row.placement_id, items);
+  }
+  const placements = db.query<{ placement_id: string; map_space_id: string; map_x: number; map_y: number; world_y: number; label: string | null; shape_json: string | null }, [string]>(
+    "SELECT placement_id, map_space_id, map_x, map_y, world_y, label, shape_json FROM placements WHERE map_space_id = ? AND map_x IS NOT NULL AND map_y IS NOT NULL ORDER BY placement_id",
+  ).all(mapSpaceId).map((row) => ({ placementId: row.placement_id, mapSpaceId: row.map_space_id, position: [row.map_x, row.map_y] as [number, number], height: row.world_y, label: row.label, shape: row.shape_json === null ? null : parse(row.shape_json), roles: rolesByPlacement.get(row.placement_id) ?? [], itemEntityKeys: itemsByPlacement.get(row.placement_id) ?? [] }));
+  const regions = db.query<{ region_id: string; map_space_id: string; name: string; shape: "box" | "sphere"; map_geometry_json: string }, [string]>(
+    "SELECT region_id, map_space_id, name, shape, map_geometry_json FROM regions WHERE map_space_id = ? AND map_geometry_json IS NOT NULL ORDER BY region_id",
+  ).all(mapSpaceId).map((row) => ({ regionId: row.region_id, mapSpaceId: row.map_space_id, name: row.name, shape: row.shape, geometry: parse(row.map_geometry_json) }));
+  const connections = db.query<{ transition_id: string; source_placement_id: string | null; destination_map_space_id: string | null; transition_kind: string }, [string]>(`
+    SELECT t.transition_id, ps.placement_id AS source_placement_id, t.destination_map_space_id, t.transition_kind
+    FROM transitions t
+    LEFT JOIN placement_sources ps ON ps.source_id = t.source_id
+    LEFT JOIN placements p ON p.placement_id = ps.placement_id
+    WHERE p.map_space_id = ? ORDER BY t.transition_id, COALESCE(ps.placement_id, '')
+  `).all(mapSpaceId).map((row) => ({ transitionId: row.transition_id, sourcePlacementId: row.source_placement_id, destinationMapSpaceId: row.destination_map_space_id, kind: row.transition_kind }));
+  return { ...identity(db), records: { mapSpaceId: map.map_space_id, label: map.label, placements, regions, connections } };
+}
+
 export function queryCatalogSearch(db: Database): CatalogQueryResult<CatalogSearchSummary[]> {
   const records = db.query<{ entity_key: string; kind: string; native_id: number; name: string | null; description: string | null }, []>(
     "SELECT entity_key, kind, native_id, name, description FROM canonical_entities ORDER BY kind, native_id, entity_key",
@@ -89,7 +163,14 @@ export function queryCatalogEntity(db: Database, entityKey: string): CatalogQuer
   const row = db.query<{ entity_key: string; kind: string; native_id: number; name: string | null; internal_name: string | null; description: string | null; details_json: string; provenance_json: string }, [string]>(
     "SELECT entity_key, kind, native_id, name, internal_name, description, details_json, provenance_json FROM canonical_entities WHERE entity_key = ?",
   ).get(entityKey);
-  const records = row === null ? null : { entityKey: row.entity_key, kind: row.kind, nativeId: row.native_id, name: row.name, internalName: row.internal_name, description: row.description, details: parse(row.details_json), provenance: parse(row.provenance_json) };
+  if (row === null) return { ...identity(db), records: null };
+  const placementIds = db.query<{ placement_id: string }, [string, string]>(`
+    SELECT placement_id FROM placement_roles WHERE npc_entity_key = ?
+    UNION
+    SELECT j.value AS placement_id FROM item_sources s JOIN json_each(s.placement_ids_json) j WHERE s.item_entity_key = ?
+    ORDER BY placement_id
+  `).all(entityKey, entityKey).map((placement) => placement.placement_id);
+  const records = { entityKey: row.entity_key, kind: row.kind, nativeId: row.native_id, name: row.name, internalName: row.internal_name, description: row.description, placementIds, details: parse(row.details_json), provenance: parse(row.provenance_json) };
   return { ...identity(db), records };
 }
 

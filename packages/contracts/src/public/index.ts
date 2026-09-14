@@ -432,7 +432,12 @@ export const StaticMapShardSchema = Type.Object({
   mapSpaceId: text,
   placements: Type.Array(PublicPlacementSchema),
   regions: Type.Array(PublicRegionSchema),
-  connections: Type.Array(Type.Object({ placementId: text, travel: PublicTravelSchema }, { additionalProperties: false })),
+  connections: Type.Array(Type.Object({
+    transitionId: text,
+    sourcePlacementId: Type.Union([text, Type.Null()]),
+    destinationMapSpaceId: Type.Union([text, Type.Null()]),
+    kind: text,
+  }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type StaticMapShard = Static<typeof StaticMapShardSchema>;
 
@@ -446,7 +451,14 @@ export type StaticEntitySearch = Static<typeof StaticEntitySearchSchema>;
 export const StaticItemSearchSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.static-item-search.v1"),
   ...StaticResourceIdentityFields,
-  items: Type.Array(PublicItemSummarySchema),
+  items: Type.Array(Type.Object({
+    itemKey: text,
+    name: text,
+    sourceNames: Type.Array(text, { uniqueItems: true }),
+    sourceKinds: Type.Array(text, { uniqueItems: true }),
+    detailPath: url,
+    sourcePath: url,
+  }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type StaticItemSearch = Static<typeof StaticItemSearchSchema>;
 

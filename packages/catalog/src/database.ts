@@ -83,6 +83,7 @@ export function openNormalizedDatabase(path: string): Database {
         world_z REAL NOT NULL,
         map_x REAL,
         map_y REAL,
+        label TEXT,
         shape_json TEXT,
         provenance_json TEXT NOT NULL,
         FOREIGN KEY(build_id, scene_native_id) REFERENCES identity_scenes,
@@ -446,7 +447,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const binding of input.bindings) insertChecked(db, "map_space_bindings", ["build_id", "binding_id"], ["build_id", "binding_id", "map_space_id", "scene_native_id", "scene_path", "frame_json", "domain_json"], [input.buildId, binding.id, binding.mapSpaceId, binding.sceneNativeId, binding.scenePath, json(binding.frame), json(binding.domain)]);
 
     for (const placement of input.placements) {
-      insertChecked(db, "placements", ["placement_id"], ["placement_id", "build_id", "scene_native_id", "scene_path", "map_space_id", "world_x", "world_y", "world_z", "map_x", "map_y", "shape_json", "provenance_json"], [placement.placementId, input.buildId, placement.sceneNativeId, placement.scenePath, placement.mapSpaceId, placement.worldPosition.x, placement.worldPosition.y, placement.worldPosition.z, placement.mapPosition?.x ?? null, placement.mapPosition?.y ?? null, json(placement.shape), json(placement.provenance)]);
+      insertChecked(db, "placements", ["placement_id"], ["placement_id", "build_id", "scene_native_id", "scene_path", "map_space_id", "world_x", "world_y", "world_z", "map_x", "map_y", "label", "shape_json", "provenance_json"], [placement.placementId, input.buildId, placement.sceneNativeId, placement.scenePath, placement.mapSpaceId, placement.worldPosition.x, placement.worldPosition.y, placement.worldPosition.z, placement.mapPosition?.x ?? null, placement.mapPosition?.y ?? null, placement.label ?? null, json(placement.shape), json(placement.provenance)]);
     }
     for (const region of input.regions) {
       insertChecked(db, "regions", ["region_id"], ["region_id", "build_id", "scene_native_id", "scene_path", "name", "internal_name", "shape", "world_geometry_json", "map_space_id", "map_geometry_json", "provenance_json"], [region.regionId, input.buildId, region.sceneNativeId, region.scenePath, region.name, region.internalName, region.shape, json(region.worldGeometry), region.mapSpaceId, region.mapGeometry === null ? null : json(region.mapGeometry), json(region.provenance)]);
