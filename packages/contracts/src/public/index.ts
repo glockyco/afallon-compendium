@@ -392,6 +392,116 @@ export const GuideDocumentSchema = Type.Object({
 }, { additionalProperties: false });
 export type GuideDocument = Static<typeof GuideDocumentSchema>;
 
+const StaticResourceIdentityFields = {
+  buildId: text,
+  catalogId: hash,
+};
+
+export const StaticResourceReferenceSchema = Type.Object({
+  path: url,
+  sha256: hash,
+  bytes: count,
+  schemaId: text,
+}, { additionalProperties: false });
+export type StaticResourceReference = Static<typeof StaticResourceReferenceSchema>;
+
+export const StaticMapSummarySchema = Type.Object({
+  mapSpaceId: text,
+  label: text,
+  bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
+  data: StaticResourceReferenceSchema,
+  imagery: StaticResourceReferenceSchema,
+}, { additionalProperties: false });
+export type StaticMapSummary = Static<typeof StaticMapSummarySchema>;
+
+export const StaticRootManifestSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-root.v1"),
+  ...StaticResourceIdentityFields,
+  mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
+  complete: Type.Boolean(),
+  maps: Type.Array(StaticMapSummarySchema),
+  entitySearch: StaticResourceReferenceSchema,
+  itemSearch: StaticResourceReferenceSchema,
+  coverage: StaticResourceReferenceSchema,
+}, { additionalProperties: false });
+export type StaticRootManifest = Static<typeof StaticRootManifestSchema>;
+
+export const StaticMapShardSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-map.v1"),
+  ...StaticResourceIdentityFields,
+  mapSpaceId: text,
+  placements: Type.Array(PublicPlacementSchema),
+  regions: Type.Array(PublicRegionSchema),
+  connections: Type.Array(Type.Object({ placementId: text, travel: PublicTravelSchema }, { additionalProperties: false })),
+}, { additionalProperties: false });
+export type StaticMapShard = Static<typeof StaticMapShardSchema>;
+
+export const StaticEntitySearchSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-entity-search.v1"),
+  ...StaticResourceIdentityFields,
+  entities: Type.Array(PublicEntitySummarySchema),
+}, { additionalProperties: false });
+export type StaticEntitySearch = Static<typeof StaticEntitySearchSchema>;
+
+export const StaticItemSearchSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-item-search.v1"),
+  ...StaticResourceIdentityFields,
+  items: Type.Array(PublicItemSummarySchema),
+}, { additionalProperties: false });
+export type StaticItemSearch = Static<typeof StaticItemSearchSchema>;
+
+export const StaticEntityDetailSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-entity-detail.v1"),
+  ...StaticResourceIdentityFields,
+  entity: PublicEntitySchema,
+}, { additionalProperties: false });
+export type StaticEntityDetail = Static<typeof StaticEntityDetailSchema>;
+
+export const StaticItemSourceSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-item-source.v1"),
+  ...StaticResourceIdentityFields,
+  itemSource: PublicItemSourceSchema,
+}, { additionalProperties: false });
+export type StaticItemSource = Static<typeof StaticItemSourceSchema>;
+
+export const StaticCoverageSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-coverage.v1"),
+  ...StaticResourceIdentityFields,
+  complete: Type.Boolean(),
+  unresolvedIssueCount: count,
+  occurrenceCount: count,
+  exclusionCount: count,
+  messages: Type.Array(text),
+}, { additionalProperties: false });
+export type StaticCoverage = Static<typeof StaticCoverageSchema>;
+
+export const StaticImagerySchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-imagery.v1"),
+  ...StaticResourceIdentityFields,
+  mapSpaceId: text,
+  defaultLayerId: text,
+  layers: Type.Array(PublicTileLayerSchema, { minItems: 1 }),
+}, { additionalProperties: false });
+export type StaticImagery = Static<typeof StaticImagerySchema>;
+
+export interface StaticIdentityContract {
+  buildId: string;
+  catalogId: string;
+}
+
+export function assertStaticResourceIdentity(expected: StaticIdentityContract, resource: StaticIdentityContract): void {
+  if (resource.buildId !== expected.buildId) throw new Error(`Static resource build mismatch: expected ${expected.buildId}, received ${resource.buildId}.`);
+  if (resource.catalogId !== expected.catalogId) throw new Error(`Static resource catalog mismatch: expected ${expected.catalogId}, received ${resource.catalogId}.`);
+}
+
+schemaRegistry.register("compendium.static-root.v1", StaticRootManifestSchema);
+schemaRegistry.register("compendium.static-map.v1", StaticMapShardSchema);
+schemaRegistry.register("compendium.static-entity-search.v1", StaticEntitySearchSchema);
+schemaRegistry.register("compendium.static-item-search.v1", StaticItemSearchSchema);
+schemaRegistry.register("compendium.static-entity-detail.v1", StaticEntityDetailSchema);
+schemaRegistry.register("compendium.static-item-source.v1", StaticItemSourceSchema);
+schemaRegistry.register("compendium.static-coverage.v1", StaticCoverageSchema);
+schemaRegistry.register("compendium.static-imagery.v1", StaticImagerySchema);
 schemaRegistry.register("compendium.public-level-range.v1", PublicLevelRangeSchema);
 schemaRegistry.register("compendium.public-affine.v1", PublicAffineSchema);
 schemaRegistry.register("compendium.public-detail-row.v1", PublicDetailRowSchema);

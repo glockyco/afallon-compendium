@@ -58,7 +58,7 @@
 
 ## 7. Static Publication
 
-- [ ] 7.1 Define and validate the root manifest, map shard, compact search index, entity detail, item source, coverage, and imagery metadata contracts; verify every contract rejects mismatched build, catalog, schema, or resource identity.
+- [x] 7.1 Define and validate the root manifest, map shard, compact search index, entity detail, item source, coverage, and imagery metadata contracts; verify every contract rejects mismatched build, catalog, schema, or resource identity.
 - [ ] 7.2 Generate map-specific placement, region, and connection shards directly from catalog queries; verify opening one map does not require another map's records and deterministic inputs produce identical resource hashes.
 - [ ] 7.3 Generate compact global entity and item search indexes plus independently addressable detail resources; verify a selected detail loads without downloading unrelated detail bodies.
 - [ ] 7.4 Migrate game-map and captured imagery generation to content-addressed publication assets; verify registrations, tile hashes, marker sampling, and layer metadata remain valid.
