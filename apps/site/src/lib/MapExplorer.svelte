@@ -4,7 +4,7 @@
   import { base } from '$app/paths';
   import { onMount, tick } from 'svelte';
   import type { MapAdapter, MapAdapterUpdate, MapViewState } from './map-adapter';
-  import { readMapUrl, writeMapUrl, type MapUrlState } from './map-url';
+  import { readAtlasUrl, writeAtlasUrl, type AtlasState } from './atlas-state';
   import { filteredSections, linksFromSections } from './detail-utils';
   import DetailSections from './DetailSections.svelte';
   import {
@@ -185,7 +185,7 @@
       // Expanded panels are a safe default when browser storage is unavailable.
     }
     const metadataRequest = new AbortController();
-    const onPopState = () => applyUrlState(readMapUrl(window.location.search));
+    const onPopState = () => applyUrlState(readAtlasUrl(window.location.search));
     const onKeydown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault();
@@ -206,7 +206,7 @@
     };
     window.addEventListener('popstate', onPopState);
     window.addEventListener('keydown', onKeydown);
-    applyUrlState(readMapUrl(window.location.search));
+    applyUrlState(readAtlasUrl(window.location.search));
     const mapDocumentUrl = new URL(`${base}/data/publication.json`, window.location.href).toString();
     publicationUrl = mapDocumentUrl;
     fetch(mapDocumentUrl, { signal: metadataRequest.signal })
@@ -220,12 +220,13 @@
         if (disposed) return;
         publication = data;
         searchIndexes = buildSearchIndexes(data);
-        applyUrlState(readMapUrl(window.location.search));
+        applyUrlState(readAtlasUrl(window.location.search));
         loading = false;
         void tick().then(() => ensureCurrentSelection());
         await tick();
         if (disposed) return;
-        view = readMapUrl(window.location.search).view ?? centerView(publication.world);
+        const requestedView = readAtlasUrl(window.location.search).view;
+        view = requestedView ? { target: [requestedView.target[0], requestedView.target[1], requestedView.target[2]], zoom: requestedView.zoom } : centerView(publication.world);
         const module = await import('./map-adapter');
         if (disposed) return;
         adapter = await module.createMapAdapter(canvas, view, {
@@ -492,7 +493,7 @@
     return placement.position[0] >= bounds[0] && placement.position[0] <= bounds[2] && placement.position[1] >= bounds[1] && placement.position[1] <= bounds[3];
   }
 
-  function applyUrlState(next: MapUrlState): void {
+  function applyUrlState(next: AtlasState): void {
     itemSourceQuery = next.itemSourceQuery;
     detailQuery = next.detailQuery;
     const known = new Set(['captured', 'game-maps', ...(publication?.tileLayers ?? []).map((tileLayer) => tileLayer.id)]);
@@ -504,26 +505,27 @@
     showConnections = next.showConnections;
     showMovement = next.showMovement;
     itemKey = next.itemKey && (!publication || publication.itemIndex.some((item) => item.itemKey === next.itemKey)) ? next.itemKey : null;
-    const selected = next.selectedId && publication ? publication.placements.find((placement) => placement.placementId === next.selectedId) : null;
-    if (next.selectedId && publication && !selected) staleSelection = 'This link refers to a location that is not in the loaded publication.';
+    const selected = next.selectedPlacementId && publication ? publication.placements.find((placement) => placement.placementId === next.selectedPlacementId) : null;
+    if (next.selectedPlacementId && publication && !selected) staleSelection = 'This link refers to a location that is not in the loaded publication.';
     else staleSelection = '';
-    selectedId = selected?.placementId ?? (publication ? null : next.selectedId);
+    selectedId = selected?.placementId ?? (publication ? null : next.selectedPlacementId);
     selectedEntityKey = next.entityKey && (!publication || publication.entityIndex.some((entity) => entity.entityKey === next.entityKey)) ? next.entityKey : null;
     if (selectedEntityKey) itemKey = null;
     else if (next.entityKey && publication) staleSelection = `This link refers to an entity that is not in the loaded publication: ${next.entityKey}.`;
     if (next.itemKey && !itemKey && !selectedEntityKey && publication) staleSelection = `This link refers to an item that is not in the loaded publication: ${next.itemKey}.`;
     const restoredView = next.view ?? (publication ? centerView(publication.world) : null);
     if (restoredView) {
-      view = restoredView;
-      adapter?.setView(restoredView);
+      const rendererView: MapViewState = { target: [restoredView.target[0], restoredView.target[1], restoredView.target[2]], zoom: restoredView.zoom };
+      view = rendererView;
+      adapter?.setView(rendererView);
     }
   }
 
-  function currentUrl(overrides: Partial<Pick<MapUrlState, 'categories'>> = {}): URL {
-    return writeMapUrl(new URL(window.location.href), { layerIds, selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, showZones, showConnections, showMovement, itemKey, entityKey: selectedEntityKey, view });
+  function currentUrl(overrides: Partial<Pick<AtlasState, 'categories'>> = {}): URL {
+    return writeAtlasUrl(new URL(window.location.href), { mapSpaceId: null, layerIds, selectedPlacementId: selectedId, query, itemSourceQuery: itemKey ? itemSourceQuery : '', detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '', categories: overrides.categories !== undefined ? overrides.categories : categories, showZones, showConnections, showMovement, itemKey, entityKey: selectedEntityKey, view });
   }
 
-  function syncUrl(mode: 'push' | 'replace', overrides: Partial<Pick<MapUrlState, 'categories'>> = {}): void {
+  function syncUrl(mode: 'push' | 'replace', overrides: Partial<Pick<AtlasState, 'categories'>> = {}): void {
     // The framework router owns history, so its own helpers must be used; calling
     // window.history directly desynchronises the page store from the address bar.
     const next = currentUrl(overrides);

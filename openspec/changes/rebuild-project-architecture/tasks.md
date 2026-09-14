@@ -69,7 +69,7 @@
 ## 8. Atlas Refactor
 
 - [x] 8.1 Implement `atlas-data` loading for the root, current map, compact indexes, selected details, and request deduplication; verify failed and repeated requests expose stable error/loading states without duplicate fetches.
-- [ ] 8.2 Implement immutable `atlas-state` transitions, selectors, and canonical URL serialization; verify all valid shareable fields round-trip and removed parameter aliases are ignored and never written.
+- [x] 8.2 Implement immutable `atlas-state` transitions, selectors, and canonical URL serialization; verify all valid shareable fields round-trip and removed parameter aliases are ignored and never written.
 - [ ] 8.3 Split deck.gl lifecycle, view synchronization, hit testing, and WebGL fallback into `map-renderer`; verify renderer replacement and component teardown release every deck.gl resource.
 - [ ] 8.4 Split imagery, marker, region, connection, and movement layer construction into pure modules; verify representative public rows produce the existing coordinates, picking identities, visibility, and styles.
 - [ ] 8.5 Split sidebar, search results, layer controls, canvas shell, and development details into focused Svelte components with `MapExplorer.svelte` as composition only; verify site checks pass with no pipeline or non-public package imports.
