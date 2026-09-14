@@ -53,6 +53,38 @@ const ContentIdentityDefinition = Type.Object({
 export const ContentIdentitySchema = schemaRegistry.register("compendium.content-identity.v1", ContentIdentityDefinition).schema;
 export type ContentIdentity = Static<typeof ContentIdentitySchema>;
 
+const SchemaIdentityReferenceDefinition = Type.Object({
+  id: NonEmptyString,
+  sha256: Sha256,
+}, { additionalProperties: false });
+export const SchemaIdentityReferenceSchema = schemaRegistry.register("compendium.schema-identity-reference.v1", SchemaIdentityReferenceDefinition).schema;
+export type SchemaIdentityReference = Static<typeof SchemaIdentityReferenceSchema>;
+
+const LogicalArtifactDefinition = Type.Object({
+  name: NonEmptyString,
+  content: ContentIdentitySchema,
+  mediaType: NonEmptyString,
+  schemaId: Type.Union([NonEmptyString, Type.Null()]),
+  buildId: NonEmptyString,
+}, { additionalProperties: false });
+export const LogicalArtifactSchema = schemaRegistry.register("compendium.logical-artifact.v1", LogicalArtifactDefinition).schema;
+export type LogicalArtifact = Static<typeof LogicalArtifactSchema>;
+
+const ArtifactRunInputDefinition = Type.Object({
+  buildId: NonEmptyString,
+  operation: NonEmptyString,
+  settings: UnknownRecord,
+  schemas: Type.Array(SchemaIdentityReferenceSchema),
+  implementationFingerprint: Sha256,
+  diagnosticRevision: NonEmptyString,
+  inputs: Type.Record(Type.String({ minLength: 1 }), ContentIdentitySchema),
+}, { additionalProperties: false });
+export const ArtifactRunInputSchema = schemaRegistry.register("compendium.artifact-run-input.v1", ArtifactRunInputDefinition).schema;
+export type ArtifactRunInput = Static<typeof ArtifactRunInputSchema>;
+
+const ArtifactRunStatusSchema = Type.Union([Type.Literal("running"), Type.Literal("succeeded"), Type.Literal("failed")]);
+export type ArtifactRunStatus = Static<typeof ArtifactRunStatusSchema>;
+
 const RunInputDefinition = Type.Object({
   buildId: NonEmptyString,
   toolRevision: NonEmptyString,
@@ -96,6 +128,23 @@ const FailureRecordDefinition = Type.Object({
 }, { additionalProperties: false });
 export const FailureRecordSchema = schemaRegistry.register("compendium.failure-record.v1", FailureRecordDefinition).schema;
 export type FailureRecord = Static<typeof FailureRecordSchema>;
+
+const ArtifactRunManifestDefinition = Type.Object({
+  schemaVersion: Type.Literal("compendium.artifact-run.v1"),
+  revision: Type.Integer({ minimum: 0 }),
+  runId: NonEmptyString,
+  input: ArtifactRunInputSchema,
+  outputs: Type.Array(LogicalArtifactSchema),
+  timestamps: Type.Object({
+    createdAt: NonEmptyString,
+    updatedAt: NonEmptyString,
+    completedAt: Type.Union([NonEmptyString, Type.Null()]),
+  }, { additionalProperties: false }),
+  status: ArtifactRunStatusSchema,
+  failure: Type.Union([FailureRecordSchema, Type.Null()]),
+}, { additionalProperties: false });
+export const ArtifactRunManifestSchema = schemaRegistry.register("compendium.artifact-run.v1", ArtifactRunManifestDefinition).schema;
+export type ArtifactRunManifest = Static<typeof ArtifactRunManifestSchema>;
 
 const RunManifestDefinition = Type.Object({
   schemaVersion: Type.Literal(1),
