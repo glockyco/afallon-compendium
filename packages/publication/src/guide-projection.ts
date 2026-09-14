@@ -1,6 +1,4 @@
-import type { EntityDetail,
-NormalizedMapProjection,
-NormalizedPlacement, } from "@afallon/contracts/catalog"
+import type { EntityDetail } from "@afallon/contracts/catalog"
 import type { PublicAdventureGuide,
 PublicGuideAbilityPhase,
 PublicGuideBoss,
@@ -13,8 +11,7 @@ PublicLevelRange, } from "@afallon/contracts/public"
 
 export interface GuideProjectionInput {
   entities: readonly EntityDetail[];
-  placements: readonly NormalizedPlacement[];
-  sources?: readonly NormalizedMapProjection["sources"][number][];
+  placements: ReadonlyArray<{ placementId: string; sceneNativeId: number }>;
   publishedPlacementIds?: ReadonlySet<string>;
 }
 
@@ -71,28 +68,8 @@ function locationIds(ids: readonly string[], available: ReadonlySet<string>): st
   return ids.filter((id, index) => available.has(id) && ids.indexOf(id) === index);
 }
 
-function sourceReferenceId(source: NormalizedMapProjection["sources"][number], kind: "region" | "property"): number | null {
-  const data = source.data;
-  const directKeys = kind === "property" ? ["propertyID", "propertyId"] : ["regionID", "regionId"];
-  for (const key of directKeys) {
-    const id = integer(data[key]);
-    if (id !== null) return id;
-  }
-  const nested = record(data[kind]);
-  return nested ? integer(nested.nativeId) : null;
-}
-
-function relatedSourceLocations(
-  entity: EntityDetail,
-  kind: "region" | "property",
-  sources: readonly NormalizedMapProjection["sources"][number][],
-  available: ReadonlySet<string>,
-): string[] {
-  const nativeIds = new Set<string>(entity.placementIds);
-  for (const source of sources) {
-    if (sourceReferenceId(source, kind) === entity.nativeId && available.has(source.placementId)) nativeIds.add(source.placementId);
-  }
-  return [...nativeIds].filter((id) => available.has(id));
+function relatedLocations(entity: EntityDetail, available: ReadonlySet<string>): string[] {
+  return locationIds(entity.placementIds, available);
 }
 
 function bossLevel(gameplay: unknown): Pick<PublicGuideBoss, "level" | "levelRange"> {
@@ -191,7 +168,7 @@ function guideBoss(entity: EntityDetail, available: ReadonlySet<string>, items: 
 function guideDungeon(
   entity: EntityDetail,
   allEntities: readonly EntityDetail[],
-  placements: readonly NormalizedPlacement[],
+  placements: GuideProjectionInput["placements"],
   available: ReadonlySet<string>,
   items: ReadonlyMap<string, EntityDetail>,
   statLabels: ReadonlyMap<number, { label: string; isPercent?: boolean }>,
@@ -225,7 +202,7 @@ function guideDungeon(
   };
 }
 
-function guideRegion(entity: EntityDetail, sources: readonly NormalizedMapProjection["sources"][number][], available: ReadonlySet<string>): PublicGuideRegion | null {
+function guideRegion(entity: EntityDetail, available: ReadonlySet<string>): PublicGuideRegion | null {
   const gameplay = record(entity.publicData.gameplay);
   const name = entityDisplayName(entity);
   if (gameplay?.includedInAdventureGuide !== true || !name) return null;
@@ -236,11 +213,11 @@ function guideRegion(entity: EntityDetail, sources: readonly NormalizedMapProjec
     label: name,
     ...(description ? { description } : {}),
     ...(level ? { levelRange: level } : {}),
-    placementIds: relatedSourceLocations(entity, "region", sources, available),
+    placementIds: relatedLocations(entity, available),
   };
 }
 
-function guideProperty(entity: EntityDetail, sources: readonly NormalizedMapProjection["sources"][number][], available: ReadonlySet<string>): PublicGuideProperty | null {
+function guideProperty(entity: EntityDetail, available: ReadonlySet<string>): PublicGuideProperty | null {
   const name = entityDisplayName(entity);
   if (!name) return null;
   const gameplay = record(entity.publicData.gameplay);
@@ -252,7 +229,7 @@ function guideProperty(entity: EntityDetail, sources: readonly NormalizedMapProj
     label: name,
     ...(description ? { description } : {}),
     ...(income === null ? {} : { income }),
-    placementIds: relatedSourceLocations(entity, "property", sources, available),
+    placementIds: relatedLocations(entity, available),
   };
 }
 
@@ -284,11 +261,11 @@ export function projectAdventureGuide(input: GuideProjectionInput): PublicAdvent
   }
   const regions = input.entities
     .filter((entity) => entity.kind === "regions")
-    .map((entity) => guideRegion(entity, input.sources ?? [], available))
+    .map((entity) => guideRegion(entity, available))
     .filter((entity): entity is PublicGuideRegion => entity !== null);
   const properties = input.entities
     .filter((entity) => entity.kind === "properties")
-    .map((entity) => guideProperty(entity, input.sources ?? [], available))
+    .map((entity) => guideProperty(entity, available))
     .filter((entity): entity is PublicGuideProperty => entity !== null);
   return { dungeons, bosses: [...bossMap.values()], regions, properties };
 }

@@ -18,6 +18,7 @@ const root: StaticRootManifest = {
   maps: [],
   entitySearch: { ...reference, schemaId: "compendium.static-entity-search.v1" },
   itemSearch: { ...reference, schemaId: "compendium.static-item-search.v1" },
+  guides: { overview: { ...reference, schemaId: "compendium.static-guide.v1" } },
   coverage: reference,
 };
 const coverage: StaticCoverage = {

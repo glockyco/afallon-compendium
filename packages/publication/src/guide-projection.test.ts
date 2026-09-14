@@ -1,21 +1,8 @@
 import { expect, test } from "bun:test";
-import type { EntityDetail, NormalizedMapProjection, NormalizedPlacement } from "@afallon/contracts/catalog"
+import type { EntityDetail } from "@afallon/contracts/catalog"
 import { projectAdventureGuide } from "./guide-projection";
 
-const placement = (placementId: string, sceneNativeId: number): NormalizedPlacement => ({
-  placementId,
-  buildId: "build",
-  sceneNativeId,
-  scenePath: `Scene-${sceneNativeId}`,
-  identity: null,
-  mapSpaceId: "world",
-  worldPosition: { x: 0, y: 0, z: 0 },
-  mapPosition: { x: 0, y: 0 },
-  sourceIds: [],
-  roles: [],
-  shape: null,
-  provenance: [],
-});
+const placement = (placementId: string, sceneNativeId: number) => ({ placementId, sceneNativeId });
 
 const entity = (value: Partial<EntityDetail> & Pick<EntityDetail, "entityKey" | "kind" | "nativeId" | "name">): EntityDetail => {
   const { entityKey, kind, nativeId, name, ...overrides } = value;
@@ -157,13 +144,12 @@ test("projects optional phases, stats, regions, properties, and published locati
     kind: "properties",
     nativeId: 2,
     name: "Oakenvale Inn",
+    placementIds: ["property-location"],
     publicData: { localization: null, gameplay: { income: 42, adventureGuideDescription: "A warm inn." }, icon: null },
   });
-  const source: NormalizedMapProjection["sources"][number] = { sourceId: "property-source", placementId: "property-location", family: "propertyForSaleSign", data: { propertyID: 2 } };
   const guide = projectAdventureGuide({
     entities: [scene, boss, stat, region, property],
     placements: [placement("region-location", 3), placement("property-location", 3)],
-    sources: [source],
     publishedPlacementIds: new Set(["region-location", "property-location"]),
   });
   expect(guide.bosses[0]?.levelRange).toEqual({ min: 1, max: 2 });

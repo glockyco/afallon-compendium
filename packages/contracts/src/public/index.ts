@@ -414,6 +414,15 @@ export const StaticMapSummarySchema = Type.Object({
 }, { additionalProperties: false });
 export type StaticMapSummary = Static<typeof StaticMapSummarySchema>;
 
+export const StaticGuideDocumentSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-guide.v1"),
+  ...StaticResourceIdentityFields,
+  counts: GuideDocumentSchema.properties.counts,
+  guide: GuideDocumentSchema.properties.guide,
+  entities: GuideDocumentSchema.properties.entities,
+}, { additionalProperties: false });
+export type StaticGuideDocument = Static<typeof StaticGuideDocumentSchema>;
+
 export const StaticRootManifestSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.static-root.v1"),
   ...StaticResourceIdentityFields,
@@ -422,6 +431,7 @@ export const StaticRootManifestSchema = Type.Object({
   maps: Type.Array(StaticMapSummarySchema),
   entitySearch: StaticResourceReferenceSchema,
   itemSearch: StaticResourceReferenceSchema,
+  guides: Type.Record(Type.String({ pattern: "^[A-Za-z0-9-]+$" }), StaticResourceReferenceSchema),
   coverage: StaticResourceReferenceSchema,
 }, { additionalProperties: false });
 export type StaticRootManifest = Static<typeof StaticRootManifestSchema>;
@@ -507,6 +517,7 @@ export function assertStaticResourceIdentity(expected: StaticIdentityContract, r
 }
 
 schemaRegistry.register("compendium.static-root.v1", StaticRootManifestSchema);
+schemaRegistry.register("compendium.static-guide.v1", StaticGuideDocumentSchema);
 schemaRegistry.register("compendium.static-map.v1", StaticMapShardSchema);
 schemaRegistry.register("compendium.static-entity-search.v1", StaticEntitySearchSchema);
 schemaRegistry.register("compendium.static-item-search.v1", StaticItemSearchSchema);

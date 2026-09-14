@@ -3,6 +3,7 @@ import { Assert } from "typebox/value";
 import { ArtifactStore } from "@afallon/artifacts";
 import { queryCatalogCoverage, queryCatalogImagery, type CatalogGateResult } from "@afallon/catalog";
 import { StaticCoverageSchema, StaticRootManifestSchema, type StaticCoverage, type StaticRootManifest } from "@afallon/contracts/public";
+import { generateGuideResources } from "./guide-resources";
 import { generateImageryResources } from "./imagery";
 import { generateIndexResources } from "./index-resources";
 import { generateMapShards } from "./map-shards";
@@ -25,6 +26,7 @@ export async function buildStaticPublication(
   const imagery = await generateImageryResources(db, store);
   const imageryByMap = new Map(imagery.map((entry) => [entry.mapSpaceId, entry.resource]));
   const indexes = await generateIndexResources(db, store);
+  const guides = await generateGuideResources(db, store, [...indexes.entityDetails.values()].map((resource) => resource.value.entity));
   const coverageQuery = queryCatalogCoverage(db);
   const coverage: StaticCoverage = {
     schemaVersion: "compendium.static-coverage.v1",
@@ -52,6 +54,7 @@ export async function buildStaticPublication(
     maps,
     entitySearch: indexes.entitySearch.reference,
     itemSearch: indexes.itemSearch.reference,
+    guides: Object.fromEntries([...guides].map(([section, resource]) => [section, resource.reference])),
     coverage: coverageResource.reference,
   };
   Assert(StaticRootManifestSchema, manifest);
@@ -61,6 +64,7 @@ export async function buildStaticPublication(
     ...imagery.map((entry) => entry.resource),
     indexes.entitySearch,
     indexes.itemSearch,
+    ...guides.values(),
     ...indexes.entityDetails.values(),
     ...indexes.itemSources.values(),
     coverageResource,

@@ -1,4 +1,5 @@
 import type { Database } from "bun:sqlite";
+import type { EntityDetail, EntityRelationshipProjection } from "@afallon/contracts/catalog";
 
 export interface CatalogQueryIdentity {
   buildId: string;
@@ -84,6 +85,11 @@ export interface CatalogCoverage {
   unresolvedIssues: Array<{ issueId: string; kind: string; subjectKey: string; semanticDiscriminator: string; occurrenceCount: number }>;
   exclusions: Array<{ exclusionId: string; kind: string; subjectKey: string; detail: string; mapSpaceIds: string[] }>;
   occurrenceCount: number;
+}
+
+export interface CatalogGuideFacts {
+  entities: EntityDetail[];
+  placements: Array<{ placementId: string; sceneNativeId: number }>;
 }
 
 export interface CatalogQueryResult<T> extends CatalogQueryIdentity {
@@ -179,6 +185,37 @@ export function queryCatalogItemSources(db: Database, itemEntityKey: string): Ca
     "SELECT item_entity_key, source_kind, source_key, placement_ids_json, condition_ids_json, context_json FROM item_sources WHERE item_entity_key = ? ORDER BY source_kind, source_key",
   ).all(itemEntityKey).map((row) => ({ itemEntityKey: row.item_entity_key, sourceKind: row.source_kind, sourceKey: row.source_key, placementIds: textArray(row.placement_ids_json), conditionIds: textArray(row.condition_ids_json), context: parse(row.context_json) }));
   return { ...identity(db), records };
+}
+
+export function queryCatalogGuide(db: Database): CatalogQueryResult<CatalogGuideFacts> {
+  const search = queryCatalogSearch(db);
+  const lootByOwner = new Map<string, EntityRelationshipProjection["lootEntries"]>();
+  const lootRows = db.query<{ owner_entity_key: string; loot_table_id: number; entry_index: number; item_id: number; min_count: number; max_count: number; raw_rate: number | null }, []>(`
+    SELECT b.owner_entity_key, e.loot_table_id, e.entry_index, item.native_id AS item_id,
+      e.min_count, e.max_count, COALESCE(e.raw_rate, b.raw_rate) AS raw_rate
+    FROM loot_bindings b
+    JOIN loot_entries e ON e.build_id = b.build_id AND e.loot_table_id = b.loot_table_id
+    JOIN canonical_entities item ON item.entity_key = e.item_entity_key
+    WHERE b.owner_entity_key IS NOT NULL
+    ORDER BY b.owner_entity_key, e.loot_table_id, e.entry_index, item.entity_key
+  `).all();
+  for (const row of lootRows) {
+    const entries = lootByOwner.get(row.owner_entity_key) ?? [];
+    entries.push({ lootTableId: row.loot_table_id, entryIndex: row.entry_index, itemId: row.item_id, min: row.min_count, max: row.max_count, rawRate: row.raw_rate });
+    lootByOwner.set(row.owner_entity_key, entries);
+  }
+  const entities = search.records.map((summary): EntityDetail => {
+    const queried = queryCatalogEntity(db, summary.entityKey).records;
+    if (!queried) throw new Error(`Catalog entity disappeared during guide query: ${summary.entityKey}.`);
+    const publicData = queried.details as EntityDetail["publicData"];
+    if (!publicData || typeof publicData !== "object" || !("localization" in publicData) || !("gameplay" in publicData) || !("icon" in publicData)) throw new Error(`Catalog entity has invalid public data: ${summary.entityKey}.`);
+    const sources = queryCatalogItemSources(db, summary.entityKey).records.map((source) => ({ sourceKind: source.sourceKind, sourceKey: source.sourceKey, placementIds: source.placementIds, conditionIds: source.conditionIds, context: source.context as Record<string, unknown> }));
+    const roles = db.query<{ role: string }, [string]>("SELECT DISTINCT role FROM placement_roles WHERE npc_entity_key = ? ORDER BY role").all(summary.entityKey).map((row) => row.role);
+    const relationships: EntityRelationshipProjection = { merchantStock: [], lootBindings: [], lootEntries: lootByOwner.get(summary.entityKey) ?? [], resourceYields: [], questAssociations: [], transitions: [], conditions: [] };
+    return { entityKey: summary.entityKey, kind: summary.kind, nativeId: summary.nativeId, name: summary.name, internalName: queried.internalName, description: summary.description, publicData, roles, placementIds: queried.placementIds, sources, relationships, provenance: Array.isArray(queried.provenance) ? queried.provenance as EntityDetail["provenance"] : [] };
+  });
+  const placements = db.query<{ placement_id: string; scene_native_id: number }, []>("SELECT placement_id, scene_native_id FROM placements WHERE map_x IS NOT NULL AND map_y IS NOT NULL ORDER BY placement_id").all().map((row) => ({ placementId: row.placement_id, sceneNativeId: row.scene_native_id }));
+  return { buildId: search.buildId, catalogId: search.catalogId, records: { entities, placements } };
 }
 
 export function queryCatalogImagery(db: Database, mapSpaceId?: string): CatalogQueryResult<CatalogImageryMetadata[]> {

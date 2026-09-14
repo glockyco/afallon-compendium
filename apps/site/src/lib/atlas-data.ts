@@ -4,6 +4,7 @@ import {
   StaticCoverageSchema,
   StaticEntityDetailSchema,
   StaticEntitySearchSchema,
+  StaticGuideDocumentSchema,
   StaticImagerySchema,
   StaticItemSearchSchema,
   StaticItemSourceSchema,
@@ -14,6 +15,7 @@ import {
   type StaticCoverage,
   type StaticEntityDetail,
   type StaticEntitySearch,
+  type StaticGuideDocument,
   type StaticImagery,
   type StaticItemSearch,
   type StaticItemSource,
@@ -107,6 +109,13 @@ export class AtlasDataLoader {
   async loadCoverage(): Promise<StaticCoverage> {
     const root = await this.loadRoot();
     return this.#loadReference(root.coverage, StaticCoverageSchema, root);
+  }
+
+  async loadGuide(section: string): Promise<StaticGuideDocument> {
+    const root = await this.loadRoot();
+    const reference = root.guides[section];
+    if (!reference) throw new Error(`Publication has no guide section ${section}.`);
+    return this.#loadReference(reference, StaticGuideDocumentSchema, root);
   }
 
   async loadEntity(entityKey: string): Promise<StaticEntityDetail> {

@@ -18,7 +18,7 @@ test("selects a complete candidate atomically and preserves it after validation 
     const entity = await writeStaticJson<StaticEntitySearch>(store, "compendium.static-entity-search.v1", { schemaVersion: "compendium.static-entity-search.v1", ...identity, entities: [] });
     const item = await writeStaticJson<StaticItemSearch>(store, "compendium.static-item-search.v1", { schemaVersion: "compendium.static-item-search.v1", ...identity, items: [] });
     const coverage = await writeStaticJson<StaticCoverage>(store, "compendium.static-coverage.v1", { schemaVersion: "compendium.static-coverage.v1", ...identity, complete: false, unresolvedIssueCount: 1, occurrenceCount: 1, exclusionCount: 0, messages: ["Incomplete preview."] });
-    const rootValue: StaticRootManifest = { schemaVersion: "compendium.static-root.v1", ...identity, mode: "preview", complete: false, maps: [], entitySearch: entity.reference, itemSearch: item.reference, coverage: coverage.reference };
+    const rootValue: StaticRootManifest = { schemaVersion: "compendium.static-root.v1", ...identity, mode: "preview", complete: false, maps: [], entitySearch: entity.reference, itemSearch: item.reference, guides: { overview: entity.reference }, coverage: coverage.reference };
     const rootResource = await writeStaticJson(store, rootValue.schemaVersion, rootValue);
     const resources = [entity, item, coverage].map((resource) => ({ reference: resource.reference, identity: resource.identity }));
     const publicationRoot = join(root, "publication");
