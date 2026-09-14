@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { RuntimeScanState } from "@afallon/contracts";
-import { ScanStateMachine, type ScanStateReader } from "./state-machine";
+import { AttributedScanTargetError, ScanStateMachine, type ScanStateReader } from "./state-machine";
 
 const state: RuntimeScanState = {
   schemaVersion: "compendium.runtime-scan-state.v1",
@@ -57,6 +57,29 @@ test("build-scene targets use the shared envelope after restoration", async () =
     expect(visited).toBe(true);
     expect(envelope.targetIdentity).toBe("build-scene:7");
     expect(envelope.outcome).toBe("succeeded");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("streamed-source outcomes retain source evidence", async () => {
+  const root = await mkdtemp(join(tmpdir(), "afallon-stream-outcomes-"));
+  const target = { kind: "streamed-source", sceneNativeId: 3, sourceKey: "forest/encounters" } as const;
+  const evidence = { sceneNativeId: 3, sourceKey: target.sourceKey, loaderInstanceId: 42, assetGuid: "abc", runtimeKey: "forest/encounters", disposition: "observed", detail: "fixture discovery evidence" };
+  try {
+    for (const outcome of ["succeeded", "unsupported", "unreachable"] as const) {
+      const scanner = new ScanStateMachine({ buildId: "25153357", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: state.frame + 1 }]) });
+      const envelope = await scanner.scanStreamedSource(target, 0, { async visit() { return { outcome, sourceEvidence: { ...evidence, disposition: outcome } }; } });
+      expect(envelope.outcome).toBe(outcome);
+      expect(envelope.sourceEvidence?.sourceKey).toBe(target.sourceKey);
+    }
+    const failedScanner = new ScanStateMachine({ buildId: "25153357", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: state.frame + 1 }]) });
+    const failed = await failedScanner.scanStreamedSource(target, 1, { async visit() { throw new AttributedScanTargetError("collector failed", { ...evidence, disposition: "failed" }); } });
+    expect(failed.outcome).toBe("failed");
+    expect(failed.sourceEvidence?.disposition).toBe("failed");
+    const skipped = await failedScanner.notAttempted(target, 2, { ...evidence, disposition: "not-attempted" }, "A prior target failed.");
+    expect(skipped.outcome).toBe("not-attempted");
+    expect(skipped.sourceEvidence?.disposition).toBe("not-attempted");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

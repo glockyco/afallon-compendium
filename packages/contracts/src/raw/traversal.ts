@@ -87,6 +87,16 @@ export const ScanTargetOutcomeSchema = Type.Union([
   Type.Literal("not-attempted"),
 ]);
 export type ScanTargetOutcome = Static<typeof ScanTargetOutcomeSchema>;
+export const ScanSourceEvidenceSchema = Type.Object({
+  sceneNativeId: count,
+  sourceKey: text,
+  loaderInstanceId: Type.Union([integer, Type.Null()]),
+  assetGuid: Type.Union([text, Type.Null()]),
+  runtimeKey: Type.Union([text, Type.Null()]),
+  disposition: text,
+  detail: text,
+}, { additionalProperties: false });
+export type ScanSourceEvidence = Static<typeof ScanSourceEvidenceSchema>;
 export const ScanTargetEnvelopeSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.scan-target-envelope.v1"),
   buildId: text,
@@ -99,6 +109,7 @@ export const ScanTargetEnvelopeSchema = Type.Object({
     completed: Type.Union([RuntimeScanStateSchema, Type.Null()]),
   }, { additionalProperties: false }),
   collectors: Type.Array(ScanCollectorDispositionSchema),
+  sourceEvidence: Type.Union([ScanSourceEvidenceSchema, Type.Null()]),
   diagnostics: Type.Array(Type.Object({ code: text, message: text }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type ScanTargetEnvelope = Static<typeof ScanTargetEnvelopeSchema>;
