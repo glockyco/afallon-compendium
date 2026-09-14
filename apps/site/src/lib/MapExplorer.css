@@ -28,7 +28,7 @@ button, select { cursor: pointer; }
   .rail-group { padding: .25rem 0 .45rem; border-bottom: 1px solid #393a38; }
   .rail-group:last-child { border-bottom: 0; }
   .control-section { border-bottom: 1px solid #393a38; padding: 0 0 1rem; margin-bottom: 1rem; }
-  label, .section-heading h2, .results-header h2, .world-tools h2, .layer-section h2 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b8b5aa; }
+  .control-section > label, .detail-search, .section-heading h2, .results-header h2, .world-tools h2, .layer-section h2 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b8b5aa; }
   input { width: 100%; border: 1px solid #4a4b47; border-radius: 2px; background: #151616; color: #ece8de; padding: .55rem .6rem; }
   .map-navigation { display: grid; gap: .4rem; }
   .map-navigation select { width: 100%; border: 1px solid #4a4b47; border-radius: 2px; background: #151616; color: #ece8de; padding: .5rem .6rem; }
@@ -49,7 +49,7 @@ button, select { cursor: pointer; }
   .count { color: #d6bd84; font-size: .75rem; }
   .categories-block { margin-bottom: 1rem; }
   .categories-block > .section-heading { padding-bottom: .35rem; border-bottom: 1px solid #393a38; }
-  .tool-option { display: flex; align-items: center; gap: .45rem; margin: .6rem 0; letter-spacing: normal; text-transform: none; color: #dedbd2; font-size: .78rem; cursor: pointer; }
+  .control-section > label.tool-option, .tool-option { display: flex; align-items: center; gap: .45rem; margin: .6rem 0; color: #dedbd2; font-size: .78rem; font-weight: 700; letter-spacing: normal; text-transform: none; cursor: pointer; }
   .tool-option input { width: 14px; height: 14px; margin: 0; accent-color: #bca36e; }
   .world-tools h2 { margin-bottom: .5rem; }
   .text-button, .inline-link { border: 0; padding: 0; background: none; color: #d5b978; text-decoration: underline; text-underline-offset: 2px; }
