@@ -747,7 +747,7 @@
         collapsed={panelCollapsed} logoBase={base} bind:searchInput {query} sections={markerSections} {categories} {categoryCounts}
         placementCount={allMapPlacements.length} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
         {visibleTileLayerIds} {visibleGameMapIds} {capturedChecked} {capturedPartial} {gameMapsChecked} {gameMapsPartial}
-        {showConnections} {showMovement} {showZones} {dev} {authoring} {worldOffsetOverrides} onToggle={togglePanel}
+        {showConnections} {showMovement} {showZones} {authoring} {worldOffsetOverrides} onToggle={togglePanel}
         onQuery={(next) => { query = next; scheduleQueryUrl(); }} onSubmitSearch={submitSearch}
         onResetCategories={() => { categories = [...DEFAULT_MARKER_IDS]; syncUrl('push'); }}
         onShowAllCategories={() => { categories = []; syncUrl('push'); }} onToggleCategory={toggleCategory}

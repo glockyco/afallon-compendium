@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { dev } from '$app/environment';
   import CategoryRow from './CategoryRow.svelte';
   import MapSidebarSection from './MapSidebarSection.svelte';
   import AtlasLayerControls, { type LayerOption } from './AtlasLayerControls.svelte';
@@ -26,7 +27,6 @@
   export let showConnections: boolean;
   export let showMovement: boolean;
   export let showZones: boolean;
-  export let dev: boolean;
   export let authoring: boolean;
   export let worldOffsetOverrides: WorldOffsetOverrides;
   export let onToggle: () => void;
