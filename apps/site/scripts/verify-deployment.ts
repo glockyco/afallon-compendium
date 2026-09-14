@@ -7,7 +7,7 @@ import { stagePublication, type DeploymentMetadata } from "./stage-publication.t
 const currentArg = Bun.argv[2];
 const previousArg = Bun.argv[3];
 if (!currentArg || !previousArg) {
-  throw new Error("usage: verify-deployment <current-publication-run> <previous-publication-run>");
+  throw new Error("usage: verify-deployment <current-publication-root> <previous-publication-root>");
 }
 
 const siteDir = resolve(import.meta.dirname, "..");
@@ -17,15 +17,15 @@ const previousRun = resolve(process.cwd(), previousArg);
 const previous = build(previousRun);
 const current = build(currentRun);
 const restored = build(previousRun);
-if (restored.runId !== previous.runId || restored.publicationSha256 !== previous.publicationSha256) {
+if (restored.publicationId !== previous.publicationId || restored.publicationSha256 !== previous.publicationSha256) {
   throw new Error("Restaging the prior publication did not restore its identity.");
 }
 const final = build(currentRun);
-if (final.runId !== current.runId || final.publicationSha256 !== current.publicationSha256) {
+if (final.publicationId !== current.publicationId || final.publicationSha256 !== current.publicationSha256) {
   throw new Error("Restaging the current publication did not restore its identity.");
 }
 
-process.stdout.write(`Local rollback restored ${previous.runId}; deployment stage returned to ${current.runId}.\n`);
+process.stdout.write(`Local rollback restored ${previous.publicationId}; deployment stage returned to ${current.publicationId}.\n`);
 
 function build(runDirectory: string): DeploymentMetadata {
   const expected = stagePublication(runDirectory, siteDir);

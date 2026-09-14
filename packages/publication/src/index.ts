@@ -1,3 +1,4 @@
+export * from "./build";
 export * from "./imagery";
 export * from "./index-resources";
 export * from "./map-shards";

@@ -8,7 +8,7 @@ import { stagePublication, type DeploymentMetadata } from "./stage-publication.t
 
 const runArg = Bun.argv[2];
 const origin = Bun.argv[3] ?? "https://afallon.compendiums.org";
-if (!runArg) throw new Error("usage: deploy-production <publication-run-directory> [origin]");
+if (!runArg) throw new Error("usage: deploy-production <selected-publication-root> [origin]");
 
 const siteDir = resolve(import.meta.dirname, "..");
 const metadata = stagePublication(resolve(process.cwd(), runArg), siteDir);
@@ -17,7 +17,7 @@ run("bun", ["run", "assert:deployment"]);
 // Keep the deployment command explicit: this service has static assets and no Worker entry point.
 run("wrangler", ["deploy"]);
 await smokeProduction(origin, metadata, siteDir);
-process.stdout.write(`Production smoke passed for publication ${metadata.runId}.\n`);
+process.stdout.write(`Production smoke passed for publication ${metadata.publicationId}.\n`);
 
 function run(command: string, args: string[]): void {
   const result = spawnSync(command, args, {
@@ -29,7 +29,7 @@ function run(command: string, args: string[]): void {
 }
 
 async function smokeProduction(origin: string, expected: DeploymentMetadata, siteDir: string): Promise<void> {
-  const imagery = readdirSync(join(deploymentPaths(siteDir).outputDir, "data", "imagery"))
+  const imagery = readdirSync(join(deploymentPaths(siteDir).outputDir, "data", "assets"))
     .filter((name) => name.endsWith(".webp"))
     .sort()[0];
   if (!imagery) throw new Error("Deployment has no imagery probe.");
@@ -52,8 +52,8 @@ async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: 
   const deploymentResponse = await freshFetch(`${origin}/_deployment.json`);
   if (!deploymentResponse.ok) throw new Error(`/_deployment.json returned ${deploymentResponse.status}.`);
   const deployed = await deploymentResponse.json() as DeploymentMetadata;
-  if (deployed.runId !== expected.runId || deployed.publicationSha256 !== expected.publicationSha256) {
-    throw new Error(`Production still serves publication ${deployed.runId ?? "unknown"}.`);
+  if (deployed.publicationId !== expected.publicationId || deployed.publicationSha256 !== expected.publicationSha256) {
+    throw new Error(`Production still serves publication ${deployed.publicationId ?? "unknown"}.`);
   }
 
   const rootResponse = await freshFetch(`${origin}/`);
@@ -78,8 +78,8 @@ async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: 
 
   const publicationResponse = await freshFetch(`${origin}/data/publication.json`);
   if (!publicationResponse.ok) throw new Error(`/data/publication.json returned ${publicationResponse.status}.`);
-  const publication = await publicationResponse.json() as { buildId?: unknown; mode?: unknown; coverage?: { complete?: unknown } };
-  if (publication.buildId !== expected.buildId || publication.mode !== expected.mode || publication.coverage?.complete !== expected.coverageComplete) {
+  const publication = await publicationResponse.json() as { buildId?: unknown; catalogId?: unknown; mode?: unknown; complete?: unknown };
+  if (publication.buildId !== expected.buildId || publication.catalogId !== expected.catalogId || publication.mode !== expected.mode || publication.complete !== expected.coverageComplete) {
     throw new Error("The production publication identity does not match the deployment.");
   }
 
@@ -88,7 +88,7 @@ async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: 
     throw new Error("The production Adventure Guide is unavailable.");
   }
 
-  const imageResponse = await freshFetch(`${origin}/data/imagery/${imagery}`);
+  const imageResponse = await freshFetch(`${origin}/data/assets/${imagery}`);
   if (!imageResponse.ok || !(imageResponse.headers.get("content-type") ?? "").includes("image/webp")) {
     throw new Error("The production imagery probe is unavailable.");
   }

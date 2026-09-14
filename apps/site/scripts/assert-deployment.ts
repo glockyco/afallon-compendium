@@ -2,14 +2,8 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative, resolve, sep } from "node:path";
 import { deploymentPaths } from "../deployment-paths.mjs";
+import type { StaticRootManifest } from "@afallon/contracts/public";
 import type { DeploymentMetadata } from "./stage-publication.ts";
-
-interface Publication {
-  schemaVersion: string;
-  buildId: string;
-  mode: "preview" | "release";
-  coverage: { complete: boolean };
-}
 
 const FREE_ASSET_LIMIT = 20_000;
 const MAX_ASSET_BYTES = 25 * 1024 * 1024;
@@ -42,17 +36,17 @@ for (const relativePath of files) {
 
 const metadata = parseJson<DeploymentMetadata>(join(outputDir, "_deployment.json"));
 const publicationPath = join(outputDir, "data", "publication.json");
-const publication = parseJson<Publication>(publicationPath);
-if (metadata.schemaVersion !== "afallon.deployment.v1") throw new Error("Deployment metadata has an unsupported schema.");
-if (metadata.buildId !== publication.buildId || metadata.mode !== publication.mode || metadata.coverageComplete !== publication.coverage.complete) {
+const publication = parseJson<StaticRootManifest>(publicationPath);
+if (metadata.schemaVersion !== "afallon.deployment.v2") throw new Error("Deployment metadata has an unsupported schema.");
+if (metadata.buildId !== publication.buildId || metadata.catalogId !== publication.catalogId || metadata.mode !== publication.mode || metadata.coverageComplete !== publication.complete) {
   throw new Error("Deployment metadata does not match the staged publication.");
 }
 if (metadata.publicationSha256 !== hashFile(publicationPath)) throw new Error("The staged publication hash changed during the build.");
-if (publication.mode === "release" && !publication.coverage.complete) throw new Error("A release publication must report complete coverage.");
-if (publication.mode === "preview" && publication.coverage.complete) throw new Error("A preview publication cannot report complete coverage.");
+if (publication.mode === "release" && !publication.complete) throw new Error("A release publication must report complete coverage.");
+if (publication.mode === "preview" && publication.complete) throw new Error("A preview publication cannot report complete coverage.");
 
 process.stdout.write(`${JSON.stringify({
-  runId: metadata.runId,
+  publicationId: metadata.publicationId,
   buildId: metadata.buildId,
   mode: metadata.mode,
   coverageComplete: metadata.coverageComplete,

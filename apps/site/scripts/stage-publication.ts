@@ -1,76 +1,43 @@
 import { createHash } from "node:crypto";
-import { cpSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
+import { Assert } from "typebox/value";
+import { StaticRootManifestSchema, type StaticRootManifest, type StaticResourceReference } from "@afallon/contracts/public";
 import { deploymentPaths } from "../deployment-paths.mjs";
 
-interface RunManifest {
-  runId: string;
-  input: {
-    buildId: string;
-    command: string;
-    settings: { mode?: unknown };
-  };
-  status: string;
-  artifacts: Array<{ path: string; bytes: number; sha256: string }>;
-}
-
-interface Publication {
-  schemaVersion: string;
-  buildId: string;
-  mode: "preview" | "release";
-  coverage: { complete: boolean };
+interface SelectedPublication {
+  root: StaticResourceReference;
+  directory: string;
 }
 
 export interface DeploymentMetadata {
-  schemaVersion: "afallon.deployment.v1";
-  runId: string;
+  schemaVersion: "afallon.deployment.v2";
+  publicationId: string;
   buildId: string;
+  catalogId: string;
   mode: "preview" | "release";
   coverageComplete: boolean;
-  sourceManifestSha256: string;
+  selectionSha256: string;
   publicationSha256: string;
 }
 
-export function stagePublication(runDirectory: string, siteDir = resolve(import.meta.dirname, "..")): DeploymentMetadata {
-  const runDir = resolve(runDirectory);
-  const manifestPath = join(runDir, "manifest.json");
-  const publicDir = join(runDir, "public");
-  const manifest = parseJson<RunManifest>(manifestPath);
-  const publication = parseJson<Publication>(join(publicDir, "publication.json"));
+export function stagePublication(publicationRoot: string, siteDir = resolve(import.meta.dirname, "..")): DeploymentMetadata {
+  const root = resolve(publicationRoot);
+  const selectionPath = join(root, "selected.json");
+  const selection = parseJson<SelectedPublication>(selectionPath);
+  const publicDir = realpathSync(join(root, selection.directory));
+  if (relative(root, publicDir).startsWith("..")) throw new Error("Selected publication directory escapes its root.");
+  const publicationPath = join(publicDir, "publication.json");
+  const publication = parseJson<StaticRootManifest>(publicationPath);
+  Assert(StaticRootManifestSchema, publication);
+  const publicationSha256 = hashFile(publicationPath);
+  if (selection.root.sha256 !== publicationSha256 || selection.root.bytes !== lstatSync(publicationPath).size) throw new Error("Selected publication root does not match its reference.");
+  if (publication.mode === "release" && !publication.complete) throw new Error("A release publication must report complete coverage.");
 
-  if (manifest.status !== "succeeded" || manifest.input.command !== "publication") {
-    throw new Error("Deployment requires a successful publication run.");
-  }
-  if (publication.mode !== "preview" && publication.mode !== "release") {
-    throw new Error("Publication mode must be preview or release.");
-  }
-  if (manifest.input.buildId !== publication.buildId || manifest.input.settings.mode !== publication.mode) {
-    throw new Error("Publication identity does not match its run manifest.");
-  }
-  if (publication.mode === "release" && !publication.coverage.complete) {
-    throw new Error("A release publication must report complete coverage.");
-  }
-
-  const publicFiles = listFiles(publicDir);
-  const expected = new Map(
-    manifest.artifacts
-      .filter((artifact) => artifact.path.startsWith("public/"))
-      .map((artifact) => [artifact.path.slice("public/".length), artifact]),
-  );
-  if (publicFiles.length !== expected.size) {
-    throw new Error(`Public artifact count mismatch: manifest=${expected.size}, directory=${publicFiles.length}.`);
-  }
-
-  for (const relativePath of publicFiles) {
-    assertPublicPath(relativePath);
-    const artifact = expected.get(relativePath);
-    if (!artifact) throw new Error(`Public file is absent from the run manifest: ${relativePath}`);
-    const path = join(publicDir, relativePath);
-    const bytes = lstatSync(path).size;
-    const sha256 = hashFile(path);
-    if (bytes !== artifact.bytes || sha256 !== artifact.sha256) {
-      throw new Error(`Public file does not match the run manifest: ${relativePath}`);
-    }
+  for (const relativePath of listFiles(publicDir)) {
+    const match = /^(?:resources|assets)\/([a-f0-9]{64})\.(?:json|webp)$/.exec(relativePath);
+    if (relativePath !== "publication.json" && match === null) throw new Error(`Selected publication has an unsupported path: ${relativePath}.`);
+    if (match && hashFile(join(publicDir, relativePath)) !== match[1]) throw new Error(`Selected publication file does not match its path identity: ${relativePath}.`);
   }
 
   const paths = deploymentPaths(siteDir);
@@ -80,13 +47,14 @@ export function stagePublication(runDirectory: string, siteDir = resolve(import.
   symlinkSync(publicDir, join(paths.staticDir, "data"), "dir");
 
   const metadata: DeploymentMetadata = {
-    schemaVersion: "afallon.deployment.v1",
-    runId: manifest.runId,
+    schemaVersion: "afallon.deployment.v2",
+    publicationId: selection.root.sha256,
     buildId: publication.buildId,
+    catalogId: publication.catalogId,
     mode: publication.mode,
-    coverageComplete: publication.coverage.complete,
-    sourceManifestSha256: hashFile(manifestPath),
-    publicationSha256: hashFile(join(publicDir, "publication.json")),
+    coverageComplete: publication.complete,
+    selectionSha256: hashFile(selectionPath),
+    publicationSha256,
   };
   writeFileSync(join(paths.staticDir, "_deployment.json"), `${JSON.stringify(metadata)}\n`);
   return metadata;
@@ -101,23 +69,15 @@ function copyTrackedStatic(source: string, target: string): void {
   }
 }
 
-function assertPublicPath(path: string): void {
-  const allowed = path === "publication.json"
-    || /^guide-[a-z0-9-]+\.json$/.test(path)
-    || /^details\/(?:entities|items)-\d{4}\.json$/.test(path)
-    || /^imagery\/[0-9a-f]{64}\.webp$/.test(path);
-  if (!allowed) throw new Error(`Public artifact has an unsupported path: ${path}`);
-}
-
 function listFiles(root: string): string[] {
   const files: string[] = [];
   const visit = (directory: string): void => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = join(directory, entry.name);
-      if (entry.isSymbolicLink()) throw new Error(`Public artifact cannot contain a symlink: ${relative(root, path)}`);
-      if (entry.isDirectory()) visit(path);
-      else if (entry.isFile()) files.push(relative(root, path).split(sep).join("/"));
-      else throw new Error(`Public artifact contains a non-file entry: ${relative(root, path)}`);
+      const entryPath = join(directory, entry.name);
+      if (entry.isSymbolicLink()) throw new Error(`Publication file cannot be a symlink: ${relative(root, entryPath)}.`);
+      if (entry.isDirectory()) visit(entryPath);
+      else if (entry.isFile()) files.push(relative(root, entryPath).split(sep).join("/"));
+      else throw new Error(`Publication entry is not a regular file: ${relative(root, entryPath)}.`);
     }
   };
   visit(root);
@@ -133,7 +93,7 @@ function hashFile(path: string): string {
 }
 
 if (import.meta.main) {
-  const runDirectory = Bun.argv[2];
-  if (!runDirectory) throw new Error("usage: stage-publication <publication-run-directory>");
-  process.stdout.write(`${JSON.stringify(stagePublication(runDirectory), null, 2)}\n`);
+  const publicationRoot = Bun.argv[2];
+  if (!publicationRoot) throw new Error("usage: stage-publication <selected-publication-root>");
+  process.stdout.write(`${JSON.stringify(stagePublication(publicationRoot), null, 2)}\n`);
 }
