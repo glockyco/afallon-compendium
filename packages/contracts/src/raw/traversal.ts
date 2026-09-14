@@ -26,6 +26,46 @@ export const TraversalPlanSchema = Type.Object({
   }), { minItems: 1, maxItems: 8 }),
 });
 export type TraversalPlan = Static<typeof TraversalPlanSchema>;
+
+const ScanCurrentSceneTargetSchema = Type.Object({
+  kind: Type.Literal("current-scene"),
+}, { additionalProperties: false });
+const ScanBuildSceneTargetSchema = Type.Object({
+  kind: Type.Literal("build-scene"),
+  sceneNativeId: count,
+}, { additionalProperties: false });
+const ScanStreamedSourceTargetSchema = Type.Object({
+  kind: Type.Literal("streamed-source"),
+  sceneNativeId: count,
+  sourceKey: text,
+}, { additionalProperties: false });
+export const ScanTargetSchema = Type.Union([ScanCurrentSceneTargetSchema, ScanBuildSceneTargetSchema, ScanStreamedSourceTargetSchema]);
+export type ScanTarget = Static<typeof ScanTargetSchema>;
+export const ScanPlanSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.scan-plan.v1"),
+  targetTimeoutMs: Type.Integer({ minimum: 1000, maximum: 900000 }),
+  targets: Type.Array(ScanTargetSchema, { minItems: 1, maxItems: 256 }),
+}, { additionalProperties: false });
+export type ScanPlan = Static<typeof ScanPlanSchema>;
+export const SCAN_COLLECTOR_FAMILIES = ["canonical", "inventory", "producers", "placements", "roles", "relationships", "spatial", "coverage"] as const;
+export const ScanCollectorFamilySchema = Type.Union([
+  Type.Literal("canonical"),
+  Type.Literal("inventory"),
+  Type.Literal("producers"),
+  Type.Literal("placements"),
+  Type.Literal("roles"),
+  Type.Literal("relationships"),
+  Type.Literal("spatial"),
+  Type.Literal("coverage"),
+]);
+export type ScanCollectorFamily = Static<typeof ScanCollectorFamilySchema>;
+export const ScanCollectorDispositionSchema = Type.Object({
+  family: ScanCollectorFamilySchema,
+  status: Type.Union([Type.Literal("collect"), Type.Literal("not-applicable")]),
+  evidence: text,
+}, { additionalProperties: false });
+export type ScanCollectorDisposition = Static<typeof ScanCollectorDispositionSchema>;
+
 export const SceneVisitSchema = Type.Object({
   ...common,
   sourceSceneNativeId: count,
