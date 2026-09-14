@@ -20,7 +20,7 @@
 - [x] 3.1 Implement streaming writes to `objects/sha256/` with temporary files, flush, atomic rename, existing-object verification, and collision rejection; verify identical bytes deduplicate and corrupted objects fail integrity tests.
 - [x] 3.2 Implement immutable running, succeeded, and failed manifests with logical artifact references; verify completed manifests reject mutation and partial failure retains diagnostics.
 - [x] 3.3 Implement atomic build-and-operation latest-success references; verify a failed run and an unverified output cannot replace the prior successful reference.
-- [ ] 3.4 Implement active-operation leases and reference-tracing garbage-collection reporting; verify retained, shared, latest-success, and active objects survive a dry run while unreachable objects are reported once.
+- [x] 3.4 Implement active-operation leases and reference-tracing garbage-collection reporting; verify retained, shared, latest-success, and active objects survive a dry run while unreachable objects are reported once.
 - [ ] 3.5 Implement step fingerprints from stable Bun bundle output, transitive imports, probe imports, schemas, settings, and input identities; verify relevant code changes invalidate reuse, unrelated changes do not, and clean-directory runs produce the same fingerprint.
 - [ ] 3.6 Implement verified step-result reuse and record its source run in the consuming workflow; verify a valid cache hit reuses object identities and any settings, input, implementation, schema, or object-integrity change forces execution.
 - [ ] 3.7 Implement the one-time legacy artifact importer; verify it registers frozen current artifacts without changing their bytes and rejects a manifest/hash mismatch.

@@ -11,6 +11,7 @@ import {
   type FailureRecord,
   type LogicalArtifact,
 } from "@afallon/contracts";
+import { createArtifactLease } from "./leases";
 import { selectLatestSuccess } from "./references";
 import { ArtifactStore, type StoredObject } from "./store";
 
@@ -72,6 +73,12 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
   };
 
   await writeImmutableJson(path.join(revisionsDirectory, revisionName(revision)), snapshot("running", null));
+  const lease = await createArtifactLease(store, {
+    runId,
+    buildId: normalizedInput.buildId,
+    operation: normalizedInput.operation,
+    objects: Object.values(normalizedInput.inputs),
+  });
 
   let queue: Promise<void> = Promise.resolve();
   const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
@@ -94,7 +101,7 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
         if (typeof metadata.mediaType !== "string" || metadata.mediaType.length === 0) throw new TypeError("Artifact mediaType must be a non-empty string.");
         const buildId = metadata.buildId ?? normalizedInput.buildId;
         if (buildId !== normalizedInput.buildId) throw new TypeError(`Artifact ${logicalName} belongs to build ${buildId}, not ${normalizedInput.buildId}.`);
-        await store.verify(object);
+        await lease.protect(object);
         const artifact: LogicalArtifact = {
           name: logicalName,
           content: { sha256: object.sha256, bytes: object.bytes },
@@ -122,7 +129,11 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
         const manifest = snapshot("succeeded", null);
         await writeImmutableJson(manifestPath, manifest);
         state = "succeeded";
-        await selectLatestSuccess(store, manifestPath);
+        try {
+          await selectLatestSuccess(store, manifestPath);
+        } finally {
+          await lease.release();
+        }
         return structuredClone(manifest);
       });
     },
@@ -133,6 +144,7 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
         const manifest = snapshot("failed", serializeFailure(error));
         await writeImmutableJson(manifestPath, manifest);
         state = "failed";
+        await lease.release();
         return structuredClone(manifest);
       });
     },

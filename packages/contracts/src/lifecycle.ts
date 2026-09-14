@@ -161,6 +161,34 @@ const ArtifactLatestSuccessDefinition = Type.Object({
 export const ArtifactLatestSuccessSchema = schemaRegistry.register("compendium.artifact-latest-success.v1", ArtifactLatestSuccessDefinition).schema;
 export type ArtifactLatestSuccess = Static<typeof ArtifactLatestSuccessSchema>;
 
+const ArtifactLeaseDefinition = Type.Object({
+  schemaVersion: Type.Literal("compendium.artifact-lease.v1"),
+  leaseId: NonEmptyString,
+  runId: NonEmptyString,
+  buildId: NonEmptyString,
+  operation: NonEmptyString,
+  createdAt: NonEmptyString,
+  updatedAt: NonEmptyString,
+  objects: Type.Array(ContentIdentitySchema),
+}, { additionalProperties: false });
+export const ArtifactLeaseSchema = schemaRegistry.register("compendium.artifact-lease.v1", ArtifactLeaseDefinition).schema;
+export type ArtifactLease = Static<typeof ArtifactLeaseSchema>;
+
+const GarbageCollectionReportDefinition = Type.Object({
+  schemaVersion: Type.Literal("compendium.artifact-gc-report.v1"),
+  generatedAt: NonEmptyString,
+  dryRun: Type.Literal(true),
+  objects: Type.Array(Type.Object({
+    content: ContentIdentitySchema,
+    path: NonEmptyString,
+    protections: Type.Array(NonEmptyString),
+    disposition: Type.Union([Type.Literal("preserve"), Type.Literal("unreachable")]),
+  }, { additionalProperties: false })),
+  summary: Type.Object({ total: Type.Integer({ minimum: 0 }), preserved: Type.Integer({ minimum: 0 }), unreachable: Type.Integer({ minimum: 0 }) }, { additionalProperties: false }),
+}, { additionalProperties: false });
+export const GarbageCollectionReportSchema = schemaRegistry.register("compendium.artifact-gc-report.v1", GarbageCollectionReportDefinition).schema;
+export type GarbageCollectionReport = Static<typeof GarbageCollectionReportSchema>;
+
 const RunManifestDefinition = Type.Object({
   schemaVersion: Type.Literal(1),
   runId: NonEmptyString,
