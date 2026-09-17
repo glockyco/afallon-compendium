@@ -1,10 +1,20 @@
 # Afallon compendium exploration
 
-Updated: 2026-09-06. Status: local implementation is available. Nix-backed tooling, canonical extraction, capture, normalization, publication, and the static site are implemented; complete supported-build coverage remains open.
+Updated: 2026-09-08. Status: the content-addressed evidence pipeline, unified scan, canonical catalog, bounded static publication, and production atlas are implemented for build 25153357. Complete supported-build coverage remains open, so publication remains in preview mode.
+
+The architecture cutover uses `compendium scan`, `capture`, `catalog`, and `publish` as its only data-workflow commands. Runtime and reviewed inputs enter an immutable object store. A successful catalog is the only normalized source of truth, and publication queries it directly. Candidate mode verifies output without replacing the selected reference. The frozen pre-cutover source and publication remain local rollback evidence; they are not runtime dependencies or supported readers.
+
+### Architecture cutover evidence
+
+- Current-scene scan `e42ecf2d`, build-scene and streamed-source scan `d5f35d5a`, and representative capture `d15deafe` produced current-build manifests with clean runtime restoration. Relocated capture run `829b3577` reused the exact source tile through content identities.
+- Fresh catalog `49e18528` combines both scan manifests, the representative captured pyramid, all nineteen registered game maps, and the open coverage review. It retains 2,057 canonical entities, 2,786 placements, 3,064 sources, 31 reviewed map bindings, and 6,877 unresolved issues. The increase from the current-scene catalog is attributable to the added build-scene and streamed-source observations; no blocker total decreased.
+- Preview publication `92fc8c93` passed selection, staging, a production static build, resource-graph integrity checks, and a production-browser search and item selection. Its nineteen map spaces and world layout equal the retained publication. It adds placements without removing a prior category combination. Game maps remain the default; captured terrain remains opt-in.
+- Integrated failure checks reject malformed evidence, constraint rollback, uncertain cleanup, damaged objects, missing publication dependencies, and failed selection without replacing successful references. The release gate remains incomplete: 4,691 required obligations are unsatisfied.
+- The isolated rollback rehearsal staged and built retained publication `ab3a0e3f`, then restored and rebuilt publication `92fc8c93`. Both passed deployment-graph validation without changing a catalog or retained object.
 
 ## User intent and permissions
 
-Build a comprehensive interactive map for Afallon, then a full compendium. The primary basemap must use this project's own in-game captures of the supported build. Existing maps are not reliable enough to replace those captures or fill missing tiles. Preserve illustrations as a separate optional orientation layer. Missing or failed captures remain coverage gaps and block a complete release. Include enemies, NPCs, interactables, resources, and other categories supported by Afallon evidence. Connect markers to useful facts such as enemy drops and vendor stock.
+Build a comprehensive interactive map for Afallon, then a full compendium. Game-provided maps are the default for the overworld and interiors. Project-owned captured terrain is an optional overworld layer that a reader must enable. Missing or failed captures remain explicit coverage gaps, but they do not replace or invalidate a verified game-provided map. Include enemies, NPCs, interactables, resources, and other categories supported by Afallon evidence. Connect markers to useful facts such as enemy drops and vendor stock.
 
 The user owns Afallon on Steam and authorized installation in CrossOver, decompilation, HotRepl inspection, reusable scripts, project creation, and a GitHub repository. Implementation follows the approved `build-screenshot-first-map` OpenSpec change. The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation may proceed without that checkpoint. The user later authorized production deployment to `afallon.compendiums.org`, including the validated incomplete preview. Pushing commits still requires separate explicit authorization.
 
@@ -14,7 +24,7 @@ The checkpoint sections below preserve earlier observations. Use the current req
 
 ## Screenshot-first investigation checkpoint
 
-The user selected captured in-game imagery as the primary layer. The private repository and `build-screenshot-first-map` proposal record that direction. Full reachable coverage remains the release target, not only the areas sampled below.
+This section preserves the earlier capture-first investigation. The accepted publication policy now uses game-provided maps by default and keeps captured terrain opt-in for the overworld only. Full reachable coverage remains the target, not only the areas sampled below.
 
 ### Captures produced and viewed
 

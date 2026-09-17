@@ -1,10 +1,11 @@
 {
   "gamePath": "/absolute/path/to/Afallon",
-  "outputRoot": "../artifacts",
-  "runtimeOutputRoot": "Z:/absolute/path/to/afallon-compendium/artifacts",
-  "hotreplUrl": "ws://127.0.0.1:18591",
+  "outputRoot": "local/store",
+  "runtimeOutputRoot": "Z:/absolute/path/to/afallon-compendium/local/store",
+  "hotreplUrl": "ws://127.0.0.1:18601",
   "character": "YourResearchCharacter",
   "finalSceneNativeId": 3,
   "finalScenePath": "Assets/SCENES/Coalway woods.unity",
-  "timeoutMs": 10000
+  "timeoutMs": 10000,
+  "mapSpaceProfile": "reviewed-map-spaces.json"
 }

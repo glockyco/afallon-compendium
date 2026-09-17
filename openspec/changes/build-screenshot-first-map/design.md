@@ -101,7 +101,7 @@ The current OreSpawner name is misleading for categorization: live data proves H
 
 `MapMinimap.MapZone` carries one `zone_id`, one map `Texture`, and one `BoxCollider`, with world-to-map conversion methods. `MapIconType` has exactly three tiers: `Default`, `Player`, `Important`. `MapManager` opens the map, adds icons, and reveals fog. `MapIcon` attaches to quests and world quests and sorts by priority. The game therefore shows one flat map per zone, with a player arrow, quest icons, and fog.
 
-Duskfall Depths is a multi-level dungeon, and the game ships one texture for it, `Duskfall depths full map`. The Abandoned quarry zone uses a top-down terrain render, while the world surface map is illustrated parchment. The developer already produces the cutaway view this project needs, so a shipped texture is a framing and cut-height reference, never a published layer.
+Duskfall Depths is a multi-level dungeon, and the game ships one texture for it, `Duskfall depths full map`. The Abandoned quarry zone uses a top-down terrain render, while the world surface map is illustrated parchment. These shipped textures are calibrated and published as the default layers. They also provide framing evidence for the optional overworld capture layer.
 
 The map contract has no floors. Maps are single-plane. World height stays an ordinary placement field. Overlapping markers are acceptable because the game overlaps them too.
 
@@ -117,7 +117,7 @@ The Afallon identity uses a gold `A` integrated with a compass rose, a charcoal 
 
 ### 6. Screenshot layers use their own capture extent
 
-Primary imagery comes only from this project's capture pipeline against the supported game build. Do not substitute shipped map textures, illustrations, or community map images for primary captures, including missing tiles. Retain missing or failed captures as coverage gaps. Illustrations remain a separate optional layer.
+Game-provided maps are the default imagery for the overworld and interiors. Calibrate each map through reviewed native registration before publication. This project's capture pipeline supplies an optional overworld terrain layer; readers must enable it. Retain missing or failed captures as coverage gaps, but do not use community imagery or synthesize missing capture tiles.
 
 Coalway woods and swamp share one native `MapZone` texture, `Newest map` at 7540 by 8192 pixels, with the same center, size, and rotation. The game therefore already covers several world surface scenes with one map, and those scenes need no manual composition. Only zones that the game never positions relative to each other, such as cave and dungeon zones, need reviewed manual placement on the world map.
 

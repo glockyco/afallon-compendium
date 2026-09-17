@@ -4,8 +4,8 @@ Players need a comprehensive Afallon map that shows recognizable in-game terrain
 
 ## What Changes
 
-- Produce the primary basemap from this project's own orthographic in-game captures of the supported build, for reachable world surface areas and zones. Preserve illustrated maps as separate optional, independently calibrated orientation layers. Existing map images must not replace primary captures or fill missing tiles.
-- Create reusable local commands for runtime inspection, capture, extraction, normalization, and publication. Preserve raw evidence and build identity outside Git.
+- Publish calibrated game-provided maps as the default imagery for the overworld and interiors. Keep this project's orthographic overworld captures as an optional reader-enabled layer. Missing captures remain explicit coverage gaps and never replace verified game imagery.
+- Create reusable local commands for runtime scan, capture, canonical catalog assembly, and publication. Preserve raw evidence and build identity outside Git.
 - Inventory all supported-build scenes and spatial content families. Account for inactive, streamed, conditional, and procedurally produced content instead of treating loaded objects as complete coverage.
 - Extract Afallon-specific enemies, bosses, friendly NPCs and services, resources, containers, interactions, quest locations, and transitions where source evidence supports them.
 - Separate canonical entities, authored placement rules, and live observations. Preserve requirements and placement uncertainty.

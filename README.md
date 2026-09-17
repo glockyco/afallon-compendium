@@ -10,7 +10,7 @@ An interactive world map and searchable reference for more than 3,700 locations 
 
 Search and filter bosses, dungeons, merchants, quest givers, resources, and other points of interest across the overworld and interior maps. The Adventure Guide provides dedicated pages for bosses, dungeons, regions, and properties.
 
-The pipeline uses [HotRepl](https://github.com/glockyco/HotRepl), a runtime C# REPL for Unity games, to execute C# extraction probes inside the running game. Repository tooling validates the probe output, normalizes it into a shared world coordinate system, and builds a static publication for the SvelteKit and deck.gl site.
+The pipeline uses [HotRepl](https://github.com/glockyco/HotRepl), a runtime C# REPL for Unity games, to execute C# evidence probes inside the running game. Repository tooling validates immutable evidence into a canonical SQLite catalog and builds a static publication for the SvelteKit and deck.gl site.
 
 ## Development
 
@@ -40,11 +40,11 @@ The workspace exposes one operator CLI:
 ```sh
 bun run compendium scan --config local/config.json --plan local/scan-plan.json
 bun run compendium capture --config local/config.json --plan local/capture-plan.json
-bun run compendium catalog --plan local/catalog-plan.json --output artifacts
-bun run compendium publish --plan local/publish-plan.json
+bun run compendium catalog --store local/store --plan local/catalog-plan.json
+bun run compendium publish --store local/store --plan local/publish-plan.json --output local/publication
 ```
 
-`scan` and `capture` write immutable, content-addressed evidence. `catalog` validates that evidence into one SQLite source of truth. `publish` queries the selected catalog and atomically selects a static publication. The atlas loads every map shard together at its reviewed world offset. Game-provided maps are enabled by default; captured terrain is available only when a reader selects it.
+Add `--candidate` to produce a verified result without changing the workflow's selected reference. `scan` and `capture` write immutable, content-addressed evidence. `catalog` validates that evidence into the canonical SQLite source of truth. `publish` queries the catalog and atomically selects a static publication. The atlas loads every map shard together at its reviewed world offset. Game-provided maps are enabled by default; captured terrain is available only when a reader selects it.
 
 Generated artifacts, local configuration, and extracted game assets are not committed.
 
@@ -53,6 +53,7 @@ Generated artifacts, local configuration, and extracted game assets are not comm
 Preview or deploy a selected publication from the project root:
 
 ```sh
+bun run stage:production /path/to/publication-root
 bun run compendium preview
 bun run compendium deploy /path/to/publication-root
 ```
