@@ -1,16 +1,20 @@
 ## 1. Freeze evidence and acceptance boundaries
 
-- [ ] 1.1 Record the current source revision, selected scan/catalog/publication references, retained preview root hash, and input hashes in local rollback evidence. Verify every recorded reference resolves without modifying its source.
-- [ ] 1.2 Freeze semantic samples for entity/source/placement identities, relations, provenance, map registrations, guides, marker behavior, and current coverage. Verify samples include sparse native IDs, repeated observations, conditional stock, and unresolved probabilities rather than counts alone.
-- [ ] 1.3 Measure the representative preview's resource groups and browser startup in a fixed browser setup. Verify raw JSON bytes, compressed transfer, request count, map readiness, and search readiness are recorded separately.
+- [x] 1.1 Record the current source revision, selected scan/catalog/publication references, retained preview root hash, and input hashes in local rollback evidence. Verify every recorded reference resolves without modifying its source.
+- [x] 1.2 Freeze semantic samples for entity/source/placement identities, relations, provenance, map registrations, guides, marker behavior, and current coverage. Verify samples include sparse native IDs, repeated observations, conditional stock, and unresolved probabilities rather than counts alone.
+- [x] 1.3 Measure the representative preview's resource groups and browser startup in a fixed browser setup. Verify raw JSON bytes, compressed transfer, request count, map readiness, and search readiness are recorded separately.
 
-### Baseline integrity hold
+### Approved baseline recovery
 
-Task 1.1 is blocked pending a baseline recovery decision. The selected catalog run `415bab9c-3a6e-4118-891c-119d93f18b2e` records SHA-256 `be3f1f8ab448eac7d83af375b18d2410b1efb960b334cb3640b8f83a8f047e06` and 294,510,592 bytes. Its current database has SHA-256 `94efa6931941e57254b3efab4483dfc6ad85b648a9eaeeedddd2cf49eefb06f7` and 295,780,352 bytes. The historical manifest and database remain unchanged by this audit.
+The user approved separate reader and canonical baselines for task 1.1. The selected catalog run `415bab9c-3a6e-4118-891c-119d93f18b2e` records SHA-256 `be3f1f8ab448eac7d83af375b18d2410b1efb960b334cb3640b8f83a8f047e06` and 294,510,592 bytes. Its current database has SHA-256 `94efa6931941e57254b3efab4483dfc6ad85b648a9eaeeedddd2cf49eefb06f7` and 295,780,352 bytes. The historical manifest and database remain unchanged by this audit.
 
 The audit verified 4,635 other references, including the selected scan evidence and all 4,588 dependencies of the selected publication. `local/evidence-pipeline-baseline/integrity-audit.json` records every check and its limitations. The verified alternate catalog run `27005002-d304-41e7-89e3-e3f11fd8a105` uses the same normalization-plan hash but has a different catalog identity and no imagery registrations. Matching sampled table counts do not establish semantic parity.
 
-Proposed recovery: keep the verified current publication as the reader baseline and use the intact alternate catalog as a separate canonical baseline. Do not claim that the alternate catalog produced the current publication. Do not repair the historical hash or admit the mismatched pair as trusted evidence. No implementation task is complete, and implementation remains paused until the baseline decision is confirmed.
+The verified current publication is the reader baseline. The intact alternate catalog is the canonical baseline; it did not produce the current publication. The mismatched pair remains diagnostic evidence only. `local/evidence-pipeline-baseline/accepted-baseline.json` records source revision `e8933dd04ddf494689266789f51f7b7c302bad27`, both baseline identities, the alternate manifest snapshot and hash, verified reference checks, and input identities. The alternate catalog's evidence input hashes match the original selection's; its implementation input hashes differ. A second pass verified 3,133 nested entity-detail and item-source resources whose legacy references encode hashes in their filenames. The complete retained publication closure contains 7,721 dependencies; all passed hash verification. Implementation may continue without changing historical artifacts or selectors.
+
+Semantic evidence is in `local/evidence-pipeline-baseline/semantic-baseline.json` (SHA-256 `64ccdafa77416ff68dceea63b2c17a8f8ace7e8dd2787daafd70fdf43330a926`). It includes 37 ordered table fingerprints, 103 recorded queries, raw record pointers, and the known merchant, spatial-pointer, and issue-lineage defects that must not become parity targets. Reader policy checks used the frozen source worktree at `local/evidence-pipeline-baseline/source`.
+
+`local/evidence-pipeline-baseline/browser-baseline.json` and its startup/search screenshots record Chrome 150 at 1440 × 1000, DPR 1, with HTTP cache disabled. The retained reader loaded 6,820,010 raw startup JSON bytes; atlas, root, and imagery metadata account for 4,548,327 bytes. One loopback sample observed usable search at 539.3 ms and map at 675 ms, with 112 HTTP requests. The host served identity encoding, so compressed-body bytes are not available. These timings are observations, not acceptance thresholds.
 
 ## 2. Define production boundary contracts
 
