@@ -64,7 +64,7 @@ function observe(loader: AtlasDataLoader) {
 
 function responseGate() { return Promise.withResolvers<Response>(); }
 
-test('selection loads related movement across maps without delaying areas, and failed geometry can retry', async () => {
+test('loads all geometry before first render and retries a failed geometry resource with the map', async () => {
   const data = fixture();
   const original = data.root.maps[0]!;
   const areaRadius = 4;
@@ -90,16 +90,13 @@ test('selection loads related movement across maps without delaying areas, and f
   const { controller, until } = observe(data.loader);
   try {
     controller.start(readAtlasUrl(''));
-    const initial = await until((snapshot) => snapshot.map.status === 'loaded');
-    expect(initial.publication?.placements.every((placement) => placement.areas.length === 1)).toBe(true);
-    expect(geometryReferences.map(({ path }) => data.counts.get(path) ?? 0)).toEqual([0, 0]);
-    controller.navigate(readAtlasUrl('?selected=place%3Aa'));
-    await until((snapshot) => snapshot.geometry.status === 'error');
-    expect(controller.snapshot.state.showMovement).toBe(false);
-    expect(selectionHighlightIds(controller.snapshot.indexes.placementsById.get('place:a')!, null, null, controller.snapshot.indexes)).toContain('place:b');
+    const failed = await until((snapshot) => snapshot.map.status === 'error');
+    expect(failed.publication).toBeNull();
+    expect(geometryReferences.map(({ path }) => data.counts.get(path))).toEqual([1, 1]);
     data.overrides.delete(remoteGeometry);
-    controller.retry('geometry');
-    const recovered = await until((snapshot) => snapshot.geometry.status === 'loaded');
+    controller.retry('map');
+    const recovered = await until((snapshot) => snapshot.map.status === 'loaded');
+    expect(recovered.publication?.placements.every((placement) => placement.areas.length === 1)).toBe(true);
     expect(recovered.publication?.placements.filter((placement) => placement.movement.length > 0).map((placement) => placement.placementId)).toEqual(['place:a', 'place:b']);
     expect(geometryReferences.map(({ path }) => data.counts.get(path))).toEqual([1, 2]);
   } finally { controller.dispose(); }

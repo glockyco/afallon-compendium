@@ -40,7 +40,6 @@
   let publication: PublicationData | null = null;
   let controller: AtlasController | null = null;
   let searchState: AtlasRequestState = { status: 'idle' };
-  let geometryState: AtlasRequestState = { status: 'idle' };
   let mapState: AtlasRequestState = { status: 'idle' };
   let rendererStarting = false;
   let disposed = false;
@@ -232,7 +231,6 @@
     if (itemDetails !== next.itemDetails) itemDetails = next.itemDetails;
     if (mapState !== next.map) mapState = next.map;
     if (searchState !== next.search) searchState = next.search;
-    if (geometryState !== next.geometry) geometryState = next.geometry;
     detailLoading = next.detail.status === 'loading';
     detailError = next.detail.status === 'error' ? next.detail.message : '';
     staleSelection = next.staleSelection;
@@ -269,7 +267,7 @@
     adapter = await renderer.replace(canvas, view, {
       onViewChange(nextView, bounds) { view = nextView; viewportBounds = bounds; scheduleViewUrl(); },
       onSelect(placementId) { selectPlacement(placementId, canvas); },
-      onHover(placementId) { hoveredResult = null; hoveredId = placementId; controller?.hover(placementId ? [placementId] : []); },
+      onHover(placementId) { hoveredResult = null; hoveredId = placementId; },
       onWorldOffsetChange(changedMapSpaceId, offset) { worldOffsetOverrides = { ...worldOffsetOverrides, [changedMapSpaceId]: offset }; saveWorldOffsetOverrides(worldOffsetOverrides); },
       onReady() { mapReady = true; },
       onError(message) { handleMapError(message); },
@@ -288,13 +286,11 @@
   function setResultHover(result: SearchResult): void {
     hoveredResult = result;
     hoveredId = result.kind === 'placement' ? result.placement.placementId : null;
-    controller?.hover(resultHighlightIds(result, searchIndexes));
   }
 
   function clearResultHover(): void {
     hoveredResult = null;
     hoveredId = null;
-    controller?.hover([]);
   }
 
   function resultSummary(result: SearchResult): ResultSummary {
@@ -574,7 +570,6 @@
           onZoomOut={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })} onFit={fitMap}
         />
         {#if loadError && publication && !mapUnavailable}<div class="inline-error" role="alert">{loadError}</div>{/if}
-        {#if geometryState.status === 'loading'}<p role="status">Loading optional map geometry...</p>{:else if geometryState.status === 'error'}<p role="alert">{geometryState.message} <button type="button" on:click={() => controller?.retry('geometry')}>Retry map geometry</button></p>{/if}
         {#if !dev && staleSelection}<p role="alert">{staleSelection} <button type="button" on:click={closeDetails}>Clear selection</button></p>{/if}
         {#if !dev && detailError}<p role="alert">{detailError} <button type="button" on:click={() => controller?.retry('detail')}>Retry selection</button></p>{/if}
         <AtlasSearchResults bind:resultList collapsed={resultsCollapsed} {displayedResults} totalResults={rankedResults.length}

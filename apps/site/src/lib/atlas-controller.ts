@@ -1,7 +1,7 @@
 import type { PublicEntity, PublicItemSource, PublicationData, StaticCoverage, StaticGeometry, StaticRootManifest } from '@afallon/contracts/public';
 import { AtlasDataLoader, atlasPublicationData, type AtlasIndexes, type AtlasMapData, type AtlasRequestState } from './atlas-data';
 import { DEFAULT_ATLAS_STATE, transitionAtlasState, type AtlasAction, type AtlasState, type AtlasView } from './atlas-state';
-import { buildSearchIndexes, emptySearchIndexes, selectionHighlightIds, type SearchIndexes } from './atlas-search';
+import { buildSearchIndexes, emptySearchIndexes, type SearchIndexes } from './atlas-search';
 import { resolveLayerIds } from './map/layer-policy';
 
 export interface AtlasSnapshot {
@@ -11,7 +11,6 @@ export interface AtlasSnapshot {
   map: AtlasRequestState;
   search: AtlasRequestState;
   detail: AtlasRequestState;
-  geometry: AtlasRequestState;
   entityDetails: ReadonlyMap<string, PublicEntity>;
   itemDetails: ReadonlyMap<string, PublicItemSource>;
   staleSelection: string;
@@ -34,14 +33,12 @@ export class AtlasController {
   #search: AtlasIndexes | undefined;
   #base: PublicationData | null = null;
   #geometry = new Map<string, StaticGeometry[]>();
-  #geometryStates = new Map<string, AtlasRequestState>();
-  #hoveredIds: readonly string[] = [];
   #selectionGeneration = 0;
   #selectionKey = '';
   #disposed = false;
   #snapshot: AtlasSnapshot = {
     state: DEFAULT_ATLAS_STATE, publication: null, indexes: emptySearchIndexes(),
-    map: { status: 'idle' }, search: { status: 'idle' }, detail: { status: 'idle' }, geometry: { status: 'idle' },
+    map: { status: 'idle' }, search: { status: 'idle' }, detail: { status: 'idle' },
     entityDetails: new Map(), itemDetails: new Map(), staleSelection: '',
   };
 
@@ -64,25 +61,15 @@ export class AtlasController {
     if (this.#base) state = { ...state, layerIds: resolveLayerIds(state.layerIds, this.#base.tileLayers) };
     this.#snapshot = { ...this.#snapshot, state };
     this.#selectionEffects();
-    this.#geometryEffects();
     this.#emit();
     if (mode) this.#options.onNavigate(this.#snapshot.state, mode);
   }
 
-  hover(placementIds: readonly string[]): void {
-    this.#hoveredIds = placementIds;
-    this.#geometryEffects();
-  }
-
-  retry(feature: 'map' | 'search' | 'detail' | 'geometry'): void {
+  retry(feature: 'map' | 'search' | 'detail'): void {
     this.#loader.retryFailed();
     if (feature === 'map') void this.#loadMap();
     if (feature === 'search') void this.#loadSearch();
     if (feature === 'detail') { this.#selectionKey = ''; this.#selectionEffects(); }
-    if (feature === 'geometry') {
-      for (const [id, state] of this.#geometryStates) if (state.status === 'error') this.#geometryStates.delete(id);
-      this.#geometryEffects();
-    }
   }
 
   dispose(): void { this.#disposed = true; this.#selectionGeneration++; }
@@ -92,15 +79,25 @@ export class AtlasController {
     this.#snapshot = { ...this.#snapshot, map: { status: 'loading' } };
     this.#emit();
     try {
-      const [root, maps, coverage] = await Promise.all([this.#loader.loadRoot(), this.#loader.loadMaps(), this.#loader.loadCoverage()]);
+      const root = await this.#loader.loadRoot();
+      const [maps, coverage, geometry] = await Promise.all([
+        this.#loader.loadMaps(),
+        this.#loader.loadCoverage(),
+        Promise.all(root.maps.map(async ({ mapSpaceId }) => [mapSpaceId, await this.#loader.loadGeometry(mapSpaceId)] as const)),
+      ]);
       if (this.#disposed) return;
-      this.#root = root; this.#maps = maps; this.#coverage = coverage;
+      for (const [mapSpaceId, parts] of geometry) {
+        const known = new Set(maps.find((map) => map.mapSpaceId === mapSpaceId)?.placements.map((placement) => placement.placementId) ?? []);
+        for (const part of parts) for (const placement of part.placements) {
+          if (!known.delete(placement.placementId)) throw new Error(`Geometry has an unknown or duplicate placement ${placement.placementId}.`);
+        }
+      }
+      this.#root = root; this.#maps = maps; this.#coverage = coverage; this.#geometry = new Map(geometry);
       this.#base = atlasPublicationData(root, maps, coverage, this.#search);
       this.#snapshot = { ...this.#snapshot, map: { status: 'loaded' }, state: { ...this.#snapshot.state, layerIds: resolveLayerIds(this.#snapshot.state.layerIds, this.#base.tileLayers) } };
       this.#compose();
       this.#selectionKey = '';
       this.#selectionEffects();
-      this.#geometryEffects();
     } catch (error) {
       if (!this.#disposed) this.#snapshot = { ...this.#snapshot, map: failed(error) };
     }
@@ -193,36 +190,6 @@ export class AtlasController {
         this.#emit();
       }
     })();
-  }
-
-  #geometryEffects(): void {
-    if (!this.#base) return;
-    const { state, indexes } = this.#snapshot;
-    const required = new Set<string>();
-    if (state.showConnections || state.showMovement) this.#base.maps.forEach((map) => required.add(map.mapSpaceId));
-    const selected = state.selectedPlacementId ? indexes.placementsById.get(state.selectedPlacementId) ?? null : null;
-    const ids = [...this.#hoveredIds, ...selectionHighlightIds(selected, state.entityKey, state.itemKey, indexes)];
-    if (selected) ids.push(selected.placementId);
-    for (const id of ids) { const placement = indexes.placementsById.get(id); if (placement) required.add(placement.mapSpaceId); }
-    for (const mapSpaceId of required) {
-      if (this.#geometryStates.has(mapSpaceId)) continue;
-      this.#geometryStates.set(mapSpaceId, { status: 'loading' });
-      void this.#loader.loadGeometry(mapSpaceId).then((parts) => {
-        if (this.#disposed) return;
-        const known = new Set(this.#base!.placements.filter((placement) => placement.mapSpaceId === mapSpaceId).map((placement) => placement.placementId));
-        for (const part of parts) for (const placement of part.placements) if (!known.delete(placement.placementId)) throw new Error(`Geometry has an unknown or duplicate placement ${placement.placementId}.`);
-        this.#geometry.set(mapSpaceId, parts);
-        this.#compose();
-        this.#geometryStates.set(mapSpaceId, { status: 'loaded' });
-      }).catch((error: unknown) => {
-        if (!this.#disposed) this.#geometryStates.set(mapSpaceId, failed(error));
-      }).finally(() => { if (!this.#disposed) this.#geometryEffects(); });
-    }
-    const states = [...required].map((id) => this.#geometryStates.get(id)!);
-    const error = states.find((value) => value.status === 'error');
-    const geometry: AtlasRequestState = error ?? { status: states.some((value) => value.status === 'loading') ? 'loading' : states.length ? 'loaded' : 'idle' };
-    this.#snapshot = { ...this.#snapshot, geometry };
-    this.#emit();
   }
 
   #emit(): void { if (!this.#disposed) this.#options.onChange(this.#snapshot); }
