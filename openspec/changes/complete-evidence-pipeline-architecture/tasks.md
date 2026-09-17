@@ -4,6 +4,14 @@
 - [ ] 1.2 Freeze semantic samples for entity/source/placement identities, relations, provenance, map registrations, guides, marker behavior, and current coverage. Verify samples include sparse native IDs, repeated observations, conditional stock, and unresolved probabilities rather than counts alone.
 - [ ] 1.3 Measure the representative preview's resource groups and browser startup in a fixed browser setup. Verify raw JSON bytes, compressed transfer, request count, map readiness, and search readiness are recorded separately.
 
+### Baseline integrity hold
+
+Task 1.1 is blocked pending a baseline recovery decision. The selected catalog run `415bab9c-3a6e-4118-891c-119d93f18b2e` records SHA-256 `be3f1f8ab448eac7d83af375b18d2410b1efb960b334cb3640b8f83a8f047e06` and 294,510,592 bytes. Its current database has SHA-256 `94efa6931941e57254b3efab4483dfc6ad85b648a9eaeeedddd2cf49eefb06f7` and 295,780,352 bytes. The historical manifest and database remain unchanged by this audit.
+
+The audit verified 4,635 other references, including the selected scan evidence and all 4,588 dependencies of the selected publication. `local/evidence-pipeline-baseline/integrity-audit.json` records every check and its limitations. The verified alternate catalog run `27005002-d304-41e7-89e3-e3f11fd8a105` uses the same normalization-plan hash but has a different catalog identity and no imagery registrations. Matching sampled table counts do not establish semantic parity.
+
+Proposed recovery: keep the verified current publication as the reader baseline and use the intact alternate catalog as a separate canonical baseline. Do not claim that the alternate catalog produced the current publication. Do not repair the historical hash or admit the mismatched pair as trusted evidence. No implementation task is complete, and implementation remains paused until the baseline decision is confirmed.
+
 ## 2. Define production boundary contracts
 
 - [ ] 2.1 Define versioned current run and scan-envelope contracts with explicit family references, observation context, outcomes, and planning evidence. Verify malformed, duplicate-family, and cross-build inputs fail with target and record context.
