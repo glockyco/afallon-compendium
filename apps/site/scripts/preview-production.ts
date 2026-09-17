@@ -25,9 +25,10 @@ export function startProductionPreview(directory: string, port = 4173) {
     '.webp': 'image/webp', '.png': 'image/png', '.ico': 'image/x-icon', '.svg': 'image/svg+xml',
   };
   const representations = new Map<string, { bytes: Uint8Array; etag: string }>();
-  return Bun.serve({
-    hostname: '127.0.0.1', port,
-    fetch(request) {
+  try {
+    return Bun.serve({
+      hostname: '127.0.0.1', port,
+      fetch(request) {
       if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
       let path: string;
       try { path = decodeURIComponent(new URL(request.url).pathname); } catch { return new Response('Invalid path', { status: 400 }); }
@@ -57,9 +58,15 @@ export function startProductionPreview(directory: string, port = 4173) {
       if (encoding) headers.set('Content-Encoding', encoding);
       if (status === 200 && request.headers.get('if-none-match') === representation.etag) return new Response(null, { status: 304, headers });
       headers.set('Content-Length', String(representation.bytes.length));
-      return new Response(request.method === 'HEAD' ? null : representation.bytes, { status, headers });
-    },
-  });
+      return new Response(request.method === 'HEAD' ? null : representation.bytes as BodyInit, { status, headers });
+      },
+    });
+  } catch (error) {
+    if (port !== 0 && error !== null && typeof error === 'object' && Reflect.get(error, 'code') === 'EADDRINUSE') {
+      return startProductionPreview(directory, 0);
+    }
+    throw error;
+  }
 }
 
 if (import.meta.main) {

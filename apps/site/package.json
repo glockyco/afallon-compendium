@@ -7,7 +7,7 @@
     "build": "vite build",
     "build:production": "SITE_STAGE=production vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "preview:production": "bun run scripts/preview-production.ts",
+    "preview:production": "bun run build:production && bun run scripts/preview-production.ts",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "stage:production": "bun run scripts/stage-publication.ts",
     "assert:deployment": "bun run scripts/assert-deployment.ts",

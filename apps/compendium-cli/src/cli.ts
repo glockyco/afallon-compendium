@@ -28,7 +28,7 @@ scan and capture use the configured HotRepl runtime. Other data commands are off
 register stores reviewed inputs or binary assets and reports immutable content identities.
 Plans reference objects in --store; local paths are transport arguments, not evidence identities.
 --candidate produces verified output without replacing successful references.
-preview serves the staged production site with its response-header rules.
+preview builds and serves the staged production site with its response-header rules.
 deploy publishes the staged production build; it is never invoked by another command.`;
 
 const { values, positionals } = parseArgs({
