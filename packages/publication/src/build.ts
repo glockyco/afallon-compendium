@@ -58,12 +58,24 @@ export async function buildStaticPublication(db: Database, store: ArtifactStore,
   const maps = mapShards.map((entry) => {
     const mapImagery = imageryByMap.get(entry.summary.mapSpaceId), offset = offsetByMap.get(entry.summary.mapSpaceId);
     if (!mapImagery || !offset) throw new Error(`Publication map has no imagery metadata or reviewed world offset: ${entry.summary.mapSpaceId}.`);
-    const bounds = structuredClone(entry.summary.bounds);
-    for (const layer of mapImagery.value.layers) {
+    const firstLayer = mapImagery.value.layers[0];
+    if (!firstLayer) throw new Error(`Publication map has no imagery layers: ${entry.summary.mapSpaceId}.`);
+    const bounds = {
+      min: { x: firstLayer.extent[0] + offset.worldX, y: firstLayer.extent[1] + offset.worldY },
+      max: { x: firstLayer.extent[2] + offset.worldX, y: firstLayer.extent[3] + offset.worldY },
+    };
+    for (const layer of mapImagery.value.layers.slice(1)) {
       bounds.min.x = Math.min(bounds.min.x, layer.extent[0] + offset.worldX);
       bounds.min.y = Math.min(bounds.min.y, layer.extent[1] + offset.worldY);
       bounds.max.x = Math.max(bounds.max.x, layer.extent[2] + offset.worldX);
       bounds.max.y = Math.max(bounds.max.y, layer.extent[3] + offset.worldY);
+    }
+    const hasSpatialContent = entry.resources.some((resource) => resource.value.placements.length > 0 || resource.value.regions.length > 0);
+    if (hasSpatialContent) {
+      bounds.min.x = Math.min(bounds.min.x, entry.summary.bounds.min.x);
+      bounds.min.y = Math.min(bounds.min.y, entry.summary.bounds.min.y);
+      bounds.max.x = Math.max(bounds.max.x, entry.summary.bounds.max.x);
+      bounds.max.y = Math.max(bounds.max.y, entry.summary.bounds.max.y);
     }
     return { ...entry.summary, bounds, imagery: mapImagery.reference };
   });

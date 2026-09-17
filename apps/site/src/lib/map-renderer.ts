@@ -366,6 +366,7 @@ export async function createMapAdapter(
   let activeView = normalizeView(initialView, {target: [0, 0, 0], zoom: 0});
   let lastPickedId: string | null = null;
   let missingLayerWarningKey: string | null = null;
+  let deckLoaded = false;
   let viewSpaceKey: string | null = null;
   const viewsBySpace = new Map<string, MapViewState>();
   let previousUpdate: MapAdapterUpdate | null = null;
@@ -450,6 +451,7 @@ export async function createMapAdapter(
     deck.setProps({ views: new OrthographicView({ id: VIEW_ID, flipY: false, controller: { inertia: enabled, dragPan: enabled, dragRotate: false } }) });
   };
   const unprojectPointer = (event: PointerEvent): [number, number] | null => {
+    if (!deckLoaded) return null;
     const rect = canvas.getBoundingClientRect();
     const viewport = deck.getViewports().find((candidate) => candidate.id === VIEW_ID);
     const world = viewport?.unproject([event.clientX - rect.left, event.clientY - rect.top]);
@@ -469,6 +471,7 @@ export async function createMapAdapter(
     if (dragController.tryStart({ layerId: "world-map-bounds", mapSpaceId: object.mapSpaceId, coordinate }, true, offsets)) setDragPan(false);
   };
   const onPointerMove = (event: PointerEvent): void => {
+    if (!dragController.active) return;
     const coordinate = unprojectPointer(event);
     if (coordinate) dragController.move(coordinate);
   };
@@ -676,7 +679,6 @@ export async function createMapAdapter(
     }
   };
 
-  let deckLoaded = false;
   let readyReported = false;
   const reportReadyWhenSized = (): void => {
     if (destroyed || readyReported || !deckLoaded || !current) return;

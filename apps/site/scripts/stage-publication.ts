@@ -3,6 +3,7 @@ import { chmodSync, cpSync, mkdirSync, readFileSync, readdirSync, realpathSync, 
 import { join, relative, resolve, sep } from "node:path";
 import type { StaticResourceReference } from "@afallon/contracts/public";
 import { verifyPublicationGraph } from "./publication-graph";
+import { verifyPublicationParity } from "./publication-parity";
 import { deploymentPaths } from "../deployment-paths.mjs";
 
 interface SelectedPublication {
@@ -29,6 +30,7 @@ export function stagePublication(publicationRoot: string, siteDir = resolve(impo
   if (relative(root, publicDir).startsWith("..")) throw new Error("Selected publication directory escapes its root.");
   const { publication, files, sha256: publicationSha256 } = verifyPublicationGraph(publicDir, selection.root);
   if (publication.mode === "release" && !publication.complete) throw new Error("A release publication must report complete coverage.");
+  verifyPublicationParity(publicDir, publication, join(siteDir, "static", "data", "publication.json"));
 
   for (const relativePath of listFiles(publicDir)) {
     if (!files.has(relativePath)) throw new Error(`Selected publication has an unreferenced file: ${relativePath}.`);

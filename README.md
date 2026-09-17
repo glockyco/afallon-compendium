@@ -58,7 +58,7 @@ bun run compendium preview
 bun run compendium deploy /path/to/publication-root
 ```
 
-The preview command builds the staged publication before serving it. The deploy command stages the selected immutable publication, builds and validates `apps/site`, deploys Cloudflare Static Assets with Wrangler, and smoke-tests production. Production excludes database access, runtime probes, authoring controls, and development detail panels.
+The preview command builds the staged publication before serving it. Staging rejects a candidate that removes deployed placements, search records, map regions, imagery tiles, map spaces, or reviewed offsets. The deploy command stages the selected immutable publication, builds and validates `apps/site`, deploys Cloudflare Static Assets with Wrangler, and smoke-tests production. Production excludes database access, runtime probes, authoring controls, and development detail panels.
 
 ## License
 
