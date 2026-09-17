@@ -17,7 +17,7 @@
     "check": "tsc -b tsconfig.packages.json",
     "check:packages": "tsc -b tsconfig.packages.json",
     "check:dependencies": "depcruise --config .dependency-cruiser.cjs apps/compendium-cli/src apps/site/src packages/*/src",
-    "test": "bun test"
+    "test": "bun test ./packages ./apps"
   },
   "overrides": {
     "@deck.gl/extensions": "9.3.7",
