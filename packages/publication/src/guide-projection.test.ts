@@ -75,7 +75,7 @@ test("projects only scenes included in the native guide", () => {
   expect(guide.bosses.map((row) => row.bossKey)).toEqual(["npcs:7"]);
 });
 
-test("projects loot quantities and the measured displayed chance", () => {
+test("preserves authored loot rate without inventing effective probability", () => {
   const item = entity({ entityKey: "items:116", kind: "items", nativeId: 116, name: "Ent bark Shield" });
   const boss = entity({
     entityKey: "npcs:87",
@@ -101,7 +101,7 @@ test("projects loot quantities and the measured displayed chance", () => {
     publicData: { localization: null, gameplay: { includedInAdventureGuide: true, adventureGuideBosses: [{ sourceIndex: 0, npcId: 87 }] }, icon: null },
   });
   const bossGuide = projectAdventureGuide({ entities: [scene, boss, item], placements: [] }).bosses[0]!;
-  expect(bossGuide.loot).toEqual([{ itemKey: "items:116", label: "Ent bark Shield", minimum: 1, maximum: 3, chance: 15.5 }]);
+  expect(bossGuide.loot).toEqual([{ itemKey: "items:116", label: "Ent bark Shield", minimum: 1, maximum: 3, rawRate: 15.53 }]);
   expect(bossGuide.abilities).toBeUndefined();
   expect(bossGuide.stats).toBeUndefined();
 });

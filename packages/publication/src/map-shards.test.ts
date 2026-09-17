@@ -3,10 +3,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArtifactStore } from "@afallon/artifacts";
-import { openNormalizedDatabase } from "@afallon/catalog";
+import { openNormalizedDatabase } from "../../catalog/src/database";
 import { generateMapShards } from "./map-shards";
 
-test("writes one deterministic resource per map without unrelated records", async () => {
+test("keeps map records isolated and stable across equivalent compilations", async () => {
   const root = await mkdtemp(join(tmpdir(), "afallon-map-shards-"));
   const db = openNormalizedDatabase(":memory:");
   try {
@@ -32,12 +32,12 @@ test("writes one deterministic resource per map without unrelated records", asyn
     const store = new ArtifactStore(join(root, "objects"));
     const first = await generateMapShards(db, store);
     const second = await generateMapShards(db, store);
-    expect(first.map((map) => map.resource.identity.sha256)).toEqual(second.map((map) => map.resource.identity.sha256));
+    expect(first.map((map) => map.resources.map((part) => part.identity.sha256))).toEqual(second.map((map) => map.resources.map((part) => part.identity.sha256)));
     expect(first.map((map) => map.summary.mapSpaceId)).toEqual(["a", "b"]);
-    expect(first[0]!.resource.value.placements.map((placement) => placement.placementId)).toEqual(["icon-a", "placement-a"]);
-    expect(first[0]!.resource.value.regions.map((region) => region.id)).toEqual(["region-a"]);
-    expect(first[0]!.resource.value.mapSpaceId).toBe("a");
-    expect(first[0]!.resource.value).not.toEqual(expect.objectContaining({ mapSpaceId: "b" }));
+    expect(first[0]!.resources.flatMap((part) => part.value.placements.map((placement) => placement[0]))).toEqual(["icon-a", "placement-a"]);
+    expect(first[0]!.resources.flatMap((part) => part.value.regions.map((region) => region.id))).toEqual(["region-a"]);
+    expect(first[0]!.resources[0]!.value.mapSpaceId).toBe("a");
+    expect(first[0]!.resources[0]!.value).not.toEqual(expect.objectContaining({ mapSpaceId: "b" }));
   } finally {
     db.close();
     await rm(root, { recursive: true, force: true });

@@ -7,7 +7,9 @@ import { createHash } from 'node:crypto';
 import { readdir, unlink } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
 import { Assert } from 'typebox/value';
-import { ReviewedCellOwnersSchema, type CompendiumConfig, type ReviewedCellOwners } from '@afallon/contracts';
+import { ReviewedCellOwnersSchema, CaptureSetSchema, CaptureReadinessSchema, CaptureGeometrySchema, type CompendiumConfig, type ReviewedCellOwners, type ContentIdentity } from '@afallon/contracts';
+import { ArtifactStore, readArtifactRunManifest, readLatestSuccess } from '@afallon/artifacts';
+import { readCaptureArtifactJson } from './capture-cache';
 
 // A tile costs about 3.4 seconds while entering a scene costs about 80, so detail is cheap.
 // A zone tile covers at most 256 world units at 1024 pixels, giving 0.25 units per pixel.
@@ -20,9 +22,6 @@ const PIXELS = 1024;
 // just outside a frame still draws inside it.
 const LOADER_MARGIN_WORLD_UNITS = 256;
 const NAVIGATION_NEIGHBOURHOOD = 2;
-// The current normalized full snapshot remains the default until a newer snapshot is selected
-// explicitly. The build identity still comes from the configured installation.
-const DEFAULT_NORMALIZED_RUN_ID = 'ca9be50a-a463-4a9b-a9b2-1fbe1672efd5';
 const BASE_WORLD_SCENES: Record<number, true> = { 3: true, 9: true, 11: true };
 
 export interface CapturePlannerOptions {
@@ -71,7 +70,16 @@ interface OldPlanSummary { extent: string; tiles: number; }
 
 export async function planCapture(options: CapturePlannerOptions): Promise<Record<string, unknown>> {
   const surveys = (options.surveys?.length ? options.surveys : [DEFAULT_SURVEY_DIRECTORY]).map(directory => resolve(directory));
-  const databasePath = resolve(options.database ?? resolve(options.config.outputRoot, options.buildId, DEFAULT_NORMALIZED_RUN_ID, 'normalized.sqlite'));
+  const store = new ArtifactStore(options.config.outputRoot);
+  let databasePath: string;
+  if (options.database !== undefined) databasePath = resolve(options.database);
+  else {
+    const selected = await readLatestSuccess(store, options.buildId, 'catalog');
+    const database = selected?.manifest.outputs.find(output => output.name === 'catalog.sqlite');
+    if (database === undefined) throw new Error('Capture planning requires a selected catalog or an explicit database.');
+    await store.verify(database.content);
+    databasePath = store.objectPath(database.content.sha256);
+  }
   const profilePath = options.config.mapSpaceProfile ?? resolve('local/reviewed-map-spaces.json');
   const profile = await Bun.file(profilePath).json() as { bindings: Binding[] };
 const scenesByMap = new Map<string, Binding[]>();
@@ -127,27 +135,29 @@ for (const directory of await surveyDirectories(surveys)) {
 // shows anything there, so loaders decide which scene captures a cell.
 const loaderPositionsByScene = new Map<number, Point[]>();
 {
-  const runsRoot = resolve(options.config.outputRoot, options.buildId);
-  const latest = new Map<number, { completedAt: string; directory: string }>();
-  for (const entry of await readdir(runsRoot)) {
-    const manifestPath = resolve(runsRoot, entry, 'manifest.json');
-    if (!(await Bun.file(manifestPath).exists())) continue;
-    const manifest = await Bun.file(manifestPath).json();
-    if (manifest.input?.command !== 'capture' || manifest.status !== 'succeeded') continue;
-    const sceneNativeId = manifest.input.settings?.sceneNativeId;
-    if (!BASE_WORLD_SCENES[sceneNativeId]) continue;
-    const completedAt = manifest.timestamps?.completedAt ?? '';
-    const current = latest.get(sceneNativeId);
-    if (current === undefined || completedAt > current.completedAt) latest.set(sceneNativeId, { completedAt, directory: resolve(runsRoot, entry) });
+  const runsRoot = resolve(store.root, 'runs');
+  const latest = new Map<number, { completedAt: string; inventory: ContentIdentity }>();
+  const entries = await readdir(runsRoot).catch((error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return []; throw error; });
+  for (const entry of entries) {
+    const path = resolve(runsRoot, entry, 'manifest.json');
+    if (!(await Bun.file(path).exists())) continue;
+    const manifest = await readArtifactRunManifest(path);
+    if (manifest.input.operation !== 'capture' || manifest.input.buildId !== options.buildId || manifest.status !== 'succeeded') continue;
+    const setReference = manifest.outputs.find(output => output.name === 'capture-set.json');
+    if (setReference === undefined) throw new Error('Successful capture has no capture set.');
+    const set = await readCaptureArtifactJson(store, setReference.content);
+    Assert(CaptureSetSchema, set);
+    if (!BASE_WORLD_SCENES[set.sceneNativeId]) continue;
+    const completedAt = manifest.timestamps.completedAt!;
+    if (completedAt <= (latest.get(set.sceneNativeId)?.completedAt ?? '')) continue;
+    const readiness = await readCaptureArtifactJson(store, set.tiles[0]!.artifacts.readiness.content);
+    Assert(CaptureReadinessSchema, readiness);
+    latest.set(set.sceneNativeId, { completedAt, inventory: readiness.inventory });
   }
-  for (const [sceneNativeId, run] of latest) {
-    const tilesRoot = resolve(run.directory, 'tiles');
-    const geometryDirectories = (await readdir(tilesRoot)).filter(name => name.endsWith('.geometry'));
-    if (geometryDirectories.length === 0) continue;
-    const geometryRoot = resolve(tilesRoot, geometryDirectories[0]!);
-    const inventories = (await readdir(geometryRoot)).filter(name => /^inventory-\d+\.json$/.test(name)).sort();
-    if (inventories.length === 0) continue;
-    const inventory = await Bun.file(resolve(geometryRoot, inventories[inventories.length - 1]!)).json() as { sources: Array<{ enabled: boolean; position: Point }> };
+  for (const [sceneNativeId, source] of latest) {
+    const inventory = await readCaptureArtifactJson(store, source.inventory);
+    Assert(CaptureGeometrySchema, inventory);
+    if (inventory.scene.nativeId !== sceneNativeId) throw new Error('Capture inventory belongs to another scene.');
     loaderPositionsByScene.set(sceneNativeId, inventory.sources.filter(source => source.enabled).map(source => source.position));
   }
 }

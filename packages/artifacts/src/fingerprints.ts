@@ -20,23 +20,41 @@ export async function fingerprintStep(input: StepFingerprintInput): Promise<Step
     splitting: false,
     sourcemap: "none",
     minify: true,
+    // Fingerprint declared dependencies even when unused exports let the bundler omit them.
+    ignoreDCEAnnotations: true,
     metafile: true,
-    loader: { ".csx": "text" },
+    loader: { ".csx": "text", ".py": "text" },
   });
   if (!build.success) throw new AggregateError(build.logs, `Bun could not bundle step entrypoint ${entrypoint}.`);
   if (build.outputs.length !== 1) throw new Error(`Step entrypoint must produce one bundled output, received ${build.outputs.length}: ${entrypoint}.`);
   if (!build.metafile) throw new Error(`Bun did not return a metafile for step entrypoint ${entrypoint}.`);
 
-  const outputBytes = new Uint8Array(await build.outputs[0]!.arrayBuffer());
-  const implementation = createHash("sha256").update(outputBytes).digest("hex");
   const modulePaths = Object.keys(build.metafile.inputs).sort();
   const probeHashes: Record<string, string> = {};
-  for (const modulePath of modulePaths.filter((candidate) => candidate.endsWith(".csx"))) {
+  const modules: { id: string; sha256: string; imports: { id: string; kind: string; attributes: Record<string, string> }[] }[] = [];
+  const logicalIds = new Map<string, string>();
+  for (const modulePath of modulePaths) {
     const candidatePath = path.isAbsolute(modulePath) ? modulePath : path.resolve(modulePath);
     const absolutePath = await realpath(candidatePath);
     const logicalPath = path.relative(path.dirname(entrypoint), absolutePath).split(path.sep).join("/");
-    probeHashes[logicalPath] = createHash("sha256").update(await readFile(absolutePath)).digest("hex");
+    const sha256 = createHash("sha256").update(await readFile(absolutePath)).digest("hex");
+    logicalIds.set(modulePath, logicalPath);
+    modules.push({ id: logicalPath, sha256, imports: [] });
+    if (modulePath.endsWith(".csx") || modulePath.endsWith(".py")) probeHashes[logicalPath] = sha256;
   }
+  for (const [index, modulePath] of modulePaths.entries()) {
+    modules[index]!.imports = build.metafile.inputs[modulePath]!.imports.map(edge => ({
+      id: logicalIds.get(edge.path) ?? (path.isAbsolute(edge.path) ? path.relative(path.dirname(entrypoint), edge.path).split(path.sep).join("/") : edge.path),
+      kind: edge.kind,
+      attributes: edge.with ?? {},
+    }));
+  }
+  modules.sort((left, right) => left.id.localeCompare(right.id));
+  const implementation = createHash("sha256").update(canonicalJson({
+    algorithm: "compendium.executable-closure.v2",
+    runtime: Bun.version,
+    modules,
+  })).digest("hex");
 
   const schemas = [...input.schemas].sort((left, right) => left.id.localeCompare(right.id));
   if (new Set(schemas.map((schema) => schema.id)).size !== schemas.length) throw new TypeError("Step fingerprint schemas must have unique identities.");

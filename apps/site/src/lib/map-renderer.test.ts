@@ -12,7 +12,11 @@ function adapter(onDestroy: () => void): MapAdapter {
 test("destroys replaced, stale, and final deck renderers", async () => {
   let destroyed = 0;
   const releases: Array<(value: MapAdapter) => void> = [];
-  const factory: MapRendererFactory = async () => new Promise<MapAdapter>((resolve) => { releases.push(resolve); });
+  const factory: MapRendererFactory = () => {
+    const { promise, resolve } = Promise.withResolvers<MapAdapter>();
+    releases.push(resolve);
+    return promise;
+  };
   const controller = new MapRendererController(() => {}, factory);
   const first = controller.replace(canvas, view, callbacks);
   const second = controller.replace(canvas, view, callbacks);
@@ -26,10 +30,17 @@ test("destroys replaced, stale, and final deck renderers", async () => {
   expect(controller.adapter).toBeNull();
 });
 
-test("reports WebGL fallback without retaining a renderer", async () => {
-  const messages: string[] = [];
-  const controller = new MapRendererController((message) => messages.push(message), async () => { throw new Error("context unavailable"); });
-  expect(await controller.replace(canvas, view, callbacks)).toBeNull();
-  expect(messages).toEqual(["WebGL map unavailable: context unavailable"]);
+test("an obsolete renderer failure cannot replace a working renderer with the fallback", async () => {
+  const pending = Promise.withResolvers<MapAdapter>();
+  const active = adapter(() => {});
+  const errors: string[] = [];
+  let attempt = 0;
+  const controller = new MapRendererController((message) => { if (message) errors.push(message); }, () => ++attempt === 1 ? pending.promise : Promise.resolve(active));
+  const obsolete = controller.replace(canvas, view, callbacks);
+  await controller.replace(canvas, view, callbacks);
+  pending.reject(new Error("context unavailable"));
+  await obsolete;
+  expect(controller.adapter).toBe(active);
+  expect(errors).toEqual([]);
   controller.destroy();
 });

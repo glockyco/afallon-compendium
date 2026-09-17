@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArtifactStore } from "@afallon/artifacts";
-import { openNormalizedDatabase } from "@afallon/catalog";
+import { openNormalizedDatabase } from "../../catalog/src/database";
 import { generateImageryResources } from "./imagery";
 
 test("verifies imagery registration and publishes hashed tile URLs with game imagery default", async () => {
@@ -19,8 +19,8 @@ test("verifies imagery registration and publishes hashed tile URLs with game ima
     db.query("INSERT INTO placements (placement_id, build_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, label, shape_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("placement", "build", 1, "scene", "world", 0, 0, 0, 5, 5, null, "null", "[]");
     for (const [id, kind] of [["captured", "captured"], ["game", "game-map"]] as const) {
       const layer = { id, mapSpaceId: "world", label: id, kind, tileSize: 256 as const, minZoom: 0, maxZoom: 0, extent: [0, 0, 10, 10] as [number, number, number, number], tiles: [{ z: 0, x: 0, y: 0, url: "old/tile.webp", sha256: tile.sha256, bytes: tile.bytes, width: 256, height: 256, state: "captured" as const }] };
-      const manifest = await store.putBytes(new TextEncoder().encode(JSON.stringify(layer)));
-      db.query("INSERT INTO imagery_assets VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(id, "build", "world", kind, manifest.sha256, manifest.bytes, JSON.stringify(layer), "[]");
+      const manifest = await store.putBytes(new TextEncoder().encode(JSON.stringify({ schemaVersion: "compendium.catalog-imagery.v1", buildId: "build", layer, inputs: [{ sha256: tile.sha256, bytes: tile.bytes }] })));
+      db.query("INSERT INTO imagery_assets VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(`world:${id}`, "build", "world", kind, manifest.sha256, manifest.bytes, JSON.stringify(layer), "[]");
     }
     const generated = await generateImageryResources(db, store);
     expect(generated).toHaveLength(1);

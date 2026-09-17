@@ -1,4 +1,5 @@
 import { Type, type Static } from "typebox";
+import { Assert } from "typebox/value";
 
 const integer = Type.Integer();
 const count = Type.Integer({ minimum: 0 });
@@ -50,6 +51,17 @@ export const ScanPlanSchema = Type.Object({
   targets: Type.Array(ScanTargetSchema, { minItems: 1, maxItems: 256 }),
 }, { additionalProperties: false });
 export type ScanPlan = Static<typeof ScanPlanSchema>;
+const contentIdentity = Type.Object({ sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), bytes: count }, { additionalProperties: false });
+export const ScanPlanningEvidenceSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.scan-planning-evidence.v1"),
+  buildId: text,
+  sourceRunId: text,
+  plan: contentIdentity,
+  inventory: contentIdentity,
+  observationContext: contentIdentity,
+  targets: Type.Array(Type.Object({ target: ScanTargetSchema, targetIdentity: text }, { additionalProperties: false }), { minItems: 1 }),
+}, { additionalProperties: false });
+export type ScanPlanningEvidence = Static<typeof ScanPlanningEvidenceSchema>;
 export const SCAN_COLLECTOR_FAMILIES = ["canonical", "inventory", "producers", "placements", "roles", "relationships", "spatial", "coverage"] as const;
 export const ScanCollectorFamilySchema = Type.Union([
   Type.Literal("canonical"),
@@ -102,12 +114,15 @@ export const ScanEvidenceArtifactSchema = Type.Object({
   name: text,
   schema: Type.Object({ id: text, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) }, { additionalProperties: false }),
   content: Type.Object({ sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), bytes: count }, { additionalProperties: false }),
-  authoredIdentities: Type.Array(text),
+  observationContext: Type.Union([Type.Object({ sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), bytes: count }, { additionalProperties: false }), Type.Null()]),
+  inputs: Type.Array(Type.Object({ sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), bytes: count }, { additionalProperties: false })),
+  authoredIdentities: Type.Array(text, { uniqueItems: true }),
 }, { additionalProperties: false });
 export type ScanEvidenceArtifact = Static<typeof ScanEvidenceArtifactSchema>;
 export const ScanTargetEnvelopeSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.scan-target-envelope.v1"),
+  schemaVersion: Type.Literal("compendium.scan-target-envelope.v2"),
   buildId: text,
+  sourceRunId: text,
   targetIndex: count,
   target: ScanTargetSchema,
   targetIdentity: text,
@@ -122,6 +137,41 @@ export const ScanTargetEnvelopeSchema = Type.Object({
   diagnostics: Type.Array(Type.Object({ code: text, message: text }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type ScanTargetEnvelope = Static<typeof ScanTargetEnvelopeSchema>;
+
+export function validateScanTargetEnvelope(value: unknown, expected?: { buildId: string; sourceRunId?: string }): ScanTargetEnvelope {
+  try { Assert(ScanTargetEnvelopeSchema, value); }
+  catch (error) {
+    const row = value !== null && typeof value === "object" ? value as Record<string, unknown> : {};
+    throw new Error(`Scan target ${String(row.targetIdentity ?? "unknown")} at index ${String(row.targetIndex ?? "unknown")} has a malformed envelope.`, { cause: error });
+  }
+  const label = `Scan target ${value.targetIdentity} at index ${value.targetIndex}`;
+  if (expected !== undefined && value.buildId !== expected.buildId) throw new Error(`${label} belongs to build ${value.buildId}, not ${expected.buildId}.`);
+  if (expected?.sourceRunId !== undefined && value.sourceRunId !== expected.sourceRunId) throw new Error(`${label} belongs to another source run.`);
+  const target = value.target;
+  const identity = target.kind === "current-scene" ? target.kind : target.kind === "build-scene" ? `${target.kind}:${target.sceneNativeId}` : `${target.kind}:${target.sceneNativeId}:${target.sourceKey}`;
+  if (value.targetIdentity !== identity) throw new Error(`${label} has an inconsistent target identity.`);
+  const dispositions = new Map<ScanCollectorFamily, ScanCollectorDisposition>();
+  for (const [index, disposition] of value.collectors.entries()) {
+    if (dispositions.has(disposition.family)) throw new Error(`${label} repeats family disposition ${disposition.family} at collectors/${index}.`);
+    dispositions.set(disposition.family, disposition);
+  }
+  for (const family of SCAN_COLLECTOR_FAMILIES) if (!dispositions.has(family)) throw new Error(`${label} has no disposition for family ${family}.`);
+  const artifactKeys = new Set<string>();
+  const collected = new Set<ScanCollectorFamily>();
+  for (const [index, artifact] of value.artifacts.entries()) {
+    const key = `${artifact.family}\0${artifact.name}`;
+    if (artifactKeys.has(key)) throw new Error(`${label} repeats artifact ${artifact.family}/${artifact.name} at artifacts/${index}.`);
+    artifactKeys.add(key);
+    if (dispositions.get(artifact.family)?.status !== "collect") throw new Error(`${label} declares artifact ${artifact.name} in an inapplicable family.`);
+    collected.add(artifact.family);
+    if (value.outcome === "succeeded" && artifact.family !== "coverage" && artifact.observationContext === null) throw new Error(`${label} artifact ${artifact.name} has no observation context.`);
+  }
+  if (value.outcome === "succeeded") {
+    if (value.observation.started === null || value.observation.completed === null) throw new Error(`${label} has no restoration observation.`);
+    for (const disposition of dispositions.values()) if (disposition.status === "collect" && !collected.has(disposition.family)) throw new Error(`${label} has no artifact for applicable family ${disposition.family}.`);
+  }
+  return value;
+}
 export const ScanCoverageSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.scan-coverage.v1"),
   targetIdentity: text,

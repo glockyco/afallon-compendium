@@ -1,18 +1,15 @@
-import { randomUUID } from "node:crypto";
-import { chmod, link, mkdir, open, readFile, unlink } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { chmod, link, mkdir, open, readFile, readdir, unlink } from "node:fs/promises";
+import { hostname } from "node:os";
 import * as path from "node:path";
 import { Assert } from "typebox/value";
 import {
-  ArtifactRunInputSchema,
-  ArtifactRunManifestSchema,
-  canonicalJson,
-  type ArtifactRunInput,
-  type ArtifactRunManifest,
-  type FailureRecord,
-  type LogicalArtifact,
+  ArtifactRunInputSchema, ArtifactRunPhaseSchema, canonicalJson,
+  type ArtifactDependency, type ArtifactRunInput, type ArtifactRunManifest, type ArtifactRunPhase,
+  type ContentIdentity, type FailureRecord, type LogicalArtifact,
 } from "@afallon/contracts";
-import { createArtifactLease } from "./leases";
-import { selectLatestSuccess } from "./references";
+import { createArtifactLease, readArtifactLeases } from "./leases";
+import { assertArtifactRunManifest, resolveArtifactRun, verifyArtifactRunClosure } from "./references";
 import { sameCacheInput } from "./reuse";
 import { ArtifactStore, type StoredObject } from "./store";
 
@@ -26,15 +23,24 @@ export interface ArtifactMetadata {
   readonly mediaType: string;
   readonly schemaId?: string | null;
   readonly buildId?: string;
+  readonly references?: readonly ArtifactDependency[];
 }
 
 export interface ArtifactRun {
   readonly runId: string;
   readonly manifestPath: string;
-  addArtifact(name: string, object: StoredObject, metadata: ArtifactMetadata): Promise<LogicalArtifact>;
+  readonly status: ArtifactRunManifest["status"];
+  readonly manifestIdentity: ContentIdentity | null;
+  putBytes(bytes: Uint8Array): Promise<StoredObject>;
+  putFile(sourcePath: string): Promise<StoredObject>;
+  putStream(source: AsyncIterable<Uint8Array>): Promise<StoredObject>;
+  setPhase(phase: ArtifactRunPhase): Promise<void>;
+  addArtifact(name: string, object: ContentIdentity, metadata: ArtifactMetadata): Promise<LogicalArtifact>;
   reuseFrom(source: ArtifactRunManifest): Promise<readonly LogicalArtifact[]>;
   succeed(): Promise<ArtifactRunManifest>;
   fail(error: unknown): Promise<ArtifactRunManifest>;
+  /** Release GC protection after selection or candidate handoff. Repeated calls are safe. */
+  release(): Promise<void>;
 }
 
 export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunInput): Promise<ArtifactRun> {
@@ -47,7 +53,9 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
     if (schemaIds.has(schema.id)) throw new TypeError(`The run input repeats schema identity ${schema.id}.`);
     schemaIds.add(schema.id);
   }
-
+  for (const name of normalizedInput.inputManifests ?? []) {
+    if (!Object.hasOwn(normalizedInput.inputs, name)) throw new TypeError(`The run has no manifest input named ${name}.`);
+  }
   const runId = randomUUID();
   const directory = path.join(store.root, "runs", runId);
   const revisionsDirectory = path.join(directory, "revisions");
@@ -56,72 +64,101 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
   await mkdir(directory);
   await mkdir(revisionsDirectory);
   const createdAt = new Date().toISOString();
+  const execution = { host: hostname(), pid: process.pid };
   const outputs: LogicalArtifact[] = [];
   let reuse: ArtifactRunManifest["reuse"] = null;
   let revision = 0;
+  let phase: ArtifactRunPhase = "preparation";
   let state: ArtifactRunManifest["status"] = "running";
-
+  let manifestIdentity: ContentIdentity | null = null;
   const snapshot = (status: ArtifactRunManifest["status"], failure: FailureRecord | null): ArtifactRunManifest => {
     const updatedAt = new Date().toISOString();
     return {
-      schemaVersion: "compendium.artifact-run.v1",
-      revision,
-      runId,
-      input: normalizedInput,
-      outputs: outputs.map((output) => structuredClone(output)),
-      reuse: reuse === null ? null : structuredClone(reuse),
+      schemaVersion: "compendium.artifact-run.v2", revision, runId, phase, execution,
+      input: normalizedInput, outputs: structuredClone(outputs), reuse: structuredClone(reuse),
       timestamps: { createdAt, updatedAt, completedAt: status === "running" ? null : updatedAt },
-      status,
-      failure,
+      status, failure,
     };
   };
-
   await writeImmutableJson(path.join(revisionsDirectory, revisionName(revision)), snapshot("running", null));
-  const lease = await createArtifactLease(store, {
-    runId,
-    buildId: normalizedInput.buildId,
-    operation: normalizedInput.operation,
-    objects: Object.values(normalizedInput.inputs),
-  });
-
+  const lease = await createArtifactLease(store, { runId, buildId: normalizedInput.buildId, operation: normalizedInput.operation, objects: [] });
+  let released = false;
   let queue: Promise<void> = Promise.resolve();
   const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
-    const result = queue.then(operation, operation);
-    queue = result.then(() => undefined, () => undefined);
+    const result = queue.then(operation);
+    queue = result.then(() => {}, () => {});
     return result;
   };
   const requireRunning = (): void => {
+    if (released) throw new RunStateError(`Run ${runId} is released.`);
     if (state !== "running") throw new RunStateError(`Run ${runId} is already ${state}.`);
   };
-
-  return {
-    runId,
-    manifestPath,
+  const appendRevision = async (): Promise<void> => {
+    revision += 1;
+    try { await writeImmutableJson(path.join(revisionsDirectory, revisionName(revision)), snapshot("running", null)); }
+    catch (error) { revision -= 1; throw error; }
+  };
+  const terminal = async (status: "succeeded" | "failed", failure: FailureRecord | null): Promise<ArtifactRunManifest> => {
+    revision += 1;
+    const manifest = snapshot(status, failure);
+    assertArtifactRunManifest(manifest);
+    const bytes = new TextEncoder().encode(`${canonicalJson(manifest)}\n`);
+    let object: StoredObject;
+    try { object = await store.putBytes(bytes, lease); }
+    catch (error) { revision -= 1; throw error; }
+    try { await writeImmutableJson(manifestPath, manifest); }
+    catch (error) { revision -= 1; throw error; }
+    state = status;
+    manifestIdentity = { sha256: object.sha256, bytes: object.bytes };
+    return structuredClone(manifest);
+  };
+  const run: ArtifactRun = {
+    runId, manifestPath,
+    get status() { return state; },
+    get manifestIdentity() { return manifestIdentity === null ? null : { ...manifestIdentity }; },
+    putBytes(bytes) { return enqueue(async () => { requireRunning(); return store.putBytes(bytes, lease); }); },
+    putFile(sourcePath) { return enqueue(async () => { requireRunning(); return store.putFile(sourcePath, lease); }); },
+    putStream(source) { return enqueue(async () => { requireRunning(); return store.putStream(source, lease); }); },
+    setPhase(next) {
+      return enqueue(async () => {
+        requireRunning();
+        Assert(ArtifactRunPhaseSchema, next);
+        const phases = ["preparation", "execution", "finalization"];
+        if (phases.indexOf(next) < phases.indexOf(phase)) throw new RunStateError(`Run ${runId} cannot return to phase ${next}.`);
+        if (next === phase) return;
+        const previous = phase;
+        phase = next;
+        try { await appendRevision(); } catch (error) { phase = previous; throw error; }
+      });
+    },
     addArtifact(name, object, metadata) {
       return enqueue(async () => {
         requireRunning();
         const logicalName = requireLogicalName(name);
-        if (outputs.some((output) => output.name === logicalName)) throw new RunStateError(`Artifact name is already registered: ${logicalName}.`);
+        if (outputs.some(output => output.name === logicalName)) throw new RunStateError(`Artifact name is already registered: ${logicalName}.`);
         if (typeof metadata.mediaType !== "string" || metadata.mediaType.length === 0) throw new TypeError("Artifact mediaType must be a non-empty string.");
         const buildId = metadata.buildId ?? normalizedInput.buildId;
         if (buildId !== normalizedInput.buildId) throw new TypeError(`Artifact ${logicalName} belongs to build ${buildId}, not ${normalizedInput.buildId}.`);
-        await lease.protect(object);
+        const references = (metadata.references ?? []).map(reference => ({
+          kind: reference.kind,
+          content: { sha256: reference.content.sha256, bytes: reference.content.bytes },
+        }));
         const artifact: LogicalArtifact = {
-          name: logicalName,
-          content: { sha256: object.sha256, bytes: object.bytes },
-          mediaType: metadata.mediaType,
-          schemaId: metadata.schemaId ?? null,
-          buildId,
+          name: logicalName, content: { sha256: object.sha256, bytes: object.bytes },
+          mediaType: metadata.mediaType, schemaId: metadata.schemaId ?? null, buildId, references,
         };
-        outputs.push(artifact);
-        revision += 1;
-        try {
-          await writeImmutableJson(path.join(revisionsDirectory, revisionName(revision)), snapshot("running", null));
-        } catch (error) {
-          outputs.pop();
-          revision -= 1;
-          throw error;
+        const candidate = snapshot("running", null);
+        candidate.input = { ...normalizedInput, inputs: {}, inputManifests: [] };
+        candidate.outputs = [artifact];
+        assertArtifactRunManifest(candidate);
+        await lease.protect(object);
+        for (const reference of references) {
+          if (reference.kind === "run-manifest") await lease.protectManifest(reference.content);
+          else await lease.protect(reference.content);
         }
+        await verifyArtifactRunClosure(store, candidate);
+        outputs.push(artifact);
+        try { await appendRevision(); } catch (error) { outputs.pop(); throw error; }
         return structuredClone(artifact);
       });
     },
@@ -130,81 +167,98 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
         requireRunning();
         if (outputs.length > 0 || reuse !== null) throw new RunStateError("A run can reuse outputs only before it registers outputs.");
         if (source.status !== "succeeded" || !sameCacheInput(source.input, normalizedInput)) throw new RunStateError(`Run ${source.runId} is not a matching reusable result.`);
-        for (const output of source.outputs) {
-          await store.verify(output.content);
-          await lease.protect(output.content);
-        }
-        outputs.push(...source.outputs.map((output) => structuredClone(output)));
-        reuse = { sourceRunId: source.runId, outputNames: outputs.map((output) => output.name).sort() };
-        revision += 1;
-        try {
-          await writeImmutableJson(path.join(revisionsDirectory, revisionName(revision)), snapshot("running", null));
-        } catch (error) {
-          outputs.length = 0;
-          reuse = null;
-          revision -= 1;
-          throw error;
-        }
-        return outputs.map((output) => structuredClone(output));
+        const sourceBytes = new TextEncoder().encode(`${canonicalJson(source)}\n`);
+        const sourceObject = { sha256: createHash("sha256").update(sourceBytes).digest("hex"), bytes: sourceBytes.byteLength };
+        await lease.protectManifest(sourceObject);
+        const verified = await resolveArtifactRun(store, sourceObject, { buildId: input.buildId, operation: input.operation });
+        outputs.push(...structuredClone(verified.outputs));
+        reuse = { sourceRunId: verified.runId, sourceManifest: sourceObject, outputNames: outputs.map(output => output.name).sort() };
+        try { await appendRevision(); } catch (error) { outputs.length = 0; reuse = null; throw error; }
+        return structuredClone(outputs);
       });
     },
     succeed() {
       return enqueue(async () => {
         requireRunning();
-        for (const output of outputs) await store.verify(output.content);
-        revision += 1;
-        const manifest = snapshot("succeeded", null);
-        await writeImmutableJson(manifestPath, manifest);
-        state = "succeeded";
-        try {
-          await selectLatestSuccess(store, manifestPath);
-        } finally {
-          await lease.release();
-        }
-        return structuredClone(manifest);
+        await verifyArtifactRunClosure(store, snapshot("running", null));
+        phase = "finalization";
+        return terminal("succeeded", null);
       });
     },
     fail(error) {
       return enqueue(async () => {
         requireRunning();
-        revision += 1;
-        const manifest = snapshot("failed", serializeFailure(error));
-        await writeImmutableJson(manifestPath, manifest);
-        state = "failed";
+        return terminal("failed", serializeFailure(error));
+      });
+    },
+    release() {
+      return enqueue(async () => {
+        if (released) return;
         await lease.release();
-        return structuredClone(manifest);
+        released = true;
       });
     },
   };
+  try {
+    const manifests = new Set(normalizedInput.inputManifests ?? []);
+    for (const [name, identity] of Object.entries(normalizedInput.inputs)) {
+      if (manifests.has(name)) await lease.protectManifest(identity);
+      else await lease.protect(identity);
+    }
+    await verifyArtifactRunClosure(store, snapshot("running", null));
+  } catch (error) {
+    try { await run.fail(error); }
+    catch (failure) { throw new AggregateError([error, failure], `Run ${runId} failed during preparation. Evidence: ${manifestPath}.`); }
+    finally { await run.release(); }
+    throw new Error(`Run ${runId} failed during preparation. Evidence: ${manifestPath}.`, { cause: error });
+  }
+  return run;
 }
 
 export async function readArtifactRunManifest(manifestPath: string): Promise<ArtifactRunManifest> {
   const value: unknown = JSON.parse(await readFile(manifestPath, "utf8"));
-  Assert(ArtifactRunManifestSchema, value);
-  const names = new Set<string>();
-  for (const output of value.outputs) {
-    if (names.has(output.name)) throw new Error(`Run manifest contains duplicate artifact name ${output.name}.`);
-    names.add(output.name);
-  }
-  if (value.status === "running" || (value.status === "succeeded" && value.failure !== null) || (value.status === "failed" && value.failure === null)) {
-    throw new Error(`Run manifest has inconsistent status and failure fields: ${manifestPath}.`);
-  }
+  assertArtifactRunManifest(value);
+  if (value.status === "running") throw new Error(`Run ${value.runId} has no terminal manifest: ${manifestPath}.`);
   return value;
 }
 
-function requireSegment(value: string, field: string): string {
-  if (value.length === 0 || value === "." || value === ".." || value.includes("/") || value.includes("\\") || value.includes(":") || CONTROL_CHARACTERS.test(value)) {
-    throw new TypeError(`${field} must be one safe path segment.`);
+export interface ArtifactRunInspection {
+  readonly manifest: ArtifactRunManifest;
+  readonly state: "terminal" | "running" | "interrupted" | "unknown";
+}
+
+export async function inspectArtifactRun(store: ArtifactStore, runId: string): Promise<ArtifactRunInspection> {
+  requireSegment(runId, "runId");
+  const directory = path.join(store.root, "runs", runId);
+  try { return { manifest: await readArtifactRunManifest(path.join(directory, "manifest.json")), state: "terminal" }; }
+  catch (error) {
+    if (!(error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT")) throw error;
   }
+  const revisions = (await readdir(path.join(directory, "revisions"))).filter(name => /^\d{8}\.json$/.test(name)).sort();
+  const latest = revisions.at(-1);
+  if (latest === undefined) throw new Error(`Run ${runId} has no admitted revision.`);
+  const manifest: unknown = JSON.parse(await readFile(path.join(directory, "revisions", latest), "utf8"));
+  assertArtifactRunManifest(manifest);
+  if (manifest.runId !== runId || manifest.status !== "running") throw new Error(`Run ${runId} has an invalid running revision.`);
+  const lease = (await readArtifactLeases(store)).find(candidate => candidate.runId === runId);
+  if (lease === undefined) return { manifest, state: "interrupted" };
+  if (manifest.execution.host !== hostname()) return { manifest, state: "unknown" };
+  try { process.kill(manifest.execution.pid, 0); return { manifest, state: "running" }; }
+  catch (error) {
+    if (error !== null && typeof error === "object" && "code" in error && error.code === "ESRCH") return { manifest, state: "interrupted" };
+    return { manifest, state: "unknown" };
+  }
+}
+
+function requireSegment(value: string, field: string): string {
+  if (value.length === 0 || value === "." || value === ".." || value.includes("/") || value.includes("\\") || value.includes(":") || CONTROL_CHARACTERS.test(value)) throw new TypeError(`${field} must be one safe path segment.`);
   return value;
 }
 
 function requireLogicalName(value: string): string {
-  if (typeof value !== "string" || value.length === 0 || value.startsWith("/") || value.startsWith("\\") || CONTROL_CHARACTERS.test(value)) {
-    throw new TypeError("Artifact name must be a non-empty relative path.");
-  }
-  const parts = value.split(/[\\/]/);
-  if (parts.some((part) => part.length === 0 || part === "." || part === "..")) throw new TypeError("Artifact name contains an invalid path segment.");
+  if (typeof value !== "string" || value.length === 0 || value.startsWith("/") || value.startsWith("\\") || CONTROL_CHARACTERS.test(value)) throw new TypeError("Artifact name must be a non-empty relative path.");
+  const parts = value.split(/[/\\]/);
+  if (parts.some(part => part.length === 0 || part === "." || part === ".." || part.includes(":"))) throw new TypeError("Artifact name contains an invalid path segment.");
   return parts.join("/");
 }
 
@@ -214,44 +268,40 @@ function revisionName(revision: number): string {
 
 async function writeImmutableJson(destination: string, value: unknown): Promise<void> {
   const temporary = `${destination}.tmp-${randomUUID()}`;
-  const contents = new TextEncoder().encode(`${canonicalJson(value)}\n`);
   const handle = await open(temporary, "wx", 0o600);
   try {
-    await handle.writeFile(contents);
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-  await chmod(temporary, 0o444);
-  try {
+    try { await handle.writeFile(`${canonicalJson(value)}\n`); await handle.sync(); }
+    finally { await handle.close(); }
+    await chmod(temporary, 0o444);
     await link(temporary, destination);
-  } finally {
-    await unlink(temporary).catch(() => undefined);
-  }
-  const directory = await open(path.dirname(destination), "r");
-  try {
-    await directory.sync();
-  } finally {
-    await directory.close();
-  }
+  } finally { await unlink(temporary).catch(() => {}); }
 }
 
 function serializeFailure(error: unknown): FailureRecord {
   if (error instanceof Error) {
     return {
-      name: error.name || "Error",
-      message: error.message,
+      name: error.name || "Error", message: error.message,
       ...(error.stack ? { stack: error.stack } : {}),
-      ...(error.cause === undefined ? {} : { details: { cause: failureDetail(error.cause) } }),
+      ...(error.cause === undefined && !(error instanceof AggregateError) ? {} : {
+        details: {
+          ...(error.cause === undefined ? {} : { cause: failureDetail(error.cause) }),
+          ...(error instanceof AggregateError ? { errors: error.errors.map(cause => failureDetail(cause)) } : {}),
+        },
+      }),
     };
   }
   return { name: "Failure", message: typeof error === "string" ? error : "The operation failed.", details: failureDetail(error) };
 }
 
-function failureDetail(value: unknown): unknown {
-  try {
-    return JSON.parse(JSON.stringify(value));
-  } catch {
-    return String(value);
+function failureDetail(value: unknown, seen = new Set<Error>()): unknown {
+  if (value instanceof Error) {
+    if (seen.has(value)) return { name: value.name, message: value.message, circular: true };
+    seen.add(value);
+    return {
+      name: value.name, message: value.message, ...(value.stack ? { stack: value.stack } : {}),
+      ...(value.cause === undefined ? {} : { cause: failureDetail(value.cause, seen) }),
+      ...(value instanceof AggregateError ? { errors: value.errors.map(error => failureDetail(error, seen)) } : {}),
+    };
   }
+  try { return JSON.parse(JSON.stringify(value)); } catch { return String(value); }
 }

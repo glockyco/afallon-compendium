@@ -1,72 +1,57 @@
 import { Assert } from "typebox/value";
 import type { TSchema, Static } from "typebox";
 import {
-  StaticCoverageSchema,
-  StaticEntityDetailSchema,
-  StaticEntitySearchSchema,
-  StaticGuideDocumentSchema,
-  StaticImagerySchema,
-  StaticItemSearchSchema,
-  StaticItemSourceSchema,
-  StaticMapShardSchema,
-  StaticRootManifestSchema,
-  assertStaticResourceIdentity,
-  type PublicationData,
-  type StaticCoverage,
-  type StaticEntityDetail,
-  type StaticEntitySearch,
-  type StaticGuideDocument,
-  type StaticImagery,
-  type StaticItemSearch,
-  type StaticItemSource,
-  type StaticMapShard,
-  type StaticResourceReference,
-  type StaticRootManifest,
+  StaticCoverageSchema, StaticEntityDetailSchema, StaticEntitySearchSchema,
+  StaticGuideDocumentSchema, StaticImagerySchema, StaticItemSearchSchema,
+  StaticItemSourceSchema, StaticMapShardSchema, StaticGeometrySchema, StaticRootManifestSchema,
+  assertStaticResourceIdentity, expandEssentialPlacement, staticResourceSchema,
+  type PublicationData, type PublicPlacement, type StaticCoverage, type StaticEntityDetail,
+  type StaticEntitySearch, type StaticGuideDocument, type StaticImagery, type StaticItemSearch,
+  type StaticItemSource, type StaticGeometry, type StaticResourceReference, type StaticRootManifest,
 } from "@afallon/contracts/public";
 
 export type AtlasFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-
 export type AtlasRequestState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "loaded" }
+  | { status: "idle" | "loading" | "loaded" }
   | { status: "error"; message: string };
 
 export interface AtlasMapData {
-  map: StaticMapShard;
+  mapSpaceId: string;
+  placements: PublicPlacement[];
+  regions: PublicationData["regions"];
   imagery: StaticImagery;
 }
-
 export interface AtlasIndexes {
-  entities: StaticEntitySearch;
-  items: StaticItemSearch;
+  entities: StaticEntitySearch["entities"];
+  items: StaticItemSearch["items"];
+  entitiesByKey: ReadonlyMap<string, StaticEntitySearch["entities"][number]>;
+  itemsByKey: ReadonlyMap<string, StaticItemSearch["items"][number]>;
 }
 
-export function atlasPublicationData(root: StaticRootManifest, maps: readonly AtlasMapData[], indexes: AtlasIndexes, coverage: StaticCoverage): PublicationData {
-  if (maps.length !== root.maps.length) throw new Error("Atlas did not load every published map shard.");
-  const loadedIds = new Set(maps.map(({ map }) => map.mapSpaceId));
-  if (root.maps.some((map) => !loadedIds.has(map.mapSpaceId))) throw new Error("Atlas map shard set does not match the root manifest.");
+export function atlasPublicationData(root: StaticRootManifest, maps: readonly AtlasMapData[], coverage: StaticCoverage, indexes?: AtlasIndexes): PublicationData {
+  const loadedIds = new Set(maps.map((map) => map.mapSpaceId));
+  if (maps.length !== root.maps.length || root.maps.some((map) => !loadedIds.has(map.mapSpaceId))) {
+    throw new Error("Atlas map parts do not cover every published map.");
+  }
   return {
-    schemaVersion: "compendium.publication.v13",
-    buildId: root.buildId,
-    mode: root.mode,
-    coverage: { complete: coverage.complete, messages: [...coverage.messages], excludedPlacements: coverage.exclusionCount },
+    schemaVersion: "compendium.publication.v13", buildId: root.buildId, mode: root.mode,
+    coverage: { complete: coverage.complete, messages: coverage.messages, excludedPlacements: coverage.exclusionCount },
     world: root.world,
     maps: root.maps.map(({ mapSpaceId, label, bounds }) => ({ mapSpaceId, label, bounds })),
-    placements: maps.flatMap(({ map }) => map.placements),
-    regions: maps.flatMap(({ map }) => map.regions),
-    entityIndex: indexes.entities.entities,
-    itemIndex: indexes.items.items.map(({ itemKey, name, sourceNames, sourceKinds, detailPath }) => ({ itemKey, name, sourceNames, sourceKinds, detailPath })),
+    placements: maps.flatMap((map) => map.placements), regions: maps.flatMap((map) => map.regions),
+    entityIndex: indexes?.entities.map(({ detail, ...entity }) => ({ ...entity, detailPath: detail.path })) ?? [],
+    itemIndex: indexes?.items.map(({ detail, source: _source, ...item }) => ({ ...item, detailPath: detail.path })) ?? [],
     tileLayers: maps.flatMap(({ imagery }) => imagery.layers),
   };
 }
 
 export class AtlasDataLoader {
   readonly #requests = new Map<string, Promise<unknown>>();
+  readonly #references = new Map<string, string>();
   readonly #states = new Map<string, AtlasRequestState>();
   readonly #fetch: AtlasFetch;
   readonly #base: URL;
-  #root: Promise<StaticRootManifest> | null = null;
+  #indexes: Promise<AtlasIndexes> | null = null;
 
   constructor(fetchImplementation: AtlasFetch, baseUrl: string | URL) {
     this.#fetch = fetchImplementation;
@@ -75,35 +60,84 @@ export class AtlasDataLoader {
 
   state(path: string): AtlasRequestState { return this.#states.get(path) ?? { status: "idle" }; }
 
-  loadRoot(): Promise<StaticRootManifest> {
-    this.#root ??= this.#loadPath("publication.json", StaticRootManifestSchema);
-    return this.#root;
+  retryFailed(): void {
+    for (const [path, state] of this.#states) {
+      if (state.status !== "error") continue;
+      this.#requests.delete(path);
+      this.#states.delete(path);
+    }
+    // The aggregate can have failed while its successfully verified parts remain cached.
+    this.#indexes = null;
   }
+
+  loadRoot(): Promise<StaticRootManifest> { return this.#loadPath("publication.json", StaticRootManifestSchema); }
 
   async loadMap(mapSpaceId: string): Promise<AtlasMapData> {
     const root = await this.loadRoot();
     const summary = root.maps.find((map) => map.mapSpaceId === mapSpaceId);
     if (!summary) throw new Error(`Publication has no map ${mapSpaceId}.`);
-    const [map, imagery] = await Promise.all([
-      this.#loadReference(summary.data, StaticMapShardSchema, root),
+    const [parts, imagery] = await Promise.all([
+      Promise.all(summary.parts.map((reference) => this.#loadReference(reference, StaticMapShardSchema, root))),
       this.#loadReference(summary.imagery, StaticImagerySchema, root),
     ]);
-    if (map.mapSpaceId !== mapSpaceId || imagery.mapSpaceId !== mapSpaceId) throw new Error(`Map resource identity mismatch for ${mapSpaceId}.`);
-    return { map, imagery };
+    if (imagery.mapSpaceId !== mapSpaceId) throw new Error(`Imagery identity mismatch for ${mapSpaceId}.`);
+    const ids = new Set<string>();
+    const placements = parts.flatMap((part, index) => {
+      if (part.mapSpaceId !== mapSpaceId || part.part !== index) throw new Error(`Map part identity mismatch for ${mapSpaceId}:${index}.`);
+      return part.placements.map((tuple) => {
+        const placement = expandEssentialPlacement(tuple, mapSpaceId);
+        if (ids.has(placement.placementId)) throw new Error(`Duplicate placement ${placement.placementId}.`);
+        ids.add(placement.placementId);
+        return placement;
+      });
+    });
+    return { mapSpaceId, placements, regions: parts.flatMap((part) => part.regions), imagery: {
+      ...imagery, layers: imagery.layers.map((layer) => ({ ...layer, tiles: layer.tiles.map((tile) => ({ ...tile, url: new URL(tile.url, this.#base).href })) })),
+    } };
   }
 
   async loadMaps(): Promise<AtlasMapData[]> {
     const root = await this.loadRoot();
-    return Promise.all(root.maps.map((map) => this.loadMap(map.mapSpaceId)));
+    const maps = await Promise.all(root.maps.map((map) => this.loadMap(map.mapSpaceId)));
+    const ids = new Set<string>();
+    for (const map of maps) for (const placement of map.placements) {
+      if (ids.has(placement.placementId)) throw new Error(`Duplicate placement ${placement.placementId} across maps.`);
+      ids.add(placement.placementId);
+    }
+    return maps;
   }
 
-  async loadIndexes(): Promise<AtlasIndexes> {
+  async loadGeometry(mapSpaceId: string): Promise<StaticGeometry[]> {
     const root = await this.loadRoot();
-    const [entities, items] = await Promise.all([
-      this.#loadReference(root.entitySearch, StaticEntitySearchSchema, root),
-      this.#loadReference(root.itemSearch, StaticItemSearchSchema, root),
+    const map = root.maps.find((summary) => summary.mapSpaceId === mapSpaceId);
+    if (!map) throw new Error(`Publication has no map ${mapSpaceId}.`);
+    const parts = await Promise.all(map.optionalGeometry.map((reference) => this.#loadReference(reference, StaticGeometrySchema, root)));
+    for (const [index, part] of parts.entries()) {
+      if (part.mapSpaceId !== mapSpaceId || part.part !== index) throw new Error(`Geometry part identity mismatch for ${mapSpaceId}:${index}.`);
+    }
+    return parts;
+  }
+
+  loadIndexes(): Promise<AtlasIndexes> {
+    this.#indexes ??= this.#readIndexes();
+    return this.#indexes;
+  }
+
+  async #readIndexes(): Promise<AtlasIndexes> {
+    const root = await this.loadRoot();
+    const [entityParts, itemParts] = await Promise.all([
+      Promise.all(root.entitySearch.map((reference) => this.#loadReference(reference, StaticEntitySearchSchema, root))),
+      Promise.all(root.itemSearch.map((reference) => this.#loadReference(reference, StaticItemSearchSchema, root))),
     ]);
-    return { entities, items };
+    for (const parts of [entityParts, itemParts]) for (const [index, part] of parts.entries()) {
+      if (part.part !== index) throw new Error(`Search part identity mismatch at ${index}.`);
+    }
+    const entities = entityParts.flatMap((part) => part.entities);
+    const items = itemParts.flatMap((part) => part.items);
+    const entitiesByKey = new Map(entities.map((entity) => [entity.entityKey, entity]));
+    const itemsByKey = new Map(items.map((item) => [item.itemKey, item]));
+    if (entities.length !== entitiesByKey.size || items.length !== itemsByKey.size) throw new Error("Search parts contain duplicate identities.");
+    return { entities, items, entitiesByKey, itemsByKey };
   }
 
   async loadCoverage(): Promise<StaticCoverage> {
@@ -121,10 +155,9 @@ export class AtlasDataLoader {
   async loadEntity(entityKey: string): Promise<StaticEntityDetail> {
     const root = await this.loadRoot();
     const indexes = await this.loadIndexes();
-    const summary = indexes.entities.entities.find((entity) => entity.entityKey === entityKey);
+    const summary = indexes.entitiesByKey.get(entityKey);
     if (!summary) throw new Error(`Publication has no entity ${entityKey}.`);
-    const detail = await this.#loadPath(summary.detailPath, StaticEntityDetailSchema);
-    assertStaticResourceIdentity(root, detail);
+    const detail = await this.#loadReference(summary.detail, StaticEntityDetailSchema, root);
     if (detail.entity.entityKey !== entityKey) throw new Error(`Entity detail identity mismatch for ${entityKey}.`);
     return detail;
   }
@@ -132,45 +165,50 @@ export class AtlasDataLoader {
   async loadItemSource(itemKey: string): Promise<StaticItemSource> {
     const root = await this.loadRoot();
     const indexes = await this.loadIndexes();
-    const summary = indexes.items.items.find((item) => item.itemKey === itemKey);
+    const summary = indexes.itemsByKey.get(itemKey);
     if (!summary) throw new Error(`Publication has no item ${itemKey}.`);
-    const source = await this.#loadPath(summary.sourcePath, StaticItemSourceSchema);
-    assertStaticResourceIdentity(root, source);
+    const source = await this.#loadReference(summary.source, StaticItemSourceSchema, root);
     if (source.itemSource.itemKey !== itemKey) throw new Error(`Item-source identity mismatch for ${itemKey}.`);
     return source;
   }
 
   async #loadReference<T extends TSchema>(reference: StaticResourceReference, schema: T, expected: StaticRootManifest): Promise<Static<T>> {
+    const registeredSchema: TSchema = staticResourceSchema(reference.schemaId);
+    if (registeredSchema !== schema) throw new Error(`Unexpected resource schema: ${reference.path}.`);
     const value = await this.#loadPath(reference.path, schema, reference);
     assertStaticResourceIdentity(expected, value as Static<T> & { buildId: string; catalogId: string });
     return value;
   }
 
-  #loadPath<T extends TSchema>(resourcePath: string, schema: T, expected?: Pick<StaticResourceReference, "sha256" | "bytes">): Promise<Static<T>> {
-    const existing = this.#requests.get(resourcePath);
+  #loadPath<T extends TSchema>(path: string, schema: T, expected?: StaticResourceReference): Promise<Static<T>> {
+    if (!/^(?:publication\.json|resources\/[a-f0-9]{64}\.json)$/.test(path)) return Promise.reject(new Error(`Unsafe atlas resource path: ${path}.`));
+    const identity = expected ? `${expected.schemaId}:${expected.sha256}:${expected.bytes}` : "root";
+    const previous = this.#references.get(path);
+    if (previous && previous !== identity) return Promise.reject(new Error(`Conflicting resource identity: ${path}.`));
+    this.#references.set(path, identity);
+    const existing = this.#requests.get(path);
     if (existing) return existing as Promise<Static<T>>;
-    this.#states.set(resourcePath, { status: "loading" });
-    const request = this.#request(resourcePath, schema, expected).then((value) => {
-      this.#states.set(resourcePath, { status: "loaded" });
+    this.#states.set(path, { status: "loading" });
+    const request = this.#request(path, schema, expected).then((value) => {
+      this.#states.set(path, { status: "loaded" });
       return value;
     }, (error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      this.#states.set(resourcePath, { status: "error", message });
+      this.#states.set(path, { status: "error", message: error instanceof Error ? error.message : String(error) });
       throw error;
     });
-    this.#requests.set(resourcePath, request);
+    this.#requests.set(path, request);
     return request;
   }
 
-  async #request<T extends TSchema>(resourcePath: string, schema: T, expected?: Pick<StaticResourceReference, "sha256" | "bytes">): Promise<Static<T>> {
-    const response = await this.#fetch(new URL(resourcePath, this.#base));
-    if (!response.ok) throw new Error(`Atlas resource request failed (${response.status}): ${resourcePath}.`);
+  async #request<T extends TSchema>(path: string, schema: T, expected?: StaticResourceReference): Promise<Static<T>> {
+    const response = await this.#fetch(new URL(path, this.#base));
+    if (!response.ok) throw new Error(`Atlas resource request failed (${response.status}): ${path}.`);
     const bytes = new Uint8Array(await response.arrayBuffer());
-    if (expected && bytes.byteLength !== expected.bytes) throw new Error(`Atlas resource size mismatch: ${resourcePath}.`);
+    if (expected && bytes.byteLength !== expected.bytes) throw new Error(`Atlas resource size mismatch: ${path}.`);
     if (expected) {
       const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
       const sha256 = [...digest].map((part) => part.toString(16).padStart(2, "0")).join("");
-      if (sha256 !== expected.sha256) throw new Error(`Atlas resource hash mismatch: ${resourcePath}.`);
+      if (sha256 !== expected.sha256) throw new Error(`Atlas resource hash mismatch: ${path}.`);
     }
     const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
     Assert(schema, value);

@@ -60,14 +60,22 @@ const SchemaIdentityReferenceDefinition = Type.Object({
 export const SchemaIdentityReferenceSchema = schemaRegistry.register("compendium.schema-identity-reference.v1", SchemaIdentityReferenceDefinition).schema;
 export type SchemaIdentityReference = Static<typeof SchemaIdentityReferenceSchema>;
 
+const ArtifactDependencyDefinition = Type.Object({
+  kind: Type.Union([Type.Literal("object"), Type.Literal("run-manifest")]),
+  content: ContentIdentitySchema,
+}, { additionalProperties: false });
+export const ArtifactDependencySchema = schemaRegistry.register("compendium.artifact-dependency.v1", ArtifactDependencyDefinition).schema;
+export type ArtifactDependency = Static<typeof ArtifactDependencySchema>;
+
 const LogicalArtifactDefinition = Type.Object({
   name: NonEmptyString,
   content: ContentIdentitySchema,
   mediaType: NonEmptyString,
   schemaId: Type.Union([NonEmptyString, Type.Null()]),
   buildId: NonEmptyString,
+  references: Type.Array(ArtifactDependencySchema),
 }, { additionalProperties: false });
-export const LogicalArtifactSchema = schemaRegistry.register("compendium.logical-artifact.v1", LogicalArtifactDefinition).schema;
+export const LogicalArtifactSchema = schemaRegistry.register("compendium.logical-artifact.v2", LogicalArtifactDefinition).schema;
 export type LogicalArtifact = Static<typeof LogicalArtifactSchema>;
 
 const StepFingerprintDefinition = Type.Object({
@@ -89,8 +97,9 @@ const ArtifactRunInputDefinition = Type.Object({
   probeHashes: Type.Record(Type.String(), Sha256),
   diagnosticRevision: NonEmptyString,
   inputs: Type.Record(Type.String({ minLength: 1 }), ContentIdentitySchema),
+  inputManifests: Type.Optional(Type.Array(NonEmptyString, { uniqueItems: true })),
 }, { additionalProperties: false });
-export const ArtifactRunInputSchema = schemaRegistry.register("compendium.artifact-run-input.v1", ArtifactRunInputDefinition).schema;
+export const ArtifactRunInputSchema = schemaRegistry.register("compendium.artifact-run-input.v2", ArtifactRunInputDefinition).schema;
 export type ArtifactRunInput = Static<typeof ArtifactRunInputSchema>;
 
 const ArtifactRunStatusSchema = Type.Union([Type.Literal("running"), Type.Literal("succeeded"), Type.Literal("failed")]);
@@ -140,13 +149,18 @@ const FailureRecordDefinition = Type.Object({
 export const FailureRecordSchema = schemaRegistry.register("compendium.failure-record.v1", FailureRecordDefinition).schema;
 export type FailureRecord = Static<typeof FailureRecordSchema>;
 
+export const ArtifactRunPhaseSchema = Type.Union([Type.Literal("preparation"), Type.Literal("execution"), Type.Literal("finalization")]);
+export type ArtifactRunPhase = Static<typeof ArtifactRunPhaseSchema>;
+
 const ArtifactRunManifestDefinition = Type.Object({
-  schemaVersion: Type.Literal("compendium.artifact-run.v1"),
+  schemaVersion: Type.Literal("compendium.artifact-run.v2"),
   revision: Type.Integer({ minimum: 0 }),
   runId: NonEmptyString,
+  phase: ArtifactRunPhaseSchema,
+  execution: Type.Object({ host: NonEmptyString, pid: Type.Integer({ minimum: 1 }) }, { additionalProperties: false }),
   input: ArtifactRunInputSchema,
   outputs: Type.Array(LogicalArtifactSchema),
-  reuse: Type.Union([Type.Null(), Type.Object({ sourceRunId: NonEmptyString, outputNames: Type.Array(NonEmptyString) }, { additionalProperties: false })]),
+  reuse: Type.Union([Type.Null(), Type.Object({ sourceRunId: NonEmptyString, sourceManifest: ContentIdentitySchema, outputNames: Type.Array(NonEmptyString) }, { additionalProperties: false })]),
   timestamps: Type.Object({
     createdAt: NonEmptyString,
     updatedAt: NonEmptyString,
@@ -155,7 +169,7 @@ const ArtifactRunManifestDefinition = Type.Object({
   status: ArtifactRunStatusSchema,
   failure: Type.Union([FailureRecordSchema, Type.Null()]),
 }, { additionalProperties: false });
-export const ArtifactRunManifestSchema = schemaRegistry.register("compendium.artifact-run.v1", ArtifactRunManifestDefinition).schema;
+export const ArtifactRunManifestSchema = schemaRegistry.register("compendium.artifact-run.v2", ArtifactRunManifestDefinition).schema;
 export type ArtifactRunManifest = Static<typeof ArtifactRunManifestSchema>;
 
 const ArtifactLatestSuccessDefinition = Type.Object({
@@ -174,7 +188,7 @@ export const ArtifactLatestSuccessSchema = schemaRegistry.register("compendium.a
 export type ArtifactLatestSuccess = Static<typeof ArtifactLatestSuccessSchema>;
 
 const ArtifactLeaseDefinition = Type.Object({
-  schemaVersion: Type.Literal("compendium.artifact-lease.v1"),
+  schemaVersion: Type.Literal("compendium.artifact-lease.v2"),
   leaseId: NonEmptyString,
   runId: NonEmptyString,
   buildId: NonEmptyString,
@@ -182,8 +196,10 @@ const ArtifactLeaseDefinition = Type.Object({
   createdAt: NonEmptyString,
   updatedAt: NonEmptyString,
   objects: Type.Array(ContentIdentitySchema),
+  pendingObjects: Type.Array(ContentIdentitySchema),
+  manifests: Type.Array(ContentIdentitySchema),
 }, { additionalProperties: false });
-export const ArtifactLeaseSchema = schemaRegistry.register("compendium.artifact-lease.v1", ArtifactLeaseDefinition).schema;
+export const ArtifactLeaseSchema = schemaRegistry.register("compendium.artifact-lease.v2", ArtifactLeaseDefinition).schema;
 export type ArtifactLease = Static<typeof ArtifactLeaseSchema>;
 
 const GarbageCollectionReportDefinition = Type.Object({

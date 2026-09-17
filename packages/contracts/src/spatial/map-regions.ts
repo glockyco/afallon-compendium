@@ -1,5 +1,5 @@
-import type { MapGeometry } from "@afallon/contracts"
-import type { AuthoredRegionResolution, SpatialPosition } from "@afallon/contracts"
+import type { MapGeometry } from "./map"
+import type { AuthoredRegionResolution, SpatialPosition } from "./reviewed"
 
 type Vector = { x: number; y: number; z: number };
 type Collider = MapGeometry["regions"][number]["colliders"][number];

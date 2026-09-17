@@ -5,6 +5,7 @@
   export let marker: MarkerDefinition;
   export let checked = false;
   export let count = 0;
+  export let pending = false;
   export let compact = false;
   export let onToggle: () => void;
 </script>
@@ -13,7 +14,7 @@
   <input type="checkbox" checked={checked} on:change={onToggle} aria-label={`Show ${marker.pluralLabel}`} />
   <span class="category-symbol" style:background={markerColorCss(marker)} aria-hidden="true">{@html markerGlyphSvg(marker)}</span>
   <span class="category-label">{marker.pluralLabel}</span>
-  <span class="category-count" aria-label={`${count} placements`}>{count}</span>
+  <span class="category-count" aria-label={pending ? 'Placement count is pending' : `${count} placements`}>{pending ? '…' : count}</span>
 </label>
 
 <style>

@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { SceneVisitSchema, type SceneVisit } from "@afallon/contracts";
 import type { ProbeBundle, Runtime } from "@afallon/runtime";
-import type { BuildSceneVisitor } from "./state-machine";
+import type { BuildSceneVisitor, ScanTargetExecution } from "./state-machine";
 
 export class SceneTargetController implements BuildSceneVisitor {
   constructor(
@@ -11,11 +11,12 @@ export class SceneTargetController implements BuildSceneVisitor {
     private readonly timeoutMs: number,
   ) {}
 
-  async visit(sceneNativeId: number, outputDirectory: string, collect: () => Promise<void>): Promise<void> {
+  async visit(sceneNativeId: number, outputDirectory: string, collect: () => Promise<void>): Promise<void | ScanTargetExecution> {
     let deadline = Date.now() + this.timeoutMs;
     let sequence = 0;
     let started: SceneVisit | null = null;
     let operationError: unknown;
+    let execution: ScanTargetExecution | undefined;
     const invoke = async (action: "start" | "poll" | "restore", parameters: Record<string, unknown>): Promise<SceneVisit> => {
       this.runtime.signal.throwIfAborted();
       if (Date.now() >= deadline) throw new Error(`Build scene ${sceneNativeId} exceeded its ${this.timeoutMs} ms deadline.`);
@@ -37,9 +38,12 @@ export class SceneTargetController implements BuildSceneVisitor {
     try {
       started = await invoke("start", { targetSceneNativeId: sceneNativeId });
       const ready = await settle("poll", started.key, "ready");
-      if (ready.phase === "returned") throw new Error(`Build scene ${sceneNativeId} returned to source scene ${String(ready.sceneNativeId)} before collection.`);
-      if (!ready.sceneReady || ready.sceneNativeId !== sceneNativeId) throw new Error(`Build scene ${sceneNativeId} did not become ready.`);
-      await collect();
+      if (ready.phase === "returned") {
+        execution = { outcome: "unreachable", diagnostics: [{ code: "scene-returned", message: `Build scene ${sceneNativeId} returned to source scene ${String(ready.sceneNativeId)} before collection.` }] };
+      } else {
+        if (!ready.sceneReady || ready.sceneNativeId !== sceneNativeId) throw new Error(`Build scene ${sceneNativeId} did not become ready.`);
+        await collect();
+      }
     } catch (error) {
       operationError = error;
     }
@@ -57,5 +61,6 @@ export class SceneTargetController implements BuildSceneVisitor {
       }
     }
     if (operationError !== undefined) throw operationError;
+    return execution;
   }
 }

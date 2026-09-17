@@ -1,8 +1,8 @@
 import { Assert, AssertError } from "typebox/value";
-import type { MapSpaceProfile, SpatialBox, SpatialCandidate, SpatialPosition, SpatialResolution } from "@afallon/contracts"
-import { MapSpaceProfileSchema } from "@afallon/contracts"
-import type { SceneCatalog } from "@afallon/contracts"
-import { SceneCatalogSchema } from "@afallon/contracts"
+import type { MapSpaceProfile, SpatialBox, SpatialCandidate, SpatialPosition, SpatialResolution } from "./reviewed"
+import { MapSpaceProfileSchema } from "./reviewed"
+import type { SceneCatalog } from "./map"
+import { SceneCatalogSchema } from "./map"
 
 type MapSpace = MapSpaceProfile["mapSpaces"][number];
 type Binding = MapSpaceProfile["bindings"][number];
@@ -32,7 +32,7 @@ function finite(value: number, label: string): void {
   if (!Number.isFinite(value)) throw new TypeError(`${label} must be finite.`);
 }
 
-function validateFrame(frame: Frame, bindingId: string): { xx: number; xz: number; yx: number; yz: number } {
+export function invertMapSpaceFrame(frame: Frame, bindingId: string): { xx: number; xz: number; yx: number; yz: number } {
   finite(frame.origin.x, `Binding "${bindingId}" frame origin.x`);
   finite(frame.origin.z, `Binding "${bindingId}" frame origin.z`);
   finite(frame.xAxis.x, `Binding "${bindingId}" frame xAxis.x`);
@@ -175,7 +175,7 @@ export function compileMapSpaces(profile: MapSpaceProfile, catalog: SceneCatalog
       binding.domain.boxes.forEach((box, index) => validateBox(box, `Binding "${binding.id}" domain box ${index}`));
     }
 
-    const inverse = validateFrame(binding.frame, binding.id);
+    const inverse = invertMapSpaceFrame(binding.frame, binding.id);
     const sceneMapKey = `${binding.sceneNativeId}\u0000${binding.scenePath}\u0000${binding.mapSpaceId}`;
     const priorFrame = frameBySceneMap.get(sceneMapKey);
     if (priorFrame !== undefined && !sameFrame(priorFrame, binding.frame)) {

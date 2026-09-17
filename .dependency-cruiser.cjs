@@ -3,7 +3,7 @@ const packageDependencies = {
   artifacts: ["contracts"],
   runtime: ["contracts"],
   scan: ["contracts", "artifacts", "runtime"],
-  capture: ["contracts", "artifacts", "runtime"],
+  capture: ["contracts", "artifacts", "runtime", "scan"],
   catalog: ["contracts", "artifacts"],
   publication: ["contracts", "artifacts", "catalog"],
 };
@@ -14,6 +14,20 @@ const packageRules = Object.entries(packageDependencies).map(([name, dependencie
   severity: "error",
   from: { path: `^packages/${name}/` },
   to: { path: `^packages/(?!${[name, ...dependencies].join("|")}/)` },
+}));
+
+const entrypointRules = Object.keys(packageDependencies).map(name => ({
+  name: `${name}-public-entrypoints`,
+  severity: "error",
+  from: { path: `^(?:apps/|packages/(?!${name}/))`, pathNot: "\\.test\\.ts$" },
+  to: {
+    path: `^packages/${name}/src/`,
+    pathNot: name === "contracts"
+      ? "^packages/contracts/src/(?:index\\.ts|(?:catalog|public|spatial)/index\\.ts)$"
+      : name === "scan"
+        ? "^packages/scan/src/(?:index|inventory-probe)\\.ts$"
+        : `^packages/${name}/src/index\\.ts$`,
+  },
 }));
 
 module.exports = {
@@ -49,6 +63,7 @@ module.exports = {
       to: { path: "^(tools|pipeline|site|packages/(?!contracts/src/public(?:/|$)))" },
     },
     ...packageRules,
+    ...entrypointRules,
   ],
   options: {
     doNotFollow: { path: "node_modules" },

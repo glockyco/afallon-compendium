@@ -5,8 +5,8 @@ type MapGeometry,
 type NavigationGeometry,
 type NativeMapRegistration,
 type NativeMapTransform,
-type SceneCatalog, } from "@afallon/contracts"
-import type { WorldInventory } from "@afallon/contracts"
+type SceneCatalog, } from "./map"
+import type { WorldInventory } from "../raw/world-inventory"
 
 type MapZone = MapGeometry["mapZones"][number];
 type CalibrationSample = NonNullable<MapZone["calibration"]>["samples"][number];

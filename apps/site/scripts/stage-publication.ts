@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { chmodSync, cpSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
-import { Assert } from "typebox/value";
-import { StaticRootManifestSchema, type StaticRootManifest, type StaticResourceReference } from "@afallon/contracts/public";
+import type { StaticResourceReference } from "@afallon/contracts/public";
+import { verifyPublicationGraph } from "./publication-graph";
 import { deploymentPaths } from "../deployment-paths.mjs";
 
 interface SelectedPublication {
@@ -27,17 +27,11 @@ export function stagePublication(publicationRoot: string, siteDir = resolve(impo
   const selection = parseJson<SelectedPublication>(selectionPath);
   const publicDir = realpathSync(join(root, selection.directory));
   if (relative(root, publicDir).startsWith("..")) throw new Error("Selected publication directory escapes its root.");
-  const publicationPath = join(publicDir, "publication.json");
-  const publication = parseJson<StaticRootManifest>(publicationPath);
-  Assert(StaticRootManifestSchema, publication);
-  const publicationSha256 = hashFile(publicationPath);
-  if (selection.root.sha256 !== publicationSha256 || selection.root.bytes !== lstatSync(publicationPath).size) throw new Error("Selected publication root does not match its reference.");
+  const { publication, files, sha256: publicationSha256 } = verifyPublicationGraph(publicDir, selection.root);
   if (publication.mode === "release" && !publication.complete) throw new Error("A release publication must report complete coverage.");
 
   for (const relativePath of listFiles(publicDir)) {
-    const match = /^(?:resources|assets)\/([a-f0-9]{64})\.(?:json|webp)$/.exec(relativePath);
-    if (relativePath !== "publication.json" && match === null) throw new Error(`Selected publication has an unsupported path: ${relativePath}.`);
-    if (match && hashFile(join(publicDir, relativePath)) !== match[1]) throw new Error(`Selected publication file does not match its path identity: ${relativePath}.`);
+    if (!files.has(relativePath)) throw new Error(`Selected publication has an unreferenced file: ${relativePath}.`);
   }
 
   const paths = deploymentPaths(siteDir);

@@ -5,6 +5,7 @@
   "references": [
     { "path": "../contracts" },
     { "path": "../artifacts" },
-    { "path": "../runtime" }
+    { "path": "../runtime" },
+    { "path": "../scan" }
   ]
 }

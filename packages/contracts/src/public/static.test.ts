@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
 import { Assert } from "typebox/value";
+import { CatalogPlanSchema } from "../catalog/plans";
 import {
   StaticCoverageSchema,
+  PublicationPlanSchema,
+  PublicationPresentationSchema,
   StaticRootManifestSchema,
   assertStaticResourceIdentity,
   type StaticCoverage,
@@ -10,15 +13,15 @@ import {
 
 const reference = { path: "resources/value.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v1" };
 const root: StaticRootManifest = {
-  schemaVersion: "compendium.static-root.v1",
+  schemaVersion: "compendium.static-root.v2",
   buildId: "build",
   catalogId: "b".repeat(64),
   mode: "preview",
   complete: false,
   world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
   maps: [],
-  entitySearch: { ...reference, schemaId: "compendium.static-entity-search.v1" },
-  itemSearch: { ...reference, schemaId: "compendium.static-item-search.v1" },
+  entitySearch: [{ ...reference, schemaId: "compendium.static-entity-search.v2" }],
+  itemSearch: [{ ...reference, schemaId: "compendium.static-item-search.v2" }],
   guides: { overview: { ...reference, schemaId: "compendium.static-guide.v1" } },
   coverage: reference,
 };
@@ -33,15 +36,27 @@ const coverage: StaticCoverage = {
   messages: ["Incomplete preview."],
 };
 
-test("accepts matching sharded publication identities", () => {
+test("rejects mismatched build, catalog, schema, and resource identities", () => {
   Assert(StaticRootManifestSchema, root);
   Assert(StaticCoverageSchema, coverage);
-  expect(() => assertStaticResourceIdentity(root, coverage)).not.toThrow();
-});
-
-test("rejects mismatched build, catalog, schema, and resource identities", () => {
   expect(() => assertStaticResourceIdentity(root, { ...coverage, buildId: "other" })).toThrow("build mismatch");
   expect(() => assertStaticResourceIdentity(root, { ...coverage, catalogId: "c".repeat(64) })).toThrow("catalog mismatch");
   expect(() => Assert(StaticCoverageSchema, { ...coverage, schemaVersion: "compendium.static-coverage.v2" })).toThrow();
   expect(() => Assert(StaticRootManifestSchema, { ...root, coverage: { ...root.coverage, sha256: "not-a-hash" } })).toThrow();
+});
+
+test("publication plans accept only immutable inputs and one reviewed captured map space", () => {
+  const content = { sha256: "a".repeat(64), bytes: 10 };
+  const catalogPlan = { schemaVersion: "compendium.catalog-plan.v1", buildId: "build", scans: [content], canonicalTarget: { manifest: content, targetIdentity: "current-scene" }, spatialProfile: content, imagery: [content], coverageReview: content };
+  Assert(CatalogPlanSchema, catalogPlan);
+  expect(() => Assert(CatalogPlanSchema, { ...catalogPlan, catalogPath: "normalized.sqlite" })).toThrow();
+  const ambiguousCatalogPlan: Partial<typeof catalogPlan> = { ...catalogPlan };
+  delete ambiguousCatalogPlan.canonicalTarget;
+  expect(() => Assert(CatalogPlanSchema, ambiguousCatalogPlan)).toThrow();
+  const plan = { schemaVersion: "compendium.publish-plan.v2", buildId: "build", catalog: { manifest: content, object: content, catalogId: "b".repeat(64) }, mode: "preview", presentation: content };
+  Assert(PublicationPlanSchema, plan);
+  expect(() => Assert(PublicationPlanSchema, { ...plan, catalogPath: "catalog.sqlite" })).toThrow();
+  const presentation = { schemaVersion: "compendium.publication-presentation.v1", buildId: "build", catalogId: "b".repeat(64), worldOffsets: [{ mapSpaceId: "world-surface", worldX: 0, worldY: 0, source: "native", status: "placed" }], spatialBounds: [{ mapSpaceId: "world-surface", minX: 0, minY: 0, maxX: 1, maxY: 1 }], capturedMapSpaceIds: ["world-surface"] };
+  Assert(PublicationPresentationSchema, presentation);
+  expect(() => Assert(PublicationPresentationSchema, { ...presentation, capturedMapSpaceIds: ["world-surface", "interior"] })).toThrow();
 });

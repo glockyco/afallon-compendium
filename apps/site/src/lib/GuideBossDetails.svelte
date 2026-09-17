@@ -12,11 +12,6 @@
     return `${minimum}–${maximum}`;
   }
 
-  function chanceLabel(chance: number | undefined): string {
-    if (chance === undefined) return '';
-    return `${Number.isInteger(chance) ? chance : chance.toFixed(1)}%`;
-  }
-
   function statLabel(value: number, isPercent: boolean | undefined): string {
     return isPercent ? `${(value * 100).toFixed(1)}%` : (Number.isInteger(value) ? String(value) : value.toFixed(1));
   }
@@ -29,7 +24,7 @@
   <section class="guide-section"><h3>Stats</h3><p class="stat-note">Authored base values</p><div class="stat-grid">{#each boss.stats as stat}<div class="stat-row"><span>{stat.label}</span><strong>{statLabel(stat.value, stat.isPercent)}</strong></div>{/each}</div></section>
 {/if}
 {#if boss.loot.length}
-  <section class="guide-section"><h3>Loot</h3><div class="table-scroll"><table class="loot-table"><thead><tr><th scope="col">Item</th><th scope="col">Quantity</th><th scope="col">Chance</th></tr></thead><tbody>{#each [...boss.loot].sort((a, b) => (b.chance ?? -1) - (a.chance ?? -1)) as loot}<tr><td><a href={`${base}/?item=${encodeURIComponent(loot.itemKey)}`}>{loot.label ?? entities.get(loot.itemKey)?.name ?? loot.itemKey}</a></td><td>{quantityLabel(loot.minimum, loot.maximum)}</td><td>{chanceLabel(loot.chance)}</td></tr>{/each}</tbody></table></div></section>
+  <section class="guide-section"><h3>Loot</h3><div class="table-scroll"><table class="loot-table"><thead><tr><th scope="col">Item</th><th scope="col">Quantity</th><th scope="col">Authored rate</th></tr></thead><tbody>{#each [...boss.loot].sort((a, b) => (b.rawRate ?? -1) - (a.rawRate ?? -1)) as loot}<tr><td><a href={`${base}/?item=${encodeURIComponent(loot.itemKey)}`}>{loot.label ?? entities.get(loot.itemKey)?.name ?? loot.itemKey}</a></td><td>{quantityLabel(loot.minimum, loot.maximum)}</td><td>{loot.rawRate === undefined ? 'Unknown' : String(loot.rawRate)}</td></tr>{/each}</tbody></table></div></section>
 {/if}
 
 <style>

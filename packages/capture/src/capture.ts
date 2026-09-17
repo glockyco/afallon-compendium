@@ -1,11 +1,15 @@
-import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, stat } from "node:fs/promises";
+import { createWorldInventoryBundle } from "@afallon/scan/inventory";
+import captureSessionSource from "./probes/capture-session.csx" with { type: "text" };
+import captureVisualsSource from "./probes/capture-visuals.csx" with { type: "text" };
+import sceneVisitSource from "./probes/scene-visit.csx" with { type: "text" };
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, open, readFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { Assert, AssertError } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import { isDeepStrictEqual } from "node:util";
 import type { CompendiumConfig } from "@afallon/contracts";
-import { ArtifactStore } from "@afallon/artifacts";
+import { ArtifactStore, createArtifactLease, selectLatestSuccess } from "@afallon/artifacts";
 import { toRuntimePath, type Runtime } from "@afallon/runtime";
 import { CaptureCleanupSchema,
 CapturePlanSchema,
@@ -25,19 +29,18 @@ type CaptureSession,
 type CaptureSet,
 type CaptureTileCheckpoint, } from "@afallon/contracts"
 import { ObservationContextSchema } from "@afallon/contracts"
-import { collectSceneCatalog } from "./map-calibration";
-import { compileMapSpaces } from "./map-spaces";
-import type { ArtifactRecord } from "@afallon/contracts";
-import type { Run } from "./runs";
-import { beginCaptureRun } from "./content-run";
+import { collectSceneCatalog, compileMapSpaces } from "@afallon/contracts/spatial";
+import { CaptureSweepCleanupSchema, CaptureChunkOutcomesSchema, RuntimeCleanupReceiptSchema, type CaptureArtifact, type ContentIdentity } from "@afallon/contracts";
+import { beginCaptureWorkspace, objectReferences, type CaptureWorkspace } from "./content-run";
 import { loadSpatialProfile } from "./spatial-extraction";
 import type { MapSpaceProfile } from "@afallon/contracts"
 import { WorldInventorySchema, type WorldInventory } from "@afallon/contracts"
 import { withCaptureGeometry, type ReadinessSubject } from "./capture-readiness";
 import { capturePositionFor, encodeRawFrame, loadNavigationSurvey, type CapturePosition, type NavigationSurvey } from "./capture-position";
 import {
-  captureArtifactReference,
-  copyReusableTile,
+  captureArtifactReferences,
+  reuseCaptureTile,
+  validateCaptureCleanup,
   findResponseReference,
   findReusableTiles,
   readCaptureArtifactJson,
@@ -134,19 +137,19 @@ function assertSession(
   if (sceneHandle !== undefined && session.sceneHandle !== sceneHandle) throw new Error("Capture response belongs to another scene instance.");
 }
 
-async function registerArtifact(run: Run, path: string, expectedHash?: string): Promise<ArtifactRecord> {
-  const artifact = await run.addArtifact(path);
-  if (expectedHash !== undefined && artifact.sha256 !== expectedHash) {
+async function registerArtifact(run: CaptureWorkspace, path: string, expectedHash?: string): Promise<CaptureArtifact> {
+  const artifact = await run.registerFile(path);
+  if (expectedHash !== undefined && artifact.content.sha256 !== expectedHash) {
     throw new Error(`Artifact changed before registration: ${path}.`);
   }
   return artifact;
 }
 
 async function registerProbeArtifact(
-  run: Run,
+  run: CaptureWorkspace,
   path: string,
   reference: { sha256: string },
-): Promise<ArtifactRecord> {
+): Promise<CaptureArtifact> {
   return registerArtifact(run, path, reference.sha256);
 }
 
@@ -165,16 +168,16 @@ function mapExtentSubject(plan: CapturePlan, pending: readonly CapturePlan["tile
   return { tile: { id: `${plan.mapSpaceId}-extent`, frame }, frame };
 }
 
-async function writeTileCheckpoint(run: Run, checkpoint: CaptureTileCheckpoint): Promise<void> {
+async function writeTileCheckpoint(run: CaptureWorkspace, checkpoint: CaptureTileCheckpoint): Promise<void> {
   assertSchema(CaptureTileCheckpointSchema, checkpoint, `Capture checkpoint for tile "${checkpoint.tileId}"`);
   const path = `tiles/${checkpoint.tileId}.checkpoint.json`;
   await Bun.write(resolve(run.directory, path), `${JSON.stringify(checkpoint, null, 2)}\n`);
-  await registerArtifact(run, path);
+  await run.registerFile(path, { references: objectReferences(captureArtifactReferences(checkpoint.artifacts)) });
 }
 
-async function writeCaptureSet(run: Run, plan: CapturePlan, buildId: string, standingPoint: CapturePosition | null, checkpoints: Map<string, CaptureTileCheckpoint>, reused: Set<string>): Promise<CaptureSet> {
+async function writeCaptureSet(run: CaptureWorkspace, plan: CapturePlan, buildId: string, standingPoint: CapturePosition | null, checkpoints: Map<string, CaptureTileCheckpoint>, reused: Set<string>): Promise<CaptureSet> {
   const set: CaptureSet = {
-    schemaVersion: "compendium.capture-set.v3",
+    schemaVersion: "compendium.capture-set.v4",
     buildId,
     sceneNativeId: plan.sceneNativeId,
     scenePath: plan.scenePath,
@@ -193,7 +196,7 @@ async function writeCaptureSet(run: Run, plan: CapturePlan, buildId: string, sta
   };
   assertSchema(CaptureSetSchema, set, "Capture set");
   await Bun.write(resolve(run.directory, "capture-set.json"), `${JSON.stringify(set, null, 2)}\n`);
-  await registerArtifact(run, "capture-set.json");
+  await run.registerFile("capture-set.json", { references: objectReferences(set.tiles.flatMap(tile => captureArtifactReferences(tile.artifacts))) });
   return set;
 }
 
@@ -246,14 +249,19 @@ function assertRestorationAudit(value: unknown, tile: CapturePlan["tiles"][numbe
 }
 
 async function hashPng(path: string, expectedWidth: number, expectedHeight: number, tileId: string): Promise<{ sha256: string; byteSize: number }> {
-  const bytes = await Bun.file(path).bytes();
-  const dimensions = pngDimensions(bytes, path);
-  if (dimensions.width !== expectedWidth || dimensions.height !== expectedHeight) {
-    throw new Error(`Capture output for tile "${tileId}" has dimensions ${dimensions.width}x${dimensions.height}, expected ${expectedWidth}x${expectedHeight}.`);
-  }
-  const file = await stat(path);
-  if (!file.isFile() || file.size !== bytes.byteLength || file.size <= 0) throw new Error(`Capture output for tile "${tileId}" is not a stable file.`);
-  return { sha256: createHash("sha256").update(bytes).digest("hex"), byteSize: bytes.byteLength };
+  const file = await open(path, "r");
+  try {
+    const header = Buffer.alloc(24);
+    const { bytesRead } = await file.read(header, 0, header.length, 0);
+    const dimensions = pngDimensions(header.subarray(0, bytesRead), path);
+    if (dimensions.width !== expectedWidth || dimensions.height !== expectedHeight) throw new Error(`Capture output for tile "${tileId}" has unexpected dimensions.`);
+    const digest = createHash("sha256");
+    let byteSize = 0;
+    for await (const chunk of file.createReadStream({ start: 0, highWaterMark: 1024 * 1024, autoClose: false })) { digest.update(chunk); byteSize += chunk.length; }
+    const metadata = await file.stat();
+    if (!metadata.isFile() || metadata.size !== byteSize || byteSize <= 0) throw new Error(`Capture image is not a stable file: ${tileId}.`);
+    return { sha256: digest.digest("hex"), byteSize };
+  } finally { await file.close(); }
 }
 
 function registerRaster(capture: CapturedTile, image: { sha256: string }): CaptureRaster {
@@ -288,46 +296,44 @@ function registerRaster(capture: CapturedTile, image: { sha256: string }): Captu
   return raster;
 }
 
-type CaptureTileResult = CapturedTile & {
-  readiness: CaptureReadiness;
-  readinessPath: string;
-  rasterPath: string;
-  reused: boolean;
-  nativeObserved: boolean;
-  compatibilityKey: string;
-  origin: CaptureTileCheckpoint["origin"];
+export interface CapturePlanResult {
+  manifest: ContentIdentity;
+  manifestPath: string;
+  captureSet: ContentIdentity;
+  tiles: CaptureSet["tiles"];
+  readiness: "verified";
+  completeImagery: false;
+  reusedTiles: string[];
+  capturedTiles: string[];
+}
+
+type PreparedCapture = {
+  workspace: CaptureWorkspace;
+  plan: CapturePlan;
+  standingPoint: CapturePosition | null;
+  checkpoints: Map<string, CaptureTileCheckpoint>;
+  reused: Set<string>;
+  captureCleanup?: ContentIdentity;
+  failure?: unknown;
 };
 
-async function loadReusedTileResult(directory: string, tile: CapturePlan["tiles"][number], candidate: ReusableCaptureTile, copied: CaptureTileCheckpoint, plan: CapturePlan): Promise<CaptureTileResult> {
-  const responseReference = findResponseReference(copied.artifacts, tile.id);
-  if (responseReference === undefined) throw new Error(`Reused tile "${tile.id}" has no copied native response.`);
-  const response = await readCaptureArtifactJson(directory, responseReference);
-  assertSchema(CaptureSessionSchema, response, `Reused capture response for tile "${tile.id}"`);
-  const session = response as CaptureSession;
-  const capture = session.lastCapture?.captures.find(candidate => candidate.tileId === tile.id);
-  if (capture === undefined) throw new Error(`Reused tile "${tile.id}" has no capture metadata.`);
-  const readiness = await readCaptureArtifactJson(directory, copied.artifacts.readiness);
-  assertSchema(CaptureReadinessSchema, readiness, `Reused readiness for tile "${tile.id}"`);
-  if (capture.width !== plan.width || capture.height !== plan.height || capture.frame !== capture.restoredFrame) throw new Error(`Reused tile "${tile.id}" has mismatched capture metadata.`);
-  const expectedFrame = tile.frame;
-  assertFrameMatches(capture, expectedFrame, tile.id);
-  if (!readinessCovers(readiness as CaptureReadiness, tile)) throw new Error(`Reused tile "${tile.id}" readiness does not cover its frame.`);
-  assertRestorationAudit(await readCaptureArtifactJson(directory, copied.artifacts.restoration), tile, copied.origin.captureKey, capture.frame, plan.lighting);
-  const imagePath = resolve(directory, copied.artifacts.image.path);
-  const image = await hashPng(imagePath, plan.width, plan.height, tile.id);
-  if (image.sha256 !== copied.artifacts.image.sha256) throw new Error("Reused image disagrees with its checkpoint.");
-  const raster = await readCaptureArtifactJson(directory, copied.artifacts.raster);
+export async function validateReusedCaptureTile(store: ArtifactStore, tile: CapturePlan["tiles"][number], candidate: ReusableCaptureTile, plan: CapturePlan): Promise<void> {
+  const checkpoint = candidate.checkpoint;
+  const responseReference = findResponseReference(checkpoint.artifacts, tile.id);
+  if (responseReference === undefined) throw new Error(`Reused tile "${tile.id}" has no native response.`);
+  const response = await readCaptureArtifactJson(store, responseReference.content);
+  assertSchema(CaptureSessionSchema, response, "Reused capture response");
+  const capture = response.lastCapture?.captures.find(candidate => candidate.tileId === tile.id);
+  if (capture === undefined || capture.width !== plan.width || capture.height !== plan.height || capture.frame !== capture.restoredFrame) throw new Error("Reused capture metadata disagrees with its plan.");
+  assertFrameMatches(capture, tile.frame, tile.id);
+  const readiness = await readCaptureArtifactJson(store, checkpoint.artifacts.readiness.content);
+  assertSchema(CaptureReadinessSchema, readiness, "Reused capture readiness");
+  if (!readinessCovers(readiness, tile)) throw new Error("Reused readiness does not cover the tile.");
+  assertRestorationAudit(await readCaptureArtifactJson(store, checkpoint.artifacts.restoration.content), tile, checkpoint.origin.captureKey, capture.frame, plan.lighting);
+  const image = await hashPng(store.objectPath(checkpoint.artifacts.image.content.sha256), plan.width, plan.height, tile.id);
+  if (image.sha256 !== checkpoint.artifacts.image.content.sha256) throw new Error("Reused image disagrees with its checkpoint.");
+  const raster = await readCaptureArtifactJson(store, checkpoint.artifacts.raster.content);
   if (!isDeepStrictEqual(raster, registerRaster(capture, image))) throw new Error("Reused raster disagrees with its native camera controls.");
-  return {
-    ...capture,
-    readiness: readiness as CaptureReadiness,
-    readinessPath: copied.artifacts.readiness.path,
-    rasterPath: copied.artifacts.raster.path,
-    reused: true,
-    nativeObserved: false,
-    compatibilityKey: candidate.checkpoint.compatibilityKey,
-    origin: copied.origin,
-  };
 }
 
 function hasSelectedBinding(profile: MapSpaceProfile, plan: CapturePlan): boolean {
@@ -341,11 +347,12 @@ function hasSelectedBinding(profile: MapSpaceProfile, plan: CapturePlan): boolea
 type CaptureSweepContext = {
   finalSceneNativeId: number;
   finalScenePath: string;
-  run: Run;
+  run: CaptureWorkspace;
   visit?: SceneVisit;
   transitionOrdinal: number;
-  sceneTransitions: ArtifactRecord[];
+  sceneTransitions: CaptureArtifact[];
   plans: CaptureSweep["plans"];
+  pending: PreparedCapture[];
   start: (targetSceneNativeId: number, timeoutMs: number, capturePosition: CapturePosition | null) => Promise<SceneVisit>;
   retarget: (targetSceneNativeId: number, timeoutMs: number, capturePosition: CapturePosition | null) => Promise<SceneVisit>;
   restore: (timeoutMs: number) => Promise<SceneVisit>;
@@ -358,7 +365,7 @@ async function capturePlan(
   identity: CaptureBuildIdentity,
   plan: CapturePlan,
   planDirectory: string,
-  sweep?: CaptureSweepContext,
+  sweep: CaptureSweepContext,
 ) {
   validateCapturePlan(plan);
   if (config.mapSpaceProfile === undefined) throw new Error("Capture requires config.mapSpaceProfile.");
@@ -372,11 +379,21 @@ async function capturePlan(
   const planText = `${JSON.stringify(plan, null, 2)}\n`;
   const planBytes = new TextEncoder().encode(planText);
   const store = new ArtifactStore(config.outputRoot);
-  const storedPlan = await store.putBytes(planBytes);
-  const storedProfile = await store.putBytes(spatialProfile.bytes);
+  const storedPlan = await sweep.run.run.putBytes(planBytes);
+  const storedProfile = await sweep.run.run.putBytes(spatialProfile.bytes);
   const surveyPath = plan.survey === undefined ? null : resolve(planDirectory, plan.survey.path);
-  const storedSurvey = surveyPath === null ? null : await store.putFile(surveyPath);
-  const policy = "compendium.capture-visual-policy.v3";
+  const storedSurvey = surveyPath === null ? null : await sweep.run.run.putFile(surveyPath);
+  const evidenceInputs: Record<string, ContentIdentity> = {};
+  for (const [index, evidence] of spatialProfile.evidence.entries()) {
+    const content = await sweep.run.run.putBytes(evidence);
+    evidenceInputs[`spatial-evidence:${index}`] = { sha256: content.sha256, bytes: content.bytes };
+  }
+  const policy = "compendium.capture-visual-policy.v5";
+  // The survey is a plan input: the player stands on the walkable surface it describes, at the
+  // point nearest the map centre. That standing point decides what the game shows, so it is part
+  // of every tile's compatibility key and is recorded with the capture set.
+  const survey: NavigationSurvey | null = surveyPath === null ? null : await loadNavigationSurvey(surveyPath, plan.survey!, plan.sceneNativeId);
+  const standingPoint: CapturePosition | null = survey === null ? null : capturePositionFor(plan, survey);
   const fingerprintInput = await captureRunInput({
     buildId: identity.buildId,
     diagnosticRevision: identity.diagnosticRevision,
@@ -385,20 +402,17 @@ async function capturePlan(
     plan: { sha256: storedPlan.sha256, bytes: storedPlan.bytes },
     profile: { sha256: storedProfile.sha256, bytes: storedProfile.bytes },
     survey: storedSurvey === null ? null : { sha256: storedSurvey.sha256, bytes: storedSurvey.bytes },
+    evidence: evidenceInputs,
+    settings: { buildHashes: identity.inputHashes, ownerSourceHash: runtime.ownerSourceHash, standingPoint },
   });
   const inputHashes: Record<string, string> = {
     ...identity.inputHashes,
     "runtime-owner": runtime.ownerSourceHash,
     plan: storedPlan.sha256,
     "map-space-profile": storedProfile.sha256,
-    "tool:capture-fingerprint": fingerprintInput.cacheKey,
+    "tool:capture-fingerprint": fingerprintInput.implementationFingerprint,
     ...Object.fromEntries(Object.entries(fingerprintInput.probeHashes).map(([name, sha256]) => [`probe:${name}`, sha256])),
   };
-  // The survey is a plan input: the player stands on the walkable surface it describes, at the
-  // point nearest the map centre. That standing point decides what the game shows, so it is part
-  // of every tile's compatibility key and is recorded with the capture set.
-  const survey: NavigationSurvey | null = surveyPath === null ? null : await loadNavigationSurvey(surveyPath, plan.survey!, plan.sceneNativeId);
-  const standingPoint: CapturePosition | null = survey === null ? null : capturePositionFor(plan, survey);
   const compatibility = new Map(plan.tiles.map(tile => [tile.id, tileCompatibilityKey({
     buildId: identity.buildId,
     buildHashes: identity.inputHashes,
@@ -410,48 +424,32 @@ async function capturePlan(
     standingPoint,
   })]));
 
-  const run = await beginCaptureRun(store, fingerprintInput);
-
+  const run = await beginCaptureWorkspace(store, fingerprintInput);
+  const checkpoints = new Map<string, CaptureTileCheckpoint>();
+  const reused = new Set<string>();
+  const prepared: PreparedCapture = { workspace: run, plan, standingPoint, checkpoints, reused };
+  sweep.pending.push(prepared);
   try {
-    const reusable = await findReusableTiles({ outputRoot: config.outputRoot, buildId: identity.buildId, currentRunId: run.runId, compatibility, plan });
-    const checkpoints = new Map<string, CaptureTileCheckpoint>();
-    const reused = new Set<string>();
-    const tiles: CaptureTileResult[] = [];
+    await run.run.setPhase("execution");
+    const reusable = await findReusableTiles({ store, buildId: identity.buildId, currentRunId: run.run.runId, compatibility, plan });
     for (const tile of plan.tiles) {
       const candidate = reusable.get(tile.id);
       if (candidate === undefined) continue;
-      // A candidate whose evidence contradicts the current plan is not reused and the tile is
-      // captured again, the same outcome the cache gives a candidate it rejects itself. The
-      // check runs against the source run before anything is copied or registered here.
+      // Reject contradictory evidence before the new run registers the candidate's immutable references.
       try {
-        await loadReusedTileResult(candidate.sourceDirectory, tile, candidate, candidate.checkpoint, plan);
+        await validateReusedCaptureTile(store, tile, candidate, plan);
       } catch (error) {
         console.warn(`Capture cache candidate rejected: ${candidate.sourceRun.runId}: ${error instanceof Error ? error.message : String(error)}`);
         continue;
       }
-      const copied = await copyReusableTile(run, candidate);
-      const result = await loadReusedTileResult(run.directory, tile, candidate, copied.checkpoint, plan);
-      await writeTileCheckpoint(run, copied.checkpoint);
-      checkpoints.set(tile.id, copied.checkpoint);
+      const checkpoint = await reuseCaptureTile(run, candidate);
+      checkpoints.set(tile.id, checkpoint);
       reused.add(tile.id);
-      tiles.push(result);
-    }
-    if (reused.size === plan.tiles.length && sweep === undefined) {
-      await runtime.complete();
-      await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
-      await registerArtifact(run, "runtime-cleanup.json");
-      await writeCaptureSet(run, plan, identity.buildId, standingPoint, checkpoints, reused);
-      await run.succeed();
-      const orderedTiles: CaptureTileResult[] = plan.tiles.flatMap(tile => {
-        const result = tiles.find(candidate => candidate.tileId === tile.id);
-        return result === undefined ? [] : [result];
-      });
-      return { manifest: run.manifestPath, tiles: orderedTiles, readiness: "verified" as const, completeImagery: false as const, reusedTiles: orderedTiles.map(tile => tile.tileId), capturedTiles: [] as string[] };
     }
 
     await mkdir(resolve(run.directory, "raw"), { recursive: true });
     const inventoryPath = resolve(run.directory, "raw/world-inventory.json");
-    const inventoryReply = await runtime.probe(resolve(import.meta.dir, "../../scan/src/probes/collectors/world-inventory.csx"), inventoryPath, {
+    const inventoryReply = await runtime.runProbe(await createWorldInventoryBundle(), inventoryPath, {
       parameters: { researchCharacter: config.character },
       captureContext: true,
     });
@@ -489,8 +487,8 @@ async function capturePlan(
     }
 
     await mkdir(resolve(run.directory, "tiles"), { recursive: true });
-    const probePath = resolve(import.meta.dir, "probes/capture-session.csx");
-    const preludeFile = resolve(import.meta.dir, "probes/capture-visuals.csx");
+    const probeSource = captureSessionSource;
+    const prelude = captureVisualsSource;
     const cleanupPath = resolve(run.directory, "capture-cleanup.json");
     const cleanupRuntimePath = await toRuntimePath(config, cleanupPath);
     const baseParameters = {
@@ -504,7 +502,7 @@ async function capturePlan(
     const startPath = "capture-start.json";
     // Session start allocates the camera, light, and render texture while the scene it just
     // entered is still settling, so it uses the readiness budget rather than the per-call default.
-    const startReply = await runtime.probe(probePath, resolve(run.directory, startPath), { preludeFile, parameters: { action: "start", ...baseParameters }, timeoutMs: plan.readiness.timeoutMs });
+    const startReply = await runtime.probe(probeSource, resolve(run.directory, startPath), { prelude, parameters: { action: "start", ...baseParameters }, timeoutMs: plan.readiness.timeoutMs });
     assertSchema(CaptureSessionSchema, startReply.value, "Capture start response");
     let session = startReply.value as CaptureSession;
     if (session.phase !== "ready" || session.sceneNativeId !== plan.sceneNativeId || session.scenePath !== plan.scenePath) throw new Error("Capture start response has mismatched scene metadata.");
@@ -517,7 +515,7 @@ async function capturePlan(
     // probe: verifies each raw frame against its reported hash, encodes it on the host, and
     // registers the tile artifacts. The raw frame is intermediate bytes: its hash stays in the
     // native response, the PNG is the tile image.
-    type RenderedTile = { capture: CapturedTile; responseArtifact: ArtifactRecord; imageArtifact: ArtifactRecord; restorationArtifact: ArtifactRecord; rasterArtifact: ArtifactRecord };
+    type RenderedTile = { capture: CapturedTile; responseArtifact: CaptureArtifact; imageArtifact: CaptureArtifact; restorationArtifact: CaptureArtifact; rasterArtifact: CaptureArtifact };
     const renderBatch = async (batch: readonly CapturePlan["tiles"][number][], readiness: CaptureReadiness, batchLabel: string): Promise<Map<string, RenderedTile>> => {
       runtime.signal.throwIfAborted();
       if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
@@ -537,8 +535,8 @@ async function capturePlan(
         if (!contains) throw new Error(`Capture tile "${tile.id}" lies outside its readiness frame.`);
         tileInputs.push({ tileId: tile.id, frame: captureFrame, rawPath: await toRuntimePath(config, resolve(run.directory, "tiles", `${tile.id}.rgba`)) });
       }
-      const reply = await runtime.probe(probePath, responsePath, {
-        preludeFile,
+      const reply = await runtime.probe(probeSource, responsePath, {
+        prelude,
         parameters: {
           action: "render",
           key: session.key,
@@ -586,25 +584,23 @@ async function capturePlan(
       return results;
     };
 
-    const checkpointTile = async (tile: CapturePlan["tiles"][number], rendered: RenderedTile, readiness: CaptureReadiness, readinessPath: string): Promise<void> => {
-      const readinessArtifact = await captureArtifactReference(run.directory, readinessPath);
-      const inventoryArtifact = await captureArtifactReference(run.directory, readiness.inventoryPath);
-      const inventoryContextPath = readiness.inventoryPath.replace(/\.json$/, ".context.json");
-      const inventoryContextArtifact = await captureArtifactReference(run.directory, inventoryContextPath);
+    const checkpointTile = async (tile: CapturePlan["tiles"][number], rendered: RenderedTile, readiness: CaptureReadiness, readinessArtifact: CaptureArtifact): Promise<void> => {
+      const inventoryArtifact = [...run.artifacts.values()].find(reference => reference.content.sha256 === readiness.inventory.sha256)!;
+      const inventoryContextArtifact = [...run.artifacts.values()].find(reference => reference.content.sha256 === readiness.context.sha256)!;
       const nativeContext = [rendered.responseArtifact, inventoryArtifact, inventoryContextArtifact];
       if (readiness.streamKey !== null) {
-        nativeContext.push(await captureArtifactReference(run.directory, `${readinessPath.slice(0, -"/readiness.json".length)}/stream-cleanup.json`));
+        const cleanup = run.artifacts.get(`${readinessArtifact.name.slice(0, -"/readiness.json".length)}/stream-cleanup.json`);
+        if (cleanup === undefined) throw new Error("Stream cleanup evidence was not registered.");
+        nativeContext.push(cleanup);
       }
       const checkpoint: CaptureTileCheckpoint = {
-        schemaVersion: "compendium.capture-tile-checkpoint.v1",
+        schemaVersion: "compendium.capture-tile-checkpoint.v2",
         tileId: tile.id,
         compatibilityKey: compatibility.get(tile.id)!,
         artifacts: { image: rendered.imageArtifact, raster: rendered.rasterArtifact, readiness: readinessArtifact, restoration: rendered.restorationArtifact, nativeContext },
-        origin: { runId: run.runId, ownerToken: runtime.ownerToken, captureKey },
+        origin: { runId: run.run.runId, ownerToken: runtime.ownerToken, captureKey },
       };
-      await writeTileCheckpoint(run, checkpoint);
       checkpoints.set(tile.id, checkpoint);
-      tiles.push({ ...rendered.capture, readiness, readinessPath, rasterPath: rendered.rasterArtifact.path, reused: false, nativeObserved: true, compatibilityKey: checkpoint.compatibilityKey, origin: checkpoint.origin });
     };
 
     const pending = plan.tiles.filter(tile => !reused.has(tile.id));
@@ -619,12 +615,12 @@ async function capturePlan(
         if (readiness.sceneHandle !== sceneHandle) throw new Error("Geometry readiness belongs to another scene instance.");
         return renderBatch(pending, readiness, `${plan.mapSpaceId}-batch`);
       });
-      for (const tile of pending) await checkpointTile(tile, observed.value.get(tile.id)!, observed.readiness, observed.readinessPath);
+      for (const tile of pending) await checkpointTile(tile, observed.value.get(tile.id)!, observed.readiness, observed.artifact);
     }
 
     const restoredPath = "capture-restored.json";
-    const restoredReply = await runtime.probe(probePath, resolve(run.directory, restoredPath), {
-      preludeFile,
+    const restoredReply = await runtime.probe(probeSource, resolve(run.directory, restoredPath), {
+      prelude,
       parameters: { action: "restore", key: session.key, ...baseParameters },
       timeoutMs: plan.readiness.timeoutMs,
     });
@@ -643,60 +639,23 @@ async function capturePlan(
     }
     const captureCleanupArtifact = await registerArtifact(run, "capture-cleanup.json");
 
-    let runtimeCleanupArtifact: ArtifactRecord | undefined;
-    if (sweep === undefined) {
-      await runtime.complete();
-      await Bun.write(resolve(run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
-      runtimeCleanupArtifact = await registerArtifact(run, "runtime-cleanup.json");
-    }
-    for (const checkpoint of checkpoints.values()) {
-      if (reused.has(checkpoint.tileId)) continue;
-      if (!checkpoint.artifacts.nativeContext.some(reference => reference.path === captureCleanupArtifact.path)) checkpoint.artifacts.nativeContext.push(captureCleanupArtifact);
-      if (runtimeCleanupArtifact !== undefined && !checkpoint.artifacts.nativeContext.some(reference => reference.path === runtimeCleanupArtifact.path)) checkpoint.artifacts.nativeContext.push(runtimeCleanupArtifact);
-    }
-    await writeCaptureSet(run, plan, identity.buildId, standingPoint, checkpoints, reused);
-    await run.succeed();
-    if (sweep !== undefined) {
-      sweep.plans.push({
-        runId: run.runId,
-        manifestPath: run.manifestPath,
-        manifestSha256: await hashFile(run.manifestPath),
-        sceneNativeId: plan.sceneNativeId,
-        scenePath: plan.scenePath,
-        mapSpaceId: plan.mapSpaceId,
-      });
-    }
-    const orderedTiles: CaptureTileResult[] = plan.tiles.flatMap(tile => {
-      const result = tiles.find(candidate => candidate.tileId === tile.id);
-      return result === undefined ? [] : [result];
-    });
-    return {
-      manifest: run.manifestPath,
-      tiles: orderedTiles,
-      readiness: "verified" as const,
-      completeImagery: false as const,
-      reusedTiles: orderedTiles.filter(tile => tile.reused).map(tile => tile.tileId),
-      capturedTiles: orderedTiles.filter(tile => !tile.reused).map(tile => tile.tileId),
-    };
+    prepared.captureCleanup = captureCleanupArtifact.content;
+    return prepared;
   } catch (error) {
-    if (sweep !== undefined) sweep.failure = { planRunId: run.runId, phase: "plan-capture" };
-    await run.fail(error);
-    console.error(`Failed capture run: ${run.manifestPath}`);
+    prepared.failure = error;
+    sweep.failure = { planRunId: run.run.runId, phase: "plan-capture" };
     throw error;
   }
 }
 
 export type CapturePlanInput = { plan: CapturePlan; path: string };
 
-async function hashFile(path: string): Promise<string> {
-  return createHash("sha256").update(await readFile(path)).digest("hex");
-}
-
 export async function capture(
   runtime: Runtime,
   config: CompendiumConfig,
   identity: CaptureBuildIdentity,
   planInputs: CapturePlanInput[],
+  options: { select?: boolean } = {},
 ) {
   if (planInputs.length === 0) throw new Error("Capture requires at least one plan.");
   const plans = planInputs.map(input => input.plan);
@@ -704,19 +663,23 @@ export async function capture(
   plans.forEach(validateCapturePlan);
   if (config.mapSpaceProfile === undefined) throw new Error("Capture requires config.mapSpaceProfile.");
   const sweepStore = new ArtifactStore(config.outputRoot);
-  const combinedPlan = await sweepStore.putBytes(new TextEncoder().encode(`${JSON.stringify(plans)}\n`));
-  const profile = await sweepStore.putFile(config.mapSpaceProfile);
+  const inputLease = await createArtifactLease(sweepStore, { runId: randomUUID(), buildId: identity.buildId, operation: "capture-inputs", objects: [] });
+  let sweepRun: CaptureWorkspace;
+  try {
+  const combinedPlan = await sweepStore.putBytes(new TextEncoder().encode(`${JSON.stringify(plans)}\n`), inputLease);
+  const profile = await sweepStore.putFile(config.mapSpaceProfile, inputLease);
   const sweepInput = await captureRunInput({
     buildId: identity.buildId,
     diagnosticRevision: identity.diagnosticRevision,
     character: config.character,
-    policy: "compendium.capture-visual-policy.v3",
+    policy: "compendium.capture-visual-policy.v5",
     plan: { sha256: combinedPlan.sha256, bytes: combinedPlan.bytes },
     profile: { sha256: profile.sha256, bytes: profile.bytes },
     survey: null,
     settings: { finalScene, planCount: plans.length },
   });
-  const sweepRun = await beginCaptureRun(sweepStore, { ...sweepInput, operation: "capture-sweep" });
+  sweepRun = await beginCaptureWorkspace(sweepStore, { ...sweepInput, operation: "capture-sweep" });
+  } finally { await inputLease.release(); }
   const sweep: CaptureSweepContext = {
     finalSceneNativeId: finalScene.nativeId,
     finalScenePath: finalScene.path,
@@ -724,6 +687,7 @@ export async function capture(
     transitionOrdinal: 0,
     sceneTransitions: [],
     plans: [],
+    pending: [],
     start: async () => { throw new Error("Sweep scene controller is not initialized."); },
     retarget: async () => { throw new Error("Sweep scene controller is not initialized."); },
     restore: async () => { throw new Error("Sweep scene controller is not initialized."); },
@@ -747,7 +711,7 @@ export async function capture(
       }
       // Scene loading and post-placement asset bursts stall the main thread; a transition poll
       // tolerates that with the readiness budget instead of the per-call default.
-      const reply = await runtime.probe(resolve(import.meta.dir, "probes/scene-visit.csx"), resolve(sweep.run.directory, path), { parameters, timeoutMs });
+      const reply = await runtime.probe(sceneVisitSource, resolve(sweep.run.directory, path), { parameters, timeoutMs });
       assertSchema(SceneVisitSchema, reply.value, "Capture scene transition");
       const state = reply.value;
       sweep.visit = state;
@@ -769,46 +733,126 @@ export async function capture(
   sweep.start = (target, timeoutMs, capturePosition) => transitionScene("start", target, timeoutMs, capturePosition);
   sweep.retarget = (target, timeoutMs, capturePosition) => transitionScene("retarget", target, timeoutMs, capturePosition);
   sweep.restore = (timeoutMs) => transitionScene("restore", sweep.visit?.targetSceneNativeId ?? finalScene.nativeId, timeoutMs);
-  const results: Awaited<ReturnType<typeof capturePlan>>[] = [];
+  const results: CapturePlanResult[] = [];
   try {
-    for (const input of planInputs) {
-      const plan = input.plan;
-      results.push(await capturePlan(runtime, config, identity, plan, dirname(resolve(input.path)), sweep));
-    }
+  try {
+    await sweep.run.run.setPhase("execution");
+    for (const input of planInputs) await capturePlan(runtime, config, identity, input.plan, dirname(resolve(input.path)), sweep);
     if (sweep.visit !== undefined && sweep.visit.phase !== "restored") sweep.visit = await sweep.restore(plans.at(-1)!.readiness.timeoutMs);
     await runtime.complete();
-    await Bun.write(resolve(sweep.run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
-    const runtimeCleanup = await registerArtifact(sweep.run, "runtime-cleanup.json");
-    const sweepEvidence: CaptureSweep = {
-      schemaVersion: "compendium.capture-sweep.v3",
-      runId: sweep.run.runId,
-      ownerToken: runtime.ownerToken,
-      finalScene,
-      plans: sweep.plans,
-      sceneTransitions: sweep.sceneTransitions,
-      runtimeCleanup,
-      completed: true,
-    };
-    assertSchema(CaptureSweepSchema, sweepEvidence, "Capture sweep evidence");
-    await Bun.write(resolve(sweep.run.directory, "sweep.json"), `${JSON.stringify(sweepEvidence, null, 2)}\n`);
-    await registerArtifact(sweep.run, "sweep.json");
-    await sweep.run.succeed();
-    return { plans: results, finalScene, sweepManifest: sweep.run.manifestPath };
+    await sweep.run.run.setPhase("finalization");
+    const cleanup = await registerSweepCleanup(runtime, sweep);
+    for (const pending of sweep.pending) {
+      const result = await finalizeCapture(pending, cleanup, identity.buildId);
+      results.push(result);
+      sweep.plans.push({ runId: pending.workspace.run.runId, manifest: result.manifest, sceneNativeId: pending.plan.sceneNativeId, scenePath: pending.plan.scenePath, mapSpaceId: pending.plan.mapSpaceId });
+    }
+    const evidence: CaptureSweep = { schemaVersion: "compendium.capture-sweep.v4", runId: sweep.run.run.runId, ownerToken: runtime.ownerToken, finalScene, plans: sweep.plans, cleanup, completed: true };
+    assertSchema(CaptureSweepSchema, evidence, "Capture sweep evidence");
+    await Bun.write(resolve(sweep.run.directory, "sweep.json"), `${JSON.stringify(evidence, null, 2)}\n`);
+    await sweep.run.registerFile("sweep.json", { references: [...objectReferences([cleanup]), ...sweep.plans.map(plan => ({ kind: "run-manifest" as const, content: plan.manifest }))] });
+    await sweep.run.run.succeed();
   } catch (error) {
-    let failure = error;
+    const failures: unknown[] = [error];
     if (sweep.visit !== undefined && sweep.visit.phase !== "restored" && !runtime.signal.aborted) {
       try { sweep.visit = await sweep.restore(plans.at(-1)!.readiness.timeoutMs); }
-      catch (restoreError) {
-        runtime.cancel(restoreError);
-        sweep.failure = { planRunId: sweep.failure?.planRunId ?? sweep.plans.at(-1)?.runId ?? "unknown", phase: "final-scene-transition" };
-        failure = new AggregateError([error, restoreError], "Capture sweep failed and the final scene could not be restored.");
-      }
+      catch (restoreError) { failures.push(restoreError); runtime.cancel(restoreError); }
     }
-    const planFailure = sweep.failure ?? (sweep.plans.at(-1) === undefined ? undefined : { planRunId: sweep.plans.at(-1)!.runId, phase: "sweep-finalization" });
-    const phase = planFailure?.phase ?? "sweep-finalization";
-    const detail = planFailure === undefined ? "" : ` (plan run ${planFailure.planRunId})`;
-    const sweepFailure = new Error(`Capture sweep failed during ${phase}${detail}.`, { cause: failure });
-    await sweep.run.fail(sweepFailure);
-    throw failure;
+    try { await runtime.close(); } catch (cleanupError) { failures.push(cleanupError); }
+    let cleanup: ContentIdentity | undefined;
+    try { cleanup = await registerSweepCleanup(runtime, sweep); } catch (cleanupError) { failures.push(cleanupError); }
+    for (const pending of sweep.pending) {
+      // A sealed successful plan remains immutable if later sweep finalization fails.
+      if (pending.workspace.run.status !== "running") continue;
+      try { await pending.workspace.preserveFailureEvidence(); } catch (retentionError) { failures.push(retentionError); }
+      try { if (cleanup !== undefined) await registerCheckpointCleanup(pending, cleanup); } catch (cleanupError) { failures.push(cleanupError); }
+      try { await registerChunkOutcomes(pending, pending.failure ?? error); } catch (retentionError) { failures.push(retentionError); }
+      try { await pending.workspace.run.fail(pending.failure ?? error); } catch (retentionError) { failures.push(retentionError); }
+    }
+    try {
+      if (await Bun.file(runtime.cleanupReceiptPath).exists() && !sweep.run.artifacts.has("runtime-cleanup.json")) {
+        await Bun.write(resolve(sweep.run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
+        await sweep.run.registerFile("runtime-cleanup.json");
+      }
+      await sweep.run.preserveFailureEvidence();
+      if (sweep.run.run.status === "running") await sweep.run.run.fail(new AggregateError(failures, "Capture sweep failed."));
+    } catch (retentionError) { failures.push(retentionError); }
+    throw new AggregateError(failures, `Capture sweep failed. Evidence: ${sweep.run.run.manifestPath}`);
+  }
+  if (options.select === true) {
+    for (const result of results) await selectLatestSuccess(sweepStore, result.manifestPath);
+    await selectLatestSuccess(sweepStore, sweep.run.run.manifestPath);
+  }
+  return { plans: results, finalScene, sweepManifest: sweep.run.run.manifestIdentity!, sweepManifestPath: sweep.run.run.manifestPath };
+  } finally {
+    await Promise.all([...sweep.pending.map(pending => pending.workspace.dispose()), sweep.run.dispose()]);
   }
 }
+
+async function registerSweepCleanup(runtime: Runtime, sweep: CaptureSweepContext): Promise<ContentIdentity> {
+  const receipt = await Bun.file(runtime.cleanupReceiptPath).json();
+  assertSchema(RuntimeCleanupReceiptSchema, receipt, "Runtime cleanup receipt");
+  if (receipt.token !== runtime.ownerToken || receipt.state !== "clean" || receipt.callbacksRemaining !== 0 || receipt.cleanupErrors.length !== 0) throw new Error("Runtime cleanup is uncertain.");
+  if (sweep.visit !== undefined && (sweep.visit.phase !== "restored" || !sweep.visit.sceneReady || sweep.visit.sceneNativeId !== sweep.finalSceneNativeId)) throw new Error("Capture final scene is not verified.");
+  await Bun.write(resolve(sweep.run.directory, "runtime-cleanup.json"), Bun.file(runtime.cleanupReceiptPath));
+  const runtimeCleanup = await sweep.run.registerFile("runtime-cleanup.json");
+  const proof = { schemaVersion: "compendium.capture-sweep-cleanup.v1" as const, runId: sweep.run.run.runId, ownerToken: runtime.ownerToken, planRunIds: sweep.pending.map(pending => pending.workspace.run.runId), finalScene: { nativeId: sweep.finalSceneNativeId, path: sweep.finalScenePath }, sceneTransitions: sweep.sceneTransitions, runtimeCleanup };
+  assertSchema(CaptureSweepCleanupSchema, proof, "Sweep cleanup proof");
+  await Bun.write(resolve(sweep.run.directory, "sweep-cleanup.json"), `${JSON.stringify(proof, null, 2)}\n`);
+  return (await sweep.run.registerFile("sweep-cleanup.json", { references: objectReferences([runtimeCleanup.content, ...sweep.sceneTransitions.map(reference => reference.content)]) })).content;
+}
+
+async function registerCheckpointCleanup(pending: PreparedCapture, sweep: ContentIdentity): Promise<void> {
+  const { workspace } = pending;
+  const capture = pending.captureCleanup ?? workspace.artifacts.get("capture-cleanup.json")?.content;
+  for (const checkpoint of pending.checkpoints.values()) {
+    if (!pending.reused.has(checkpoint.tileId)) {
+      if (capture === undefined) continue;
+      checkpoint.artifacts.cleanup = { capture, sweep };
+      try {
+        const responseReference = findResponseReference(checkpoint.artifacts, checkpoint.tileId);
+        if (responseReference === undefined) throw new Error("Capture checkpoint has no native response.");
+        const response = await readCaptureArtifactJson(workspace.store, responseReference.content);
+        assertSchema(CaptureSessionSchema, response, "Capture response");
+        await validateCaptureCleanup(workspace.store, checkpoint, response.resourcePrefix);
+      } catch (error) { delete checkpoint.artifacts.cleanup; throw error; }
+      const proof = await readCaptureArtifactJson(workspace.store, sweep);
+      assertSchema(CaptureSweepCleanupSchema, proof, "Sweep cleanup proof");
+      await workspace.registerObject("sweep-cleanup.json", sweep, { schemaId: proof.schemaVersion, references: objectReferences([proof.runtimeCleanup.content, ...proof.sceneTransitions.map(reference => reference.content)]) });
+    }
+    await writeTileCheckpoint(workspace, checkpoint);
+  }
+}
+
+async function registerChunkOutcomes(pending: PreparedCapture, failure?: unknown): Promise<void> {
+  const tiles = [];
+  const references: ContentIdentity[] = [];
+  for (const tile of pending.plan.tiles) {
+    const checkpoint = pending.checkpoints.get(tile.id);
+    const registered = pending.workspace.artifacts.get(`tiles/${tile.id}.checkpoint.json`);
+    if (checkpoint !== undefined && checkpoint.artifacts.cleanup !== undefined && registered !== undefined) {
+      const readiness = await readCaptureArtifactJson(pending.workspace.store, checkpoint.artifacts.readiness.content);
+      assertSchema(CaptureReadinessSchema, readiness, "Chunk readiness");
+      tiles.push({ tileId: tile.id, state: readiness.empty ? "verified-empty" : "captured", checkpoint: registered.content });
+      references.push(registered.content);
+    } else {
+      tiles.push({ tileId: tile.id, state: "failed", error: failure instanceof Error ? failure.message : String(failure ?? "Cleanup was not verified.") });
+    }
+  }
+  const evidence = { schemaVersion: "compendium.capture-outcomes.v1", tiles };
+  assertSchema(CaptureChunkOutcomesSchema, evidence, "Capture chunk outcomes");
+  const content = await pending.workspace.run.putBytes(new TextEncoder().encode(JSON.stringify(evidence)));
+  await pending.workspace.registerObject("capture-outcomes.json", content, { mediaType: "application/json", schemaId: evidence.schemaVersion, references: objectReferences(references) });
+}
+
+async function finalizeCapture(pending: PreparedCapture, cleanup: ContentIdentity, buildId: string): Promise<CapturePlanResult> {
+  await pending.workspace.run.setPhase("finalization");
+  await registerCheckpointCleanup(pending, cleanup);
+  const { workspace, plan, checkpoints, reused } = pending;
+  if ([...checkpoints.values()].some(checkpoint => checkpoint.artifacts.cleanup === undefined)) throw new Error("Capture checkpoints have no cleanup proof.");
+  const set = await writeCaptureSet(workspace, plan, buildId, pending.standingPoint, checkpoints, reused);
+  await registerChunkOutcomes(pending);
+  await workspace.run.succeed();
+  return { manifest: workspace.run.manifestIdentity!, manifestPath: workspace.run.manifestPath, captureSet: workspace.artifacts.get("capture-set.json")!.content, tiles: set.tiles, readiness: "verified", completeImagery: false, reusedTiles: [...reused], capturedTiles: plan.tiles.filter(tile => !reused.has(tile.id)).map(tile => tile.id) };
+}
+

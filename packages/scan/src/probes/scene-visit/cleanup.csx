@@ -13,9 +13,12 @@
             throw new System.InvalidOperationException("Scene restoration cannot change another research character.");
         var finalSceneId = (int)sceneVisitState["finalSceneNativeId"];
         var currentNativeId = currentNativeScene == null ? -1 : currentNativeScene.ID;
+        var restoreRequested = (bool)sceneVisitState["restoreRequested"];
+        var targetMayStillActivate = !(bool)sceneVisitState["sawTargetScene"] && (int)sceneVisitState["targetSceneNativeId"] != finalSceneId;
+        if (!restoreRequested && targetMayStillActivate && currentNativeId == finalSceneId)
+            return false;
         if (currentNativeId != finalSceneId)
         {
-            var restoreRequested = (bool)sceneVisitState["restoreRequested"];
             if (!restoreRequested)
             {
                 sceneVisitState["restoreRequested"] = true;
@@ -30,6 +33,8 @@
 
         if (finalSceneId == (int)sceneVisitState["sourceSceneNativeId"])
         {
+            if (restoreRequested && currentScene.handle == (int)sceneVisitState["sourceSceneHandle"])
+                return false;
             var currentPlayer = Il2Cpp.GameState.playerEntity;
             var currentTransform = currentPlayer == null ? null : currentPlayer.transform;
             if (currentTransform == null)

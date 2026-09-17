@@ -34,6 +34,25 @@ test("rejects unset table identities without partially adding definitions", asyn
   }
 });
 
+test("rolls back authored identities when a later domain constraint fails", () => {
+  const db = openNormalizedDatabase(":memory:");
+  const reference = { path: "objects/input", sha256: "a".repeat(64) };
+  const input: NormalizedDatabaseInput = {
+    buildId: "test", identityResults: [{ runId: "run-1", snapshotId: "run-1:target", snapshotPrefix: "target", snapshotSha256: reference.sha256, character: "Research", sceneHandle: 7, result: {
+      schemaVersion: "compendium.placement-identities.v1", buildId: "test", sceneNativeId: 3, scenePath: "scene.unity", snapshotFrame: 1,
+      identities: [{ sourceId: "source-1", placementId: "placement-1", componentInstanceId: 11, gameObjectInstanceId: 12, origin: "scene", sceneSourceSha256: "b".repeat(64), sourceSha256: "b".repeat(64), serializedFile: "scene", gameObjectPathId: "-12", componentPathId: "-11", loaderSourceId: null, typeName: "NPCSpawner", assembly: "Game", position: { x: 1, y: 2, z: 3 } }], unresolved: [],
+    } }], entities: [], scenes: [], mapSpaces: [], bindings: [], placements: [], sources: [], roles: [], regions: [], conditions: [], spawnCandidates: [],
+    merchantTables: [{ nativeId: -1, name: "Invalid table" }], merchantBindings: [], merchantStock: [], lootTables: [], lootBindings: [], lootEntries: [], linkedNpcRules: [], resourceYields: [], questAssociations: [], transitions: [], itemSources: [], entityDetails: [], sourceDetails: [], patrolPaths: [], sceneSpawns: [], blockers: [], coverageOccurrences: [], exclusions: [], inputCoverage: null, provenance: { plan: reference, profile: reference, sources: [] },
+  };
+  try {
+    expect(() => populateNormalizedDatabase(db, input, [])).toThrow();
+    expect(db.query("SELECT count(*) AS count FROM identity_runs").get()).toEqual({ count: 0 });
+    expect(db.query("SELECT count(*) AS count FROM source_identities").get()).toEqual({ count: 0 });
+    expect(db.query("SELECT count(*) AS count FROM placement_identities").get()).toEqual({ count: 0 });
+    expect(db.query("SELECT count(*) AS count FROM normalized_builds").get()).toEqual({ count: 0 });
+  } finally { db.close(); }
+});
+
 test("stores SQL NULL for a region without a map space", async () => {
   const root = await mkdtemp(join(tmpdir(), "afallon-normalized-"));
   let db: Database | undefined;

@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ArtifactRunInput } from "@afallon/contracts";
 import { findReusableStep } from "./reuse";
-import { beginArtifactRun } from "./runs";
+import { selectLatestSuccess } from "./references";
+import { beginArtifactRun, type ArtifactRun } from "./runs";
 import { ArtifactStore } from "./store";
 
 function input(): ArtifactRunInput {
@@ -23,15 +24,21 @@ function input(): ArtifactRunInput {
 
 test("reuse requires the complete cache identity and intact outputs", async () => {
   const root = await mkdtemp(join(tmpdir(), "afallon-reuse-"));
+  const runs: ArtifactRun[] = [];
   try {
     const store = new ArtifactStore(root);
     const runInput = input();
     const inputObject = await store.putBytes(new TextEncoder().encode("0123456789"));
     runInput.inputs.inventory = { sha256: inputObject.sha256, bytes: inputObject.bytes };
     const source = await beginArtifactRun(store, runInput);
+    runs.push(source);
     const output = await store.putBytes(new TextEncoder().encode("reusable output"));
     await source.addArtifact("result.bin", output, { mediaType: "application/octet-stream" });
     await source.succeed();
+    const sourceManifest = source.manifestIdentity;
+    if (sourceManifest === null) throw new Error("Successful run has no manifest identity.");
+    await selectLatestSuccess(store, source.manifestPath);
+    await source.release();
 
     const hit = await findReusableStep(store, runInput);
     expect(hit?.runId).toBe(source.runId);
@@ -43,15 +50,18 @@ test("reuse requires the complete cache identity and intact outputs", async () =
     expect(await findReusableStep(store, { ...runInput, cacheKey: "4".repeat(64) })).toBeNull();
 
     const consumer = await beginArtifactRun(store, runInput);
+    runs.push(consumer);
     const reusedOutputs = await consumer.reuseFrom(hit!);
     const consumed = await consumer.succeed();
     expect(reusedOutputs[0]?.content).toEqual({ sha256: output.sha256, bytes: output.bytes });
-    expect(consumed.reuse).toEqual({ sourceRunId: source.runId, outputNames: ["result.bin"] });
+    expect(consumed.reuse).toEqual({ sourceRunId: source.runId, sourceManifest, outputNames: ["result.bin"] });
+    await consumer.release();
 
     await chmod(store.objectPath(output.sha256), 0o644);
     await writeFile(store.objectPath(output.sha256), "damaged");
     expect(await findReusableStep(store, runInput)).toBeNull();
   } finally {
-    await rm(root, { recursive: true, force: true });
+    try { await Promise.all(runs.map(run => run.release())); }
+    finally { await rm(root, { recursive: true, force: true }); }
   }
 });

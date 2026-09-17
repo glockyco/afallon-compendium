@@ -1,3 +1,6 @@
+import captureGeometrySource from "./probes/capture-geometry.csx" with { type: "text" };
+import captureVisualsSource from "./probes/capture-visuals.csx" with { type: "text" };
+import streamVisitSource from "./probes/stream-visit.csx" with { type: "text" };
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Assert, AssertError } from "typebox/value";
@@ -15,7 +18,8 @@ import { StreamCleanupSchema,
 StreamVisitSchema,
 type StreamCleanup,
 type StreamVisit, } from "@afallon/contracts"
-import type { Run } from "./runs";
+import { objectReferences, type CaptureWorkspace } from "./content-run";
+import type { CaptureArtifact } from "@afallon/contracts";
 
 type CaptureTile = CapturePlan["tiles"][number];
 type SourceMembership = {
@@ -83,7 +87,7 @@ function assertClose(actual: number, expected: number, label: string): void {
 
 type CaptureFrame = CapturePlan["tiles"][number]["frame"];
 
-function geometryDirectory(tile: CaptureTile, run: Run): { relative: string; absolute: string } {
+function geometryDirectory(tile: CaptureTile, run: CaptureWorkspace): { relative: string; absolute: string } {
   const relative = `tiles/${tile.id}.geometry`;
   return { relative, absolute: resolve(run.directory, relative) };
 }
@@ -416,11 +420,11 @@ export type ReadinessSubject = { tile: CaptureTile; frame: CaptureFrame };
 export async function withCaptureGeometry<T>(
   runtime: Runtime,
   config: CompendiumConfig,
-  run: Run,
+  run: CaptureWorkspace,
   plan: CapturePlan,
   subject: ReadinessSubject,
   capture: (readiness: CaptureReadiness) => Promise<T>,
-): Promise<{ value: T; readiness: CaptureReadiness; readinessPath: string }> {
+): Promise<{ value: T; readiness: CaptureReadiness; artifact: CaptureArtifact }> {
   let timer: NodeJS.Timeout | undefined;
   const tile = subject.tile;
   try {
@@ -430,11 +434,11 @@ export async function withCaptureGeometry<T>(
     const geometry = geometryDirectory(tile, run);
     const cleanupRelative = `${geometry.relative}/stream-cleanup.json`;
     const cleanupPath = resolve(run.directory, cleanupRelative);
-    const probePath = resolve(import.meta.dir, "probes/capture-geometry.csx");
+    const probeSource = captureGeometrySource;
     const deadlineAt = Date.now() + plan.readiness.timeoutMs;
     const captureFrame = subject.frame;
 
-    const operation = async (): Promise<{ value: T; readiness: CaptureReadiness; readinessPath: string }> => {
+    const operation = async (): Promise<{ value: T; readiness: CaptureReadiness; artifact: CaptureArtifact }> => {
       await mkdir(geometry.absolute, { recursive: true });
       const cleanupRuntimePath = await toRuntimePath(config, cleanupPath);
       const observedFrames: number[] = [];
@@ -445,12 +449,14 @@ export async function withCaptureGeometry<T>(
       // Until the baseline has held for the stable-frame count, a membership change replaces it.
       let settled = false;
       let latestGeometry: CaptureGeometry | undefined;
-      let latestInventoryRelative = "";
-      let latestInventorySha256 = "";
+      let latestInventory: CaptureArtifact | undefined;
+      let latestContext: CaptureArtifact | undefined;
 
+      let restoring = false;
+      let restorationDeadline = 0;
       const checkDeadline = (): void => {
         runtime.signal.throwIfAborted();
-        if (Date.now() >= deadlineAt) {
+        if (Date.now() >= (restoring ? restorationDeadline : deadlineAt)) {
           const error = timeoutError(tile, plan.readiness.timeoutMs);
           runtime.cancel(error);
           throw runtime.signal.aborted ? runtime.signal.reason : error;
@@ -459,12 +465,12 @@ export async function withCaptureGeometry<T>(
 
       const registerProbeArtifact = async (relativePath: string, reference: { sha256: string }, context: unknown): Promise<void> => {
         if (!/^[a-f0-9]{64}$/.test(reference.sha256)) throw new Error(`Probe returned an invalid artifact hash for ${relativePath}.`);
-        const record = await run.addArtifact(relativePath);
-        if (record.sha256 !== reference.sha256) throw new Error(`Artifact changed before registration: ${relativePath}.`);
-        if (record.path !== relativePath) throw new Error(`Artifact path changed before registration: ${relativePath}.`);
+        const record = await run.registerFile(relativePath);
+        if (record.content.sha256 !== reference.sha256) throw new Error(`Artifact changed before registration: ${relativePath}.`);
+        if (record.name !== relativePath) throw new Error(`Artifact path changed before registration: ${relativePath}.`);
         const contextPath = `${relativePath.slice(0, -5)}.context.json`;
         await Bun.write(resolve(run.directory, contextPath), `${JSON.stringify(context, null, 2)}\n`);
-        await run.addArtifact(contextPath);
+        await run.registerFile(contextPath);
       };
 
       const trackedRendererIds = new Set<number>();
@@ -473,8 +479,8 @@ export async function withCaptureGeometry<T>(
         observationIndex += 1;
         const relativePath = `${geometry.relative}/inventory-${String(observationIndex).padStart(4, "0")}.json`;
         const absolutePath = resolve(run.directory, relativePath);
-        const reply = await runtime.probe(probePath, absolutePath, {
-          preludeFile: resolve(import.meta.dir, "probes/capture-visuals.csx"),
+        const reply = await runtime.probe(probeSource, absolutePath, {
+          prelude: captureVisualsSource,
           parameters: {
             researchCharacter: config.character,
             sceneNativeId: plan.sceneNativeId,
@@ -505,8 +511,8 @@ export async function withCaptureGeometry<T>(
           lastGeometryFrame = value.frame;
         }
         latestGeometry = value;
-        latestInventoryRelative = relativePath;
-        latestInventorySha256 = reply.reference.sha256;
+        latestInventory = run.artifacts.get(relativePath)!;
+        latestContext = run.artifacts.get(`${relativePath.slice(0, -5)}.context.json`)!;
         return value;
       };
 
@@ -535,6 +541,8 @@ export async function withCaptureGeometry<T>(
       settled = true;
       const initialRequired = baselineMembership!.required;
       let streamKey: string | undefined;
+      let streamAcquisitionAttempted = false;
+      let operationFailure: unknown;
       let streamStartRows: Map<number, StreamVisit["rows"][number]> | undefined;
       let streamRows: Map<number, StreamVisit["rows"][number]> | undefined;
       let streamPollIndex = 0;
@@ -542,7 +550,8 @@ export async function withCaptureGeometry<T>(
 
       const registerStream = async (relativePath: string, absolutePath: string, action: "start" | "poll" | "restore", key?: string): Promise<StreamVisit> => {
         checkDeadline();
-        const reply = await runtime.probe(resolve(import.meta.dir, "probes/stream-visit.csx"), absolutePath, {
+        if (action === "start") streamAcquisitionAttempted = true;
+        const reply = await runtime.probe(streamVisitSource, absolutePath, {
           parameters: action === "start"
             ? {
                 action,
@@ -555,6 +564,7 @@ export async function withCaptureGeometry<T>(
             : { action, researchCharacter: config.character, sceneHandle: sceneHandle!, key },
           captureContext: true,
         });
+        if (action === "start" && reply.value !== null && typeof reply.value === "object" && "key" in reply.value && typeof reply.value.key === "string") streamKey = reply.value.key;
         assertSchema(StreamVisitSchema, reply.value, `Stream visit ${action} response`);
         const value = reply.value as StreamVisit;
         assertObservationContext(reply.observationContext, config, plan, sceneHandle, value.frame, `Stream visit ${action} response`);
@@ -562,6 +572,49 @@ export async function withCaptureGeometry<T>(
         return value;
       };
 
+      const restoreStream = async (): Promise<void> => {
+        if (streamKey === undefined) {
+          if (streamAcquisitionAttempted) await runtime.close();
+          return;
+        }
+        restoring = true;
+        restorationDeadline = Date.now() + plan.readiness.timeoutMs;
+        if (runtime.signal.aborted) {
+          await runtime.close();
+          return;
+        }
+        while (true) {
+          checkDeadline();
+          streamRestoreIndex += 1;
+          const restoreRelative = `${geometry.relative}/stream-restore-${String(streamRestoreIndex).padStart(4, "0")}.json`;
+          const restored = await registerStream(restoreRelative, resolve(run.directory, restoreRelative), "restore", streamKey);
+          streamRows = restoreRows(restored, streamKey, sceneHandle!, baselineMembership!.required);
+          if (restored.phase === "restored") break;
+          await sleepForFrame();
+        }
+        if (streamStartRows === undefined) throw new Error("Stream acquisition did not retain its initial state; cleanup cannot authorize reuse.");
+        assertRestoredRows(streamRows!, streamStartRows, baselineMembership!.required);
+        let cleanupValue: unknown;
+        while (true) {
+          checkDeadline();
+          try {
+            cleanupValue = JSON.parse(await readFile(cleanupPath, "utf8"));
+            break;
+          } catch (error) {
+            if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+              await Bun.sleep(25);
+              continue;
+            }
+            throw error;
+          }
+        }
+        assertSchema(StreamCleanupSchema, cleanupValue, "Stream cleanup receipt");
+        if ((cleanupValue as StreamCleanup).ownerToken !== runtime.ownerToken) throw new Error("Stream cleanup receipt belongs to another runtime owner.");
+        assertCleanupReceipt(cleanupValue as StreamCleanup, streamKey, sceneHandle!, streamRows!);
+        await run.registerFile(cleanupRelative);
+      };
+
+      try {
       // The stream visit loads and holds every required source for as long as this readiness
       // lives, which spans the whole batch the caller renders under it.
       if (initialRequired.length > 0) {
@@ -644,47 +697,15 @@ export async function withCaptureGeometry<T>(
       if (!finalSourceReady) throw new Error(`Capture geometry for tile "${tile.id}" has an unready required source.`);
       if (streamKey !== undefined && streamRows === undefined) throw new Error("Capture readiness completed without a stream response.");
 
-      const restoreStream = async (): Promise<void> => {
-        if (streamKey === undefined) return;
-        while (true) {
-          checkDeadline();
-          streamRestoreIndex += 1;
-          const restoreRelative = `${geometry.relative}/stream-restore-${String(streamRestoreIndex).padStart(4, "0")}.json`;
-          const restored = await registerStream(restoreRelative, resolve(run.directory, restoreRelative), "restore", streamKey);
-          streamRows = restoreRows(restored, streamKey, sceneHandle!, baselineMembership!.required);
-          if (restored.phase === "restored") break;
-          await sleepForFrame();
-        }
-        assertRestoredRows(streamRows!, streamStartRows!, baselineMembership!.required);
-        let cleanupValue: unknown;
-        while (true) {
-          checkDeadline();
-          try {
-            cleanupValue = JSON.parse(await readFile(cleanupPath, "utf8"));
-            break;
-          } catch (error) {
-            if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-              await Bun.sleep(25);
-              continue;
-            }
-            throw error;
-          }
-        }
-        assertSchema(StreamCleanupSchema, cleanupValue, "Stream cleanup receipt");
-        if ((cleanupValue as StreamCleanup).ownerToken !== runtime.ownerToken) throw new Error("Stream cleanup receipt belongs to another runtime owner.");
-        assertCleanupReceipt(cleanupValue as StreamCleanup, streamKey, sceneHandle!, streamRows!);
-        await run.addArtifact(cleanupRelative);
-      };
-
       const empty = latestGeometry.meshes.length === 0 && renderedTerrains(latestGeometry).length === 0 && latestGeometry.otherRenderers.length === 0;
       const readiness: CaptureReadiness = {
-        schemaVersion: "compendium.capture-readiness.v5",
+        schemaVersion: "compendium.capture-readiness.v6",
         tileId: tile.id,
         ownerToken: runtime.ownerToken,
         sceneNativeId: plan.sceneNativeId,
         sceneHandle: sceneHandle!,
-        inventoryPath: latestInventoryRelative,
-        inventorySha256: latestInventorySha256,
+        inventory: latestInventory!.content,
+        context: latestContext!.content,
         observedFrames: observedFrames.slice(-plan.readiness.stableFrames),
         stableFrames: plan.readiness.stableFrames,
         settleFrames: plan.readiness.settleFrames,
@@ -698,29 +719,30 @@ export async function withCaptureGeometry<T>(
       const readinessRelative = `${geometry.relative}/readiness.json`;
       const readinessPath = resolve(run.directory, readinessRelative);
       await Bun.write(readinessPath, `${JSON.stringify(readiness, null, 2)}\n`);
-      await run.addArtifact(readinessRelative);
+      await run.registerFile(readinessRelative, { references: objectReferences([readiness.inventory, readiness.context]) });
       checkDeadline();
 
-      let value!: T;
-      try {
-        value = await capture(readiness);
-        checkDeadline();
-      } finally {
-        await restoreStream();
-      }
-
+      const value = await capture(readiness);
+      checkDeadline();
       runtime.signal.throwIfAborted();
-      return { value, readiness, readinessPath: readinessRelative };
+      return { value, readiness, artifact: run.artifacts.get(readinessRelative)! };
+      } catch (error) {
+        operationFailure = error;
+        throw error;
+      } finally {
+        clearTimeout(timer);
+        try { await restoreStream(); }
+        catch (cleanupError) {
+          if (operationFailure !== undefined) throw new AggregateError([operationFailure, cleanupError], "Capture readiness and stream cleanup failed.");
+          throw cleanupError;
+        } finally {
+          if (await Bun.file(cleanupPath).exists() && !run.artifacts.has(cleanupRelative)) await run.registerFile(cleanupRelative);
+        }
+      }
     };
 
-    const timedOut = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
-        const error = timeoutError(tile, plan.readiness.timeoutMs);
-        runtime.cancel(error);
-        reject(error);
-      }, plan.readiness.timeoutMs);
-    });
-    const result = await Promise.race([operation(), timedOut]);
+    timer = setTimeout(() => runtime.cancel(timeoutError(tile, plan.readiness.timeoutMs)), plan.readiness.timeoutMs);
+    const result = await operation();
     runtime.signal.throwIfAborted();
     return result;
   } catch (error) {

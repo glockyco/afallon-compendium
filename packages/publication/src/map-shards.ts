@@ -1,10 +1,14 @@
 import type { Database } from "bun:sqlite";
 import { Assert } from "typebox/value";
-import { ArtifactStore } from "@afallon/artifacts";
-import { queryCatalogFullEntity, queryCatalogMap, queryCatalogMaps, queryCatalogSearch, queryCatalogSpatialContext, type CatalogMapPlacement, type CatalogMapRegion, type CatalogSpatialContext } from "@afallon/catalog";
+import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
+import { queryCatalogFullEntities, queryCatalogMap, queryCatalogMaps, queryCatalogSearch, queryCatalogSpatialContext, type CatalogMapPlacement, type CatalogMapRegion, type CatalogSpatialContext } from "@afallon/catalog";
 import {
   PUBLIC_MARKER_CATEGORY_VALUES,
+  PUBLIC_MARKER_CATEGORY_LABELS as CATEGORY_LABELS,
   StaticMapShardSchema,
+  StaticGeometrySchema,
+  type StaticGeometry,
+  type PublicEssentialPlacement,
   type PublicMarkerCategory,
   type PublicMovement,
   type PublicPatrolPath,
@@ -15,7 +19,7 @@ import {
   type StaticMapShard,
   type StaticMapSummary,
 } from "@afallon/contracts/public";
-import { writeStaticJson, type GeneratedStaticResource } from "./resources";
+import { partitionStaticRecords, writeStaticJson, type GeneratedStaticResource } from "./resources";
 
 const ROLE_CATEGORIES: Readonly<Record<string, PublicMarkerCategory | null>> = {
   enemy: "enemy", boss: "boss", elite: "enemy", neutral: "neutral", friendly: "townsfolk", npc: null,
@@ -29,13 +33,7 @@ const ROLE_CATEGORIES: Readonly<Record<string, PublicMarkerCategory | null>> = {
 const MAP_ICON_CATEGORIES: Readonly<Record<string, PublicMarkerCategory>> = {
   town: "town", fort: "fort", camp: "camp", dungeon: "dungeonEntrance", challengeStone: "challengeStone",
 };
-const CATEGORY_LABELS: Readonly<Record<PublicMarkerCategory, string>> = {
-  boss: "Boss", enemy: "Enemy", neutral: "Neutral", merchant: "Merchant", questGiver: "Quest giver",
-  townsfolk: "Townsfolk", craftingStation: "Crafting station", container: "Container", oreVein: "Ore Vein",
-  herb: "Herb", mushroom: "Mushroom", fishingSpot: "Fishing Spot", interactiveObject: "Interactive object",
-  town: "Town", fort: "Fort", camp: "Camp", property: "Property", dungeonEntrance: "Dungeon entrance",
-  corruptionAltar: "Altar of corruption", challengeStone: "Challenge stone", graveyard: "Graveyard", travelPoint: "Travel point",
-};
+
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -73,13 +71,11 @@ function placementLevelRange(placement: CatalogMapPlacement, gameplayByNpc: Read
   }
   return undefined;
 }
-function placementAreas(placement: CatalogMapPlacement): Array<Array<[number, number]>> {
+type ProjectedPlacement = Omit<PublicPlacement, "areas"> & { areaRadius: number | null };
+
+function placementAreaRadius(placement: CatalogMapPlacement): number | null {
   const shape = record(placement.shape), radius = shape?.radius;
-  if (shape?.kind === "point" || typeof radius !== "number" || radius <= 0) return [];
-  return [Array.from({ length: 48 }, (_, index) => {
-    const angle = index * Math.PI * 2 / 48;
-    return [placement.position[0] + radius * Math.cos(angle), placement.position[1] + radius * Math.sin(angle)] as [number, number];
-  })];
+  return shape?.kind !== "point" && typeof radius === "number" && radius > 0 ? radius : null;
 }
 function sourceName(placement: CatalogMapPlacement): string | null {
   for (const { data } of placement.sourceDetails) {
@@ -275,8 +271,8 @@ function sameTravelDestination(left: PublicTravel, right: PublicTravel): boolean
   if (a.status === "unresolved") return a.reason === b.reason && a.position === undefined && b.position === undefined;
   return a.position !== undefined && b.position !== undefined && Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1]) <= 0.1;
 }
-function foldTravelPlacements(placements: readonly PublicPlacement[]): PublicPlacement[] {
-  const claimed = new Set<string>(), mergedTravel = new Map<string, PublicPlacement>();
+function foldTravelPlacements(placements: readonly ProjectedPlacement[]): ProjectedPlacement[] {
+  const claimed = new Set<string>(), mergedTravel = new Map<string, ProjectedPlacement>();
   const travelPoints = placements.filter((placement) => placement.categories.includes("travelPoint") && placement.travel !== undefined);
   for (const representative of [...travelPoints].sort((left, right) => left.placementId.localeCompare(right.placementId))) {
     if (claimed.has(representative.placementId) || !representative.travel) continue;
@@ -290,7 +286,7 @@ function foldTravelPlacements(placements: readonly PublicPlacement[]): PublicPla
   }
   const deduplicated = placements.filter((placement) => !claimed.has(placement.placementId)).map((placement) => mergedTravel.get(placement.placementId) ?? placement);
   const travel = deduplicated.filter((placement) => placement.categories.includes("travelPoint") && placement.travel);
-  const mergedDungeons = new Map<string, PublicPlacement>();
+  const mergedDungeons = new Map<string, ProjectedPlacement>();
   for (const dungeon of deduplicated.filter((placement) => placement.categories.includes("dungeonEntrance"))) {
     const nearby = travel.filter((candidate) => !claimed.has(candidate.placementId) && candidate.mapSpaceId === dungeon.mapSpaceId && candidate.travel && (candidate.travel.destination.status === "unresolved" || candidate.travel.destination.mapSpaceId !== dungeon.mapSpaceId) && Math.hypot(candidate.position[0] - dungeon.position[0], candidate.position[1] - dungeon.position[1]) <= 6).sort((left, right) => Number(right.travel?.destination.status === "resolved") - Number(left.travel?.destination.status === "resolved") || Math.hypot(left.position[0] - dungeon.position[0], left.position[1] - dungeon.position[1]) - Math.hypot(right.position[0] - dungeon.position[0], right.position[1] - dungeon.position[1]) || left.placementId.localeCompare(right.placementId));
     const representative = nearby[0];
@@ -306,26 +302,24 @@ function foldTravelPlacements(placements: readonly PublicPlacement[]): PublicPla
 
 export interface GeneratedMapShard {
   summary: Omit<StaticMapSummary, "imagery">;
-  resource: GeneratedStaticResource<StaticMapShard>;
+  resources: GeneratedStaticResource<StaticMapShard>[];
+  geometry: GeneratedStaticResource<StaticGeometry>[];
 }
 
-export async function generateMapShards(db: Database, store: ArtifactStore, worldOffsets: readonly PublicWorldOffset[] = []): Promise<GeneratedMapShard[]> {
+export async function generateMapShards(db: Database, store: ArtifactStore, worldOffsets: readonly PublicWorldOffset[] = [], protection?: ObjectWriteProtection, publishedMapSpaceIds?: ReadonlySet<string>): Promise<GeneratedMapShard[]> {
   const offsets = new Map(worldOffsets.map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }]));
   const maps = queryCatalogMaps(db);
   const spatial = queryCatalogSpatialContext(db).records;
   const search = queryCatalogSearch(db).records;
   const entityNames = new Map(search.map((entity) => [entity.entityKey, plainText(entity.name ?? "") || "Unnamed entry"]));
-  const gameplayByEntity = new Map(search.map((entity) => {
-    const detail = queryCatalogFullEntity(db, entity.entityKey).records;
-    if (!detail) throw new Error(`Catalog entity disappeared during map projection: ${entity.entityKey}.`);
-    return [entity.entityKey, detail.publicData.gameplay] as const;
-  }));
+  const gameplayByEntity = new Map(queryCatalogFullEntities(db).records.map((detail) => [detail.entityKey, detail.publicData.gameplay]));
   const result: GeneratedMapShard[] = [];
   for (const map of maps.records) {
+    if (publishedMapSpaceIds && !publishedMapSpaceIds.has(map.mapSpaceId)) continue;
     const queried = queryCatalogMap(db, map.mapSpaceId);
     if (queried.records === null) throw new Error(`Catalog map disappeared during publication: ${map.mapSpaceId}.`);
     const offset = offsets.get(map.mapSpaceId) ?? { worldX: 0, worldY: 0 };
-    const unfoldedPlacements: PublicPlacement[] = foldMapIcons(queried.records.placements).flatMap((placement) => {
+    const unfoldedPlacements: ProjectedPlacement[] = foldMapIcons(queried.records.placements).flatMap((placement) => {
       const placementCategories = categories(placement.roles);
       if (placementCategories.length === 0) return [];
       const entityKeys = [...new Set(placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [role.npcEntityKey]))].sort();
@@ -343,28 +337,44 @@ export async function generateMapShards(db: Database, store: ArtifactStore, worl
         entityKeys,
         itemKeys: placement.itemEntityKeys,
         searchText: [label, ...placementCategories.map((category) => CATEGORY_LABELS[category])].join(" "),
-        areas: placementAreas(placement).map((polygon) => polygon.map(([x, y]) => [x + offset.worldX, y + offset.worldY] as [number, number])),
+        areaRadius: placementAreaRadius(placement),
         movement: offsetMovement(movementForPlacement(placement, gameplayByEntity, spatial), offset),
         ...(travel ? { travel } : {}),
       }];
     });
     const placements = foldTravelPlacements(unfoldedPlacements);
     const regions = foldRegions(queried.records.regions.map(publicRegion).filter((region): region is PublicRegion => region !== null).map((region) => ({ ...region, polygon: region.polygon.map(([x, y]) => [x + offset.worldX, y + offset.worldY]) })));
-    const shard: StaticMapShard = {
-      schemaVersion: "compendium.static-map.v1",
-      buildId: maps.buildId,
-      catalogId: maps.catalogId,
-      mapSpaceId: map.mapSpaceId,
-      placements,
-      regions,
-      connections: queried.records.connections,
-    };
-    Assert(StaticMapShardSchema, shard);
-    const resource = await writeStaticJson(store, shard.schemaVersion, shard);
-    const points = [...placements.map((placement) => placement.position), ...regions.flatMap((region) => region.polygon)];
-    const xs = points.map((point) => point[0]), ys = points.map((point) => point[1]);
-    const bounds = points.length === 0 ? { min: { x: 0, y: 0 }, max: { x: 0, y: 0 } } : { min: { x: Math.min(...xs), y: Math.min(...ys) }, max: { x: Math.max(...xs), y: Math.max(...ys) } };
-    result.push({ summary: { mapSpaceId: map.mapSpaceId, label: map.label, bounds, data: resource.reference }, resource });
+    const identity = { buildId: maps.buildId, catalogId: maps.catalogId, mapSpaceId: map.mapSpaceId };
+    const compact: PublicEssentialPlacement[] = placements.map((placement) => [placement.placementId, placement.position, placement.height, placement.label, placement.categories, placement.entityKeys, placement.itemKeys, placement.levelRange ?? null, placement.travel?.enabled ?? null, placement.areaRadius]);
+    type AtlasRecord = { placement: PublicEssentialPlacement } | { region: PublicRegion };
+    const atlasRecords: AtlasRecord[] = [...compact.map((placement) => ({ placement })), ...regions.map((region) => ({ region }))];
+    const resources: GeneratedStaticResource<StaticMapShard>[] = [];
+    for (const shard of partitionStaticRecords(atlasRecords, (rows, part): StaticMapShard => ({
+      schemaVersion: "compendium.static-map.v2", ...identity, part,
+      placements: rows.flatMap((row) => "placement" in row ? [row.placement] : []),
+      regions: rows.flatMap((row) => "region" in row ? [row.region] : []),
+    }))) {
+      Assert(StaticMapShardSchema, shard);
+      resources.push(await writeStaticJson(store, shard.schemaVersion, shard, protection));
+    }
+    type GeometryRecord = { placement: StaticGeometry["placements"][number] } | { connection: StaticGeometry["connections"][number] };
+    const geometryRecords: GeometryRecord[] = [
+      ...placements.filter((placement) => placement.movement.length > 0 || placement.travel !== undefined).map((placement) => ({ placement: { placementId: placement.placementId, movement: placement.movement, ...(placement.travel ? { travel: placement.travel } : {}) } })),
+      ...queried.records.connections.map((connection) => ({ connection })),
+    ];
+    const geometry: GeneratedStaticResource<StaticGeometry>[] = [];
+    if (geometryRecords.length > 0) for (const shard of partitionStaticRecords(geometryRecords, (rows, part): StaticGeometry => ({
+      schemaVersion: "compendium.static-geometry.v1", ...identity, part,
+      placements: rows.flatMap((row) => "placement" in row ? [row.placement] : []),
+      connections: rows.flatMap((row) => "connection" in row ? [row.connection] : []),
+    }))) {
+      Assert(StaticGeometrySchema, shard);
+      geometry.push(await writeStaticJson(store, shard.schemaVersion, shard, protection));
+    }
+    const points = [...placements.flatMap<[number, number]>(({ position: [x, y], areaRadius }) => areaRadius === null ? [[x, y]] : [[x - areaRadius, y - areaRadius], [x + areaRadius, y + areaRadius]]), ...regions.flatMap((region) => region.polygon)];
+    const bounds = points.reduce((bounds, [x, y]) => ({ min: { x: Math.min(bounds.min.x, x), y: Math.min(bounds.min.y, y) }, max: { x: Math.max(bounds.max.x, x), y: Math.max(bounds.max.y, y) } }), { min: { x: Infinity, y: Infinity }, max: { x: -Infinity, y: -Infinity } });
+    if (points.length === 0) { bounds.min = { x: offset.worldX, y: offset.worldY }; bounds.max = { ...bounds.min }; }
+    result.push({ summary: { mapSpaceId: map.mapSpaceId, label: map.label, bounds, parts: resources.map((resource) => resource.reference), optionalGeometry: geometry.map((resource) => resource.reference) }, resources, geometry });
   }
   return result;
 }

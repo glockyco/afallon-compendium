@@ -7,7 +7,13 @@ export async function findReusableStep(store: ArtifactStore, input: ArtifactRunI
   try {
     selected = await readLatestSuccess(store, input.buildId, input.operation);
   } catch (error) {
-    if (error instanceof ObjectIntegrityError) return null;
+    let cause: unknown = error;
+    const seen = new Set<unknown>();
+    while (cause instanceof Error && !seen.has(cause)) {
+      if (cause instanceof ObjectIntegrityError) return null;
+      seen.add(cause);
+      cause = cause.cause;
+    }
     throw error;
   }
   if (selected === null || !sameCacheInput(selected.manifest.input, input)) return null;
@@ -22,5 +28,6 @@ export function sameCacheInput(left: ArtifactRunInput, right: ArtifactRunInput):
     && canonicalJson(left.settings) === canonicalJson(right.settings)
     && canonicalJson(left.schemas) === canonicalJson(right.schemas)
     && canonicalJson(left.probeHashes) === canonicalJson(right.probeHashes)
-    && canonicalJson(left.inputs) === canonicalJson(right.inputs);
+    && canonicalJson(left.inputs) === canonicalJson(right.inputs)
+    && canonicalJson([...(left.inputManifests ?? [])].sort()) === canonicalJson([...(right.inputManifests ?? [])].sort());
 }

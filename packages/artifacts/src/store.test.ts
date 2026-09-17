@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { chmod, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArtifactStore, ObjectIntegrityError } from "./store";
@@ -39,4 +39,21 @@ test("a damaged object is rejected instead of replaced", async () => fixture(asy
   });
   await expect(store.verify(stored)).rejects.toBeInstanceOf(ObjectIntegrityError);
   expect(await Bun.file(objectPath).text()).toBe("damaged evidence");
+}));
+
+test("verification rejects corruption beyond the first megabyte", async () => fixture(async store => {
+  const block = new Uint8Array(1024 * 1024).fill(73);
+  const stored = await store.putStream((async function* () {
+    yield block;
+    yield block;
+    yield block;
+    yield new Uint8Array([91]);
+  })());
+  expect((await store.verify(stored)).bytes).toBe(3 * block.byteLength + 1);
+  const objectPath = store.objectPath(stored.sha256);
+  await chmod(objectPath, 0o644);
+  const handle = await open(objectPath, "r+");
+  try { await handle.write(new Uint8Array([92]), 0, 1, stored.bytes - 1); }
+  finally { await handle.close(); }
+  await expect(store.verify(stored)).rejects.toMatchObject({ name: "ObjectIntegrityError", expectedSha256: stored.sha256 });
 }));

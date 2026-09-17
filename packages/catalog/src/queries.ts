@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
-import type { EntityDetail, NormalizedPatrolPath } from "@afallon/contracts/catalog";
+import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation } from "@afallon/contracts/catalog";
+import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
 
 export interface CatalogQueryIdentity {
   buildId: string;
@@ -92,6 +93,7 @@ export interface CatalogImageryMetadata {
 }
 
 export interface CatalogCoverage {
+  accounting: CoverageAccountingSummary;
   unresolvedIssues: Array<{ issueId: string; kind: string; subjectKey: string; semanticDiscriminator: string; occurrenceCount: number }>;
   exclusions: Array<{ exclusionId: string; kind: string; subjectKey: string; detail: string; mapSpaceIds: string[] }>;
   occurrenceCount: number;
@@ -227,6 +229,18 @@ export function queryCatalogFullEntity(db: Database, entityKey: string): Catalog
   return { ...identity(db), records: row ? parse(row.detail_json) as EntityDetail : null };
 }
 
+export function queryCatalogFullEntities(db: Database): CatalogQueryResult<EntityDetail[]> {
+  const records = db.query<{ detail_json: string }, []>("SELECT detail_json FROM entity_details ORDER BY entity_key").all().map((row) => parse(row.detail_json) as EntityDetail);
+  return { ...identity(db), records };
+}
+
+export function queryCatalogAllItemSources(db: Database): CatalogQueryResult<CatalogItemSource[]> {
+  const records = db.query<{ item_entity_key: string; source_kind: string; source_key: string; placement_ids_json: string; condition_ids_json: string; context_json: string }, []>(
+    "SELECT item_entity_key, source_kind, source_key, placement_ids_json, condition_ids_json, context_json FROM item_sources ORDER BY item_entity_key, source_kind, source_key",
+  ).all().map((row) => ({ itemEntityKey: row.item_entity_key, sourceKind: row.source_kind, sourceKey: row.source_key, placementIds: textArray(row.placement_ids_json), conditionIds: textArray(row.condition_ids_json), context: parse(row.context_json) }));
+  return { ...identity(db), records };
+}
+
 export function queryCatalogItemSources(db: Database, itemEntityKey: string): CatalogQueryResult<CatalogItemSource[]> {
   const records = db.query<{ item_entity_key: string; source_kind: string; source_key: string; placement_ids_json: string; condition_ids_json: string; context_json: string }, [string]>(
     "SELECT item_entity_key, source_kind, source_key, placement_ids_json, condition_ids_json, context_json FROM item_sources WHERE item_entity_key = ? ORDER BY source_kind, source_key",
@@ -235,12 +249,8 @@ export function queryCatalogItemSources(db: Database, itemEntityKey: string): Ca
 }
 
 export function queryCatalogGuide(db: Database): CatalogQueryResult<CatalogGuideFacts> {
-  const search = queryCatalogSearch(db);
-  const entities = search.records.map((summary) => {
-    const detail = queryCatalogFullEntity(db, summary.entityKey).records;
-    if (!detail) throw new Error(`Catalog entity disappeared during guide query: ${summary.entityKey}.`);
-    return detail;
-  });
+  const search = queryCatalogFullEntities(db);
+  const entities = search.records;
   const placements = db.query<{ placement_id: string; scene_native_id: number }, []>("SELECT placement_id, scene_native_id FROM placements WHERE map_x IS NOT NULL AND map_y IS NOT NULL ORDER BY placement_id").all().map((row) => ({ placementId: row.placement_id, sceneNativeId: row.scene_native_id }));
   return { buildId: search.buildId, catalogId: search.catalogId, records: { entities, placements } };
 }
@@ -264,5 +274,11 @@ export function queryCatalogCoverage(db: Database): CatalogQueryResult<CatalogCo
     "SELECT exclusion_id, kind, subject_key, detail, map_space_ids_json FROM coverage_exclusions ORDER BY kind, subject_key, exclusion_id",
   ).all().map((row) => ({ exclusionId: row.exclusion_id, kind: row.kind, subjectKey: row.subject_key, detail: row.detail, mapSpaceIds: textArray(row.map_space_ids_json) }));
   const occurrenceCount = Number(db.query<{ count: number }, []>("SELECT count(*) AS count FROM coverage_occurrences").get()?.count ?? 0);
-  return { ...identity(db), records: { unresolvedIssues, exclusions, occurrenceCount } };
+  const catalog = identity(db);
+  return { ...catalog, records: { unresolvedIssues, exclusions, occurrenceCount, accounting: readCoverageAccountingSummary(db, catalog.buildId) } };
+}
+
+export function queryCatalogDerivations(db: Database, factKind: string, factKey: string): CatalogQueryResult<CatalogDerivation | null> {
+  const row = db.query<{ rule: string; version: number; inputs_json: string }, [string, string]>("SELECT rule, version, inputs_json FROM fact_derivations WHERE fact_kind = ? AND fact_key = ?").get(factKind, factKey);
+  return { ...identity(db), records: row ? { factKind, factKey, rule: row.rule, version: row.version, inputs: JSON.parse(row.inputs_json) } : null };
 }

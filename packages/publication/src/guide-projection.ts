@@ -116,12 +116,6 @@ function guideStats(gameplay: unknown, statLabels: ReadonlyMap<number, { label: 
   return stats.length > 0 ? stats : undefined;
 }
 
-function displayedChance(value: unknown): number | undefined {
-  const rate = number(value);
-  if (rate === null || rate < 0 || rate > 100) return undefined;
-  return Math.round((rate + Number.EPSILON) * 10) / 10;
-}
-
 function guideLoot(entity: EntityDetail, items: ReadonlyMap<string, EntityDetail>): PublicGuideLoot[] {
   const entries = new Map<string, PublicGuideLoot>();
   for (const row of entity.relationships.lootEntries) {
@@ -135,14 +129,14 @@ function guideLoot(entity: EntityDetail, items: ReadonlyMap<string, EntityDetail
     if (minimum !== null && maximum !== null && maximum < minimum) continue;
     const key = `${row.lootTableId}:${row.entryIndex}:${itemKey}`;
     if (entries.has(key)) continue;
-    const chance = displayedChance(row.rawRate);
+    const rawRate = number(row.rawRate);
     const name = entityDisplayName(item);
     entries.set(key, {
       itemKey,
       ...(name ? { label: name } : {}),
       ...(minimum === null ? {} : { minimum }),
       ...(maximum === null ? {} : { maximum }),
-      ...(chance === undefined ? {} : { chance }),
+      ...(rawRate === null ? {} : { rawRate }),
     });
   }
   return [...entries.values()];

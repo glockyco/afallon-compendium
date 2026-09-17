@@ -3,8 +3,7 @@ import { Assert } from "typebox/value";
 import { MapSpaceProfileSchema, SpatialSnapshotSchema, type MapSpaceProfile, type SpatialSnapshot } from "@afallon/contracts"
 import type { MapGeometry, SceneCatalog } from "@afallon/contracts"
 import { PlacementRolesSchema, type PlacementRoles } from "@afallon/contracts/catalog"
-import { compileMapSpaces } from "./map-spaces";
-import { compileAuthoredRegions } from "./map-regions";
+import { compileMapSpaces, compileAuthoredRegions } from "@afallon/contracts/spatial";
 
 export function resolveEvidencePointer(value: unknown, pointer: string): unknown {
   if (pointer !== "" && !pointer.startsWith("/")) throw new Error(`Evidence has an invalid JSON pointer: ${pointer}`);
@@ -23,6 +22,7 @@ export async function loadSpatialProfile(path: string | undefined) {
   const profile: unknown = JSON.parse(new TextDecoder().decode(bytes));
   Assert(MapSpaceProfileSchema, profile);
   const observed = new Map<string, { sha256: string; value: unknown }>();
+  const evidenceBytes: Uint8Array[] = [];
   for (const binding of profile.bindings) {
     for (const evidence of binding.evidence) {
       const target = resolve(dirname(path), evidence.path);
@@ -31,12 +31,13 @@ export async function loadSpatialProfile(path: string | undefined) {
         const content = await Bun.file(target).bytes();
         source = { sha256: new Bun.CryptoHasher("sha256").update(content).digest("hex"), value: JSON.parse(new TextDecoder().decode(content)) };
         observed.set(target, source);
+        evidenceBytes.push(content);
       }
       if (source.sha256 !== evidence.sha256) throw new Error(`Spatial review evidence changed: ${evidence.path}`);
       resolveEvidencePointer(source.value, evidence.pointer);
     }
   }
-  return { profile, bytes, sha256: new Bun.CryptoHasher("sha256").update(bytes).digest("hex") };
+  return { profile, bytes, evidence: evidenceBytes, sha256: new Bun.CryptoHasher("sha256").update(bytes).digest("hex") };
 }
 
 export function collectSpatialSnapshot(

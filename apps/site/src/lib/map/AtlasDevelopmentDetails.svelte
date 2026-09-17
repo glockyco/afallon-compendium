@@ -27,6 +27,7 @@
   export let detailQuery: string;
   export let sourceRows: (source: PublicItemSource['sources'][number], query: string) => PublicDetailSection[];
   export let entityLinks: (sections: PublicDetailSection[]) => DetailLink[];
+  export let onRetry: () => void;
   export let onClose: () => void;
   export let onQueryChange: () => void;
   export let onOpenEntity: (key: string, origin: HTMLElement) => void;
@@ -39,13 +40,13 @@
     <div class="details-header"><div><span class="eyebrow">{itemKey ? 'Item sources' : selectedEntityKey ? 'Entity details' : 'Selected location'}</span><h2 tabindex="-1">{itemKey ? selectedItemEntity?.name ?? itemIndexByKey.get(itemKey)?.name ?? 'Unnamed item' : selectedEntity?.name ?? selectedEntitySummary?.name ?? selectedPlacement?.label ?? 'Unavailable selection'}</h2></div><button class="close-button" type="button" on:click={onClose} aria-label="Close details">Close</button></div>
     {#if staleSelection}<div class="stale-warning" role="alert"><strong>Stale selection</strong><p>{staleSelection}</p><button type="button" class="text-button" on:click={onClose}>Show available content</button></div>{/if}
     {#if detailLoading}<p class="notice">Loading selected details…</p>{/if}
-    {#if detailError}<p class="inline-error" role="alert">{detailError}</p>{/if}
+    {#if detailError}<p class="inline-error" role="alert">{detailError} <button type="button" on:click={onRetry}>Retry selected details</button></p>{/if}
     {#if itemKey}
       {#if selectedItemEntity}{#if selectedItemEntity.description}<p>{selectedItemEntity.description}</p>{/if}<details class="entity-block"><summary>Item properties and relationships</summary><DetailSections sections={selectedItemEntity.sections} entities={entityByKey} onEntity={onOpenEntity} onPlacement={onSelectPlacement} /></details>{/if}
       {#if itemContext && itemContext.sections.length > 0}<DetailSections sections={itemContextSections} entities={entityByKey} onEntity={onOpenEntity} onPlacement={onSelectPlacement} />{/if}
       <label class="detail-search" for="source-search">Search item sources and conditions<input id="source-search" bind:value={itemSourceQuery} on:input={onQueryChange} placeholder="Merchant, loot, requirement" /></label>
       {#if selectedPlacement}<p class="notice">Selected source: {selectedPlacement.label}. The selected item remains active.</p>{/if}
-      <div class="item-sources">{#if filteredItemSources.length === 0}<p class="empty">No item sources match this search.</p>{/if}{#each filteredItemSources as source}<article class="source-card"><div class="source-title"><strong>{source.label}</strong><span>{source.kind}</span></div><DetailSections sections={sourceRows(source, itemSourceQuery)} entities={entityByKey} onEntity={onOpenEntity} onPlacement={onSelectPlacement} />{#each source.placementIds as placementId}<button type="button" class="source-location" on:click={(event) => onSelectPlacement(placementId, event.currentTarget)}>Open source location</button>{/each}</article>{/each}</div>
+      <div class="item-sources">{#if !detailLoading && !detailError && itemContext && filteredItemSources.length === 0}<p class="empty">No item sources match this search.</p>{/if}{#each filteredItemSources as source}<article class="source-card"><div class="source-title"><strong>{source.label}</strong><span>{source.kind}</span></div><DetailSections sections={sourceRows(source, itemSourceQuery)} entities={entityByKey} onEntity={onOpenEntity} onPlacement={onSelectPlacement} />{#each source.placementIds as placementId}<button type="button" class="source-location" on:click={(event) => onSelectPlacement(placementId, event.currentTarget)}>Open source location</button>{/each}</article>{/each}</div>
     {:else if selectedEntityKey}
       {#if selectedEntity?.description ?? selectedEntitySummary?.description}<p>{selectedEntity?.description ?? selectedEntitySummary?.description}</p>{/if}
       <label class="detail-search" for="detail-search">Search this entity's details<input id="detail-search" bind:value={detailQuery} on:input={onQueryChange} placeholder="Condition, reward, requirement" /></label>

@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { canonicalJson, schemaRegistry, type SchemaIdentity } from "@afallon/contracts";
 import type { ArtifactRef } from "@hotrepl/protocol";
@@ -8,7 +7,7 @@ const MODULE_ID = /^[a-z0-9][a-z0-9./-]*$/;
 
 export interface ProbeSourceModule {
   readonly id: string;
-  readonly path: string;
+  readonly source: string;
 }
 
 export interface ProbeModuleIdentity {
@@ -43,13 +42,14 @@ export async function createProbeBundle<T extends TSchema>(definition: ProbeBund
   if (!MODULE_ID.test(definition.id)) throw new TypeError(`Invalid probe bundle identity: ${JSON.stringify(definition.id)}.`);
   if (definition.modules.length === 0) throw new TypeError("A probe bundle must import at least one source module.");
   const names = new Set<string>();
-  const loaded = await Promise.all(definition.modules.map(async module => {
+  const loaded = definition.modules.map(module => {
     if (!MODULE_ID.test(module.id)) throw new TypeError(`Invalid probe module identity: ${JSON.stringify(module.id)}.`);
     if (names.has(module.id)) throw new TypeError(`Probe bundle repeats module ${module.id}.`);
     names.add(module.id);
-    const source = await readFile(module.path, "utf8");
+    const source = module.source;
+    if (typeof source !== "string" || source.length === 0) throw new TypeError(`Probe module ${module.id} has no imported source.`);
     return { id: module.id, source, sha256: createHash("sha256").update(source).digest("hex") };
-  }));
+  });
   const registered = schemaRegistry.identify(definition.schema);
   const modules = loaded.map(({ id, sha256 }) => Object.freeze({ id, sha256 }));
   const sha256 = createHash("sha256").update(canonicalJson({

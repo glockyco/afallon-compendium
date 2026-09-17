@@ -7,6 +7,7 @@
   export let categories: readonly MarkerDefinition[] = [];
   export let activeCategories: readonly MarkerId[] = [];
   export let counts: Readonly<Record<MarkerId, number>>;
+  export let countsPending = false;
   export let onToggleCategory: (id: MarkerId) => void;
   export let onToggleAll: (ids: readonly MarkerId[]) => void;
   export let storageKey = '';
@@ -60,7 +61,7 @@
   {#if expanded}
     <div class="section-body">
       {#each categories as marker (marker.id)}
-        <CategoryRow marker={marker} checked={activeCategories.includes(marker.id)} count={counts[marker.id] ?? 0} onToggle={() => onToggleCategory(marker.id)} />
+        <CategoryRow marker={marker} checked={activeCategories.includes(marker.id)} count={counts[marker.id] ?? 0} pending={countsPending} onToggle={() => onToggleCategory(marker.id)} />
       {/each}
     </div>
   {/if}

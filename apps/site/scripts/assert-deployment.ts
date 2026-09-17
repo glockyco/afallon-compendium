@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative, resolve, sep } from "node:path";
 import { deploymentPaths } from "../deployment-paths.mjs";
-import type { StaticRootManifest } from "@afallon/contracts/public";
+import { verifyPublicationGraph } from "./publication-graph";
 import type { DeploymentMetadata } from "./stage-publication.ts";
 
 const FREE_ASSET_LIMIT = 20_000;
@@ -36,7 +36,7 @@ for (const relativePath of files) {
 
 const metadata = parseJson<DeploymentMetadata>(join(outputDir, "_deployment.json"));
 const publicationPath = join(outputDir, "data", "publication.json");
-const publication = parseJson<StaticRootManifest>(publicationPath);
+const { publication } = verifyPublicationGraph(join(outputDir, "data"));
 if (metadata.schemaVersion !== "afallon.deployment.v2") throw new Error("Deployment metadata has an unsupported schema.");
 if (metadata.buildId !== publication.buildId || metadata.catalogId !== publication.catalogId || metadata.mode !== publication.mode || metadata.coverageComplete !== publication.complete) {
   throw new Error("Deployment metadata does not match the staged publication.");

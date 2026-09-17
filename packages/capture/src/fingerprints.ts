@@ -1,6 +1,10 @@
 import { resolve } from "node:path";
 import {
   CaptureGeometrySchema,
+  CaptureCleanupSchema,
+  CaptureChunkOutcomesSchema,
+  CaptureSweepCleanupSchema,
+  CaptureTileCheckpointSchema,
   CapturePlanSchema,
   CaptureRasterSchema,
   CaptureReadinessSchema,
@@ -22,12 +26,17 @@ export interface CaptureFingerprintInput {
   readonly plan: ContentIdentity;
   readonly profile: ContentIdentity;
   readonly survey: ContentIdentity | null;
+  readonly evidence?: Readonly<Record<string, ContentIdentity>>;
   readonly settings?: Readonly<Record<string, unknown>>;
 }
 
 export async function captureRunInput(input: CaptureFingerprintInput): Promise<ArtifactRunInput> {
   const schemas = [
     CaptureGeometrySchema,
+  CaptureCleanupSchema,
+  CaptureChunkOutcomesSchema,
+  CaptureSweepCleanupSchema,
+  CaptureTileCheckpointSchema,
     CapturePlanSchema,
     CaptureRasterSchema,
     CaptureReadinessSchema,
@@ -37,7 +46,7 @@ export async function captureRunInput(input: CaptureFingerprintInput): Promise<A
     CaptureSweepSchema,
   ].map(schema => schemaRegistry.identify(schema)).map(schema => ({ id: schema.id, sha256: schema.sha256 })).sort((left, right) => left.id.localeCompare(right.id));
   const settings = { character: input.character, policy: input.policy, ...input.settings };
-  const inputs: Record<string, ContentIdentity> = { plan: input.plan, profile: input.profile };
+  const inputs: Record<string, ContentIdentity> = { ...input.evidence, plan: input.plan, profile: input.profile };
   if (input.survey !== null) inputs.survey = input.survey;
   const fingerprint = await fingerprintStep({
     entrypoint: resolve(import.meta.dir, "capture-step.ts"),

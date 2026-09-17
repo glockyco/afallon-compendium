@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { Assert } from "typebox/value";
-import { ArtifactStore } from "@afallon/artifacts";
+import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
 import { queryCatalogGuide } from "@afallon/catalog";
 import {
   StaticGuideDocumentSchema,
@@ -18,6 +18,7 @@ export async function generateGuideResources(
   db: Database,
   store: ArtifactStore,
   publicEntities: readonly PublicEntity[],
+  protection?: ObjectWriteProtection,
 ): Promise<ReadonlyMap<string, GeneratedStaticResource<StaticGuideDocument>>> {
   const facts = queryCatalogGuide(db);
   const guide = projectAdventureGuide({ entities: facts.records.entities, placements: facts.records.placements });
@@ -49,7 +50,7 @@ export async function generateGuideResources(
   const resources = new Map<string, GeneratedStaticResource<StaticGuideDocument>>();
   for (const [section, value] of [...documents].sort(([left], [right]) => left.localeCompare(right))) {
     Assert(StaticGuideDocumentSchema, value);
-    resources.set(section, await writeStaticJson(store, value.schemaVersion, value));
+    resources.set(section, await writeStaticJson(store, value.schemaVersion, value, protection));
   }
   return resources;
 }

@@ -1,5 +1,7 @@
 export * from "./collectors";
+export * from "./inventory-probe";
 export * from "./plan";
+export * from "./observation";
 export * from "./planned-stream-target";
 export * from "./probes";
 export * from "./scene-target";

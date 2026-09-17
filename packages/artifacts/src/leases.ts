@@ -1,67 +1,102 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { link, mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { Assert } from "typebox/value";
-import { ArtifactLeaseSchema, canonicalJson, type ArtifactLease, type ContentIdentity } from "@afallon/contracts";
-import { ArtifactStore } from "./store";
+import { ArtifactLeaseSchema, ContentIdentitySchema, canonicalJson, type ArtifactLease, type ContentIdentity } from "@afallon/contracts";
+import { ArtifactStore, type ObjectWriteProtection } from "./store";
 
-export interface ActiveArtifactLease {
+export interface ActiveArtifactLease extends ObjectWriteProtection {
   readonly leaseId: string;
   readonly path: string;
-  protect(identity: ContentIdentity): Promise<void>;
+  protectManifest(identity: ContentIdentity): Promise<void>;
   release(): Promise<void>;
 }
 
 export async function createArtifactLease(
   store: ArtifactStore,
-  input: { runId: string; buildId: string; operation: string; objects: Iterable<ContentIdentity> },
+  input: { runId: string; buildId: string; operation: string; objects: Iterable<ContentIdentity>; manifests?: Iterable<ContentIdentity> },
 ): Promise<ActiveArtifactLease> {
+  if (!input.runId || input.runId === "." || input.runId === ".." || /[/\\:\u0000-\u001f\u007f]/.test(input.runId)) throw new TypeError("A lease runId must be one safe path segment.");
   const directory = path.join(store.root, "leases");
   await mkdir(directory, { recursive: true });
   const leasePath = path.join(directory, `${input.runId}.json`);
   const now = new Date().toISOString();
   const objects = new Map<string, ContentIdentity>();
-  for (const identity of input.objects) {
-    await store.verify(identity);
-    objects.set(identity.sha256, { sha256: identity.sha256, bytes: identity.bytes });
-  }
-  const lease: ArtifactLease = {
-    schemaVersion: "compendium.artifact-lease.v1",
-    leaseId: randomUUID(),
-    runId: input.runId,
-    buildId: input.buildId,
-    operation: input.operation,
-    createdAt: now,
-    updatedAt: now,
-    objects: [...objects.values()].sort((left, right) => left.sha256.localeCompare(right.sha256)),
+  const pending = new Map<string, ContentIdentity>();
+  const manifests = new Map<string, ContentIdentity>();
+  const add = (target: Map<string, ContentIdentity>, identity: ContentIdentity): void => {
+    const content = { sha256: identity.sha256, bytes: identity.bytes };
+    Assert(ContentIdentitySchema, content);
+    for (const entries of [objects, pending, manifests]) {
+      const existing = entries.get(identity.sha256);
+      if (existing && existing.bytes !== identity.bytes) throw new Error(`Artifact lease has conflicting sizes for ${identity.sha256}.`);
+    }
+    target.set(identity.sha256, content);
   };
-  await atomicReplace(leasePath, lease);
+  for (const identity of input.objects) add(objects, identity);
+  for (const identity of input.manifests ?? []) { add(objects, identity); add(manifests, identity); }
+  const lease: ArtifactLease = {
+    schemaVersion: "compendium.artifact-lease.v2",
+    leaseId: randomUUID(), runId: input.runId, buildId: input.buildId, operation: input.operation,
+    createdAt: now, updatedAt: now,
+    objects: [...objects.values()], pendingObjects: [], manifests: [...manifests.values()],
+  };
+  await persistLease(leasePath, lease, true);
+  try {
+    for (const identity of objects.values()) await store.verify(identity);
+  } catch (error) {
+    await unlink(leasePath);
+    throw error;
+  }
   let active = true;
-
+  let queue: Promise<void> = Promise.resolve();
+  const enqueue = (operation: () => Promise<void>): Promise<void> => {
+    const result = queue.then(async () => {
+      if (!active) throw new Error(`Artifact lease ${lease.leaseId} is released.`);
+      await operation();
+    });
+    queue = result.catch(() => {});
+    return result;
+  };
+  const persist = async (): Promise<void> => {
+    lease.objects = [...objects.values()].sort((left, right) => left.sha256.localeCompare(right.sha256));
+    lease.pendingObjects = [...pending.values()].sort((left, right) => left.sha256.localeCompare(right.sha256));
+    lease.manifests = [...manifests.values()].sort((left, right) => left.sha256.localeCompare(right.sha256));
+    lease.updatedAt = new Date().toISOString();
+    await persistLease(leasePath, lease);
+  };
   return {
     leaseId: lease.leaseId,
     path: leasePath,
-    async protect(identity) {
-      if (!active) throw new Error(`Artifact lease ${lease.leaseId} is released.`);
-      await store.verify(identity);
-      const existing = objects.get(identity.sha256);
-      if (existing && existing.bytes !== identity.bytes) throw new Error(`Artifact lease has conflicting sizes for ${identity.sha256}.`);
-      if (existing) return;
-      objects.set(identity.sha256, { sha256: identity.sha256, bytes: identity.bytes });
-      lease.objects = [...objects.values()].sort((left, right) => left.sha256.localeCompare(right.sha256));
-      lease.updatedAt = new Date().toISOString();
-      await atomicReplace(leasePath, lease);
+    protectPending(identity) {
+      return enqueue(async () => {
+        add(pending, identity);
+        if (objects.has(identity.sha256)) pending.delete(identity.sha256);
+        await persist();
+      });
     },
-    async release() {
-      if (!active) throw new Error(`Artifact lease ${lease.leaseId} is released.`);
-      await unlink(leasePath);
-      active = false;
-      const handle = await open(directory, "r");
-      try {
-        await handle.sync();
-      } finally {
-        await handle.close();
-      }
+    protect(identity) {
+      return enqueue(async () => {
+        add(objects, identity);
+        pending.delete(identity.sha256);
+        await persist();
+        await store.verify(identity);
+      });
+    },
+    protectManifest(identity) {
+      return enqueue(async () => {
+        add(objects, identity);
+        add(manifests, identity);
+        pending.delete(identity.sha256);
+        await persist();
+        await store.verify(identity);
+      });
+    },
+    release() {
+      return enqueue(async () => {
+        await unlink(leasePath);
+        active = false;
+      });
     },
   };
 }
@@ -69,44 +104,33 @@ export async function createArtifactLease(
 export async function readArtifactLeases(store: ArtifactStore): Promise<ArtifactLease[]> {
   const directory = path.join(store.root, "leases");
   let names: string[];
-  try {
-    names = await Array.fromAsync(new Bun.Glob("*.json").scan({ cwd: directory, onlyFiles: true }));
-  } catch (error) {
-    if (isErrno(error, "ENOENT")) return [];
+  try { names = await Array.fromAsync(new Bun.Glob("*.json").scan({ cwd: directory, onlyFiles: true })); }
+  catch (error) {
+    if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") return [];
     throw error;
   }
   const leases: ArtifactLease[] = [];
   for (const name of names.sort()) {
     const value: unknown = JSON.parse(await readFile(path.join(directory, name), "utf8"));
     Assert(ArtifactLeaseSchema, value);
+    if (name !== `${value.runId}.json`) throw new Error(`Lease ${name} has a different run identity.`);
     leases.push(value);
   }
   return leases;
 }
 
-async function atomicReplace(destination: string, value: unknown): Promise<void> {
+async function persistLease(destination: string, value: ArtifactLease, initial = false): Promise<void> {
   const temporary = `${destination}.tmp-${randomUUID()}`;
   try {
     await writeFile(temporary, `${canonicalJson(value)}\n`, { encoding: "utf8", flag: "wx", mode: 0o600 });
     const file = await open(temporary, "r");
-    try {
-      await file.sync();
-    } finally {
-      await file.close();
-    }
-    await rename(temporary, destination);
-    const directory = await open(path.dirname(destination), "r");
-    try {
-      await directory.sync();
-    } finally {
-      await directory.close();
-    }
-  } catch (error) {
-    await unlink(temporary).catch(() => undefined);
-    throw error;
+    try { await file.sync(); } finally { await file.close(); }
+    if (initial) await link(temporary, destination);
+    else await rename(temporary, destination);
+  } finally {
+    await unlink(temporary).catch((error: unknown) => {
+      if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") return;
+      throw error;
+    });
   }
-}
-
-function isErrno(error: unknown, code: string): error is NodeJS.ErrnoException {
-  return error !== null && typeof error === "object" && "code" in error && error.code === code;
 }

@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./catalog": "./src/catalog/index.ts",
+    "./spatial": "./src/spatial/index.ts",
     "./public": "./src/public/index.ts"
   },
   "scripts": { "test": "bun test src", "check": "tsc -b" },

@@ -9,7 +9,7 @@ import {
   type WorldInventory,
 } from "@afallon/contracts";
 
-const APPLICABILITY: Readonly<Record<ScanTarget["kind"], Readonly<Record<ScanCollectorFamily, string | null>>>> = {
+const APPLICABILITY: Readonly<Record<ScanTarget["kind"], Readonly<Record<ScanCollectorFamily, string>>>> = {
   "current-scene": {
     canonical: "Canonical database facts are global to the running build.",
     inventory: "The current scene exposes its loaded-scene and source inventory.",
@@ -32,7 +32,7 @@ const APPLICABILITY: Readonly<Record<ScanTarget["kind"], Readonly<Record<ScanCol
   },
   "streamed-source": {
     canonical: "Canonical database facts are global to the running build.",
-    inventory: null,
+    inventory: "The parent scene and loaded source expose inventory and serialized addressable provenance.",
     producers: "A streamed source can add authored producer components.",
     placements: "A streamed source can add authored placement components.",
     roles: "Roles derive from the streamed source's authored components.",
@@ -59,7 +59,7 @@ export function indexScanTargets(inventory: WorldInventory): ScanTargetIndex {
   return { sceneNativeIds, streamedSourceKeysByScene };
 }
 
-export function validateScanPlan(value: unknown, inventory: ScanTargetIndex): ScanPlan {
+export function validateScanPlanStructure(value: unknown): ScanPlan {
   try {
     Assert(ScanPlanSchema, value);
   } catch (error) {
@@ -70,6 +70,13 @@ export function validateScanPlan(value: unknown, inventory: ScanTargetIndex): Sc
     const identity = targetIdentity(target);
     if (identities.has(identity)) throw new Error(`Scan plan repeats target ${identity} at index ${index}.`);
     identities.add(identity);
+  }
+  return structuredClone(value);
+}
+
+export function validateScanPlan(value: unknown, inventory: ScanTargetIndex): ScanPlan {
+  const plan = validateScanPlanStructure(value);
+  for (const [index, target] of plan.targets.entries()) {
     if (target.kind === "current-scene") continue;
     if (!inventory.sceneNativeIds.has(target.sceneNativeId)) {
       throw new Error(`Scan target ${index} names unknown build scene ${target.sceneNativeId}.`);
@@ -78,14 +85,12 @@ export function validateScanPlan(value: unknown, inventory: ScanTargetIndex): Sc
       throw new Error(`Scan target ${index} names unknown streamed source ${JSON.stringify(target.sourceKey)} in scene ${target.sceneNativeId}.`);
     }
   }
-  return structuredClone(value);
+  return plan;
 }
 
 export function collectorApplicability(target: ScanTarget): readonly ScanCollectorDisposition[] {
   const evidence = APPLICABILITY[target.kind];
-  return SCAN_COLLECTOR_FAMILIES.map(family => evidence[family] === null
-    ? { family, status: "not-applicable", evidence: "Loaded-scene inventory describes the parent scene; the requested streamed source is already bound by its discovery record." }
-    : { family, status: "collect", evidence: evidence[family] });
+  return SCAN_COLLECTOR_FAMILIES.map(family => ({ family, status: "collect", evidence: evidence[family] }));
 }
 
 export function targetIdentity(target: ScanTarget): string {

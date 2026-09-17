@@ -1,4 +1,5 @@
 import { Type, type Static } from "typebox";
+import { ContentIdentitySchema, type ContentIdentity } from "../lifecycle";
 
 const text = Type.String({ minLength: 1 });
 const id = Type.String({ pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" });
@@ -7,20 +8,15 @@ const count = Type.Integer({ minimum: 0 });
 const positive = Type.Number({ exclusiveMinimum: 0 });
 const relativePath = Type.String({ minLength: 1, pattern: "^(?!/)(?![A-Za-z]:)[^\\u0000-\\u001f\\u007f]+$" });
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
-const reference = Type.Object({ path: relativePath, sha256: hash });
-
-export const TileReferenceSchema = reference;
-export type TileReference = Static<typeof TileReferenceSchema>;
-
 export const TilePlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.tile-plan.v2"),
+  schemaVersion: Type.Literal("compendium.tile-plan.v3"),
   buildId: text,
-  mapSpaceId: id,
-  profile: TileReferenceSchema,
-  sources: Type.Array(TileReferenceSchema, { minItems: 1, maxItems: 4096 }),
+  mapSpaceId: Type.Literal("world-surface"),
+  profile: ContentIdentitySchema,
+  sources: Type.Array(ContentIdentitySchema, { minItems: 1, maxItems: 4096 }),
   tileSize: Type.Optional(Type.Integer({ minimum: 1, maximum: 2048 })),
   format: Type.Optional(Type.Literal("webp")),
-});
+}, { additionalProperties: false });
 export type TilePlan = Static<typeof TilePlanSchema>;
 
 export const TileCoverageSchema = Type.Object({
@@ -54,9 +50,9 @@ export const TileLevelSchema = Type.Object({
 export type TileLevel = Static<typeof TileLevelSchema>;
 
 export const TileSourceProvenanceSchema = Type.Object({
-  manifest: TileReferenceSchema,
+  manifest: ContentIdentitySchema,
   runId: text,
-  captureSet: TileReferenceSchema,
+  captureSet: ContentIdentitySchema,
   sceneNativeId: count,
   scenePath: text,
   mapSpaceId: id,
@@ -70,21 +66,22 @@ export const TileSourceProvenanceSchema = Type.Object({
     empty: Type.Boolean(),
     origin: Type.Object({ runId: text, ownerToken: text, captureKey: text }),
     verticalBounds: Type.Object({ minY: Type.Number(), maxY: Type.Number() }),
-    image: TileReferenceSchema,
-    raster: TileReferenceSchema,
-    readiness: TileReferenceSchema,
-    restoration: TileReferenceSchema,
-    nativeContext: Type.Array(TileReferenceSchema, { minItems: 1 }),
+    image: ContentIdentitySchema,
+    raster: ContentIdentitySchema,
+    readiness: ContentIdentitySchema,
+    restoration: ContentIdentitySchema,
+    nativeContext: Type.Array(ContentIdentitySchema, { minItems: 1 }),
+    cleanup: Type.Object({ capture: ContentIdentitySchema, sweep: ContentIdentitySchema }),
   })),
 });
 export type TileSourceProvenance = Static<typeof TileSourceProvenanceSchema>;
 
 export const TilePyramidSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.tile-pyramid.v3"),
+  schemaVersion: Type.Literal("compendium.tile-pyramid.v4"),
   buildId: text,
   mapSpaceId: id,
-  plan: TileReferenceSchema,
-  profile: TileReferenceSchema,
+  plan: ContentIdentitySchema,
+  profile: ContentIdentitySchema,
   coordinateSystem: Type.Literal("map-space-xy"),
   pixelConvention: Type.Literal("top-left-edges"),
   extent: Type.Tuple([Type.Number(), Type.Number(), Type.Number(), Type.Number()]),
@@ -106,8 +103,10 @@ export const TilePyramidSchema = Type.Object({
 });
 export type TilePyramid = Static<typeof TilePyramidSchema>;
 export interface TileGenerationResult {
-  manifest: string;
-  index: string;
+  manifest: ContentIdentity;
+  manifestPath: string;
+  index: ContentIdentity;
+  imagery: ContentIdentity;
   files: number;
   bytes: number;
   complete: boolean;

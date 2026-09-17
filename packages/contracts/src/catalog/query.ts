@@ -15,6 +15,7 @@ const coordinate = Type.Object({ x: Type.Number(), y: Type.Number(), z: Type.Num
 export const ArtifactReferenceSchema = Type.Object({
   path: text,
   sha256: hash,
+  bytes: Type.Optional(Type.Integer({ minimum: 0 })),
   artifact: Type.Optional(text),
   kind: Type.Optional(text),
 }, { additionalProperties: false });
@@ -37,6 +38,24 @@ export type NormalizationPlan = Static<typeof NormalizationPlanSchema>;
 
 export type CanonicalKind = "items" | "npcs" | "quests" | "lootTables" | "scenes" | "resources" | string;
 export type ProvenanceReference = ArtifactReference & { pointer?: string };
+
+export interface CatalogDerivation {
+  factKind: string;
+  factKey: string;
+  rule: string;
+  version: number;
+  inputs: ProvenanceReference[];
+}
+
+export interface CatalogImageryRow {
+  assetId: string;
+  mapSpaceId: string;
+  kind: "game-map" | "captured";
+  sha256: string;
+  bytes: number;
+  metadata: unknown;
+  provenance: ProvenanceReference[];
+}
 
 export interface NormalizedEntity {
   entityKey: string;
@@ -241,6 +260,10 @@ export interface NormalizedOutput {
 
 export interface NormalizedDatabaseInput {
   buildId: string;
+  sourceRunId?: string;
+  sourceRunIds?: Record<string, string[]>;
+  derivations?: CatalogDerivation[];
+  imagery?: CatalogImageryRow[];
   identityResults: Array<{ runId: string; snapshotId: string; snapshotPrefix: string; snapshotSha256: string; character: string; sceneHandle: number; result: PlacementIdentityResult }>;
   entities: NormalizedEntity[];
   scenes: Array<{ nativeId: number; path: string; name: string | null }>;
@@ -248,7 +271,7 @@ export interface NormalizedDatabaseInput {
   bindings: Array<{ id: string; mapSpaceId: string; sceneNativeId: number; scenePath: string; frame: unknown; domain: { kind: "scene" } | { kind: "boxes"; boxes: unknown } }>;
   placements: NormalizedPlacement[];
   sources: NormalizedSource[];
-  roles: Array<{ placementId: string; sourceId: string; role: string; npcId: number | null; scope: RoleScope; evidence: unknown }>;
+  roles: Array<{ placementId: string; sourceId: string; role: string; npcId: number | null; scope: RoleScope; evidence: ProvenanceReference[] }>;
   regions: NormalizedRegion[];
   conditions: NormalizedCondition[];
   spawnCandidates: NormalizedSpawnCandidate[];
@@ -269,6 +292,7 @@ export interface NormalizedDatabaseInput {
   sceneSpawns: NormalizedSceneSpawn[];
   blockers: CatalogCoverageState["blockers"];
   coverageOccurrences: Array<{
+    runId: string;
     kind: string;
     subjectKey: string;
     semanticDiscriminator: string;

@@ -358,6 +358,19 @@ export function openNormalizedDatabase(path: string): Database {
         evidence_json TEXT NOT NULL,
         UNIQUE(issue_id, artifact_hash, source_key, record_path)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS coverage_occurrence_runs (
+        occurrence_id TEXT NOT NULL REFERENCES coverage_occurrences(occurrence_id),
+        run_id TEXT NOT NULL,
+        PRIMARY KEY(occurrence_id, run_id)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS fact_derivations (
+        fact_kind TEXT NOT NULL,
+        fact_key TEXT NOT NULL,
+        rule TEXT NOT NULL,
+        version INTEGER NOT NULL CHECK(version > 0),
+        inputs_json TEXT NOT NULL,
+        PRIMARY KEY(fact_kind, fact_key)
+      ) STRICT;
       CREATE INDEX IF NOT EXISTS placements_map_idx ON placements(build_id, map_space_id);
       CREATE INDEX IF NOT EXISTS placement_roles_role_idx ON placement_roles(role, placement_id);
       CREATE INDEX IF NOT EXISTS item_sources_item_idx ON item_sources(item_entity_key);
@@ -445,14 +458,16 @@ export function recordCoverageIssue(db: Database, evidence: CoverageIssueEvidenc
       ON CONFLICT(occurrence_id) DO NOTHING`).run(
     occurrenceId, issueId, evidence.artifactHash, evidence.sourceKey, evidence.recordPath, json(evidence.evidence),
   );
+  db.query("INSERT OR IGNORE INTO coverage_occurrence_runs (occurrence_id, run_id) VALUES (?, ?)").run(occurrenceId, evidence.runId);
   return { issueId, occurrenceId };
 }
 
 export function populateNormalizedDatabase(db: Database, input: NormalizedDatabaseInput, sourceFiles: ReadonlyArray<{ key: string; kind: string; ref: { path: string; sha256: string } }>): void {
   if (db.query<{ foreign_keys: number }, []>("PRAGMA foreign_keys").get()?.foreign_keys !== 1) throw new Error("Normalized storage requires SQLite foreign keys.");
-  for (const identity of input.identityResults) recordPlacementIdentities(db, { runId: identity.runId, snapshotId: identity.snapshotId, snapshotPrefix: identity.snapshotPrefix, snapshotSha256: identity.snapshotSha256, character: identity.character, sceneHandle: identity.sceneHandle }, identity.result);
   const byEntity = new Map(input.entities.map((entity) => [entity.entityKey, entity]));
+  const bySource = new Map(input.sources.map((source) => [source.sourceId, source]));
   db.transaction(() => {
+    for (const identity of input.identityResults) recordPlacementIdentities(db, { runId: identity.runId, snapshotId: identity.snapshotId, snapshotPrefix: identity.snapshotPrefix, snapshotSha256: identity.snapshotSha256, character: identity.character, sceneHandle: identity.sceneHandle }, identity.result);
     insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, "compendium.normalized-output.v5", json(input.provenance)]);
     for (const source of sourceFiles) addSourceManifest(db, input.buildId, source.key, source.kind, source.ref.path, source.ref.sha256);
 
@@ -479,7 +494,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     }
     for (const placement of input.placements) {
       for (const sourceId of placement.sourceIds) {
-        const source = input.sources.find((row) => row.sourceId === sourceId);
+        const source = bySource.get(sourceId);
         if (!source) throw new Error(`Placement ${placement.placementId} references missing source ${sourceId}.`);
         insertChecked(db, "placement_sources", ["placement_id", "source_id"], ["placement_id", "source_id", "families_json", "provenance_json"], [placement.placementId, sourceId, json(source.families), json(source.provenance)]);
       }
@@ -551,6 +566,8 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
       ["exclusion_id", "build_id", "kind", "subject_key", "detail", "map_space_ids_json", "provenance_json"],
       [hash([input.buildId, exclusion.kind, exclusion.key]), input.buildId, exclusion.kind, exclusion.key, exclusion.detail, json([...exclusion.mapSpaceIds].sort()), json(exclusion.provenance)],
     );
+    for (const row of input.imagery ?? []) insertChecked(db, "imagery_assets", ["asset_id"], ["asset_id", "build_id", "map_space_id", "kind", "sha256", "bytes", "metadata_json", "provenance_json"], [row.assetId, input.buildId, row.mapSpaceId, row.kind, row.sha256, row.bytes, json(row.metadata), json(row.provenance)]);
+    for (const row of input.derivations ?? []) insertChecked(db, "fact_derivations", ["fact_kind", "fact_key"], ["fact_kind", "fact_key", "rule", "version", "inputs_json"], [row.factKind, row.factKey, row.rule, row.version, json(row.inputs)]);
     const occurrenceIssues = new Set(input.coverageOccurrences.map((occurrence) => `${occurrence.kind}\0${occurrence.subjectKey}\0${occurrence.semanticDiscriminator}`));
     for (const occurrence of input.coverageOccurrences) recordCoverageIssue(db, {
       buildId: input.buildId,
@@ -558,7 +575,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
       subjectKey: occurrence.subjectKey,
       semanticDiscriminator: occurrence.semanticDiscriminator,
       state: "unresolved",
-      runId: input.buildId,
+      runId: occurrence.runId,
       artifactHash: occurrence.artifactHash,
       sourceKey: occurrence.sourceKey,
       recordPath: occurrence.recordPath,
@@ -567,15 +584,19 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const blocker of input.blockers) {
       if (occurrenceIssues.has(`${blocker.kind}\0${blocker.key}\0`)) continue;
       const provenance = blocker.provenance[0];
-      recordCoverageIssue(db, {
+      if (!provenance) throw new Error(`Coverage issue ${blocker.kind}:${blocker.key} has no evidence identity.`);
+      const sourceRunIds = new Set(blocker.provenance.flatMap((reference) => input.sourceRunIds?.[reference.sha256] ?? []));
+      if (sourceRunIds.size === 0 && input.sourceRunId) sourceRunIds.add(input.sourceRunId);
+      if (sourceRunIds.size === 0) throw new Error(`Coverage issue ${blocker.kind}:${blocker.key} has no source run identity.`);
+      for (const sourceRunId of sourceRunIds) recordCoverageIssue(db, {
         buildId: input.buildId,
         kind: blocker.kind,
         subjectKey: blocker.key,
         semanticDiscriminator: "",
         state: "unresolved",
-        runId: input.buildId,
-        artifactHash: provenance?.sha256 ?? "0".repeat(64),
-        sourceKey: provenance?.path ?? "normalized-input",
+        runId: sourceRunId,
+        artifactHash: provenance.sha256,
+        sourceKey: provenance.path,
         recordPath: blocker.key,
         evidence: { detail: blocker.detail, provenance: blocker.provenance },
       });

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { CompendiumConfig } from "@afallon/contracts";
 
@@ -28,13 +28,20 @@ export async function buildIdentity(config: CompendiumConfig) {
   return { buildId: buildIds[0]![1]!, inputHashes };
 }
 
-// The revision is read from the repository files, not from a git process: once sharp has run in
-// this process, Bun 1.3 child processes return no output, and the tests exercise that path.
+// Read Git metadata directly; revision lookup does not require a child process.
 export async function toolRevision(): Promise<string> {
-  const gitDirectory = resolve(import.meta.dir, "..", "..", "..", ".git");
+  const gitEntry = resolve(import.meta.dir, "..", "..", "..", ".git");
+  let gitDirectory = gitEntry;
+  if ((await stat(gitEntry)).isFile()) {
+    const pointer = (await readFile(gitEntry, "utf8")).trim();
+    if (!pointer.startsWith("gitdir: ")) throw new Error("The repository Git pointer is invalid.");
+    gitDirectory = resolve(dirname(gitEntry), pointer.slice("gitdir: ".length));
+  }
   const head = (await readFile(resolve(gitDirectory, "HEAD"), "utf8")).trim();
   const reference = head.startsWith("ref: ") ? head.slice("ref: ".length) : null;
-  const revision = reference === null ? head : await resolveReference(gitDirectory, reference);
+  const commonFile = Bun.file(resolve(gitDirectory, "commondir"));
+  const referenceDirectory = await commonFile.exists() ? resolve(gitDirectory, (await commonFile.text()).trim()) : gitDirectory;
+  const revision = reference === null ? head : await resolveReference(referenceDirectory, reference);
   if (!/^[0-9a-f]{40}$/.test(revision)) throw new Error("Cannot identify the tool repository revision.");
   return revision;
 }

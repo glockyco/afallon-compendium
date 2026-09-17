@@ -1,4 +1,5 @@
 import { Type, type Static } from "typebox";
+import { ContentIdentitySchema } from "../lifecycle";
 
 const text = Type.String({ minLength: 1 });
 const integer = Type.Integer();
@@ -121,20 +122,28 @@ export const CaptureCleanupSchema = Type.Object({
 });
 export type CaptureCleanup = Static<typeof CaptureCleanupSchema>;
 
-const sweepArtifactReference = Type.Object({ path: text, bytes: count, sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }) });
+export const CaptureArtifactSchema = Type.Object({ name: text, content: ContentIdentitySchema }, { additionalProperties: false });
+export type CaptureArtifact = Static<typeof CaptureArtifactSchema>;
+export const CaptureSweepCleanupSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.capture-sweep-cleanup.v1"),
+  runId: text, ownerToken: text,
+  planRunIds: Type.Array(text, { minItems: 1 }),
+  finalScene: Type.Object({ nativeId: count, path: text }),
+  sceneTransitions: Type.Array(CaptureArtifactSchema),
+  runtimeCleanup: CaptureArtifactSchema,
+}, { additionalProperties: false });
+export type CaptureSweepCleanup = Static<typeof CaptureSweepCleanupSchema>;
 export const CaptureSweepSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-sweep.v3"),
-  runId: text,
-  ownerToken: text,
+  schemaVersion: Type.Literal("compendium.capture-sweep.v4"),
+  runId: text, ownerToken: text,
   finalScene: Type.Object({ nativeId: count, path: text }),
   plans: Type.Array(Type.Object({
-    runId: text, manifestPath: text, manifestSha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
+    runId: text, manifest: ContentIdentitySchema,
     sceneNativeId: count, scenePath: text, mapSpaceId: text,
   }), { minItems: 1 }),
-  sceneTransitions: Type.Array(sweepArtifactReference, { minItems: 1 }),
-  runtimeCleanup: sweepArtifactReference,
+  cleanup: ContentIdentitySchema,
   completed: Type.Literal(true),
-});
+}, { additionalProperties: false });
 export type CaptureSweep = Static<typeof CaptureSweepSchema>;
 
 const geometryBounds = Type.Object({ center: vector, size: vector });
@@ -177,9 +186,9 @@ export const CaptureGeometrySchema = Type.Object({
 });
 export type CaptureGeometry = Static<typeof CaptureGeometrySchema>;
 export const CaptureReadinessSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-readiness.v5"),
+  schemaVersion: Type.Literal("compendium.capture-readiness.v6"),
   tileId: text, ownerToken: text, sceneNativeId: count, sceneHandle: integer,
-  inventoryPath: text, inventorySha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
+  inventory: ContentIdentitySchema, context: ContentIdentitySchema,
   observedFrames: Type.Array(count, { minItems: 2 }), stableFrames: count, settleFrames: count,
   requiredSources: count, excludedSources: count, empty: Type.Boolean(),
   captureFrame: frame,
@@ -187,7 +196,7 @@ export const CaptureReadinessSchema = Type.Object({
 });
 export type CaptureReadiness = Static<typeof CaptureReadinessSchema>;
 
-const artifactReference = Type.Object({ path: text, bytes: count, sha256 });
+const artifactReference = CaptureArtifactSchema;
 const uuid = Type.String({ pattern: "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$" });
 const captureTileOrigin = Type.Object({ runId: uuid, ownerToken: uuid, captureKey: text });
 const captureTileArtifacts = Type.Object({
@@ -196,9 +205,10 @@ const captureTileArtifacts = Type.Object({
   readiness: artifactReference,
   restoration: artifactReference,
   nativeContext: Type.Array(artifactReference, { minItems: 1 }),
+  cleanup: Type.Optional(Type.Object({ capture: ContentIdentitySchema, sweep: ContentIdentitySchema })),
 });
 export const CaptureTileCheckpointSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-tile-checkpoint.v1"),
+  schemaVersion: Type.Literal("compendium.capture-tile-checkpoint.v2"),
   tileId: text,
   compatibilityKey: sha256,
   artifacts: captureTileArtifacts,
@@ -214,7 +224,7 @@ const captureSetTile = Type.Object({
   origin: captureTileOrigin,
 });
 export const CaptureSetSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.capture-set.v3"),
+  schemaVersion: Type.Literal("compendium.capture-set.v4"),
   buildId: text,
   sceneNativeId: count,
   scenePath: text,
@@ -228,3 +238,12 @@ export const CaptureSetSchema = Type.Object({
   completeImagery: Type.Literal(false),
 });
 export type CaptureSet = Static<typeof CaptureSetSchema>;
+
+export const CaptureChunkOutcomesSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.capture-outcomes.v1"),
+  tiles: Type.Array(Type.Union([
+    Type.Object({ tileId: text, state: Type.Union([Type.Literal("captured"), Type.Literal("verified-empty")]), checkpoint: ContentIdentitySchema }, { additionalProperties: false }),
+    Type.Object({ tileId: text, state: Type.Literal("failed"), error: text }, { additionalProperties: false }),
+  ]), { minItems: 1 }),
+}, { additionalProperties: false });
+export type CaptureChunkOutcomes = Static<typeof CaptureChunkOutcomesSchema>;

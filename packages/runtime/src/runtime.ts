@@ -9,6 +9,7 @@ import type { Static, TSchema } from "typebox";
 import { Assert } from "typebox/value";
 import { RuntimeCleanupReceiptSchema, type CompendiumConfig, type RuntimeCleanupReceipt } from "@afallon/contracts";
 import type { ProbeBundle, ProbeResult } from "./probes";
+import ownerSource from "./probes/runtime-owner.csx" with { type: "text" };
 
 async function deadline<T>(operation: Promise<T>, milliseconds: number, expire: () => void): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
@@ -57,7 +58,6 @@ export async function withRuntime<T>(config: CompendiumConfig, operation: (runti
   process.once("SIGINT", onInterrupt);
   process.once("SIGTERM", onTerminate);
   try {
-    const ownerSource = await readFile(resolve(import.meta.dir, "probes/runtime-owner.csx"), "utf8");
     const ownerToken = randomUUID();
     const receiptPath = resolve(config.outputRoot, ".runtime", `${ownerToken}.json`);
     await mkdir(dirname(receiptPath), { recursive: true });
@@ -106,7 +106,7 @@ export async function withRuntime<T>(config: CompendiumConfig, operation: (runti
 }
 
 export interface ProbeOptions {
-  readonly preludeFile?: string;
+  readonly prelude?: string;
   readonly parameters?: Record<string, unknown>;
   readonly captureContext?: boolean;
   readonly timeoutMs?: number;
@@ -304,9 +304,7 @@ export class Runtime {
   // seconds once per session, so it gets its own deadline instead of the per-call one.
   private static readonly COMPILE_TIMEOUT_MS = 120000;
 
-  async compileProbe(sourceFile: string, preludeFile?: string, context = ""): Promise<void> {
-    const body = await readFile(sourceFile, "utf8");
-    const prelude = preludeFile === undefined ? "" : await readFile(preludeFile, "utf8");
+  async compileProbe(body: string, prelude = "", context = ""): Promise<void> {
     await this.evaluateOwned(`new System.Func<object>(() => {
       ${context}
       var args = new Newtonsoft.Json.Linq.JObject();
@@ -325,22 +323,21 @@ export class Runtime {
   // frame-local cleanup registrars, so the cached body behaves exactly as an inline one.
   private readonly compiledProbes = new Set<string>();
 
-  async probe(sourceFile: string, outputFile: string, options: ProbeOptions = {}): Promise<{ reference: ArtifactRef; value: unknown; observationContext?: unknown }> {
-    const body = await readFile(sourceFile, "utf8");
-    const prelude = options.preludeFile ? await readFile(options.preludeFile, "utf8") : "";
+  async probe(body: string, outputFile: string, options: ProbeOptions = {}): Promise<{ reference: ArtifactRef; value: unknown; observationContext?: unknown }> {
+    const prelude = options.prelude ?? "";
     const probeKey = createHash("sha256").update(JSON.stringify([prelude, body, options.captureContext === true, this.config.character])).digest("hex");
     const result = await this.executeProbe(`${prelude}\n${body}`, probeKey, outputFile, options);
     return { reference: result.reference, value: result.value, observationContext: result.observationContext };
   }
 
-  async runProbe<T extends TSchema>(bundle: ProbeBundle<T>, outputFile: string, options: Omit<ProbeOptions, "preludeFile"> = {}): Promise<ProbeResult<T>> {
+  async runProbe<T extends TSchema>(bundle: ProbeBundle<T>, outputFile: string, options: Omit<ProbeOptions, "prelude"> = {}): Promise<ProbeResult<T>> {
     const probeKey = createHash("sha256").update(JSON.stringify([bundle.sha256, options.captureContext === true, this.config.character])).digest("hex");
     const result = await this.executeProbe<Static<T>>(bundle.source, probeKey, outputFile, options);
     Assert(bundle.schema, result.value);
     return { ...result, bundleSha256: bundle.sha256 };
   }
 
-  private async executeProbe<T = unknown>(source: string, probeKey: string, outputFile: string, options: Omit<ProbeOptions, "preludeFile">): Promise<ProbeExecution<T>> {
+  private async executeProbe<T = unknown>(source: string, probeKey: string, outputFile: string, options: Omit<ProbeOptions, "prelude">): Promise<ProbeExecution<T>> {
     const output = await toRuntimePath(this.config, outputFile);
     const captureContext = options.captureContext === true;
     const delegateType = "System.Func<string, string, System.Action<System.Action>, System.Func<System.Action, System.Action>, System.Func<System.Func<bool>, System.Action>, object>";

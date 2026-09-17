@@ -1,4 +1,4 @@
-import type { PublicWorldOffset, PublicationData } from '@afallon/contracts/public';
+import type { PublicPlacement, PublicWorldOffset, PublicationData } from '@afallon/contracts/public';
 
 export type WorldOffsetOverride = { worldX: number; worldY: number };
 export type WorldOffsetOverrides = Record<string, WorldOffsetOverride>;
@@ -57,6 +57,30 @@ export function worldOffsetDelta(
 ): WorldOffsetOverride {
   const effective = effectiveWorldOffset(offset, overrides);
   return { worldX: effective.worldX - offset.worldX, worldY: effective.worldY - offset.worldY };
+}
+
+const offsetIndexes = new WeakMap<PublicationData['world'], ReadonlyMap<string, PublicWorldOffset>>();
+export const NO_WORLD_OVERRIDES: WorldOffsetOverrides = Object.freeze({});
+
+export function effectiveMapDelta(data: PublicationData, mapSpaceId: string, overrides: WorldOffsetOverrides): WorldOffsetOverride {
+  let index = offsetIndexes.get(data.world);
+  if (!index) {
+    index = new Map(data.world.offsets.map((offset) => [offset.mapSpaceId, offset]));
+    offsetIndexes.set(data.world, index);
+  }
+  const base = index.get(mapSpaceId);
+  return base ? worldOffsetDelta(base, overrides) : { worldX: 0, worldY: 0 };
+}
+
+export function effectivePlacementPosition(data: PublicationData, placement: PublicPlacement, overrides: WorldOffsetOverrides): readonly [number, number] {
+  const delta = effectiveMapDelta(data, placement.mapSpaceId, overrides);
+  return [placement.position[0] + delta.worldX, placement.position[1] + delta.worldY];
+}
+
+export function placementInViewport(data: PublicationData, placement: PublicPlacement, overrides: WorldOffsetOverrides, bounds: readonly [number, number, number, number] | null): boolean {
+  if (!bounds) return true;
+  const [x, y] = effectivePlacementPosition(data, placement, overrides);
+  return x >= bounds[0] && x <= bounds[2] && y >= bounds[1] && y <= bounds[3];
 }
 
 export function exportWorldOffsets(

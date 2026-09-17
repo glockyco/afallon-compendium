@@ -12,8 +12,8 @@ import { markerColor, createPlacementIconLayer } from "./map/layers/markers";
 import { createMovementLayers, type MovementGeometry, type MovementPath, type MovementRadius } from "./map/layers/movement";
 import { createRegionLayers, type RegionRecord } from "./map/layers/regions";
 import { MAP_EVENT_RECOGNIZER_OPTIONS, MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from "./map/interaction";
-import { MARKER_LAYER_ID, markerFor, resolveMarker, type MarkerId } from "./map/marker-registry";
-import { WorldDragController, type WorldOffsetOverrides, worldOffsetDelta } from "./map/world-layout";
+import { markerFor, resolveMarker, type MarkerId } from "./map/marker-registry";
+import { WorldDragController, type WorldOffsetOverrides, effectiveMapDelta } from "./map/world-layout";
 import { PolygonLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { PublicPlacement,
 PublicRegion,
@@ -44,7 +44,6 @@ export type MapAdapterUpdate = {
 
 type Point = [number, number];
 type Bounds = [number, number, number, number];
-type BitmapBounds = [Point, Point, Point, Point];
 
 export type MarkerRecord = {
   placementId: string;
@@ -111,15 +110,8 @@ function normalizeView(view: MapViewState | ViewInput | undefined, fallback: Map
   };
 }
 
-function mapOffsetDelta(data: PublicationData, mapSpaceId: string, overrides: WorldOffsetOverrides): { worldX: number; worldY: number } {
-  const base = data.world.offsets.find((offset) => offset.mapSpaceId === mapSpaceId);
-  return base ? worldOffsetDelta(base, overrides) : { worldX: 0, worldY: 0 };
-}
-
-function placementSignature(placements: readonly PublicPlacement[]): string {
-  return placements
-    .map((placement) => `${placement.placementId}:${placement.position[0]},${placement.position[1]}:${placement.categories.join(",")}:${placement.levelRange?.min ?? ""}-${placement.levelRange?.max ?? ""}`)
-    .join("\u001f");
+function sameValues<T>(left: readonly T[], right: readonly T[]): boolean {
+  return left === right || (left.length === right.length && left.every((value, index) => value === right[index]));
 }
 
 function validPlacement(placement: PublicPlacement): boolean {
@@ -134,7 +126,7 @@ function buildMarkers(placements: readonly PublicPlacement[], data: PublicationD
     const markerId = resolveMarker({categories});
     if (!markerId) continue;
     const position = point(placement.position)!;
-    const delta = data ? mapOffsetDelta(data, placement.mapSpaceId, overrides) : { worldX: 0, worldY: 0 };
+    const delta = data ? effectiveMapDelta(data, placement.mapSpaceId, overrides) : { worldX: 0, worldY: 0 };
     byId.set(placement.placementId, {
       placementId: placement.placementId,
       mapSpaceId: placement.mapSpaceId,
@@ -143,8 +135,8 @@ function buildMarkers(placements: readonly PublicPlacement[], data: PublicationD
       categories: [...categories],
       markerId,
       members: [placement.placementId],
-      enabled: placement.travel?.enabled ?? true,
-      isTravel: placement.travel !== undefined,
+      enabled: placement.travelEnabled ?? true,
+      isTravel: placement.travelEnabled !== undefined,
     });
   }
   return [...byId.values()].sort((left, right) => markerFor(left.markerId).renderOrder - markerFor(right.markerId).renderOrder || left.placementId.localeCompare(right.placementId));
@@ -196,13 +188,9 @@ function createHighlightLayers(
   ];
 }
 
-function regionSignature(regions: readonly PublicRegion[]): string {
-  return regions.map((region) => `${region.id}:${region.mapSpaceId}:${region.shape}:${region.name}:${region.polygon.map(([x, y]) => `${x},${y}`).join(";")}`).join("\u001f");
-}
-
 function buildRegions(regions: readonly PublicRegion[], data: PublicationData, overrides: WorldOffsetOverrides): RegionRecord[] {
   return regions.map((region) => {
-    const delta = mapOffsetDelta(data, region.mapSpaceId, overrides);
+    const delta = effectiveMapDelta(data, region.mapSpaceId, overrides);
     return {
       id: region.id,
       mapSpaceId: region.mapSpaceId,
@@ -219,7 +207,7 @@ function buildAreas(placements: readonly PublicPlacement[], data: PublicationDat
     for (let index = 0; index < placement.areas.length; index++) {
       const source = placement.areas[index];
       if (!source) continue;
-      const delta = data ? mapOffsetDelta(data, placement.mapSpaceId, overrides) : { worldX: 0, worldY: 0 };
+      const delta = data ? effectiveMapDelta(data, placement.mapSpaceId, overrides) : { worldX: 0, worldY: 0 };
       const polygon = source
         .map(value => point(value))
         .filter((value): value is Point => value !== null)
@@ -245,7 +233,7 @@ function buildMovementGeometry(placements: readonly PublicPlacement[], data: Pub
   const radii: MovementRadius[] = [];
   const seen = new Set<string>();
   for (const placement of placements) {
-    const delta = mapOffsetDelta(data, placement.mapSpaceId, overrides);
+    const delta = effectiveMapDelta(data, placement.mapSpaceId, overrides);
     const placementCenter = point(placement.position);
     for (let movementIndex = 0; movementIndex < placement.movement.length; movementIndex++) {
       const movement = placement.movement[movementIndex]!;
@@ -380,16 +368,18 @@ export async function createMapAdapter(
   let missingLayerWarningKey: string | null = null;
   let viewSpaceKey: string | null = null;
   const viewsBySpace = new Map<string, MapViewState>();
-  let offsetGeometryKey = "";
-  let geometryKey = "";
-  let basePlacementKey = "";
+  let previousUpdate: MapAdapterUpdate | null = null;
+  let worldBounds: WorldMapBounds[] = [];
+  let worldLabels: { label: string; position: Point }[] = [];
   let baseMarkers: MarkerRecord[] = [];
+  let markerByPlacement = new Map<string, MarkerRecord>();
+  let stacks: readonly MarkerRecord[] = [];
   let baseAreas: AreaRecord[] = [];
   let baseMovement: MovementGeometry = { paths: [], radii: [] };
   let baseRegions: RegionRecord[] = [];
-  let baseRegionKey = "";
   let renderMarkers: readonly MarkerRecord[] = [];
   let imageryLayers: Layer[] = [];
+  let imagerySource: PublicationData['tileLayers'] | null = null;
   let imageryKey = "";
   let layers: Layer[] = [];
   let pointerHoverLayers: Layer[] = [];
@@ -435,9 +425,10 @@ export async function createMapAdapter(
       // A pyramid is published in its map's local coordinates, so it moves by the whole effective
       // offset, unlike markers and bounds, which publication has already placed and which move by
       // the delta from that placement.
-      const placed = orderImageryLayers(tileLayersForView.map((tileLayer) => { const base = next.data.world.offsets.find((offset) => offset.mapSpaceId === tileLayer.mapSpaceId); const delta = mapOffsetDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets); return { tileLayer, offset: { worldX: (base?.worldX ?? 0) + delta.worldX, worldY: (base?.worldY ?? 0) + delta.worldY } }; }));
+      const placed = orderImageryLayers(tileLayersForView.map((tileLayer) => { const base = next.data.world.offsets.find((offset) => offset.mapSpaceId === tileLayer.mapSpaceId); const delta = effectiveMapDelta(next.data, tileLayer.mapSpaceId, next.worldOffsets); return { tileLayer, offset: { worldX: (base?.worldX ?? 0) + delta.worldX, worldY: (base?.worldY ?? 0) + delta.worldY } }; }));
       const key = `tiles:${next.data.buildId}:${placed.map(({ tileLayer, offset }) => `${tileLayer.id}:${offset.worldX}:${offset.worldY}`).join("|")}`;
-      if (imageryLayers.length === tileLayersForView.length && imageryKey === key) return imageryLayers;
+      if (imagerySource === next.data.tileLayers && imageryLayers.length === tileLayersForView.length && imageryKey === key) return imageryLayers;
+      imagerySource = next.data.tileLayers;
       imageryKey = key;
       imageryLayers = placed.map(({ tileLayer, offset }) => createImageryLayer(`map-imagery-${tileLayer.id}`, tileLayer, offset, loadTile, report));
       return imageryLayers;
@@ -456,7 +447,7 @@ export async function createMapAdapter(
   // the controller sees it: a synchronous pick on the bounds layer starts the drag and turns
   // the controller's pan off until the pointer is released.
   const setDragPan = (enabled: boolean): void => {
-    deck.setProps({ views: new OrthographicView({ id: VIEW_ID, flipY: false, controller: { inertia: false, dragPan: enabled, dragRotate: false } }) });
+    deck.setProps({ views: new OrthographicView({ id: VIEW_ID, flipY: false, controller: { inertia: enabled, dragPan: enabled, dragRotate: false } }) });
   };
   const unprojectPointer = (event: PointerEvent): [number, number] | null => {
     const rect = canvas.getBoundingClientRect();
@@ -474,7 +465,7 @@ export async function createMapAdapter(
     if (!object || !coordinate) return;
     if (current.data.world.offsets.find((offset) => offset.mapSpaceId === object.mapSpaceId)?.source === "native") return;
     const data = current;
-    const offsets = new Map(data.data.world.offsets.map((offset) => { const delta = mapOffsetDelta(data.data, offset.mapSpaceId, data.worldOffsets); return [offset.mapSpaceId, { worldX: offset.worldX + delta.worldX, worldY: offset.worldY + delta.worldY }] as const; }));
+    const offsets = new Map(data.data.world.offsets.map((offset) => { const delta = effectiveMapDelta(data.data, offset.mapSpaceId, data.worldOffsets); return [offset.mapSpaceId, { worldX: offset.worldX + delta.worldX, worldY: offset.worldY + delta.worldY }] as const; }));
     if (dragController.tryStart({ layerId: "world-map-bounds", mapSpaceId: object.mapSpaceId, coordinate }, true, offsets)) setDragPan(false);
   };
   const onPointerMove = (event: PointerEvent): void => {
@@ -498,47 +489,52 @@ export async function createMapAdapter(
 
   const refreshLayers = (next: MapAdapterUpdate): void => {
     const tileLayersForView = matchingTileLayers(next.data, next.layerIds);
-    // Markers, labels, and areas belong to the world, not to whichever imagery is switched on.
-    const layerKind = `tiles:${tileLayersForView.map((layer) => layer.id).join(",")}`;
-    const visiblePlacements = next.placements;
-    const activeCategories = next.categories.length > 0 ? new Set(next.categories) : null;
-    const categoryKey = [...next.categories].sort().join(",");
-    const nextPlacementKey = `${placementSignature(visiblePlacements)}\u001d${categoryKey}`;
-    const nextRegionKey = regionSignature(next.data.regions);
-    const offsetKey = Object.entries(next.worldOffsets).sort(([left], [right]) => left.localeCompare(right)).map(([mapSpaceId, offset]) => `${mapSpaceId}:${offset.worldX},${offset.worldY}`).join("|");
-    const offsetChanged = offsetKey !== offsetGeometryKey;
-    if (nextPlacementKey !== basePlacementKey || offsetChanged) {
-      basePlacementKey = nextPlacementKey;
-      offsetGeometryKey = offsetKey;
-      baseMarkers = buildMarkers(visiblePlacements, next.data, next.worldOffsets, activeCategories);
-      baseAreas = buildAreas(visiblePlacements, next.data, next.worldOffsets, activeCategories);
-      baseMovement = buildMovementGeometry(visiblePlacements, next.data, next.worldOffsets);
+    const previous = previousUpdate;
+    const offsetChanged = !previous || previous.worldOffsets !== next.worldOffsets || previous.data.world !== next.data.world;
+    const placementChanged = !previous || previous.placements !== next.placements || !sameValues(previous.categories, next.categories) || offsetChanged;
+    const regionsChanged = !previous || previous.data.regions !== next.data.regions || offsetChanged;
+    const boundsChanged = !previous || previous.data.maps !== next.data.maps || offsetChanged;
+    const imageryChanged = !previous || previous.data.tileLayers !== next.data.tileLayers || !sameValues(previous.layerIds, next.layerIds) || offsetChanged;
+    const styleChanged = !previous || previous.selectedId !== next.selectedId || !sameValues(previous.highlightedPlacementIds, next.highlightedPlacementIds) || !sameValues(previous.hoveredPlacementIds, next.hoveredPlacementIds) || previous.authoring !== next.authoring || previous.showConnections !== next.showConnections || previous.showMovement !== next.showMovement || previous.showZones !== next.showZones;
+    previousUpdate = next;
+    if (!placementChanged && !regionsChanged && !boundsChanged && !imageryChanged && !styleChanged) return;
+    if (placementChanged) {
+      const activeCategories = next.categories.length > 0 ? new Set(next.categories) : null;
+      baseMarkers = buildMarkers(next.placements, next.data, next.worldOffsets, activeCategories);
+      baseAreas = buildAreas(next.placements, next.data, next.worldOffsets, activeCategories);
+      baseMovement = buildMovementGeometry(next.placements, next.data, next.worldOffsets);
+      renderMarkers = groupCoincidentMarkers(baseMarkers);
+      stacks = renderMarkers.filter((marker) => marker.members.length > 1);
+      markerByPlacement = new Map(baseMarkers.map((marker) => [marker.placementId, marker]));
+      allConnections = [];
+      for (const placement of next.placements) {
+        if (placement.travel?.destination.status !== "resolved" || !placement.travel.destination.position || !placement.travel.destination.mapSpaceId) continue;
+        const source = markerByPlacement.get(placement.placementId);
+        if (!source) continue;
+        const delta = effectiveMapDelta(next.data, placement.travel.destination.mapSpaceId, next.worldOffsets);
+        allConnections.push({ placementId: placement.placementId, source: [source.position[0], source.position[1]], target: [placement.travel.destination.position[0] + delta.worldX, placement.travel.destination.position[1] + delta.worldY], enabled: placement.travel.enabled });
+      }
     }
-    if (nextRegionKey !== baseRegionKey || offsetChanged) {
-      baseRegionKey = nextRegionKey;
-      baseRegions = buildRegions(next.data.regions, next.data, next.worldOffsets);
+    if (regionsChanged) baseRegions = buildRegions(next.data.regions, next.data, next.worldOffsets);
+    if (boundsChanged) {
+      worldBounds = next.data.maps.map((map) => {
+        const delta = effectiveMapDelta(next.data, map.mapSpaceId, next.worldOffsets);
+        return { mapSpaceId: map.mapSpaceId, polygon: [[map.bounds.min.x + delta.worldX, map.bounds.min.y + delta.worldY], [map.bounds.min.x + delta.worldX, map.bounds.max.y + delta.worldY], [map.bounds.max.x + delta.worldX, map.bounds.max.y + delta.worldY], [map.bounds.max.x + delta.worldX, map.bounds.min.y + delta.worldY]] };
+      });
+      worldLabels = next.data.maps.map((map) => {
+        const delta = effectiveMapDelta(next.data, map.mapSpaceId, next.worldOffsets);
+        return { label: map.label, position: [(map.bounds.min.x + map.bounds.max.x) / 2 + delta.worldX, map.bounds.max.y + delta.worldY + 20] };
+      });
     }
-    const highlightedKey = [...next.highlightedPlacementIds].sort().join(",");
-    const hoveredKey = [...next.hoveredPlacementIds].sort().join(",");
     const hoveredIds = new Set(next.hoveredPlacementIds);
-    const nextGeometryKey = [next.data.buildId, [...next.layerIds].sort().join(","), layerKind, nextPlacementKey, nextRegionKey, offsetKey, next.selectedId || "", highlightedKey, hoveredKey, next.authoring ? "authoring" : "reader", next.showConnections ? "connections" : "no-connections", next.showMovement ? "movement" : "no-movement", next.showZones ? "zones" : "no-zones"].join("\u001e");
-    if (nextGeometryKey === geometryKey) return;
-    geometryKey = nextGeometryKey;
-
-    const imageLayers = createImagery(next, tileLayersForView);
+    const imageLayers = imageryChanged ? createImagery(next, tileLayersForView) : imageryLayers;
     // Travel markers are a category like any other; the connections toggle draws only the lines.
-    const visibleMarkers = baseMarkers;
-    renderMarkers = groupCoincidentMarkers(visibleMarkers);
-    const markerByPlacement = new Map(baseMarkers.map((marker) => [marker.placementId, marker]));
     // Ground that a map space declares but no capture has photographed yet must read as
     // absent imagery, not as the void outside every map. Without this fill, a tile still
     // loading and a tile that will never exist look identical.
     const backgroundLayer = new PolygonLayer<WorldMapBounds>({
       id: "map-space-background",
-      data: next.data.maps.map((map) => {
-        const delta = mapOffsetDelta(next.data, map.mapSpaceId, next.worldOffsets);
-        return { mapSpaceId: map.mapSpaceId, polygon: [[map.bounds.min.x + delta.worldX, map.bounds.min.y + delta.worldY], [map.bounds.min.x + delta.worldX, map.bounds.max.y + delta.worldY], [map.bounds.max.x + delta.worldX, map.bounds.max.y + delta.worldY], [map.bounds.max.x + delta.worldX, map.bounds.min.y + delta.worldY]] };
-      }),
+      data: worldBounds,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       pickable: false,
       stroked: false,
@@ -548,10 +544,7 @@ export async function createMapAdapter(
     });
     const boundsLayer = new PolygonLayer<WorldMapBounds>({
       id: "world-map-bounds",
-      data: next.data.maps.map((map) => {
-        const delta = mapOffsetDelta(next.data, map.mapSpaceId, next.worldOffsets);
-        return { mapSpaceId: map.mapSpaceId, polygon: [[map.bounds.min.x + delta.worldX, map.bounds.min.y + delta.worldY], [map.bounds.min.x + delta.worldX, map.bounds.max.y + delta.worldY], [map.bounds.max.x + delta.worldX, map.bounds.max.y + delta.worldY], [map.bounds.max.x + delta.worldX, map.bounds.min.y + delta.worldY]] };
-      }),
+      data: worldBounds,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       pickable: next.authoring,
       stroked: true,
@@ -566,16 +559,7 @@ export async function createMapAdapter(
     });
     const mapLabelLayer = new TextLayer({
       id: "map-space-labels",
-      data: next.data.maps.map((map) => {
-        const delta = mapOffsetDelta(next.data, map.mapSpaceId, next.worldOffsets);
-        return {
-          label: map.label,
-          position: [
-            (map.bounds.min.x + map.bounds.max.x) / 2 + delta.worldX,
-            map.bounds.max.y + delta.worldY + 20,
-          ],
-        };
-      }),
+      data: worldLabels,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       pickable: false,
       getPosition: (map: {position: Point}) => map.position,
@@ -628,27 +612,16 @@ export async function createMapAdapter(
       getLineColor: area => area.placementId === next.selectedId ? [255, 196, 0, 255] : [28, 28, 28, 230],
       getLineWidth: area => area.placementId === next.selectedId ? 4 : hoveredIds.has(area.placementId) ? 3 : 1,
       lineWidthUnits: "pixels",
-      updateTriggers: {getFillColor: [next.selectedId, hoveredKey, offsetKey], getLineColor: [next.selectedId], getLineWidth: [next.selectedId, hoveredKey]},
+      updateTriggers: {getFillColor: [next.selectedId, next.hoveredPlacementIds], getLineColor: [next.selectedId], getLineWidth: [next.selectedId, next.hoveredPlacementIds]},
       onClick: (info: PickingInfo) => {
         const id = pickedPlacementId(info);
         if (id) callbacks.onSelect(id);
       },
     });
-    const connectionData: TravelConnection[] = [];
-    for (const placement of next.placements) {
-      if (placement.travel?.destination.status !== "resolved" || !placement.travel.destination.position || !placement.travel.destination.mapSpaceId) continue;
-      const source = markerByPlacement.get(placement.placementId);
-      if (!source) continue;
-      const targetDelta = mapOffsetDelta(next.data, placement.travel.destination.mapSpaceId, next.worldOffsets);
-      connectionData.push({ placementId: placement.placementId, source: [source.position[0], source.position[1]], target: [placement.travel.destination.position[0] + targetDelta.worldX, placement.travel.destination.position[1] + targetDelta.worldY], enabled: placement.travel.enabled });
-    }
     const hoveredConnectionIds = new Set(next.hoveredPlacementIds);
-    // With the option off, only the selected and hovered markers show their lines; the pointer
-    // hover adds its own line in handleHover.
-    allConnections = connectionData;
-    const focusedConnections = next.showConnections || next.authoring ? connectionData : connectionData.filter((connection) => connection.placementId === next.selectedId || hoveredConnectionIds.has(connection.placementId));
+    // The disabled option still permits lines for the selected or hovered marker.
+    const focusedConnections = next.showConnections || next.authoring ? allConnections : allConnections.filter((connection) => connection.placementId === next.selectedId || hoveredConnectionIds.has(connection.placementId));
     const connectionLayers = createConnectionLayers(focusedConnections, next.selectedId, hoveredConnectionIds);
-    const stacks = renderMarkers.filter((marker) => marker.members.length > 1);
     // Every marker draws as its own icon. A stack of placements at one position selects
     // the next member on each click, so a hidden member is still reachable.
     const selectStacked = (placementId: string) => {
@@ -718,7 +691,7 @@ export async function createMapAdapter(
     views: new OrthographicView({
       id: VIEW_ID,
       flipY: false,
-      controller: {inertia: false, dragRotate: false},
+      controller: {inertia: true, dragRotate: false},
     }),
     viewState: {...activeView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM},
     eventRecognizerOptions: MAP_EVENT_RECOGNIZER_OPTIONS,
@@ -742,8 +715,9 @@ export async function createMapAdapter(
     onError: error => report(`Map rendering error: ${textFromError(error)}`),
   });
 
-  const handleHover = (placementId: string | null): void => {
-    if (placementId === lastPickedId) return;
+  const handleHover = (placementId: string | null, refresh = false): void => {
+    const changed = placementId !== lastPickedId;
+    if (!changed && !refresh) return;
     lastPickedId = placementId;
     const marker = placementId ? renderMarkers.find(candidate => candidate.members.includes(placementId)) : null;
     pointerHoverLayers = marker
@@ -761,7 +735,7 @@ export async function createMapAdapter(
       pointerHoverLayers.push(...createMovementLayers("pointer-hover-movement", hoveredMovement, new Set(), memberIds, false, callbacks.onSelect));
     }
     deck.setProps({layers: [...layers, ...pointerHoverLayers]});
-    callbacks.onHover(placementId);
+    if (changed) callbacks.onHover(placementId);
   };
 
   let notifiedBounds: Bounds | null = null;
@@ -816,7 +790,7 @@ export async function createMapAdapter(
       else viewsBySpace.set(nextViewSpaceKey, activeView);
     }
     refreshLayers(next);
-    deck.setProps({layers: [...layers, ...pointerHoverLayers]});
+    handleHover(lastPickedId, true);
     notifyView();
   };
 

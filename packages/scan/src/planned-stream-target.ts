@@ -20,26 +20,32 @@ export class PlannedStreamTargetController implements StreamedSourceVisitor {
 
   async visit(target: ScanStreamedSourceTarget, _started: RuntimeScanState, outputDirectory: string, collect: () => Promise<void>): Promise<ScanTargetExecution> {
     let execution: ScanTargetExecution | null = null;
-    await this.sceneController.visit(target.sceneNativeId, outputDirectory, async () => {
+    const parentExecution = await this.sceneController.visit(target.sceneNativeId, outputDirectory, async () => {
       const parentState = await this.stateReader.read(resolve(outputDirectory, "stream-parent-state.json"));
       const snapshot = (await this.runtime.runProbe(this.placementBundle, resolve(outputDirectory, "stream-binding-snapshot.json"), {
         parameters: { researchCharacter: this.character },
         captureContext: true,
       })).value;
       Assert(PlacementSnapshotSchema, snapshot);
-      const source = this.inventory.addressableSources.find(candidate => candidate.sourceKey === target.sourceKey && "scene" in candidate.owner && candidate.owner.scene.currentGameSceneNativeId === target.sceneNativeId);
-      const assetGuid = source !== undefined && "assetGuid" in source ? source.assetGuid : target.sourceKey;
-      const stream = snapshot.streams.find(candidate => candidate.assetGuid === assetGuid);
+      const sources = this.inventory.addressableSources.filter(candidate => candidate.sourceKey === target.sourceKey && "scene" in candidate.owner && candidate.owner.scene.currentGameSceneNativeId === target.sceneNativeId);
+      const source = sources.length === 1 ? sources[0] : undefined;
+      const assetGuid = source !== undefined && "assetGuid" in source ? source.assetGuid : null;
+      const streams = assetGuid === null ? [] : snapshot.streams.filter(candidate => candidate.assetGuid === assetGuid);
+      const stream = streams.length === 1 ? streams[0] : undefined;
       const controller = new StreamTargetController(this.runtime, this.streamBundle, this.character, this.timeoutMs, {
         sceneNativeId: target.sceneNativeId,
         sourceKey: target.sourceKey,
         loaderInstanceId: stream?.componentInstanceId ?? null,
         assetGuid,
         runtimeKey: source !== undefined && "runtimeKey" in source ? source.runtimeKey : null,
-        discoveryDisposition: source?.disposition ?? "not found in world inventory",
+        discoveryDisposition: source === undefined ? `inventory source is absent or ambiguous (${sources.length} records)` : streams.length !== 1 ? `live loader binding is absent or ambiguous (${streams.length} matches)` : source.disposition,
       });
       execution = await controller.visit(target, parentState, outputDirectory, collect);
     });
+    if (parentExecution !== undefined && parentExecution.outcome !== "succeeded") return {
+      ...parentExecution,
+      sourceEvidence: { sceneNativeId: target.sceneNativeId, sourceKey: target.sourceKey, loaderInstanceId: null, assetGuid: null, runtimeKey: null, disposition: parentExecution.outcome, detail: "The parent scene did not remain loaded for source collection." },
+    };
     if (execution === null) throw new Error(`Stream source ${JSON.stringify(target.sourceKey)} produced no execution result.`);
     return execution;
   }

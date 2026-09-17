@@ -21,3 +21,6 @@ schemaRegistry.register("compendium.world-offsets.v1", WorldOffsetsSchema);
 
 export * from "./map";
 export * from "./reviewed";
+export * from "./map-spaces";
+export * from "./map-regions";
+export * from "./map-calibration";
