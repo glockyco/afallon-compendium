@@ -20,9 +20,11 @@
 
   $: facetOptions = Object.fromEntries(kind.facets.map((facet) => [facet.id, [...new Set(list.rows.flatMap((row) => row.facets[facet.id] ?? []))].sort((left, right) => left.localeCompare(right))]));
   $: numericColumns = kind.columns.filter((column) => column.numeric);
-  $: filteredRows = list.rows.filter(matchesFilters).sort(compareRows);
   $: incomingSearch = browser ? $page.url.search : '';
   $: if (browser && incomingSearch !== currentSearch) readUrl($page.url);
+  $: filteredRows = list.rows
+    .filter((row) => matchesFilters(row, nameFilter, facetValues, minimums, maximums))
+    .sort((left, right) => compareRows(left, right, sortId, direction));
 
   function readUrl(url: URL): void {
     currentSearch = url.search;
@@ -35,31 +37,42 @@
     maximums = Object.fromEntries(numericColumns.map((column) => [column.id, url.searchParams.get(`max.${column.id}`) ?? '']));
   }
 
-  function matchesFilters(row: ListRow): boolean {
-    const needle = nameFilter.trim().toLocaleLowerCase();
+  function matchesFilters(
+    row: ListRow,
+    filter: string,
+    selectedFacets: Record<string, string[]>,
+    selectedMinimums: Record<string, string>,
+    selectedMaximums: Record<string, string>,
+  ): boolean {
+    const needle = filter.trim().toLocaleLowerCase();
     if (needle && !row.ref.name.toLocaleLowerCase().includes(needle)) return false;
     for (const facet of kind.facets) {
-      const selected = facetValues[facet.id] ?? [];
+      const selected = selectedFacets[facet.id] ?? [];
       if (selected.length && !selected.some((value) => (row.facets[facet.id] ?? []).includes(value))) return false;
     }
     for (const column of numericColumns) {
       const value = row.values[column.id];
-      const minimum = minimums[column.id] ? Number(minimums[column.id]) : undefined;
-      const maximum = maximums[column.id] ? Number(maximums[column.id]) : undefined;
+      const minimum = selectedMinimums[column.id] ? Number(selectedMinimums[column.id]) : undefined;
+      const maximum = selectedMaximums[column.id] ? Number(selectedMaximums[column.id]) : undefined;
       if (minimum !== undefined && (typeof value !== 'number' || value < minimum)) return false;
       if (maximum !== undefined && (typeof value !== 'number' || value > maximum)) return false;
     }
     return true;
   }
 
-  function compareRows(left: ListRow, right: ListRow): number {
-    const leftValue = sortId === 'name' ? left.ref.name : left.values[sortId];
-    const rightValue = sortId === 'name' ? right.ref.name : right.values[sortId];
+  function compareRows(
+    left: ListRow,
+    right: ListRow,
+    activeSort: string,
+    activeDirection: 'asc' | 'desc',
+  ): number {
+    const leftValue = activeSort === 'name' ? left.ref.name : left.values[activeSort];
+    const rightValue = activeSort === 'name' ? right.ref.name : right.values[activeSort];
     let comparison = 0;
     if (typeof leftValue === 'number' && typeof rightValue === 'number') comparison = leftValue - rightValue;
     else comparison = String(leftValue ?? '').localeCompare(String(rightValue ?? ''), undefined, { numeric: true });
     if (comparison === 0) comparison = left.ref.name.localeCompare(right.ref.name);
-    return direction === 'asc' ? comparison : -comparison;
+    return activeDirection === 'asc' ? comparison : -comparison;
   }
 
   function writeUrl(history: 'push' | 'replace'): void {
