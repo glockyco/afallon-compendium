@@ -7,6 +7,7 @@ import {
   RelationshipsSchema,
   SupportSchema,
 } from "./database";
+import { ArtworkSchema } from "./artwork";
 import { FactionRolesSchema } from "./faction-roles";
 import { NpcProducersSchema } from "./npc-producers";
 import { AddressableGraphSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, SceneSourceIssuesSchema, SerializedAssetIndexSchema } from "./placement";
@@ -18,6 +19,7 @@ schemaRegistry.register("compendium.observation-context.v1", ObservationContextS
 schemaRegistry.register("compendium.canonical.v4", CanonicalSchema);
 schemaRegistry.register("compendium.localization.v1", LocalizationSchema);
 schemaRegistry.register("compendium.support.v1", SupportSchema);
+schemaRegistry.register("compendium.artwork.v1", ArtworkSchema);
 schemaRegistry.register("compendium.relationships.v1", RelationshipsSchema);
 schemaRegistry.register("compendium.loot-rules.v1", LootRulesSchema);
 schemaRegistry.register("compendium.faction-roles.v1", FactionRolesSchema);
@@ -43,6 +45,7 @@ schemaRegistry.register("compendium.stream-cleanup.v1", StreamCleanupSchema);
 schemaRegistry.register("compendium.world-inventory.v2", WorldInventorySchema);
 schemaRegistry.register("compendium.world-sources.v7", WorldSourcesSchema);
 
+export * from "./artwork";
 export * from "./database";
 export * from "./faction-roles";
 export * from "./npc-producers";
