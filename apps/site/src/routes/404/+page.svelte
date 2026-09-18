@@ -1,5 +1,3 @@
-<script lang="ts">import { base } from '$app/paths';</script>
-
 <svelte:head>
   <title>Page not found · Afallon Compendium</title>
   <meta name="description" content="This address does not match a page in the Afallon Compendium." />
@@ -10,7 +8,7 @@
   <p class="eyebrow">Error 404</p>
   <h1>Page not found</h1>
   <p>This address does not match a page in the current Afallon publication.</p>
-  <nav><a href={`${base}/items/`}>Browse the compendium</a><a href={`${base}/?q=`}>Search the atlas</a></nav>
+  <nav><a href="https://afallon.compendiums.org/items/">Browse the compendium</a><a href="https://afallon.compendiums.org/?q=">Search the atlas</a></nav>
 </main>
 
 <style>
