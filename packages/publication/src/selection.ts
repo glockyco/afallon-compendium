@@ -25,7 +25,7 @@ export async function verifyPublicationGraph(
 ): Promise<VerifiedPublicationGraph> {
   if (!gate.accepted) throw new Error("Publication candidate failed its catalog gate.");
   verifyReference(rootResource.reference, rootResource.identity);
-  if (rootResource.reference.schemaId !== "compendium.static-root.v2") throw new Error("Publication root reference has the wrong schema.");
+  if (rootResource.reference.schemaId !== "compendium.static-root.v3") throw new Error("Publication root reference has the wrong schema.");
   await store.verify(rootResource.identity);
   const root: unknown = JSON.parse(await readFile(store.objectPath(rootResource.identity.sha256), "utf8"));
   Assert(StaticRootManifestSchema, root);
