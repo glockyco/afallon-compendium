@@ -319,10 +319,14 @@ export type StaticKindList = Static<typeof StaticKindListSchema>;
 // One search corpus for the atlas and the pages, and the index of published pages: an entry of a
 // paged kind carries that entity's slug in its reference and its document reference, so the site
 // derives its prerender entries from the corpus instead of a second list that repeats it.
-// `placementIds` lets a result open the map.
+//
+// An entry names no placements. The map shards already carry each placement's entity and item
+// keys, so the atlas resolves an entry's places from data it has loaded; repeating them here cost
+// 1.86 MB of a 2.93 MB corpus, up to 594 ids for one creature. `hasPlacements` is the one bit a
+// result needs to offer a map link before the shards are consulted.
 export const PublicSearchEntrySchema = Type.Object({
   ref: EntityRefSchema, level: optional(Type.Union([count, PublicLevelRangeSchema])), place: optional(text),
-  placementIds: Type.Array(text, { uniqueItems: true }), sourceKinds: Type.Array(text, { uniqueItems: true }),
+  hasPlacements: Type.Boolean(), sourceKinds: Type.Array(text, { uniqueItems: true }),
   document: optional(documentReference),
 }, { additionalProperties: false });
 export type PublicSearchEntry = Static<typeof PublicSearchEntrySchema>;

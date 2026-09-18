@@ -72,7 +72,7 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
   const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: "compendium.static-item.v1", ...identity, kind: "items", document: fixtures.items as PublicItem };
   const npcDocument = { schemaVersion: "compendium.static-npc.v1", ...identity, kind: "npcs", document: fixtures.npcs as PublicNpc } as const;
   const itemReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.items, "1".repeat(64)), npcReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.npcs, "2".repeat(64));
-  const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v3", ...identity, part: 0, entries: [{ ref: item, placementIds: ["p1"], sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, placementIds: ["p1"], sourceKinds: [], document: npcReference as never }] };
+  const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v3", ...identity, part: 0, entries: [{ ref: item, hasPlacements: false, sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, hasPlacements: true, sourceKinds: [], document: npcReference as never }] };
   const itemList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "items", part: 0, rows: [{ ref: item, values: { level: null, rarity: "Common" }, facets: { slot: ["GLOVES"] } }] };
   const npcList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "npcs", part: 0, rows: [{ ref: boss, values: { level: 21 }, facets: { role: ["boss"] } }] };
   const coverage: StaticCoverage = { schemaVersion: "compendium.static-coverage.v1", ...identity, complete: false, unresolvedIssueCount: 0, occurrenceCount: 0, exclusionCount: 0, messages: [] };
@@ -111,6 +111,6 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
   sluggedCurrency.set(itemReference.path, { ...itemDocument, document: { ...itemDocument.document, facts: { ...itemDocument.document.facts, sellPrice: { amount: 5, currency: { ...gold, slug: "gold-coin" } } } } });
   expect(() => assertStaticPublicationSemantics(root, sluggedCurrency)).toThrow("page-less kind carries a slug");
   const unknownPlacement = new Map(values);
-  unknownPlacement.set(root.search[0]!.path, { ...search, entries: search.entries.map((entry, index) => index === 0 ? { ...entry, placementIds: ["missing"] } : entry) });
-  expect(() => assertStaticPublicationSemantics(root, unknownPlacement)).toThrow("unpublished placement");
+  unknownPlacement.set(itemReference.path, { ...itemDocument, document: { ...itemDocument.document, droppedBy: [{ counterpart: { ...boss, key: "npcs:999" }, requirements: [] }] } });
+  expect(() => assertStaticPublicationSemantics(root, unknownPlacement)).toThrow("unpublished entity npcs:999");
 });

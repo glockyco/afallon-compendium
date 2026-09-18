@@ -141,7 +141,6 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
     for (const entry of value.entries) {
       checkRef(entry.ref, reference.path);
       if (!kinds.get(entry.ref.kind)?.searchable) throw new Error(`Search entry for a kind that is not searchable: ${entry.ref.key}.`);
-      for (const placementId of entry.placementIds) if (!placementIds.has(placementId)) throw new Error(`Search entry names an unpublished placement: ${placementId}.`);
     }
   }
 }

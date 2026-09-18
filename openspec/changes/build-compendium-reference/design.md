@@ -56,7 +56,7 @@ EntityRef { key: string, kind: PublicKind, name: string, slug: string, icon?: Ar
 UnresolvedRef { key: null, label: string }
 ```
 
-Publication builds one `Map<entityKey, EntityRef>` before projecting any document. `name` is disambiguated per kind: when two entities share a display name, both get a suffix with a distinguishing fact (level, then place, then native id). `slug` is `kebab(name)` with a `-<nativeId>` suffix on collision. The map is frozen; every projection reads from it. The audit runs after projection: every `EntityRef.key` in every document must be an emitted document, or selection fails. `UnresolvedRef` rows are counted in coverage and rendered as text.
+Publication builds one `Map<entityKey, EntityRef>` before projecting any document. `name` is disambiguated per kind with a fact a reader recognises: a creature by level then place, an ability by the creature that uses it, an item by its rarity and slot, a place by its type. The native id is the last resort and appears in a published name only when no fact separates the entities. A slug may keep a `-<nativeId>` suffix even when the name does not, because a URL needs uniqueness and stability more than it needs to read well. `slug` is `kebab(name)` with a `-<nativeId>` suffix on collision. The map is frozen; every projection reads from it. The audit runs after projection: every `EntityRef.key` in every document must be an emitted document, or selection fails. `UnresolvedRef` rows are counted in coverage and rendered as text.
 
 Alternative: resolve links in site load functions from the entity index (current approach for loot labels in `GuideBossDetails`). Rejected: the site would recompute names, and unpublished targets would surface as dead links at runtime.
 
@@ -90,7 +90,7 @@ NPC roles are facets on one kind rather than separate kinds because the same `RP
 
 ### 7. Search corpus
 
-`StaticEntitySearch` parts are regenerated from the `EntityRef` map for every searchable kind, with `kind`, `level`, `primaryPlace`, and `placementIds`. `StaticItemSearch` folds into the same parts. The atlas loads the same parts it loads today; readiness budgets are unchanged because search already loads after map data. A page-side search box reuses `atlas-search.ts` ranking with results that open pages, and offers the map location when `placementIds` is non-empty.
+Search parts are regenerated from the `EntityRef` map for every searchable kind, with `kind`, `level`, `place`, `sourceKinds`, and a `hasPlacements` flag. The entry names no placement ids: the map shards already carry each placement's entity and item keys, so the atlas resolves an entry's places from loaded data, and the measured corpus fell from 2.93 MB to about 1.07 MB when the ids left. `StaticItemSearch` folds into the same parts. The atlas loads the same parts it loads today; readiness budgets are unchanged because search already loads after map data. A page-side search box reuses `atlas-search.ts` ranking with results that open pages, and offers the map location when `placementIds` is non-empty.
 
 ### 8. Lists
 
