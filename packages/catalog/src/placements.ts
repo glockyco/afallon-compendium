@@ -65,6 +65,13 @@ export function owningContainerPlacement(path: string | null, sourcesByPath: Rea
   return null;
 }
 
+export function containerPlacementAlias(sourceId: string, placementId: string, path: string | null, sourcesByPath: ReadonlyMap<string, readonly string[]>, placementsBySource: ReadonlyMap<string, string>, rolePlacementIds: ReadonlySet<string>): string | null | undefined {
+  const direct = placementsBySource.get(sourceId);
+  if (direct !== undefined) return direct === placementId ? undefined : direct;
+  if (rolePlacementIds.has(placementId)) return undefined;
+  return owningContainerPlacement(path, sourcesByPath, placementsBySource);
+}
+
 export function mergedPlacementId(placementId: string, hasRoles: boolean, sourceIds: readonly string[], aliases: ReadonlyMap<string, string>): string {
   if (hasRoles) return placementId;
   const owners = new Set(sourceIds.flatMap((sourceId) => { const owner = aliases.get(sourceId); return owner === undefined ? [] : [owner]; }));
@@ -92,9 +99,9 @@ export function collectPlacements(contexts: SceneContext[], profile: NormalizedD
     const placementAliases = new Map<string, string>();
     for (const [index, value] of context.world.containers.entries()) {
       const row = record(value), source = row?.source, identity = sourceEvidenceRow(context, source), path = record(record(source)?.source)?.hierarchyPath;
-      if (!identity || containerPlacementsBySource.has(identity.sourceId) || containerRolePlacementIds.has(identity.placementId)) continue;
-      const ownerPlacementId = owningContainerPlacement(typeof path === "string" ? path : null, sourcesByPath, containerPlacementsBySource);
-      if (ownerPlacementId !== null && ownerPlacementId !== identity.placementId) placementAliases.set(identity.sourceId, ownerPlacementId);
+      if (!identity) continue;
+      const ownerPlacementId = containerPlacementAlias(identity.sourceId, identity.placementId, typeof path === "string" ? path : null, sourcesByPath, containerPlacementsBySource, containerRolePlacementIds);
+      if (typeof ownerPlacementId === "string") placementAliases.set(identity.sourceId, ownerPlacementId);
       else if (ownerPlacementId === null) blockers.push({ kind: "unresolved-container-owner", key: identity.sourceId, detail: "Container loot component has no unique ancestor placement with the container role.", provenance: [pointer(context.worldReference, `/containers/${index}/source`)] });
     }
     const identities = sourceIdentityRows(context.identities).map((row) => placementAliases.has(row.sourceId) ? { ...row, placementId: placementAliases.get(row.sourceId)! } : row);

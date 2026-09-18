@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mergedPlacementId, owningContainerPlacement } from "./placements";
+import { containerPlacementAlias, mergedPlacementId, owningContainerPlacement } from "./placements";
 
 test("resolves a chest and its loot child to one placement", () => {
   const chestPath = "GAMEPLAY[0]/Backpack (1)[1]";
@@ -9,6 +9,8 @@ test("resolves a chest and its loot child to one placement", () => {
 
   const owner = owningContainerPlacement(lootPath, sourcesByPath, containerPlacements);
   expect(owner).toBe("chest-placement");
+  const directRolePlacements = new Map([["loot-source", "chest-placement"]]);
+  expect(containerPlacementAlias("loot-source", "loot-placement", lootPath, sourcesByPath, directRolePlacements, new Set(["chest-placement"]))).toBe("chest-placement");
   const aliases = new Map([["loot-source", owner!]]);
   expect(mergedPlacementId("loot-placement", false, ["loot-source"], aliases)).toBe("chest-placement");
   expect(new Set([containerPlacements.get("chest-source"), mergedPlacementId("loot-placement", false, ["loot-source"], aliases)])).toEqual(new Set(["chest-placement"]));
