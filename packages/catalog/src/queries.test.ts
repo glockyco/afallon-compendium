@@ -63,7 +63,7 @@ test("groups and deduplicates the authored requirements for items:1040", () => {
 
     expect(queryConditions(db).records.flatMap((condition) => condition.requirements)).toEqual([
       { mode: "any", requiredCount: 1, requirements: [
-        { type: "Class", label: "Warrior", target: { entityKey: "classes:0", label: "Warrior" }, amount: null, secondaryAmount: null },
+        { type: "Class", label: "Shieldmaster", target: { entityKey: "classes:0", label: "Shieldmaster" }, amount: null, secondaryAmount: null },
         { type: "Class", label: "Assassin", target: { entityKey: "classes:5", label: "Assassin" }, amount: null, secondaryAmount: null },
       ] },
       { mode: "all", requiredCount: null, requirements: [
