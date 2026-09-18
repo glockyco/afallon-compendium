@@ -15,11 +15,11 @@ const entities: CatalogEntityRow[] = [
 const facts: CatalogFacts = {
   entities,
   items: [{ entityKey: "items:1", rarity: "Rare", itemType: "WEAPON", armorSlot: "BELT", weaponSlot: "MAIN HAND", weaponType: "One handed sword", armorType: "CLOTH",
-    attackSpeed: 1, minDamage: 4, maxDamage: 8, stats: [], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: null, sellPrice: null,
-    sellCurrency: null, buyPrice: null, buyCurrency: null, stackLimit: 1, questDropOnly: false, corruptionToken: false,
+    attackSpeed: 1, minDamage: 4, maxDamage: 8, stats: [], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: { entityKey: null, label: "Enchantment -1" }, sellPrice: null,
+    sellCurrency: null, buyPrice: 0, buyCurrency: { entityKey: null, label: "Currency -1" }, stackLimit: 1, questDropOnly: false, corruptionToken: false,
     levelRequirement: 2, actionAbilities: [], conditionIds: [] }],
   npcs: [{ entityKey: "npcs:2", minLevel: 5, maxLevel: 5, scalesWithPlayer: false, npcType: "Enemy", creatureType: null, family: null,
-    faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, minRespawn: null, maxRespawn: null,
+    faction: null, species: { entityKey: null, label: "Species -1" }, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, minRespawn: null, maxRespawn: null,
     minExperience: null, maxExperience: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [],
     factionRewards: [], linkedNpc: null, lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { entityKey: "stats:5", label: "Item power" } } }],
   quests: [{ entityKey: "quests:3", chainName: null, chainOrder: null, repeatable: false, turnInWithoutNpc: false, completedDescription: null,
@@ -57,6 +57,9 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(item.facts).toMatchObject({ weaponSlot: "MAIN HAND", weaponType: "One handed sword", attackSpeed: 1, minDamage: 4, maxDamage: 8 });
   expect(item.facts).not.toHaveProperty("slot");
   expect(item.facts).not.toHaveProperty("armorType");
+  expect(item.facts).not.toHaveProperty("enchantment");
+  expect(item.facts).not.toHaveProperty("buyPrice");
+  expect(npc.facts).not.toHaveProperty("species");
   expect(npc.facts.lootSpecialization).toEqual({ armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { key: "stats:5", kind: "stats", name: "Item power" } });
   expect(item.droppedBy).toHaveLength(1);
   expect(npc.drops).toHaveLength(1);

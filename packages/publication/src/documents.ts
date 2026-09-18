@@ -108,11 +108,16 @@ function endpointOrUnknown(resolve: ReferenceResolver, endpoint: CatalogEndpoint
   return endpoint === null ? { key: null, label } : resolve(endpoint);
 }
 
+function optionalFactRef(resolve: ReferenceResolver, endpoint: CatalogEndpoint | null | undefined): Ref | undefined {
+  return endpoint === null || endpoint === undefined || endpoint.entityKey === null ? undefined : resolve(endpoint);
+}
+
 function projectRequirement(requirement: CatalogRequirement, resolve: ReferenceResolver): RequirementRef {
   const label = plainText(requirement.label) || plainText(requirement.type) || "Requirement";
+  const target = optionalFactRef(resolve, requirement.target);
   return {
     type: plainText(requirement.type) || "requirement", label, mandatory: requirement.mandatory,
-    ...(requirement.target === null ? {} : { target: resolve(requirement.target) }),
+    ...(target === undefined ? {} : { target }),
     ...(requirement.amount === null ? {} : { amount: requirement.amount }),
     ...(requirement.secondaryAmount === null ? {} : { secondaryAmount: requirement.secondaryAmount }),
   };
@@ -223,6 +228,8 @@ function baseDocument(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
 function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>): PublicItem {
   const fact = input.facts.items.find((candidate) => candidate.entityKey === entity.entityKey);
   const requirements = requirementsFor(fact?.conditionIds ?? [], conditions, input.resolve);
+  const enchantment = optionalFactRef(input.resolve, fact?.enchantment);
+  const sellCurrency = optionalFactRef(input.resolve, fact?.sellCurrency), buyCurrency = optionalFactRef(input.resolve, fact?.buyCurrency);
   const droppedBy = (indexes.dropsByItem.get(entity.entityKey) ?? []).filter((row) => row.context !== "container").map((row) => ({
     counterpart: input.resolve(row.owner),
     ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
@@ -268,9 +275,9 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
         ...(row.gemType && plainText(row.gemType) ? { gemType: plainText(row.gemType) } : {}) })),
       ...(fact?.gem ? { gem: { ...(fact.gem.gemType && plainText(fact.gem.gemType) ? { gemType: plainText(fact.gem.gemType) } : {}),
         stats: fact.gem.stats.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })) } } : {}),
-      ...(fact?.enchantment ? { enchantment: input.resolve(fact.enchantment) } : {}),
-      ...(fact?.sellPrice !== null && fact?.sellPrice !== undefined && fact.sellPrice >= 0 && fact.sellCurrency ? { sellPrice: { amount: fact.sellPrice, currency: input.resolve(fact.sellCurrency) } } : {}),
-      ...(fact?.buyPrice !== null && fact?.buyPrice !== undefined && fact.buyPrice >= 0 && fact.buyCurrency ? { buyPrice: { amount: fact.buyPrice, currency: input.resolve(fact.buyCurrency) } } : {}),
+      ...(enchantment === undefined ? {} : { enchantment }),
+      ...(fact?.sellPrice !== null && fact?.sellPrice !== undefined && fact.sellPrice >= 0 && sellCurrency ? { sellPrice: { amount: fact.sellPrice, currency: sellCurrency } } : {}),
+      ...(fact?.buyPrice !== null && fact?.buyPrice !== undefined && fact.buyPrice >= 0 && buyCurrency ? { buyPrice: { amount: fact.buyPrice, currency: buyCurrency } } : {}),
       stackLimit: Math.max(0, fact?.stackLimit ?? 0), questDropOnly: fact?.questDropOnly ?? false, corruptionToken: fact?.corruptionToken ?? false,
       ...(optionalCount(fact?.levelRequirement ?? null) === undefined ? {} : { levelRequirement: optionalCount(fact?.levelRequirement ?? null) }), requirements,
     },
@@ -287,6 +294,8 @@ function projectNpc(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPro
   const fact = input.facts.npcs.find((candidate) => candidate.entityKey === entity.entityKey);
   const npcFact: CatalogNpcFacts = fact ?? { entityKey: entity.entityKey, minLevel: null, maxLevel: null, scalesWithPlayer: false, npcType: null, creatureType: null, family: null, faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: false, minRespawn: null, maxRespawn: null, minExperience: null, maxExperience: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [], factionRewards: [], linkedNpc: null, lootSpecialization: null };
   const range = levelRange(npcFact), roles = npcRoles(entity.entityKey, npcFact, indexes);
+  const faction = optionalFactRef(input.resolve, npcFact.faction), species = optionalFactRef(input.resolve, npcFact.species);
+  const linkedNpc = optionalFactRef(input.resolve, npcFact.linkedNpc), lootStat = optionalFactRef(input.resolve, npcFact.lootSpecialization?.stat);
   const questRows = indexes.questsByCounterpart.get(entity.entityKey) ?? [];
   return {
     ...baseDocument(entity, ref, input),
@@ -294,8 +303,8 @@ function projectNpc(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPro
     facts: {
       ...(range && range.min === range.max ? { level: range.min } : range ? { levelRange: range } : {}), scalesWithPlayer: npcFact.scalesWithPlayer,
       ...(npcFact.npcType ? { npcType: plainText(npcFact.npcType) } : {}), ...(npcFact.creatureType ? { creatureType: plainText(npcFact.creatureType) } : {}),
-      ...(npcFact.family ? { family: plainText(npcFact.family) } : {}), ...(npcFact.faction ? { faction: input.resolve(npcFact.faction) } : {}),
-      ...(npcFact.species ? { species: input.resolve(npcFact.species) } : {}), roles,
+      ...(npcFact.family ? { family: plainText(npcFact.family) } : {}), ...(faction === undefined ? {} : { faction }),
+      ...(species === undefined ? {} : { species }), roles,
       ...(npcFact.minRespawn === null || npcFact.maxRespawn === null ? {} : { respawn: { min: npcFact.minRespawn, max: npcFact.maxRespawn } }),
       ...(optionalCount(npcFact.minExperience) === undefined || optionalCount(npcFact.maxExperience) === undefined ? {} : { experience: { min: optionalCount(npcFact.minExperience)!, max: optionalCount(npcFact.maxExperience)! } }),
       stats: npcFact.stats.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
@@ -304,7 +313,7 @@ function projectNpc(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPro
       ...(npcFact.lootSpecialization === null ? {} : { lootSpecialization: {
         ...(npcFact.lootSpecialization.armorType ? { armorType: plainText(npcFact.lootSpecialization.armorType) } : {}),
         weaponTypes: npcFact.lootSpecialization.weaponTypes.map(plainText),
-        ...(npcFact.lootSpecialization.stat ? { stat: input.resolve(npcFact.lootSpecialization.stat) } : {}),
+        ...(lootStat === undefined ? {} : { stat: lootStat }),
       } }),
     },
     drops: (indexes.dropsByOwner.get(entity.entityKey) ?? []).map((row) => ({
@@ -322,7 +331,7 @@ function projectNpc(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPro
     factionRewards: npcFact.factionRewards.map((reward) => ({ counterpart: input.resolve(reward.faction), amount: reward.amount })),
     usedInQuests: questRows.filter((row) => row.kind === "objective" && row.task !== null).map((row) => ({ counterpart: input.resolve(row.quest), objective: projectQuestObjective(row.task!, input.resolve, row.index) })),
     bossOf: input.facts.places.filter((place) => place.bosses.some((boss) => boss.entityKey === entity.entityKey)).map((place) => input.resolve({ entityKey: place.entityKey, label: place.entityKey })),
-    ...(npcFact.linkedNpc === null ? {} : { linkedNpc: input.resolve(npcFact.linkedNpc) }),
+    ...(linkedNpc === undefined ? {} : { linkedNpc }),
   };
 }
 
@@ -415,10 +424,11 @@ function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
 
 function projectProperty(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, locations: PlacementRef[]): PublicProperty {
   const fact = input.facts.properties.find((candidate) => candidate.entityKey === entity.entityKey);
+  const currency = optionalFactRef(input.resolve, fact?.currency);
   return {
     ...baseDocument(entity, ref, input),
     locations,
-    facts: { ...(fact?.income === null || fact?.income === undefined ? {} : { income: fact.income }), ...(fact?.purchasePrice !== null && fact?.purchasePrice !== undefined && fact.currency ? { price: { amount: Math.max(0, fact.purchasePrice), currency: input.resolve(fact.currency) } } : {}) },
+    facts: { ...(fact?.income === null || fact?.income === undefined ? {} : { income: fact.income }), ...(fact?.purchasePrice !== null && fact?.purchasePrice !== undefined && currency ? { price: { amount: Math.max(0, fact.purchasePrice), currency } } : {}) },
   };
 }
 
@@ -433,9 +443,10 @@ function projectRecipe(entity: CatalogEntityRow, ref: EntityRef, input: Document
   const rows = indexes.recipesByRecipe.get(entity.entityKey) ?? [];
   const product = rows.find((row) => row.role === "product");
   const firstRank = fact?.ranks[0];
+  const station = optionalFactRef(input.resolve, fact?.station), skill = optionalFactRef(input.resolve, fact?.skill);
   return {
     ...baseDocument(entity, ref, input),
-    facts: { ...(fact?.station ? { station: input.resolve(fact.station) } : {}), ...(fact?.skill ? { skill: input.resolve(fact.skill) } : {}), ...(firstRank ? { rank: Math.max(0, firstRank.rank) } : {}) },
+    facts: { ...(station === undefined ? {} : { station }), ...(skill === undefined ? {} : { skill }), ...(firstRank ? { rank: Math.max(0, firstRank.rank) } : {}) },
     ...(product ? { product: { counterpart: input.resolve(product.item), count: Math.max(0, product.count) } } : {}),
     materials: rows.filter((row) => row.role === "material").map((row) => ({ counterpart: input.resolve(row.item), count: Math.max(0, row.count) })),
   };
