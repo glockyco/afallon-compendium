@@ -29,14 +29,15 @@ test("references are keyed and typed; name-only shapes are rejected", () => {
 });
 
 test("relation rows accept an unresolved endpoint and omit an unmeasured chance", () => {
-  const drop = { counterpart: unresolved, min: 1, max: 2, requirements: [], placements: [placement] };
+  const drop = { counterpart: unresolved, min: 1, max: 2, requirements: [] };
   Assert(DropRowSchema, drop);
   Assert(DropRowSchema, { ...drop, counterpart: boss, chance: 12.5, levelBand: { min: 18, max: 20 } });
   expect(() => Assert(DropRowSchema, { ...drop, chance: 101 })).toThrow();
+  expect(() => Assert(DropRowSchema, { ...drop, placements: [placement] })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, chance: null })).toThrow();
-  Assert(VendorRowSchema, { counterpart: item, price: { amount: 45, currency: gold }, requirements: [{ type: "Stat", label: "Item power over 400", mandatory: true, amount: 400 }], placements: [] });
-  Assert(GatherRowSchema, { label: "Copper vein", rank: 1, min: 1, max: 2, placements: [placement] });
-  Assert(ContainerRowSchema, { counterpart: unresolved, label: "Chest", requirements: [], placements: [] });
+  Assert(VendorRowSchema, { counterpart: item, price: { amount: 45, currency: gold }, requirements: [{ type: "Stat", label: "Item power over 400", mandatory: true, amount: 400 }] });
+  Assert(GatherRowSchema, { label: "Copper vein", rank: 1, min: 1, max: 2, placementCount: 345 });
+  Assert(ContainerRowSchema, { counterpart: unresolved, label: "Chest", requirements: [], placementCount: 53 });
   Assert(RecipeRowSchema, { counterpart: item, count: 1 });
   Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 0, label: "Kill 3 Branchweavers", type: "killNpc", target: boss, count: 3 } });
   Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 1, label: "?", type: "unsupported", rawType: "customTask" } });
@@ -46,8 +47,8 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
 const base = { description: null, art: {}, locations: [placement] };
 const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } = {
   items: { ...base, ref: item, facts: { rarity: "Common", itemType: "ARMOR", slot: "GLOVES", stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 7, isPercent: false }], randomStats: [{ stat: { key: "stats:0", kind: "stats", name: "Health" }, min: 10, max: 40, isPercent: false, whole: false, chance: 100 }], randomStatsMax: 0, sockets: [{ gemType: "Green Gem" }], sellPrice: { amount: 5, currency: gold }, stackLimit: 1, questDropOnly: false, corruptionToken: false, requirements: [] },
-    droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [], placements: [placement] }], soldBy: [], gatheredFrom: [], inContainers: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [] } satisfies PublicItem,
-  npcs: { ...base, ref: boss, facts: { level: 21, scalesWithPlayer: false, roles: ["boss"], stats: [], immunities: [], lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE"] } }, drops: [{ counterpart: item, min: 1, max: 1, requirements: [], placements: [placement] }], sells: [], quests: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], usedInQuests: [], bossOf: [] } satisfies PublicNpc,
+    droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [] }], soldBy: [], gatheredFrom: [], inContainers: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [] } satisfies PublicItem,
+  npcs: { ...base, ref: boss, facts: { level: 21, scalesWithPlayer: false, roles: ["boss"], stats: [], immunities: [], lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE"] } }, drops: [{ counterpart: item, min: 1, max: 1, requirements: [] }], sells: [], quests: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], usedInQuests: [], bossOf: [] } satisfies PublicNpc,
   quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, givers: [boss], turnIns: [], objectives: [{ index: 0, label: "Kill 3 Branchweavers", type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [] } satisfies PublicQuest,
   places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], quests: [], properties: [], connections: [], regions: [] } satisfies PublicPlace,
   properties: { ...base, ref: { key: "properties:1", kind: "properties", name: "Mill", slug: "mill" }, facts: { income: 60 } } satisfies PublicProperty,

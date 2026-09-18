@@ -72,23 +72,30 @@ export type Price = Static<typeof PriceSchema>;
 
 // Relation rows are shared by both endpoints: an NPC's `drops` and an item's `droppedBy` use the
 // same `DropRow` with `counterpart` pointing across. `chance` is present only when measured.
+//
+// A row never carries placement ids. Each document already lists its own `locations`, and the
+// counterpart's locations belong to the counterpart's document, so repeating them per row would
+// square the data: one creature with 127 placements and 18 drops would carry 2,286 placement refs
+// that say nothing new. Where the source of a row has no page of its own, the row carries how many
+// placements produce it and the reader reaches them through the atlas, which already highlights
+// every placement of an item key or a marker category.
 export const DropRowSchema = Type.Object({
   counterpart: RefSchema, min: optional(count), max: optional(count), chance: optional(percent),
-  levelBand: optional(PublicLevelRangeSchema), requirements, placements,
+  levelBand: optional(PublicLevelRangeSchema), requirements,
 }, { additionalProperties: false });
 export type DropRow = Static<typeof DropRowSchema>;
 
-export const VendorRowSchema = Type.Object({ counterpart: RefSchema, price: PriceSchema, requirements, placements }, { additionalProperties: false });
+export const VendorRowSchema = Type.Object({ counterpart: RefSchema, price: PriceSchema, requirements }, { additionalProperties: false });
 export type VendorRow = Static<typeof VendorRowSchema>;
 
 export const GatherRowSchema = Type.Object({
   counterpart: optional(RefSchema), label: text, skill: optional(RefSchema), rank: optional(count),
-  min: optional(count), max: optional(count), chance: optional(percent), placements,
+  min: optional(count), max: optional(count), chance: optional(percent), placementCount: count,
 }, { additionalProperties: false });
 export type GatherRow = Static<typeof GatherRowSchema>;
 
 export const ContainerRowSchema = Type.Object({
-  counterpart: optional(RefSchema), label: text, min: optional(count), max: optional(count), chance: optional(percent), requirements, placements,
+  counterpart: optional(RefSchema), label: text, min: optional(count), max: optional(count), chance: optional(percent), requirements, placementCount: count,
 }, { additionalProperties: false });
 export type ContainerRow = Static<typeof ContainerRowSchema>;
 
@@ -110,11 +117,11 @@ export type AbilityPhase = Static<typeof AbilityPhaseSchema>;
 export const FactionRewardRowSchema = Type.Object({ counterpart: RefSchema, amount: number }, { additionalProperties: false });
 export type FactionRewardRow = Static<typeof FactionRewardRowSchema>;
 
-export const CreatureRowSchema = Type.Object({ counterpart: RefSchema, levelRange: optional(PublicLevelRangeSchema), roles: Type.Array(text, { uniqueItems: true }), placements }, { additionalProperties: false });
+export const CreatureRowSchema = Type.Object({ counterpart: RefSchema, levelRange: optional(PublicLevelRangeSchema), roles: Type.Array(text, { uniqueItems: true }), placementCount: count }, { additionalProperties: false });
 export type CreatureRow = Static<typeof CreatureRowSchema>;
 
 const markerCategory = publicMarkerCategory;
-export const PlacementGroupSchema = Type.Object({ category: markerCategory, placements: Type.Array(PlacementRefSchema, { minItems: 1 }) }, { additionalProperties: false });
+export const PlacementGroupSchema = Type.Object({ category: markerCategory, placementCount: Type.Integer({ minimum: 1 }) }, { additionalProperties: false });
 export type PlacementGroup = Static<typeof PlacementGroupSchema>;
 
 export const ConnectionRowSchema = Type.Object({ counterpart: RefSchema, kind: text, placements }, { additionalProperties: false });
