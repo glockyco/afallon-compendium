@@ -19,6 +19,7 @@
   export let limit: number | undefined = undefined;
 
   $: facts = document.facts;
+  $: hasSources = document.droppedBy.length > 0 || document.soldBy.length > 0 || document.gatheredFrom.length > 0 || document.inContainers.length > 0 || document.rewardedBy.length > 0 || document.givenBy.length > 0 || document.craftedBy.length > 0;
   $: damage = facts.minDamage === undefined && facts.maxDamage === undefined ? null : facts.minDamage === facts.maxDamage || facts.maxDamage === undefined ? String(facts.minDamage) : `${facts.minDamage ?? 0}–${facts.maxDamage}`;
 </script>
 
@@ -42,7 +43,7 @@
     <div><dt>Buy price</dt><dd>{#if facts.buyPrice}{facts.buyPrice.amount} <EntityLink ref={facts.buyPrice.currency} {registry} />{:else}<MissingValue explanation="No buy price is published" />{/if}</dd></div>
     <div><dt>Quest drop only</dt><dd>{facts.questDropOnly ? 'Yes' : 'No'}</dd></div>
     <div><dt>Corruption token</dt><dd>{facts.corruptionToken ? 'Yes' : 'No'}</dd></div>
-    <div><dt>Atlas</dt><dd><a href={`${base}/?item=${encodeURIComponent(document.ref.key)}`}>View source locations</a></dd></div>
+    <div><dt>Atlas</dt><dd>{#if hasSources}<a href={`${base}/?item=${encodeURIComponent(document.ref.key)}`}>View source locations</a>{:else}<MissingValue explanation="No source location is published" />{/if}</dd></div>
   </dl>
   {#if showRelations}
     <DropTable rows={document.droppedBy} {registry} heading="Dropped by" counterpartLabel="Source" {limit} />
