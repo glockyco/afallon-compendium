@@ -104,8 +104,7 @@
   $: allMapPlacements = publication?.placements ?? [];
   $: registry = snapshot?.registry ?? [];
   $: entriesByKey = searchIndexes.entriesByKey;
-  $: selectedItemEntry = itemKey ? entriesByKey.get(itemKey) ?? null : null;
-  $: itemPlacementIds = new Set(selectedItemEntry?.placementIds ?? []);
+  $: itemPlacementIds = new Set((itemKey ? searchIndexes.placementsByEntryKey.get(itemKey) ?? [] : []).map((placement) => placement.placementId));
   $: corpusEntries = searchIndexes.searchEntries;
   $: placementSearchText = searchIndexes.placementSearchText;
   $: searchNeedle = query.trim().toLocaleLowerCase();

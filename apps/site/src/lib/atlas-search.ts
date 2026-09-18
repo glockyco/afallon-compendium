@@ -72,14 +72,6 @@ export function buildSearchIndexes(data: PublicationData, entries: readonly Publ
       placementsByEntryKey.set(key, known);
     }
   }
-  for (const entry of entries) {
-    const known = placementsByEntryKey.get(entry.ref.key) ?? [];
-    for (const placementId of entry.placementIds) {
-      const placement = placementsById.get(placementId);
-      if (placement && !known.some((candidate) => candidate.placementId === placementId)) known.push(placement);
-    }
-    placementsByEntryKey.set(entry.ref.key, known);
-  }
   return {
     entriesByKey: new Map(entries.map((entry) => [entry.ref.key, entry])),
     searchEntries: entries.map((entry) => ({ entry, text: [entry.ref.name, entry.place ?? '', ...entry.sourceKinds].join(' ').toLocaleLowerCase() })),

@@ -33,7 +33,7 @@ function fixture() {
   const list = register({ schemaVersion: 'compendium.static-kind-list.v1', ...identity, kind: 'items', part: 0, rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
   const search = register({
     schemaVersion: 'compendium.static-search.v3', ...identity, part: 0,
-    entries: [...refs].map(([key, ref]) => ({ ref, placementIds: [`place:${ref.slug}`], sourceKinds: ['vendor'], document: documents.get(key) })),
+    entries: [...refs].map(([key, ref]) => ({ ref, hasPlacements: true, sourceKinds: ['vendor'], document: documents.get(key) })),
   });
   const parts = ['a', 'b'].map((name, part) => register({ schemaVersion: 'compendium.static-map.v2', ...identity, mapSpaceId: 'map', part, placements: [[`place:${name}`, [part * 10, 0], 0, name, ['merchant'], [], [`item:${name}`], null, null, null]], regions: [] }));
   const imagery = register({ schemaVersion: 'compendium.static-imagery.v2', ...identity, mapSpaceId: 'map', defaultLayerId: 'game', layers: [{ id: 'game', mapSpaceId: 'map', label: 'Map', kind: 'game-map', tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 256, 256], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${'d'.repeat(64)}.webp`, sha256: 'd'.repeat(64), bytes: 1, width: 256, height: 256, state: 'captured', schemaId: 'image/webp' }] }] });
