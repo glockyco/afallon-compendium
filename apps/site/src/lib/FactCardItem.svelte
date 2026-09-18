@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from '$app/paths';
   import type { PublicItem, PublicKindEntry } from '@afallon/contracts/public';
   import ContainerTable from './ContainerTable.svelte';
   import DropTable from './DropTable.svelte';
@@ -41,6 +42,7 @@
     <div><dt>Buy price</dt><dd>{#if facts.buyPrice}{facts.buyPrice.amount} <EntityLink ref={facts.buyPrice.currency} {registry} />{:else}<MissingValue explanation="No buy price is published" />{/if}</dd></div>
     <div><dt>Quest drop only</dt><dd>{facts.questDropOnly ? 'Yes' : 'No'}</dd></div>
     <div><dt>Corruption token</dt><dd>{facts.corruptionToken ? 'Yes' : 'No'}</dd></div>
+    <div><dt>Atlas</dt><dd><a href={`${base}/?item=${encodeURIComponent(document.ref.key)}`}>View source locations</a></dd></div>
   </dl>
   {#if showRelations}
     <DropTable rows={document.droppedBy} {registry} heading="Dropped by" counterpartLabel="Source" {limit} />
@@ -53,4 +55,4 @@
   {/if}
 </FactCardFrame>
 
-<style>.line { display: block; } .line + .line { margin-top: .2rem; }</style>
+<style>.line { display: block; } .line + .line { margin-top: .2rem; } a { color: #d9bd79; text-underline-offset: .18em; }</style>

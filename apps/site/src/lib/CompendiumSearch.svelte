@@ -33,7 +33,7 @@
   <label for="compendium-search">Search the compendium</label>
   <input id="compendium-search" type="search" bind:value={query} placeholder="Item, NPC, quest, or place" autocomplete="off" />
   {#if loading}<p role="status">Loading search…</p>{:else if error}<p class="error" role="alert">Search is unavailable.</p>{/if}
-  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entry.place}<small>{entry.place}</small>{/if}{#if entry.placementIds.length}<a class="atlas-link" href={`${base}/?selected=${encodeURIComponent(entry.placementIds[0]!)}${entry.ref.kind === 'items' ? `&item=${encodeURIComponent(entry.ref.key)}` : ''}`}>Atlas location</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading}<p>No published page matches this search.</p>{/if}
+  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entry.place}<small>{entry.place}</small>{/if}{#if entry.ref.kind === 'places'}<a class="atlas-link" href={`${base}/?place=${encodeURIComponent(entry.ref.key)}`}>Atlas location</a>{:else if entry.placementIds.length}<a class="atlas-link" href={`${base}/?selected=${encodeURIComponent(entry.placementIds[0]!)}${entry.ref.kind === 'items' ? `&item=${encodeURIComponent(entry.ref.key)}` : ''}`}>Atlas location</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading}<p>No published page matches this search.</p>{/if}
 </div>
 
 <style>
