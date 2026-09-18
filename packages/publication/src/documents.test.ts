@@ -9,6 +9,8 @@ const entities: CatalogEntityRow[] = [
   { entityKey: "npcs:2", kind: "npcs", nativeId: 2, name: "Guardian", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "quests:3", kind: "quests", nativeId: 3, name: "Trial", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "stats:5", kind: "stats", nativeId: 5, name: "Item power", description: null, iconAssetName: null, artwork: [] },
+  { entityKey: "classes:0", kind: "classes", nativeId: 0, name: "Shieldmaster", description: null, iconAssetName: null, artwork: [] },
+  { entityKey: "classes:5", kind: "classes", nativeId: 5, name: "Assassin", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "scenes:10", kind: "scenes", nativeId: 10, name: "Crypt", description: null, iconAssetName: null, artwork: [] },
 ];
 
@@ -17,7 +19,7 @@ const facts: CatalogFacts = {
   items: [{ entityKey: "items:1", rarity: "Rare", itemType: "WEAPON", armorSlot: "BELT", weaponSlot: "MAIN HAND", weaponType: "One handed sword", armorType: "CLOTH",
     attackSpeed: 1, minDamage: 4, maxDamage: 8, stats: [], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: { entityKey: null, label: "Enchantment -1" }, sellPrice: null,
     sellCurrency: null, buyPrice: 0, buyCurrency: { entityKey: null, label: "Currency -1" }, stackLimit: 1, questDropOnly: false, corruptionToken: false,
-    levelRequirement: 2, actionAbilities: [], conditionIds: [] }],
+    levelRequirement: 2, actionAbilities: [], conditionIds: ["oathbreaker"] }],
   npcs: [{ entityKey: "npcs:2", minLevel: 5, maxLevel: 5, scalesWithPlayer: false, npcType: "Enemy", creatureType: null, family: null,
     faction: null, species: { entityKey: null, label: "Species -1" }, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, minRespawn: null, maxRespawn: null,
     minExperience: null, maxExperience: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [],
@@ -41,7 +43,16 @@ const relations: CatalogRelations = {
     { containerLabel: "Chest", sourceId: "container-2", sceneNativeId: 10, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, conditionIds: [], placementIds: ["p2"] },
   ], quests: [], recipes: [],
   placements: [{ placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guardian", roles: [{ role: "boss", npcEntityKey: "npcs:2", scope: "authored" }], families: [] }],
-  transitions: [{ transitionId: "transition-1", sourceSceneKey: "scenes:10", destinationSceneKey: null, transitionKind: "entrance", placementIds: ["p2"] }], conditions: [],
+  transitions: [{ transitionId: "transition-1", sourceSceneKey: "scenes:10", destinationSceneKey: null, transitionKind: "entrance", placementIds: ["p2"] }],
+  conditions: [{ conditionId: "oathbreaker", semantics: "equipment", label: "Requirements", requirements: [
+    { mode: "any", requiredCount: 1, requirements: [
+      { type: "class", label: "Shieldmaster", target: { entityKey: "classes:0", label: "Shieldmaster" }, amount: null, secondaryAmount: null },
+      { type: "class", label: "Assassin", target: { entityKey: "classes:5", label: "Assassin" }, amount: null, secondaryAmount: null },
+    ] },
+    { mode: "all", requiredCount: null, requirements: [
+      { type: "level", label: "Level 27", target: null, amount: 27, secondaryAmount: null },
+    ] },
+  ] }],
 };
 
 test("projects one symmetric boss drop row and strips native rich text", () => {
@@ -59,6 +70,13 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(item.facts).not.toHaveProperty("armorType");
   expect(item.facts).not.toHaveProperty("enchantment");
   expect(item.facts).not.toHaveProperty("buyPrice");
+  expect(item.facts.requirements).toEqual([
+    { mode: "any", requiredCount: 1, requirements: [
+      { type: "class", label: "Shieldmaster", target: { key: "classes:0", kind: "classes", name: "Shieldmaster" } },
+      { type: "class", label: "Assassin", target: { key: "classes:5", kind: "classes", name: "Assassin" } },
+    ] },
+    { mode: "all", requirements: [{ type: "level", label: "Level 27", amount: 27 }] },
+  ]);
   expect(npc.facts).not.toHaveProperty("species");
   expect(npc.facts.lootSpecialization).toEqual({ armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { key: "stats:5", kind: "stats", name: "Item power" } });
   expect(item.droppedBy).toHaveLength(1);

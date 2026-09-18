@@ -26,6 +26,7 @@ import type {
   PublicRecipe,
   QuestObjective,
   Ref,
+  RequirementGroup,
   RequirementRef,
 } from "@afallon/contracts/public";
 import { plainText } from "./text";
@@ -116,19 +117,23 @@ function projectRequirement(requirement: CatalogRequirement, resolve: ReferenceR
   const label = plainText(requirement.label) || plainText(requirement.type) || "Requirement";
   const target = optionalFactRef(resolve, requirement.target);
   return {
-    type: plainText(requirement.type) || "requirement", label, mandatory: requirement.mandatory,
+    type: plainText(requirement.type) || "requirement", label,
     ...(target === undefined ? {} : { target }),
     ...(requirement.amount === null ? {} : { amount: requirement.amount }),
     ...(requirement.secondaryAmount === null ? {} : { secondaryAmount: requirement.secondaryAmount }),
   };
 }
 
-function requirementsFor(conditionIds: readonly string[], conditions: ReadonlyMap<string, CatalogCondition>, resolve: ReferenceResolver): RequirementRef[] {
-  return conditionIds.flatMap((conditionId) => {
+function requirementsFor(conditionIds: readonly string[], conditions: ReadonlyMap<string, CatalogCondition>, resolve: ReferenceResolver): RequirementGroup[] {
+  return conditionIds.flatMap((conditionId): RequirementGroup[] => {
     const condition = conditions.get(conditionId);
-    if (!condition) return [{ type: "condition", label: conditionId, mandatory: true }];
-    if (condition.requirements.length > 0) return condition.requirements.map((requirement) => projectRequirement(requirement, resolve));
-    return [{ type: condition.semantics || "condition", label: plainText(condition.label) || conditionId, mandatory: true }];
+    if (!condition) return [{ mode: "all", requirements: [{ type: "condition", label: conditionId }] }];
+    if (condition.requirements.length > 0) return condition.requirements.map((group) => ({
+      mode: group.mode,
+      ...(group.requiredCount === null ? {} : { requiredCount: Math.max(0, group.requiredCount) }),
+      requirements: group.requirements.map((requirement) => projectRequirement(requirement, resolve)),
+    }));
+    return [{ mode: "all", requirements: [{ type: condition.semantics || "condition", label: plainText(condition.label) || conditionId }] }];
   });
 }
 
