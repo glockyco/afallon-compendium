@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
-import { chmodSync, cpSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { chmodSync, cpSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
+import { hashFile, listFiles, parseJson } from "./deployment-files";
 import type { StaticResourceReference } from "@afallon/contracts/public";
 import { verifyPublicationGraph } from "./publication-graph";
 import { verifyPublicationParity } from "./publication-parity";
@@ -28,9 +28,10 @@ export function stagePublication(publicationRoot: string, siteDir = resolve(impo
   const selection = parseJson<SelectedPublication>(selectionPath);
   const publicDir = realpathSync(join(root, selection.directory));
   if (relative(root, publicDir).startsWith("..")) throw new Error("Selected publication directory escapes its root.");
-  const { publication, files, sha256: publicationSha256 } = verifyPublicationGraph(publicDir, selection.root);
+  const graph = verifyPublicationGraph(publicDir, selection.root);
+  const { publication, files, sha256: publicationSha256 } = graph;
   if (publication.mode === "release" && !publication.complete) throw new Error("A release publication must report complete coverage.");
-  verifyPublicationParity(publicDir, publication, join(siteDir, "static", "data", "publication.json"));
+  verifyPublicationParity(graph, join(siteDir, "static", "data", "publication.json"));
 
   for (const relativePath of listFiles(publicDir)) {
     if (!files.has(relativePath)) throw new Error(`Selected publication has an unreferenced file: ${relativePath}.`);
@@ -78,28 +79,6 @@ function copyTrackedStatic(source: string, target: string): void {
   }
 }
 
-function listFiles(root: string): string[] {
-  const files: string[] = [];
-  const visit = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const entryPath = join(directory, entry.name);
-      if (entry.isSymbolicLink()) throw new Error(`Publication file cannot be a symlink: ${relative(root, entryPath)}.`);
-      if (entry.isDirectory()) visit(entryPath);
-      else if (entry.isFile()) files.push(relative(root, entryPath).split(sep).join("/"));
-      else throw new Error(`Publication entry is not a regular file: ${relative(root, entryPath)}.`);
-    }
-  };
-  visit(root);
-  return files.sort();
-}
-
-function parseJson<T>(path: string): T {
-  return JSON.parse(readFileSync(path, "utf8")) as T;
-}
-
-function hashFile(path: string): string {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
-}
 
 if (import.meta.main) {
   const publicationRoot = Bun.argv[2];

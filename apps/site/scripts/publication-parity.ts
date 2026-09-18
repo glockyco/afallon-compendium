@@ -1,18 +1,17 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { Assert } from "typebox/value";
 import {
   PublicationDataSchema,
-  StaticEntitySearchSchema,
-  StaticImagerySchema,
-  StaticItemSearchSchema,
-  StaticMapShardSchema,
   expandEssentialPlacement,
   type PublicationData,
   type PublicPlacement,
   type PublicRegion,
   type PublicTileLayer,
-  type StaticRootManifest,
+  type StaticEntitySearch,
+  type StaticImagery,
+  type StaticItemSearch,
+  type StaticMapShard,
+  type VerifiedPublicationGraph,
 } from "@afallon/contracts/public";
 
 export interface PublicationSummary {
@@ -114,7 +113,7 @@ export function assertNonRegressivePublication(candidate: PublicationSummary, ba
   }
 }
 
-export function verifyPublicationParity(candidateDirectory: string, candidateRoot: StaticRootManifest, baselinePath: string): void {
+export function verifyPublicationParity({ publication: candidateRoot, resources }: VerifiedPublicationGraph, baselinePath: string): void {
   const baseline: unknown = JSON.parse(readFileSync(baselinePath, "utf8"));
   Assert(PublicationDataSchema, baseline);
   const candidatePlacements: PublicPlacement[] = [];
@@ -124,23 +123,19 @@ export function verifyPublicationParity(candidateDirectory: string, candidateRoo
   const candidateItemKeys: string[] = [];
   for (const map of candidateRoot.maps) {
     for (const reference of map.parts) {
-      const shard: unknown = JSON.parse(readFileSync(join(candidateDirectory, reference.path), "utf8"));
-      Assert(StaticMapShardSchema, shard);
+      const shard = resources.get(reference.path) as StaticMapShard;
       candidatePlacements.push(...shard.placements.map((placement) => expandEssentialPlacement(placement, map.mapSpaceId)));
       candidateRegions.push(...shard.regions);
     }
-    const imagery: unknown = JSON.parse(readFileSync(join(candidateDirectory, map.imagery.path), "utf8"));
-    Assert(StaticImagerySchema, imagery);
+    const imagery = resources.get(map.imagery.path) as StaticImagery;
     candidateLayers.push(...imagery.layers);
   }
   for (const reference of candidateRoot.entitySearch) {
-    const resource: unknown = JSON.parse(readFileSync(join(candidateDirectory, reference.path), "utf8"));
-    Assert(StaticEntitySearchSchema, resource);
+    const resource = resources.get(reference.path) as StaticEntitySearch;
     candidateEntityKeys.push(...resource.entities.map((entity) => entity.entityKey));
   }
   for (const reference of candidateRoot.itemSearch) {
-    const resource: unknown = JSON.parse(readFileSync(join(candidateDirectory, reference.path), "utf8"));
-    Assert(StaticItemSearchSchema, resource);
+    const resource = resources.get(reference.path) as StaticItemSearch;
     candidateItemKeys.push(...resource.items.map((item) => item.itemKey));
   }
   const candidate = summarize(candidatePlacements, { maps: candidateRoot.maps, world: candidateRoot.world, tileLayers: candidateLayers }, candidateEntityKeys, candidateItemKeys, candidateRegions);

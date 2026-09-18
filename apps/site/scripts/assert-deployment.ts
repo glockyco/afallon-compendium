@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
-import { lstatSync, readFileSync, readdirSync } from "node:fs";
-import { extname, join, relative, resolve, sep } from "node:path";
+import { lstatSync } from "node:fs";
+import { extname, join, resolve } from "node:path";
+import { hashFile, listFiles, parseJson } from "./deployment-files";
 import { deploymentPaths } from "../deployment-paths.mjs";
 import { verifyPublicationGraph } from "./publication-graph";
 import type { DeploymentMetadata } from "./stage-publication.ts";
@@ -54,26 +54,3 @@ process.stdout.write(`${JSON.stringify({
   bytes: totalBytes,
   largest,
 }, null, 2)}\n`);
-
-function listFiles(root: string): string[] {
-  const files: string[] = [];
-  const visit = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = join(directory, entry.name);
-      if (entry.isSymbolicLink()) throw new Error(`Deployment output cannot contain a symlink: ${relative(root, path)}`);
-      if (entry.isDirectory()) visit(path);
-      else if (entry.isFile()) files.push(relative(root, path).split(sep).join("/"));
-      else throw new Error(`Deployment output contains a non-file entry: ${relative(root, path)}`);
-    }
-  };
-  visit(root);
-  return files.sort();
-}
-
-function parseJson<T>(path: string): T {
-  return JSON.parse(readFileSync(path, "utf8")) as T;
-}
-
-function hashFile(path: string): string {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
-}

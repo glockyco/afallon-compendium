@@ -11,7 +11,7 @@ import { generateGuideResources } from "./guide-resources";
 import { generateImageryResources } from "./imagery";
 import { generateIndexResources } from "./index-resources";
 import { generateMapShards } from "./map-shards";
-import { PUBLICATION_ESSENTIAL_BUDGET, PUBLICATION_PART_BUDGET, PUBLICATION_ROOT_BUDGET, writeStaticJson, type GeneratedStaticResource } from "./resources";
+import { writeStaticJson, type GeneratedStaticResource } from "./resources";
 import { verifyPublicationGraph, type PublicationCandidateAsset, type PublicationCandidateResource } from "./selection";
 
 export interface PublicationResourceGroup { resources: number; bytes: number; gzipBytes: number | null }
@@ -94,12 +94,7 @@ export async function buildStaticPublication(db: Database, store: ArtifactStore,
     entitySearch: indexes.entitySearch, itemSearch: indexes.itemSearch, optionalGeometry: mapShards.flatMap((entry) => entry.geometry),
     selectedDetails: [...indexes.entityDetails.values(), ...indexes.itemSources.values()], guides: [...guides.values()], coverage: [coverageResource],
   };
-  if (rootResource.identity.bytes > PUBLICATION_ROOT_BUDGET) throw new Error(`Publication root exceeds ${PUBLICATION_ROOT_BUDGET} bytes: ${rootResource.identity.bytes}.`);
-  for (const group of [groups.atlas!, groups.entitySearch!, groups.itemSearch!, groups.optionalGeometry!]) for (const resource of group) {
-    if (resource.identity.bytes > PUBLICATION_PART_BUDGET) throw new Error(`Publication part exceeds ${PUBLICATION_PART_BUDGET} bytes: ${resource.reference.path}.`);
-  }
   const essentialBytes = [...groups.root!, ...groups.atlas!, ...groups.imageryMetadata!, ...groups.coverage!].reduce((sum, resource) => sum + resource.identity.bytes, 0);
-  if (essentialBytes > PUBLICATION_ESSENTIAL_BUDGET) throw new Error(`Essential publication exceeds ${PUBLICATION_ESSENTIAL_BUDGET} bytes: ${essentialBytes}.`);
   const resources = [...new Map(Object.entries(groups).filter(([name]) => name !== "root").flatMap(([, values]) => values).map((resource) => [resource.reference.path, { reference: resource.reference, identity: resource.identity }])).values()];
   const assetsByHash = new Map<string, PublicationCandidateAsset>();
   for (const entry of imagery) for (const layer of entry.resource.value.layers) for (const tile of layer.tiles) assetsByHash.set(tile.sha256, { path: tile.url, identity: { sha256: tile.sha256, bytes: tile.bytes } });

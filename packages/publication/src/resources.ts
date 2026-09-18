@@ -1,16 +1,12 @@
 import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
 import { canonicalJson, type ContentIdentity } from "@afallon/contracts";
-import type { StaticResourceReference } from "@afallon/contracts/public";
+import { PUBLICATION_PART_BUDGET, type StaticResourceReference } from "@afallon/contracts/public";
 
 export interface GeneratedStaticResource<T> {
   value: T;
   identity: ContentIdentity;
   reference: StaticResourceReference;
 }
-
-export const PUBLICATION_ROOT_BUDGET = 65_536;
-export const PUBLICATION_PART_BUDGET = 524_288;
-export const PUBLICATION_ESSENTIAL_BUDGET = 3_300_000;
 
 export function partitionStaticRecords<T, R>(records: readonly T[], makeValue: (records: T[], part: number) => R): R[] {
   const result: R[] = [];
