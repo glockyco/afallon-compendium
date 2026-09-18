@@ -2,7 +2,6 @@
   import type { PublicKindEntry, PublicRecipe } from '@afallon/contracts/public';
   import EntityLink from './EntityLink.svelte';
   import FactCardFrame from './FactCardFrame.svelte';
-  import LocationList from './LocationList.svelte';
   import MissingValue from './MissingValue.svelte';
   import RecipeTable from './RecipeTable.svelte';
 
@@ -23,6 +22,5 @@
   {#if showRelations}
     {#if document.product}<RecipeTable rows={[document.product]} {registry} heading="Product" counterpartLabel="Item" {limit} />{/if}
     <RecipeTable rows={document.materials} {registry} heading="Materials" counterpartLabel="Item" {limit} />
-    <LocationList locations={document.locations} entityKey={document.ref.key} {limit} />
   {/if}
 </FactCardFrame>

@@ -2,7 +2,6 @@
   import type { PublicAbility, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from './EntityLink.svelte';
   import FactCardFrame from './FactCardFrame.svelte';
-  import LocationList from './LocationList.svelte';
 
   export let document: PublicAbility;
   export let registry: PublicKindEntry[];
@@ -17,7 +16,6 @@
   {#if showRelations}
     {#if usedBy.length}<section><h2>Used by</h2><ul>{#each usedBy as entity}<li><EntityLink ref={entity} {registry} /></li>{/each}</ul></section>{/if}
     {#if taughtBy.length}<section><h2>Taught by</h2><ul>{#each taughtBy as entity}<li><EntityLink ref={entity} {registry} /></li>{/each}</ul></section>{/if}
-    <LocationList locations={document.locations} entityKey={document.ref.key} {limit} />
   {/if}
 </FactCardFrame>
 

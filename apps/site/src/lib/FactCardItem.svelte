@@ -5,7 +5,6 @@
   import EntityLink from './EntityLink.svelte';
   import FactCardFrame from './FactCardFrame.svelte';
   import GatherTable from './GatherTable.svelte';
-  import LocationList from './LocationList.svelte';
   import MissingValue from './MissingValue.svelte';
   import QuestTable from './QuestTable.svelte';
   import RecipeTable from './RecipeTable.svelte';
@@ -51,7 +50,6 @@
     <QuestTable rows={[...document.rewardedBy, ...document.givenBy, ...document.usedInQuests]} {registry} heading="Quests" {limit} />
     <RecipeTable rows={document.craftedBy} {registry} heading="Crafted by" counterpartLabel="Recipe" {limit} />
     <RecipeTable rows={document.usedInRecipes} {registry} heading="Used in recipes" counterpartLabel="Recipe" {limit} />
-    <LocationList locations={document.locations} entityKey={document.ref.key} item {limit} />
   {/if}
 </FactCardFrame>
 

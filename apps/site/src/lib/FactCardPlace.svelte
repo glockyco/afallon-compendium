@@ -4,7 +4,6 @@
   import EntityLink from './EntityLink.svelte';
   import FactCardFrame from './FactCardFrame.svelte';
   import LocationLinks from './LocationLinks.svelte';
-  import LocationList from './LocationList.svelte';
   import MissingValue from './MissingValue.svelte';
 
   export let document: PublicPlace;
@@ -21,7 +20,9 @@
   <dl class="facts">
     <div><dt>Place type</dt><dd>{facts.placeType}</dd></div>
     <div><dt>Level range</dt><dd>{#if facts.levelRange}{facts.levelRange.min}–{facts.levelRange.max}{:else}<MissingValue explanation="Not measured for this build" />{/if}</dd></div>
-    <div><dt>Map</dt><dd>{#if facts.mapSpaceId}{facts.mapSpaceId}{:else}<MissingValue explanation="No location is published" />{/if}</dd></div>
+    <div><dt>Map space</dt><dd>{#if document.space}{document.space.mapSpaceId}{:else}<MissingValue explanation="No map space is published" />{/if}</dd></div>
+    <div><dt>Region areas</dt><dd>{#if document.space?.regionIds.length}{document.space.regionIds.join(', ')}{:else}<MissingValue explanation="No region area is published" />{/if}</dd></div>
+    <div><dt>Atlas</dt><dd><a href={`${base}/?place=${encodeURIComponent(document.ref.key)}`}>View map space</a></dd></div>
     <div><dt>Guide entry</dt><dd>{facts.guideIncluded ? 'Yes' : 'No'}</dd></div>
     <div><dt>Parent</dt><dd>{#if document.parent}<EntityLink ref={document.parent} {registry} />{:else}None{/if}</dd></div>
   </dl>
@@ -37,7 +38,6 @@
     {#if document.properties.length}<section><h2>Properties</h2><ul>{#each visible(document.properties) as property}<li><EntityLink ref={property} {registry} /></li>{/each}</ul></section>{/if}
     {#if document.connections.length}<section><h2>Connections</h2><div class="scroll"><table><thead><tr><th>Place</th><th>Connection</th><th>Locations</th></tr></thead><tbody>{#each visible(document.connections) as connection}<tr><td><EntityLink ref={connection.counterpart} {registry} /></td><td>{connection.kind}</td><td><LocationLinks placements={connection.placements} /></td></tr>{/each}</tbody></table></div></section>{/if}
     {#if document.regions.length}<section><h2>Regions</h2><ul>{#each visible(document.regions) as region}<li><EntityLink ref={region} {registry} /></li>{/each}</ul></section>{/if}
-    <LocationList locations={document.locations} entityKey={document.ref.key} {limit} />
   {/if}
 </FactCardFrame>
 

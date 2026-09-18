@@ -2,7 +2,6 @@
   import type { PublicKindEntry, PublicQuest } from '@afallon/contracts/public';
   import EntityLink from './EntityLink.svelte';
   import FactCardFrame from './FactCardFrame.svelte';
-  import LocationList from './LocationList.svelte';
   import MissingValue from './MissingValue.svelte';
   import QuestTable from './QuestTable.svelte';
   import Requirements from './Requirements.svelte';
@@ -33,7 +32,6 @@
     <QuestTable rows={document.rewards} {registry} heading="Fixed rewards" {limit} />
     <QuestTable rows={document.rewardChoices} {registry} heading="Choose a reward" {limit} />
     {#if document.previous || document.next || document.chainQuests.length}<section><h2>Quest chain</h2><ul>{#if document.previous}<li>Previous: <EntityLink ref={document.previous} {registry} /></li>{/if}{#each (limit === undefined ? document.chainQuests : document.chainQuests.slice(0, limit)) as quest}<li><EntityLink ref={quest} {registry} /></li>{/each}{#if document.next}<li>Next: <EntityLink ref={document.next} {registry} /></li>{/if}</ul></section>{/if}
-    <LocationList locations={document.locations} entityKey={document.ref.key} {limit} />
   {/if}
 </FactCardFrame>
 
