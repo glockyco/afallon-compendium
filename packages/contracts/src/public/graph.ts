@@ -24,7 +24,7 @@ export function assertStaticResourceReference(reference: StaticResourceReference
   // Map tiles live under `assets/`, entity artwork under `art/`; both are content-addressed WebP.
   const expectedPaths = reference.schemaId === "image/webp" ? [`assets/${reference.sha256}.webp`, `art/${reference.sha256}.webp`] : [`resources/${reference.sha256}.json`];
   if (!expectedPaths.includes(reference.path)) throw new Error(`Publication reference path mismatch: ${reference.path}.`);
-  if (/^compendium\.static-(?:map|geometry|entity-search|item-search|search|kind-list|pages)\./.test(reference.schemaId) && reference.bytes > PUBLICATION_PART_BUDGET) throw new Error(`Publication part exceeds its byte budget: ${reference.path}.`);
+  if (/^compendium\.static-(?:map|geometry|search|kind-list)\./.test(reference.schemaId) && reference.bytes > PUBLICATION_PART_BUDGET) throw new Error(`Publication part exceeds its byte budget: ${reference.path}.`);
   if (isStaticDocumentSchemaId(reference.schemaId) && reference.bytes > PUBLICATION_DOCUMENT_BUDGET) throw new Error(`Publication document exceeds its byte budget: ${reference.path}.`);
 }
 
@@ -96,20 +96,27 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
     }
   }
   for (const entry of kinds.values()) if (entry.pages && !root.lists[entry.kind]) throw new Error(`Paged kind has no list: ${entry.kind}.`);
-  const pages = values.get(root.pages.path);
-  if (pages?.schemaVersion !== "compendium.static-pages.v1") throw new Error(`Page list identity mismatch: ${root.pages.path}.`);
+  // The search corpus is the page index: a paged kind must be searchable so that every page has a
+  // corpus entry carrying its slug and its document.
+  for (const entry of kinds.values()) if (entry.pages && !entry.searchable) throw new Error(`Paged kind is not searchable: ${entry.kind}.`);
   const published = new Map<string, { kind: string; slug: string }>();
   const slugs = new Set<string>();
-  for (const page of pages.entries) {
-    if (published.has(page.key)) throw new Error(`Duplicate page key: ${page.key}.`);
-    const slugKey = `${page.kind}/${page.slug}`;
-    if (slugs.has(slugKey)) throw new Error(`Duplicate page slug: ${slugKey}.`);
-    slugs.add(slugKey);
-    if (!kinds.get(page.kind)?.pages) throw new Error(`Page for a kind without pages: ${page.kind}.`);
-    const document = values.get(page.document.path);
-    if (!document || !isStaticDocument(document) || document.kind !== page.kind || document.document.ref.key !== page.key || document.document.ref.slug !== page.slug) throw new Error(`Page document identity mismatch: ${page.key}.`);
-    published.set(page.key, { kind: page.kind, slug: page.slug });
+  for (const [part, reference] of root.search.entries()) {
+    const value = values.get(reference.path);
+    if (value?.schemaVersion !== "compendium.static-search.v3" || value.part !== part) throw new Error(`Search part identity mismatch: ${reference.path}.`);
+    for (const entry of value.entries) {
+      if (published.has(entry.ref.key)) throw new Error(`Duplicate search entry: ${entry.ref.key}.`);
+      if (!kinds.get(entry.ref.kind)?.pages) { published.set(entry.ref.key, { kind: entry.ref.kind, slug: "" }); continue; }
+      if (entry.ref.slug === undefined || !entry.document) throw new Error(`Page entry lacks its slug or document: ${entry.ref.key}.`);
+      const slugKey = `${entry.ref.kind}/${entry.ref.slug}`;
+      if (slugs.has(slugKey)) throw new Error(`Duplicate page slug: ${slugKey}.`);
+      slugs.add(slugKey);
+      const document = values.get(entry.document.path);
+      if (!document || !isStaticDocument(document) || document.kind !== entry.ref.kind || document.document.ref.key !== entry.ref.key || document.document.ref.slug !== entry.ref.slug) throw new Error(`Page document identity mismatch: ${entry.ref.key}.`);
+      published.set(entry.ref.key, { kind: entry.ref.kind, slug: entry.ref.slug });
+    }
   }
+  for (const [path, value] of values) if (isStaticDocument(value) && !published.has(value.document.ref.key)) throw new Error(`Published document is absent from the search corpus: ${path}.`);
   const checkRef = (ref: EntityRef, owner: string) => {
     const entry = kinds.get(ref.kind);
     if (!entry) throw new Error(`Reference to an unregistered kind ${ref.kind} in ${owner}.`);
@@ -128,18 +135,12 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
       for (const row of value.rows) checkRef(row.ref, path);
     }
   }
-  for (const [part, reference] of root.search.entries()) {
+  for (const reference of root.search) {
     const value = values.get(reference.path);
-    if (value?.schemaVersion !== "compendium.static-search.v3" || value.part !== part) throw new Error(`Search part identity mismatch: ${reference.path}.`);
+    if (value?.schemaVersion !== "compendium.static-search.v3") throw new Error(`Search part identity mismatch: ${reference.path}.`);
     for (const entry of value.entries) {
       checkRef(entry.ref, reference.path);
       if (!kinds.get(entry.ref.kind)?.searchable) throw new Error(`Search entry for a kind that is not searchable: ${entry.ref.key}.`);
-      const page = published.get(entry.ref.key);
-      if (page && !entry.document) throw new Error(`Search entry for a page omits its document: ${entry.ref.key}.`);
-      if (entry.document) {
-        const document = values.get(entry.document.path);
-        if (!document || !isStaticDocument(document) || document.document.ref.key !== entry.ref.key) throw new Error(`Search document identity mismatch: ${entry.ref.key}.`);
-      }
       for (const placementId of entry.placementIds) if (!placementIds.has(placementId)) throw new Error(`Search entry names an unpublished placement: ${placementId}.`);
     }
   }

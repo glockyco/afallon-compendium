@@ -316,8 +316,10 @@ export const StaticKindListSchema = Type.Object({
 }, { additionalProperties: false });
 export type StaticKindList = Static<typeof StaticKindListSchema>;
 
-// One search corpus for the atlas and the pages. `document` is the entry's page document when the
-// kind has pages; `placementIds` lets a result open the map.
+// One search corpus for the atlas and the pages, and the index of published pages: an entry of a
+// paged kind carries that entity's slug in its reference and its document reference, so the site
+// derives its prerender entries from the corpus instead of a second list that repeats it.
+// `placementIds` lets a result open the map.
 export const PublicSearchEntrySchema = Type.Object({
   ref: EntityRefSchema, level: optional(Type.Union([count, PublicLevelRangeSchema])), place: optional(text),
   placementIds: Type.Array(text, { uniqueItems: true }), sourceKinds: Type.Array(text, { uniqueItems: true }),
@@ -330,21 +332,12 @@ export const StaticSearchIndexSchema = Type.Object({
 }, { additionalProperties: false });
 export type StaticSearchIndex = Static<typeof StaticSearchIndexSchema>;
 
-export const StaticPageEntrySchema = Type.Object({ kind: pageKind, slug, key: text, document: documentReference }, { additionalProperties: false });
-export type StaticPageEntry = Static<typeof StaticPageEntrySchema>;
-
-export const StaticPagesSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-pages.v1"), ...identity, entries: Type.Array(StaticPageEntrySchema),
-}, { additionalProperties: false });
-export type StaticPages = Static<typeof StaticPagesSchema>;
-
 export const STATIC_COMPENDIUM_SCHEMAS = {
   ...STATIC_DOCUMENT_SCHEMAS,
   "compendium.static-kind-list.v1": StaticKindListSchema,
   "compendium.static-search.v3": StaticSearchIndexSchema,
-  "compendium.static-pages.v1": StaticPagesSchema,
 } as const;
-export type StaticCompendiumResource = StaticDocument | StaticKindList | StaticSearchIndex | StaticPages;
+export type StaticCompendiumResource = StaticDocument | StaticKindList | StaticSearchIndex;
 
 export function isStaticDocumentSchemaId(schemaId: string): schemaId is StaticDocumentSchemaId {
   return Object.hasOwn(STATIC_DOCUMENT_SCHEMAS, schemaId);

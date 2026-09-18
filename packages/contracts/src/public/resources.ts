@@ -182,7 +182,6 @@ export const StaticRootManifestSchema = Type.Object({
   kinds: Type.Array(PublicKindEntrySchema, { minItems: 1 }),
   lists: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z]*$" }), Type.Array(resourceReference("compendium.static-kind-list.v1"), { minItems: 1 })),
   search: Type.Array(resourceReference("compendium.static-search.v3"), { minItems: 1 }),
-  pages: resourceReference("compendium.static-pages.v1"),
   coverage: resourceReference("compendium.static-coverage.v1"),
 }, { additionalProperties: false });
 export type StaticRootManifest = Static<typeof StaticRootManifestSchema>;
@@ -307,8 +306,7 @@ export function staticResourceSchema(schemaId: string) {
 
 export function staticResourceEdges(value: StaticResource): StaticResourceReference[] {
   switch (value.schemaVersion) {
-    case "compendium.static-root.v3": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists).flat(), ...value.search, value.pages, value.coverage];
-    case "compendium.static-pages.v1": return value.entries.map((entry) => entry.document);
+    case "compendium.static-root.v3": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists).flat(), ...value.search, value.coverage];
     case "compendium.static-search.v3": return value.entries.flatMap((entry) => entry.document ? [entry.document] : []);
     case "compendium.static-kind-list.v1": return value.rows.flatMap((row) => row.ref.icon ? [{ path: row.ref.icon.url, sha256: row.ref.icon.sha256, bytes: row.ref.icon.bytes, schemaId: "image/webp" }] : []);
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));

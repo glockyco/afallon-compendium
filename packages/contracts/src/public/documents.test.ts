@@ -2,10 +2,10 @@ import { expect, test } from "bun:test";
 import { Assert } from "typebox/value";
 import {
   ArtRefSchema, DropRowSchema, EntityRefSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, VendorRowSchema,
-  PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticPagesSchema, StaticSearchIndexSchema, StaticKindListSchema,
+  PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
   type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe,
-  type StaticRootManifest, type StaticPages, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, type StaticItemDocumentSchema, type StaticCoverage,
+  type StaticRootManifest, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, type StaticItemDocumentSchema, type StaticCoverage,
 } from "./index";
 import type { Static } from "typebox";
 
@@ -72,7 +72,6 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
   const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: "compendium.static-item.v1", ...identity, kind: "items", document: fixtures.items as PublicItem };
   const npcDocument = { schemaVersion: "compendium.static-npc.v1", ...identity, kind: "npcs", document: fixtures.npcs as PublicNpc } as const;
   const itemReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.items, "1".repeat(64)), npcReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.npcs, "2".repeat(64));
-  const pages: StaticPages = { schemaVersion: "compendium.static-pages.v1", ...identity, entries: [{ kind: "items", slug: item.slug!, key: item.key, document: itemReference as never }, { kind: "npcs", slug: boss.slug!, key: boss.key, document: npcReference as never }] };
   const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v3", ...identity, part: 0, entries: [{ ref: item, placementIds: ["p1"], sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, placementIds: ["p1"], sourceKinds: [], document: npcReference as never }] };
   const itemList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "items", part: 0, rows: [{ ref: item, values: { level: null, rarity: "Common" }, facets: { slot: ["GLOVES"] } }] };
   const npcList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "npcs", part: 0, rows: [{ ref: boss, values: { level: 21 }, facets: { role: ["boss"] } }] };
@@ -91,29 +90,27 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
     ],
     lists: { items: [ref("compendium.static-kind-list.v1", "7".repeat(64)) as never], npcs: [ref("compendium.static-kind-list.v1", "8".repeat(64)) as never] },
     search: [ref("compendium.static-search.v3", "9".repeat(64)) as never],
-    pages: ref("compendium.static-pages.v1", "a".repeat(64)) as never,
     coverage: ref("compendium.static-coverage.v1", "e".repeat(64)) as never,
   };
   Assert(StaticRootManifestSchema, root);
-  Assert(StaticPagesSchema, pages); Assert(StaticSearchIndexSchema, search); Assert(StaticKindListSchema, itemList);
+  Assert(StaticSearchIndexSchema, search); Assert(StaticKindListSchema, itemList);
   const values = new Map<string, StaticResource>([
-    [root.pages.path, pages], [root.search[0]!.path, search], [root.lists.items![0]!.path, itemList], [root.lists.npcs![0]!.path, npcList], [root.coverage.path, coverage],
+    [root.search[0]!.path, search], [root.lists.items![0]!.path, itemList], [root.lists.npcs![0]!.path, npcList], [root.coverage.path, coverage],
     [itemReference.path, itemDocument], [npcReference.path, npcDocument as never], [root.maps[0]!.parts[0]!.path, map as never], [root.maps[0]!.imagery.path, imagery as never],
   ]);
   const rootEdges = staticResourceEdges(root).map((edge) => edge.path);
-  expect(rootEdges).toContain(root.pages.path);
-  expect(staticResourceEdges(pages).map((edge) => edge.path)).toEqual([itemReference.path, npcReference.path]);
+  expect(rootEdges).toContain(root.search[0]!.path);
+  expect(staticResourceEdges(search).map((edge) => edge.path)).toEqual([itemReference.path, npcReference.path]);
   expect(staticResourceEdges(itemDocument)).toEqual([{ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" }]);
   assertStaticPublicationSemantics(root, values);
 
   const dropped = new Map(values); dropped.delete(npcReference.path);
-  const pagesWithoutNpc: StaticPages = { ...pages, entries: pages.entries.filter((entry) => entry.kind !== "npcs") };
-  dropped.set(root.pages.path, pagesWithoutNpc);
+  dropped.set(root.search[0]!.path, { ...search, entries: search.entries.filter((entry) => entry.ref.kind !== "npcs") });
   expect(() => assertStaticPublicationSemantics(root, dropped)).toThrow("unpublished entity npcs:286");
   const sluggedCurrency = new Map(values);
   sluggedCurrency.set(itemReference.path, { ...itemDocument, document: { ...itemDocument.document, facts: { ...itemDocument.document.facts, sellPrice: { amount: 5, currency: { ...gold, slug: "gold-coin" } } } } });
   expect(() => assertStaticPublicationSemantics(root, sluggedCurrency)).toThrow("page-less kind carries a slug");
   const unknownPlacement = new Map(values);
-  unknownPlacement.set(root.search[0]!.path, { ...search, entries: [{ ...search.entries[0]!, placementIds: ["missing"] }] });
+  unknownPlacement.set(root.search[0]!.path, { ...search, entries: search.entries.map((entry, index) => index === 0 ? { ...entry, placementIds: ["missing"] } : entry) });
   expect(() => assertStaticPublicationSemantics(root, unknownPlacement)).toThrow("unpublished placement");
 });

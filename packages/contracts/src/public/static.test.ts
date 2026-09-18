@@ -23,7 +23,6 @@ const root: StaticRootManifest = {
   kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, searchable: true, columns: [], facets: [] }],
   lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v1" }] },
   search: [{ ...reference, schemaId: "compendium.static-search.v3" }],
-  pages: { ...reference, schemaId: "compendium.static-pages.v1" },
   coverage: reference,
 };
 const coverage: StaticCoverage = {
