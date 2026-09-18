@@ -1,8 +1,0 @@
-# The Adventure Guide became place, NPC, and property pages. A query-string link such as
-# /guide/bosses/?id=npcs:286 cannot be matched here, so those paths keep a prerendered page that
-# resolves the id through the publication's page list; only the bare section paths redirect.
-/guide /places/ 301
-/guide/dungeons /places/ 301
-/guide/regions /places/ 301
-/guide/properties /properties/ 301
-/guide/bosses /npcs/ 301

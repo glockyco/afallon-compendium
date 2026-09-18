@@ -11,7 +11,7 @@ The atlas answers "where is it" but the site has no reference half: production b
 - Promote support families that pages link to (abilities, effects, recipes, crafting stations, factions, currencies, skills, classes, races, enchantments, gear sets, species) to canonical kinds with typed facts.
 - Decode player-facing fields from the canonical records into typed catalog facts per kind instead of leaving them in the opaque `gameplay` payload.
 - Extract and publish entity artwork: item icons, ability icons, NPC portraits, and dungeon and region art referenced by the native guide.
-- **BREAKING** Replace the Adventure Guide routes. Dungeons and regions become place pages, bosses become NPC pages, and properties become property pages. `/guide/*` routes redirect to the new pages.
+- **BREAKING** Remove the Adventure Guide routes. Dungeons and regions become place pages, bosses become NPC pages, and properties become property pages. The `/guide` paths are deleted without redirects; an old link reaches the not-found page.
 - **BREAKING** Remove the requirement that the guide mirrors the game's own structure. The native guide remains an input for artwork, descriptions, level ranges, and boss references.
 - **BREAKING** Show a condensed public detail panel in production atlas builds. The panel presents the entity fact card and the first rows of each relation, with a link to the full page. Development-only authoring and evidence panels remain development-only.
 - Relax the evidence-limit rule. A page may state a specific missing fact in the place that fact would occupy. Pages do not add limitation rows, sections, or banners. The full coverage ledger lives on one coverage page.
@@ -37,7 +37,7 @@ The atlas answers "where is it" but the site has no reference half: production b
 - `packages/contracts/src/raw/database.ts` and `packages/catalog/src/{normalize,decoders,projections,queries}.ts`: typed fact decoding per kind, new canonical kinds, reverse-relation queries.
 - `packages/publication/src/{entity-projection,guide-projection,guide-resources,index-resources}.ts`: replaced by per-kind projections, link resolution and audit, artwork resources, and a shared search corpus.
 - `packages/scan/src/probes/collectors/`: artwork extraction probe for sprites and guide art.
-- `apps/site/src/routes/`: new `/<kind>/` and `/<kind>/<slug>/` routes, `/coverage/`, redirects from `/guide/*`; `apps/site/src/lib/` gains the fact card, relation tables, `EntityLink` with tooltip, list table, and the production atlas panel.
+- `apps/site/src/routes/`: new `/<kind>/` and `/<kind>/<slug>/` routes and `/coverage/`, with the `/guide` tree deleted; `apps/site/src/lib/` gains the fact card, relation tables, `EntityLink` with tooltip, list table, and the production atlas panel.
 - `openspec/changes/build-screenshot-first-map/tasks.md` task 6a.10 (Adventure Guide surfaces) is superseded by this change and is not completed there.
 - Deployment parity checks gain page and artwork resources. The essential-resource budget is unchanged because pages load their own documents.
 - `README.md` and `EXPLORATION.md` describe the compendium routes and the artwork evidence.
