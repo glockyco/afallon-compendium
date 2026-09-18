@@ -33,7 +33,7 @@ test("returns the same conditional vendor and boss drop rows from both endpoints
     const fromVendorItem = vendorRows.filter((row) => row.item.entityKey === "items:1");
     expect(fromVendor).toEqual(fromVendorItem);
     expect(fromVendor).toEqual([{ npc: { entityKey: "npcs:3", label: "Vendor" }, item: { entityKey: "items:1", label: "Sword" }, currency: null, cost: 25, merchantTableId: 7, stockIndex: 0, conditionIds: ["progression"], placementIds: [] }]);
-    expect(queryConditions(db).records).toEqual([{ conditionId: "progression", semantics: "all", label: "Journeyman Trade", requirements: [{ type: "skill", mandatory: true, target: { entityKey: "skills:4", label: "Trade" }, amount: 10, secondaryAmount: null, label: "skill 10 Trade" }] }]);
+    expect(queryConditions(db).records).toEqual([{ conditionId: "progression", semantics: "all", label: "Journeyman Trade", requirements: [{ mode: "all", requiredCount: 1, requirements: [{ type: "skill", label: "Trade 10", target: { entityKey: "skills:4", label: "Trade" }, amount: 10, secondaryAmount: null }] }] }]);
     expect(queryCatalogCoverage(db).records).toMatchObject({ occurrenceCount: 1, unresolvedIssues: [{ kind: "inactive-merchant-binding", subjectKey: "merchant:2:1", occurrenceCount: 1 }] });
 
     const dropRows = queryDropRows(db).records;
@@ -41,6 +41,35 @@ test("returns the same conditional vendor and boss drop rows from both endpoints
     const fromDropItem = dropRows.filter((row) => row.item.entityKey === "items:1");
     expect(fromBoss).toEqual(fromDropItem);
     expect(fromBoss).toEqual([{ context: "npc", owner: { entityKey: "npcs:2", label: "Boss" }, item: { entityKey: "items:1", label: "Sword" }, lootTableId: 9, entryIndex: 0, min: 1, max: 2, rawRate: 12.34, displayedChance: 12.3, levelBand: null, conditionIds: [], placementIds: [] }]);
+  } finally { db.close(); }
+});
+
+test("groups and deduplicates the authored requirements for items:1040", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "catalog.v1", "{}", "e".repeat(64));
+    db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      "build", "items", 1040, "items:1040", "Melee Weapon", null, null, null, "{}", "[]",
+      "build", "classes", 0, "classes:0", "Shieldmaster", null, null, null, "{}", "[]",
+      "build", "classes", 5, "classes:5", "Assassin", null, null, null, "{}", "[]",
+    );
+    const classes = { checkCount: false, requiredCount: 1, requirements: [{ requirementType: "Class", conditionRule: "Optional", classID: 0, amount1: 0, amount2: 0 }, { requirementType: "Class", conditionRule: "Optional", classID: 5, amount1: 0, amount2: 0 }] };
+    const level = { checkCount: false, requiredCount: 0, requirements: [{ requirementType: "Level", conditionRule: "Mandatory", levelsID: -1, amount1: 27, amount2: 0 }] };
+    db.query("INSERT INTO conditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      "a-template", "build", "entity", "items:1040", 0, "requirements-template", "/items/1040/template", JSON.stringify({ groups: [classes] }), "[]",
+      "b-inline", "build", "entity", "items:1040", 1, "inline-requirements", "/items/1040/inline", JSON.stringify({ groups: [classes, level] }), "[]",
+    );
+
+    expect(queryConditions(db).records.flatMap((condition) => condition.requirements)).toEqual([
+      { mode: "any", requiredCount: 1, requirements: [
+        { type: "Class", label: "Warrior", target: { entityKey: "classes:0", label: "Warrior" }, amount: null, secondaryAmount: null },
+        { type: "Class", label: "Assassin", target: { entityKey: "classes:5", label: "Assassin" }, amount: null, secondaryAmount: null },
+      ] },
+      { mode: "all", requiredCount: null, requirements: [
+        { type: "Level", label: "Level 27", target: null, amount: 27, secondaryAmount: null },
+      ] },
+    ]);
   } finally { db.close(); }
 });
 

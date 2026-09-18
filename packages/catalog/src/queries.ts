@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogRecipeFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRelations } from "@afallon/contracts/catalog";
+import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogRecipeFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementGroup, CatalogRelations } from "@afallon/contracts/catalog";
 import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
 
 export interface CatalogQueryIdentity {
@@ -396,29 +396,44 @@ export function queryTransitions(db: Database): CatalogQueryResult<CatalogTransi
 }
 
 const requirementTargetKinds: Readonly<Record<string, string>> = { abilityID: "abilities", bonusID: "bonuses", recipeID: "recipes", resourceID: "resources", effectID: "effects", NPCID: "npcs", statID: "stats", factionID: "factions", raceID: "races", classID: "classes", speciesID: "species", itemID: "items", currencyID: "currencies", talentTreeID: "talentTrees", skillID: "skills", enchantmentID: "enchantments", gearSetID: "gearSets", gameSceneID: "scenes", questID: "quests" };
-function conditionRequirements(refs: ReadonlyMap<string, CatalogEndpoint>, payload: unknown): CatalogRequirement[] {
+function conditionRequirements(refs: ReadonlyMap<string, CatalogEndpoint>, payload: unknown): CatalogRequirementGroup[] {
   if (payload === null || typeof payload !== "object") return [];
   const root = payload as Record<string, unknown>, groups = Array.isArray(root.groups) ? root.groups : Array.isArray(root.requirements) ? [{ requirements: root.requirements }] : [];
-  const result: CatalogRequirement[] = [];
+  const result: CatalogRequirementGroup[] = [];
   for (const groupValue of groups) {
     if (groupValue === null || typeof groupValue !== "object") continue;
-    const group = groupValue as Record<string, unknown>, requirements = Array.isArray(group.requirements) ? group.requirements : [];
-    for (const requirementValue of requirements) {
+    const group = groupValue as Record<string, unknown>, values = Array.isArray(group.requirements) ? group.requirements : [], requirements: CatalogRequirement[] = [];
+    let hasOptional = false;
+    for (const requirementValue of values) {
       if (requirementValue === null || typeof requirementValue !== "object") continue;
-      const requirement = requirementValue as Record<string, unknown>, type = typeof requirement.requirementType === "string" ? requirement.requirementType : "requirement";
+      const requirement = requirementValue as Record<string, unknown>, type = typeof requirement.requirementType === "string" ? requirement.requirementType : "Requirement";
+      if (requirement.conditionRule === "Optional") hasOptional = true;
       let target: CatalogEndpoint | null = null;
-      for (const [field, kind] of Object.entries(requirementTargetKinds)) if (typeof requirement[field] === "number") { const nativeId = requirement[field] as number; target = nativeId < 0 ? null : endpoint(refs, `${kind}:${nativeId}`, `${kind} ${nativeId}`); break; }
-      const amount = typeof requirement.amount1 === "number" ? requirement.amount1 : typeof requirement.float1 === "number" ? requirement.float1 : null, secondaryAmount = typeof requirement.amount2 === "number" ? requirement.amount2 : null;
-      const mandatory = group.checkCount !== true || typeof group.requiredCount !== "number" || group.requiredCount >= requirements.length;
-      result.push({ type, mandatory, target, amount, secondaryAmount, label: [type, amount, target?.label].filter((value) => value !== null && value !== undefined && value !== "").join(" ") });
+      for (const [field, kind] of Object.entries(requirementTargetKinds)) if (typeof requirement[field] === "number" && requirement[field] >= 0) { const nativeId = requirement[field] as number; target = endpoint(refs, `${kind}:${nativeId}`, `${kind} ${nativeId}`); break; }
+      const amountValue = typeof requirement.amount1 === "number" && requirement.amount1 !== 0 ? requirement.amount1 : typeof requirement.float1 === "number" && requirement.float1 !== 0 ? requirement.float1 : null;
+      const secondaryValue = typeof requirement.amount2 === "number" && requirement.amount2 !== 0 ? requirement.amount2 : null;
+      const amount = amountValue as number | null, secondaryAmount = secondaryValue as number | null;
+      const threshold = [amount, secondaryAmount].filter((value): value is number => value !== null).join("–"), label = [target?.label ?? type, threshold].filter(Boolean).join(" ");
+      requirements.push({ type, label, target, amount, secondaryAmount });
     }
+    if (requirements.length === 0) continue;
+    const requiredCount = typeof group.requiredCount === "number" && group.requiredCount > 0 ? group.requiredCount : null;
+    result.push({ mode: hasOptional ? "any" : "all", requiredCount, requirements });
   }
   return result;
 }
 
 export function queryConditions(db: Database): CatalogQueryResult<CatalogCondition[]> {
-  const refs = entityEndpointIndex(db);
-  const records = db.query<{ condition_id: string; semantics: string; payload_json: string }, []>("SELECT condition_id, semantics, payload_json FROM conditions ORDER BY condition_id").all().flatMap((row) => { const payload = parse(row.payload_json); if (row.semantics === "inline-requirements" && payload !== null && typeof payload === "object" && "groups" in payload && Array.isArray(payload.groups) && payload.groups.length === 0) return []; const requirements = conditionRequirements(refs, payload), sourceName = payload !== null && typeof payload === "object" && "sourceName" in payload && typeof payload.sourceName === "string" && payload.sourceName.length > 0 ? payload.sourceName : null; return [{ conditionId: row.condition_id, semantics: row.semantics, label: sourceName ?? (requirements.map((requirement) => requirement.label).join(" and ") || row.semantics), requirements }]; });
+  const refs = entityEndpointIndex(db), seenByOwner = new Map<string, Set<string>>();
+  const records = db.query<{ condition_id: string; owner_key: string; semantics: string; payload_json: string }, []>("SELECT condition_id, owner_key, semantics, payload_json FROM conditions ORDER BY condition_id").all().flatMap((row) => {
+    const payload = parse(row.payload_json);
+    if (row.semantics === "inline-requirements" && payload !== null && typeof payload === "object" && "groups" in payload && Array.isArray(payload.groups) && payload.groups.length === 0) return [];
+    const seen = seenByOwner.get(row.owner_key) ?? new Set<string>(), requirements = conditionRequirements(refs, payload).filter((group) => { const key = JSON.stringify(group); if (seen.has(key)) return false; seen.add(key); return true; });
+    seenByOwner.set(row.owner_key, seen);
+    const sourceName = payload !== null && typeof payload === "object" && "sourceName" in payload && typeof payload.sourceName === "string" && payload.sourceName.length > 0 ? payload.sourceName : null;
+    const label = requirements.flatMap((group) => group.requirements.map((requirement) => requirement.label).join(group.mode === "any" ? " or " : " and ")).join(", ");
+    return [{ conditionId: row.condition_id, semantics: row.semantics, label: (sourceName ?? label) || row.semantics, requirements }];
+  });
   return { ...identity(db), records };
 }
 

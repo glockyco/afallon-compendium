@@ -150,8 +150,9 @@ export interface CatalogFacts {
   recipes: CatalogRecipeFacts[];
 }
 
-export interface CatalogCondition { conditionId: string; semantics: string; label: string; requirements: CatalogRequirement[] }
-export interface CatalogRequirement { type: string; mandatory: boolean; target: CatalogEndpoint | null; amount: number | null; secondaryAmount: number | null; label: string }
+export interface CatalogCondition { conditionId: string; semantics: string; label: string; requirements: CatalogRequirementGroup[] }
+export interface CatalogRequirementGroup { mode: "all" | "any"; requiredCount: number | null; requirements: CatalogRequirement[] }
+export interface CatalogRequirement { type: string; label: string; target: CatalogEndpoint | null; amount: number | null; secondaryAmount: number | null }
 
 // Loot rows: `displayedChance` is the value the game's own guide shows, which the measured rule
 // establishes only for NPC loot entries (the authored rate rounded to one decimal). Other contexts
