@@ -65,6 +65,12 @@ export function owningContainerPlacement(path: string | null, sourcesByPath: Rea
   return null;
 }
 
+export function mergedPlacementId(placementId: string, hasRoles: boolean, sourceIds: readonly string[], aliases: ReadonlyMap<string, string>): string {
+  if (hasRoles) return placementId;
+  const owners = new Set(sourceIds.flatMap((sourceId) => { const owner = aliases.get(sourceId); return owner === undefined ? [] : [owner]; }));
+  return owners.size === 1 ? [...owners][0]! : placementId;
+}
+
 export function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabaseInput["bindings"], resolver: { resolve(sceneNativeId: number, scenePath: string, position: { x: number; y: number; z: number }): SpatialResolution }, profileRef: ArtifactReference, blockers: Blocker[], exclusions: Exclusion[]): { placements: NormalizedPlacement[]; sources: NormalizedSource[]; roles: NormalizedDatabaseInput["roles"]; sourceForComponent: Map<string, string>; sourcePlacement: Map<string, string> } {
   const placementById = new Map<string, NormalizedPlacement>();
   const sourceById = new Map<string, NormalizedSource>();
@@ -113,14 +119,14 @@ export function collectPlacements(contexts: SceneContext[], profile: NormalizedD
       normalized.provenance.push(...raw.evidence.map((evidence) => pointer(context.roleEvidenceReferences[evidence.artifact], evidence.pointer)));
     }
     for (const [roleIndex, row] of roleRows.placements.entries()) {
-      const position = row.position;
+      const position = row.position, requestedSourceIds = [...row.sourceIds].sort(compareText);
+      const placementId = mergedPlacementId(row.placementId, row.roles.length > 0, requestedSourceIds, placementAliases);
       const resolved = bindingResolution({ x: position.x, y: position.y, z: position.z }, profile, resolver, context.sceneNativeId, context.scenePath);
-      recordPlacementResolution(resolved, row.placementId, `No reviewed map-space binding resolves ${context.scenePath}.`, profile, profileRef, blockers, exclusions);
-      const requestedSourceIds = [...row.sourceIds].sort(compareText);
+      recordPlacementResolution(resolved, placementId, `No reviewed map-space binding resolves ${context.scenePath}.`, profile, profileRef, blockers, exclusions);
       for (const sourceId of requestedSourceIds) if (!sourceById.has(sourceId)) blockers.push({ kind: "unresolved-source-identity", key: sourceId, detail: `Placement ${row.placementId} references an unverified source identity.`, provenance: [] });
       const sourceIds = requestedSourceIds.filter((sourceId) => sourceById.has(sourceId));
-      const identity = identityByPlacement.get(row.placementId);
-      const placement: NormalizedPlacement = { placementId: row.placementId, buildId: "", sceneNativeId: context.sceneNativeId, scenePath: context.scenePath, identity: identity ? { sceneSourceSha256: identity.sceneSourceSha256, sourceSha256: identity.sourceSha256, serializedFile: identity.serializedFile, gameObjectPathId: identity.gameObjectPathId, origin: identity.origin, loaderSourceId: identity.loaderSourceId } : null, label: typeof row.label === "string" ? row.label : null, mapSpaceId: resolved.binding?.mapSpaceId ?? null, worldPosition: { x: position.x, y: position.y, z: position.z }, mapPosition: resolved.mapPosition, sourceIds, roles: [], shape: null, provenance: [pointer(profileRef, resolved.binding ? `/bindings/${profile.indexOf(resolved.binding)}` : ""), pointer(context.roleReference, `/placements/${roleIndex}`)] };
+      const identity = identityByPlacement.get(placementId);
+      const placement: NormalizedPlacement = { placementId, buildId: "", sceneNativeId: context.sceneNativeId, scenePath: context.scenePath, identity: identity ? { sceneSourceSha256: identity.sceneSourceSha256, sourceSha256: identity.sourceSha256, serializedFile: identity.serializedFile, gameObjectPathId: identity.gameObjectPathId, origin: identity.origin, loaderSourceId: identity.loaderSourceId } : null, label: typeof row.label === "string" ? row.label : null, mapSpaceId: resolved.binding?.mapSpaceId ?? null, worldPosition: { x: position.x, y: position.y, z: position.z }, mapPosition: resolved.mapPosition, sourceIds, roles: [], shape: null, provenance: [pointer(profileRef, resolved.binding ? `/bindings/${profile.indexOf(resolved.binding)}` : ""), pointer(context.roleReference, `/placements/${roleIndex}`)] };
       const previous = placementById.get(placement.placementId);
       if (previous) {
         if (previous.sceneNativeId !== placement.sceneNativeId || previous.scenePath !== placement.scenePath) throw new Error(`Conflicting repeated placement identity ${placement.placementId}.`);
@@ -134,7 +140,7 @@ export function collectPlacements(contexts: SceneContext[], profile: NormalizedD
         const npcId = role.npcId;
         for (const sourceId of [...role.sourceIds].sort(compareText)) {
           if (!sourceById.has(sourceId)) { blockers.push({ kind: "unresolved-source-identity", key: sourceId, detail: `Role ${role.role} has no verified source identity.`, provenance: [] }); continue; }
-          roles.push({ placementId: row.placementId, sourceId, role: role.role, npcId, scope: role.scope, evidence: role.evidence.map((evidence) => pointer(context.roleEvidenceReferences[evidence.artifact], evidence.pointer)) });
+          roles.push({ placementId, sourceId, role: role.role, npcId, scope: role.scope, evidence: role.evidence.map((evidence) => pointer(context.roleEvidenceReferences[evidence.artifact], evidence.pointer)) });
         }
       }
     }
