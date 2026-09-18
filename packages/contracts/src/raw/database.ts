@@ -66,10 +66,14 @@ export const LocalizationSchema = Type.Object({
   entries: Type.Array(Type.Object({ key: text, text })),
 });
 export type Localization = Static<typeof LocalizationSchema>;
+// `gameplay` carries the family's player-facing fields (recipe ranks, ability effects) when the
+// collector projects them; the catalog decodes it at its typed boundary like canonical `gameplay`.
+export const SupportEntrySchema = Type.Object({ sourceKey: integer, entry: definition, gameplay: Type.Optional(rawObject) });
+export type SupportEntry = Static<typeof SupportEntrySchema>;
 export const SupportSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.support.v1"), language: text,
   sourceTotals: Type.Record(text, integer),
-  tables: Type.Record(text, Type.Array(Type.Object({ sourceKey: integer, entry: definition }))),
+  tables: Type.Record(text, Type.Array(SupportEntrySchema)),
 });
 export type Support = Static<typeof SupportSchema>;
 
@@ -88,6 +92,8 @@ export const RelationshipsSchema = Type.Object({
   lootEntries: Type.Array(Type.Object({ lootTableID: integer, entryIndex: integer, itemID: integer, min: integer, max: integer, dropRate: Type.Number() })),
   npcQuestBindings: Type.Array(Type.Object({ ownerNativeId: integer, questID: integer, association: text, associationIndex: integer })),
   quests: Type.Array(definition), tasks: Type.Array(definition),
+  // Item requirement groups; absent in evidence collected before the compendium probe extension.
+  items: Type.Optional(Type.Array(definition)),
   questObjectives: Type.Array(Type.Object({ questID: integer, taskID: integer, objectiveIndex: integer })),
   questItemsGiven: Type.Array(Type.Object({ questID: integer, itemID: integer })),
   questRewards: Type.Array(Type.Object({ questID: integer, rewardType: text, itemID: integer, currencyID: integer, treePointID: integer, factionID: integer, weaponTemplateID: integer })),

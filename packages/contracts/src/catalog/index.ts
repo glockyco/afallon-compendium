@@ -20,3 +20,5 @@ export * from "./accounting";
 export * from "./plans";
 export * from "./query";
 export * from "./roles";
+
+export * from "./facts";
