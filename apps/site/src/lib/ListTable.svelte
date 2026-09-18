@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { browser } from '$app/environment';
   import { pushState, replaceState } from '$app/navigation';
-  import { page } from '$app/stores';
+  import { onMount, tick } from 'svelte';
   import type { ListRow, PublicKindEntry, StaticKindList } from '@afallon/contracts/public';
   import EntityLink from './EntityLink.svelte';
   import MissingValue from './MissingValue.svelte';
@@ -16,23 +15,35 @@
   let facetValues: Record<string, string[]> = {};
   let minimums: Record<string, string> = {};
   let maximums: Record<string, string> = {};
-  let currentSearch = '';
+  let facetControls: Record<string, HTMLSelectElement> = {};
 
   $: facetOptions = Object.fromEntries(kind.facets.map((facet) => [facet.id, [...new Set(list.rows.flatMap((row) => row.facets[facet.id] ?? []))].sort((left, right) => left.localeCompare(right))]));
   $: numericColumns = kind.columns.filter((column) => column.numeric);
-  $: incomingSearch = browser ? $page.url.search : '';
-  $: if (browser && incomingSearch !== currentSearch) readUrl($page.url);
   $: filteredRows = list.rows
     .filter((row) => matchesFilters(row, nameFilter, facetValues, minimums, maximums))
     .sort((left, right) => compareRows(left, right, sortId, direction));
 
+  onMount(() => {
+    const restore = () => readUrl(new URL(window.location.href));
+    restore();
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  });
+
   function readUrl(url: URL): void {
-    currentSearch = url.search;
     nameFilter = url.searchParams.get('q') ?? '';
     const requestedSort = url.searchParams.get('sort') ?? 'name';
     sortId = requestedSort === 'name' || kind.columns.some((column) => column.id === requestedSort) ? requestedSort : 'name';
     direction = url.searchParams.get('dir') === 'desc' ? 'desc' : 'asc';
-    facetValues = Object.fromEntries(kind.facets.map((facet) => [facet.id, url.searchParams.getAll(`facet.${facet.id}`)]));
+    const restoredFacetValues = Object.fromEntries(kind.facets.map((facet) => [facet.id, url.searchParams.getAll(`facet.${facet.id}`)]));
+    facetValues = restoredFacetValues;
+    void tick().then(() => {
+      for (const facet of kind.facets) {
+        const selected = new Set(restoredFacetValues[facet.id] ?? []);
+        const control = facetControls[facet.id];
+        if (control) for (const option of control.options) option.selected = selected.has(option.value);
+      }
+    });
     minimums = Object.fromEntries(numericColumns.map((column) => [column.id, url.searchParams.get(`min.${column.id}`) ?? '']));
     maximums = Object.fromEntries(numericColumns.map((column) => [column.id, url.searchParams.get(`max.${column.id}`) ?? '']));
   }
@@ -117,7 +128,7 @@
 
 <div class="filters">
   <label>Name<input type="search" bind:value={nameFilter} on:input={() => writeUrl('replace')} placeholder={`Filter ${kind.plural.toLocaleLowerCase()}`} /></label>
-  {#each kind.facets as facet}<label>{facet.label}<select multiple size={Math.min(4, Math.max(2, facetOptions[facet.id]?.length ?? 2))} on:change={(event) => setFacet(facet.id, event.currentTarget)} aria-label={`${facet.label}; select one or more`}>{#each facetOptions[facet.id] ?? [] as option}<option value={option} selected={(facetValues[facet.id] ?? []).includes(option)}>{option}</option>{/each}</select></label>{/each}
+  {#each kind.facets as facet}<label>{facet.label}<select bind:this={facetControls[facet.id]} multiple size={Math.min(4, Math.max(2, facetOptions[facet.id]?.length ?? 2))} on:change={(event) => setFacet(facet.id, event.currentTarget)} aria-label={`${facet.label}; select one or more`}>{#each facetOptions[facet.id] ?? [] as option}<option value={option} selected={(facetValues[facet.id] ?? []).includes(option)}>{option}</option>{/each}</select></label>{/each}
   {#each numericColumns as column}<fieldset><legend>{column.label}</legend><label>Min<input type="number" value={minimums[column.id] ?? ''} on:change={(event) => setMinimum(column.id, event.currentTarget.value)} /></label><label>Max<input type="number" value={maximums[column.id] ?? ''} on:change={(event) => setMaximum(column.id, event.currentTarget.value)} /></label></fieldset>{/each}
 </div>
 <p class="result-count" aria-live="polite">{filteredRows.length} {filteredRows.length === 1 ? kind.label.toLocaleLowerCase() : kind.plural.toLocaleLowerCase()}</p>
