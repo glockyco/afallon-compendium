@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { PUBLIC_MARKER_CATEGORY_VALUES } from "@afallon/contracts/public"
 import type { PublicPlacement } from "@afallon/contracts/public"
-import { markerRecordsForPlacements } from "../map-renderer";
+import { buildMarkers } from "./render-data";
 import { createPlacementIconLayer } from "./layers/markers";
 import { iconAtlasMapping } from "./icon-atlas";
 import { MARKER_IDS, MARKER_LAYER_ID, markerFor, markerRegistry, resolveMarker } from "./marker-registry";
@@ -37,7 +37,7 @@ test("every registered marker reaches the rendered icon layer and atlas", () => 
     movement: [],
   }));
   const atlas = { atlas: {} as HTMLCanvasElement, mapping: iconAtlasMapping() };
-  const records = markerRecordsForPlacements(placements);
+  const records = buildMarkers(placements);
   const layer = createPlacementIconLayer(records, atlas);
   const renderedIds = (layer.props.data as readonly { markerId: string }[]).map((marker) => marker.markerId);
   expect(renderedIds.sort()).toEqual([...MARKER_IDS].sort());
@@ -65,6 +65,6 @@ test("an overlapping placement resolves from its enabled categories", () => {
     movement: [],
   };
 
-  expect(markerRecordsForPlacements([placement], ["dungeonEntrance"])[0]?.markerId).toBe("dungeonEntrance");
-  expect(markerRecordsForPlacements([placement], ["travelPoint"])[0]?.markerId).toBe("travelPoint");
+  expect(buildMarkers([placement], null, {}, new Set(["dungeonEntrance"]))[0]?.markerId).toBe("dungeonEntrance");
+  expect(buildMarkers([placement], null, {}, new Set(["travelPoint"]))[0]?.markerId).toBe("travelPoint");
 });

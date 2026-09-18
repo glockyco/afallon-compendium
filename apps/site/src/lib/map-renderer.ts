@@ -1,25 +1,17 @@
-import {
-  COORDINATE_SYSTEM,
-  Deck,
-  OrthographicView,
-  type Layer,
-  type PickingInfo,
-} from "@deck.gl/core";
+import { Deck, OrthographicView, type Layer, type PickingInfo } from "@deck.gl/core";
+import type { PublicPlacement, PublicTile, PublicTileLayer, PublicationData } from "@afallon/contracts/public";
 import { createIconAtlas } from "./map/icon-atlas";
 import { createConnectionLayers, createHoverConnectionLayers, type TravelConnection } from "./map/layers/connections";
 import { createImageryLayer, orderImageryLayers, type LoadedTile, type TileRequest } from "./map/layers/imagery";
-import { markerColor, createPlacementIconLayer } from "./map/layers/markers";
-import { createMovementLayers, type MovementGeometry, type MovementPath, type MovementRadius } from "./map/layers/movement";
+import { createHighlightLayers, createPlacementIconLayer, createStackCountLayer } from "./map/layers/markers";
+import { createAreaLayer } from "./map/layers/areas";
+import { createWorldLayers } from "./map/layers/world";
+import { createMovementLayers, type MovementGeometry } from "./map/layers/movement";
 import { createRegionLayers, type RegionRecord } from "./map/layers/regions";
 import { MAP_EVENT_RECOGNIZER_OPTIONS, MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from "./map/interaction";
-import { markerFor, resolveMarker, type MarkerId } from "./map/marker-registry";
+import type { MarkerId } from "./map/marker-registry";
 import { WorldDragController, type WorldOffsetOverrides, effectiveMapDelta } from "./map/world-layout";
-import { PolygonLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
-import type { PublicPlacement,
-PublicRegion,
-PublicTile,
-PublicTileLayer,
-PublicationData, } from "@afallon/contracts/public"
+import { buildMarkers, buildAreas, buildRegions, buildMovementGeometry, groupCoincidentMarkers, type MarkerRecord, type AreaRecord, type Point, type WorldMapBounds } from "./map/render-data";
 
 export type MapViewState = {
   target: [number, number, number];
@@ -42,33 +34,7 @@ export type MapAdapterUpdate = {
   showZones: boolean;
 };
 
-type Point = [number, number];
 type Bounds = [number, number, number, number];
-
-export type MarkerRecord = {
-  placementId: string;
-  mapSpaceId: string;
-  position: [number, number, number];
-  label: string;
-  categories: PublicPlacement["categories"];
-  markerId: MarkerId;
-  members: string[];
-  enabled: boolean;
-  isTravel: boolean;
-};
-
-type AreaRecord = {
-  areaId: string;
-  placementId: string;
-  mapSpaceId: string;
-  polygon: Point[];
-  markerId: MarkerId;
-};
-
-type WorldMapBounds = {
-  mapSpaceId: string;
-  polygon: Point[];
-};
 
 export type AdapterCallbacks = {
   onViewChange: (view: MapViewState, bounds: Bounds) => void;
@@ -98,13 +64,6 @@ function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function point(value: readonly number[] | null | undefined): Point | null {
-  if (!value || value.length < 2 || !finite(value[0]) || !finite(value[1])) return null;
-  return [value[0], value[1]];
-}
-
-
-
 function normalizeView(view: MapViewState | ViewInput | undefined, fallback: MapViewState): MapViewState {
   const target = view?.target;
   const zoom = view?.zoom;
@@ -120,210 +79,6 @@ function normalizeView(view: MapViewState | ViewInput | undefined, fallback: Map
 
 function sameValues<T>(left: readonly T[], right: readonly T[]): boolean {
   return left === right || (left.length === right.length && left.every((value, index) => value === right[index]));
-}
-
-function validPlacement(placement: PublicPlacement): boolean {
-  return Boolean(placement.placementId && point(placement.position));
-}
-
-function buildMarkers(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null): MarkerRecord[] {
-  const byId = new Map<string, MarkerRecord>();
-  for (const placement of placements) {
-    if (!validPlacement(placement) || byId.has(placement.placementId)) continue;
-    const categories = activeCategories ? placement.categories.filter((category) => activeCategories.has(category)) : placement.categories;
-    const markerId = resolveMarker({categories});
-    if (!markerId) continue;
-    const position = point(placement.position)!;
-    const delta = data ? effectiveMapDelta(data, placement.mapSpaceId, overrides) : { worldX: 0, worldY: 0 };
-    byId.set(placement.placementId, {
-      placementId: placement.placementId,
-      mapSpaceId: placement.mapSpaceId,
-      position: [position[0] + delta.worldX, position[1] + delta.worldY, 0],
-      label: placement.label,
-      categories: [...categories],
-      markerId,
-      members: [placement.placementId],
-      enabled: placement.travelEnabled ?? true,
-      isTravel: placement.travelEnabled !== undefined,
-    });
-  }
-  return [...byId.values()].sort((left, right) => markerFor(left.markerId).renderOrder - markerFor(right.markerId).renderOrder || left.placementId.localeCompare(right.placementId));
-}
-
-export function markerRecordsForPlacements(placements: readonly PublicPlacement[], activeCategories?: readonly MarkerId[]): MarkerRecord[] {
-  return buildMarkers(placements, null, {}, activeCategories ? new Set(activeCategories) : null);
-}
-
-function createHighlightLayers(
-  id: string,
-  data: readonly MarkerRecord[],
-  color: [number, number, number, number],
-  fill: [number, number, number, number],
-  radiusOffset: number,
-): Layer[] {
-  if (data.length === 0) return [];
-  const radius = (marker: MarkerRecord) => markerFor(marker.markerId).iconSize.base / 2 + radiusOffset;
-  return [
-    new ScatterplotLayer<MarkerRecord>({
-      id: `${id}-outline`,
-      data,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: false,
-      stroked: true,
-      filled: false,
-      radiusUnits: "pixels",
-      getPosition: marker => marker.position,
-      getRadius: radius,
-      getLineColor: [0, 0, 0, 255],
-      getLineWidth: 6,
-      lineWidthUnits: "pixels",
-    }),
-    new ScatterplotLayer<MarkerRecord>({
-      id,
-      data,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: false,
-      stroked: true,
-      filled: true,
-      radiusUnits: "pixels",
-      getPosition: marker => marker.position,
-      getRadius: radius,
-      getFillColor: fill,
-      getLineColor: color,
-      getLineWidth: 3,
-      lineWidthUnits: "pixels",
-    }),
-  ];
-}
-
-function buildRegions(regions: readonly PublicRegion[], data: PublicationData, overrides: WorldOffsetOverrides): RegionRecord[] {
-  return regions.map((region) => {
-    const delta = effectiveMapDelta(data, region.mapSpaceId, overrides);
-    return {
-      id: region.id,
-      mapSpaceId: region.mapSpaceId,
-      name: region.name,
-      shape: region.shape,
-      polygon: region.polygon.map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point),
-    };
-  });
-}
-
-function buildAreas(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null): AreaRecord[] {
-  const areas: AreaRecord[] = [];
-  for (const placement of placements) {
-    for (let index = 0; index < placement.areas.length; index++) {
-      const source = placement.areas[index];
-      if (!source) continue;
-      const delta = data ? effectiveMapDelta(data, placement.mapSpaceId, overrides) : { worldX: 0, worldY: 0 };
-      const polygon = source
-        .map(value => point(value))
-        .filter((value): value is Point => value !== null)
-        .map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point);
-      if (polygon.length < 3) continue;
-      const categories = activeCategories ? placement.categories.filter((category) => activeCategories.has(category)) : placement.categories;
-      const markerId = resolveMarker({categories});
-      if (!markerId) continue;
-      areas.push({
-        areaId: `${placement.placementId}:${index}`,
-        placementId: placement.placementId,
-        mapSpaceId: placement.mapSpaceId,
-        polygon,
-        markerId,
-      });
-    }
-  }
-  return areas;
-}
-
-function buildMovementGeometry(placements: readonly PublicPlacement[], data: PublicationData, overrides: WorldOffsetOverrides): MovementGeometry {
-  const paths: MovementPath[] = [];
-  const radii: MovementRadius[] = [];
-  const seen = new Set<string>();
-  for (const placement of placements) {
-    const delta = effectiveMapDelta(data, placement.mapSpaceId, overrides);
-    const placementCenter = point(placement.position);
-    for (let movementIndex = 0; movementIndex < placement.movement.length; movementIndex++) {
-      const movement = placement.movement[movementIndex]!;
-      if (movement.kind === "roaming") {
-        if (movement.usePois && movement.poiPath?.status === "resolved" && movement.poiPath.points) {
-          const poiPoints = movement.poiPath.points.map(point).filter((value): value is Point => value !== null).map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point);
-          const pathKey = `poi:${poiPoints.map((value) => value.join(",")).join(";")}`;
-          if (poiPoints.length > 1 && !seen.has(`${placement.placementId}:${pathKey}`)) {
-            seen.add(`${placement.placementId}:${pathKey}`);
-            paths.push({ movementId: `${placement.placementId}:${movementIndex}:poi`, placementId: placement.placementId, kind: "poi", points: poiPoints });
-          }
-          if (typeof movement.poiRoamRadius === "number" && movement.poiRoamRadius > 0) {
-            for (let pointIndex = 0; pointIndex < poiPoints.length; pointIndex++) {
-              const center = poiPoints[pointIndex]!;
-              const radiusKey = `poi:${center.join(",")}:${movement.poiRoamRadius}`;
-              if (seen.has(`${placement.placementId}:${radiusKey}`)) continue;
-              seen.add(`${placement.placementId}:${radiusKey}`);
-              radii.push({ movementId: `${placement.placementId}:${movementIndex}:poi:${pointIndex}`, placementId: placement.placementId, kind: "poi", center, radius: movement.poiRoamRadius });
-            }
-          }
-        } else if (!movement.usePois && placementCenter && movement.distance > 0) {
-          const center: Point = [placementCenter[0] + delta.worldX, placementCenter[1] + delta.worldY];
-          const radiusKey = `roaming:${center.join(",")}:${movement.distance}`;
-          if (seen.has(`${placement.placementId}:${radiusKey}`)) continue;
-          seen.add(`${placement.placementId}:${radiusKey}`);
-          radii.push({ movementId: `${placement.placementId}:${movementIndex}:roaming`, placementId: placement.placementId, kind: "roaming", center, radius: movement.distance });
-        }
-        continue;
-      }
-      for (let pathIndex = 0; pathIndex < movement.paths.length; pathIndex++) {
-        const path = movement.paths[pathIndex]!;
-        if (path.status !== "resolved" || !path.points) continue;
-        const pathPoints = path.points.map(point).filter((value): value is Point => value !== null).map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point);
-        if (pathPoints.length < 2) continue;
-        if (path.looping && (pathPoints[0]![0] !== pathPoints.at(-1)![0] || pathPoints[0]![1] !== pathPoints.at(-1)![1])) pathPoints.push(pathPoints[0]!);
-        const pathKey = `patrol:${pathPoints.map((value) => value.join(",")).join(";")}`;
-        if (seen.has(`${placement.placementId}:${pathKey}`)) continue;
-        seen.add(`${placement.placementId}:${pathKey}`);
-        paths.push({ movementId: `${placement.placementId}:${movementIndex}:patrol:${pathIndex}`, placementId: placement.placementId, kind: "patrol", points: pathPoints });
-      }
-    }
-  }
-  return { paths, radii };
-}
-
-// Markers render individually at every zoom. Only placements that share a position
-// exactly are grouped, because otherwise they would draw on top of each other and the
-// hidden ones could never be picked.
-export function groupCoincidentMarkers(markers: readonly MarkerRecord[]): readonly MarkerRecord[] {
-  if (markers.length < 2) return markers;
-  const groups = new Map<string, MarkerRecord[]>();
-  for (const marker of markers) {
-    const key = `${marker.position[0]}:${marker.position[1]}`;
-    const group = groups.get(key);
-    if (group) group.push(marker);
-    else groups.set(key, [marker]);
-  }
-  const result: MarkerRecord[] = [];
-  for (const group of groups.values()) {
-    if (group.length === 1) {
-      const only = group[0];
-      if (only) result.push(only);
-      continue;
-    }
-    const ordered = [...group].sort((left, right) => left.placementId.localeCompare(right.placementId));
-    const members = ordered.flatMap((marker) => marker.members);
-    const categories = new Set<PublicPlacement["categories"][number]>();
-    for (const marker of ordered) marker.categories.forEach((category) => categories.add(category));
-    const markerId = [...group].sort((left, right) => markerFor(right.markerId).precedence - markerFor(left.markerId).precedence)[0]!.markerId;
-    result.push({
-      placementId: members[0]!,
-      mapSpaceId: group[0]!.mapSpaceId,
-      position: group[0]!.position,
-      label: ordered.map((marker) => marker.label).join(" / "),
-      categories: [...categories],
-      markerId,
-      members,
-      enabled: group.every((marker) => marker.enabled),
-      isTravel: group.some((marker) => marker.isTravel),
-    });
-  }
-  return result;
 }
 
 function pickedPlacementId(info: PickingInfo): string | null {
@@ -419,11 +174,6 @@ export async function createMapAdapter(
     if (!tile || tile.state === "empty") return null;
     const response = await fetch(tile.url, props.signal ? {signal: props.signal} : undefined);
     if (!response.ok) throw new Error(`Tile ${tile.z}/${tile.x}/${tile.y} failed to load (${response.status} ${response.statusText})`);
-    // A tile is loaded when its pixels are ready, not before. deck.gl drops the parent tile
-    // the moment this promise resolves, so resolving with anything less than the decoded
-    // image shows a black square until the bytes arrive. The bitmap is never closed here:
-    // deck.gl's tile cache owns its lifetime, so a tile scrolled back into view is drawn
-    // from cache instead of fetched and decoded again.
     const image = await createImageBitmap(await response.blob());
     return {tile, image};
   };
@@ -537,56 +287,8 @@ export async function createMapAdapter(
         return { label: map.label, position: [(map.bounds.min.x + map.bounds.max.x) / 2 + delta.worldX, map.bounds.max.y + delta.worldY + 20] };
       });
     }
-    const hoveredIds = new Set(next.hoveredPlacementIds);
     const imageLayers = imageryChanged ? createImagery(next, tileLayersForView) : imageryLayers;
-    // Travel markers are a category like any other; the connections toggle draws only the lines.
-    // Ground that a map space declares but no capture has photographed yet must read as
-    // absent imagery, not as the void outside every map. Without this fill, a tile still
-    // loading and a tile that will never exist look identical.
-    const backgroundLayer = new PolygonLayer<WorldMapBounds>({
-      id: "map-space-background",
-      data: worldBounds,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: false,
-      stroked: false,
-      filled: true,
-      getPolygon: (map) => map.polygon,
-      getFillColor: [46, 48, 54, 255],
-    });
-    const boundsLayer = new PolygonLayer<WorldMapBounds>({
-      id: "world-map-bounds",
-      data: worldBounds,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: next.authoring,
-      stroked: true,
-      // In authoring mode the whole rectangle is a drag surface, so a map can be grabbed
-      // anywhere inside it; outside authoring only the outline draws.
-      filled: next.authoring,
-      getFillColor: (map) => next.data.world.unplacedMapSpaceIds.includes(map.mapSpaceId) ? [220, 150, 50, 30] : [120, 180, 220, 20],
-      getPolygon: (map) => map.polygon,
-      getLineColor: (map) => next.data.world.unplacedMapSpaceIds.includes(map.mapSpaceId) ? [220, 150, 50, 220] : [120, 180, 220, 170],
-      getLineWidth: 2,
-      lineWidthUnits: "pixels",
-    });
-    const mapLabelLayer = new TextLayer({
-      id: "map-space-labels",
-      data: worldLabels,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: false,
-      getPosition: (map: {position: Point}) => map.position,
-      getText: (map: {label: string}) => map.label,
-      getSize: 24,
-      sizeUnits: "common",
-      getColor: [255, 255, 255, 235],
-      getTextAnchor: "middle",
-      getAlignmentBaseline: "bottom",
-      characterSet: "auto",
-      fontSettings: {sdf: true},
-      outlineColor: [18, 20, 24, 255],
-      outlineWidth: 3,
-      fontFamily: "sans-serif",
-      fontWeight: 700,
-    });
+    const [backgroundLayer, boundsLayer, mapLabelLayer] = createWorldLayers(worldBounds, worldLabels, next.authoring, next.data.world.unplacedMapSpaceIds);
     const regionLayers = next.showZones ? createRegionLayers(baseRegions) : [];
     const expandMarkerMembers = (placementIds: readonly string[]): Set<string> => {
       const expanded = new Set(placementIds);
@@ -605,30 +307,7 @@ export async function createMapAdapter(
           radii: baseMovement.radii.filter((movement) => focusedMovementIds.has(movement.placementId)),
         };
     const movementLayers = createMovementLayers("world-movement", visibleMovement, selectedMovementIds, emphasizedMovementIds, true, callbacks.onSelect);
-    const areaLayer = new PolygonLayer<AreaRecord>({
-      id: "map-placement-areas",
-      data: baseAreas,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: true,
-      autoHighlight: true,
-      highlightColor: [250, 204, 21, 70],
-      stroked: true,
-      filled: true,
-      getPolygon: area => area.polygon,
-      getFillColor: area => {
-        const marker = markerByPlacement.get(area.placementId);
-        const color = markerColor(area.markerId, area.placementId === next.selectedId, hoveredIds.has(area.placementId), marker?.enabled ?? true);
-        return [color[0], color[1], color[2], area.placementId === next.selectedId ? 150 : 58];
-      },
-      getLineColor: area => area.placementId === next.selectedId ? [255, 196, 0, 255] : [28, 28, 28, 230],
-      getLineWidth: area => area.placementId === next.selectedId ? 4 : hoveredIds.has(area.placementId) ? 3 : 1,
-      lineWidthUnits: "pixels",
-      updateTriggers: {getFillColor: [next.selectedId, next.hoveredPlacementIds], getLineColor: [next.selectedId], getLineWidth: [next.selectedId, next.hoveredPlacementIds]},
-      onClick: (info: PickingInfo) => {
-        const id = pickedPlacementId(info);
-        if (id) callbacks.onSelect(id);
-      },
-    });
+    const areaLayer = createAreaLayer(baseAreas, markerByPlacement, next.selectedId, next.hoveredPlacementIds, callbacks.onSelect);
     const hoveredConnectionIds = new Set(next.hoveredPlacementIds);
     // The disabled option still permits lines for the selected or hovered marker.
     const focusedConnections = next.showConnections || next.authoring ? allConnections : allConnections.filter((connection) => connection.placementId === next.selectedId || hoveredConnectionIds.has(connection.placementId));
@@ -642,25 +321,7 @@ export async function createMapAdapter(
       callbacks.onSelect(stack.members[(selectedIndex + 1) % stack.members.length]!);
     };
     const markerLayer = createPlacementIconLayer(renderMarkers, iconAtlas, next.selectedId, null, selectStacked);
-    const stackCounts = stacks.length === 0 ? null : new TextLayer<MarkerRecord>({
-      id: "map-placement-stack-counts",
-      data: stacks,
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      pickable: false,
-      getPosition: (marker) => marker.position,
-      getPixelOffset: [9, -9],
-      getText: (marker) => String(marker.members.length),
-      getSize: 12,
-      sizeUnits: "pixels",
-      getColor: [255, 255, 255, 255],
-      characterSet: "auto",
-      // An outline needs a signed-distance-field font; without this the renderer warns
-      // and draws the count with no outline, which is illegible over pale terrain.
-      fontSettings: { sdf: true },
-      outlineColor: [20, 20, 20, 255],
-      outlineWidth: 2,
-      fontFamily: "sans-serif",
-    });
+    const stackCounts = createStackCountLayer(stacks);
     const groupedMarkersFor = (placementIds: readonly string[]): readonly MarkerRecord[] => {
       const ids = new Set(placementIds);
       return groupCoincidentMarkers(baseMarkers.filter(marker => ids.has(marker.placementId)));
