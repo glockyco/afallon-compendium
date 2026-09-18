@@ -92,8 +92,41 @@ var weaponTemplates = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetWeaponTemplates()) weaponTemplates.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, null) });
 var enchantments = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetEnchantments()) enchantments.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, null) });
+// A gear set carries the two lists the item tooltip renders: the items that belong to the set, and
+// the tiers that reward wearing a number of them. Negative member ids are the authored "none"
+// sentinel and stay as they are.
+var projectGearSet = new System.Func<Il2Cpp.RPGGearSet, object>((gearSet) =>
+{
+    var members = new System.Collections.Generic.List<object>();
+    var nativeMembers = gearSet.itemsInSet;
+    var memberCount = nativeMembers == null ? 0 : nativeMembers.Count;
+    for (var index = 0; index < memberCount; index++)
+    {
+        var member = nativeMembers[index];
+        if (member == null) continue;
+        members.Add(new { sourceIndex = index, itemId = member.itemID });
+    }
+    var tiers = new System.Collections.Generic.List<object>();
+    var nativeTiers = gearSet.gearSetTiers;
+    var tierCount = nativeTiers == null ? 0 : nativeTiers.Count;
+    for (var tierIndex = 0; tierIndex < tierCount; tierIndex++)
+    {
+        var tier = nativeTiers[tierIndex];
+        if (tier == null) { tiers.Add(new { tierIndex = tierIndex, unavailable = "null tier record" }); continue; }
+        var stats = new System.Collections.Generic.List<object>();
+        var statCount = tier.gearSetTierStats == null ? 0 : tier.gearSetTierStats.Count;
+        for (var statIndex = 0; statIndex < statCount; statIndex++)
+        {
+            var stat = tier.gearSetTierStats[statIndex];
+            if (stat == null) continue;
+            stats.Add(new { sourceIndex = statIndex, statId = stat.statID, amount = stat.amount, isPercent = stat.isPercent });
+        }
+        tiers.Add(new { tierIndex = tierIndex, equippedAmount = tier.equippedAmount, stats = stats });
+    }
+    return new { itemsInSet = members, gearSetTiers = tiers };
+});
 var gearSets = new System.Collections.Generic.List<object>();
-foreach (var pair in database.GetGearSets()) gearSets.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "gearset") });
+foreach (var pair in database.GetGearSets()) gearSets.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "gearset"), gameplay = pair.Value == null ? null : projectGearSet(pair.Value) });
 var bonuses = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetBonuses()) bonuses.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "bonus") });
 var dialogues = new System.Collections.Generic.List<object>();
