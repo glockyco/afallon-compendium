@@ -86,6 +86,14 @@ type ViewInput = {
 
 const VIEW_ID = "map";
 
+function createMapView(dragPan = true): OrthographicView {
+  return new OrthographicView({
+    id: VIEW_ID,
+    flipY: false,
+    controller: { inertia: false, dragPan, dragRotate: false },
+  });
+}
+
 function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -448,7 +456,7 @@ export async function createMapAdapter(
   // the controller sees it: a synchronous pick on the bounds layer starts the drag and turns
   // the controller's pan off until the pointer is released.
   const setDragPan = (enabled: boolean): void => {
-    deck.setProps({ views: new OrthographicView({ id: VIEW_ID, flipY: false, controller: { inertia: false, dragPan: enabled, dragRotate: false } }) });
+    deck.setProps({ views: createMapView(enabled) });
   };
   const unprojectPointer = (event: PointerEvent): [number, number] | null => {
     if (!deckLoaded) return null;
@@ -690,11 +698,7 @@ export async function createMapAdapter(
 
   const deck: Deck<OrthographicView> = new Deck<OrthographicView>({
     canvas,
-    views: new OrthographicView({
-      id: VIEW_ID,
-      flipY: false,
-      controller: {inertia: false, dragRotate: false},
-    }),
+    views: createMapView(),
     viewState: {...activeView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM},
     eventRecognizerOptions: MAP_EVENT_RECOGNIZER_OPTIONS,
     layers: [],
