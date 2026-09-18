@@ -1,118 +1,115 @@
-import type { PublicEntitySummary, PublicItemSummary, PublicPlacement, PublicationData } from '@afallon/contracts/public';
-import type { ResultSummary, SearchResult } from './map/AtlasSearchResults.svelte';
+import type { PublicPlacement, PublicSearchEntry, PublicationData } from '@afallon/contracts/public';
+import type { ResultSummary, SearchResult } from './atlas-search-types';
 import { MARKER_IDS, markerFor, resolveMarker, type MarkerId } from './map/marker-registry';
 
-const searchKindOrder = { item: 0, placement: 1, entity: 2 };
+const searchKindOrder: Record<SearchResult['kind'], number> = { entry: 0, placement: 1 };
 
 export interface SearchIndexes {
-    entitiesByKey: ReadonlyMap<string, PublicEntitySummary>;
-    itemsByKey: ReadonlyMap<string, PublicItemSummary>;
-    entitySearchEntries: readonly { entity: PublicEntitySummary; text: string }[];
-    itemSearchEntries: readonly { item: PublicItemSummary; text: string }[];
-    placementSearchText: ReadonlyMap<string, string>;
-    placementsById: ReadonlyMap<string, PublicPlacement>;
-    placementsByEntityKey: ReadonlyMap<string, readonly PublicPlacement[]>;
-    placementsByItemKey: ReadonlyMap<string, readonly PublicPlacement[]>;
-    placementSummaries: ReadonlyMap<string, ResultSummary>;
-    entitySummaries: ReadonlyMap<string, ResultSummary>;
-    itemSummaries: ReadonlyMap<string, ResultSummary>;
-  }
+  entriesByKey: ReadonlyMap<string, PublicSearchEntry>;
+  searchEntries: readonly { entry: PublicSearchEntry; text: string }[];
+  placementSearchText: ReadonlyMap<string, string>;
+  placementsById: ReadonlyMap<string, PublicPlacement>;
+  placementsByEntryKey: ReadonlyMap<string, readonly PublicPlacement[]>;
+  placementSummaries: ReadonlyMap<string, ResultSummary>;
+  entrySummaries: ReadonlyMap<string, ResultSummary>;
+}
 
 export function getCategoryCounts(placements: PublicPlacement[]): Record<MarkerId, number> {
-    const counts = Object.fromEntries(MARKER_IDS.map((id) => [id, 0])) as Record<MarkerId, number>;
-    for (const placement of placements) for (const category of placement.categories) counts[category] += 1;
-    return counts;
-  }
+  const counts = Object.fromEntries(MARKER_IDS.map((id) => [id, 0])) as Record<MarkerId, number>;
+  for (const placement of placements) for (const category of placement.categories) counts[category] += 1;
+  return counts;
+}
 
-export function rankResults(needle: string, items: PublicItemSummary[], entities: PublicEntitySummary[], placements: PublicPlacement[], names: ReadonlyMap<string, PublicEntitySummary>): SearchResult[] {
-    // The atlas is small enough for exact and substring matching; avoid fuzzy ranking that obscures why a result matched.
-    const rank = (name: string): number => {
-      const text = name.toLocaleLowerCase();
-      return text === needle ? 0 : text.startsWith(needle) ? 1 : text.includes(needle) ? 2 : 3;
-    };
-    const results: SearchResult[] = [];
-    for (const item of items) {
-      const name = names.get(item.itemKey)?.name ?? item.name;
-      results.push({ kind: 'item', key: item.itemKey, name, rank: rank(name), item });
-    }
-    for (const entity of entities) results.push({ kind: 'entity', key: entity.entityKey, name: entity.name, rank: rank(entity.name), entity });
-    for (const placement of placements) results.push({ kind: 'placement', key: placement.placementId, name: placement.label, rank: rank(placement.label), placement });
-    return results.sort((a, b) => a.rank - b.rank || searchKindOrder[a.kind] - searchKindOrder[b.kind] || (a.name < b.name ? -1 : a.name > b.name ? 1 : a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
-  }
+function nameRank(needle: string, name: string): number {
+  const text = name.toLocaleLowerCase();
+  return text === needle ? 0 : text.startsWith(needle) ? 1 : text.includes(needle) ? 2 : 3;
+}
+
+export function rankCompendiumEntries(query: string, entries: readonly PublicSearchEntry[]): PublicSearchEntry[] {
+  const needle = query.trim().toLocaleLowerCase();
+  if (!needle) return [];
+  return entries
+    .filter((entry) => entry.ref.name.toLocaleLowerCase().includes(needle))
+    .sort((left, right) => nameRank(needle, left.ref.name) - nameRank(needle, right.ref.name) || left.ref.name.localeCompare(right.ref.name) || left.ref.key.localeCompare(right.ref.key));
+}
+
+export function rankResults(needle: string, entries: PublicSearchEntry[], placements: PublicPlacement[]): SearchResult[] {
+  const results: SearchResult[] = [
+    ...entries.map((entry): SearchResult => ({ kind: 'entry', key: entry.ref.key, name: entry.ref.name, rank: nameRank(needle, entry.ref.name), entry })),
+    ...placements.map((placement): SearchResult => ({ kind: 'placement', key: placement.placementId, name: placement.label, rank: nameRank(needle, placement.label), placement })),
+  ];
+  return results.sort((left, right) => left.rank - right.rank || (searchKindOrder[left.kind] ?? 0) - (searchKindOrder[right.kind] ?? 0) || left.name.localeCompare(right.name) || left.key.localeCompare(right.key));
+}
 
 export function emptySearchIndexes(): SearchIndexes {
-    return {
-      entitiesByKey: new Map(), itemsByKey: new Map(), entitySearchEntries: [], itemSearchEntries: [], placementSearchText: new Map(),
-      placementsById: new Map(),
-      placementsByEntityKey: new Map(),
-      placementsByItemKey: new Map(),
-      placementSummaries: new Map(),
-      entitySummaries: new Map(),
-      itemSummaries: new Map(),
-    };
-  }
+  return {
+    entriesByKey: new Map(),
+    searchEntries: [],
+    placementSearchText: new Map(),
+    placementsById: new Map(),
+    placementsByEntryKey: new Map(),
+    placementSummaries: new Map(),
+    entrySummaries: new Map(),
+  };
+}
 
 export function summarizePlacements(placements: readonly PublicPlacement[], fallbackId: MarkerId): ResultSummary {
-    const categoryIds = [...new Set(placements.flatMap((placement) => placement.categories))] as MarkerId[];
-    const marker = markerFor(placements[0] ? (resolveMarker(placements[0]) ?? categoryIds[0] ?? fallbackId) : fallbackId);
-    return {
-      marker,
-      categories: categoryIds.length > 0 ? categoryIds.map((category) => markerFor(category).label).join(' · ') : 'No map category',
-    };
-  }
+  const categoryIds = [...new Set(placements.flatMap((placement) => placement.categories))] as MarkerId[];
+  const marker = markerFor(placements[0] ? (resolveMarker(placements[0]) ?? categoryIds[0] ?? fallbackId) : fallbackId);
+  return {
+    marker,
+    categories: categoryIds.length > 0 ? categoryIds.map((category) => markerFor(category).label).join(' · ') : 'No map category',
+  };
+}
 
-export function buildSearchIndexes(data: PublicationData): SearchIndexes {
-    const placementsById = new Map(data.placements.map((placement) => [placement.placementId, placement]));
-    const placementsByEntityKey = new Map<string, PublicPlacement[]>();
-    for (const placement of data.placements) {
-      for (const entityKey of placement.entityKeys) {
-        const placements = placementsByEntityKey.get(entityKey) ?? [];
-        placements.push(placement);
-        placementsByEntityKey.set(entityKey, placements);
-      }
+export function buildSearchIndexes(data: PublicationData, entries: readonly PublicSearchEntry[]): SearchIndexes {
+  const placementsById = new Map(data.placements.map((placement) => [placement.placementId, placement]));
+  const placementsByEntryKey = new Map<string, PublicPlacement[]>();
+  for (const placement of data.placements) {
+    for (const key of [...placement.entityKeys, ...placement.itemKeys]) {
+      const known = placementsByEntryKey.get(key) ?? [];
+      if (!known.some((candidate) => candidate.placementId === placement.placementId)) known.push(placement);
+      placementsByEntryKey.set(key, known);
     }
-    const placementsByItemKey = new Map<string, PublicPlacement[]>();
-    for (const placement of data.placements) for (const itemKey of placement.itemKeys) {
-      const placements = placementsByItemKey.get(itemKey) ?? [];
-      placements.push(placement);
-      placementsByItemKey.set(itemKey, placements);
-    }
-    return {
-      entitiesByKey: new Map(data.entityIndex.map((entity) => [entity.entityKey, entity])),
-      itemsByKey: new Map(data.itemIndex.map((item) => [item.itemKey, item])),
-      entitySearchEntries: data.entityIndex.filter((entity) => entity.kind !== 'items').map((entity) => ({ entity, text: `${entity.name} ${entity.description ?? ''}`.toLocaleLowerCase() })),
-      itemSearchEntries: data.itemIndex.map((item) => ({ item, text: [item.name, ...item.sourceNames, ...item.sourceKinds].join(' ').toLocaleLowerCase() })),
-      placementSearchText: new Map(data.placements.map((placement) => [placement.placementId, placement.searchText.toLocaleLowerCase()])),
-      placementsById,
-      placementsByEntityKey,
-      placementsByItemKey,
-      placementSummaries: new Map(data.placements.map((placement) => [placement.placementId, summarizePlacements([placement], 'interactiveObject')])),
-      entitySummaries: new Map(data.entityIndex.map((entity) => [entity.entityKey, summarizePlacements(placementsByEntityKey.get(entity.entityKey) ?? [], 'townsfolk')])),
-      itemSummaries: new Map(data.itemIndex.map((item) => [item.itemKey, summarizePlacements(placementsByItemKey.get(item.itemKey) ?? [], 'container')])),
-    };
   }
+  for (const entry of entries) {
+    const known = placementsByEntryKey.get(entry.ref.key) ?? [];
+    for (const placementId of entry.placementIds) {
+      const placement = placementsById.get(placementId);
+      if (placement && !known.some((candidate) => candidate.placementId === placementId)) known.push(placement);
+    }
+    placementsByEntryKey.set(entry.ref.key, known);
+  }
+  return {
+    entriesByKey: new Map(entries.map((entry) => [entry.ref.key, entry])),
+    searchEntries: entries.map((entry) => ({ entry, text: [entry.ref.name, entry.place ?? '', ...entry.sourceKinds].join(' ').toLocaleLowerCase() })),
+    placementSearchText: new Map(data.placements.map((placement) => [placement.placementId, placement.searchText.toLocaleLowerCase()])),
+    placementsById,
+    placementsByEntryKey,
+    placementSummaries: new Map(data.placements.map((placement) => [placement.placementId, summarizePlacements([placement], 'interactiveObject')])),
+    entrySummaries: new Map(entries.map((entry) => [entry.ref.key, summarizePlacements(placementsByEntryKey.get(entry.ref.key) ?? [], entry.ref.kind === 'items' ? 'container' : 'townsfolk')])),
+  };
+}
 
 export function placementIds(placements: readonly PublicPlacement[]): string[] {
-    return [...new Set(placements.map((placement) => placement.placementId))];
-  }
+  return [...new Set(placements.map((placement) => placement.placementId))];
+}
 
 export function selectionHighlightIds(
-    placement: PublicPlacement | null,
-    entityKey: string | null,
-    selectedItemKey: string | null,
-    indexes: SearchIndexes,
-  ): string[] {
-    if (selectedItemKey) return placementIds(indexes.placementsByItemKey.get(selectedItemKey) ?? []);
-    if (entityKey) return placementIds(indexes.placementsByEntityKey.get(entityKey) ?? []);
-    if (!placement) return [];
-    const related = placement.entityKeys.flatMap((key) => indexes.placementsByEntityKey.get(key) ?? []);
-    return placementIds([placement, ...related]);
-  }
+  placement: PublicPlacement | null,
+  entityKey: string | null,
+  selectedItemKey: string | null,
+  indexes: SearchIndexes,
+): string[] {
+  const selectedKey = selectedItemKey ?? entityKey;
+  if (selectedKey) return placementIds(indexes.placementsByEntryKey.get(selectedKey) ?? []);
+  if (!placement) return [];
+  const related = [...placement.entityKeys, ...placement.itemKeys].flatMap((key) => indexes.placementsByEntryKey.get(key) ?? []);
+  return placementIds([placement, ...related]);
+}
 
 export function resultHighlightIds(result: SearchResult | null, indexes: SearchIndexes): string[] {
-    if (!result) return [];
-    if (result.kind === 'placement') return [result.placement.placementId];
-    if (result.kind === 'entity') return placementIds(indexes.placementsByEntityKey.get(result.entity.entityKey) ?? []);
-    return placementIds(indexes.placementsByItemKey.get(result.item.itemKey) ?? []);
-  }
-
+  if (!result) return [];
+  if (result.kind === 'placement') return [result.placement.placementId];
+  return placementIds(indexes.placementsByEntryKey.get(result.entry.ref.key) ?? []);
+}

@@ -5,14 +5,15 @@
   import './MapExplorer.css';
   import { onMount, tick } from 'svelte';
   import type { MapAdapter, MapRendererController, MapViewState } from './map-renderer';
-  import { AtlasDataLoader } from './atlas-data';
+  import { clientAtlasLoader } from './client-publication';
   import { AtlasController, type AtlasSnapshot } from './atlas-controller';
   import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, resultHighlightIds, summarizePlacements } from './atlas-search';
   import { DEFAULT_ATLAS_STATE, readAtlasUrl, writeAtlasUrl } from './atlas-state';
-  import { filteredSections, linksFromSections } from './detail-utils';
+  import AtlasDetailPanel from './AtlasDetailPanel.svelte';
   import AtlasDevelopmentDetails from './map/AtlasDevelopmentDetails.svelte';
   import AtlasCanvasShell from './map/AtlasCanvasShell.svelte';
-  import AtlasSearchResults, { type ResultSummary, type SearchResult } from './map/AtlasSearchResults.svelte';
+  import AtlasSearchResults from './map/AtlasSearchResults.svelte';
+  import type { ResultSummary, SearchResult } from './atlas-search-types';
   import AtlasSidebar from './map/AtlasSidebar.svelte';
   import type { LayerOption } from './map/AtlasLayerControls.svelte';
 
@@ -28,7 +29,7 @@
   import { MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from './map/interaction';
   import { canonicalLayerIds, NO_IMAGERY_LAYER_ID } from './map/layer-policy';
   import { clearWorldOffsetOverrides, downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, placementInViewport, NO_WORLD_OVERRIDES, type WorldOffsetOverrides } from './map/world-layout';
-  import type { PublicEntity, PublicEntitySummary, PublicItemSource, PublicItemSummary, PublicDetailSection, PublicationData } from '@afallon/contracts/public';
+  import type { PublicDocument, PublicSearchEntry, PublicationData } from '@afallon/contracts/public';
 
   const RESULT_LIMIT = 200;
   const WEBGL_STARTUP_FAILURE = /webgl map unavailable|failed to create webgl context|webgl creation failed|webgl is not supported|exhausted gl driver options/i;
@@ -57,23 +58,20 @@
   let resultsCollapsed = false;
   let worldOffsetOverrides: WorldOffsetOverrides = {};
   const initialIndexes = emptySearchIndexes();
-  const initialEntityDetails: ReadonlyMap<string, PublicEntity> = new Map();
-  const initialItemDetails: ReadonlyMap<string, PublicItemSource> = new Map();
+  const initialDocuments: ReadonlyMap<string, PublicDocument> = new Map();
   const idleRequest = { status: 'idle' } as const;
 
   let publication: PublicationData | null = null;
   let searchIndexes = initialIndexes;
   let searchState: AtlasSnapshot['search'] = idleRequest;
-  let entityDetails = initialEntityDetails;
-  let itemDetails = initialItemDetails;
+  let documents = initialDocuments;
   let layerIds = DEFAULT_ATLAS_STATE.layerIds;
   let categoryIds = DEFAULT_ATLAS_STATE.categories;
 
   $: state = snapshot?.state ?? DEFAULT_ATLAS_STATE;
   $: if (snapshot && publication !== snapshot.publication) publication = snapshot.publication;
   $: if (snapshot && searchIndexes !== snapshot.indexes) searchIndexes = snapshot.indexes;
-  $: if (snapshot && entityDetails !== snapshot.entityDetails) entityDetails = snapshot.entityDetails;
-  $: if (snapshot && itemDetails !== snapshot.itemDetails) itemDetails = snapshot.itemDetails;
+  $: if (snapshot && documents !== snapshot.documents) documents = snapshot.documents;
   $: mapState = snapshot?.map ?? idleRequest;
   $: if (snapshot && searchState !== snapshot.search) searchState = snapshot.search;
   $: detailLoading = snapshot?.detail.status === 'loading';
@@ -88,8 +86,6 @@
   $: itemKey = state.itemKey;
   $: selectedEntityKey = state.entityKey;
   $: query = state.query;
-  $: itemSourceQuery = state.itemSourceQuery;
-  $: detailQuery = state.detailQuery;
   $: showZones = state.showZones;
   $: showConnections = state.showConnections;
   $: showMovement = state.showMovement;
@@ -104,28 +100,17 @@
   $: gameMapsChecked = visibleGameMapIds.length > 0;
   $: gameMapsPartial = visibleGameMapIds.length > 0 && visibleGameMapIds.length < gameMapOptions.length;
   $: allMapPlacements = publication?.placements ?? [];
-  $: entityIndexByKey = searchIndexes.entitiesByKey;
-  $: itemIndexByKey = searchIndexes.itemsByKey;
-  $: itemContext = itemKey ? itemDetails.get(itemKey) ?? null : null;
-  $: sourceSearchEntries = (itemContext?.sources ?? []).map((source) => ({ source, text: [source.label, source.kind, sectionText(source.sections)].join(' ').toLocaleLowerCase() }));
-  $: sourceNeedle = itemSourceQuery.trim().toLocaleLowerCase();
-  $: filteredItemSources = sourceSearchEntries.filter((entry) => !sourceNeedle || entry.text.includes(sourceNeedle)).map((entry) => entry.source);
-  $: itemPlacementIds = new Set(itemContext?.sources.flatMap((source) => source.placementIds) ?? []);
-  $: entityByKey = entityDetails;
-  $: selectedEntitySummary = selectedEntityKey ? entityIndexByKey.get(selectedEntityKey) ?? null : null;
-  $: selectedEntity = selectedEntityKey ? entityByKey.get(selectedEntityKey) ?? null : null;
-  $: selectedItemEntity = itemKey ? entityByKey.get(itemKey) ?? null : null;
-  $: entitySearchEntries = searchIndexes.entitySearchEntries;
-  $: itemSearchEntries = searchIndexes.itemSearchEntries;
+  $: registry = snapshot?.registry ?? [];
+  $: entriesByKey = searchIndexes.entriesByKey;
+  $: selectedItemEntry = itemKey ? entriesByKey.get(itemKey) ?? null : null;
+  $: itemPlacementIds = new Set(selectedItemEntry?.placementIds ?? []);
+  $: corpusEntries = searchIndexes.searchEntries;
   $: placementSearchText = searchIndexes.placementSearchText;
   $: searchNeedle = query.trim().toLocaleLowerCase();
-  $: matchingEntities = searchNeedle ? entitySearchEntries.filter((entry) => entry.text.includes(searchNeedle)).map((entry) => entry.entity) : [];
-  $: matchingItems = searchNeedle ? itemSearchEntries.filter((entry) => entry.text.includes(searchNeedle)).map((entry) => entry.item) : [];
-  $: querySourcePlacementIds = new Set(matchingItems.flatMap((item) => searchIndexes.placementsByItemKey.get(item.itemKey)?.map((placement) => placement.placementId) ?? []));
-  $: queryEntityPlacementIds = new Set(matchingEntities.flatMap((entity) => searchIndexes.placementsByEntityKey.get(entity.entityKey)?.map((placement) => placement.placementId) ?? []));
-  // Placements that pass every filter except the category selection: the sidebar counts
-  // each category against these, so an unselected category keeps its count and its row.
-  $: candidatePlacements = allMapPlacements.filter((placement) => (!itemKey || (searchState.status === 'loaded' && !itemIndexByKey.has(itemKey)) || itemPlacementIds.has(placement.placementId)) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || querySourcePlacementIds.has(placement.placementId) || queryEntityPlacementIds.has(placement.placementId)));
+  $: matchingEntries = searchNeedle ? corpusEntries.filter((entry) => entry.text.includes(searchNeedle)).map((entry) => entry.entry) : [];
+  $: queryPlacementIds = new Set(matchingEntries.flatMap((entry) => searchIndexes.placementsByEntryKey.get(entry.ref.key)?.map((placement) => placement.placementId) ?? []));
+  // Placements that pass every filter except the category selection keep category counts stable.
+  $: candidatePlacements = allMapPlacements.filter((placement) => (!itemKey || (searchState.status === 'loaded' && !entriesByKey.has(itemKey)) || itemPlacementIds.has(placement.placementId)) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || queryPlacementIds.has(placement.placementId)));
   $: matchingPlacements = candidatePlacements.filter((placement) => categories.length === 0 || categories.some((category) => placement.categories.includes(category)));
   $: categoryCounts = getCategoryCounts(candidatePlacements);
   $: publishedCounts = getCategoryCounts(allMapPlacements);
@@ -144,20 +129,16 @@
   $: previewPlacement = hoveredPlacement ?? selectedPlacement;
   $: previewMarkerId = previewPlacement ? resolveMarker(previewPlacement) : null;
   $: previewMarker = previewMarkerId ? markerFor(previewMarkerId) : null;
-  $: selectedEntities = selectedPlacement ? selectedPlacement.entityKeys.map((key) => entityByKey.get(key)).filter((entity): entity is PublicEntity => Boolean(entity)) : [];
-  $: selectedPlacementDetails = selectedPlacement ? [
-    ...selectedEntities.flatMap((entity) => entity.sections),
-    ...selectedPlacement.itemKeys.flatMap((key) => (itemDetails.get(key)?.sources ?? []).flatMap((source) => source.sections)),
-  ] : [];
+  $: selectedDocumentKey = itemKey ?? selectedEntityKey ?? selectedPlacement?.entityKeys.find((key) => documents.has(key)) ?? selectedPlacement?.itemKeys.find((key) => documents.has(key)) ?? null;
+  $: selectedDocument = selectedDocumentKey ? documents.get(selectedDocumentKey) ?? null : null;
   $: resultPlacements = !mapUnavailable && viewportBounds ? viewportPlacements : matchingPlacements;
-  $: rankedResults = rankResults(searchNeedle, matchingItems, matchingEntities, resultPlacements, entityIndexByKey);
+  $: rankedResults = rankResults(searchNeedle, matchingEntries, resultPlacements);
   $: displayedResults = rankedResults.slice(0, RESULT_LIMIT);
-  $: filteredDetail = filteredSections(selectedPlacement ? selectedPlacementDetails : selectedEntity?.sections ?? [], detailQuery);
   $: extraSelection = selectedPlacement && !staleSelection && !matchingPlacements.some((placement) => placement.placementId === selectedId) ? selectedPlacement : null;
   $: adapterPlacements = extraSelection ? [...matchingPlacements, extraSelection] : matchingPlacements;
   $: highlightedPlacementIds = selectionHighlightIds(selectedPlacement, selectedEntityKey, itemKey, searchIndexes);
   $: hoveredPlacementIds = resultHighlightIds(hoveredResult, searchIndexes);
-  $: resultsPending = mapState.status !== 'loaded' || Boolean(searchNeedle && searchState.status !== 'loaded') || Boolean(itemKey && !itemContext && !staleSelection);
+  $: resultsPending = mapState.status !== 'loaded' || Boolean(searchNeedle && searchState.status !== 'loaded');
   $: resultsError = searchState.status === 'error' ? searchState.message : '';
 
   function handleMapError(message: string): void {
@@ -203,8 +184,9 @@
     };
     window.addEventListener('popstate', onPopState);
     window.addEventListener('keydown', onKeydown);
-    const rootUrl = new URL(`${base}/data/publication.json`, window.location.href);
-    controller = new AtlasController(new AtlasDataLoader(fetch, new URL('.', rootUrl)), {
+    const loader = clientAtlasLoader();
+    if (!loader) return;
+    controller = new AtlasController(loader, {
       onChange: acceptSnapshot,
       onNavigate(next, mode) {
         const url = writeAtlasUrl(new URL(window.location.href), next);
@@ -283,12 +265,7 @@
 
   function resultSummary(result: SearchResult): ResultSummary {
     if (result.kind === 'placement') return searchIndexes.placementSummaries.get(result.placement.placementId) ?? summarizePlacements([result.placement], 'interactiveObject');
-    if (result.kind === 'entity') return searchIndexes.entitySummaries.get(result.entity.entityKey) ?? summarizePlacements([], 'townsfolk');
-    return searchIndexes.itemSummaries.get(result.item.itemKey) ?? summarizePlacements([], 'container');
-  }
-
-  function sectionText(sections: PublicDetailSection[]): string {
-    return sections.flatMap((section) => [section.title, ...section.rows.flatMap((row) => [row.label, row.value])]).join(' ');
+    return searchIndexes.entrySummaries.get(result.entry.ref.key) ?? summarizePlacements([], result.entry.ref.kind === 'items' ? 'container' : 'townsfolk');
   }
 
   function setMapView(next: MapViewState): void {
@@ -315,24 +292,10 @@
     detailsPanel?.querySelector<HTMLElement>('h2')?.focus();
   }
 
-  function selectEntity(entity: PublicEntity | PublicEntitySummary, origin: HTMLElement | null = null): void {
-    const item = itemIndexByKey.get(entity.entityKey);
-    if (item) { selectItem(item, origin); return; }
+  function selectEntry(entry: PublicSearchEntry, origin: HTMLElement | null = null): void {
     detailOrigin = origin;
-    controller?.dispatch({ type: 'select-entity', entityKey: entity.entityKey }, 'push');
-    void focusDetails();
-  }
-
-  function openEntity(key: string, origin: HTMLElement): void {
-    const entity = entityIndexByKey.get(key);
-    if (entity) selectEntity(entity, origin);
-  }
-
-  function selectItem(item: PublicItemSummary | PublicItemSource, origin: HTMLElement | null = null): void {
-    const summary = itemIndexByKey.get(item.itemKey);
-    if (!summary) return;
-    detailOrigin = origin;
-    controller?.dispatch({ type: 'select-item', itemKey: summary.itemKey }, 'push');
+    if (entry.ref.kind === 'items') controller?.dispatch({ type: 'select-item', itemKey: entry.ref.key }, 'push');
+    else controller?.dispatch({ type: 'select-entity', entityKey: entry.ref.key }, 'push');
     void focusDetails();
   }
 
@@ -456,14 +419,6 @@
     (origin?.isConnected ? origin : searchInput)?.focus();
   }
 
-  function sourceRows(source: PublicItemSource['sources'][number], query: string): PublicDetailSection[] {
-    const needle = query.trim().toLocaleLowerCase();
-    return !needle || `${source.label} ${source.kind}`.toLocaleLowerCase().includes(needle) ? source.sections : filteredSections(source.sections, needle);
-  }
-
-  function entityLinks(sections: PublicDetailSection[]) {
-    return linksFromSections(sections).filter((link, index, links) => links.findIndex((candidate) => candidate.placementId === link.placementId) === index);
-  }
 </script>
 
 <svelte:head>
@@ -490,7 +445,7 @@
   {:else if loadError && !publication}
     <main class="state-card error" role="alert"><h1>Atlas unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p><button type="button" on:click={() => controller?.retry('map')}>Retry map data</button></main>
   {:else if publication}
-    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || staleSelection)} class:sidebar-collapsed={panelCollapsed} class:no-details={!dev}>
+    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
       <AtlasSidebar
         collapsed={panelCollapsed} logoBase={base} bind:searchInput {query} sections={markerSections} {categories} {categoryCounts} countsPending={resultsPending}
         placementCount={allMapPlacements.length} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
@@ -513,26 +468,21 @@
           onZoomOut={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })} onFit={fitMap}
         />
         {#if loadError && publication && !mapUnavailable}<div class="inline-error" role="alert">{loadError}</div>{/if}
-        {#if !dev && staleSelection}<p role="alert">{staleSelection} <button type="button" on:click={closeDetails}>Clear selection</button></p>{/if}
-        {#if !dev && detailError}<p role="alert">{detailError} <button type="button" on:click={() => controller?.retry('detail')}>Retry selection</button></p>{/if}
         <AtlasSearchResults bind:resultList collapsed={resultsCollapsed} {displayedResults} totalResults={rankedResults.length}
           pending={resultsPending} error={resultsError} searchPending={searchState.status === 'loading'} onRetry={() => controller?.retry('search')}
-          resultLimit={RESULT_LIMIT} placementCount={resultPlacements.length} itemCount={matchingItems.length} entityCount={matchingEntities.length}
-          hasViewport={Boolean(viewportBounds)} {mapUnavailable} itemContextActive={Boolean(itemContext)} selectedItemKey={itemKey}
-          {selectedEntityKey} selectedPlacementId={selectedId} summaryFor={resultSummary} onToggle={toggleResults}
-          onExitItemContext={() => controller?.dispatch({ type: 'exit-item-context' }, 'push')} onSelectItem={selectItem} onSelectEntity={selectEntity}
-          onSelectPlacement={selectPlacement} onHover={setResultHover} onClearHover={clearResultHover}
+          resultLimit={RESULT_LIMIT} placementCount={resultPlacements.length} entryCount={matchingEntries.length}
+          hasViewport={Boolean(viewportBounds)} {mapUnavailable} selectedKey={itemKey ?? selectedEntityKey}
+          selectedPlacementId={selectedId} summaryFor={resultSummary} onToggle={toggleResults}
+          onSelectEntry={selectEntry} onSelectPlacement={selectPlacement} onHover={setResultHover} onClearHover={clearResultHover}
         />
       </section>
 
       {#if dev}
-        <AtlasDevelopmentDetails bind:detailsPanel {selectedPlacement} {selectedEntityKey} {itemKey} {staleSelection}
-          {selectedItemEntity} {itemIndexByKey} {selectedEntity} {selectedEntitySummary} {detailLoading} {detailError}
-          {itemContext} {entityByKey} {filteredItemSources} itemContextSections={filteredSections(itemContext?.sections ?? [], itemSourceQuery)} {selectedEntities} {filteredDetail} {selectedPlacementDetails}
-          {itemSourceQuery} {detailQuery} {sourceRows} {entityLinks} onClose={closeDetails}
-          onItemSourceQuery={(next) => controller?.setQuery('itemSourceQuery', next)} onDetailQuery={(next) => controller?.setQuery('detailQuery', next)}
-          onRetry={() => controller?.retry('detail')} onOpenEntity={openEntity} onSelectPlacement={selectPlacement} onSelectEntity={selectEntity}
-        />
+        <AtlasDevelopmentDetails bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry}
+          loading={detailLoading} error={detailError} {staleSelection} onClose={closeDetails} onRetry={() => controller?.retry('detail')} />
+      {:else}
+        <AtlasDetailPanel bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry}
+          loading={detailLoading} error={detailError} {staleSelection} onClose={closeDetails} onRetry={() => controller?.retry('detail')} />
       {/if}
     </main>
   {/if}

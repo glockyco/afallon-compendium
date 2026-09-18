@@ -1,4 +1,4 @@
-import type { PublicEntity, PublicItemSource, PublicationData, StaticCoverage, StaticGeometry, StaticRootManifest } from '@afallon/contracts/public';
+import type { PublicDocument, PublicKindEntry, PublicationData, StaticCoverage, StaticGeometry, StaticRootManifest } from '@afallon/contracts/public';
 import { AtlasDataLoader, atlasPublicationData, type AtlasIndexes, type AtlasMapData, type AtlasRequestState } from './atlas-data';
 import { DEFAULT_ATLAS_STATE, transitionAtlasState, type AtlasAction, type AtlasQueryField, type AtlasState, type AtlasView } from './atlas-state';
 import { buildSearchIndexes, emptySearchIndexes, type SearchIndexes } from './atlas-search';
@@ -8,11 +8,11 @@ export interface AtlasSnapshot {
   state: AtlasState;
   publication: PublicationData | null;
   indexes: SearchIndexes;
+  registry: PublicKindEntry[];
   map: AtlasRequestState;
   search: AtlasRequestState;
   detail: AtlasRequestState;
-  entityDetails: ReadonlyMap<string, PublicEntity>;
-  itemDetails: ReadonlyMap<string, PublicItemSource>;
+  documents: ReadonlyMap<string, PublicDocument>;
   staleSelection: string;
 }
 
@@ -39,9 +39,15 @@ export class AtlasController {
   #viewTimer: ReturnType<typeof setTimeout> | undefined;
   #queryTimer: ReturnType<typeof setTimeout> | undefined;
   #snapshot: AtlasSnapshot = {
-    state: DEFAULT_ATLAS_STATE, publication: null, indexes: emptySearchIndexes(),
-    map: { status: 'idle' }, search: { status: 'idle' }, detail: { status: 'idle' },
-    entityDetails: new Map(), itemDetails: new Map(), staleSelection: '',
+    state: DEFAULT_ATLAS_STATE,
+    publication: null,
+    indexes: emptySearchIndexes(),
+    registry: [],
+    map: { status: 'idle' },
+    search: { status: 'idle' },
+    detail: { status: 'idle' },
+    documents: new Map(),
+    staleSelection: '',
   };
 
   constructor(loader: AtlasDataLoader, options: AtlasControllerOptions) { this.#loader = loader; this.#options = options; }
@@ -129,9 +135,16 @@ export class AtlasController {
           if (!known.delete(placement.placementId)) throw new Error(`Geometry has an unknown or duplicate placement ${placement.placementId}.`);
         }
       }
-      this.#root = root; this.#maps = maps; this.#coverage = coverage; this.#geometry = new Map(geometry);
-      this.#base = atlasPublicationData(root, maps, coverage, this.#search);
-      this.#snapshot = { ...this.#snapshot, map: { status: 'loaded' }, state: transitionAtlasState(this.#snapshot.state, { type: 'select-layers', layerIds: resolveLayerIds(this.#snapshot.state.layerIds, this.#base.tileLayers) }) };
+      this.#root = root;
+      this.#maps = maps;
+      this.#coverage = coverage;
+      this.#geometry = new Map(geometry);
+      this.#base = atlasPublicationData(root, maps, coverage);
+      this.#snapshot = {
+        ...this.#snapshot,
+        map: { status: 'loaded' },
+        state: transitionAtlasState(this.#snapshot.state, { type: 'select-layers', layerIds: resolveLayerIds(this.#snapshot.state.layerIds, this.#base.tileLayers) }),
+      };
       this.#compose();
       this.#selectionKey = '';
       this.#selectionEffects();
@@ -146,14 +159,11 @@ export class AtlasController {
     this.#snapshot = { ...this.#snapshot, search: { status: 'loading' } };
     this.#emit();
     try {
-      this.#search = await this.#loader.loadIndexes();
+      const [search, registry] = await Promise.all([this.#loader.loadIndexes(), this.#loader.loadRegistry()]);
+      this.#search = search;
       if (this.#disposed) return;
-      this.#snapshot = { ...this.#snapshot, search: { status: 'loaded' } };
-      if (this.#base && this.#root && this.#maps && this.#coverage) {
-        const indexed = atlasPublicationData(this.#root, this.#maps, this.#coverage, this.#search);
-        this.#base = { ...this.#base, entityIndex: indexed.entityIndex, itemIndex: indexed.itemIndex };
-        this.#compose();
-      }
+      this.#snapshot = { ...this.#snapshot, registry, search: { status: 'loaded' } };
+      this.#compose();
       this.#selectionKey = '';
       this.#selectionEffects();
     } catch (error) {
@@ -176,13 +186,13 @@ export class AtlasController {
         return extra ? { ...placement, ...extra } : placement;
       }),
     };
-    this.#snapshot = { ...this.#snapshot, publication, indexes: buildSearchIndexes(publication) };
+    this.#snapshot = { ...this.#snapshot, publication, indexes: buildSearchIndexes(publication, this.#search?.entries ?? []) };
   }
 
   #selectionEffects(): void {
     let { state } = this.#snapshot;
     const { indexes } = this.#snapshot;
-    if (state.entityKey && state.itemKey && this.#search?.entitiesByKey.has(state.entityKey)) {
+    if (state.entityKey && state.itemKey && this.#search?.entriesByKey.has(state.entityKey)) {
       state = { ...state, itemKey: null };
       this.#snapshot = { ...this.#snapshot, state };
     }
@@ -193,31 +203,26 @@ export class AtlasController {
     let staleSelection = '';
     const placement = state.selectedPlacementId ? indexes.placementsById.get(state.selectedPlacementId) : undefined;
     if (state.selectedPlacementId && this.#base && !placement) staleSelection = 'This link refers to a location that is not in the loaded publication.';
-    if (this.#search && state.entityKey && !this.#search.entitiesByKey.has(state.entityKey)) staleSelection = `This link refers to an entity that is not in the loaded publication: ${state.entityKey}.`;
-    if (this.#search && state.itemKey && !this.#search.itemsByKey.has(state.itemKey)) staleSelection = `This link refers to an item that is not in the loaded publication: ${state.itemKey}.`;
-    const entityKeys = new Set(placement?.entityKeys ?? []);
-    const itemKeys = new Set(placement?.itemKeys ?? []);
-    if (state.entityKey) entityKeys.add(state.entityKey);
-    if (state.itemKey) itemKeys.add(state.itemKey);
-    this.#snapshot = { ...this.#snapshot, staleSelection, detail: { status: entityKeys.size || itemKeys.size ? 'loading' : 'idle' } };
-    if (staleSelection || (!entityKeys.size && !itemKeys.size)) {
+    if (this.#search && state.entityKey && !this.#search.entriesByKey.has(state.entityKey)) staleSelection = `This link refers to an entity that is not in the loaded publication: ${state.entityKey}.`;
+    if (this.#search && state.itemKey && !this.#search.entriesByKey.has(state.itemKey)) staleSelection = `This link refers to an item that is not in the loaded publication: ${state.itemKey}.`;
+
+    const entryKeys = new Set([...(placement?.entityKeys ?? []), ...(placement?.itemKeys ?? [])]);
+    if (state.entityKey) entryKeys.add(state.entityKey);
+    if (state.itemKey) entryKeys.add(state.itemKey);
+    const entries = [...entryKeys].map((entryKey) => this.#search?.entriesByKey.get(entryKey)).filter((entry) => entry?.document && entry.ref.slug);
+    this.#snapshot = { ...this.#snapshot, staleSelection, detail: { status: entries.length ? 'loading' : 'idle' } };
+    if (staleSelection || entries.length === 0) {
       this.#snapshot = { ...this.#snapshot, detail: { status: 'idle' } };
       return;
     }
     this.#emit();
     void (async () => {
       try {
-        const search = await this.#loader.loadIndexes();
-        if (state.itemKey && search.entitiesByKey.has(state.itemKey)) entityKeys.add(state.itemKey);
-        const [entities, items] = await Promise.all([
-          Promise.all([...entityKeys].map((entityKey) => this.#loader.loadEntity(entityKey))),
-          Promise.all([...itemKeys].map((itemKey) => this.#loader.loadItemSource(itemKey))),
-        ]);
+        const documents = await Promise.all(entries.map((entry) => this.#loader.loadDocumentForRef(entry!.ref)));
         if (this.#disposed) return;
         this.#snapshot = {
           ...this.#snapshot,
-          entityDetails: new Map([...this.#snapshot.entityDetails, ...entities.map(({ entity }) => [entity.entityKey, entity] as const)]),
-          itemDetails: new Map([...this.#snapshot.itemDetails, ...items.map(({ itemSource }) => [itemSource.itemKey, itemSource] as const)]),
+          documents: new Map([...this.#snapshot.documents, ...documents.map((document) => [document.ref.key, document] as const)]),
           ...(generation === this.#selectionGeneration ? { detail: { status: 'loaded' as const } } : {}),
         };
         this.#emit();
