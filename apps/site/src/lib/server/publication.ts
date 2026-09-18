@@ -1,10 +1,8 @@
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, resolve } from 'node:path';
 import { AtlasDataLoader, type AtlasFetch } from '../atlas-data';
 
-const siteRoot = fileURLToPath(new URL('../../../', import.meta.url));
-const dataRoot = join(siteRoot, '.stage', 'production', 'static', 'data');
+const dataRoot = resolve(process.cwd(), '.stage', 'production', 'static', 'data');
 
 const fileFetch: AtlasFetch = async (input) => {
   const url = new URL(input instanceof Request ? input.url : input);

@@ -21,7 +21,7 @@
   $: facetOptions = Object.fromEntries(kind.facets.map((facet) => [facet.id, [...new Set(list.rows.flatMap((row) => row.facets[facet.id] ?? []))].sort((left, right) => left.localeCompare(right))]));
   $: numericColumns = kind.columns.filter((column) => column.numeric);
   $: filteredRows = list.rows.filter(matchesFilters).sort(compareRows);
-  $: incomingSearch = $page.url.search;
+  $: incomingSearch = browser ? $page.url.search : '';
   $: if (browser && incomingSearch !== currentSearch) readUrl($page.url);
 
   function readUrl(url: URL): void {
