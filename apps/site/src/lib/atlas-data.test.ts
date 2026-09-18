@@ -30,7 +30,6 @@ function fixture() {
       },
     }));
   }
-  const pages = register({ schemaVersion: 'compendium.static-pages.v1', ...identity, entries: [...documents].map(([key, document]) => ({ kind: 'items', slug: refs.get(key)!.slug, key, document })) });
   const list = register({ schemaVersion: 'compendium.static-kind-list.v1', ...identity, kind: 'items', part: 0, rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
   const search = register({
     schemaVersion: 'compendium.static-search.v3', ...identity, part: 0,
@@ -45,7 +44,7 @@ function fixture() {
     world: { mapSpaceId: 'world', label: 'Afallon', bounds, offsets: [{ mapSpaceId: 'map', worldX: 0, worldY: 0, source: 'native', status: 'placed' }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: 'map', label: 'Map', bounds, parts, optionalGeometry: [], imagery }],
     kinds: [{ kind: 'items', label: 'Item', plural: 'Items', route: 'items', icon: 'package', pages: true, searchable: true, columns: [], facets: [] }],
-    lists: { items: [list] }, search: [search], pages, coverage,
+    lists: { items: [list] }, search: [search], coverage,
   };
   bodies.set('publication.json', JSON.stringify(root));
   const counts = new Map<string, number>();
@@ -58,7 +57,7 @@ function fixture() {
     const body = bodies.get(path);
     return body ? new Response(body) : new Response('missing', { status: 404 });
   };
-  return { loader: new AtlasDataLoader(fetcher, 'https://atlas.invalid/data/'), bodies, counts, overrides, documents, pages, search, root, identity, register };
+  return { loader: new AtlasDataLoader(fetcher, 'https://atlas.invalid/data/'), bodies, counts, overrides, documents, search, root, identity, register };
 }
 
 function observe(loader: AtlasDataLoader) {
@@ -258,9 +257,9 @@ test('document resources reject build identity mismatches after hash verificatio
   const data = fixture();
   const original = JSON.parse(data.bodies.get(data.documents.get('item:a')!.path)!);
   const mismatched = data.register({ ...original, buildId: 'other-build' });
-  const pageBody = JSON.parse(data.bodies.get(data.pages.path)!);
-  pageBody.entries[0].document = mismatched;
-  data.root.pages = data.register(pageBody);
+  const searchBody = JSON.parse(data.bodies.get(data.search.path)!);
+  searchBody.entries[0].document = mismatched;
+  data.root.search = [data.register(searchBody)];
   data.bodies.set('publication.json', JSON.stringify(data.root));
   await expect(data.loader.loadDocument('items', 'a')).rejects.toThrow('build mismatch');
 });

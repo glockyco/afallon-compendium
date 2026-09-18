@@ -9,7 +9,6 @@ import {
   StaticImagerySchema,
   StaticKindListSchema,
   StaticMapShardSchema,
-  StaticPagesSchema,
   StaticRootManifestSchema,
   StaticSearchIndexSchema,
   assertStaticResourceIdentity,
@@ -26,7 +25,6 @@ import {
   type StaticGeometry,
   type StaticImagery,
   type StaticKindList,
-  type StaticPages,
   type StaticResourceReference,
   type StaticRootManifest,
 } from "@afallon/contracts/public";
@@ -97,11 +95,6 @@ export class AtlasDataLoader {
     return root.kinds;
   }
 
-  async loadPages(): Promise<StaticPages> {
-    const root = await this.loadRoot();
-    return this.#loadReference(root.pages, StaticPagesSchema, root);
-  }
-
   async loadList(kind: PublicPageKind): Promise<StaticKindList> {
     const root = await this.loadRoot();
     const references = root.lists[kind];
@@ -112,15 +105,14 @@ export class AtlasDataLoader {
   }
 
   async loadDocument(kind: PublicPageKind, slug: string): Promise<StaticDocument> {
-    const root = await this.loadRoot();
-    const pages = await this.loadPages();
-    const entry = pages.entries.find((candidate) => candidate.kind === kind && candidate.slug === slug);
-    if (!entry) throw new Error(`Publication has no ${kind} document ${slug}.`);
+    const [root, indexes] = await Promise.all([this.loadRoot(), this.loadIndexes()]);
+    const entry = indexes.entries.find((candidate) => candidate.ref.kind === kind && candidate.ref.slug === slug);
+    if (!entry?.document) throw new Error(`Publication has no ${kind} document ${slug}.`);
     const schemaId = STATIC_DOCUMENT_SCHEMA_IDS[kind];
     if (entry.document.schemaId !== schemaId) throw new Error(`Document schema mismatch for ${kind}/${slug}.`);
     const schema = STATIC_DOCUMENT_SCHEMAS[schemaId];
     const document = await this.#loadReference(entry.document, schema, root) as StaticDocument;
-    if (document.kind !== kind || document.document.ref.slug !== slug || document.document.ref.key !== entry.key) {
+    if (document.kind !== kind || document.document.ref.slug !== slug || document.document.ref.key !== entry.ref.key) {
       throw new Error(`Document identity mismatch for ${kind}/${slug}.`);
     }
     return document;
