@@ -103,7 +103,7 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
   return { resourceYields, transitions, questAssociations };
 }
 
-export function sourceDetails(contexts: readonly SceneContext[]): NormalizedSourceDetail[] {
+export function sourceDetails(contexts: readonly SceneContext[], sourcePlacement: ReadonlyMap<string, string>): NormalizedSourceDetail[] {
   const details: NormalizedSourceDetail[] = [];
   for (const context of contexts) {
     for (const collection of ["resourceProducers", "interactions", "containers", "services", "questZones", "transitions", "conditionSources", "mapIcons", "mapZones", "unsupportedSources"] as const) for (const row of context.world[collection]) {
@@ -111,12 +111,12 @@ export function sourceDetails(contexts: readonly SceneContext[]): NormalizedSour
       const identity = context.sourceByComponent.get(row.source.componentInstanceId);
       if (!identity) continue;
       const family = "family" in row ? row.family : "producerFamily" in row ? row.producerFamily : "transitionKind" in row ? row.transitionKind : collection === "mapIcons" ? "mapIcon" : collection;
-      details.push({ sourceId: identity.sourceId, placementId: identity.placementId, family, data: row });
+      details.push({ sourceId: identity.sourceId, placementId: sourcePlacement.get(identity.sourceId) ?? identity.placementId, family, data: row });
     }
     for (const [collection, family] of [["producers", "npcProducer"], ["adventurerProducers", "adventurerSpawnZone"], ["adventurerPopulationManagers", "adventurerPopulationManager"]] as const) for (const row of context.npc[collection]) {
       if ("unavailable" in row) continue;
       const identity = context.sourceByComponent.get(row.componentInstanceId);
-      if (identity) details.push({ sourceId: identity.sourceId, placementId: identity.placementId, family, data: row });
+      if (identity) details.push({ sourceId: identity.sourceId, placementId: sourcePlacement.get(identity.sourceId) ?? identity.placementId, family, data: row });
     }
   }
   return details;

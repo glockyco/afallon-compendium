@@ -53,6 +53,18 @@ function sourceEvidenceRow(context: SceneContext, value: unknown): SourceIdentit
   return typeof component === "number" ? context.sourceByComponent.get(component) ?? null : null;
 }
 
+export function owningContainerPlacement(path: string | null, sourcesByPath: ReadonlyMap<string, readonly string[]>, placementsBySource: ReadonlyMap<string, string>): string | null {
+  if (path === null) return null;
+  let separator = path.lastIndexOf("/");
+  while (separator > 0) {
+    const parent = path.slice(0, separator), placements = new Set((sourcesByPath.get(parent) ?? []).flatMap((sourceId) => { const placementId = placementsBySource.get(sourceId); return placementId === undefined ? [] : [placementId]; }));
+    if (placements.size === 1) return [...placements][0]!;
+    if (placements.size > 1) return null;
+    separator = parent.lastIndexOf("/");
+  }
+  return null;
+}
+
 export function collectPlacements(contexts: SceneContext[], profile: NormalizedDatabaseInput["bindings"], resolver: { resolve(sceneNativeId: number, scenePath: string, position: { x: number; y: number; z: number }): SpatialResolution }, profileRef: ArtifactReference, blockers: Blocker[], exclusions: Exclusion[]): { placements: NormalizedPlacement[]; sources: NormalizedSource[]; roles: NormalizedDatabaseInput["roles"]; sourceForComponent: Map<string, string>; sourcePlacement: Map<string, string> } {
   const placementById = new Map<string, NormalizedPlacement>();
   const sourceById = new Map<string, NormalizedSource>();
@@ -63,14 +75,33 @@ export function collectPlacements(contexts: SceneContext[], profile: NormalizedD
   for (const context of contexts) {
     const roleRows = context.role;
     const identityRef = context.identityReference;
-    for (const row of sourceIdentityRows(context.identities)) {
+    const containerPlacementsBySource = new Map<string, string>(), containerRolePlacementIds = new Set<string>();
+    for (const placement of roleRows.placements) for (const role of placement.roles) if (role.role === "container") { containerRolePlacementIds.add(placement.placementId); for (const sourceId of role.sourceIds) containerPlacementsBySource.set(sourceId, placement.placementId); }
+    const sourcesByPath = new Map<string, string[]>();
+    for (const collection of ["resourceProducers", "interactions", "containers", "services", "questZones", "transitions", "conditionSources", "mapIcons", "mapZones", "unsupportedSources"] as const) for (const value of context.world[collection]) {
+      const row = record(value), source = row?.source, identity = sourceEvidenceRow(context, source), path = record(record(source)?.source)?.hierarchyPath;
+      if (!identity || typeof path !== "string") continue;
+      const sourceIds = sourcesByPath.get(path) ?? []; sourceIds.push(identity.sourceId); sourcesByPath.set(path, sourceIds);
+    }
+    const placementAliases = new Map<string, string>();
+    for (const [index, value] of context.world.containers.entries()) {
+      const row = record(value), source = row?.source, identity = sourceEvidenceRow(context, source), path = record(record(source)?.source)?.hierarchyPath;
+      if (!identity || containerPlacementsBySource.has(identity.sourceId) || containerRolePlacementIds.has(identity.placementId)) continue;
+      const ownerPlacementId = owningContainerPlacement(typeof path === "string" ? path : null, sourcesByPath, containerPlacementsBySource);
+      if (ownerPlacementId !== null && ownerPlacementId !== identity.placementId) placementAliases.set(identity.sourceId, ownerPlacementId);
+      else if (ownerPlacementId === null) blockers.push({ kind: "unresolved-container-owner", key: identity.sourceId, detail: "Container loot component has no unique ancestor placement with the container role.", provenance: [pointer(context.worldReference, `/containers/${index}/source`)] });
+    }
+    const identities = sourceIdentityRows(context.identities).map((row) => placementAliases.has(row.sourceId) ? { ...row, placementId: placementAliases.get(row.sourceId)! } : row);
+    for (const row of identities) {
       const existing = sourceById.get(row.sourceId);
       if (existing && (existing.placementId !== row.placementId || existing.componentType !== row.typeName || existing.sceneSourceSha256 !== row.sceneSourceSha256 || existing.sourceSha256 !== row.sourceSha256 || existing.serializedFile !== row.serializedFile || existing.gameObjectPathId !== row.gameObjectPathId || existing.componentPathId !== row.componentPathId || existing.assembly !== row.assembly || existing.origin !== row.origin || existing.loaderSourceId !== row.loaderSourceId)) throw new Error(`Conflicting repeated source identity ${row.sourceId}.`);
       sourceById.set(row.sourceId, existing ?? { sourceId: row.sourceId, placementId: row.placementId, buildId: "", componentType: row.typeName, componentInstanceId: row.componentInstanceId, gameObjectInstanceId: row.gameObjectInstanceId, sceneSourceSha256: row.sceneSourceSha256, sourceSha256: row.sourceSha256, serializedFile: row.serializedFile, gameObjectPathId: row.gameObjectPathId, componentPathId: row.componentPathId, assembly: row.assembly, origin: row.origin, loaderSourceId: row.loaderSourceId, families: [], provenance: [pointer(identityRef, `/identities/${row.identityIndex}`)] });
       if (existing) existing.provenance.push(pointer(identityRef, `/identities/${row.identityIndex}`));
-      const priorPlacementIdentity = identityByPlacement.get(row.placementId);
-      if (priorPlacementIdentity && priorPlacementIdentity.sourceSha256 !== row.sourceSha256) throw new Error(`Conflicting repeated placement identity ${row.placementId}.`);
-      if (!priorPlacementIdentity) identityByPlacement.set(row.placementId, row);
+      if (!placementAliases.has(row.sourceId)) {
+        const priorPlacementIdentity = identityByPlacement.get(row.placementId);
+        if (priorPlacementIdentity && priorPlacementIdentity.sourceSha256 !== row.sourceSha256) throw new Error(`Conflicting repeated placement identity ${row.placementId}.`);
+        if (!priorPlacementIdentity) identityByPlacement.set(row.placementId, row);
+      }
       sourceForComponent.set(`${context.snapshotId}:${row.componentInstanceId}`, row.sourceId);
       sourcePlacement.set(row.sourceId, row.placementId);
     }
@@ -107,7 +138,7 @@ export function collectPlacements(contexts: SceneContext[], profile: NormalizedD
         }
       }
     }
-    for (const identity of sourceIdentityRows(context.identities)) {
+    for (const identity of identities) {
       const existing = placementById.get(identity.placementId);
       if (existing) {
         if (!existing.sourceIds.includes(identity.sourceId)) existing.sourceIds.push(identity.sourceId);
