@@ -25,7 +25,8 @@ The site SHALL publish one prerendered page for each published entity of a regis
 
 #### Scenario: A reader opens a place page
 - **WHEN** a reader requests `/places/<slug>/` for a published scene or region
-- **THEN** the page shows its name, artwork, description, level range, bosses, creatures with levels, NPCs and services, resources, containers, quests that start there, and connected places
+- **THEN** the page shows its name, artwork, description, level range, bosses, creatures with levels, named NPCs, quests that start there, and connected places
+- **AND** services, resources, and containers appear as counts by category rather than as one entry per placement
 - **AND** the page links to the same place on the world atlas
 
 #### Scenario: A page URL is stale
@@ -47,6 +48,15 @@ A fact card SHALL show a value only when the publication established it for the 
 - **WHEN** an NPC has loot rows and no published placement
 - **THEN** the locations table shows one line that states that no location is published
 - **AND** the drops table remains complete
+
+### Requirement: A place's locations are its own entrances
+
+A place's published locations SHALL be the placements that are the place itself: its entrances, its travel points, and its region marker. The placements a place contains SHALL NOT become the place's own locations. A reader reaches contained content through its own page or through the world atlas.
+
+#### Scenario: A reader opens a large zone
+- **WHEN** the zone contains hundreds of creature, resource, and container placements
+- **THEN** the page lists its entrances and travel points as its locations
+- **AND** its contents appear as counts with an atlas link
 
 ### Requirement: Relations are typed per pair
 
