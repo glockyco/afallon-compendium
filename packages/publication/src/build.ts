@@ -67,7 +67,7 @@ export async function buildStaticPublication(
     for (const resource of entry.resources) {
       for (const region of resource.value.regions) regionIds.add(region.id);
       for (const placement of resource.value.placements) {
-        placements.set(placement[0], { placementId: placement[0], mapSpaceId: entry.summary.mapSpaceId, label: placement[3] });
+        placements.set(placement[0], { placementId: placement[0], mapSpaceId: entry.summary.mapSpaceId, label: mapSpaceLabels.get(entry.summary.mapSpaceId) ?? entry.summary.label });
         for (const key of [...placement[5], ...placement[6]]) {
           const ids = placementIdsByKeySets.get(key) ?? new Set<string>();
           ids.add(placement[0]);

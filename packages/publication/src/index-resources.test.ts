@@ -30,7 +30,7 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
     const generated = await generateIndexResources(
       db,
       store,
-      new Map([["p1", { placementId: "p1", mapSpaceId: "world", label: "NPC" }]]),
+      new Map([["p1", { placementId: "p1", mapSpaceId: "world", label: "World" }]]),
       new Map([["npcs:2", ["p1"]]]),
       new Map([["world", "World"]]),
       new Map([["world", []]]),
@@ -40,6 +40,8 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
     expect(entries.find((entry) => entry.ref.key === "npcs:2")).toMatchObject({ hasPlacements: true, place: "World" });
     expect(generated.documents.size).toBe(3);
     expect(entries).toHaveLength(3);
+    const npcRows = generated.lists.get("npcs")?.flatMap((part) => part.value.rows) ?? [];
+    expect(npcRows.find((row) => row.ref.key === "npcs:2")?.values.place).toBe("World");
     const documentPaths = new Set([...generated.documents.values()].map((resource) => resource.reference.path));
     for (const entry of entries) expect(entry.document && documentPaths.has(entry.document.path)).toBe(true);
     for (const lists of generated.lists.values()) for (const list of lists) for (const row of list.value.rows) {

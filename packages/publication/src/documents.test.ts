@@ -48,8 +48,8 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   const refs = buildEntityReferences(entities, { facts, relations });
   const documents = projectPublicDocuments({ entities, facts, relations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(),
     placements: new Map([
-      ["p1", { placementId: "p1", mapSpaceId: "world", label: "Guardian" }],
-      ["p2", { placementId: "p2", mapSpaceId: "world", label: "Iron node" }],
+      ["p1", { placementId: "p1", mapSpaceId: "world", label: "World" }],
+      ["p2", { placementId: "p2", mapSpaceId: "world", label: "World" }],
     ]), regionIdsByMapSpace: new Map([["world", ["region-1"]]]) });
   const item = documents.get("items:1") as PublicItem, npc = documents.get("npcs:2") as PublicNpc, place = documents.get("scenes:10") as PublicPlace;
   expect(item.ref.name).toBe("Blade");
@@ -73,7 +73,7 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(item.gatheredFrom).toEqual([{ label: "Iron node", min: 1, max: 2, chance: 25, placementCount: 2 }]);
   expect(item.inContainers).toEqual([{ label: "Chest", min: 1, max: 1, requirements: [], placementCount: 2 }]);
   expect(item).not.toHaveProperty("locations");
-  expect(npc.locations.map((placement) => placement.placementId)).toEqual(["p1"]);
+  expect(npc.locations).toEqual([{ placementId: "p1", mapSpaceId: "world", label: "World" }]);
   expect(place).not.toHaveProperty("locations");
   expect(place.space).toEqual({ mapSpaceId: "world", regionIds: ["region-1"] });
   expect(place.creatures).toMatchObject([{ counterpart: { key: "npcs:2" }, placementCount: 1 }]);
