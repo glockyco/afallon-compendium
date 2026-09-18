@@ -162,6 +162,11 @@ export const PublicItemSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicItem = Static<typeof PublicItemSchema>;
 
+// What gear family this creature's dynamic loot favours. The game rolls level-band gear against
+// these constraints, so a reader can tell a plate dropper from a cloth dropper.
+export const LootSpecializationSchema = Type.Object({ armorType: optional(text), weaponTypes: Type.Array(text), stat: optional(RefSchema) }, { additionalProperties: false });
+export type LootSpecialization = Static<typeof LootSpecializationSchema>;
+
 export const NpcFactsSchema = Type.Object({
   level: optional(count), levelRange: optional(PublicLevelRangeSchema), scalesWithPlayer: Type.Boolean(),
   npcType: optional(text), creatureType: optional(text), family: optional(text),
@@ -170,6 +175,7 @@ export const NpcFactsSchema = Type.Object({
   respawn: optional(Type.Object({ min: number, max: number }, { additionalProperties: false })),
   experience: optional(Type.Object({ min: count, max: count }, { additionalProperties: false })),
   stats: Type.Array(StatRowSchema), immunities: Type.Array(text, { uniqueItems: true }), aggroRange: optional(number),
+  lootSpecialization: optional(LootSpecializationSchema),
 }, { additionalProperties: false });
 export type NpcFacts = Static<typeof NpcFactsSchema>;
 
@@ -352,6 +358,7 @@ schemaRegistry.register("compendium.public-entity-ref.v1", EntityRefSchema);
 schemaRegistry.register("compendium.public-unresolved-ref.v1", UnresolvedRefSchema);
 schemaRegistry.register("compendium.public-placement-ref.v1", PlacementRefSchema);
 schemaRegistry.register("compendium.public-requirement-ref.v1", RequirementRefSchema);
+schemaRegistry.register("compendium.public-loot-specialization.v1", LootSpecializationSchema);
 schemaRegistry.register("compendium.public-random-stat-row.v1", RandomStatRowSchema);
 schemaRegistry.register("compendium.public-gem.v1", GemSchema);
 schemaRegistry.register("compendium.public-drop-row.v1", DropRowSchema);
