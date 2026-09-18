@@ -21,7 +21,7 @@ const root: StaticRootManifest = {
   world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
   maps: [],
   kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, searchable: true, columns: [], facets: [] }],
-  lists: { items: { ...reference, schemaId: "compendium.static-kind-list.v1" } },
+  lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v1" }] },
   search: [{ ...reference, schemaId: "compendium.static-search.v3" }],
   pages: { ...reference, schemaId: "compendium.static-pages.v1" },
   coverage: reference,

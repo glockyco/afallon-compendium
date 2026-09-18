@@ -87,11 +87,13 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
     if (kinds.has(entry.kind)) throw new Error(`Duplicate registered kind: ${entry.kind}.`);
     kinds.set(entry.kind, entry);
   }
-  for (const [kind, reference] of Object.entries(root.lists)) {
+  for (const [kind, references] of Object.entries(root.lists)) {
     const entry = kinds.get(kind);
     if (!entry?.pages) throw new Error(`List for a kind without pages: ${kind}.`);
-    const value = values.get(reference.path);
-    if (value?.schemaVersion !== "compendium.static-kind-list.v1" || value.kind !== kind) throw new Error(`Kind list identity mismatch: ${reference.path}.`);
+    for (const [part, reference] of references.entries()) {
+      const value = values.get(reference.path);
+      if (value?.schemaVersion !== "compendium.static-kind-list.v1" || value.kind !== kind || value.part !== part) throw new Error(`Kind list part identity mismatch: ${reference.path}.`);
+    }
   }
   for (const entry of kinds.values()) if (entry.pages && !root.lists[entry.kind]) throw new Error(`Paged kind has no list: ${entry.kind}.`);
   const pages = values.get(root.pages.path);

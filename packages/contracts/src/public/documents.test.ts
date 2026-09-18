@@ -74,8 +74,8 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
   const itemReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.items, "1".repeat(64)), npcReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.npcs, "2".repeat(64));
   const pages: StaticPages = { schemaVersion: "compendium.static-pages.v1", ...identity, entries: [{ kind: "items", slug: item.slug!, key: item.key, document: itemReference as never }, { kind: "npcs", slug: boss.slug!, key: boss.key, document: npcReference as never }] };
   const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v3", ...identity, part: 0, entries: [{ ref: item, placementIds: ["p1"], sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, placementIds: ["p1"], sourceKinds: [], document: npcReference as never }] };
-  const itemList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "items", rows: [{ ref: item, values: { level: null, rarity: "Common" }, facets: { slot: ["GLOVES"] } }] };
-  const npcList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "npcs", rows: [{ ref: boss, values: { level: 21 }, facets: { role: ["boss"] } }] };
+  const itemList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "items", part: 0, rows: [{ ref: item, values: { level: null, rarity: "Common" }, facets: { slot: ["GLOVES"] } }] };
+  const npcList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "npcs", part: 0, rows: [{ ref: boss, values: { level: 21 }, facets: { role: ["boss"] } }] };
   const coverage: StaticCoverage = { schemaVersion: "compendium.static-coverage.v1", ...identity, complete: false, unresolvedIssueCount: 0, occurrenceCount: 0, exclusionCount: 0, messages: [] };
   const map = { schemaVersion: "compendium.static-map.v2", ...identity, mapSpaceId: "map", part: 0, placements: [["p1", [0, 0], 0, "Duskfall Depths", ["boss"], ["npcs:286"], [], null, null, null]], regions: [] } as const;
   const imagery = { schemaVersion: "compendium.static-imagery.v2", ...identity, mapSpaceId: "map", defaultLayerId: "game", layers: [{ id: "game", mapSpaceId: "map", label: "Game", kind: "game-map", tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 1, 1], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${"d".repeat(64)}.webp`, sha256: "d".repeat(64), bytes: 1, width: 1, height: 1, state: "captured", schemaId: "image/webp" }] }] } as const;
@@ -89,7 +89,7 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
       { kind: "currencies", label: "Currency", plural: "Currencies", route: "currencies", icon: "currency", pages: false, searchable: false, columns: [], facets: [] },
       { kind: "stats", label: "Stat", plural: "Stats", route: "stats", icon: "stat", pages: false, searchable: false, columns: [], facets: [] },
     ],
-    lists: { items: ref("compendium.static-kind-list.v1", "7".repeat(64)) as never, npcs: ref("compendium.static-kind-list.v1", "8".repeat(64)) as never },
+    lists: { items: [ref("compendium.static-kind-list.v1", "7".repeat(64)) as never], npcs: [ref("compendium.static-kind-list.v1", "8".repeat(64)) as never] },
     search: [ref("compendium.static-search.v3", "9".repeat(64)) as never],
     pages: ref("compendium.static-pages.v1", "a".repeat(64)) as never,
     coverage: ref("compendium.static-coverage.v1", "e".repeat(64)) as never,
@@ -97,7 +97,7 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
   Assert(StaticRootManifestSchema, root);
   Assert(StaticPagesSchema, pages); Assert(StaticSearchIndexSchema, search); Assert(StaticKindListSchema, itemList);
   const values = new Map<string, StaticResource>([
-    [root.pages.path, pages], [root.search[0]!.path, search], [root.lists.items!.path, itemList], [root.lists.npcs!.path, npcList], [root.coverage.path, coverage],
+    [root.pages.path, pages], [root.search[0]!.path, search], [root.lists.items![0]!.path, itemList], [root.lists.npcs![0]!.path, npcList], [root.coverage.path, coverage],
     [itemReference.path, itemDocument], [npcReference.path, npcDocument as never], [root.maps[0]!.parts[0]!.path, map as never], [root.maps[0]!.imagery.path, imagery as never],
   ]);
   const rootEdges = staticResourceEdges(root).map((edge) => edge.path);

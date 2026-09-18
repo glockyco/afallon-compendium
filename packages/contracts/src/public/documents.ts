@@ -308,8 +308,11 @@ const listValue = Type.Union([Type.String(), Type.Number(), Type.Null()]);
 export const ListRowSchema = Type.Object({ ref: EntityRefSchema, values: Type.Record(Type.String(), listValue), facets: Type.Record(Type.String(), Type.Array(Type.String())) }, { additionalProperties: false });
 export type ListRow = Static<typeof ListRowSchema>;
 
+// A kind's list is partitioned like the map shards and the search corpus, because one row carries
+// its reference, its icon, and its column and facet values, and a kind can hold thousands of rows.
+// The list page loads every part; the budget bounds each file, not the data.
 export const StaticKindListSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-kind-list.v1"), ...identity, kind: pageKind, rows: Type.Array(ListRowSchema),
+  schemaVersion: Type.Literal("compendium.static-kind-list.v1"), ...identity, kind: pageKind, part: count, rows: Type.Array(ListRowSchema),
 }, { additionalProperties: false });
 export type StaticKindList = Static<typeof StaticKindListSchema>;
 

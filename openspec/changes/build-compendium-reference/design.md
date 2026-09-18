@@ -94,7 +94,7 @@ NPC roles are facets on one kind rather than separate kinds because the same `RP
 
 ### 8. Lists
 
-Each kind gets one compact list resource: an array of rows with `ref`, the registry's column values, and facet values. Lists are prerendered as HTML tables from that resource and hydrate for sort, facet, and text filter with state in the URL query. A list resource for 1,076 items with 10 columns is under 300 KB uncompressed and loads only on the list page.
+Each kind gets a list resource partitioned like the map shards and the search corpus: rows with `ref`, the registry's column values, and facet values. One row carries its reference, its icon reference, and its values, so the real item list measured 536 KB and exceeded the 512 KiB part budget; the budget bounds a file, so the list splits into parts rather than dropping columns or icons. The list page loads every part, prerenders an HTML table, and hydrates for sort, facet, and text filter with state in the URL query.
 
 ### 9. Artwork
 
