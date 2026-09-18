@@ -18,6 +18,9 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
       "build", "npcs", 2, "npcs:2", "NPC", null, "NPC description", null, "{}", "[]",
       "build", "quests", 3, "quests:3", "Quest", null, "Quest description", null, "{}", "[]",
     );
+    db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      "build", "scenes", 10, "scenes:10", "Crypt", null, "A dungeon", null, "{}", "[]",
+    );
     db.query("INSERT INTO identity_scenes VALUES (?, ?, ?)").run("build", 10, "scene");
     db.query("INSERT INTO map_spaces VALUES (?, ?, ?)").run("build", "world", "World");
     db.query("INSERT INTO placements (placement_id, build_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, label, shape_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
@@ -37,11 +40,11 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
     );
     const entries = generated.search.flatMap((part) => part.value.entries);
     expect(entries.find((entry) => entry.ref.key === "quests:3")?.hasPlacements).toBe(false);
-    expect(entries.find((entry) => entry.ref.key === "npcs:2")).toMatchObject({ hasPlacements: true, place: "World" });
-    expect(generated.documents.size).toBe(3);
-    expect(entries).toHaveLength(3);
+    expect(entries.find((entry) => entry.ref.key === "npcs:2")).toMatchObject({ hasPlacements: true, place: "Crypt" });
+    expect(generated.documents.size).toBe(4);
+    expect(entries).toHaveLength(4);
     const npcRows = generated.lists.get("npcs")?.flatMap((part) => part.value.rows) ?? [];
-    expect(npcRows.find((row) => row.ref.key === "npcs:2")?.values.place).toBe("World");
+    expect(npcRows.find((row) => row.ref.key === "npcs:2")?.values.place).toBe("Crypt");
     const documentPaths = new Set([...generated.documents.values()].map((resource) => resource.reference.path));
     for (const entry of entries) expect(entry.document && documentPaths.has(entry.document.path)).toBe(true);
     for (const lists of generated.lists.values()) for (const list of lists) for (const row of list.value.rows) {

@@ -78,8 +78,13 @@ export async function generateIndexResources(
   const identity = { buildId: entities.buildId, catalogId: entities.catalogId };
   const artwork = await generateArtworkResources(store, entities.records, protection);
   const refs = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, mapSpaceLabels });
+  const sceneKeyByPlacement = new Map(relations.records.placements.map((placement) => [placement.placementId, placement.sceneKey]));
+  const publishedPlacements = new Map([...placements].map(([placementId, placement]) => {
+    const sceneKey = sceneKeyByPlacement.get(placementId), scene = sceneKey === undefined ? undefined : refs.get(sceneKey);
+    return [placementId, scene?.kind === "places" ? { ...placement, label: scene.name } : placement] as const;
+  }));
   const publicDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, refs,
-    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements, regionIdsByMapSpace });
+    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace });
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {
@@ -112,8 +117,9 @@ export async function generateIndexResources(
     if (!registry?.searchable || !resource) continue;
     const level = searchLevel(document);
     const placementIds = [...new Set(placementIdsByKey.get(key) ?? [])].filter((placementId) => placements.has(placementId));
-    const primaryPlacement = placementIds[0] === undefined ? undefined : placements.get(placementIds[0]);
-    const place = primaryPlacement === undefined ? undefined : mapSpaceLabels.get(primaryPlacement.mapSpaceId);
+    const sceneKeys = new Set(placementIds.map((placementId) => sceneKeyByPlacement.get(placementId)).filter((sceneKey): sceneKey is string => sceneKey !== undefined && refs.get(sceneKey)?.kind === "places"));
+    const onlySceneKey = sceneKeys.size === 1 ? sceneKeys.values().next().value : undefined;
+    const place = onlySceneKey === undefined ? (sceneKeys.size > 1 ? `${sceneKeys.size} places` : undefined) : refs.get(onlySceneKey)?.name;
     entries.push({ ref: document.ref, ...(level === undefined ? {} : { level }), ...(place ? { place } : {}),
       hasPlacements: placementIds.length > 0,
       sourceKinds: listRowsByKey.get(key)?.facets.sourceKind ?? itemSourceKinds(document),
