@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Assert } from "typebox/value";
 import {
-  ArtRefSchema, DropRowSchema, EntityRefSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, VendorRowSchema,
+  ArtRefSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, VendorRowSchema,
   PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
   type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe,
@@ -28,6 +28,15 @@ test("references are keyed and typed; name-only shapes are rejected", () => {
   expect(() => Assert(EntityRefSchema, { ...item, href: "/items/peasant-gloves/" })).toThrow();
 });
 
+test("a requirement group carries its mode, its target and its threshold", () => {
+  const group = { mode: "any", requiredCount: 1, requirements: [{ type: "Class", label: "Warrior", target: { key: "classes:0", kind: "classes", name: "Warrior" } }, { type: "Class", label: "Assassin", target: { key: "classes:5", kind: "classes", name: "Assassin" } }] };
+  Assert(RequirementGroupSchema, group);
+  Assert(RequirementGroupSchema, { mode: "all", requirements: [{ type: "Level", label: "Level 27", amount: 27 }] });
+  expect(() => Assert(RequirementGroupSchema, { ...group, requirements: [] })).toThrow();
+  expect(() => Assert(RequirementGroupSchema, { ...group, mode: "either" })).toThrow();
+  expect(() => Assert(RequirementGroupSchema, { mode: "all", requirements: [{ type: "Class", label: "Warrior", mandatory: true }] })).toThrow();
+});
+
 test("relation rows accept an unresolved endpoint and omit an unmeasured chance", () => {
   const drop = { counterpart: unresolved, min: 1, max: 2, requirements: [] };
   Assert(DropRowSchema, drop);
@@ -35,7 +44,7 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
   expect(() => Assert(DropRowSchema, { ...drop, chance: 101 })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, placements: [placement] })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, chance: null })).toThrow();
-  Assert(VendorRowSchema, { counterpart: item, price: { amount: 45, currency: gold }, requirements: [{ type: "Stat", label: "Item power over 400", mandatory: true, amount: 400 }] });
+  Assert(VendorRowSchema, { counterpart: item, price: { amount: 45, currency: gold }, requirements: [{ mode: "all", requirements: [{ type: "Stat", label: "Item power 400", target: { key: "stats:53", kind: "stats", name: "Item power" }, amount: 400 }] }] });
   Assert(GatherRowSchema, { label: "Copper vein", rank: 1, min: 1, max: 2, placementCount: 345 });
   Assert(ContainerRowSchema, { counterpart: unresolved, label: "Chest", requirements: [], placementCount: 53 });
   Assert(RecipeRowSchema, { counterpart: item, count: 1 });

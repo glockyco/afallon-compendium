@@ -18,7 +18,7 @@
 
 - [x] 3.1 Read `AdventureGuidePanel`, `RPGGameScene`, `RegionTemplate`, `RPGItem`, `RPGAbility`, and `RPGNpc` in `research/recovered-types` and record which fields hold icons, portraits, and guide art in `EXPLORATION.md`. Verify each field name resolves through a HotRepl probe against the running game.
 - [x] 3.2 Add `packages/scan/src/probes/collectors/artwork.csx` that copies each referenced sprite through a `RenderTexture`, encodes PNG bytes, and returns content-addressed records with asset name, family, id, and dimensions, recording unreadable sprites with a reason. Verify a scan run against the supported build stores one PNG per item icon, per NPC portrait, per ability icon, and per guide artwork, and that the run restores runtime state.
-- [ ] 3.3 Register the artwork family in the scan target envelope and the catalog admission path. Verify ingestion rejects a family whose hashes do not match stored bytes and accepts the real run.
+- [x] 3.3 Register the artwork family in the scan target envelope and the catalog admission path. Verify ingestion rejects a family whose hashes do not match stored bytes and accepts the real run.
 
 ## 4. Publication
 
@@ -26,7 +26,7 @@
 - [x] 4.2 Replace `entity-projection.ts` with per-kind projections that produce `PublicItem`, `PublicNpc`, `PublicQuest`, `PublicPlace`, `PublicProperty`, `PublicAbility`, and `PublicRecipe` from the typed facts and the relation queries. Verify projection tests show a boss drop row with equal values on the NPC and item documents, a quest objective union for each supported task type, a place carrying its map space and region ids, and an item carrying no locations.
 - [x] 4.3 Emit one static document per entity, partitioned list parts per paged kind, the kind registry, and artwork resources under `/data/art/<sha256>.webp` in `resources.ts`. Verify the generated root's graph closure passes `staticResourceEdges` and that every document referenced in a list exists.
 - [x] 4.4 Add the reference audit that fails candidate selection on a reference to an unpublished entity and counts unresolved references in coverage. Verify a test with a deliberately dropped document fails selection naming the referencing document and key.
-- [x] 4.5 Regenerate the unified search corpus from the `EntityRef` map for every searchable kind with level, primary place, and placement ids; remove the separate item search shape. Verify `index-resources.test.ts` shows a quest with no placements and an NPC with placements, and that the essential-resource budget is unchanged.
+- [x] 4.5 Regenerate the unified search corpus from the `EntityRef` map for every searchable kind with level, primary place, and a `hasPlacements` flag; remove the separate item search shape. Verify `index-resources.test.ts` shows `hasPlacements: false` for a quest and `hasPlacements: true` for an NPC, and that the essential-resource budget is unchanged.
 - [x] 4.6 Remove `guide-projection.ts`, `guide-resources.ts`, and their tests. No key-to-path resource is emitted because the guide URLs are gone. Verify `bun test ./packages` passes and no root `guides` field remains.
 - [x] 4.7 Extend `apps/site/scripts/publication-graph.ts`, `publication-parity.ts`, and `deployment-files.ts` to verify documents, lists, artwork, and page entries, and to refuse a candidate that removes published pages or artwork. Verify `publication-parity.test.ts` covers a removed page and a removed artwork asset.
 

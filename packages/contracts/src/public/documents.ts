@@ -43,14 +43,26 @@ export type Ref = Static<typeof RefSchema>;
 export const PlacementRefSchema = Type.Object({ placementId: text, mapSpaceId: text, label: text }, { additionalProperties: false });
 export type PlacementRef = Static<typeof PlacementRefSchema>;
 
+// One gate the game checks. `target` is the entity the gate names, so a class requirement links to
+// its class; `amount` is the threshold, never the target's id.
 export const RequirementRefSchema = Type.Object({
-  type: text, label: text, mandatory: Type.Boolean(),
+  type: text, label: text,
   target: optional(RefSchema), amount: optional(number), secondaryAmount: optional(number),
 }, { additionalProperties: false });
 export type RequirementRef = Static<typeof RequirementRefSchema>;
 
+// The game authors gates in groups, and a group can be satisfied by one of its members: a melee
+// weapon reads "Warrior or Assassin, level 27", not four repeated class rows. `mode` carries that
+// distinction and `requiredCount` the authored count when the group checks one.
+export const RequirementGroupSchema = Type.Object({
+  mode: Type.Union([Type.Literal("all"), Type.Literal("any")]),
+  requiredCount: optional(count),
+  requirements: Type.Array(RequirementRefSchema, { minItems: 1 }),
+}, { additionalProperties: false });
+export type RequirementGroup = Static<typeof RequirementGroupSchema>;
+
 const refs = Type.Array(RefSchema);
-const requirements = Type.Array(RequirementRefSchema);
+const requirements = Type.Array(RequirementGroupSchema);
 const placements = Type.Array(PlacementRefSchema);
 
 export const StatRowSchema = Type.Object({ stat: RefSchema, amount: number, isPercent: Type.Boolean() }, { additionalProperties: false });
@@ -376,6 +388,7 @@ schemaRegistry.register("compendium.public-entity-ref.v1", EntityRefSchema);
 schemaRegistry.register("compendium.public-unresolved-ref.v1", UnresolvedRefSchema);
 schemaRegistry.register("compendium.public-placement-ref.v1", PlacementRefSchema);
 schemaRegistry.register("compendium.public-requirement-ref.v1", RequirementRefSchema);
+schemaRegistry.register("compendium.public-requirement-group.v1", RequirementGroupSchema);
 schemaRegistry.register("compendium.public-place-space.v1", PlaceSpaceSchema);
 schemaRegistry.register("compendium.public-loot-specialization.v1", LootSpecializationSchema);
 schemaRegistry.register("compendium.public-random-stat-row.v1", RandomStatRowSchema);
