@@ -45,7 +45,7 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
 
 const base = { description: null, art: {}, locations: [placement] };
 const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } = {
-  items: { ...base, ref: item, facts: { rarity: "Common", itemType: "ARMOR", slot: "GLOVES", stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 7, isPercent: false }], randomStatsMax: 0, sockets: [], sellPrice: { amount: 5, currency: gold }, stackLimit: 1, questDropOnly: false, corruptionToken: false, requirements: [] },
+  items: { ...base, ref: item, facts: { rarity: "Common", itemType: "ARMOR", slot: "GLOVES", stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 7, isPercent: false }], randomStats: [{ stat: { key: "stats:0", kind: "stats", name: "Health" }, min: 10, max: 40, isPercent: false, whole: false, chance: 100 }], randomStatsMax: 0, sockets: [{ gemType: "Green Gem" }], sellPrice: { amount: 5, currency: gold }, stackLimit: 1, questDropOnly: false, corruptionToken: false, requirements: [] },
     droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [], placements: [placement] }], soldBy: [], gatheredFrom: [], inContainers: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [] } satisfies PublicItem,
   npcs: { ...base, ref: boss, facts: { level: 21, scalesWithPlayer: false, roles: ["boss"], stats: [], immunities: [] }, drops: [{ counterpart: item, min: 1, max: 1, requirements: [], placements: [placement] }], sells: [], quests: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], usedInQuests: [], bossOf: [] } satisfies PublicNpc,
   quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, givers: [boss], turnIns: [], objectives: [{ index: 0, label: "Kill 3 Branchweavers", type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [] } satisfies PublicQuest,
@@ -62,7 +62,7 @@ test("every kind document validates and rejects unknown properties", () => {
     expect(() => Assert(schema, { ...document, sections: [] })).toThrow();
     expect(() => Assert(schema, { ...document, facts: { ...document.facts, extra: 1 } })).toThrow();
   }
-  expect(collectRefs(fixtures.items).map((ref) => ref.key)).toEqual(["items:1", "stats:20", "currencies:0", "npcs:286"]);
+  expect(collectRefs(fixtures.items).map((ref) => ref.key)).toEqual(["items:1", "stats:20", "stats:0", "currencies:0", "npcs:286"]);
 });
 
 test("a v3 root reaches documents and artwork through graph edges and passes semantics", () => {

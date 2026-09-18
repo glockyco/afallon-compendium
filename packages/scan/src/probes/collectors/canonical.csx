@@ -112,6 +112,28 @@ if (items != null)
             }
         }
 
+        // A gem item carries the socket type it fits and the stats it grants once socketed.
+        var itemGemStats = new System.Collections.Generic.List<object>();
+        var itemGem = (object)null;
+        if (item.gemData != null)
+        {
+            if (item.gemData.gemStats != null)
+            {
+                for (var gemIndex = 0; gemIndex < item.gemData.gemStats.Count; gemIndex++)
+                {
+                    var gemStat = item.gemData.gemStats[gemIndex];
+                    if (gemStat == null) { itemGemStats.Add(new { sourceIndex = gemIndex, unavailable = "null GEM_STATS record" }); continue; }
+                    itemGemStats.Add(new { sourceIndex = gemIndex, statId = gemStat.statID, amount = gemStat.amount, isPercent = gemStat.isPercent });
+                }
+            }
+            itemGem = new
+            {
+                socketType = item.gemData.socketType,
+                gemSocketType = item.gemData.GemSocketType == null ? (object)new { available = false } : new { available = true, nativeId = item.gemData.GemSocketType.ID, name = item.gemData.GemSocketType.entryDisplayName ?? item.gemData.GemSocketType.entryName },
+                statsAvailable = item.gemData.gemStats != null,
+                stats = itemGemStats
+            };
+        }
         var itemSockets = new System.Collections.Generic.List<object>();
         var itemSocketsAvailable = item.sockets != null;
         if (item.sockets != null)
@@ -198,6 +220,8 @@ if (items != null)
                 randomStatsAvailable = itemRandomStatsAvailable,
                 randomStats = itemRandomStats,
                 socketsAvailable = itemSocketsAvailable,
+                gemDataAvailable = item.gemData != null,
+                gemData = itemGem,
                 sockets = itemSockets,
                 actionAbilitiesAvailable = itemActionAbilitiesAvailable,
                 actionAbilities = itemActionAbilities,

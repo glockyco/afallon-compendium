@@ -56,8 +56,16 @@ const placements = Type.Array(PlacementRefSchema);
 export const StatRowSchema = Type.Object({ stat: RefSchema, amount: number, isPercent: Type.Boolean() }, { additionalProperties: false });
 export type StatRow = Static<typeof StatRowSchema>;
 
-export const SocketRowSchema = Type.Object({ socketType: text }, { additionalProperties: false });
+export const SocketRowSchema = Type.Object({ socketType: optional(text), gemType: optional(text) }, { additionalProperties: false });
 export type SocketRow = Static<typeof SocketRowSchema>;
+
+// An authored range the game rolls when the item drops. `chance` is the authored roll chance.
+export const RandomStatRowSchema = Type.Object({ stat: RefSchema, min: number, max: number, isPercent: Type.Boolean(), whole: Type.Boolean(), chance: optional(percent) }, { additionalProperties: false });
+export type RandomStatRow = Static<typeof RandomStatRowSchema>;
+
+// A gem item fits one socket type and grants its stats once socketed.
+export const GemSchema = Type.Object({ gemType: optional(text), stats: Type.Array(StatRowSchema) }, { additionalProperties: false });
+export type Gem = Static<typeof GemSchema>;
 
 export const PriceSchema = Type.Object({ amount: count, currency: RefSchema }, { additionalProperties: false });
 export type Price = Static<typeof PriceSchema>;
@@ -138,7 +146,8 @@ const documentBase = { ref: EntityRefSchema, description: nullableText, art: Art
 export const ItemFactsSchema = Type.Object({
   rarity: optional(text), itemType: optional(text), slot: optional(text), weaponType: optional(text), armorType: optional(text), weaponSlot: optional(text),
   attackSpeed: optional(number), minDamage: optional(count), maxDamage: optional(count),
-  stats: Type.Array(StatRowSchema), randomStatsMax: count, sockets: Type.Array(SocketRowSchema),
+  stats: Type.Array(StatRowSchema), randomStats: Type.Array(RandomStatRowSchema), randomStatsMax: count,
+  sockets: Type.Array(SocketRowSchema), gem: optional(GemSchema),
   enchantment: optional(RefSchema), sellPrice: optional(PriceSchema), buyPrice: optional(PriceSchema),
   stackLimit: count, questDropOnly: Type.Boolean(), corruptionToken: Type.Boolean(),
   levelRequirement: optional(count), requirements,
@@ -343,6 +352,8 @@ schemaRegistry.register("compendium.public-entity-ref.v1", EntityRefSchema);
 schemaRegistry.register("compendium.public-unresolved-ref.v1", UnresolvedRefSchema);
 schemaRegistry.register("compendium.public-placement-ref.v1", PlacementRefSchema);
 schemaRegistry.register("compendium.public-requirement-ref.v1", RequirementRefSchema);
+schemaRegistry.register("compendium.public-random-stat-row.v1", RandomStatRowSchema);
+schemaRegistry.register("compendium.public-gem.v1", GemSchema);
 schemaRegistry.register("compendium.public-drop-row.v1", DropRowSchema);
 schemaRegistry.register("compendium.public-vendor-row.v1", VendorRowSchema);
 schemaRegistry.register("compendium.public-gather-row.v1", GatherRowSchema);
