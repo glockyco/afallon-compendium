@@ -38,7 +38,9 @@ function itemRow(document: PublicItem): ListRow {
 
 function npcRow(document: PublicNpc): ListRow {
   const level = document.facts.level ?? (document.facts.levelRange ? `${document.facts.levelRange.min}–${document.facts.levelRange.max}` : null);
-  const place = document.locations[0]?.label ?? null, faction = refName(document.facts.faction);
+  const places = new Set(document.locations.map((location) => location.label));
+  const place = places.size === 1 ? places.values().next().value! : places.size > 1 ? `${places.size} places` : null;
+  const faction = refName(document.facts.faction);
   return { ref: document.ref, values: { level, role: document.facts.roles.join(", ") || null, place, faction },
     facets: { role: document.facts.roles, place: facetValue(place), faction: facetValue(faction) } };
 }
