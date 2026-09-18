@@ -21,8 +21,12 @@
   // With no placement anywhere in the table there is nothing to compare a dash against, so the
   // column leaves; a dash marks the gap only where a sibling row does publish its locations.
   $: hasLocations = rows.some((row) => row.placementCount > 0);
+  // A grouped row names its container type in `label` and the place it stands in as its
+  // counterpart, so the two read as separate columns instead of one replacing the other.
+  $: hasPlaces = rows.some((row) => row.counterpart !== undefined);
   $: columns = [
     { id: 'name', label: 'Container', sortable: true },
+    ...(hasPlaces ? [{ id: 'place', label: 'Place', sortable: true }] : []),
     { id: 'quantity', label: 'Quantity', numeric: true, sortable: true },
     { id: 'chance', label: 'Chance', numeric: true, sortable: true },
     ...(hasRequirements ? [{ id: 'requirements', label: 'Requirements' }] : []),
@@ -34,7 +38,8 @@
     if (id === 'quantity') return row.max ?? row.min;
     if (id === 'chance') return row.chance;
     if (id === 'locations') return row.placementCount;
-    return row.counterpart && row.counterpart.key !== null ? row.counterpart.name : row.label;
+    if (id === 'place') return row.counterpart === undefined ? undefined : row.counterpart.key === null ? row.counterpart.label : row.counterpart.name;
+    return row.label;
   }
 </script>
 
@@ -43,7 +48,8 @@
     <DataTable {columns} {sort} onSort={(id, numeric) => (sort = toggleSort(sort, id, numeric))}>
       {#each visible as row}
         <tr>
-          <td>{#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else}{row.label}{/if}</td>
+          <td>{row.label}</td>
+          {#if hasPlaces}<td>{#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{/if}</td>{/if}
           <td class="c-num">{#if rangeText(row.min, row.max) === null}<MissingValue explanation="No quantity is published" />{:else}{rangeText(row.min, row.max)}{/if}</td>
           <td class="c-num">{#if row.chance === undefined}<MissingValue explanation="Not measured for this build" />{:else}{formatNumber(row.chance)}%{/if}</td>
           {#if hasRequirements}<td><Requirements requirements={row.requirements} {registry} /></td>{/if}
