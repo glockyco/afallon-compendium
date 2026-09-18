@@ -263,6 +263,10 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
   const recipeRows = indexes.recipesByItem.get(entity.entityKey) ?? [];
   // Native item records carry authored defaults for both equipment branches; only the active branch is public evidence.
   const isArmor = fact?.itemType === "ARMOR", isWeapon = fact?.itemType === "WEAPON";
+  const itemPower = fact?.stats.find((row) => row.stat.entityKey === "stats:53")?.amount;
+  const damagePerSecond = isWeapon && fact?.minDamage !== null && fact?.minDamage !== undefined
+    && fact.maxDamage !== null && fact.maxDamage !== undefined && fact.attackSpeed !== null && fact.attackSpeed !== undefined && fact.attackSpeed > 0
+    ? ((fact.minDamage + fact.maxDamage) / 2) / fact.attackSpeed : undefined;
   return {
     ...baseDocument(entity, ref, input),
     facts: {
@@ -272,7 +276,9 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
       ...(isWeapon && fact?.attackSpeed !== null && fact?.attackSpeed !== undefined ? { attackSpeed: fact.attackSpeed } : {}),
       ...(isWeapon && optionalCount(fact?.minDamage ?? null) !== undefined ? { minDamage: optionalCount(fact?.minDamage ?? null) } : {}),
       ...(isWeapon && optionalCount(fact?.maxDamage ?? null) !== undefined ? { maxDamage: optionalCount(fact?.maxDamage ?? null) } : {}),
-      stats: (fact?.stats ?? []).map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
+      ...(itemPower === undefined ? {} : { itemPower }), ...(damagePerSecond === undefined ? {} : { damagePerSecond }),
+      stats: (fact?.stats ?? []).filter((row) => row.stat.entityKey !== "stats:53")
+        .map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
       randomStats: (fact?.randomStats ?? []).map((row) => ({ stat: input.resolve(row.stat), min: row.min, max: row.max, isPercent: row.isPercent, whole: row.whole,
         ...(optionalChance(row.chance) === undefined ? {} : { chance: optionalChance(row.chance) }) })),
       randomStatsMax: Math.max(0, fact?.randomStatsMax ?? 0),

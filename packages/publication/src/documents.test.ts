@@ -10,7 +10,9 @@ const entities: CatalogEntityRow[] = [
   { entityKey: "items:1", kind: "items", nativeId: 1, name: "<color=red>Blade</color>", description: "<b>Sharp</b><br>Steel", iconAssetName: null, artwork: [] },
   { entityKey: "npcs:2", kind: "npcs", nativeId: 2, name: "Guardian", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "quests:3", kind: "quests", nativeId: 3, name: "Trial", description: null, iconAssetName: null, artwork: [] },
-  { entityKey: "stats:5", kind: "stats", nativeId: 5, name: "Item power", description: null, iconAssetName: null, artwork: [] },
+  { entityKey: "stats:5", kind: "stats", nativeId: 5, name: "Loot stat", description: null, iconAssetName: null, artwork: [] },
+  { entityKey: "stats:27", kind: "stats", nativeId: 27, name: "Strength", description: null, iconAssetName: null, artwork: [] },
+  { entityKey: "stats:53", kind: "stats", nativeId: 53, name: "Item power", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "classes:0", kind: "classes", nativeId: 0, name: "Shieldmaster", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "classes:5", kind: "classes", nativeId: 5, name: "Assassin", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "scenes:10", kind: "scenes", nativeId: 10, name: "Crypt", description: null, iconAssetName: null, artwork: [] },
@@ -19,7 +21,10 @@ const entities: CatalogEntityRow[] = [
 const facts: CatalogFacts = {
   entities,
   items: [{ entityKey: "items:1", rarity: "Rare", itemType: "WEAPON", armorSlot: "BELT", weaponSlot: "MAIN HAND", weaponType: "One handed sword", armorType: "CLOTH",
-    attackSpeed: 1, minDamage: 4, maxDamage: 8, stats: [], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: { entityKey: null, label: "Enchantment -1" }, sellPrice: null,
+    attackSpeed: 1.8, minDamage: 75, maxDamage: 124, stats: [
+      { stat: { entityKey: "stats:53", label: "Item power" }, amount: 99, isPercent: false },
+      { stat: { entityKey: "stats:27", label: "Strength" }, amount: 42, isPercent: false },
+    ], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: { entityKey: null, label: "Enchantment -1" }, sellPrice: null,
     sellCurrency: null, buyPrice: 0, buyCurrency: { entityKey: null, label: "Currency -1" }, stackLimit: 1, questDropOnly: false, corruptionToken: false,
     levelRequirement: 2, actionAbilities: [], conditionIds: ["oathbreaker"] }],
   npcs: [{ entityKey: "npcs:2", minLevel: 5, maxLevel: 5, scalesWithPlayer: false, npcType: "Enemy", creatureType: null, family: null,
@@ -67,7 +72,10 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   const item = documents.get("items:1") as PublicItem, npc = documents.get("npcs:2") as PublicNpc, place = documents.get("scenes:10") as PublicPlace;
   expect(item.ref.name).toBe("Blade");
   expect(item.description).toBe("Sharp\nSteel");
-  expect(item.facts).toMatchObject({ weaponSlot: "MAIN HAND", weaponType: "One handed sword", attackSpeed: 1, minDamage: 4, maxDamage: 8 });
+  expect(item.facts).toMatchObject({ weaponSlot: "MAIN HAND", weaponType: "One handed sword", attackSpeed: 1.8, minDamage: 75, maxDamage: 124,
+    itemPower: 99 });
+  expect(item.facts.damagePerSecond).toBeCloseTo(55.27777777777778);
+  expect(item.facts.stats).toEqual([{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amount: 42, isPercent: false }]);
   expect(item.facts).not.toHaveProperty("slot");
   expect(item.facts).not.toHaveProperty("armorType");
   expect(item.facts).not.toHaveProperty("enchantment");
@@ -80,9 +88,15 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
     { mode: "all", requirements: [{ type: "level", label: "Level 27", amount: 27 }] },
   ]);
   const itemList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")?.[0];
-  expect(itemList?.rows.find((row) => row.ref.key === "items:1")).toMatchObject({ values: { slot: "MAIN HAND" }, facets: { slot: ["MAIN HAND"] } });
+  const itemRow = itemList?.rows.find((row) => row.ref.key === "items:1");
+  expect(itemRow).toMatchObject({ values: { slot: "MAIN HAND", itemPower: 99 }, facets: { slot: ["MAIN HAND"] } });
+  expect(itemRow?.values.damagePerSecond as number).toBeCloseTo(55.27777777777778);
+  expect(PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "items")?.columns).toEqual(expect.arrayContaining([
+    { id: "itemPower", label: "Item power", sortable: true, numeric: true },
+    { id: "damagePerSecond", label: "Damage per second", sortable: true, numeric: true },
+  ]));
   expect(npc.facts).not.toHaveProperty("species");
-  expect(npc.facts.lootSpecialization).toEqual({ armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { key: "stats:5", kind: "stats", name: "Item power" } });
+  expect(npc.facts.lootSpecialization).toEqual({ armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { key: "stats:5", kind: "stats", name: "Loot stat" } });
   expect(item.droppedBy).toHaveLength(1);
   expect(npc.drops).toHaveLength(1);
   const { counterpart: itemCounterpart, ...itemValues } = item.droppedBy[0]!;
@@ -112,8 +126,12 @@ test("projects only the armor branch when native weapon defaults remain", () => 
   expect(item.facts).not.toHaveProperty("attackSpeed");
   expect(item.facts).not.toHaveProperty("minDamage");
   expect(item.facts).not.toHaveProperty("maxDamage");
+  expect(item.facts).not.toHaveProperty("damagePerSecond");
+  expect(item.facts.itemPower).toBe(99);
   const itemList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")?.[0];
-  expect(itemList?.rows.find((row) => row.ref.key === "items:1")).toMatchObject({ values: { slot: "GLOVES" }, facets: { slot: ["GLOVES"] } });
+  expect(itemList?.rows.find((row) => row.ref.key === "items:1")).toMatchObject({
+    values: { slot: "GLOVES", itemPower: 99, damagePerSecond: null }, facets: { slot: ["GLOVES"] },
+  });
 });
 
 test("maps every supported native task type and preserves unsupported types", () => {

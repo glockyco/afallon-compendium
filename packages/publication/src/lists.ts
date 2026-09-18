@@ -32,6 +32,7 @@ function itemRow(document: PublicItem): ListRow {
   return {
     ref: document.ref,
     values: { rarity: document.facts.rarity ?? null, itemType: document.facts.itemType ?? null, slot: slot ?? null,
+      itemPower: document.facts.itemPower ?? null, damagePerSecond: document.facts.damagePerSecond ?? null,
       levelRequirement: document.facts.levelRequirement ?? null, sellPrice: document.facts.sellPrice?.amount ?? null },
     facets: { slot: facetValue(slot), itemType: facetValue(document.facts.itemType), rarity: facetValue(document.facts.rarity), sourceKind: sourceKinds },
   };
