@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { decodeItemGameplay, decodeNpcGameplay, decodePropertyGameplay, decodeQuestGameplay, decodeTaskGameplay, decodedReference } from "./decoders";
+import { decodeItemGameplay, decodeNpcGameplay, decodePropertyGameplay, decodeQuestGameplay, decodeTaskGameplay, decodedPrice, decodedReference } from "./decoders";
 
 const reference = { path: "objects/gameplay.json", sha256: "a".repeat(64) };
 const enumValue = (value: number, name: string) => ({ value, name });
@@ -23,7 +23,8 @@ test("records unsupported and unavailable enum values as coverage issues", () =>
   expect(decodeItemGameplay({ itemType: { available: false } }, reference, "/items/0/gameplay").issues).toEqual([{ path: "/items/0/gameplay/itemType", detail: "Enum value is unavailable." }]);
 });
 
-test("turns negative reference sentinels into labeled unresolved references", () => {
-  expect(decodedReference(-1, "Unknown ability")).toEqual({ nativeId: null, label: "Unknown ability" });
+test("turns negative reference sentinels into absent facts", () => {
+  expect(decodedReference(-1, "Unknown ability")).toBeNull();
+  expect(decodedPrice(0, -1)).toBeNull();
   expect(decodedReference(12, "Known ability")).toEqual({ nativeId: 12, label: "Known ability" });
 });

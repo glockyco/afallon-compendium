@@ -40,6 +40,7 @@ export const NpcGameplaySchema = Type.Object({
   hasLootSpecialization: optional(boolean), lootSpecializationArmorType: optional(availableEnum), lootSpecializationWeaponType: optional(availableEnum), lootSpecializationWeaponType2: optional(availableEnum), lootSpecializationWeaponType3: optional(availableEnum), lootSpecializationStatId: optional(integer),
   useAggroRange: optional(boolean), aggroRange: optional(number), immuneToStun: optional(boolean), immuneToSlow: optional(boolean),
   factionRewards: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), factionId: integer, amount: number }))),
+  startItems: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), itemId: integer, count: number, equipped: boolean }))),
 });
 export type NpcGameplay = Static<typeof NpcGameplaySchema>;
 
@@ -107,6 +108,7 @@ export interface SupportedGameplay {
 export interface GameplayCoverageIssue { path: string; detail: string }
 export interface DecodedGameplay<T> { value: T; issues: GameplayCoverageIssue[] }
 export interface DecodedReference { nativeId: number | null; label: string }
+export interface DecodedPrice { amount: number; currencyId: number | null }
 
 const npcTypes = ["MOB", "ELITE", "RARE", "BOSS", "MERCHANT", "BANK", "QUEST_GIVER", "DIALOGUE", "COMPANION", "ADVENTURER", "QUEST_COMPANION"] as const;
 const creatureTypes = ["NONE", "BEAST", "HUMANOID", "UNDEAD", "DEMON", "DRAGONKIN", "ELEMENTAL", "GIANT", "MECHANICAL"] as const;
@@ -129,7 +131,11 @@ export function availableEnumName(value: { available: boolean; name?: string } |
 }
 export function decodedReference(nativeId: number | null | undefined, label: string): DecodedReference | null {
   if (nativeId === undefined || nativeId === null) return null;
-  return nativeId < 0 ? { nativeId: null, label } : { nativeId, label };
+  return nativeId < 0 ? null : { nativeId, label };
+}
+export function decodedPrice(amount: number | null | undefined, currencyId: number | null | undefined): DecodedPrice | null {
+  if (amount === undefined || amount === null || amount === 0 && (currencyId === undefined || currencyId === null || currencyId < 0)) return null;
+  return { amount, currencyId: currencyId === undefined || currencyId === null || currencyId < 0 ? null : currencyId };
 }
 
 export function decodeItemGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<ItemGameplay> {

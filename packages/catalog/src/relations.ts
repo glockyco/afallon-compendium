@@ -70,10 +70,11 @@ export function relationRows(value: Relationships, canonical: Canonical, nativeL
     const normalized = { ...row, sourceIndex, conditionId: condition?.conditionId ?? null, provenance: [pointer(reference, path)] };
     merchantBindings.push(normalized);
     if (gameplay.get(`npcs:${row.ownerNativeId}`)?.isMerchant === true) group(merchantByTable, row.merchantTableID, normalized);
+    else blockers.push({ kind: "inactive-merchant-binding", key: `merchant:${row.ownerNativeId}:${row.bindingIndex}`, detail: `NPC ${row.ownerNativeId} has authored merchant stock but is not a merchant.`, provenance: normalized.provenance });
   }
   for (const [sourceIndex, row] of value.merchantStock.entries()) {
     const path = `/merchantStock/${sourceIndex}`, provenance = [pointer(reference, path)];
-    if (!valid("merchantTables", row.merchantTableID, path, merchantTables) || !valid("items", row.itemID, path) || !valid("currencies", row.currencyID, path)) continue;
+    if (!valid("merchantTables", row.merchantTableID, path, merchantTables) || !valid("items", row.itemID, path) || row.currencyID >= 0 && !valid("currencies", row.currencyID, path)) continue;
     merchantStock.push({ ...row, sourceIndex, provenance });
     for (const binding of merchantByTable.get(row.merchantTableID) ?? []) addSourceIndex(itemIndex, row.itemID, "merchant", `${binding.ownerNativeId}:${binding.bindingIndex}:${row.stockIndex}`, npcPlacements.get(binding.ownerNativeId) ?? [], binding.conditionId ? [binding.conditionId] : [], {
       ownerEntityKeys: [entityKey("npcs", binding.ownerNativeId)], ownerNativeId: binding.ownerNativeId, bindingIndex: binding.bindingIndex,

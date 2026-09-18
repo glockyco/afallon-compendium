@@ -14,9 +14,15 @@ test("returns the same conditional vendor and boss drop rows from both endpoints
       "build", "items", 1, "items:1", "Sword", null, null, null, "{}", "[]",
       "build", "skills", 4, "skills:4", "Trade", null, null, null, "{}", "[]",
     );
+    db.query("INSERT INTO npc_facts(entity_key, scales_with_player, is_merchant, is_quest_giver, is_combat_enabled, immune_to_stun, immune_to_slow, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?)").run(
+      "npcs:2", 0, 0, 0, 1, 0, 0, "[]",
+      "npcs:3", 0, 1, 0, 0, 0, 0, "[]",
+    );
     db.query("INSERT INTO conditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("progression", "build", "merchant", "npcs:3", 0, "all", "/merchants/0", JSON.stringify({ sourceName: "Journeyman Trade", groups: [{ checkCount: true, requiredCount: 1, requirements: [{ requirementType: "skill", skillID: 4, amount1: 10 }] }] }), "[]");
+    db.query("INSERT INTO conditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("empty", "build", "quest", "quests:7", 0, "inline-requirements", "/quests/7", JSON.stringify({ nativeGroupCount: 0, groups: [] }), "[]");
     db.query("INSERT INTO merchant_tables VALUES (?, ?, ?, ?)").run("build", 7, "Stock", "{}");
-    db.query("INSERT INTO merchant_bindings VALUES (?, ?, ?, ?, ?, ?)").run("build", "npcs:3", 7, 0, "progression", "{}");
+    db.query("INSERT INTO merchant_bindings VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)").run("build", "npcs:3", 7, 0, "progression", "{}", "build", "npcs:2", 7, 1, null, "{}");
+    recordCoverageIssue(db, { buildId: "build", kind: "inactive-merchant-binding", subjectKey: "merchant:2:1", semanticDiscriminator: "", state: "unresolved", runId: "run", artifactHash: evidence, sourceKey: "relationships", recordPath: "/merchantBindings/1", evidence: {} });
     db.query("INSERT INTO merchant_stock VALUES (?, ?, ?, ?, ?, ?, ?)").run("build", 7, 0, "items:1", null, 25, "{}");
     db.query("INSERT INTO loot_tables VALUES (?, ?, ?, ?)").run("build", 9, 0, "{}");
     db.query("INSERT INTO loot_bindings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("boss-drop", "build", "npc", "npcs:2", 9, 0, 12.34, "authored", null, "{}");
@@ -28,6 +34,7 @@ test("returns the same conditional vendor and boss drop rows from both endpoints
     expect(fromVendor).toEqual(fromVendorItem);
     expect(fromVendor).toEqual([{ npc: { entityKey: "npcs:3", label: "Vendor" }, item: { entityKey: "items:1", label: "Sword" }, currency: null, cost: 25, merchantTableId: 7, stockIndex: 0, conditionIds: ["progression"], placementIds: [] }]);
     expect(queryConditions(db).records).toEqual([{ conditionId: "progression", semantics: "all", label: "Journeyman Trade", requirements: [{ type: "skill", mandatory: true, target: { entityKey: "skills:4", label: "Trade" }, amount: 10, secondaryAmount: null, label: "skill 10 Trade" }] }]);
+    expect(queryCatalogCoverage(db).records).toMatchObject({ occurrenceCount: 1, unresolvedIssues: [{ kind: "inactive-merchant-binding", subjectKey: "merchant:2:1", occurrenceCount: 1 }] });
 
     const dropRows = queryDropRows(db).records;
     const fromBoss = dropRows.filter((row) => row.owner.entityKey === "npcs:2");

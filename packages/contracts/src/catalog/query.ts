@@ -255,7 +255,7 @@ export interface ItemSource {
   itemKey: string;
   itemId: number;
   sources: Array<{
-    sourceKind: "merchant" | "npc-loot" | "world-loot" | "container" | "resource" | "quest";
+    sourceKind: "merchant" | "npc-loot" | "world-loot" | "container" | "resource" | "quest" | "npc-start-item";
     sourceKey: string;
     placementIds: string[];
     conditionIds: string[];
