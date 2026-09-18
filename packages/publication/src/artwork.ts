@@ -31,9 +31,12 @@ export async function generateArtworkResources(
       let ref = variants.get(variantKey);
       if (!ref) {
         await store.verify({ sha256: binding.sha256, bytes: binding.bytes });
+        // Entity art is decorative and displayed below its encoded size, so q86 avoids a large
+        // lossless penalty without a visible change. Map tiles remain lossless because they are
+        // calibrated source imagery whose pixels must stay exact.
         const output = await sharp(store.objectPath(binding.sha256))
           .resize({ width: WIDTH_BY_ROLE[binding.role] })
-          .webp({ lossless: true })
+          .webp({ quality: 86, effort: 5 })
           .toBuffer({ resolveWithObject: true });
         if (!output.info.width || !output.info.height) throw new Error(`Artwork variant has no dimensions: ${binding.assetId}.`);
         const stored = await store.putBytes(output.data, protection);
