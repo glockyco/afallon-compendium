@@ -143,6 +143,17 @@ compare against it directly rather than describing it:
   prices, one accent for links and focus. The rest stays neutral.
 - Filters as labelled controls in a single row, not raw multi-select boxes.
 
+The game's own item tooltip is the second reference, captured in
+`research/screenshots/reference/game-item-tooltip-weapon.png` and `-armor.png`. It leads with the
+icon and the name in its rarity colour, then the slot and the type on one line, then `Item Power`,
+then the damage range with a derived damage per second, then stats as `+21 Stamina` and
+`+11% Lifesteal`, then sockets with their gem type and empty state, then the gear set with its
+members and tier bonuses, then `Requires Class: Shieldmaster` and `Requires Level 27`, and the sell
+price last. Follow that order and that wording where a page shows the same facts, and keep the
+game's sign-first stat form. The game colours a requirement green when the character meets it and
+red when it does not; a page has no character, so requirements stay neutral rather than inventing a
+state.
+
 Beyond that reference: the fact grid omits an absent optional fact rather than printing a dash, so a
 card shows what is known; a dash appears only where a value is expected and the build did not
 establish it. The serif display face stays for page titles to match the atlas and the parent domain;

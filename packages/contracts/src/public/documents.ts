@@ -169,6 +169,11 @@ const documentBase = { ref: EntityRefSchema, description: nullableText, art: Art
 export const ItemFactsSchema = Type.Object({
   rarity: optional(text), itemType: optional(text), slot: optional(text), weaponType: optional(text), armorType: optional(text), weaponSlot: optional(text),
   attackSpeed: optional(number), minDamage: optional(count), maxDamage: optional(count),
+  // The game's own tooltip leads with item power and shows damage per second beside the damage
+  // range: Oathbreaker's Edge reads "Item Power 99" and "(55.3 damage per second)" for 75-124 at
+  // 1.80, which is the mean damage over the attack speed. Both are published so a page, a list
+  // column, and a sort agree on one value.
+  itemPower: optional(number), damagePerSecond: optional(number),
   stats: Type.Array(StatRowSchema), randomStats: Type.Array(RandomStatRowSchema), randomStatsMax: count,
   sockets: Type.Array(SocketRowSchema), gem: optional(GemSchema),
   enchantment: optional(RefSchema), sellPrice: optional(PriceSchema), buyPrice: optional(PriceSchema),
