@@ -35,8 +35,8 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
       new Map([["world", []]]),
     );
     const entries = generated.search.flatMap((part) => part.value.entries);
-    expect(entries.find((entry) => entry.ref.key === "quests:3")?.placementIds).toEqual([]);
-    expect(entries.find((entry) => entry.ref.key === "npcs:2")?.placementIds).toEqual(["p1"]);
+    expect(entries.find((entry) => entry.ref.key === "quests:3")?.hasPlacements).toBe(false);
+    expect(entries.find((entry) => entry.ref.key === "npcs:2")?.hasPlacements).toBe(true);
     expect(generated.documents.size).toBe(3);
     expect(entries).toHaveLength(3);
     const documentPaths = new Set([...generated.documents.values()].map((resource) => resource.reference.path));

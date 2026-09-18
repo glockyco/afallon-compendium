@@ -113,7 +113,7 @@ export async function generateIndexResources(
     const placementIds = [...new Set(placementIdsByKey.get(key) ?? [])].filter((placementId) => placements.has(placementId));
     const place = placementIds[0] === undefined ? undefined : placements.get(placementIds[0])?.label;
     entries.push({ ref: document.ref, ...(level === undefined ? {} : { level }), ...(place ? { place } : {}),
-      placementIds,
+      hasPlacements: placementIds.length > 0,
       sourceKinds: listRowsByKey.get(key)?.facets.sourceKind ?? itemSourceKinds(document),
       document: resource.reference as PublicSearchEntry["document"],
     });
