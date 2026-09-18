@@ -5,7 +5,6 @@
   import EntityLink from './EntityLink.svelte';
   import FactCardFrame from './FactCardFrame.svelte';
   import LocationList from './LocationList.svelte';
-  import MissingValue from './MissingValue.svelte';
   import QuestTable from './QuestTable.svelte';
   import VendorTable from './VendorTable.svelte';
 
@@ -20,19 +19,19 @@
 
 <FactCardFrame name={document.ref.name} description={document.description} art={document.art.portrait ?? document.art.icon ?? document.ref.icon} artRole="portrait" fallbackIcon={registry.find((entry) => entry.kind === 'npcs')?.icon} {compact}>
   <dl class="facts">
-    <div><dt>Level</dt><dd>{#if level}{level}{:else}<MissingValue explanation="No level is published" />{/if}</dd></div>
-    <div><dt>Roles</dt><dd>{facts.roles.length ? facts.roles.join(', ') : 'None'}</dd></div>
-    <div><dt>Type</dt><dd>{#if facts.npcType || facts.creatureType}{facts.npcType ?? facts.creatureType}{:else}<MissingValue explanation="No NPC type is published" />{/if}</dd></div>
-    <div><dt>Family</dt><dd>{#if facts.family}{facts.family}{:else}<MissingValue explanation="No creature family is published" />{/if}</dd></div>
-    <div><dt>Faction</dt><dd>{#if facts.faction}<EntityLink ref={facts.faction} {registry} />{:else}<MissingValue explanation="No faction is published" />{/if}</dd></div>
-    <div><dt>Species</dt><dd>{#if facts.species}<EntityLink ref={facts.species} {registry} />{:else}<MissingValue explanation="No species is published" />{/if}</dd></div>
-    <div><dt>Respawn</dt><dd>{#if facts.respawn}{facts.respawn.min}–{facts.respawn.max}{:else}<MissingValue explanation="Not measured for this build" />{/if}</dd></div>
-    <div><dt>Experience</dt><dd>{#if facts.experience}{facts.experience.min}–{facts.experience.max}{:else}<MissingValue explanation="Not measured for this build" />{/if}</dd></div>
-    <div><dt>Stats</dt><dd>{#if facts.stats.length}{#each facts.stats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.amount}{stat.isPercent ? '%' : ''}</span>{/each}{:else}None{/if}</dd></div>
-    <div><dt>Immunities</dt><dd>{facts.immunities.length ? facts.immunities.join(', ') : 'None'}</dd></div>
-    <div><dt>Aggro range</dt><dd>{#if facts.aggroRange !== undefined}{facts.aggroRange}{:else}<MissingValue explanation="Not measured for this build" />{/if}</dd></div>
-    <div><dt>Loot specialization</dt><dd>{#if facts.lootSpecialization}{#if facts.lootSpecialization.armorType}{facts.lootSpecialization.armorType}{/if}{#if facts.lootSpecialization.weaponTypes.length}{facts.lootSpecialization.armorType ? ' · ' : ''}{facts.lootSpecialization.weaponTypes.join(', ')}{/if}{#if facts.lootSpecialization.stat}{' · '}<EntityLink ref={facts.lootSpecialization.stat} {registry} />{/if}{:else}None{/if}</dd></div>
-    <div><dt>Scales with player</dt><dd>{facts.scalesWithPlayer ? 'Yes' : 'No'}</dd></div>
+    {#if level}<div><dt>Level</dt><dd>{level}</dd></div>{/if}
+    {#if facts.roles.length}<div><dt>Roles</dt><dd>{facts.roles.join(', ')}</dd></div>{/if}
+    {#if facts.npcType || facts.creatureType}<div><dt>Type</dt><dd>{facts.npcType ?? facts.creatureType}</dd></div>{/if}
+    {#if facts.family}<div><dt>Family</dt><dd>{facts.family}</dd></div>{/if}
+    {#if facts.faction}<div><dt>Faction</dt><dd><EntityLink ref={facts.faction} {registry} /></dd></div>{/if}
+    {#if facts.species}<div><dt>Species</dt><dd><EntityLink ref={facts.species} {registry} /></dd></div>{/if}
+    {#if facts.respawn}<div><dt>Respawn</dt><dd>{facts.respawn.min}–{facts.respawn.max}</dd></div>{/if}
+    {#if facts.experience}<div><dt>Experience</dt><dd>{facts.experience.min}–{facts.experience.max}</dd></div>{/if}
+    {#if facts.stats.length}<div><dt>Stats</dt><dd>{#each facts.stats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.amount}{stat.isPercent ? '%' : ''}</span>{/each}</dd></div>{/if}
+    {#if facts.immunities.length}<div><dt>Immunities</dt><dd>{facts.immunities.join(', ')}</dd></div>{/if}
+    {#if facts.aggroRange !== undefined}<div><dt>Aggro range</dt><dd>{facts.aggroRange}</dd></div>{/if}
+    {#if facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length || facts.lootSpecialization.stat)}<div><dt>Loot specialization</dt><dd>{#if facts.lootSpecialization.armorType}{facts.lootSpecialization.armorType}{/if}{#if facts.lootSpecialization.weaponTypes.length}{facts.lootSpecialization.armorType ? ' · ' : ''}{facts.lootSpecialization.weaponTypes.join(', ')}{/if}{#if facts.lootSpecialization.stat}{' · '}<EntityLink ref={facts.lootSpecialization.stat} {registry} />{/if}</dd></div>{/if}
+    {#if facts.scalesWithPlayer}<div><dt>Scales with player</dt><dd>Yes</dd></div>{/if}
   </dl>
   {#if showRelations}
     <DropTable rows={document.drops} {registry} heading="Drops" counterpartLabel="Item" {limit} />

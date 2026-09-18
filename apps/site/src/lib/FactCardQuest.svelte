@@ -16,15 +16,15 @@
 
 <FactCardFrame name={document.ref.name} description={document.description} art={document.art.icon ?? document.ref.icon} fallbackIcon={registry.find((entry) => entry.kind === 'quests')?.icon} {compact}>
   <dl class="facts">
-    <div><dt>Chain</dt><dd>{facts.chain ? `${facts.chain.name} · ${facts.chain.order}` : 'None'}</dd></div>
-    <div><dt>Level requirement</dt><dd>{#if facts.levelRequirement !== undefined}{facts.levelRequirement}{:else}<MissingValue explanation="Not measured for this build" />{/if}</dd></div>
-    <div><dt>Repeatable</dt><dd>{facts.repeatable ? 'Yes' : 'No'}</dd></div>
-    <div><dt>Experience</dt><dd>{#if facts.experience !== undefined}{facts.experience}{:else}<MissingValue explanation="Not measured for this build" />{/if}</dd></div>
-    <div><dt>Requirements</dt><dd><Requirements requirements={facts.requirements} {registry} /></dd></div>
+    {#if facts.chain}<div><dt>Chain</dt><dd>{facts.chain.name} · {facts.chain.order}</dd></div>{/if}
+    {#if facts.levelRequirement !== undefined}<div><dt>Level requirement</dt><dd>{facts.levelRequirement}</dd></div>{/if}
+    {#if facts.repeatable}<div><dt>Repeatable</dt><dd>Yes</dd></div>{/if}
+    {#if facts.experience !== undefined}<div><dt>Experience</dt><dd>{facts.experience}</dd></div>{/if}
+    {#if facts.requirements.length}<div><dt>Requirements</dt><dd><Requirements requirements={facts.requirements} {registry} /></dd></div>{/if}
     <div><dt>Quest giver</dt><dd>{#if document.givers.length}{#each document.givers as giver}<span class="line"><EntityLink ref={giver} {registry} /></span>{/each}{:else}<MissingValue explanation="No location is published" />{/if}</dd></div>
     <div><dt>Turn-in</dt><dd>{#if document.turnIns.length}{#each document.turnIns as turnIn}<span class="line"><EntityLink ref={turnIn} {registry} /></span>{/each}{:else if facts.turnInWithoutNpc}No NPC required{:else}<MissingValue explanation="No location is published" />{/if}</dd></div>
-    <div><dt>Objective</dt><dd>{#if facts.objectiveText}{facts.objectiveText}{:else}<MissingValue explanation="No objective text is published" />{/if}</dd></div>
-    <div><dt>Completion</dt><dd>{#if facts.completedDescription}{facts.completedDescription}{:else}<MissingValue explanation="No completion text is published" />{/if}</dd></div>
+    {#if facts.objectiveText}<div><dt>Objective</dt><dd>{facts.objectiveText}</dd></div>{/if}
+    {#if facts.completedDescription}<div><dt>Completion</dt><dd>{facts.completedDescription}</dd></div>{/if}
   </dl>
   {#if showRelations}
     <QuestTable objectives={document.objectives} {registry} heading="Objectives" {limit} />

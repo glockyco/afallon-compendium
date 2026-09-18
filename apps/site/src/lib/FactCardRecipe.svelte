@@ -2,7 +2,6 @@
   import type { PublicKindEntry, PublicRecipe } from '@afallon/contracts/public';
   import EntityLink from './EntityLink.svelte';
   import FactCardFrame from './FactCardFrame.svelte';
-  import MissingValue from './MissingValue.svelte';
   import RecipeTable from './RecipeTable.svelte';
 
   export let document: PublicRecipe;
@@ -15,9 +14,9 @@
 
 <FactCardFrame name={document.ref.name} description={document.description} art={document.art.icon ?? document.ref.icon} fallbackIcon={registry.find((entry) => entry.kind === 'recipes')?.icon} {compact}>
   <dl class="facts">
-    <div><dt>Station</dt><dd>{#if facts.station}<EntityLink ref={facts.station} {registry} />{:else}<MissingValue explanation="No crafting station is published" />{/if}</dd></div>
-    <div><dt>Skill</dt><dd>{#if facts.skill}<EntityLink ref={facts.skill} {registry} />{:else}<MissingValue explanation="No crafting skill is published" />{/if}</dd></div>
-    <div><dt>Rank</dt><dd>{#if facts.rank !== undefined}{facts.rank}{:else}<MissingValue explanation="No rank is published" />{/if}</dd></div>
+    {#if facts.station}<div><dt>Station</dt><dd><EntityLink ref={facts.station} {registry} /></dd></div>{/if}
+    {#if facts.skill}<div><dt>Skill</dt><dd><EntityLink ref={facts.skill} {registry} /></dd></div>{/if}
+    {#if facts.rank !== undefined}<div><dt>Rank</dt><dd>{facts.rank}</dd></div>{/if}
   </dl>
   {#if showRelations}
     {#if document.product}<RecipeTable rows={[document.product]} {registry} heading="Product" counterpartLabel="Item" {limit} />{/if}

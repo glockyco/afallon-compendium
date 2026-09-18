@@ -103,6 +103,7 @@
   $: gameMapsPartial = visibleGameMapIds.length > 0 && visibleGameMapIds.length < gameMapOptions.length;
   $: allMapPlacements = publication?.placements ?? [];
   $: registry = snapshot?.registry ?? [];
+  $: mapSpaceLabels = Object.fromEntries((publication?.maps ?? []).map((map) => [map.mapSpaceId, map.label]));
   $: entriesByKey = searchIndexes.entriesByKey;
   $: itemPlacementIds = new Set((itemKey ? searchIndexes.placementsByEntryKey.get(itemKey) ?? [] : []).map((placement) => placement.placementId));
   $: corpusEntries = searchIndexes.searchEntries;
@@ -502,10 +503,10 @@
       </section>
 
       {#if dev}
-        <AtlasDevelopmentDetails bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry}
+        <AtlasDevelopmentDetails bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry} {mapSpaceLabels}
           loading={detailLoading} error={detailError} {staleSelection} onClose={closeDetails} onRetry={() => controller?.retry('detail')} />
       {:else}
-        <AtlasDetailPanel bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry}
+        <AtlasDetailPanel bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry} {mapSpaceLabels}
           loading={detailLoading} error={detailError} {staleSelection} onClose={closeDetails} onRetry={() => controller?.retry('detail')} />
       {/if}
     </main>

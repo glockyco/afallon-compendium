@@ -7,6 +7,7 @@
   export let document: PublicDocument | null;
   export let selectedPlacement: PublicPlacement | null;
   export let registry: PublicKindEntry[];
+  export let mapSpaceLabels: Readonly<Record<string, string>>;
   export let loading: boolean;
   export let error: string;
   export let staleSelection: string;
@@ -24,7 +25,7 @@
   {:else if loading && !document}<p class="muted" role="status">Loading details…</p>
   {:else if document}
     {#if selectedPlacement}<p class="selected-location"><span>Selected location</span><strong>{selectedPlacement.label}</strong></p>{/if}
-    <FactCard {document} {registry} compact showRelations limit={5} />
+    <FactCard {document} {registry} {mapSpaceLabels} compact showRelations limit={5} />
     {#if pageHref}<a class="page-link" href={pageHref}>Open the full {kind?.label.toLocaleLowerCase()} page</a>{/if}
   {:else if selectedPlacement}
     <div class="location-only"><p class="category-line">{selectedPlacement.categories.join(' · ')}</p>{#if selectedPlacement.levelRange}<p>Level {selectedPlacement.levelRange.min}–{selectedPlacement.levelRange.max}</p>{/if}<p>This location has no compendium page.</p></div>

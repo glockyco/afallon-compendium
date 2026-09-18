@@ -24,7 +24,7 @@
 <main>
   <header class="site-header"><a href={`${base}/`}>World atlas</a><CompendiumSearch registry={data.registry} /></header>
   <nav aria-label="Breadcrumb"><a href={`${base}/`}>Compendium</a><span>›</span><a href={`${base}/${data.kind.route}/`}>{data.kind.plural}</a><span>›</span><span>{data.document.ref.name}</span></nav>
-  <article class="document"><FactCard document={data.document} registry={data.registry} showRelations /></article>
+  <article class="document"><FactCard document={data.document} registry={data.registry} mapSpaceLabels={data.mapSpaceLabels} showRelations /></article>
   <aside class="machine-data"><a href={`${base}/data/${data.documentPath}`}>JSON</a></aside>
   <footer>Game build {data.buildId} · Catalog {data.catalogId}</footer>
 </main>

@@ -13,11 +13,12 @@ export const entries: EntryGenerator = async () => {
 
 export const load: PageServerLoad = async ({ params }) => {
   const loader = serverAtlasLoader();
-  const [registry, indexes] = await Promise.all([loader.loadRegistry(), loader.loadIndexes()]);
+  const [registry, indexes, root] = await Promise.all([loader.loadRegistry(), loader.loadIndexes(), loader.loadRoot()]);
   const kind = registry.find((entry) => entry.pages && entry.route === params.kind);
   if (!kind) error(404, 'This compendium kind is not published.');
   const page = indexes.entries.find((entry) => entry.ref.kind === kind.kind && entry.ref.slug === params.slug && entry.document);
   if (!page?.document) error(404, 'This compendium page is not published.');
   const resource = await loader.loadDocument(kind.kind as PublicPageKind, params.slug);
-  return { kind, document: resource.document, documentPath: page.document.path, buildId: resource.buildId, catalogId: resource.catalogId, registry };
+  const mapSpaceLabels = Object.fromEntries(root.maps.map((map) => [map.mapSpaceId, map.label]));
+  return { kind, document: resource.document, documentPath: page.document.path, buildId: resource.buildId, catalogId: resource.catalogId, registry, mapSpaceLabels };
 };

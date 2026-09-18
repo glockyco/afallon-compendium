@@ -10,6 +10,7 @@
   let loading = false;
   let error = '';
   let document: PublicDocument | null = null;
+  let mapSpaceLabels: Readonly<Record<string, string>> = {};
   let intentTimer: ReturnType<typeof setTimeout> | undefined;
 
   export async function show(): Promise<void> {
@@ -20,7 +21,9 @@
     loading = true;
     error = '';
     try {
-      document = await activeLoader.loadDocumentForRef(ref);
+      const [loadedDocument, root] = await Promise.all([activeLoader.loadDocumentForRef(ref), activeLoader.loadRoot()]);
+      document = loadedDocument;
+      mapSpaceLabels = Object.fromEntries(root.maps.map((map) => [map.mapSpaceId, map.label]));
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally {
@@ -50,7 +53,7 @@
   <span class="entity-tooltip" role="tooltip">
     {#if loading}<span class="tooltip-status">Loading details…</span>
     {:else if error}<span class="tooltip-status error">Details are unavailable.</span>
-    {:else if document}<FactCard {document} {registry} compact />{/if}
+    {:else if document}<FactCard {document} {registry} {mapSpaceLabels} compact />{/if}
   </span>
 {/if}
 

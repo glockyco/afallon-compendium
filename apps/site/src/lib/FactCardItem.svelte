@@ -25,24 +25,24 @@
 
 <FactCardFrame name={document.ref.name} description={document.description} art={document.art.icon ?? document.ref.icon} fallbackIcon={registry.find((entry) => entry.kind === 'items')?.icon} {compact}>
   <dl class="facts">
-    <div><dt>Rarity</dt><dd>{#if facts.rarity}{facts.rarity}{:else}<MissingValue explanation="No rarity is published" />{/if}</dd></div>
-    <div><dt>Item type</dt><dd>{#if facts.itemType}{facts.itemType}{:else}<MissingValue explanation="No item type is published" />{/if}</dd></div>
-    {#if facts.weaponType}<div><dt>Weapon slot</dt><dd>{#if facts.weaponSlot}{facts.weaponSlot}{:else}<MissingValue explanation="No weapon slot is published" />{/if}</dd></div>{:else if facts.slot}<div><dt>Slot</dt><dd>{facts.slot}</dd></div>{/if}
-    <div><dt>Weapon or armor</dt><dd>{#if facts.weaponType || facts.armorType}{facts.weaponType ?? facts.armorType}{:else}<MissingValue explanation="No weapon or armor type is published" />{/if}</dd></div>
-    <div><dt>Damage</dt><dd>{#if damage}{damage}{:else}<MissingValue explanation="No damage is published" />{/if}</dd></div>
-    <div><dt>Attack speed</dt><dd>{#if facts.attackSpeed !== undefined}{facts.attackSpeed}{:else}<MissingValue explanation="No attack speed is published" />{/if}</dd></div>
-    <div><dt>Level requirement</dt><dd>{#if facts.levelRequirement !== undefined}{facts.levelRequirement}{:else}<MissingValue explanation="No level requirement is published" />{/if}</dd></div>
+    {#if facts.rarity}<div><dt>Rarity</dt><dd>{facts.rarity}</dd></div>{/if}
+    {#if facts.itemType}<div><dt>Item type</dt><dd>{facts.itemType}</dd></div>{/if}
+    {#if facts.weaponType && facts.weaponSlot}<div><dt>Weapon slot</dt><dd>{facts.weaponSlot}</dd></div>{:else if facts.slot}<div><dt>Slot</dt><dd>{facts.slot}</dd></div>{/if}
+    {#if facts.weaponType || facts.armorType}<div><dt>Weapon or armor</dt><dd>{facts.weaponType ?? facts.armorType}</dd></div>{/if}
+    {#if damage}<div><dt>Damage</dt><dd>{damage}</dd></div>{/if}
+    {#if facts.attackSpeed !== undefined}<div><dt>Attack speed</dt><dd>{facts.attackSpeed}</dd></div>{/if}
+    {#if facts.levelRequirement !== undefined}<div><dt>Level requirement</dt><dd>{facts.levelRequirement}</dd></div>{/if}
     <div><dt>Stack limit</dt><dd>{facts.stackLimit}</dd></div>
-    <div><dt>Stats</dt><dd>{#if facts.stats.length}{#each facts.stats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.amount}{stat.isPercent ? '%' : ''}</span>{/each}{:else}None{/if}</dd></div>
-    <div><dt>Random stats</dt><dd>{#if facts.randomStats.length}{#each facts.randomStats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.min}–{stat.max}{stat.isPercent ? '%' : ''}{stat.whole ? ' whole' : ''}{#if stat.chance !== undefined} · {stat.chance}%{/if}</span>{/each}<span class="line">Up to {facts.randomStatsMax}</span>{:else}None{/if}</dd></div>
-    <div><dt>Sockets</dt><dd>{facts.sockets.length ? facts.sockets.map((socket) => socket.socketType ?? socket.gemType ?? 'Any').join(', ') : 'None'}</dd></div>
-    <div><dt>Gem</dt><dd>{#if facts.gem}{facts.gem.gemType ?? 'Gem'}{#each facts.gem.stats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.amount}{stat.isPercent ? '%' : ''}</span>{/each}{:else}No{/if}</dd></div>
-    <div><dt>Enchantment</dt><dd>{#if facts.enchantment}<EntityLink ref={facts.enchantment} {registry} />{:else}None{/if}</dd></div>
-    <div><dt>Requirements</dt><dd><Requirements requirements={facts.requirements} {registry} /></dd></div>
-    <div><dt>Sell price</dt><dd>{#if facts.sellPrice}{facts.sellPrice.amount} <EntityLink ref={facts.sellPrice.currency} {registry} />{:else}<MissingValue explanation="No sell price is published" />{/if}</dd></div>
-    <div><dt>Buy price</dt><dd>{#if facts.buyPrice}{facts.buyPrice.amount} <EntityLink ref={facts.buyPrice.currency} {registry} />{:else}<MissingValue explanation="No buy price is published" />{/if}</dd></div>
-    <div><dt>Quest drop only</dt><dd>{facts.questDropOnly ? 'Yes' : 'No'}</dd></div>
-    <div><dt>Corruption token</dt><dd>{facts.corruptionToken ? 'Yes' : 'No'}</dd></div>
+    {#if facts.stats.length}<div><dt>Stats</dt><dd>{#each facts.stats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.amount}{stat.isPercent ? '%' : ''}</span>{/each}</dd></div>{/if}
+    {#if facts.randomStats.length}<div><dt>Random stats</dt><dd>{#each facts.randomStats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.min}–{stat.max}{stat.isPercent ? '%' : ''}{stat.whole ? ' whole' : ''}{#if stat.chance !== undefined} · {stat.chance}%{/if}</span>{/each}<span class="line">Up to {facts.randomStatsMax}</span></dd></div>{/if}
+    {#if facts.sockets.length}<div><dt>Sockets</dt><dd>{facts.sockets.map((socket) => socket.socketType ?? socket.gemType ?? 'Any').join(', ')}</dd></div>{/if}
+    {#if facts.gem}<div><dt>Gem</dt><dd>{facts.gem.gemType ?? 'Gem'}{#each facts.gem.stats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.amount}{stat.isPercent ? '%' : ''}</span>{/each}</dd></div>{/if}
+    {#if facts.enchantment}<div><dt>Enchantment</dt><dd><EntityLink ref={facts.enchantment} {registry} /></dd></div>{/if}
+    {#if facts.requirements.length}<div><dt>Requirements</dt><dd><Requirements requirements={facts.requirements} {registry} /></dd></div>{/if}
+    {#if facts.sellPrice}<div><dt>Sell price</dt><dd>{facts.sellPrice.amount} <EntityLink ref={facts.sellPrice.currency} {registry} /></dd></div>{/if}
+    {#if facts.buyPrice}<div><dt>Buy price</dt><dd>{facts.buyPrice.amount} <EntityLink ref={facts.buyPrice.currency} {registry} /></dd></div>{/if}
+    {#if facts.questDropOnly}<div><dt>Quest drop only</dt><dd>Yes</dd></div>{/if}
+    {#if facts.corruptionToken}<div><dt>Corruption token</dt><dd>Yes</dd></div>{/if}
     <div><dt>Atlas</dt><dd>{#if hasSources}<a href={`${base}/?item=${encodeURIComponent(document.ref.key)}`}>View source locations</a>{:else}<MissingValue explanation="No source location is published" />{/if}</dd></div>
   </dl>
   {#if showRelations}
