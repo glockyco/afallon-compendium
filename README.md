@@ -1,6 +1,6 @@
 # Afallon Compendium
 
-An interactive world map and searchable reference for more than 3,700 locations of the single-player RPG [Afallon](https://store.steampowered.com/app/2597810/Afallon/).
+An interactive world map and a searchable compendium for the single-player RPG [Afallon](https://store.steampowered.com/app/2597810/Afallon/): more than 3,700 mapped locations and a page for every item, creature, quest, place, property, ability, and recipe in the supported build.
 
 [Open the map](https://afallon.compendiums.org/) · [Steam guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3800843227) · [Project page](https://glockyco.com/projects/afallon/)
 
@@ -8,7 +8,9 @@ An interactive world map and searchable reference for more than 3,700 locations 
 
 ## About
 
-Search and filter bosses, dungeons, merchants, quest givers, resources, and other points of interest across the overworld and interior maps. The Adventure Guide provides dedicated pages for bosses, dungeons, regions, and properties.
+Search and filter bosses, dungeons, merchants, quest givers, resources, and other points of interest across the overworld and interior maps.
+
+The compendium gives each published entity its own page at `/<kind>/<slug>/` and each kind a filterable list at `/<kind>/`: items, creatures, quests, places, properties, abilities, and recipes. A page shows the entity's own facts and its relations in both directions, so an item names what drops, sells, and crafts it while a creature names what it drops. Relation rows link to the counterpart and show a tooltip with its facts; a fact the supported build does not establish shows a placeholder in its place rather than an extra note. Sources without a page of their own, such as chests and resource nodes, report how many placements produce them and link to the atlas. `/coverage/` reports the publication's build identity, mode, and unresolved totals; no other page restates them.
 
 The pipeline uses [HotRepl](https://github.com/glockyco/HotRepl), a runtime C# REPL for Unity games, to execute C# evidence probes inside the running game. Repository tooling validates immutable evidence into a canonical SQLite catalog and builds a static publication for the SvelteKit and deck.gl site.
 
@@ -32,7 +34,9 @@ bun run build:production
 SITE_STAGE=production bun run dev
 ```
 
-Direct site builds also require `SITE_STAGE=production`. Without it, the site reads the tracked parity baseline instead of the staged resource graph, and guide prerendering fails schema validation. The baseline is not a runtime publication.
+Direct site builds also require `SITE_STAGE=production`. Without it the site has no staged resource graph and page prerendering fails.
+
+Staging verifies the candidate against a baseline publication root, which the second argument or `PUBLICATION_BASELINE_ROOT` supplies. Both roots pass the same graph verification, so the baseline is a real publication rather than a retained aggregate file.
 
 ## Data pipeline
 
@@ -47,7 +51,7 @@ bun run compendium catalog --store local/store --plan local/catalog-plan.json
 bun run compendium publish --store local/store --plan local/publish-plan.json --output local/publication
 ```
 
-Add `--candidate` to produce a verified result without changing the workflow's selected reference. `scan` and `capture` write immutable, content-addressed evidence. `catalog` validates that evidence into the canonical SQLite source of truth. `publish` queries the catalog and atomically selects a static publication. The atlas loads every map shard together at its reviewed world offset. Game-provided maps are enabled by default; captured terrain is available only when a reader selects it.
+Add `--candidate` to produce a verified result without changing the workflow's selected reference. `scan` and `capture` write immutable, content-addressed evidence. Scan also reads each sprite the database references for an item, creature, ability, recipe, scene, region, or property and stores it as evidence, from which publication derives the sized WebP artwork the pages show. `catalog` validates that evidence into the canonical SQLite source of truth. `publish` queries the catalog and atomically selects a static publication. The atlas loads every map shard together at its reviewed world offset. Publication emits one typed document per entity, a partitioned list per kind, one search corpus shared by the atlas and the pages, and content-addressed artwork; every reference in a document is resolved and audited before a candidate is selected, so the site never resolves a name or builds a link of its own. Game-provided maps are enabled by default; captured terrain is available only when a reader selects it.
 
 Map-data readiness waits for every declared geometry part. Search loads independently, and overlay toggles use geometry that is already loaded. The 3,300,000-byte essential-resource budget excludes geometry; actual map-ready JSON transfer includes it. Pan stops on mouse or touch release. Selection does not move the camera.
 
