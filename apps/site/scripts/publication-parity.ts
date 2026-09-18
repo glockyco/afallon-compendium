@@ -1,18 +1,17 @@
-import { readFileSync } from "node:fs";
-import { Assert } from "typebox/value";
 import {
-  PublicationDataSchema,
   expandEssentialPlacement,
-  type PublicationData,
+  isStaticDocument,
   type PublicPlacement,
   type PublicRegion,
   type PublicTileLayer,
-  type StaticEntitySearch,
   type StaticImagery,
-  type StaticItemSearch,
+  type StaticKindList,
   type StaticMapShard,
+  type StaticPages,
+  type StaticSearchIndex,
   type VerifiedPublicationGraph,
 } from "@afallon/contracts/public";
+import { verifyPublicationGraph } from "./publication-graph";
 
 export interface PublicationSummary {
   mapIds: Set<string>;
@@ -24,6 +23,10 @@ export interface PublicationSummary {
   itemKeys: Set<string>;
   regionKeys: Set<string>;
   placementIds: Set<string>;
+  pageEntries: Set<string>;
+  documentKeys: Set<string>;
+  listKinds: Set<string>;
+  artworkAssets: Set<string>;
   placementCount: number;
 }
 
@@ -40,16 +43,35 @@ function uniqueSet(values: Iterable<string>, subject: string): Set<string> {
   return result;
 }
 
-function summarize(
-  placements: readonly PublicPlacement[],
-  data: Pick<PublicationData, "maps" | "world" | "tileLayers">,
-  entityKeys: Iterable<string>,
-  itemKeys: Iterable<string>,
-  regions: readonly PublicRegion[],
-): PublicationSummary {
-  const placementsByMap = new Map<string, number>();
-  const placementsByCategory = new Map<string, number>();
-  const placementIds = new Set<string>();
+function summarize(graph: VerifiedPublicationGraph): PublicationSummary {
+  const placements: PublicPlacement[] = [], regions: PublicRegion[] = [], layers: PublicTileLayer[] = [], searchKeys: string[] = [], itemKeys: string[] = [];
+  const pageEntries: string[] = [], documentKeys: string[] = [], listKinds: string[] = [];
+  for (const map of graph.publication.maps) {
+    for (const reference of map.parts) {
+      const shard = graph.resources.get(reference.path) as StaticMapShard;
+      placements.push(...shard.placements.map((placement) => expandEssentialPlacement(placement, map.mapSpaceId)));
+      regions.push(...shard.regions);
+    }
+    const imagery = graph.resources.get(map.imagery.path) as StaticImagery;
+    layers.push(...imagery.layers);
+  }
+  for (const reference of graph.publication.search) {
+    const resource = graph.resources.get(reference.path) as StaticSearchIndex;
+    for (const entry of resource.entries) {
+      searchKeys.push(entry.ref.key);
+      if (entry.ref.kind === "items") itemKeys.push(entry.ref.key);
+    }
+  }
+  const pages = graph.resources.get(graph.publication.pages.path) as StaticPages;
+  for (const page of pages.entries) pageEntries.push(`${page.kind}/${page.slug}=${page.key}`);
+  for (const resource of graph.resources.values()) {
+    if (isStaticDocument(resource)) documentKeys.push(resource.document.ref.key);
+    else if (resource.schemaVersion === "compendium.static-kind-list.v1") {
+      const list = resource as StaticKindList;
+      listKinds.push(`${list.kind}:${list.part}`);
+    }
+  }
+  const placementsByMap = new Map<string, number>(), placementsByCategory = new Map<string, number>(), placementIds = new Set<string>();
   for (const placement of placements) {
     if (placementIds.has(placement.placementId)) throw new Error(`Publication repeats placement ${placement.placementId}.`);
     placementIds.add(placement.placementId);
@@ -57,21 +79,19 @@ function summarize(
     for (const category of placement.categories) increment(placementsByCategory, category);
   }
   const tileLayers = new Map<string, PublicTileLayer>();
-  for (const layer of data.tileLayers) {
+  for (const layer of layers) {
     const key = `${layer.mapSpaceId}:${layer.kind}:${layer.id}`;
     if (tileLayers.has(key)) throw new Error(`Publication repeats imagery layer ${key}.`);
     tileLayers.set(key, layer);
   }
   return {
-    mapIds: new Set(data.maps.map((map) => map.mapSpaceId)),
-    offsets: new Map(data.world.offsets.filter((offset) => offset.status === "placed").map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }])),
-    placementsByMap,
-    placementsByCategory,
-    tileLayers,
-    entityKeys: uniqueSet(entityKeys, "searchable entity"),
-    itemKeys: uniqueSet(itemKeys, "searchable item"),
+    mapIds: new Set(graph.publication.maps.map((map) => map.mapSpaceId)),
+    offsets: new Map(graph.publication.world.offsets.filter((offset) => offset.status === "placed").map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }])),
+    placementsByMap, placementsByCategory, tileLayers,
+    entityKeys: uniqueSet(searchKeys, "searchable entity"), itemKeys: uniqueSet(itemKeys, "searchable item"),
     regionKeys: uniqueSet(regions.map((region) => JSON.stringify({ mapSpaceId: region.mapSpaceId, name: region.name, shape: region.shape, polygon: region.polygon })), "map region"),
-    placementIds,
+    placementIds, pageEntries: uniqueSet(pageEntries, "page"), documentKeys: uniqueSet(documentKeys, "document"), listKinds: uniqueSet(listKinds, "kind list"),
+    artworkAssets: new Set([...graph.references.values()].filter((reference) => reference.schemaId === "image/webp" && reference.path.startsWith("art/")).map((reference) => reference.path)),
     placementCount: placements.length,
   };
 }
@@ -98,6 +118,10 @@ export function assertNonRegressivePublication(candidate: PublicationSummary, ba
   assertContains(candidate.entityKeys, baseline.entityKeys, "searchable entities");
   assertContains(candidate.itemKeys, baseline.itemKeys, "searchable items");
   assertContains(candidate.regionKeys, baseline.regionKeys, "map regions");
+  assertContains(candidate.pageEntries, baseline.pageEntries, "published pages");
+  assertContains(candidate.documentKeys, baseline.documentKeys, "published documents");
+  assertContains(candidate.listKinds, baseline.listKinds, "published lists");
+  assertContains(candidate.artworkAssets, baseline.artworkAssets, "published artwork");
   for (const [mapSpaceId, expected] of baseline.offsets) {
     const actual = candidate.offsets.get(mapSpaceId);
     if (!actual || actual.worldX !== expected.worldX || actual.worldY !== expected.worldY) throw new Error(`Publication changes the reviewed world offset for ${mapSpaceId}.`);
@@ -113,32 +137,7 @@ export function assertNonRegressivePublication(candidate: PublicationSummary, ba
   }
 }
 
-export function verifyPublicationParity({ publication: candidateRoot, resources }: VerifiedPublicationGraph, baselinePath: string): void {
-  const baseline: unknown = JSON.parse(readFileSync(baselinePath, "utf8"));
-  Assert(PublicationDataSchema, baseline);
-  const candidatePlacements: PublicPlacement[] = [];
-  const candidateLayers: PublicTileLayer[] = [];
-  const candidateRegions: PublicRegion[] = [];
-  const candidateEntityKeys: string[] = [];
-  const candidateItemKeys: string[] = [];
-  for (const map of candidateRoot.maps) {
-    for (const reference of map.parts) {
-      const shard = resources.get(reference.path) as StaticMapShard;
-      candidatePlacements.push(...shard.placements.map((placement) => expandEssentialPlacement(placement, map.mapSpaceId)));
-      candidateRegions.push(...shard.regions);
-    }
-    const imagery = resources.get(map.imagery.path) as StaticImagery;
-    candidateLayers.push(...imagery.layers);
-  }
-  for (const reference of candidateRoot.entitySearch) {
-    const resource = resources.get(reference.path) as StaticEntitySearch;
-    candidateEntityKeys.push(...resource.entities.map((entity) => entity.entityKey));
-  }
-  for (const reference of candidateRoot.itemSearch) {
-    const resource = resources.get(reference.path) as StaticItemSearch;
-    candidateItemKeys.push(...resource.items.map((item) => item.itemKey));
-  }
-  const candidate = summarize(candidatePlacements, { maps: candidateRoot.maps, world: candidateRoot.world, tileLayers: candidateLayers }, candidateEntityKeys, candidateItemKeys, candidateRegions);
-  const deployed = summarize(baseline.placements, baseline, baseline.entityIndex.map((entity) => entity.entityKey), baseline.itemIndex.map((item) => item.itemKey), baseline.regions);
-  assertNonRegressivePublication(candidate, deployed);
+export function verifyPublicationParity(candidate: VerifiedPublicationGraph, baselineRoot: string): void {
+  const baseline = verifyPublicationGraph(baselineRoot);
+  assertNonRegressivePublication(summarize(candidate), summarize(baseline));
 }

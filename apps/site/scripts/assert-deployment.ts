@@ -12,7 +12,7 @@ const siteDir = resolve(import.meta.dirname, "..");
 const outputDir = deploymentPaths(siteDir).outputDir;
 const files = listFiles(outputDir);
 
-for (const required of ["index.html", "404.html", "guide/index.html", "data/publication.json", "_deployment.json", "_headers", "favicon.ico", "favicon-32x32.png", "apple-touch-icon.png", "logo.png", "og-default.png"]) {
+for (const required of ["index.html", "404.html", "items/index.html", "coverage/index.html", "data/publication.json", "_deployment.json", "_headers", "favicon.ico", "favicon-32x32.png", "apple-touch-icon.png", "logo.png", "og-default.png"]) {
   if (!files.includes(required)) throw new Error(`Deployment output is missing ${required}.`);
 }
 if (files.length > FREE_ASSET_LIMIT) {

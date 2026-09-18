@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { Assert } from 'typebox/value';
+import { isPublicationFile } from './deployment-files';
 import {
   PUBLICATION_ROOT_BUDGET, StaticRootManifestSchema, assertStaticResourceReference,
   assertStaticPublicationBudgets, assertStaticPublicationSemantics,
@@ -20,7 +21,7 @@ export function verifyPublicationGraph(directory: string, selected?: StaticResou
   const resources = new Map<string, StaticResource>();
   const files = new Set<string>();
   const read = (path: string): Buffer => {
-    if (path !== 'publication.json' && !/^(?:resources\/[a-f0-9]{64}\.json|assets\/[a-f0-9]{64}\.webp)$/.test(path)) throw new Error(`Unsafe publication resource path: ${path}.`);
+    if (!isPublicationFile(path)) throw new Error(`Unsafe publication resource path: ${path}.`);
     const target = join(root, path);
     if (!lstatSync(target).isFile() || relative(root, realpathSync(target)) !== path) throw new Error(`Publication resource is not a contained regular file: ${path}.`);
     files.add(path);
@@ -31,7 +32,7 @@ export function verifyPublicationGraph(directory: string, selected?: StaticResou
   const sha256 = createHash('sha256').update(rootBytes).digest('hex');
   if (selected) {
     assertStaticResourceReference(selected);
-    if (selected.schemaId !== 'compendium.static-root.v2' || selected.sha256 !== sha256 || selected.bytes !== rootBytes.length) throw new Error('Selected publication root does not match its reference.');
+    if (selected.schemaId !== 'compendium.static-root.v3' || selected.sha256 !== sha256 || selected.bytes !== rootBytes.length) throw new Error('Selected publication root does not match its reference.');
   }
   const publication: unknown = JSON.parse(rootBytes.toString('utf8'));
   Assert(StaticRootManifestSchema, publication);

@@ -16,6 +16,10 @@ function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummar
     itemKeys: new Set(["items:1"]),
     regionKeys: new Set(["region-1"]),
     placementIds: new Set(["placement-1", "placement-2"]),
+    pageEntries: new Set(["items/item=items:1"]),
+    documentKeys: new Set(["items:1"]),
+    listKinds: new Set(["items:0"]),
+    artworkAssets: new Set([`art/${"a".repeat(64)}.webp`]),
     placementCount: 25,
     ...overrides,
   };
@@ -43,4 +47,13 @@ test("rejects missing search and region records", () => {
   expect(() => assertNonRegressivePublication(summary({ entityKeys: new Set() }), summary())).toThrow("searchable entities");
   expect(() => assertNonRegressivePublication(summary({ itemKeys: new Set() }), summary())).toThrow("searchable items");
   expect(() => assertNonRegressivePublication(summary({ regionKeys: new Set() }), summary())).toThrow("map regions");
+});
+
+test("rejects a removed page and document", () => {
+  expect(() => assertNonRegressivePublication(summary({ pageEntries: new Set() }), summary())).toThrow("published pages");
+  expect(() => assertNonRegressivePublication(summary({ documentKeys: new Set() }), summary())).toThrow("published documents");
+});
+
+test("rejects a removed artwork asset", () => {
+  expect(() => assertNonRegressivePublication(summary({ artworkAssets: new Set() }), summary())).toThrow("published artwork");
 });

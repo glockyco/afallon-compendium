@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
+export function isPublicationFile(path: string): boolean {
+  return path === "publication.json" || /^(?:resources\/[a-f0-9]{64}\.json|(?:assets|art)\/[a-f0-9]{64}\.webp)$/.test(path);
+}
+
 export function listFiles(root: string): string[] {
   const files: string[] = [];
   const visit = (directory: string): void => {

@@ -22,7 +22,12 @@ export interface DeploymentMetadata {
   publicationSha256: string;
 }
 
-export function stagePublication(publicationRoot: string, siteDir = resolve(import.meta.dirname, "..")): DeploymentMetadata {
+export function stagePublication(
+  publicationRoot: string,
+  siteDir = resolve(import.meta.dirname, ".."),
+  baselineRoot = process.env.PUBLICATION_BASELINE_ROOT,
+): DeploymentMetadata {
+  if (!baselineRoot) throw new Error("Publication parity requires PUBLICATION_BASELINE_ROOT or an explicit baseline root.");
   const root = resolve(publicationRoot);
   const selectionPath = join(root, "selected.json");
   const selection = parseJson<SelectedPublication>(selectionPath);
@@ -31,7 +36,7 @@ export function stagePublication(publicationRoot: string, siteDir = resolve(impo
   const graph = verifyPublicationGraph(publicDir, selection.root);
   const { publication, files, sha256: publicationSha256 } = graph;
   if (publication.mode === "release" && !publication.complete) throw new Error("A release publication must report complete coverage.");
-  verifyPublicationParity(graph, join(siteDir, "static", "data", "publication.json"));
+  verifyPublicationParity(graph, resolve(baselineRoot));
 
   for (const relativePath of listFiles(publicDir)) {
     if (!files.has(relativePath)) throw new Error(`Selected publication has an unreferenced file: ${relativePath}.`);
@@ -81,7 +86,7 @@ function copyTrackedStatic(source: string, target: string): void {
 
 
 if (import.meta.main) {
-  const publicationRoot = Bun.argv[2];
-  if (!publicationRoot) throw new Error("usage: stage-publication <selected-publication-root>");
-  process.stdout.write(`${JSON.stringify(stagePublication(publicationRoot), null, 2)}\n`);
+  const publicationRoot = Bun.argv[2], baselineRoot = Bun.argv[3];
+  if (!publicationRoot) throw new Error("usage: stage-publication <selected-publication-root> [baseline-publication-root]");
+  process.stdout.write(`${JSON.stringify(stagePublication(publicationRoot, undefined, baselineRoot), null, 2)}\n`);
 }

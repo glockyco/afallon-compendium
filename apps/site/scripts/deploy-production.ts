@@ -34,12 +34,16 @@ async function smokeProduction(origin: string, expected: DeploymentMetadata, sit
     .filter((name) => name.endsWith(".webp"))
     .sort()[0];
   if (!imagery) throw new Error("Deployment has no imagery probe.");
+  const artwork = readdirSync(join(deploymentPaths(siteDir).outputDir, "data", "art"))
+    .filter((name) => name.endsWith(".webp"))
+    .sort()[0];
+  if (!artwork) throw new Error("Deployment has no artwork probe.");
 
   const deadline = Date.now() + 120_000;
   let lastError: unknown = new Error("Production smoke did not run.");
   while (Date.now() < deadline) {
     try {
-      await smokeOnce(origin, expected, imagery);
+      await smokeOnce(origin, expected, imagery, artwork);
       return;
     } catch (error) {
       lastError = error;
@@ -49,7 +53,7 @@ async function smokeProduction(origin: string, expected: DeploymentMetadata, sit
   throw lastError;
 }
 
-async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: string): Promise<void> {
+async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: string, artwork: string): Promise<void> {
   const deploymentResponse = await freshFetch(`${origin}/_deployment.json`);
   if (!deploymentResponse.ok) throw new Error(`/_deployment.json returned ${deploymentResponse.status}.`);
   const deployed = await deploymentResponse.json() as DeploymentMetadata;
@@ -84,14 +88,18 @@ async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: 
     throw new Error("The production publication identity does not match the deployment.");
   }
 
-  const guideResponse = await freshFetch(`${origin}/guide/`);
-  if (!guideResponse.ok || !(await guideResponse.text()).includes("Adventure Guide")) {
-    throw new Error("The production Adventure Guide is unavailable.");
+  const itemsResponse = await freshFetch(`${origin}/items/`);
+  if (!itemsResponse.ok || !(await itemsResponse.text()).includes("<title>Items · Afallon Compendium</title>")) {
+    throw new Error("The production item compendium is unavailable.");
   }
 
   const imageResponse = await freshFetch(`${origin}/data/assets/${imagery}`);
   if (!imageResponse.ok || !(imageResponse.headers.get("content-type") ?? "").includes("image/webp")) {
     throw new Error("The production imagery probe is unavailable.");
+  }
+  const artworkResponse = await freshFetch(`${origin}/data/art/${artwork}`);
+  if (!artworkResponse.ok || !(artworkResponse.headers.get("content-type") ?? "").includes("image/webp")) {
+    throw new Error("The production artwork probe is unavailable.");
   }
 
   const missingResponse = await freshFetch(`${origin}/does-not-exist-${expected.publicationId}`);

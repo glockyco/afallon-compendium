@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promi
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ArtifactStore } from "@afallon/artifacts";
-import { PUBLICATION_SCHEMA_VERSION, expandEssentialPlacement, staticResourceEdges, type PublicationData, type StaticResource, type VerifiedPublicationGraph, type StaticRootManifest } from "@afallon/contracts/public";
+import { isStaticDocument, staticResourceEdges, type StaticResource, type VerifiedPublicationGraph, type StaticRootManifest } from "@afallon/contracts/public";
 import { writeStaticJson } from "../../../packages/publication/src/resources";
 import { selectPublication, verifyPublicationGraph, type PublicationCandidateResource } from "../../../packages/publication/src/selection";
 import { publishFromPlan } from "../../../packages/publication/src/application";
@@ -11,34 +11,6 @@ import { publicationFixture } from "../../../packages/publication/src/publicatio
 import { verifyPublicationGraph as verifyFileGraph } from "../../site/scripts/publication-graph";
 import { stagePublication } from "../../site/scripts/stage-publication";
 import { verifyPublicationParity } from "../../site/scripts/publication-parity";
-
-function baselineFromGraph({ publication, resources }: VerifiedPublicationGraph): PublicationData {
-  const baseline: PublicationData = {
-    schemaVersion: PUBLICATION_SCHEMA_VERSION, buildId: publication.buildId, mode: publication.mode,
-    coverage: { complete: publication.complete, messages: [], excludedPlacements: 0 },
-    world: publication.world,
-    maps: publication.maps.map(({ mapSpaceId, label, bounds }) => ({ mapSpaceId, label, bounds })),
-    placements: [], regions: [], entityIndex: [], itemIndex: [], tileLayers: [],
-  };
-  for (const resource of resources.values()) {
-    switch (resource.schemaVersion) {
-      case "compendium.static-map.v2":
-        baseline.placements.push(...resource.placements.map((placement) => expandEssentialPlacement(placement, resource.mapSpaceId)));
-        baseline.regions.push(...resource.regions);
-        break;
-      case "compendium.static-imagery.v2":
-        baseline.tileLayers.push(...resource.layers.map((layer) => ({ ...layer, tiles: layer.tiles.map(({ schemaId: _, ...tile }) => tile) })));
-        break;
-      case "compendium.static-entity-search.v2":
-        baseline.entityIndex.push(...resource.entities.map(({ detail, ...entity }) => ({ ...entity, detailPath: detail.path })));
-        break;
-      case "compendium.static-item-search.v2":
-        baseline.itemIndex.push(...resource.items.map(({ detail, source: _, ...item }) => ({ ...item, detailPath: detail.path })));
-        break;
-    }
-  }
-  return baseline;
-}
 
 async function rewriteGraph(store: ArtifactStore, graph: VerifiedPublicationGraph, mutate: (root: StaticRootManifest, resources: Map<string, StaticResource>) => void) {
   const root = structuredClone(graph.publication);
@@ -62,6 +34,7 @@ async function rewriteGraph(store: ArtifactStore, graph: VerifiedPublicationGrap
 async function writeUncheckedGraph(store: ArtifactStore, directory: string, root: PublicationCandidateResource, resources: readonly PublicationCandidateResource[], assets: readonly { path: string; identity: { sha256: string; bytes: number } }[]) {
   await mkdir(join(directory, "resources"), { recursive: true });
   await mkdir(join(directory, "assets"), { recursive: true });
+  await mkdir(join(directory, "art"), { recursive: true });
   for (const file of [{ path: "publication.json", identity: root.identity }, ...resources.map((resource) => ({ path: resource.reference.path, identity: resource.identity })), ...assets]) {
     await writeFile(join(directory, file.path), await readFile(store.objectPath(file.identity.sha256)));
   }
@@ -83,10 +56,8 @@ test("rejects rehashed semantic corruption at both readers without replacing sel
     expect(await readFile(join(selectedDirectory, "publication.json"))).toEqual(await readFile(store.objectPath(candidate.root.identity.sha256)));
 
     const site = join(root, "site");
-    const baselinePath = join(site, "static", "data", "publication.json");
-    await mkdir(join(site, "static", "data"), { recursive: true });
-    await writeFile(baselinePath, JSON.stringify(baselineFromGraph(graph)));
-    stagePublication(options.publicationRoot, site);
+    await mkdir(join(site, "static"), { recursive: true });
+    stagePublication(options.publicationRoot, site, selectedDirectory);
     const stagedDirectory = join(site, ".stage", "production", "static", "data");
     const stagedGraph = verifyFileGraph(stagedDirectory);
     const stagedBytes = new Map(await Promise.all([...stagedGraph.files].map(async (file) => [file, await readFile(join(stagedDirectory, file))] as const)));
@@ -118,9 +89,12 @@ test("rejects rehashed semantic corruption at both readers without replacing sel
         },
       },
       {
-        name: "detail-identity", error: "detail identity mismatch",
+        name: "page-document-identity", error: "Page document identity mismatch",
         mutate: (_publication, resources) => {
-          for (const resource of resources.values()) if (resource.schemaVersion === "compendium.static-entity-detail.v1") resource.entity.entityKey = "items:other";
+          for (const resource of resources.values()) if (isStaticDocument(resource)) {
+            resource.document.ref.key = `${resource.document.ref.kind}:other`;
+            break;
+          }
         },
       },
       {
@@ -138,7 +112,7 @@ test("rejects rehashed semantic corruption at both readers without replacing sel
       await writeUncheckedGraph(store, directory, invalid.root, invalid.resources, candidate.assets);
       expect(() => verifyFileGraph(directory, invalid.root.reference)).toThrow(corruption.error);
       await writeFile(join(handoffRoot, "selected.json"), JSON.stringify({ root: invalid.root.reference, directory: corruption.name }));
-      expect(() => stagePublication(handoffRoot, site)).toThrow(corruption.error);
+      expect(() => stagePublication(handoffRoot, site, selectedDirectory)).toThrow(corruption.error);
       expect(await readFile(metadataPath)).toEqual(metadataBytes);
       for (const [file, bytes] of stagedBytes) expect(await readFile(join(stagedDirectory, file))).toEqual(bytes);
     }
@@ -147,7 +121,7 @@ test("rejects rehashed semantic corruption at both readers without replacing sel
     await writeUncheckedGraph(store, parityDirectory, candidate.root, candidate.resources, candidate.assets);
     const parityGraph = verifyFileGraph(parityDirectory, candidate.root.reference);
     await rm(parityDirectory, { recursive: true });
-    verifyPublicationParity(parityGraph, baselinePath);
+    verifyPublicationParity(parityGraph, selectedDirectory);
     const regressive = await rewriteGraph(store, graph, (_publication, resources) => {
       for (const resource of resources.values()) {
         if (resource.schemaVersion === "compendium.static-map.v2") resource.placements = [];
@@ -157,9 +131,9 @@ test("rejects rehashed semantic corruption at both readers without replacing sel
     const regressiveDirectory = join(handoffRoot, "regressive");
     await writeUncheckedGraph(store, regressiveDirectory, regressive.root, regressive.resources, candidate.assets);
     const regressiveGraph = verifyFileGraph(regressiveDirectory, regressive.root.reference);
-    expect(() => verifyPublicationParity(regressiveGraph, baselinePath)).toThrow("placement coverage");
+    expect(() => verifyPublicationParity(regressiveGraph, selectedDirectory)).toThrow("placement coverage");
     await writeFile(join(handoffRoot, "selected.json"), JSON.stringify({ root: regressive.root.reference, directory: "regressive" }));
-    expect(() => stagePublication(handoffRoot, site)).toThrow("placement coverage");
+    expect(() => stagePublication(handoffRoot, site, selectedDirectory)).toThrow("placement coverage");
     expect(await readFile(metadataPath)).toEqual(metadataBytes);
     for (const [file, bytes] of stagedBytes) expect(await readFile(join(stagedDirectory, file))).toEqual(bytes);
   } finally { await rm(root, { recursive: true, force: true }); }
