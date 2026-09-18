@@ -15,7 +15,7 @@
 </script>
 
 {#if visible.length > 0}
-  <section><h2>{heading}</h2><div class="scroll"><table><thead><tr><th>Container</th><th>Quantity</th><th>Chance</th><th>Requirements</th><th>Locations</th></tr></thead><tbody>{#each visible as row}<tr><td>{#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else}{row.label}{/if}</td><td>{#if quantity(row) === null}<MissingValue explanation="No quantity is published" />{:else}{quantity(row)}{/if}</td><td>{#if row.chance === undefined}<MissingValue explanation="Not measured for this build" />{:else}{row.chance}%{/if}</td><td><Requirements requirements={row.requirements} {registry} /></td><td><a href={`${base}/?item=${encodeURIComponent(itemKey)}`}>{row.placementCount} {row.placementCount === 1 ? 'location' : 'locations'}</a></td></tr>{/each}</tbody></table></div></section>
+  <section><h2>{heading}</h2><div class="scroll"><table><thead><tr><th>Container</th><th>Quantity</th><th>Chance</th><th>Requirements</th><th>Locations</th></tr></thead><tbody>{#each visible as row}<tr><td>{#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else}{row.label}{/if}</td><td>{#if quantity(row) === null}<MissingValue explanation="No quantity is published" />{:else}{quantity(row)}{/if}</td><td>{#if row.chance === undefined}<MissingValue explanation="Not measured for this build" />{:else}{row.chance}%{/if}</td><td><Requirements requirements={row.requirements} {registry} /></td><td>{#if row.placementCount > 0}<a href={`${base}/?item=${encodeURIComponent(itemKey)}`}>{row.placementCount} {row.placementCount === 1 ? 'location' : 'locations'}</a>{:else}<MissingValue explanation="No location is published" />{/if}</td></tr>{/each}</tbody></table></div></section>
 {/if}
 
 <style>
