@@ -20,16 +20,19 @@ Development requires [Bun](https://bun.sh/). Install dependencies and run the re
 bun install
 bun run check
 bun run check:dependencies
-bun test
-bun run build:production
+bun test ./packages ./apps
+bun run --cwd apps/site check
 ```
 
 The site requires a selected static publication. Stage it from the project root, then start the development server:
 
 ```sh
 bun run stage:production /path/to/publication-root
-bun run dev
+bun run build:production
+SITE_STAGE=production bun run dev
 ```
+
+Direct site builds also require `SITE_STAGE=production`. Without it, the site reads the tracked parity baseline instead of the staged resource graph, and guide prerendering fails schema validation. The baseline is not a runtime publication.
 
 ## Data pipeline
 
@@ -46,6 +49,8 @@ bun run compendium publish --store local/store --plan local/publish-plan.json --
 
 Add `--candidate` to produce a verified result without changing the workflow's selected reference. `scan` and `capture` write immutable, content-addressed evidence. `catalog` validates that evidence into the canonical SQLite source of truth. `publish` queries the catalog and atomically selects a static publication. The atlas loads every map shard together at its reviewed world offset. Game-provided maps are enabled by default; captured terrain is available only when a reader selects it.
 
+Map-data readiness waits for every declared geometry part. Search loads independently, and overlay toggles use geometry that is already loaded. The 3,300,000-byte essential-resource budget excludes geometry; actual map-ready JSON transfer includes it. Pan stops on mouse or touch release. Selection does not move the camera.
+
 Generated artifacts, local configuration, and extracted game assets are not committed.
 
 ## Deployment
@@ -59,6 +64,16 @@ bun run compendium deploy /path/to/publication-root
 ```
 
 The preview command builds the staged publication before serving it. Staging rejects a candidate that removes deployed placements, search records, map regions, imagery tiles, map spaces, or reviewed offsets. The deploy command stages the selected immutable publication, builds and validates `apps/site`, deploys Cloudflare Static Assets with Wrangler, and smoke-tests production. Production excludes database access, runtime probes, authoring controls, and development detail panels.
+
+Producer selection and deployment share the public graph semantics. Each boundary still verifies its own files or stored objects. Parity checks consume the verified candidate resources and independently read the tracked baseline. A retained publication can pass graph verification but fail the current parity gate; do not bypass that gate for rollback.
+
+To rehearse a local rollback without deploying:
+
+```sh
+bun run verify:deployment /path/to/current-publication-root /path/to/previous-publication-root
+```
+
+This command replaces the local production stage, builds and checks both publications, restores the previous identity, and returns the stage to the current identity. Both inputs must pass the current parity gate. Use a separate checkout when the existing local stage must remain untouched.
 
 ## License
 

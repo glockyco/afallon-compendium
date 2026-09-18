@@ -180,11 +180,11 @@ Adopt these initial budgets for that representative publication:
 | Each essential atlas, search, or optional geometry part | 512 KiB |
 | Essential atlas startup total, including root and imagery metadata | 3,300,000 bytes |
 
-The startup target is below half the observed 6,799,479-byte combined startup dependency. It excludes separately loaded search, selected details, optional geometry, images, and application code. Those excluded groups still have measured totals and explicit loading boundaries. Moving bytes is not presented as reducing total publication size.
+The essential-resource target is below half the observed 6,799,479-byte combined dependency. This accounting group excludes search, selected details, geometry, images, and application code. Map-data readiness also requires geometry, even when its display is disabled. Report actual map-ready transfer separately from the essential-resource budget. Moving bytes does not reduce total publication size.
 
-If one map exceeds a part budget, publish multiple deterministic parts under its manifest entry. Compose all maps and all essential parts. Keep compact placement IDs, positions, marker categories, names, and required relation indexes in essential data. Store disabled movement/connection geometry separately. Load shared-world imagery registration without selected-detail bodies. Split large search resources into bounded parts and load them as a separate feature.
+If one map exceeds a part budget, publish multiple deterministic parts under its manifest entry. Compose all maps and all essential parts. Keep compact placement IDs, positions, marker categories, names, and required relation indexes in essential data. Store movement and connection geometry in separate resources, but load them before map-data readiness. Load shared-world imagery registration without selected-detail bodies. Split large search resources into bounded parts and load them as a separate feature.
 
-Root readiness does not promise all markers are loaded. Show a clear map-data loading state and avoid final zero counts until essential parts settle. Do not create an active-map selector. Initial renderer startup can proceed before search and optional data finish.
+Root readiness does not promise all markers are loaded. Show map-data loading until all map parts and declared geometry settle. Do not create an active-map selector. Renderer startup does not wait for search or selected details.
 
 Budget failure triggers schema/projection optimization, not missing records or relaxed acceptance. Report raw bytes, actual compressed transfer, request counts, and first usable map/search timings independently in the same browser setup. No fixed wall-clock threshold is asserted across different machines.
 

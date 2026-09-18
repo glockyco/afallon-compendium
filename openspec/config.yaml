@@ -2,7 +2,7 @@ schema: spec-driven
 
 context: |
   Afallon is a screenshot-first interactive atlas and eventual compendium.
-  In-game captures are the primary basemap. Illustrated maps are optional.
+  Game-provided maps are the default basemap. Captured overworld terrain is opt-in.
   Use deck.gl with an orthographic view for the SvelteKit map.
   Full reachable content coverage and linked game facts are required.
   Read EXPLORATION.md for measured evidence and its limitations.

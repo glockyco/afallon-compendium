@@ -203,9 +203,9 @@ Selecting a marker SHALL update selection only. A separate focus or fit action M
 - **THEN** every exact placement resolved for that result has the hover highlight
 - **AND** the current selection remains unchanged
 
-#### Scenario: A reader pans with inertia
+#### Scenario: A reader releases a non-inertial pan
 - **WHEN** the reader releases a pan gesture
-- **THEN** the camera continues and settles without snapping back
+- **THEN** the camera stops without inertial continuation or snapping back
 - **AND** imagery layers are not reconstructed for each camera update
 
 #### Scenario: A reader switches image coordinate spaces

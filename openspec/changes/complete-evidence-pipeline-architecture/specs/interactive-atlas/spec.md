@@ -34,16 +34,16 @@ Resource loading SHALL deduplicate equivalent requests while permitting explicit
 
 ### Requirement: Shared-world rendering does not wait for unrelated search data
 
-The atlas SHALL render the shared world from essential resources without waiting for search indexes, unrelated details, or disabled optional geometry. It SHALL eventually compose essential placements for every published map without introducing active-map selection. Search SHALL expose its own loading or failure state. Partial loading SHALL NOT appear as a final zero-result count.
+The atlas SHALL load all essential map parts and declared geometry before map-data readiness. It SHALL NOT wait for search indexes or unrelated details. It SHALL compose placements for every published map without introducing active-map selection. Search SHALL expose its own loading or failure state. Partial loading SHALL NOT appear as a final zero-result count.
 
 #### Scenario: Search loading is delayed
-- **WHEN** search resources are delayed but essential atlas resources are available
+- **WHEN** search resources are delayed but all map and geometry resources are available
 - **THEN** the reader can view and navigate the map
 - **AND** search reports its pending state without blocking the canvas
 
 #### Scenario: Optional movement is enabled
-- **WHEN** a reader enables movement geometry that is not loaded
-- **THEN** the atlas fetches the declared resources and displays verified paths at their published coordinates
+- **WHEN** a reader enables movement after map-data readiness
+- **THEN** the atlas displays loaded verified paths without additional resource requests
 - **AND** unavailable paths are not inferred from labels or detail text
 
 ### Requirement: Renderer updates preserve camera and coordinate ownership

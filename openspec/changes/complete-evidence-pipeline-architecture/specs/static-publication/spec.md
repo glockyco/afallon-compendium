@@ -34,7 +34,7 @@ Every referenced public resource SHALL have a validated schema, content identity
 
 ### Requirement: Shared-world startup has explicit resource budgets
 
-Publication SHALL separate essential atlas data from search, selected details, and optional movement or connection geometry. Every published map SHALL remain represented in the shared world. The implementation SHALL enforce documented byte budgets against a frozen representative publication without reducing semantic coverage. Oversized resources SHALL split into explicit parts rather than omit records.
+Publication SHALL separate essential atlas data from search, selected details, and movement or connection geometry resources. The essential-resource budget SHALL remain an accounting group, not the full map-ready transfer. Map-ready transfer SHALL include declared geometry. Every published map SHALL remain represented in the shared world. The implementation SHALL enforce documented byte budgets against a frozen representative publication without reducing semantic coverage. Oversized resources SHALL split into explicit parts rather than omit records.
 
 #### Scenario: A large map exceeds the shard budget
 - **WHEN** a map's essential placement data exceeds the individual resource limit

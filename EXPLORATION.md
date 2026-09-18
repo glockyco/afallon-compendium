@@ -1,8 +1,35 @@
 # Afallon compendium exploration
 
-Updated: 2026-09-08. Status: the content-addressed evidence pipeline, unified scan, canonical catalog, bounded static publication, and production atlas are implemented for build 25153357. Complete supported-build coverage remains open, so publication remains in preview mode.
+Updated: 2026-09-18. Status: the content-addressed evidence pipeline, unified scan, canonical catalog, bounded static publication, and production atlas are implemented for build 25153357. Complete supported-build coverage remains open, so publication remains in preview mode.
 
 The architecture cutover uses `compendium scan`, `capture`, `catalog`, and `publish` as its only data-workflow commands. Runtime and reviewed inputs enter an immutable object store. A successful catalog is the only normalized source of truth, and publication queries it directly. Candidate mode verifies output without replacing the selected reference. The frozen pre-cutover source and publication remain local rollback evidence; they are not runtime dependencies or supported readers.
+
+### Ownership consolidation verification
+
+The `consolidate-runtime-and-publication-ownership` change establishes these owners:
+
+| Area | Owner |
+| --- | --- |
+| Publication semantics and budgets | `packages/contracts/src/public/graph.ts`; readers retain their own storage checks |
+| Accepted atlas state and delayed URL writes | `AtlasController` and focused transitions in `atlas-state.ts` |
+| Readiness and gesture policy | Controller map loading and the renderer's single `createMapView` constructor |
+| Artifact path and persistence invariants | Private `packages/artifacts/src/artifact-filesystem.ts` |
+| Render projection and layer construction | `map/render-data.ts` and `map/layers/`; the adapter retains lifecycle and picking |
+| Deployment file inspection | `apps/site/scripts/deployment-files.ts` |
+| Capture validation and bounds | Private capture `validation.ts` and `geometry.ts`; tolerances remain distinct |
+
+Verification on Darwin arm64:
+
+- Workspace type and dependency checks pass. The suite reports 147 passing tests and 738 assertions across 41 files. Svelte reports zero errors and warnings. A separate dependency scan includes the changed deployment scripts.
+- Both graph readers accept selected publication `271231463c465e4f41ac244e0957a225869cb893677a098c21a7cc8205db691f` and retained publication `ecf5fd99452d60551a87b59f3c63e5110a34411474c196ad39d3fa6fa267adfe`. They agree on all 3,224 decoded JSON resources in each graph. Public resource schemas and the real selector are unchanged. Rehashed semantic corruptions fail at both boundaries without replacing a selector or staged files.
+- The retained publication fails the current imagery parity gate: its older captured layer has 20 tiles, while the reviewed layer has 769. No bypass was added. A positive rollback rehearsal used isolated copies of the selected data. One copy added a trailing newline to the root JSON, producing identity `361da9dce902b99b1de8a6ffcd8a34a0ad66187c3ba5406de43e669ed33520cc` without changing its semantics. Four stage/build/assert cycles restored both identities. This proves local rollback mechanics, not acceptance of the regressive retained publication.
+- The final isolated production build passes deployment assertions with 7,790 files. The ordinary `build` script also passes with `SITE_STAGE=production`. Without that setting, it reads the tracked parity baseline and fails guide schema validation; the operator instructions now state the required setting. The existing large-chunk warning remains visible.
+- Browser timing records show 60 map-ready JSON requests and 2,788,896 decoded bytes: 2,320,155 bytes in the unchanged essential accounting group, plus 468,741 bytes in 19 geometry requests. These totals exclude JavaScript, search, details, and imagery pixels. Delayed or failed geometry blocks map readiness; retry and empty geometry lists work. Search can remain pending after the map is ready. Overlay toggles fetch no new geometry.
+- Browser checks cover pending-query and pending-camera history restoration, camera-neutral selection, desktop and 390-pixel item-source navigation, focus restoration, URL reload, stale links, detail retries, and superseded failures. Three mount/dispose cycles finalize three renderers and leave one canvas. A redundant Svelte search-status invalidation found during the checks was fixed; selection and camera updates preserve projected layer data and all 19 imagery instances.
+- Real picking cycles both members of a stacked marker. Hover, travel connections, movement paths, authoring offsets, fit, and zoom work. Mouse and touch pan stop on release, pinch clamps at zoom -6 and 4, and authoring drag preserves the camera. Full-page Chrome screenshot capture times out even on a blank page. Direct WebGL canvas captures verify the development and final production rendering. Production selection, item-detail requests, eager geometry, and pan release also pass.
+- Real filesystem checks preserve representative manifest and selector bytes, hashes, permissions, and primary errors. They do not establish power-loss durability. The real capture planner produces nine plans with 36 tiles from retained inputs; bounds and position selection remain equivalent. No game capture was launched.
+
+No production deployment, push, schema migration, specification archival, or coverage completion was performed. Earlier checkpoints below remain historical evidence.
 
 ### Architecture cutover evidence
 
