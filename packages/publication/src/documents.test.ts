@@ -52,8 +52,8 @@ const relations: CatalogRelations = {
     { producerLabel: "Iron node", sourceId: "source-2", sceneNativeId: 10, resource: null, item: { entityKey: "items:1", label: "Blade" }, skill: null, rank: null, min: 1, max: 2, rawRate: 25, conditionIds: [], placementIds: ["p2"] },
   ],
   containers: [
-    { containerLabel: "Chest", sourceId: "container-1", sceneNativeId: 10, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, conditionIds: [], placementIds: ["p1"] },
-    { containerLabel: "Chest", sourceId: "container-2", sceneNativeId: 10, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, conditionIds: [], placementIds: ["p2"] },
+    { containerType: "Chest", sourceId: "container-1", place: { entityKey: "scenes:10", label: "Crypt" }, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, conditionIds: [], placementIds: ["p1"] },
+    { containerType: "Chest", sourceId: "container-2", place: { entityKey: "scenes:10", label: "Crypt" }, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, conditionIds: [], placementIds: ["p2"] },
   ], quests: [], recipes: [],
   placements: [{ placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guardian", roles: [{ role: "boss", npcEntityKey: "npcs:2", scope: "authored" }], families: [] }],
   transitions: [{ transitionId: "transition-1", sourceSceneKey: "scenes:10", destinationSceneKey: null, transitionKind: "entrance", placementIds: ["p2"] }],
@@ -113,7 +113,8 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(itemValues).toMatchObject({ min: 1, max: 2, chance: 12.5 });
   expect(itemValues).not.toHaveProperty("placements");
   expect(item.gatheredFrom).toEqual([{ label: "Iron node", min: 1, max: 2, chance: 25, placementCount: 2 }]);
-  expect(item.inContainers).toEqual([{ label: "Chest", min: 1, max: 1, requirements: [], placementCount: 2 }]);
+  expect(item.inContainers).toEqual([{ counterpart: { key: "scenes:10", kind: "places", name: "Crypt", slug: "crypt" },
+    label: "Chest", min: 1, max: 1, requirements: [], placementCount: 2 }]);
   expect(item).not.toHaveProperty("locations");
   expect(npc.locations).toEqual([{ placementId: "p1", mapSpaceId: "world", label: "World" }]);
   expect(place).not.toHaveProperty("locations");

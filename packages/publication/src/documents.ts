@@ -256,7 +256,8 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }), placements: publishedPlacements(row.placementIds, input.placements),
   })));
   const inContainers = groupPlacementCounts((indexes.containersByItem.get(entity.entityKey) ?? []).map((row) => ({
-    label: plainText(row.containerLabel) || "Container", ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
+    ...(row.place === null ? {} : { counterpart: input.resolve(row.place) }), label: plainText(row.containerType ?? "") || "Container",
+    ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
     ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }), ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }),
     requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
     placements: publishedPlacements(row.placementIds, input.placements),
