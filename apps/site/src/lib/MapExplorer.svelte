@@ -5,10 +5,10 @@
   import './MapExplorer.css';
   import { onMount, tick } from 'svelte';
   import type { MapAdapter, MapRendererController, MapViewState } from './map-renderer';
-  import { AtlasDataLoader, type AtlasRequestState } from './atlas-data';
+  import { AtlasDataLoader } from './atlas-data';
   import { AtlasController, type AtlasSnapshot } from './atlas-controller';
-  import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, resultHighlightIds, summarizePlacements, type SearchIndexes } from './atlas-search';
-  import { readAtlasUrl, writeAtlasUrl, type AtlasState } from './atlas-state';
+  import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, resultHighlightIds, summarizePlacements } from './atlas-search';
+  import { DEFAULT_ATLAS_STATE, readAtlasUrl, writeAtlasUrl } from './atlas-state';
   import { filteredSections, linksFromSections } from './detail-utils';
   import AtlasDevelopmentDetails from './map/AtlasDevelopmentDetails.svelte';
   import AtlasCanvasShell from './map/AtlasCanvasShell.svelte';
@@ -37,47 +37,62 @@
   let resultList: HTMLElement;
   let detailsPanel: HTMLElement;
   let searchInput: HTMLInputElement;
-  let publication: PublicationData | null = null;
+  let snapshot: AtlasSnapshot | null = null;
   let controller: AtlasController | null = null;
-  let searchState: AtlasRequestState = { status: 'idle' };
-  let mapState: AtlasRequestState = { status: 'idle' };
   let rendererStarting = false;
   let disposed = false;
-  let entityDetails: ReadonlyMap<string, PublicEntity> = new Map();
-  let itemDetails: ReadonlyMap<string, PublicItemSource> = new Map();
-  let detailLoading = false;
-  let detailError = '';
   let adapter: MapAdapter | null = null;
   let renderer: MapRendererController | null = null;
-  let loading = true;
   let mapReady = false;
   let mapUnavailable = false;
-  let loadError = '';
-  let layerIds: string[] = [];
-  let selectedId: string | null = null;
-  let query = '';
-  let categories: MarkerId[] = [];
-  let itemKey: string | null = null;
-  let selectedEntityKey: string | null = null;
-  let itemSourceQuery = '';
-  let detailQuery = '';
+  let rendererError = '';
   let hoveredId: string | null = null;
   let hoveredResult: SearchResult | null = null;
-  let staleSelection = '';
   let viewportBounds: [number, number, number, number] | null = null;
   let view: MapViewState = { target: [0, 0, 0], zoom: -1 };
   let adapterReady = false;
   let detailOrigin: HTMLElement | null = null;
   let authoring = false;
-  let showConnections = false;
-  let showMovement = false;
-  let showZones = false;
   let panelCollapsed = false;
   let resultsCollapsed = false;
   let worldOffsetOverrides: WorldOffsetOverrides = {};
-  let viewTimer: ReturnType<typeof setTimeout> | null = null;
-  let queryTimer: ReturnType<typeof setTimeout> | null = null;
-  let searchIndexes: SearchIndexes = emptySearchIndexes();
+  const initialIndexes = emptySearchIndexes();
+  const initialEntityDetails: ReadonlyMap<string, PublicEntity> = new Map();
+  const initialItemDetails: ReadonlyMap<string, PublicItemSource> = new Map();
+  const idleRequest = { status: 'idle' } as const;
+
+  let publication: PublicationData | null = null;
+  let searchIndexes = initialIndexes;
+  let searchState: AtlasSnapshot['search'] = idleRequest;
+  let entityDetails = initialEntityDetails;
+  let itemDetails = initialItemDetails;
+  let layerIds = DEFAULT_ATLAS_STATE.layerIds;
+  let categoryIds = DEFAULT_ATLAS_STATE.categories;
+
+  $: state = snapshot?.state ?? DEFAULT_ATLAS_STATE;
+  $: if (snapshot && publication !== snapshot.publication) publication = snapshot.publication;
+  $: if (snapshot && searchIndexes !== snapshot.indexes) searchIndexes = snapshot.indexes;
+  $: if (snapshot && entityDetails !== snapshot.entityDetails) entityDetails = snapshot.entityDetails;
+  $: if (snapshot && itemDetails !== snapshot.itemDetails) itemDetails = snapshot.itemDetails;
+  $: mapState = snapshot?.map ?? idleRequest;
+  $: if (snapshot && searchState !== snapshot.search) searchState = snapshot.search;
+  $: detailLoading = snapshot?.detail.status === 'loading';
+  $: detailError = snapshot?.detail.status === 'error' ? snapshot.detail.message : '';
+  $: staleSelection = snapshot?.staleSelection ?? '';
+  $: loading = !publication && mapState.status !== 'error';
+  $: loadError = mapState.status === 'error' ? mapState.message : rendererError;
+  $: if (layerIds !== state.layerIds) layerIds = state.layerIds;
+  $: if (categoryIds !== state.categories) categoryIds = state.categories;
+  $: categories = categoryIds.filter((id): id is MarkerId => MARKER_IDS.includes(id as MarkerId));
+  $: selectedId = state.selectedPlacementId;
+  $: itemKey = state.itemKey;
+  $: selectedEntityKey = state.entityKey;
+  $: query = state.query;
+  $: itemSourceQuery = state.itemSourceQuery;
+  $: detailQuery = state.detailQuery;
+  $: showZones = state.showZones;
+  $: showConnections = state.showConnections;
+  $: showMovement = state.showMovement;
 
   $: layerOptions = (publication?.tileLayers ?? []).map((layer): LayerOption => ({ id: layer.id, label: mapLabel(publication, layer.mapSpaceId), kind: layer.kind })).sort((left, right) => left.label.localeCompare(right.label));
   $: tileLayerOptions = layerOptions.filter((option) => option.kind === 'captured');
@@ -148,10 +163,10 @@
   function handleMapError(message: string): void {
     if (WEBGL_STARTUP_FAILURE.test(message)) {
       mapUnavailable = true;
-      loadError = '';
+      rendererError = '';
       return;
     }
-    loadError = message;
+    rendererError = message;
   }
 
   afterNavigate(({ to }) => {
@@ -167,11 +182,7 @@
     } catch {
       // Expanded panels are a safe default when browser storage is unavailable.
     }
-    const onPopState = () => {
-      if (viewTimer) clearTimeout(viewTimer);
-      if (queryTimer) clearTimeout(queryTimer);
-      controller?.navigate(readAtlasUrl(window.location.search));
-    };
+    const onPopState = () => controller?.navigate(readAtlasUrl(window.location.search));
     const onKeydown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault();
@@ -212,8 +223,6 @@
       disposed = true;
       window.removeEventListener('popstate', onPopState);
       window.removeEventListener('keydown', onKeydown);
-      if (viewTimer) clearTimeout(viewTimer);
-      if (queryTimer) clearTimeout(queryTimer);
       controller?.dispose();
       renderer?.destroy();
       adapter = null;
@@ -225,35 +234,14 @@
   }
 
   function acceptSnapshot(next: AtlasSnapshot): void {
-    if (publication !== next.publication) publication = next.publication;
-    if (searchIndexes !== next.indexes) searchIndexes = next.indexes;
-    if (entityDetails !== next.entityDetails) entityDetails = next.entityDetails;
-    if (itemDetails !== next.itemDetails) itemDetails = next.itemDetails;
-    if (mapState !== next.map) mapState = next.map;
-    if (searchState !== next.search) searchState = next.search;
-    detailLoading = next.detail.status === 'loading';
-    detailError = next.detail.status === 'error' ? next.detail.message : '';
-    staleSelection = next.staleSelection;
-    loading = !publication && next.map.status !== 'error';
-    if (next.map.status === 'error') loadError = next.map.message;
-    const state = next.state;
-    if (layerIds.length !== state.layerIds.length || layerIds.some((id, index) => id !== state.layerIds[index])) layerIds = [...state.layerIds];
-    if (categories.length !== state.categories.length || categories.some((id, index) => id !== state.categories[index])) categories = state.categories.filter((id): id is MarkerId => MARKER_IDS.includes(id as MarkerId));
-    selectedId = state.selectedPlacementId;
-    itemKey = state.itemKey;
-    selectedEntityKey = state.entityKey;
-    query = state.query;
-    itemSourceQuery = state.itemSourceQuery;
-    detailQuery = state.detailQuery;
-    showZones = state.showZones;
-    showConnections = state.showConnections;
-    showMovement = state.showMovement;
-    if (publication && !rendererStarting) void startRenderer().catch((error: unknown) => {
-      if (disposed) return;
-      mapUnavailable = true;
-      loadError = error instanceof Error ? error.message : String(error);
-    });
+    snapshot = next;
   }
+
+  $: if (publication && !rendererStarting) void startRenderer().catch((error: unknown) => {
+    if (disposed) return;
+    mapUnavailable = true;
+    rendererError = error instanceof Error ? error.message : String(error);
+  });
 
   async function startRenderer(): Promise<void> {
     rendererStarting = true;
@@ -265,7 +253,7 @@
     if (disposed) return;
     renderer = new module.MapRendererController(handleMapError);
     adapter = await renderer.replace(canvas, view, {
-      onViewChange(nextView, bounds) { view = nextView; viewportBounds = bounds; scheduleViewUrl(); },
+      onViewChange(nextView, bounds) { view = nextView; viewportBounds = bounds; controller?.scheduleView(nextView); },
       onSelect(placementId) { selectPlacement(placementId, canvas); },
       onHover(placementId) { hoveredResult = null; hoveredId = placementId; },
       onWorldOffsetChange(changedMapSpaceId, offset) { worldOffsetOverrides = { ...worldOffsetOverrides, [changedMapSpaceId]: offset }; saveWorldOffsetOverrides(worldOffsetOverrides); },
@@ -303,31 +291,10 @@
     return sections.flatMap((section) => [section.title, ...section.rows.flatMap((row) => [row.label, row.value])]).join(' ');
   }
 
-  function syncUrl(mode?: 'push' | 'replace', overrides: Partial<Pick<AtlasState, 'categories'>> = {}): void {
-    controller?.dispatch({ type: 'replace', state: {
-      layerIds, selectedPlacementId: selectedId, query,
-      itemSourceQuery: itemKey ? itemSourceQuery : '',
-      detailQuery: !itemKey && (selectedId || selectedEntityKey) ? detailQuery : '',
-      categories: overrides.categories ?? categories, showZones, showConnections, showMovement,
-      itemKey, entityKey: selectedEntityKey, view,
-    } }, mode);
-  }
-
-  function scheduleViewUrl(): void {
-    if (viewTimer) clearTimeout(viewTimer);
-    viewTimer = setTimeout(() => syncUrl('replace'), 220);
-  }
-
-  function scheduleQueryUrl(): void {
-    syncUrl();
-    if (queryTimer) clearTimeout(queryTimer);
-    queryTimer = setTimeout(() => syncUrl('replace'), 280);
-  }
-
   function setMapView(next: MapViewState): void {
     view = next;
     adapter?.setView(next);
-    syncUrl('replace');
+    controller?.dispatch({ type: 'set-view', view: next }, 'replace');
   }
 
   function fitMap(): void {
@@ -338,11 +305,8 @@
   function selectPlacement(placementId: string, origin: HTMLElement | HTMLCanvasElement | null = null): void {
     const placement = searchIndexes.placementsById.get(placementId);
     if (!placement) return;
-    selectedId = placementId;
-    selectedEntityKey = null;
-    staleSelection = '';
     detailOrigin = origin;
-    syncUrl('push');
+    controller?.dispatch({ type: 'select-placement', placementId }, 'push');
     void focusDetails();
   }
 
@@ -354,13 +318,8 @@
   function selectEntity(entity: PublicEntity | PublicEntitySummary, origin: HTMLElement | null = null): void {
     const item = itemIndexByKey.get(entity.entityKey);
     if (item) { selectItem(item, origin); return; }
-    selectedEntityKey = entity.entityKey;
-    selectedId = null;
-    itemKey = null;
-    staleSelection = '';
-    detailQuery = '';
     detailOrigin = origin;
-    syncUrl('push');
+    controller?.dispatch({ type: 'select-entity', entityKey: entity.entityKey }, 'push');
     void focusDetails();
   }
 
@@ -372,14 +331,8 @@
   function selectItem(item: PublicItemSummary | PublicItemSource, origin: HTMLElement | null = null): void {
     const summary = itemIndexByKey.get(item.itemKey);
     if (!summary) return;
-    itemKey = summary.itemKey;
-    selectedEntityKey = null;
-    staleSelection = '';
-    itemSourceQuery = '';
-    query = '';
-    selectedId = null;
     detailOrigin = origin;
-    syncUrl('push');
+    controller?.dispatch({ type: 'select-item', itemKey: summary.itemKey }, 'push');
     void focusDetails();
   }
 
@@ -399,8 +352,7 @@
     const normalised = withTiles.includes('game-maps') || (gameIds.length > 0 && chosenGame.length === gameIds.length)
       ? [...withTiles.filter((id) => !gameIds.includes(id) && id !== 'game-maps'), 'game-maps']
       : withTiles.filter((id) => id !== 'game-maps');
-    layerIds = canonicalLayerIds(normalised);
-    syncUrl('push');
+    controller?.dispatch({ type: 'select-layers', layerIds: canonicalLayerIds(normalised) }, 'push');
   }
 
   function toggleCaptured(): void {
@@ -431,18 +383,15 @@
   }
 
   function toggleConnections(): void {
-    showConnections = !showConnections;
-    syncUrl('push');
+    controller?.dispatch({ type: 'set-overlay', field: 'showConnections', visible: !showConnections }, 'push');
   }
 
   function toggleMovement(): void {
-    showMovement = !showMovement;
-    syncUrl('push');
+    controller?.dispatch({ type: 'set-overlay', field: 'showMovement', visible: !showMovement }, 'push');
   }
 
   function toggleZones(): void {
-    showZones = !showZones;
-    syncUrl('push');
+    controller?.dispatch({ type: 'set-overlay', field: 'showZones', visible: !showZones }, 'push');
   }
 
   function togglePanel(): void {
@@ -472,8 +421,7 @@
     const next = allSelected
       ? categories.filter((category) => !ids.includes(category))
       : [...new Set([...categories, ...ids])];
-    categories = next;
-    syncUrl('push', { categories: next });
+    controller?.dispatch({ type: 'select-categories', categories: next }, 'push');
   }
 
   function exportWorldOffsets(): void {
@@ -487,12 +435,11 @@
 
   function toggleCategory(category: MarkerId): void {
     const next = categories.includes(category) ? categories.filter((value) => value !== category) : [...categories, category];
-    categories = next;
-    syncUrl('push', { categories: next });
+    controller?.dispatch({ type: 'select-categories', categories: next }, 'push');
   }
 
   async function submitSearch(): Promise<void> {
-    syncUrl('push');
+    controller?.dispatch({ type: 'search', field: 'query', query }, 'push');
     if (resultsCollapsed) {
       setResultsCollapsed(false);
       await tick();
@@ -503,12 +450,8 @@
 
   async function closeDetails(): Promise<void> {
     const origin = detailOrigin;
-    selectedId = null;
-    itemKey = null;
-    selectedEntityKey = null;
-    staleSelection = '';
     detailOrigin = null;
-    syncUrl('push');
+    controller?.dispatch({ type: 'close-details' }, 'push');
     await tick();
     (origin?.isConnected ? origin : searchInput)?.focus();
   }
@@ -553,9 +496,9 @@
         placementCount={allMapPlacements.length} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
         {visibleTileLayerIds} {visibleGameMapIds} {capturedChecked} {capturedPartial} {gameMapsChecked} {gameMapsPartial}
         {showConnections} {showMovement} {showZones} {authoring} {worldOffsetOverrides} onToggle={togglePanel}
-        onQuery={(next) => { query = next; scheduleQueryUrl(); }} onSubmitSearch={submitSearch}
-        onResetCategories={() => { categories = [...DEFAULT_MARKER_IDS]; syncUrl('push'); }}
-        onShowAllCategories={() => { categories = []; syncUrl('push'); }} onToggleCategory={toggleCategory}
+        onQuery={(next) => controller?.setQuery('query', next)} onSubmitSearch={submitSearch}
+        onResetCategories={() => controller?.dispatch({ type: 'select-categories', categories: DEFAULT_MARKER_IDS }, 'push')}
+        onShowAllCategories={() => controller?.dispatch({ type: 'select-categories', categories: [] }, 'push')} onToggleCategory={toggleCategory}
         onToggleAllCategories={toggleAllCategories} onToggleCaptured={toggleCaptured} onToggleMapLayer={toggleMapLayer}
         onToggleGameMaps={toggleGameMaps} onToggleGameMap={toggleGameMap} onToggleConnections={toggleConnections}
         onToggleMovement={toggleMovement} onToggleZones={toggleZones} onToggleAuthoring={toggleAuthoring}
@@ -577,7 +520,7 @@
           resultLimit={RESULT_LIMIT} placementCount={resultPlacements.length} itemCount={matchingItems.length} entityCount={matchingEntities.length}
           hasViewport={Boolean(viewportBounds)} {mapUnavailable} itemContextActive={Boolean(itemContext)} selectedItemKey={itemKey}
           {selectedEntityKey} selectedPlacementId={selectedId} summaryFor={resultSummary} onToggle={toggleResults}
-          onExitItemContext={() => { itemKey = null; syncUrl('push'); }} onSelectItem={selectItem} onSelectEntity={selectEntity}
+          onExitItemContext={() => controller?.dispatch({ type: 'exit-item-context' }, 'push')} onSelectItem={selectItem} onSelectEntity={selectEntity}
           onSelectPlacement={selectPlacement} onHover={setResultHover} onClearHover={clearResultHover}
         />
       </section>
@@ -586,7 +529,8 @@
         <AtlasDevelopmentDetails bind:detailsPanel {selectedPlacement} {selectedEntityKey} {itemKey} {staleSelection}
           {selectedItemEntity} {itemIndexByKey} {selectedEntity} {selectedEntitySummary} {detailLoading} {detailError}
           {itemContext} {entityByKey} {filteredItemSources} itemContextSections={filteredSections(itemContext?.sections ?? [], itemSourceQuery)} {selectedEntities} {filteredDetail} {selectedPlacementDetails}
-          bind:itemSourceQuery bind:detailQuery {sourceRows} {entityLinks} onClose={closeDetails} onQueryChange={scheduleQueryUrl}
+          {itemSourceQuery} {detailQuery} {sourceRows} {entityLinks} onClose={closeDetails}
+          onItemSourceQuery={(next) => controller?.setQuery('itemSourceQuery', next)} onDetailQuery={(next) => controller?.setQuery('detailQuery', next)}
           onRetry={() => controller?.retry('detail')} onOpenEntity={openEntity} onSelectPlacement={selectPlacement} onSelectEntity={selectEntity}
         />
       {/if}

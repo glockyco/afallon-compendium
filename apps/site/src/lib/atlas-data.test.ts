@@ -1,8 +1,8 @@
-import { expect, test } from 'bun:test';
+import { expect, jest, test } from 'bun:test';
 import type { StaticResourceReference, StaticRootManifest } from '@afallon/contracts/public';
 import { AtlasDataLoader, type AtlasFetch } from './atlas-data';
 import { AtlasController, type AtlasSnapshot } from './atlas-controller';
-import { readAtlasUrl } from './atlas-state';
+import { readAtlasUrl, type AtlasState, type AtlasView } from './atlas-state';
 import { selectionHighlightIds } from './atlas-search';
 
 function fixture() {
@@ -51,7 +51,13 @@ function fixture() {
 function observe(loader: AtlasDataLoader) {
   let latest: AtlasSnapshot | null = null;
   const listeners = new Set<() => void>();
-  const controller = new AtlasController(loader, { onChange(snapshot) { latest = snapshot; for (const notify of listeners) notify(); }, onNavigate() {}, onRestoreView() {} });
+  const navigations: { state: AtlasState; mode: 'push' | 'replace' }[] = [];
+  const restoredViews: (AtlasView | null)[] = [];
+  const controller = new AtlasController(loader, {
+    onChange(snapshot) { latest = snapshot; for (const notify of listeners) notify(); },
+    onNavigate(state, mode) { navigations.push({ state, mode }); },
+    onRestoreView(view) { restoredViews.push(view); },
+  });
   const until = (condition: (snapshot: AtlasSnapshot) => boolean): Promise<AtlasSnapshot> => {
     const { promise, resolve } = Promise.withResolvers<AtlasSnapshot>();
     const notify = () => { if (latest && condition(latest)) { listeners.delete(notify); resolve(latest); } };
@@ -59,7 +65,7 @@ function observe(loader: AtlasDataLoader) {
     notify();
     return promise;
   };
-  return { controller, until };
+  return { controller, until, navigations, restoredViews };
 }
 
 function responseGate() { return Promise.withResolvers<Response>(); }
@@ -166,4 +172,64 @@ test('an obsolete failure cannot replace the new selection loading state, and cu
   expect(recovered.itemDetails.get('item:b')?.sources[0]?.placementIds).toEqual(['place:b']);
   expect(data.counts.get(pathB)).toBe(2);
   controller.dispose();
+});
+
+test('history restoration invalidates pending query and camera persistence', async () => {
+  const data = fixture();
+  const { controller, until, navigations, restoredViews } = observe(data.loader);
+  try {
+    controller.start(readAtlasUrl(''));
+    await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
+    jest.useFakeTimers();
+    controller.setQuery('query', 'pending');
+    controller.scheduleView({ target: [90, 30, 0], zoom: 3 });
+    const restored = readAtlasUrl('?layers=game-maps&selected=place%3Ab&q=restored&categories=merchant&x=10&y=20&z=0&zoom=2');
+    controller.navigate(restored);
+    jest.advanceTimersByTime(320);
+    expect(controller.snapshot.state).toEqual(restored);
+    expect(navigations).toEqual([]);
+    expect(restoredViews).toEqual([null, restored.view]);
+  } finally { controller.dispose(); jest.useRealTimers(); }
+});
+
+test('pending persistence keeps a new item source selection and never restores a cleared query or moves the camera', async () => {
+  const data = fixture();
+  const { controller, until, navigations, restoredViews } = observe(data.loader);
+  try {
+    controller.start(readAtlasUrl(''));
+    await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
+    jest.useFakeTimers();
+    controller.setQuery('query', 'merchant');
+    const view: AtlasView = { target: [60, 40, 0], zoom: 2 };
+    controller.scheduleView(view);
+    controller.dispatch({ type: 'select-item', itemKey: 'item:a' }, 'push');
+    controller.dispatch({ type: 'select-placement', placementId: 'place:a' }, 'push');
+    jest.advanceTimersByTime(320);
+    expect(controller.snapshot.state).toMatchObject({ itemKey: 'item:a', selectedPlacementId: 'place:a', entityKey: null, query: '', view });
+    expect(navigations.map(({ mode }) => mode)).toEqual(['push', 'push', 'replace', 'replace']);
+    expect(navigations.slice(1).every(({ state }) => state.itemKey === 'item:a' && state.selectedPlacementId === 'place:a' && state.query === '')).toBe(true);
+    expect(restoredViews).toEqual([null]);
+  } finally { controller.dispose(); jest.useRealTimers(); }
+});
+
+test('explicit camera commands supersede pending movement and disposal cancels persistence', async () => {
+  const data = fixture();
+  const { controller, until, navigations } = observe(data.loader);
+  try {
+    controller.start(readAtlasUrl(''));
+    await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
+    jest.useFakeTimers();
+    controller.scheduleView({ target: [60, 40, 0], zoom: 2 });
+    const fitted: AtlasView = { target: [128, 128, 0], zoom: 0 };
+    controller.dispatch({ type: 'set-view', view: fitted }, 'replace');
+    jest.advanceTimersByTime(260);
+    expect(controller.snapshot.state.view).toEqual(fitted);
+    expect(navigations.map(({ state }) => state.view)).toEqual([fitted]);
+    controller.setQuery('query', 'unmounted');
+    controller.scheduleView({ target: [0, 0, 0], zoom: 1 });
+    controller.dispose();
+    jest.advanceTimersByTime(320);
+    expect(navigations.map(({ state }) => state.view)).toEqual([fitted]);
+    expect(controller.snapshot.state.view).toEqual(fitted);
+  } finally { controller.dispose(); jest.useRealTimers(); }
 });

@@ -27,3 +27,34 @@ test("ignores removed aliases and never mutates prior state", () => {
   expect(written.searchParams.has("map")).toBe(false);
   expect(written.searchParams.has("layer")).toBe(false);
 });
+
+test("item selection clears other detail searches and source selection preserves item context", () => {
+  const item = transitionAtlasState(complete, { type: "select-item", itemKey: "items:3" });
+  expect(item).toEqual({ ...complete, itemKey: "items:3", entityKey: null, selectedPlacementId: null,
+    query: "", itemSourceQuery: "", detailQuery: "" });
+  const searched = transitionAtlasState(item, { type: "search", field: "itemSourceQuery", query: "merchant" });
+  const source = transitionAtlasState(searched, { type: "select-placement", placementId: "source:3" });
+  expect(source).toEqual({ ...searched, selectedPlacementId: "source:3" });
+  expect(readAtlasUrl(writeAtlasUrl(new URL("https://atlas.test/"), source).search)).toEqual(source);
+  expect(transitionAtlasState(source, { type: "exit-item-context" })).toEqual({ ...source, itemKey: null, itemSourceQuery: "" });
+});
+
+test("entity selection and detail close clear related fields without changing filters, query, or camera", () => {
+  const entity = transitionAtlasState(complete, { type: "select-entity", entityKey: "npcs:4" });
+  expect(entity).toEqual({ ...complete, entityKey: "npcs:4", itemKey: null, selectedPlacementId: null,
+    itemSourceQuery: "", detailQuery: "" });
+  const searched = transitionAtlasState(entity, { type: "search", field: "detailQuery", query: "reward" });
+  const location = transitionAtlasState(searched, { type: "select-placement", placementId: "place:4" });
+  expect(location).toEqual({ ...searched, entityKey: null, selectedPlacementId: "place:4" });
+  const closed = transitionAtlasState(location, { type: "close-details" });
+  expect(closed).toEqual({ ...location, selectedPlacementId: null, detailQuery: "" });
+  expect(transitionAtlasState(closed, { type: "search", field: "detailQuery", query: "obsolete" })).toEqual(closed);
+});
+
+test("focused filter and query actions preserve unrelated navigation fields", () => {
+  const filtered = transitionAtlasState(complete, { type: "select-categories", categories: ["enemy"] });
+  expect(filtered).toEqual({ ...complete, categories: ["enemy"] });
+  const overlay = transitionAtlasState(filtered, { type: "set-overlay", field: "showMovement", visible: false });
+  expect(overlay).toEqual({ ...filtered, showMovement: false });
+  expect(transitionAtlasState(overlay, { type: "search", field: "query", query: "boss" })).toEqual({ ...overlay, query: "boss" });
+});

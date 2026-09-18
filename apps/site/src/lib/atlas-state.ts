@@ -20,12 +20,18 @@ export interface AtlasState {
   readonly view: AtlasView | null;
 }
 
+export type AtlasQueryField = "query" | "itemSourceQuery" | "detailQuery";
+
 export type AtlasAction =
   | { type: "select-layers"; layerIds: readonly string[] }
-  | { type: "select-placement"; placementId: string | null }
-  | { type: "search"; query: string; itemSourceQuery: string; detailQuery: string }
-  | { type: "filter"; categories: readonly string[]; showZones: boolean; showConnections: boolean; showMovement: boolean }
-  | { type: "select-detail"; itemKey: string | null; entityKey: string | null }
+  | { type: "select-placement"; placementId: string }
+  | { type: "select-entity"; entityKey: string }
+  | { type: "select-item"; itemKey: string }
+  | { type: "exit-item-context" }
+  | { type: "close-details" }
+  | { type: "search"; field: AtlasQueryField; query: string }
+  | { type: "select-categories"; categories: readonly string[] }
+  | { type: "set-overlay"; field: "showZones" | "showConnections" | "showMovement"; visible: boolean }
   | { type: "set-view"; view: AtlasView | null }
   | { type: "replace"; state: AtlasState };
 
@@ -50,12 +56,44 @@ function unique(values: readonly string[]): readonly string[] {
 
 export function transitionAtlasState(state: AtlasState, action: AtlasAction): AtlasState {
   if (action.type === "replace") return freezeState(action.state);
-  if (action.type === "select-layers") return freezeState({ ...state, layerIds: action.layerIds });
-  if (action.type === "select-placement") return freezeState({ ...state, selectedPlacementId: action.placementId });
-  if (action.type === "search") return freezeState({ ...state, query: action.query, itemSourceQuery: action.itemSourceQuery, detailQuery: action.detailQuery });
-  if (action.type === "filter") return freezeState({ ...state, categories: action.categories, showZones: action.showZones, showConnections: action.showConnections, showMovement: action.showMovement });
-  if (action.type === "select-detail") return freezeState({ ...state, itemKey: action.itemKey, entityKey: action.entityKey });
-  return freezeState({ ...state, view: action.view });
+  let next: AtlasState;
+  switch (action.type) {
+    case "select-layers":
+      next = { ...state, layerIds: action.layerIds };
+      break;
+    case "select-placement":
+      next = { ...state, selectedPlacementId: action.placementId, entityKey: null,
+        itemSourceQuery: state.itemKey ? state.itemSourceQuery : "", detailQuery: state.itemKey ? "" : state.detailQuery };
+      break;
+    case "select-entity":
+      next = { ...state, entityKey: action.entityKey, selectedPlacementId: null, itemKey: null, itemSourceQuery: "", detailQuery: "" };
+      break;
+    case "select-item":
+      next = { ...state, itemKey: action.itemKey, selectedPlacementId: null, entityKey: null, query: "", itemSourceQuery: "", detailQuery: "" };
+      break;
+    case "exit-item-context":
+      next = { ...state, itemKey: null, itemSourceQuery: "" };
+      break;
+    case "close-details":
+      next = { ...state, selectedPlacementId: null, entityKey: null, itemKey: null, itemSourceQuery: "", detailQuery: "" };
+      break;
+    case "search": {
+      const active = action.field === "query" || (action.field === "itemSourceQuery"
+        ? Boolean(state.itemKey) : !state.itemKey && Boolean(state.selectedPlacementId || state.entityKey));
+      next = { ...state, [action.field]: active ? action.query : "" };
+      break;
+    }
+    case "select-categories":
+      next = { ...state, categories: action.categories };
+      break;
+    case "set-overlay":
+      next = { ...state, [action.field]: action.visible };
+      break;
+    case "set-view":
+      next = { ...state, view: action.view };
+      break;
+  }
+  return freezeState(next, state);
 }
 
 export function selectedDetailKey(state: AtlasState): string | null { return state.itemKey ?? state.entityKey; }
@@ -71,13 +109,17 @@ function sameSet(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value) => right.includes(value));
 }
 
-function freezeState(state: AtlasState): AtlasState {
-  let view: AtlasView | null = null;
-  if (state.view !== null) {
-    const target: readonly [number, number, number] = Object.freeze([state.view.target[0], state.view.target[1], state.view.target[2]]);
-    view = Object.freeze({ target, zoom: state.view.zoom });
+function freezeState(state: AtlasState, previous?: AtlasState): AtlasState {
+  let view = state.view;
+  if (view !== null && view !== previous?.view) {
+    const target: readonly [number, number, number] = Object.freeze([view.target[0], view.target[1], view.target[2]]);
+    view = Object.freeze({ target, zoom: view.zoom });
   }
-  return Object.freeze({ ...state, layerIds: unique(state.layerIds), categories: unique(state.categories), view });
+  return Object.freeze({ ...state,
+    layerIds: state.layerIds === previous?.layerIds ? state.layerIds : unique(state.layerIds),
+    categories: state.categories === previous?.categories ? state.categories : unique(state.categories),
+    view,
+  });
 }
 
 export function readAtlasUrl(search: string): AtlasState {

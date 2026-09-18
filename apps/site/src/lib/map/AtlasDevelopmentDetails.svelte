@@ -29,7 +29,8 @@
   export let entityLinks: (sections: PublicDetailSection[]) => DetailLink[];
   export let onRetry: () => void;
   export let onClose: () => void;
-  export let onQueryChange: () => void;
+  export let onItemSourceQuery: (query: string) => void;
+  export let onDetailQuery: (query: string) => void;
   export let onOpenEntity: (key: string, origin: HTMLElement) => void;
   export let onSelectPlacement: (placementId: string, origin?: HTMLElement | HTMLCanvasElement | null) => void;
   export let onSelectEntity: (entity: PublicEntity | PublicEntitySummary, origin?: HTMLElement | null) => void;
@@ -44,16 +45,16 @@
     {#if itemKey}
       {#if selectedItemEntity}{#if selectedItemEntity.description}<p>{selectedItemEntity.description}</p>{/if}<details class="entity-block"><summary>Item properties and relationships</summary><DetailSections sections={selectedItemEntity.sections} entities={entityByKey} onEntity={onOpenEntity} onPlacement={onSelectPlacement} /></details>{/if}
       {#if itemContext && itemContext.sections.length > 0}<DetailSections sections={itemContextSections} entities={entityByKey} onEntity={onOpenEntity} onPlacement={onSelectPlacement} />{/if}
-      <label class="detail-search" for="source-search">Search item sources and conditions<input id="source-search" bind:value={itemSourceQuery} on:input={onQueryChange} placeholder="Merchant, loot, requirement" /></label>
+      <label class="detail-search" for="source-search">Search item sources and conditions<input id="source-search" value={itemSourceQuery} on:input={(event) => onItemSourceQuery(event.currentTarget.value)} placeholder="Merchant, loot, requirement" /></label>
       {#if selectedPlacement}<p class="notice">Selected source: {selectedPlacement.label}. The selected item remains active.</p>{/if}
       <div class="item-sources">{#if !detailLoading && !detailError && itemContext && filteredItemSources.length === 0}<p class="empty">No item sources match this search.</p>{/if}{#each filteredItemSources as source}<article class="source-card"><div class="source-title"><strong>{source.label}</strong><span>{source.kind}</span></div><DetailSections sections={sourceRows(source, itemSourceQuery)} entities={entityByKey} onEntity={onOpenEntity} onPlacement={onSelectPlacement} />{#each source.placementIds as placementId}<button type="button" class="source-location" on:click={(event) => onSelectPlacement(placementId, event.currentTarget)}>Open source location</button>{/each}</article>{/each}</div>
     {:else if selectedEntityKey}
       {#if selectedEntity?.description ?? selectedEntitySummary?.description}<p>{selectedEntity?.description ?? selectedEntitySummary?.description}</p>{/if}
-      <label class="detail-search" for="detail-search">Search this entity's details<input id="detail-search" bind:value={detailQuery} on:input={onQueryChange} placeholder="Condition, reward, requirement" /></label>
+      <label class="detail-search" for="detail-search">Search this entity's details<input id="detail-search" value={detailQuery} on:input={(event) => onDetailQuery(event.currentTarget.value)} placeholder="Condition, reward, requirement" /></label>
       {#each selectedEntity?.placementIds ?? [] as placementId}<button type="button" class="source-location" on:click={(event) => onSelectPlacement(placementId, event.currentTarget)}>Open location details</button>{/each}
       {#if selectedEntity}<DetailSections sections={filteredDetail} entities={entityByKey} onEntity={onOpenEntity} onPlacement={onSelectPlacement} />{/if}
     {:else if selectedPlacement}
-      <label class="detail-search" for="detail-search">Search this location's details<input id="detail-search" bind:value={detailQuery} on:input={onQueryChange} placeholder="Condition, reward, requirement" /></label>
+      <label class="detail-search" for="detail-search">Search this location's details<input id="detail-search" value={detailQuery} on:input={(event) => onDetailQuery(event.currentTarget.value)} placeholder="Condition, reward, requirement" /></label>
       <div class="location-summary"><p class="category-line">{selectedPlacement.categories.map(category => markerFor(category).label).join(' · ')}</p>{#if selectedPlacement.levelRange}<p class="level-line">{levelRangeLabel(selectedPlacement.levelRange)}</p>{/if}</div>
       {#each selectedEntities as entity}<article class="entity-block"><div class="entity-heading"><h3>{entity.name}</h3></div>{#if entity.description}<p>{entity.description}</p>{/if}<button type="button" class="inline-link" on:click={(event) => onSelectEntity(entity, event.currentTarget)}>Open entity details</button></article>{/each}
       <DetailSections sections={filteredDetail} entities={entityByKey} onEntity={onOpenEntity} onPlacement={onSelectPlacement} />
