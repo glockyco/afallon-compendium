@@ -93,7 +93,7 @@ async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: 
     throw new Error("The production imagery probe is unavailable.");
   }
 
-  const missingResponse = await freshFetch(`${origin}/does-not-exist-${expected.runId}`);
+  const missingResponse = await freshFetch(`${origin}/does-not-exist-${expected.publicationId}`);
   if (missingResponse.status !== 404 || !(await missingResponse.text()).includes("Page not found")) {
     throw new Error("An unknown production route did not return the custom 404 page.");
   }
