@@ -49,14 +49,22 @@ A fact card SHALL show a value only when the publication established it for the 
 - **THEN** the locations table shows one line that states that no location is published
 - **AND** the drops table remains complete
 
-### Requirement: A place's locations are its own entrances
+### Requirement: Space belongs to the entities that occupy it
 
-A place's published locations SHALL be the placements that are the place itself: its entrances, its travel points, and its region marker. The placements a place contains SHALL NOT become the place's own locations. A reader reaches contained content through its own page or through the world atlas.
+A document SHALL name where its entity is only when the entity occupies space itself. A creature and a property SHALL publish their placements. A place SHALL publish the map space it occupies and the region areas that bound it, not a marker that stands for it and not the placements it contains. An item, a quest, an ability, and a recipe SHALL publish no location of their own; a reader reaches their places through the entities that do.
+
+The atlas SHALL accept a place in its URL state and show that place's map space and region areas.
 
 #### Scenario: A reader opens a large zone
 - **WHEN** the zone contains hundreds of creature, resource, and container placements
-- **THEN** the page lists its entrances and travel points as its locations
-- **AND** its contents appear as counts with an atlas link
+- **THEN** the page identifies the zone's own map space and region areas
+- **AND** its contents appear as counts by category with an atlas link
+- **AND** the atlas link shows that map space rather than an arbitrary marker
+
+#### Scenario: A reader looks for an item's location
+- **WHEN** the item has drop, vendor, and gathering sources
+- **THEN** the item page publishes no location of its own
+- **AND** each source links to the entity or count that holds the location
 
 ### Requirement: Relations are typed per pair
 

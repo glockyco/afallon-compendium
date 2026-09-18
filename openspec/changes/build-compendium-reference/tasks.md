@@ -23,7 +23,7 @@
 ## 4. Publication
 
 - [x] 4.1 Build the frozen `EntityRef` map in `packages/publication/src/references.ts` with per-kind name disambiguation and slug collision suffixes. Verify tests for two NPCs sharing a name, two items sharing a name and level, and a slug collision resolved with the native id.
-- [x] 4.2 Replace `entity-projection.ts` with per-kind projections that produce `PublicItem`, `PublicNpc`, `PublicQuest`, `PublicPlace`, `PublicProperty`, `PublicAbility`, and `PublicRecipe` from the typed facts and the relation queries. Verify projection tests show a boss drop row with equal values on the NPC and item documents and a quest objective union for each supported task type.
+- [x] 4.2 Replace `entity-projection.ts` with per-kind projections that produce `PublicItem`, `PublicNpc`, `PublicQuest`, `PublicPlace`, `PublicProperty`, `PublicAbility`, and `PublicRecipe` from the typed facts and the relation queries. Verify projection tests show a boss drop row with equal values on the NPC and item documents, a quest objective union for each supported task type, a place carrying its map space and region ids, and an item carrying no locations.
 - [ ] 4.3 Emit one static document per entity, one list resource per kind, the kind registry, the page list, and artwork resources under `/data/art/<sha256>.png` in `resources.ts`. Verify the generated root's graph closure passes `staticResourceEdges` and that every document referenced in a list exists.
 - [ ] 4.4 Add the reference audit that fails candidate selection on a reference to an unpublished entity and counts unresolved references in coverage. Verify a test with a deliberately dropped document fails selection naming the referencing document and key.
 - [ ] 4.5 Regenerate the unified search corpus from the `EntityRef` map for every searchable kind with level, primary place, and placement ids; remove the separate item search shape. Verify `index-resources.test.ts` shows a quest with no placements and an NPC with placements, and that the essential-resource budget is unchanged.
@@ -41,7 +41,8 @@
 - [ ] 5.7 Add `/coverage/` rendering the coverage resource. Verify in the browser that preview mode and unresolved totals appear only there.
 - [ ] 5.8 Add `AtlasDetailPanel.svelte` for production: fact card, first five rows per relation, location, and page link; remove the `no-details` gating and keep `AtlasDevelopmentDetails` behind `dev`. Verify in a production build that selecting a vendor shows conditional stock, a page link, and no authoring or evidence control, and that back from the page restores the selection.
 - [ ] 5.9 Delete the guide surface: `apps/site/src/routes/guide/**`, `GuideBrowser.svelte`, `GuideBossDetails.svelte`, `guide-load.ts`, and every redirect or `?id=` resolver. No redirect file and no moved-page notice remain. Verify `/guide/` and `/guide/bosses/` return the not-found page and that the not-found page links to the map and search.
-- [ ] 5.10 Add keyboard and narrow-screen checks for pages, lists, tooltips, and the production panel. Verify the search-to-page-to-map journey without a pointer and at a 360 px viewport.
+- [ ] 5.10 Add place state to the atlas: a canonical URL parameter that selects a place, fits its map space, and outlines its region areas, with browser back and forward restoring it. Verify in the browser from a place page's atlas link and from a pasted URL.
+- [ ] 5.11 Add keyboard and narrow-screen checks for pages, lists, tooltips, and the production panel. Verify the search-to-page-to-map journey without a pointer and at a 360 px viewport.
 
 ## 6. Verification and handoff
 

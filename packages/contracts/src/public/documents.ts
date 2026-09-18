@@ -148,7 +148,11 @@ export type QuestObjectiveRow = Static<typeof QuestObjectiveRowSchema>;
 export const ArtSchema = Type.Object({ icon: optional(ArtRefSchema), portrait: optional(ArtRefSchema), artwork: optional(ArtRefSchema) }, { additionalProperties: false });
 export type Art = Static<typeof ArtSchema>;
 
-const documentBase = { ref: EntityRefSchema, description: nullableText, art: ArtSchema, locations: placements };
+// A document names where its entity is only when the entity occupies space itself. A creature and
+// a property stand at placements. A place IS a map space and, for a region, a region area, so it
+// carries that space rather than a marker. An item, a quest, an ability, and a recipe occupy no
+// space at all; a reader reaches their places through the entities that do.
+const documentBase = { ref: EntityRefSchema, description: nullableText, art: ArtSchema };
 
 export const ItemFactsSchema = Type.Object({
   rarity: optional(text), itemType: optional(text), slot: optional(text), weaponType: optional(text), armorType: optional(text), weaponSlot: optional(text),
@@ -187,7 +191,7 @@ export const NpcFactsSchema = Type.Object({
 export type NpcFacts = Static<typeof NpcFactsSchema>;
 
 export const PublicNpcSchema = Type.Object({
-  ...documentBase, facts: NpcFactsSchema,
+  ...documentBase, facts: NpcFactsSchema, locations: placements,
   drops: Type.Array(DropRowSchema), sells: Type.Array(VendorRowSchema), quests: Type.Array(QuestLinkRowSchema),
   abilityPhases: Type.Array(AbilityPhaseSchema), factionRewards: Type.Array(FactionRewardRowSchema),
   usedInQuests: Type.Array(QuestObjectiveRowSchema), bossOf: refs, linkedNpc: optional(RefSchema),
@@ -210,14 +214,21 @@ export const PublicQuestSchema = Type.Object({
 export type PublicQuest = Static<typeof PublicQuestSchema>;
 
 export const PLACE_TYPE_VALUES = ["dungeon", "zone", "region", "interior"] as const;
+
+// Where a place is on the world atlas: the map space it occupies, and the region areas that bound
+// it. The atlas root already publishes each map space's label and bounds and each shard publishes
+// its region polygons, so a place references them instead of repeating geometry.
+export const PlaceSpaceSchema = Type.Object({ mapSpaceId: text, regionIds: Type.Array(text, { uniqueItems: true }) }, { additionalProperties: false });
+export type PlaceSpace = Static<typeof PlaceSpaceSchema>;
+
 export const PlaceFactsSchema = Type.Object({
   placeType: Type.Union([Type.Literal("dungeon"), Type.Literal("zone"), Type.Literal("region"), Type.Literal("interior")]),
-  levelRange: optional(PublicLevelRangeSchema), guideIncluded: Type.Boolean(), mapSpaceId: optional(text),
+  levelRange: optional(PublicLevelRangeSchema), guideIncluded: Type.Boolean(),
 }, { additionalProperties: false });
 export type PlaceFacts = Static<typeof PlaceFactsSchema>;
 
 export const PublicPlaceSchema = Type.Object({
-  ...documentBase, facts: PlaceFactsSchema,
+  ...documentBase, facts: PlaceFactsSchema, space: Type.Union([PlaceSpaceSchema, Type.Null()]),
   bosses: refs, creatures: Type.Array(CreatureRowSchema), npcs: Type.Array(CreatureRowSchema),
   services: Type.Array(PlacementGroupSchema), resources: Type.Array(PlacementGroupSchema), containers: Type.Array(PlacementGroupSchema),
   quests: refs, properties: refs, connections: Type.Array(ConnectionRowSchema), regions: refs, parent: optional(RefSchema),
@@ -227,7 +238,7 @@ export type PublicPlace = Static<typeof PublicPlaceSchema>;
 export const PropertyFactsSchema = Type.Object({ income: optional(number), price: optional(PriceSchema) }, { additionalProperties: false });
 export type PropertyFacts = Static<typeof PropertyFactsSchema>;
 
-export const PublicPropertySchema = Type.Object({ ...documentBase, facts: PropertyFactsSchema, place: optional(RefSchema) }, { additionalProperties: false });
+export const PublicPropertySchema = Type.Object({ ...documentBase, facts: PropertyFactsSchema, locations: placements, place: optional(RefSchema) }, { additionalProperties: false });
 export type PublicProperty = Static<typeof PublicPropertySchema>;
 
 export const AbilityFactsSchema = Type.Object({}, { additionalProperties: false });
@@ -365,6 +376,7 @@ schemaRegistry.register("compendium.public-entity-ref.v1", EntityRefSchema);
 schemaRegistry.register("compendium.public-unresolved-ref.v1", UnresolvedRefSchema);
 schemaRegistry.register("compendium.public-placement-ref.v1", PlacementRefSchema);
 schemaRegistry.register("compendium.public-requirement-ref.v1", RequirementRefSchema);
+schemaRegistry.register("compendium.public-place-space.v1", PlaceSpaceSchema);
 schemaRegistry.register("compendium.public-loot-specialization.v1", LootSpecializationSchema);
 schemaRegistry.register("compendium.public-random-stat-row.v1", RandomStatRowSchema);
 schemaRegistry.register("compendium.public-gem.v1", GemSchema);
