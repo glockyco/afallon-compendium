@@ -21,7 +21,7 @@ const referenceKind = Type.Union([
 ]);
 export const PUBLIC_SLUG_PATTERN = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
 const slug = Type.String({ pattern: PUBLIC_SLUG_PATTERN });
-const artUrl = Type.String({ pattern: "^art/[a-f0-9]{64}\\.png$" });
+const artUrl = Type.String({ pattern: "^art/[a-f0-9]{64}\\.webp$" });
 
 export const ArtRefSchema = Type.Object({ url: artUrl, sha256: hash, bytes: count, width: Type.Integer({ minimum: 1 }), height: Type.Integer({ minimum: 1 }) }, { additionalProperties: false });
 export type ArtRef = Static<typeof ArtRefSchema>;

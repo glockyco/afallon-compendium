@@ -57,6 +57,40 @@ export interface CatalogImageryRow {
   provenance: ProvenanceReference[];
 }
 
+export interface NormalizedReference { entityKey: string | null; label: string }
+export interface NormalizedItemFact {
+  entityKey: string; rarity: string | null; itemType: string | null; armorSlot: string | null; weaponSlot: string | null; weaponType: string | null; armorType: string | null;
+  attackSpeed: number | null; minDamage: number | null; maxDamage: number | null; randomStatsMax: number; enchantment: NormalizedReference | null;
+  sellPrice: number | null; sellCurrency: NormalizedReference | null; buyPrice: number | null; buyCurrency: NormalizedReference | null; stackLimit: number; questDropOnly: boolean; corruptionToken: boolean;
+  levelRequirement: number | null; actionAbilities: NormalizedReference[]; conditionIds: string[]; provenance: ProvenanceReference[];
+}
+export interface NormalizedItemStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
+export interface NormalizedItemSocket { entityKey: string; socketIndex: number; socketType: string; provenance: ProvenanceReference[] }
+export interface NormalizedNpcFact {
+  entityKey: string; minLevel: number | null; maxLevel: number | null; scalesWithPlayer: boolean; npcType: string | null; creatureType: string | null; family: string | null;
+  faction: NormalizedReference | null; species: NormalizedReference | null; isMerchant: boolean; isQuestGiver: boolean; isCombatEnabled: boolean; minRespawn: number | null; maxRespawn: number | null;
+  minExperience: number | null; maxExperience: number | null; immuneToStun: boolean; immuneToSlow: boolean; aggroRange: number | null; linkedNpc: NormalizedReference | null;
+  lootSpecialization: { armorType: string | null; weaponTypes: string[]; stat: NormalizedReference | null } | null; provenance: ProvenanceReference[];
+}
+export interface NormalizedNpcStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
+export interface NormalizedNpcAbilityPhase { entityKey: string; phaseIndex: number; name: string | null; requirement: string | null; provenance: ProvenanceReference[] }
+export interface NormalizedNpcPhaseAbility { entityKey: string; phaseIndex: number; abilityIndex: number; ability: NormalizedReference; provenance: ProvenanceReference[] }
+export interface NormalizedNpcFactionReward { entityKey: string; rewardIndex: number; faction: NormalizedReference; amount: number; provenance: ProvenanceReference[] }
+export interface NormalizedQuestFact { entityKey: string; chainName: string | null; chainOrder: number | null; repeatable: boolean; turnInWithoutNpc: boolean; completedDescription: string | null; objectiveText: string | null; levelRequirement: number | null; experience: number | null; conditionIds: string[]; provenance: ProvenanceReference[] }
+export interface NormalizedQuestObjective { questEntityKey: string; objectiveIndex: number; taskType: string; task: NormalizedReference; target: NormalizedReference | null; count: number | null; keepItems: boolean | null; sceneName: string | null; provenance: ProvenanceReference[] }
+export interface NormalizedQuestReward { questEntityKey: string; rewardSet: "given" | "pick" | "itemGiven"; rewardIndex: number; rewardType: string; target: NormalizedReference | null; count: number | null; experience: number | null; provenance: ProvenanceReference[] }
+export interface NormalizedPlaceFact { entityKey: string; placeType: "dungeon" | "zone" | "region" | "interior"; guideIncluded: boolean; guideDescription: string | null; levelMin: number | null; levelMax: number | null; mapSpaceIds: string[]; bosses: NormalizedReference[]; parentSceneKey: string | null; provenance: ProvenanceReference[] }
+export interface NormalizedPropertyFact { entityKey: string; income: number | null; purchasePrice: number | null; sellPrice: number | null; currency: NormalizedReference | null; propertyType: string | null; provenance: ProvenanceReference[] }
+export interface NormalizedTaskFact { entityKey: string; taskType: string; target: NormalizedReference | null; count: number | null; keepItems: boolean | null; sceneName: string | null; provenance: ProvenanceReference[] }
+export interface NormalizedAbilityFact { entityKey: string; provenance: ProvenanceReference[] }
+export interface NormalizedRecipeFact { entityKey: string; skill: NormalizedReference | null; station: NormalizedReference | null; learnedByDefault: boolean; provenance: ProvenanceReference[] }
+export interface NormalizedRecipeRank { entityKey: string; rank: number; unlockCost: number; experience: number; craftTime: number; provenance: ProvenanceReference[] }
+export interface NormalizedRecipeProduct { entityKey: string; rank: number; productIndex: number; item: NormalizedReference; count: number; chance: number; provenance: ProvenanceReference[] }
+export interface NormalizedRecipeMaterial { entityKey: string; rank: number; materialIndex: number; item: NormalizedReference; count: number; provenance: ProvenanceReference[] }
+export interface NormalizedCraftingStationFact { entityKey: string; maxDistance: number; skillRefs: NormalizedReference[]; provenance: ProvenanceReference[] }
+export interface NormalizedArtworkAsset { assetId: string; sha256: string; bytes: number; width: number; height: number; sourceName: string; provenance: ProvenanceReference[] }
+export interface NormalizedArtworkBinding { entityKey: string; role: "icon" | "portrait" | "artwork"; assetId: string; provenance: ProvenanceReference[] }
+
 export interface NormalizedEntity {
   entityKey: string;
   buildId: string;
@@ -264,6 +298,28 @@ export interface NormalizedDatabaseInput {
   sourceRunIds?: Record<string, string[]>;
   derivations?: CatalogDerivation[];
   imagery?: CatalogImageryRow[];
+  itemFacts?: NormalizedItemFact[];
+  itemStats?: NormalizedItemStat[];
+  itemSockets?: NormalizedItemSocket[];
+  npcFacts?: NormalizedNpcFact[];
+  npcStats?: NormalizedNpcStat[];
+  npcAbilityPhases?: NormalizedNpcAbilityPhase[];
+  npcPhaseAbilities?: NormalizedNpcPhaseAbility[];
+  npcFactionRewards?: NormalizedNpcFactionReward[];
+  questFacts?: NormalizedQuestFact[];
+  questObjectives?: NormalizedQuestObjective[];
+  questRewards?: NormalizedQuestReward[];
+  placeFacts?: NormalizedPlaceFact[];
+  propertyFacts?: NormalizedPropertyFact[];
+  taskFacts?: NormalizedTaskFact[];
+  abilityFacts?: NormalizedAbilityFact[];
+  recipeFacts?: NormalizedRecipeFact[];
+  recipeRanks?: NormalizedRecipeRank[];
+  recipeProducts?: NormalizedRecipeProduct[];
+  recipeMaterials?: NormalizedRecipeMaterial[];
+  craftingStationFacts?: NormalizedCraftingStationFact[];
+  artworkAssets?: NormalizedArtworkAsset[];
+  artworkBindings?: NormalizedArtworkBinding[];
   identityResults: Array<{ runId: string; snapshotId: string; snapshotPrefix: string; snapshotSha256: string; character: string; sceneHandle: number; result: PlacementIdentityResult }>;
   entities: NormalizedEntity[];
   scenes: Array<{ nativeId: number; path: string; name: string | null }>;

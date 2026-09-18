@@ -10,7 +10,7 @@ import {
 import type { Static } from "typebox";
 
 const identity = { buildId: "build", catalogId: "b".repeat(64) };
-const art: ArtRef = { url: `art/${"c".repeat(64)}.png`, sha256: "c".repeat(64), bytes: 12, width: 64, height: 64 };
+const art: ArtRef = { url: `art/${"c".repeat(64)}.webp`, sha256: "c".repeat(64), bytes: 12, width: 64, height: 64 };
 const item: EntityRef = { key: "items:1", kind: "items", name: "Peasant Gloves", slug: "peasant-gloves", icon: art };
 const boss: EntityRef = { key: "npcs:286", kind: "npcs", name: "Kraath the Hivebreaker", slug: "kraath-the-hivebreaker" };
 const gold: EntityRef = { key: "currencies:0", kind: "currencies", name: "Gold Coin" };
@@ -101,7 +101,7 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
   const rootEdges = staticResourceEdges(root).map((edge) => edge.path);
   expect(rootEdges).toContain(root.pages.path);
   expect(staticResourceEdges(pages).map((edge) => edge.path)).toEqual([itemReference.path, npcReference.path]);
-  expect(staticResourceEdges(itemDocument)).toEqual([{ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/png" }]);
+  expect(staticResourceEdges(itemDocument)).toEqual([{ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" }]);
   assertStaticPublicationSemantics(root, values);
 
   const dropped = new Map(values); dropped.delete(npcReference.path);

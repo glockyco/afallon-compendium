@@ -125,6 +125,8 @@ export interface CatalogPropertyFacts {
   propertyType: string | null;
 }
 
+export interface CatalogAbilityFacts { entityKey: string }
+
 export interface CatalogRecipeFacts {
   entityKey: string;
   skill: CatalogEndpoint | null;
@@ -141,6 +143,7 @@ export interface CatalogFacts {
   tasks: CatalogTaskFacts[];
   places: CatalogPlaceFacts[];
   properties: CatalogPropertyFacts[];
+  abilities: CatalogAbilityFacts[];
   recipes: CatalogRecipeFacts[];
 }
 

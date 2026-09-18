@@ -3,6 +3,7 @@ import type { TSchema } from "typebox";
 import { Assert } from "typebox/value";
 import {
   AddressableGraphSchema,
+  ArtworkSchema,
   CanonicalSchema,
   FactionRolesSchema,
   LocalizationSchema,
@@ -42,6 +43,7 @@ import { collectFactionRoleFacts } from "./faction-roles";
 import { ScanCollectionError, validateInventoryContext, validateObservationContext, validateTargetContext } from "./observation";
 
 import canonicalSource from "./probes/collectors/canonical.csx" with { type: "text" };
+import artworkSource from "./probes/collectors/artwork.csx" with { type: "text" };
 import localizationSource from "./probes/collectors/localization.csx" with { type: "text" };
 import { createWorldInventoryBundle } from "./inventory-probe";
 import addressable_locationsSource from "./probes/collectors/addressable-locations.csx" with { type: "text" };
@@ -58,6 +60,7 @@ import conditionsSource from "./probes/collectors/conditions.csx" with { type: "
 
 const COLLECTOR_SOURCES: Record<string, string> = {
   "canonical": canonicalSource,
+  "artwork": artworkSource,
   "localization": localizationSource,
   "addressable-locations": addressable_locationsSource,
   "npc-producers": npc_producersSource,
@@ -77,12 +80,15 @@ interface CollectorDefinition {
   readonly name: string;
   readonly schema: TSchema;
   readonly modules: readonly string[];
+  // Reading thousands of sprites through the GPU takes longer than a database walk.
+  readonly timeoutMs?: number;
 }
 
 export interface ScanCollectorBundle {
   readonly family: Exclude<ScanCollectorFamily, "coverage">;
   readonly name: string;
   readonly bundle: ProbeBundle;
+  readonly timeoutMs?: number;
 }
 
 export interface CollectedScanEvidence {
@@ -94,6 +100,7 @@ export interface CollectedScanEvidence {
 const DEFINITIONS: readonly CollectorDefinition[] = [
   { family: "canonical", name: "canonical", schema: CanonicalSchema, modules: ["canonical"] },
   { family: "canonical", name: "localization", schema: LocalizationSchema, modules: ["localization"] },
+  { family: "canonical", name: "artwork", schema: ArtworkSchema, modules: ["artwork"], timeoutMs: 600_000 },
   { family: "inventory", name: "addressable-locations", schema: AddressableGraphSchema, modules: ["addressable-locations"] },
   { family: "producers", name: "npc-producers", schema: NpcProducersSchema, modules: ["conditions", "npc-producers"] },
   { family: "producers", name: "world-sources", schema: WorldSourcesSchema, modules: ["conditions", "world-sources"] },
@@ -111,6 +118,7 @@ export async function createScanCollectorBundles(): Promise<readonly ScanCollect
     ...DEFINITIONS.map(async definition => ({
       family: definition.family,
       name: definition.name,
+      ...(definition.timeoutMs === undefined ? {} : { timeoutMs: definition.timeoutMs }),
       bundle: await createProbeBundle({
         id: `scan/${definition.name}`,
         schema: definition.schema,
@@ -154,9 +162,10 @@ export class ScanCollectorSuite {
       for (const collector of this.bundles) {
         if (!applicable.has(collector.family)) continue;
         const outputFile = resolve(outputDirectory, `${collector.name}.json`);
-        const result = await this.runtime.runProbe(collector.bundle, outputFile, { parameters: { researchCharacter: this.config.character }, captureContext: true });
+        const result = await this.runtime.runProbe(collector.bundle, outputFile, { parameters: { researchCharacter: this.config.character }, captureContext: true, ...(collector.timeoutMs === undefined ? {} : { timeoutMs: collector.timeoutMs }) });
         const content = await register(outputFile, `${collector.name}.json`, collector.bundle.schemaIdentity.id, []);
         if (content.sha256 !== result.reference.sha256 || content.bytes !== result.reference.byteSize) throw new Error(`Collector ${collector.name} changed before registration.`);
+        if (collector.name === "artwork") await registerArtwork(result.value, outputDirectory, register);
         const contextFile = resolve(outputDirectory, `${collector.name}.context.json`);
         await Bun.write(contextFile, `${canonicalJson(result.observationContext)}\n`);
         const contextIdentity = await register(contextFile, `${collector.name}.context.json`, schemaRegistry.identify(ObservationContextSchema).id, []);
@@ -226,6 +235,21 @@ export class ScanCollectorSuite {
     } catch (error) {
       throw new ScanCollectionError(results.map(entry => entry.artifact), error);
     }
+  }
+}
+
+// The artwork collector writes each sprite as a PNG beside its JSON. Every extracted image becomes
+// a content-addressed evidence object so the catalog can bind it and publication can copy it.
+async function registerArtwork(value: unknown, outputDirectory: string, register: ScanEvidenceRegistrar): Promise<void> {
+  Assert(ArtworkSchema, value);
+  const seen = new Set<string>();
+  for (const record of value.records) {
+    if (record.image === null) continue;
+    if (seen.has(record.image.sha256)) continue;
+    seen.add(record.image.sha256);
+    if (record.image.file !== `artwork/${record.image.sha256}.png`) throw new Error(`Artwork file name differs from its hash: ${record.image.file}.`);
+    const identity = await register(resolve(outputDirectory, record.image.file), record.image.file, null, []);
+    if (identity.sha256 !== record.image.sha256 || identity.bytes !== record.image.bytes) throw new Error(`Artwork ${record.image.file} changed before registration.`);
   }
 }
 

@@ -1146,6 +1146,53 @@ if (quests != null)
     }
 }
 
+// Item requirement groups (level, class, stat gates on equipping or using an item). Only items
+// that author at least one group or a template are listed; the canonical collector already
+// records the group count for every item.
+var itemDefinitions = new System.Collections.Generic.List<object>();
+if (items != null)
+{
+    foreach (var itemPair in items)
+    {
+        var item = itemPair.Value;
+        if (item == null) continue;
+        var itemGroupsNative = item.Requirements;
+        var itemGroupCount = itemGroupsNative == null ? 0 : itemGroupsNative.Count;
+        if (itemGroupCount == 0 && item.RequirementsTemplate == null) continue;
+        var itemID = item.ID;
+        var itemPath = "GameDatabase.Items[" + itemPair.Key.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]";
+        var itemRequirementPath = itemPath + ".Requirements";
+        var projectedItemGroups = new System.Collections.Generic.List<object>();
+        for (var itemGroupIndex = 0; itemGroupIndex < itemGroupCount; itemGroupIndex++)
+        {
+            projectedItemGroups.Add(projectGroup(itemGroupsNative[itemGroupIndex], itemRequirementPath + "[" + itemGroupIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]", itemGroupIndex));
+        }
+        appendRequirementSet(item.Requirements, "item", itemRequirementPath, itemID, -1, "item:" + itemID.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        var itemTemplatePath = itemPath + ".RequirementsTemplate";
+        var itemTemplate = projectTemplate(item.RequirementsTemplate, itemTemplatePath);
+        if (item.RequirementsTemplate != null)
+        {
+            appendRequirementSet(item.RequirementsTemplate.Requirements, "itemTemplate", itemTemplatePath + ".Requirements", itemID, -1, "item:" + itemID.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        itemDefinitions.Add(new
+        {
+            nativeId = itemID,
+            dictionaryKey = itemPair.Key,
+            name = getEntryName(item),
+            internalName = item.entryName,
+            useRequirementsTemplate = item.UseRequirementsTemplate,
+            inlineRequirements = item.Requirements == null ? null : new
+            {
+                sourceFieldPath = itemRequirementPath,
+                nativeGroupCount = itemGroupCount,
+                groups = projectedItemGroups
+            },
+            requirementsTemplate = itemTemplate,
+            sourceFieldPath = itemPath
+        });
+    }
+}
+
 var taskDefinitions = new System.Collections.Generic.List<object>();
 if (tasks != null)
 {
@@ -1327,6 +1374,7 @@ return new
     npcQuestBindings = npcQuestBindings,
     quests = questDefinitions,
     tasks = taskDefinitions,
+    items = itemDefinitions,
     questObjectives = questObjectives,
     questItemsGiven = questItemsGiven,
     questRewards = questRewards,

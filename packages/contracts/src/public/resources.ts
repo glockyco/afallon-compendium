@@ -542,7 +542,7 @@ export function staticResourceEdges(value: StaticResource): StaticResourceRefere
     case "compendium.static-root.v3": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists), ...value.search, value.pages, value.coverage];
     case "compendium.static-pages.v1": return value.entries.map((entry) => entry.document);
     case "compendium.static-search.v3": return value.entries.flatMap((entry) => entry.document ? [entry.document] : []);
-    case "compendium.static-kind-list.v1": return value.rows.flatMap((row) => row.ref.icon ? [{ path: row.ref.icon.url, sha256: row.ref.icon.sha256, bytes: row.ref.icon.bytes, schemaId: "image/png" }] : []);
+    case "compendium.static-kind-list.v1": return value.rows.flatMap((row) => row.ref.icon ? [{ path: row.ref.icon.url, sha256: row.ref.icon.sha256, bytes: row.ref.icon.bytes, schemaId: "image/webp" }] : []);
     case "compendium.static-entity-search.v2": return value.entities.map((entity) => entity.detail);
     case "compendium.static-item-search.v2": return value.items.flatMap((item) => [item.detail, item.source]);
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));
@@ -553,7 +553,7 @@ export function staticResourceEdges(value: StaticResource): StaticResourceRefere
     case "compendium.static-item-source.v1":
     case "compendium.static-coverage.v1": return [];
     default:
-      if (isStaticDocument(value)) return artEdges(value.document).map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/png" }));
+      if (isStaticDocument(value)) return artEdges(value.document).map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" }));
       throw new Error("Unknown static resource kind.");
   }
 }

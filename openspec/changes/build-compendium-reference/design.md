@@ -98,7 +98,7 @@ Each kind gets one compact list resource: an array of rows with `ref`, the regis
 
 ### 9. Artwork
 
-A new scan collector `artwork.csx` reads each referenced `Sprite` through a readable copy (`Graphics.Blit` to a temporary `RenderTexture`, then `Texture2D.ReadPixels`), encodes PNG bytes, and stores them as content-addressed evidence with the native asset name, entity family and id, and dimensions. Unreadable textures record a reason. The catalog registers assets in a new `artwork_assets` table with entity bindings. Publication copies assets to `/data/art/<sha256>.png` and references them by `ArtRef { url, sha256, width, height }`. Guide art for dungeons and regions comes from the fields the native `AdventureGuidePanel` reads; the task that adds the collector names those fields after inspecting `RPGGameScene` and `RegionTemplate`.
+A new scan collector `artwork.csx` reads each referenced `Sprite` through a readable copy (`Graphics.Blit` to a temporary `RenderTexture`, then `Texture2D.ReadPixels`), encodes PNG bytes, and stores them as content-addressed evidence with the native asset name, entity family and id, and dimensions. Unreadable textures record a reason. The catalog registers assets in a new `artwork_assets` table with entity bindings. Publication derives sized WebP variants (icon 128 px, portrait 512 px, artwork 1600 px wide) with sharp, writes them to `/data/art/<sha256>.webp`, and references them by `ArtRef { url, sha256, bytes, width, height }`. The lossless PNG stays in the evidence store. Guide art for dungeons and regions comes from the fields the native `AdventureGuidePanel` reads; the task that adds the collector names those fields after inspecting `RPGGameScene` and `RegionTemplate`.
 
 ### 10. Production atlas panel
 

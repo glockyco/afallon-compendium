@@ -44,8 +44,48 @@ var currencies = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetCurrencies()) currencies.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "currency") });
 var tasks = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetTasks()) tasks.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "task") });
+// Recipe ranks carry the player-facing crafting facts: products, materials, unlock cost, and
+// craft time per rank. Negative ids are the authored "none" sentinel and stay as they are.
+var projectRecipe = new System.Func<Il2Cpp.RPGCraftingRecipe, object>((recipe) =>
+{
+    var ranks = new System.Collections.Generic.List<object>();
+    var nativeRanks = recipe.ranks;
+    var rankCount = nativeRanks == null ? 0 : nativeRanks.Count;
+    for (var rankIndex = 0; rankIndex < rankCount; rankIndex++)
+    {
+        var rank = nativeRanks[rankIndex];
+        if (rank == null) { ranks.Add(new { rankIndex = rankIndex, unavailable = "null rank record" }); continue; }
+        var crafted = new System.Collections.Generic.List<object>();
+        var craftedCount = rank.allCraftedItems == null ? 0 : rank.allCraftedItems.Count;
+        for (var index = 0; index < craftedCount; index++)
+        {
+            var row = rank.allCraftedItems[index];
+            if (row == null) continue;
+            crafted.Add(new { sourceIndex = index, itemId = row.craftedItemID, count = row.count, chance = row.chance });
+        }
+        var components = new System.Collections.Generic.List<object>();
+        var componentCount = rank.allComponents == null ? 0 : rank.allComponents.Count;
+        for (var index = 0; index < componentCount; index++)
+        {
+            var row = rank.allComponents[index];
+            if (row == null) continue;
+            components.Add(new { sourceIndex = index, itemId = row.componentItemID, count = row.count });
+        }
+        ranks.Add(new { rankIndex = rankIndex, unlockCost = rank.unlockCost, experience = rank.Experience, craftTime = rank.craftTime, craftedItems = crafted, components = components });
+    }
+    return new { learnedByDefault = recipe.learnedByDefault, craftingSkillId = recipe.craftingSkillID, craftingStationId = recipe.craftingStationID, ranks = ranks };
+});
 var recipes = new System.Collections.Generic.List<object>();
-foreach (var pair in database.GetRecipes()) recipes.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "recipe") });
+foreach (var pair in database.GetRecipes()) recipes.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "recipe"), gameplay = pair.Value == null ? null : projectRecipe(pair.Value) });
+var projectStation = new System.Func<Il2Cpp.RPGCraftingStation, object>((station) =>
+{
+    var skillIds = new System.Collections.Generic.List<int>();
+    var skillCount = station.craftSkills == null ? 0 : station.craftSkills.Count;
+    for (var index = 0; index < skillCount; index++) { var row = station.craftSkills[index]; if (row != null) skillIds.Add(row.craftSkillID); }
+    return new { maxDistance = station.maxDistance, craftSkillIds = skillIds };
+});
+var craftingStations = new System.Collections.Generic.List<object>();
+foreach (var pair in database.GetCraftingStations()) craftingStations.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, null), gameplay = pair.Value == null ? null : projectStation(pair.Value) });
 var treePoints = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetPoints()) treePoints.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, null) });
 var weaponTemplates = new System.Collections.Generic.List<object>();
@@ -68,4 +108,4 @@ var species = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetSpecies()) species.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, null) });
 var gameModifiers = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetGameModifiers()) gameModifiers.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, null) });
-return new { schemaVersion = "compendium.support.v1", language = Il2Cpp.Localize.CurrentLanguage, sourceTotals = new { skills = database.GetSkills().Count, stats = database.GetStats().Count, abilities = database.GetAbilities().Count, effects = database.GetEffects().Count, factions = database.GetFactions().Count, classes = database.GetClasses().Count, races = database.GetRaces().Count, levels = database.GetLevels().Count, worldQuests = database.GetWorldQuests().Count, worldPositions = database.GetWorldPositions().Count, properties = database.GetProperties().Count, currencies = database.GetCurrencies().Count, tasks = database.GetTasks().Count, recipes = database.GetRecipes().Count, treePoints = database.GetPoints().Count, weaponTemplates = database.GetWeaponTemplates().Count, enchantments = database.GetEnchantments().Count, gearSets = database.GetGearSets().Count, bonuses = database.GetBonuses().Count, dialogues = database.GetDialogues().Count, talentTrees = database.GetTalentTrees().Count, spellbooks = database.GetSpellbooks().Count, combos = database.GetCombos().Count, species = database.GetSpecies().Count, gameModifiers = database.GetGameModifiers().Count }, tables = new { skills = skills, stats = stats, abilities = abilities, effects = effects, factions = factions, classes = classes, races = races, levels = levels, worldQuests = worldQuests, worldPositions = worldPositions, properties = properties, currencies = currencies, tasks = tasks, recipes = recipes, treePoints = treePoints, weaponTemplates = weaponTemplates, enchantments = enchantments, gearSets = gearSets, bonuses = bonuses, dialogues = dialogues, talentTrees = talentTrees, spellbooks = spellbooks, combos = combos, species = species, gameModifiers = gameModifiers } };
+return new { schemaVersion = "compendium.support.v1", language = Il2Cpp.Localize.CurrentLanguage, sourceTotals = new { skills = database.GetSkills().Count, stats = database.GetStats().Count, abilities = database.GetAbilities().Count, effects = database.GetEffects().Count, factions = database.GetFactions().Count, classes = database.GetClasses().Count, races = database.GetRaces().Count, levels = database.GetLevels().Count, worldQuests = database.GetWorldQuests().Count, worldPositions = database.GetWorldPositions().Count, properties = database.GetProperties().Count, currencies = database.GetCurrencies().Count, tasks = database.GetTasks().Count, recipes = database.GetRecipes().Count, craftingStations = database.GetCraftingStations().Count, treePoints = database.GetPoints().Count, weaponTemplates = database.GetWeaponTemplates().Count, enchantments = database.GetEnchantments().Count, gearSets = database.GetGearSets().Count, bonuses = database.GetBonuses().Count, dialogues = database.GetDialogues().Count, talentTrees = database.GetTalentTrees().Count, spellbooks = database.GetSpellbooks().Count, combos = database.GetCombos().Count, species = database.GetSpecies().Count, gameModifiers = database.GetGameModifiers().Count }, tables = new { craftingStations = craftingStations, skills = skills, stats = stats, abilities = abilities, effects = effects, factions = factions, classes = classes, races = races, levels = levels, worldQuests = worldQuests, worldPositions = worldPositions, properties = properties, currencies = currencies, tasks = tasks, recipes = recipes, treePoints = treePoints, weaponTemplates = weaponTemplates, enchantments = enchantments, gearSets = gearSets, bonuses = bonuses, dialogues = dialogues, talentTrees = talentTrees, spellbooks = spellbooks, combos = combos, species = species, gameModifiers = gameModifiers } };

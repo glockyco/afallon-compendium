@@ -24,8 +24,9 @@ export interface VerifiedPublicationGraph {
 
 export function assertStaticResourceReference(reference: StaticResourceReference): void {
   Assert(StaticResourceReferenceSchema, reference);
-  const expectedPath = reference.schemaId === "image/webp" ? `assets/${reference.sha256}.webp` : reference.schemaId === "image/png" ? `art/${reference.sha256}.png` : `resources/${reference.sha256}.json`;
-  if (reference.path !== expectedPath) throw new Error(`Publication reference path mismatch: ${reference.path}.`);
+  // Map tiles live under `assets/`, entity artwork under `art/`; both are content-addressed WebP.
+  const expectedPaths = reference.schemaId === "image/webp" ? [`assets/${reference.sha256}.webp`, `art/${reference.sha256}.webp`] : [`resources/${reference.sha256}.json`];
+  if (!expectedPaths.includes(reference.path)) throw new Error(`Publication reference path mismatch: ${reference.path}.`);
   if (/^compendium\.static-(?:map|geometry|entity-search|item-search|search|kind-list|pages)\./.test(reference.schemaId) && reference.bytes > PUBLICATION_PART_BUDGET) throw new Error(`Publication part exceeds its byte budget: ${reference.path}.`);
   if (isStaticDocumentSchemaId(reference.schemaId) && reference.bytes > PUBLICATION_DOCUMENT_BUDGET) throw new Error(`Publication document exceeds its byte budget: ${reference.path}.`);
 }
