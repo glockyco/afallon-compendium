@@ -998,3 +998,35 @@ WebP variants rather than shipping the source PNG.
 
 Evidence: `local/evidence-pipeline-fresh-selected-store/spike-artwork/artwork.json` and its
 `artwork/<sha256>.png` files, from the throwaway runner `local/artwork-spike.ts`.
+
+## Compendium publication measurements
+
+Build 25153357, catalog `1a1eb3a882cc4ce3f3bfc8c439484d9366a143de6d766b9c889536c01e675aae`,
+publication root `3a94326c0f6c633119d1d9a2264de239e24187b1c30e79dc31953a9cbcc500c9`, preview mode.
+
+The publication carries 2,117 entity documents over eight paged kinds: 1,076 items, 357 NPCs, 347
+abilities, 133 quests, 132 recipes, 40 places, 27 gear sets, and 5 properties. Documents total
+6,125,540 bytes and the largest is `scenes:3` at 66,297 bytes against the 262,144-byte budget. The
+search corpus is 1,132,601 bytes in three parts and doubles as the page index; kind lists are
+903,017 bytes in nine parts. Entity artwork is 1,258 lossy WebP assets totalling 12,432,614 bytes;
+map imagery is 4,522 WebP tiles totalling 77,995,464 bytes. The staged data directory holds 7,969
+files and 101,411,892 bytes. Essential atlas resources remain 2,319,929 bytes over 41 requests
+against the 3,300,000-byte budget. The site prerenders 2,128 pages, 46,358,355 bytes of HTML. One
+publish run takes 100 seconds.
+
+Coverage stays incomplete: 33,072 unresolved issues, 33,382 occurrences, and 118 exclusions, which
+`/coverage/` reports and no other page restates.
+
+Measured limitations of this publication. 173 items appear in no modelled acquisition path and
+carry an explicit `unmodeled-item-source` issue; class and race starting gear is not extracted, so
+absence is not proof that an item is unobtainable, and both `DEV RING` records sit in that group.
+47 of 1,063 container rows report no placement because their chests are in Glacier Cave and
+Abandoned quarry, whose placements no published map shard carries; that is scene map coverage, not
+a broken association. 118 published names end in a native id because no fact separates the entities
+that share them, 67 of them NPCs such as the six Oakenvale guards at level 100 in Coalway woods.
+Gear sets carry no native artwork, so each keeps an `artwork-unavailable` issue and its page falls
+back to the kind glyph.
+
+A local rollback rehearsal between this root and `17d4515adf0705827fbc27803825bace94602e714b72e96a7790272e12b0d836`
+restored the prior identity and returned the stage to the current one, with both roots passing graph
+verification and the parity gate.

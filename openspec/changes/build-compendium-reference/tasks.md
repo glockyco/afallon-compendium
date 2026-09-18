@@ -46,9 +46,9 @@
 
 ## 6. Verification and handoff
 
-- [ ] 6.1 Run scan, catalog, and publish against the fresh selected store with artwork; stage, build, and preview. Verify the deploy smoke test requests one page per kind, one list, the coverage page, and the not-found page, and record page count, build time, search bytes, and largest document bytes in `EXPLORATION.md`.
-- [ ] 6.2 Rehearse rollback with `verify:deployment` between the new and previous publication roots. Verify both pass graph verification and the parity gate reports the removed guide resources as expected.
-- [ ] 6.3 Update `README.md` for the compendium routes, the coverage page, and the artwork evidence; mark task 6a.10 in `openspec/changes/build-screenshot-first-map/tasks.md` as superseded by this change. Verify the documented commands reproduce the artifact set from a fresh local run.
+- [x] 6.1 Run scan, catalog, and publish against the fresh selected store with artwork; stage, build, and preview. Verify the deploy smoke test requests one page per kind, one list, the coverage page, and the not-found page, and record page count, build time, search bytes, and largest document bytes in `EXPLORATION.md`.
+- [x] 6.2 Rehearse rollback with `verify:deployment` between the new and previous publication roots. Verify both pass graph verification and the parity gate reports the removed guide resources as expected.
+- [x] 6.3 Update `README.md` for the compendium routes, the coverage page, and the artwork evidence; mark task 6a.10 in `openspec/changes/build-screenshot-first-map/tasks.md` as superseded by this change. Verify the documented commands reproduce the artifact set from a fresh local run.
 
 ## 7. Gear sets
 
