@@ -104,11 +104,11 @@ export class AtlasDataLoader {
 
   async loadList(kind: PublicPageKind): Promise<StaticKindList> {
     const root = await this.loadRoot();
-    const reference = root.lists[kind];
-    if (!reference) throw new Error(`Publication has no list for ${kind}.`);
-    const list = await this.#loadReference(reference, StaticKindListSchema, root);
-    if (list.kind !== kind) throw new Error(`Kind-list identity mismatch for ${kind}.`);
-    return list;
+    const references = root.lists[kind];
+    if (!references?.length) throw new Error(`Publication has no list for ${kind}.`);
+    const parts = await Promise.all(references.map((reference) => this.#loadReference(reference, StaticKindListSchema, root)));
+    if (parts.some((part, index) => part.kind !== kind || part.part !== index)) throw new Error(`Kind-list identity mismatch for ${kind}.`);
+    return { schemaVersion: 'compendium.static-kind-list.v1', buildId: root.buildId, catalogId: root.catalogId, kind, part: 0, rows: parts.flatMap((part) => part.rows) };
   }
 
   async loadDocument(kind: PublicPageKind, slug: string): Promise<StaticDocument> {

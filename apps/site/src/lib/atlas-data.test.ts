@@ -24,14 +24,14 @@ function fixture() {
     documents.set(key, register({
       schemaVersion: 'compendium.static-item.v1', ...identity, kind: 'items',
       document: {
-        ref, description: null, art: {}, locations: [{ placementId: `place:${name}`, mapSpaceId: 'map', label: name }],
+        ref, description: null, art: {},
         facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 1, questDropOnly: false, corruptionToken: false, requirements: [] },
         droppedBy: [], soldBy: [], gatheredFrom: [], inContainers: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [],
       },
     }));
   }
   const pages = register({ schemaVersion: 'compendium.static-pages.v1', ...identity, entries: [...documents].map(([key, document]) => ({ kind: 'items', slug: refs.get(key)!.slug, key, document })) });
-  const list = register({ schemaVersion: 'compendium.static-kind-list.v1', ...identity, kind: 'items', rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
+  const list = register({ schemaVersion: 'compendium.static-kind-list.v1', ...identity, kind: 'items', part: 0, rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
   const search = register({
     schemaVersion: 'compendium.static-search.v3', ...identity, part: 0,
     entries: [...refs].map(([key, ref]) => ({ ref, placementIds: [`place:${ref.slug}`], sourceKinds: ['vendor'], document: documents.get(key) })),
@@ -45,7 +45,7 @@ function fixture() {
     world: { mapSpaceId: 'world', label: 'Afallon', bounds, offsets: [{ mapSpaceId: 'map', worldX: 0, worldY: 0, source: 'native', status: 'placed' }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: 'map', label: 'Map', bounds, parts, optionalGeometry: [], imagery }],
     kinds: [{ kind: 'items', label: 'Item', plural: 'Items', route: 'items', icon: 'package', pages: true, searchable: true, columns: [], facets: [] }],
-    lists: { items: list }, search: [search], pages, coverage,
+    lists: { items: [list] }, search: [search], pages, coverage,
   };
   bodies.set('publication.json', JSON.stringify(root));
   const counts = new Map<string, number>();
@@ -134,7 +134,7 @@ test('verified requests deduplicate failures and allow explicit retry without re
   data.overrides.delete(path);
   data.loader.retryFailed();
   const resource = await data.loader.loadDocument('items', 'a');
-  expect(resource.document.locations[0]?.placementId).toBe('place:a');
+  expect(resource.document.ref.key).toBe('item:a');
   expect(data.loader.state(path).status).toBe('loaded');
   expect(data.counts.get(path)).toBe(2);
   expect(data.counts.get(data.search.path)).toBe(1);
@@ -153,7 +153,7 @@ test('essential multipart maps become usable while search is delayed, and naviga
   controller.navigate(readAtlasUrl('?item=item%3Ab'));
   search.resolve(new Response(data.bodies.get(data.search.path)));
   const restored = await until((snapshot) => snapshot.detail.status === 'loaded');
-  expect(restored.documents.get('item:b')?.locations[0]?.placementId).toBe('place:b');
+  expect(restored.documents.get('item:b')?.ref.key).toBe('item:b');
   expect(selectionHighlightIds(null, null, restored.state.itemKey, restored.indexes)).toEqual(['place:b']);
   expect(data.counts.get(data.documents.get('item:b')!.path)).toBe(1);
   controller.navigate(readAtlasUrl('?selected=removed'));
@@ -182,7 +182,7 @@ test('an obsolete failure cannot replace the new selection loading state, and cu
   data.overrides.delete(pathB);
   controller.retry('detail');
   const recovered = await until((snapshot) => snapshot.detail.status === 'loaded');
-  expect(recovered.documents.get('item:b')?.locations[0]?.placementId).toBe('place:b');
+  expect(recovered.documents.get('item:b')?.ref.key).toBe('item:b');
   expect(data.counts.get(pathB)).toBe(2);
   controller.dispose();
 });
