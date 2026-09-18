@@ -1,77 +1,9 @@
 import { Type, type Static } from "typebox";
 import { schemaRegistry } from "../schema-registry";
 import { ContentIdentitySchema } from "../lifecycle";
-
-const text = Type.String({ minLength: 1 });
-const number = Type.Number();
-const count = Type.Integer({ minimum: 0 });
-const point = Type.Object({ x: number, y: number }, { additionalProperties: false });
-const position = Type.Tuple([number, number]);
-const url = Type.String({ minLength: 1, pattern: "^(?!/)(?!.*\\.\\.)(?!.*:)[a-zA-Z0-9_./-]+$" });
-const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
-
-export const PUBLIC_MARKER_CATEGORY_VALUES = [
-  "boss",
-  "enemy",
-  "neutral",
-  "merchant",
-  "questGiver",
-  "townsfolk",
-  "corruptionAltar",
-  "challengeStone",
-  "craftingStation",
-  "container",
-  "oreVein",
-  "herb",
-  "mushroom",
-  "fishingSpot",
-  "interactiveObject",
-  "town",
-  "fort",
-  "camp",
-  "property",
-  "dungeonEntrance",
-  "graveyard",
-  "travelPoint",
-] as const;
-export type PublicMarkerCategory = typeof PUBLIC_MARKER_CATEGORY_VALUES[number];
-export const PUBLIC_MARKER_CATEGORY_LABELS: Readonly<Record<PublicMarkerCategory, string>> = {
-  boss: "Boss", enemy: "Enemy", neutral: "Neutral", merchant: "Merchant", questGiver: "Quest giver",
-  townsfolk: "Townsfolk", craftingStation: "Crafting station", container: "Container", oreVein: "Ore Vein",
-  herb: "Herb", mushroom: "Mushroom", fishingSpot: "Fishing Spot", interactiveObject: "Interactive object",
-  town: "Town", fort: "Fort", camp: "Camp", property: "Property", dungeonEntrance: "Dungeon entrance",
-  corruptionAltar: "Altar of corruption", challengeStone: "Challenge stone", graveyard: "Graveyard", travelPoint: "Travel point",
-};
-const publicMarkerCategory = Type.Union([
-  Type.Literal("boss"),
-  Type.Literal("enemy"),
-  Type.Literal("neutral"),
-  Type.Literal("merchant"),
-  Type.Literal("questGiver"),
-  Type.Literal("townsfolk"),
-  Type.Literal("corruptionAltar"),
-  Type.Literal("challengeStone"),
-  Type.Literal("craftingStation"),
-  Type.Literal("container"),
-  Type.Literal("oreVein"),
-  Type.Literal("herb"),
-  Type.Literal("mushroom"),
-  Type.Literal("fishingSpot"),
-  Type.Literal("interactiveObject"),
-  Type.Literal("town"),
-  Type.Literal("fort"),
-  Type.Literal("camp"),
-  Type.Literal("property"),
-  Type.Literal("dungeonEntrance"),
-  Type.Literal("graveyard"),
-  Type.Literal("travelPoint"),
-]);
-
-export const PublicLevelRangeSchema = Type.Object({
-  min: count,
-  max: count,
-}, { additionalProperties: false });
-export type PublicLevelRange = Static<typeof PublicLevelRangeSchema>;
+import { PublicKindEntrySchema, STATIC_COMPENDIUM_SCHEMAS, artEdges, isStaticDocument, type StaticCompendiumResource } from "./documents";
+import { count, hash, number, point, position, publicMarkerCategory, resourceReference, text, url, PublicLevelRangeSchema, StaticResourceIdentityFields, StaticResourceReferenceSchema, PUBLIC_MARKER_CATEGORY_LABELS, type StaticResourceReference } from "./primitives";
+export { PUBLIC_MARKER_CATEGORY_VALUES, PUBLIC_MARKER_CATEGORY_LABELS, publicMarkerCategory, PublicLevelRangeSchema, StaticResourceReferenceSchema, resourceReference, type PublicMarkerCategory, type PublicLevelRange, type StaticResourceReference } from "./primitives";
 
 export const PublicAffineSchema = Type.Object({ origin: point, xAxis: point, yAxis: point }, { additionalProperties: false });
 export type PublicAffine = Static<typeof PublicAffineSchema>;
@@ -390,24 +322,6 @@ export const GuideDocumentSchema = Type.Object({
 }, { additionalProperties: false });
 export type GuideDocument = Static<typeof GuideDocumentSchema>;
 
-const StaticResourceIdentityFields = {
-  buildId: text,
-  catalogId: hash,
-};
-
-export const StaticResourceReferenceSchema = Type.Object({
-  path: url,
-  sha256: hash,
-  bytes: count,
-  schemaId: text,
-}, { additionalProperties: false });
-export type StaticResourceReference = Static<typeof StaticResourceReferenceSchema>;
-
-const resourceReference = (schemaId: string) => Type.Object({
-  ...StaticResourceReferenceSchema.properties,
-  schemaId: Type.Literal(schemaId),
-}, { additionalProperties: false });
-
 export const StaticMapSummarySchema = Type.Object({
   mapSpaceId: text,
   label: text,
@@ -440,6 +354,23 @@ export const StaticRootManifestSchema = Type.Object({
   coverage: resourceReference("compendium.static-coverage.v1"),
 }, { additionalProperties: false });
 export type StaticRootManifest = Static<typeof StaticRootManifestSchema>;
+
+// v3 adds the compendium: the kind registry, one list per page kind, one search corpus for the
+// atlas and the pages, and the page list that names every entity document.
+export const StaticRootManifestV3Schema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-root.v3"),
+  ...StaticResourceIdentityFields,
+  mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
+  complete: Type.Boolean(),
+  world: PublicWorldSchema,
+  maps: Type.Array(StaticMapSummarySchema),
+  kinds: Type.Array(PublicKindEntrySchema, { minItems: 1 }),
+  lists: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z]*$" }), resourceReference("compendium.static-kind-list.v1")),
+  search: Type.Array(resourceReference("compendium.static-search.v3"), { minItems: 1 }),
+  pages: resourceReference("compendium.static-pages.v1"),
+  coverage: resourceReference("compendium.static-coverage.v1"),
+}, { additionalProperties: false });
+export type StaticRootManifestV3 = Static<typeof StaticRootManifestV3Schema>;
 
 export const PublicEssentialPlacementSchema = Type.Tuple([
   text, position, number, text,
@@ -586,6 +517,7 @@ schemaRegistry.register("compendium.publication-presentation.v1", PublicationPre
 
 export const STATIC_RESOURCE_SCHEMAS = {
   "compendium.static-root.v2": StaticRootManifestSchema,
+  "compendium.static-root.v3": StaticRootManifestV3Schema,
   "compendium.static-guide.v1": StaticGuideDocumentSchema,
   "compendium.static-map.v2": StaticMapShardSchema,
   "compendium.static-geometry.v1": StaticGeometrySchema,
@@ -595,8 +527,9 @@ export const STATIC_RESOURCE_SCHEMAS = {
   "compendium.static-item-source.v1": StaticItemSourceSchema,
   "compendium.static-coverage.v1": StaticCoverageSchema,
   "compendium.static-imagery.v2": StaticImagerySchema,
+  ...STATIC_COMPENDIUM_SCHEMAS,
 } as const;
-export type StaticResource = StaticRootManifest | StaticGuideDocument | StaticMapShard | StaticGeometry | StaticEntitySearch | StaticItemSearch | StaticEntityDetail | StaticItemSource | StaticCoverage | StaticImagery;
+export type StaticResource = StaticRootManifest | StaticRootManifestV3 | StaticGuideDocument | StaticMapShard | StaticGeometry | StaticEntitySearch | StaticItemSearch | StaticEntityDetail | StaticItemSource | StaticCoverage | StaticImagery | StaticCompendiumResource;
 
 export function staticResourceSchema(schemaId: string) {
   if (!Object.hasOwn(STATIC_RESOURCE_SCHEMAS, schemaId)) throw new Error(`Unknown static resource schema: ${schemaId}.`);
@@ -606,6 +539,10 @@ export function staticResourceSchema(schemaId: string) {
 export function staticResourceEdges(value: StaticResource): StaticResourceReference[] {
   switch (value.schemaVersion) {
     case "compendium.static-root.v2": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...value.entitySearch, ...value.itemSearch, ...Object.values(value.guides), value.coverage];
+    case "compendium.static-root.v3": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists), ...value.search, value.pages, value.coverage];
+    case "compendium.static-pages.v1": return value.entries.map((entry) => entry.document);
+    case "compendium.static-search.v3": return value.entries.flatMap((entry) => entry.document ? [entry.document] : []);
+    case "compendium.static-kind-list.v1": return value.rows.flatMap((row) => row.ref.icon ? [{ path: row.ref.icon.url, sha256: row.ref.icon.sha256, bytes: row.ref.icon.bytes, schemaId: "image/png" }] : []);
     case "compendium.static-entity-search.v2": return value.entities.map((entity) => entity.detail);
     case "compendium.static-item-search.v2": return value.items.flatMap((item) => [item.detail, item.source]);
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));
@@ -615,7 +552,9 @@ export function staticResourceEdges(value: StaticResource): StaticResourceRefere
     case "compendium.static-entity-detail.v1":
     case "compendium.static-item-source.v1":
     case "compendium.static-coverage.v1": return [];
-    default: throw new Error("Unknown static resource kind.");
+    default:
+      if (isStaticDocument(value)) return artEdges(value.document).map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/png" }));
+      throw new Error("Unknown static resource kind.");
   }
 }
 
