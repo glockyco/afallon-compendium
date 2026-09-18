@@ -47,6 +47,7 @@ test("returns the same conditional vendor and boss drop rows from both endpoints
 
 test("derives readable container types and exposes their place", () => {
   expect(containerTypeFromHierarchyPath("GAMEPLAY[0]/Backpack (1)[1]/Loot[0]")).toBe("Backpack");
+  expect(containerTypeFromHierarchyPath("GAMEPLAY[0]/Adventurer’s Supply Pack loot[3]/Shieldmaster[2]/Plate 0-150[0]/Plate loot 0-150[0]")).toBe("Backpack");
   expect(containerTypeFromHierarchyPath("GAMEPLAY[0]/Loot[0]")).toBeNull();
   const db = openNormalizedDatabase(":memory:");
   try {

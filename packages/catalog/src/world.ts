@@ -12,10 +12,17 @@ export interface WorldRelationData {
 
 export function containerTypeFromHierarchyPath(path: string | null): string | null {
   if (path === null) return null;
-  const segments = path.split("/");
-  if (segments.length < 2) return null;
-  const type = segments[segments.length - 2]!.replace(/\[\d+\]$/, "").replace(/\s*\(\d+\)$/, "").trim();
-  return type.length > 0 && type.toUpperCase() !== "GAMEPLAY" ? type : null;
+  const segments = path.split("/").slice(0, -1).reverse();
+  for (const segment of segments) {
+    const name = segment.replace(/\[\d+\]$/, "").replace(/\s*\(\d+\)$/, "").replace(/\s+(?:loot|interactable|open)$/i, "").trim().toLowerCase();
+    if (/backpack|supply pack/.test(name)) return "Backpack";
+    if (/chest|coffer/.test(name)) return "Chest";
+    if (/barrel/.test(name)) return "Barrel";
+    if (/crate/.test(name)) return "Crate";
+    if (/\b(?:bag|sack)\b/.test(name)) return "Bag";
+    if (/\b(?:urn|cache|box)\b/.test(name)) return name[0]!.toUpperCase() + name.slice(1);
+  }
+  return null;
 }
 type WorldSource = WorldSources["transitions"][number]["source"];
 type LootEntry = RelationData["lootEntries"][number];
