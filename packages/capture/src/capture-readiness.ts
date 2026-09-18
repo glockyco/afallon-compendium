@@ -3,8 +3,8 @@ import captureVisualsSource from "./probes/capture-visuals.csx" with { type: "te
 import streamVisitSource from "./probes/stream-visit.csx" with { type: "text" };
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { Assert, AssertError } from "typebox/value";
-import type { Static, TSchema } from "typebox";
+import type { Static } from "typebox";
+import { assertSchema, assertFiniteScalars, readinessNumbersMatch } from "./capture-validation";
 import { CaptureGeometrySchema,
 CapturePlanSchema,
 CaptureReadinessSchema,
@@ -29,38 +29,6 @@ type SourceMembership = {
   candidateIds: Set<number>;
 };
 
-function assertSchema<T extends TSchema>(schema: T, value: unknown, label: string): asserts value is Static<T> {
-  try {
-    Assert(schema, value);
-  } catch (error) {
-    if (error instanceof AssertError) {
-      throw new TypeError(`${label} does not satisfy its contract: ${error.message}`, { cause: error.cause.errors });
-    }
-    throw error;
-  }
-}
-
-function assertFiniteScalars(value: unknown, label: string, seen = new Set<object>()): void {
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new TypeError(`${label} must contain only finite numbers.`);
-    return;
-  }
-  if (value === null || typeof value !== "object") return;
-  if (seen.has(value)) throw new TypeError(`${label} must not contain cycles.`);
-  seen.add(value);
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => assertFiniteScalars(item, `${label}[${index}]`, seen));
-  } else {
-    for (const [key, item] of Object.entries(value)) assertFiniteScalars(item, `${label}.${key}`, seen);
-  }
-  seen.delete(value);
-}
-
-function closeEnough(left: number, right: number): boolean {
-  const scale = Math.max(1, Math.abs(left), Math.abs(right));
-  return Math.abs(left - right) <= scale * 1e-5;
-}
-
 function assertObservationContext(
   value: unknown,
   config: CompendiumConfig,
@@ -82,7 +50,7 @@ function assertObservationContext(
 }
 
 function assertClose(actual: number, expected: number, label: string): void {
-  if (!closeEnough(actual, expected)) throw new Error(`${label} is ${actual}, expected ${expected}.`);
+  if (!readinessNumbersMatch(actual, expected)) throw new Error(`${label} is ${actual}, expected ${expected}.`);
 }
 
 type CaptureFrame = CapturePlan["tiles"][number]["frame"];

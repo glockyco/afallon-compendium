@@ -10,6 +10,7 @@ import { Assert } from 'typebox/value';
 import { ReviewedCellOwnersSchema, CaptureSetSchema, CaptureReadinessSchema, CaptureGeometrySchema, type CompendiumConfig, type ReviewedCellOwners, type ContentIdentity } from '@afallon/contracts';
 import { ArtifactStore, readArtifactRunManifest, readLatestSuccess } from '@afallon/artifacts';
 import { readCaptureArtifactJson } from './capture-cache';
+import { tileBounds } from './capture-geometry';
 
 // A tile costs about 3.4 seconds while entering a scene costs about 80, so detail is cheap.
 // A zone tile covers at most 256 world units at 1024 pixels, giving 0.25 units per pixel.
@@ -210,15 +211,6 @@ function tileFor(mapSpaceId: string, owner: number | null, column: number, row: 
   };
 }
 
-function extentOfTiles(tiles: Tile[]): Bounds {
-  return {
-    minX: Math.min(...tiles.map(tile => tile.frame.center.x - tile.frame.worldSize.x / 2)),
-    maxX: Math.max(...tiles.map(tile => tile.frame.center.x + tile.frame.worldSize.x / 2)),
-    minZ: Math.min(...tiles.map(tile => tile.frame.center.z - tile.frame.worldSize.z / 2)),
-    maxZ: Math.max(...tiles.map(tile => tile.frame.center.z + tile.frame.worldSize.z / 2)),
-  };
-}
-
 function formatExtent(bounds: Bounds): string {
   return `${(bounds.maxX - bounds.minX).toFixed(0)} x ${(bounds.maxZ - bounds.minZ).toFixed(0)}`;
 }
@@ -228,7 +220,7 @@ async function oldSummary(path: string): Promise<OldPlanSummary | null> {
   if (!(await file.exists())) return null;
   const plan = await file.json();
   if (!plan.tiles?.length) return { extent: '0 x 0', tiles: 0 };
-  return { extent: formatExtent(extentOfTiles(plan.tiles)), tiles: plan.tiles.length };
+  return { extent: formatExtent(tileBounds(plan.tiles)), tiles: plan.tiles.length };
 }
 
 function terrainForScene(sceneNativeId: number): Terrain[] {
@@ -386,7 +378,7 @@ const emittedWorldPlans = new Set<string>();
 // vertex under it is scenery beyond the playable edge: nothing can stand there, so no plan.
 function hasWalkableSurface(sceneNativeId: number, tiles: Tile[]): boolean {
   const vertices = navigationByScene.get(sceneNativeId) ?? [];
-  const bounds = extentOfTiles(tiles);
+  const bounds = tileBounds(tiles);
   for (let index = 0; index + 2 < vertices.length; index += 3) {
     const x = vertices[index]!, z = vertices[index + 2]!;
     if (x >= bounds.minX && x <= bounds.maxX && z >= bounds.minZ && z <= bounds.maxZ) return true;
@@ -422,7 +414,7 @@ for (const [id, { key, tiles }] of worldTiles) {
   reports.push({
     mapSpaceId: 'world-surface', sceneNativeId: key.sceneNativeId, path,
     oldExtent: old?.extent ?? 'none', oldTiles: old?.tiles ?? 0,
-    newExtent: formatExtent(extentOfTiles(tiles)), newTiles: tiles.length,
+    newExtent: formatExtent(tileBounds(tiles)), newTiles: tiles.length,
   });
 }
 // A plan the current rule no longer emits is stale evidence that would claim cells for a scene

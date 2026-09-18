@@ -38,8 +38,8 @@
 
 ## 7. Capture validation and geometry helpers
 
-- [ ] 7.1 Consolidate capture-local schema and recursive finite-scalar checks. Preserve context and cyclic/non-finite rejection. Keep capture tolerance `1e-6` and readiness tolerance `1e-5` explicit. Verify a boundary value accepted only by readiness, plus nested non-finite and cyclic inputs.
-- [ ] 7.2 Share tile bounds between planner and position selection using a single-pass calculation. Preserve standing-box precedence, empty-input behavior at existing callers, and nearest-walkable-point selection. Verify asymmetric tiles, negative coordinates, and a declared standing box that differs from tile extent.
+- [x] 7.1 Consolidate capture-local schema and recursive finite-scalar checks. Preserve context and cyclic/non-finite rejection. Keep capture tolerance `1e-6` and readiness tolerance `1e-5` explicit. Verify a boundary value accepted only by readiness, plus nested non-finite and cyclic inputs.
+- [x] 7.2 Share tile bounds between planner and position selection using a single-pass calculation. Preserve standing-box precedence, empty-input behavior at existing callers, and nearest-walkable-point selection. Verify asymmetric tiles, negative coordinates, and a declared standing box that differs from tile extent.
 - [ ] 7.3 Run capture-plan, readiness, map-space, content-run, and cache suites. Smoke-test the real planner and position helper with retained local inputs without launching a new game capture. Verify equivalent bounds and selected positions, then commit the capture unit.
 
 ## 8. Integrated acceptance

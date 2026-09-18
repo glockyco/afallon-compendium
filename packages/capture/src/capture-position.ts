@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import sharp from "sharp";
 import type { CapturePlan, CaptureSurvey } from "@afallon/contracts"
+import { tileBounds } from "./capture-geometry";
 
 export type NavigationSurvey = { vertices: number[]; indices: number[]; scene: { nativeId: number } };
 
@@ -29,16 +30,7 @@ export type CapturePosition = { x: number; y: number; z: number };
 // The walkable point nearest the centre of the plan's standing box: the box the plan declares,
 // which does not change when its tile set changes, or else the tiles' extent.
 export function capturePositionFor(plan: CapturePlan, survey: NavigationSurvey): CapturePosition {
-  return walkablePointNearest(plan.standing ?? planBox(plan), survey, "capture plan standing box");
-}
-
-function planBox(plan: CapturePlan): { minX: number; maxX: number; minZ: number; maxZ: number } {
-  return {
-    minX: Math.min(...plan.tiles.map(tile => tile.frame.center.x - tile.frame.worldSize.x / 2)),
-    maxX: Math.max(...plan.tiles.map(tile => tile.frame.center.x + tile.frame.worldSize.x / 2)),
-    minZ: Math.min(...plan.tiles.map(tile => tile.frame.center.z - tile.frame.worldSize.z / 2)),
-    maxZ: Math.max(...plan.tiles.map(tile => tile.frame.center.z + tile.frame.worldSize.z / 2)),
-  };
+  return walkablePointNearest(plan.standing ?? tileBounds(plan.tiles), survey, "capture plan standing box");
 }
 
 function walkablePointNearest(box: { minX: number; maxX: number; minZ: number; maxZ: number }, survey: NavigationSurvey, label: string): CapturePosition {

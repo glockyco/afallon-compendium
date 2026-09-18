@@ -5,8 +5,8 @@ import sceneVisitSource from "./probes/scene-visit.csx" with { type: "text" };
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { Assert, AssertError } from "typebox/value";
-import type { Static, TSchema } from "typebox";
+import { assertSchema, assertFiniteScalars, captureNumbersMatch } from "./capture-validation";
+import { tileBounds } from "./capture-geometry";
 import { isDeepStrictEqual } from "node:util";
 import type { CompendiumConfig } from "@afallon/contracts";
 import { ArtifactStore, createArtifactLease, selectLatestSuccess } from "@afallon/artifacts";
@@ -57,38 +57,6 @@ export interface CaptureBuildIdentity {
   readonly diagnosticRevision: string;
 }
 
-function assertSchema<T extends TSchema>(schema: T, value: unknown, label: string): asserts value is Static<T> {
-  try {
-    Assert(schema, value);
-  } catch (error) {
-    if (error instanceof AssertError) {
-      throw new TypeError(`${label} does not satisfy its contract: ${error.message}`, { cause: error.cause.errors });
-    }
-    throw error;
-  }
-}
-
-function assertFiniteScalars(value: unknown, label: string, seen = new Set<object>()): void {
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new TypeError(`${label} must be finite.`);
-    return;
-  }
-  if (value === null || typeof value !== "object") return;
-  if (seen.has(value)) throw new TypeError(`${label} must not contain a cycle.`);
-  seen.add(value);
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => assertFiniteScalars(item, `${label}[${index}]`, seen));
-  } else {
-    for (const [key, item] of Object.entries(value)) assertFiniteScalars(item, `${label}.${key}`, seen);
-  }
-  seen.delete(value);
-}
-
-function closeEnough(left: number, right: number): boolean {
-  const scale = Math.max(1, Math.abs(left), Math.abs(right));
-  return Math.abs(left - right) <= scale * 1e-6;
-}
-
 export function validateCapturePlan(plan: CapturePlan): void {
   assertSchema(CapturePlanSchema, plan, "Capture plan");
   assertFiniteScalars(plan, "Capture plan");
@@ -102,7 +70,7 @@ export function validateCapturePlan(plan: CapturePlan): void {
     }
     const worldAspect = tile.frame.worldSize.x / tile.frame.worldSize.z;
     const pixelAspect = plan.width / plan.height;
-    if (!closeEnough(worldAspect, pixelAspect)) {
+    if (!captureNumbersMatch(worldAspect, pixelAspect)) {
       throw new Error(`Tile "${tile.id}" world and pixel aspect ratios do not match.`);
     }
   }
@@ -112,10 +80,10 @@ export function validateCapturePlan(plan: CapturePlan): void {
 function assertFrameMatches(actual: CapturedTile | null, expected: CapturePlan["tiles"][number]["frame"], tileId: string): void {
   if (actual === null || typeof actual !== "object") throw new Error(`Capture response for tile "${tileId}" has no capture metadata.`);
   const frame = actual.cameraFrame;
-  if (!closeEnough(frame.center.x, expected.center.x) || !closeEnough(frame.center.z, expected.center.z)
-    || !closeEnough(frame.worldSize.x, expected.worldSize.x) || !closeEnough(frame.worldSize.z, expected.worldSize.z)
-    || !closeEnough(frame.cameraY, expected.cameraY) || !closeEnough(frame.nearClip, expected.nearClip)
-    || !closeEnough(frame.farClip, expected.farClip)) {
+  if (!captureNumbersMatch(frame.center.x, expected.center.x) || !captureNumbersMatch(frame.center.z, expected.center.z)
+    || !captureNumbersMatch(frame.worldSize.x, expected.worldSize.x) || !captureNumbersMatch(frame.worldSize.z, expected.worldSize.z)
+    || !captureNumbersMatch(frame.cameraY, expected.cameraY) || !captureNumbersMatch(frame.nearClip, expected.nearClip)
+    || !captureNumbersMatch(frame.farClip, expected.farClip)) {
     throw new Error(`Capture response for tile "${tileId}" has mismatched camera metadata.`);
   }
 }
@@ -156,11 +124,8 @@ async function registerProbeArtifact(
 // One readiness subject covering every pending tile: the horizontal union of their frames and
 // the vertical union of their camera intervals, so a static scene is observed once.
 function mapExtentSubject(plan: CapturePlan, pending: readonly CapturePlan["tiles"][number][]): ReadinessSubject {
+  const { minX, maxX, minZ, maxZ } = tileBounds(pending);
   const frames = pending.map(tile => tile.frame);
-  const minX = Math.min(...frames.map(frame => frame.center.x - frame.worldSize.x / 2));
-  const maxX = Math.max(...frames.map(frame => frame.center.x + frame.worldSize.x / 2));
-  const minZ = Math.min(...frames.map(frame => frame.center.z - frame.worldSize.z / 2));
-  const maxZ = Math.max(...frames.map(frame => frame.center.z + frame.worldSize.z / 2));
   const top = Math.max(...frames.map(frame => frame.cameraY - frame.nearClip));
   const bottom = Math.min(...frames.map(frame => frame.cameraY - frame.farClip));
   const cameraY = top + 0.1;
@@ -220,12 +185,12 @@ function assertRestorationAudit(value: unknown, tile: CapturePlan["tiles"][numbe
   if (!audit.renderSucceeded || audit.errors.length !== 0) throw new Error(`Frame restoration failed for tile "${tile.id}".`);
   if (!isDeepStrictEqual(audit.before, audit.after)) throw new Error(`Frame restoration changed visual state for tile "${tile.id}".`);
   const during = audit.during;
-  if (during === null || during.fog || during.ambientMode !== 3 || during.ambientIntensity !== 1 || during.reflectionIntensity !== 0 || !during.lightEnabled || during.sunInstanceId !== during.lightInstanceId || !closeEnough(during.lightIntensity, lighting.directionalIntensity)) {
+  if (during === null || during.fog || during.ambientMode !== 3 || during.ambientIntensity !== 1 || during.reflectionIntensity !== 0 || !during.lightEnabled || during.sunInstanceId !== during.lightInstanceId || !captureNumbersMatch(during.lightIntensity, lighting.directionalIntensity)) {
     throw new Error("Capture did not apply its controlled lighting profile.");
   }
   for (const channel of ["r", "g", "b"] as const) {
     for (const field of ["ambientLight", "ambientSky", "ambientEquator", "ambientGround", "lightColor"] as const) {
-      if (!closeEnough(during[field][channel], lighting.ambient[channel])) throw new Error("Capture lighting colors differ from the requested profile.");
+      if (!captureNumbersMatch(during[field][channel], lighting.ambient[channel])) throw new Error("Capture lighting colors differ from the requested profile.");
     }
   }
   const channels = [lighting.ambient.r, lighting.ambient.g, lighting.ambient.b].map(value => {
@@ -235,7 +200,7 @@ function assertRestorationAudit(value: unknown, tile: CapturePlan["tiles"][numbe
   });
   for (let index = 0; index < 27; index++) {
     const expected = index % 9 === 0 ? channels[index / 9]! : 0;
-    if (!closeEnough(during.ambientProbe[index]!, expected)) throw new Error("Capture ambient coefficients differ from the normalized profile.");
+    if (!captureNumbersMatch(during.ambientProbe[index]!, expected)) throw new Error("Capture ambient coefficients differ from the normalized profile.");
   }
   for (const field of ["renderers", "lights", "projectors"] as const) {
     if (during[field].some(row => row.enabled) || !isDeepStrictEqual(audit.before[field].map(row => row.instanceId), during[field].map(row => row.instanceId))) {
