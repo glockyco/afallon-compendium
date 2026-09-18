@@ -8,7 +8,16 @@
   export let heading = 'Vendor stock';
   export let counterpartLabel = 'Entity';
   export let limit: number | undefined = undefined;
-  $: visible = limit === undefined ? rows : rows.slice(0, limit);
+  $: visible = compactRows(rows, limit);
+
+  function compactRows(allRows: VendorRow[], maximum: number | undefined): VendorRow[] {
+    if (maximum === undefined) return allRows;
+    const compact = allRows.slice(0, maximum);
+    if (compact.some((row) => row.requirements.length > 0)) return compact;
+    const conditional = allRows.find((row) => row.requirements.length > 0);
+    if (conditional && compact.length === maximum) compact[compact.length - 1] = conditional;
+    return compact;
+  }
 </script>
 
 {#if visible.length > 0}
