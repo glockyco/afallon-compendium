@@ -66,9 +66,106 @@ function npcPlaceLabels(entities: readonly CatalogEntityRow[], relations: Catalo
   return new Map([...places].map(([key, labels]) => [key, [...labels].sort().join(" / ")]));
 }
 
+function abilityUserLabels(entities: readonly CatalogEntityRow[], facts: CatalogFacts | undefined): ReadonlyMap<string, string> {
+  const entityByKey = new Map(entities.map((entity) => [entity.entityKey, entity]));
+  const users = new Map<string, Set<string>>();
+  for (const npc of facts?.npcs ?? []) {
+    const name = plainText(entityByKey.get(npc.entityKey)?.name ?? "");
+    if (!name) continue;
+    for (const phase of npc.abilityPhases) for (const ability of phase.abilities) {
+      if (ability.entityKey === null) continue;
+      const labels = users.get(ability.entityKey) ?? new Set<string>();
+      labels.add(name);
+      users.set(ability.entityKey, labels);
+    }
+  }
+  return new Map([...users].map(([key, labels]) => [key, [...labels].sort().join(" / ")]));
+}
+
+function readableFact(value: string | null | undefined): string | undefined {
+  const text = plainText(value ?? "");
+  if (!text) return undefined;
+  const lower = text.toLocaleLowerCase();
+  return `${lower[0]!.toLocaleUpperCase()}${lower.slice(1)}`;
+}
+
+function itemFactLabels(facts: CatalogFacts | undefined): ReadonlyMap<string, string> {
+  const labels = new Map<string, string>();
+  for (const item of facts?.items ?? []) {
+    const rarity = readableFact(item.rarity);
+    const detail = readableFact(item.itemType === "ARMOR" ? item.armorSlot ?? item.armorType ?? item.itemType
+      : item.itemType === "WEAPON" ? item.weaponSlot ?? item.weaponType ?? item.itemType : item.itemType);
+    const label = [rarity, detail].filter((value): value is string => value !== undefined).join(", ");
+    if (label) labels.set(item.entityKey, label);
+  }
+  return labels;
+}
+
+function placeTypeLabels(facts: CatalogFacts | undefined): ReadonlyMap<string, string> {
+  return new Map((facts?.places ?? []).flatMap((place) => {
+    const label = readableFact(place.placeType);
+    return label ? [[place.entityKey, label] as const] : [];
+  }));
+}
+
+function placeParentLabels(entities: readonly CatalogEntityRow[], facts: CatalogFacts | undefined): ReadonlyMap<string, string> {
+  const entityByKey = new Map(entities.map((entity) => [entity.entityKey, entity]));
+  return new Map((facts?.places ?? []).flatMap((place) => {
+    if (place.parentSceneKey === null) return [];
+    const label = plainText(entityByKey.get(place.parentSceneKey)?.name ?? "");
+    return label ? [[place.entityKey, label] as const] : [];
+  }));
+}
+
+function combinedLabels(left: ReadonlyMap<string, string>, right: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
+  const result = new Map<string, string>();
+  for (const [key, leftLabel] of left) {
+    const rightLabel = right.get(key);
+    if (rightLabel) result.set(key, `${leftLabel}, ${rightLabel}`);
+  }
+  return result;
+}
+
 function distinctSuffixes(group: readonly CatalogEntityRow[], labels: ReadonlyMap<string, string>): boolean {
   const values = group.map((entity) => labels.get(entity.entityKey));
   return values.every((value): value is string => value !== undefined && value.length > 0) && new Set(values).size === group.length;
+}
+
+function readableSuffixes(group: readonly CatalogEntityRow[], candidates: readonly ReadonlyMap<string, string>[]): ReadonlyMap<string, string> {
+  const result = new Map<string, string>(), remaining = new Map(group.map((entity) => [entity.entityKey, entity]));
+  const used = new Set<string>();
+  for (const labels of candidates) {
+    const byLabel = new Map<string, CatalogEntityRow[]>();
+    for (const entity of remaining.values()) {
+      const label = labels.get(entity.entityKey);
+      if (!label || used.has(label)) continue;
+      const rows = byLabel.get(label);
+      if (rows) rows.push(entity);
+      else byLabel.set(label, [entity]);
+    }
+    for (const [label, rows] of byLabel) {
+      if (rows.length !== 1) continue;
+      const entity = rows[0]!;
+      result.set(entity.entityKey, label);
+      remaining.delete(entity.entityKey);
+      used.add(label);
+    }
+  }
+  for (const entity of remaining.values()) result.set(entity.entityKey, `#${entity.nativeId}`);
+  return result;
+}
+
+function ensureUniqueNames(entries: readonly { entity: CatalogEntityRow; kind: string }[], names: Map<string, string>): void {
+  const groups = new Map<string, Array<{ entity: CatalogEntityRow; kind: string }>>();
+  for (const entry of entries) {
+    const key = `${entry.kind}\u0000${names.get(entry.entity.entityKey)!}`;
+    const group = groups.get(key);
+    if (group) group.push(entry);
+    else groups.set(key, [entry]);
+  }
+  for (const group of groups.values()) if (group.length > 1) {
+    for (const entry of group) names.set(entry.entity.entityKey, `${names.get(entry.entity.entityKey)!} (#${entry.entity.nativeId})`);
+  }
 }
 
 export function buildEntityReferences(entities: readonly CatalogEntityRow[], context: ReferenceBuildContext = {}): ReadonlyMap<string, EntityRef> {
@@ -83,26 +180,33 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     if (group) group.push(entry);
     else groups.set(key, [entry]);
   }
-  const levelLabels = npcLevelLabels(context.facts), placeLabels = npcPlaceLabels(entities, context.relations);
-  const names = new Map<string, string>();
+  const levelLabels = npcLevelLabels(context.facts), npcPlaces = npcPlaceLabels(entities, context.relations);
+  const abilityUsers = abilityUserLabels(entities, context.facts), itemLabels = itemFactLabels(context.facts);
+  const placeTypes = placeTypeLabels(context.facts), placeParents = placeParentLabels(entities, context.facts);
+  const names = new Map<string, string>(), slugNames = new Map<string, string>();
   for (const group of groups.values()) {
-    if (group.length === 1) { names.set(group[0]!.entity.entityKey, group[0]!.baseName); continue; }
-    const rows = group.map((entry) => entry.entity);
-    const suffixes = group[0]!.kind === "npcs" && distinctSuffixes(rows, levelLabels) ? levelLabels
-      : group[0]!.kind === "npcs" && distinctSuffixes(rows, placeLabels) ? placeLabels
+    if (group.length === 1) {
+      names.set(group[0]!.entity.entityKey, group[0]!.baseName);
+      slugNames.set(group[0]!.entity.entityKey, group[0]!.baseName);
+      continue;
+    }
+    const rows = group.map((entry) => entry.entity), kind = group[0]!.kind;
+    const stableSuffixes = kind === "npcs" && distinctSuffixes(rows, levelLabels) ? levelLabels
+      : kind === "npcs" && distinctSuffixes(rows, npcPlaces) ? npcPlaces
         : new Map(rows.map((entity) => [entity.entityKey, `#${entity.nativeId}`]));
-    for (const entry of group) names.set(entry.entity.entityKey, `${entry.baseName} (${suffixes.get(entry.entity.entityKey)!})`);
+    const candidates = kind === "npcs" ? [levelLabels, npcPlaces, combinedLabels(levelLabels, npcPlaces)]
+      : kind === "abilities" ? [abilityUsers]
+        : kind === "items" ? [itemLabels]
+          : kind === "places" ? [placeTypes, placeParents, combinedLabels(placeTypes, placeParents)]
+            : [];
+    const displaySuffixes = readableSuffixes(rows, candidates);
+    for (const entry of group) {
+      names.set(entry.entity.entityKey, `${entry.baseName} (${displaySuffixes.get(entry.entity.entityKey)!})`);
+      slugNames.set(entry.entity.entityKey, `${entry.baseName} (${stableSuffixes.get(entry.entity.entityKey)!})`);
+    }
   }
-  const nameGroups = new Map<string, typeof eligible>();
-  for (const entry of eligible) {
-    const key = `${entry.kind}\u0000${names.get(entry.entity.entityKey)!}`;
-    const group = nameGroups.get(key);
-    if (group) group.push(entry);
-    else nameGroups.set(key, [entry]);
-  }
-  for (const group of nameGroups.values()) if (group.length > 1) {
-    for (const entry of group) names.set(entry.entity.entityKey, `${names.get(entry.entity.entityKey)!} (#${entry.entity.nativeId})`);
-  }
+  ensureUniqueNames(eligible, names);
+  ensureUniqueNames(eligible, slugNames);
 
   const usedSlugs = new Map<string, Set<string>>();
   const refs: Array<readonly [string, EntityRef]> = [];
@@ -111,7 +215,7 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     let slug: string | undefined;
     if (registry.pages) {
       const used = usedSlugs.get(entry.kind) ?? new Set<string>();
-      const base = slugify(name);
+      const base = slugify(slugNames.get(entry.entity.entityKey)!);
       slug = used.has(base) ? `${base}-${entry.entity.nativeId}` : base;
       let collision = 2;
       while (used.has(slug)) { slug = `${base}-${entry.entity.nativeId}-${collision}`; collision += 1; }
