@@ -1,5 +1,6 @@
 export * from "./application";
 export * from "./build";
+export * from "./artwork";
 export * from "./documents";
 export * from "./imagery";
 export * from "./index-resources";

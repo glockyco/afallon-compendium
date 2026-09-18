@@ -15,24 +15,37 @@ function fixture() {
     bodies.set(path, body);
     return { path, sha256, bytes: new TextEncoder().encode(body).length, schemaId: value.schemaVersion };
   };
-  const sources = new Map<string, StaticResourceReference>();
-  const details = new Map<string, StaticResourceReference>();
+  const refs = new Map<string, { key: string; kind: 'items'; name: string; slug: string }>();
+  const documents = new Map<string, StaticResourceReference>();
   for (const name of ['a', 'b']) {
-    const itemKey = `item:${name}`;
-    details.set(itemKey, register({ schemaVersion: 'compendium.static-entity-detail.v1', ...identity, entity: { entityKey: itemKey, kind: 'items', nativeId: name === 'a' ? 2 : 9, name, description: null, placementIds: [`place:${name}`], sections: [] } }));
-    sources.set(itemKey, register({ schemaVersion: 'compendium.static-item-source.v1', ...identity, itemSource: { itemKey, sections: [], sources: [{ label: name, kind: 'merchant', placementIds: [`place:${name}`], sections: [] }] } }));
+    const key = `item:${name}`;
+    const ref = { key, kind: 'items' as const, name, slug: name };
+    refs.set(key, ref);
+    documents.set(key, register({
+      schemaVersion: 'compendium.static-item.v1', ...identity, kind: 'items',
+      document: {
+        ref, description: null, art: {}, locations: [{ placementId: `place:${name}`, mapSpaceId: 'map', label: name }],
+        facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 1, questDropOnly: false, corruptionToken: false, requirements: [] },
+        droppedBy: [], soldBy: [], gatheredFrom: [], inContainers: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [],
+      },
+    }));
   }
-  const entities = register({ schemaVersion: 'compendium.static-entity-search.v2', ...identity, part: 0, entities: [...details].map(([entityKey, detail], index) => ({ entityKey, detail, kind: 'items', nativeId: index ? 9 : 2, name: entityKey, description: null })) });
-  const items = register({ schemaVersion: 'compendium.static-item-search.v2', ...identity, part: 0, items: [...sources].map(([itemKey, source]) => ({ itemKey, source, detail: details.get(itemKey), name: itemKey, sourceNames: ['Merchant'], sourceKinds: ['merchant'] })) });
+  const pages = register({ schemaVersion: 'compendium.static-pages.v1', ...identity, entries: [...documents].map(([key, document]) => ({ kind: 'items', slug: refs.get(key)!.slug, key, document })) });
+  const list = register({ schemaVersion: 'compendium.static-kind-list.v1', ...identity, kind: 'items', rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
+  const search = register({
+    schemaVersion: 'compendium.static-search.v3', ...identity, part: 0,
+    entries: [...refs].map(([key, ref]) => ({ ref, placementIds: [`place:${ref.slug}`], sourceKinds: ['vendor'], document: documents.get(key) })),
+  });
   const parts = ['a', 'b'].map((name, part) => register({ schemaVersion: 'compendium.static-map.v2', ...identity, mapSpaceId: 'map', part, placements: [[`place:${name}`, [part * 10, 0], 0, name, ['merchant'], [], [`item:${name}`], null, null, null]], regions: [] }));
   const imagery = register({ schemaVersion: 'compendium.static-imagery.v2', ...identity, mapSpaceId: 'map', defaultLayerId: 'game', layers: [{ id: 'game', mapSpaceId: 'map', label: 'Map', kind: 'game-map', tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 256, 256], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${'d'.repeat(64)}.webp`, sha256: 'd'.repeat(64), bytes: 1, width: 256, height: 256, state: 'captured', schemaId: 'image/webp' }] }] });
   const coverage = register({ schemaVersion: 'compendium.static-coverage.v1', ...identity, complete: false, unresolvedIssueCount: 1, occurrenceCount: 1, exclusionCount: 0, messages: ['Incomplete'] });
   const bounds = { min: { x: 0, y: 0 }, max: { x: 256, y: 256 } };
   const root: StaticRootManifest = {
-    schemaVersion: 'compendium.static-root.v2', ...identity, mode: 'preview', complete: false,
+    schemaVersion: 'compendium.static-root.v3', ...identity, mode: 'preview', complete: false,
     world: { mapSpaceId: 'world', label: 'Afallon', bounds, offsets: [{ mapSpaceId: 'map', worldX: 0, worldY: 0, source: 'native', status: 'placed' }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: 'map', label: 'Map', bounds, parts, optionalGeometry: [], imagery }],
-    entitySearch: [entities], itemSearch: [items], guides: {}, coverage,
+    kinds: [{ kind: 'items', label: 'Item', plural: 'Items', route: 'items', icon: 'package', pages: true, searchable: true, columns: [], facets: [] }],
+    lists: { items: list }, search: [search], pages, coverage,
   };
   bodies.set('publication.json', JSON.stringify(root));
   const counts = new Map<string, number>();
@@ -45,7 +58,7 @@ function fixture() {
     const body = bodies.get(path);
     return body ? new Response(body) : new Response('missing', { status: 404 });
   };
-  return { loader: new AtlasDataLoader(fetcher, 'https://atlas.invalid/data/'), bodies, counts, overrides, sources, entities, items, root, identity, register };
+  return { loader: new AtlasDataLoader(fetcher, 'https://atlas.invalid/data/'), bodies, counts, overrides, documents, pages, search, root, identity, register };
 }
 
 function observe(loader: AtlasDataLoader) {
@@ -110,39 +123,39 @@ test('loads all geometry before first render and retries a failed geometry resou
 
 test('verified requests deduplicate failures and allow explicit retry without refetching successful resources', async () => {
   const data = fixture();
-  const path = data.sources.get('item:a')!.path;
+  const path = data.documents.get('item:a')!.path;
   data.overrides.set(path, async () => new Response('unavailable', { status: 503 }));
   const [first, second] = await Promise.all([data.loader.loadIndexes(), data.loader.loadIndexes()]);
   expect(first).toBe(second);
-  await expect(data.loader.loadItemSource('item:a')).rejects.toThrow('503');
-  await expect(data.loader.loadItemSource('item:a')).rejects.toThrow('503');
+  await expect(data.loader.loadDocument('items', 'a')).rejects.toThrow('503');
+  await expect(data.loader.loadDocument('items', 'a')).rejects.toThrow('503');
   expect(data.counts.get(path)).toBe(1);
   expect(data.loader.state(path).status).toBe('error');
   data.overrides.delete(path);
   data.loader.retryFailed();
-  const source = await data.loader.loadItemSource('item:a');
-  expect(source.itemSource.sources[0]?.placementIds).toEqual(['place:a']);
+  const resource = await data.loader.loadDocument('items', 'a');
+  expect(resource.document.locations[0]?.placementId).toBe('place:a');
   expect(data.loader.state(path).status).toBe('loaded');
   expect(data.counts.get(path)).toBe(2);
-  expect(data.counts.get(data.items.path)).toBe(1);
+  expect(data.counts.get(data.search.path)).toBe(1);
   expect(data.counts.get('publication.json')).toBe(1);
 });
 
-test('essential multipart maps become usable while search is delayed, and navigation loads uncached item sources', async () => {
+test('essential multipart maps become usable while search is delayed, and navigation loads an uncached document', async () => {
   const data = fixture();
   const search = responseGate();
-  data.overrides.set(data.items.path, () => search.promise);
+  data.overrides.set(data.search.path, () => search.promise);
   const { controller, until } = observe(data.loader);
   controller.start(readAtlasUrl(''));
   const map = await until((snapshot) => snapshot.map.status === 'loaded');
   expect(map.search.status).toBe('loading');
   expect(map.publication?.placements.map((placement) => placement.placementId)).toEqual(['place:a', 'place:b']);
   controller.navigate(readAtlasUrl('?item=item%3Ab'));
-  search.resolve(new Response(data.bodies.get(data.items.path)));
+  search.resolve(new Response(data.bodies.get(data.search.path)));
   const restored = await until((snapshot) => snapshot.detail.status === 'loaded');
-  expect(restored.itemDetails.get('item:b')?.sources[0]?.placementIds).toEqual(['place:b']);
+  expect(restored.documents.get('item:b')?.locations[0]?.placementId).toBe('place:b');
   expect(selectionHighlightIds(null, null, restored.state.itemKey, restored.indexes)).toEqual(['place:b']);
-  expect(data.counts.get(data.sources.get('item:b')!.path)).toBe(1);
+  expect(data.counts.get(data.documents.get('item:b')!.path)).toBe(1);
   controller.navigate(readAtlasUrl('?selected=removed'));
   expect(controller.snapshot.staleSelection).not.toBe('');
   expect(controller.snapshot.indexes.placementsById.has('removed')).toBe(false);
@@ -152,7 +165,7 @@ test('essential multipart maps become usable while search is delayed, and naviga
 test('an obsolete failure cannot replace the new selection loading state, and current failures can retry', async () => {
   const data = fixture();
   const a = responseGate(), b = responseGate();
-  const pathA = data.sources.get('item:a')!.path, pathB = data.sources.get('item:b')!.path;
+  const pathA = data.documents.get('item:a')!.path, pathB = data.documents.get('item:b')!.path;
   data.overrides.set(pathA, () => a.promise);
   data.overrides.set(pathB, () => b.promise);
   const { controller, until } = observe(data.loader);
@@ -160,7 +173,7 @@ test('an obsolete failure cannot replace the new selection loading state, and cu
   await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
   controller.navigate(readAtlasUrl('?item=item%3Ab'));
   a.resolve(new Response('old failure', { status: 503 }));
-  await data.loader.loadItemSource('item:a').catch(() => undefined);
+  await data.loader.loadDocument('items', 'a').catch(() => undefined);
   expect(controller.snapshot.state.itemKey).toBe('item:b');
   expect(controller.snapshot.detail.status).toBe('loading');
   b.resolve(new Response('new failure', { status: 502 }));
@@ -169,7 +182,7 @@ test('an obsolete failure cannot replace the new selection loading state, and cu
   data.overrides.delete(pathB);
   controller.retry('detail');
   const recovered = await until((snapshot) => snapshot.detail.status === 'loaded');
-  expect(recovered.itemDetails.get('item:b')?.sources[0]?.placementIds).toEqual(['place:b']);
+  expect(recovered.documents.get('item:b')?.locations[0]?.placementId).toBe('place:b');
   expect(data.counts.get(pathB)).toBe(2);
   controller.dispose();
 });
@@ -192,7 +205,7 @@ test('history restoration invalidates pending query and camera persistence', asy
   } finally { controller.dispose(); jest.useRealTimers(); }
 });
 
-test('pending persistence keeps a new item source selection and never restores a cleared query or moves the camera', async () => {
+test('pending persistence keeps a new item selection and never restores a cleared query or moves the camera', async () => {
   const data = fixture();
   const { controller, until, navigations, restoredViews } = observe(data.loader);
   try {
@@ -232,4 +245,22 @@ test('explicit camera commands supersede pending movement and disposal cancels p
     expect(navigations.map(({ state }) => state.view)).toEqual([fitted]);
     expect(controller.snapshot.state.view).toEqual(fitted);
   } finally { controller.dispose(); jest.useRealTimers(); }
+});
+
+test('document resources reject hash mismatches', async () => {
+  const data = fixture();
+  const path = data.documents.get('item:a')!.path;
+  data.bodies.set(path, data.bodies.get(path)!.replace('"name":"a"', '"name":"z"'));
+  await expect(data.loader.loadDocument('items', 'a')).rejects.toThrow('hash mismatch');
+});
+
+test('document resources reject build identity mismatches after hash verification', async () => {
+  const data = fixture();
+  const original = JSON.parse(data.bodies.get(data.documents.get('item:a')!.path)!);
+  const mismatched = data.register({ ...original, buildId: 'other-build' });
+  const pageBody = JSON.parse(data.bodies.get(data.pages.path)!);
+  pageBody.entries[0].document = mismatched;
+  data.root.pages = data.register(pageBody);
+  data.bodies.set('publication.json', JSON.stringify(data.root));
+  await expect(data.loader.loadDocument('items', 'a')).rejects.toThrow('build mismatch');
 });

@@ -1,13 +1,34 @@
 import { Assert } from "typebox/value";
-import type { TSchema, Static } from "typebox";
+import type { Static, TSchema } from "typebox";
 import {
-  StaticCoverageSchema, StaticEntityDetailSchema, StaticEntitySearchSchema,
-  StaticGuideDocumentSchema, StaticImagerySchema, StaticItemSearchSchema,
-  StaticItemSourceSchema, StaticMapShardSchema, StaticGeometrySchema, StaticRootManifestSchema,
-  assertStaticResourceIdentity, expandEssentialPlacement, staticResourceSchema,
-  type PublicationData, type PublicPlacement, type StaticCoverage, type StaticEntityDetail,
-  type StaticEntitySearch, type StaticGuideDocument, type StaticImagery, type StaticItemSearch,
-  type StaticItemSource, type StaticGeometry, type StaticResourceReference, type StaticRootManifest,
+  PUBLICATION_SCHEMA_VERSION,
+  STATIC_DOCUMENT_SCHEMA_IDS,
+  STATIC_DOCUMENT_SCHEMAS,
+  StaticCoverageSchema,
+  StaticGeometrySchema,
+  StaticImagerySchema,
+  StaticKindListSchema,
+  StaticMapShardSchema,
+  StaticPagesSchema,
+  StaticRootManifestSchema,
+  StaticSearchIndexSchema,
+  assertStaticResourceIdentity,
+  expandEssentialPlacement,
+  staticResourceSchema,
+  type PublicDocument,
+  type PublicKindEntry,
+  type PublicPageKind,
+  type PublicPlacement,
+  type PublicSearchEntry,
+  type PublicationData,
+  type StaticCoverage,
+  type StaticDocument,
+  type StaticGeometry,
+  type StaticImagery,
+  type StaticKindList,
+  type StaticPages,
+  type StaticResourceReference,
+  type StaticRootManifest,
 } from "@afallon/contracts/public";
 
 export type AtlasFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -21,26 +42,26 @@ export interface AtlasMapData {
   regions: PublicationData["regions"];
   imagery: StaticImagery;
 }
+
 export interface AtlasIndexes {
-  entities: StaticEntitySearch["entities"];
-  items: StaticItemSearch["items"];
-  entitiesByKey: ReadonlyMap<string, StaticEntitySearch["entities"][number]>;
-  itemsByKey: ReadonlyMap<string, StaticItemSearch["items"][number]>;
+  entries: PublicSearchEntry[];
+  entriesByKey: ReadonlyMap<string, PublicSearchEntry>;
 }
 
-export function atlasPublicationData(root: StaticRootManifest, maps: readonly AtlasMapData[], coverage: StaticCoverage, indexes?: AtlasIndexes): PublicationData {
+export function atlasPublicationData(root: StaticRootManifest, maps: readonly AtlasMapData[], coverage: StaticCoverage): PublicationData {
   const loadedIds = new Set(maps.map((map) => map.mapSpaceId));
   if (maps.length !== root.maps.length || root.maps.some((map) => !loadedIds.has(map.mapSpaceId))) {
     throw new Error("Atlas map parts do not cover every published map.");
   }
   return {
-    schemaVersion: "compendium.publication.v13", buildId: root.buildId, mode: root.mode,
+    schemaVersion: PUBLICATION_SCHEMA_VERSION,
+    buildId: root.buildId,
+    mode: root.mode,
     coverage: { complete: coverage.complete, messages: coverage.messages, excludedPlacements: coverage.exclusionCount },
     world: root.world,
     maps: root.maps.map(({ mapSpaceId, label, bounds }) => ({ mapSpaceId, label, bounds })),
-    placements: maps.flatMap((map) => map.placements), regions: maps.flatMap((map) => map.regions),
-    entityIndex: indexes?.entities.map(({ detail, ...entity }) => ({ ...entity, detailPath: detail.path })) ?? [],
-    itemIndex: indexes?.items.map(({ detail, source: _source, ...item }) => ({ ...item, detailPath: detail.path })) ?? [],
+    placements: maps.flatMap((map) => map.placements),
+    regions: maps.flatMap((map) => map.regions),
     tileLayers: maps.flatMap(({ imagery }) => imagery.layers),
   };
 }
@@ -66,11 +87,49 @@ export class AtlasDataLoader {
       this.#requests.delete(path);
       this.#states.delete(path);
     }
-    // The aggregate can have failed while its successfully verified parts remain cached.
     this.#indexes = null;
   }
 
   loadRoot(): Promise<StaticRootManifest> { return this.#loadPath("publication.json", StaticRootManifestSchema); }
+
+  async loadRegistry(): Promise<PublicKindEntry[]> {
+    const root = await this.loadRoot();
+    return root.kinds;
+  }
+
+  async loadPages(): Promise<StaticPages> {
+    const root = await this.loadRoot();
+    return this.#loadReference(root.pages, StaticPagesSchema, root);
+  }
+
+  async loadList(kind: PublicPageKind): Promise<StaticKindList> {
+    const root = await this.loadRoot();
+    const reference = root.lists[kind];
+    if (!reference) throw new Error(`Publication has no list for ${kind}.`);
+    const list = await this.#loadReference(reference, StaticKindListSchema, root);
+    if (list.kind !== kind) throw new Error(`Kind-list identity mismatch for ${kind}.`);
+    return list;
+  }
+
+  async loadDocument(kind: PublicPageKind, slug: string): Promise<StaticDocument> {
+    const root = await this.loadRoot();
+    const pages = await this.loadPages();
+    const entry = pages.entries.find((candidate) => candidate.kind === kind && candidate.slug === slug);
+    if (!entry) throw new Error(`Publication has no ${kind} document ${slug}.`);
+    const schemaId = STATIC_DOCUMENT_SCHEMA_IDS[kind];
+    if (entry.document.schemaId !== schemaId) throw new Error(`Document schema mismatch for ${kind}/${slug}.`);
+    const schema = STATIC_DOCUMENT_SCHEMAS[schemaId];
+    const document = await this.#loadReference(entry.document, schema, root) as StaticDocument;
+    if (document.kind !== kind || document.document.ref.slug !== slug || document.document.ref.key !== entry.key) {
+      throw new Error(`Document identity mismatch for ${kind}/${slug}.`);
+    }
+    return document;
+  }
+
+  async loadDocumentForRef(ref: PublicSearchEntry["ref"]): Promise<PublicDocument> {
+    if (!ref.slug || !Object.hasOwn(STATIC_DOCUMENT_SCHEMA_IDS, ref.kind)) throw new Error(`Reference has no published page: ${ref.key}.`);
+    return (await this.loadDocument(ref.kind as PublicPageKind, ref.slug)).document;
+  }
 
   async loadMap(mapSpaceId: string): Promise<AtlasMapData> {
     const root = await this.loadRoot();
@@ -91,9 +150,18 @@ export class AtlasDataLoader {
         return placement;
       });
     });
-    return { mapSpaceId, placements, regions: parts.flatMap((part) => part.regions), imagery: {
-      ...imagery, layers: imagery.layers.map((layer) => ({ ...layer, tiles: layer.tiles.map((tile) => ({ ...tile, url: new URL(tile.url, this.#base).href })) })),
-    } };
+    return {
+      mapSpaceId,
+      placements,
+      regions: parts.flatMap((part) => part.regions),
+      imagery: {
+        ...imagery,
+        layers: imagery.layers.map((layer) => ({
+          ...layer,
+          tiles: layer.tiles.map((tile) => ({ ...tile, url: new URL(tile.url, this.#base).href })),
+        })),
+      },
+    };
   }
 
   async loadMaps(): Promise<AtlasMapData[]> {
@@ -125,51 +193,19 @@ export class AtlasDataLoader {
 
   async #readIndexes(): Promise<AtlasIndexes> {
     const root = await this.loadRoot();
-    const [entityParts, itemParts] = await Promise.all([
-      Promise.all(root.entitySearch.map((reference) => this.#loadReference(reference, StaticEntitySearchSchema, root))),
-      Promise.all(root.itemSearch.map((reference) => this.#loadReference(reference, StaticItemSearchSchema, root))),
-    ]);
-    for (const parts of [entityParts, itemParts]) for (const [index, part] of parts.entries()) {
+    const parts = await Promise.all(root.search.map((reference) => this.#loadReference(reference, StaticSearchIndexSchema, root)));
+    for (const [index, part] of parts.entries()) {
       if (part.part !== index) throw new Error(`Search part identity mismatch at ${index}.`);
     }
-    const entities = entityParts.flatMap((part) => part.entities);
-    const items = itemParts.flatMap((part) => part.items);
-    const entitiesByKey = new Map(entities.map((entity) => [entity.entityKey, entity]));
-    const itemsByKey = new Map(items.map((item) => [item.itemKey, item]));
-    if (entities.length !== entitiesByKey.size || items.length !== itemsByKey.size) throw new Error("Search parts contain duplicate identities.");
-    return { entities, items, entitiesByKey, itemsByKey };
+    const entries = parts.flatMap((part) => part.entries);
+    const entriesByKey = new Map(entries.map((entry) => [entry.ref.key, entry]));
+    if (entries.length !== entriesByKey.size) throw new Error("Search parts contain duplicate identities.");
+    return { entries, entriesByKey };
   }
 
   async loadCoverage(): Promise<StaticCoverage> {
     const root = await this.loadRoot();
     return this.#loadReference(root.coverage, StaticCoverageSchema, root);
-  }
-
-  async loadGuide(section: string): Promise<StaticGuideDocument> {
-    const root = await this.loadRoot();
-    const reference = root.guides[section];
-    if (!reference) throw new Error(`Publication has no guide section ${section}.`);
-    return this.#loadReference(reference, StaticGuideDocumentSchema, root);
-  }
-
-  async loadEntity(entityKey: string): Promise<StaticEntityDetail> {
-    const root = await this.loadRoot();
-    const indexes = await this.loadIndexes();
-    const summary = indexes.entitiesByKey.get(entityKey);
-    if (!summary) throw new Error(`Publication has no entity ${entityKey}.`);
-    const detail = await this.#loadReference(summary.detail, StaticEntityDetailSchema, root);
-    if (detail.entity.entityKey !== entityKey) throw new Error(`Entity detail identity mismatch for ${entityKey}.`);
-    return detail;
-  }
-
-  async loadItemSource(itemKey: string): Promise<StaticItemSource> {
-    const root = await this.loadRoot();
-    const indexes = await this.loadIndexes();
-    const summary = indexes.itemsByKey.get(itemKey);
-    if (!summary) throw new Error(`Publication has no item ${itemKey}.`);
-    const source = await this.#loadReference(summary.source, StaticItemSourceSchema, root);
-    if (source.itemSource.itemKey !== itemKey) throw new Error(`Item-source identity mismatch for ${itemKey}.`);
-    return source;
   }
 
   async #loadReference<T extends TSchema>(reference: StaticResourceReference, schema: T, expected: StaticRootManifest): Promise<Static<T>> {
