@@ -448,7 +448,7 @@ export async function createMapAdapter(
   // the controller sees it: a synchronous pick on the bounds layer starts the drag and turns
   // the controller's pan off until the pointer is released.
   const setDragPan = (enabled: boolean): void => {
-    deck.setProps({ views: new OrthographicView({ id: VIEW_ID, flipY: false, controller: { inertia: enabled, dragPan: enabled, dragRotate: false } }) });
+    deck.setProps({ views: new OrthographicView({ id: VIEW_ID, flipY: false, controller: { inertia: false, dragPan: enabled, dragRotate: false } }) });
   };
   const unprojectPointer = (event: PointerEvent): [number, number] | null => {
     if (!deckLoaded) return null;
@@ -693,7 +693,7 @@ export async function createMapAdapter(
     views: new OrthographicView({
       id: VIEW_ID,
       flipY: false,
-      controller: {inertia: true, dragRotate: false},
+      controller: {inertia: false, dragRotate: false},
     }),
     viewState: {...activeView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM},
     eventRecognizerOptions: MAP_EVENT_RECOGNIZER_OPTIONS,
