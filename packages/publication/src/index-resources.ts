@@ -1,68 +1,142 @@
 import type { Database } from "bun:sqlite";
 import { Assert } from "typebox/value";
 import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
-import { queryCatalogFullEntities, queryCatalogAllItemSources, queryCatalogSearch } from "@afallon/catalog";
-import { StaticEntityDetailSchema, StaticEntitySearchSchema, StaticItemSearchSchema, StaticItemSourceSchema, type PublicItemSource, type StaticEntityDetail, type StaticEntitySearch, type StaticItemSearch, type StaticItemSource } from "@afallon/contracts/public";
-import { projectPublicEntities } from "./entity-projection";
+import { queryCatalogEntities, queryCatalogFacts, queryCatalogRelations } from "@afallon/catalog";
+import {
+  PUBLICATION_DOCUMENT_BUDGET,
+  STATIC_DOCUMENT_SCHEMA_IDS,
+  STATIC_DOCUMENT_SCHEMAS,
+  StaticKindListSchema,
+  StaticPagesSchema,
+  StaticSearchIndexSchema,
+  artEdges,
+  type EntityRef,
+  type PlacementRef,
+  type PublicDocument,
+  type PublicItem,
+  type PublicNpc,
+  type PublicPlace,
+  type PublicQuest,
+  type PublicSearchEntry,
+  type StaticDocument,
+  type StaticKindList,
+  type StaticPages,
+  type StaticSearchIndex,
+} from "@afallon/contracts/public";
+import { generateArtworkResources } from "./artwork";
+import { countUnresolvedReferences, projectPublicDocuments } from "./documents";
+import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
+import { buildKindLists } from "./lists";
+import { buildStaticPages } from "./pages";
+import { buildEntityReferences, createReferenceResolver } from "./references";
 import { partitionStaticRecords, writeStaticJson, type GeneratedStaticResource } from "./resources";
+import type { PublicationCandidateAsset } from "./selection";
 
 export interface GeneratedIndexResources {
-  entitySearch: GeneratedStaticResource<StaticEntitySearch>[];
-  itemSearch: GeneratedStaticResource<StaticItemSearch>[];
-  entityDetails: ReadonlyMap<string, GeneratedStaticResource<StaticEntityDetail>>;
-  itemSources: ReadonlyMap<string, GeneratedStaticResource<StaticItemSource>>;
+  refs: ReadonlyMap<string, EntityRef>;
+  documents: ReadonlyMap<string, GeneratedStaticResource<StaticDocument>>;
+  lists: ReadonlyMap<string, GeneratedStaticResource<StaticKindList>[]>;
+  search: GeneratedStaticResource<StaticSearchIndex>[];
+  pages: GeneratedStaticResource<StaticPages>;
+  artwork: PublicationCandidateAsset[];
+  unresolvedReferenceCount: number;
 }
 
-export async function generateIndexResources(db: Database, store: ArtifactStore, protection?: ObjectWriteProtection): Promise<GeneratedIndexResources> {
-  const search = queryCatalogSearch(db);
-  const identity = { buildId: search.buildId, catalogId: search.catalogId };
-  const publicEntities = new Map(projectPublicEntities(queryCatalogFullEntities(db).records).map((entity) => [entity.entityKey, entity]));
-  const entityDetails = new Map<string, GeneratedStaticResource<StaticEntityDetail>>();
-  for (const summary of search.records) {
-    const entity = publicEntities.get(summary.entityKey);
-    if (!entity) throw new Error(`Catalog entity projection is missing: ${summary.entityKey}.`);
-    const detail: StaticEntityDetail = { schemaVersion: "compendium.static-entity-detail.v1", ...identity, entity };
-    Assert(StaticEntityDetailSchema, detail);
-    entityDetails.set(summary.entityKey, await writeStaticJson(store, detail.schemaVersion, detail, protection));
+function assertSameIdentity(expected: { buildId: string; catalogId: string }, actual: { buildId: string; catalogId: string }, subject: string): void {
+  if (actual.buildId !== expected.buildId || actual.catalogId !== expected.catalogId) throw new Error(`${subject} query identity does not match the entity query.`);
+}
+
+function searchLevel(document: PublicDocument): PublicSearchEntry["level"] {
+  switch (document.ref.kind) {
+    case "items": return (document as PublicItem).facts.levelRequirement;
+    case "npcs": {
+      const facts = (document as PublicNpc).facts;
+      return facts.level ?? facts.levelRange;
+    }
+    case "quests": return (document as PublicQuest).facts.levelRequirement;
+    case "places": return (document as PublicPlace).facts.levelRange;
+    default: return undefined;
   }
-  const entityRecords: StaticEntitySearch["entities"] = search.records.map((summary) => ({
-    entityKey: summary.entityKey, kind: summary.kind, nativeId: summary.nativeId,
-    name: summary.name?.trim() || summary.entityKey, description: summary.description,
-    detail: entityDetails.get(summary.entityKey)!.reference,
-  }));
-  const entitySearch: GeneratedStaticResource<StaticEntitySearch>[] = [];
-  for (const value of partitionStaticRecords(entityRecords, (entities, part): StaticEntitySearch => ({ schemaVersion: "compendium.static-entity-search.v2", ...identity, part, entities }))) {
-    Assert(StaticEntitySearchSchema, value);
-    entitySearch.push(await writeStaticJson(store, value.schemaVersion, value, protection));
+}
+
+function itemSourceKinds(document: PublicDocument): string[] {
+  if (document.ref.kind !== "items") return [];
+  const item = document as PublicItem;
+  return [item.droppedBy.length > 0 ? "drop" : null, item.soldBy.length > 0 ? "vendor" : null,
+    item.gatheredFrom.length > 0 ? "gather" : null, item.inContainers.length > 0 ? "container" : null,
+    item.rewardedBy.length > 0 ? "quest" : null, item.craftedBy.length > 0 ? "recipe" : null].filter((value): value is string => value !== null);
+}
+
+export async function generateIndexResources(
+  db: Database,
+  store: ArtifactStore,
+  placements: ReadonlyMap<string, PlacementRef>,
+  placementIdsByKey: ReadonlyMap<string, readonly string[]>,
+  regionIdsByMapSpace: ReadonlyMap<string, readonly string[]>,
+  protection?: ObjectWriteProtection,
+): Promise<GeneratedIndexResources> {
+  const entities = queryCatalogEntities(db), facts = queryCatalogFacts(db), relations = queryCatalogRelations(db);
+  assertSameIdentity(entities, facts, "Fact");
+  assertSameIdentity(entities, relations, "Relation");
+  const identity = { buildId: entities.buildId, catalogId: entities.catalogId };
+  const artwork = await generateArtworkResources(store, entities.records, protection);
+  const refs = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity });
+  const publicDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, refs,
+    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements, regionIdsByMapSpace });
+
+  const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
+  for (const [key, document] of publicDocuments) {
+    if (!document.ref.slug || !Object.hasOwn(STATIC_DOCUMENT_SCHEMA_IDS, document.ref.kind)) throw new Error(`Document has no registered page kind: ${key}.`);
+    const kind = document.ref.kind as keyof typeof STATIC_DOCUMENT_SCHEMA_IDS;
+    const schemaVersion = STATIC_DOCUMENT_SCHEMA_IDS[kind];
+    const value = { schemaVersion, ...identity, kind, document } as StaticDocument;
+    Assert(STATIC_DOCUMENT_SCHEMAS[schemaVersion], value);
+    const resource = await writeStaticJson<StaticDocument>(store, schemaVersion, value, protection);
+    if (resource.identity.bytes > PUBLICATION_DOCUMENT_BUDGET) throw new Error(`Publication document exceeds its byte budget: ${key}.`);
+    documents.set(key, resource);
   }
 
-  const sourceRows = queryCatalogAllItemSources(db).records;
-  const sourcesByItem = new Map<string, typeof sourceRows>();
-  for (const row of sourceRows) {
-    const rows = sourcesByItem.get(row.itemEntityKey);
-    if (rows) rows.push(row); else sourcesByItem.set(row.itemEntityKey, [row]);
+  const listValues = buildKindLists(identity, PUBLIC_KIND_REGISTRY, publicDocuments);
+  const lists = new Map<string, GeneratedStaticResource<StaticKindList>[]>();
+  for (const [kind, values] of listValues) {
+    const resources: GeneratedStaticResource<StaticKindList>[] = [];
+    for (const value of values) {
+      Assert(StaticKindListSchema, value);
+      resources.push(await writeStaticJson(store, value.schemaVersion, value, protection));
+    }
+    lists.set(kind, resources);
   }
-  const itemSources = new Map<string, GeneratedStaticResource<StaticItemSource>>();
-  const itemSummaries: StaticItemSearch["items"] = [];
-  for (const summary of search.records) {
-    if (summary.kind !== "items") continue;
-    const sources = sourcesByItem.get(summary.entityKey) ?? [];
-    const sourceKinds = [...new Set(sources.map((source) => source.sourceKind))].sort();
-    const sourceNames = [...new Set(sources.map((source) => source.sourceKey))].sort();
-    const itemSource: PublicItemSource = {
-      itemKey: summary.entityKey, sections: [],
-      sources: sources.map((source) => ({ label: source.sourceKey, kind: source.sourceKind, placementIds: source.placementIds, sections: [] })),
-    };
-    const value: StaticItemSource = { schemaVersion: "compendium.static-item-source.v1", ...identity, itemSource };
-    Assert(StaticItemSourceSchema, value);
-    const resource = await writeStaticJson(store, value.schemaVersion, value, protection);
-    itemSources.set(summary.entityKey, resource);
-    itemSummaries.push({ itemKey: summary.entityKey, name: summary.name?.trim() || summary.entityKey, sourceNames, sourceKinds, detail: entityDetails.get(summary.entityKey)!.reference, source: resource.reference });
+
+  const pageValue = buildStaticPages(identity, publicDocuments, documents);
+  Assert(StaticPagesSchema, pageValue);
+  const pages = await writeStaticJson(store, pageValue.schemaVersion, pageValue, protection);
+  const listRowsByKey = new Map([...listValues.values()].flatMap((parts) => parts.flatMap((list) => list.rows.map((row) => [row.ref.key, row] as const))));
+  const entries: PublicSearchEntry[] = [];
+  for (const [key, document] of publicDocuments) {
+    const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === document.ref.kind);
+    const resource = documents.get(key);
+    if (!registry?.searchable || !resource) continue;
+    const level = searchLevel(document);
+    const placementIds = [...new Set(placementIdsByKey.get(key) ?? [])].filter((placementId) => placements.has(placementId));
+    const place = placementIds[0] === undefined ? undefined : placements.get(placementIds[0])?.label;
+    entries.push({ ref: document.ref, ...(level === undefined ? {} : { level }), ...(place ? { place } : {}),
+      placementIds,
+      sourceKinds: listRowsByKey.get(key)?.facets.sourceKind ?? itemSourceKinds(document),
+      document: resource.reference as PublicSearchEntry["document"],
+    });
   }
-  const itemSearch: GeneratedStaticResource<StaticItemSearch>[] = [];
-  for (const value of partitionStaticRecords(itemSummaries, (items, part): StaticItemSearch => ({ schemaVersion: "compendium.static-item-search.v2", ...identity, part, items }))) {
-    Assert(StaticItemSearchSchema, value);
-    itemSearch.push(await writeStaticJson(store, value.schemaVersion, value, protection));
+  const search: GeneratedStaticResource<StaticSearchIndex>[] = [];
+  for (const value of partitionStaticRecords(entries, (partEntries, part): StaticSearchIndex => ({ schemaVersion: "compendium.static-search.v3", ...identity, part, entries: partEntries }))) {
+    Assert(StaticSearchIndexSchema, value);
+    search.push(await writeStaticJson(store, value.schemaVersion, value, protection));
   }
-  return { entitySearch, itemSearch, entityDetails, itemSources };
+
+  const usedArtwork = new Set([...publicDocuments.values()].flatMap((document) => artEdges(document).map((art) => art.url)));
+  const assets = [...usedArtwork].map((path) => {
+    const asset = artwork.assetsByPath.get(path);
+    if (!asset) throw new Error(`Document artwork has no publication asset: ${path}.`);
+    return asset;
+  }).sort((left, right) => left.path.localeCompare(right.path));
+  const unresolvedReferenceCount = [...publicDocuments.values()].reduce((count, document) => count + countUnresolvedReferences(document), 0);
+  return { refs, documents, lists, search, pages, artwork: assets, unresolvedReferenceCount };
 }

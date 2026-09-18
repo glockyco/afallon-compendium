@@ -40,6 +40,7 @@ export interface DocumentProjectionInput {
   resolve: ReferenceResolver;
   artByEntity: ReadonlyMap<string, Art>;
   placements: ReadonlyMap<string, PlacementRef>;
+  regionIdsByMapSpace: ReadonlyMap<string, readonly string[]>;
 }
 
 type RelationIndexes = {
@@ -136,41 +137,20 @@ function publishedPlacements(ids: readonly string[], placements: ReadonlyMap<str
   return result;
 }
 
-function mergePlacementRows<T extends { placements: PlacementRef[] }>(rows: readonly T[]): T[] {
-  const grouped = new Map<string, { row: T; placementIds: Set<string> }>();
+function groupPlacementCounts<T extends object>(rows: readonly (T & { placements: PlacementRef[] })[]): Array<T & { placementCount: number }> {
+  const grouped = new Map<string, { facts: T; placementIds: Set<string> }>();
   for (const row of rows) {
     const { placements, ...facts } = row;
     const key = JSON.stringify(facts);
     const current = grouped.get(key);
-    if (!current) {
-      grouped.set(key, { row: { ...row, placements: [...placements] }, placementIds: new Set(placements.map((placement) => placement.placementId)) });
-      continue;
-    }
-    for (const placement of placements) if (!current.placementIds.has(placement.placementId)) {
-      current.row.placements.push(placement);
-      current.placementIds.add(placement.placementId);
-    }
+    if (!current) grouped.set(key, { facts: facts as T, placementIds: new Set(placements.map((placement) => placement.placementId)) });
+    else for (const placement of placements) current.placementIds.add(placement.placementId);
   }
-  return [...grouped.values()].map(({ row }) => row);
+  return [...grouped.values()].map(({ facts, placementIds }) => ({ ...facts, placementCount: placementIds.size }));
 }
 
-function locationIdsByEntity(input: DocumentProjectionInput, indexes: RelationIndexes): ReadonlyMap<string, string[]> {
-  const result = new Map<string, string[]>();
-  const add = (endpoint: CatalogEndpoint | null, placementIds: readonly string[]) => {
-    if (endpoint?.entityKey === null || endpoint === null) return;
-    const ids = result.get(endpoint.entityKey) ?? [];
-    ids.push(...placementIds);
-    result.set(endpoint.entityKey, ids);
-  };
-  for (const [key, placements] of indexes.placementsByNpc) for (const placement of placements) add({ entityKey: key, label: null }, [placement.placementId]);
-  for (const [key, placements] of indexes.placementsByScene) for (const placement of placements) add({ entityKey: key, label: null }, [placement.placementId]);
-  // Relation rows carry their own locations. Only add direct entity placements and quest locations, whose giver rows are reference-only.
-  for (const row of input.relations.quests) add(row.quest, row.placementIds);
-  return new Map([...result].map(([key, ids]) => [key, publishedPlacements(ids, input.placements).map((placement) => placement.placementId)]));
-}
-
-function documentLocations(key: string, idsByEntity: ReadonlyMap<string, string[]>, placements: ReadonlyMap<string, PlacementRef>): PlacementRef[] {
-  return publishedPlacements(idsByEntity.get(key) ?? [], placements);
+function npcLocations(key: string, indexes: RelationIndexes, placements: ReadonlyMap<string, PlacementRef>): PlacementRef[] {
+  return publishedPlacements((indexes.placementsByNpc.get(key) ?? []).map((placement) => placement.placementId), placements);
 }
 
 function optionalCount(value: number | null): number | undefined {
@@ -236,11 +216,11 @@ function description(entity: CatalogEntityRow, fallback?: string | null): string
   return value || null;
 }
 
-function baseDocument(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, locations: PlacementRef[], fallbackDescription?: string | null) {
-  return { ref, description: description(entity, fallbackDescription), art: input.artByEntity.get(entity.entityKey) ?? {}, locations };
+function baseDocument(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, fallbackDescription?: string | null) {
+  return { ref, description: description(entity, fallbackDescription), art: input.artByEntity.get(entity.entityKey) ?? {} };
 }
 
-function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, locations: PlacementRef[], conditions: ReadonlyMap<string, CatalogCondition>): PublicItem {
+function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>): PublicItem {
   const fact = input.facts.items.find((candidate) => candidate.entityKey === entity.entityKey);
   const requirements = requirementsFor(fact?.conditionIds ?? [], conditions, input.resolve);
   const droppedBy = (indexes.dropsByItem.get(entity.entityKey) ?? []).filter((row) => row.context !== "container").map((row) => ({
@@ -249,19 +229,19 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }),
     ...(optionalChance(row.displayedChance) === undefined ? {} : { chance: optionalChance(row.displayedChance) }),
     ...(row.levelBand === null ? {} : { levelBand: row.levelBand }),
-    requirements: requirementsFor(row.conditionIds, conditions, input.resolve), placements: publishedPlacements(row.placementIds, input.placements),
+    requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
   }));
   const soldBy = (indexes.vendorsByItem.get(entity.entityKey) ?? []).map((row) => ({
     counterpart: input.resolve(row.npc), price: { amount: Math.max(0, row.cost), currency: endpointOrUnknown(input.resolve, row.currency, "Unknown currency") },
-    requirements: requirementsFor(row.conditionIds, conditions, input.resolve), placements: publishedPlacements(row.placementIds, input.placements),
+    requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
   }));
-  const gatheredFrom = mergePlacementRows((indexes.gathersByItem.get(entity.entityKey) ?? []).map((row) => ({
+  const gatheredFrom = groupPlacementCounts((indexes.gathersByItem.get(entity.entityKey) ?? []).map((row) => ({
     ...(row.resource === null ? {} : { counterpart: input.resolve(row.resource) }), label: plainText(row.producerLabel) || "Resource",
     ...(row.skill === null ? {} : { skill: input.resolve(row.skill) }), ...(optionalCount(row.rank) === undefined ? {} : { rank: optionalCount(row.rank) }),
     ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }), ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }),
     ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }), placements: publishedPlacements(row.placementIds, input.placements),
   })));
-  const inContainers = mergePlacementRows((indexes.containersByItem.get(entity.entityKey) ?? []).map((row) => ({
+  const inContainers = groupPlacementCounts((indexes.containersByItem.get(entity.entityKey) ?? []).map((row) => ({
     label: plainText(row.containerLabel) || "Container", ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
     ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }), ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }),
     requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
@@ -272,7 +252,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
   // Native item records carry authored defaults for both equipment branches; only the active branch is public evidence.
   const isArmor = fact?.itemType === "ARMOR", isWeapon = fact?.itemType === "WEAPON";
   return {
-    ...baseDocument(entity, ref, input, locations),
+    ...baseDocument(entity, ref, input),
     facts: {
       ...(fact?.rarity ? { rarity: plainText(fact.rarity) } : {}), ...(fact?.itemType ? { itemType: plainText(fact.itemType) } : {}),
       ...(isArmor && fact?.armorSlot ? { slot: plainText(fact.armorSlot) } : {}), ...(isArmor && fact?.armorType ? { armorType: plainText(fact.armorType) } : {}),
@@ -309,7 +289,8 @@ function projectNpc(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPro
   const range = levelRange(npcFact), roles = npcRoles(entity.entityKey, npcFact, indexes);
   const questRows = indexes.questsByCounterpart.get(entity.entityKey) ?? [];
   return {
-    ...baseDocument(entity, ref, input, locations),
+    ...baseDocument(entity, ref, input),
+    locations,
     facts: {
       ...(range && range.min === range.max ? { level: range.min } : range ? { levelRange: range } : {}), scalesWithPlayer: npcFact.scalesWithPlayer,
       ...(npcFact.npcType ? { npcType: plainText(npcFact.npcType) } : {}), ...(npcFact.creatureType ? { creatureType: plainText(npcFact.creatureType) } : {}),
@@ -331,11 +312,10 @@ function projectNpc(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPro
       ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }),
       ...(optionalChance(row.displayedChance) === undefined ? {} : { chance: optionalChance(row.displayedChance) }),
       ...(row.levelBand === null ? {} : { levelBand: row.levelBand }), requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
-      placements: publishedPlacements(row.placementIds, input.placements),
     })),
     sells: (indexes.vendorsByNpc.get(entity.entityKey) ?? []).map((row) => ({
       counterpart: input.resolve(row.item), price: { amount: Math.max(0, row.cost), currency: endpointOrUnknown(input.resolve, row.currency, "Unknown currency") },
-      requirements: requirementsFor(row.conditionIds, conditions, input.resolve), placements: publishedPlacements(row.placementIds, input.placements),
+      requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
     })),
     quests: questRows.filter((row) => row.kind === "giver" || row.kind === "turnIn").map((row) => ({ counterpart: input.resolve(row.quest), role: row.kind === "giver" ? "gives" as const : "completes" as const })),
     abilityPhases: npcFact.abilityPhases.map((phase) => ({ phaseIndex: Math.max(0, phase.phaseIndex), ...(phase.name ? { name: plainText(phase.name) } : {}), ...(phase.requirement ? { requirement: plainText(phase.requirement) } : {}), abilities: phase.abilities.map(input.resolve) })),
@@ -346,14 +326,14 @@ function projectNpc(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPro
   };
 }
 
-function projectQuest(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, locations: PlacementRef[], conditions: ReadonlyMap<string, CatalogCondition>): PublicQuest {
+function projectQuest(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>): PublicQuest {
   const fact = input.facts.quests.find((candidate) => candidate.entityKey === entity.entityKey);
   const rows = indexes.questsByQuest.get(entity.entityKey) ?? [];
   const chain = fact?.chainName === null || fact?.chainName === undefined ? [] : input.facts.quests.filter((candidate) => candidate.chainName === fact.chainName && candidate.chainOrder !== null).sort((left, right) => left.chainOrder! - right.chainOrder! || left.entityKey.localeCompare(right.entityKey));
   const chainIndex = chain.findIndex((candidate) => candidate.entityKey === entity.entityKey);
   const objectives = rows.filter((row) => row.kind === "objective" && row.task !== null).map((row) => projectQuestObjective(row.task!, input.resolve, row.index));
   return {
-    ...baseDocument(entity, ref, input, locations),
+    ...baseDocument(entity, ref, input),
     facts: {
       ...(fact?.chainName && fact.chainOrder !== null ? { chain: { name: plainText(fact.chainName), order: fact.chainOrder } } : {}),
       repeatable: fact?.repeatable ?? false, turnInWithoutNpc: fact?.turnInWithoutNpc ?? false,
@@ -374,19 +354,19 @@ function projectQuest(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
 }
 
 function placementGroups(placements: readonly CatalogPlacementRow[], categories: ReadonlySet<string>, input: DocumentProjectionInput): PlacementGroup[] {
-  const grouped = new Map<PublicMarkerCategory, PlacementRef[]>();
+  const grouped = new Map<PublicMarkerCategory, Set<string>>();
   for (const placement of placements) {
     const publicPlacement = input.placements.get(placement.placementId);
     if (!publicPlacement) continue;
     const values = new Set([...placement.roles.map((role) => role.role), ...placement.families]);
     for (const value of values) {
       if (!categories.has(value) || !PUBLIC_ROLE[value]) continue;
-      const rows = grouped.get(value as PublicMarkerCategory) ?? [];
-      rows.push(publicPlacement);
+      const rows = grouped.get(value as PublicMarkerCategory) ?? new Set<string>();
+      rows.add(publicPlacement.placementId);
       grouped.set(value as PublicMarkerCategory, rows);
     }
   }
-  return [...grouped].sort(([left], [right]) => left.localeCompare(right)).map(([category, rows]) => ({ category, placements: rows }));
+  return [...grouped].sort(([left], [right]) => left.localeCompare(right)).map(([category, rows]) => ({ category, placementCount: rows.size }));
 }
 
 function creaturesForPlace(entityKey: string, input: DocumentProjectionInput, indexes: RelationIndexes, combat: boolean): CreatureRow[] {
@@ -402,13 +382,15 @@ function creaturesForPlace(entityKey: string, input: DocumentProjectionInput, in
     if (!fact || fact.isCombatEnabled !== combat) continue;
     const roles = npcRoles(npcKey, fact, indexes);
     const range = levelRange(fact);
-    rows.push({ counterpart: input.resolve({ entityKey: npcKey, label: npcKey }), ...(range ? { levelRange: range } : {}), roles, placements: publishedPlacements(placements.map((placement) => placement.placementId), input.placements) });
+    rows.push({ counterpart: input.resolve({ entityKey: npcKey, label: npcKey }), ...(range ? { levelRange: range } : {}), roles,
+      placementCount: publishedPlacements(placements.map((placement) => placement.placementId), input.placements).length });
   }
   return rows.sort((left, right) => ("name" in left.counterpart ? left.counterpart.name : left.counterpart.label).localeCompare("name" in right.counterpart ? right.counterpart.name : right.counterpart.label));
 }
 
-function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, locations: PlacementRef[]): PublicPlace {
+function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes): PublicPlace {
   const fact = input.facts.places.find((candidate) => candidate.entityKey === entity.entityKey);
+  const mapSpaceId = fact?.mapSpaceIds.find((candidate) => input.regionIdsByMapSpace.has(candidate)) ?? null;
   const placeType = fact?.placeType ?? (entity.kind === "regions" ? "region" : "zone");
   const placePlacements = indexes.placementsByScene.get(entity.entityKey) ?? [];
   const serviceCategories = new Set(["merchant", "questGiver", "townsfolk", "craftingStation", "travelPoint", "neutral"]);
@@ -421,8 +403,9 @@ function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
     return [{ counterpart: endpointOrUnknown(input.resolve, counterpartKey === null ? null : { entityKey: counterpartKey, label: counterpartKey }, "Unknown place"), kind: plainText(row.transitionKind) || "connection", placements: publishedPlacements(row.placementIds, input.placements) }];
   });
   return {
-    ...baseDocument(entity, ref, input, locations, fact?.guideDescription),
-    facts: { placeType, ...(fact?.levelRange ? { levelRange: fact.levelRange } : {}), guideIncluded: fact?.guideIncluded ?? false, ...(fact?.mapSpaceIds[0] ? { mapSpaceId: fact.mapSpaceIds[0] } : {}) },
+    ...baseDocument(entity, ref, input, fact?.guideDescription),
+    facts: { placeType, ...(fact?.levelRange ? { levelRange: fact.levelRange } : {}), guideIncluded: fact?.guideIncluded ?? false },
+    space: mapSpaceId === null ? null : { mapSpaceId, regionIds: [...(input.regionIdsByMapSpace.get(mapSpaceId) ?? [])] },
     bosses: (fact?.bosses ?? []).map(input.resolve), creatures: creaturesForPlace(entity.entityKey, input, indexes, true), npcs: creaturesForPlace(entity.entityKey, input, indexes, false),
     services: placementGroups(placePlacements, serviceCategories, input), resources: placementGroups(placePlacements, resourceCategories, input), containers: placementGroups(placePlacements, containerCategories, input),
     quests: questRefs, properties: [], connections, regions: input.facts.places.filter((candidate) => candidate.placeType === "region" && candidate.parentSceneKey === entity.entityKey).map((candidate) => input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey })),
@@ -433,24 +416,25 @@ function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
 function projectProperty(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, locations: PlacementRef[]): PublicProperty {
   const fact = input.facts.properties.find((candidate) => candidate.entityKey === entity.entityKey);
   return {
-    ...baseDocument(entity, ref, input, locations),
+    ...baseDocument(entity, ref, input),
+    locations,
     facts: { ...(fact?.income === null || fact?.income === undefined ? {} : { income: fact.income }), ...(fact?.purchasePrice !== null && fact?.purchasePrice !== undefined && fact.currency ? { price: { amount: Math.max(0, fact.purchasePrice), currency: input.resolve(fact.currency) } } : {}) },
   };
 }
 
-function projectAbility(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, locations: PlacementRef[]): PublicAbility {
+function projectAbility(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput): PublicAbility {
   const usedBy = input.facts.npcs.filter((npc) => npc.abilityPhases.some((phase) => phase.abilities.some((ability) => ability.entityKey === entity.entityKey))).map((npc) => input.resolve({ entityKey: npc.entityKey, label: npc.entityKey }));
   const taughtBy = input.facts.items.filter((item) => item.actionAbilities.some((ability) => ability.entityKey === entity.entityKey)).map((item) => input.resolve({ entityKey: item.entityKey, label: item.entityKey }));
-  return { ...baseDocument(entity, ref, input, locations), facts: {}, usedBy, taughtBy };
+  return { ...baseDocument(entity, ref, input), facts: {}, usedBy, taughtBy };
 }
 
-function projectRecipe(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, locations: PlacementRef[]): PublicRecipe {
+function projectRecipe(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes): PublicRecipe {
   const fact = input.facts.recipes.find((candidate) => candidate.entityKey === entity.entityKey);
   const rows = indexes.recipesByRecipe.get(entity.entityKey) ?? [];
   const product = rows.find((row) => row.role === "product");
   const firstRank = fact?.ranks[0];
   return {
-    ...baseDocument(entity, ref, input, locations),
+    ...baseDocument(entity, ref, input),
     facts: { ...(fact?.station ? { station: input.resolve(fact.station) } : {}), ...(fact?.skill ? { skill: input.resolve(fact.skill) } : {}), ...(firstRank ? { rank: Math.max(0, firstRank.rank) } : {}) },
     ...(product ? { product: { counterpart: input.resolve(product.item), count: Math.max(0, product.count) } } : {}),
     materials: rows.filter((row) => row.role === "material").map((row) => ({ counterpart: input.resolve(row.item), count: Math.max(0, row.count) })),
@@ -459,20 +443,19 @@ function projectRecipe(entity: CatalogEntityRow, ref: EntityRef, input: Document
 
 export function projectPublicDocuments(input: DocumentProjectionInput): ReadonlyMap<string, PublicDocument> {
   const indexes = relationIndexes(input.relations), conditions = conditionsById(input.relations.conditions);
-  const idsByEntity = locationIdsByEntity(input, indexes), result = new Map<string, PublicDocument>();
+  const result = new Map<string, PublicDocument>();
   for (const entity of input.entities) {
     const ref = input.refs.get(entity.entityKey);
     if (!ref?.slug) continue;
-    const locations = documentLocations(entity.entityKey, idsByEntity, input.placements);
     let document: PublicDocument;
     switch (ref.kind) {
-      case "items": document = projectItem(entity, ref, input, indexes, locations, conditions); break;
-      case "npcs": document = projectNpc(entity, ref, input, indexes, locations, conditions); break;
-      case "quests": document = projectQuest(entity, ref, input, indexes, locations, conditions); break;
-      case "places": document = projectPlace(entity, ref, input, indexes, locations); break;
-      case "properties": document = projectProperty(entity, ref, input, locations); break;
-      case "abilities": document = projectAbility(entity, ref, input, locations); break;
-      case "recipes": document = projectRecipe(entity, ref, input, indexes, locations); break;
+      case "items": document = projectItem(entity, ref, input, indexes, conditions); break;
+      case "npcs": document = projectNpc(entity, ref, input, indexes, npcLocations(entity.entityKey, indexes, input.placements), conditions); break;
+      case "quests": document = projectQuest(entity, ref, input, indexes, conditions); break;
+      case "places": document = projectPlace(entity, ref, input, indexes); break;
+      case "properties": document = projectProperty(entity, ref, input, []); break;
+      case "abilities": document = projectAbility(entity, ref, input); break;
+      case "recipes": document = projectRecipe(entity, ref, input, indexes); break;
       default: continue;
     }
     result.set(entity.entityKey, document);

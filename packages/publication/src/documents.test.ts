@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts } from "@afallon/contracts/catalog";
-import type { PublicItem, PublicNpc } from "@afallon/contracts/public";
+import type { PublicItem, PublicNpc, PublicPlace } from "@afallon/contracts/public";
 import { projectPublicDocuments, projectQuestObjective } from "./documents";
 import { buildEntityReferences, createReferenceResolver } from "./references";
 
@@ -9,6 +9,7 @@ const entities: CatalogEntityRow[] = [
   { entityKey: "npcs:2", kind: "npcs", nativeId: 2, name: "Guardian", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "quests:3", kind: "quests", nativeId: 3, name: "Trial", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "stats:5", kind: "stats", nativeId: 5, name: "Item power", description: null, iconAssetName: null, artwork: [] },
+  { entityKey: "scenes:10", kind: "scenes", nativeId: 10, name: "Crypt", description: null, iconAssetName: null, artwork: [] },
 ];
 
 const facts: CatalogFacts = {
@@ -23,7 +24,8 @@ const facts: CatalogFacts = {
     factionRewards: [], linkedNpc: null, lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { entityKey: "stats:5", label: "Item power" } } }],
   quests: [{ entityKey: "quests:3", chainName: null, chainOrder: null, repeatable: false, turnInWithoutNpc: false, completedDescription: null,
     objectiveText: null, levelRequirement: null, experience: null, conditionIds: [] }],
-  tasks: [], places: [], properties: [], abilities: [], recipes: [],
+  tasks: [], places: [{ entityKey: "scenes:10", placeType: "dungeon", guideIncluded: true, guideDescription: null, levelRange: null,
+    mapSpaceIds: ["world"], bosses: [], parentSceneKey: null }], properties: [], abilities: [], recipes: [],
 };
 
 const relations: CatalogRelations = {
@@ -39,7 +41,7 @@ const relations: CatalogRelations = {
     { containerLabel: "Chest", sourceId: "container-2", sceneNativeId: 10, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, conditionIds: [], placementIds: ["p2"] },
   ], quests: [], recipes: [],
   placements: [{ placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guardian", roles: [{ role: "boss", npcEntityKey: "npcs:2", scope: "authored" }], families: [] }],
-  transitions: [], conditions: [],
+  transitions: [{ transitionId: "transition-1", sourceSceneKey: "scenes:10", destinationSceneKey: null, transitionKind: "entrance", placementIds: ["p2"] }], conditions: [],
 };
 
 test("projects one symmetric boss drop row and strips native rich text", () => {
@@ -48,8 +50,8 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
     placements: new Map([
       ["p1", { placementId: "p1", mapSpaceId: "world", label: "Guardian" }],
       ["p2", { placementId: "p2", mapSpaceId: "world", label: "Iron node" }],
-    ]) });
-  const item = documents.get("items:1") as PublicItem, npc = documents.get("npcs:2") as PublicNpc;
+    ]), regionIdsByMapSpace: new Map([["world", ["region-1"]]]) });
+  const item = documents.get("items:1") as PublicItem, npc = documents.get("npcs:2") as PublicNpc, place = documents.get("scenes:10") as PublicPlace;
   expect(item.ref.name).toBe("Blade");
   expect(item.description).toBe("Sharp\nSteel");
   expect(item.facts).toMatchObject({ weaponSlot: "MAIN HAND", weaponType: "One handed sword", attackSpeed: 1, minDamage: 4, maxDamage: 8 });
@@ -63,17 +65,21 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(itemCounterpart).toMatchObject({ key: "npcs:2" });
   expect(npcCounterpart).toMatchObject({ key: "items:1" });
   expect(itemValues).toEqual(npcValues);
-  expect(itemValues).toMatchObject({ min: 1, max: 2, chance: 12.5, placements: [{ placementId: "p1" }] });
-  expect(item.gatheredFrom).toHaveLength(1);
-  expect(item.gatheredFrom[0]).toMatchObject({ label: "Iron node", min: 1, max: 2, chance: 25, placements: [{ placementId: "p1" }, { placementId: "p2" }] });
-  expect(item.inContainers).toHaveLength(1);
-  expect(item.inContainers[0]?.placements.map((placement) => placement.placementId)).toEqual(["p1", "p2"]);
+  expect(itemValues).toMatchObject({ min: 1, max: 2, chance: 12.5 });
+  expect(itemValues).not.toHaveProperty("placements");
+  expect(item.gatheredFrom).toEqual([{ label: "Iron node", min: 1, max: 2, chance: 25, placementCount: 2 }]);
+  expect(item.inContainers).toEqual([{ label: "Chest", min: 1, max: 1, requirements: [], placementCount: 2 }]);
+  expect(item).not.toHaveProperty("locations");
+  expect(npc.locations.map((placement) => placement.placementId)).toEqual(["p1"]);
+  expect(place).not.toHaveProperty("locations");
+  expect(place.space).toEqual({ mapSpaceId: "world", regionIds: ["region-1"] });
+  expect(place.creatures).toMatchObject([{ counterpart: { key: "npcs:2" }, placementCount: 1 }]);
 });
 
 test("projects only the armor branch when native weapon defaults remain", () => {
   const armorFacts: CatalogFacts = { ...facts, items: [{ ...facts.items[0]!, itemType: "ARMOR", armorSlot: "GLOVES", armorType: "LEATHER" }] };
   const refs = buildEntityReferences(entities, { facts: armorFacts, relations });
-  const documents = projectPublicDocuments({ entities, facts: armorFacts, relations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(), placements: new Map() });
+  const documents = projectPublicDocuments({ entities, facts: armorFacts, relations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map() });
   const item = documents.get("items:1") as PublicItem;
   expect(item.facts).toMatchObject({ slot: "GLOVES", armorType: "LEATHER" });
   expect(item.facts).not.toHaveProperty("weaponSlot");
