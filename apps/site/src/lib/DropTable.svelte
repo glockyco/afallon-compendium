@@ -1,8 +1,12 @@
 <script lang="ts">
   import type { DropRow, PublicKindEntry } from '@afallon/contracts/public';
+  import Card from './Card.svelte';
+  import DataTable, { type TableColumn } from './DataTable.svelte';
   import EntityLink from './EntityLink.svelte';
   import MissingValue from './MissingValue.svelte';
   import Requirements from './Requirements.svelte';
+  import { formatNumber, rangeText } from './format';
+  import { sortRows, toggleSort, type SortState, type SortValue } from './table';
 
   export let rows: DropRow[];
   export let registry: PublicKindEntry[];
@@ -10,19 +14,39 @@
   export let counterpartLabel = 'Entity';
   export let limit: number | undefined = undefined;
 
-  $: visible = limit === undefined ? rows : rows.slice(0, limit);
-  const quantity = (row: DropRow) => row.min === undefined && row.max === undefined ? null : row.min === row.max || row.max === undefined ? String(row.min) : `${row.min ?? 0}–${row.max}`;
+  let sort: SortState = { id: 'chance', dir: 'desc' };
+
+  $: hasLevels = rows.some((row) => row.levelBand);
+  $: hasRequirements = rows.some((row) => row.requirements.length > 0);
+  $: columns = [
+    { id: 'name', label: counterpartLabel, sortable: true },
+    { id: 'quantity', label: 'Quantity', numeric: true, sortable: true },
+    { id: 'chance', label: 'Chance', numeric: true, sortable: true },
+    ...(hasLevels ? [{ id: 'level', label: 'Level', numeric: true, sortable: true }] : []),
+    ...(hasRequirements ? [{ id: 'requirements', label: 'Requirements' }] : []),
+  ] satisfies TableColumn[];
+  $: visible = sortRows(rows, value, sort).slice(0, limit ?? rows.length);
+
+  function value(row: DropRow, id: string): SortValue {
+    if (id === 'quantity') return row.max ?? row.min;
+    if (id === 'chance') return row.chance;
+    if (id === 'level') return row.levelBand?.min;
+    return row.counterpart.key === null ? row.counterpart.label : row.counterpart.name;
+  }
 </script>
 
-{#if visible.length > 0}
-  <section><h2>{heading}</h2><div class="scroll"><table><thead><tr><th>{counterpartLabel}</th><th>Quantity</th><th>Chance</th><th>Level</th><th>Requirements</th></tr></thead><tbody>{#each visible as row}<tr><td><EntityLink ref={row.counterpart} {registry} /></td><td>{#if quantity(row) === null}<MissingValue explanation="No quantity is published" />{:else}{quantity(row)}{/if}</td><td>{#if row.chance === undefined}<MissingValue explanation="Not measured for this build" />{:else}{row.chance}%{/if}</td><td>{#if row.levelBand}{row.levelBand.min}–{row.levelBand.max}{:else}<MissingValue explanation="No level range is published" />{/if}</td><td><Requirements requirements={row.requirements} {registry} /></td></tr>{/each}</tbody></table></div></section>
+{#if rows.length > 0}
+  <Card title={heading} count={rows.length}>
+    <DataTable {columns} {sort} onSort={(id, numeric) => (sort = toggleSort(sort, id, numeric))}>
+      {#each visible as row}
+        <tr>
+          <td><EntityLink ref={row.counterpart} {registry} /></td>
+          <td class="c-num">{#if rangeText(row.min, row.max) === null}<MissingValue explanation="No quantity is published" />{:else}{rangeText(row.min, row.max)}{/if}</td>
+          <td class="c-num">{#if row.chance === undefined}<MissingValue explanation="Not measured for this build" />{:else}{formatNumber(row.chance)}%{/if}</td>
+          {#if hasLevels}<td class="c-num">{#if row.levelBand}{row.levelBand.min}–{row.levelBand.max}{:else}<MissingValue explanation="No level range is published" />{/if}</td>{/if}
+          {#if hasRequirements}<td><Requirements requirements={row.requirements} {registry} /></td>{/if}
+        </tr>
+      {/each}
+    </DataTable>
+  </Card>
 {/if}
-
-<style>
-  section { margin-top: 1.25rem; }
-  h2 { margin: 0 0 .55rem; color: #eee9dd; font: 600 1rem/1.3 Georgia, serif; }
-  .scroll { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: .82rem; }
-  th, td { padding: .55rem; border-bottom: 1px solid #3b3c38; text-align: left; vertical-align: top; }
-  th { color: #bdb8ad; font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; }
-</style>

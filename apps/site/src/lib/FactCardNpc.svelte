@@ -1,52 +1,102 @@
 <script lang="ts">
+  import { base } from '$app/paths';
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import AbilityPhases from './AbilityPhases.svelte';
+  import Card from './Card.svelte';
+  import ChipGrid, { type Chip } from './ChipGrid.svelte';
   import DropTable from './DropTable.svelte';
+  import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
   import EntityLink from './EntityLink.svelte';
-  import FactCardFrame from './FactCardFrame.svelte';
+  import Fact from './Fact.svelte';
+  import FactGrid from './FactGrid.svelte';
   import LocationList from './LocationList.svelte';
   import QuestTable from './QuestTable.svelte';
+  import RefList from './RefList.svelte';
   import VendorTable from './VendorTable.svelte';
+  import { formatNumber, labelOf, rangeText, roleLabel, signedAmount } from './format';
 
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
   export let compact = false;
   export let showRelations = false;
   export let limit: number | undefined = undefined;
+
   $: facts = document.facts;
   $: level = facts.level !== undefined ? String(facts.level) : facts.levelRange ? `${facts.levelRange.min}–${facts.levelRange.max}` : null;
+  $: creatureType = facts.npcType ?? facts.creatureType;
+  $: badges = [
+    ...facts.roles.map((role) => ({ label: roleLabel(role), tone: role === 'boss' ? ('boss' as const) : ('neutral' as const) })),
+    ...(facts.scalesWithPlayer ? [{ label: 'Scales with player', tone: 'accent' as const }] : []),
+  ] satisfies HeaderBadge[];
+  $: headerFacts = [
+    ...(level ? [{ label: 'Level', value: level }] : []),
+    ...(creatureType ? [{ label: 'Type', value: labelOf(creatureType) }] : []),
+    ...(facts.faction ? [{ label: 'Faction', value: facts.faction.key === null ? facts.faction.label : facts.faction.name }] : []),
+    ...(document.locations.length > 0 ? [{ label: 'Found in', value: document.locations[0]!.label }] : []),
+  ] satisfies HeaderFact[];
+  $: statChips = facts.stats.map((stat) => ({
+    label: stat.stat.key === null ? stat.stat.label : stat.stat.name,
+    value: signedAmount(stat.amount, stat.isPercent),
+  })) satisfies Chip[];
+  $: immunityChips = facts.immunities.map((immunity) => ({ label: labelOf(immunity) })) satisfies Chip[];
+  $: rewardChips = document.factionRewards.map((reward) => ({
+    label: reward.counterpart.key === null ? reward.counterpart.label : reward.counterpart.name,
+    value: signedAmount(reward.amount),
+  })) satisfies Chip[];
+  $: lootSpecialization = facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length > 0 || facts.lootSpecialization.stat)
+    ? facts.lootSpecialization
+    : undefined;
+  $: hasFacts = facts.species !== undefined || facts.family !== undefined || facts.respawn !== undefined
+    || facts.experience !== undefined || facts.aggroRange !== undefined || lootSpecialization !== undefined || document.linkedNpc !== undefined;
 </script>
 
-<FactCardFrame name={document.ref.name} description={document.description} art={document.art.portrait ?? document.art.icon ?? document.ref.icon} artRole="portrait" fallbackIcon={registry.find((entry) => entry.kind === 'npcs')?.icon} {compact}>
-  <dl class="facts">
-    {#if level}<div><dt>Level</dt><dd>{level}</dd></div>{/if}
-    {#if facts.roles.length}<div><dt>Roles</dt><dd>{facts.roles.join(', ')}</dd></div>{/if}
-    {#if facts.npcType || facts.creatureType}<div><dt>Type</dt><dd>{facts.npcType ?? facts.creatureType}</dd></div>{/if}
-    {#if facts.family}<div><dt>Family</dt><dd>{facts.family}</dd></div>{/if}
-    {#if facts.faction}<div><dt>Faction</dt><dd><EntityLink ref={facts.faction} {registry} /></dd></div>{/if}
-    {#if facts.species}<div><dt>Species</dt><dd><EntityLink ref={facts.species} {registry} /></dd></div>{/if}
-    {#if facts.respawn}<div><dt>Respawn</dt><dd>{facts.respawn.min}–{facts.respawn.max}</dd></div>{/if}
-    {#if facts.experience}<div><dt>Experience</dt><dd>{facts.experience.min}–{facts.experience.max}</dd></div>{/if}
-    {#if facts.stats.length}<div><dt>Stats</dt><dd>{#each facts.stats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.amount}{stat.isPercent ? '%' : ''}</span>{/each}</dd></div>{/if}
-    {#if facts.immunities.length}<div><dt>Immunities</dt><dd>{facts.immunities.join(', ')}</dd></div>{/if}
-    {#if facts.aggroRange !== undefined}<div><dt>Aggro range</dt><dd>{facts.aggroRange}</dd></div>{/if}
-    {#if facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length || facts.lootSpecialization.stat)}<div><dt>Loot specialization</dt><dd>{#if facts.lootSpecialization.armorType}{facts.lootSpecialization.armorType}{/if}{#if facts.lootSpecialization.weaponTypes.length}{facts.lootSpecialization.armorType ? ' · ' : ''}{facts.lootSpecialization.weaponTypes.join(', ')}{/if}{#if facts.lootSpecialization.stat}{' · '}<EntityLink ref={facts.lootSpecialization.stat} {registry} />{/if}</dd></div>{/if}
-    {#if facts.scalesWithPlayer}<div><dt>Scales with player</dt><dd>Yes</dd></div>{/if}
-  </dl>
-  {#if showRelations}
-    <DropTable rows={document.drops} {registry} heading="Drops" counterpartLabel="Item" {limit} />
-    <VendorTable rows={document.sells} {registry} heading="Sells" counterpartLabel="Item" {limit} />
-    <QuestTable rows={document.quests} {registry} heading="Quests" {limit} />
-    <AbilityPhases phases={document.abilityPhases} {registry} {limit} />
-    {#if document.factionRewards.length}<section><h2>Faction rewards</h2><ul>{#each (limit === undefined ? document.factionRewards : document.factionRewards.slice(0, limit)) as reward}<li><EntityLink ref={reward.counterpart} {registry} />: {reward.amount}</li>{/each}</ul></section>{/if}
-    <QuestTable rows={document.usedInQuests} {registry} heading="Quest objectives" {limit} />
-    {#if document.bossOf.length}<section><h2>Boss of</h2><ul>{#each (limit === undefined ? document.bossOf : document.bossOf.slice(0, limit)) as place}<li><EntityLink ref={place} {registry} /></li>{/each}</ul></section>{/if}
-    {#if document.linkedNpc}<section><h2>Linked NPC</h2><EntityLink ref={document.linkedNpc} {registry} /></section>{/if}
-    <LocationList locations={document.locations} entityKey={document.ref.key} {limit} />
-  {/if}
-</FactCardFrame>
+<article class="document" class:c-compact={compact}>
+  <EntityHeader
+    name={document.ref.name}
+    art={document.art.portrait ?? document.art.icon ?? document.ref.icon}
+    artRole="portrait"
+    fallbackIcon={registry.find((entry) => entry.kind === 'npcs')?.icon}
+    {badges}
+    facts={headerFacts}
+    description={document.description}
+    atlasHref={document.locations.length > 0 && !compact ? `${base}/?entity=${encodeURIComponent(document.ref.key)}` : undefined}
+    atlasLabel="View on the atlas"
+    {compact}
+  />
 
-<style>
-  .line { display: block; } section { margin-top: 1.25rem; } h2 { margin: 0 0 .55rem; color: #eee9dd; font: 600 1rem/1.3 Georgia, serif; }
-  ul { margin: 0; padding-left: 1.1rem; }
-</style>
+  <div class="c-stack">
+    <div class="c-card-grid">
+      {#if hasFacts}
+      <Card title="Facts" wide>
+        <FactGrid wide={!compact}>
+            {#if facts.species}<Fact label="Species"><EntityLink ref={facts.species} {registry} /></Fact>{/if}
+            {#if facts.family}<Fact label="Family">{labelOf(facts.family)}</Fact>{/if}
+            {#if facts.experience}<Fact label="Experience">{rangeText(facts.experience.min, facts.experience.max)}</Fact>{/if}
+            {#if facts.respawn}<Fact label="Respawn">{rangeText(facts.respawn.min, facts.respawn.max)} s</Fact>{/if}
+            {#if facts.aggroRange !== undefined}<Fact label="Aggro range">{formatNumber(facts.aggroRange)} m</Fact>{/if}
+            {#if lootSpecialization}
+              <Fact label="Loot specialization">
+                {[lootSpecialization.armorType ? labelOf(lootSpecialization.armorType) : '', ...lootSpecialization.weaponTypes.map(labelOf)].filter(Boolean).join(' · ')}
+                {#if lootSpecialization.stat}<br /><EntityLink ref={lootSpecialization.stat} {registry} />{/if}
+              </Fact>
+            {/if}
+          {#if document.linkedNpc}<Fact label="Linked NPC"><EntityLink ref={document.linkedNpc} {registry} /></Fact>{/if}
+        </FactGrid>
+      </Card>
+      {/if}
+      {#if statChips.length}<Card title="Stats" count={statChips.length}><ChipGrid chips={statChips} /></Card>{/if}
+      {#if immunityChips.length}<Card title="Immunities" count={immunityChips.length}><ChipGrid chips={immunityChips} /></Card>{/if}
+      {#if rewardChips.length}<Card title="Faction rewards" count={rewardChips.length}><ChipGrid chips={rewardChips} /></Card>{/if}
+    </div>
+
+    {#if showRelations}
+      <AbilityPhases phases={document.abilityPhases} {registry} {limit} />
+      <DropTable rows={document.drops} {registry} heading="Drops" counterpartLabel="Item" {limit} />
+      <VendorTable rows={document.sells} {registry} heading="Sells" counterpartLabel="Item" {limit} />
+      <QuestTable rows={document.quests} {registry} heading="Quests" {limit} />
+      <QuestTable rows={document.usedInQuests} {registry} heading="Quest objectives" {limit} />
+      <RefList title="Boss of" refs={document.bossOf} {registry} {limit} />
+      <LocationList locations={document.locations} entityKey={document.ref.key} {limit} />
+    {/if}
+  </div>
+</article>

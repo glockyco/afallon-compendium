@@ -1,6 +1,7 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import type { PlacementRef } from '@afallon/contracts/public';
+  import Card from './Card.svelte';
   import MissingValue from './MissingValue.svelte';
 
   export let locations: PlacementRef[];
@@ -13,19 +14,15 @@
   const atlasHref = (placementId: string) => `${base}/?selected=${encodeURIComponent(placementId)}${entityKey ? `&${item ? 'item' : 'entity'}=${encodeURIComponent(entityKey)}` : ''}`;
 </script>
 
-<section class="locations">
-  <h2>{heading}</h2>
+<Card title={heading} count={locations.length > 0 ? locations.length : undefined}>
   {#if visible.length > 0}
-    <ul>{#each visible as location}<li><a href={atlasHref(location.placementId)}>{location.label}</a></li>{/each}</ul>
+    <ul>{#each visible as location}<li><a class="c-link" href={atlasHref(location.placementId)}>{location.label}</a></li>{/each}</ul>
   {:else}
-    <p><MissingValue explanation="No location is published" /></p>
+    <p class="c-empty"><MissingValue explanation="No location is published" /> No location is published for this build.</p>
   {/if}
-</section>
+</Card>
 
 <style>
-  section { margin-top: 1.2rem; }
-  h2 { margin: 0 0 .55rem; color: #eee9dd; font: 600 1rem/1.3 Georgia, serif; }
-  ul { display: grid; gap: .35rem; margin: 0; padding-left: 1.1rem; }
-  p { margin: 0; }
-  a { color: #d9bd79; text-underline-offset: .18em; }
+  ul { display: grid; gap: .4rem; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); margin: 0; padding: 0; list-style: none; }
+  li { font-size: .84rem; }
 </style>

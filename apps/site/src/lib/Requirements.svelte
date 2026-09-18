@@ -7,6 +7,8 @@
   export let registry: PublicKindEntry[];
   export let emptyExplanation: string | undefined = undefined;
 
+  // A group the game satisfies with any one member reads as an alternative: "Shieldmaster or
+  // Assassin". A group it checks in full reads as a conjunction.
   function separator(group: RequirementGroup, index: number): string {
     if (index === 0) return '';
     if (group.mode === 'any' && (group.requiredCount ?? 1) === 1) return ' or ';
@@ -15,22 +17,20 @@
 </script>
 
 {#if requirements.length === 0}
-  {#if emptyExplanation}<MissingValue explanation={emptyExplanation} />{:else}<span class="none">None</span>{/if}
+  {#if emptyExplanation}<MissingValue explanation={emptyExplanation} />{/if}
 {:else}
-  <ul>
+  <ul class="requirements">
     {#each requirements as group}
       <li>
-        {#if group.mode === 'any' && (group.requiredCount ?? 1) > 1}{group.requiredCount} of: {/if}
-        {#each group.requirements as requirement, index}
-          {separator(group, index)}{#if requirement.target}<EntityLink ref={requirement.target} {registry} />{#if requirement.amount !== undefined} {requirement.amount}{/if}{#if requirement.secondaryAmount !== undefined}–{requirement.secondaryAmount}{/if}{:else}{requirement.label}{/if}
-        {/each}
+        {#if group.mode === 'any' && (group.requiredCount ?? 1) > 1}<span class="count">{group.requiredCount} of</span>{/if}
+        {#each group.requirements as requirement, index}{separator(group, index)}{#if requirement.target}<EntityLink ref={requirement.target} {registry} />{#if requirement.amount !== undefined}&nbsp;{requirement.amount}{/if}{#if requirement.secondaryAmount !== undefined}–{requirement.secondaryAmount}{/if}{:else}{requirement.label}{/if}{/each}
       </li>
     {/each}
   </ul>
 {/if}
 
 <style>
-  ul { margin: 0; padding-left: 1rem; }
-  li + li { margin-top: .25rem; }
-  .none { color: #aaa69d; }
+  .requirements { display: grid; gap: .3rem; margin: 0; padding: 0; list-style: none; }
+  li { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; font-size: .85rem; }
+  .count { color: var(--c-text-dim); }
 </style>

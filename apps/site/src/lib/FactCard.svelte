@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { PublicAbility, PublicDocument, PublicItem, PublicKindEntry, PublicNpc, PublicPlace, PublicProperty, PublicQuest, PublicRecipe } from '@afallon/contracts/public';
+  import type { PublicAbility, PublicDocument, PublicGearSet, PublicItem, PublicKindEntry, PublicNpc, PublicPlace, PublicProperty, PublicQuest, PublicRecipe } from '@afallon/contracts/public';
   import FactCardAbility from './FactCardAbility.svelte';
+  import FactCardGearSet from './FactCardGearSet.svelte';
   import FactCardItem from './FactCardItem.svelte';
   import FactCardNpc from './FactCardNpc.svelte';
   import FactCardPlace from './FactCardPlace.svelte';
@@ -22,4 +23,5 @@
 {:else if document.ref.kind === 'places'}<FactCardPlace document={document as PublicPlace} {registry} {mapSpaceLabels} {compact} {showRelations} {limit} />
 {:else if document.ref.kind === 'properties'}<FactCardProperty document={document as PublicProperty} {registry} {compact} {showRelations} {limit} />
 {:else if document.ref.kind === 'abilities'}<FactCardAbility document={document as PublicAbility} {registry} {compact} {showRelations} {limit} />
-{:else if document.ref.kind === 'recipes'}<FactCardRecipe document={document as PublicRecipe} {registry} {compact} {showRelations} {limit} />{/if}
+{:else if document.ref.kind === 'recipes'}<FactCardRecipe document={document as PublicRecipe} {registry} {compact} {showRelations} {limit} />
+{:else if document.ref.kind === 'gearSets'}<FactCardGearSet document={document as PublicGearSet} {registry} {compact} {showRelations} {limit} />{/if}

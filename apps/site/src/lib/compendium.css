@@ -1,0 +1,296 @@
+/* Tokens and chrome shared by every compendium surface: the pages, the entity tooltip, and the
+   atlas detail panel. Only custom properties and `c-` classes live here, so importing the file
+   next to the atlas cannot restyle the map. Table and chip rules are global because a row is
+   written by the component that owns its data and passed through a slot, which leaves the shared
+   wrapper's scoped styles unable to reach it. */
+
+:root {
+  --c-surface-0: #171818;
+  --c-surface-1: #202120;
+  --c-surface-2: #252622;
+  --c-surface-3: #2c2d2a;
+  --c-line: #393a38;
+  --c-line-soft: #2e2f2c;
+  --c-text: #e9e4d9;
+  --c-text-dim: #aaa69d;
+  --c-text-mute: #85857e;
+  --c-accent: #d5b978;
+  --c-accent-strong: #e8d3a0;
+  --c-currency: #e0b341;
+  --c-radius: 8px;
+  --c-radius-sm: 4px;
+  --c-serif: Georgia, 'Times New Roman', serif;
+  --c-rarity-common: #b5b0a5;
+  --c-rarity-uncommon: #79c07a;
+  --c-rarity-rare: #6aa9e0;
+  --c-rarity-gold: #e0b341;
+  --c-rarity-epic: #b681e2;
+  --c-rarity-legendary: #e2883f;
+  --c-rarity: var(--c-rarity-common);
+}
+
+[data-rarity='common'] { --c-rarity: var(--c-rarity-common); }
+[data-rarity='uncommon'] { --c-rarity: var(--c-rarity-uncommon); }
+[data-rarity='rare'] { --c-rarity: var(--c-rarity-rare); }
+[data-rarity='gold'] { --c-rarity: var(--c-rarity-gold); }
+[data-rarity='epic'] { --c-rarity: var(--c-rarity-epic); }
+[data-rarity='legendary'] { --c-rarity: var(--c-rarity-legendary); }
+
+/* Cards */
+
+.c-card {
+  display: block;
+  /* A grid item defaults to min-width:auto, which would let a wide table push the page. */
+  min-width: 0;
+  padding: 1rem 1.1rem 1.1rem;
+  border: 1px solid var(--c-line);
+  border-radius: var(--c-radius);
+  background: var(--c-surface-1);
+  box-shadow: 0 1px 0 #0000002e;
+}
+
+.c-card > header {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  margin-bottom: .75rem;
+}
+
+.c-card > header h2 {
+  margin: 0;
+  color: #f1ecdf;
+  font: 600 .95rem/1.25 var(--c-serif);
+  letter-spacing: .01em;
+}
+
+.c-card > header .c-count {
+  color: var(--c-text-mute);
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.c-card-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  align-items: start;
+}
+
+.c-stack { display: grid; gap: 1rem; }
+.c-stack > *, .c-card-grid > * { min-width: 0; }
+.c-card-grid:empty { display: none; }
+
+@media (min-width: 60rem) {
+  .c-card-grid > .c-card--wide { grid-column: span 2; }
+}
+
+/* Cards render flush inside the tooltip and the atlas panel, which already have a surface. */
+.c-compact .c-card {
+  padding: .6rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--c-line-soft);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.c-compact .c-card > header { margin-bottom: .45rem; }
+.c-compact .c-card > header h2 { font-size: .82rem; }
+.c-compact .c-card-grid { grid-template-columns: 1fr; gap: 0; }
+.c-compact .c-stack { gap: 0; }
+
+/* Label-above-value facts */
+
+.c-facts {
+  display: grid;
+  gap: .8rem 1.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  margin: 0;
+}
+
+.c-facts.c-facts--wide { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+
+.c-fact { min-width: 0; }
+.c-fact--full { grid-column: 1 / -1; }
+
+.c-fact dt {
+  margin-bottom: .18rem;
+  color: var(--c-text-dim);
+  font-size: .72rem;
+  letter-spacing: .02em;
+}
+
+.c-fact dd {
+  margin: 0;
+  color: var(--c-text);
+  font-size: .9rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.c-fact dd > ul { margin: 0; padding-left: 1rem; }
+
+/* Chip grid for stats, resistances, immunities, and sockets */
+
+.c-chips {
+  display: grid;
+  gap: .4rem;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.c-chip {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .4rem .6rem;
+  border: 1px solid var(--c-line);
+  border-radius: var(--c-radius-sm);
+  background: var(--c-surface-2);
+  font-size: .82rem;
+}
+
+.c-chip .c-chip-name { color: #ddd8cd; overflow-wrap: anywhere; }
+.c-chip .c-chip-value { color: #f3eee2; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.c-chip.c-chip--plain { justify-content: flex-start; }
+
+/* Badges */
+
+.c-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .16rem .5rem;
+  border: 1px solid #ffffff1f;
+  border-radius: 999px;
+  background: var(--c-surface-3);
+  color: #ddd8cd;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.c-badge[data-tone='rarity'] {
+  border-color: color-mix(in srgb, var(--c-rarity) 55%, transparent);
+  background: color-mix(in srgb, var(--c-rarity) 16%, var(--c-surface-1));
+  color: var(--c-rarity);
+}
+
+.c-badge[data-tone='accent'] {
+  border-color: #806d4a;
+  background: #2a261e;
+  color: var(--c-accent-strong);
+}
+
+.c-badge[data-tone='boss'] {
+  border-color: #8a4f46;
+  background: #2e201d;
+  color: #e9a091;
+}
+
+/* Tables */
+
+.c-table-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* A scroll container is its own scrollport, so a sticky header inside one never reaches the
+   viewport. The list table therefore flows once the columns fit. */
+@media (min-width: 1024px) {
+  .c-table-scroll--flow-wide { overflow: visible; }
+}
+
+.c-table {
+  width: 100%;
+  /* Narrower than this a column crushes its words one letter wide, so the wrapper scrolls. */
+  min-width: 30rem;
+  border-collapse: collapse;
+  font-size: .84rem;
+}
+
+.c-table th,
+.c-table td {
+  padding: .5rem .6rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.c-table thead th {
+  border-bottom: 1px solid var(--c-line);
+  color: var(--c-text-dim);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.c-table--sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--c-surface-1);
+}
+
+.c-table tbody tr:nth-child(even) { background: #ffffff06; }
+.c-table tbody tr:hover { background: #ffffff0d; }
+.c-table tbody td { border-top: 1px solid var(--c-line-soft); }
+.c-table .c-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.c-table th.c-num .c-sort { justify-content: flex-end; width: 100%; }
+.c-table td small { display: block; margin-top: .15rem; color: var(--c-text-mute); font-size: .72rem; }
+
+.c-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.c-sort:not(:disabled):hover { color: var(--c-accent); }
+.c-sort:disabled { cursor: default; }
+.c-sort .c-sort-mark { color: var(--c-accent); font-size: .7rem; }
+.c-sort:disabled .c-sort-mark { display: none; }
+
+/* One accent for links and focus */
+
+.c-link { color: var(--c-accent); text-underline-offset: .18em; }
+.c-link:hover { color: var(--c-accent-strong); }
+
+.c-price { display: inline-flex; align-items: center; gap: .3rem; color: var(--c-currency); font-variant-numeric: tabular-nums; }
+.c-price img { width: 1.1rem; height: 1.1rem; object-fit: contain; }
+
+.c-action {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .4rem .75rem;
+  border: 1px solid #706548;
+  border-radius: var(--c-radius-sm);
+  background: var(--c-surface-2);
+  color: var(--c-accent-strong);
+  font-size: .8rem;
+  text-decoration: none;
+}
+
+.c-action:hover { border-color: #bba779; background: var(--c-surface-3); }
+
+:where(.c-card, .c-page) :focus-visible,
+.c-action:focus-visible,
+.c-sort:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+
+.c-empty { margin: 0; color: var(--c-text-mute); font-size: .82rem; }
+
+@media (max-width: 640px) {
+  .c-card { padding: .85rem; }
+  .c-facts { grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: .7rem 1rem; }
+  .c-chips { grid-template-columns: 1fr; }
+}

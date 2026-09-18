@@ -1,7 +1,10 @@
 <script lang="ts">
   import type { PublicKindEntry, QuestGivenRow, QuestLinkRow, QuestObjective, QuestObjectiveRow, QuestRewardRow } from '@afallon/contracts/public';
+  import Card from './Card.svelte';
+  import DataTable, { type TableColumn } from './DataTable.svelte';
   import EntityLink from './EntityLink.svelte';
   import MissingValue from './MissingValue.svelte';
+  import { objectiveLabel } from './format';
 
   type QuestRelationRow = QuestGivenRow | QuestRewardRow | QuestLinkRow | QuestObjectiveRow;
 
@@ -11,24 +14,38 @@
   export let heading = 'Quests';
   export let limit: number | undefined = undefined;
 
-  $: visibleRows = (limit === undefined ? rows : rows.slice(0, limit));
+  const columns: TableColumn[] = [
+    { id: 'target', label: 'Target' },
+    { id: 'role', label: 'Role or objective' },
+    { id: 'count', label: 'Count', numeric: true },
+  ];
+
+  $: visibleRows = limit === undefined ? rows : rows.slice(0, limit);
   $: visibleObjectives = limit === undefined ? objectives : objectives.slice(0, Math.max(0, limit - visibleRows.length));
 </script>
 
-{#if visibleRows.length > 0 || visibleObjectives.length > 0}
-  <section><h2>{heading}</h2><div class="scroll"><table><thead><tr><th>Target</th><th>Role or objective</th><th>Count</th></tr></thead><tbody>
-    {#each visibleRows as row}
-      <tr><td><EntityLink ref={row.counterpart} {registry} /></td><td>{#if 'objective' in row}{row.objective.label}<small>{row.objective.type}{#if row.objective.timeLimit !== undefined} · {row.objective.timeLimit}s{/if}{#if 'keepItems' in row.objective && row.objective.keepItems} · Keep items{/if}</small>{:else if 'role' in row}{row.role === 'gives' ? 'Quest giver' : 'Quest turn-in'}{:else if 'choice' in row}{row.choice ? 'Choose as reward' : 'Reward'}{:else}Given by quest{/if}</td><td>{#if 'objective' in row && 'count' in row.objective}{row.objective.count}{:else if 'count' in row}{row.count}{:else}<MissingValue explanation="No quantity is published" />{/if}</td></tr>
-    {/each}
-    {#each visibleObjectives as objective}
-      <tr><td>{#if 'target' in objective}<EntityLink ref={objective.target} {registry} />{:else}Unsupported objective{/if}</td><td>{objective.label}<small>{objective.type}{#if objective.timeLimit !== undefined} · {objective.timeLimit}s{/if}{#if 'keepItems' in objective && objective.keepItems} · Keep items{/if}</small>{#if objective.description}<small>{objective.description}</small>{/if}</td><td>{#if 'count' in objective}{objective.count}{:else}<MissingValue explanation="No quantity is published" />{/if}</td></tr>
-    {/each}
-  </tbody></table></div></section>
+{#if rows.length > 0 || objectives.length > 0}
+  <Card title={heading} count={rows.length + objectives.length}>
+    <DataTable {columns}>
+      {#each visibleRows as row}
+        <tr>
+          <td><EntityLink ref={row.counterpart} {registry} /></td>
+          <td>
+            {#if 'objective' in row}{row.objective.label}<small>{objectiveLabel(row.objective.type)}{#if row.objective.timeLimit !== undefined} · {row.objective.timeLimit}s{/if}{#if 'keepItems' in row.objective && row.objective.keepItems} · Keep items{/if}</small>
+            {:else if 'role' in row}{row.role === 'gives' ? 'Quest giver' : 'Quest turn-in'}
+            {:else if 'choice' in row}{row.choice ? 'Choose as reward' : 'Reward'}
+            {:else}Given by quest{/if}
+          </td>
+          <td class="c-num">{#if 'objective' in row && 'count' in row.objective}{row.objective.count}{:else if 'count' in row}{row.count}{:else}<MissingValue explanation="No quantity is published" />{/if}</td>
+        </tr>
+      {/each}
+      {#each visibleObjectives as objective}
+        <tr>
+          <td>{#if 'target' in objective}<EntityLink ref={objective.target} {registry} />{:else}Unsupported objective{/if}</td>
+          <td>{objective.label}<small>{objectiveLabel(objective.type)}{#if objective.timeLimit !== undefined} · {objective.timeLimit}s{/if}{#if 'keepItems' in objective && objective.keepItems} · Keep items{/if}</small>{#if objective.description}<small>{objective.description}</small>{/if}</td>
+          <td class="c-num">{#if 'count' in objective}{objective.count}{:else}<MissingValue explanation="No quantity is published" />{/if}</td>
+        </tr>
+      {/each}
+    </DataTable>
+  </Card>
 {/if}
-
-<style>
-  section { margin-top: 1.25rem; } h2 { margin: 0 0 .55rem; color: #eee9dd; font: 600 1rem/1.3 Georgia, serif; } .scroll { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: .82rem; } th, td { padding: .55rem; border-bottom: 1px solid #3b3c38; text-align: left; vertical-align: top; }
-  th { color: #bdb8ad; font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; }
-  small { display: block; margin-top: .2rem; color: #aaa69d; }
-</style>

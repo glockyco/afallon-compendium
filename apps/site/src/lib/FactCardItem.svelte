@@ -1,16 +1,21 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import type { PublicItem, PublicKindEntry } from '@afallon/contracts/public';
+  import Card from './Card.svelte';
+  import ChipGrid, { type Chip } from './ChipGrid.svelte';
   import ContainerTable from './ContainerTable.svelte';
   import DropTable from './DropTable.svelte';
+  import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
   import EntityLink from './EntityLink.svelte';
-  import FactCardFrame from './FactCardFrame.svelte';
+  import Fact from './Fact.svelte';
+  import FactGrid from './FactGrid.svelte';
   import GatherTable from './GatherTable.svelte';
-  import MissingValue from './MissingValue.svelte';
+  import Price from './Price.svelte';
   import QuestTable from './QuestTable.svelte';
   import RecipeTable from './RecipeTable.svelte';
   import Requirements from './Requirements.svelte';
   import VendorTable from './VendorTable.svelte';
+  import { formatNumber, labelOf, rangeText, rarityTone, signedAmount } from './format';
 
   export let document: PublicItem;
   export let registry: PublicKindEntry[];
@@ -20,40 +25,100 @@
 
   $: facts = document.facts;
   $: hasSources = document.droppedBy.length > 0 || document.soldBy.length > 0 || document.gatheredFrom.length > 0 || document.inContainers.length > 0 || document.rewardedBy.length > 0 || document.givenBy.length > 0 || document.craftedBy.length > 0;
-  $: damage = facts.minDamage === undefined && facts.maxDamage === undefined ? null : facts.minDamage === facts.maxDamage || facts.maxDamage === undefined ? String(facts.minDamage) : `${facts.minDamage ?? 0}–${facts.maxDamage}`;
+  $: damage = rangeText(facts.minDamage, facts.maxDamage);
+  $: gearType = facts.weaponType ?? facts.armorType;
+  $: slot = facts.weaponType && facts.weaponSlot ? facts.weaponSlot : facts.slot;
+  $: badges = [
+    ...(facts.rarity ? [{ label: facts.rarity, tone: 'rarity' as const }] : []),
+    ...(facts.questDropOnly ? [{ label: 'Quest item' }] : []),
+    ...(facts.corruptionToken ? [{ label: 'Corruption token' }] : []),
+  ] satisfies HeaderBadge[];
+  // The game names the slot and the gear type on one line above everything else.
+  $: headerFacts = [
+    ...(slot ? [{ label: 'Slot', value: labelOf(slot) }] : []),
+    ...(gearType ? [{ label: 'Type', value: labelOf(gearType) }] : facts.itemType ? [{ label: 'Type', value: labelOf(facts.itemType) }] : []),
+    ...(facts.levelRequirement !== undefined ? [{ label: 'Requires level', value: String(facts.levelRequirement) }] : []),
+  ] satisfies HeaderFact[];
+  $: statChips = facts.stats.map((stat) => ({
+    label: stat.stat.key === null ? stat.stat.label : stat.stat.name,
+    value: signedAmount(stat.amount, stat.isPercent),
+  })) satisfies Chip[];
+  $: randomChips = facts.randomStats.map((stat) => ({
+    label: `${stat.stat.key === null ? stat.stat.label : stat.stat.name}${stat.chance === undefined ? '' : ` (${formatNumber(stat.chance)}%)`}`,
+    value: `+${rangeText(stat.min, stat.max)}${stat.isPercent ? '%' : ''}`,
+  })) satisfies Chip[];
+  $: socketChips = facts.sockets.map((socket) => ({ label: labelOf(socket.socketType ?? socket.gemType ?? 'Any socket'), value: 'Empty' })) satisfies Chip[];
+  $: gemChips = (facts.gem?.stats ?? []).map((stat) => ({
+    label: stat.stat.key === null ? stat.stat.label : stat.stat.name,
+    value: signedAmount(stat.amount, stat.isPercent),
+  })) satisfies Chip[];
+  $: hasCoreFacts = facts.itemPower !== undefined || damage !== null || facts.attackSpeed !== undefined || facts.stackLimit > 1
+    || facts.enchantment !== undefined || facts.gearSet !== undefined || facts.sellPrice !== undefined || facts.buyPrice !== undefined
+    || (!compact && facts.itemType !== undefined);
 </script>
 
-<FactCardFrame name={document.ref.name} description={document.description} art={document.art.icon ?? document.ref.icon} fallbackIcon={registry.find((entry) => entry.kind === 'items')?.icon} {compact}>
-  <dl class="facts">
-    {#if facts.rarity}<div><dt>Rarity</dt><dd>{facts.rarity}</dd></div>{/if}
-    {#if facts.itemType}<div><dt>Item type</dt><dd>{facts.itemType}</dd></div>{/if}
-    {#if facts.weaponType && facts.weaponSlot}<div><dt>Weapon slot</dt><dd>{facts.weaponSlot}</dd></div>{:else if facts.slot}<div><dt>Slot</dt><dd>{facts.slot}</dd></div>{/if}
-    {#if facts.weaponType || facts.armorType}<div><dt>Weapon or armor</dt><dd>{facts.weaponType ?? facts.armorType}</dd></div>{/if}
-    {#if damage}<div><dt>Damage</dt><dd>{damage}</dd></div>{/if}
-    {#if facts.attackSpeed !== undefined}<div><dt>Attack speed</dt><dd>{facts.attackSpeed}</dd></div>{/if}
-    {#if facts.levelRequirement !== undefined}<div><dt>Level requirement</dt><dd>{facts.levelRequirement}</dd></div>{/if}
-    <div><dt>Stack limit</dt><dd>{facts.stackLimit}</dd></div>
-    {#if facts.stats.length}<div><dt>Stats</dt><dd>{#each facts.stats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.amount}{stat.isPercent ? '%' : ''}</span>{/each}</dd></div>{/if}
-    {#if facts.randomStats.length}<div><dt>Random stats</dt><dd>{#each facts.randomStats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.min}–{stat.max}{stat.isPercent ? '%' : ''}{stat.whole ? ' whole' : ''}{#if stat.chance !== undefined} · {stat.chance}%{/if}</span>{/each}<span class="line">Up to {facts.randomStatsMax}</span></dd></div>{/if}
-    {#if facts.sockets.length}<div><dt>Sockets</dt><dd>{facts.sockets.map((socket) => socket.socketType ?? socket.gemType ?? 'Any').join(', ')}</dd></div>{/if}
-    {#if facts.gem}<div><dt>Gem</dt><dd>{facts.gem.gemType ?? 'Gem'}{#each facts.gem.stats as stat}<span class="line"><EntityLink ref={stat.stat} {registry} /> {stat.amount}{stat.isPercent ? '%' : ''}</span>{/each}</dd></div>{/if}
-    {#if facts.enchantment}<div><dt>Enchantment</dt><dd><EntityLink ref={facts.enchantment} {registry} /></dd></div>{/if}
-    {#if facts.requirements.length}<div><dt>Requirements</dt><dd><Requirements requirements={facts.requirements} {registry} /></dd></div>{/if}
-    {#if facts.sellPrice}<div><dt>Sell price</dt><dd>{facts.sellPrice.amount} <EntityLink ref={facts.sellPrice.currency} {registry} /></dd></div>{/if}
-    {#if facts.buyPrice}<div><dt>Buy price</dt><dd>{facts.buyPrice.amount} <EntityLink ref={facts.buyPrice.currency} {registry} /></dd></div>{/if}
-    {#if facts.questDropOnly}<div><dt>Quest drop only</dt><dd>Yes</dd></div>{/if}
-    {#if facts.corruptionToken}<div><dt>Corruption token</dt><dd>Yes</dd></div>{/if}
-    <div><dt>Atlas</dt><dd>{#if hasSources}<a href={`${base}/?item=${encodeURIComponent(document.ref.key)}`}>View source locations</a>{:else}<MissingValue explanation="No source location is published" />{/if}</dd></div>
-  </dl>
-  {#if showRelations}
-    <DropTable rows={document.droppedBy} {registry} heading="Dropped by" counterpartLabel="Source" {limit} />
-    <VendorTable rows={document.soldBy} {registry} heading="Sold by" counterpartLabel="Vendor" {limit} />
-    <GatherTable rows={document.gatheredFrom} {registry} itemKey={document.ref.key} {limit} />
-    <ContainerTable rows={document.inContainers} {registry} heading="Found in containers" itemKey={document.ref.key} {limit} />
-    <QuestTable rows={[...document.rewardedBy, ...document.givenBy, ...document.usedInQuests]} {registry} heading="Quests" {limit} />
-    <RecipeTable rows={document.craftedBy} {registry} heading="Crafted by" counterpartLabel="Recipe" {limit} />
-    <RecipeTable rows={document.usedInRecipes} {registry} heading="Used in recipes" counterpartLabel="Recipe" {limit} />
-  {/if}
-</FactCardFrame>
+<article class="document" class:c-compact={compact} data-rarity={rarityTone(facts.rarity)}>
+  <EntityHeader
+    name={document.ref.name}
+    art={document.art.icon ?? document.ref.icon}
+    fallbackIcon={registry.find((entry) => entry.kind === 'items')?.icon}
+    rarity={rarityTone(facts.rarity)}
+    {badges}
+    facts={headerFacts}
+    description={document.description}
+    atlasHref={hasSources && !compact ? `${base}/?item=${encodeURIComponent(document.ref.key)}` : undefined}
+    atlasLabel="View sources on the atlas"
+    {compact}
+  />
 
-<style>.line { display: block; } .line + .line { margin-top: .2rem; } a { color: #d9bd79; text-underline-offset: .18em; }</style>
+  <div class="c-stack">
+    <div class="c-card-grid">
+      {#if hasCoreFacts}
+      <Card title="Facts" wide>
+        {#if facts.itemPower !== undefined}<p class="item-power">Item power <strong>{formatNumber(facts.itemPower)}</strong></p>{/if}
+        <FactGrid wide={!compact}>
+          {#if damage}<Fact label="Damage">{damage}</Fact>{/if}
+          {#if facts.attackSpeed !== undefined}<Fact label="Attack speed">{formatNumber(facts.attackSpeed)}</Fact>{/if}
+          {#if facts.damagePerSecond !== undefined}<Fact label="Damage per second">{facts.damagePerSecond.toFixed(1)}</Fact>{/if}
+          {#if facts.itemType && !compact}<Fact label="Item type">{labelOf(facts.itemType)}</Fact>{/if}
+          {#if facts.stackLimit > 1}<Fact label="Stack limit">{formatNumber(facts.stackLimit)}</Fact>{/if}
+          {#if facts.enchantment}<Fact label="Enchantment"><EntityLink ref={facts.enchantment} {registry} /></Fact>{/if}
+          {#if facts.gearSet}<Fact label="Gear set"><EntityLink ref={facts.gearSet} {registry} /></Fact>{/if}
+          {#if facts.sellPrice}<Fact label="Sell price"><Price price={facts.sellPrice} showName /></Fact>{/if}
+          {#if facts.buyPrice}<Fact label="Buy price"><Price price={facts.buyPrice} showName /></Fact>{/if}
+        </FactGrid>
+      </Card>
+      {/if}
+      {#if statChips.length}<Card title="Stats" count={statChips.length}><ChipGrid chips={statChips} /></Card>{/if}
+      {#if randomChips.length}
+        <Card title="Random stats" count={randomChips.length}>
+          <ChipGrid chips={randomChips} />
+          {#if facts.randomStatsMax > 0}<p class="note">Up to {facts.randomStatsMax} of these roll on one item.</p>{/if}
+        </Card>
+      {/if}
+      {#if socketChips.length}<Card title="Sockets" count={socketChips.length}><ChipGrid chips={socketChips} /></Card>{/if}
+      {#if facts.gem}
+        <Card title={labelOf(facts.gem.gemType ?? 'Gem')}>
+          {#if gemChips.length}<ChipGrid chips={gemChips} />{:else}<p class="note">This gem grants no published stat.</p>{/if}
+        </Card>
+      {/if}
+      {#if facts.requirements.length}<Card title="Requirements"><Requirements requirements={facts.requirements} {registry} /></Card>{/if}
+    </div>
+
+    {#if showRelations}
+      <DropTable rows={document.droppedBy} {registry} heading="Dropped by" counterpartLabel="Source" {limit} />
+      <VendorTable rows={document.soldBy} {registry} heading="Sold by" counterpartLabel="Vendor" {limit} />
+      <GatherTable rows={document.gatheredFrom} {registry} itemKey={document.ref.key} {limit} />
+      <ContainerTable rows={document.inContainers} {registry} itemKey={document.ref.key} {limit} />
+      <QuestTable rows={[...document.rewardedBy, ...document.givenBy, ...document.usedInQuests]} {registry} heading="Quests" {limit} />
+      <RecipeTable rows={document.craftedBy} {registry} heading="Crafted by" counterpartLabel="Recipe" {limit} />
+      <RecipeTable rows={document.usedInRecipes} {registry} heading="Used in recipes" counterpartLabel="Recipe" {limit} />
+    {/if}
+  </div>
+</article>
+
+<style>
+  .item-power { margin: 0 0 .75rem; color: var(--c-currency); font-size: .9rem; letter-spacing: .02em; }
+  .item-power strong { font-size: 1.1rem; }
+  .note { margin: .6rem 0 0; color: var(--c-text-mute); font-size: .76rem; }
+</style>

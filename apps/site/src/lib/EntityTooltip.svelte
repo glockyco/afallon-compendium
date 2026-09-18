@@ -58,7 +58,7 @@
 {/if}
 
 <style>
-  .entity-tooltip { position: absolute; z-index: 20; top: calc(100% + .45rem); left: 0; width: min(28rem, calc(100vw - 2rem)); max-height: min(32rem, 70vh); overflow: auto; padding: .8rem; border: 1px solid #74684e; border-radius: 3px; background: #202120; box-shadow: 0 8px 28px #000a; color: #e9e4d9; text-align: left; }
+  .entity-tooltip { position: absolute; z-index: 20; top: calc(100% + .45rem); left: 0; width: min(28rem, calc(100vw - 2rem)); max-height: min(32rem, 70vh); overflow: auto; padding: .85rem; border: 1px solid #74684e; border-radius: var(--c-radius); background: var(--c-surface-1); box-shadow: 0 10px 30px #000b; color: var(--c-text); text-align: left; }
   .tooltip-status { display: block; color: #bbb6aa; font-size: .8rem; }
   .tooltip-status.error { color: #e5afa6; }
   @media (max-width: 640px) { .entity-tooltip { position: fixed; inset: auto 1rem 1rem; width: auto; } }

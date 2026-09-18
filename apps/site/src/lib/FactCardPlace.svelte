@@ -1,10 +1,16 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import type { PlacementGroup, PublicKindEntry, PublicPlace } from '@afallon/contracts/public';
+  import Card from './Card.svelte';
+  import DataTable, { type TableColumn } from './DataTable.svelte';
+  import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
   import EntityLink from './EntityLink.svelte';
-  import FactCardFrame from './FactCardFrame.svelte';
+  import Fact from './Fact.svelte';
+  import FactGrid from './FactGrid.svelte';
   import LocationLinks from './LocationLinks.svelte';
   import MissingValue from './MissingValue.svelte';
+  import RefList from './RefList.svelte';
+  import { connectionLabel, labelOf, roleLabel } from './format';
 
   export let document: PublicPlace;
   export let registry: PublicKindEntry[];
@@ -12,42 +18,141 @@
   export let compact = false;
   export let showRelations = false;
   export let limit: number | undefined = undefined;
+
+  const creatureColumns: TableColumn[] = [
+    { id: 'name', label: 'Creature' },
+    { id: 'level', label: 'Level', numeric: true },
+    { id: 'roles', label: 'Roles' },
+    { id: 'locations', label: 'Locations', numeric: true },
+  ];
+  const npcColumns: TableColumn[] = [
+    { id: 'name', label: 'NPC' },
+    { id: 'roles', label: 'Role' },
+    { id: 'locations', label: 'Locations', numeric: true },
+  ];
+  $: connectionColumns = [
+    { id: 'name', label: 'Place' },
+    { id: 'kind', label: 'Connection' },
+    ...(connectionLocations ? [{ id: 'locations', label: 'Locations' }] : []),
+  ] satisfies TableColumn[];
+  $: connectionLocations = document.connections.some((connection) => connection.placements.length > 0);
+
   $: facts = document.facts;
   $: mapSpaceLabel = document.space ? mapSpaceLabels[document.space.mapSpaceId] : undefined;
+  $: badges = [
+    { label: labelOf(facts.placeType) },
+    ...(facts.guideIncluded ? [{ label: 'Guide entry', tone: 'accent' as const }] : []),
+  ] satisfies HeaderBadge[];
+  $: headerFacts = [
+    ...(facts.levelRange ? [{ label: 'Level', value: `${facts.levelRange.min}–${facts.levelRange.max}` }] : []),
+    ...(mapSpaceLabel ? [{ label: 'Map space', value: mapSpaceLabel }] : []),
+  ] satisfies HeaderFact[];
+  $: placementGroups = [
+    { title: 'Services', groups: document.services },
+    { title: 'Resources', groups: document.resources },
+    { title: 'Containers', groups: document.containers },
+  ].filter((entry) => entry.groups.length > 0) as { title: string; groups: PlacementGroup[] }[];
 
-  function visible<T>(rows: T[]): T[] { return limit === undefined ? rows : rows.slice(0, limit); }
+  function visible<T>(rows: T[]): T[] {
+    return limit === undefined ? rows : rows.slice(0, limit);
+  }
 </script>
 
-<FactCardFrame name={document.ref.name} description={document.description} art={document.art.artwork ?? document.art.icon ?? document.ref.icon} artRole="artwork" fallbackIcon={registry.find((entry) => entry.kind === 'places')?.icon} {compact}>
-  <dl class="facts">
-    {#if facts.placeType}<div><dt>Place type</dt><dd>{facts.placeType}</dd></div>{/if}
-    {#if facts.levelRange}<div><dt>Level range</dt><dd>{facts.levelRange.min}–{facts.levelRange.max}</dd></div>{/if}
-    {#if mapSpaceLabel}<div><dt>Map space</dt><dd>{mapSpaceLabel}</dd></div>{/if}
-    {#if document.space?.regionIds.length}<div><dt>Region areas</dt><dd>{document.space.regionIds.length} outlined {document.space.regionIds.length === 1 ? 'area' : 'areas'}</dd></div>{/if}
-    {#if document.space}<div><dt>Atlas</dt><dd><a href={`${base}/?place=${encodeURIComponent(document.ref.key)}`}>View map space</a></dd></div>{/if}
-    {#if facts.guideIncluded}<div><dt>Guide entry</dt><dd>Yes</dd></div>{/if}
-    {#if document.parent}<div><dt>Parent</dt><dd><EntityLink ref={document.parent} {registry} /></dd></div>{/if}
-  </dl>
-  {#if showRelations}
-    {#if document.bosses.length}<section><h2>Bosses</h2><ul>{#each visible(document.bosses) as boss}<li><EntityLink ref={boss} {registry} /></li>{/each}</ul></section>{/if}
-    {#if document.creatures.length}<section><h2>Creatures</h2><div class="scroll"><table><thead><tr><th>Creature</th><th>Level</th><th>Roles</th><th>Locations</th></tr></thead><tbody>{#each visible(document.creatures) as creature}<tr><td><EntityLink ref={creature.counterpart} {registry} /></td><td>{#if creature.levelRange}{creature.levelRange.min}–{creature.levelRange.max}{:else}<MissingValue explanation="Not measured for this build" />{/if}</td><td>{creature.roles.join(', ')}</td><td>{#if creature.placementCount === 0}<MissingValue explanation="No location is published" />{:else if creature.counterpart.key}<a href={`${base}/?entity=${encodeURIComponent(creature.counterpart.key)}`}>{creature.placementCount} {creature.placementCount === 1 ? 'location' : 'locations'}</a>{:else}{creature.placementCount} {creature.placementCount === 1 ? 'location' : 'locations'}{/if}</td></tr>{/each}</tbody></table></div></section>{/if}
-    {#if document.npcs.length}<section><h2>NPCs and services</h2><div class="scroll"><table><thead><tr><th>NPC</th><th>Role</th><th>Locations</th></tr></thead><tbody>{#each visible(document.npcs) as npc}<tr><td><EntityLink ref={npc.counterpart} {registry} /></td><td>{npc.roles.join(', ')}</td><td>{#if npc.placementCount === 0}<MissingValue explanation="No location is published" />{:else if npc.counterpart.key}<a href={`${base}/?entity=${encodeURIComponent(npc.counterpart.key)}`}>{npc.placementCount} {npc.placementCount === 1 ? 'location' : 'locations'}</a>{:else}{npc.placementCount} {npc.placementCount === 1 ? 'location' : 'locations'}{/if}</td></tr>{/each}</tbody></table></div></section>{/if}
-    {#each [["Services", document.services], ["Resources", document.resources], ["Containers", document.containers]] as group}
-      {@const groups = group[1] as PlacementGroup[]}
-      {#if groups.length}<section><h2>{group[0]}</h2><ul>{#each visible(groups) as placementGroup}<li><strong>{placementGroup.category}:</strong> <a href={`${base}/?categories=${encodeURIComponent(placementGroup.category)}`}>{placementGroup.placementCount} {placementGroup.placementCount === 1 ? 'location' : 'locations'}</a></li>{/each}</ul></section>{/if}
-    {/each}
-    {#if document.quests.length}<section><h2>Quests</h2><ul>{#each visible(document.quests) as quest}<li><EntityLink ref={quest} {registry} /></li>{/each}</ul></section>{/if}
-    {#if document.properties.length}<section><h2>Properties</h2><ul>{#each visible(document.properties) as property}<li><EntityLink ref={property} {registry} /></li>{/each}</ul></section>{/if}
-    {#if document.connections.length}<section><h2>Connections</h2><div class="scroll"><table><thead><tr><th>Place</th><th>Connection</th><th>Locations</th></tr></thead><tbody>{#each visible(document.connections) as connection}<tr><td><EntityLink ref={connection.counterpart} {registry} /></td><td>{connection.kind}</td><td><LocationLinks placements={connection.placements} /></td></tr>{/each}</tbody></table></div></section>{/if}
-    {#if document.regions.length}<section><h2>Regions</h2><ul>{#each visible(document.regions) as region}<li><EntityLink ref={region} {registry} /></li>{/each}</ul></section>{/if}
-  {/if}
-</FactCardFrame>
+<article class="document" class:c-compact={compact}>
+  <EntityHeader
+    name={document.ref.name}
+    art={document.art.artwork ?? document.art.icon ?? document.ref.icon}
+    artRole="artwork"
+    fallbackIcon={registry.find((entry) => entry.kind === 'places')?.icon}
+    {badges}
+    facts={headerFacts}
+    description={document.description}
+    atlasHref={document.space && !compact ? `${base}/?place=${encodeURIComponent(document.ref.key)}` : undefined}
+    atlasLabel="View the map space"
+    {compact}
+  />
+
+  <div class="c-stack">
+    {#if document.parent || document.space?.regionIds.length}
+      <div class="c-card-grid">
+        <Card title="Facts">
+          <FactGrid>
+            {#if document.parent}<Fact label="Part of"><EntityLink ref={document.parent} {registry} /></Fact>{/if}
+            {#if document.space?.regionIds.length}<Fact label="Outlined areas">{document.space.regionIds.length}</Fact>{/if}
+          </FactGrid>
+        </Card>
+      </div>
+    {/if}
+
+    {#if showRelations}
+      <RefList title="Bosses" refs={document.bosses} {registry} {limit} />
+
+      {#if document.creatures.length}
+        <Card title="Creatures" count={document.creatures.length}>
+          <DataTable columns={creatureColumns}>
+            {#each visible(document.creatures) as creature}
+              <tr>
+                <td><EntityLink ref={creature.counterpart} {registry} /></td>
+                <td class="c-num">{#if creature.levelRange}{creature.levelRange.min}–{creature.levelRange.max}{:else}<MissingValue explanation="Not measured for this build" />{/if}</td>
+                <td>{creature.roles.map(roleLabel).join(', ')}</td>
+                <td class="c-num">{#if creature.placementCount === 0}<MissingValue explanation="No location is published" />{:else if creature.counterpart.key}<a class="c-link" href={`${base}/?entity=${encodeURIComponent(creature.counterpart.key)}`}>{creature.placementCount}</a>{:else}{creature.placementCount}{/if}</td>
+              </tr>
+            {/each}
+          </DataTable>
+        </Card>
+      {/if}
+
+      {#if document.npcs.length}
+        <Card title="NPCs and services" count={document.npcs.length}>
+          <DataTable columns={npcColumns}>
+            {#each visible(document.npcs) as npc}
+              <tr>
+                <td><EntityLink ref={npc.counterpart} {registry} /></td>
+                <td>{npc.roles.map(roleLabel).join(', ')}</td>
+                <td class="c-num">{#if npc.placementCount === 0}<MissingValue explanation="No location is published" />{:else if npc.counterpart.key}<a class="c-link" href={`${base}/?entity=${encodeURIComponent(npc.counterpart.key)}`}>{npc.placementCount}</a>{:else}{npc.placementCount}{/if}</td>
+              </tr>
+            {/each}
+          </DataTable>
+        </Card>
+      {/if}
+
+      {#if placementGroups.length}
+        <div class="c-card-grid">
+          {#each placementGroups as group}
+            <Card title={group.title} count={group.groups.length}>
+              <ul class="groups">
+                {#each visible(group.groups) as placementGroup}
+                  <li><a class="c-link" href={`${base}/?categories=${encodeURIComponent(placementGroup.category)}`}>{roleLabel(placementGroup.category)}</a><span class="count">{placementGroup.placementCount}</span></li>
+                {/each}
+              </ul>
+            </Card>
+          {/each}
+        </div>
+      {/if}
+
+      <RefList title="Quests" refs={document.quests} {registry} {limit} />
+      <RefList title="Properties" refs={document.properties} {registry} {limit} />
+      <RefList title="Regions" refs={document.regions} {registry} {limit} />
+
+      {#if document.connections.length}
+        <Card title="Connections" count={document.connections.length}>
+          <DataTable columns={connectionColumns}>
+            {#each visible(document.connections) as connection}
+              <tr>
+                <td><EntityLink ref={connection.counterpart} {registry} /></td>
+                <td>{connectionLabel(connection.kind)}</td>
+                {#if connectionLocations}<td><LocationLinks placements={connection.placements} /></td>{/if}
+              </tr>
+            {/each}
+          </DataTable>
+        </Card>
+      {/if}
+    {/if}
+  </div>
+</article>
 
 <style>
-  section { margin-top: 1.25rem; } h2 { margin: 0 0 .55rem; color: #eee9dd; font: 600 1rem/1.3 Georgia, serif; }
-  ul { display: grid; gap: .35rem; margin: 0; padding-left: 1.1rem; }
-  a { color: #d9bd79; text-underline-offset: .18em; }
-  .scroll { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: .82rem; } th, td { padding: .55rem; border-bottom: 1px solid #3b3c38; text-align: left; vertical-align: top; }
-  th { color: #bdb8ad; font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; }
+  .groups { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+  .groups li { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; padding: .4rem .6rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-2); font-size: .82rem; }
+  .count { color: #f3eee2; font-variant-numeric: tabular-nums; font-weight: 600; }
 </style>
