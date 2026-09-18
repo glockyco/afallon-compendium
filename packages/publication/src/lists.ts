@@ -28,11 +28,12 @@ function itemRow(document: PublicItem): ListRow {
   const sourceKinds = [document.droppedBy.length > 0 ? "drop" : null, document.soldBy.length > 0 ? "vendor" : null,
     document.gatheredFrom.length > 0 ? "gather" : null, document.inContainers.length > 0 ? "container" : null,
     document.rewardedBy.length > 0 ? "quest" : null, document.craftedBy.length > 0 ? "recipe" : null].filter((value): value is string => value !== null);
+  const slot = document.facts.slot ?? document.facts.weaponSlot;
   return {
     ref: document.ref,
-    values: { rarity: document.facts.rarity ?? null, itemType: document.facts.itemType ?? null, slot: document.facts.slot ?? null,
+    values: { rarity: document.facts.rarity ?? null, itemType: document.facts.itemType ?? null, slot: slot ?? null,
       levelRequirement: document.facts.levelRequirement ?? null, sellPrice: document.facts.sellPrice?.amount ?? null },
-    facets: { slot: facetValue(document.facts.slot), itemType: facetValue(document.facts.itemType), rarity: facetValue(document.facts.rarity), sourceKind: sourceKinds },
+    facets: { slot: facetValue(slot), itemType: facetValue(document.facts.itemType), rarity: facetValue(document.facts.rarity), sourceKind: sourceKinds },
   };
 }
 

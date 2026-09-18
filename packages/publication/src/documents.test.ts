@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts } from "@afallon/contracts/catalog";
 import type { PublicItem, PublicNpc, PublicPlace } from "@afallon/contracts/public";
 import { projectPublicDocuments, projectQuestObjective } from "./documents";
+import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
+import { buildKindLists } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
 
 const entities: CatalogEntityRow[] = [
@@ -77,6 +79,8 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
     ] },
     { mode: "all", requirements: [{ type: "level", label: "Level 27", amount: 27 }] },
   ]);
+  const itemList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")?.[0];
+  expect(itemList?.rows.find((row) => row.ref.key === "items:1")).toMatchObject({ values: { slot: "MAIN HAND" }, facets: { slot: ["MAIN HAND"] } });
   expect(npc.facts).not.toHaveProperty("species");
   expect(npc.facts.lootSpecialization).toEqual({ armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { key: "stats:5", kind: "stats", name: "Item power" } });
   expect(item.droppedBy).toHaveLength(1);
@@ -108,6 +112,8 @@ test("projects only the armor branch when native weapon defaults remain", () => 
   expect(item.facts).not.toHaveProperty("attackSpeed");
   expect(item.facts).not.toHaveProperty("minDamage");
   expect(item.facts).not.toHaveProperty("maxDamage");
+  const itemList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")?.[0];
+  expect(itemList?.rows.find((row) => row.ref.key === "items:1")).toMatchObject({ values: { slot: "GLOVES" }, facets: { slot: ["GLOVES"] } });
 });
 
 test("maps every supported native task type and preserves unsupported types", () => {
