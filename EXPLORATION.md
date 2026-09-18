@@ -975,3 +975,26 @@ clean ownership, against 35 minutes of stalls and cascading failures from the bl
 When restarting the game, stop it and confirm the port is free before starting. A restart that
 overlaps the dying process reports ready against the port the old process still holds, and the
 new process then never binds.
+
+## Entity artwork extraction
+
+The database references sprites through `entryIcon` on every `RPGBuilderDatabaseEntry`, plus three
+record-specific fields: `RPGGameScene.GetAdventureGuideImage()` behind `adventureGuideImageKey`,
+`RegionTemplate.adventureGuideImage`, and `RPGProperty.propertyImage`. `RPGNpc.entryIcon` is the
+portrait the guide shows.
+
+Build textures are not CPU-readable, so the collector blits each sprite's atlas into a temporary
+`RenderTexture`, reads the sprite's own `textureRect`, encodes PNG, and restores the previous
+active render target in `finally`. Sprites shared by several records are read once and cached by
+texture instance and rectangle.
+
+One run against build 25153357 with character `AtlasSurvey` in Coalway woods took 66 seconds and
+produced 2,420 images from 1,373 distinct sprites, 525 MB of PNG: 1,076 item icons, 357 NPC
+portraits, 347 ability icons, 693 effect icons, 132 recipe icons, and the scene, region, and
+property art. No sprite failed to read. 622 records reference no sprite at all, all 93 stats and
+all 166 region entries among them, so those pages carry the kind icon instead. Item icons are
+512 by 512, portraits 1024 by 1024, and guide art up to 3438 by 1418, so publication derives sized
+WebP variants rather than shipping the source PNG.
+
+Evidence: `local/evidence-pipeline-fresh-selected-store/spike-artwork/artwork.json` and its
+`artwork/<sha256>.png` files, from the throwaway runner `local/artwork-spike.ts`.

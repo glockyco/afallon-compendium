@@ -16,8 +16,8 @@
 
 ## 3. Artwork extraction
 
-- [ ] 3.1 Read `AdventureGuidePanel`, `RPGGameScene`, `RegionTemplate`, `RPGItem`, `RPGAbility`, and `RPGNpc` in `research/recovered-types` and record which fields hold icons, portraits, and guide art in `EXPLORATION.md`. Verify each field name resolves through a HotRepl probe against the running game.
-- [ ] 3.2 Add `packages/scan/src/probes/collectors/artwork.csx` that copies each referenced sprite through a `RenderTexture`, encodes PNG bytes, and returns content-addressed records with asset name, family, id, and dimensions, recording unreadable sprites with a reason. Verify a scan run against the supported build stores one PNG per item icon, per NPC portrait, per ability icon, and per guide artwork, and that the run restores runtime state.
+- [x] 3.1 Read `AdventureGuidePanel`, `RPGGameScene`, `RegionTemplate`, `RPGItem`, `RPGAbility`, and `RPGNpc` in `research/recovered-types` and record which fields hold icons, portraits, and guide art in `EXPLORATION.md`. Verify each field name resolves through a HotRepl probe against the running game.
+- [x] 3.2 Add `packages/scan/src/probes/collectors/artwork.csx` that copies each referenced sprite through a `RenderTexture`, encodes PNG bytes, and returns content-addressed records with asset name, family, id, and dimensions, recording unreadable sprites with a reason. Verify a scan run against the supported build stores one PNG per item icon, per NPC portrait, per ability icon, and per guide artwork, and that the run restores runtime state.
 - [ ] 3.3 Register the artwork family in the scan target envelope and the catalog admission path. Verify ingestion rejects a family whose hashes do not match stored bytes and accepts the real run.
 
 ## 4. Publication
