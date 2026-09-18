@@ -2,6 +2,7 @@
   import { base } from '$app/paths';
   import type { EntityRef, PublicKindEntry, Ref } from '@afallon/contracts/public';
   import EntityTooltip from './EntityTooltip.svelte';
+  import { kindGlyphSvg } from './kind-icon';
 
   export let ref: Ref;
   export let registry: PublicKindEntry[];
@@ -14,20 +15,21 @@
   $: resolved = ref.key !== null ? ref as EntityRef : null;
   $: kind = resolved ? registry.find((entry) => entry.kind === resolved?.kind) : undefined;
   $: linked = Boolean(resolved?.slug && kind?.pages);
+  $: glyph = kindGlyphSvg(kind?.icon);
 </script>
 
 {#if resolved && linked && kind}
   {#if tooltip}
     <span class="tooltip-anchor" bind:this={anchorElement}>
       <a class="entity-link" data-rarity={rarity} href={`${base}/${kind.route}/${resolved.slug}/`} on:pointerenter={() => tooltipController.showAfterIntent()} on:pointerleave={() => tooltipController.close()} on:focus={() => void tooltipController.show()} on:blur={() => tooltipController.close()} on:keydown={(event) => tooltipController.handleKeydown(event)}>
-        {#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{kind.icon.slice(0, 1).toLocaleUpperCase()}</span>{/if}
+        {#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}
         <span>{resolved.name}</span>
       </a>
       <EntityTooltip bind:this={tooltipController} ref={resolved} {registry} anchor={anchorElement} />
     </span>
   {:else}
     <a class="entity-link" data-rarity={rarity} href={`${base}/${kind.route}/${resolved.slug}/`}>
-      {#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{kind.icon.slice(0, 1).toLocaleUpperCase()}</span>{/if}
+      {#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}
       <span>{resolved.name}</span>
     </a>
   {/if}
@@ -44,7 +46,8 @@
   .entity-link:hover { color: var(--c-accent-strong); text-decoration: underline; }
   .entity-text { color: var(--c-text); }
   img, .kind-icon { width: 1.4rem; height: 1.4rem; flex: none; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: #141514; object-fit: contain; }
-  .kind-icon { display: inline-grid; place-items: center; border-color: #4a463c; background: var(--c-surface-2); color: var(--c-accent); font: 700 .65rem/1 var(--c-serif); }
+  .kind-icon { display: inline-grid; place-items: center; border-color: #4a463c; background: var(--c-surface-2); color: #8d8778; }
+  .kind-icon :global(svg) { width: .9rem; height: .9rem; }
   span { overflow-wrap: anywhere; }
   .entity-link[data-rarity], .entity-text[data-rarity] { color: var(--c-rarity); }
   .entity-link[data-rarity]:hover { color: color-mix(in srgb, var(--c-rarity) 75%, #ffffff); }

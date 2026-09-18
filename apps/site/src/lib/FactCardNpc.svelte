@@ -46,6 +46,9 @@
   $: lootSpecialization = facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length > 0 || facts.lootSpecialization.stat)
     ? facts.lootSpecialization
     : undefined;
+  $: factCount = [facts.species !== undefined, facts.family !== undefined, facts.experience !== undefined,
+    facts.respawn !== undefined, facts.aggroRange !== undefined, lootSpecialization !== undefined,
+    document.linkedNpc !== undefined].filter(Boolean).length;
   $: hasFacts = facts.species !== undefined || facts.family !== undefined || facts.respawn !== undefined
     || facts.experience !== undefined || facts.aggroRange !== undefined || lootSpecialization !== undefined || document.linkedNpc !== undefined;
 </script>
@@ -67,7 +70,7 @@
   <div class="c-stack">
     <div class="c-card-grid">
       {#if hasFacts}
-      <Card title="Facts" wide>
+      <Card title="Facts" wide={factCount > 2}>
         <FactGrid wide={!compact}>
             {#if facts.species}<Fact label="Species"><EntityLink ref={facts.species} {registry} /></Fact>{/if}
             {#if facts.family}<Fact label="Family">{labelOf(facts.family)}</Fact>{/if}

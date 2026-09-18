@@ -7,6 +7,7 @@
   import { base } from '$app/paths';
   import type { ArtRef } from '@afallon/contracts/public';
   import Badge from './Badge.svelte';
+  import { kindGlyphSvg } from './kind-icon';
 
   export let name: string;
   export let art: ArtRef | undefined = undefined;
@@ -19,14 +20,16 @@
   export let atlasHref: string | undefined = undefined;
   export let atlasLabel = 'View on the atlas';
   export let compact = false;
+
+  $: glyph = kindGlyphSvg(fallbackIcon);
 </script>
 
 <header class="entity-header" class:compact data-rarity={rarity}>
   <div class="art" class:ringed={Boolean(rarity)}>
     {#if art}
       <img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt={`${name} ${artRole}`} />
-    {:else if fallbackIcon}
-      <span class="fallback" aria-hidden="true">{fallbackIcon.slice(0, 1).toLocaleUpperCase()}</span>
+    {:else if glyph}
+      <span class="fallback" aria-hidden="true">{@html glyph}</span>
     {/if}
   </div>
   <div class="copy">
@@ -48,7 +51,8 @@
   .art { flex: none; }
   .art img, .fallback { display: block; width: min(9rem, 24vw); height: auto; max-height: 11rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: #141514; object-fit: contain; }
   .art.ringed img, .art.ringed .fallback { border-color: color-mix(in srgb, var(--c-rarity) 70%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-rarity) 22%, transparent), 0 0 18px -6px var(--c-rarity); }
-  .fallback { display: grid; width: 4.5rem; aspect-ratio: 1; place-items: center; color: var(--c-accent); font: 600 1.6rem/1 var(--c-serif); }
+  .fallback { display: grid; width: 4.5rem; aspect-ratio: 1; place-items: center; color: #7d786c; }
+  .fallback :global(svg) { width: 45%; height: 45%; }
   .copy { min-width: 0; flex: 1; }
   .title-row { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem .7rem; }
   h1, h3 { margin: 0; color: #f6f2e7; font-family: var(--c-serif); font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }

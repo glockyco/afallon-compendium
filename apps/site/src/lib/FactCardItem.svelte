@@ -52,6 +52,9 @@
     label: stat.stat.key === null ? stat.stat.label : stat.stat.name,
     value: signedAmount(stat.amount, stat.isPercent),
   })) satisfies Chip[];
+  $: coreFactCount = [damage !== null, facts.attackSpeed !== undefined, facts.damagePerSecond !== undefined,
+    facts.itemType !== undefined && !compact, facts.stackLimit > 1, facts.enchantment !== undefined,
+    facts.gearSet !== undefined, facts.sellPrice !== undefined, facts.buyPrice !== undefined].filter(Boolean).length;
   $: hasCoreFacts = facts.itemPower !== undefined || damage !== null || facts.attackSpeed !== undefined || facts.stackLimit > 1
     || facts.enchantment !== undefined || facts.gearSet !== undefined || facts.sellPrice !== undefined || facts.buyPrice !== undefined
     || (!compact && facts.itemType !== undefined);
@@ -74,7 +77,7 @@
   <div class="c-stack">
     <div class="c-card-grid">
       {#if hasCoreFacts}
-      <Card title="Facts" wide>
+      <Card title="Facts" wide={coreFactCount > 2}>
         {#if facts.itemPower !== undefined}<p class="item-power">Item power <strong>{formatNumber(facts.itemPower)}</strong></p>{/if}
         <FactGrid wide={!compact}>
           {#if damage}<Fact label="Damage">{damage}</Fact>{/if}

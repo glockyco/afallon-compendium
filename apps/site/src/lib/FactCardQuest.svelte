@@ -43,7 +43,7 @@
 
   <div class="c-stack">
     <div class="c-card-grid">
-      <Card title="Facts" wide>
+      <Card title="Facts">
         <FactGrid>
           <Fact label="Quest giver">
             {#if document.givers.length}{#each document.givers as giver}<span class="line"><EntityLink ref={giver} {registry} /></span>{/each}{:else}<MissingValue explanation="No quest giver is published" />{/if}
