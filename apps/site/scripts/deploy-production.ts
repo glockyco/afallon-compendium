@@ -15,7 +15,7 @@ const metadata = stagePublication(resolve(process.cwd(), runArg), siteDir);
 run("bun", ["run", "build:production"]);
 run("bun", ["run", "assert:deployment"]);
 // Keep the deployment command explicit: this service has static assets and no Worker entry point.
-run("wrangler", ["deploy"]);
+run("bun", ["run", "wrangler", "deploy"]);
 await smokeProduction(origin, metadata, siteDir);
 process.stdout.write(`Production smoke passed for publication ${metadata.publicationId}.\n`);
 
@@ -25,6 +25,7 @@ function run(command: string, args: string[]): void {
     stdio: "inherit",
     env: { ...process.env, SITE_STAGE: "production" },
   });
+  if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} failed with exit ${result.status}.`);
 }
 
