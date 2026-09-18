@@ -6,7 +6,7 @@ The compendium reference gives every published game entity its own page, a list 
 
 ### Requirement: Every published entity has a page
 
-The site SHALL publish one prerendered page for each published entity of a registered kind at `/<kind>/<slug>/`. The page SHALL show the entity's fact card and its relation tables. The `kind` segment and the `slug` SHALL come from the publication, not from the page code. The initial kinds SHALL be items, NPCs, quests, places, properties, abilities, and recipes.
+The site SHALL publish one prerendered page for each published entity of a registered kind at `/<kind>/<slug>/`. The page SHALL show the entity's fact card and its relation tables. The `kind` segment and the `slug` SHALL come from the publication, not from the page code. The initial kinds SHALL be items, NPCs, quests, places, properties, abilities, recipes, and gear sets.
 
 #### Scenario: A reader opens an item page
 - **WHEN** a reader requests `/items/<slug>/` for a published item
@@ -28,6 +28,12 @@ The site SHALL publish one prerendered page for each published entity of a regis
 - **THEN** the page shows its name, artwork, description, level range, bosses, creatures with levels, named NPCs, quests that start there, and connected places
 - **AND** services, resources, and containers appear as counts by category rather than as one entry per placement
 - **AND** the page links to the same place on the world atlas
+
+#### Scenario: A reader opens a gear set page
+- **WHEN** a reader requests `/gear-sets/<slug>/` for a published gear set
+- **THEN** the page lists every member item
+- **AND** it lists each tier with the number of equipped members it needs and the stats it grants
+- **AND** each member item's page names the set
 
 #### Scenario: A page URL is stale
 - **WHEN** a reader requests a page path that the publication does not define

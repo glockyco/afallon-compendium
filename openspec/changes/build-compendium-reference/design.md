@@ -85,8 +85,13 @@ Alternatives: a fully data-driven page (registry declares blocks and columns for
 | properties | `/properties/` | canonical properties | place, income |
 | abilities | `/abilities/` | support abilities referenced by NPC phases or item actions | used by |
 | recipes | `/recipes/` | support recipes | station, skill, produced item type |
+| gear sets | `/gear-sets/` | support gear sets | member count, tier count |
 
 NPC roles are facets on one kind rather than separate kinds because the same `RPGNpc` record can be a merchant and a quest giver, and marker categories already use these role names. Scenes and regions share the `places` kind with a `placeType` fact because both carry level ranges and guide metadata and both are what a player calls "a place".
+
+### 6a. Gear sets
+
+`RPGGearSet` carries `itemsInSet[].itemID` and `gearSetTiers[].{equippedAmount, gearSetTierStats[]}`, which the item tooltip renders as the set's member list and its tier bonuses. The support collector exported identity and icon only, so a scan extension projects both lists, the catalog stores set members and tier stats, and the set becomes a paged kind whose document carries its members and tiers. Every member item's document names its set, so the relation reads from both ends like the others.
 
 ### 7. Search corpus
 

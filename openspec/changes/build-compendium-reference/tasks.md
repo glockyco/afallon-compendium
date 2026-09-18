@@ -49,3 +49,10 @@
 - [ ] 6.1 Run scan, catalog, and publish against the fresh selected store with artwork; stage, build, and preview. Verify the deploy smoke test requests one page per kind, one list, the coverage page, and the not-found page, and record page count, build time, search bytes, and largest document bytes in `EXPLORATION.md`.
 - [ ] 6.2 Rehearse rollback with `verify:deployment` between the new and previous publication roots. Verify both pass graph verification and the parity gate reports the removed guide resources as expected.
 - [ ] 6.3 Update `README.md` for the compendium routes, the coverage page, and the artwork evidence; mark task 6a.10 in `openspec/changes/build-screenshot-first-map/tasks.md` as superseded by this change. Verify the documented commands reproduce the artifact set from a fresh local run.
+
+## 7. Gear sets
+
+- [ ] 7.1 Project `RPGGearSet.itemsInSet` and `gearSetTiers` in the support collector, with each tier's equipped amount and its stat rows. Verify a real scan run exports members and tiers for all 27 sets and that Adept Leather reports seven members with two tiers.
+- [ ] 7.2 Decode and store gear set members and tier stats in the catalog, resolving every member to an item entity and every tier stat to a stat entity, with an unresolved member recorded as a coverage issue. Verify a catalog test covers a set whose member id does not resolve, and report the real member and tier counts.
+- [ ] 7.3 Publish `PublicGearSet` documents, a `gear-sets` kind registry entry and list, and the owning set on each member item's facts. Verify the real publish emits 27 set documents, that Adept Leather lists its seven members and its `(3)` and `(7)` tiers, and that each member item names the set.
+- [ ] 7.4 Render the gear set page and the set row on an item page in the game's tooltip order: member list, then each tier as its equipped count and its stats. Verify in the browser against `research/screenshots/reference/game-item-tooltip-armor.png`.

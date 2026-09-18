@@ -9,15 +9,15 @@ const identity = StaticResourceIdentityFields;
 
 // Kinds with pages own a route and a document schema. Kinds without pages still have references,
 // names, and icons, so a stat or currency renders as text with its icon rather than as a dead link.
-export const PUBLIC_PAGE_KIND_VALUES = ["items", "npcs", "quests", "places", "properties", "abilities", "recipes"] as const;
+export const PUBLIC_PAGE_KIND_VALUES = ["items", "npcs", "quests", "places", "properties", "abilities", "recipes", "gearSets"] as const;
 export type PublicPageKind = typeof PUBLIC_PAGE_KIND_VALUES[number];
-export const PUBLIC_REFERENCE_KIND_VALUES = [...PUBLIC_PAGE_KIND_VALUES, "currencies", "stats", "factions", "skills", "classes", "races", "enchantments", "gearSets", "effects", "species", "lootTables", "craftingStations"] as const;
+export const PUBLIC_REFERENCE_KIND_VALUES = [...PUBLIC_PAGE_KIND_VALUES, "currencies", "stats", "factions", "skills", "classes", "races", "enchantments", "effects", "species", "lootTables", "craftingStations"] as const;
 export type PublicReferenceKind = typeof PUBLIC_REFERENCE_KIND_VALUES[number];
-const pageKind = Type.Union([Type.Literal("items"), Type.Literal("npcs"), Type.Literal("quests"), Type.Literal("places"), Type.Literal("properties"), Type.Literal("abilities"), Type.Literal("recipes")]);
+const pageKind = Type.Union([Type.Literal("items"), Type.Literal("npcs"), Type.Literal("quests"), Type.Literal("places"), Type.Literal("properties"), Type.Literal("abilities"), Type.Literal("recipes"), Type.Literal("gearSets")]);
 const referenceKind = Type.Union([
   ...pageKind.anyOf,
   Type.Literal("currencies"), Type.Literal("stats"), Type.Literal("factions"), Type.Literal("skills"), Type.Literal("classes"), Type.Literal("races"),
-  Type.Literal("enchantments"), Type.Literal("gearSets"), Type.Literal("effects"), Type.Literal("species"), Type.Literal("lootTables"), Type.Literal("craftingStations"),
+  Type.Literal("enchantments"), Type.Literal("effects"), Type.Literal("species"), Type.Literal("lootTables"), Type.Literal("craftingStations"),
 ]);
 export const PUBLIC_SLUG_PATTERN = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
 const slug = Type.String({ pattern: PUBLIC_SLUG_PATTERN });
@@ -178,7 +178,7 @@ export const ItemFactsSchema = Type.Object({
   sockets: Type.Array(SocketRowSchema), gem: optional(GemSchema),
   enchantment: optional(RefSchema), sellPrice: optional(PriceSchema), buyPrice: optional(PriceSchema),
   stackLimit: count, questDropOnly: Type.Boolean(), corruptionToken: Type.Boolean(),
-  levelRequirement: optional(count), requirements,
+  levelRequirement: optional(count), requirements, gearSet: optional(RefSchema),
 }, { additionalProperties: false });
 export type ItemFacts = Static<typeof ItemFactsSchema>;
 
@@ -270,16 +270,29 @@ export type RecipeFacts = Static<typeof RecipeFactsSchema>;
 export const PublicRecipeSchema = Type.Object({ ...documentBase, facts: RecipeFactsSchema, product: optional(RecipeRowSchema), materials: Type.Array(RecipeRowSchema) }, { additionalProperties: false });
 export type PublicRecipe = Static<typeof PublicRecipeSchema>;
 
+// A set's tiers reward wearing a number of its members, which is what the game's tooltip shows
+// under the member list: "(3) Tier 1: +10% Poison Damage, +10 Dodge chance".
+export const GearSetTierSchema = Type.Object({ equipped: Type.Integer({ minimum: 1 }), stats: Type.Array(StatRowSchema) }, { additionalProperties: false });
+export type GearSetTier = Static<typeof GearSetTierSchema>;
+
+export const GearSetFactsSchema = Type.Object({ memberCount: count }, { additionalProperties: false });
+export type GearSetFacts = Static<typeof GearSetFactsSchema>;
+
+export const PublicGearSetSchema = Type.Object({
+  ...documentBase, facts: GearSetFactsSchema, members: refs, tiers: Type.Array(GearSetTierSchema),
+}, { additionalProperties: false });
+export type PublicGearSet = Static<typeof PublicGearSetSchema>;
+
 export const PUBLIC_DOCUMENT_SCHEMAS = {
   items: PublicItemSchema, npcs: PublicNpcSchema, quests: PublicQuestSchema, places: PublicPlaceSchema,
-  properties: PublicPropertySchema, abilities: PublicAbilitySchema, recipes: PublicRecipeSchema,
+  properties: PublicPropertySchema, abilities: PublicAbilitySchema, recipes: PublicRecipeSchema, gearSets: PublicGearSetSchema,
 } as const satisfies Record<PublicPageKind, TSchema>;
-export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace | PublicProperty | PublicAbility | PublicRecipe;
+export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace | PublicProperty | PublicAbility | PublicRecipe | PublicGearSet;
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
   items: "compendium.static-item.v1", npcs: "compendium.static-npc.v1", quests: "compendium.static-quest.v1", places: "compendium.static-place.v1",
-  properties: "compendium.static-property.v1", abilities: "compendium.static-ability.v1", recipes: "compendium.static-recipe.v1",
+  properties: "compendium.static-property.v1", abilities: "compendium.static-ability.v1", recipes: "compendium.static-recipe.v1", gearSets: "compendium.static-gear-set.v1",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -293,17 +306,18 @@ export const StaticPlaceDocumentSchema = staticDocument("places");
 export const StaticPropertyDocumentSchema = staticDocument("properties");
 export const StaticAbilityDocumentSchema = staticDocument("abilities");
 export const StaticRecipeDocumentSchema = staticDocument("recipes");
+export const StaticGearSetDocumentSchema = staticDocument("gearSets");
 export const STATIC_DOCUMENT_SCHEMAS = {
   "compendium.static-item.v1": StaticItemDocumentSchema, "compendium.static-npc.v1": StaticNpcDocumentSchema,
   "compendium.static-quest.v1": StaticQuestDocumentSchema, "compendium.static-place.v1": StaticPlaceDocumentSchema,
   "compendium.static-property.v1": StaticPropertyDocumentSchema, "compendium.static-ability.v1": StaticAbilityDocumentSchema,
-  "compendium.static-recipe.v1": StaticRecipeDocumentSchema,
+  "compendium.static-recipe.v1": StaticRecipeDocumentSchema, "compendium.static-gear-set.v1": StaticGearSetDocumentSchema,
 } as const;
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
-  | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema> | Static<typeof StaticRecipeDocumentSchema>;
+  | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema> | Static<typeof StaticRecipeDocumentSchema> | Static<typeof StaticGearSetDocumentSchema>;
 export const documentReference = Type.Union([
   resourceReference("compendium.static-item.v1"), resourceReference("compendium.static-npc.v1"), resourceReference("compendium.static-quest.v1"), resourceReference("compendium.static-place.v1"),
-  resourceReference("compendium.static-property.v1"), resourceReference("compendium.static-ability.v1"), resourceReference("compendium.static-recipe.v1"),
+  resourceReference("compendium.static-property.v1"), resourceReference("compendium.static-ability.v1"), resourceReference("compendium.static-recipe.v1"), resourceReference("compendium.static-gear-set.v1"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;
 
@@ -395,6 +409,7 @@ schemaRegistry.register("compendium.public-placement-ref.v1", PlacementRefSchema
 schemaRegistry.register("compendium.public-requirement-ref.v1", RequirementRefSchema);
 schemaRegistry.register("compendium.public-requirement-group.v1", RequirementGroupSchema);
 schemaRegistry.register("compendium.public-place-space.v1", PlaceSpaceSchema);
+schemaRegistry.register("compendium.public-gear-set-tier.v1", GearSetTierSchema);
 schemaRegistry.register("compendium.public-loot-specialization.v1", LootSpecializationSchema);
 schemaRegistry.register("compendium.public-random-stat-row.v1", RandomStatRowSchema);
 schemaRegistry.register("compendium.public-gem.v1", GemSchema);
@@ -415,4 +430,5 @@ schemaRegistry.register("compendium.public-placement-group.v1", PlacementGroupSc
 schemaRegistry.register("compendium.public-connection-row.v1", ConnectionRowSchema);
 schemaRegistry.register("compendium.public-kind-entry.v1", PublicKindEntrySchema);
 schemaRegistry.register("compendium.public-search-entry.v1", PublicSearchEntrySchema);
-for (const [kind, schema] of Object.entries(PUBLIC_DOCUMENT_SCHEMAS)) schemaRegistry.register(`compendium.public-${kind}-document.v1`, schema);
+// Schema ids are lower case with hyphens, so a camel-case kind becomes hyphenated.
+for (const [kind, schema] of Object.entries(PUBLIC_DOCUMENT_SCHEMAS)) schemaRegistry.register(`compendium.public-${kind.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}-document.v1`, schema);

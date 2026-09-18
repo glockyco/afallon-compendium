@@ -5,10 +5,10 @@ The atlas answers "where is it" but the site has no reference half: production b
 ## What Changes
 
 - Add a compendium reference: one prerendered page per canonical entity, a filterable list per kind, hover tooltips on every entity link, a shared search corpus, and a data-coverage page.
-- Add typed per-kind public documents (`PublicItem`, `PublicNpc`, `PublicQuest`, `PublicPlace`, `PublicProperty`, `PublicAbility`, `PublicRecipe`, and later kinds) that replace the generic `sections` projection. Each document carries its player-facing facts and its relations as named, typed row lists in both directions, computed at publication from the sealed catalog.
+- Add typed per-kind public documents (`PublicItem`, `PublicNpc`, `PublicQuest`, `PublicPlace`, `PublicProperty`, `PublicAbility`, `PublicRecipe`, `PublicGearSet`, and later kinds) that replace the generic `sections` projection. Each document carries its player-facing facts and its relations as named, typed row lists in both directions, computed at publication from the sealed catalog.
 - Add one shared link contract, `EntityRef` (key, kind, name, slug, icon), resolved and disambiguated once at publication, embedded in every relation row, and audited so that every published reference resolves to a page or renders as text.
 - Add a kind registry that owns the label, route prefix, icon, list columns, and search membership of each kind.
-- Promote support families that pages link to (abilities, effects, recipes, crafting stations, factions, currencies, skills, classes, races, enchantments, gear sets, species) to canonical kinds with typed facts.
+- Promote support families that pages link to (abilities, effects, recipes, crafting stations, factions, currencies, skills, classes, races, enchantments, gear sets, species) to canonical kinds with typed facts. Gear sets gain their members and tier bonuses, which the game's own item tooltip shows and no evidence carried.
 - Decode player-facing fields from the canonical records into typed catalog facts per kind instead of leaving them in the opaque `gameplay` payload.
 - Extract and publish entity artwork: item icons, ability icons, NPC portraits, and dungeon and region art referenced by the native guide.
 - **BREAKING** Remove the Adventure Guide routes. Dungeons and regions become place pages, bosses become NPC pages, and properties become property pages. The `/guide` paths are deleted without redirects; an old link reaches the not-found page.
