@@ -379,7 +379,14 @@ export function queryGatherRows(db: Database): CatalogQueryResult<CatalogGatherR
 
 export function queryContainerRows(db: Database): CatalogQueryResult<CatalogContainerRow[]> {
   const refs = entityEndpointIndex(db), records: CatalogContainerRow[] = [];
-  for (const row of db.query<{ item_entity_key: string; source_key: string; placement_ids_json: string; condition_ids_json: string; context_json: string }, []>("SELECT item_entity_key, source_key, placement_ids_json, condition_ids_json, context_json FROM item_sources WHERE source_kind = 'container' ORDER BY item_entity_key, source_key").all()) { const placementIds = textArray(row.placement_ids_json), context = object(row.context_json), placement = placementIds.length === 0 ? null : db.query<{ scene_native_id: number; label: string | null }, [string]>("SELECT scene_native_id, label FROM placements WHERE placement_id = ?").get(placementIds[0]!); records.push({ containerLabel: placement?.label ?? `Container ${row.source_key.slice(0, 8)}`, sourceId: row.source_key, sceneNativeId: placement?.scene_native_id ?? null, item: endpoint(refs, row.item_entity_key, row.item_entity_key), min: typeof context.min === "number" ? context.min : null, max: typeof context.max === "number" ? context.max : null, rawRate: typeof context.rawRate === "number" ? context.rawRate : null, conditionIds: textArray(row.condition_ids_json), placementIds }); }
+  for (const row of db.query<{ item_entity_key: string; source_key: string; placement_ids_json: string; condition_ids_json: string; context_json: string }, []>("SELECT item_entity_key, source_key, placement_ids_json, condition_ids_json, context_json FROM item_sources WHERE source_kind = 'container' ORDER BY item_entity_key, source_key").all()) {
+    const context = object(row.context_json), sourceId = typeof context.sourceId === "string" ? context.sourceId : null;
+    if (sourceId === null) throw new Error(`Container source ${row.source_key} has no source identity.`);
+    const placementIds = textArray(row.placement_ids_json);
+    if (placementIds.length === 0) placementIds.push(...db.query<{ placement_id: string }, [string]>("SELECT DISTINCT placement_id FROM source_details WHERE source_id = ? ORDER BY placement_id").all(sourceId).map((detail) => detail.placement_id));
+    const placement = placementIds.length === 0 ? null : db.query<{ scene_native_id: number }, [string]>("SELECT scene_native_id FROM placements WHERE placement_id = ?").get(placementIds[0]!);
+    records.push({ containerType: typeof context.containerType === "string" ? context.containerType : null, sourceId, place: placement === null ? null : endpoint(refs, `scenes:${placement.scene_native_id}`, `Scene ${placement.scene_native_id}`), item: endpoint(refs, row.item_entity_key, row.item_entity_key), min: typeof context.min === "number" ? context.min : null, max: typeof context.max === "number" ? context.max : null, rawRate: typeof context.rawRate === "number" ? context.rawRate : null, conditionIds: textArray(row.condition_ids_json), placementIds });
+  }
   return { ...identity(db), records };
 }
 

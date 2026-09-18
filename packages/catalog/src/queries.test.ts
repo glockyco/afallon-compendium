@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { openNormalizedDatabase, recordCoverageIssue } from "./database";
-import { queryCatalogCoverage, queryCatalogEntity, queryCatalogImagery, queryCatalogItemSources, queryCatalogMaps, queryCatalogSearch, queryConditions, queryDropRows, queryVendorRows } from "./queries";
+import { queryCatalogCoverage, queryCatalogEntity, queryCatalogImagery, queryCatalogItemSources, queryCatalogMaps, queryCatalogSearch, queryConditions, queryContainerRows, queryDropRows, queryVendorRows } from "./queries";
+import { containerTypeFromHierarchyPath } from "./world";
 
 test("returns the same conditional vendor and boss drop rows from both endpoints", () => {
   const db = openNormalizedDatabase(":memory:");
@@ -41,6 +42,26 @@ test("returns the same conditional vendor and boss drop rows from both endpoints
     const fromDropItem = dropRows.filter((row) => row.item.entityKey === "items:1");
     expect(fromBoss).toEqual(fromDropItem);
     expect(fromBoss).toEqual([{ context: "npc", owner: { entityKey: "npcs:2", label: "Boss" }, item: { entityKey: "items:1", label: "Sword" }, lootTableId: 9, entryIndex: 0, min: 1, max: 2, rawRate: 12.34, displayedChance: 12.3, levelBand: null, conditionIds: [], placementIds: [] }]);
+  } finally { db.close(); }
+});
+
+test("derives readable container types and exposes their place", () => {
+  expect(containerTypeFromHierarchyPath("GAMEPLAY[0]/Backpack (1)[1]/Loot[0]")).toBe("Backpack");
+  expect(containerTypeFromHierarchyPath("GAMEPLAY[0]/Loot[0]")).toBeNull();
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "catalog.v1", "{}", "e".repeat(64));
+    db.query("INSERT INTO identity_scenes VALUES (?, ?, ?)").run("build", 31, "cave");
+    db.query("INSERT INTO map_spaces VALUES (?, ?, ?)").run("build", "world", "World");
+    db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      "build", "items", 14, "items:14", "Novice Plate Boots", null, null, null, "{}", "[]",
+      "build", "scenes", 31, "scenes:31", "Coalway Cave", null, null, null, "{}", "[]",
+    );
+    db.query("INSERT INTO placements (placement_id, build_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, shape_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("chest-placement", "build", 31, "cave", "world", 0, 0, 0, 5, 5, "null", "[]");
+    db.query("INSERT INTO item_sources VALUES (?, ?, ?, ?, ?, ?, ?)").run("items:14", "container", "output-hash", "[\"chest-placement\"]", "[]", JSON.stringify({ sourceId: "chest-source", containerType: "Backpack", min: 1, max: 1, rawRate: 100 }), "null");
+
+    expect(queryContainerRows(db).records).toEqual([{ containerType: "Backpack", sourceId: "chest-source", place: { entityKey: "scenes:31", label: "Coalway Cave" }, item: { entityKey: "items:14", label: "Novice Plate Boots" }, min: 1, max: 1, rawRate: 100, conditionIds: [], placementIds: ["chest-placement"] }]);
   } finally { db.close(); }
 });
 

@@ -211,9 +211,9 @@ export interface CatalogGatherRow {
 }
 
 export interface CatalogContainerRow {
-  containerLabel: string;
+  containerType: string | null;
   sourceId: string;
-  sceneNativeId: number | null;
+  place: CatalogEndpoint | null;
   item: CatalogEndpoint;
   min: number | null;
   max: number | null;

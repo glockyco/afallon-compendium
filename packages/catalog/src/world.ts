@@ -9,6 +9,14 @@ export interface WorldRelationData {
   transitions: Array<Record<string, unknown> & { transitionId: string; sourceId: string | null; sourceSceneNativeId: number; destinationSceneNativeId: number | null; destinationMapSpaceId: string | null; transitionKind: string; provenance: ProvenanceReference[] }>;
   questAssociations: Array<Record<string, unknown> & { associationId: string; associationKind: string; provenance: ProvenanceReference[] }>;
 }
+
+export function containerTypeFromHierarchyPath(path: string | null): string | null {
+  if (path === null) return null;
+  const segments = path.split("/");
+  if (segments.length < 2) return null;
+  const type = segments[segments.length - 2]!.replace(/\[\d+\]$/, "").replace(/\s*\(\d+\)$/, "").trim();
+  return type.length > 0 && type.toUpperCase() !== "GAMEPLAY" ? type : null;
+}
 type WorldSource = WorldSources["transitions"][number]["source"];
 type LootEntry = RelationData["lootEntries"][number];
 
@@ -29,7 +37,7 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
         const provenance = [reference, ...entry.provenance, pointer(context.identityReference, `/identities/${identity.identityIndex}`)];
         const yieldId = hashRelation(`${sourceKind}-output`, [identity.sourceId, sourceKey, tableId, entry.entryIndex]);
         if (sourceKind === "resource") resourceYields.push({ yieldId, sourceId: identity.sourceId, itemID: entry.itemID, resourceID: null, rank: null, min: entry.min, max: entry.max, lootTableID: tableId, rawRate: entry.dropRate, provenance, ...details });
-        addSourceIndex(itemIndex, entry.itemID, sourceKind, yieldId, placementIds(identity), conditionIds(identity), { lootTableId: tableId, min: entry.min, max: entry.max, rawRate: entry.dropRate, probability: null, provenance, ...details });
+        addSourceIndex(itemIndex, entry.itemID, sourceKind, yieldId, placementIds(identity), conditionIds(identity), { sourceId: identity.sourceId, lootTableId: tableId, min: entry.min, max: entry.max, rawRate: entry.dropRate, probability: null, provenance, ...details });
       }
     }
     for (const [index, producer] of context.world.resourceProducers.entries()) {
@@ -54,11 +62,14 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
       if (!("projection" in container)) continue;
       const reference = pointer(context.worldReference, `/containers/${index}`), identity = identityFor(container.source);
       if (!identity) { blockers.push({ kind: "unplaced-source", key: `${context.snapshotId}:container:${index}`, detail: "Container has no verified source identity.", provenance: [reference] }); continue; }
+      const containerType = containerTypeFromHierarchyPath(container.source.source.hierarchyPath);
+      if (containerType === null) blockers.push({ kind: "unresolved-container-label", key: identity.sourceId, detail: "Container hierarchy has no readable prefab segment.", provenance: [reference] });
+      const containerDetails = { sourceId: identity.sourceId, containerType };
       if ("lootInstances" in container.projection) for (const [entryIndex, entry] of container.projection.lootInstances.entries()) {
         if ("unavailable" in entry) { blockers.push({ kind: "unavailable-container-entry", key: `${identity.sourceId}:${entryIndex}`, detail: entry.unavailable, provenance: [pointer(reference, `/projection/lootInstances/${entryIndex}`)] }); continue; }
         const sourceKey = hashRelation("container-output", [identity.sourceId, entryIndex, entry.itemID]);
-        addSourceIndex(itemIndex, entry.itemID, "container", sourceKey, placementIds(identity), conditionIds(identity), { min: entry.minCount, max: entry.maxCount, rawRate: entry.dropChance, maxDrops: container.projection.maxDrops, provenance: [pointer(reference, `/projection/lootInstances/${entryIndex}`), pointer(context.identityReference, `/identities/${identity.identityIndex}`)] });
-      } else for (const [tableIndex, row] of container.projection.containerTablesData.entries()) if (!("unavailable" in row) && row.lootTableID !== null) tableOutputs(identity, row.lootTableID, `node:${tableIndex}`, pointer(reference, `/projection/containerTablesData/${tableIndex}`), "container", { authoredActionChance: row.chance });
+        addSourceIndex(itemIndex, entry.itemID, "container", sourceKey, placementIds(identity), conditionIds(identity), { ...containerDetails, min: entry.minCount, max: entry.maxCount, rawRate: entry.dropChance, maxDrops: container.projection.maxDrops, provenance: [pointer(reference, `/projection/lootInstances/${entryIndex}`), pointer(context.identityReference, `/identities/${identity.identityIndex}`)] });
+      } else for (const [tableIndex, row] of container.projection.containerTablesData.entries()) if (!("unavailable" in row) && row.lootTableID !== null) tableOutputs(identity, row.lootTableID, `node:${tableIndex}`, pointer(reference, `/projection/containerTablesData/${tableIndex}`), "container", { ...containerDetails, authoredActionChance: row.chance });
     }
     for (const [index, zone] of context.world.questZones.entries()) {
       const identity = identityFor(zone.source), reference = pointer(context.worldReference, `/questZones/${index}`);
