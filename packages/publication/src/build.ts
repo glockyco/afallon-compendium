@@ -121,13 +121,13 @@ export async function buildStaticPublication(
     schemaVersion: "compendium.static-root.v3", buildId: coverageQuery.buildId, catalogId: coverageQuery.catalogId, mode, complete: gate.complete,
     world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: publishedOffsets, unplacedMapSpaceIds: [...allMapIds].filter((mapSpaceId) => !publishedMapIds.has(mapSpaceId)).sort() },
     maps, kinds: [...PUBLIC_KIND_REGISTRY], lists: Object.fromEntries([...indexes.lists].map(([kind, resources]) => [kind, resources.map((resource) => resource.reference)])),
-    search: indexes.search.map((resource) => resource.reference), pages: indexes.pages.reference, coverage: coverageResource.reference,
+    search: indexes.search.map((resource) => resource.reference), coverage: coverageResource.reference,
   };
   Assert(StaticRootManifestSchema, manifest);
   const rootResource = await writeStaticJson(store, manifest.schemaVersion, manifest, protection);
   const groups: Record<string, GeneratedStaticResource<unknown>[]> = {
     root: [rootResource], atlas: mapShards.flatMap((entry) => entry.resources), imageryMetadata: imagery.map((entry) => entry.resource),
-    search: indexes.search, lists: [...indexes.lists.values()].flat(), pages: [indexes.pages], documents: [...indexes.documents.values()],
+    search: indexes.search, lists: [...indexes.lists.values()].flat(), documents: [...indexes.documents.values()],
     optionalGeometry: mapShards.flatMap((entry) => entry.geometry), coverage: [coverageResource],
   };
   const essentialBytes = [...groups.root!, ...groups.atlas!, ...groups.imageryMetadata!, ...groups.coverage!].reduce((sum, resource) => sum + resource.identity.bytes, 0);

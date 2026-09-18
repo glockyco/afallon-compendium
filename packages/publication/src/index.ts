@@ -7,7 +7,6 @@ export * from "./index-resources";
 export * from "./kind-registry";
 export * from "./lists";
 export * from "./map-shards";
-export * from "./pages";
 export * from "./references";
 export * from "./resources";
 export * from "./selection";

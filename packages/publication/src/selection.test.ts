@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PUBLICATION_ESSENTIAL_BUDGET, type StaticCoverage, type StaticDocument, type StaticPages, type StaticRootManifest, type StaticSearchIndex } from "@afallon/contracts/public";
+import { PUBLICATION_ESSENTIAL_BUDGET, type StaticCoverage, type StaticDocument, type StaticRootManifest, type StaticSearchIndex } from "@afallon/contracts/public";
 import { writeStaticJson } from "./resources";
 import { selectPublication, type PublicationCandidateResource } from "./selection";
 import { publishFromPlan } from "./application";
@@ -65,10 +65,6 @@ test("names the referencing document and key when a referenced document is not p
       document: { ...item.document, facts: { ...item.document.facts, enchantment: { key: "items:404", kind: "items", name: "Missing item", slug: "missing-item" } } },
     });
 
-    const pagesCandidate = generated.resources.find((resource) => resource.reference.schemaId === "compendium.static-pages.v1")!;
-    const pages = JSON.parse(await readFile(store.objectPath(pagesCandidate.identity.sha256), "utf8")) as StaticPages;
-    const badPages = await writeStaticJson<StaticPages>(store, pages.schemaVersion, { ...pages,
-      entries: pages.entries.map((entry) => entry.document.path === itemCandidate.reference.path ? { ...entry, document: badItem.reference } : entry) });
     const searchCandidates = generated.resources.filter((resource) => resource.reference.schemaId === "compendium.static-search.v3");
     const badSearch = await Promise.all(searchCandidates.map(async (candidate) => {
       const search = JSON.parse(await readFile(store.objectPath(candidate.identity.sha256), "utf8")) as StaticSearchIndex;
@@ -77,9 +73,8 @@ test("names the referencing document and key when a referenced document is not p
     }));
     const searchByPath = new Map(searchCandidates.map((candidate, index) => [candidate.reference.path, badSearch[index]!]));
     const badRoot = await writeStaticJson<StaticRootManifest>(store, generated.manifest.schemaVersion, { ...generated.manifest,
-      pages: badPages.reference, search: generated.manifest.search.map((reference) => searchByPath.get(reference.path)?.reference ?? reference) });
+      search: generated.manifest.search.map((reference) => searchByPath.get(reference.path)?.reference ?? reference) });
     let resources = replaceResource(generated.resources, itemCandidate.reference.path, badItem);
-    resources = replaceResource(resources, pagesCandidate.reference.path, badPages);
     for (const candidate of searchCandidates) resources = replaceResource(resources, candidate.reference.path, searchByPath.get(candidate.reference.path)!);
     await expect(selectPublication(store, options.publicationRoot, badRoot, resources, generated.assets, gate))
       .rejects.toThrow(new RegExp(`Reference to an unpublished entity items:404 in resources/${badItem.identity.sha256}\\.json`));

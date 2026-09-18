@@ -7,7 +7,7 @@ import { PUBLICATION_PART_BUDGET } from "@afallon/contracts/public";
 import { openNormalizedDatabase } from "../../catalog/src/database";
 import { generateIndexResources } from "./index-resources";
 
-test("emits documents, lists, pages, and one search corpus", async () => {
+test("emits documents, lists, and one page-indexing search corpus", async () => {
   const root = await mkdtemp(join(tmpdir(), "afallon-index-resources-"));
   const db = openNormalizedDatabase(":memory:");
   try {
@@ -38,11 +38,11 @@ test("emits documents, lists, pages, and one search corpus", async () => {
     expect(entries.find((entry) => entry.ref.key === "quests:3")?.placementIds).toEqual([]);
     expect(entries.find((entry) => entry.ref.key === "npcs:2")?.placementIds).toEqual(["p1"]);
     expect(generated.documents.size).toBe(3);
-    expect(generated.pages.value.entries).toHaveLength(3);
+    expect(entries).toHaveLength(3);
     const documentPaths = new Set([...generated.documents.values()].map((resource) => resource.reference.path));
-    for (const page of generated.pages.value.entries) expect(documentPaths.has(page.document.path)).toBe(true);
+    for (const entry of entries) expect(entry.document && documentPaths.has(entry.document.path)).toBe(true);
     for (const lists of generated.lists.values()) for (const list of lists) for (const row of list.value.rows) {
-      expect(generated.pages.value.entries.some((page) => page.key === row.ref.key)).toBe(true);
+      expect(entries.some((entry) => entry.ref.key === row.ref.key)).toBe(true);
     }
     for (const lists of generated.lists.values()) for (const part of lists) expect(part.identity.bytes).toBeLessThanOrEqual(PUBLICATION_PART_BUDGET);
     for (const part of generated.search) expect(part.identity.bytes).toBeLessThanOrEqual(PUBLICATION_PART_BUDGET);

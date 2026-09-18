@@ -7,7 +7,6 @@ import {
   type StaticImagery,
   type StaticKindList,
   type StaticMapShard,
-  type StaticPages,
   type StaticSearchIndex,
   type VerifiedPublicationGraph,
 } from "@afallon/contracts/public";
@@ -60,10 +59,9 @@ function summarize(graph: VerifiedPublicationGraph): PublicationSummary {
     for (const entry of resource.entries) {
       searchKeys.push(entry.ref.key);
       if (entry.ref.kind === "items") itemKeys.push(entry.ref.key);
+      if (entry.ref.slug !== undefined && entry.document) pageEntries.push(`${entry.ref.kind}/${entry.ref.slug}=${entry.ref.key}`);
     }
   }
-  const pages = graph.resources.get(graph.publication.pages.path) as StaticPages;
-  for (const page of pages.entries) pageEntries.push(`${page.kind}/${page.slug}=${page.key}`);
   for (const resource of graph.resources.values()) {
     if (isStaticDocument(resource)) documentKeys.push(resource.document.ref.key);
     else if (resource.schemaVersion === "compendium.static-kind-list.v1") {

@@ -7,7 +7,6 @@ import {
   STATIC_DOCUMENT_SCHEMA_IDS,
   STATIC_DOCUMENT_SCHEMAS,
   StaticKindListSchema,
-  StaticPagesSchema,
   StaticSearchIndexSchema,
   artEdges,
   type EntityRef,
@@ -20,14 +19,12 @@ import {
   type PublicSearchEntry,
   type StaticDocument,
   type StaticKindList,
-  type StaticPages,
   type StaticSearchIndex,
 } from "@afallon/contracts/public";
 import { generateArtworkResources } from "./artwork";
 import { countUnresolvedReferences, projectPublicDocuments } from "./documents";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
-import { buildStaticPages } from "./pages";
 import { buildEntityReferences, createReferenceResolver } from "./references";
 import { partitionStaticRecords, writeStaticJson, type GeneratedStaticResource } from "./resources";
 import type { PublicationCandidateAsset } from "./selection";
@@ -37,7 +34,6 @@ export interface GeneratedIndexResources {
   documents: ReadonlyMap<string, GeneratedStaticResource<StaticDocument>>;
   lists: ReadonlyMap<string, GeneratedStaticResource<StaticKindList>[]>;
   search: GeneratedStaticResource<StaticSearchIndex>[];
-  pages: GeneratedStaticResource<StaticPages>;
   artwork: PublicationCandidateAsset[];
   unresolvedReferenceCount: number;
 }
@@ -107,9 +103,6 @@ export async function generateIndexResources(
     lists.set(kind, resources);
   }
 
-  const pageValue = buildStaticPages(identity, publicDocuments, documents);
-  Assert(StaticPagesSchema, pageValue);
-  const pages = await writeStaticJson(store, pageValue.schemaVersion, pageValue, protection);
   const listRowsByKey = new Map([...listValues.values()].flatMap((parts) => parts.flatMap((list) => list.rows.map((row) => [row.ref.key, row] as const))));
   const entries: PublicSearchEntry[] = [];
   for (const [key, document] of publicDocuments) {
@@ -138,5 +131,5 @@ export async function generateIndexResources(
     return asset;
   }).sort((left, right) => left.path.localeCompare(right.path));
   const unresolvedReferenceCount = [...publicDocuments.values()].reduce((count, document) => count + countUnresolvedReferences(document), 0);
-  return { refs, documents, lists, search, pages, artwork: assets, unresolvedReferenceCount };
+  return { refs, documents, lists, search, artwork: assets, unresolvedReferenceCount };
 }
