@@ -29,7 +29,7 @@
     </a>
   {/if}
 {:else if resolved}
-  <span class="entity-text">{#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else if kind}<span class="kind-icon" aria-hidden="true">{kind.icon.slice(0, 1).toLocaleUpperCase()}</span>{/if}<span>{resolved.name}</span></span>
+  <span class="entity-text">{#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{/if}<span>{resolved.name}</span></span>
 {:else if ref.key === null}
   <span class="entity-text">{ref.label}</span>
 {/if}

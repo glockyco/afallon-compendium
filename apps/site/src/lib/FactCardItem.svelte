@@ -27,8 +27,8 @@
   <dl class="facts">
     <div><dt>Rarity</dt><dd>{#if facts.rarity}{facts.rarity}{:else}<MissingValue explanation="No rarity is published" />{/if}</dd></div>
     <div><dt>Item type</dt><dd>{#if facts.itemType}{facts.itemType}{:else}<MissingValue explanation="No item type is published" />{/if}</dd></div>
-    <div><dt>Slot</dt><dd>{#if facts.slot}{facts.slot}{:else}<MissingValue explanation="No equipment slot is published" />{/if}</dd></div>
-    <div><dt>Weapon or armor</dt><dd>{#if facts.weaponType || facts.armorType || facts.weaponSlot}{facts.weaponType ?? facts.armorType ?? facts.weaponSlot}{:else}<MissingValue explanation="No weapon or armor type is published" />{/if}</dd></div>
+    {#if facts.weaponType}<div><dt>Weapon slot</dt><dd>{#if facts.weaponSlot}{facts.weaponSlot}{:else}<MissingValue explanation="No weapon slot is published" />{/if}</dd></div>{:else if facts.slot}<div><dt>Slot</dt><dd>{facts.slot}</dd></div>{/if}
+    <div><dt>Weapon or armor</dt><dd>{#if facts.weaponType || facts.armorType}{facts.weaponType ?? facts.armorType}{:else}<MissingValue explanation="No weapon or armor type is published" />{/if}</dd></div>
     <div><dt>Damage</dt><dd>{#if damage}{damage}{:else}<MissingValue explanation="No damage is published" />{/if}</dd></div>
     <div><dt>Attack speed</dt><dd>{#if facts.attackSpeed !== undefined}{facts.attackSpeed}{:else}<MissingValue explanation="No attack speed is published" />{/if}</dd></div>
     <div><dt>Level requirement</dt><dd>{#if facts.levelRequirement !== undefined}{facts.levelRequirement}{:else}<MissingValue explanation="No level requirement is published" />{/if}</dd></div>
