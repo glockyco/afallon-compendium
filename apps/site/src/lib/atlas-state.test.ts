@@ -4,7 +4,7 @@ import { DEFAULT_ATLAS_STATE, readAtlasUrl, transitionAtlasState, writeAtlasUrl,
 const complete: AtlasState = {
   layerIds: ["game-coalway"], selectedPlacementId: "placement",
   query: "merchant", itemSourceQuery: "vendor", detailQuery: "stock", categories: ["merchant", "questGiver"],
-  showZones: true, showConnections: true, showMovement: true, itemKey: "items:1", entityKey: "npcs:2",
+  showZones: true, showConnections: true, showMovement: true, itemKey: "items:1", entityKey: "npcs:2", placeKey: "places:3",
   view: { target: [12.5, -3, 0], zoom: 4 },
 };
 
@@ -30,7 +30,7 @@ test("ignores removed aliases and never mutates prior state", () => {
 
 test("item selection clears other detail searches and source selection preserves item context", () => {
   const item = transitionAtlasState(complete, { type: "select-item", itemKey: "items:3" });
-  expect(item).toEqual({ ...complete, itemKey: "items:3", entityKey: null, selectedPlacementId: null,
+  expect(item).toEqual({ ...complete, itemKey: "items:3", entityKey: null, placeKey: null, selectedPlacementId: null,
     query: "", itemSourceQuery: "", detailQuery: "" });
   const searched = transitionAtlasState(item, { type: "search", field: "itemSourceQuery", query: "merchant" });
   const source = transitionAtlasState(searched, { type: "select-placement", placementId: "source:3" });
@@ -41,7 +41,7 @@ test("item selection clears other detail searches and source selection preserves
 
 test("entity selection and detail close clear related fields without changing filters, query, or camera", () => {
   const entity = transitionAtlasState(complete, { type: "select-entity", entityKey: "npcs:4" });
-  expect(entity).toEqual({ ...complete, entityKey: "npcs:4", itemKey: null, selectedPlacementId: null,
+  expect(entity).toEqual({ ...complete, entityKey: "npcs:4", itemKey: null, placeKey: null, selectedPlacementId: null,
     itemSourceQuery: "", detailQuery: "" });
   const searched = transitionAtlasState(entity, { type: "search", field: "detailQuery", query: "reward" });
   const location = transitionAtlasState(searched, { type: "select-placement", placementId: "place:4" });
@@ -49,6 +49,13 @@ test("entity selection and detail close clear related fields without changing fi
   const closed = transitionAtlasState(location, { type: "close-details" });
   expect(closed).toEqual({ ...location, selectedPlacementId: null, detailQuery: "" });
   expect(transitionAtlasState(closed, { type: "search", field: "detailQuery", query: "obsolete" })).toEqual(closed);
+});
+
+test("place selection is canonical and exclusive", () => {
+  const place = transitionAtlasState(complete, { type: "select-place", placeKey: "places:9" });
+  expect(place).toEqual({ ...complete, placeKey: "places:9", itemKey: null, entityKey: null, selectedPlacementId: null,
+    query: "", itemSourceQuery: "", detailQuery: "", view: null });
+  expect(readAtlasUrl(writeAtlasUrl(new URL("https://atlas.test/"), place).search)).toEqual(place);
 });
 
 test("focused filter and query actions preserve unrelated navigation fields", () => {

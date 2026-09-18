@@ -196,7 +196,7 @@ export class AtlasController {
       state = { ...state, itemKey: null };
       this.#snapshot = { ...this.#snapshot, state };
     }
-    const key = JSON.stringify([state.selectedPlacementId, state.entityKey, state.itemKey]);
+    const key = JSON.stringify([state.selectedPlacementId, state.entityKey, state.itemKey, state.placeKey]);
     if (key === this.#selectionKey) return;
     this.#selectionKey = key;
     const generation = ++this.#selectionGeneration;
@@ -205,10 +205,12 @@ export class AtlasController {
     if (state.selectedPlacementId && this.#base && !placement) staleSelection = 'This link refers to a location that is not in the loaded publication.';
     if (this.#search && state.entityKey && !this.#search.entriesByKey.has(state.entityKey)) staleSelection = `This link refers to an entity that is not in the loaded publication: ${state.entityKey}.`;
     if (this.#search && state.itemKey && !this.#search.entriesByKey.has(state.itemKey)) staleSelection = `This link refers to an item that is not in the loaded publication: ${state.itemKey}.`;
+    if (this.#search && state.placeKey && this.#search.entriesByKey.get(state.placeKey)?.ref.kind !== 'places') staleSelection = `This link refers to a place that is not in the loaded publication: ${state.placeKey}.`;
 
     const entryKeys = new Set([...(placement?.entityKeys ?? []), ...(placement?.itemKeys ?? [])]);
     if (state.entityKey) entryKeys.add(state.entityKey);
     if (state.itemKey) entryKeys.add(state.itemKey);
+    if (state.placeKey) entryKeys.add(state.placeKey);
     const entries = [...entryKeys].map((entryKey) => this.#search?.entriesByKey.get(entryKey)).filter((entry) => entry?.document && entry.ref.slug);
     this.#snapshot = { ...this.#snapshot, staleSelection, detail: { status: entries.length ? 'loading' : 'idle' } };
     if (staleSelection || entries.length === 0) {

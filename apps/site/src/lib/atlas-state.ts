@@ -17,6 +17,7 @@ export interface AtlasState {
   readonly showMovement: boolean;
   readonly itemKey: string | null;
   readonly entityKey: string | null;
+  readonly placeKey: string | null;
   readonly view: AtlasView | null;
 }
 
@@ -27,6 +28,7 @@ export type AtlasAction =
   | { type: "select-placement"; placementId: string }
   | { type: "select-entity"; entityKey: string }
   | { type: "select-item"; itemKey: string }
+  | { type: "select-place"; placeKey: string }
   | { type: "exit-item-context" }
   | { type: "close-details" }
   | { type: "search"; field: AtlasQueryField; query: string }
@@ -47,6 +49,7 @@ export const DEFAULT_ATLAS_STATE: AtlasState = Object.freeze({
   showMovement: false,
   itemKey: null,
   entityKey: null,
+  placeKey: null,
   view: null,
 });
 
@@ -62,24 +65,27 @@ export function transitionAtlasState(state: AtlasState, action: AtlasAction): At
       next = { ...state, layerIds: action.layerIds };
       break;
     case "select-placement":
-      next = { ...state, selectedPlacementId: action.placementId, entityKey: null,
+      next = { ...state, selectedPlacementId: action.placementId, entityKey: null, placeKey: null,
         itemSourceQuery: state.itemKey ? state.itemSourceQuery : "", detailQuery: state.itemKey ? "" : state.detailQuery };
       break;
     case "select-entity":
-      next = { ...state, entityKey: action.entityKey, selectedPlacementId: null, itemKey: null, itemSourceQuery: "", detailQuery: "" };
+      next = { ...state, entityKey: action.entityKey, selectedPlacementId: null, itemKey: null, placeKey: null, itemSourceQuery: "", detailQuery: "" };
       break;
     case "select-item":
-      next = { ...state, itemKey: action.itemKey, selectedPlacementId: null, entityKey: null, query: "", itemSourceQuery: "", detailQuery: "" };
+      next = { ...state, itemKey: action.itemKey, selectedPlacementId: null, entityKey: null, placeKey: null, query: "", itemSourceQuery: "", detailQuery: "" };
+      break;
+    case "select-place":
+      next = { ...state, placeKey: action.placeKey, selectedPlacementId: null, entityKey: null, itemKey: null, query: "", itemSourceQuery: "", detailQuery: "", view: null };
       break;
     case "exit-item-context":
       next = { ...state, itemKey: null, itemSourceQuery: "" };
       break;
     case "close-details":
-      next = { ...state, selectedPlacementId: null, entityKey: null, itemKey: null, itemSourceQuery: "", detailQuery: "" };
+      next = { ...state, selectedPlacementId: null, entityKey: null, itemKey: null, placeKey: null, itemSourceQuery: "", detailQuery: "" };
       break;
     case "search": {
       const active = action.field === "query" || (action.field === "itemSourceQuery"
-        ? Boolean(state.itemKey) : !state.itemKey && Boolean(state.selectedPlacementId || state.entityKey));
+        ? Boolean(state.itemKey) : !state.itemKey && Boolean(state.selectedPlacementId || state.entityKey || state.placeKey));
       next = { ...state, [action.field]: active ? action.query : "" };
       break;
     }
@@ -96,7 +102,7 @@ export function transitionAtlasState(state: AtlasState, action: AtlasAction): At
   return freezeState(next, state);
 }
 
-export function selectedDetailKey(state: AtlasState): string | null { return state.itemKey ?? state.entityKey; }
+export function selectedDetailKey(state: AtlasState): string | null { return state.itemKey ?? state.entityKey ?? state.placeKey; }
 export function activeCategorySet(state: AtlasState): ReadonlySet<string> { return new Set(state.categories); }
 
 function finiteNumber(value: string | null): number | null {
@@ -143,6 +149,7 @@ export function readAtlasUrl(search: string): AtlasState {
     showMovement: params.get("movement") === "1",
     itemKey: params.get("item"),
     entityKey: params.get("entity"),
+    placeKey: params.get("place"),
     view,
   });
 }
@@ -153,7 +160,7 @@ export function writeAtlasUrl(url: URL, state: AtlasState): URL {
     ["layers", state.layerIds.join(",") || null], ["selected", state.selectedPlacementId],
     ["q", state.query.trim() || null], ["source-q", state.itemSourceQuery.trim() || null], ["detail-q", state.detailQuery.trim() || null],
     ["zones", state.showZones ? "1" : null], ["connections", state.showConnections ? "1" : null], ["movement", state.showMovement ? "1" : null],
-    ["item", state.itemKey], ["entity", state.entityKey],
+    ["item", state.itemKey], ["entity", state.entityKey], ["place", state.placeKey],
   ];
   for (const [key, value] of entries) if (value !== null) params.set(key, value);
   if (state.categories.length === 0) params.set("categories", "all");

@@ -28,8 +28,8 @@
   } from './map/marker-registry';
   import { MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from './map/interaction';
   import { canonicalLayerIds, NO_IMAGERY_LAYER_ID } from './map/layer-policy';
-  import { clearWorldOffsetOverrides, downloadWorldOffsets, loadWorldOffsetOverrides, saveWorldOffsetOverrides, placementInViewport, NO_WORLD_OVERRIDES, type WorldOffsetOverrides } from './map/world-layout';
-  import type { PublicDocument, PublicSearchEntry, PublicationData } from '@afallon/contracts/public';
+  import { clearWorldOffsetOverrides, downloadWorldOffsets, effectiveMapDelta, loadWorldOffsetOverrides, saveWorldOffsetOverrides, placementInViewport, NO_WORLD_OVERRIDES, type WorldOffsetOverrides } from './map/world-layout';
+  import type { PublicDocument, PublicPlace, PublicSearchEntry, PublicationData } from '@afallon/contracts/public';
 
   const RESULT_LIMIT = 200;
   const WEBGL_STARTUP_FAILURE = /webgl map unavailable|failed to create webgl context|webgl creation failed|webgl is not supported|exhausted gl driver options/i;
@@ -57,6 +57,7 @@
   let panelCollapsed = false;
   let resultsCollapsed = false;
   let worldOffsetOverrides: WorldOffsetOverrides = {};
+  let fittedPlaceKey: string | null = null;
   const initialIndexes = emptySearchIndexes();
   const initialDocuments: ReadonlyMap<string, PublicDocument> = new Map();
   const idleRequest = { status: 'idle' } as const;
@@ -85,6 +86,7 @@
   $: selectedId = state.selectedPlacementId;
   $: itemKey = state.itemKey;
   $: selectedEntityKey = state.entityKey;
+  $: placeKey = state.placeKey;
   $: query = state.query;
   $: showZones = state.showZones;
   $: showConnections = state.showConnections;
@@ -129,8 +131,10 @@
   $: previewPlacement = hoveredPlacement ?? selectedPlacement;
   $: previewMarkerId = previewPlacement ? resolveMarker(previewPlacement) : null;
   $: previewMarker = previewMarkerId ? markerFor(previewMarkerId) : null;
-  $: selectedDocumentKey = itemKey ?? selectedEntityKey ?? selectedPlacement?.entityKeys.find((key) => documents.has(key)) ?? selectedPlacement?.itemKeys.find((key) => documents.has(key)) ?? null;
+  $: selectedDocumentKey = itemKey ?? selectedEntityKey ?? placeKey ?? selectedPlacement?.entityKeys.find((key) => documents.has(key)) ?? selectedPlacement?.itemKeys.find((key) => documents.has(key)) ?? null;
   $: selectedDocument = selectedDocumentKey ? documents.get(selectedDocumentKey) ?? null : null;
+  $: selectedPlace = selectedDocument?.ref.kind === 'places' ? selectedDocument as PublicPlace : null;
+  $: selectedRegionIds = selectedPlace?.space?.regionIds ?? [];
   $: resultPlacements = !mapUnavailable && viewportBounds ? viewportPlacements : matchingPlacements;
   $: rankedResults = rankResults(searchNeedle, matchingEntries, resultPlacements);
   $: displayedResults = rankedResults.slice(0, RESULT_LIMIT);
@@ -212,7 +216,12 @@
   });
 
   $: if (adapterReady && adapter && publication) {
-    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds: layerIds.filter((id) => id !== NO_IMAGERY_LAYER_ID), categories, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: effectiveOffsets, authoring, showConnections, showMovement, showZones });
+    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds: layerIds.filter((id) => id !== NO_IMAGERY_LAYER_ID), categories, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: effectiveOffsets, authoring, showConnections, showMovement, showZones, selectedRegionIds });
+  }
+  $: if (!placeKey) fittedPlaceKey = null;
+  $: if (adapterReady && mapReady && selectedPlace?.space && placeKey && state.view === null && fittedPlaceKey !== placeKey) {
+    fittedPlaceKey = placeKey;
+    fitMapSpace(selectedPlace.space.mapSpaceId);
   }
 
   function acceptSnapshot(next: AtlasSnapshot): void {
@@ -246,10 +255,25 @@
   }
 
   function centerView(map: PublicationData['world']): MapViewState {
-    const x = (map.bounds.min.x + map.bounds.max.x) / 2;
-    const y = (map.bounds.min.y + map.bounds.max.y) / 2;
-    const scale = Math.min((canvas?.clientWidth || 640) / (map.bounds.max.x - map.bounds.min.x), (canvas?.clientHeight || 480) / (map.bounds.max.y - map.bounds.min.y));
+    return centerBounds(map.bounds);
+  }
+
+  function centerBounds(bounds: PublicationData['world']['bounds']): MapViewState {
+    const x = (bounds.min.x + bounds.max.x) / 2;
+    const y = (bounds.min.y + bounds.max.y) / 2;
+    const scale = Math.min((canvas?.clientWidth || 640) / Math.max(bounds.max.x - bounds.min.x, 1), (canvas?.clientHeight || 480) / Math.max(bounds.max.y - bounds.min.y, 1));
     return { target: [x, y, 0], zoom: Math.log2(scale * 0.9) };
+  }
+
+  function fitMapSpace(mapSpaceId: string): void {
+    if (!publication || !adapter || !mapReady) return;
+    const map = publication.maps.find((candidate) => candidate.mapSpaceId === mapSpaceId);
+    if (!map) return;
+    const delta = effectiveMapDelta(publication, mapSpaceId, effectiveOffsets);
+    setMapView(centerBounds({
+      min: { x: map.bounds.min.x + delta.worldX, y: map.bounds.min.y + delta.worldY },
+      max: { x: map.bounds.max.x + delta.worldX, y: map.bounds.max.y + delta.worldY },
+    }));
   }
 
 
@@ -295,6 +319,7 @@
   function selectEntry(entry: PublicSearchEntry, origin: HTMLElement | null = null): void {
     detailOrigin = origin;
     if (entry.ref.kind === 'items') controller?.dispatch({ type: 'select-item', itemKey: entry.ref.key }, 'push');
+    else if (entry.ref.kind === 'places') controller?.dispatch({ type: 'select-place', placeKey: entry.ref.key }, 'push');
     else controller?.dispatch({ type: 'select-entity', entityKey: entry.ref.key }, 'push');
     void focusDetails();
   }
@@ -445,7 +470,7 @@
   {:else if loadError && !publication}
     <main class="state-card error" role="alert"><h1>Atlas unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p><button type="button" on:click={() => controller?.retry('map')}>Retry map data</button></main>
   {:else if publication}
-    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
+    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || placeKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
       <AtlasSidebar
         collapsed={panelCollapsed} logoBase={base} bind:searchInput {query} sections={markerSections} {categories} {categoryCounts} countsPending={resultsPending}
         placementCount={allMapPlacements.length} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
@@ -471,7 +496,7 @@
         <AtlasSearchResults bind:resultList collapsed={resultsCollapsed} {displayedResults} totalResults={rankedResults.length}
           pending={resultsPending} error={resultsError} searchPending={searchState.status === 'loading'} onRetry={() => controller?.retry('search')}
           resultLimit={RESULT_LIMIT} placementCount={resultPlacements.length} entryCount={matchingEntries.length}
-          hasViewport={Boolean(viewportBounds)} {mapUnavailable} selectedKey={itemKey ?? selectedEntityKey}
+          hasViewport={Boolean(viewportBounds)} {mapUnavailable} selectedKey={itemKey ?? selectedEntityKey ?? placeKey}
           selectedPlacementId={selectedId} summaryFor={resultSummary} onToggle={toggleResults}
           onSelectEntry={selectEntry} onSelectPlacement={selectPlacement} onHover={setResultHover} onClearHover={clearResultHover}
         />

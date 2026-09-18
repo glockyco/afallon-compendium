@@ -32,6 +32,7 @@ export type MapAdapterUpdate = {
   showConnections: boolean;
   showMovement: boolean;
   showZones: boolean;
+  selectedRegionIds: readonly string[];
 };
 
 type Bounds = [number, number, number, number];
@@ -256,7 +257,7 @@ export async function createMapAdapter(
     const regionsChanged = !previous || previous.data.regions !== next.data.regions || offsetChanged;
     const boundsChanged = !previous || previous.data.maps !== next.data.maps || offsetChanged;
     const imageryChanged = !previous || previous.data.tileLayers !== next.data.tileLayers || !sameValues(previous.layerIds, next.layerIds) || offsetChanged;
-    const styleChanged = !previous || previous.selectedId !== next.selectedId || !sameValues(previous.highlightedPlacementIds, next.highlightedPlacementIds) || !sameValues(previous.hoveredPlacementIds, next.hoveredPlacementIds) || previous.authoring !== next.authoring || previous.showConnections !== next.showConnections || previous.showMovement !== next.showMovement || previous.showZones !== next.showZones;
+    const styleChanged = !previous || previous.selectedId !== next.selectedId || !sameValues(previous.highlightedPlacementIds, next.highlightedPlacementIds) || !sameValues(previous.hoveredPlacementIds, next.hoveredPlacementIds) || previous.authoring !== next.authoring || previous.showConnections !== next.showConnections || previous.showMovement !== next.showMovement || previous.showZones !== next.showZones || !sameValues(previous.selectedRegionIds, next.selectedRegionIds);
     previousUpdate = next;
     if (!placementChanged && !regionsChanged && !boundsChanged && !imageryChanged && !styleChanged) return;
     if (placementChanged) {
@@ -289,7 +290,9 @@ export async function createMapAdapter(
     }
     const imageLayers = imageryChanged ? createImagery(next, tileLayersForView) : imageryLayers;
     const [backgroundLayer, boundsLayer, mapLabelLayer] = createWorldLayers(worldBounds, worldLabels, next.authoring, next.data.world.unplacedMapSpaceIds);
-    const regionLayers = next.showZones ? createRegionLayers(baseRegions) : [];
+    const selectedRegionIds = new Set(next.selectedRegionIds);
+    const visibleRegions = next.showZones ? baseRegions : baseRegions.filter((region) => selectedRegionIds.has(region.id));
+    const regionLayers = visibleRegions.length ? createRegionLayers(visibleRegions) : [];
     const expandMarkerMembers = (placementIds: readonly string[]): Set<string> => {
       const expanded = new Set(placementIds);
       for (const marker of renderMarkers) {
