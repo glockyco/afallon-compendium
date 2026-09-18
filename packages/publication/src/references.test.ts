@@ -87,6 +87,12 @@ test("uses level ranges and map labels before place ids", () => {
   expect(refs.get("scenes:31")?.name).toBe("Cave (South cave)");
 });
 
+test("drops apostrophes instead of splitting a slug", () => {
+  const refs = buildEntityReferences([entity("items", 1040, "Oathbreaker's Edge"), entity("abilities", 8, "Nature’s Grasp")]);
+  expect(refs.get("items:1040")?.slug).toBe("oathbreakers-edge");
+  expect(refs.get("abilities:8")?.slug).toBe("natures-grasp");
+});
+
 test("adds the native id when distinct names produce the same slug", () => {
   const entities = [entity("items", 11, "A B"), entity("items", 12, "A-B")];
   const refs = buildEntityReferences(entities);
