@@ -83,6 +83,12 @@ export type RecipeGameplay = Static<typeof RecipeGameplaySchema>;
 export const CraftingStationGameplaySchema = Type.Object({ maxDistance: number, craftSkillIds: Type.Array(integer) });
 export type CraftingStationGameplay = Static<typeof CraftingStationGameplaySchema>;
 
+export const GearSetGameplaySchema = Type.Object({
+  itemsInSet: Type.Array(Type.Object({ sourceIndex: optional(integer), itemId: integer })),
+  gearSetTiers: Type.Array(Type.Object({ tierIndex: integer, equippedAmount: integer, stats: Type.Array(stat) })),
+});
+export type GearSetGameplay = Static<typeof GearSetGameplaySchema>;
+
 export const SupportedGameplaySchema = Type.Union([ItemGameplaySchema, NpcGameplaySchema, QuestGameplaySchema, SceneGameplaySchema, RegionGameplaySchema, PropertyGameplaySchema, TaskGameplaySchema, RecipeGameplaySchema, CraftingStationGameplaySchema, Type.Object({
   isMerchant: optional(boolean), isQuestGiver: optional(boolean), startPositionId: optional(integer), minLevel: optional(integer), maxLevel: optional(integer), includedInAdventureGuide: optional(boolean), dungeonLevelMin: optional(integer), dungeonLevelMax: optional(integer), levelRangeMin: optional(integer), levelRangeMax: optional(integer), adventureGuideDescription: optional(nullableText), income: optional(number), isPercentStat: optional(boolean), adventureGuideBosses: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), npcId: integer }))), aiPhases: optional(Type.Array(Type.Object({ phaseIndex: integer, name: nullableText, requirement: optional(nullableText), abilityIds: Type.Array(integer), behaviors: optional(Type.Array(BehaviorSchema)) }))), guideStats: optional(Type.Array(Type.Object({ statId: integer, value: number }))),
 })]);
@@ -162,6 +168,7 @@ export function decodePropertyGameplay(value: unknown, reference: ArtifactRefere
 export function decodeTaskGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<TaskGameplay> { const decoded = decode(TaskGameplaySchema, value, reference, path), issues: GameplayCoverageIssue[] = []; if (decoded.taskTypeValue < 0 || decoded.taskTypeValue >= taskTypes.length || taskTypes[decoded.taskTypeValue] !== decoded.taskType) issues.push({ path: `${path}/taskType`, detail: `Unsupported task type ${decoded.taskTypeValue} (${decoded.taskType}).` }); return { value: decoded, issues }; }
 export function decodeRecipeGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<RecipeGameplay> { return { value: decode(RecipeGameplaySchema, value, reference, path), issues: [] }; }
 export function decodeCraftingStationGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<CraftingStationGameplay> { return { value: decode(CraftingStationGameplaySchema, value, reference, path), issues: [] }; }
+export function decodeGearSetGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<GearSetGameplay> { return { value: decode(GearSetGameplaySchema, value, reference, path), issues: [] }; }
 
 const RequirementSchema = Type.Object({
   sourceFieldPath: optional(text), groupIndex: optional(integer), requirementIndex: optional(integer), requirementType: optional(text), requirementTypeValue: optional(integer), conditionRule: optional(text), conditionRuleValue: optional(integer), evaluation: optional(text), amount1: optional(number), amount2: optional(number), float1: optional(number), consume: optional(boolean), abilityID: optional(integer), bonusID: optional(integer), recipeID: optional(integer), resourceID: optional(integer), effectID: optional(integer), NPCID: optional(integer), statID: optional(integer), factionID: optional(integer), comboID: optional(integer), raceID: optional(integer), levelsID: optional(integer), classID: optional(integer), speciesID: optional(integer), itemID: optional(integer), currencyID: optional(integer), pointID: optional(integer), talentTreeID: optional(integer), skillID: optional(integer), spellbookID: optional(integer), weaponTemplateID: optional(integer), enchantmentID: optional(integer), gearSetID: optional(integer), gameSceneID: optional(integer), questID: optional(integer), dialogueID: optional(integer),
@@ -179,6 +186,7 @@ schemaRegistry.register("compendium.catalog-property-gameplay.v1", PropertyGamep
 schemaRegistry.register("compendium.catalog-task-gameplay.v1", TaskGameplaySchema);
 schemaRegistry.register("compendium.catalog-recipe-gameplay.v1", RecipeGameplaySchema);
 schemaRegistry.register("compendium.catalog-crafting-station-gameplay.v1", CraftingStationGameplaySchema);
+schemaRegistry.register("compendium.catalog-gear-set-gameplay.v1", GearSetGameplaySchema);
 schemaRegistry.register("compendium.catalog-supported-gameplay.v1", SupportedGameplaySchema);
 schemaRegistry.register("compendium.catalog-requirement-template.v1", RequirementTemplateSchema);
 schemaRegistry.register("compendium.catalog-relationship-extras.v1", RelationshipExtrasSchema);

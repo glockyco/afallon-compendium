@@ -387,6 +387,19 @@ export function openNormalizedDatabase(path: string): Database {
       CREATE TABLE IF NOT EXISTS recipe_materials (
         entity_key TEXT NOT NULL, rank INTEGER NOT NULL, material_index INTEGER NOT NULL CHECK(material_index >= 0), item_entity_key TEXT REFERENCES canonical_entities(entity_key), item_label TEXT NOT NULL, count REAL NOT NULL, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, rank, material_index), FOREIGN KEY(entity_key, rank) REFERENCES recipe_ranks(entity_key, rank)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS gear_set_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS gear_set_members (
+        entity_key TEXT NOT NULL REFERENCES gear_set_facts(entity_key), member_index INTEGER NOT NULL CHECK(member_index >= 0), item_entity_key TEXT REFERENCES canonical_entities(entity_key), item_label TEXT NOT NULL, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, member_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS gear_set_tiers (
+        entity_key TEXT NOT NULL REFERENCES gear_set_facts(entity_key), tier_index INTEGER NOT NULL CHECK(tier_index >= 0), equipped INTEGER NOT NULL, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, tier_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS gear_set_tier_stats (
+        entity_key TEXT NOT NULL, tier_index INTEGER NOT NULL, stat_index INTEGER NOT NULL CHECK(stat_index >= 0), stat_entity_key TEXT REFERENCES canonical_entities(entity_key), stat_label TEXT NOT NULL, amount REAL NOT NULL, is_percent INTEGER NOT NULL CHECK(is_percent IN (0, 1)), provenance_json TEXT NOT NULL,
+        PRIMARY KEY(entity_key, tier_index, stat_index), FOREIGN KEY(entity_key, tier_index) REFERENCES gear_set_tiers(entity_key, tier_index)
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS crafting_station_facts (
         entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), max_distance REAL NOT NULL, skill_refs_json TEXT NOT NULL, provenance_json TEXT NOT NULL
       ) STRICT;
@@ -582,6 +595,10 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const row of input.recipeRanks ?? []) insertChecked(db, "recipe_ranks", ["entity_key", "rank"], ["entity_key", "rank", "unlock_cost", "experience", "craft_time", "provenance_json"], [row.entityKey, row.rank, row.unlockCost, row.experience, row.craftTime, json(row.provenance)]);
     for (const row of input.recipeProducts ?? []) insertChecked(db, "recipe_products", ["entity_key", "rank", "product_index"], ["entity_key", "rank", "product_index", "item_entity_key", "item_label", "count", "chance", "provenance_json"], [row.entityKey, row.rank, row.productIndex, row.item.entityKey, row.item.label, row.count, row.chance, json(row.provenance)]);
     for (const row of input.recipeMaterials ?? []) insertChecked(db, "recipe_materials", ["entity_key", "rank", "material_index"], ["entity_key", "rank", "material_index", "item_entity_key", "item_label", "count", "provenance_json"], [row.entityKey, row.rank, row.materialIndex, row.item.entityKey, row.item.label, row.count, json(row.provenance)]);
+    for (const row of input.gearSetFacts ?? []) insertChecked(db, "gear_set_facts", ["entity_key"], ["entity_key", "provenance_json"], [row.entityKey, json(row.provenance)]);
+    for (const row of input.gearSetMembers ?? []) insertChecked(db, "gear_set_members", ["entity_key", "member_index"], ["entity_key", "member_index", "item_entity_key", "item_label", "provenance_json"], [row.entityKey, row.memberIndex, row.item.entityKey, row.item.label, json(row.provenance)]);
+    for (const row of input.gearSetTiers ?? []) insertChecked(db, "gear_set_tiers", ["entity_key", "tier_index"], ["entity_key", "tier_index", "equipped", "provenance_json"], [row.entityKey, row.tierIndex, row.equipped, json(row.provenance)]);
+    for (const row of input.gearSetTierStats ?? []) insertChecked(db, "gear_set_tier_stats", ["entity_key", "tier_index", "stat_index"], ["entity_key", "tier_index", "stat_index", "stat_entity_key", "stat_label", "amount", "is_percent", "provenance_json"], [row.entityKey, row.tierIndex, row.statIndex, row.stat.entityKey, row.stat.label, row.amount, row.isPercent ? 1 : 0, json(row.provenance)]);
     for (const row of input.craftingStationFacts ?? []) insertChecked(db, "crafting_station_facts", ["entity_key"], ["entity_key", "max_distance", "skill_refs_json", "provenance_json"], [row.entityKey, row.maxDistance, json(row.skillRefs), json(row.provenance)]);
     for (const row of input.artworkAssets ?? []) insertChecked(db, "artwork_assets", ["asset_id"], ["asset_id", "sha256", "bytes", "width", "height", "source_name", "provenance_json"], [row.assetId, row.sha256, row.bytes, row.width, row.height, row.sourceName, json(row.provenance)]);
     for (const row of input.artworkBindings ?? []) insertChecked(db, "artwork_bindings", ["entity_key", "role"], ["entity_key", "role", "asset_id", "provenance_json"], [row.entityKey, row.role, row.assetId, json(row.provenance)]);

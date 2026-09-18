@@ -90,6 +90,10 @@ export interface NormalizedRecipeRank { entityKey: string; rank: number; unlockC
 export interface NormalizedRecipeProduct { entityKey: string; rank: number; productIndex: number; item: NormalizedReference; count: number; chance: number; provenance: ProvenanceReference[] }
 export interface NormalizedRecipeMaterial { entityKey: string; rank: number; materialIndex: number; item: NormalizedReference; count: number; provenance: ProvenanceReference[] }
 export interface NormalizedCraftingStationFact { entityKey: string; maxDistance: number; skillRefs: NormalizedReference[]; provenance: ProvenanceReference[] }
+export interface NormalizedGearSetFact { entityKey: string; provenance: ProvenanceReference[] }
+export interface NormalizedGearSetMember { entityKey: string; memberIndex: number; item: NormalizedReference; provenance: ProvenanceReference[] }
+export interface NormalizedGearSetTier { entityKey: string; tierIndex: number; equipped: number; provenance: ProvenanceReference[] }
+export interface NormalizedGearSetTierStat { entityKey: string; tierIndex: number; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
 export interface NormalizedArtworkAsset { assetId: string; sha256: string; bytes: number; width: number; height: number; sourceName: string; provenance: ProvenanceReference[] }
 export interface NormalizedArtworkBinding { entityKey: string; role: "icon" | "portrait" | "artwork"; assetId: string; provenance: ProvenanceReference[] }
 
@@ -322,6 +326,10 @@ export interface NormalizedDatabaseInput {
   recipeProducts?: NormalizedRecipeProduct[];
   recipeMaterials?: NormalizedRecipeMaterial[];
   craftingStationFacts?: NormalizedCraftingStationFact[];
+  gearSetFacts?: NormalizedGearSetFact[];
+  gearSetMembers?: NormalizedGearSetMember[];
+  gearSetTiers?: NormalizedGearSetTier[];
+  gearSetTierStats?: NormalizedGearSetTierStat[];
   artworkAssets?: NormalizedArtworkAsset[];
   artworkBindings?: NormalizedArtworkBinding[];
   identityResults: Array<{ runId: string; snapshotId: string; snapshotPrefix: string; snapshotSha256: string; character: string; sceneHandle: number; result: PlacementIdentityResult }>;

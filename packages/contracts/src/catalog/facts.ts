@@ -57,6 +57,9 @@ export interface CatalogItemFacts {
   levelRequirement: number | null;
   actionAbilities: CatalogEndpoint[];
   conditionIds: string[];
+  // The set this item belongs to, from the set's own member list. An item that no set names has
+  // none; the game's tooltip shows the set under the item's stats.
+  gearSet: CatalogEndpoint | null;
 }
 
 export interface CatalogNpcFacts {
@@ -138,6 +141,14 @@ export interface CatalogRecipeFacts {
   ranks: Array<{ rank: number; unlockCost: number; experience: number; craftTime: number; products: Array<{ item: CatalogEndpoint; count: number; chance: number }>; materials: Array<{ item: CatalogEndpoint; count: number }> }>;
 }
 
+// A set's members and the tiers that reward wearing them: the game's tooltip reads
+// "(3) Tier 1: +10% Poison Damage, +10 Dodge chance" under the member list.
+export interface CatalogGearSetFacts {
+  entityKey: string;
+  members: CatalogEndpoint[];
+  tiers: Array<{ equipped: number; stats: CatalogStatValue[] }>;
+}
+
 export interface CatalogFacts {
   entities: CatalogEntityRow[];
   items: CatalogItemFacts[];
@@ -148,6 +159,7 @@ export interface CatalogFacts {
   properties: CatalogPropertyFacts[];
   abilities: CatalogAbilityFacts[];
   recipes: CatalogRecipeFacts[];
+  gearSets: CatalogGearSetFacts[];
 }
 
 export interface CatalogCondition { conditionId: string; semantics: string; label: string; requirements: CatalogRequirementGroup[] }

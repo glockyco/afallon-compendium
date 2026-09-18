@@ -6,7 +6,7 @@ const entity = (kind: string, nativeId: number, name: string): CatalogEntityRow 
   entityKey: `${kind}:${nativeId}`, kind, nativeId, name, description: null, iconAssetName: null, artwork: [],
 });
 
-const emptyFacts: CatalogFacts = { entities: [], items: [], npcs: [], quests: [], tasks: [], places: [], properties: [], abilities: [], recipes: [] };
+const emptyFacts: CatalogFacts = { entities: [], items: [], npcs: [], quests: [], tasks: [], places: [], properties: [], abilities: [], recipes: [], gearSets: [] };
 const emptyRelations: CatalogRelations = { drops: [], vendors: [], gathers: [], containers: [], quests: [], recipes: [], placements: [], transitions: [], conditions: [] };
 
 function npcFact(entityKey: string, level: number, abilities: CatalogNpcFacts["abilityPhases"] = []): CatalogNpcFacts {
@@ -20,7 +20,7 @@ function itemFact(entityKey: string, rarity: string, armorSlot: string): Catalog
   return { entityKey, rarity, itemType: "ARMOR", armorSlot, weaponSlot: null, weaponType: null, armorType: "LEATHER", attackSpeed: null,
     minDamage: null, maxDamage: null, stats: [], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: null,
     sellPrice: null, sellCurrency: null, buyPrice: null, buyCurrency: null, stackLimit: 1, questDropOnly: false, corruptionToken: false,
-    levelRequirement: null, actionAbilities: [], conditionIds: [] };
+    levelRequirement: null, actionAbilities: [], conditionIds: [], gearSet: null };
 }
 
 test("disambiguates equal NPC names by level and freezes the reference map", () => {
