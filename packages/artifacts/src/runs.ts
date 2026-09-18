@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { chmod, link, mkdir, open, readFile, readdir, unlink } from "node:fs/promises";
+import { mkdir, readFile, readdir } from "node:fs/promises";
 import { hostname } from "node:os";
 import * as path from "node:path";
 import { Assert } from "typebox/value";
@@ -8,6 +8,7 @@ import {
   type ArtifactDependency, type ArtifactRunInput, type ArtifactRunManifest, type ArtifactRunPhase,
   type ContentIdentity, type FailureRecord, type LogicalArtifact,
 } from "@afallon/contracts";
+import { createImmutableFile, isErrno, isSafeSegment, safeSegment } from "./artifact-filesystem";
 import { createArtifactLease, readArtifactLeases } from "./leases";
 import { assertArtifactRunManifest, resolveArtifactRun, verifyArtifactRunClosure } from "./references";
 import { sameCacheInput } from "./reuse";
@@ -46,8 +47,8 @@ export interface ArtifactRun {
 export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunInput): Promise<ArtifactRun> {
   Assert(ArtifactRunInputSchema, input);
   const normalizedInput = JSON.parse(canonicalJson(input)) as ArtifactRunInput;
-  requireSegment(normalizedInput.buildId, "buildId");
-  requireSegment(normalizedInput.operation, "operation");
+  safeSegment(normalizedInput.buildId, "buildId");
+  safeSegment(normalizedInput.operation, "operation");
   const schemaIds = new Set<string>();
   for (const schema of normalizedInput.schemas) {
     if (schemaIds.has(schema.id)) throw new TypeError(`The run input repeats schema identity ${schema.id}.`);
@@ -209,7 +210,7 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
   } catch (error) {
     try { await run.fail(error); }
     catch (failure) { throw new AggregateError([error, failure], `Run ${runId} failed during preparation. Evidence: ${manifestPath}.`); }
-    finally { await run.release(); }
+    finally { await run.release().catch(() => {}); }
     throw new Error(`Run ${runId} failed during preparation. Evidence: ${manifestPath}.`, { cause: error });
   }
   return run;
@@ -228,11 +229,11 @@ export interface ArtifactRunInspection {
 }
 
 export async function inspectArtifactRun(store: ArtifactStore, runId: string): Promise<ArtifactRunInspection> {
-  requireSegment(runId, "runId");
+  safeSegment(runId, "runId");
   const directory = path.join(store.root, "runs", runId);
   try { return { manifest: await readArtifactRunManifest(path.join(directory, "manifest.json")), state: "terminal" }; }
   catch (error) {
-    if (!(error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT")) throw error;
+    if (!isErrno(error, "ENOENT")) throw error;
   }
   const revisions = (await readdir(path.join(directory, "revisions"))).filter(name => /^\d{8}\.json$/.test(name)).sort();
   const latest = revisions.at(-1);
@@ -245,20 +246,15 @@ export async function inspectArtifactRun(store: ArtifactStore, runId: string): P
   if (manifest.execution.host !== hostname()) return { manifest, state: "unknown" };
   try { process.kill(manifest.execution.pid, 0); return { manifest, state: "running" }; }
   catch (error) {
-    if (error !== null && typeof error === "object" && "code" in error && error.code === "ESRCH") return { manifest, state: "interrupted" };
+    if (isErrno(error, "ESRCH")) return { manifest, state: "interrupted" };
     return { manifest, state: "unknown" };
   }
-}
-
-function requireSegment(value: string, field: string): string {
-  if (value.length === 0 || value === "." || value === ".." || value.includes("/") || value.includes("\\") || value.includes(":") || CONTROL_CHARACTERS.test(value)) throw new TypeError(`${field} must be one safe path segment.`);
-  return value;
 }
 
 function requireLogicalName(value: string): string {
   if (typeof value !== "string" || value.length === 0 || value.startsWith("/") || value.startsWith("\\") || CONTROL_CHARACTERS.test(value)) throw new TypeError("Artifact name must be a non-empty relative path.");
   const parts = value.split(/[/\\]/);
-  if (parts.some(part => part.length === 0 || part === "." || part === ".." || part.includes(":"))) throw new TypeError("Artifact name contains an invalid path segment.");
+  if (parts.some(part => !isSafeSegment(part))) throw new TypeError("Artifact name contains an invalid path segment.");
   return parts.join("/");
 }
 
@@ -267,14 +263,7 @@ function revisionName(revision: number): string {
 }
 
 async function writeImmutableJson(destination: string, value: unknown): Promise<void> {
-  const temporary = `${destination}.tmp-${randomUUID()}`;
-  const handle = await open(temporary, "wx", 0o600);
-  try {
-    try { await handle.writeFile(`${canonicalJson(value)}\n`); await handle.sync(); }
-    finally { await handle.close(); }
-    await chmod(temporary, 0o444);
-    await link(temporary, destination);
-  } finally { await unlink(temporary).catch(() => {}); }
+  await createImmutableFile(destination, `${canonicalJson(value)}\n`, { finalMode: 0o444, cleanup: "best-effort" });
 }
 
 function serializeFailure(error: unknown): FailureRecord {

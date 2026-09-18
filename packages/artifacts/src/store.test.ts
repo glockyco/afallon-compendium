@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { chmod, mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArtifactStore, ObjectIntegrityError } from "./store";
@@ -39,6 +39,32 @@ test("a damaged object is rejected instead of replaced", async () => fixture(asy
   });
   await expect(store.verify(stored)).rejects.toBeInstanceOf(ObjectIntegrityError);
   expect(await Bun.file(objectPath).text()).toBe("damaged evidence");
+}));
+
+test("temporary cleanup cannot hide an object stream failure", async () => fixture(async store => {
+  const primary = new Error("source stream failed");
+  await expect(store.putStream((async function* () {
+    yield new TextEncoder().encode("partial evidence");
+    const names = await readdir(store.temporaryRoot);
+    expect(names).toHaveLength(1);
+    const temporary = join(store.temporaryRoot, names[0]!);
+    await rm(temporary);
+    await mkdir(temporary);
+    throw primary;
+  })())).rejects.toBe(primary);
+}));
+
+test("temporary cleanup cannot hide a no-replace installation failure", async () => fixture(async store => {
+  await expect(store.putBytes(new TextEncoder().encode("evidence"), {
+    async protectPending() {
+      const names = await readdir(store.temporaryRoot);
+      expect(names).toHaveLength(1);
+      const temporary = join(store.temporaryRoot, names[0]!);
+      await rm(temporary);
+      await mkdir(temporary);
+    },
+    async protect() { throw new Error("Unexpected successful object installation."); },
+  })).rejects.toMatchObject({ code: "EPERM", syscall: "link" });
 }));
 
 test("verification rejects corruption beyond the first megabyte", async () => fixture(async store => {

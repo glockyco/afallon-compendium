@@ -3,6 +3,7 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import * as path from "node:path";
 import type { ArtifactRunManifest, ContentIdentity, GarbageCollectionReport } from "@afallon/contracts";
+import { isErrno } from "./artifact-filesystem";
 import { readArtifactLeases } from "./leases";
 import { assertArtifactRunManifest, readLatestSuccess, verifyArtifactRunClosure } from "./references";
 import { inspectArtifactRun } from "./runs";
@@ -60,7 +61,7 @@ export async function reportGarbageCollection(store: ArtifactStore, policy: Garb
       protect(identity, `${reason}/pending`);
       try { await store.verify(identity); }
       catch (error) {
-        if (!(error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT")) throw error;
+        if (!isErrno(error, "ENOENT")) throw error;
       }
     }
     for (const identity of lease.manifests) {
@@ -103,7 +104,7 @@ async function directories(root: string): Promise<string[]> {
 async function entries(root: string): Promise<Dirent[]> {
   try { return await readdir(root, { withFileTypes: true }); }
   catch (error) {
-    if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") return [];
+    if (isErrno(error, "ENOENT")) return [];
     throw error;
   }
 }

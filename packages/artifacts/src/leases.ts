@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { link, mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink } from "node:fs/promises";
 import * as path from "node:path";
 import { Assert } from "typebox/value";
 import { ArtifactLeaseSchema, ContentIdentitySchema, canonicalJson, type ArtifactLease, type ContentIdentity } from "@afallon/contracts";
+import { createImmutableFile, isErrno, replaceFileAtomically, safeSegment } from "./artifact-filesystem";
 import { ArtifactStore, type ObjectWriteProtection } from "./store";
 
 export interface ActiveArtifactLease extends ObjectWriteProtection {
@@ -16,7 +17,7 @@ export async function createArtifactLease(
   store: ArtifactStore,
   input: { runId: string; buildId: string; operation: string; objects: Iterable<ContentIdentity>; manifests?: Iterable<ContentIdentity> },
 ): Promise<ActiveArtifactLease> {
-  if (!input.runId || input.runId === "." || input.runId === ".." || /[/\\:\u0000-\u001f\u007f]/.test(input.runId)) throw new TypeError("A lease runId must be one safe path segment.");
+  safeSegment(input.runId, "A lease runId");
   const directory = path.join(store.root, "leases");
   await mkdir(directory, { recursive: true });
   const leasePath = path.join(directory, `${input.runId}.json`);
@@ -41,11 +42,11 @@ export async function createArtifactLease(
     createdAt: now, updatedAt: now,
     objects: [...objects.values()], pendingObjects: [], manifests: [...manifests.values()],
   };
-  await persistLease(leasePath, lease, true);
+  await createImmutableFile(leasePath, `${canonicalJson(lease)}\n`);
   try {
     for (const identity of objects.values()) await store.verify(identity);
   } catch (error) {
-    await unlink(leasePath);
+    await unlink(leasePath).catch(() => {});
     throw error;
   }
   let active = true;
@@ -63,7 +64,7 @@ export async function createArtifactLease(
     lease.pendingObjects = [...pending.values()].sort((left, right) => left.sha256.localeCompare(right.sha256));
     lease.manifests = [...manifests.values()].sort((left, right) => left.sha256.localeCompare(right.sha256));
     lease.updatedAt = new Date().toISOString();
-    await persistLease(leasePath, lease);
+    await replaceFileAtomically(leasePath, `${canonicalJson(lease)}\n`);
   };
   return {
     leaseId: lease.leaseId,
@@ -106,7 +107,7 @@ export async function readArtifactLeases(store: ArtifactStore): Promise<Artifact
   let names: string[];
   try { names = await Array.fromAsync(new Bun.Glob("*.json").scan({ cwd: directory, onlyFiles: true })); }
   catch (error) {
-    if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") return [];
+    if (isErrno(error, "ENOENT")) return [];
     throw error;
   }
   const leases: ArtifactLease[] = [];
@@ -117,20 +118,4 @@ export async function readArtifactLeases(store: ArtifactStore): Promise<Artifact
     leases.push(value);
   }
   return leases;
-}
-
-async function persistLease(destination: string, value: ArtifactLease, initial = false): Promise<void> {
-  const temporary = `${destination}.tmp-${randomUUID()}`;
-  try {
-    await writeFile(temporary, `${canonicalJson(value)}\n`, { encoding: "utf8", flag: "wx", mode: 0o600 });
-    const file = await open(temporary, "r");
-    try { await file.sync(); } finally { await file.close(); }
-    if (initial) await link(temporary, destination);
-    else await rename(temporary, destination);
-  } finally {
-    await unlink(temporary).catch((error: unknown) => {
-      if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT") return;
-      throw error;
-    });
-  }
 }

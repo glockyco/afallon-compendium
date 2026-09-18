@@ -21,8 +21,8 @@
 
 ## 4. Artifact filesystem invariants
 
-- [ ] 4.1 Consolidate safe-segment and errno checks in a private artifacts module. Migrate equivalent callers in runs, references, leases, store, and garbage collection. Verify empty segments, traversal, separators, control characters, and legitimate identifiers through affected public operations.
-- [ ] 4.2 Consolidate named immutable-create and atomic-replace primitives without changing caller serialization. Preserve permissions, exclusive installation, replacement, synchronization, and primary failure reporting. Verify temporary-directory creation, duplicate creation, replacement failure, lease update, and selector retention with real filesystem operations.
+- [x] 4.1 Consolidate safe-segment and errno checks in a private artifacts module. Migrate equivalent callers in runs, references, leases, store, and garbage collection. Verify empty segments, traversal, separators, control characters, and legitimate identifiers through affected public operations.
+- [x] 4.2 Consolidate named immutable-create and atomic-replace primitives without changing caller serialization. Preserve permissions, exclusive installation, replacement, synchronization, and primary failure reporting. Verify temporary-directory creation, duplicate creation, replacement failure, lease update, and selector retention with real filesystem operations.
 - [ ] 4.3 Run artifact store, run, reference, garbage-collection, and reuse suites. Compare representative persisted bytes and identities before and after the refactor. Verify no temporary-file cleanup failure hides an installation failure, and commit the filesystem unit.
 
 ## 5. Renderer projection and layer ownership
@@ -40,7 +40,7 @@
 
 - [x] 7.1 Consolidate capture-local schema and recursive finite-scalar checks. Preserve context and cyclic/non-finite rejection. Keep capture tolerance `1e-6` and readiness tolerance `1e-5` explicit. Verify a boundary value accepted only by readiness, plus nested non-finite and cyclic inputs.
 - [x] 7.2 Share tile bounds between planner and position selection using a single-pass calculation. Preserve standing-box precedence, empty-input behavior at existing callers, and nearest-walkable-point selection. Verify asymmetric tiles, negative coordinates, and a declared standing box that differs from tile extent.
-- [ ] 7.3 Run capture-plan, readiness, map-space, content-run, and cache suites. Smoke-test the real planner and position helper with retained local inputs without launching a new game capture. Verify equivalent bounds and selected positions, then commit the capture unit.
+- [x] 7.3 Run capture-plan, readiness, map-space, content-run, and cache suites. Smoke-test the real planner and position helper with retained local inputs without launching a new game capture. Verify equivalent bounds and selected positions, then commit the capture unit.
 
 ## 8. Integrated acceptance
 

@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { chmod, link, mkdir, open, unlink } from "node:fs/promises";
 import * as path from "node:path";
 import type { ContentIdentity } from "@afallon/contracts";
+import { isErrno, syncDirectory } from "./artifact-filesystem";
 
 const SHA256 = /^[a-f0-9]{64}$/;
 export const OBJECT_CHUNK_BYTES = 1024 * 1024;
@@ -50,6 +51,7 @@ export class ArtifactStore {
 
   async putFile(sourcePath: string, protection?: ObjectWriteProtection): Promise<StoredObject> {
     const handle = await open(sourcePath, "r");
+    let failed = false;
     try {
       const metadata = await handle.stat();
       return await this.putStream((async function* () {
@@ -60,8 +62,11 @@ export class ArtifactStore {
           yield buffer.subarray(0, bytesRead);
         }
       })(), protection);
+    } catch (error) {
+      failed = true;
+      throw error;
     } finally {
-      await handle.close();
+      await handle.close().catch((error: unknown) => { if (!failed) throw error; });
     }
   }
 
@@ -72,6 +77,7 @@ export class ArtifactStore {
     const digest = createHash("sha256");
     let byteCount = 0;
     let closed = false;
+    let failed = false;
     try {
       for await (const chunk of source) {
         if (!(chunk instanceof Uint8Array)) throw new TypeError("Object streams must yield Uint8Array chunks.");
@@ -100,17 +106,20 @@ export class ArtifactStore {
       await protection?.protectPending(identity);
       try {
         await link(temporaryPath, destination);
-        await this.flushDirectory(path.dirname(destination));
+        await syncDirectory(path.dirname(destination));
       } catch (error) {
         if (!isErrno(error, "EEXIST")) throw error;
         await this.verify(identity);
       }
       await protection?.protect(identity);
       return { ...identity, path: this.relativeObjectPath(sha256) };
+    } catch (error) {
+      failed = true;
+      throw error;
     } finally {
       if (!closed) await handle.close().catch(() => undefined);
       await unlink(temporaryPath).catch((error: unknown) => {
-        if (!isErrno(error, "ENOENT")) throw error;
+        if (!failed && !isErrno(error, "ENOENT")) throw error;
       });
     }
   }
@@ -119,6 +128,7 @@ export class ArtifactStore {
     const objectPath = this.objectPath(identity.sha256);
     if (!Number.isSafeInteger(identity.bytes) || identity.bytes < 0) throw new TypeError("The object byte count must be a non-negative safe integer.");
     const handle = await open(objectPath, "r");
+    let failed = false;
     try {
       const metadata = await handle.stat();
       if (!metadata.isFile()) throw new ObjectIntegrityError(`Stored object is not a regular file: ${identity.sha256}`, identity.sha256, "not-a-file");
@@ -140,8 +150,11 @@ export class ArtifactStore {
         );
       }
       return { ...identity, path: this.relativeObjectPath(identity.sha256) };
+    } catch (error) {
+      failed = true;
+      throw error;
     } finally {
-      await handle.close();
+      await handle.close().catch((error: unknown) => { if (!failed) throw error; });
     }
   }
 
@@ -149,16 +162,4 @@ export class ArtifactStore {
     return ["objects", "sha256", sha256.slice(0, 2), sha256.slice(2)].join("/");
   }
 
-  private async flushDirectory(directory: string): Promise<void> {
-    const handle = await open(directory, "r");
-    try {
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-  }
-}
-
-function isErrno(error: unknown, code: string): error is NodeJS.ErrnoException {
-  return error !== null && typeof error === "object" && "code" in error && error.code === code;
 }

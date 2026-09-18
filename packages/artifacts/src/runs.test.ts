@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ArtifactRunInput } from "@afallon/contracts";
 import { beginArtifactRun, inspectArtifactRun, readArtifactRunManifest, type ArtifactRun } from "./runs";
-import { readArtifactLeases } from "./leases";
+import { createArtifactLease, readArtifactLeases } from "./leases";
 import { reportGarbageCollection } from "./gc";
 import { readLatestSuccess, resolveArtifactRun, selectLatestSuccess } from "./references";
 import { ArtifactStore } from "./store";
@@ -105,6 +105,41 @@ test("rejected preparation releases its lease even when failure evidence cannot 
   await expect(beginArtifactRun(new UnwritableStore(store.root), invalidInput)).rejects.toBeInstanceOf(AggregateError);
   expect(await readArtifactLeases(store)).toEqual([]);
   expect((await reportGarbageCollection(store, { retainedRunIds: [] })).summary.unreachable).toBe(1);
+}));
+
+test("a revision collision preserves admitted bytes and permits retry", async () => fixture(async (store, root, begin) => {
+  const run = await begin();
+  const directory = join(root, "runs", run.runId, "revisions");
+  const nextPath = join(directory, "00000001.json");
+  const collisionBytes = "existing immutable revision\n";
+  await writeFile(nextPath, collisionBytes, { flag: "wx" });
+  await expect(run.setPhase("execution")).rejects.toMatchObject({ code: "EEXIST" });
+  expect(await readFile(nextPath, "utf8")).toBe(collisionBytes);
+  expect((await readdir(directory)).sort()).toEqual(["00000000.json", "00000001.json"]);
+  await rm(nextPath);
+  expect((await inspectArtifactRun(store, run.runId)).manifest).toMatchObject({ revision: 0, phase: "preparation" });
+  await run.setPhase("execution");
+  expect((await inspectArtifactRun(store, run.runId)).manifest).toMatchObject({ revision: 1, phase: "execution" });
+}));
+
+test("artifact paths reject unsafe segments before accessing the filesystem", async () => fixture(async store => {
+  for (const segment of ["", ".", "..", "parent/child", "parent\\child", "drive:name", "control\u0000", "control\u001f", "control\u007f"]) {
+    await expect(inspectArtifactRun(store, segment)).rejects.toBeInstanceOf(TypeError);
+    await expect(createArtifactLease(store, { runId: segment, buildId: "build", operation: "scan", objects: [] })).rejects.toBeInstanceOf(TypeError);
+    await expect(readLatestSuccess(store, segment, "scan")).rejects.toBeInstanceOf(TypeError);
+    await expect(readLatestSuccess(store, "build", segment)).rejects.toBeInstanceOf(TypeError);
+    if (segment !== "") {
+      await expect(beginArtifactRun(store, { ...input, buildId: segment })).rejects.toBeInstanceOf(TypeError);
+      await expect(beginArtifactRun(store, { ...input, operation: segment })).rejects.toBeInstanceOf(TypeError);
+    }
+  }
+  const run = await beginArtifactRun(store, { ...input, buildId: "build-1.2_é", operation: "scan preview" });
+  try {
+    await run.succeed();
+    await selectLatestSuccess(store, run.manifestPath);
+    expect((await readLatestSuccess(store, "build-1.2_é", "scan preview"))?.manifest.runId).toBe(run.runId);
+    expect((await inspectArtifactRun(store, run.runId)).state).toBe("terminal");
+  } finally { await run.release(); }
 }));
 
 test("interrupted preparation retains its latest outputs without claiming success", async () => fixture(async (store, _root, begin) => {

@@ -1,5 +1,5 @@
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { Assert } from "typebox/value";
 import {
@@ -9,6 +9,7 @@ import {
   type ArtifactRunManifest,
   type ContentIdentity,
 } from "@afallon/contracts";
+import { isErrno, replaceFileAtomically, safeSegment } from "./artifact-filesystem";
 import { ArtifactStore } from "./store";
 
 export function assertArtifactRunManifest(value: unknown): asserts value is ArtifactRunManifest {
@@ -135,7 +136,7 @@ export async function selectLatestSuccess(store: ArtifactStore, manifestPath: st
     manifest: { path: ["runs", runId, "manifest.json"].join("/"), ...identity },
     selectedAt: new Date().toISOString(),
   };
-  await atomicReplaceJson(path.join(referenceDirectory, "latest-success.json"), pointer);
+  await replaceFileAtomically(path.join(referenceDirectory, "latest-success.json"), `${JSON.stringify(pointer)}\n`);
   return pointer;
 }
 
@@ -156,28 +157,4 @@ export async function readLatestSuccess(store: ArtifactStore, buildId: string, o
   const manifest = await resolveArtifactRun(store, value.manifest, { buildId, operation });
   if (manifest.runId !== runId) throw new Error(`Latest-success manifest does not match its reference: ${pointerPath}.`);
   return { pointer: value, manifest };
-}
-
-async function atomicReplaceJson(destination: string, value: unknown): Promise<void> {
-  const temporary = `${destination}.tmp-${randomUUID()}`;
-  try {
-    await writeFile(temporary, `${JSON.stringify(value)}\n`, { encoding: "utf8", flag: "wx", mode: 0o600 });
-    const file = await open(temporary, "r");
-    try { await file.sync(); } finally { await file.close(); }
-    const directory = await open(path.dirname(destination), "r");
-    try { await directory.sync(); } finally { await directory.close(); }
-    await rename(temporary, destination);
-  } catch (error) {
-    await unlink(temporary).catch(() => undefined);
-    throw error;
-  }
-}
-
-function safeSegment(value: string, field: string): string {
-  if (value.length === 0 || value === "." || value === ".." || /[/\\:\u0000-\u001f\u007f]/.test(value)) throw new TypeError(`${field} must be one safe path segment.`);
-  return value;
-}
-
-function isErrno(error: unknown, code: string): error is NodeJS.ErrnoException {
-  return error !== null && typeof error === "object" && "code" in error && error.code === code;
 }
