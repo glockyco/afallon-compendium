@@ -1,12 +1,12 @@
 import { CoverageLedgerSchema, ScanCoverageSchema, ScanTargetEnvelopeSchema, decodeContract, type Canonical } from "@afallon/contracts";
 import { compileMapSpaces } from "@afallon/contracts/spatial";
-import { entityKey, publicEntityDetails, stableJson, type ArtifactReference, type NormalizedDatabaseInput, type NormalizedEntity, type ItemSource, type NormalizedSceneSpawn, type ProvenanceReference, type CatalogDerivation } from "@afallon/contracts/catalog";
+import { entityKey, publicEntityDetails, stableJson, type ArtifactReference, type NormalizedDatabaseInput, type NormalizedEntity, type ItemSource, type NormalizedSceneSpawn, type ProvenanceReference, type CatalogDerivation, type NormalizedReference } from "@afallon/contracts/catalog";
 import { collectPlacements, collectRegions, attachShapes } from "./placements";
 import { collectPatrolPaths, collectWorldConditions, conditionRowsFor, conditionSemanticPayload, producerRows } from "./conditions";
 import { relationRows } from "./relations";
 import { sourceDetails, worldRelations } from "./world";
 import { entityDetails } from "./projections";
-import { validateSupportedSemantics } from "./decoders";
+import { decodeCraftingStationGameplay, decodeItemGameplay, decodeNpcGameplay, decodePropertyGameplay, decodeQuestGameplay, decodeRecipeGameplay, decodeRegionGameplay, decodeSceneGameplay, decodeTaskGameplay, validateSupportedSemantics, type GameplayCoverageIssue } from "./decoders";
 import { assertEvidencePointer, evidenceReference, type AdmittedCatalog } from "./evidence";
 import { pointer, type Blocker, type Exclusion } from "./context";
 import { hashRelation } from "./database";
@@ -30,6 +30,120 @@ function mergeEvidence<T extends { provenance: ProvenanceReference[] }>(rows: re
   return [...merged.values()].sort((a, b) => key(a).localeCompare(key(b)));
 }
 
+type FactRows = {
+  itemFacts: NonNullable<NormalizedDatabaseInput["itemFacts"]>; itemStats: NonNullable<NormalizedDatabaseInput["itemStats"]>; itemRandomStats: NonNullable<NormalizedDatabaseInput["itemRandomStats"]>; itemGemStats: NonNullable<NormalizedDatabaseInput["itemGemStats"]>; itemSockets: NonNullable<NormalizedDatabaseInput["itemSockets"]>;
+  npcFacts: NonNullable<NormalizedDatabaseInput["npcFacts"]>; npcStats: NonNullable<NormalizedDatabaseInput["npcStats"]>; npcAbilityPhases: NonNullable<NormalizedDatabaseInput["npcAbilityPhases"]>; npcPhaseAbilities: NonNullable<NormalizedDatabaseInput["npcPhaseAbilities"]>; npcFactionRewards: NonNullable<NormalizedDatabaseInput["npcFactionRewards"]>;
+  questFacts: NonNullable<NormalizedDatabaseInput["questFacts"]>; questObjectives: NonNullable<NormalizedDatabaseInput["questObjectives"]>; questRewards: NonNullable<NormalizedDatabaseInput["questRewards"]>;
+  placeFacts: NonNullable<NormalizedDatabaseInput["placeFacts"]>; propertyFacts: NonNullable<NormalizedDatabaseInput["propertyFacts"]>; taskFacts: NonNullable<NormalizedDatabaseInput["taskFacts"]>; abilityFacts: NonNullable<NormalizedDatabaseInput["abilityFacts"]>;
+  recipeFacts: NonNullable<NormalizedDatabaseInput["recipeFacts"]>; recipeRanks: NonNullable<NormalizedDatabaseInput["recipeRanks"]>; recipeProducts: NonNullable<NormalizedDatabaseInput["recipeProducts"]>; recipeMaterials: NonNullable<NormalizedDatabaseInput["recipeMaterials"]>; craftingStationFacts: NonNullable<NormalizedDatabaseInput["craftingStationFacts"]>;
+  artworkAssets: NonNullable<NormalizedDatabaseInput["artworkAssets"]>; artworkBindings: NonNullable<NormalizedDatabaseInput["artworkBindings"]>;
+};
+
+function collectTypedFacts(admitted: AdmittedCatalog, entities: NormalizedEntity[], bindings: NormalizedDatabaseInput["bindings"], conditions: NormalizedDatabaseInput["conditions"], blockers: Blocker[]): FactRows {
+  const rows: FactRows = { itemFacts: [], itemStats: [], itemRandomStats: [], itemGemStats: [], itemSockets: [], npcFacts: [], npcStats: [], npcAbilityPhases: [], npcPhaseAbilities: [], npcFactionRewards: [], questFacts: [], questObjectives: [], questRewards: [], placeFacts: [], propertyFacts: [], taskFacts: [], abilityFacts: [], recipeFacts: [], recipeRanks: [], recipeProducts: [], recipeMaterials: [], craftingStationFacts: [], artworkAssets: [], artworkBindings: [] };
+  const entityByKey = new Map(entities.map((row) => [row.entityKey, row]));
+  const reference = (kind: string, nativeId: number | null | undefined, label: string, path: string, provenance: ProvenanceReference[]): NormalizedReference | null => {
+    if (nativeId === undefined || nativeId === null) return null;
+    if (nativeId < 0) return { entityKey: null, label };
+    const key = entityKey(kind, nativeId), target = entityByKey.get(key);
+    if (!target) { blockers.push({ kind: "missing-reference", key: `${path}:${key}`, detail: `Typed fact references missing ${key}.`, provenance }); return { entityKey: null, label }; }
+    return { entityKey: key, label: target.name ?? label };
+  };
+  const issueRows = (subject: string, issues: GameplayCoverageIssue[], provenance: ArtifactReference) => { for (const issue of issues) blockers.push({ kind: "unsupported-enum", key: `${subject}:${issue.path}`, detail: issue.detail, provenance: [pointer(provenance, issue.path)] }); };
+  const conditionIds = new Map<string, string[]>();
+  for (const condition of conditions) { const values = conditionIds.get(condition.ownerKey) ?? []; values.push(condition.conditionId); conditionIds.set(condition.ownerKey, values); }
+  const statPercent = new Map(admitted.canonical.value.stats.map((stat) => [stat.nativeId, stat.gameplay.isPercentStat === true]));
+  const itemLevels = new Map(admitted.lootRules.value.itemLevels.map((row) => [row.itemId, row.requiredLevel]));
+
+  for (const [index, item] of admitted.canonical.value.items.entries()) {
+    const path = `/items/${index}/gameplay`, provenance = [pointer(admitted.canonical.reference, `/items/${index}`)], decoded = decodeItemGameplay(item.gameplay, admitted.canonical.reference, path);
+    issueRows(entityKey("items", item.nativeId), decoded.issues, admitted.canonical.reference);
+    const value = decoded.value, enumName = (field: typeof value.itemType): string | null => field?.available === true && typeof field.name === "string" ? field.name : null;
+    const enchantment = reference("enchantments", value.enchantmentId, `Enchantment ${String(value.enchantmentId ?? "unknown")}`, `${path}/enchantmentId`, provenance);
+    const sellCurrency = reference("currencies", value.sellCurrencyId, `Currency ${String(value.sellCurrencyId ?? "unknown")}`, `${path}/sellCurrencyId`, provenance);
+    const buyCurrency = reference("currencies", value.buyCurrencyId, `Currency ${String(value.buyCurrencyId ?? "unknown")}`, `${path}/buyCurrencyId`, provenance);
+    const actions = (value.actionAbilities ?? []).map((row, actionIndex) => reference("abilities", row.abilityId ?? row.abilityID, `Ability ${String(row.abilityId ?? row.abilityID ?? "unknown")}`, `${path}/actionAbilities/${actionIndex}`, provenance)).filter((row): row is NonNullable<typeof row> => row !== null);
+    const gemType = value.gemData?.gemSocketType?.available === true ? value.gemData.gemSocketType.name ?? null : value.gemData?.socketType || null;
+    rows.itemFacts.push({ entityKey: entityKey("items", item.nativeId), rarity: enumName(value.rarity), itemType: enumName(value.itemType), armorSlot: enumName(value.armorSlot), weaponSlot: enumName(value.weaponSlot), weaponType: enumName(value.weaponType), armorType: enumName(value.armorType), attackSpeed: value.attackSpeed ?? null, minDamage: value.minDamage ?? null, maxDamage: value.maxDamage ?? null, randomStatsMax: value.randomStatsMax ?? 0, gemType, enchantment, sellPrice: value.sellPrice ?? null, sellCurrency, buyPrice: value.buyPrice ?? null, buyCurrency, stackLimit: value.stackLimit ?? 1, questDropOnly: value.questDropOnly ?? false, corruptionToken: value.isCorruptionToken ?? false, levelRequirement: itemLevels.get(item.nativeId) ?? null, actionAbilities: actions, conditionIds: conditionIds.get(entityKey("items", item.nativeId)) ?? [], provenance });
+    for (const [statIndex, stat] of (value.stats ?? []).entries()) { const statRef = reference("stats", stat.statId, `Stat ${stat.statId}`, `${path}/stats/${statIndex}`, provenance)!; rows.itemStats.push({ entityKey: entityKey("items", item.nativeId), statIndex, stat: statRef, amount: stat.amount, isPercent: stat.isPercent, provenance }); }
+    for (const [statIndex, stat] of (value.randomStats ?? []).entries()) rows.itemRandomStats.push({ entityKey: entityKey("items", item.nativeId), statIndex, stat: reference("stats", stat.statId, `Stat ${stat.statId}`, `${path}/randomStats/${statIndex}`, provenance)!, min: stat.minValue, max: stat.maxValue, isPercent: stat.isPercent, whole: stat.isInt ?? false, chance: stat.chance ?? null, provenance });
+    for (const [statIndex, stat] of (value.gemData?.stats ?? []).entries()) rows.itemGemStats.push({ entityKey: entityKey("items", item.nativeId), statIndex, stat: reference("stats", stat.statId, `Stat ${stat.statId}`, `${path}/gemData/stats/${statIndex}`, provenance)!, amount: stat.amount, isPercent: stat.isPercent, provenance });
+    for (const [socketIndex, socket] of (value.sockets ?? []).entries()) rows.itemSockets.push({ entityKey: entityKey("items", item.nativeId), socketIndex, socketType: socket.socketType || null, gemType: socket.gemSocketType?.available === true ? socket.gemSocketType.name ?? null : null, provenance });
+  }
+
+  for (const [index, npc] of admitted.canonical.value.npcs.entries()) {
+    const path = `/npcs/${index}/gameplay`, provenance = [pointer(admitted.canonical.reference, `/npcs/${index}`)], decoded = decodeNpcGameplay(npc.gameplay, admitted.canonical.reference, path), value = decoded.value;
+    issueRows(entityKey("npcs", npc.nativeId), decoded.issues, admitted.canonical.reference);
+    const faction = reference("factions", value.factionId, `Faction ${String(value.factionId ?? "unknown")}`, `${path}/factionId`, provenance), species = reference("species", value.speciesId, `Species ${String(value.speciesId ?? "unknown")}`, `${path}/speciesId`, provenance), linkedNpc = reference("npcs", value.linkedNpcId, `NPC ${String(value.linkedNpcId ?? "unknown")}`, `${path}/linkedNpcId`, provenance);
+    const weaponTypes = [value.lootSpecializationWeaponType, value.lootSpecializationWeaponType2, value.lootSpecializationWeaponType3].flatMap((entry) => entry?.available === true && entry.name ? [entry.name] : []);
+    const specializationStat = reference("stats", value.lootSpecializationStatId, `Stat ${String(value.lootSpecializationStatId ?? "unknown")}`, `${path}/lootSpecializationStatId`, provenance);
+    rows.npcFacts.push({ entityKey: entityKey("npcs", npc.nativeId), minLevel: value.minLevel ?? null, maxLevel: value.maxLevel ?? null, scalesWithPlayer: value.isScalingWithPlayer ?? false, npcType: value.npcType?.name ?? null, creatureType: value.creatureType?.name ?? null, family: value.npcFamily?.available === true ? value.npcFamily.name ?? null : null, faction, species, isMerchant: value.isMerchant ?? false, isQuestGiver: value.isQuestGiver ?? false, isCombatEnabled: value.isCombatEnabled ?? false, minRespawn: value.minRespawn ?? null, maxRespawn: value.maxRespawn ?? null, minExperience: value.minExperience ?? null, maxExperience: value.maxExperience ?? null, immuneToStun: value.immuneToStun ?? false, immuneToSlow: value.immuneToSlow ?? false, aggroRange: value.useAggroRange === false ? null : value.aggroRange ?? null, linkedNpc, lootSpecialization: value.hasLootSpecialization === true ? { armorType: value.lootSpecializationArmorType?.available === true ? value.lootSpecializationArmorType.name ?? null : null, weaponTypes, stat: specializationStat } : null, provenance });
+    const stats = value.guideStats ?? value.stats?.map((stat) => ({ statId: stat.statId, value: stat.baseValue ?? stat.minValue ?? stat.maxValue ?? 0 })) ?? [];
+    for (const [statIndex, stat] of stats.entries()) rows.npcStats.push({ entityKey: entityKey("npcs", npc.nativeId), statIndex, stat: reference("stats", stat.statId, `Stat ${stat.statId}`, `${path}/guideStats/${statIndex}`, provenance)!, amount: stat.value, isPercent: statPercent.get(stat.statId) ?? false, provenance });
+    for (const [phaseIndex, phase] of (value.aiPhases ?? []).entries()) { rows.npcAbilityPhases.push({ entityKey: entityKey("npcs", npc.nativeId), phaseIndex: phase.phaseIndex, name: phase.name || null, requirement: phase.requirement || null, provenance }); for (const [abilityIndex, abilityId] of phase.abilityIds.entries()) rows.npcPhaseAbilities.push({ entityKey: entityKey("npcs", npc.nativeId), phaseIndex: phase.phaseIndex, abilityIndex, ability: reference("abilities", abilityId, `Ability ${abilityId}`, `${path}/aiPhases/${phaseIndex}/abilityIds/${abilityIndex}`, provenance)!, provenance }); }
+    for (const [rewardIndex, reward] of (value.factionRewards ?? []).entries()) rows.npcFactionRewards.push({ entityKey: entityKey("npcs", npc.nativeId), rewardIndex, faction: reference("factions", reward.factionId, `Faction ${reward.factionId}`, `${path}/factionRewards/${rewardIndex}`, provenance)!, amount: reward.amount, provenance });
+  }
+
+  const taskById = new Map<number, NonNullable<NormalizedDatabaseInput["taskFacts"]>[number]>();
+  for (const [index, task] of admitted.relationships.value.tasks.entries()) {
+    const path = `/tasks/${index}`, provenance = [pointer(admitted.relationships.reference, path)], decoded = decodeTaskGameplay(task, admitted.relationships.reference, path), value = decoded.value;
+    issueRows(entityKey("tasks", task.nativeId), decoded.issues, admitted.relationships.reference);
+    let target: NormalizedReference | null = null;
+    if (value.taskType === "learnAbility") target = reference("abilities", value.abilityToLearnID, `Ability ${String(value.abilityToLearnID ?? "unknown")}`, `${path}/abilityToLearnID`, provenance);
+    else if (value.taskType === "killNPC") target = reference("npcs", value.npcToKillID, value.npcToKillName ?? `NPC ${String(value.npcToKillID ?? "unknown")}`, `${path}/npcToKillID`, provenance);
+    else if (value.taskType === "getItem") target = reference("items", value.itemToGetID, value.itemToGetName ?? `Item ${String(value.itemToGetID ?? "unknown")}`, `${path}/itemToGetID`, provenance);
+    else if (value.taskType === "useItem") target = reference("items", value.itemToUseID, value.itemToUseName ?? `Item ${String(value.itemToUseID ?? "unknown")}`, `${path}/itemToUseID`, provenance);
+    else if (value.taskType === "talkToNPC") target = reference("npcs", value.npcToTalkToID, value.npcToTalkToName ?? `NPC ${String(value.npcToTalkToID ?? "unknown")}`, `${path}/npcToTalkToID`, provenance);
+    else if (value.taskType === "reachSkillLevel") target = reference("skills", value.skillRequiredID, value.skillRequiredName ?? `Skill ${String(value.skillRequiredID ?? "unknown")}`, `${path}/skillRequiredID`, provenance);
+    else if (value.taskType === "enterScene" && value.sceneName) { const scene = entities.find((row) => row.kind === "scenes" && (row.name === value.sceneName || row.internalName === value.sceneName)); target = scene ? { entityKey: scene.entityKey, label: scene.name ?? value.sceneName } : { entityKey: null, label: value.sceneName }; }
+    const fact = { entityKey: entityKey("tasks", task.nativeId), taskType: value.taskType, target, count: value.taskValue ?? null, keepItems: value.taskType === "getItem" ? value.keepItems ?? false : null, sceneName: value.sceneName || null, provenance };
+    rows.taskFacts.push(fact); taskById.set(task.nativeId, fact);
+  }
+
+  for (const [index, quest] of admitted.canonical.value.quests.entries()) {
+    const path = `/quests/${index}/gameplay`, provenance = [pointer(admitted.canonical.reference, `/quests/${index}`)], decoded = decodeQuestGameplay(quest.gameplay, admitted.canonical.reference, path), value = decoded.value, key = entityKey("quests", quest.nativeId);
+    issueRows(key, decoded.issues, admitted.canonical.reference);
+    const experience = (value.rewardsGiven ?? []).filter((reward) => reward.rewardType.name === "Experience").reduce((sum, reward) => sum + reward.experience, 0) || null;
+    rows.questFacts.push({ entityKey: key, chainName: value.questChainName ?? null, chainOrder: value.questChainOrder ?? null, repeatable: value.repeatable ?? false, turnInWithoutNpc: value.canBeTurnedInWithoutNpc ?? false, completedDescription: value.completedDescription ?? null, objectiveText: value.objectiveText ?? null, levelRequirement: null, experience, conditionIds: conditionIds.get(key) ?? [], provenance });
+    for (const [objectiveIndex, objective] of (value.objectives ?? []).entries()) { const task = taskById.get(objective.taskId), taskRef = reference("tasks", objective.taskId, `Task ${objective.taskId}`, `${path}/objectives/${objectiveIndex}/taskId`, provenance)!; rows.questObjectives.push({ questEntityKey: key, objectiveIndex, taskType: task?.taskType ?? "unsupported", task: taskRef, target: task?.target ?? null, count: task?.count ?? null, keepItems: task?.keepItems ?? null, sceneName: task?.sceneName ?? null, provenance }); }
+    const rewards = (set: "given" | "pick", values: typeof value.rewardsGiven) => { for (const [rewardIndex, reward] of (values ?? []).entries()) { const type = reward.rewardType.name; let target: NormalizedReference | null = null; if (type === "item") target = reference("items", reward.itemId, `Item ${reward.itemId}`, `${path}/${set}/${rewardIndex}/itemId`, provenance); else if (type === "currency") target = reference("currencies", reward.currencyId, `Currency ${reward.currencyId}`, `${path}/${set}/${rewardIndex}/currencyId`, provenance); else if (type === "FactionPoint") target = reference("factions", reward.factionId, `Faction ${reward.factionId}`, `${path}/${set}/${rewardIndex}/factionId`, provenance); else if (type === "treePoint") target = reference("treePoints", reward.treePointId, `Tree point ${reward.treePointId}`, `${path}/${set}/${rewardIndex}/treePointId`, provenance); rows.questRewards.push({ questEntityKey: key, rewardSet: set, rewardIndex, rewardType: type, target, count: reward.count, experience: type === "Experience" ? reward.experience : null, provenance }); } };
+    rewards("given", value.rewardsGiven); rewards("pick", value.rewardsToPick);
+    for (const [rewardIndex, given] of (value.itemsGiven ?? []).entries()) rows.questRewards.push({ questEntityKey: key, rewardSet: "itemGiven", rewardIndex, rewardType: "item", target: reference("items", given.itemId, `Item ${given.itemId}`, `${path}/itemsGiven/${rewardIndex}/itemId`, provenance), count: given.count, experience: null, provenance });
+  }
+
+  const mapsByScene = new Map<number, string[]>();
+  for (const binding of bindings) { const values = mapsByScene.get(binding.sceneNativeId) ?? []; values.push(binding.mapSpaceId); mapsByScene.set(binding.sceneNativeId, values); }
+  for (const [index, scene] of admitted.canonical.value.scenes.entries()) { const path = `/scenes/${index}/gameplay`, provenance = [pointer(admitted.canonical.reference, `/scenes/${index}`)], decoded = decodeSceneGameplay(scene.gameplay, admitted.canonical.reference, path), value = decoded.value, guideIncluded = value.includedInAdventureGuide ?? false, hasDungeonLevels = (value.dungeonLevelMin ?? 0) > 0 || (value.dungeonLevelMax ?? 0) > 0; rows.placeFacts.push({ entityKey: entityKey("scenes", scene.nativeId), placeType: guideIncluded && hasDungeonLevels ? "dungeon" : "zone", guideIncluded, guideDescription: value.adventureGuideDescription ?? scene.description, levelMin: hasDungeonLevels ? value.dungeonLevelMin ?? null : value.zoneScalingMinLevel ?? null, levelMax: hasDungeonLevels ? value.dungeonLevelMax ?? null : value.zoneScalingMaxLevel ?? null, mapSpaceIds: [...new Set(mapsByScene.get(scene.nativeId) ?? [])].sort(), bosses: (value.adventureGuideBosses ?? []).map((boss, bossIndex) => reference("npcs", boss.npcId, `NPC ${boss.npcId}`, `${path}/adventureGuideBosses/${bossIndex}`, provenance)!), parentSceneKey: null, provenance }); }
+  for (const [index, region] of admitted.canonical.value.regions.entries()) { const path = `/regions/${index}/gameplay`, provenance = [pointer(admitted.canonical.reference, `/regions/${index}`)], value = decodeRegionGameplay(region.gameplay, admitted.canonical.reference, path).value; rows.placeFacts.push({ entityKey: entityKey("regions", region.nativeId), placeType: "region", guideIncluded: value.includedInAdventureGuide ?? false, guideDescription: value.adventureGuideDescription ?? region.description, levelMin: value.levelRangeMin ?? null, levelMax: value.levelRangeMax ?? null, mapSpaceIds: [], bosses: [], parentSceneKey: value.parentSceneId !== undefined && value.parentSceneId >= 0 ? entityKey("scenes", value.parentSceneId) : null, provenance }); }
+  for (const [index, property] of admitted.canonical.value.properties.entries()) { const path = `/properties/${index}/gameplay`, provenance = [pointer(admitted.canonical.reference, `/properties/${index}`)], decoded = decodePropertyGameplay(property.gameplay, admitted.canonical.reference, path), value = decoded.value; issueRows(entityKey("properties", property.nativeId), decoded.issues, admitted.canonical.reference); rows.propertyFacts.push({ entityKey: entityKey("properties", property.nativeId), income: value.income ?? value.incomeAmount ?? null, purchasePrice: value.purchasePrice ?? null, sellPrice: value.sellPrice ?? null, currency: reference("currencies", value.currencyId, `Currency ${String(value.currencyId ?? "unknown")}`, `${path}/currencyId`, provenance), propertyType: value.propertyType?.name ?? null, provenance }); }
+
+  const supportFamilies = ["abilities", "recipes", "craftingStations"] as const;
+  for (const family of supportFamilies) for (const [index, support] of (admitted.support.value.tables[family] ?? []).entries()) {
+    const key = entityKey(family, support.entry.nativeId), path = `/tables/${family}/${index}`, provenance = [pointer(admitted.support.reference, path)];
+    if (family === "abilities") rows.abilityFacts.push({ entityKey: key, provenance });
+    else if (family === "recipes" && support.gameplay !== undefined) { const value = decodeRecipeGameplay(support.gameplay, admitted.support.reference, `${path}/gameplay`).value; rows.recipeFacts.push({ entityKey: key, skill: reference("skills", value.craftingSkillId, `Skill ${value.craftingSkillId}`, `${path}/gameplay/craftingSkillId`, provenance), station: reference("craftingStations", value.craftingStationId, `Crafting station ${value.craftingStationId}`, `${path}/gameplay/craftingStationId`, provenance), learnedByDefault: value.learnedByDefault, provenance }); for (const rank of value.ranks) { rows.recipeRanks.push({ entityKey: key, rank: rank.rankIndex, unlockCost: rank.unlockCost, experience: rank.experience, craftTime: rank.craftTime, provenance }); for (const [productIndex, product] of rank.craftedItems.entries()) rows.recipeProducts.push({ entityKey: key, rank: rank.rankIndex, productIndex, item: reference("items", product.itemId, `Item ${product.itemId}`, `${path}/gameplay/ranks/${rank.rankIndex}/craftedItems/${productIndex}`, provenance)!, count: product.count, chance: product.chance, provenance }); for (const [materialIndex, material] of rank.components.entries()) rows.recipeMaterials.push({ entityKey: key, rank: rank.rankIndex, materialIndex, item: reference("items", material.itemId, `Item ${material.itemId}`, `${path}/gameplay/ranks/${rank.rankIndex}/components/${materialIndex}`, provenance)!, count: material.count, provenance }); } }
+    else if (family === "craftingStations" && support.gameplay !== undefined) { const value = decodeCraftingStationGameplay(support.gameplay, admitted.support.reference, `${path}/gameplay`).value; rows.craftingStationFacts.push({ entityKey: key, maxDistance: value.maxDistance, skillRefs: value.craftSkillIds.map((id, skillIndex) => reference("skills", id, `Skill ${id}`, `${path}/gameplay/craftSkillIds/${skillIndex}`, provenance)!), provenance }); }
+  }
+
+  if (admitted.artwork) {
+    const assets = new Map<string, NonNullable<NormalizedDatabaseInput["artworkAssets"]>[number]>(), bindingsByRole = new Map<string, string>();
+    for (const [index, record] of admitted.artwork.value.records.entries()) {
+      const provenance = [pointer(admitted.artwork.reference, `/records/${index}`)], key = entityKey(record.family, record.nativeId);
+      if (record.status !== "extracted" || record.image === null) { blockers.push({ kind: "artwork-unavailable", key: `${key}:${record.role}`, detail: record.reason ?? `Artwork status is ${record.status}.`, provenance }); continue; }
+      if (!entityByKey.has(key)) { blockers.push({ kind: "missing-reference", key: `artwork:${key}:${record.role}`, detail: `Artwork references missing ${key}.`, provenance }); continue; }
+      const previous = assets.get(record.image.sha256), asset = { assetId: record.image.sha256, sha256: record.image.sha256, bytes: record.image.bytes, width: record.image.width, height: record.image.height, sourceName: record.sourceName, provenance };
+      if (previous && (previous.bytes !== asset.bytes || previous.width !== asset.width || previous.height !== asset.height)) throw new Error(`Artwork asset ${asset.sha256} has conflicting metadata.`);
+      if (previous) { previous.provenance.push(...provenance); if (asset.sourceName.localeCompare(previous.sourceName) < 0) previous.sourceName = asset.sourceName; }
+      else assets.set(asset.sha256, asset);
+      const roleKey = `${key}:${record.role}`, bound = bindingsByRole.get(roleKey); if (bound && bound !== asset.assetId) throw new Error(`Artwork binding ${roleKey} names multiple assets.`); bindingsByRole.set(roleKey, asset.assetId);
+      rows.artworkBindings.push({ entityKey: key, role: record.role, assetId: asset.assetId, provenance });
+    }
+    rows.artworkAssets.push(...[...assets.values()].sort((a, b) => a.assetId.localeCompare(b.assetId)));
+    rows.artworkBindings = mergeEvidence(rows.artworkBindings, (row) => `${row.entityKey}:${row.role}`);
+  }
+  return rows;
+}
+
 export function normalizeCatalog(admitted: AdmittedCatalog, planReference: ArtifactReference): NormalizedDatabaseInput {
   const { plan, profile, contexts, canonical, relationships, lootRules } = admitted;
   const profileReference = evidenceReference(plan.spatialProfile);
@@ -43,7 +157,20 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   for (const placement of placements.placements) placement.buildId = plan.buildId;
   for (const source of placements.sources) source.buildId = plan.buildId;
   const entities = canonicalEntities(canonical.value, plan.buildId, canonical.reference);
-  for (const kind of ["currencies", "tasks"] as const) for (const [index, row] of relationships.value[kind].entries()) entities.push({ entityKey: entityKey(kind, row.nativeId), buildId: plan.buildId, kind, nativeId: row.nativeId, ...publicEntityDetails(row), sourceKey: null, publicData: { localization: null, gameplay: null, icon: null }, provenance: [pointer(relationships.reference, `/${kind}/${index}`)] });
+  const supportKinds = ["abilities", "effects", "recipes", "craftingStations", "factions", "currencies", "skills", "classes", "races", "enchantments", "gearSets", "species", "stats"] as const;
+  const admittedKeys = new Set(entities.map((row) => row.entityKey));
+  for (const kind of supportKinds) {
+    const table = admitted.support.value.tables[kind] ?? [], expected = admitted.support.value.sourceTotals[kind];
+    if (expected !== undefined && table.length !== expected) throw new Error(`Support ${kind} count ${table.length} differs from source total ${expected}.`);
+    if (kind === "stats") continue;
+    for (const [index, row] of table.entries()) {
+      const key = entityKey(kind, row.entry.nativeId); if (admittedKeys.has(key)) continue;
+      const definition = row.entry as typeof row.entry & { description?: unknown; localization?: unknown; icon?: unknown };
+      entities.push({ entityKey: key, buildId: plan.buildId, kind, nativeId: row.entry.nativeId, ...publicEntityDetails(definition), sourceKey: row.sourceKey, publicData: { localization: definition.localization ?? null, gameplay: row.gameplay ?? null, icon: definition.icon ?? null }, provenance: [pointer(admitted.support.reference, `/tables/${kind}/${index}`)] }); admittedKeys.add(key);
+    }
+  }
+  for (const [index, row] of relationships.value.currencies.entries()) { const key = entityKey("currencies", row.nativeId); if (!admittedKeys.has(key)) { entities.push({ entityKey: key, buildId: plan.buildId, kind: "currencies", nativeId: row.nativeId, ...publicEntityDetails(row), sourceKey: null, publicData: { localization: null, gameplay: null, icon: null }, provenance: [pointer(relationships.reference, `/currencies/${index}`)] }); admittedKeys.add(key); } }
+  for (const [index, row] of relationships.value.tasks.entries()) { const key = entityKey("tasks", row.nativeId); if (!admittedKeys.has(key)) { entities.push({ entityKey: key, buildId: plan.buildId, kind: "tasks", nativeId: row.nativeId, ...publicEntityDetails(row), sourceKey: null, publicData: { localization: null, gameplay: row, icon: null }, provenance: [pointer(relationships.reference, `/tasks/${index}`)] }); admittedKeys.add(key); } }
   entities.sort((a, b) => a.entityKey.localeCompare(b.entityKey));
   const knownEntities = new Set(entities.map((row) => row.entityKey));
   const roles = placements.roles.filter((role) => {
@@ -56,6 +183,7 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   const relations = relationRows(relationships.value, canonical.value, lootRules.value, roles, knownEntities, gameplay, relationships.reference, lootRules.reference, blockers);
   const conditions = [...spawn.conditions, ...collectWorldConditions(contexts, blockers), ...relations.conditions];
   for (const kind of ["lootTables", "quests", "tasks", "resources"] as const) for (const [index, row] of relationships.value[kind].entries()) if ("nativeId" in row && typeof row.nativeId === "number") conditions.push(...conditionRowsFor("entity", entityKey(kind, row.nativeId), row, pointer(relationships.reference, `/${kind}/${index}`)));
+  for (const [index, row] of (relationships.value.items ?? []).entries()) conditions.push(...conditionRowsFor("entity", entityKey("items", row.nativeId), row, pointer(relationships.reference, `/items/${index}`)));
   const worlds = worldRelations(contexts, placements.sourcePlacement, relations.lootEntries, conditions, relations.itemIndex, blockers);
   const bindingsByScene = new Map<number, Set<string>>();
   for (const binding of bindings) { const maps = bindingsByScene.get(binding.sceneNativeId) ?? new Set<string>(); maps.add(binding.mapSpaceId); bindingsByScene.set(binding.sceneNativeId, maps); }
@@ -117,6 +245,7 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
     sceneSpawns.push({ sceneNativeId: scene.nativeId, startPositionId, position: position.row.position });
   }
   const uniqueConditions = mergeEvidence(conditions, (row) => row.conditionId, (row) => ({ ...row, sourceFieldPath: null, payload: conditionSemanticPayload(row.payload), provenance: [] }));
+  const factRows = collectTypedFacts(admitted, entities, bindings, uniqueConditions, blockers);
   const resourceYields = [...relations.resourceYields, ...mergeEvidence(worlds.resourceYields, (row) => row.yieldId)];
   const questAssociations = mergeEvidence([...relations.questAssociations, ...worlds.questAssociations], (row) => row.associationId);
   worlds.transitions = mergeEvidence(worlds.transitions, (row) => row.transitionId);
@@ -160,5 +289,5 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   const sourceRunIds = Object.fromEntries(admitted.sources.map((source) => [source.reference.sha256, [...new Set(source.origins.map((origin) => origin.runId))]]));
   const sourceRunId = contexts[0]?.snapshotRunId;
   if (!sourceRunId) throw new Error("Catalog has no admitted observation context.");
-  return { buildId: plan.buildId, sourceRunId, sourceRunIds, derivations: [...derivationIndex.values()], imagery: admitted.imagery.map(({ reference, document }) => ({ assetId: `${document.layer.mapSpaceId}:${document.layer.id}`, mapSpaceId: document.layer.mapSpaceId, kind: document.layer.kind, sha256: reference.sha256, bytes: reference.bytes, metadata: document.layer, provenance: [evidenceReference(reference)] })), identityResults: contexts.map((context) => ({ runId: context.snapshotRunId, snapshotId: context.snapshotId, snapshotPrefix: context.snapshotPrefix, snapshotSha256: context.snapshotReference.sha256, character: context.character, sceneHandle: context.sceneHandle, result: context.identityResult })), entities, scenes: [...sceneRows.values()], mapSpaces: profile.mapSpaces, bindings, placements: placements.placements, sources: placements.sources, roles, regions, conditions: uniqueConditions, spawnCandidates: mergeEvidence(spawn.candidates, (row) => `${row.sourceId}:${row.candidateIndex}`), merchantTables: relations.merchantTables, merchantBindings: relations.merchantBindings, merchantStock: relations.merchantStock, lootTables: relations.lootTables, lootBindings: relations.lootBindings, lootEntries: relations.lootEntries, linkedNpcRules: relations.linkedNpcRules, resourceYields, questAssociations, transitions: worlds.transitions, itemSources, entityDetails: details, sourceDetails: sourceDetails(contexts), patrolPaths, sceneSpawns, blockers: [...new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values()], coverageOccurrences, exclusions: [...new Map(exclusions.map((row) => [row.key, row])).values()], inputCoverage: null, provenance: { plan: planReference, profile: profileReference, sources: admitted.sources.map((source) => source.reference) } };
+  return { buildId: plan.buildId, sourceRunId, sourceRunIds, derivations: [...derivationIndex.values()], imagery: admitted.imagery.map(({ reference, document }) => ({ assetId: `${document.layer.mapSpaceId}:${document.layer.id}`, mapSpaceId: document.layer.mapSpaceId, kind: document.layer.kind, sha256: reference.sha256, bytes: reference.bytes, metadata: document.layer, provenance: [evidenceReference(reference)] })), ...factRows, identityResults: contexts.map((context) => ({ runId: context.snapshotRunId, snapshotId: context.snapshotId, snapshotPrefix: context.snapshotPrefix, snapshotSha256: context.snapshotReference.sha256, character: context.character, sceneHandle: context.sceneHandle, result: context.identityResult })), entities, scenes: [...sceneRows.values()], mapSpaces: profile.mapSpaces, bindings, placements: placements.placements, sources: placements.sources, roles, regions, conditions: uniqueConditions, spawnCandidates: mergeEvidence(spawn.candidates, (row) => `${row.sourceId}:${row.candidateIndex}`), merchantTables: relations.merchantTables, merchantBindings: relations.merchantBindings, merchantStock: relations.merchantStock, lootTables: relations.lootTables, lootBindings: relations.lootBindings, lootEntries: relations.lootEntries, linkedNpcRules: relations.linkedNpcRules, resourceYields, questAssociations, transitions: worlds.transitions, itemSources, entityDetails: details, sourceDetails: sourceDetails(contexts), patrolPaths, sceneSpawns, blockers: [...new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values()], coverageOccurrences, exclusions: [...new Map(exclusions.map((row) => [row.key, row])).values()], inputCoverage: null, provenance: { plan: planReference, profile: profileReference, sources: admitted.sources.map((source) => source.reference) } };
 }

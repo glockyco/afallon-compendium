@@ -60,12 +60,14 @@ export interface CatalogImageryRow {
 export interface NormalizedReference { entityKey: string | null; label: string }
 export interface NormalizedItemFact {
   entityKey: string; rarity: string | null; itemType: string | null; armorSlot: string | null; weaponSlot: string | null; weaponType: string | null; armorType: string | null;
-  attackSpeed: number | null; minDamage: number | null; maxDamage: number | null; randomStatsMax: number; enchantment: NormalizedReference | null;
+  attackSpeed: number | null; minDamage: number | null; maxDamage: number | null; randomStatsMax: number; gemType: string | null; enchantment: NormalizedReference | null;
   sellPrice: number | null; sellCurrency: NormalizedReference | null; buyPrice: number | null; buyCurrency: NormalizedReference | null; stackLimit: number; questDropOnly: boolean; corruptionToken: boolean;
   levelRequirement: number | null; actionAbilities: NormalizedReference[]; conditionIds: string[]; provenance: ProvenanceReference[];
 }
 export interface NormalizedItemStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
-export interface NormalizedItemSocket { entityKey: string; socketIndex: number; socketType: string; provenance: ProvenanceReference[] }
+export interface NormalizedItemRandomStat { entityKey: string; statIndex: number; stat: NormalizedReference; min: number; max: number; isPercent: boolean; whole: boolean; chance: number | null; provenance: ProvenanceReference[] }
+export interface NormalizedItemGemStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
+export interface NormalizedItemSocket { entityKey: string; socketIndex: number; socketType: string | null; gemType: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedNpcFact {
   entityKey: string; minLevel: number | null; maxLevel: number | null; scalesWithPlayer: boolean; npcType: string | null; creatureType: string | null; family: string | null;
   faction: NormalizedReference | null; species: NormalizedReference | null; isMerchant: boolean; isQuestGiver: boolean; isCombatEnabled: boolean; minRespawn: number | null; maxRespawn: number | null;
@@ -300,6 +302,8 @@ export interface NormalizedDatabaseInput {
   imagery?: CatalogImageryRow[];
   itemFacts?: NormalizedItemFact[];
   itemStats?: NormalizedItemStat[];
+  itemRandomStats?: NormalizedItemRandomStat[];
+  itemGemStats?: NormalizedItemGemStat[];
   itemSockets?: NormalizedItemSocket[];
   npcFacts?: NormalizedNpcFact[];
   npcStats?: NormalizedNpcStat[];

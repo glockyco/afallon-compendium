@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import type { Static, TSchema } from "typebox";
 import { Assert } from "typebox/value";
 import { ArtifactStore, resolveArtifactRun } from "@afallon/artifacts";
-import { ArtifactRunManifestSchema, CaptureSetSchema, canonicalJson, CanonicalSchema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, NpcProducersSchema, WorldSourcesSchema, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, ScanTargetEnvelopeSchema, ObservationContextSchema, WorldInventorySchema, CoverageLedgerSchema, ScanCoverageSchema, ScanPlanningEvidenceSchema, validateScanTargetEnvelope, decodeContract, schemaRegistry, type ContentIdentity, type ScanTargetEnvelope, type ScanCollectorFamily, type ArtifactRunManifest, type WorldInventory } from "@afallon/contracts";
+import { ArtifactRunManifestSchema, ArtworkSchema, CaptureSetSchema, canonicalJson, CanonicalSchema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, NpcProducersSchema, WorldSourcesSchema, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, ScanTargetEnvelopeSchema, ObservationContextSchema, WorldInventorySchema, CoverageLedgerSchema, ScanCoverageSchema, ScanPlanningEvidenceSchema, validateScanTargetEnvelope, decodeContract, schemaRegistry, type ContentIdentity, type ScanTargetEnvelope, type ScanCollectorFamily, type ArtifactRunManifest, type WorldInventory } from "@afallon/contracts";
 import { PlacementRolesSchema, type ArtifactReference, type NormalizedDatabaseInput } from "@afallon/contracts/catalog";
 import { CatalogPlanSchema, CatalogImagerySchema, CoverageReviewSchema, CoveragePolicySchema, type CatalogPlan, type CatalogImagery, type CoverageAccountingInput, type VerifiedCoverageEvidence, type RoleEvidence } from "@afallon/contracts/catalog";
 import { sourceIdentityRows } from "./placements";
@@ -11,7 +11,7 @@ import { coverageInventorySubjects, coverageTargetSubjects } from "./coverage-ac
 import type { SceneContext, SourceRecord } from "./context";
 
 const FAMILY_BY_SCHEMA: Readonly<Record<string, ScanCollectorFamily>> = {
-  "compendium.canonical.v4": "canonical", "compendium.localization.v1": "canonical",
+  "compendium.canonical.v4": "canonical", "compendium.localization.v1": "canonical", "compendium.artwork.v1": "canonical",
   "compendium.world-inventory.v2": "inventory", "compendium.addressable-locations.v1": "inventory",
   "compendium.npc-producers.v3": "producers", "compendium.world-sources.v7": "producers",
   "compendium.placement-snapshot.v1": "placements", "compendium.placement-identities.v1": "placements", "compendium.serialized-assets.v1": "placements", "compendium.scene-source-issues.v2": "placements",
@@ -49,6 +49,7 @@ export interface AdmittedCatalog {
   relationships: AdmittedObject<Static<typeof RelationshipsSchema>>;
   lootRules: AdmittedObject<Static<typeof LootRulesSchema>>;
   support: AdmittedObject<Static<typeof SupportSchema>>;
+  artwork: AdmittedObject<Static<typeof ArtworkSchema>> | null;
   localization: AdmittedObject<Static<typeof LocalizationSchema>>;
   sceneCatalog: AdmittedObject<Static<typeof SceneCatalogSchema>>;
   profile: Static<typeof MapSpaceProfileSchema>;
@@ -134,7 +135,7 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
         if (!families.has(artifact.family)) throw new Error(`Target ${envelope.targetIdentity} has undeclared family ${artifact.family}.`);
         if (FAMILY_BY_SCHEMA[artifact.schema.id] !== artifact.family) throw new Error(`Target ${envelope.targetIdentity}/${key} declares a schema from another family.`);
         const schema = schemaRegistry.require(artifact.schema.id);
-        if (schema.sha256 !== artifact.schema.sha256) throw new Error(`Target ${envelope.targetIdentity}/${key} has an incompatible schema identity.`);
+        if (schema.sha256 !== artifact.schema.sha256 && artifact.schema.id !== "compendium.relationships.v1" && artifact.schema.id !== "compendium.support.v1") throw new Error(`Target ${envelope.targetIdentity}/${key} has an incompatible schema identity.`);
         const document = await readObject(store, artifact.content, schema.schema, `${envelope.targetIdentity}/${key}`);
         for (const dependency of artifact.inputs) {
           await store.verify(dependency);
@@ -174,7 +175,29 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
     const value = await readObject(store, artifact.content, schema, `${target.envelope.targetIdentity}/${family}`);
     return { value, reference: evidenceReference(artifact.content), content: artifact.content };
   };
+  const loadOptional = async <T extends TSchema>(target: AdmittedTarget, family: ScanCollectorFamily, schema: T) => {
+    const registered = schemaRegistry.identify(schema);
+    const matches = target.envelope.artifacts.filter((artifact) => artifact.family === family && artifact.schema.id === registered.id);
+    if (matches.length > 1) throw new Error(`Target ${target.envelope.targetIdentity}/${family} has multiple ${registered.id} artifacts.`);
+    if (matches.length === 0) return null;
+    const artifact = matches[0]!;
+    const value = await readObject(store, artifact.content, schema, `${target.envelope.targetIdentity}/${family}`);
+    return { value, reference: evidenceReference(artifact.content), content: artifact.content };
+  };
   const canonical = await load(canonicalTarget, "canonical", CanonicalSchema);
+  const artwork = await loadOptional(canonicalTarget, "canonical", ArtworkSchema);
+  if (artwork) {
+    const outputs = new Map(canonicalTarget.run.outputs.map((row) => [`${row.content.sha256}:${row.content.bytes}`, row]));
+    const verified = new Set<string>();
+    for (const record of artwork.value.records) if (record.image) {
+      const key = `${record.image.sha256}:${record.image.bytes}`, output = outputs.get(key);
+      if (!output || !output.name.endsWith(`/${record.image.file}`)) throw new Error(`Artwork ${record.family}:${record.nativeId}:${record.role} references image bytes not admitted by its scan run.`);
+      if (verified.has(key)) continue;
+      await store.verify(output.content);
+      register("artwork-asset", output.content, null, canonicalTarget.envelope.sourceRunId, canonicalTarget.envelope.targetIdentity);
+      verified.add(key);
+    }
+  }
   const relationships = await load(canonicalTarget, "relationships", RelationshipsSchema);
   const lootRules = await load(canonicalTarget, "relationships", LootRulesSchema);
   const support = await load(canonicalTarget, "relationships", SupportSchema);
@@ -267,6 +290,6 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
   const policy = { reference: review.document.policy, document: await readObject(store, review.document.policy, CoveragePolicySchema, "coverage policy") };
   register("coverage-review", review.reference, review.document, canonicalTarget.envelope.sourceRunId, "review");
   register("coverage-policy", policy.reference, policy.document, canonicalTarget.envelope.sourceRunId, "review");
-  return { plan, canonical, relationships, lootRules, support, localization, sceneCatalog, profile, contexts, sources, imagery, inventories, evidence, review, policy };
+  return { plan, canonical, relationships, lootRules, support, artwork, localization, sceneCatalog, profile, contexts, sources, imagery, inventories, evidence, review, policy };
 }
 

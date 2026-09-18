@@ -28,6 +28,7 @@ export interface CatalogArtworkBinding {
 }
 
 export interface CatalogStatValue { stat: CatalogEndpoint; amount: number; isPercent: boolean }
+export interface CatalogRandomStatRule { stat: CatalogEndpoint; min: number; max: number; isPercent: boolean; whole: boolean; chance: number | null }
 
 export interface CatalogItemFacts {
   entityKey: string;
@@ -42,7 +43,9 @@ export interface CatalogItemFacts {
   maxDamage: number | null;
   stats: CatalogStatValue[];
   randomStatsMax: number;
-  sockets: Array<{ socketType: string }>;
+  randomStats: CatalogRandomStatRule[];
+  sockets: Array<{ socketType: string | null; gemType: string | null }>;
+  gem: { gemType: string | null; stats: CatalogStatValue[] } | null;
   enchantment: CatalogEndpoint | null;
   sellPrice: number | null;
   sellCurrency: CatalogEndpoint | null;
@@ -157,8 +160,8 @@ export interface CatalogDropRow {
   context: "npc" | "world" | "container";
   owner: CatalogEndpoint;
   item: CatalogEndpoint;
-  lootTableId: number;
-  entryIndex: number;
+  lootTableId: number | null;
+  entryIndex: number | null;
   min: number | null;
   max: number | null;
   rawRate: number | null;

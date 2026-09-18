@@ -315,6 +315,87 @@ export function openNormalizedDatabase(path: string): Database {
         probability_json TEXT NOT NULL CHECK(probability_json = 'null'),
         PRIMARY KEY(item_entity_key, source_kind, source_key)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS item_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), rarity TEXT, item_type TEXT, armor_slot TEXT, weapon_slot TEXT, weapon_type TEXT, armor_type TEXT,
+        attack_speed REAL, min_damage REAL, max_damage REAL, random_stats_max INTEGER NOT NULL CHECK(random_stats_max >= 0), gem_type TEXT, enchantment_entity_key TEXT REFERENCES canonical_entities(entity_key), enchantment_label TEXT,
+        sell_price REAL, sell_currency_entity_key TEXT REFERENCES canonical_entities(entity_key), sell_currency_label TEXT, buy_price REAL, buy_currency_entity_key TEXT REFERENCES canonical_entities(entity_key), buy_currency_label TEXT,
+        stack_limit INTEGER NOT NULL CHECK(stack_limit >= 0), quest_drop_only INTEGER NOT NULL CHECK(quest_drop_only IN (0, 1)), corruption_token INTEGER NOT NULL CHECK(corruption_token IN (0, 1)), level_requirement INTEGER,
+        action_abilities_json TEXT NOT NULL, condition_ids_json TEXT NOT NULL, provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS item_stats (
+        entity_key TEXT NOT NULL REFERENCES item_facts(entity_key), stat_index INTEGER NOT NULL CHECK(stat_index >= 0), stat_entity_key TEXT REFERENCES canonical_entities(entity_key), stat_label TEXT NOT NULL, amount REAL NOT NULL, is_percent INTEGER NOT NULL CHECK(is_percent IN (0, 1)), provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, stat_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS item_random_stats (
+        entity_key TEXT NOT NULL REFERENCES item_facts(entity_key), stat_index INTEGER NOT NULL CHECK(stat_index >= 0), stat_entity_key TEXT REFERENCES canonical_entities(entity_key), stat_label TEXT NOT NULL, min_value REAL NOT NULL, max_value REAL NOT NULL, is_percent INTEGER NOT NULL CHECK(is_percent IN (0, 1)), whole INTEGER NOT NULL CHECK(whole IN (0, 1)), chance REAL, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, stat_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS item_gem_stats (
+        entity_key TEXT NOT NULL REFERENCES item_facts(entity_key), stat_index INTEGER NOT NULL CHECK(stat_index >= 0), stat_entity_key TEXT REFERENCES canonical_entities(entity_key), stat_label TEXT NOT NULL, amount REAL NOT NULL, is_percent INTEGER NOT NULL CHECK(is_percent IN (0, 1)), provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, stat_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS item_sockets (
+        entity_key TEXT NOT NULL REFERENCES item_facts(entity_key), socket_index INTEGER NOT NULL CHECK(socket_index >= 0), socket_type TEXT, gem_type TEXT, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, socket_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS npc_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), min_level INTEGER, max_level INTEGER, scales_with_player INTEGER NOT NULL CHECK(scales_with_player IN (0, 1)), npc_type TEXT, creature_type TEXT, family TEXT,
+        faction_entity_key TEXT REFERENCES canonical_entities(entity_key), faction_label TEXT, species_entity_key TEXT REFERENCES canonical_entities(entity_key), species_label TEXT,
+        is_merchant INTEGER NOT NULL CHECK(is_merchant IN (0, 1)), is_quest_giver INTEGER NOT NULL CHECK(is_quest_giver IN (0, 1)), is_combat_enabled INTEGER NOT NULL CHECK(is_combat_enabled IN (0, 1)),
+        min_respawn REAL, max_respawn REAL, min_experience REAL, max_experience REAL, immune_to_stun INTEGER NOT NULL CHECK(immune_to_stun IN (0, 1)), immune_to_slow INTEGER NOT NULL CHECK(immune_to_slow IN (0, 1)), aggro_range REAL,
+        linked_npc_entity_key TEXT REFERENCES canonical_entities(entity_key), linked_npc_label TEXT, loot_specialization_json TEXT, provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS npc_stats (
+        entity_key TEXT NOT NULL REFERENCES npc_facts(entity_key), stat_index INTEGER NOT NULL CHECK(stat_index >= 0), stat_entity_key TEXT REFERENCES canonical_entities(entity_key), stat_label TEXT NOT NULL, amount REAL NOT NULL, is_percent INTEGER NOT NULL CHECK(is_percent IN (0, 1)), provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, stat_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS npc_ability_phases (
+        entity_key TEXT NOT NULL REFERENCES npc_facts(entity_key), phase_index INTEGER NOT NULL CHECK(phase_index >= 0), name TEXT, requirement TEXT, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, phase_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS npc_phase_abilities (
+        entity_key TEXT NOT NULL, phase_index INTEGER NOT NULL, ability_index INTEGER NOT NULL CHECK(ability_index >= 0), ability_entity_key TEXT REFERENCES canonical_entities(entity_key), ability_label TEXT NOT NULL, provenance_json TEXT NOT NULL,
+        PRIMARY KEY(entity_key, phase_index, ability_index), FOREIGN KEY(entity_key, phase_index) REFERENCES npc_ability_phases(entity_key, phase_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS npc_faction_rewards (
+        entity_key TEXT NOT NULL REFERENCES npc_facts(entity_key), reward_index INTEGER NOT NULL CHECK(reward_index >= 0), faction_entity_key TEXT REFERENCES canonical_entities(entity_key), faction_label TEXT NOT NULL, amount REAL NOT NULL, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, reward_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS quest_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), chain_name TEXT, chain_order INTEGER, repeatable INTEGER NOT NULL CHECK(repeatable IN (0, 1)), turn_in_without_npc INTEGER NOT NULL CHECK(turn_in_without_npc IN (0, 1)), completed_description TEXT, objective_text TEXT, level_requirement INTEGER, experience REAL, condition_ids_json TEXT NOT NULL, provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS quest_objectives (
+        quest_entity_key TEXT NOT NULL REFERENCES quest_facts(entity_key), objective_index INTEGER NOT NULL CHECK(objective_index >= 0), task_type TEXT NOT NULL, task_entity_key TEXT REFERENCES canonical_entities(entity_key), task_label TEXT NOT NULL, target_entity_key TEXT REFERENCES canonical_entities(entity_key), target_label TEXT, count REAL, keep_items INTEGER CHECK(keep_items IS NULL OR keep_items IN (0, 1)), scene_name TEXT, provenance_json TEXT NOT NULL, PRIMARY KEY(quest_entity_key, objective_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS quest_rewards (
+        quest_entity_key TEXT NOT NULL REFERENCES quest_facts(entity_key), reward_set TEXT NOT NULL CHECK(reward_set IN ('given', 'pick', 'itemGiven')), reward_index INTEGER NOT NULL CHECK(reward_index >= 0), reward_type TEXT NOT NULL, target_entity_key TEXT REFERENCES canonical_entities(entity_key), target_label TEXT, count REAL, experience REAL, provenance_json TEXT NOT NULL, PRIMARY KEY(quest_entity_key, reward_set, reward_index)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS place_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), place_type TEXT NOT NULL CHECK(place_type IN ('dungeon', 'zone', 'region', 'interior')), guide_included INTEGER NOT NULL CHECK(guide_included IN (0, 1)), guide_description TEXT, level_min INTEGER, level_max INTEGER, map_space_ids_json TEXT NOT NULL, bosses_json TEXT NOT NULL, parent_scene_key TEXT REFERENCES canonical_entities(entity_key), provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS property_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), income REAL, purchase_price REAL, sell_price REAL, currency_entity_key TEXT REFERENCES canonical_entities(entity_key), currency_label TEXT, property_type TEXT, provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS task_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), task_type TEXT NOT NULL, target_entity_key TEXT REFERENCES canonical_entities(entity_key), target_label TEXT, count REAL, keep_items INTEGER CHECK(keep_items IS NULL OR keep_items IN (0, 1)), scene_name TEXT, provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS ability_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS recipe_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), skill_entity_key TEXT REFERENCES canonical_entities(entity_key), skill_label TEXT, station_entity_key TEXT REFERENCES canonical_entities(entity_key), station_label TEXT, learned_by_default INTEGER NOT NULL CHECK(learned_by_default IN (0, 1)), provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS recipe_ranks (
+        entity_key TEXT NOT NULL REFERENCES recipe_facts(entity_key), rank INTEGER NOT NULL CHECK(rank >= 0), unlock_cost REAL NOT NULL, experience REAL NOT NULL, craft_time REAL NOT NULL, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, rank)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS recipe_products (
+        entity_key TEXT NOT NULL, rank INTEGER NOT NULL, product_index INTEGER NOT NULL CHECK(product_index >= 0), item_entity_key TEXT REFERENCES canonical_entities(entity_key), item_label TEXT NOT NULL, count REAL NOT NULL, chance REAL NOT NULL, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, rank, product_index), FOREIGN KEY(entity_key, rank) REFERENCES recipe_ranks(entity_key, rank)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS recipe_materials (
+        entity_key TEXT NOT NULL, rank INTEGER NOT NULL, material_index INTEGER NOT NULL CHECK(material_index >= 0), item_entity_key TEXT REFERENCES canonical_entities(entity_key), item_label TEXT NOT NULL, count REAL NOT NULL, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, rank, material_index), FOREIGN KEY(entity_key, rank) REFERENCES recipe_ranks(entity_key, rank)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS crafting_station_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), max_distance REAL NOT NULL, skill_refs_json TEXT NOT NULL, provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS artwork_assets (
+        asset_id TEXT PRIMARY KEY NOT NULL, sha256 TEXT NOT NULL UNIQUE CHECK(length(sha256) = 64), bytes INTEGER NOT NULL CHECK(bytes >= 0), width INTEGER NOT NULL CHECK(width > 0), height INTEGER NOT NULL CHECK(height > 0), source_name TEXT NOT NULL, provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS artwork_bindings (
+        entity_key TEXT NOT NULL REFERENCES canonical_entities(entity_key), role TEXT NOT NULL CHECK(role IN ('icon', 'portrait', 'artwork')), asset_id TEXT NOT NULL REFERENCES artwork_assets(asset_id), provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, role)
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS imagery_assets (
         asset_id TEXT PRIMARY KEY NOT NULL,
         build_id TEXT NOT NULL REFERENCES normalized_builds(build_id),
@@ -480,6 +561,30 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const row of [...sceneRows.values()].sort((a, b) => a.nativeId - b.nativeId)) insertChecked(db, "identity_scenes", ["build_id", "scene_native_id"], ["build_id", "scene_native_id", "scene_path"], [input.buildId, row.nativeId, row.path]);
     ensureCanonical(db, input.buildId, byEntity);
     for (const row of input.entityDetails) insertChecked(db, "entity_details", ["entity_key"], ["entity_key", "detail_json"], [row.entityKey, json(row)]);
+    for (const row of input.itemFacts ?? []) insertChecked(db, "item_facts", ["entity_key"], ["entity_key", "rarity", "item_type", "armor_slot", "weapon_slot", "weapon_type", "armor_type", "attack_speed", "min_damage", "max_damage", "random_stats_max", "gem_type", "enchantment_entity_key", "enchantment_label", "sell_price", "sell_currency_entity_key", "sell_currency_label", "buy_price", "buy_currency_entity_key", "buy_currency_label", "stack_limit", "quest_drop_only", "corruption_token", "level_requirement", "action_abilities_json", "condition_ids_json", "provenance_json"], [row.entityKey, row.rarity, row.itemType, row.armorSlot, row.weaponSlot, row.weaponType, row.armorType, row.attackSpeed, row.minDamage, row.maxDamage, row.randomStatsMax, row.gemType, row.enchantment?.entityKey ?? null, row.enchantment?.label ?? null, row.sellPrice, row.sellCurrency?.entityKey ?? null, row.sellCurrency?.label ?? null, row.buyPrice, row.buyCurrency?.entityKey ?? null, row.buyCurrency?.label ?? null, row.stackLimit, row.questDropOnly ? 1 : 0, row.corruptionToken ? 1 : 0, row.levelRequirement, json(row.actionAbilities), json(row.conditionIds), json(row.provenance)]);
+    for (const row of input.itemStats ?? []) insertChecked(db, "item_stats", ["entity_key", "stat_index"], ["entity_key", "stat_index", "stat_entity_key", "stat_label", "amount", "is_percent", "provenance_json"], [row.entityKey, row.statIndex, row.stat.entityKey, row.stat.label, row.amount, row.isPercent ? 1 : 0, json(row.provenance)]);
+    for (const row of input.itemRandomStats ?? []) insertChecked(db, "item_random_stats", ["entity_key", "stat_index"], ["entity_key", "stat_index", "stat_entity_key", "stat_label", "min_value", "max_value", "is_percent", "whole", "chance", "provenance_json"], [row.entityKey, row.statIndex, row.stat.entityKey, row.stat.label, row.min, row.max, row.isPercent ? 1 : 0, row.whole ? 1 : 0, row.chance, json(row.provenance)]);
+    for (const row of input.itemGemStats ?? []) insertChecked(db, "item_gem_stats", ["entity_key", "stat_index"], ["entity_key", "stat_index", "stat_entity_key", "stat_label", "amount", "is_percent", "provenance_json"], [row.entityKey, row.statIndex, row.stat.entityKey, row.stat.label, row.amount, row.isPercent ? 1 : 0, json(row.provenance)]);
+    for (const row of input.itemSockets ?? []) insertChecked(db, "item_sockets", ["entity_key", "socket_index"], ["entity_key", "socket_index", "socket_type", "gem_type", "provenance_json"], [row.entityKey, row.socketIndex, row.socketType, row.gemType, json(row.provenance)]);
+    for (const row of input.npcFacts ?? []) insertChecked(db, "npc_facts", ["entity_key"], ["entity_key", "min_level", "max_level", "scales_with_player", "npc_type", "creature_type", "family", "faction_entity_key", "faction_label", "species_entity_key", "species_label", "is_merchant", "is_quest_giver", "is_combat_enabled", "min_respawn", "max_respawn", "min_experience", "max_experience", "immune_to_stun", "immune_to_slow", "aggro_range", "linked_npc_entity_key", "linked_npc_label", "loot_specialization_json", "provenance_json"], [row.entityKey, row.minLevel, row.maxLevel, row.scalesWithPlayer ? 1 : 0, row.npcType, row.creatureType, row.family, row.faction?.entityKey ?? null, row.faction?.label ?? null, row.species?.entityKey ?? null, row.species?.label ?? null, row.isMerchant ? 1 : 0, row.isQuestGiver ? 1 : 0, row.isCombatEnabled ? 1 : 0, row.minRespawn, row.maxRespawn, row.minExperience, row.maxExperience, row.immuneToStun ? 1 : 0, row.immuneToSlow ? 1 : 0, row.aggroRange, row.linkedNpc?.entityKey ?? null, row.linkedNpc?.label ?? null, row.lootSpecialization === null ? null : json(row.lootSpecialization), json(row.provenance)]);
+    for (const row of input.npcStats ?? []) insertChecked(db, "npc_stats", ["entity_key", "stat_index"], ["entity_key", "stat_index", "stat_entity_key", "stat_label", "amount", "is_percent", "provenance_json"], [row.entityKey, row.statIndex, row.stat.entityKey, row.stat.label, row.amount, row.isPercent ? 1 : 0, json(row.provenance)]);
+    for (const row of input.npcAbilityPhases ?? []) insertChecked(db, "npc_ability_phases", ["entity_key", "phase_index"], ["entity_key", "phase_index", "name", "requirement", "provenance_json"], [row.entityKey, row.phaseIndex, row.name, row.requirement, json(row.provenance)]);
+    for (const row of input.npcPhaseAbilities ?? []) insertChecked(db, "npc_phase_abilities", ["entity_key", "phase_index", "ability_index"], ["entity_key", "phase_index", "ability_index", "ability_entity_key", "ability_label", "provenance_json"], [row.entityKey, row.phaseIndex, row.abilityIndex, row.ability.entityKey, row.ability.label, json(row.provenance)]);
+    for (const row of input.npcFactionRewards ?? []) insertChecked(db, "npc_faction_rewards", ["entity_key", "reward_index"], ["entity_key", "reward_index", "faction_entity_key", "faction_label", "amount", "provenance_json"], [row.entityKey, row.rewardIndex, row.faction.entityKey, row.faction.label, row.amount, json(row.provenance)]);
+    for (const row of input.questFacts ?? []) insertChecked(db, "quest_facts", ["entity_key"], ["entity_key", "chain_name", "chain_order", "repeatable", "turn_in_without_npc", "completed_description", "objective_text", "level_requirement", "experience", "condition_ids_json", "provenance_json"], [row.entityKey, row.chainName, row.chainOrder, row.repeatable ? 1 : 0, row.turnInWithoutNpc ? 1 : 0, row.completedDescription, row.objectiveText, row.levelRequirement, row.experience, json(row.conditionIds), json(row.provenance)]);
+    for (const row of input.questObjectives ?? []) insertChecked(db, "quest_objectives", ["quest_entity_key", "objective_index"], ["quest_entity_key", "objective_index", "task_type", "task_entity_key", "task_label", "target_entity_key", "target_label", "count", "keep_items", "scene_name", "provenance_json"], [row.questEntityKey, row.objectiveIndex, row.taskType, row.task.entityKey, row.task.label, row.target?.entityKey ?? null, row.target?.label ?? null, row.count, row.keepItems === null ? null : row.keepItems ? 1 : 0, row.sceneName, json(row.provenance)]);
+    for (const row of input.questRewards ?? []) insertChecked(db, "quest_rewards", ["quest_entity_key", "reward_set", "reward_index"], ["quest_entity_key", "reward_set", "reward_index", "reward_type", "target_entity_key", "target_label", "count", "experience", "provenance_json"], [row.questEntityKey, row.rewardSet, row.rewardIndex, row.rewardType, row.target?.entityKey ?? null, row.target?.label ?? null, row.count, row.experience, json(row.provenance)]);
+    for (const row of input.placeFacts ?? []) insertChecked(db, "place_facts", ["entity_key"], ["entity_key", "place_type", "guide_included", "guide_description", "level_min", "level_max", "map_space_ids_json", "bosses_json", "parent_scene_key", "provenance_json"], [row.entityKey, row.placeType, row.guideIncluded ? 1 : 0, row.guideDescription, row.levelMin, row.levelMax, json(row.mapSpaceIds), json(row.bosses), row.parentSceneKey, json(row.provenance)]);
+    for (const row of input.propertyFacts ?? []) insertChecked(db, "property_facts", ["entity_key"], ["entity_key", "income", "purchase_price", "sell_price", "currency_entity_key", "currency_label", "property_type", "provenance_json"], [row.entityKey, row.income, row.purchasePrice, row.sellPrice, row.currency?.entityKey ?? null, row.currency?.label ?? null, row.propertyType, json(row.provenance)]);
+    for (const row of input.taskFacts ?? []) insertChecked(db, "task_facts", ["entity_key"], ["entity_key", "task_type", "target_entity_key", "target_label", "count", "keep_items", "scene_name", "provenance_json"], [row.entityKey, row.taskType, row.target?.entityKey ?? null, row.target?.label ?? null, row.count, row.keepItems === null ? null : row.keepItems ? 1 : 0, row.sceneName, json(row.provenance)]);
+    for (const row of input.abilityFacts ?? []) insertChecked(db, "ability_facts", ["entity_key"], ["entity_key", "provenance_json"], [row.entityKey, json(row.provenance)]);
+    for (const row of input.recipeFacts ?? []) insertChecked(db, "recipe_facts", ["entity_key"], ["entity_key", "skill_entity_key", "skill_label", "station_entity_key", "station_label", "learned_by_default", "provenance_json"], [row.entityKey, row.skill?.entityKey ?? null, row.skill?.label ?? null, row.station?.entityKey ?? null, row.station?.label ?? null, row.learnedByDefault ? 1 : 0, json(row.provenance)]);
+    for (const row of input.recipeRanks ?? []) insertChecked(db, "recipe_ranks", ["entity_key", "rank"], ["entity_key", "rank", "unlock_cost", "experience", "craft_time", "provenance_json"], [row.entityKey, row.rank, row.unlockCost, row.experience, row.craftTime, json(row.provenance)]);
+    for (const row of input.recipeProducts ?? []) insertChecked(db, "recipe_products", ["entity_key", "rank", "product_index"], ["entity_key", "rank", "product_index", "item_entity_key", "item_label", "count", "chance", "provenance_json"], [row.entityKey, row.rank, row.productIndex, row.item.entityKey, row.item.label, row.count, row.chance, json(row.provenance)]);
+    for (const row of input.recipeMaterials ?? []) insertChecked(db, "recipe_materials", ["entity_key", "rank", "material_index"], ["entity_key", "rank", "material_index", "item_entity_key", "item_label", "count", "provenance_json"], [row.entityKey, row.rank, row.materialIndex, row.item.entityKey, row.item.label, row.count, json(row.provenance)]);
+    for (const row of input.craftingStationFacts ?? []) insertChecked(db, "crafting_station_facts", ["entity_key"], ["entity_key", "max_distance", "skill_refs_json", "provenance_json"], [row.entityKey, row.maxDistance, json(row.skillRefs), json(row.provenance)]);
+    for (const row of input.artworkAssets ?? []) insertChecked(db, "artwork_assets", ["asset_id"], ["asset_id", "sha256", "bytes", "width", "height", "source_name", "provenance_json"], [row.assetId, row.sha256, row.bytes, row.width, row.height, row.sourceName, json(row.provenance)]);
+    for (const row of input.artworkBindings ?? []) insertChecked(db, "artwork_bindings", ["entity_key", "role"], ["entity_key", "role", "asset_id", "provenance_json"], [row.entityKey, row.role, row.assetId, json(row.provenance)]);
     for (const row of input.mapSpaces) insertChecked(db, "map_spaces", ["build_id", "map_space_id"], ["build_id", "map_space_id", "label"], [input.buildId, row.id, row.label]);
     for (const binding of input.bindings) insertChecked(db, "map_space_bindings", ["build_id", "binding_id"], ["build_id", "binding_id", "map_space_id", "scene_native_id", "scene_path", "frame_json", "domain_json"], [input.buildId, binding.id, binding.mapSpaceId, binding.sceneNativeId, binding.scenePath, json(binding.frame), json(binding.domain)]);
 
