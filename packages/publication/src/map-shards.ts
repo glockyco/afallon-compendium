@@ -20,6 +20,7 @@ import {
   type StaticMapSummary,
 } from "@afallon/contracts/public";
 import { partitionStaticRecords, writeStaticJson, type GeneratedStaticResource } from "./resources";
+import { plainText } from "./text";
 
 const ROLE_CATEGORIES: Readonly<Record<string, PublicMarkerCategory | null>> = {
   enemy: "enemy", boss: "boss", elite: "enemy", neutral: "neutral", friendly: "townsfolk", npc: null,
@@ -37,9 +38,6 @@ const MAP_ICON_CATEGORIES: Readonly<Record<string, PublicMarkerCategory>> = {
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
-}
-function plainText(value: string): string {
-  return value.replace(/<br\s*\/?>/gi, "\n").replace(/<\/?(?:color|size|b|i|u|s|font|font-weight|mark|link|align|alpha|cspace|indent|line-height|line-indent|margin|margin-left|margin-right|mspace|nobr|pos|rotate|space|style|sub|sup|voffset|width|uppercase|lowercase|smallcaps)(?:=[^>]*|\s[^>]*)?>/gi, "").trim();
 }
 function levelRange(min: unknown, max: unknown): { min: number; max: number } | undefined {
   return typeof min === "number" && Number.isInteger(min) && min >= 1 && typeof max === "number" && Number.isInteger(max) && max >= min && (min !== 100 || max !== 100) ? { min, max } : undefined;
