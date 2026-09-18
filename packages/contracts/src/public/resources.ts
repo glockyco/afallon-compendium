@@ -8,25 +8,6 @@ export { PUBLIC_MARKER_CATEGORY_VALUES, PUBLIC_MARKER_CATEGORY_LABELS, publicMar
 export const PublicAffineSchema = Type.Object({ origin: point, xAxis: point, yAxis: point }, { additionalProperties: false });
 export type PublicAffine = Static<typeof PublicAffineSchema>;
 
-export const PublicDetailRowSchema = Type.Object({
-  label: text,
-  value: Type.String(),
-  entityKey: Type.Optional(text),
-  placementIds: Type.Optional(Type.Array(text, { uniqueItems: true })),
-}, { additionalProperties: false });
-export type PublicDetailRow = Static<typeof PublicDetailRowSchema>;
-
-export const PublicDetailSectionSchema = Type.Object({ title: text, rows: Type.Array(PublicDetailRowSchema) }, { additionalProperties: false });
-export type PublicDetailSection = Static<typeof PublicDetailSectionSchema>;
-const sections = Type.Array(PublicDetailSectionSchema);
-
-export const PublicEntitySchema = Type.Object({
-  entityKey: text, kind: text, nativeId: Type.Integer(), name: text,
-  description: Type.Union([Type.String(), Type.Null()]),
-  placementIds: Type.Array(text, { uniqueItems: true }), sections,
-}, { additionalProperties: false });
-export type PublicEntity = Static<typeof PublicEntitySchema>;
-
 const publicTravelDestinationStatus = Type.Union([Type.Literal("resolved"), Type.Literal("unresolved")]);
 export const PublicTravelDestinationSchema = Type.Object({
   status: publicTravelDestinationStatus,
@@ -117,20 +98,6 @@ export const PublicRegionSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicRegion = Static<typeof PublicRegionSchema>;
 
-export const PublicEntitySummarySchema = Type.Object({
-  entityKey: text, kind: text, nativeId: Type.Integer(), name: text,
-  description: Type.Union([Type.String(), Type.Null()]),
-  detailPath: url,
-}, { additionalProperties: false });
-export type PublicEntitySummary = Static<typeof PublicEntitySummarySchema>;
-
-export const PublicItemSummarySchema = Type.Object({
-  itemKey: text, name: text,
-  sourceNames: Type.Array(text, { uniqueItems: true }), sourceKinds: Type.Array(text, { uniqueItems: true }),
-  detailPath: url,
-}, { additionalProperties: false });
-export type PublicItemSummary = Static<typeof PublicItemSummarySchema>;
-
 export const PublicWorldOffsetSchema = Type.Object({
   mapSpaceId: text,
   worldX: number,
@@ -149,13 +116,6 @@ export const PublicWorldSchema = Type.Object({
   unplacedMapSpaceIds: Type.Array(text, { uniqueItems: true }),
 }, { additionalProperties: false });
 export type PublicWorld = Static<typeof PublicWorldSchema>;
-
-export const PublicItemSourceSchema = Type.Object({
-  itemKey: text,
-  sections,
-  sources: Type.Array(Type.Object({ label: text, kind: text, placementIds: Type.Array(text, { uniqueItems: true }), sections }, { additionalProperties: false })),
-}, { additionalProperties: false });
-export type PublicItemSource = Static<typeof PublicItemSourceSchema>;
 
 export const PublicTileSchema = Type.Object({
   z: Type.Integer(), x: Type.Integer(), y: Type.Integer(),
@@ -182,113 +142,13 @@ export type PublicTileLayer = Static<typeof PublicTileLayerSchema>;
 const guidePlacementIds = Type.Array(text, { uniqueItems: true });
 const guideDescription = Type.Optional(Type.String({ minLength: 1 }));
 
-export const PublicGuideLootSchema = Type.Object({
-  itemKey: text,
-  label: Type.Optional(text),
-  minimum: Type.Optional(count),
-  maximum: Type.Optional(count),
-  chance: Type.Optional(Type.Number({ minimum: 0, maximum: 100 })),
-  rawRate: Type.Optional(number),
-}, { additionalProperties: false });
-export type PublicGuideLoot = Static<typeof PublicGuideLootSchema>;
-
-export const PublicGuideAbilityPhaseSchema = Type.Object({
-  phaseIndex: count,
-  label: text,
-  requirement: Type.Optional(Type.String({ minLength: 1 })),
-  abilityIds: Type.Array(count, { uniqueItems: true }),
-}, { additionalProperties: false });
-export type PublicGuideAbilityPhase = Static<typeof PublicGuideAbilityPhaseSchema>;
-
-export const PublicGuideStatSchema = Type.Object({ statId: count, label: text, value: Type.Number(), isPercent: Type.Optional(Type.Boolean()) }, { additionalProperties: false });
-export type PublicGuideStat = Static<typeof PublicGuideStatSchema>;
-
-export const PublicGuideBossSchema = Type.Object({
-  bossKey: text,
-  label: text,
-  level: Type.Optional(count),
-  levelRange: Type.Optional(PublicLevelRangeSchema),
-  placementIds: guidePlacementIds,
-  dungeonKeys: Type.Optional(guidePlacementIds),
-  abilities: Type.Optional(Type.Array(PublicGuideAbilityPhaseSchema)),
-  stats: Type.Optional(Type.Array(PublicGuideStatSchema)),
-  loot: Type.Array(PublicGuideLootSchema),
-  lootCount: Type.Optional(count),
-}, { additionalProperties: false });
-export type PublicGuideBoss = Static<typeof PublicGuideBossSchema>;
-
-export const PublicGuideBossSummarySchema = Type.Object({
-  bossKey: text,
-  label: text,
-  level: Type.Optional(count),
-  levelRange: Type.Optional(PublicLevelRangeSchema),
-  placementIds: guidePlacementIds,
-  dungeonKeys: Type.Optional(guidePlacementIds),
-  lootCount: count,
-}, { additionalProperties: false });
-export type PublicGuideBossSummary = Static<typeof PublicGuideBossSummarySchema>;
-
-export const PublicGuideDungeonSchema = Type.Object({
-  dungeonKey: text,
-  label: text,
-  description: guideDescription,
-  levelRange: Type.Optional(PublicLevelRangeSchema),
-  placementIds: guidePlacementIds,
-  bosses: Type.Array(PublicGuideBossSchema),
-}, { additionalProperties: false });
-export type PublicGuideDungeon = Static<typeof PublicGuideDungeonSchema>;
-
-export const PublicGuideDungeonSummarySchema = Type.Object({
-  dungeonKey: text,
-  label: text,
-  description: guideDescription,
-  levelRange: Type.Optional(PublicLevelRangeSchema),
-  placementIds: guidePlacementIds,
-  bosses: Type.Array(PublicGuideBossSummarySchema),
-}, { additionalProperties: false });
-export type PublicGuideDungeonSummary = Static<typeof PublicGuideDungeonSummarySchema>;
-
-export const PublicGuideRegionSchema = Type.Object({
-  regionKey: text,
-  label: text,
-  description: guideDescription,
-  levelRange: Type.Optional(PublicLevelRangeSchema),
-  placementIds: guidePlacementIds,
-}, { additionalProperties: false });
-export type PublicGuideRegion = Static<typeof PublicGuideRegionSchema>;
-
-export const PublicGuidePropertySchema = Type.Object({
-  propertyKey: text,
-  label: text,
-  description: guideDescription,
-  income: Type.Optional(Type.Number()),
-  placementIds: guidePlacementIds,
-}, { additionalProperties: false });
-export type PublicGuideProperty = Static<typeof PublicGuidePropertySchema>;
-
-export const PublicAdventureGuideSchema = Type.Object({
-  dungeons: Type.Array(PublicGuideDungeonSchema),
-  bosses: Type.Array(PublicGuideBossSchema),
-  regions: Type.Array(PublicGuideRegionSchema),
-  properties: Type.Array(PublicGuidePropertySchema),
-}, { additionalProperties: false });
-export type PublicAdventureGuide = Static<typeof PublicAdventureGuideSchema>;
-
-export const PublicAdventureGuideSummarySchema = Type.Object({
-  dungeons: Type.Array(PublicGuideDungeonSummarySchema),
-  bosses: Type.Array(PublicGuideBossSummarySchema),
-  regions: Type.Array(PublicGuideRegionSchema),
-  properties: Type.Array(PublicGuidePropertySchema),
-}, { additionalProperties: false });
-export type PublicAdventureGuideSummary = Static<typeof PublicAdventureGuideSummarySchema>;
-
 const publicMapSchema = Type.Object({
   mapSpaceId: text, label: text,
   levelRange: Type.Optional(PublicLevelRangeSchema),
   bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
 }, { additionalProperties: false });
 
-export const PUBLICATION_SCHEMA_VERSION = "compendium.publication.v13";
+export const PUBLICATION_SCHEMA_VERSION = "compendium.publication.v14";
 
 export const PublicationDataSchema = Type.Object({
   schemaVersion: Type.Literal(PUBLICATION_SCHEMA_VERSION), buildId: text,
@@ -298,29 +158,9 @@ export const PublicationDataSchema = Type.Object({
   maps: Type.Array(publicMapSchema, { minItems: 1 }),
   placements: Type.Array(PublicPlacementSchema),
   regions: Type.Array(PublicRegionSchema),
-  entityIndex: Type.Array(PublicEntitySummarySchema), itemIndex: Type.Array(PublicItemSummarySchema),
   tileLayers: Type.Array(PublicTileLayerSchema, { minItems: 1 }),
 }, { additionalProperties: false });
 export type PublicationData = Static<typeof PublicationDataSchema>;
-
-export const GuideDocumentSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.adventure-guide.v1"),
-  buildId: text,
-  counts: Type.Object({
-    dungeons: count,
-    bosses: count,
-    regions: count,
-    properties: count,
-  }, { additionalProperties: false }),
-  guide: Type.Object({
-    dungeons: Type.Array(Type.Union([PublicGuideDungeonSchema, PublicGuideDungeonSummarySchema])),
-    bosses: Type.Array(Type.Union([PublicGuideBossSchema, PublicGuideBossSummarySchema])),
-    regions: Type.Array(PublicGuideRegionSchema),
-    properties: Type.Array(PublicGuidePropertySchema),
-  }, { additionalProperties: false }),
-  entities: Type.Array(PublicEntitySchema),
-}, { additionalProperties: false });
-export type GuideDocument = Static<typeof GuideDocumentSchema>;
 
 export const StaticMapSummarySchema = Type.Object({
   mapSpaceId: text,
@@ -332,32 +172,7 @@ export const StaticMapSummarySchema = Type.Object({
 }, { additionalProperties: false });
 export type StaticMapSummary = Static<typeof StaticMapSummarySchema>;
 
-export const StaticGuideDocumentSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-guide.v1"),
-  ...StaticResourceIdentityFields,
-  counts: GuideDocumentSchema.properties.counts,
-  guide: GuideDocumentSchema.properties.guide,
-  entities: GuideDocumentSchema.properties.entities,
-}, { additionalProperties: false });
-export type StaticGuideDocument = Static<typeof StaticGuideDocumentSchema>;
-
 export const StaticRootManifestSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-root.v2"),
-  ...StaticResourceIdentityFields,
-  mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
-  complete: Type.Boolean(),
-  world: PublicWorldSchema,
-  maps: Type.Array(StaticMapSummarySchema),
-  entitySearch: Type.Array(resourceReference("compendium.static-entity-search.v2"), { minItems: 1 }),
-  itemSearch: Type.Array(resourceReference("compendium.static-item-search.v2"), { minItems: 1 }),
-  guides: Type.Record(Type.String({ pattern: "^[A-Za-z0-9-]+$" }), resourceReference("compendium.static-guide.v1")),
-  coverage: resourceReference("compendium.static-coverage.v1"),
-}, { additionalProperties: false });
-export type StaticRootManifest = Static<typeof StaticRootManifestSchema>;
-
-// v3 adds the compendium: the kind registry, one list per page kind, one search corpus for the
-// atlas and the pages, and the page list that names every entity document.
-export const StaticRootManifestV3Schema = Type.Object({
   schemaVersion: Type.Literal("compendium.static-root.v3"),
   ...StaticResourceIdentityFields,
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
@@ -370,7 +185,7 @@ export const StaticRootManifestV3Schema = Type.Object({
   pages: resourceReference("compendium.static-pages.v1"),
   coverage: resourceReference("compendium.static-coverage.v1"),
 }, { additionalProperties: false });
-export type StaticRootManifestV3 = Static<typeof StaticRootManifestV3Schema>;
+export type StaticRootManifest = Static<typeof StaticRootManifestSchema>;
 
 export const PublicEssentialPlacementSchema = Type.Tuple([
   text, position, number, text,
@@ -420,46 +235,6 @@ export const StaticGeometrySchema = Type.Object({
   }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type StaticGeometry = Static<typeof StaticGeometrySchema>;
-
-export const StaticEntitySearchSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-entity-search.v2"),
-  ...StaticResourceIdentityFields,
-  part: count,
-  entities: Type.Array(Type.Object({
-    entityKey: text, kind: text, nativeId: Type.Integer(), name: text,
-    description: Type.Union([Type.String(), Type.Null()]),
-    detail: resourceReference("compendium.static-entity-detail.v1"),
-  }, { additionalProperties: false })),
-}, { additionalProperties: false });
-export type StaticEntitySearch = Static<typeof StaticEntitySearchSchema>;
-
-export const StaticItemSearchSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-item-search.v2"),
-  ...StaticResourceIdentityFields,
-  part: count,
-  items: Type.Array(Type.Object({
-    itemKey: text, name: text,
-    sourceNames: Type.Array(text, { uniqueItems: true }),
-    sourceKinds: Type.Array(text, { uniqueItems: true }),
-    detail: resourceReference("compendium.static-entity-detail.v1"),
-    source: resourceReference("compendium.static-item-source.v1"),
-  }, { additionalProperties: false })),
-}, { additionalProperties: false });
-export type StaticItemSearch = Static<typeof StaticItemSearchSchema>;
-
-export const StaticEntityDetailSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-entity-detail.v1"),
-  ...StaticResourceIdentityFields,
-  entity: PublicEntitySchema,
-}, { additionalProperties: false });
-export type StaticEntityDetail = Static<typeof StaticEntityDetailSchema>;
-
-export const StaticItemSourceSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-item-source.v1"),
-  ...StaticResourceIdentityFields,
-  itemSource: PublicItemSourceSchema,
-}, { additionalProperties: false });
-export type StaticItemSource = Static<typeof StaticItemSourceSchema>;
 
 export const StaticCoverageSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.static-coverage.v1"),
@@ -516,20 +291,14 @@ schemaRegistry.register("compendium.publish-plan.v2", PublicationPlanSchema);
 schemaRegistry.register("compendium.publication-presentation.v1", PublicationPresentationSchema);
 
 export const STATIC_RESOURCE_SCHEMAS = {
-  "compendium.static-root.v2": StaticRootManifestSchema,
-  "compendium.static-root.v3": StaticRootManifestV3Schema,
-  "compendium.static-guide.v1": StaticGuideDocumentSchema,
+  "compendium.static-root.v3": StaticRootManifestSchema,
   "compendium.static-map.v2": StaticMapShardSchema,
   "compendium.static-geometry.v1": StaticGeometrySchema,
-  "compendium.static-entity-search.v2": StaticEntitySearchSchema,
-  "compendium.static-item-search.v2": StaticItemSearchSchema,
-  "compendium.static-entity-detail.v1": StaticEntityDetailSchema,
-  "compendium.static-item-source.v1": StaticItemSourceSchema,
   "compendium.static-coverage.v1": StaticCoverageSchema,
   "compendium.static-imagery.v2": StaticImagerySchema,
   ...STATIC_COMPENDIUM_SCHEMAS,
 } as const;
-export type StaticResource = StaticRootManifest | StaticRootManifestV3 | StaticGuideDocument | StaticMapShard | StaticGeometry | StaticEntitySearch | StaticItemSearch | StaticEntityDetail | StaticItemSource | StaticCoverage | StaticImagery | StaticCompendiumResource;
+export type StaticResource = StaticRootManifest | StaticMapShard | StaticGeometry | StaticCoverage | StaticImagery | StaticCompendiumResource;
 
 export function staticResourceSchema(schemaId: string) {
   if (!Object.hasOwn(STATIC_RESOURCE_SCHEMAS, schemaId)) throw new Error(`Unknown static resource schema: ${schemaId}.`);
@@ -538,19 +307,13 @@ export function staticResourceSchema(schemaId: string) {
 
 export function staticResourceEdges(value: StaticResource): StaticResourceReference[] {
   switch (value.schemaVersion) {
-    case "compendium.static-root.v2": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...value.entitySearch, ...value.itemSearch, ...Object.values(value.guides), value.coverage];
     case "compendium.static-root.v3": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists), ...value.search, value.pages, value.coverage];
     case "compendium.static-pages.v1": return value.entries.map((entry) => entry.document);
     case "compendium.static-search.v3": return value.entries.flatMap((entry) => entry.document ? [entry.document] : []);
     case "compendium.static-kind-list.v1": return value.rows.flatMap((row) => row.ref.icon ? [{ path: row.ref.icon.url, sha256: row.ref.icon.sha256, bytes: row.ref.icon.bytes, schemaId: "image/webp" }] : []);
-    case "compendium.static-entity-search.v2": return value.entities.map((entity) => entity.detail);
-    case "compendium.static-item-search.v2": return value.items.flatMap((item) => [item.detail, item.source]);
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));
-    case "compendium.static-guide.v1":
     case "compendium.static-map.v2":
     case "compendium.static-geometry.v1":
-    case "compendium.static-entity-detail.v1":
-    case "compendium.static-item-source.v1":
     case "compendium.static-coverage.v1": return [];
     default:
       if (isStaticDocument(value)) return artEdges(value.document).map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" }));
@@ -561,9 +324,6 @@ export function staticResourceEdges(value: StaticResource): StaticResourceRefere
 for (const [schemaId, schema] of Object.entries(STATIC_RESOURCE_SCHEMAS)) schemaRegistry.register(schemaId, schema);
 schemaRegistry.register("compendium.public-level-range.v1", PublicLevelRangeSchema);
 schemaRegistry.register("compendium.public-affine.v1", PublicAffineSchema);
-schemaRegistry.register("compendium.public-detail-row.v1", PublicDetailRowSchema);
-schemaRegistry.register("compendium.public-detail-section.v1", PublicDetailSectionSchema);
-schemaRegistry.register("compendium.public-entity.v1", PublicEntitySchema);
 schemaRegistry.register("compendium.public-travel-destination.v1", PublicTravelDestinationSchema);
 schemaRegistry.register("compendium.public-travel.v1", PublicTravelSchema);
 schemaRegistry.register("compendium.public-patrol-path.v1", PublicPatrolPathSchema);
@@ -573,23 +333,8 @@ schemaRegistry.register("compendium.public-patrol-movement.v1", PublicPatrolMove
 schemaRegistry.register("compendium.public-movement.v1", PublicMovementSchema);
 schemaRegistry.register("compendium.public-placement.v1", PublicPlacementSchema);
 schemaRegistry.register("compendium.public-region.v1", PublicRegionSchema);
-schemaRegistry.register("compendium.public-entity-summary.v1", PublicEntitySummarySchema);
-schemaRegistry.register("compendium.public-item-summary.v1", PublicItemSummarySchema);
 schemaRegistry.register("compendium.public-world-offset.v1", PublicWorldOffsetSchema);
 schemaRegistry.register("compendium.public-world.v1", PublicWorldSchema);
-schemaRegistry.register("compendium.public-item-source.v1", PublicItemSourceSchema);
 schemaRegistry.register("compendium.public-tile.v1", PublicTileSchema);
 schemaRegistry.register("compendium.public-tile-layer.v1", PublicTileLayerSchema);
-schemaRegistry.register("compendium.public-guide-loot.v1", PublicGuideLootSchema);
-schemaRegistry.register("compendium.public-guide-ability-phase.v1", PublicGuideAbilityPhaseSchema);
-schemaRegistry.register("compendium.public-guide-stat.v1", PublicGuideStatSchema);
-schemaRegistry.register("compendium.public-guide-boss.v1", PublicGuideBossSchema);
-schemaRegistry.register("compendium.public-guide-boss-summary.v1", PublicGuideBossSummarySchema);
-schemaRegistry.register("compendium.public-guide-dungeon.v1", PublicGuideDungeonSchema);
-schemaRegistry.register("compendium.public-guide-dungeon-summary.v1", PublicGuideDungeonSummarySchema);
-schemaRegistry.register("compendium.public-guide-region.v1", PublicGuideRegionSchema);
-schemaRegistry.register("compendium.public-guide-property.v1", PublicGuidePropertySchema);
-schemaRegistry.register("compendium.public-adventure-guide.v1", PublicAdventureGuideSchema);
-schemaRegistry.register("compendium.public-adventure-guide-summary.v1", PublicAdventureGuideSummarySchema);
 schemaRegistry.register(PUBLICATION_SCHEMA_VERSION, PublicationDataSchema);
-schemaRegistry.register("compendium.adventure-guide.v1", GuideDocumentSchema);

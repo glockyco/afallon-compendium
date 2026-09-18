@@ -5,11 +5,8 @@ import {
   type StaticResource,
   type StaticResourceReference,
   type StaticRootManifest,
-  type StaticRootManifestV3,
 } from "./resources";
 import { collectRefs, isStaticDocument, isStaticDocumentSchemaId, type EntityRef, type PublicKindEntry } from "./documents";
-
-export type StaticRoot = StaticRootManifest | StaticRootManifestV3;
 
 export const PUBLICATION_ROOT_BUDGET = 65_536;
 export const PUBLICATION_PART_BUDGET = 524_288;
@@ -17,7 +14,7 @@ export const PUBLICATION_ESSENTIAL_BUDGET = 3_300_000;
 export const PUBLICATION_DOCUMENT_BUDGET = 262_144;
 
 export interface VerifiedPublicationGraph {
-  publication: StaticRoot;
+  publication: StaticRootManifest;
   resources: ReadonlyMap<string, StaticResource>;
   references: ReadonlyMap<string, StaticResourceReference>;
 }
@@ -31,13 +28,13 @@ export function assertStaticResourceReference(reference: StaticResourceReference
   if (isStaticDocumentSchemaId(reference.schemaId) && reference.bytes > PUBLICATION_DOCUMENT_BUDGET) throw new Error(`Publication document exceeds its byte budget: ${reference.path}.`);
 }
 
-export function assertStaticPublicationBudgets(root: StaticRoot, rootBytes: number): void {
+export function assertStaticPublicationBudgets(root: StaticRootManifest, rootBytes: number): void {
   if (rootBytes > PUBLICATION_ROOT_BUDGET) throw new Error("Publication root exceeds its byte budget.");
   const essentialBytes = rootBytes + root.coverage.bytes + root.maps.reduce((sum, map) => sum + map.imagery.bytes + map.parts.reduce((partSum, part) => partSum + part.bytes, 0), 0);
   if (essentialBytes > PUBLICATION_ESSENTIAL_BUDGET) throw new Error("Essential publication exceeds its byte budget.");
 }
 
-export function assertStaticPublicationSemantics(root: StaticRoot, values: ReadonlyMap<string, StaticResource>): void {
+export function assertStaticPublicationSemantics(root: StaticRootManifest, values: ReadonlyMap<string, StaticResource>): void {
   if (root.maps.length === 0) throw new Error("Publication maps are empty.");
   for (const value of values.values()) assertStaticResourceIdentity(root, value);
   const coverage = values.get(root.coverage.path);
@@ -78,33 +75,13 @@ export function assertStaticPublicationSemantics(root: StaticRoot, values: Reado
     if (imagery?.schemaVersion !== "compendium.static-imagery.v2" || imagery.mapSpaceId !== map.mapSpaceId || imagery.layers.some((layer) => layer.mapSpaceId !== map.mapSpaceId)) throw new Error(`Imagery map mismatch: ${map.imagery.path}.`);
     if (!imagery.layers.some((layer) => layer.id === imagery.defaultLayerId && layer.kind === "game-map")) throw new Error(`Imagery default is not a game map: ${map.imagery.path}.`);
   }
-  if (root.schemaVersion === "compendium.static-root.v2") { assertSearchSemanticsV2(root, values); return; }
   assertCompendiumSemantics(root, values, placementIds);
-}
-
-function assertSearchSemanticsV2(root: StaticRootManifest, values: ReadonlyMap<string, StaticResource>): void {
-  for (const [part, reference] of root.entitySearch.entries()) {
-    const value = values.get(reference.path);
-    if (value?.schemaVersion !== "compendium.static-entity-search.v2" || value.part !== part) throw new Error(`Entity search part identity mismatch: ${reference.path}.`);
-    for (const entity of value.entities) {
-      const detail = values.get(entity.detail.path);
-      if (detail?.schemaVersion !== "compendium.static-entity-detail.v1" || detail.entity.entityKey !== entity.entityKey) throw new Error(`Entity detail identity mismatch: ${entity.entityKey}.`);
-    }
-  }
-  for (const [part, reference] of root.itemSearch.entries()) {
-    const value = values.get(reference.path);
-    if (value?.schemaVersion !== "compendium.static-item-search.v2" || value.part !== part) throw new Error(`Item search part identity mismatch: ${reference.path}.`);
-    for (const item of value.items) {
-      const detail = values.get(item.detail.path), source = values.get(item.source.path);
-      if (detail?.schemaVersion !== "compendium.static-entity-detail.v1" || detail.entity.entityKey !== item.itemKey || source?.schemaVersion !== "compendium.static-item-source.v1" || source.itemSource.itemKey !== item.itemKey) throw new Error(`Item resource identity mismatch: ${item.itemKey}.`);
-    }
-  }
 }
 
 // The compendium half of the graph: every page names a document of its kind and slug, every
 // reference inside a document points at a published entity, and a paged kind's references carry
 // slugs while page-less kinds' references do not.
-function assertCompendiumSemantics(root: StaticRootManifestV3, values: ReadonlyMap<string, StaticResource>, placementIds: ReadonlySet<string>): void {
+function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap<string, StaticResource>, placementIds: ReadonlySet<string>): void {
   const kinds = new Map<string, PublicKindEntry>();
   for (const entry of root.kinds) {
     if (kinds.has(entry.kind)) throw new Error(`Duplicate registered kind: ${entry.kind}.`);

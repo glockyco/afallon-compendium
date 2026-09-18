@@ -13,16 +13,17 @@ import {
 
 const reference = { path: "resources/value.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v1" };
 const root: StaticRootManifest = {
-  schemaVersion: "compendium.static-root.v2",
+  schemaVersion: "compendium.static-root.v3",
   buildId: "build",
   catalogId: "b".repeat(64),
   mode: "preview",
   complete: false,
   world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
   maps: [],
-  entitySearch: [{ ...reference, schemaId: "compendium.static-entity-search.v2" }],
-  itemSearch: [{ ...reference, schemaId: "compendium.static-item-search.v2" }],
-  guides: { overview: { ...reference, schemaId: "compendium.static-guide.v1" } },
+  kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, searchable: true, columns: [], facets: [] }],
+  lists: { items: { ...reference, schemaId: "compendium.static-kind-list.v1" } },
+  search: [{ ...reference, schemaId: "compendium.static-search.v3" }],
+  pages: { ...reference, schemaId: "compendium.static-pages.v1" },
   coverage: reference,
 };
 const coverage: StaticCoverage = {

@@ -2,10 +2,10 @@ import { expect, test } from "bun:test";
 import { Assert } from "typebox/value";
 import {
   ArtRefSchema, DropRowSchema, EntityRefSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, VendorRowSchema,
-  PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestV3Schema, StaticPagesSchema, StaticSearchIndexSchema, StaticKindListSchema,
+  PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticPagesSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
   type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe,
-  type StaticRootManifestV3, type StaticPages, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, type StaticItemDocumentSchema, type StaticCoverage,
+  type StaticRootManifest, type StaticPages, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, type StaticItemDocumentSchema, type StaticCoverage,
 } from "./index";
 import type { Static } from "typebox";
 
@@ -77,7 +77,7 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
   const coverage: StaticCoverage = { schemaVersion: "compendium.static-coverage.v1", ...identity, complete: false, unresolvedIssueCount: 0, occurrenceCount: 0, exclusionCount: 0, messages: [] };
   const map = { schemaVersion: "compendium.static-map.v2", ...identity, mapSpaceId: "map", part: 0, placements: [["p1", [0, 0], 0, "Duskfall Depths", ["boss"], ["npcs:286"], [], null, null, null]], regions: [] } as const;
   const imagery = { schemaVersion: "compendium.static-imagery.v2", ...identity, mapSpaceId: "map", defaultLayerId: "game", layers: [{ id: "game", mapSpaceId: "map", label: "Game", kind: "game-map", tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 1, 1], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${"d".repeat(64)}.webp`, sha256: "d".repeat(64), bytes: 1, width: 1, height: 1, state: "captured", schemaId: "image/webp" }] }] } as const;
-  const root: StaticRootManifestV3 = {
+  const root: StaticRootManifest = {
     schemaVersion: "compendium.static-root.v3", ...identity, mode: "preview", complete: false,
     world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "map", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: "map", label: "Map", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, parts: [ref("compendium.static-map.v2", "5".repeat(64)) as never], optionalGeometry: [], imagery: ref("compendium.static-imagery.v2", "6".repeat(64)) as never }],
@@ -92,7 +92,7 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
     pages: ref("compendium.static-pages.v1", "a".repeat(64)) as never,
     coverage: ref("compendium.static-coverage.v1", "e".repeat(64)) as never,
   };
-  Assert(StaticRootManifestV3Schema, root);
+  Assert(StaticRootManifestSchema, root);
   Assert(StaticPagesSchema, pages); Assert(StaticSearchIndexSchema, search); Assert(StaticKindListSchema, itemList);
   const values = new Map<string, StaticResource>([
     [root.pages.path, pages], [root.search[0]!.path, search], [root.lists.items!.path, itemList], [root.lists.npcs!.path, npcList], [root.coverage.path, coverage],
