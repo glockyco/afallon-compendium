@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts } from "@afallon/contracts/catalog";
-import type { PublicItem, PublicNpc, PublicPlace } from "@afallon/contracts/public";
+import type { PublicGearSet, PublicItem, PublicNpc, PublicPlace } from "@afallon/contracts/public";
 import { projectPublicDocuments, projectQuestObjective } from "./documents";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
@@ -119,6 +119,22 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(place).not.toHaveProperty("locations");
   expect(place.space).toEqual({ mapSpaceId: "world", regionIds: ["region-1"] });
   expect(place.creatures).toMatchObject([{ counterpart: { key: "npcs:2" }, placementCount: 1 }]);
+});
+
+test("publishes a gear set's members and tiers and names the set on its member item", () => {
+  const refs = buildEntityReferences(entities, { facts, relations });
+  const documents = projectPublicDocuments({ entities, facts, relations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map() });
+  const set = documents.get("gearSets:17") as PublicGearSet, item = documents.get("items:1") as PublicItem;
+  expect(set.ref).toMatchObject({ kind: "gearSets", name: "Adept Leather", slug: "adept-leather" });
+  expect(set.facts.memberCount).toBe(2);
+  expect(set.members).toEqual([{ key: "items:1", kind: "items", name: "Blade", slug: "blade" }, { key: null, label: "Item 999" }]);
+  expect(set.tiers).toEqual([
+    { equipped: 3, stats: [{ stat: { key: "stats:12", kind: "stats", name: "Poison Damage" }, amount: 10, isPercent: true }] },
+    { equipped: 7, stats: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amount: 40, isPercent: false }] },
+  ]);
+  expect(item.facts.gearSet).toEqual({ key: "gearSets:17", kind: "gearSets", name: "Adept Leather", slug: "adept-leather" });
+  const setList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("gearSets")?.[0];
+  expect(setList?.rows).toEqual([{ ref: set.ref, values: { memberCount: 2, tierCount: 2 }, facets: { memberCount: ["2"], tierCount: ["2"] } }]);
 });
 
 test("projects only the armor branch when native weapon defaults remain", () => {

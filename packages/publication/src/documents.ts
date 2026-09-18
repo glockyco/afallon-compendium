@@ -17,6 +17,7 @@ import type {
   PlacementRef,
   PublicAbility,
   PublicDocument,
+  PublicGearSet,
   PublicItem,
   PublicMarkerCategory,
   PublicNpc,
@@ -235,6 +236,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
   const requirements = requirementsFor(fact?.conditionIds ?? [], conditions, input.resolve);
   const enchantment = optionalFactRef(input.resolve, fact?.enchantment);
   const sellCurrency = optionalFactRef(input.resolve, fact?.sellCurrency), buyCurrency = optionalFactRef(input.resolve, fact?.buyCurrency);
+  const gearSet = optionalFactRef(input.resolve, fact?.gearSet);
   const droppedBy = (indexes.dropsByItem.get(entity.entityKey) ?? []).filter((row) => row.context !== "container").map((row) => ({
     counterpart: input.resolve(row.owner),
     ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
@@ -291,6 +293,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
       ...(fact?.buyPrice !== null && fact?.buyPrice !== undefined && fact.buyPrice >= 0 && buyCurrency ? { buyPrice: { amount: fact.buyPrice, currency: buyCurrency } } : {}),
       stackLimit: Math.max(0, fact?.stackLimit ?? 0), questDropOnly: fact?.questDropOnly ?? false, corruptionToken: fact?.corruptionToken ?? false,
       ...(optionalCount(fact?.levelRequirement ?? null) === undefined ? {} : { levelRequirement: optionalCount(fact?.levelRequirement ?? null) }), requirements,
+      ...(gearSet === undefined ? {} : { gearSet }),
     },
     droppedBy, soldBy, gatheredFrom, inContainers,
     rewardedBy: questRows.filter((row) => row.kind === "reward" || row.kind === "rewardChoice").map((row) => ({ counterpart: input.resolve(row.quest), count: Math.max(0, row.count ?? 1), choice: row.kind === "rewardChoice" })),
@@ -463,6 +466,19 @@ function projectRecipe(entity: CatalogEntityRow, ref: EntityRef, input: Document
   };
 }
 
+// Members first, then each tier as the number of equipped members it needs and the stats it
+// grants, which is the order the game's own item tooltip shows.
+function projectGearSet(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput): PublicGearSet {
+  const fact = input.facts.gearSets.find((candidate) => candidate.entityKey === entity.entityKey);
+  const members = (fact?.members ?? []).map(input.resolve);
+  return {
+    ...baseDocument(entity, ref, input),
+    facts: { memberCount: members.length }, members,
+    tiers: (fact?.tiers ?? []).map((tier) => ({ equipped: Math.max(1, tier.equipped),
+      stats: tier.stats.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })) })),
+  };
+}
+
 export function projectPublicDocuments(input: DocumentProjectionInput): ReadonlyMap<string, PublicDocument> {
   const indexes = relationIndexes(input.relations), conditions = conditionsById(input.relations.conditions);
   const result = new Map<string, PublicDocument>();
@@ -478,6 +494,7 @@ export function projectPublicDocuments(input: DocumentProjectionInput): Readonly
       case "properties": document = projectProperty(entity, ref, input, []); break;
       case "abilities": document = projectAbility(entity, ref, input); break;
       case "recipes": document = projectRecipe(entity, ref, input, indexes); break;
+      case "gearSets": document = projectGearSet(entity, ref, input); break;
       default: continue;
     }
     result.set(entity.entityKey, document);

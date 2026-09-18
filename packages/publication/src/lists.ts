@@ -3,6 +3,7 @@ import type {
   ListRow,
   PublicAbility,
   PublicDocument,
+  PublicGearSet,
   PublicItem,
   PublicKindEntry,
   PublicNpc,
@@ -75,6 +76,11 @@ function recipeRow(document: PublicRecipe): ListRow {
   return { ref: document.ref, values: { station, skill, product: refName(document.product?.counterpart) }, facets: { station: facetValue(station), skill: facetValue(skill) } };
 }
 
+function gearSetRow(document: PublicGearSet): ListRow {
+  return { ref: document.ref, values: { memberCount: document.facts.memberCount, tierCount: document.tiers.length },
+    facets: { memberCount: [String(document.facts.memberCount)], tierCount: [String(document.tiers.length)] } };
+}
+
 export function buildKindLists(
   identity: { buildId: string; catalogId: string },
   registry: readonly PublicKindEntry[],
@@ -91,6 +97,7 @@ export function buildKindLists(
       case "properties": row = propertyRow(document as PublicProperty); break;
       case "abilities": row = abilityRow(document as PublicAbility); break;
       case "recipes": row = recipeRow(document as PublicRecipe); break;
+      case "gearSets": row = gearSetRow(document as PublicGearSet); break;
       default: continue;
     }
     const rows = rowsByKind.get(document.ref.kind) ?? [];
