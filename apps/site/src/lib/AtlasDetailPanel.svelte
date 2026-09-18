@@ -33,6 +33,8 @@
 </aside>
 
 <style>
+  /* The panel heading already names the selection, so the card does not repeat it. */
+  .details-panel :global(.entity-header h3) { display: none; }
   .selected-location { display: grid; gap: .2rem; margin: .8rem 0; padding: .6rem; border-left: 2px solid #bca36e; background: #292820; }
   .selected-location span { color: #aaa69d; font-size: .66rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
   .selected-location strong { font-size: .8rem; }

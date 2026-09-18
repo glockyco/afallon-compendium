@@ -64,8 +64,8 @@
   .brand-copy strong { font-size: .85rem; letter-spacing: .02em; }
   .brand-copy span { margin-top: .22rem; color: var(--c-accent); font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
   .brand:hover strong { color: var(--c-accent); }
-  .bar-links { display: flex; gap: .9rem; font-size: .8rem; }
-  .bar-links a { text-decoration: none; }
+  .bar-links { display: flex; flex-wrap: wrap; gap: .35rem .9rem; min-width: 0; font-size: .8rem; }
+  .bar-links a { white-space: nowrap; text-decoration: none; }
   .bar-links a:hover { text-decoration: underline; }
   .bar-search { min-width: 0; flex: 1; max-width: 22rem; margin-left: auto; }
 

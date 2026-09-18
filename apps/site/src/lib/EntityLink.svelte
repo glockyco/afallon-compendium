@@ -10,6 +10,7 @@
   export let rarity: string | undefined = undefined;
 
   let tooltipController: EntityTooltip;
+  let anchorElement: HTMLElement | undefined;
   $: resolved = ref.key !== null ? ref as EntityRef : null;
   $: kind = resolved ? registry.find((entry) => entry.kind === resolved?.kind) : undefined;
   $: linked = Boolean(resolved?.slug && kind?.pages);
@@ -17,12 +18,12 @@
 
 {#if resolved && linked && kind}
   {#if tooltip}
-    <span class="tooltip-anchor">
+    <span class="tooltip-anchor" bind:this={anchorElement}>
       <a class="entity-link" data-rarity={rarity} href={`${base}/${kind.route}/${resolved.slug}/`} on:pointerenter={() => tooltipController.showAfterIntent()} on:pointerleave={() => tooltipController.close()} on:focus={() => void tooltipController.show()} on:blur={() => tooltipController.close()} on:keydown={(event) => tooltipController.handleKeydown(event)}>
         {#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{kind.icon.slice(0, 1).toLocaleUpperCase()}</span>{/if}
         <span>{resolved.name}</span>
       </a>
-      <EntityTooltip bind:this={tooltipController} ref={resolved} {registry} />
+      <EntityTooltip bind:this={tooltipController} ref={resolved} {registry} anchor={anchorElement} />
     </span>
   {:else}
     <a class="entity-link" data-rarity={rarity} href={`${base}/${kind.route}/${resolved.slug}/`}>
