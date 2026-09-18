@@ -53,6 +53,7 @@ export async function buildStaticPublication(
   const publishedMapIds = new Set(imagery.map((entry) => entry.mapSpaceId));
   const allMaps = queryCatalogMaps(db).records;
   const allMapIds = new Set(allMaps.map((map) => map.mapSpaceId));
+  const mapSpaceLabels = new Map(allMaps.filter((map) => publishedMapIds.has(map.mapSpaceId)).map((map) => [map.mapSpaceId, map.label]));
   for (const mapId of publishedMapIds) if (!allMapIds.has(mapId)) throw new Error(`Imagery references an unknown catalog map: ${mapId}.`);
   const publishedOffsets = worldOffsets.filter((offset) => publishedMapIds.has(offset.mapSpaceId)).sort((left, right) => left.mapSpaceId.localeCompare(right.mapSpaceId));
   if (publishedOffsets.length !== publishedMapIds.size || new Set(publishedOffsets.map((offset) => offset.mapSpaceId)).size !== publishedMapIds.size) throw new Error("Publication requires one reviewed world offset per published map.");
@@ -77,7 +78,7 @@ export async function buildStaticPublication(
     regionIdsByMapSpace.set(entry.summary.mapSpaceId, [...regionIds].sort());
   }
   const placementIdsByKey = new Map([...placementIdsByKeySets].map(([key, ids]) => [key, [...ids].sort()]));
-  const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, regionIdsByMapSpace, protection);
+  const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, mapSpaceLabels, regionIdsByMapSpace, protection);
   const coverageQuery = queryCatalogCoverage(db);
   const coverage: StaticCoverage = {
     schemaVersion: "compendium.static-coverage.v1", buildId: coverageQuery.buildId, catalogId: coverageQuery.catalogId,

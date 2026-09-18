@@ -32,11 +32,12 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
       store,
       new Map([["p1", { placementId: "p1", mapSpaceId: "world", label: "NPC" }]]),
       new Map([["npcs:2", ["p1"]]]),
+      new Map([["world", "World"]]),
       new Map([["world", []]]),
     );
     const entries = generated.search.flatMap((part) => part.value.entries);
     expect(entries.find((entry) => entry.ref.key === "quests:3")?.hasPlacements).toBe(false);
-    expect(entries.find((entry) => entry.ref.key === "npcs:2")?.hasPlacements).toBe(true);
+    expect(entries.find((entry) => entry.ref.key === "npcs:2")).toMatchObject({ hasPlacements: true, place: "World" });
     expect(generated.documents.size).toBe(3);
     expect(entries).toHaveLength(3);
     const documentPaths = new Set([...generated.documents.values()].map((resource) => resource.reference.path));

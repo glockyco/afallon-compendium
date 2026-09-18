@@ -72,6 +72,21 @@ test("uses a place parent when duplicate place types do not distinguish names", 
   expect(refs.get("scenes:4")).toMatchObject({ name: "Cave (South Reach)", slug: "cave-4" });
 });
 
+test("uses level ranges and map labels before place ids", () => {
+  const entities = [entity("scenes", 20, "Abandoned quarry"), entity("scenes", 21, "Abandoned quarry"), entity("scenes", 30, "Cave"), entity("scenes", 31, "Cave")];
+  const facts: CatalogFacts = { ...emptyFacts, entities, places: [
+    { entityKey: "scenes:20", placeType: "dungeon", guideIncluded: false, guideDescription: null, levelRange: { min: 1, max: 5 }, mapSpaceIds: [], bosses: [], parentSceneKey: null },
+    { entityKey: "scenes:21", placeType: "dungeon", guideIncluded: false, guideDescription: null, levelRange: { min: 1, max: 20 }, mapSpaceIds: [], bosses: [], parentSceneKey: null },
+    { entityKey: "scenes:30", placeType: "interior", guideIncluded: false, guideDescription: null, levelRange: null, mapSpaceIds: ["cave-a"], bosses: [], parentSceneKey: null },
+    { entityKey: "scenes:31", placeType: "interior", guideIncluded: false, guideDescription: null, levelRange: null, mapSpaceIds: ["cave-b"], bosses: [], parentSceneKey: null },
+  ] };
+  const refs = buildEntityReferences(entities, { facts, relations: emptyRelations, mapSpaceLabels: new Map([["cave-a", "North cave"], ["cave-b", "South cave"]]) });
+  expect(refs.get("scenes:20")?.name).toBe("Abandoned quarry (lvl. 1–5)");
+  expect(refs.get("scenes:21")?.name).toBe("Abandoned quarry (lvl. 1–20)");
+  expect(refs.get("scenes:30")?.name).toBe("Cave (North cave)");
+  expect(refs.get("scenes:31")?.name).toBe("Cave (South cave)");
+});
+
 test("adds the native id when distinct names produce the same slug", () => {
   const entities = [entity("items", 11, "A B"), entity("items", 12, "A-B")];
   const refs = buildEntityReferences(entities);

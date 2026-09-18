@@ -68,6 +68,7 @@ export async function generateIndexResources(
   store: ArtifactStore,
   placements: ReadonlyMap<string, PlacementRef>,
   placementIdsByKey: ReadonlyMap<string, readonly string[]>,
+  mapSpaceLabels: ReadonlyMap<string, string>,
   regionIdsByMapSpace: ReadonlyMap<string, readonly string[]>,
   protection?: ObjectWriteProtection,
 ): Promise<GeneratedIndexResources> {
@@ -76,7 +77,7 @@ export async function generateIndexResources(
   assertSameIdentity(entities, relations, "Relation");
   const identity = { buildId: entities.buildId, catalogId: entities.catalogId };
   const artwork = await generateArtworkResources(store, entities.records, protection);
-  const refs = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity });
+  const refs = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, mapSpaceLabels });
   const publicDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, refs,
     resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements, regionIdsByMapSpace });
 
@@ -111,7 +112,8 @@ export async function generateIndexResources(
     if (!registry?.searchable || !resource) continue;
     const level = searchLevel(document);
     const placementIds = [...new Set(placementIdsByKey.get(key) ?? [])].filter((placementId) => placements.has(placementId));
-    const place = placementIds[0] === undefined ? undefined : placements.get(placementIds[0])?.label;
+    const primaryPlacement = placementIds[0] === undefined ? undefined : placements.get(placementIds[0]);
+    const place = primaryPlacement === undefined ? undefined : mapSpaceLabels.get(primaryPlacement.mapSpaceId);
     entries.push({ ref: document.ref, ...(level === undefined ? {} : { level }), ...(place ? { place } : {}),
       hasPlacements: placementIds.length > 0,
       sourceKinds: listRowsByKey.get(key)?.facets.sourceKind ?? itemSourceKinds(document),

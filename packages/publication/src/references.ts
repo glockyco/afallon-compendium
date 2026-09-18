@@ -7,6 +7,7 @@ export interface ReferenceBuildContext {
   facts?: CatalogFacts;
   relations?: CatalogRelations;
   artByEntity?: ReadonlyMap<string, Art>;
+  mapSpaceLabels?: ReadonlyMap<string, string>;
 }
 
 class FrozenEntityRefMap extends Map<string, EntityRef> {
@@ -117,6 +118,22 @@ function placeParentLabels(entities: readonly CatalogEntityRow[], facts: Catalog
   }));
 }
 
+function placeLevelLabels(facts: CatalogFacts | undefined): ReadonlyMap<string, string> {
+  return new Map((facts?.places ?? []).flatMap((place) => {
+    const range = place.levelRange;
+    if (!range) return [];
+    const label = range.min === range.max ? `lvl. ${range.min}` : `lvl. ${range.min}–${range.max}`;
+    return [[place.entityKey, label] as const];
+  }));
+}
+
+function placeMapLabels(facts: CatalogFacts | undefined, mapSpaceLabels: ReadonlyMap<string, string> | undefined): ReadonlyMap<string, string> {
+  return new Map((facts?.places ?? []).flatMap((place) => {
+    const labels = [...new Set(place.mapSpaceIds.map((mapSpaceId) => mapSpaceLabels?.get(mapSpaceId)).filter((label): label is string => label !== undefined))].sort();
+    return labels.length > 0 ? [[place.entityKey, labels.join(" / ")] as const] : [];
+  }));
+}
+
 function combinedLabels(left: ReadonlyMap<string, string>, right: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
   const result = new Map<string, string>();
   for (const [key, leftLabel] of left) {
@@ -183,6 +200,7 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
   const levelLabels = npcLevelLabels(context.facts), npcPlaces = npcPlaceLabels(entities, context.relations);
   const abilityUsers = abilityUserLabels(entities, context.facts), itemLabels = itemFactLabels(context.facts);
   const placeTypes = placeTypeLabels(context.facts), placeParents = placeParentLabels(entities, context.facts);
+  const placeLevels = placeLevelLabels(context.facts), placeMaps = placeMapLabels(context.facts, context.mapSpaceLabels);
   const names = new Map<string, string>(), slugNames = new Map<string, string>();
   for (const group of groups.values()) {
     if (group.length === 1) {
@@ -197,7 +215,8 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     const candidates = kind === "npcs" ? [levelLabels, npcPlaces, combinedLabels(levelLabels, npcPlaces)]
       : kind === "abilities" ? [abilityUsers]
         : kind === "items" ? [itemLabels]
-          : kind === "places" ? [placeTypes, placeParents, combinedLabels(placeTypes, placeParents)]
+          : kind === "places" ? [placeTypes, placeParents, placeLevels, placeMaps,
+            combinedLabels(placeTypes, placeParents), combinedLabels(placeTypes, placeLevels), combinedLabels(placeTypes, placeMaps)]
             : [];
     const displaySuffixes = readableSuffixes(rows, candidates);
     for (const entry of group) {
