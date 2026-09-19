@@ -105,9 +105,9 @@ Each kind gets a list resource partitioned like the map shards and the search co
 
 A new scan collector `artwork.csx` reads each referenced `Sprite` through a readable copy (`Graphics.Blit` to a temporary `RenderTexture`, then `Texture2D.ReadPixels`), encodes PNG bytes, and stores them as content-addressed evidence with the native asset name, entity family and id, and dimensions. Unreadable textures record a reason. The catalog registers assets in a new `artwork_assets` table with entity bindings. Publication derives sized lossy WebP variants (icon 128 px, portrait 512 px, artwork 1600 px wide, quality 86) with sharp, writes them to `/data/art/<sha256>.webp`, and references them by `ArtRef { url, sha256, bytes, width, height }`. The lossless PNG stays in the evidence store. Map tiles remain lossless because they are calibrated imagery; entity artwork is decoration, and lossless encoding made it 94 MB against about 12 MB at quality 86, with no visible difference at display size on a re-encoded portrait. Guide art for dungeons and regions comes from the fields the native `AdventureGuidePanel` reads; the task that adds the collector names those fields after inspecting `RPGGameScene` and `RegionTemplate`.
 
-### 10. Production atlas panel
+### 10. The atlas keeps no production panel
 
-A new `AtlasDetailPanel` renders the selected entity's fact card, the first five rows of each relation table, the location, and a page link. It loads the entity document from `/data/` on selection through `AtlasDataLoader`. `AtlasDevelopmentDetails` stays behind `dev`. The `no-details` class and the production stale-selection paragraph in `MapExplorer.svelte` move into the panel.
+Selection details stay development-only. A production panel would be a second, smaller rendering of facts the entity's page already carries, and it costs the map a column on the surface the atlas exists for. Selection itself is unchanged: a marker still selects, highlights, filters, and writes its URL state exactly as in development, and only the panel is absent. `AtlasDevelopmentDetails` stays behind `dev`; production keeps only the inline stale-selection and detail-error messages, because with no panel nothing else would explain a stale link.
 
 ### 11. Evidence limits
 

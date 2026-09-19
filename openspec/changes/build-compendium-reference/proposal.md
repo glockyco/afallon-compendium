@@ -13,7 +13,7 @@ The atlas answers "where is it" but the site has no reference half: production b
 - Extract and publish entity artwork: item icons, ability icons, NPC portraits, and dungeon and region art referenced by the native guide.
 - **BREAKING** Remove the Adventure Guide routes. Dungeons and regions become place pages, bosses become NPC pages, and properties become property pages. The `/guide` paths are deleted without redirects; an old link reaches the not-found page.
 - **BREAKING** Remove the requirement that the guide mirrors the game's own structure. The native guide remains an input for artwork, descriptions, level ranges, and boss references.
-- **BREAKING** Show a condensed public detail panel in production atlas builds. The panel presents the entity fact card and the first rows of each relation, with a link to the full page. Development-only authoring and evidence panels remain development-only.
+- Keep the atlas selection panel development-only. Production selection behaves exactly as before, without rendering any panel, and a stale selection still explains itself inline.
 - Relax the evidence-limit rule. A page may state a specific missing fact in the place that fact would occupy. Pages do not add limitation rows, sections, or banners. The full coverage ledger lives on one coverage page.
 - Publish the item search and entity search from one corpus that map results and page results share. Guide records are no longer a separate, unsearchable set.
 
@@ -26,7 +26,7 @@ The atlas answers "where is it" but the site has no reference half: production b
 ### Modified Capabilities
 
 - `adventure-guide`: the "mirrors the game's own structure" requirement is removed. Loot chance semantics and place and item links move into `compendium-reference` and apply to every page, not only boss entries.
-- `interactive-atlas`: "Details answer player questions" changes so that production selection shows the condensed public panel. "Evidence limits stay outside the interface" changes to the inline-replacement rule. "Search connects items to places" changes to the shared corpus across map and pages.
+- `interactive-atlas`: "Details answer player questions" changes so that production renders no panel at all while selection behaviour is unchanged, and a stale selection still explains itself. "Evidence limits stay outside the interface" changes to the inline-replacement rule. "Search connects items to places" changes to the shared corpus across map and pages.
 - `static-publication`: "Detail and authoring controls remain development-only" changes to keep only authoring and evidence controls development-only. New requirements add typed per-kind entity documents, the `EntityRef` link contract with a publication-time audit, the kind registry, entity artwork resources, and prerender entries.
 - `canonical-catalog`: new requirements add typed player-facing facts per kind and canonical kinds for the linked support families.
 - `scan-workflow`: new requirement adds entity artwork extraction with content hashes and native asset provenance.

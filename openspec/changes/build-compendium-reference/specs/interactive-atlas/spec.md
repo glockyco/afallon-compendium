@@ -2,25 +2,24 @@
 
 ### Requirement: Details answer player questions
 
-Production selection SHALL show a condensed public detail panel: the selected entity's fact card, the first rows of each relation table, a link to the entity's full page, and the selected location. The panel SHALL load the entity's published document on demand and SHALL NOT load an authoring or evidence panel. Requirements and conditions SHALL stay attached to the entries they gate. Large lists SHALL remain searchable without covering the map. A development build MAY additionally load authoring and evidence panels for review.
+Production builds SHALL NOT render a detail, authoring, or evidence panel. Selection, filtering, search, hover, and URL state SHALL behave exactly as they do in a development build; only the panel is absent. A development build MAY load detail, authoring, and evidence panels for review.
 
-Development authoring and evidence panels SHALL NOT appear in production. The production panel SHALL NOT show provenance, hashes, or raw configuration dumps.
+A stale or failed selection SHALL still explain itself in production, because no panel is there to carry the message.
 
-#### Scenario: A vendor has several progression stock groups
-- **WHEN** a reader selects that vendor
-- **THEN** the panel distinguishes unconditional and conditional stock
-- **AND** the reader can search the complete stock list while retaining the selected location
-- **AND** the panel links to the vendor's page for the full stock
+#### Scenario: A production reader selects a marker
+- **WHEN** a marker is selected in a production build
+- **THEN** the map retains the selection, its highlight, and its URL state
+- **AND** no details column opens and the map keeps its full width
+
+#### Scenario: A stale link is opened in production
+- **WHEN** the selected placement is not in the publication
+- **THEN** the atlas explains the missing selection and offers to clear it
+- **AND** it does not select an unrelated entity
 
 #### Scenario: A fact is not established
 - **WHEN** a value such as an effective drop chance is not established for the supported build
-- **THEN** the entry shows a placeholder in that value's position
-- **AND** the panel does not add a note row explaining the omission
-
-#### Scenario: A production reader opens the full page
-- **WHEN** the reader activates the page link in the panel
-- **THEN** the entity page opens with the same entity
-- **AND** browser back returns to the map with the selection retained
+- **THEN** the entity's page shows a placeholder in that value's position
+- **AND** no panel or banner explains the omission
 
 ### Requirement: Search connects items to places
 

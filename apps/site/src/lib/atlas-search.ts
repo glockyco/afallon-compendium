@@ -96,7 +96,11 @@ export function selectionHighlightIds(
   const selectedKey = selectedItemKey ?? entityKey;
   if (selectedKey) return placementIds(indexes.placementsByEntryKey.get(selectedKey) ?? []);
   if (!placement) return [];
-  const related = [...placement.entityKeys, ...placement.itemKeys].flatMap((key) => indexes.placementsByEntryKey.get(key) ?? []);
+  // Only an explicitly selected item highlights every place that holds it. Selecting a placement
+  // highlights that placement and the other places its own creatures stand, never every place
+  // that shares one of its drops: Kraath's twelve loot keys are carried by 37 other placements,
+  // so expanding through item keys lit up every boss on the map.
+  const related = placement.entityKeys.flatMap((key) => indexes.placementsByEntryKey.get(key) ?? []);
   return placementIds([placement, ...related]);
 }
 

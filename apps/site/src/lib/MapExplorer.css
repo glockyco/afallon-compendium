@@ -3,8 +3,12 @@ body { margin: 0; background: #171818; color: #e9e4d9; font-family: Inter, ui-sa
 button, input, select { font: inherit; }
 button, select { cursor: pointer; }
   .atlas-shell { min-height: 100vh; background: #171818; }
-  .workspace { display: grid; grid-template-columns: 280px minmax(360px, 1fr) minmax(300px, 380px); height: 100dvh; min-height: 0; }
-  .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr) minmax(300px, 380px); }
+  /* The third column exists only where a details panel is rendered, which is development builds.
+     Production has no panel, so the map takes the width instead of leaving an empty column. */
+  .workspace { display: grid; grid-template-columns: 280px minmax(360px, 1fr); height: 100dvh; min-height: 0; }
+  .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr); }
+  .workspace.with-details { grid-template-columns: 280px minmax(360px, 1fr) minmax(300px, 380px); }
+  .workspace.with-details.sidebar-collapsed { grid-template-columns: 56px minmax(360px, 1fr) minmax(300px, 380px); }
   .control-panel, .details-panel { background: #202120; overflow: auto; }
   .control-panel { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border-right: 1px solid #393a38; }
   .panel-backdrop { display: none; }
@@ -140,8 +144,10 @@ button, select { cursor: pointer; }
     .map-status { right: .5rem; bottom: .5rem; left: .5rem; width: max-content; max-width: calc(100% - 1rem); }
   }
   @media (max-width: 1050px) {
-    .workspace { grid-template-columns: 220px minmax(0, 1fr) minmax(280px, 340px); }
-    .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr) minmax(280px, 340px); }
+    .workspace { grid-template-columns: 220px minmax(0, 1fr); }
+    .workspace.sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr); }
+    .workspace.with-details { grid-template-columns: 220px minmax(0, 1fr) minmax(280px, 340px); }
+    .workspace.with-details.sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr) minmax(280px, 340px); }
     .map-column { grid-template-rows: minmax(0, 3fr) minmax(0, 1fr); }
   }
   @media (max-width: 680px) {

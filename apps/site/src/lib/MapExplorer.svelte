@@ -9,7 +9,6 @@
   import { AtlasController, type AtlasSnapshot } from './atlas-controller';
   import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, resultHighlightIds, summarizePlacements } from './atlas-search';
   import { DEFAULT_ATLAS_STATE, readAtlasUrl, writeAtlasUrl } from './atlas-state';
-  import AtlasDetailPanel from './AtlasDetailPanel.svelte';
   import AtlasDevelopmentDetails from './map/AtlasDevelopmentDetails.svelte';
   import AtlasCanvasShell from './map/AtlasCanvasShell.svelte';
   import AtlasSearchResults from './map/AtlasSearchResults.svelte';
@@ -470,7 +469,7 @@
   {:else if loadError && !publication}
     <main class="state-card error" role="alert"><h1>Atlas unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p><button type="button" on:click={() => controller?.retry('map')}>Retry map data</button></main>
   {:else if publication}
-    <main class="workspace" class:has-details={Boolean(selectedPlacement || selectedEntityKey || itemKey || placeKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
+    <main class="workspace" class:with-details={dev} class:has-details={dev && Boolean(selectedPlacement || selectedEntityKey || itemKey || placeKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
       <AtlasSidebar
         collapsed={panelCollapsed} logoBase={base} bind:searchInput {query} sections={markerSections} {categories} {categoryCounts} countsPending={resultsPending}
         placementCount={allMapPlacements.length} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
@@ -493,6 +492,10 @@
           onZoomOut={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })} onFit={fitMap}
         />
         {#if loadError && publication && !mapUnavailable}<div class="inline-error" role="alert">{loadError}</div>{/if}
+        <!-- Without a production details panel a stale or failed selection would be silent, and the
+             atlas spec requires a stale link to explain itself rather than select something else. -->
+        {#if !dev && staleSelection}<p class="inline-error" role="alert">{staleSelection} <button type="button" on:click={closeDetails}>Clear selection</button></p>{/if}
+        {#if !dev && detailError}<p class="inline-error" role="alert">{detailError} <button type="button" on:click={() => controller?.retry('detail')}>Retry selection</button></p>{/if}
         <AtlasSearchResults bind:resultList collapsed={resultsCollapsed} {displayedResults} totalResults={rankedResults.length}
           pending={resultsPending} error={resultsError} searchPending={searchState.status === 'loading'} onRetry={() => controller?.retry('search')}
           resultLimit={RESULT_LIMIT} placementCount={resultPlacements.length} entryCount={matchingEntries.length}
@@ -502,11 +505,10 @@
         />
       </section>
 
+      <!-- Selection details stay development-only for now. A production reader follows a marker to
+           its compendium page instead, so the map keeps its full width. -->
       {#if dev}
         <AtlasDevelopmentDetails bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry} {mapSpaceLabels}
-          loading={detailLoading} error={detailError} {staleSelection} onClose={closeDetails} onRetry={() => controller?.retry('detail')} />
-      {:else}
-        <AtlasDetailPanel bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry} {mapSpaceLabels}
           loading={detailLoading} error={detailError} {staleSelection} onClose={closeDetails} onRetry={() => controller?.retry('detail')} />
       {/if}
     </main>

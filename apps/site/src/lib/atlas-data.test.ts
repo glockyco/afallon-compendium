@@ -154,6 +154,10 @@ test('essential multipart maps become usable while search is delayed, and naviga
   const restored = await until((snapshot) => snapshot.detail.status === 'loaded');
   expect(restored.documents.get('item:b')?.ref.key).toBe('item:b');
   expect(selectionHighlightIds(null, null, restored.state.itemKey, restored.indexes)).toEqual(['place:b']);
+  // Selecting a place must not light up every place that shares one of its drops: Kraath's loot
+  // keys are carried by 37 other placements, which highlighted every boss on the map.
+  const shard = restored.indexes.placementsById.get('place:b')!;
+  expect(selectionHighlightIds(shard, null, null, restored.indexes)).toEqual(['place:b']);
   expect(data.counts.get(data.documents.get('item:b')!.path)).toBe(1);
   controller.navigate(readAtlasUrl('?selected=removed'));
   expect(controller.snapshot.staleSelection).not.toBe('');

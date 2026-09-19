@@ -2,16 +2,16 @@
 
 ### Requirement: Detail and authoring controls remain development-only
 
-Production builds SHALL render the condensed public detail panel and SHALL NOT render authoring controls or evidence panels. Development builds SHALL retain authoring and evidence interfaces for inspection and authoring workflows. Refactoring the atlas SHALL NOT weaken the build-time boundary.
+Production builds SHALL NOT render the selection detail panel, the authoring controls, or the evidence panels. Development builds SHALL retain those interfaces for inspection and authoring workflows. Refactoring the atlas SHALL NOT weaken the build-time boundary.
 
 #### Scenario: A production reader selects a marker
 - **WHEN** a marker is selected in a production build
-- **THEN** the condensed public detail panel shows the entity's fact card and page link
+- **THEN** the map retains selection state without rendering a detail panel
 - **AND** no authoring control or evidence panel becomes available
 
 #### Scenario: A developer selects a marker
 - **WHEN** a marker is selected in a development build
-- **THEN** the development evidence panel can inspect its available facts and provenance
+- **THEN** the development detail panel can inspect its available facts and provenance
 - **AND** development authoring controls remain available where defined
 
 ### Requirement: Publication emits one typed document per entity
