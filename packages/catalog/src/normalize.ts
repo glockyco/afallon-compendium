@@ -55,6 +55,22 @@ export function collectTypedFacts(admitted: AdmittedCatalog, entities: Normalize
   for (const condition of conditions) { const values = conditionIds.get(condition.ownerKey) ?? []; values.push(condition.conditionId); conditionIds.set(condition.ownerKey, values); }
   const statPercent = new Map(admitted.canonical.value.stats.map((stat) => [stat.nativeId, stat.gameplay.isPercentStat === true]));
   const itemLevels = new Map(admitted.lootRules.value.itemLevels.map((row) => [row.itemId, row.requiredLevel]));
+  const flightResolver = admitted.profile === undefined || admitted.sceneCatalog === undefined ? null : compileMapSpaces(admitted.profile, admitted.sceneCatalog.value);
+  const flightBlockers = new Set<string>();
+  const resolveFlightStop = (networkId: string, sceneName: string, stop: { id: string; landingPosition: { x: number; y: number; z: number } }, provenance: ProvenanceReference[]) => {
+    const matches = admitted.sceneCatalog?.value.scenes.flatMap((scene) => scene.state === "matched" && scene.nativeId !== null ? scene.buildMatches.flatMap((match) => match.path.split("/").at(-1)?.replace(/\.unity$/i, "") === sceneName ? [{ sceneNativeId: scene.nativeId!, scenePath: match.path }] : []) : []) ?? [];
+    const resolution = matches.length === 1 && flightResolver !== null
+      ? flightResolver.resolve(matches[0]!.sceneNativeId, matches[0]!.scenePath, stop.landingPosition)
+      : { state: "unresolved" as const, candidates: [], issues: [matches.length === 0 ? `Flight network scene "${sceneName}" is absent from the current scene catalog.` : `Flight network scene "${sceneName}" is ambiguous in the current scene catalog.`] };
+    if (resolution.state !== "resolved") {
+      const key = `flight-stop:${networkId}:${sceneName}:${stop.id}`;
+      if (!flightBlockers.has(key)) {
+        flightBlockers.add(key);
+        blockers.push({ kind: `${resolution.state}-flight-stop-space`, key, detail: `Flight stop "${stop.id}" has no unique current-build map coordinate: ${resolution.issues.join(" ")}`, provenance });
+      }
+    }
+    return resolution;
+  };
 
   for (const [index, item] of admitted.canonical.value.items.entries()) {
     const path = `/items/${index}/gameplay`, provenance = [pointer(admitted.canonical.reference, `/items/${index}`)], decoded = decodeItemGameplay(item.gameplay, admitted.canonical.reference, path);
@@ -101,7 +117,7 @@ export function collectTypedFacts(admitted: AdmittedCatalog, entities: Normalize
       },
     };
     const availableFlightNetwork = value.flightNetwork?.available === true ? value.flightNetwork : null;
-    const flightNetwork = availableFlightNetwork === null ? null : { resourcePath: value.flightNetworkResourcePath ?? null, stopId: value.flightStopId ?? null, interactionDistance: value.flightInteractionDistance ?? null, networkId: availableFlightNetwork.networkId, sceneName: availableFlightNetwork.sceneName, mapWorldBounds: availableFlightNetwork.mapWorldBounds, minimumFlyoverHeight: availableFlightNetwork.minimumFlyoverHeight, currency: reference("currencies", availableFlightNetwork.currencyId, `Currency ${String(availableFlightNetwork.currencyId ?? "unknown")}`, `${path}/flightNetwork/currencyId`, provenance), stops: availableFlightNetwork.stops, routes: availableFlightNetwork.routes };
+    const flightNetwork = availableFlightNetwork === null ? null : { resourcePath: value.flightNetworkResourcePath ?? null, stopId: value.flightStopId ?? null, interactionDistance: value.flightInteractionDistance ?? null, networkId: availableFlightNetwork.networkId, sceneName: availableFlightNetwork.sceneName, mapWorldBounds: availableFlightNetwork.mapWorldBounds, minimumFlyoverHeight: availableFlightNetwork.minimumFlyoverHeight, currency: reference("currencies", availableFlightNetwork.currencyId, `Currency ${String(availableFlightNetwork.currencyId ?? "unknown")}`, `${path}/flightNetwork/currencyId`, provenance), stops: availableFlightNetwork.stops.map((stop) => ({ ...stop, resolution: resolveFlightStop(availableFlightNetwork.networkId, availableFlightNetwork.sceneName, stop, provenance) })), routes: availableFlightNetwork.routes };
     rows.npcFacts.push({ entityKey: entityKey("npcs", npc.nativeId), minLevel: value.minLevel ?? null, maxLevel: value.maxLevel ?? null, scalesWithPlayer: value.isScalingWithPlayer ?? false, npcType: value.npcType?.name ?? null, creatureType: value.creatureType?.name ?? null, family: value.npcFamily?.available === true ? value.npcFamily.name ?? null : null, faction, species, isMerchant: value.isMerchant ?? false, isQuestGiver: value.isQuestGiver ?? false, isCombatEnabled: value.isCombatEnabled ?? false, isAuctioneer: value.isAuctioneer ?? false, isBanker: value.isBanker ?? false, isFlightMaster: value.isFlightMaster ?? false, hunterTamable: value.hunterTamable ?? false, hunterBeastRole: value.hunterBeastRole?.name ?? null, equipmentAppearanceSelections: value.equipmentAppearanceSelections || null, adventurer, flightNetwork, minRespawn: value.minRespawn ?? null, maxRespawn: value.maxRespawn ?? null, minExperience: value.minExperience ?? null, maxExperience: value.maxExperience ?? null, immuneToStun: value.immuneToStun ?? false, immuneToSlow: value.immuneToSlow ?? false, aggroRange: value.useAggroRange === false ? null : value.aggroRange ?? null, linkedNpc, lootSpecialization: value.hasLootSpecialization === true ? { armorType: value.lootSpecializationArmorType?.available === true ? value.lootSpecializationArmorType.name ?? null : null, weaponTypes, stat: specializationStat } : null, provenance });
     const stats = value.guideStats ?? value.stats?.map((stat) => ({ statId: stat.statId, value: stat.baseValue ?? stat.minValue ?? stat.maxValue ?? 0 })) ?? [];
     for (const [statIndex, stat] of stats.entries()) { const statRef = reference("stats", stat.statId, `Stat ${stat.statId}`, `${path}/guideStats/${statIndex}`, provenance); if (statRef) rows.npcStats.push({ entityKey: entityKey("npcs", npc.nativeId), statIndex, stat: statRef, amount: stat.value, isPercent: statPercent.get(stat.statId) ?? false, provenance }); }
@@ -233,9 +249,24 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   const worlds = worldRelations(contexts, placements.sourcePlacement, relations.lootEntries, meaningfulConditions, relations.itemIndex, blockers);
   const bindingsByScene = new Map<number, Set<string>>();
   for (const binding of bindings) { const maps = bindingsByScene.get(binding.sceneNativeId) ?? new Set<string>(); maps.add(binding.mapSpaceId); bindingsByScene.set(binding.sceneNativeId, maps); }
-  for (const transition of worlds.transitions) if (transition.destinationSceneNativeId !== null) {
-    const destinations = bindingsByScene.get(transition.destinationSceneNativeId);
-    if (destinations?.size === 1) transition.destinationMapSpaceId = [...destinations][0]!;
+  for (const transition of worlds.transitions) {
+    if (transition.sourceId === null || !placements.sourcePlacement.has(transition.sourceId)) blockers.push({ kind: "unresolved-transition-source", key: `transition:${transition.transitionId}`, detail: "Transition has no verified source coordinate.", provenance: transition.provenance });
+    if (transition.destinationSceneNativeId === null) {
+      blockers.push({ kind: "unresolved-transition-destination", key: `transition:${transition.transitionId}`, detail: "Transition has no destination scene or coordinate.", provenance: transition.provenance });
+      continue;
+    }
+    const destinationScene = admitted.sceneCatalog.value.scenes.find((scene) => scene.nativeId === transition.destinationSceneNativeId && scene.state === "matched" && scene.buildMatches.length === 1);
+    const destinationPosition = transition.destinationPosition;
+    if (destinationScene !== undefined && destinationPosition !== null && typeof destinationPosition === "object" && "x" in destinationPosition && "y" in destinationPosition && "z" in destinationPosition) {
+      const resolution = resolver.resolve(transition.destinationSceneNativeId, destinationScene.buildMatches[0]!.path, destinationPosition as { x: number; y: number; z: number });
+      transition.destinationResolution = resolution;
+      if (resolution.state === "resolved") transition.destinationMapSpaceId = resolution.candidates[0]!.mapSpaceId;
+      else blockers.push({ kind: `${resolution.state}-transition-destination`, key: `transition:${transition.transitionId}`, detail: `Transition has no unique current-build destination coordinate: ${resolution.issues.join(" ")}`, provenance: transition.provenance });
+    } else {
+      const destinations = bindingsByScene.get(transition.destinationSceneNativeId);
+      if (destinations?.size === 1) transition.destinationMapSpaceId = [...destinations][0]!;
+      blockers.push({ kind: "unresolved-transition-destination", key: `transition:${transition.transitionId}`, detail: "Transition has no verified destination coordinate.", provenance: transition.provenance });
+    }
     if (!knownEntities.has(entityKey("scenes", transition.destinationSceneNativeId))) blockers.push({ kind: "missing-reference", key: `transition:${transition.transitionId}`, detail: `Transition references missing scene ${transition.destinationSceneNativeId}.`, provenance: transition.provenance });
   }
   const conditionsByOwner = new Map<string, string[]>();

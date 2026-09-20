@@ -1,6 +1,7 @@
 import { Type, type Static } from "typebox";
 import { Assert } from "typebox/value";
 import type { PlacementIdentityResult } from "../raw/placement";
+import type { SpatialResolution } from "../spatial/reviewed";
 import type { RoleScope } from "./roles";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
@@ -74,7 +75,7 @@ export interface NormalizedNpcAdventurer {
 }
 export interface NormalizedNpcFlightNetwork {
   resourcePath: string | null; stopId: string | null; interactionDistance: number | null; networkId: string; sceneName: string; mapWorldBounds: { x: number; y: number; width: number; height: number }; minimumFlyoverHeight: number; currency: NormalizedReference | null;
-  stops: Array<{ id: string; name: string; landingPosition: { x: number; y: number; z: number }; landingYaw: number; knownInitially: boolean }>;
+  stops: Array<{ id: string; name: string; landingPosition: { x: number; y: number; z: number }; landingYaw: number; knownInitially: boolean; resolution: SpatialResolution }>;
   routes: Array<{ from: string; to: string; bidirectional: boolean; fare: number; speed: number; departureCruiseWaypoint: number; arrivalCruiseWaypoint: number; waypoints: Array<{ x: number; y: number; z: number }> }>;
 }
 export interface NormalizedNpcFact {

@@ -29,6 +29,16 @@ function admittedNpc(npcGameplay: unknown): AdmittedCatalog {
     lootRules: { value: { itemLevels: [] }, reference },
     support: { value: { tables: {} }, reference },
     artwork: null,
+    sceneCatalog: { value: {
+      schemaVersion: "compendium.scene-catalog.v1", buildId: "build",
+      scenes: [{ sourceKey: 47, nativeId: 47, entryName: "Coalway outdoors", displayName: "Coalway outdoors", sourceFieldPath: "scenes[47]", state: "matched", buildMatches: [{ buildIndex: 0, path: "Assets/SCENES/Coalway outdoors.unity" }] }],
+      buildScenes: [{ buildIndex: 0, path: "Assets/SCENES/Coalway outdoors.unity", pathError: null, nativeIds: [47] }],
+      summary: { databaseScenes: 1, matchedScenes: 1, unmatchedScenes: 0, ambiguousScenes: 0, unavailableScenes: 0, buildScenes: 1, unclaimedBuildScenes: 0, sharedBuildScenes: 0 },
+    }, reference },
+    profile: {
+      schemaVersion: "compendium.map-space-profile.v2", buildId: "build", mapSpaces: [{ id: "world-surface", label: "World surface" }],
+      bindings: [{ id: "world-surface", mapSpaceId: "world-surface", sceneNativeId: 47, scenePath: "Assets/SCENES/Coalway outdoors.unity", frame: { origin: { x: 0, z: 0 }, xAxis: { x: 1, z: 0 }, yAxis: { x: 0, z: 1 } }, domain: { kind: "scene" }, evidence: [{ path: "review.json", sha256: "a".repeat(64), pointer: "" }] }],
+    },
   } as unknown as AdmittedCatalog;
 }
 
@@ -97,7 +107,20 @@ test("normalizes adventurer references and an authored flight network", () => {
 
   expect(blockers).toEqual([]);
   expect(rows.npcFacts[0]?.adventurer).toMatchObject({ class: { entityKey: "classes:1", label: "Cleric" }, race: { entityKey: "races:6", label: "Human" }, preferredTree: { entityKey: "talentTrees:3", label: "Restoration" }, specialization: { role: "Healer", priorityAbilities: [{ entityKey: "abilities:10", label: "Heal" }] } });
-  expect(rows.npcFacts[0]?.flightNetwork).toMatchObject({ networkId: "Afallon", stopId: "camp", currency: { entityKey: "currencies:5", label: "Silver" }, stops: [{ id: "camp" }] });
+  expect(rows.npcFacts[0]?.flightNetwork).toMatchObject({ networkId: "Afallon", stopId: "camp", currency: { entityKey: "currencies:5", label: "Silver" }, stops: [{ id: "camp", resolution: { state: "resolved", candidates: [{ mapSpaceId: "world-surface", mapPosition: { x: 1, y: 3 } }] } }] });
+});
+
+test("keeps an unplaced flight stop as an explicit coverage blocker", () => {
+  const npcGameplay = {
+    isFlightMaster: true,
+    flightStopId: "training-camp",
+    flightNetwork: { available: true, networkId: "Afallon", sceneName: "Test Area", mapWorldBounds: { x: 0, y: 0, width: 100, height: 100 }, minimumFlyoverHeight: 40, currencyId: null, stops: [{ id: "training-camp", name: "Training Camp", landingPosition: { x: 1, y: 2, z: 3 }, landingYaw: 90, knownInitially: true }], routes: [] },
+  };
+  const blockers: Blocker[] = [];
+  const rows = collectTypedFacts(admittedNpc(npcGameplay), [entity("npcs", 399, "Skywarden")], [] as NormalizedDatabaseInput["bindings"], [], blockers);
+
+  expect(rows.npcFacts[0]?.flightNetwork?.stops[0]?.resolution).toEqual({ state: "unresolved", candidates: [], issues: ["Flight network scene \"Test Area\" is absent from the current scene catalog."] });
+  expect(blockers).toMatchObject([{ kind: "unresolved-flight-stop-space", key: "flight-stop:Afallon:Test Area:training-camp" }]);
 });
 
 test("keeps an unresolvable gear set member as an unresolved endpoint and a coverage issue", () => {
