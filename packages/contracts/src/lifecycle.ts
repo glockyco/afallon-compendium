@@ -91,6 +91,19 @@ const GameUpdateReceiptDefinition = Type.Object({
 export const GameUpdateReceiptSchema = schemaRegistry.register("compendium.game-update-receipt.v1", GameUpdateReceiptDefinition).schema;
 export type GameUpdateReceipt = Static<typeof GameUpdateReceiptSchema>;
 
+const Cpp2ilSnapshotReceiptDefinition = Type.Object({
+  schemaVersion: Type.Literal("compendium.cpp2il-snapshot-receipt.v1"),
+  recordedAt: NonEmptyString,
+  toolVersion: NonEmptyString,
+  arguments: Type.Array(NonEmptyString),
+  input: Type.Object({
+    manifest: SteamManifestDefinition,
+    inputHashes: Type.Record(Type.String(), Sha256),
+  }, { additionalProperties: false }),
+}, { additionalProperties: false });
+export const Cpp2ilSnapshotReceiptSchema = schemaRegistry.register("compendium.cpp2il-snapshot-receipt.v1", Cpp2ilSnapshotReceiptDefinition).schema;
+export type Cpp2ilSnapshotReceipt = Static<typeof Cpp2ilSnapshotReceiptSchema>;
+
 const SchemaIdentityReferenceDefinition = Type.Object({
   id: NonEmptyString,
   sha256: Sha256,

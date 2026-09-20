@@ -11,12 +11,14 @@ import { buildIdentity, toolRevision } from "./build";
 import { runCatalogCommand } from "./catalog";
 import { loadConfig } from "./config";
 import { runPublishCommand } from "./publish";
+import { runCpp2ilSnapshot } from "./recover";
 import { registerInput } from "./register";
 import { runScanCommand } from "./scan";
 import { runGameUpdate } from "./game-update";
 
 const HELP = `Usage:
   bun run compendium update --config FILE --version VERSION
+  bun run compendium recover --config FILE --cpp2il FILE
   bun run compendium scan --config FILE --plan FILE [--candidate]
   bun run compendium capture --config FILE --plan FILE [--plan FILE ...] [--candidate]
   bun run compendium register --store DIRECTORY --build ID --file FILE [--schema ID] [--candidate]
@@ -39,7 +41,8 @@ const { values, positionals } = parseArgs({
     help: { type: "boolean", short: "h" }, config: { type: "string" },
     plan: { type: "string", multiple: true }, output: { type: "string" },
     store: { type: "string" }, file: { type: "string" }, schema: { type: "string" },
-    build: { type: "string" }, version: { type: "string" }, candidate: { type: "boolean", default: false },
+    build: { type: "string" }, version: { type: "string" }, cpp2il: { type: "string" },
+    candidate: { type: "boolean", default: false },
   },
 });
 
@@ -58,7 +61,7 @@ async function runSiteCommand(command: string[], cwd: string): Promise<void> {
 async function main(): Promise<void> {
   const command = positionals[0];
   if (values.help || command === undefined) { console.log(HELP); return; }
-  const known = ["update", "scan", "capture", "register", "pyramid", "catalog", "publish", "preview", "deploy"];
+  const known = ["update", "recover", "scan", "capture", "register", "pyramid", "catalog", "publish", "preview", "deploy"];
   if (!known.includes(command)) throw new Error(`Unknown command: ${command}. Use --help.`);
   if (command === "preview") {
     allowOptions(command, []);
@@ -79,6 +82,13 @@ async function main(): Promise<void> {
     if (!values.config || !values.version) throw new Error("update requires --config and --version.");
     const config = await loadConfig(values.config);
     console.log(JSON.stringify({ ok: true, ...await runGameUpdate({ config, releaseVersion: values.version }) }, null, 2));
+    return;
+  }
+  if (command === "recover") {
+    allowOptions(command, ["config", "cpp2il"]);
+    if (!values.config || !values.cpp2il) throw new Error("recover requires --config and --cpp2il.");
+    const config = await loadConfig(values.config);
+    console.log(JSON.stringify({ ok: true, ...await runCpp2ilSnapshot(config, values.cpp2il) }, null, 2));
     return;
   }
   if (command === "register") {
