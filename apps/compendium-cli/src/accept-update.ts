@@ -49,8 +49,11 @@ async function describeRollback(publicationRoot: string, selectionBytes: Buffer 
   if (rootIdentity.sha256 !== parsed.root.sha256 || rootIdentity.bytes !== parsed.root.bytes) throw new Error("Selected publication root identity does not match its file.");
   const rootValue: unknown = JSON.parse(rootBytes.toString("utf8"));
   Assert(StaticRootManifestSchema, rootValue);
-  if (prior && (prior.buildId !== rootValue.buildId || prior.publication.root.sha256 !== rootIdentity.sha256)) throw new Error("Accepted-build descriptor does not match the selected publication.");
-  return { selection: identity(selectionBytes), ...(acceptedDescriptor ? { acceptedDescriptor } : {}), buildId: rootValue.buildId, publicationId: rootIdentity.sha256 };
+  const selectionIdentity = identity(selectionBytes);
+  if (prior && (prior.buildId !== rootValue.buildId || prior.publication.root.sha256 !== rootIdentity.sha256 || prior.publication.root.bytes !== rootIdentity.bytes || prior.stage.selectionSha256 !== selectionIdentity.sha256 || prior.stage.publicationSha256 !== rootIdentity.sha256)) {
+    throw new Error("Accepted-build descriptor does not match the selected publication.");
+  }
+  return { selection: selectionIdentity, ...(acceptedDescriptor ? { acceptedDescriptor } : {}), buildId: rootValue.buildId, publicationId: rootIdentity.sha256 };
 }
 
 async function replace(path: string, bytes: Uint8Array): Promise<void> {
@@ -80,7 +83,6 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
   const rootValue: unknown = JSON.parse(await readFile(store.objectPath(publicationOutput.content.sha256), "utf8"));
   Assert(StaticRootManifestSchema, rootValue);
   if (rootValue.buildId !== report.current.buildId) throw new Error("Accepted publication build does not match the update report.");
-  if (!rootValue.complete) throw new Error("Accepted publication does not report complete coverage.");
   const plan = publicationRun.input.settings.plan as { catalog?: { catalogId?: string; manifest?: ContentIdentity; object?: ContentIdentity } };
   if (!plan.catalog?.catalogId || !plan.catalog.manifest || !plan.catalog.object || rootValue.catalogId !== plan.catalog.catalogId) throw new Error("Accepted publication has no matching sealed catalog identity.");
   if (report.artifacts.catalog.content.sha256 !== plan.catalog.manifest.sha256 || report.artifacts.catalog.content.bytes !== plan.catalog.manifest.bytes) throw new Error("Update report catalog does not match the published catalog.");
@@ -89,7 +91,7 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
   const descriptorPath = join(store.root, "accepted-build.json"), selectionPath = join(publicationRoot, "selected.json"), stageRoot = join(siteDirectory, ".stage", "production");
   const previousDescriptorBytes = await optionalBytes(descriptorPath), previousSelection = await optionalBytes(selectionPath);
   const previousDescriptorIdentity = previousDescriptorBytes ? identity(previousDescriptorBytes) : null;
-  if (options.expectedDescriptorSha256 !== undefined && options.expectedDescriptorSha256 !== previousDescriptorIdentity?.sha256) throw new Error("Accepted-build compare-and-swap failed.");
+  if (options.expectedDescriptorSha256 !== undefined && options.expectedDescriptorSha256 !== (previousDescriptorIdentity?.sha256 ?? null)) throw new Error("Accepted-build compare-and-swap failed.");
   const priorValue: unknown = previousDescriptorBytes ? JSON.parse(previousDescriptorBytes.toString("utf8")) : null;
   if (priorValue !== null) Assert(AcceptedBuildDescriptorSchema, priorValue);
   const prior = priorValue as AcceptedBuildDescriptor | null;
@@ -107,7 +109,7 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
     await replace(selectionPath, selectionBytes);
     selectionChanged = true;
     const metadata = await options.stage(publicationRoot, siteDirectory, resolve(options.baselineRoot));
-    if (metadata.buildId !== report.current.buildId || metadata.catalogId !== plan.catalog.catalogId || metadata.publicationId !== publicationOutput.content.sha256 || metadata.selectionSha256 !== selectionIdentity.sha256 || metadata.publicationSha256 !== publicationOutput.content.sha256 || metadata.coverageComplete !== true || metadata.mode !== rootValue.mode) {
+    if (metadata.buildId !== report.current.buildId || metadata.catalogId !== plan.catalog.catalogId || metadata.publicationId !== publicationOutput.content.sha256 || metadata.selectionSha256 !== selectionIdentity.sha256 || metadata.publicationSha256 !== publicationOutput.content.sha256 || metadata.coverageComplete !== rootValue.complete || metadata.mode !== rootValue.mode) {
       throw new Error("Staged production metadata does not match the accepted candidate.");
     }
     const lease = await createArtifactLease(store, { runId: randomUUID(), buildId: report.current.buildId, operation: "accept-update", objects: [], manifests: [report.artifacts.publication.content, report.artifacts.catalog.content] });

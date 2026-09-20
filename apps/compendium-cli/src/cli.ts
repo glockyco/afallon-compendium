@@ -27,7 +27,7 @@ const HELP = `Usage:
   bun run compendium game-map --store DIRECTORY --plan FILE [--candidate]
   bun run compendium catalog --store DIRECTORY --plan FILE [--candidate]
   bun run compendium publish --store DIRECTORY --output DIRECTORY --plan FILE [--candidate]
-  bun run compendium accept-update --store DIRECTORY --report FILE --publication-root DIRECTORY --baseline-root DIRECTORY [--expected HASH]
+  bun run compendium accept-update --store DIRECTORY --report FILE --publication-root DIRECTORY --baseline-root DIRECTORY [--expected HASH|none]
   bun run compendium preview
   bun run compendium deploy PUBLICATION_ROOT [ORIGIN]
 
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
     if (!values.store || !values.report || !values["publication-root"] || !values["baseline-root"]) throw new Error("accept-update requires --store, --report, --publication-root, and --baseline-root.");
     const root = resolve(import.meta.dir, "../../..");
     const result = await acceptUpdate({
-      storeRoot: resolve(values.store), reportPath: resolve(values.report), publicationRoot: resolve(values["publication-root"]), baselineRoot: resolve(values["baseline-root"]), expectedDescriptorSha256: values.expected,
+      storeRoot: resolve(values.store), reportPath: resolve(values.report), publicationRoot: resolve(values["publication-root"]), baselineRoot: resolve(values["baseline-root"]), expectedDescriptorSha256: values.expected === "none" ? null : values.expected,
       stage: async (publicationRoot, _siteDirectory, baselineRoot) => {
         const child = Bun.spawn(["bun", resolve(root, "apps/site/scripts/stage-publication.ts"), publicationRoot, baselineRoot], { cwd: root, stdout: "pipe", stderr: "inherit" });
         const output = await new Response(child.stdout).text();

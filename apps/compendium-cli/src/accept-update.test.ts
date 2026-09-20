@@ -38,7 +38,7 @@ type Fixture = {
   priorSelectionIdentity: ContentIdentity;
 };
 
-function priorDescriptor(evidence: ContentIdentity, publication: ContentIdentity): AcceptedBuildDescriptor {
+function priorDescriptor(evidence: ContentIdentity, publication: ContentIdentity, selection: ContentIdentity): AcceptedBuildDescriptor {
   return {
     schemaVersion: "compendium.accepted-build.v1",
     acceptedAt: "2026-01-01T00:00:00.000Z",
@@ -56,9 +56,9 @@ function priorDescriptor(evidence: ContentIdentity, publication: ContentIdentity
       buildId: "25153357",
       catalogId: "d".repeat(64),
       mode: "preview",
-      coverageComplete: true,
-      selectionSha256: "f".repeat(64),
-      publicationSha256: "e".repeat(64),
+      coverageComplete: false,
+      selectionSha256: selection.sha256,
+      publicationSha256: publication.sha256,
     },
     rollback: null,
   };
@@ -80,7 +80,7 @@ async function fixture(): Promise<Fixture> {
     buildId: BUILD_ID,
     catalogId: CATALOG_ID,
     mode: "preview",
-    complete: true,
+    complete: false,
     world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [],
     kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, searchable: true, columns: [], facets: [] }],
@@ -141,7 +141,7 @@ async function fixture(): Promise<Fixture> {
   await mkdir(stageRoot, { recursive: true });
   await writeFile(join(stageRoot, "version.txt"), "prior stage");
   await writeFile(selectionPath, priorSelectionBytes);
-  const priorDescriptorBytes = bytes(`${canonicalJson(priorDescriptor(evidence, priorPublicationIdentity))}\n`), priorDescriptorIdentity = identity(priorDescriptorBytes);
+  const priorDescriptorBytes = bytes(`${canonicalJson(priorDescriptor(evidence, priorPublicationIdentity, priorSelectionIdentity))}\n`), priorDescriptorIdentity = identity(priorDescriptorBytes);
   await writeFile(descriptorPath, priorDescriptorBytes);
   return { root, storeRoot, reportPath, publicationRoot, baselineRoot, siteDirectory, stageRoot, selectionPath, descriptorPath, candidatePublicationId, priorPublicationId, priorDescriptorBytes, priorDescriptorIdentity, priorSelectionBytes, priorSelectionIdentity };
 }
@@ -156,7 +156,7 @@ async function successfulStage(value: Fixture): Promise<DeploymentMetadata> {
     buildId: BUILD_ID,
     catalogId: CATALOG_ID,
     mode: "preview",
-    coverageComplete: true,
+    coverageComplete: false,
     selectionSha256: identity(selectionBytes).sha256,
     publicationSha256: value.candidatePublicationId,
   };
@@ -193,7 +193,7 @@ test("retains a selected publication without a prior accepted descriptor", async
   const value = await fixture();
   try {
     await rm(value.descriptorPath);
-    const accepted = await acceptUpdate({ ...value, stage: async () => successfulStage(value) });
+    const accepted = await acceptUpdate({ ...value, expectedDescriptorSha256: null, stage: async () => successfulStage(value) });
     expect(accepted.rollback).toEqual({ selection: value.priorSelectionIdentity, buildId: "25153357", publicationId: value.priorPublicationId });
     expect(await readFile(new ArtifactStore(value.storeRoot).objectPath(value.priorSelectionIdentity.sha256), "utf8")).toBe(new TextDecoder().decode(value.priorSelectionBytes));
   } finally { await rm(value.root, { recursive: true, force: true }); }
