@@ -664,12 +664,16 @@ export async function capture(
     let key = previous?.key;
     let started: SceneVisit | undefined = previous;
     const transitionOrdinal = sweep.transitionOrdinal++;
-    let nextAction: "start" | "retarget" | "poll" | "restore" = action;
+    // Stream restoration can briefly hold scene readiness after a completed plan. Poll that
+    // existing visit before retargeting; retarget itself correctly rejects an unready scene.
+    let retargetStarted = action !== "retarget";
+    let nextAction: "start" | "retarget" | "poll" | "restore" = action === "retarget" ? "poll" : action;
     while (true) {
       runtime.signal.throwIfAborted();
       if (Date.now() >= deadline) throw timeout;
       const path = nextAction === "start" ? "scene-start.json" : nextAction === "retarget" ? `scene-retarget-${transitionOrdinal}-${targetSceneNativeId}.json` : action === "restore" ? "scene-final.json" : `scene-ready-${transitionOrdinal}.json`;
-      const parameters: Record<string, unknown> = { researchCharacter: config.character, action: nextAction, key, targetSceneNativeId: action === "restore" ? previous?.targetSceneNativeId : targetSceneNativeId, capturePosition };
+      const observedTarget = action === "restore" || (action === "retarget" && !retargetStarted) ? previous?.targetSceneNativeId : targetSceneNativeId;
+      const parameters: Record<string, unknown> = { researchCharacter: config.character, action: nextAction, key, targetSceneNativeId: observedTarget, capturePosition };
       if (nextAction === "start") {
         parameters.finalSceneNativeId = sweep.finalSceneNativeId;
         parameters.finalScenePath = sweep.finalScenePath;
@@ -684,6 +688,16 @@ export async function capture(
       if (started !== undefined && (state.sourceSceneNativeId !== started.sourceSceneNativeId || state.sourceSceneHandle !== started.sourceSceneHandle || !isDeepStrictEqual(state.sourcePosition, started.sourcePosition) || !isDeepStrictEqual(state.sourceRotation, started.sourceRotation))) throw new Error("Capture scene transition changed its restoration target.");
       started ??= state;
       key = state.key;
+      if (action === "retarget" && !retargetStarted) {
+        if (state.phase !== "ready") throw new Error("Capture scene visit is not ready to retarget.");
+        if (state.sceneReady) {
+          retargetStarted = true;
+          nextAction = "retarget";
+          continue;
+        }
+        await Bun.sleep(500);
+        continue;
+      }
       const finished = state.phase === (action === "restore" ? "restored" : "ready");
       if (nextAction === "start" || nextAction === "retarget" || finished) sweep.sceneTransitions.push(await registerProbeArtifact(sweep.run, path, reply.reference));
       if (finished) {
