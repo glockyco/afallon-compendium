@@ -239,7 +239,9 @@ if (action == "start")
         };
     });
     state["currentRow"] = currentRow;
-    const int maxConcurrentPreloads = 16;
+    // Wide merged-world frames can intersect about 600 loaders. Unbounded requests can strand
+    // loaders, while smaller batches cannot finish within the capture readiness budget.
+    const int maxConcurrentPreloads = 32;
     var requestPreloadBatch = new System.Action(() =>
     {
         var inFlight = 0;
