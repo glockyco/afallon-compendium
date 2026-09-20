@@ -31,6 +31,8 @@ function inverse(frame: Affine): (point: Point) => Point {
 
 export function validateGameMapCalibration(plan: IllustrationPlan): void {
   Assert(IllustrationPlanSchema, plan);
+  const [minX, minY, maxX, maxY] = plan.deliveryExtent;
+  if (![minX, minY, maxX, maxY].every(Number.isFinite) || minX >= maxX || minY >= maxY) throw new Error("Game-map registration rejected: deliveryExtent is not a finite positive-area box.");
   const toPixel = inverse(plan.registration.mapFromPixelEdge);
   for (const landmark of plan.registration.landmarks) {
     const projected = toPixel(landmark.map);
@@ -49,10 +51,18 @@ function transformedBounds(frame: Affine, width: number, height: number): [numbe
 function chooseMaxZoom(frame: Affine): number {
   const xScale = Math.hypot(frame.xAxis.x, frame.xAxis.y), yScale = Math.hypot(frame.yAxis.x, frame.yAxis.y);
   const scale = Math.sqrt(xScale * yScale);
-  const zoom = Math.round(Math.log2(1 / scale));
-  const target = 2 ** -zoom;
-  if (Math.max(Math.abs(xScale - target), Math.abs(yScale - target)) > target * 0.05) throw new Error("Game-map registration rejected: raster resolution is not within five percent of a power-of-two map lattice.");
-  return zoom;
+  if (!Number.isFinite(scale) || scale <= EPSILON) throw new Error("Game-map registration rejected: raster resolution is invalid.");
+  return Math.round(Math.log2(1 / scale));
+}
+
+export function validateGameMapDeliveryExtent(plan: IllustrationPlan, width: number, height: number): void {
+  const frame = plan.registration.mapFromPixelEdge, sourceBounds = transformedBounds(frame, width, height), bounds = plan.deliveryExtent;
+  const residual = plan.registration.maximumResidualPixels;
+  const toleranceX = residual * (Math.abs(frame.xAxis.x) + Math.abs(frame.yAxis.x)) + EPSILON;
+  const toleranceY = residual * (Math.abs(frame.xAxis.y) + Math.abs(frame.yAxis.y)) + EPSILON;
+  if (bounds[0] < sourceBounds[0] - toleranceX || bounds[1] < sourceBounds[1] - toleranceY || bounds[2] > sourceBounds[2] + toleranceX || bounds[3] > sourceBounds[3] + toleranceY) {
+    throw new Error("Game-map registration rejected: deliveryExtent lies outside the calibrated image.");
+  }
 }
 
 function sample(image: DecodedImage, toPixel: (point: Point) => Point, mapX: number, mapY: number): readonly [number, number, number, number] | null {
@@ -63,7 +73,7 @@ function sample(image: DecodedImage, toPixel: (point: Point) => Point, mapX: num
   return [image.data[offset]!, image.data[offset + 1]!, image.data[offset + 2]!, image.data[offset + 3]!];
 }
 
-function renderTile(image: DecodedImage, toPixel: (point: Point) => Point, z: number, maxZoom: number, tileX: number, tileY: number): { data: Buffer; state: "captured" | "partial" | "empty"; visible: boolean } {
+function renderTile(image: DecodedImage, toPixel: (point: Point) => Point, deliveryExtent: readonly [number, number, number, number], z: number, maxZoom: number, tileX: number, tileY: number): { data: Buffer; state: "captured" | "partial" | "empty"; visible: boolean } {
   const scale = 2 ** (maxZoom - z), data = Buffer.alloc(TILE_SIZE * TILE_SIZE * CHANNELS);
   let captured = 0, covered = 0;
   for (let outputY = 0; outputY < TILE_SIZE; outputY++) for (let outputX = 0; outputX < TILE_SIZE; outputX++) {
@@ -71,6 +81,7 @@ function renderTile(image: DecodedImage, toPixel: (point: Point) => Point, z: nu
     for (let dy = 0; dy < scale; dy++) for (let dx = 0; dx < scale; dx++) {
       const mapX = (tileX * TILE_SIZE + outputX) * 2 ** -z + (dx + 0.5) * 2 ** -maxZoom;
       const mapY = ((tileY + 1) * TILE_SIZE - outputY) * 2 ** -z - (dy + 0.5) * 2 ** -maxZoom;
+      if (mapX < deliveryExtent[0] || mapY < deliveryExtent[1] || mapX >= deliveryExtent[2] || mapY >= deliveryExtent[3]) continue;
       const value = sample(image, toPixel, mapX, mapY);
       if (value === null) continue;
       covered++;
@@ -127,7 +138,8 @@ export async function generateGameMap(store: ArtifactStore, planPath: string, op
   const run = await beginArtifactRun(store, { buildId: plan.buildId, operation: "game-map", settings, schemas, implementationFingerprint: fingerprint.implementation, cacheKey: fingerprint.cacheKey, probeHashes: fingerprint.probeHashes, diagnosticRevision: options.diagnosticRevision, inputs, inputManifests: [] });
   try {
     await run.setPhase("execution");
-    const frame = plan.registration.mapFromPixelEdge, toPixel = inverse(frame), bounds = transformedBounds(frame, image.width, image.height), maxZoom = chooseMaxZoom(frame);
+    const frame = plan.registration.mapFromPixelEdge, toPixel = inverse(frame), bounds = plan.deliveryExtent, maxZoom = chooseMaxZoom(frame);
+    validateGameMapDeliveryExtent(plan, image.width, image.height);
     const rangeAt = (z: number) => ({ minX: Math.floor(bounds[0] / (TILE_SIZE * 2 ** -z)), minY: Math.floor(bounds[1] / (TILE_SIZE * 2 ** -z)), maxX: Math.ceil(bounds[2] / (TILE_SIZE * 2 ** -z)) - 1, maxY: Math.ceil(bounds[3] / (TILE_SIZE * 2 ** -z)) - 1 });
     let minZoom = maxZoom - 5;
     for (let z = maxZoom; z >= maxZoom - 5; z--) { const range = rangeAt(z); if ((range.maxX - range.minX + 1) * (range.maxY - range.minY + 1) <= 4) { minZoom = z; break; } }
@@ -136,7 +148,7 @@ export async function generateGameMap(store: ArtifactStore, planPath: string, op
     for (let z = minZoom; z <= maxZoom; z++) {
       const range = rangeAt(z);
       for (let y = range.minY; y <= range.maxY; y++) for (let x = range.minX; x <= range.maxX; x++) {
-        const tile = renderTile(image, toPixel, z, maxZoom, x, y);
+        const tile = renderTile(image, toPixel, plan.deliveryExtent, z, maxZoom, x, y);
         if (!tile.visible) continue;
         const webp = await sharp(tile.data, { raw: { width: TILE_SIZE, height: TILE_SIZE, channels: CHANNELS } }).webp({ lossless: true }).toBuffer();
         const object = await run.putBytes(webp), path = `tiles/${z}/${x}/${y}.${object.sha256}.webp`;
@@ -149,7 +161,7 @@ export async function generateGameMap(store: ArtifactStore, planPath: string, op
     const tileWorldSize = TILE_SIZE * 2 ** -maxZoom;
     const finest = tiles.filter(tile => tile.z === maxZoom);
     const extent: [number, number, number, number] = [Math.min(...finest.map(tile => tile.x * tileWorldSize)), Math.min(...finest.map(tile => tile.y * tileWorldSize)), Math.max(...finest.map(tile => (tile.x + 1) * tileWorldSize)), Math.max(...finest.map(tile => (tile.y + 1) * tileWorldSize))];
-    const imagery: CatalogImagery = { schemaVersion: "compendium.catalog-imagery.v1", buildId: plan.buildId, layer: { id: plan.layerId, mapSpaceId: plan.mapSpaceId, label: "Overworld artwork", kind: "game-map", tileSize: TILE_SIZE, minZoom, maxZoom, extent, tiles }, inputs: Object.values(inputs) };
+    const imagery: CatalogImagery = { schemaVersion: "compendium.catalog-imagery.v1", buildId: plan.buildId, layer: { id: plan.layerId, mapSpaceId: plan.mapSpaceId, label: plan.label, kind: "game-map", tileSize: TILE_SIZE, minZoom, maxZoom, extent, tiles }, inputs: Object.values(inputs) };
     Assert(CatalogImagerySchema, imagery);
     await run.setPhase("finalization");
     const imageryObject = await run.putBytes(new TextEncoder().encode(`${canonicalJson(imagery)}\n`));

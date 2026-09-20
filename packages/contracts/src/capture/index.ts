@@ -48,7 +48,7 @@ schemaRegistry.register("compendium.capture-tile-checkpoint.v2", CaptureTileChec
 schemaRegistry.register("compendium.capture-set.v4", CaptureSetSchema);
 schemaRegistry.register("compendium.illustration-evidence-input.v1", IllustrationEvidenceInputSchema);
 schemaRegistry.register("compendium.illustration-registration-input.v1", IllustrationRegistrationInputSchema);
-schemaRegistry.register("compendium.illustration-plan.v2", IllustrationPlanSchema);
+schemaRegistry.register("compendium.illustration-plan.v3", IllustrationPlanSchema);
 schemaRegistry.register("compendium.illustration-registration-output.v1", IllustrationRegistrationOutputSchema);
 schemaRegistry.register("compendium.illustration.v1", IllustrationOutputSchema);
 schemaRegistry.register("compendium.reviewed-cell-owners.v1", ReviewedCellOwnersSchema);

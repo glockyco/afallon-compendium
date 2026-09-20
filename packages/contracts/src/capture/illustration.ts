@@ -43,15 +43,17 @@ export const IllustrationRegistrationInputSchema = calibratedRegistration;
 export type IllustrationRegistrationInput = Static<typeof IllustrationRegistrationInputSchema>;
 
 export const IllustrationPlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.illustration-plan.v2"),
+  schemaVersion: Type.Literal("compendium.illustration-plan.v3"),
   buildId: text,
   layerId: id,
   mapSpaceId: id,
+  label: text,
   role: Type.Literal("illustration"),
   image: illustrationAsset,
-  mapSpaceProfile: Type.Optional(illustrationAsset),
+  mapSpaceProfile: illustrationAsset,
+  deliveryExtent: Type.Tuple([Type.Number(), Type.Number(), Type.Number(), Type.Number()]),
   registration: IllustrationRegistrationInputSchema,
-});
+}, { additionalProperties: false });
 export type IllustrationPlan = Static<typeof IllustrationPlanSchema>;
 
 const evidenceOutput = Type.Object({

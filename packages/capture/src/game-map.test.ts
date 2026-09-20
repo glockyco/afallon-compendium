@@ -1,15 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import type { IllustrationPlan } from "@afallon/contracts";
-import { validateGameMapCalibration } from "./game-map";
+import { validateGameMapCalibration, validateGameMapDeliveryExtent } from "./game-map";
 
 const plan: IllustrationPlan = {
-  schemaVersion: "compendium.illustration-plan.v2",
+  schemaVersion: "compendium.illustration-plan.v3",
   buildId: "build",
   layerId: "world-artwork",
   mapSpaceId: "world",
+  label: "World game map",
   role: "illustration",
   image: { path: "map.png", sha256: "a".repeat(64) },
   mapSpaceProfile: { path: "profile.json", sha256: "b".repeat(64) },
+  deliveryExtent: [10, 0, 30, 20],
   registration: {
     kind: "calibrated",
     mapFromPixelEdge: { origin: { x: 10, y: 20 }, xAxis: { x: 2, y: 0 }, yAxis: { x: 0, y: -2 } },
@@ -39,5 +41,17 @@ describe("game-map calibration", () => {
     const changed: IllustrationPlan = structuredClone(plan);
     changed.registration.mapFromPixelEdge.yAxis = { x: 4, y: 0 };
     expect(() => validateGameMapCalibration(changed)).toThrow(/singular/);
+  });
+
+  test("accepts edge rounding within the reviewed residual", () => {
+    const changed: IllustrationPlan = structuredClone(plan);
+    changed.deliveryExtent = [9.91, -0.09, 30.09, 20.09];
+    expect(() => validateGameMapDeliveryExtent(changed, 10, 10)).not.toThrow();
+  });
+
+  test("rejects an extent beyond the reviewed residual", () => {
+    const changed: IllustrationPlan = structuredClone(plan);
+    changed.deliveryExtent = [9.89, 0, 30, 20];
+    expect(() => validateGameMapDeliveryExtent(changed, 10, 10)).toThrow(/outside the calibrated image/);
   });
 });
