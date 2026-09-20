@@ -53,6 +53,44 @@ const ContentIdentityDefinition = Type.Object({
 export const ContentIdentitySchema = schemaRegistry.register("compendium.content-identity.v1", ContentIdentityDefinition).schema;
 export type ContentIdentity = Static<typeof ContentIdentitySchema>;
 
+const SteamManifestDefinition = Type.Object({
+  appId: NonEmptyString,
+  installDir: NonEmptyString,
+  buildId: NonEmptyString,
+  stateFlags: Type.Integer({ minimum: 0 }),
+}, { additionalProperties: false });
+
+const GameUpdateInstallationDefinition = Type.Object({
+  manifest: SteamManifestDefinition,
+  inputHashes: Type.Record(Type.String(), Sha256),
+}, { additionalProperties: false });
+
+const GameUpdateLogEvidenceDefinition = Type.Object({
+  content: ContentIdentitySchema,
+  offset: Type.Integer({ minimum: 0 }),
+  endOffset: Type.Integer({ minimum: 0 }),
+}, { additionalProperties: false });
+
+const GameUpdateReceiptDefinition = Type.Object({
+  schemaVersion: Type.Literal("compendium.game-update-receipt.v1"),
+  releaseVersion: NonEmptyString,
+  recordedAt: NonEmptyString,
+  updated: Type.Boolean(),
+  previous: GameUpdateInstallationDefinition,
+  current: GameUpdateInstallationDefinition,
+  evidence: Type.Object({
+    connectionLog: GameUpdateLogEvidenceDefinition,
+    contentLog: Type.Object({
+      content: ContentIdentitySchema,
+      offset: Type.Integer({ minimum: 0 }),
+      endOffset: Type.Integer({ minimum: 0 }),
+      result: NonEmptyString,
+    }, { additionalProperties: false }),
+  }, { additionalProperties: false }),
+}, { additionalProperties: false });
+export const GameUpdateReceiptSchema = schemaRegistry.register("compendium.game-update-receipt.v1", GameUpdateReceiptDefinition).schema;
+export type GameUpdateReceipt = Static<typeof GameUpdateReceiptSchema>;
+
 const SchemaIdentityReferenceDefinition = Type.Object({
   id: NonEmptyString,
   sha256: Sha256,

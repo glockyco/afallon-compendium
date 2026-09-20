@@ -13,7 +13,7 @@ import { loadConfig } from "./config";
 import { runPublishCommand } from "./publish";
 import { registerInput } from "./register";
 import { runScanCommand } from "./scan";
-import { runSteamUpdate } from "./update";
+import { runGameUpdate } from "./game-update";
 
 const HELP = `Usage:
   bun run compendium update --config FILE --version VERSION
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
     allowOptions(command, ["config", "version"]);
     if (!values.config || !values.version) throw new Error("update requires --config and --version.");
     const config = await loadConfig(values.config);
-    console.log(JSON.stringify({ ok: true, ...await runSteamUpdate({ config, releaseVersion: values.version }) }, null, 2));
+    console.log(JSON.stringify({ ok: true, ...await runGameUpdate({ config, releaseVersion: values.version }) }, null, 2));
     return;
   }
   if (command === "register") {
