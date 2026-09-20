@@ -354,7 +354,7 @@ export class Runtime {
           return new {
             researchCharacter = character.CharacterData.CharacterName,
             frame = UnityEngine.Time.frameCount,
-            scene = new { name = scene.name, path = scene.path, handle = scene.handle, isLoaded = scene.isLoaded },
+            scene = new { name = scene.name, path = scene.path, handle = (int)scene.handle, isLoaded = scene.isLoaded },
             gameSceneNativeId = nativeScene == null ? (int?)null : nativeScene.ID
           };
         });

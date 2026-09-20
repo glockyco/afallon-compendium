@@ -70,7 +70,7 @@ return new
     schemaVersion = "compendium.addressable-locations.v1",
     frame = UnityEngine.Time.frameCount,
     dataPath = UnityEngine.Application.dataPath,
-    scene = new { path = scene.path, handle = scene.handle, buildIndex = scene.buildIndex },
+    scene = new { path = scene.path, handle = (int)scene.handle, buildIndex = scene.buildIndex },
     assets = assets.ToArray(),
     locations = locations.ToArray()
 };

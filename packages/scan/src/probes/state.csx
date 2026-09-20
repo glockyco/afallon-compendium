@@ -15,7 +15,7 @@ return new
     schemaVersion = "compendium.runtime-scan-state.v1",
     frame = UnityEngine.Time.frameCount,
     character = character.CharacterData.CharacterName,
-    scene = new { name = scene.name, path = scene.path, handle = scene.handle, isLoaded = scene.isLoaded },
+    scene = new { name = scene.name, path = scene.path, handle = (int)scene.handle, isLoaded = scene.isLoaded },
     gameSceneNativeId = nativeScene == null ? (int?)null : nativeScene.ID,
     position = new { x = position.x, y = position.y, z = position.z },
     rotation = new { x = rotation.x, y = rotation.y, z = rotation.z, w = rotation.w }

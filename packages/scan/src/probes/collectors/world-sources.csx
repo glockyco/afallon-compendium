@@ -150,7 +150,7 @@ var worldSceneEvidence = new System.Func<UnityEngine.SceneManagement.Scene, obje
         name = scene.name,
         path = scene.path,
         buildIndex = scene.buildIndex,
-        handle = scene.handle
+        handle = (int)scene.handle
     };
 });
 

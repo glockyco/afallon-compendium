@@ -61,7 +61,7 @@
     sceneVisitState["sourceSceneNativeId"] = sourceNativeScene.ID;
     sceneVisitState["sourceSceneName"] = activeScene.name;
     sceneVisitState["sawTargetScene"] = false;
-    sceneVisitState["sourceSceneHandle"] = activeScene.handle;
+    sceneVisitState["sourceSceneHandle"] = (int)activeScene.handle;
     sceneVisitState["sourceScenePath"] = activeScene.path;
     sceneVisitState["targetSceneNativeId"] = requestedTargetId;
     // A game scene record names its Unity scene by entryName. A challenge-stone variant keeps
@@ -90,7 +90,7 @@
         var currentTransform = currentPlayer == null ? null : currentPlayer.transform;
         var status = new System.Collections.Generic.Dictionary<string, object>();
         status["frame"] = UnityEngine.Time.frameCount;
-        status["sceneHandle"] = currentScene.handle;
+        status["sceneHandle"] = (int)currentScene.handle;
         status["sceneNativeId"] = currentNativeScene == null ? (object)null : currentNativeScene.ID;
         status["sceneName"] = currentScene.name;
         var loadedSceneNames = new System.Collections.Generic.List<string>();

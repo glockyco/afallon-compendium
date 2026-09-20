@@ -27,7 +27,7 @@ var addNode = new System.Action<UnityEngine.Transform>(transform =>
         nodes.Add(new
         {
             instanceId = id,
-            sceneHandle = go.scene.handle,
+            sceneHandle = (int)go.scene.handle,
             name = go.name ?? "",
             parentInstanceId = parent == null ? (int?)null : parent.gameObject.GetInstanceID(),
             siblingIndex = transform.GetSiblingIndex(),
@@ -158,7 +158,7 @@ return new
     {
         character = character.CharacterData.CharacterName,
         gameSceneNativeId = nativeScene.ID,
-        scene = new { path = scene.path, name = scene.name, handle = scene.handle, buildIndex = scene.buildIndex, isLoaded = scene.isLoaded },
+        scene = new { path = scene.path, name = scene.name, handle = (int)scene.handle, buildIndex = scene.buildIndex, isLoaded = scene.isLoaded },
         sceneInitialized = essentials.SceneInitialized,
         sceneLoading = loading.isSceneLoading,
         sceneReadyHolds = Il2CppBLINK.RPGBuilder.Managers.LoadingScreenManager.HasSceneReadyHolds

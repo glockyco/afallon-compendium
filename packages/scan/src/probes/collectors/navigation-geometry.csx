@@ -40,4 +40,4 @@ for (var index = 0; index < indexCount; index++)
 }
 var areas = new int[areaCount];
 for (var index = 0; index < areaCount; index++) areas[index] = nativeAreas[index];
-return new { schemaVersion = "compendium.navigation-geometry.v2", vertexLayout = "world-xyz", vertexCount = vertexCount, triangleCount = areaCount, frame = UnityEngine.Time.frameCount, scene = new { nativeId = gameScene.ID, path = scene.path, name = scene.name, handle = scene.handle, buildIndex = scene.buildIndex }, scope = "all-loaded-navigation-data", surfaceOwnership = "unresolved", includesOffMeshLinks = false, vertices = vertices, indices = indices, areas = areas };
+return new { schemaVersion = "compendium.navigation-geometry.v2", vertexLayout = "world-xyz", vertexCount = vertexCount, triangleCount = areaCount, frame = UnityEngine.Time.frameCount, scene = new { nativeId = gameScene.ID, path = scene.path, name = scene.name, handle = (int)scene.handle, buildIndex = scene.buildIndex }, scope = "all-loaded-navigation-data", surfaceOwnership = "unresolved", includesOffMeshLinks = false, vertices = vertices, indices = indices, areas = areas };

@@ -108,7 +108,7 @@ var sceneEvidence = new System.Func<UnityEngine.SceneManagement.Scene, object>((
         name = scene.name,
         path = scene.path,
         buildIndex = scene.buildIndex,
-        handle = scene.handle,
+        handle = (int)scene.handle,
         isLoaded = scene.isLoaded,
         rootCount = scene.rootCount,
         currentGameSceneNativeId = currentMatch ? currentGameSceneNativeId : (int?)null,
@@ -182,7 +182,7 @@ if (buildSceneCount >= 0)
                 name = managerScene.name,
                 path = managerScene.path,
                 buildIndex = managerScene.buildIndex,
-                handle = managerScene.handle,
+                handle = (int)managerScene.handle,
                 isLoaded = managerScene.isLoaded,
                 rootCount = managerScene.rootCount
             };
