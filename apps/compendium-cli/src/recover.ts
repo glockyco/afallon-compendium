@@ -155,7 +155,7 @@ export async function runCpp2ilSnapshot(
       schemaVersion: "compendium.cpp2il-snapshot-receipt.v1",
       recordedAt: (dependencies.now ?? (() => new Date()))().toISOString(),
       toolVersion: CPP2IL_VERSION,
-      arguments: argumentsUsed.slice(1),
+      arguments: [...argumentsUsed],
       input: { manifest: installation.manifest, inputHashes: { ...installation.inputHashes } },
     };
     Assert(Cpp2ilSnapshotReceiptSchema, receipt);

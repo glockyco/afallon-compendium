@@ -66,6 +66,7 @@ test("records pinned inputs and promotes a complete declaration snapshot", async
     expect(result.snapshotPath).toBe(join(recoveryRoot, "steam-25160000-aaaaaaaaaaaa"));
     expect(result.receipt.input.manifest.stateFlags).toBe(4);
     expect(result.receipt.toolVersion).toBe(CPP2IL_VERSION);
+    expect(result.receipt.arguments).toEqual([...requests[1]!.args]);
     expect(JSON.parse(await readFile(join(result.snapshotPath, "snapshot.json"), "utf8"))).toEqual(result.receipt);
     expect(JSON.parse(await readFile(join(recoveryRoot, "current.json"), "utf8"))).toMatchObject({
       snapshot: "steam-25160000-aaaaaaaaaaaa",
