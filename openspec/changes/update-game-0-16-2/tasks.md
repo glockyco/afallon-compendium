@@ -29,7 +29,8 @@
 
 ## 4. Merged-world spatial rebuild
 
-- [ ] 4.1 Replace restoration and traversal configuration with current 0.16.2 scene and streamed-source identities. Verify a cancelled candidate scan restores the research character to a safe merged-world location.
+- [x] 4.1 Replace restoration and traversal configuration with current 0.16.2 scene and streamed-source identities. Verify a cancelled candidate scan restores the research character to a safe merged-world location.
+  - Restoration now targets scene 47, `Assets/SCENES/Coalway outdoors.unity`, and waits for the player transform before declaring cleanup complete. Traversal-plan run `3b47d625-6245-4772-b32d-ccf7ed07926c` and scan-plan run `ece258e7-8d14-4c46-bf86-d5f05b8c2a6b` register the merged scene plus current woods and swamp streamed-source keys. Candidate run `5be0ce6a-20af-4358-8dda-7392ebb6cf0c` was interrupted with `SIGINT`; cleanup receipt `ffac9d3796a997e5f8cc99be50b65e0544741d693e5900522ce4dd9ee58b8729` is clean with zero callbacks or errors. Post-cancellation run `278f0278-49a8-4bd3-9ed2-b76749afd986` then completed in scene 47 with `AtlasSurvey` at the original merged-world position.
 - [ ] 4.2 Rebuild the 0.16.2 map-space profile from current landmarks, map zones, geometry, and runtime controls. Verify every outdoor placement uses one `world-surface` binding and no retired Coalway Woods, Coalway Swamp, or Chillwind Heights scene binding remains.
 - [ ] 4.3 Resolve current teleport and flight endpoints through the rebuilt profile. Verify each supported connection has current-build source and destination coordinates, while unresolved endpoints remain explicit coverage blockers.
 - [ ] 4.4 Recapture changed game-map imagery and regenerate only selected optional terrain imagery. Verify hashes and capture metadata belong to 0.16.2 and inspect representative seams and merged-world alignment in the browser.
