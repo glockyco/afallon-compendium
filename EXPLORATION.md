@@ -1,6 +1,6 @@
 # Afallon compendium exploration
 
-Updated: 2026-09-18. Status: the content-addressed evidence pipeline, unified scan, canonical catalog, bounded static publication, and production atlas are implemented for build 25153357. Complete supported-build coverage remains open, so publication remains in preview mode.
+Updated: 2026-09-20. Status: the content-addressed evidence pipeline, unified scan, canonical catalog, bounded static publication, and production atlas are selected for Afallon 0.16.2, Steam build 25419293. Complete supported-build coverage remains open, so publication remains in preview mode.
 
 The architecture cutover uses `compendium scan`, `capture`, `catalog`, and `publish` as its only data-workflow commands. Runtime and reviewed inputs enter an immutable object store. A successful catalog is the only normalized source of truth, and publication queries it directly. Candidate mode verifies output without replacing the selected reference. The frozen pre-cutover source and publication remain local rollback evidence; they are not runtime dependencies or supported readers.
 
@@ -1001,10 +1001,16 @@ Evidence: `local/evidence-pipeline-fresh-selected-store/spike-artwork/artwork.js
 
 ## Compendium publication measurements
 
-Build 25153357, catalog `1a1eb3a882cc4ce3f3bfc8c439484d9366a143de6d766b9c889536c01e675aae`,
-publication root `3a94326c0f6c633119d1d9a2264de239e24187b1c30e79dc31953a9cbcc500c9`, preview mode.
+The selected Afallon 0.16.2 preview uses build 25419293, catalog
+`7d528dcc1d40ce9e4ba0fa231d5a324c584146d1306e0e680e8f071ff2fe83ae`, and publication root
+`9c2815be893480982f4b3dade020dea87d93d36fdccca3fb487593df8ec2052e`. It contains 3,764 entities,
+6,911 placements, 160 regions, 9,456 roles, and 20,475 domain relations. The atlas publishes 21 game
+maps and defaults to eight flight points, three auctioneers, and two bankers. Coverage remains
+incomplete: all 10,652 required obligations have accepted dispositions, including 7,093 reviewed
+exclusions, and none are unsatisfied. Acceptance retains build 25153357 publication
+`3a94326c0f6c633119d1d9a2264de239e24187b1c30e79dc31953a9cbcc500c9` as rollback evidence.
 
-The publication carries 2,117 entity documents over eight paged kinds: 1,076 items, 357 NPCs, 347
+The following measurements describe that retained build 25153357 publication. It carries 2,117 entity documents over eight paged kinds: 1,076 items, 357 NPCs, 347
 abilities, 133 quests, 132 recipes, 40 places, 27 gear sets, and 5 properties. Documents total
 6,125,540 bytes and the largest is `scenes:3` at 66,297 bytes against the 262,144-byte budget. The
 search corpus is 1,132,601 bytes in three parts and doubles as the page index; kind lists are
