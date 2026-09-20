@@ -15,6 +15,7 @@ import { runCpp2ilSnapshot } from "./recover";
 import { registerInput } from "./register";
 import { runScanCommand } from "./scan";
 import { runGameUpdate } from "./game-update";
+import { acceptUpdate } from "./accept-update";
 
 const HELP = `Usage:
   bun run compendium update --config FILE --version VERSION
@@ -26,6 +27,7 @@ const HELP = `Usage:
   bun run compendium game-map --store DIRECTORY --plan FILE [--candidate]
   bun run compendium catalog --store DIRECTORY --plan FILE [--candidate]
   bun run compendium publish --store DIRECTORY --output DIRECTORY --plan FILE [--candidate]
+  bun run compendium accept-update --store DIRECTORY --report FILE --publication-root DIRECTORY --baseline-root DIRECTORY [--expected HASH]
   bun run compendium preview
   bun run compendium deploy PUBLICATION_ROOT [ORIGIN]
 
@@ -43,6 +45,7 @@ const { values, positionals } = parseArgs({
     plan: { type: "string", multiple: true }, output: { type: "string" },
     store: { type: "string" }, file: { type: "string" }, schema: { type: "string" },
     build: { type: "string" }, version: { type: "string" }, cpp2il: { type: "string" },
+    report: { type: "string" }, "publication-root": { type: "string" }, "baseline-root": { type: "string" }, expected: { type: "string" },
     candidate: { type: "boolean", default: false },
   },
 });
@@ -62,7 +65,7 @@ async function runSiteCommand(command: string[], cwd: string): Promise<void> {
 async function main(): Promise<void> {
   const command = positionals[0];
   if (values.help || command === undefined) { console.log(HELP); return; }
-  const known = ["update", "recover", "scan", "capture", "register", "pyramid", "game-map", "catalog", "publish", "preview", "deploy"];
+  const known = ["update", "recover", "scan", "capture", "register", "pyramid", "game-map", "catalog", "publish", "accept-update", "preview", "deploy"];
   if (!known.includes(command)) throw new Error(`Unknown command: ${command}. Use --help.`);
   if (command === "preview") {
     allowOptions(command, []);
@@ -90,6 +93,23 @@ async function main(): Promise<void> {
     if (!values.config || !values.cpp2il) throw new Error("recover requires --config and --cpp2il.");
     const config = await loadConfig(values.config);
     console.log(JSON.stringify({ ok: true, ...await runCpp2ilSnapshot(config, values.cpp2il) }, null, 2));
+    return;
+  }
+  if (command === "accept-update") {
+    allowOptions(command, ["store", "report", "publication-root", "baseline-root", "expected"]);
+    if (!values.store || !values.report || !values["publication-root"] || !values["baseline-root"]) throw new Error("accept-update requires --store, --report, --publication-root, and --baseline-root.");
+    const root = resolve(import.meta.dir, "../../..");
+    const result = await acceptUpdate({
+      storeRoot: resolve(values.store), reportPath: resolve(values.report), publicationRoot: resolve(values["publication-root"]), baselineRoot: resolve(values["baseline-root"]), expectedDescriptorSha256: values.expected,
+      stage: async (publicationRoot, _siteDirectory, baselineRoot) => {
+        const child = Bun.spawn(["bun", resolve(root, "apps/site/scripts/stage-publication.ts"), publicationRoot, baselineRoot], { cwd: root, stdout: "pipe", stderr: "inherit" });
+        const output = await new Response(child.stdout).text();
+        const exitCode = await child.exited;
+        if (exitCode !== 0) throw new Error(`Production staging failed with exit code ${exitCode}.`);
+        return JSON.parse(output);
+      },
+    });
+    console.log(JSON.stringify({ ok: true, descriptor: result }, null, 2));
     return;
   }
   if (command === "register") {

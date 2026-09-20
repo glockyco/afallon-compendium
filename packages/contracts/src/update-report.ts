@@ -99,6 +99,25 @@ const UpdateReportDefinition = Type.Object({
 export const UpdateReportSchema = schemaRegistry.register("compendium.update-report.v1", UpdateReportDefinition).schema;
 export type UpdateReport = Static<typeof UpdateReportSchema>;
 
+export const AcceptedBuildDescriptorSchema = schemaRegistry.register("compendium.accepted-build.v1", Type.Object({
+  schemaVersion: Type.Literal("compendium.accepted-build.v1"),
+  acceptedAt: NonEmptyString,
+  releaseVersion: NonEmptyString,
+  buildId: NonEmptyString,
+  report: ContentIdentitySchema,
+  catalog: Type.Object({ catalogId: Sha256, manifest: ContentIdentitySchema, object: ContentIdentitySchema }, { additionalProperties: false }),
+  publication: Type.Object({
+    manifest: ContentIdentitySchema,
+    root: Type.Object({ path: NonEmptyString, sha256: Sha256, bytes: Type.Integer({ minimum: 0 }), schemaId: Type.Literal("compendium.static-root.v3") }, { additionalProperties: false }),
+  }, { additionalProperties: false }),
+  stage: Type.Object({
+    schemaVersion: Type.Literal("afallon.deployment.v2"), publicationId: Sha256, buildId: NonEmptyString, catalogId: Sha256,
+    mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]), coverageComplete: Type.Boolean(), selectionSha256: Sha256, publicationSha256: Sha256,
+  }, { additionalProperties: false }),
+  rollback: Type.Union([Type.Null(), Type.Object({ descriptor: ContentIdentitySchema, buildId: NonEmptyString, publicationId: Sha256 }, { additionalProperties: false })]),
+}, { additionalProperties: false })).schema;
+export type AcceptedBuildDescriptor = Static<typeof AcceptedBuildDescriptorSchema>;
+
 function assertCompleteSet(values: readonly string[], required: readonly string[], label: string): void {
   const observed = new Set(values);
   if (observed.size !== values.length) throw new Error(`Update report repeats a ${label}.`);
