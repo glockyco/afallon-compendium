@@ -13,8 +13,10 @@ import { loadConfig } from "./config";
 import { runPublishCommand } from "./publish";
 import { registerInput } from "./register";
 import { runScanCommand } from "./scan";
+import { runSteamUpdate } from "./update";
 
 const HELP = `Usage:
+  bun run compendium update --config FILE --version VERSION
   bun run compendium scan --config FILE --plan FILE [--candidate]
   bun run compendium capture --config FILE --plan FILE [--plan FILE ...] [--candidate]
   bun run compendium register --store DIRECTORY --build ID --file FILE [--schema ID] [--candidate]
@@ -37,7 +39,7 @@ const { values, positionals } = parseArgs({
     help: { type: "boolean", short: "h" }, config: { type: "string" },
     plan: { type: "string", multiple: true }, output: { type: "string" },
     store: { type: "string" }, file: { type: "string" }, schema: { type: "string" },
-    build: { type: "string" }, candidate: { type: "boolean", default: false },
+    build: { type: "string" }, version: { type: "string" }, candidate: { type: "boolean", default: false },
   },
 });
 
@@ -56,7 +58,7 @@ async function runSiteCommand(command: string[], cwd: string): Promise<void> {
 async function main(): Promise<void> {
   const command = positionals[0];
   if (values.help || command === undefined) { console.log(HELP); return; }
-  const known = ["scan", "capture", "register", "pyramid", "catalog", "publish", "preview", "deploy"];
+  const known = ["update", "scan", "capture", "register", "pyramid", "catalog", "publish", "preview", "deploy"];
   if (!known.includes(command)) throw new Error(`Unknown command: ${command}. Use --help.`);
   if (command === "preview") {
     allowOptions(command, []);
@@ -72,6 +74,13 @@ async function main(): Promise<void> {
     return;
   }
   if (positionals.length !== 1) throw new Error(`${command} does not accept positional operands.`);
+  if (command === "update") {
+    allowOptions(command, ["config", "version"]);
+    if (!values.config || !values.version) throw new Error("update requires --config and --version.");
+    const config = await loadConfig(values.config);
+    console.log(JSON.stringify({ ok: true, ...await runSteamUpdate({ config, releaseVersion: values.version }) }, null, 2));
+    return;
+  }
   if (command === "register") {
     allowOptions(command, ["store", "build", "file", "schema", "candidate"]);
     if (!values.store || !values.build || !values.file) throw new Error("register requires --store, --build, and --file.");

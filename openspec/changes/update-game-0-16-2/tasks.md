@@ -1,7 +1,7 @@
 ## 1. Installation update boundary
 
 - [x] 1.1 Add typed Steam manifest and appended-log readers for app 2597810. Cover wrong app IDs, missing fields, unfinished state, successful removal, suspended work, and unrelated log entries with focused tests.
-- [ ] 1.2 Add `compendium update --config FILE --version VERSION`. Start or reuse Steam through CrossOver, request `steam://validate/2597810`, and wait for successful scheduler and manifest completion. Verify updated, already-current, timeout, failed-result, and delayed-manifest cases with a temporary bottle and scripted process runner.
+- [x] 1.2 Add `compendium update --config FILE --version VERSION`. Start or reuse Steam through CrossOver, request `steam://validate/2597810`, and wait for successful scheduler and manifest completion. Verify updated, already-current, timeout, failed-result, and delayed-manifest cases with a temporary bottle and scripted process runner.
 - [ ] 1.3 Register an immutable update receipt with previous and current manifests, extraction input hashes, release label, and completion evidence. Verify a failed update writes no success receipt and changes no artifact reference.
 - [ ] 1.4 Run the command for Afallon 0.16.2. Confirm the installed manifest reports `StateFlags` 4, record the new Steam build and hashes, and confirm `buildIdentity` returns the receipt identity.
 
