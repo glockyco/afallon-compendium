@@ -13,6 +13,17 @@ test("decodes every supported canonical gameplay enum", () => {
   for (const [taskTypeValue, taskType] of ["enterScene", "enterRegion", "learnAbility", "learnRecipe", "killNPC", "getItem", "reachLevel", "reachSkillLevel", "useItem", "talkToNPC", "reachWeaponTemplateLevel", "killNPCFamily"].entries()) expect(decodeTaskGameplay({ taskType, taskTypeValue }, reference, `/tasks/${taskTypeValue}/gameplay`).issues).toEqual([]);
 });
 
+test("validates adventurer roles and flight network references", () => {
+  const gameplay = {
+    npcType: enumValue(9, "ADVENTURER"), creatureType: enumValue(2, "HUMANOID"), hunterBeastRole: enumValue(1, "Guardian"), isFlightMaster: true, flightStopId: "camp",
+    adventurer: { authored: true, classId: 1, preferredTreeId: 3, keepPhaseAbilities: true, raceId: 6, aiLogicTemplateKey: "Templates/Healer", specialization: { available: true, classId: 1, role: enumValue(2, "Healer"), preferredTreeId: 3, behaviorName: "Support", priorityAbilities: [10], blockedAbilities: [], blockedBonuses: [], allowedForms: [] } },
+    flightNetwork: { available: true, networkId: "Afallon", sceneName: "Coalway outdoors", mapWorldBounds: { x: 0, y: 0, width: 100, height: 100 }, minimumFlyoverHeight: 40, currencyId: 1, stops: [{ id: "camp", name: "Camp", landingPosition: { x: 1, y: 2, z: 3 }, landingYaw: 90, knownInitially: true }], routes: [{ from: "camp", to: "missing", bidirectional: true, fare: 5, speed: 20, departureCruiseWaypoint: 0, arrivalCruiseWaypoint: 1, waypoints: [] }] },
+  };
+  expect(decodeNpcGameplay(gameplay, reference, "/npcs/0/gameplay").issues).toEqual([{ path: "/npcs/0/gameplay/flightNetwork/routes/0/to", detail: "Flight route references missing stop missing." }]);
+  gameplay.adventurer.specialization.role = enumValue(7, "Unknown");
+  expect(decodeNpcGameplay(gameplay, reference, "/npcs/0/gameplay").issues[0]).toEqual({ path: "/npcs/0/gameplay/adventurer/specialization/role", detail: "Unsupported enum value 7 (Unknown)." });
+});
+
 test("decodes projected gem data without inventing absent values", () => {
   const decoded = decodeItemGameplay({ gemDataAvailable: true, gemData: { socketType: "", gemSocketType: { available: true, name: "Blue Gem" }, statsAvailable: true, stats: [{ statId: 27, amount: 8, isPercent: false }] } }, reference, "/items/0/gameplay");
   expect(decoded.value.gemData).toEqual({ socketType: "", gemSocketType: { available: true, name: "Blue Gem" }, statsAvailable: true, stats: [{ statId: 27, amount: 8, isPercent: false }] });

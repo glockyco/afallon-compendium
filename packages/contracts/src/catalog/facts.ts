@@ -62,6 +62,15 @@ export interface CatalogItemFacts {
   gearSet: CatalogEndpoint | null;
 }
 
+export interface CatalogNpcAdventurer {
+  class: CatalogEndpoint | null; race: CatalogEndpoint | null; preferredTree: CatalogEndpoint | null; keepPhaseAbilities: boolean; aiLogicTemplateKey: string | null;
+  specialization: { class: CatalogEndpoint | null; role: string; preferredTree: CatalogEndpoint | null; behaviorName: string | null; priorityAbilities: CatalogEndpoint[]; blockedAbilities: CatalogEndpoint[]; blockedBonuses: number[]; allowedForms: number[] } | null;
+}
+export interface CatalogNpcFlightNetwork {
+  resourcePath: string | null; stopId: string | null; interactionDistance: number | null; networkId: string; sceneName: string; mapWorldBounds: { x: number; y: number; width: number; height: number }; minimumFlyoverHeight: number; currency: CatalogEndpoint | null;
+  stops: Array<{ id: string; name: string; landingPosition: { x: number; y: number; z: number }; landingYaw: number; knownInitially: boolean }>;
+  routes: Array<{ from: string; to: string; bidirectional: boolean; fare: number; speed: number; departureCruiseWaypoint: number; arrivalCruiseWaypoint: number; waypoints: Array<{ x: number; y: number; z: number }> }>;
+}
 export interface CatalogNpcFacts {
   entityKey: string;
   minLevel: number | null;
@@ -75,6 +84,14 @@ export interface CatalogNpcFacts {
   isMerchant: boolean;
   isQuestGiver: boolean;
   isCombatEnabled: boolean;
+  isAuctioneer: boolean;
+  isBanker: boolean;
+  isFlightMaster: boolean;
+  hunterTamable: boolean;
+  hunterBeastRole: string | null;
+  equipmentAppearanceSelections: string | null;
+  adventurer: CatalogNpcAdventurer | null;
+  flightNetwork: CatalogNpcFlightNetwork | null;
   minRespawn: number | null;
   maxRespawn: number | null;
   minExperience: number | null;

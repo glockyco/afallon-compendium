@@ -22,6 +22,16 @@ function admitted(gearSetGameplay: unknown): AdmittedCatalog {
   } as unknown as AdmittedCatalog;
 }
 
+function admittedNpc(npcGameplay: unknown): AdmittedCatalog {
+  return {
+    canonical: { value: { items: [], npcs: [{ nativeId: 399, gameplay: npcGameplay }], quests: [], scenes: [], regions: [], properties: [], stats: [] }, reference },
+    relationships: { value: { tasks: [] }, reference },
+    lootRules: { value: { itemLevels: [] }, reference },
+    support: { value: { tables: {} }, reference },
+    artwork: null,
+  } as unknown as AdmittedCatalog;
+}
+
 const gameplay = {
   itemsInSet: [{ sourceIndex: 0, itemId: 538 }, { sourceIndex: 1, itemId: 539 }],
   gearSetTiers: [
@@ -47,6 +57,21 @@ test("resolves every gear set member and tier stat to its entity", () => {
     [0, "Dodge chance", 10, false],
     [1, "Health", 200, false],
   ]);
+});
+
+test("normalizes adventurer references and an authored flight network", () => {
+  const npcGameplay = {
+    npcType: { value: 9, name: "ADVENTURER" }, creatureType: { value: 2, name: "HUMANOID" }, isFlightMaster: true, flightNetworkResourcePath: "FlightPaths/Afallon Flight Network 1", flightStopId: "camp", flightInteractionDistance: 8,
+    adventurer: { authored: true, classId: 1, preferredTreeId: 3, keepPhaseAbilities: true, raceId: 6, aiLogicTemplateKey: "Templates/Healer", specialization: { available: true, classId: 1, role: { value: 2, name: "Healer" }, preferredTreeId: 3, behaviorName: "Support", priorityAbilities: [10], blockedAbilities: [11], blockedBonuses: [2], allowedForms: [4] } },
+    flightNetwork: { available: true, networkId: "Afallon", sceneName: "Coalway outdoors", mapWorldBounds: { x: 0, y: 0, width: 100, height: 100 }, minimumFlyoverHeight: 40, currencyId: 5, stops: [{ id: "camp", name: "Camp", landingPosition: { x: 1, y: 2, z: 3 }, landingYaw: 90, knownInitially: true }], routes: [{ from: "camp", to: "camp", bidirectional: true, fare: 5, speed: 20, departureCruiseWaypoint: 0, arrivalCruiseWaypoint: 0, waypoints: [] }] },
+  };
+  const entities = [entity("npcs", 399, "Skywarden"), entity("classes", 1, "Cleric"), entity("races", 6, "Human"), entity("talentTrees", 3, "Restoration"), entity("abilities", 10, "Heal"), entity("abilities", 11, "Strike"), entity("currencies", 5, "Silver")];
+  const blockers: Blocker[] = [];
+  const rows = collectTypedFacts(admittedNpc(npcGameplay), entities, [] as NormalizedDatabaseInput["bindings"], [], blockers);
+
+  expect(blockers).toEqual([]);
+  expect(rows.npcFacts[0]?.adventurer).toMatchObject({ class: { entityKey: "classes:1", label: "Cleric" }, race: { entityKey: "races:6", label: "Human" }, preferredTree: { entityKey: "talentTrees:3", label: "Restoration" }, specialization: { role: "Healer", priorityAbilities: [{ entityKey: "abilities:10", label: "Heal" }] } });
+  expect(rows.npcFacts[0]?.flightNetwork).toMatchObject({ networkId: "Afallon", stopId: "camp", currency: { entityKey: "currencies:5", label: "Silver" }, stops: [{ id: "camp" }] });
 });
 
 test("keeps an unresolvable gear set member as an unresolved endpoint and a coverage issue", () => {

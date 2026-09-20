@@ -19,6 +19,20 @@ const MovementSchema = Type.Union([
   Type.Object({ kind: Type.Literal("patrol"), patrolPathName: text, patrolPathNames: Type.Array(text), randomPath: boolean, pauseAtFirstPointSeconds: number, pauseAtLastPointSeconds: number, pauseAtPointSeconds: number }),
 ]);
 const BehaviorSchema = Type.Object({ behaviorIndex: integer, chance: number, name: text, defaultStateType: Type.Union([text, Type.Null()]), defaultStateTemplateType: Type.Union([text, Type.Null()]), movement: MovementSchema });
+const AdventurerSpecializationSchema = Type.Union([
+  Type.Object({ available: Type.Literal(false) }),
+  Type.Object({ available: Type.Literal(true), classId: integer, role: valueEnum, preferredTreeId: integer, behaviorName: nullableText, priorityAbilities: Type.Array(integer), blockedAbilities: Type.Array(integer), blockedBonuses: Type.Array(integer), allowedForms: Type.Array(integer) }),
+]);
+const AdventurerSchema = Type.Object({ authored: boolean, classId: integer, preferredTreeId: integer, keepPhaseAbilities: boolean, raceId: integer, specialization: AdventurerSpecializationSchema, aiLogicTemplateKey: nullableText });
+const Vector3Schema = Type.Object({ x: number, y: number, z: number });
+const FlightNetworkSchema = Type.Union([
+  Type.Object({ available: Type.Literal(false), reason: text }),
+  Type.Object({
+    available: Type.Literal(true), networkId: text, sceneName: text, mapWorldBounds: Type.Object({ x: number, y: number, width: number, height: number }), minimumFlyoverHeight: number, currencyId: Type.Union([integer, Type.Null()]),
+    stops: Type.Array(Type.Object({ id: text, name: text, landingPosition: Vector3Schema, landingYaw: number, knownInitially: boolean })),
+    routes: Type.Array(Type.Object({ from: text, to: text, bidirectional: boolean, fare: number, speed: number, departureCruiseWaypoint: integer, arrivalCruiseWaypoint: integer, waypoints: Type.Array(Vector3Schema) })),
+  }),
+]);
 
 export const ItemGameplaySchema = Type.Object({
   itemType: optional(availableEnum), armorSlot: optional(availableEnum), weaponType: optional(availableEnum), armorType: optional(availableEnum), weaponSlot: optional(availableEnum), rarity: optional(availableEnum),
@@ -33,6 +47,8 @@ export type ItemGameplay = Static<typeof ItemGameplaySchema>;
 
 export const NpcGameplaySchema = Type.Object({
   npcType: optional(valueEnum), creatureType: optional(valueEnum), npcFamily: optional(availableEnum), factionId: optional(integer), speciesId: optional(integer),
+  hunterTamable: optional(boolean), hunterBeastRole: optional(valueEnum), equipmentAppearanceSelections: optional(text), adventurer: optional(AdventurerSchema),
+  isAuctioneer: optional(boolean), isBanker: optional(boolean), isFlightMaster: optional(boolean), flightNetworkResourcePath: optional(nullableText), flightStopId: optional(nullableText), flightInteractionDistance: optional(number), flightNetwork: optional(FlightNetworkSchema),
   minLevel: optional(integer), maxLevel: optional(integer), aiPhases: optional(Type.Array(Type.Object({ phaseIndex: integer, name: nullableText, requirement: optional(nullableText), abilityIds: Type.Array(integer), behaviors: optional(Type.Array(BehaviorSchema)) }))),
   guideStats: optional(Type.Array(Type.Object({ statId: integer, value: number }))), stats: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), statId: integer, minValue: optional(number), maxValue: optional(number), baseValue: optional(number), bonusPerLevel: optional(number) }))),
   isScalingWithPlayer: optional(boolean), minExperience: optional(number), maxExperience: optional(number), minRespawn: optional(number), maxRespawn: optional(number),
@@ -121,6 +137,8 @@ const creatureTypes = ["NONE", "BEAST", "HUMANOID", "UNDEAD", "DEMON", "DRAGONKI
 const taskTypes = ["enterScene", "enterRegion", "learnAbility", "learnRecipe", "killNPC", "getItem", "reachLevel", "reachSkillLevel", "useItem", "talkToNPC", "reachWeaponTemplateLevel", "killNPCFamily"] as const;
 const rewardTypes = ["item", "currency", "treePoint", "Experience", "FactionPoint", "weaponTemplateEXP"] as const;
 const propertyTypes = ["House", "Business"] as const;
+const hunterBeastRoles = ["Ravager", "Guardian", "Scout"] as const;
+const adventurerRoles = ["Damage", "Tank", "Healer"] as const;
 
 function decode<T extends TSchema>(schema: T, value: unknown, reference: ArtifactReference, path: string): Static<T> {
   return decodeContract(schema, value, { objectId: reference.sha256, target: `${reference.path}${path}` });
@@ -153,7 +171,19 @@ export function decodeItemGameplay(value: unknown, reference: ArtifactReference,
 export function decodeNpcGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<NpcGameplay> {
   const decoded = decode(NpcGameplaySchema, value, reference, path), issues: GameplayCoverageIssue[] = [];
   valueEnumIssue(decoded.npcType, npcTypes, `${path}/npcType`, issues); valueEnumIssue(decoded.creatureType, creatureTypes, `${path}/creatureType`, issues);
+  valueEnumIssue(decoded.hunterBeastRole, hunterBeastRoles, `${path}/hunterBeastRole`, issues);
+  if (decoded.adventurer?.specialization.available) valueEnumIssue(decoded.adventurer.specialization.role, adventurerRoles, `${path}/adventurer/specialization/role`, issues);
   for (const field of ["npcFamily", "lootSpecializationArmorType", "lootSpecializationWeaponType", "lootSpecializationWeaponType2", "lootSpecializationWeaponType3"] as const) if (decoded[field]?.available) availableEnumName(decoded[field], `${path}/${field}`, issues);
+  if (decoded.isFlightMaster && !decoded.flightNetwork?.available) issues.push({ path: `${path}/flightNetwork`, detail: decoded.flightNetwork?.reason ?? "Flight master has no flight network evidence." });
+  if (decoded.flightNetwork?.available) {
+    const stops = new Set(decoded.flightNetwork.stops.map((stop) => stop.id));
+    if (stops.size !== decoded.flightNetwork.stops.length) issues.push({ path: `${path}/flightNetwork/stops`, detail: "Flight network contains duplicate stop IDs." });
+    if (decoded.isFlightMaster && (!decoded.flightStopId || !stops.has(decoded.flightStopId))) issues.push({ path: `${path}/flightStopId`, detail: `Flight master stop ${decoded.flightStopId ?? "<empty>"} is absent from its network.` });
+    decoded.flightNetwork.routes.forEach((route, index) => {
+      if (!stops.has(route.from)) issues.push({ path: `${path}/flightNetwork/routes/${index}/from`, detail: `Flight route references missing stop ${route.from}.` });
+      if (!stops.has(route.to)) issues.push({ path: `${path}/flightNetwork/routes/${index}/to`, detail: `Flight route references missing stop ${route.to}.` });
+    });
+  }
   return { value: decoded, issues };
 }
 export function decodeQuestGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<QuestGameplay> {

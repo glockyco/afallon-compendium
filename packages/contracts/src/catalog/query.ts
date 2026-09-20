@@ -68,10 +68,20 @@ export interface NormalizedItemStat { entityKey: string; statIndex: number; stat
 export interface NormalizedItemRandomStat { entityKey: string; statIndex: number; stat: NormalizedReference; min: number; max: number; isPercent: boolean; whole: boolean; chance: number | null; provenance: ProvenanceReference[] }
 export interface NormalizedItemGemStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
 export interface NormalizedItemSocket { entityKey: string; socketIndex: number; socketType: string | null; gemType: string | null; provenance: ProvenanceReference[] }
+export interface NormalizedNpcAdventurer {
+  class: NormalizedReference | null; race: NormalizedReference | null; preferredTree: NormalizedReference | null; keepPhaseAbilities: boolean; aiLogicTemplateKey: string | null;
+  specialization: { class: NormalizedReference | null; role: string; preferredTree: NormalizedReference | null; behaviorName: string | null; priorityAbilities: NormalizedReference[]; blockedAbilities: NormalizedReference[]; blockedBonuses: number[]; allowedForms: number[] } | null;
+}
+export interface NormalizedNpcFlightNetwork {
+  resourcePath: string | null; stopId: string | null; interactionDistance: number | null; networkId: string; sceneName: string; mapWorldBounds: { x: number; y: number; width: number; height: number }; minimumFlyoverHeight: number; currency: NormalizedReference | null;
+  stops: Array<{ id: string; name: string; landingPosition: { x: number; y: number; z: number }; landingYaw: number; knownInitially: boolean }>;
+  routes: Array<{ from: string; to: string; bidirectional: boolean; fare: number; speed: number; departureCruiseWaypoint: number; arrivalCruiseWaypoint: number; waypoints: Array<{ x: number; y: number; z: number }> }>;
+}
 export interface NormalizedNpcFact {
   entityKey: string; minLevel: number | null; maxLevel: number | null; scalesWithPlayer: boolean; npcType: string | null; creatureType: string | null; family: string | null;
-  faction: NormalizedReference | null; species: NormalizedReference | null; isMerchant: boolean; isQuestGiver: boolean; isCombatEnabled: boolean; minRespawn: number | null; maxRespawn: number | null;
+  faction: NormalizedReference | null; species: NormalizedReference | null; isMerchant: boolean; isQuestGiver: boolean; isCombatEnabled: boolean; isAuctioneer: boolean; isBanker: boolean; isFlightMaster: boolean; minRespawn: number | null; maxRespawn: number | null;
   minExperience: number | null; maxExperience: number | null; immuneToStun: boolean; immuneToSlow: boolean; aggroRange: number | null; linkedNpc: NormalizedReference | null;
+  hunterTamable: boolean; hunterBeastRole: string | null; equipmentAppearanceSelections: string | null; adventurer: NormalizedNpcAdventurer | null; flightNetwork: NormalizedNpcFlightNetwork | null;
   lootSpecialization: { armorType: string | null; weaponTypes: string[]; stat: NormalizedReference | null } | null; provenance: ProvenanceReference[];
 }
 export interface NormalizedNpcStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }

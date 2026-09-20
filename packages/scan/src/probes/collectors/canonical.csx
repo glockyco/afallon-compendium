@@ -419,6 +419,92 @@ if (npcs != null)
             }
         }
 
+        var specialization = npc.AdventurerSpecialization;
+        object npcAdventurerSpecialization;
+        if (specialization == null)
+        {
+            npcAdventurerSpecialization = new { available = false };
+        }
+        else
+        {
+            var priorityAbilities = new System.Collections.Generic.List<int>();
+            var blockedAbilities = new System.Collections.Generic.List<int>();
+            var blockedBonuses = new System.Collections.Generic.List<int>();
+            var allowedForms = new System.Collections.Generic.List<int>();
+            if (specialization.PriorityAbilities != null) foreach (var id in specialization.PriorityAbilities) priorityAbilities.Add(id);
+            if (specialization.BlockedAbilities != null) foreach (var id in specialization.BlockedAbilities) blockedAbilities.Add(id);
+            if (specialization.BlockedBonuses != null) foreach (var id in specialization.BlockedBonuses) blockedBonuses.Add(id);
+            if (specialization.AllowedForms != null) foreach (var id in specialization.AllowedForms) allowedForms.Add(id);
+            npcAdventurerSpecialization = new
+            {
+                available = true,
+                classId = specialization.ClassID,
+                role = new { value = (int)specialization.Role, name = specialization.Role.ToString() },
+                preferredTreeId = specialization.PreferredTreeID,
+                behaviorName = specialization.Behavior == null ? null : (specialization.Behavior.entryDisplayName ?? specialization.Behavior.entryName),
+                priorityAbilities,
+                blockedAbilities,
+                blockedBonuses,
+                allowedForms
+            };
+        }
+
+        object npcFlightNetwork;
+        if (!npc.isFlightMaster && string.IsNullOrEmpty(npc.FlightNetworkResourcePath))
+        {
+            npcFlightNetwork = new { available = false, reason = "not authored" };
+        }
+        else
+        {
+            try
+            {
+                var network = npc.GetFlightNetwork();
+                if (network == null)
+                {
+                    npcFlightNetwork = new { available = false, reason = "authored network did not resolve" };
+                }
+                else
+                {
+                    var stops = new System.Collections.Generic.List<object>();
+                    var routes = new System.Collections.Generic.List<object>();
+                    if (network.Stops != null)
+                    {
+                        foreach (var stop in network.Stops)
+                        {
+                            if (stop == null) continue;
+                            stops.Add(new { id = stop.ID, name = stop.Name, landingPosition = new { x = stop.LandingPosition.x, y = stop.LandingPosition.y, z = stop.LandingPosition.z }, landingYaw = stop.LandingYaw, knownInitially = stop.KnownInitially });
+                        }
+                    }
+                    if (network.Routes != null)
+                    {
+                        foreach (var route in network.Routes)
+                        {
+                            if (route == null) continue;
+                            var waypoints = new System.Collections.Generic.List<object>();
+                            if (route.Waypoints != null) foreach (var point in route.Waypoints) waypoints.Add(new { x = point.x, y = point.y, z = point.z });
+                            routes.Add(new { from = route.From, to = route.To, bidirectional = route.Bidirectional, fare = route.Fare, speed = route.Speed, departureCruiseWaypoint = route.DepartureCruiseWaypoint, arrivalCruiseWaypoint = route.ArrivalCruiseWaypoint, waypoints });
+                        }
+                    }
+                    var bounds = network.MapWorldBounds;
+                    npcFlightNetwork = new
+                    {
+                        available = true,
+                        networkId = network.NetworkID,
+                        sceneName = network.SceneName,
+                        mapWorldBounds = new { x = bounds.x, y = bounds.y, width = bounds.width, height = bounds.height },
+                        minimumFlyoverHeight = network.MinimumFlyoverHeight,
+                        currencyId = network.Currency == null ? (int?)null : network.Currency.ID,
+                        stops,
+                        routes
+                    };
+                }
+            }
+            catch (System.Exception error)
+            {
+                npcFlightNetwork = new { available = false, reason = error.GetType().FullName + ": " + error.Message };
+            }
+        }
+
         canonicalNpcs.Add(new
         {
             sourceKey = npcPair.Key,
@@ -444,6 +530,9 @@ if (npcs != null)
                 entryFileName = npc.entryFileName,
                 entryDescription = npc.entryDescription,
                 factionTitle = npc.factionTitle,
+                bankText = npc.BankText,
+                auctionText = npc.AuctionText,
+                flightText = npc.FlightText,
                 merchantText = npc.MerchantText,
                 questText = npc.QuestText,
                 dialogueText = npc.DialogueText,
@@ -456,6 +545,19 @@ if (npcs != null)
             {
                 npcType = new { value = (int)npc.npcType, name = npc.npcType.ToString() },
                 creatureType = new { value = (int)npc.creatureType, name = npc.creatureType.ToString() },
+                hunterTamable = npc.HunterTamable,
+                hunterBeastRole = new { value = (int)npc.HunterBeastRole, name = npc.HunterBeastRole.ToString() },
+                equipmentAppearanceSelections = npc.EquipmentAppearanceSelections,
+                adventurer = new
+                {
+                    authored = npc.npcType.ToString() == "ADVENTURER" || specialization != null,
+                    classId = npc.AdventurerClassID,
+                    preferredTreeId = npc.AdventurerPreferredTreeID,
+                    keepPhaseAbilities = npc.AdventurerKeepPhaseAbilities,
+                    raceId = npc.AdventurerRaceID,
+                    specialization = npcAdventurerSpecialization,
+                    aiLogicTemplateKey = npc.AILogicTemplateKey
+                },
                 npcFamily = npc.npcFamily == null ? (object)new { available = false } : new { available = true, nativeId = npc.npcFamily.ID, name = npc.npcFamily.entryDisplayName ?? npc.npcFamily.entryName },
                 factionId = npc.factionID,
                 speciesId = npc.speciesID,
@@ -480,6 +582,13 @@ if (npcs != null)
                 isTargetable = npc.isTargetable,
                 isNameplateEnabled = npc.isNameplateEnabled,
                 isPlayerInteractable = npc.isPlayerInteractable,
+                isAuctioneer = npc.isAuctioneer,
+                isBanker = npc.isBanker,
+                isFlightMaster = npc.isFlightMaster,
+                flightNetworkResourcePath = npc.FlightNetworkResourcePath,
+                flightStopId = npc.FlightStopID,
+                flightInteractionDistance = npc.FlightInteractionDistance,
+                flightNetwork = npcFlightNetwork,
                 isMerchant = npc.isMerchant,
                 isQuestGiver = npc.isQuestGiver,
                 isDialogue = npc.isDialogue,

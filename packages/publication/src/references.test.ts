@@ -11,7 +11,7 @@ const emptyRelations: CatalogRelations = { drops: [], vendors: [], gathers: [], 
 
 function npcFact(entityKey: string, level: number, abilities: CatalogNpcFacts["abilityPhases"] = []): CatalogNpcFacts {
   return { entityKey, minLevel: level, maxLevel: level, scalesWithPlayer: false, npcType: null, creatureType: null, family: null,
-    faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, minRespawn: null, maxRespawn: null,
+    faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null,
     minExperience: null, maxExperience: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: abilities,
     factionRewards: [], linkedNpc: null, lootSpecialization: null };
 }
@@ -28,7 +28,7 @@ test("disambiguates equal NPC names by level and freezes the reference map", () 
   const facts: CatalogFacts = { ...emptyFacts, entities,
     npcs: entities.map((row, index) => ({ entityKey: row.entityKey, minLevel: 21 + index, maxLevel: 21 + index, scalesWithPlayer: false,
       npcType: null, creatureType: null, family: null, faction: null, species: null, isMerchant: false, isQuestGiver: false,
-      isCombatEnabled: true, minRespawn: null, maxRespawn: null, minExperience: null, maxExperience: null, immuneToStun: false,
+      isCombatEnabled: true, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null, minExperience: null, maxExperience: null, immuneToStun: false,
       immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [], factionRewards: [], linkedNpc: null, lootSpecialization: null })),
   };
   const refs = buildEntityReferences(entities, { facts, relations: emptyRelations });
