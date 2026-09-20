@@ -114,7 +114,12 @@ export const AcceptedBuildDescriptorSchema = schemaRegistry.register("compendium
     schemaVersion: Type.Literal("afallon.deployment.v2"), publicationId: Sha256, buildId: NonEmptyString, catalogId: Sha256,
     mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]), coverageComplete: Type.Boolean(), selectionSha256: Sha256, publicationSha256: Sha256,
   }, { additionalProperties: false }),
-  rollback: Type.Union([Type.Null(), Type.Object({ descriptor: ContentIdentitySchema, buildId: NonEmptyString, publicationId: Sha256 }, { additionalProperties: false })]),
+  rollback: Type.Union([Type.Null(), Type.Object({
+    selection: ContentIdentitySchema,
+    acceptedDescriptor: Type.Optional(ContentIdentitySchema),
+    buildId: NonEmptyString,
+    publicationId: Sha256,
+  }, { additionalProperties: false })]),
 }, { additionalProperties: false })).schema;
 export type AcceptedBuildDescriptor = Static<typeof AcceptedBuildDescriptorSchema>;
 

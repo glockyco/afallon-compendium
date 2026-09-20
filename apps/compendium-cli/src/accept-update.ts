@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, mkdir, open, readFile, rename, rm } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
 import { ArtifactStore, createArtifactLease, resolveArtifactRun } from "@afallon/artifacts";
 import { AcceptedBuildDescriptorSchema, canonicalJson, validateUpdateReport, type AcceptedBuildDescriptor, type ContentIdentity } from "@afallon/contracts";
-import { StaticRootManifestSchema } from "@afallon/contracts/public";
+import { StaticResourceReferenceSchema, StaticRootManifestSchema } from "@afallon/contracts/public";
 export interface DeploymentMetadata {
   schemaVersion: "afallon.deployment.v2";
   publicationId: string;
@@ -32,6 +32,26 @@ async function optionalBytes(path: string): Promise<Buffer | null> {
 }
 
 function identity(bytes: Uint8Array): ContentIdentity { return { sha256: createHash("sha256").update(bytes).digest("hex"), bytes: bytes.byteLength }; }
+
+async function describeRollback(publicationRoot: string, selectionBytes: Buffer | null, acceptedDescriptor: ContentIdentity | null, prior: AcceptedBuildDescriptor | null): Promise<AcceptedBuildDescriptor["rollback"]> {
+  if (!selectionBytes) {
+    if (prior) throw new Error("Accepted-build descriptor exists without a selected publication.");
+    return null;
+  }
+  const parsed: unknown = JSON.parse(selectionBytes.toString("utf8"));
+  if (!parsed || typeof parsed !== "object" || !("root" in parsed) || !("directory" in parsed) || typeof parsed.directory !== "string") throw new Error("Selected publication is invalid.");
+  Assert(StaticResourceReferenceSchema, parsed.root);
+  if (parsed.root.schemaId !== "compendium.static-root.v3") throw new Error("Selected publication has an unsupported root schema.");
+  const rootPath = resolve(publicationRoot, parsed.directory, "publication.json");
+  const boundary = relative(publicationRoot, rootPath);
+  if (boundary === "" || boundary.startsWith("..") || isAbsolute(boundary)) throw new Error("Selected publication root escapes the publication directory.");
+  const rootBytes = await readFile(rootPath), rootIdentity = identity(rootBytes);
+  if (rootIdentity.sha256 !== parsed.root.sha256 || rootIdentity.bytes !== parsed.root.bytes) throw new Error("Selected publication root identity does not match its file.");
+  const rootValue: unknown = JSON.parse(rootBytes.toString("utf8"));
+  Assert(StaticRootManifestSchema, rootValue);
+  if (prior && (prior.buildId !== rootValue.buildId || prior.publication.root.sha256 !== rootIdentity.sha256)) throw new Error("Accepted-build descriptor does not match the selected publication.");
+  return { selection: identity(selectionBytes), ...(acceptedDescriptor ? { acceptedDescriptor } : {}), buildId: rootValue.buildId, publicationId: rootIdentity.sha256 };
+}
 
 async function replace(path: string, bytes: Uint8Array): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
@@ -73,6 +93,7 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
   const priorValue: unknown = previousDescriptorBytes ? JSON.parse(previousDescriptorBytes.toString("utf8")) : null;
   if (priorValue !== null) Assert(AcceptedBuildDescriptorSchema, priorValue);
   const prior = priorValue as AcceptedBuildDescriptor | null;
+  const rollback = await describeRollback(publicationRoot, previousSelection, previousDescriptorIdentity, prior);
   const candidateDirectory = join(publicationRoot, "publications", publicationOutput.content.sha256);
   const stat = await lstat(candidateDirectory);
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Candidate publication directory is unavailable.");
@@ -90,21 +111,19 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
       throw new Error("Staged production metadata does not match the accepted candidate.");
     }
     const lease = await createArtifactLease(store, { runId: randomUUID(), buildId: report.current.buildId, operation: "accept-update", objects: [], manifests: [report.artifacts.publication.content, report.artifacts.catalog.content] });
-    let reportIdentity: ContentIdentity, rollbackDescriptorIdentity = previousDescriptorIdentity;
+    let reportIdentity: ContentIdentity;
     try {
       const storedReport = await store.putBytes(reportBytes, lease);
       reportIdentity = { sha256: storedReport.sha256, bytes: storedReport.bytes };
-      if (previousDescriptorBytes) {
-        const storedDescriptor = await store.putBytes(previousDescriptorBytes, lease);
-        rollbackDescriptorIdentity = { sha256: storedDescriptor.sha256, bytes: storedDescriptor.bytes };
-      }
+      if (previousSelection) await store.putBytes(previousSelection, lease);
+      if (previousDescriptorBytes) await store.putBytes(previousDescriptorBytes, lease);
     } finally { await lease.release(); }
     const descriptor: AcceptedBuildDescriptor = {
       schemaVersion: "compendium.accepted-build.v1", acceptedAt: new Date().toISOString(), releaseVersion: report.releaseVersion, buildId: report.current.buildId,
       report: reportIdentity,
       catalog: { catalogId: plan.catalog.catalogId, manifest: plan.catalog.manifest, object: plan.catalog.object },
       publication: { manifest: report.artifacts.publication.content, root: selection.root }, stage: metadata,
-      rollback: rollbackDescriptorIdentity && prior ? { descriptor: rollbackDescriptorIdentity, buildId: prior.buildId, publicationId: prior.publication.root.sha256 } : null,
+      rollback,
     };
     Assert(AcceptedBuildDescriptorSchema, descriptor);
     await replace(descriptorPath, new TextEncoder().encode(`${canonicalJson(descriptor)}\n`));
