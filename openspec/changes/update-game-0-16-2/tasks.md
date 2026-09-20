@@ -8,8 +8,10 @@
 
 ## 2. Build comparison and discovery
 
-- [ ] 2.1 Add a pinned Cpp2IL snapshot command with ignored staging, atomic promotion, build-and-metadata-hash naming, a stable current pointer, and one-previous retention. Verify interrupted recovery preserves the prior pointer and same-build recovery is reproducible.
-- [ ] 2.2 Snapshot the 0.16.2 declarations and compare them with build 25153357. Record changed types and fields that can affect collectors, decoders, map identity, equipment, quests, NPCs, loot, stats, and travel.
+- [x] 2.1 Add a pinned Cpp2IL snapshot command with ignored staging, atomic promotion, build-and-metadata-hash naming, a stable current pointer, and one-previous retention. Verify interrupted recovery preserves the prior pointer and same-build recovery is reproducible.
+  - Snapshot `steam-25419293-373c53d331e7` uses pinned Cpp2IL `2022.1.0-development.1736+5fb2030.5fb20304df698ffd3d0e664b2a698cd911dc9d57`. Candidate registration run `88114ff5-c742-482a-b95c-ab8eac1a590c` binds its receipt.
+- [x] 2.2 Snapshot the 0.16.2 declarations and compare them with build 25153357. Record changed types and fields that can affect collectors, decoders, map identity, equipment, quests, NPCs, loot, stats, and travel.
+  - Comparison run `e05ecd8d-4a57-4557-96a3-611803f820ce` records 194 added, 1 removed, 431 modified, and 1,250 unchanged types. Contract-affecting changes include `RPGNpc` adventurer/economy/flight fields, `RPGClass.AllowedWeaponTypes`, `RPGBArmorSlot.ItemSlot`, `RPGStat.ProcCooldown`, major-region identity, and the new flight network. `RPGItem`, `RPGLootTable`, and `RPGWorldPosition` fields are unchanged.
 - [ ] 2.3 Launch 0.16.2 once to regenerate MelonLoader interop assemblies, then run a candidate current-scene scan. Verify the connected product and installation identity, and retain the inventory, canonical data, collector failures, and prior-build semantic comparison.
 - [x] 2.4 Add and validate the patch-specific update-report contract. Require immutable references for the update receipt, schema snapshot, build comparison, scans, reviewed inputs, catalog, publication, checks, and every 0.16.2 risk disposition.
 
