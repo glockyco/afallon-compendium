@@ -220,7 +220,7 @@ if (captureAction == "start")
     state["researchCharacter"] = researchCharacter;
     state["sceneNativeId"] = requestedSceneId;
     state["scenePath"] = requestedScenePath;
-    state["sceneHandle"] = currentScene.handle;
+    state["sceneHandle"] = (int)currentScene.handle;
     state["resourcePrefix"] = resourcePrefix;
     state["width"] = requestedWidth;
     state["height"] = requestedHeight;
@@ -374,7 +374,7 @@ if (captureAction == "start")
         state["captureTexture"] = captureTexture;
         captureTexture.name = resourcePrefix + ".Texture2D";
         fault("after-texture");
-        return new { schemaVersion = "compendium.capture-session.v8", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
+        return new { schemaVersion = "compendium.capture-session.v8", key = sessionKey, phase = "ready", ownerToken = ownerToken, sceneNativeId = requestedSceneId, scenePath = requestedScenePath, sceneHandle = (int)currentScene.handle, resourcePrefix = resourcePrefix, resources = new object[]
         {
             new { kind = "camera", instanceId = (int?)camera.GetInstanceID(), alive = camera != null && cameraGo != null },
             new { kind = "light", instanceId = (int?)light.GetInstanceID(), alive = light != null && lightGo != null },
@@ -404,7 +404,7 @@ cleanupFullPath = sessionCleanupFullPath;
 cleanupDirectory = System.IO.Path.GetDirectoryName(sessionCleanupFullPath);
 var sessionScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
 var sessionNativeScene = Il2Cpp.GameState.CurrentGameScene;
-if (!sessionScene.isLoaded || sessionNativeScene == null || sessionNativeScene.ID != (int)sessionState["sceneNativeId"] || sessionScene.path != (string)sessionState["scenePath"] || sessionScene.handle != (int)sessionState["sceneHandle"])
+if (!sessionScene.isLoaded || sessionNativeScene == null || sessionNativeScene.ID != (int)sessionState["sceneNativeId"] || sessionScene.path != (string)sessionState["scenePath"] || (int)sessionScene.handle != (int)sessionState["sceneHandle"])
     throw new System.InvalidOperationException("The active scene no longer matches the capture session.");
 
 var sessionCamera = sessionState["camera"] as UnityEngine.Camera;
@@ -857,7 +857,7 @@ try
         var stateTotal = 0; var stateEnabled = 0; var stateForcedOff = 0; var stateInactive = 0; var stateTallForcedOff = 0; var stateTallEnabled = 0;
         foreach (var r in UnityEngine.Object.FindObjectsOfType<UnityEngine.Renderer>(true))
         {
-            if (r == null || r.gameObject.scene.handle != (int)sessionState["sceneHandle"]) continue;
+            if (r == null || (int)r.gameObject.scene.handle != (int)sessionState["sceneHandle"]) continue;
             var b = r.bounds;
             if (b.max.x < frameMinX || b.min.x > frameMaxX || b.max.z < frameMinZ || b.min.z > frameMaxZ) continue;
             stateTotal++;

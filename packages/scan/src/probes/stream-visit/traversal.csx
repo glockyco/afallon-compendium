@@ -51,7 +51,7 @@ if (action == "start")
         throw new System.InvalidOperationException("This runtime owner already controls a stream visit.");
     }
 
-    if (scene.handle != requestedSceneHandle || !scene.isLoaded)
+    if ((int)scene.handle != requestedSceneHandle || !scene.isLoaded)
         throw new System.InvalidOperationException("sceneHandle must identify the loaded active scene.");
     requireCharacter();
     if (essentials == null || !essentials.SceneInitialized || loadingScreen == null || loadingScreen.isSceneLoading || Il2CppBLINK.RPGBuilder.Managers.LoadingScreenManager.HasSceneReadyHolds || nativeScene == null)

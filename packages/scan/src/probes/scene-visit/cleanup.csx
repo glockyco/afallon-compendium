@@ -38,7 +38,7 @@
 
         if (finalSceneId == (int)sceneVisitState["sourceSceneNativeId"])
         {
-            if (restoreRequested && currentScene.handle == (int)sceneVisitState["sourceSceneHandle"])
+            if (restoreRequested && (int)currentScene.handle == (int)sceneVisitState["sourceSceneHandle"])
                 return false;
             var sourcePosition = (UnityEngine.Vector3)sceneVisitState["sourcePosition"];
             var sourceRotation = (UnityEngine.Quaternion)sceneVisitState["sourceRotation"];

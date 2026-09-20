@@ -68,7 +68,7 @@ var sceneIsReady = new System.Func<bool>(() =>
 var ensureSameScene = new System.Action<System.Collections.Generic.Dictionary<string, object>>((state) =>
 {
     var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-    if (!currentScene.isLoaded || currentScene.handle != (int)state["sceneHandle"] || currentScene.path != (string)state["scenePath"])
+    if (!currentScene.isLoaded || (int)currentScene.handle != (int)state["sceneHandle"] || currentScene.path != (string)state["scenePath"])
         throw new System.InvalidOperationException("The active scene changed during the stream visit.");
     var expectedNativeIdValue = state["nativeSceneId"];
     var currentNativeScene = Il2Cpp.GameState.CurrentGameScene;

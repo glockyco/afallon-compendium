@@ -507,7 +507,7 @@ return new
     visualPolicy = "compendium.capture-visual-policy.v5",
     excludedRenderers = excludedRenderers.ToArray(),
     frame = UnityEngine.Time.frameCount,
-    scene = new { nativeId = (int)nativeScene.ID, handle = scene.handle, path = scene.path, ready = sceneReady },
+    scene = new { nativeId = (int)nativeScene.ID, handle = (int)scene.handle, path = scene.path, ready = sceneReady },
     frustum = boundsObject(frustum),
     preloadEnvelope = new { center = vector(preloadCenter), radius = preloadRadius },
     nativeNeedsPreload = nativeNeedsPreload,

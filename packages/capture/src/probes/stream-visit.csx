@@ -68,7 +68,7 @@ var sceneIsReady = new System.Func<bool>(() =>
 var ensureSameScene = new System.Action<System.Collections.Generic.Dictionary<string, object>>((state) =>
 {
     var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-    if (!currentScene.isLoaded || currentScene.handle != (int)state["sceneHandle"] || currentScene.path != (string)state["scenePath"])
+    if (!currentScene.isLoaded || (int)currentScene.handle != (int)state["sceneHandle"] || currentScene.path != (string)state["scenePath"])
         throw new System.InvalidOperationException("The active scene changed during the stream visit.");
     var expectedNativeIdValue = state["nativeSceneId"];
     var currentNativeScene = Il2Cpp.GameState.CurrentGameScene;
@@ -132,7 +132,7 @@ if (action == "start")
         throw new System.InvalidOperationException("This runtime owner already controls a stream visit.");
     }
 
-    if (scene.handle != requestedSceneHandle || !scene.isLoaded)
+    if ((int)scene.handle != requestedSceneHandle || !scene.isLoaded)
         throw new System.InvalidOperationException("sceneHandle must identify the loaded active scene.");
     requireCharacter();
     if (essentials == null || !essentials.SceneInitialized || loadingScreen == null || loadingScreen.isSceneLoading || Il2CppBLINK.RPGBuilder.Managers.LoadingScreenManager.HasSceneReadyHolds || nativeScene == null)
