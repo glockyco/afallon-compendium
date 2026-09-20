@@ -31,13 +31,14 @@
         if ((bool)sceneVisitState["restoreRequested"] && UnityEngine.Time.frameCount <= (int)sceneVisitState["restoreRequestFrame"])
             return false;
 
+        var currentPlayer = Il2Cpp.GameState.playerEntity;
+        var currentTransform = currentPlayer == null ? null : currentPlayer.transform;
+        if (currentTransform == null)
+            return false;
+
         if (finalSceneId == (int)sceneVisitState["sourceSceneNativeId"])
         {
             if (restoreRequested && currentScene.handle == (int)sceneVisitState["sourceSceneHandle"])
-                return false;
-            var currentPlayer = Il2Cpp.GameState.playerEntity;
-            var currentTransform = currentPlayer == null ? null : currentPlayer.transform;
-            if (currentTransform == null)
                 return false;
             var sourcePosition = (UnityEngine.Vector3)sceneVisitState["sourcePosition"];
             var sourceRotation = (UnityEngine.Quaternion)sceneVisitState["sourceRotation"];
