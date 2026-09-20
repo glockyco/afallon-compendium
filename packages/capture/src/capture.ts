@@ -441,10 +441,10 @@ async function capturePlan(
     await Bun.write(resolve(run.directory, "scene-catalog.json"), `${JSON.stringify(sceneCatalog, null, 2)}\n`);
     await registerArtifact(run, "scene-catalog.json");
     if (sweep !== undefined) {
-      // A map with a survey has a walkable surface, so the player stands on it at the map centre
-      // and the scene is static for capture; a plan without a survey keeps the arrival point.
+      // Every surveyed plan places the player on its reviewed walkable surface, including when
+      // consecutive plans share one merged scene. A plan without a survey keeps the arrival point.
       if (sweep.visit === undefined) sweep.visit = await sweep.start(plan.sceneNativeId, plan.readiness.timeoutMs, standingPoint);
-      else if (inventoryReply.observationContext.completed.gameSceneNativeId !== plan.sceneNativeId) sweep.visit = await sweep.retarget(plan.sceneNativeId, plan.readiness.timeoutMs, standingPoint);
+      else if (inventoryReply.observationContext.completed.gameSceneNativeId !== plan.sceneNativeId || standingPoint !== null) sweep.visit = await sweep.retarget(plan.sceneNativeId, plan.readiness.timeoutMs, standingPoint);
       const activeVisit = sweep.visit;
       if (activeVisit === undefined || activeVisit.sceneNativeId !== plan.sceneNativeId || !activeVisit.sceneReady) {
         throw new Error("The scene transition did not reach the capture scene.");

@@ -239,6 +239,31 @@ if (action == "start")
         };
     });
     state["currentRow"] = currentRow;
+    const int maxConcurrentPreloads = 16;
+    var requestPreloadBatch = new System.Action(() =>
+    {
+        var inFlight = 0;
+        foreach (var row in rows)
+        {
+            if (!(bool)row["preloadRequested"] || (bool)row["initiallyLoaded"]) continue;
+            var target = row["loader"] as Il2Cpp.AddressableLoader;
+            if (target != null && getAsset(target) == null && getLoading(target)) inFlight++;
+        }
+        foreach (var row in rows)
+        {
+            if (inFlight >= maxConcurrentPreloads) break;
+            if ((string)row["skippedReason"] != null || (bool)row["initiallyLoaded"] || (bool)row["preloadRequested"]) continue;
+            var target = row["loader"] as Il2Cpp.AddressableLoader;
+            if (target == null || target.gameObject == null)
+                throw new System.InvalidOperationException("A stream visit loader disappeared before preload.");
+            row["holdChanged"] = true;
+            target.HoldLoaded(holdSecondsFloat);
+            row["preloadRequested"] = true;
+            preloadMethod.Invoke(target, null);
+            inFlight++;
+        }
+    });
+    state["requestPreloadBatch"] = requestPreloadBatch;
     var cleanupWritten = false;
     var writeCleanupReceipt = new System.Action(() =>
     {
@@ -352,13 +377,12 @@ if (action == "start")
     // Nothing above mutates loader state. Register restoration before the first HoldLoaded call.
     foreach (var row in rows)
     {
-        if ((string)row["skippedReason"] != null) continue;
+        if ((string)row["skippedReason"] != null || !(bool)row["initiallyLoaded"]) continue;
         var target = row["loader"] as Il2Cpp.AddressableLoader;
         row["holdChanged"] = true;
         target.HoldLoaded(holdSecondsFloat);
-        row["preloadRequested"] = true;
-        preloadMethod.Invoke(target, null);
     }
+    requestPreloadBatch();
 
     var startRows = new System.Collections.Generic.List<object>();
     foreach (var row in rows) startRows.Add(currentRow(row));
@@ -381,9 +405,10 @@ if ((int)stateForRequest["sceneHandle"] != requestedSceneHandle)
     throw new System.InvalidOperationException("sceneHandle does not match the stream visit key.");
 var stateRows = stateForRequest["rows"] as System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, object>>;
 var stateCurrentRow = stateForRequest["currentRow"] as System.Func<System.Collections.Generic.Dictionary<string, object>, object>;
+var stateRequestPreloadBatch = stateForRequest["requestPreloadBatch"] as System.Action;
 var stateRestoreStep = stateForRequest["restorationDelegate"] as System.Func<bool>;
 var stateRemove = stateForRequest["removeState"] as System.Action;
-if (stateRows == null || stateCurrentRow == null || stateRestoreStep == null || stateRemove == null)
+if (stateRows == null || stateCurrentRow == null || stateRequestPreloadBatch == null || stateRestoreStep == null || stateRemove == null)
     throw new System.InvalidOperationException("The stream visit state is incomplete.");
 var statePhase = stateForRequest["phase"] as string;
 
@@ -412,6 +437,17 @@ if (action == "poll")
         }
         return new { key = requestedKey, phase = "restoring", frame = UnityEngine.Time.frameCount, sceneHandle = requestedSceneHandle, rows = restoringRows.ToArray() };
     }
+
+    foreach (var row in stateRows)
+    {
+        if ((string)row["skippedReason"] != null || (bool)row["initiallyLoaded"] || !(bool)row["preloadRequested"]) continue;
+        var target = row["loader"] as Il2Cpp.AddressableLoader;
+        if (target == null || target.gameObject == null)
+            throw new System.InvalidOperationException("A stream visit loader disappeared during preload.");
+        if (getAsset(target) == null && !getLoading(target) && !getHandle(target))
+            throw new System.InvalidOperationException("A requested streamed asset stopped without producing an instance: " + (string)row["assetGuid"] + ".");
+    }
+    stateRequestPreloadBatch();
 
     var readyScene = sceneIsReady();
     var allReady = readyScene;
