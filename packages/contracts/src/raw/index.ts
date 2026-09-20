@@ -26,7 +26,7 @@ schemaRegistry.register("compendium.faction-roles.v1", FactionRolesSchema);
 schemaRegistry.register("compendium.npc-producers.v3", NpcProducersSchema);
 schemaRegistry.register("compendium.addressable-locations.v1", AddressableGraphSchema);
 schemaRegistry.register("compendium.scene-source-issues.v2", SceneSourceIssuesSchema);
-schemaRegistry.register("compendium.serialized-assets.v1", SerializedAssetIndexSchema);
+schemaRegistry.register("compendium.serialized-assets.v2", SerializedAssetIndexSchema);
 schemaRegistry.register("compendium.placement-snapshot.v1", PlacementSnapshotSchema);
 schemaRegistry.register("compendium.placement-identities.v1", PlacementIdentityResultSchema);
 schemaRegistry.register("compendium.traversal-plan.v1", TraversalPlanSchema);

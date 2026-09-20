@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { Assert, AssertError } from "typebox/value";
 import { SerializedAssetIndexSchema, type SerializedAssetIndex } from "@afallon/contracts";
 
-import readerSource from "./serialized-assets.py" with { type: "text" };
+import readerSource from "./serialized_assets.py" with { type: "text" };
 import pythonProject from "../../../pyproject.toml" with { type: "text" };
 import pythonLock from "../../../uv.lock" with { type: "text" };
 

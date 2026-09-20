@@ -309,37 +309,42 @@ def selected_game_object_ids(
 
 
 
-def mono_script_info(mono_raw: Any, mono: Any, cache: dict[tuple[int, int], tuple[str | None, str | None]]) -> tuple[str | None, str | None, bool]:
+def mono_script_info(mono_raw: Any, mono: Any, cache: dict[tuple[int, int], dict[str, Any]]) -> dict[str, Any]:
     script = mono.m_Script
     if not script:
-        return None, None, True
+        return {"status": "null"}
+    file_id = ptr_file_id(script)
+    path_id = ptr_id(script)
     try:
         script_reader = script.deref()
         if class_id(script_reader) != MONO_SCRIPT:
             raise fail(f"MonoBehaviour {obj_path_id(mono_raw)} points to a non-MonoScript object")
         key = (id(script_reader.assets_file), obj_path_id(script_reader))
         if key in cache:
-            return *cache[key], False
+            return cache[key]
         script_obj = parse_object(script_reader, "MonoScript")
     except ReaderError:
         raise
     except Exception as exc:
-        raise fail(f"MonoBehaviour {obj_path_id(mono_raw)} has an unresolved MonoScript pointer: {exc}") from exc
+        if file_id != 0:
+            return {"status": "unresolved", "fileId": file_id, "pathId": str(path_id) if path_id is not None else None}
+        raise fail(f"MonoBehaviour {obj_path_id(mono_raw)} has an unresolved local MonoScript pointer: {exc}") from exc
     namespace = script_obj.m_Namespace
     class_name = script_obj.m_ClassName
     assembly = script_obj.m_AssemblyName
-    if not isinstance(namespace, str) or not isinstance(class_name, str) or not isinstance(assembly, str):
+    if not isinstance(namespace, str) or not isinstance(class_name, str) or not isinstance(assembly, str) or not class_name or not assembly:
         raise fail(f"MonoBehaviour {obj_path_id(mono_raw)} has malformed MonoScript metadata")
-    type_name = f"{namespace}.{class_name}" if namespace and class_name else class_name
-    cache[key] = (type_name or None, assembly or None)
-    return *cache[key], False
+    type_name = f"{namespace}.{class_name}" if namespace else class_name
+    resolution = {"status": "resolved", "typeName": type_name, "assembly": assembly}
+    cache[key] = resolution
+    return resolution
 
 
 def component_info(
     game_object_id: int,
     game_object: Any,
     source_file: Any,
-    mono_headers: dict[int, tuple[Any, str | None, str | None, bool]],
+    mono_headers: dict[int, tuple[Any, dict[str, Any]]],
 ) -> tuple[list[dict[str, Any] | None], set[int]]:
     result: list[dict[str, Any] | None] = []
     attached_mono: set[int] = set()
@@ -357,17 +362,16 @@ def component_info(
         if target is None:
             raise fail(f"GameObject {game_object_id} component slot {index} points to missing {target_id}")
         target_class = class_id(target)
-        type_name: str | None = None
-        assembly: str | None = None
+        script_info: dict[str, Any] | None = None
         if target_class == MONO_BEHAVIOUR:
             header = mono_headers.get(target_id)
             if header is None:
                 raise fail(f"MonoBehaviour {target_id} is outside the selected ownership graph")
-            mono, type_name, assembly, _ = header
+            mono, script_info = header
             if not mono.m_GameObject or ptr_file_id(mono.m_GameObject) != 0 or ptr_id(mono.m_GameObject) != game_object_id:
                 raise fail(f"MonoBehaviour {target_id} does not point back to GameObject {game_object_id}")
             attached_mono.add(target_id)
-        result.append({"pathId": str(target_id), "classId": target_class, "typeName": type_name, "assembly": assembly})
+        result.append({"pathId": str(target_id), "classId": target_class, "script": script_info})
     return result, attached_mono
 
 
@@ -377,7 +381,7 @@ def hierarchy_record(
     source_file: Any,
     transforms: dict[int, Any],
     selected_ids: set[int],
-    mono_headers: dict[int, tuple[Any, str | None, str | None, bool]],
+    mono_headers: dict[int, tuple[Any, dict[str, Any]]],
 ) -> tuple[dict[str, Any], set[int]]:
     game_object_id = obj_path_id(game_object_raw)
     transform_id: int | None = None
@@ -533,8 +537,8 @@ def index_asset(game_root: Path, source: Path, serialized_file: str | None, asse
     if not selected_ids:
         raise fail("selected serialized source contains no GameObjects")
 
-    mono_headers: dict[int, tuple[Any, str | None, str | None, bool]] = {}
-    script_cache: dict[tuple[int, int], tuple[str | None, str | None]] = {}
+    mono_headers: dict[int, tuple[Any, dict[str, Any]]] = {}
+    script_cache: dict[tuple[int, int], dict[str, Any]] = {}
     for raw in selected_file.objects.values():
         if class_id(raw) != MONO_BEHAVIOUR:
             continue
@@ -544,8 +548,8 @@ def index_asset(game_root: Path, source: Path, serialized_file: str | None, asse
             continue
         if owner and (ptr_file_id(owner) != 0 or ptr_id(owner) not in game_objects):
             raise fail(f"MonoBehaviour {obj_path_id(raw)} references a missing GameObject")
-        type_name, assembly, null_script = mono_script_info(raw, parsed, script_cache)
-        mono_headers[obj_path_id(raw)] = (parsed, type_name, assembly, null_script)
+        script_info = mono_script_info(raw, parsed, script_cache)
+        mono_headers[obj_path_id(raw)] = (parsed, script_info)
 
     objects: list[dict[str, Any]] = []
     attached_mono_ids: set[int] = set()
@@ -624,11 +628,12 @@ def index_asset(game_root: Path, source: Path, serialized_file: str | None, asse
     unique_dependencies = {item["path"]: item for item in dependencies}
 
     source_hash, source_bytes = hash_file(source, "source")
-    null_scripts = sum(1 for header in mono_headers.values() if header[3])
+    null_scripts = sum(1 for _, script in mono_headers.values() if script["status"] == "null")
+    unresolved_scripts = sum(1 for _, script in mono_headers.values() if script["status"] == "unresolved")
     attached_count = len(attached_mono_ids)
     mono_count = len(mono_headers)
     return {
-        "schemaVersion": "compendium.serialized-assets.v1",
+        "schemaVersion": "compendium.serialized-assets.v2",
         "source": {
             "path": logical_path(game_root, source),
             "sha256": source_hash,
@@ -650,6 +655,7 @@ def index_asset(game_root: Path, source: Path, serialized_file: str | None, asse
             "attachedMonoBehaviours": attached_count,
             "unboundMonoBehaviours": mono_count - attached_count,
             "nullScripts": null_scripts,
+            "unresolvedScripts": unresolved_scripts,
         },
         "objects": objects,
     }

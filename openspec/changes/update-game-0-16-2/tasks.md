@@ -18,7 +18,8 @@
 
 ## 3. Data-contract reconciliation
 
-- [ ] 3.1 Repair only collector and decoder contracts contradicted by the declaration diff or candidate evidence. Add observable contract tests for each changed shape, then confirm the 0.16.2 current-scene candidate passes without fallback values.
+- [x] 3.1 Repair only collector and decoder contracts contradicted by the declaration diff or candidate evidence. Add observable contract tests for each changed shape, then confirm the 0.16.2 current-scene candidate passes without fallback values.
+  - Candidate run `1b1f2f88-3469-40fc-bd4a-1331367f6495` completed the current merged-world target with every collector successful. Serialized index v2 records unavailable external `MonoScript` references as tagged `unresolved` evidence, including 13 and 115 references in the two indexed streamed prefabs; it still rejects broken local pointers. Native Python tests cover that boundary. Runtime probe outputs explicitly cast Unity 6 scene-handle wrappers to their integer contract.
 - [ ] 3.2 Reconcile authored adventurer templates, class and role facts, bankers, auctioneers, and flight-network data. Record each domain as supported unchanged, supported changed, not authored, or unsupported, with evidence and targeted catalog checks.
 - [ ] 3.3 Reconcile the three dungeon quests, their six rewards, new swords and trinkets, equipment slots, weapon proficiencies, Healing Power, and loot changes. Verify observed identities, relations, slot and stat semantics, and loot sources in a candidate catalog rather than asserting release-note counts alone.
 - [ ] 3.4 Inspect mail, banks, auctions, friends, Dungeon Finder, and adventurer progression boundaries. Verify the update report excludes sampled player or session state unless a stable authored-data source exists.

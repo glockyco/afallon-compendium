@@ -13,6 +13,7 @@
 /apps/site/build/
 /apps/site/static/data
 /.venv/
+__pycache__/
 /.direnv/
 /result
 /result-*

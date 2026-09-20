@@ -93,7 +93,8 @@ function serializedModel(index: SerializedAssetIndex, label: string): Serialized
   if (index.totals.monoBehaviours !== index.totals.attachedMonoBehaviours + index.totals.unboundMonoBehaviours) {
     throw new TypeError(`${label} MonoBehaviour totals are inconsistent.`);
   }
-  if (index.totals.attachedMonoBehaviours > index.totals.monoBehaviours || index.totals.nullScripts > index.totals.monoBehaviours) {
+  if (index.totals.attachedMonoBehaviours > index.totals.monoBehaviours
+    || index.totals.nullScripts + index.totals.unresolvedScripts > index.totals.monoBehaviours) {
     throw new TypeError(`${label} MonoBehaviour totals exceed the total.`);
   }
 
@@ -107,7 +108,12 @@ function serializedModel(index: SerializedAssetIndex, label: string): Serialized
       if (component === null) continue;
       if (componentPathIds.has(component.pathId)) throw new TypeError(`${label} contains duplicate component path ID ${component.pathId}.`);
       componentPathIds.add(component.pathId);
-      if (component.classId === 114) actualAttachedMonoBehaviours += 1;
+      if (component.classId === 114) {
+        actualAttachedMonoBehaviours += 1;
+        if (component.script === null) throw new TypeError(`${label} MonoBehaviour ${component.pathId} has no script resolution.`);
+      } else if (component.script !== null) {
+        throw new TypeError(`${label} non-MonoBehaviour ${component.pathId} has script resolution data.`);
+      }
     }
   }
 
@@ -309,8 +315,8 @@ function mappingCandidates(context: MappingContext, nodeId: number): Set<string>
 
 function componentMatch(serialized: SerializedObject, component: NativeComponent): SerializedComponent | null {
   const slot = serialized.components[component.componentIndex];
-  if (slot === undefined || slot === null || slot.typeName === null || slot.assembly === null) return null;
-  if (slot.typeName !== component.typeName || slot.assembly !== component.assembly) return null;
+  if (slot === undefined || slot === null || slot.script?.status !== "resolved") return null;
+  if (slot.script.typeName !== component.typeName || slot.script.assembly !== component.assembly) return null;
   return slot;
 }
 

@@ -54,18 +54,27 @@ export const SceneSourceIssuesSchema = Type.Object({
 export type SceneSourceIssues = Static<typeof SceneSourceIssuesSchema>;
 
 export const SerializedAssetIndexSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.serialized-assets.v1"),
+  schemaVersion: Type.Literal("compendium.serialized-assets.v2"),
   source: Type.Object({ path: text, sha256: file.properties.sha256, bytes: count, serializedFile: text, unityVersion: text, scenePath: nullableText, buildIndex: nullableInteger, assetName: nullableText }),
   parser: Type.Object({ name: Type.Literal("UnityPy"), version: text }),
   dependencies: Type.Array(file),
   rootGameObjectPathId: nullablePathId,
-  totals: Type.Object({ objects: count, gameObjects: count, transforms: count, monoBehaviours: count, attachedMonoBehaviours: count, unboundMonoBehaviours: count, nullScripts: count }),
+  totals: Type.Object({ objects: count, gameObjects: count, transforms: count, monoBehaviours: count, attachedMonoBehaviours: count, unboundMonoBehaviours: count, nullScripts: count, unresolvedScripts: count }),
   objects: Type.Array(Type.Object({
     pathId,
     name: Type.String(),
     activeSelf: Type.Boolean(),
     transform: Type.Object({ pathId, parentPathId: nullablePathId, children: Type.Array(pathId), localPosition: vector, localRotation: rotation, localScale: vector }),
-    components: Type.Array(Type.Union([Type.Object({ pathId, classId: integer, typeName: nullableText, assembly: nullableText }), Type.Null()])),
+    components: Type.Array(Type.Union([Type.Object({
+      pathId,
+      classId: integer,
+      script: Type.Union([
+        Type.Object({ status: Type.Literal("resolved"), typeName: text, assembly: text }),
+        Type.Object({ status: Type.Literal("null") }),
+        Type.Object({ status: Type.Literal("unresolved"), fileId: integer, pathId: nullablePathId }),
+        Type.Null(),
+      ]),
+    }), Type.Null()])),
   })),
 });
 export type SerializedAssetIndex = Static<typeof SerializedAssetIndexSchema>;
