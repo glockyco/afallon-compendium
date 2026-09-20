@@ -3,7 +3,8 @@
 - [x] 1.1 Add typed Steam manifest and appended-log readers for app 2597810. Cover wrong app IDs, missing fields, unfinished state, successful removal, suspended work, and unrelated log entries with focused tests.
 - [x] 1.2 Add `compendium update --config FILE --version VERSION`. Start or reuse Steam through CrossOver, request `steam://validate/2597810`, and wait for successful scheduler and manifest completion. Verify updated, already-current, timeout, failed-result, and delayed-manifest cases with a temporary bottle and scripted process runner.
 - [x] 1.3 Register an immutable update receipt with previous and current manifests, extraction input hashes, release label, and completion evidence. Verify a failed update writes no success receipt and changes no artifact reference.
-- [ ] 1.4 Run the command for Afallon 0.16.2. Confirm the installed manifest reports `StateFlags` 4, record the new Steam build and hashes, and confirm `buildIdentity` returns the receipt identity.
+- [x] 1.4 Run the command for Afallon 0.16.2. Confirm the installed manifest reports `StateFlags` 4, record the new Steam build and hashes, and confirm `buildIdentity` returns the receipt identity.
+  - Receipt run `96bf6a32-b147-4e7b-9118-5812a9063ef0` records Steam build `25419293`, metadata `373c53d331e7ed38176c446e2ffc72a2e32fe1c03ef84a397f2a510181d8ff43`, GameAssembly `5faa4038fe718ebc4716dab4b65aa967021d12bc70879e32283350d3d2dec17b`, UnityPlayer `eea205beca44a252e1751e57ec5a1f866eee2a9b4066263e5089bde7d70c7350`, and manifest `8a4cfd564fb9a4d0a2ab8d34014f62ec87cc7e6a5b880039b38ac2b4c0658956`. The final manifest has `StateFlags` 4. A separate `buildIdentity` call reproduced all four values.
 
 ## 2. Build comparison and discovery
 
