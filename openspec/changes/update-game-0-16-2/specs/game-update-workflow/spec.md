@@ -6,15 +6,15 @@ Define how the compendium admits a new Afallon build without mixing build-scoped
 
 ### Requirement: An update has recomputable installation identity
 
-The update workflow SHALL record the Steam build identifier, Steam installation state, and hashes of every game input used by extraction before and after Steam acts. A release version SHALL remain descriptive metadata and SHALL NOT replace recomputable identity. The workflow SHALL reject an absent, unreadable, wrong-application, or not-fully-installed Steam manifest.
+The update workflow SHALL record the Steam build identifier, Steam installation state, and hashes of every game input used by extraction before and after Steam acts. A release version SHALL remain descriptive metadata and SHALL NOT replace recomputable identity. The workflow SHALL reject an absent, unreadable, or wrong-application Steam manifest. It MAY start from a valid pending installation state, but it SHALL NOT produce a success receipt until Steam completes successfully and the manifest reports fully installed.
 
 #### Scenario: Steam installs a new build
-- **WHEN** an operator updates a fully installed Afallon copy
-- **THEN** the result records the previous and current build identifiers and current input hashes
+- **WHEN** an operator updates an Afallon copy that is fully installed or has a pending update
+- **THEN** the result records the previous and current build identifiers, installation states, and current input hashes
 - **AND** later extraction independently verifies the same current identity
 
-#### Scenario: Steam has unfinished work
-- **WHEN** the application manifest reports an installation state other than fully installed
+#### Scenario: Steam has unfinished work after completion
+- **WHEN** Steam reports completion but the application manifest does not settle to fully installed
 - **THEN** the workflow fails without claiming a current build
 - **AND** no scan, catalog, or publication reference changes
 

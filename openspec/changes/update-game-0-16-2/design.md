@@ -31,7 +31,7 @@ The 0.16.2 world merge invalidates assumptions embedded in `local/reviewed-map-s
 
 The command will read the configured Afallon installation and derive its Steam manifest, CrossOver bottle, Steam logs, and launcher. It will record the initial manifest and input hashes, start or reuse Steam inside the bottle, and send `steam://validate/2597810`.
 
-The command will read only log bytes appended after its own request. It will wait for an Afallon `removed from schedule` result, then wait for `StateFlags` to settle at `4`. It will report an unchanged build as a successful validation. Process exit only proves that CrossOver accepted the URL, so it is not a completion condition.
+The command will accept a valid Afallon manifest in a fully installed or pending state. A pending initial state is evidence that Steam has work to finish, not a precondition failure. The command will read only log bytes appended after its own request. It will wait for an Afallon `removed from schedule` result, then wait for `StateFlags` to settle at `4`. It will report an unchanged build as a successful validation. Process exit only proves that CrossOver accepted the URL, so it is not a completion condition.
 
 The implementation will isolate manifest parsing, appended-log parsing, process execution, and polling behind small functions. Tests will use a temporary bottle tree and a scripted process runner. This follows the measured Ancient Kingdoms mechanism without importing its .NET build-tool architecture.
 
