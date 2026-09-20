@@ -3,7 +3,7 @@ import { join, relative, resolve } from "node:path";
 import { hashFile, listFiles, parseJson } from "./deployment-files";
 import type { StaticResourceReference } from "@afallon/contracts/public";
 import { verifyPublicationGraph } from "./publication-graph";
-import { verifyPublicationParity } from "./publication-parity";
+import { verifyPublicationParity, verifyUpdatePublicationParity } from "./publication-parity";
 import { deploymentPaths } from "../deployment-paths.mjs";
 
 interface SelectedPublication {
@@ -26,6 +26,7 @@ export function stagePublication(
   publicationRoot: string,
   siteDir = resolve(import.meta.dirname, ".."),
   baselineRoot = process.env.PUBLICATION_BASELINE_ROOT,
+  parity: "strict" | "verified-update" = "strict",
 ): DeploymentMetadata {
   if (!baselineRoot) throw new Error("Publication parity requires PUBLICATION_BASELINE_ROOT or an explicit baseline root.");
   const root = resolve(publicationRoot);
@@ -36,7 +37,8 @@ export function stagePublication(
   const graph = verifyPublicationGraph(publicDir, selection.root);
   const { publication, files, sha256: publicationSha256 } = graph;
   if (publication.mode === "release" && !publication.complete) throw new Error("A release publication must report complete coverage.");
-  verifyPublicationParity(graph, resolve(baselineRoot));
+  if (parity === "verified-update") verifyUpdatePublicationParity(graph, resolve(baselineRoot));
+  else verifyPublicationParity(graph, resolve(baselineRoot));
 
   for (const relativePath of listFiles(publicDir)) {
     if (!files.has(relativePath)) throw new Error(`Selected publication has an unreferenced file: ${relativePath}.`);
@@ -86,7 +88,7 @@ function copyTrackedStatic(source: string, target: string): void {
 
 
 if (import.meta.main) {
-  const publicationRoot = Bun.argv[2], baselineRoot = Bun.argv[3];
-  if (!publicationRoot) throw new Error("usage: stage-publication <selected-publication-root> [baseline-publication-root]");
-  process.stdout.write(`${JSON.stringify(stagePublication(publicationRoot, undefined, baselineRoot), null, 2)}\n`);
+  const publicationRoot = Bun.argv[2], baselineRoot = Bun.argv[3], mode = Bun.argv[4];
+  if (!publicationRoot || (mode !== undefined && mode !== "--verified-update")) throw new Error("usage: stage-publication <selected-publication-root> [baseline-publication-root] [--verified-update]");
+  process.stdout.write(`${JSON.stringify(stagePublication(publicationRoot, undefined, baselineRoot, mode === "--verified-update" ? "verified-update" : "strict"), null, 2)}\n`);
 }

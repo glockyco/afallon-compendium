@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { PublicTileLayer } from "@afallon/contracts/public";
-import { assertNonRegressivePublication, type PublicationSummary } from "./publication-parity";
+import { assertNonRegressivePublication, assertUpdatePublicationParity, type PublicationSummary } from "./publication-parity";
 
 function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummary {
   return {
@@ -32,6 +32,12 @@ test("accepts additive publication coverage", () => {
 test("rejects lost placements even when the publication remains structurally valid", () => {
   expect(() => assertNonRegressivePublication(summary({ placementCount: 24, placementsByMap: new Map([["world", 19], ["dungeon", 5]]) }), summary())).toThrow("placement coverage");
   expect(() => assertNonRegressivePublication(summary({ placementIds: new Set(["placement-1", "replacement"]) }), summary())).toThrow("deployed placements");
+});
+
+test("verified updates allow reconciled identities but retain map and placement floors", () => {
+  assertUpdatePublicationParity(summary({ placementCount: 26, placementIds: new Set(["replacement"]) }), summary());
+  expect(() => assertUpdatePublicationParity(summary({ mapIds: new Set(["world"]) }), summary())).toThrow("removes map spaces");
+  expect(() => assertUpdatePublicationParity(summary({ placementCount: 24 }), summary())).toThrow("placement coverage");
 });
 
 test("rejects map layout and imagery registration changes", () => {

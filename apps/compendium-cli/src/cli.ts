@@ -102,7 +102,7 @@ async function main(): Promise<void> {
     const result = await acceptUpdate({
       storeRoot: resolve(values.store), reportPath: resolve(values.report), publicationRoot: resolve(values["publication-root"]), baselineRoot: resolve(values["baseline-root"]), expectedDescriptorSha256: values.expected === "none" ? null : values.expected,
       stage: async (publicationRoot, _siteDirectory, baselineRoot) => {
-        const child = Bun.spawn(["bun", resolve(root, "apps/site/scripts/stage-publication.ts"), publicationRoot, baselineRoot], { cwd: root, stdout: "pipe", stderr: "inherit" });
+        const child = Bun.spawn(["bun", resolve(root, "apps/site/scripts/stage-publication.ts"), publicationRoot, baselineRoot, "--verified-update"], { cwd: root, stdout: "pipe", stderr: "inherit" });
         const output = await new Response(child.stdout).text();
         const exitCode = await child.exited;
         if (exitCode !== 0) throw new Error(`Production staging failed with exit code ${exitCode}.`);

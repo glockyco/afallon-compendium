@@ -139,3 +139,15 @@ export function verifyPublicationParity(candidate: VerifiedPublicationGraph, bas
   const baseline = verifyPublicationGraph(baselineRoot);
   assertNonRegressivePublication(summarize(candidate), summarize(baseline));
 }
+
+export function assertUpdatePublicationParity(candidate: PublicationSummary, baseline: PublicationSummary): void {
+  const missingMaps = [...baseline.mapIds].filter((mapSpaceId) => !candidate.mapIds.has(mapSpaceId));
+  if (missingMaps.length > 0) throw new Error(`Publication update removes map spaces: ${missingMaps.join(", ")}.`);
+  if (candidate.placementCount < baseline.placementCount) throw new Error(`Publication update regresses placement coverage: ${candidate.placementCount} < ${baseline.placementCount}.`);
+}
+
+export function verifyUpdatePublicationParity(candidate: VerifiedPublicationGraph, baselineRoot: string): void {
+  const baseline = verifyPublicationGraph(baselineRoot);
+  if (candidate.publication.buildId === baseline.publication.buildId) throw new Error("Verified update parity requires a different build from the baseline.");
+  assertUpdatePublicationParity(summarize(candidate), summarize(baseline));
+}
