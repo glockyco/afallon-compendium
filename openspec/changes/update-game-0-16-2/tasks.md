@@ -10,7 +10,7 @@
 - [ ] 2.1 Add a pinned Cpp2IL snapshot command with ignored staging, atomic promotion, build-and-metadata-hash naming, a stable current pointer, and one-previous retention. Verify interrupted recovery preserves the prior pointer and same-build recovery is reproducible.
 - [ ] 2.2 Snapshot the 0.16.2 declarations and compare them with build 25153357. Record changed types and fields that can affect collectors, decoders, map identity, equipment, quests, NPCs, loot, stats, and travel.
 - [ ] 2.3 Launch 0.16.2 once to regenerate MelonLoader interop assemblies, then run a candidate current-scene scan. Verify the connected product and installation identity, and retain the inventory, canonical data, collector failures, and prior-build semantic comparison.
-- [ ] 2.4 Add and validate the patch-specific update-report contract. Require immutable references for the update receipt, schema snapshot, build comparison, scans, reviewed inputs, catalog, publication, checks, and every 0.16.2 risk disposition.
+- [x] 2.4 Add and validate the patch-specific update-report contract. Require immutable references for the update receipt, schema snapshot, build comparison, scans, reviewed inputs, catalog, publication, checks, and every 0.16.2 risk disposition.
 
 ## 3. Data-contract reconciliation
 

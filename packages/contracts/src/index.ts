@@ -5,5 +5,6 @@ export * from "./lifecycle";
 export * from "./condition-references";
 export * from "./raw";
 export * from "./spatial";
+export * from "./update-report";
 export * from "./capture";
 export * from "./catalog";
