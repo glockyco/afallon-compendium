@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { Assert } from "typebox/value";
-import { capture, generateTiles, validateCapturePlan } from "@afallon/capture";
+import { capture, generateGameMap, generateTiles, validateCapturePlan } from "@afallon/capture";
 import { ArtifactStore } from "@afallon/artifacts";
 import { CapturePlanSchema, TilePlanSchema } from "@afallon/contracts";
 import "@afallon/contracts/public";
@@ -23,6 +23,7 @@ const HELP = `Usage:
   bun run compendium capture --config FILE --plan FILE [--plan FILE ...] [--candidate]
   bun run compendium register --store DIRECTORY --build ID --file FILE [--schema ID] [--candidate]
   bun run compendium pyramid --store DIRECTORY --plan FILE [--candidate]
+  bun run compendium game-map --store DIRECTORY --plan FILE [--candidate]
   bun run compendium catalog --store DIRECTORY --plan FILE [--candidate]
   bun run compendium publish --store DIRECTORY --output DIRECTORY --plan FILE [--candidate]
   bun run compendium preview
@@ -61,7 +62,7 @@ async function runSiteCommand(command: string[], cwd: string): Promise<void> {
 async function main(): Promise<void> {
   const command = positionals[0];
   if (values.help || command === undefined) { console.log(HELP); return; }
-  const known = ["update", "recover", "scan", "capture", "register", "pyramid", "catalog", "publish", "preview", "deploy"];
+  const known = ["update", "recover", "scan", "capture", "register", "pyramid", "game-map", "catalog", "publish", "preview", "deploy"];
   if (!known.includes(command)) throw new Error(`Unknown command: ${command}. Use --help.`);
   if (command === "preview") {
     allowOptions(command, []);
@@ -101,7 +102,7 @@ async function main(): Promise<void> {
   }
   const planPaths = (values.plan ?? []).map(path => resolve(path));
   if (!planPaths.length || (command !== "capture" && planPaths.length !== 1)) throw new Error(`${command} requires ${command === "capture" ? "at least one" : "one"} --plan.`);
-  if (["catalog", "publish", "pyramid"].includes(command)) {
+  if (["catalog", "publish", "pyramid", "game-map"].includes(command)) {
     allowOptions(command, ["store", "plan", "candidate", ...(command === "publish" ? ["output"] : [])]);
     if (!values.store) throw new Error(`${command} requires --store.`);
     const storeRoot = resolve(values.store);
@@ -110,6 +111,9 @@ async function main(): Promise<void> {
     } else if (command === "publish") {
       if (!values.output) throw new Error("publish requires --output.");
       console.log(JSON.stringify({ ok: true, ...await runPublishCommand(planPaths[0]!, storeRoot, resolve(values.output), !values.candidate) }, null, 2));
+    } else if (command === "game-map") {
+      const result = await generateGameMap(new ArtifactStore(storeRoot), planPaths[0]!, { diagnosticRevision: await toolRevision(), select: !values.candidate });
+      console.log(JSON.stringify({ ok: true, ...result }, null, 2));
     } else {
       const plan: unknown = await Bun.file(planPaths[0]!).json();
       Assert(TilePlanSchema, plan);

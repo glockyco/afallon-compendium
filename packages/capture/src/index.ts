@@ -4,5 +4,6 @@ export * from "./capture-position";
 export * from "./capture-planner";
 export * from "./capture-readiness";
 export * from "./fingerprints";
+export * from "./game-map";
 export * from "./tiles";
 export * from "./spatial-extraction";
