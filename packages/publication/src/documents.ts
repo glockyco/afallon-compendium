@@ -178,15 +178,18 @@ function levelRange(facts: CatalogNpcFacts): { min: number; max: number } | unde
 }
 
 const PUBLIC_ROLE: Readonly<Record<string, true>> = {
-  boss: true, enemy: true, neutral: true, merchant: true, questGiver: true, townsfolk: true, corruptionAltar: true,
+  boss: true, enemy: true, neutral: true, merchant: true, auctioneer: true, banker: true, questGiver: true, townsfolk: true, corruptionAltar: true,
   challengeStone: true, craftingStation: true, container: true, oreVein: true, herb: true, mushroom: true, fishingSpot: true,
-  interactiveObject: true, town: true, fort: true, camp: true, property: true, dungeonEntrance: true, graveyard: true, travelPoint: true,
+  interactiveObject: true, town: true, fort: true, camp: true, property: true, dungeonEntrance: true, graveyard: true, flightPoint: true, travelPoint: true,
 };
 
 function npcRoles(key: string, facts: CatalogNpcFacts, indexes: RelationIndexes): PublicMarkerCategory[] {
   const roles = new Set<PublicMarkerCategory>();
   if (facts.isMerchant) roles.add("merchant");
+  if (facts.isAuctioneer) roles.add("auctioneer");
+  if (facts.isBanker) roles.add("banker");
   if (facts.isQuestGiver) roles.add("questGiver");
+  if (facts.isFlightMaster) roles.add("flightPoint");
   if (facts.isCombatEnabled) roles.add("enemy");
   for (const placement of indexes.placementsByNpc.get(key) ?? []) for (const role of placement.roles) {
     if (role.npcEntityKey === key && PUBLIC_ROLE[role.role]) roles.add(role.role as PublicMarkerCategory);
@@ -417,7 +420,7 @@ function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
   const mapSpaceId = fact?.mapSpaceIds.find((candidate) => input.regionIdsByMapSpace.has(candidate)) ?? null;
   const placeType = fact?.placeType ?? (entity.kind === "regions" ? "region" : "zone");
   const placePlacements = indexes.placementsByScene.get(entity.entityKey) ?? [];
-  const serviceCategories = new Set(["merchant", "questGiver", "townsfolk", "craftingStation", "travelPoint", "neutral"]);
+  const serviceCategories = new Set(["merchant", "auctioneer", "banker", "questGiver", "flightPoint", "townsfolk", "craftingStation", "travelPoint", "neutral"]);
   const resourceCategories = new Set(["oreVein", "herb", "mushroom", "fishingSpot"]);
   const containerCategories = new Set(["container"]);
   const questRefs = (indexes.questsByCounterpart.get(entity.entityKey) ?? []).filter((row) => row.kind === "worldZone").map((row) => input.resolve(row.quest));

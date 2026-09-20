@@ -13,6 +13,8 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
   "enemy",
   "neutral",
   "merchant",
+  "auctioneer",
+  "banker",
   "questGiver",
   "townsfolk",
   "corruptionAltar",
@@ -30,21 +32,24 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
   "property",
   "dungeonEntrance",
   "graveyard",
+  "flightPoint",
   "travelPoint",
 ] as const;
 export type PublicMarkerCategory = typeof PUBLIC_MARKER_CATEGORY_VALUES[number];
 export const PUBLIC_MARKER_CATEGORY_LABELS: Readonly<Record<PublicMarkerCategory, string>> = {
-  boss: "Boss", enemy: "Enemy", neutral: "Neutral", merchant: "Merchant", questGiver: "Quest giver",
+  boss: "Boss", enemy: "Enemy", neutral: "Neutral", merchant: "Merchant", auctioneer: "Auctioneer", banker: "Banker", questGiver: "Quest giver",
   townsfolk: "Townsfolk", craftingStation: "Crafting station", container: "Container", oreVein: "Ore Vein",
   herb: "Herb", mushroom: "Mushroom", fishingSpot: "Fishing Spot", interactiveObject: "Interactive object",
   town: "Town", fort: "Fort", camp: "Camp", property: "Property", dungeonEntrance: "Dungeon entrance",
-  corruptionAltar: "Altar of corruption", challengeStone: "Challenge stone", graveyard: "Graveyard", travelPoint: "Travel point",
+  corruptionAltar: "Altar of corruption", challengeStone: "Challenge stone", graveyard: "Graveyard", flightPoint: "Flight point", travelPoint: "Travel point",
 };
 export const publicMarkerCategory = Type.Union([
   Type.Literal("boss"),
   Type.Literal("enemy"),
   Type.Literal("neutral"),
   Type.Literal("merchant"),
+  Type.Literal("auctioneer"),
+  Type.Literal("banker"),
   Type.Literal("questGiver"),
   Type.Literal("townsfolk"),
   Type.Literal("corruptionAltar"),
@@ -62,6 +67,7 @@ export const publicMarkerCategory = Type.Union([
   Type.Literal("property"),
   Type.Literal("dungeonEntrance"),
   Type.Literal("graveyard"),
+  Type.Literal("flightPoint"),
   Type.Literal("travelPoint"),
 ]);
 

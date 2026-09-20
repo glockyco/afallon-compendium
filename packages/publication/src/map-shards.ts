@@ -87,6 +87,14 @@ function position(value: unknown): { x: number; y: number; z: number } | null {
   const point = record(value);
   return point && typeof point.x === "number" && Number.isFinite(point.x) && typeof point.y === "number" && Number.isFinite(point.y) && typeof point.z === "number" && Number.isFinite(point.z) ? { x: point.x, y: point.y, z: point.z } : null;
 }
+function flightPointLabel(gameplay: Record<string, unknown> | null): string | null {
+  if (gameplay?.isFlightMaster !== true || typeof gameplay.flightStopId !== "string") return null;
+  const network = record(gameplay.flightNetwork);
+  if (network?.available !== true || !Array.isArray(network.stops)) return null;
+  const stop = network.stops.map(record).find((candidate) => candidate?.id === gameplay.flightStopId);
+  const name = typeof stop?.name === "string" ? plainText(stop.name).trim() : "";
+  return name ? `${name} Flight Point` : null;
+}
 function pathByName(name: string, placement: CatalogMapPlacement, spatial: CatalogSpatialContext): PublicPatrolPath {
   const matches = spatial.patrolPaths.filter((path) => path.sceneNativeId === placement.sceneNativeId && path.name === name);
   if (matches.length === 0) return { name, status: "unresolved", reason: "The source scene has no patrol path with this name." };
@@ -318,10 +326,16 @@ export async function generateMapShards(db: Database, store: ArtifactStore, worl
     if (queried.records === null) throw new Error(`Catalog map disappeared during publication: ${map.mapSpaceId}.`);
     const offset = offsets.get(map.mapSpaceId) ?? { worldX: 0, worldY: 0 };
     const unfoldedPlacements: ProjectedPlacement[] = foldMapIcons(queried.records.placements).flatMap((placement) => {
-      const placementCategories = categories(placement.roles);
-      if (placementCategories.length === 0) return [];
       const entityKeys = [...new Set(placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [role.npcEntityKey]))].sort();
-      const label = placement.label?.trim() || entityKeys.map((key) => entityNames.get(key)).filter((name): name is string => Boolean(name)).join(" / ") || sourceName(placement) || placementCategories.map((category) => CATEGORY_LABELS[category]).join(" / ");
+      const foundCategories = new Set(categories(placement.roles));
+      const serviceData = entityKeys.map((key) => record(gameplayByEntity.get(key)));
+      if (serviceData.some((gameplay) => gameplay?.isAuctioneer === true)) foundCategories.add("auctioneer");
+      if (serviceData.some((gameplay) => gameplay?.isBanker === true)) foundCategories.add("banker");
+      if (serviceData.some((gameplay) => gameplay?.isFlightMaster === true)) foundCategories.add("flightPoint");
+      const placementCategories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => foundCategories.has(category));
+      if (placementCategories.length === 0) return [];
+      const serviceLabel = serviceData.map(flightPointLabel).find((value): value is string => value !== null);
+      const label = serviceLabel || placement.label?.trim() || entityKeys.map((key) => entityNames.get(key)).filter((name): name is string => Boolean(name)).join(" / ") || sourceName(placement) || placementCategories.map((category) => CATEGORY_LABELS[category]).join(" / ");
       const range = placementLevelRange(placement, gameplayByEntity);
       const travel = offsetTravel(travelForPlacement(placement, spatial), offsets);
       return [{
