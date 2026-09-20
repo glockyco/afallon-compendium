@@ -32,6 +32,16 @@ function admittedNpc(npcGameplay: unknown): AdmittedCatalog {
   } as unknown as AdmittedCatalog;
 }
 
+function admittedItems(items: Array<{ nativeId: number; gameplay: unknown }>): AdmittedCatalog {
+  return {
+    canonical: { value: { items, npcs: [], quests: [], scenes: [], regions: [], properties: [], stats: [] }, reference },
+    relationships: { value: { tasks: [] }, reference },
+    lootRules: { value: { itemLevels: [] }, reference },
+    support: { value: { tables: {} }, reference },
+    artwork: null,
+  } as unknown as AdmittedCatalog;
+}
+
 const gameplay = {
   itemsInSet: [{ sourceIndex: 0, itemId: 538 }, { sourceIndex: 1, itemId: 539 }],
   gearSetTiers: [
@@ -56,6 +66,22 @@ test("resolves every gear set member and tier stat to its entity", () => {
     [0, "Poison Damage", 10, true],
     [0, "Dodge chance", 10, false],
     [1, "Health", 200, false],
+  ]);
+});
+
+test("keeps only equipment fields that apply to each item type", () => {
+  const available = (name: string) => ({ available: true, name });
+  const items = [
+    { nativeId: 1175, gameplay: { itemType: available("WEAPON"), rarity: available("Rare"), armorSlot: available("BELT"), armorType: available("CLOTH"), weaponSlot: available("One-Hand"), weaponType: available("One handed sword") } },
+    { nativeId: 1177, gameplay: { itemType: available("Trinket"), rarity: available("Rare"), armorSlot: available("Trinket"), armorType: available("JEWELRY"), weaponSlot: { available: false }, weaponType: { available: false } } },
+  ];
+  const blockers: Blocker[] = [];
+  const rows = collectTypedFacts(admittedItems(items), [entity("items", 1175, "Fenfoot's Hivecleaver"), entity("items", 1177, "Knotted Rootguard")], [] as NormalizedDatabaseInput["bindings"], [], blockers);
+
+  expect(blockers).toEqual([]);
+  expect(rows.itemFacts.map(({ itemType, armorSlot, armorType, weaponSlot, weaponType }) => ({ itemType, armorSlot, armorType, weaponSlot, weaponType }))).toEqual([
+    { itemType: "WEAPON", armorSlot: null, armorType: null, weaponSlot: "One-Hand", weaponType: "One handed sword" },
+    { itemType: "Trinket", armorSlot: "Trinket", armorType: "JEWELRY", weaponSlot: null, weaponType: null },
   ]);
 });
 

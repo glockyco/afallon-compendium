@@ -164,7 +164,10 @@ export function decodedPrice(amount: number | null | undefined, currencyId: numb
 
 export function decodeItemGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<ItemGameplay> {
   const decoded = decode(ItemGameplaySchema, value, reference, path), issues: GameplayCoverageIssue[] = [];
-  for (const field of ["itemType", "armorSlot", "weaponType", "armorType", "weaponSlot", "rarity"] as const) availableEnumName(decoded[field], `${path}/${field}`, issues);
+  const itemType = availableEnumName(decoded.itemType, `${path}/itemType`, issues);
+  availableEnumName(decoded.rarity, `${path}/rarity`, issues);
+  const equipmentFields = itemType === "WEAPON" ? ["weaponType", "weaponSlot"] as const : itemType === "ARMOR" || itemType === "Trinket" ? ["armorSlot", "armorType"] as const : [];
+  for (const field of equipmentFields) availableEnumName(decoded[field], `${path}/${field}`, issues);
   decoded.sockets?.forEach((row, index) => availableEnumName(row.gemSocketType, `${path}/sockets/${index}/gemSocketType`, issues));
   return { value: decoded, issues };
 }

@@ -1002,7 +1002,7 @@ if (stats != null)
             description = statDisplayDescription,
             localization = new { apiAvailable = localizationApiAvailable, language = localizationLanguage, displayNameKey = statNameKey, displayName = statDisplayName, displayNameResolved = statNameResolved, descriptionKey = statDescriptionKey, description = statDisplayDescription, descriptionResolved = statDescriptionResolved, authoredInternalName = stat._name, authoredFileName = stat._fileName, authoredDisplayName = stat.displayName, entryName = stat.entryName, entryDisplayName = stat.entryDisplayName, entryFileName = stat.entryFileName, entryDescription = stat.entryDescription },
             icon = statIconMetadata,
-            gameplay = new { isPercentStat = stat.isPercentStat, isVitalityStat = stat.isVitalityStat, baseValue = stat.baseValue }
+            gameplay = new { isPercentStat = stat.isPercentStat, isVitalityStat = stat.isVitalityStat, baseValue = stat.baseValue, procCooldown = stat.ProcCooldown }
         });
     }
 }

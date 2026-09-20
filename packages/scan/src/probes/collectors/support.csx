@@ -29,7 +29,26 @@ foreach (var pair in database.GetEffects()) effects.Add(new { sourceKey = pair.K
 var factions = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetFactions()) factions.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, null) });
 var classes = new System.Collections.Generic.List<object>();
-foreach (var pair in database.GetClasses()) classes.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "class") });
+foreach (var pair in database.GetClasses())
+{
+    var classEntry = pair.Value;
+    var allowedWeaponTypes = new System.Collections.Generic.List<object>();
+    if (classEntry.AllowedWeaponTypes != null)
+    {
+        foreach (var weaponType in classEntry.AllowedWeaponTypes)
+        {
+            if (weaponType != null) allowedWeaponTypes.Add(new { nativeId = weaponType.ID, name = weaponType.entryDisplayName ?? weaponType.entryName });
+        }
+    }
+    classes.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(classEntry, "class"), gameplay = new { allowedWeaponTypes = allowedWeaponTypes } });
+}
+var armorSlots = new System.Collections.Generic.List<object>();
+foreach (var pair in database.GetArmorSlots())
+{
+    var armorSlot = pair.Value;
+    var itemSlot = armorSlot.ItemSlot;
+    armorSlots.Add(new { sourceKey = armorSlot.ID, entry = projectSupportEntry(armorSlot, null), gameplay = new { itemSlot = itemSlot == null ? (object)null : new { nativeId = itemSlot.ID, name = itemSlot.entryDisplayName ?? itemSlot.entryName } } });
+}
 var races = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetRaces()) races.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "race") });
 var levels = new System.Collections.Generic.List<object>();
@@ -141,4 +160,4 @@ var species = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetSpecies()) species.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, null) });
 var gameModifiers = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetGameModifiers()) gameModifiers.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, null) });
-return new { schemaVersion = "compendium.support.v1", language = Il2Cpp.Localize.CurrentLanguage, sourceTotals = new { skills = database.GetSkills().Count, stats = database.GetStats().Count, abilities = database.GetAbilities().Count, effects = database.GetEffects().Count, factions = database.GetFactions().Count, classes = database.GetClasses().Count, races = database.GetRaces().Count, levels = database.GetLevels().Count, worldQuests = database.GetWorldQuests().Count, worldPositions = database.GetWorldPositions().Count, properties = database.GetProperties().Count, currencies = database.GetCurrencies().Count, tasks = database.GetTasks().Count, recipes = database.GetRecipes().Count, craftingStations = database.GetCraftingStations().Count, treePoints = database.GetPoints().Count, weaponTemplates = database.GetWeaponTemplates().Count, enchantments = database.GetEnchantments().Count, gearSets = database.GetGearSets().Count, bonuses = database.GetBonuses().Count, dialogues = database.GetDialogues().Count, talentTrees = database.GetTalentTrees().Count, spellbooks = database.GetSpellbooks().Count, combos = database.GetCombos().Count, species = database.GetSpecies().Count, gameModifiers = database.GetGameModifiers().Count }, tables = new { craftingStations = craftingStations, skills = skills, stats = stats, abilities = abilities, effects = effects, factions = factions, classes = classes, races = races, levels = levels, worldQuests = worldQuests, worldPositions = worldPositions, properties = properties, currencies = currencies, tasks = tasks, recipes = recipes, treePoints = treePoints, weaponTemplates = weaponTemplates, enchantments = enchantments, gearSets = gearSets, bonuses = bonuses, dialogues = dialogues, talentTrees = talentTrees, spellbooks = spellbooks, combos = combos, species = species, gameModifiers = gameModifiers } };
+return new { schemaVersion = "compendium.support.v1", language = Il2Cpp.Localize.CurrentLanguage, sourceTotals = new { skills = database.GetSkills().Count, stats = database.GetStats().Count, abilities = database.GetAbilities().Count, effects = database.GetEffects().Count, factions = database.GetFactions().Count, classes = database.GetClasses().Count, armorSlots = database.GetArmorSlots().Count, races = database.GetRaces().Count, levels = database.GetLevels().Count, worldQuests = database.GetWorldQuests().Count, worldPositions = database.GetWorldPositions().Count, properties = database.GetProperties().Count, currencies = database.GetCurrencies().Count, tasks = database.GetTasks().Count, recipes = database.GetRecipes().Count, craftingStations = database.GetCraftingStations().Count, treePoints = database.GetPoints().Count, weaponTemplates = database.GetWeaponTemplates().Count, enchantments = database.GetEnchantments().Count, gearSets = database.GetGearSets().Count, bonuses = database.GetBonuses().Count, dialogues = database.GetDialogues().Count, talentTrees = database.GetTalentTrees().Count, spellbooks = database.GetSpellbooks().Count, combos = database.GetCombos().Count, species = database.GetSpecies().Count, gameModifiers = database.GetGameModifiers().Count }, tables = new { craftingStations = craftingStations, skills = skills, stats = stats, abilities = abilities, effects = effects, factions = factions, classes = classes, armorSlots = armorSlots, races = races, levels = levels, worldQuests = worldQuests, worldPositions = worldPositions, properties = properties, currencies = currencies, tasks = tasks, recipes = recipes, treePoints = treePoints, weaponTemplates = weaponTemplates, enchantments = enchantments, gearSets = gearSets, bonuses = bonuses, dialogues = dialogues, talentTrees = talentTrees, spellbooks = spellbooks, combos = combos, species = species, gameModifiers = gameModifiers } };

@@ -32,6 +32,7 @@ test("decodes projected gem data without inventing absent values", () => {
 test("records unsupported and unavailable enum values as coverage issues", () => {
   expect(decodeNpcGameplay({ npcType: enumValue(99, "UNKNOWN") }, reference, "/npcs/0/gameplay").issues).toEqual([{ path: "/npcs/0/gameplay/npcType", detail: "Unsupported enum value 99 (UNKNOWN)." }]);
   expect(decodeItemGameplay({ itemType: { available: false } }, reference, "/items/0/gameplay").issues).toEqual([{ path: "/items/0/gameplay/itemType", detail: "Enum value is unavailable." }]);
+  expect(decodeItemGameplay({ itemType: { available: true, name: "Trinket" }, rarity: { available: true, name: "Rare" }, armorSlot: { available: true, name: "Trinket" }, armorType: { available: true, name: "JEWELRY" }, weaponType: { available: false }, weaponSlot: { available: false } }, reference, "/items/1/gameplay").issues).toEqual([]);
 });
 
 test("turns negative reference sentinels into absent facts", () => {
