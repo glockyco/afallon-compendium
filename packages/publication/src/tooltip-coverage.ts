@@ -68,7 +68,8 @@ export function auditPublicTooltipCoverage(
     }
   }
 
-  for (const condition of relations.conditions) if (condition.requirements.length > 0 && condition.scope === null) {
+  const itemConditionIds = new Set(facts.items.flatMap((item) => item.conditionIds));
+  for (const condition of relations.conditions) if (itemConditionIds.has(condition.conditionId) && condition.requirements.length > 0 && condition.scope === null) {
     issues.push(`Condition ${condition.conditionId} has unclassified or mixed requirement predicates.`);
   }
 

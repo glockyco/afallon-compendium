@@ -177,6 +177,8 @@ test("projects representative item use text, effective stats and contextual abil
 
   const schemaIds = new Map<string, string>([...documents].map(([key, document]) => [key, STATIC_DOCUMENT_SCHEMA_IDS[document.ref.kind as keyof typeof STATIC_DOCUMENT_SCHEMA_IDS]]));
   expect(auditPublicTooltipCoverage(tooltipFacts, relations, documents, schemaIds)).toEqual([]);
+  const unrelatedRelations: CatalogRelations = { ...relations, conditions: [...relations.conditions, { ...relations.conditions[0]!, conditionId: 'unrelated', scope: null }] };
+  expect(auditPublicTooltipCoverage(tooltipFacts, unrelatedRelations, documents, schemaIds)).toEqual([]);
 
   const missingRank = new Map(documents);
   missingRank.set("abilities:202", { ...healingPotion, facts: { ranks: healingPotion.facts.ranks.slice(0, -1) } } as PublicDocument);
