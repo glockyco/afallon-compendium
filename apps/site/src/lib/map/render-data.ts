@@ -61,16 +61,52 @@ export function buildMarkers(placements: readonly PublicPlacement[], data: Publi
   return [...byId.values()].sort((left, right) => markerFor(left.markerId).renderOrder - markerFor(right.markerId).renderOrder || left.placementId.localeCompare(right.placementId));
 }
 
+function clipPolygonEdge(polygon: readonly Point[], axis: 0 | 1, boundary: number, keepGreater: boolean): Point[] {
+  if (polygon.length === 0) return [];
+  const result: Point[] = [];
+  let previous = polygon.at(-1)!;
+  let previousInside = keepGreater ? previous[axis] >= boundary : previous[axis] <= boundary;
+  for (const current of polygon) {
+    const currentInside = keepGreater ? current[axis] >= boundary : current[axis] <= boundary;
+    if (currentInside !== previousInside) {
+      const ratio = (boundary - previous[axis]) / (current[axis] - previous[axis]);
+      const intersection: Point = [previous[0] + (current[0] - previous[0]) * ratio, previous[1] + (current[1] - previous[1]) * ratio];
+      intersection[axis] = boundary;
+      result.push(intersection);
+    }
+    if (currentInside) result.push(current);
+    previous = current;
+    previousInside = currentInside;
+  }
+  return result;
+}
+
+function clipPolygonToBounds(polygon: readonly Point[], bounds: PublicationData["maps"][number]["bounds"]): Point[] {
+  let clipped = clipPolygonEdge(polygon, 0, bounds.min.x, true);
+  clipped = clipPolygonEdge(clipped, 0, bounds.max.x, false);
+  clipped = clipPolygonEdge(clipped, 1, bounds.min.y, true);
+  clipped = clipPolygonEdge(clipped, 1, bounds.max.y, false);
+  const normalized = clipped.filter((value, index) => index === 0 || value[0] !== clipped[index - 1]![0] || value[1] !== clipped[index - 1]![1]);
+  if (normalized.length > 1 && normalized[0]![0] === normalized.at(-1)![0] && normalized[0]![1] === normalized.at(-1)![1]) normalized.pop();
+  if (normalized.length < 3) return [];
+  const doubledArea = normalized.reduce((sum, [x, y], index) => {
+    const [nextX, nextY] = normalized[(index + 1) % normalized.length]!;
+    return sum + x * nextY - nextX * y;
+  }, 0);
+  return Math.abs(doubledArea) > 1e-8 ? normalized : [];
+}
+
 export function buildRegions(regions: readonly PublicRegion[], data: PublicationData, overrides: WorldOffsetOverrides): RegionRecord[] {
-  return regions.map((region) => {
+  const maps = new Map(data.maps.map((map) => [map.mapSpaceId, map]));
+  return regions.flatMap((region) => {
     const delta = effectiveMapDelta(data, region.mapSpaceId, overrides);
-    return {
-      id: region.id,
-      mapSpaceId: region.mapSpaceId,
-      name: region.name,
-      shape: region.shape,
-      polygon: region.polygon.map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point),
-    };
+    const polygon = region.polygon.map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point);
+    const map = maps.get(region.mapSpaceId);
+    const clipped = map ? clipPolygonToBounds(polygon, {
+      min: { x: map.bounds.min.x + delta.worldX, y: map.bounds.min.y + delta.worldY },
+      max: { x: map.bounds.max.x + delta.worldX, y: map.bounds.max.y + delta.worldY },
+    }) : polygon;
+    return clipped.length < 3 ? [] : [{ id: region.id, mapSpaceId: region.mapSpaceId, name: region.name, shape: region.shape, polygon: clipped }];
   });
 }
 

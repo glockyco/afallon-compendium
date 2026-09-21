@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import type { PublicationData, PublicRegion } from "@afallon/contracts/public";
+import { buildRegions } from "../render-data";
 import { createConnectionLayers, type TravelConnection } from "./connections";
 import { orderImageryLayers } from "./imagery";
 import { markerColor } from "./markers";
@@ -15,6 +17,21 @@ test("region layers preserve coordinates and label centroids", () => {
   expect(layers.map(layer => layer.id)).toEqual(["world-region-outline-halo", "world-region-outlines", "world-region-labels"]);
   expect(polygonCentroid(region.polygon)).toEqual([2, 1]);
   expect(property<(value: RegionRecord) => unknown>(layers[0]!, "getPolygon")(region)).toEqual(region.polygon);
+});
+
+test("region rendering clips polygons to their map crop", () => {
+  const data = {
+    world: { offsets: [{ mapSpaceId: "map", worldX: 0, worldY: 0 }] },
+    maps: [{ mapSpaceId: "map", bounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } } }],
+  } as PublicationData;
+  const regions = [
+    { id: "cropped", mapSpaceId: "map", name: "Cropped", shape: "box", polygon: [[-5, -5], [15, -5], [15, 15], [-5, 15]] },
+    { id: "outside", mapSpaceId: "map", name: "Outside", shape: "box", polygon: [[20, 20], [30, 20], [30, 30], [20, 30]] },
+  ] as PublicRegion[];
+  const rendered = buildRegions(regions, data, {});
+  expect(rendered).toHaveLength(1);
+  expect(rendered[0]!.polygon).toEqual([[0, 10], [0, 0], [10, 0], [10, 10]]);
+  expect(buildRegions(regions, data, { map: { worldX: 100, worldY: 200 } })[0]!.polygon).toEqual([[100, 210], [100, 200], [110, 200], [110, 210]]);
 });
 
 test("connection layers preserve picking identity and selected style", () => {
