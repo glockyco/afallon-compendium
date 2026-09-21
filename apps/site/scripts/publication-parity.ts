@@ -22,6 +22,8 @@ export interface PublicationSummary {
   itemKeys: Set<string>;
   regionKeys: Set<string>;
   placementIds: Set<string>;
+  placementLocations: Map<string, { mapSpaceId: string; position: readonly [number, number]; categories: readonly string[] }>;
+  boundsByMap: Map<string, { min: { x: number; y: number }; max: { x: number; y: number } }>;
   pageEntries: Set<string>;
   documentKeys: Set<string>;
   listKinds: Set<string>;
@@ -88,7 +90,10 @@ function summarize(graph: VerifiedPublicationGraph): PublicationSummary {
     placementsByMap, placementsByCategory, tileLayers,
     entityKeys: uniqueSet(searchKeys, "searchable entity"), itemKeys: uniqueSet(itemKeys, "searchable item"),
     regionKeys: uniqueSet(regions.map((region) => JSON.stringify({ mapSpaceId: region.mapSpaceId, name: region.name, shape: region.shape, polygon: region.polygon })), "map region"),
-    placementIds, pageEntries: uniqueSet(pageEntries, "page"), documentKeys: uniqueSet(documentKeys, "document"), listKinds: uniqueSet(listKinds, "kind list"),
+    placementIds,
+    placementLocations: new Map(placements.map((placement) => [placement.placementId, { mapSpaceId: placement.mapSpaceId, position: placement.position, categories: placement.categories }])),
+    boundsByMap: new Map(graph.publication.maps.map((map) => [map.mapSpaceId, map.bounds])),
+    pageEntries: uniqueSet(pageEntries, "page"), documentKeys: uniqueSet(documentKeys, "document"), listKinds: uniqueSet(listKinds, "kind list"),
     artworkAssets: new Set([...graph.references.values()].filter((reference) => reference.schemaId === "image/webp" && reference.path.startsWith("art/")).map((reference) => reference.path)),
     placementCount: placements.length,
   };
@@ -146,8 +151,50 @@ export function assertUpdatePublicationParity(candidate: PublicationSummary, bas
   if (candidate.placementCount < baseline.placementCount) throw new Error(`Publication update regresses placement coverage: ${candidate.placementCount} < ${baseline.placementCount}.`);
 }
 
+function within(bounds: { min: { x: number; y: number }; max: { x: number; y: number } }, position: readonly [number, number]): boolean {
+  return position[0] >= bounds.min.x && position[1] >= bounds.min.y && position[0] < bounds.max.x && position[1] < bounds.max.y;
+}
+
+export function assertCorrectedPublicationParity(candidate: PublicationSummary, baseline: PublicationSummary): void {
+  const missingMaps = [...baseline.mapIds].filter((mapSpaceId) => !candidate.mapIds.has(mapSpaceId));
+  if (missingMaps.length > 0) throw new Error(`Publication correction removes map spaces: ${missingMaps.join(", ")}.`);
+  for (const [mapSpaceId, bounds] of candidate.boundsByMap) {
+    const offset = candidate.offsets.get(mapSpaceId);
+    const gameMaps = [...candidate.tileLayers.values()].filter((layer) => layer.mapSpaceId === mapSpaceId && layer.kind === "game-map");
+    if (!offset || gameMaps.length !== 1) throw new Error(`Publication correction lacks one reviewed game-map extent for ${mapSpaceId}.`);
+    const extent = gameMaps[0]!.extent;
+    const expected = [extent[0] + offset.worldX, extent[1] + offset.worldY, extent[2] + offset.worldX, extent[3] + offset.worldY];
+    if (bounds.min.x !== expected[0] || bounds.min.y !== expected[1] || bounds.max.x !== expected[2] || bounds.max.y !== expected[3]) throw new Error(`Publication correction has non-imagery bounds for ${mapSpaceId}.`);
+  }
+  const outsideCandidate = [...candidate.placementLocations].filter(([, placement]) => {
+    const bounds = candidate.boundsByMap.get(placement.mapSpaceId);
+    return !bounds || !within(bounds, placement.position);
+  });
+  if (outsideCandidate.length > 0) throw new Error(`Publication correction retains out-of-bounds placements: ${outsideCandidate.slice(0, 20).map(([id]) => id).join(", ")}.`);
+  const unexpectedRemovals = [...baseline.placementLocations].filter(([id, placement]) => {
+    if (candidate.placementIds.has(id)) return false;
+    const bounds = candidate.boundsByMap.get(placement.mapSpaceId);
+    if (!bounds) return true;
+    if (!within(bounds, placement.position)) return false;
+    const foldedIntoDungeon = placement.categories.length === 1 && placement.categories[0] === "travelPoint" && [...candidate.placementLocations.values()].some((replacement) => replacement.mapSpaceId === placement.mapSpaceId && replacement.categories.includes("dungeonEntrance") && replacement.categories.includes("travelPoint") && Math.hypot(replacement.position[0] - placement.position[0], replacement.position[1] - placement.position[1]) <= 6);
+    return !foldedIntoDungeon;
+  });
+  if (unexpectedRemovals.length > 0) throw new Error(`Publication correction removes in-bounds placements: ${unexpectedRemovals.slice(0, 20).map(([id]) => id).join(", ")}.`);
+  assertContains(candidate.entityKeys, baseline.entityKeys, "searchable entities");
+  assertContains(candidate.itemKeys, baseline.itemKeys, "searchable items");
+  assertContains(candidate.regionKeys, baseline.regionKeys, "map regions");
+  assertContains(candidate.pageEntries, baseline.pageEntries, "published pages");
+  assertContains(candidate.documentKeys, baseline.documentKeys, "published documents");
+  assertContains(candidate.listKinds, baseline.listKinds, "published lists");
+  assertContains(candidate.artworkAssets, baseline.artworkAssets, "published artwork");
+  for (const [mapSpaceId, expected] of baseline.offsets) {
+    const actual = candidate.offsets.get(mapSpaceId);
+    if (!actual || actual.worldX !== expected.worldX || actual.worldY !== expected.worldY) throw new Error(`Publication correction changes the reviewed world offset for ${mapSpaceId}.`);
+  }
+}
+
 export function verifyUpdatePublicationParity(candidate: VerifiedPublicationGraph, baselineRoot: string): void {
-  const baseline = verifyPublicationGraph(baselineRoot);
-  if (candidate.publication.buildId === baseline.publication.buildId) throw new Error("Verified update parity requires a different build from the baseline.");
-  assertUpdatePublicationParity(summarize(candidate), summarize(baseline));
+  const baseline = verifyPublicationGraph(baselineRoot), candidateSummary = summarize(candidate), baselineSummary = summarize(baseline);
+  if (candidate.publication.buildId === baseline.publication.buildId) assertCorrectedPublicationParity(candidateSummary, baselineSummary);
+  else assertUpdatePublicationParity(candidateSummary, baselineSummary);
 }
