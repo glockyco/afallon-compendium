@@ -44,7 +44,7 @@
           <td class="c-num">{#if rangeText(row.min, row.max) === null}<MissingValue explanation="No quantity is published" />{:else}{rangeText(row.min, row.max)}{/if}</td>
           <td class="c-num">{#if row.chance === undefined}<MissingValue explanation="Not measured for this build" />{:else}{formatNumber(row.chance)}%{/if}</td>
           {#if hasLevels}<td class="c-num">{#if row.levelBand}{row.levelBand.min}–{row.levelBand.max}{:else}<MissingValue explanation="No level range is published" />{/if}</td>{/if}
-          {#if hasRequirements}<td><Requirements requirements={row.requirements} {registry} /></td>{/if}
+          {#if hasRequirements}<td><Requirements requirements={row.requirements} /></td>{/if}
         </tr>
       {/each}
     </DataTable>

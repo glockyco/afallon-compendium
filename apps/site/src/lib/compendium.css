@@ -84,21 +84,6 @@
   .c-card-grid > .c-card--wide { grid-column: span 2; }
 }
 
-/* Cards render flush inside the tooltip and the atlas panel, which already have a surface. */
-.c-compact .c-card {
-  padding: .6rem 0 0;
-  border: 0;
-  border-top: 1px solid var(--c-line-soft);
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-}
-
-.c-compact .c-card > header { margin-bottom: .45rem; }
-.c-compact .c-card > header h2 { font-size: .82rem; }
-.c-compact .c-card-grid { grid-template-columns: 1fr; gap: 0; }
-.c-compact .c-stack { gap: 0; }
-
 /* Label-above-value facts */
 
 .c-facts {

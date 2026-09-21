@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PublicDocument, PublicKindEntry, PublicPlacement } from '@afallon/contracts/public';
-  import FactCard from '../FactCard.svelte';
+  import TooltipPresenter from '../TooltipPresenter.svelte';
 
   export let detailsPanel: HTMLElement;
   export let document: PublicDocument | null;
@@ -19,7 +19,7 @@
   {#if staleSelection}<div class="stale-warning" role="alert"><p>{staleSelection}</p></div>{/if}
   {#if error}<div class="stale-warning" role="alert"><p>{error}</p><button type="button" class="inline-link" on:click={onRetry}>Retry details</button></div>{/if}
   {#if loading && !document}<p class="muted" role="status">Loading document…</p>{/if}
-  {#if document}<FactCard {document} {registry} {mapSpaceLabels} compact showRelations limit={5} /><details class="entity-block"><summary>Published document</summary><pre>{JSON.stringify(document, null, 2)}</pre></details>{/if}
+  {#if document}<TooltipPresenter {document} {registry} {mapSpaceLabels} /><details class="entity-block"><summary>Published document</summary><pre>{JSON.stringify(document, null, 2)}</pre></details>{/if}
   {#if selectedPlacement}<details class="entity-block"><summary>Published placement</summary><pre>{JSON.stringify(selectedPlacement, null, 2)}</pre></details>{/if}
   {#if !document && !selectedPlacement && !staleSelection}<div class="details-empty"><span class="eyebrow">Development details</span><p>Select a marker or a result to inspect its published data.</p></div>{/if}
 </aside>

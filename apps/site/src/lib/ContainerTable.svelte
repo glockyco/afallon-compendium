@@ -52,7 +52,7 @@
           {#if hasPlaces}<td>{#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{/if}</td>{/if}
           <td class="c-num">{#if rangeText(row.min, row.max) === null}<MissingValue explanation="No quantity is published" />{:else}{rangeText(row.min, row.max)}{/if}</td>
           <td class="c-num">{#if row.chance === undefined}<MissingValue explanation="Not measured for this build" />{:else}{formatNumber(row.chance)}%{/if}</td>
-          {#if hasRequirements}<td><Requirements requirements={row.requirements} {registry} /></td>{/if}
+          {#if hasRequirements}<td><Requirements requirements={row.requirements} /></td>{/if}
           {#if hasLocations}<td class="c-num">{#if row.placementCount > 0}<a class="c-link" href={`${base}/?item=${encodeURIComponent(itemKey)}`}>{row.placementCount} {row.placementCount === 1 ? 'location' : 'locations'}</a>{:else}<MissingValue explanation="No location is published" />{/if}</td>{/if}
         </tr>
       {/each}

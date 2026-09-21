@@ -10,6 +10,7 @@
   import Fact from './Fact.svelte';
   import FactGrid from './FactGrid.svelte';
   import GatherTable from './GatherTable.svelte';
+  import NativeText from './NativeText.svelte';
   import Price from './Price.svelte';
   import QuestTable from './QuestTable.svelte';
   import RecipeTable from './RecipeTable.svelte';
@@ -19,7 +20,6 @@
 
   export let document: PublicItem;
   export let registry: PublicKindEntry[];
-  export let compact = false;
   export let showRelations = false;
   export let limit: number | undefined = undefined;
 
@@ -37,7 +37,6 @@
   $: headerFacts = [
     ...(slot ? [{ label: 'Slot', value: labelOf(slot) }] : []),
     ...(gearType ? [{ label: 'Type', value: labelOf(gearType) }] : facts.itemType ? [{ label: 'Type', value: labelOf(facts.itemType) }] : []),
-    ...(facts.levelRequirement !== undefined ? [{ label: 'Requires level', value: String(facts.levelRequirement) }] : []),
   ] satisfies HeaderFact[];
   $: statChips = facts.stats.map((stat) => ({
     label: stat.stat.key === null ? stat.stat.label : stat.stat.name,
@@ -53,14 +52,14 @@
     value: signedAmount(stat.amount, stat.isPercent),
   })) satisfies Chip[];
   $: coreFactCount = [damage !== null, facts.attackSpeed !== undefined, facts.damagePerSecond !== undefined,
-    facts.itemType !== undefined && !compact, facts.stackLimit > 1, facts.enchantment !== undefined,
+    facts.itemType !== undefined, facts.stackLimit > 1, facts.enchantment !== undefined,
     facts.gearSet !== undefined, facts.sellPrice !== undefined, facts.buyPrice !== undefined].filter(Boolean).length;
   $: hasCoreFacts = facts.itemPower !== undefined || damage !== null || facts.attackSpeed !== undefined || facts.stackLimit > 1
     || facts.enchantment !== undefined || facts.gearSet !== undefined || facts.sellPrice !== undefined || facts.buyPrice !== undefined
-    || (!compact && facts.itemType !== undefined);
+    || facts.itemType !== undefined;
 </script>
 
-<article class="document" class:c-compact={compact} data-rarity={rarityTone(facts.rarity)}>
+<article class="document" data-rarity={rarityTone(facts.rarity)}>
   <EntityHeader
     name={document.ref.name}
     art={document.art.icon ?? document.ref.icon}
@@ -69,9 +68,8 @@
     {badges}
     facts={headerFacts}
     description={document.description}
-    atlasHref={hasSources && !compact ? `${base}/?item=${encodeURIComponent(document.ref.key)}` : undefined}
+    atlasHref={hasSources ? `${base}/?item=${encodeURIComponent(document.ref.key)}` : undefined}
     atlasLabel="View sources on the atlas"
-    {compact}
   />
 
   <div class="c-stack">
@@ -79,11 +77,11 @@
       {#if hasCoreFacts}
       <Card title="Facts" wide={coreFactCount > 2}>
         {#if facts.itemPower !== undefined}<p class="item-power">Item power <strong>{formatNumber(facts.itemPower)}</strong></p>{/if}
-        <FactGrid wide={!compact}>
+        <FactGrid wide>
           {#if damage}<Fact label="Damage">{damage}</Fact>{/if}
           {#if facts.attackSpeed !== undefined}<Fact label="Attack speed">{formatNumber(facts.attackSpeed)}</Fact>{/if}
           {#if facts.damagePerSecond !== undefined}<Fact label="Damage per second">{facts.damagePerSecond.toFixed(1)}</Fact>{/if}
-          {#if facts.itemType && !compact}<Fact label="Item type">{labelOf(facts.itemType)}</Fact>{/if}
+          {#if facts.itemType}<Fact label="Item type">{labelOf(facts.itemType)}</Fact>{/if}
           {#if facts.stackLimit > 1}<Fact label="Stack limit">{formatNumber(facts.stackLimit)}</Fact>{/if}
           {#if facts.enchantment}<Fact label="Enchantment"><EntityLink ref={facts.enchantment} {registry} /></Fact>{/if}
           {#if facts.gearSet}<Fact label="Gear set"><EntityLink ref={facts.gearSet} {registry} /></Fact>{/if}
@@ -105,7 +103,14 @@
           {#if gemChips.length}<ChipGrid chips={gemChips} />{:else}<p class="note">This gem grants no published stat.</p>{/if}
         </Card>
       {/if}
-      {#if facts.requirements.length}<Card title="Requirements"><Requirements requirements={facts.requirements} {registry} /></Card>{/if}
+      {#if facts.useLines.length || facts.actionAbilities.length}
+        <Card title="Use effects">
+          {#if facts.useLines.length}<NativeText lines={facts.useLines} />{/if}
+          {#if facts.actionAbilities.length}<ul class="ability-list">{#each facts.actionAbilities as reference}<li><EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} /> <span>Rank {reference.rankIndex + 1}</span></li>{/each}</ul>{/if}
+        </Card>
+      {/if}
+      {#if facts.equipmentRequirements.length}<Card title="Equipment requirements"><Requirements requirements={facts.equipmentRequirements} /></Card>{/if}
+      {#if facts.useConditions.length}<Card title="Use conditions"><Requirements requirements={facts.useConditions} /></Card>{/if}
     </div>
 
     {#if showRelations}
@@ -124,4 +129,7 @@
   .item-power { margin: 0 0 .75rem; color: var(--c-currency); font-size: .9rem; letter-spacing: .02em; }
   .item-power strong { font-size: 1.1rem; }
   .note { margin: .6rem 0 0; color: var(--c-text-mute); font-size: .76rem; }
+  .ability-list { display: grid; gap: .35rem; margin: .65rem 0 0; padding: 0; list-style: none; }
+  .ability-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+  .ability-list span { color: var(--c-text-dim); font-size: .76rem; }
 </style>

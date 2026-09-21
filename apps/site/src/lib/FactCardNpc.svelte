@@ -17,7 +17,6 @@
 
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
-  export let compact = false;
   export let showRelations = false;
   export let limit: number | undefined = undefined;
 
@@ -53,7 +52,7 @@
     || facts.experience !== undefined || facts.aggroRange !== undefined || lootSpecialization !== undefined || document.linkedNpc !== undefined;
 </script>
 
-<article class="document" class:c-compact={compact}>
+<article class="document">
   <EntityHeader
     name={document.ref.name}
     art={document.art.portrait ?? document.art.icon ?? document.ref.icon}
@@ -62,16 +61,15 @@
     {badges}
     facts={headerFacts}
     description={document.description}
-    atlasHref={document.locations.length > 0 && !compact ? `${base}/?entity=${encodeURIComponent(document.ref.key)}` : undefined}
+    atlasHref={document.locations.length > 0 ? `${base}/?entity=${encodeURIComponent(document.ref.key)}` : undefined}
     atlasLabel="View on the atlas"
-    {compact}
   />
 
   <div class="c-stack">
     <div class="c-card-grid">
       {#if hasFacts}
       <Card title="Facts" wide={factCount > 2}>
-        <FactGrid wide={!compact}>
+        <FactGrid wide>
             {#if facts.species}<Fact label="Species"><EntityLink ref={facts.species} {registry} /></Fact>{/if}
             {#if facts.family}<Fact label="Family">{labelOf(facts.family)}</Fact>{/if}
             {#if facts.experience}<Fact label="Experience">{rangeText(facts.experience.min, facts.experience.max)}</Fact>{/if}

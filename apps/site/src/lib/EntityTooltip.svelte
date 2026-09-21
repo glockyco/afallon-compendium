@@ -1,10 +1,13 @@
 <script lang="ts">
-  import type { EntityRef, PublicDocument, PublicKindEntry } from '@afallon/contracts/public';
+  import { onDestroy } from 'svelte';
+  import type { EntityRef, PublicDocument, PublicGearSet, PublicItem, PublicKindEntry } from '@afallon/contracts/public';
   import { clientAtlasLoader } from './client-publication';
-  import FactCard from './FactCard.svelte';
+  import TooltipPresenter from './TooltipPresenter.svelte';
 
   export let ref: EntityRef;
   export let registry: PublicKindEntry[];
+  export let rankIndex: number | undefined = undefined;
+  export let id: string | undefined = undefined;
   /** The link that owns this tooltip. A relation table scrolls, so the tooltip is positioned
       against the viewport instead of the anchor's clipping box. */
   export let anchor: HTMLElement | undefined = undefined;
@@ -13,11 +16,14 @@
   let loading = false;
   let error = '';
   let document: PublicDocument | null = null;
+  let gearSet: PublicGearSet | null = null;
   let mapSpaceLabels: Readonly<Record<string, string>> = {};
   let intentTimer: ReturnType<typeof setTimeout> | undefined;
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
   let placement = '';
 
   export async function show(): Promise<void> {
+    clearTimeout(closeTimer);
     place();
     open = true;
     if (document || loading) return;
@@ -29,6 +35,14 @@
       const [loadedDocument, root] = await Promise.all([activeLoader.loadDocumentForRef(ref), activeLoader.loadRoot()]);
       document = loadedDocument;
       mapSpaceLabels = Object.fromEntries(root.maps.map((map) => [map.mapSpaceId, map.label]));
+      if (loadedDocument.ref.kind === 'items') {
+        const setRef = (loadedDocument as PublicItem).facts.gearSet;
+        if (setRef && setRef.key !== null) {
+          const loadedSet = await activeLoader.loadDocumentForRef(setRef as EntityRef);
+          if (loadedSet.ref.kind !== 'gearSets' || loadedSet.ref.key !== setRef.key) throw new Error(`Gear set details do not match ${setRef.name}.`);
+          gearSet = loadedSet as PublicGearSet;
+        }
+      }
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally {
@@ -38,11 +52,25 @@
 
   export function showAfterIntent(): void {
     clearTimeout(intentTimer);
+    clearTimeout(closeTimer);
     intentTimer = setTimeout(() => void show(), 160);
+  }
+
+  export function keepOpen(): void {
+    clearTimeout(closeTimer);
+  }
+
+  export function closeAfterIntent(): void {
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => {
+      if (anchor?.contains(globalThis.document.activeElement)) return;
+      close();
+    }, 100);
   }
 
   export function close(): void {
     clearTimeout(intentTimer);
+    clearTimeout(closeTimer);
     open = false;
   }
 
@@ -52,6 +80,11 @@
     event.stopPropagation();
     close();
   }
+
+  onDestroy(() => {
+    clearTimeout(intentTimer);
+    clearTimeout(closeTimer);
+  });
 
   function place(): void {
     if (!anchor || typeof window === 'undefined') return;
@@ -67,10 +100,10 @@
 </script>
 
 {#if open}
-  <span class="entity-tooltip" role="tooltip" style={placement}>
+  <span {id} class="entity-tooltip" role="tooltip" style={placement} on:pointerenter={keepOpen} on:pointerleave={closeAfterIntent}>
     {#if loading}<span class="tooltip-status">Loading details…</span>
     {:else if error}<span class="tooltip-status error">Details are unavailable.</span>
-    {:else if document}<FactCard {document} {registry} {mapSpaceLabels} compact />{/if}
+    {:else if document}<TooltipPresenter {document} {registry} {mapSpaceLabels} {rankIndex} {gearSet} />{/if}
   </span>
 {/if}
 

@@ -15,7 +15,6 @@
   export let document: PublicPlace;
   export let registry: PublicKindEntry[];
   export let mapSpaceLabels: Readonly<Record<string, string>> = {};
-  export let compact = false;
   export let showRelations = false;
   export let limit: number | undefined = undefined;
 
@@ -58,7 +57,7 @@
   }
 </script>
 
-<article class="document" class:c-compact={compact}>
+<article class="document">
   <EntityHeader
     name={document.ref.name}
     art={document.art.artwork ?? document.art.icon ?? document.ref.icon}
@@ -67,9 +66,8 @@
     {badges}
     facts={headerFacts}
     description={document.description}
-    atlasHref={document.space && !compact ? `${base}/?place=${encodeURIComponent(document.ref.key)}` : undefined}
+    atlasHref={document.space ? `${base}/?place=${encodeURIComponent(document.ref.key)}` : undefined}
     atlasLabel="View the map space"
-    {compact}
   />
 
   <div class="c-stack">

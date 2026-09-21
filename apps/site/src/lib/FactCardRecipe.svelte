@@ -5,7 +5,6 @@
 
   export let document: PublicRecipe;
   export let registry: PublicKindEntry[];
-  export let compact = false;
   export let showRelations = false;
   export let limit: number | undefined = undefined;
 
@@ -17,14 +16,13 @@
   ] satisfies HeaderFact[];
 </script>
 
-<article class="document" class:c-compact={compact}>
+<article class="document">
   <EntityHeader
     name={document.ref.name}
     art={document.art.icon ?? document.ref.icon}
     fallbackIcon={registry.find((entry) => entry.kind === 'recipes')?.icon}
     facts={headerFacts}
     description={document.description}
-    {compact}
   />
 
   <div class="c-stack">

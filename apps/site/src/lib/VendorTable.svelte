@@ -46,7 +46,7 @@
         <tr>
           <td><EntityLink ref={row.counterpart} {registry} /></td>
           <td class="c-num"><Price price={row.price} /></td>
-          <td><Requirements requirements={row.requirements} {registry} emptyExplanation="Unlock requirement unknown" /></td>
+          <td><Requirements requirements={row.requirements} emptyExplanation="Unlock requirement unknown" /></td>
         </tr>
       {/each}
     </DataTable>

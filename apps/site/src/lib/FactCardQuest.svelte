@@ -12,7 +12,6 @@
 
   export let document: PublicQuest;
   export let registry: PublicKindEntry[];
-  export let compact = false;
   export let showRelations = false;
   export let limit: number | undefined = undefined;
 
@@ -30,7 +29,7 @@
   $: chainQuests = limit === undefined ? document.chainQuests : document.chainQuests.slice(0, limit);
 </script>
 
-<article class="document" class:c-compact={compact}>
+<article class="document">
   <EntityHeader
     name={document.ref.name}
     art={document.art.icon ?? document.ref.icon}
@@ -38,7 +37,6 @@
     {badges}
     facts={headerFacts}
     description={document.description}
-    {compact}
   />
 
   <div class="c-stack">
@@ -54,7 +52,7 @@
         </FactGrid>
       </Card>
 
-      {#if facts.requirements.length}<Card title="Requirements"><Requirements requirements={facts.requirements} {registry} /></Card>{/if}
+      {#if facts.requirements.length}<Card title="Requirements"><Requirements requirements={facts.requirements} /></Card>{/if}
     </div>
 
     {#if facts.objectiveText || facts.completedDescription}

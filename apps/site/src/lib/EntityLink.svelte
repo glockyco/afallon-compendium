@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { base } from '$app/paths';
   import type { EntityRef, PublicKindEntry, Ref } from '@afallon/contracts/public';
   import EntityTooltip from './EntityTooltip.svelte';
@@ -7,11 +8,14 @@
   export let ref: Ref;
   export let registry: PublicKindEntry[];
   export let tooltip = true;
+  export let rankIndex: number | undefined = undefined;
   /** An item link carries its rarity on the name and the icon ring, as the game does. */
   export let rarity: string | undefined = undefined;
 
   let tooltipController: EntityTooltip;
   let anchorElement: HTMLElement | undefined;
+  let tooltipId: string | undefined;
+  onMount(() => { tooltipId = `entity-tooltip-${crypto.randomUUID()}`; });
   $: resolved = ref.key !== null ? ref as EntityRef : null;
   $: kind = resolved ? registry.find((entry) => entry.kind === resolved?.kind) : undefined;
   $: linked = Boolean(resolved?.slug && kind?.pages);
@@ -20,13 +24,13 @@
 
 {#if resolved && linked && kind}
   {#if tooltip}
-    <span class="tooltip-anchor" bind:this={anchorElement}>
-      <a class="entity-link" data-rarity={rarity} href={`${base}/${kind.route}/${resolved.slug}/`} on:pointerenter={() => tooltipController.showAfterIntent()} on:pointerleave={() => tooltipController.close()} on:focus={() => void tooltipController.show()} on:blur={() => tooltipController.close()} on:keydown={(event) => tooltipController.handleKeydown(event)}>
+    <span class="tooltip-anchor" role="group" bind:this={anchorElement} on:pointerenter={() => tooltipController.keepOpen()} on:pointerleave={() => tooltipController.closeAfterIntent()}>
+      <a class="entity-link" data-rarity={rarity} href={`${base}/${kind.route}/${resolved.slug}/`} aria-describedby={tooltipId} on:pointerenter={(event) => { if (event.pointerType !== 'touch') tooltipController.showAfterIntent(); }} on:focus={() => void tooltipController.show()} on:blur={() => tooltipController.close()} on:keydown={(event) => tooltipController.handleKeydown(event)}>
         {#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}
         <span>{resolved.name}</span>
       </a>
-      <EntityTooltip bind:this={tooltipController} ref={resolved} {registry} anchor={anchorElement} />
     </span>
+    <EntityTooltip bind:this={tooltipController} ref={resolved} {registry} {rankIndex} anchor={anchorElement} id={tooltipId} />
   {:else}
     <a class="entity-link" data-rarity={rarity} href={`${base}/${kind.route}/${resolved.slug}/`}>
       {#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}

@@ -20,7 +20,7 @@
           {#if grouped}
             <p class="phase-name">{phase.name ?? `Phase ${phase.phaseIndex + 1}`}{#if phase.requirement}<span class="requirement">{phase.requirement}</span>{/if}</p>
           {/if}
-          <ul>{#each phase.abilities as ability}<li><EntityLink ref={ability} {registry} /></li>{/each}</ul>
+          <ul>{#each phase.abilities as reference}<li><EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} /></li>{/each}</ul>
         </div>
       {/each}
     </div>

@@ -12,16 +12,15 @@
   export let document: PublicDocument;
   export let registry: PublicKindEntry[];
   export let mapSpaceLabels: Readonly<Record<string, string>> = {};
-  export let compact = false;
   export let showRelations = false;
   export let limit: number | undefined = undefined;
 </script>
 
-{#if document.ref.kind === 'items'}<FactCardItem document={document as PublicItem} {registry} {compact} {showRelations} {limit} />
-{:else if document.ref.kind === 'npcs'}<FactCardNpc document={document as PublicNpc} {registry} {compact} {showRelations} {limit} />
-{:else if document.ref.kind === 'quests'}<FactCardQuest document={document as PublicQuest} {registry} {compact} {showRelations} {limit} />
-{:else if document.ref.kind === 'places'}<FactCardPlace document={document as PublicPlace} {registry} {mapSpaceLabels} {compact} {showRelations} {limit} />
-{:else if document.ref.kind === 'properties'}<FactCardProperty document={document as PublicProperty} {registry} {compact} {showRelations} {limit} />
-{:else if document.ref.kind === 'abilities'}<FactCardAbility document={document as PublicAbility} {registry} {compact} {showRelations} {limit} />
-{:else if document.ref.kind === 'recipes'}<FactCardRecipe document={document as PublicRecipe} {registry} {compact} {showRelations} {limit} />
-{:else if document.ref.kind === 'gearSets'}<FactCardGearSet document={document as PublicGearSet} {registry} {compact} {showRelations} {limit} />{/if}
+{#if document.ref.kind === 'items'}<FactCardItem document={document as PublicItem} {registry} {showRelations} {limit} />
+{:else if document.ref.kind === 'npcs'}<FactCardNpc document={document as PublicNpc} {registry} {showRelations} {limit} />
+{:else if document.ref.kind === 'quests'}<FactCardQuest document={document as PublicQuest} {registry} {showRelations} {limit} />
+{:else if document.ref.kind === 'places'}<FactCardPlace document={document as PublicPlace} {registry} {mapSpaceLabels} {showRelations} {limit} />
+{:else if document.ref.kind === 'properties'}<FactCardProperty document={document as PublicProperty} {registry} {showRelations} {limit} />
+{:else if document.ref.kind === 'abilities'}<FactCardAbility document={document as PublicAbility} {registry} {showRelations} {limit} />
+{:else if document.ref.kind === 'recipes'}<FactCardRecipe document={document as PublicRecipe} {registry} {showRelations} {limit} />
+{:else if document.ref.kind === 'gearSets'}<FactCardGearSet document={document as PublicGearSet} {registry} {showRelations} {limit} />{/if}
