@@ -44,21 +44,20 @@ test("failed manifests retain produced objects and failure evidence", async () =
   await previous.release();
   const run = await begin();
   const admittedPath = join(root, "runs", run.runId, "revisions", "00000000.json");
-  const admittedBytes = await readFile(admittedPath);
   const object = await run.putBytes(new TextEncoder().encode("partial evidence"));
   await run.addArtifact("raw/world-sources.json", object, { mediaType: "application/json", schemaId: "compendium.world-sources.v7" });
   const failed = await run.fail(new Error("collector failed"));
 
   expect(failed).toMatchObject({ status: "failed", phase: "preparation", outputs: [{ name: "raw/world-sources.json", content: { sha256: object.sha256, bytes: object.bytes } }], failure: { name: "Error", message: "collector failed" } });
   expect(await readArtifactRunManifest(run.manifestPath)).toEqual(failed);
-  expect(await readFile(admittedPath)).toEqual(admittedBytes);
+  await expect(readFile(admittedPath)).rejects.toMatchObject({ code: "ENOENT" });
   expect((await readLatestSuccess(store, input.buildId, input.operation))?.manifest.runId).toBe(previous.runId);
   expect((await inspectArtifactRun(store, run.runId)).manifest.execution.pid).toBe(process.pid);
   await expect(run.addArtifact("other.json", object, { mediaType: "application/json" })).rejects.toMatchObject({ name: "RunStateError" });
   await expect(run.succeed()).rejects.toMatchObject({ name: "RunStateError" });
 }));
 
-test("successful manifests verify outputs and reject later mutation", async () => fixture(async (store, _root, begin) => {
+test("successful manifests replace revision journals and reject later mutation", async () => fixture(async (store, root, begin) => {
   const run = await begin();
   const object = await store.putBytes(new TextEncoder().encode("complete evidence"));
   await run.addArtifact("result.json", object, { mediaType: "application/json" });
@@ -67,6 +66,7 @@ test("successful manifests verify outputs and reject later mutation", async () =
   expect(succeeded.status).toBe("succeeded");
   expect(succeeded.failure).toBeNull();
   expect(await readArtifactRunManifest(run.manifestPath)).toEqual(succeeded);
+  await expect(readdir(join(root, "runs", run.runId, "revisions"))).rejects.toMatchObject({ code: "ENOENT" });
   expect(await resolveArtifactRun(store, run.manifestIdentity!, { buildId: input.buildId, operation: input.operation })).toEqual(succeeded);
   await expect(run.fail(new Error("late failure"))).rejects.toMatchObject({ name: "RunStateError" });
 }));

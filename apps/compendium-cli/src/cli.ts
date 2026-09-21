@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { Assert } from "typebox/value";
 import { capture, generateGameMap, generateTiles, validateCapturePlan } from "@afallon/capture";
-import { ArtifactStore } from "@afallon/artifacts";
+import { ArtifactStore, compactTerminalRunRevisions } from "@afallon/artifacts";
 import { CapturePlanSchema, TilePlanSchema } from "@afallon/contracts";
 import "@afallon/contracts/public";
 import { validateScanPlanStructure } from "@afallon/scan";
@@ -30,6 +30,7 @@ const HELP = `Usage:
   bun run compendium publish --store DIRECTORY --output DIRECTORY --plan FILE [--candidate]
   bun run compendium accept-update --store DIRECTORY --report FILE --publication-root DIRECTORY --baseline-root DIRECTORY [--expected HASH|none]
   bun run compendium align-world-layout --presentation FILE --offsets FILE --publication-root DIRECTORY --output FILE [--half-width NUMBER --half-height NUMBER]
+  bun run compendium clean --store DIRECTORY [--apply]
   bun run compendium preview
   bun run compendium deploy PUBLICATION_ROOT [ORIGIN]
 
@@ -49,7 +50,7 @@ const { values, positionals } = parseArgs({
     build: { type: "string" }, version: { type: "string" }, cpp2il: { type: "string" },
     report: { type: "string" }, "publication-root": { type: "string" }, "baseline-root": { type: "string" }, expected: { type: "string" },
     presentation: { type: "string" }, offsets: { type: "string" }, "half-width": { type: "string" }, "half-height": { type: "string" },
-    candidate: { type: "boolean", default: false },
+    candidate: { type: "boolean", default: false }, apply: { type: "boolean", default: false },
   },
 });
 
@@ -68,8 +69,14 @@ async function runSiteCommand(command: string[], cwd: string): Promise<void> {
 async function main(): Promise<void> {
   const command = positionals[0];
   if (values.help || command === undefined) { console.log(HELP); return; }
-  const known = ["update", "recover", "scan", "capture", "register", "pyramid", "game-map", "catalog", "publish", "accept-update", "align-world-layout", "preview", "deploy"];
+  const known = ["update", "recover", "scan", "capture", "register", "pyramid", "game-map", "catalog", "publish", "accept-update", "align-world-layout", "clean", "preview", "deploy"];
   if (!known.includes(command)) throw new Error(`Unknown command: ${command}. Use --help.`);
+  if (command === "clean") {
+    allowOptions(command, ["store", "apply"]);
+    if (positionals.length !== 1 || !values.store) throw new Error("clean requires --store and does not accept operands.");
+    console.log(JSON.stringify({ ok: true, ...await compactTerminalRunRevisions(new ArtifactStore(resolve(values.store)), { apply: values.apply }) }, null, 2));
+    return;
+  }
   if (command === "preview") {
     allowOptions(command, []);
     if (positionals.length !== 1) throw new Error("preview does not accept operands.");

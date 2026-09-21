@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm } from "node:fs/promises";
 import { hostname } from "node:os";
 import * as path from "node:path";
 import { Assert } from "typebox/value";
@@ -111,6 +111,7 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
     catch (error) { revision -= 1; throw error; }
     state = status;
     manifestIdentity = { sha256: object.sha256, bytes: object.bytes };
+    await rm(revisionsDirectory, { recursive: true, force: true }).catch(() => undefined);
     return structuredClone(manifest);
   };
   const run: ArtifactRun = {
