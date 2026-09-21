@@ -84,12 +84,24 @@ function summarize(graph: VerifiedPublicationGraph): PublicationSummary {
     if (tileLayers.has(key)) throw new Error(`Publication repeats imagery layer ${key}.`);
     tileLayers.set(key, layer);
   }
+  const offsets = new Map(graph.publication.world.offsets.filter((offset) => offset.status === "placed").map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }]));
+  const regionKeys = regions.map((region) => {
+    const offset = offsets.get(region.mapSpaceId);
+    if (!offset) throw new Error(`Publication lacks a placed world offset for region ${region.id}.`);
+    return JSON.stringify({
+      mapSpaceId: region.mapSpaceId,
+      id: region.id,
+      name: region.name,
+      shape: region.shape,
+      polygon: region.polygon.map(([x, y]) => [Math.round((x - offset.worldX) * 1e6) / 1e6, Math.round((y - offset.worldY) * 1e6) / 1e6]),
+    });
+  });
   return {
     mapIds: new Set(graph.publication.maps.map((map) => map.mapSpaceId)),
-    offsets: new Map(graph.publication.world.offsets.filter((offset) => offset.status === "placed").map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }])),
+    offsets,
     placementsByMap, placementsByCategory, tileLayers,
     entityKeys: uniqueSet(searchKeys, "searchable entity"), itemKeys: uniqueSet(itemKeys, "searchable item"),
-    regionKeys: uniqueSet(regions.map((region) => JSON.stringify({ mapSpaceId: region.mapSpaceId, name: region.name, shape: region.shape, polygon: region.polygon })), "map region"),
+    regionKeys: uniqueSet(regionKeys, "map region"),
     placementIds,
     placementLocations: new Map(placements.map((placement) => [placement.placementId, { mapSpaceId: placement.mapSpaceId, position: placement.position, categories: placement.categories }])),
     boundsByMap: new Map(graph.publication.maps.map((map) => [map.mapSpaceId, map.bounds])),
@@ -171,12 +183,27 @@ export function assertCorrectedPublicationParity(candidate: PublicationSummary, 
     return !bounds || !within(bounds, placement.position);
   });
   if (outsideCandidate.length > 0) throw new Error(`Publication correction retains out-of-bounds placements: ${outsideCandidate.slice(0, 20).map(([id]) => id).join(", ")}.`);
+  const changedLocalPlacements = [...candidate.placementLocations].filter(([id, placement]) => {
+    const previous = baseline.placementLocations.get(id);
+    if (!previous) return false;
+    if (placement.mapSpaceId !== previous.mapSpaceId) return true;
+    const candidateOffset = candidate.offsets.get(placement.mapSpaceId), baselineOffset = baseline.offsets.get(previous.mapSpaceId);
+    if (!candidateOffset || !baselineOffset) return true;
+    return Math.abs((placement.position[0] - candidateOffset.worldX) - (previous.position[0] - baselineOffset.worldX)) > 1e-6
+      || Math.abs((placement.position[1] - candidateOffset.worldY) - (previous.position[1] - baselineOffset.worldY)) > 1e-6;
+  });
+  if (changedLocalPlacements.length > 0) throw new Error(`Publication correction changes local placement coordinates: ${changedLocalPlacements.slice(0, 20).map(([id]) => id).join(", ")}.`);
   const unexpectedRemovals = [...baseline.placementLocations].filter(([id, placement]) => {
     if (candidate.placementIds.has(id)) return false;
     const bounds = candidate.boundsByMap.get(placement.mapSpaceId);
-    if (!bounds) return true;
-    if (!within(bounds, placement.position)) return false;
-    const foldedIntoDungeon = placement.categories.length === 1 && placement.categories[0] === "travelPoint" && [...candidate.placementLocations.values()].some((replacement) => replacement.mapSpaceId === placement.mapSpaceId && replacement.categories.includes("dungeonEntrance") && replacement.categories.includes("travelPoint") && Math.hypot(replacement.position[0] - placement.position[0], replacement.position[1] - placement.position[1]) <= 6);
+    const candidateOffset = candidate.offsets.get(placement.mapSpaceId), baselineOffset = baseline.offsets.get(placement.mapSpaceId);
+    if (!bounds || !candidateOffset || !baselineOffset) return true;
+    const translatedPosition = [
+      placement.position[0] - baselineOffset.worldX + candidateOffset.worldX,
+      placement.position[1] - baselineOffset.worldY + candidateOffset.worldY,
+    ] as const;
+    if (!within(bounds, translatedPosition)) return false;
+    const foldedIntoDungeon = placement.categories.length === 1 && placement.categories[0] === "travelPoint" && [...candidate.placementLocations.values()].some((replacement) => replacement.mapSpaceId === placement.mapSpaceId && replacement.categories.includes("dungeonEntrance") && replacement.categories.includes("travelPoint") && Math.hypot(replacement.position[0] - translatedPosition[0], replacement.position[1] - translatedPosition[1]) <= 6);
     return !foldedIntoDungeon;
   });
   if (unexpectedRemovals.length > 0) throw new Error(`Publication correction removes in-bounds placements: ${unexpectedRemovals.slice(0, 20).map(([id]) => id).join(", ")}.`);
@@ -187,10 +214,6 @@ export function assertCorrectedPublicationParity(candidate: PublicationSummary, 
   assertContains(candidate.documentKeys, baseline.documentKeys, "published documents");
   assertContains(candidate.listKinds, baseline.listKinds, "published lists");
   assertContains(candidate.artworkAssets, baseline.artworkAssets, "published artwork");
-  for (const [mapSpaceId, expected] of baseline.offsets) {
-    const actual = candidate.offsets.get(mapSpaceId);
-    if (!actual || actual.worldX !== expected.worldX || actual.worldY !== expected.worldY) throw new Error(`Publication correction changes the reviewed world offset for ${mapSpaceId}.`);
-  }
 }
 
 export function verifyUpdatePublicationParity(candidate: VerifiedPublicationGraph, baselineRoot: string): void {

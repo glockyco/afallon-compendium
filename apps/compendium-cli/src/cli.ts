@@ -16,6 +16,7 @@ import { registerInput } from "./register";
 import { runScanCommand } from "./scan";
 import { runGameUpdate } from "./game-update";
 import { acceptUpdate } from "./accept-update";
+import { alignWorldLayoutFiles } from "./world-layout-alignment";
 
 const HELP = `Usage:
   bun run compendium update --config FILE --version VERSION
@@ -28,6 +29,7 @@ const HELP = `Usage:
   bun run compendium catalog --store DIRECTORY --plan FILE [--candidate]
   bun run compendium publish --store DIRECTORY --output DIRECTORY --plan FILE [--candidate]
   bun run compendium accept-update --store DIRECTORY --report FILE --publication-root DIRECTORY --baseline-root DIRECTORY [--expected HASH|none]
+  bun run compendium align-world-layout --presentation FILE --offsets FILE --publication-root DIRECTORY --output FILE [--half-width NUMBER --half-height NUMBER]
   bun run compendium preview
   bun run compendium deploy PUBLICATION_ROOT [ORIGIN]
 
@@ -46,6 +48,7 @@ const { values, positionals } = parseArgs({
     store: { type: "string" }, file: { type: "string" }, schema: { type: "string" },
     build: { type: "string" }, version: { type: "string" }, cpp2il: { type: "string" },
     report: { type: "string" }, "publication-root": { type: "string" }, "baseline-root": { type: "string" }, expected: { type: "string" },
+    presentation: { type: "string" }, offsets: { type: "string" }, "half-width": { type: "string" }, "half-height": { type: "string" },
     candidate: { type: "boolean", default: false },
   },
 });
@@ -65,7 +68,7 @@ async function runSiteCommand(command: string[], cwd: string): Promise<void> {
 async function main(): Promise<void> {
   const command = positionals[0];
   if (values.help || command === undefined) { console.log(HELP); return; }
-  const known = ["update", "recover", "scan", "capture", "register", "pyramid", "game-map", "catalog", "publish", "accept-update", "preview", "deploy"];
+  const known = ["update", "recover", "scan", "capture", "register", "pyramid", "game-map", "catalog", "publish", "accept-update", "align-world-layout", "preview", "deploy"];
   if (!known.includes(command)) throw new Error(`Unknown command: ${command}. Use --help.`);
   if (command === "preview") {
     allowOptions(command, []);
@@ -81,6 +84,20 @@ async function main(): Promise<void> {
     return;
   }
   if (positionals.length !== 1) throw new Error(`${command} does not accept positional operands.`);
+  if (command === "align-world-layout") {
+    allowOptions(command, ["presentation", "offsets", "publication-root", "output", "half-width", "half-height"]);
+    if (!values.presentation || !values.offsets || !values["publication-root"] || !values.output) throw new Error("align-world-layout requires --presentation, --offsets, --publication-root, and --output.");
+    const result = await alignWorldLayoutFiles({
+      presentationPath: resolve(values.presentation),
+      reviewedOffsetsPath: resolve(values.offsets),
+      publicationRoot: resolve(values["publication-root"]),
+      outputPath: resolve(values.output),
+      ...(values["half-width"] === undefined ? {} : { halfWidth: Number(values["half-width"]) }),
+      ...(values["half-height"] === undefined ? {} : { halfHeight: Number(values["half-height"]) }),
+    });
+    console.log(JSON.stringify({ ok: true, ...result }, null, 2));
+    return;
+  }
   if (command === "update") {
     allowOptions(command, ["config", "version"]);
     if (!values.config || !values.version) throw new Error("update requires --config and --version.");

@@ -1,3 +1,4 @@
+export { replaceFileAtomically } from "./artifact-filesystem";
 export * from "./fingerprints";
 export * from "./gc";
 export * from "./leases";

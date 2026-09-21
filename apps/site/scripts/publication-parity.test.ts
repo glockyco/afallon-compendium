@@ -68,6 +68,24 @@ test("same-build corrections only remove placements outside exact game-map bound
   expect(() => assertCorrectedPublicationParity({ ...folded, placementLocations: new Map([["dungeon", { mapSpaceId: "world", position: [3, 2] as const, categories: ["travelPoint"] }]]) }, travelBaseline)).toThrow("in-bounds placements");
 });
 
+test("same-build corrections may move reviewed maps without changing local placement coordinates", () => {
+  const baseline = summary();
+  const relocated = summary({
+    offsets: new Map([["world", { worldX: 0, worldY: 0 }], ["dungeon", { worldX: 101, worldY: 201 }]]),
+    placementLocations: new Map([
+      ["placement-1", { mapSpaceId: "world", position: [2, 2] as const, categories: ["enemy"] }],
+      ["placement-2", { mapSpaceId: "dungeon", position: [103, 203] as const, categories: ["container"] }],
+    ]),
+    boundsByMap: new Map([
+      ["world", { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } }],
+      ["dungeon", { min: { x: 101, y: 201 }, max: { x: 106, y: 206 } }],
+    ]),
+  });
+  assertCorrectedPublicationParity(relocated, baseline);
+  relocated.placementLocations.set("placement-2", { mapSpaceId: "dungeon", position: [102, 202], categories: ["container"] });
+  expect(() => assertCorrectedPublicationParity(relocated, baseline)).toThrow("local placement coordinates");
+});
+
 test("rejects map layout and imagery registration changes", () => {
   expect(() => assertNonRegressivePublication(summary({ offsets: new Map([["world", { worldX: 0, worldY: 0 }], ["dungeon", { worldX: 101, worldY: 200 }]]) }), summary())).toThrow("world offset");
   expect(() => assertNonRegressivePublication(summary({ tileLayers: new Map([["world:game-map:world", { id: "world", mapSpaceId: "world", label: "World", kind: "game-map", tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 11, 10], tiles: [] } satisfies PublicTileLayer]]) }), summary())).toThrow("imagery extent");
