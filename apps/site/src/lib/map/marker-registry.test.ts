@@ -7,13 +7,19 @@ import { iconAtlasMapping } from "./icon-atlas";
 import { MARKER_IDS, MARKER_LAYER_ID, markerFor, markerRegistry, resolveMarker } from "./marker-registry";
 
 test("registry keys match the published category contract", () => {
-  expect([...MARKER_IDS]).toEqual([...PUBLIC_MARKER_CATEGORY_VALUES]);
+  expect([...MARKER_IDS].sort()).toEqual([...PUBLIC_MARKER_CATEGORY_VALUES].sort());
   expect(Object.keys(markerRegistry).sort()).toEqual([...PUBLIC_MARKER_CATEGORY_VALUES].sort());
 });
 
-test("place markers are default-visible while legacy markers stay opt-in", () => {
-  expect(["town", "fort", "camp", "dungeonEntrance", "challengeStone", "property", "flightPoint"].map((id) => markerFor(id as typeof MARKER_IDS[number]).defaultVisible)).toEqual([true, true, true, true, true, true, true]);
-  expect(["enemy", "auctioneer", "banker", "travelPoint"].map((id) => markerFor(id as typeof MARKER_IDS[number]).defaultVisible)).toEqual([false, false, false, true]);
+test("place and service markers are default-visible while legacy markers stay opt-in", () => {
+  expect(["town", "fort", "camp", "dungeonEntrance", "challengeStone", "property", "flightPoint", "auctioneer", "banker"].map((id) => markerFor(id as typeof MARKER_IDS[number]).defaultVisible)).toEqual([true, true, true, true, true, true, true, true, true]);
+  expect(["enemy", "travelPoint"].map((id) => markerFor(id as typeof MARKER_IDS[number]).defaultVisible)).toEqual([false, true]);
+});
+
+test("bankers appear above auctioneers in controls and map markers", () => {
+  expect(MARKER_IDS.indexOf("banker")).toBeLessThan(MARKER_IDS.indexOf("auctioneer"));
+  expect(resolveMarker({ categories: ["auctioneer", "banker"] })).toBe("banker");
+  expect(markerFor("banker").renderOrder).toBeGreaterThan(markerFor("auctioneer").renderOrder);
 });
 
 test("no two markers share a glyph", () => {
