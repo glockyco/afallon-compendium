@@ -67,22 +67,6 @@ function npcPlaceLabels(entities: readonly CatalogEntityRow[], relations: Catalo
   return new Map([...places].map(([key, labels]) => [key, [...labels].sort().join(" / ")]));
 }
 
-function abilityUserLabels(entities: readonly CatalogEntityRow[], facts: CatalogFacts | undefined): ReadonlyMap<string, string> {
-  const entityByKey = new Map(entities.map((entity) => [entity.entityKey, entity]));
-  const users = new Map<string, Set<string>>();
-  for (const npc of facts?.npcs ?? []) {
-    const name = plainText(entityByKey.get(npc.entityKey)?.name ?? "");
-    if (!name) continue;
-    for (const phase of npc.abilityPhases) for (const ability of phase.abilities) {
-      if (ability.entityKey === null) continue;
-      const labels = users.get(ability.entityKey) ?? new Set<string>();
-      labels.add(name);
-      users.set(ability.entityKey, labels);
-    }
-  }
-  return new Map([...users].map(([key, labels]) => [key, [...labels].sort().join(" / ")]));
-}
-
 function readableFact(value: string | null | undefined): string | undefined {
   const text = plainText(value ?? "");
   if (!text) return undefined;
@@ -198,7 +182,7 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     else groups.set(key, [entry]);
   }
   const levelLabels = npcLevelLabels(context.facts), npcPlaces = npcPlaceLabels(entities, context.relations);
-  const abilityUsers = abilityUserLabels(entities, context.facts), itemLabels = itemFactLabels(context.facts);
+  const itemLabels = itemFactLabels(context.facts);
   const placeTypes = placeTypeLabels(context.facts), placeParents = placeParentLabels(entities, context.facts);
   const placeLevels = placeLevelLabels(context.facts), placeMaps = placeMapLabels(context.facts, context.mapSpaceLabels);
   const names = new Map<string, string>(), slugNames = new Map<string, string>();
@@ -213,8 +197,7 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
       : kind === "npcs" && distinctSuffixes(rows, npcPlaces) ? npcPlaces
         : new Map(rows.map((entity) => [entity.entityKey, `#${entity.nativeId}`]));
     const candidates = kind === "npcs" ? [levelLabels, npcPlaces, combinedLabels(levelLabels, npcPlaces)]
-      : kind === "abilities" ? [abilityUsers]
-        : kind === "items" ? [itemLabels]
+      : kind === "items" ? [itemLabels]
           : kind === "places" ? [placeTypes, placeParents, placeLevels, placeMaps,
             combinedLabels(placeTypes, placeParents), combinedLabels(placeTypes, placeLevels), combinedLabels(placeTypes, placeMaps)]
             : [];

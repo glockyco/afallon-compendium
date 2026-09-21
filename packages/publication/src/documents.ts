@@ -7,6 +7,7 @@ import type {
   CatalogPlacementRow,
   CatalogRelations,
   CatalogRequirement,
+  CatalogRequirementGroup,
   CatalogTaskFacts,
 } from "@afallon/contracts/catalog";
 import type {
@@ -115,26 +116,45 @@ function optionalFactRef(resolve: ReferenceResolver, endpoint: CatalogEndpoint |
 }
 
 function projectRequirement(requirement: CatalogRequirement, resolve: ReferenceResolver): RequirementRef {
-  const label = plainText(requirement.label) || plainText(requirement.type) || "Requirement";
-  const target = optionalFactRef(resolve, requirement.target);
+  const references = Object.fromEntries(Object.entries(requirement.references).flatMap(([field, endpoint]) => endpoint === null ? [] : [[field, resolve(endpoint)]])) as RequirementRef["references"];
+  const subtypes = Object.fromEntries(Object.entries(requirement.subtypes).flatMap(([field, entry]) => entry === null ? [] : [[field, {
+    ...entry,
+    name: entry.name === null ? null : plainText(entry.name), internalName: entry.internalName === null ? null : plainText(entry.internalName), fileName: entry.fileName === null ? null : plainText(entry.fileName), description: entry.description === null ? null : plainText(entry.description), nativeType: plainText(entry.nativeType), text: plainText(entry.text),
+  }]])) as RequirementRef["subtypes"];
+  const named = (value: CatalogRequirement["state"]) => value === null ? {} : { value: value.value, name: plainText(value.name) };
   return {
-    type: plainText(requirement.type) || "requirement", label,
-    ...(target === undefined ? {} : { target }),
-    ...(requirement.amount === null ? {} : { amount: requirement.amount }),
-    ...(requirement.secondaryAmount === null ? {} : { secondaryAmount: requirement.secondaryAmount }),
+    type: { value: requirement.type.value, name: plainText(requirement.type.name) }, rule: { value: requirement.rule.value, name: plainText(requirement.rule.name) }, label: plainText(requirement.label), references,
+    ...(requirement.knowledge === null ? {} : { knowledge: named(requirement.knowledge) as { value: number; name: string } }),
+    ...(requirement.state === null ? {} : { state: named(requirement.state) as { value: number; name: string } }),
+    ...(requirement.comparison === null ? {} : { comparison: named(requirement.comparison) as { value: number; name: string } }),
+    ...(requirement.value === null ? {} : { value: named(requirement.value) as { value: number; name: string } }),
+    ...(requirement.ownership === null ? {} : { ownership: named(requirement.ownership) as { value: number; name: string } }),
+    ...(requirement.itemCondition === null ? {} : { itemCondition: named(requirement.itemCondition) as { value: number; name: string } }),
+    ...(requirement.progression === null ? {} : { progression: named(requirement.progression) as { value: number; name: string } }),
+    ...(requirement.entity === null ? {} : { entity: named(requirement.entity) as { value: number; name: string } }),
+    ...(requirement.pointType === null ? {} : { pointType: named(requirement.pointType) as { value: number; name: string } }),
+    ...(requirement.dialogueNodeState === null ? {} : { dialogueNodeState: named(requirement.dialogueNodeState) as { value: number; name: string } }),
+    ...(requirement.effectCondition === null ? {} : { effectCondition: named(requirement.effectCondition) as { value: number; name: string } }),
+    ...(requirement.amountType === null ? {} : { amountType: named(requirement.amountType) as { value: number; name: string } }),
+    ...(requirement.timeType === null ? {} : { timeType: named(requirement.timeType) as { value: number; name: string } }),
+    ...(requirement.timeValue === null ? {} : { timeValue: named(requirement.timeValue) as { value: number; name: string } }),
+    ...(requirement.effectType === null ? {} : { effectType: named(requirement.effectType) as { value: number; name: string } }),
+    ...(requirement.questState === null ? {} : { questState: named(requirement.questState) as { value: number; name: string } }),
+    amounts: requirement.amounts, flags: requirement.flags, subtypes,
+    ...(requirement.dialogueNode === null ? {} : { dialogueNode: { nativeType: plainText(requirement.dialogueNode.nativeType), text: plainText(requirement.dialogueNode.text) } }),
+    times: requirement.times,
   };
+}
+
+function projectRequirementGroups(groups: readonly CatalogRequirementGroup[], resolve: ReferenceResolver): RequirementGroup[] {
+  return groups.map((group) => ({ mode: group.mode, checkCount: group.checkCount, ...(group.requiredCount === null ? {} : { requiredCount: Math.max(0, group.requiredCount) }), requirements: group.requirements.map((requirement) => projectRequirement(requirement, resolve)) }));
 }
 
 function requirementsFor(conditionIds: readonly string[], conditions: ReadonlyMap<string, CatalogCondition>, resolve: ReferenceResolver): RequirementGroup[] {
   return conditionIds.flatMap((conditionId): RequirementGroup[] => {
     const condition = conditions.get(conditionId);
-    if (!condition) return [{ mode: "all", requirements: [{ type: "condition", label: conditionId }] }];
-    if (condition.requirements.length > 0) return condition.requirements.map((group) => ({
-      mode: group.mode,
-      ...(group.requiredCount === null ? {} : { requiredCount: Math.max(0, group.requiredCount) }),
-      requirements: group.requirements.map((requirement) => projectRequirement(requirement, resolve)),
-    }));
-    return [{ mode: "all", requirements: [{ type: condition.semantics || "condition", label: plainText(condition.label) || conditionId }] }];
+    if (!condition) throw new Error(`Missing catalog condition ${conditionId}.`);
+    return projectRequirementGroups(condition.requirements, resolve);
   });
 }
 
@@ -236,7 +256,6 @@ function baseDocument(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
 
 function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>): PublicItem {
   const fact = input.facts.items.find((candidate) => candidate.entityKey === entity.entityKey);
-  const requirements = requirementsFor(fact?.conditionIds ?? [], conditions, input.resolve);
   const enchantment = optionalFactRef(input.resolve, fact?.enchantment);
   const sellCurrency = optionalFactRef(input.resolve, fact?.sellCurrency), buyCurrency = optionalFactRef(input.resolve, fact?.buyCurrency);
   const gearSet = optionalFactRef(input.resolve, fact?.gearSet);
@@ -296,7 +315,8 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
       ...(fact?.sellPrice !== null && fact?.sellPrice !== undefined && fact.sellPrice >= 0 && sellCurrency ? { sellPrice: { amount: fact.sellPrice, currency: sellCurrency } } : {}),
       ...(fact?.buyPrice !== null && fact?.buyPrice !== undefined && fact.buyPrice >= 0 && buyCurrency ? { buyPrice: { amount: fact.buyPrice, currency: buyCurrency } } : {}),
       stackLimit: Math.max(0, fact?.stackLimit ?? 0), questDropOnly: fact?.questDropOnly ?? false, corruptionToken: fact?.corruptionToken ?? false,
-      ...(optionalCount(fact?.levelRequirement ?? null) === undefined ? {} : { levelRequirement: optionalCount(fact?.levelRequirement ?? null) }), requirements,
+      actionAbilities: (fact?.actionAbilities ?? []).map((ability) => ({ ability: input.resolve(ability.ability), rankIndex: Math.max(0, ability.rankIndex) })),
+      useLines: fact?.useLines ?? [], equipmentRequirements: projectRequirementGroups(fact?.equipmentRequirements ?? [], input.resolve), useConditions: projectRequirementGroups(fact?.useConditions ?? [], input.resolve),
       ...(gearSet === undefined ? {} : { gearSet }),
     },
     droppedBy, soldBy, gatheredFrom, inContainers,
@@ -345,7 +365,7 @@ function projectNpc(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPro
       requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
     })),
     quests: questRows.filter((row) => row.kind === "giver" || row.kind === "turnIn").map((row) => ({ counterpart: input.resolve(row.quest), role: row.kind === "giver" ? "gives" as const : "completes" as const })),
-    abilityPhases: npcFact.abilityPhases.map((phase) => ({ phaseIndex: Math.max(0, phase.phaseIndex), ...(phase.name ? { name: plainText(phase.name) } : {}), ...(phase.requirement ? { requirement: plainText(phase.requirement) } : {}), abilities: phase.abilities.map(input.resolve) })),
+    abilityPhases: npcFact.abilityPhases.map((phase) => ({ phaseIndex: Math.max(0, phase.phaseIndex), ...(phase.name ? { name: plainText(phase.name) } : {}), ...(phase.requirement ? { requirement: plainText(phase.requirement) } : {}), abilities: phase.abilities.map((ability) => ({ ability: input.resolve(ability.ability), rankIndex: Math.max(0, ability.rankIndex) })) })),
     factionRewards: npcFact.factionRewards.map((reward) => ({ counterpart: input.resolve(reward.faction), amount: reward.amount })),
     usedInQuests: questRows.filter((row) => row.kind === "objective" && row.task !== null).map((row) => ({ counterpart: input.resolve(row.quest), objective: projectQuestObjective(row.task!, input.resolve, row.index) })),
     bossOf: input.facts.places.filter((place) => place.bosses.some((boss) => boss.entityKey === entity.entityKey)).map((place) => input.resolve({ entityKey: place.entityKey, label: place.entityKey })),
@@ -451,9 +471,11 @@ function projectProperty(entity: CatalogEntityRow, ref: EntityRef, input: Docume
 }
 
 function projectAbility(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput): PublicAbility {
-  const usedBy = input.facts.npcs.filter((npc) => npc.abilityPhases.some((phase) => phase.abilities.some((ability) => ability.entityKey === entity.entityKey))).map((npc) => input.resolve({ entityKey: npc.entityKey, label: npc.entityKey }));
-  const taughtBy = input.facts.items.filter((item) => item.actionAbilities.some((ability) => ability.entityKey === entity.entityKey)).map((item) => input.resolve({ entityKey: item.entityKey, label: item.entityKey }));
-  return { ...baseDocument(entity, ref, input), facts: {}, usedBy, taughtBy };
+  const fact = input.facts.abilities.find((candidate) => candidate.entityKey === entity.entityKey);
+  if (!fact) throw new Error(`Missing ability facts for ${entity.entityKey}.`);
+  const usedBy = input.facts.npcs.filter((npc) => npc.abilityPhases.some((phase) => phase.abilities.some((ability) => ability.ability.entityKey === entity.entityKey))).map((npc) => input.resolve({ entityKey: npc.entityKey, label: npc.entityKey }));
+  const taughtBy = input.facts.items.filter((item) => item.actionAbilities.some((ability) => ability.ability.entityKey === entity.entityKey)).map((item) => input.resolve({ entityKey: item.entityKey, label: item.entityKey }));
+  return { ...baseDocument(entity, ref, input), facts: { ranks: fact.ranks.map((rank) => ({ rankIndex: Math.max(0, rank.rankIndex), lines: rank.lines })) }, usedBy, taughtBy };
 }
 
 function projectRecipe(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes): PublicRecipe {

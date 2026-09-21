@@ -1,27 +1,27 @@
 ## 1. Runtime Tooltip Evidence
 
-- [ ] 1.1 Mark `build-compendium-reference` task 7.4 and its neutral-requirement decision as superseded by this change, and verify both change directories still pass OpenSpec validation.
-- [ ] 1.2 Extend the canonical item observation with the exact non-empty native use or buff text and generation diagnostics, and verify live probes still produce the observed Minor health potion, sharpening-stone, food, mount, and pack lines without a character.
-- [ ] 1.3 Extend support ability observations with every authored rank and its native-generated tooltip text, and verify a live probe reports 370 abilities, 373 non-empty rank blocks, and all four Healing potion ranks.
-- [ ] 1.4 Preserve authored ability rank and source index on NPC phase and item action-ability observations, and verify a focused scan fixture retains a non-zero rank instead of reducing the row to an ability ID.
-- [ ] 1.5 Extend scan contracts and decoders for the new item, ability-rank, and contextual-reference observations; verify focused decoder tests reject missing rank identity, malformed generated text, and generation failures while accepting the current-build samples.
+- [x] 1.1 Mark `build-compendium-reference` task 7.4 and its neutral-requirement decision as superseded by this change, and verify both change directories still pass OpenSpec validation.
+- [x] 1.2 Extend the canonical item observation with the exact non-empty native use or buff text and generation diagnostics, and verify live probes still produce the observed Minor health potion, sharpening-stone, food, mount, and pack lines without a character.
+- [x] 1.3 Extend support ability observations with every authored rank and its native-generated tooltip text, and verify a live probe reports 370 abilities, 373 non-empty rank blocks, and all four Healing potion ranks.
+- [x] 1.4 Preserve authored ability rank and source index on NPC phase and item action-ability observations, and verify a focused scan fixture retains a non-zero rank instead of reducing the row to an ability ID.
+- [x] 1.5 Extend scan contracts and decoders for the new item, ability-rank, and contextual-reference observations; verify focused decoder tests reject missing rank identity, malformed generated text, and generation failures while accepting the current-build samples.
 
 ## 2. Catalog Semantics
 
-- [ ] 2.1 Add an exhaustive TextMeshPro tooltip parser that produces ordered lines and escaped typed spans for supported colour and italic tags; verify focused tests cover nested supported tags, blank lines, named colours, hex colours, malformed nesting, and unsupported tags.
-- [ ] 2.2 Add normalized catalog storage and typed facts for item use lines, ability ranks, parsed tooltip spans, and contextual ability ranks; verify an in-memory catalog round trip preserves source order, identity, provenance, and empty-line boundaries.
-- [ ] 2.3 Compute each item, random-item, gem, and gear-set stat's effective percentage as the logical OR of row and canonical stat flags; verify focused normalization tests cover Lifesteal, Frost Resistance, Movement Speed, a gem stat, and a set-tier stat.
-- [ ] 2.4 Replace reduced requirements with complete typed predicates and exhaustive equipment-versus-use scope classification; verify focused query tests render level and class groups, `Potion Sickness inactive`, equipped weapon subtypes, region and combat-state gates, and no generic `Item` or `inline-requirements` labels.
-- [ ] 2.5 Deduplicate requirement predicates by typed identity and merge the scalar level fact with an equivalent condition; verify Oathbreaker's Edge and the full current-build item set publish each equipment requirement once.
-- [ ] 2.6 Extend catalog queries for ordered ability ranks, item use lines, contextual ability references, scoped requirements, and effective stats; verify query tests return complete typed rows without deriving user-facing wording from fallback labels.
+- [x] 2.1 Add an exhaustive TextMeshPro tooltip parser that produces ordered lines and escaped typed spans for supported colour and italic tags; verify focused tests cover nested supported tags, blank lines, named colours, hex colours, malformed nesting, and unsupported tags.
+- [x] 2.2 Add normalized catalog storage and typed facts for item use lines, ability ranks, parsed tooltip spans, and contextual ability ranks; verify an in-memory catalog round trip preserves source order, identity, provenance, and empty-line boundaries.
+- [x] 2.3 Compute each item, random-item, gem, and gear-set stat's effective percentage as the logical OR of row and canonical stat flags; verify focused normalization tests cover Lifesteal, Frost Resistance, Movement Speed, a gem stat, and a set-tier stat.
+- [x] 2.4 Replace reduced requirements with complete typed predicates and exhaustive equipment-versus-use scope classification; verify focused query tests render level and class groups, `Potion Sickness inactive`, equipped weapon subtypes, region and combat-state gates, and no generic `Item` or `inline-requirements` labels.
+- [x] 2.5 Deduplicate requirement predicates by typed identity and merge the scalar level fact with an equivalent condition; verify Oathbreaker's Edge and the full current-build item set publish each equipment requirement once.
+- [x] 2.6 Extend catalog queries for ordered ability ranks, item use lines, contextual ability references, scoped requirements, and effective stats; verify query tests return complete typed rows without deriving user-facing wording from fallback labels.
 
 ## 3. Public Document Cutover
 
-- [ ] 3.1 Replace the public tooltip contracts with typed native-text spans, ability rank facts, contextual ability references, scoped requirement predicates, and item use lines; bump every static page-document schema ID together and verify contract decoding rejects every prior document version.
-- [ ] 3.2 Project complete item and ability tooltip facts, scoped requirements, effective percentages, and contextual ranks into public documents; verify publication tests cover Oathbreaker's Edge, Minor health potion, Rough Sharpening Stone, Red gem of lifesteal, Cleave #0, and all Healing potion ranks.
-- [ ] 3.3 Change duplicate ability references to deterministic `Name (#nativeId)` labels while retaining full `usedBy` and `taughtBy` relations; verify reference tests produce concise stable labels and unchanged relation lists.
-- [ ] 3.4 Add whole-publication invariants for rank coverage, non-empty native blocks, item use-line preservation, requirement classification, schema consistency, and resolved set members; verify a deliberately missing block, unclassified predicate, or mixed schema version fails complete publication with coverage evidence.
-- [ ] 3.5 Update publication fixtures, resource references, loader schemas, list and search fixtures, and graph audits for the clean schema cutover; verify focused package tests and `bun run check:packages` pass without compatibility aliases.
+- [x] 3.1 Replace the public tooltip contracts with typed native-text spans, ability rank facts, contextual ability references, scoped requirement predicates, and item use lines; bump every static page-document schema ID together and verify contract decoding rejects every prior document version.
+- [x] 3.2 Project complete item and ability tooltip facts, scoped requirements, effective percentages, and contextual ranks into public documents; verify publication tests cover Oathbreaker's Edge, Minor health potion, Rough Sharpening Stone, Red gem of lifesteal, Cleave #0, and all Healing potion ranks.
+- [x] 3.3 Change duplicate ability references to deterministic `Name (#nativeId)` labels while retaining full `usedBy` and `taughtBy` relations; verify reference tests produce concise stable labels and unchanged relation lists.
+- [x] 3.4 Add whole-publication invariants for rank coverage, non-empty native blocks, item use-line preservation, requirement classification, schema consistency, and resolved set members; verify a deliberately missing block, unclassified predicate, or mixed schema version fails complete publication with coverage evidence.
+- [x] 3.5 Update publication fixtures, resource references, loader schemas, list and search fixtures, and graph audits for the clean schema cutover; verify focused package tests and `bun run check:packages` pass without compatibility aliases.
 
 ## 4. Tooltip Presentation
 

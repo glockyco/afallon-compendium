@@ -20,7 +20,7 @@ function itemFact(entityKey: string, rarity: string, armorSlot: string): Catalog
   return { entityKey, rarity, itemType: "ARMOR", armorSlot, weaponSlot: null, weaponType: null, armorType: "LEATHER", attackSpeed: null,
     minDamage: null, maxDamage: null, stats: [], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: null,
     sellPrice: null, sellCurrency: null, buyPrice: null, buyCurrency: null, stackLimit: 1, questDropOnly: false, corruptionToken: false,
-    levelRequirement: null, actionAbilities: [], conditionIds: [], gearSet: null };
+    equipmentRequirements: [], useConditions: [], actionAbilities: [], useLines: [], conditionIds: [], gearSet: null };
 }
 
 test("disambiguates equal NPC names by level and freezes the reference map", () => {
@@ -46,19 +46,19 @@ test("uses item facts for names while preserving stable slugs and page-less refe
   expect(refs.get("stats:3")).toEqual({ key: "stats:3", kind: "stats", name: "Power" });
 });
 
-test("uses ability users for duplicate ability names without changing their slugs", () => {
+test("uses stable native identifiers for duplicate ability names", () => {
   const entities = [entity("abilities", 5, "Cleave"), entity("abilities", 6, "Cleave"),
     entity("npcs", 10, "Skeleton Warrior"), entity("npcs", 11, "Crypt Warden")];
   const facts: CatalogFacts = { ...emptyFacts, entities,
     npcs: [
-      npcFact("npcs:10", 10, [{ phaseIndex: 0, name: null, requirement: null, abilities: [{ entityKey: "abilities:5", label: "Cleave" }] }]),
-      npcFact("npcs:11", 11, [{ phaseIndex: 0, name: null, requirement: null, abilities: [{ entityKey: "abilities:6", label: "Cleave" }] }]),
+      npcFact("npcs:10", 10, [{ phaseIndex: 0, name: null, requirement: null, abilities: [{ ability: { entityKey: "abilities:5", label: "Cleave" }, rankIndex: 0 }] }]),
+      npcFact("npcs:11", 11, [{ phaseIndex: 0, name: null, requirement: null, abilities: [{ ability: { entityKey: "abilities:6", label: "Cleave" }, rankIndex: 0 }] }]),
     ],
-    abilities: [{ entityKey: "abilities:5" }, { entityKey: "abilities:6" }],
+    abilities: [{ entityKey: "abilities:5", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Cleave", tone: null, italic: false }] }] }] }, { entityKey: "abilities:6", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Cleave", tone: null, italic: false }] }] }] }],
   };
   const refs = buildEntityReferences(entities, { facts, relations: emptyRelations });
-  expect(refs.get("abilities:5")).toMatchObject({ name: "Cleave (Skeleton Warrior)", slug: "cleave-5" });
-  expect(refs.get("abilities:6")).toMatchObject({ name: "Cleave (Crypt Warden)", slug: "cleave-6" });
+  expect(refs.get("abilities:5")).toMatchObject({ name: "Cleave (#5)", slug: "cleave-5" });
+  expect(refs.get("abilities:6")).toMatchObject({ name: "Cleave (#6)", slug: "cleave-6" });
 });
 
 test("uses a place parent when duplicate place types do not distinguish names", () => {

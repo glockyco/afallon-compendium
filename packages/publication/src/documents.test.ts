@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
-import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts } from "@afallon/contracts/catalog";
-import type { PublicGearSet, PublicItem, PublicNpc, PublicPlace } from "@afallon/contracts/public";
+import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts, CatalogRequirement } from "@afallon/contracts/catalog";
+import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicGearSet, type PublicItem, type PublicNpc, type PublicPlace } from "@afallon/contracts/public";
 import { projectPublicDocuments, projectQuestObjective } from "./documents";
+import { assertCompleteTooltipCoverage, auditPublicTooltipCoverage } from "./tooltip-coverage";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
 
 const entities: CatalogEntityRow[] = [
-  { entityKey: "items:1", kind: "items", nativeId: 1, name: "<color=red>Blade</color>", description: "<b>Sharp</b><br>Steel", iconAssetName: null, artwork: [] },
+  { entityKey: "items:1", kind: "items", nativeId: 1, name: "<color=red>Oathbreaker's Edge</color>", description: "<b>Sharp</b><br>Steel", iconAssetName: null, artwork: [] },
   { entityKey: "npcs:2", kind: "npcs", nativeId: 2, name: "Guardian", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "quests:3", kind: "quests", nativeId: 3, name: "Trial", description: null, iconAssetName: null, artwork: [] },
   { entityKey: "stats:5", kind: "stats", nativeId: 5, name: "Loot stat", description: null, iconAssetName: null, artwork: [] },
@@ -20,6 +21,21 @@ const entities: CatalogEntityRow[] = [
   { entityKey: "gearSets:17", kind: "gearSets", nativeId: 17, name: "Adept Leather", description: null, iconAssetName: null, artwork: [] },
 ];
 
+const emptyRequirementReferences: CatalogRequirement["references"] = {
+  ability: null, bonus: null, recipe: null, resource: null, effect: null, npc: null, stat: null, faction: null, combo: null, race: null, levels: null, class: null, species: null, item: null, currency: null, point: null, talentTree: null, skill: null, spellbook: null, weaponTemplate: null, enchantment: null, gearSet: null, gameScene: null, quest: null, dialogue: null,
+};
+const emptyRequirementSubtypes: CatalogRequirement["subtypes"] = { effectTag: null, factionStance: null, itemType: null, weaponType: null, weaponSlot: null, armorType: null, armorSlot: null, gender: null, npcFamily: null, region: null };
+function requirement(type: string, label: string, overrides: Partial<CatalogRequirement> = {}): CatalogRequirement {
+  return { type: { value: 0, name: type }, rule: { value: 0, name: "Mandatory" }, label, references: { ...emptyRequirementReferences }, knowledge: null, state: null, comparison: null, value: null, ownership: null, itemCondition: null, progression: null, entity: null, pointType: null, dialogueNodeState: null, effectCondition: null, amountType: null, timeType: null, timeValue: null, effectType: null, questState: null, amounts: { primary: 0, secondary: 0, float: 0, isPercent: false }, flags: { consume: false, first: false, second: false, third: false }, subtypes: { ...emptyRequirementSubtypes }, dialogueNode: null, times: [null, null], ...overrides };
+}
+const equipmentRequirements = [
+  { mode: "any" as const, checkCount: true, requiredCount: 1, requirements: [
+    requirement("Class", "Shieldmaster", { rule: { value: 1, name: "Optional" }, references: { ...emptyRequirementReferences, class: { entityKey: "classes:0", label: "Shieldmaster" } } }),
+    requirement("Class", "Assassin", { rule: { value: 1, name: "Optional" }, references: { ...emptyRequirementReferences, class: { entityKey: "classes:5", label: "Assassin" } } }),
+  ] },
+  { mode: "all" as const, checkCount: false, requiredCount: null, requirements: [requirement("Level", "Level 27", { type: { value: 13, name: "Level" }, amounts: { primary: 27, secondary: 0, float: 0, isPercent: false } })] },
+];
+
 const facts: CatalogFacts = {
   entities,
   items: [{ entityKey: "items:1", rarity: "Rare", itemType: "WEAPON", armorSlot: "BELT", weaponSlot: "MAIN HAND", weaponType: "One handed sword", armorType: "CLOTH",
@@ -28,7 +44,7 @@ const facts: CatalogFacts = {
       { stat: { entityKey: "stats:27", label: "Strength" }, amount: 42, isPercent: false },
     ], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: { entityKey: null, label: "Enchantment -1" }, sellPrice: null,
     sellCurrency: null, buyPrice: 0, buyCurrency: { entityKey: null, label: "Currency -1" }, stackLimit: 1, questDropOnly: false, corruptionToken: false,
-    levelRequirement: 2, actionAbilities: [], conditionIds: ["oathbreaker"], gearSet: { entityKey: "gearSets:17", label: "Adept Leather" } }],
+    equipmentRequirements, useConditions: [], actionAbilities: [], useLines: [{ spans: [{ text: "Use: Test", tone: "positive", italic: false }] }], conditionIds: ["oathbreaker"], gearSet: { entityKey: "gearSets:17", label: "Adept Leather" } }],
   npcs: [{ entityKey: "npcs:2", minLevel: 5, maxLevel: 5, scalesWithPlayer: false, npcType: "Enemy", creatureType: null, family: null,
     faction: null, species: { entityKey: null, label: "Species -1" }, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null,
     minExperience: null, maxExperience: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [],
@@ -57,15 +73,7 @@ const relations: CatalogRelations = {
   ], quests: [], recipes: [],
   placements: [{ placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guardian", roles: [{ role: "boss", npcEntityKey: "npcs:2", scope: "authored" }], families: [] }],
   transitions: [{ transitionId: "transition-1", sourceSceneKey: "scenes:10", destinationSceneKey: null, transitionKind: "entrance", placementIds: ["p2"] }],
-  conditions: [{ conditionId: "oathbreaker", semantics: "equipment", label: "Requirements", requirements: [
-    { mode: "any", requiredCount: 1, requirements: [
-      { type: "class", label: "Shieldmaster", target: { entityKey: "classes:0", label: "Shieldmaster" }, amount: null, secondaryAmount: null },
-      { type: "class", label: "Assassin", target: { entityKey: "classes:5", label: "Assassin" }, amount: null, secondaryAmount: null },
-    ] },
-    { mode: "all", requiredCount: null, requirements: [
-      { type: "level", label: "Level 27", target: null, amount: 27, secondaryAmount: null },
-    ] },
-  ] }],
+  conditions: [{ conditionId: "oathbreaker", semantics: "equipment", scope: "equipment", label: "Requirements", requirements: equipmentRequirements }],
 };
 
 test("projects one symmetric boss drop row and strips native rich text", () => {
@@ -76,7 +84,7 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
       ["p2", { placementId: "p2", mapSpaceId: "world", label: "World" }],
     ]), regionIdsByMapSpace: new Map([["world", ["region-1"]]]) });
   const item = documents.get("items:1") as PublicItem, npc = documents.get("npcs:2") as PublicNpc, place = documents.get("scenes:10") as PublicPlace;
-  expect(item.ref.name).toBe("Blade");
+  expect(item.ref.name).toBe("Oathbreaker's Edge");
   expect(item.description).toBe("Sharp\nSteel");
   expect(item.facts).toMatchObject({ weaponSlot: "MAIN HAND", weaponType: "One handed sword", attackSpeed: 1.8, minDamage: 75, maxDamage: 124,
     itemPower: 99 });
@@ -86,13 +94,14 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(item.facts).not.toHaveProperty("armorType");
   expect(item.facts).not.toHaveProperty("enchantment");
   expect(item.facts).not.toHaveProperty("buyPrice");
-  expect(item.facts.requirements).toEqual([
-    { mode: "any", requiredCount: 1, requirements: [
-      { type: "class", label: "Shieldmaster", target: { key: "classes:0", kind: "classes", name: "Shieldmaster" } },
-      { type: "class", label: "Assassin", target: { key: "classes:5", kind: "classes", name: "Assassin" } },
+  expect(item.facts.equipmentRequirements).toMatchObject([
+    { mode: "any", checkCount: true, requiredCount: 1, requirements: [
+      { type: { name: "Class" }, label: "Shieldmaster", references: { class: { key: "classes:0", kind: "classes", name: "Shieldmaster" } } },
+      { type: { name: "Class" }, label: "Assassin", references: { class: { key: "classes:5", kind: "classes", name: "Assassin" } } },
     ] },
-    { mode: "all", requirements: [{ type: "level", label: "Level 27", amount: 27 }] },
+    { mode: "all", checkCount: false, requirements: [{ type: { name: "Level" }, label: "Level 27", amounts: { primary: 27 } }] },
   ]);
+  expect(item.facts.useLines).toEqual([{ spans: [{ text: "Use: Test", tone: "positive", italic: false }] }]);
   const itemList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")?.[0];
   const itemRow = itemList?.rows.find((row) => row.ref.key === "items:1");
   expect(itemRow).toMatchObject({ values: { slot: "MAIN HAND", itemPower: 99 }, facets: { slot: ["MAIN HAND"] } });
@@ -122,13 +131,84 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(place.creatures).toMatchObject([{ counterpart: { key: "npcs:2" }, placementCount: 1 }]);
 });
 
+test("projects representative item use text, effective stats and contextual ability ranks", () => {
+  const additions: CatalogEntityRow[] = [
+    { entityKey: "items:101", kind: "items", nativeId: 101, name: "Minor health potion", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "items:102", kind: "items", nativeId: 102, name: "Rough Sharpening Stone", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "items:103", kind: "items", nativeId: 103, name: "Red gem of lifesteal", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "abilities:201", kind: "abilities", nativeId: 201, name: "Cleave", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "abilities:202", kind: "abilities", nativeId: 202, name: "Healing potion", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "stats:104", kind: "stats", nativeId: 104, name: "Lifesteal", description: null, iconAssetName: null, artwork: [] },
+  ];
+  const line = (text: string) => [{ spans: [{ text, tone: null, italic: false }] }];
+  const baseItem = facts.items[0]!;
+  const tooltipFacts: CatalogFacts = {
+    ...facts,
+    entities: [...entities, ...additions],
+    items: [baseItem,
+      { ...baseItem, entityKey: "items:101", stats: [], equipmentRequirements: [], conditionIds: [], gearSet: null, useLines: line("Restores 120 health."), actionAbilities: [{ ability: { entityKey: "abilities:202", label: "Healing potion" }, rankIndex: 3 }] },
+      { ...baseItem, entityKey: "items:102", stats: [], equipmentRequirements: [], conditionIds: [], gearSet: null, useLines: line("Increases weapon damage."), actionAbilities: [] },
+      { ...baseItem, entityKey: "items:103", stats: [{ stat: { entityKey: "stats:104", label: "Lifesteal" }, amount: 2, isPercent: true }], equipmentRequirements: [], conditionIds: [], gearSet: null, useLines: [], actionAbilities: [] },
+    ],
+    npcs: [{ ...facts.npcs[0]!, abilityPhases: [{ phaseIndex: 0, name: "Opening", requirement: null, abilities: [{ ability: { entityKey: "abilities:201", label: "Cleave" }, rankIndex: 0 }] }] }],
+    abilities: [
+      { entityKey: "abilities:201", ranks: [{ rankIndex: 0, lines: line("Cleave rank zero") }] },
+      { entityKey: "abilities:202", ranks: [0, 1, 2, 3].map((rankIndex) => ({ rankIndex, lines: line(`Healing potion rank ${rankIndex}`) })) },
+    ],
+    gearSets: [{ ...facts.gearSets[0]!, members: [facts.gearSets[0]!.members[0]!] }],
+  };
+  const tooltipRefs = buildEntityReferences(tooltipFacts.entities, { facts: tooltipFacts, relations });
+  const documents = projectPublicDocuments({ entities: tooltipFacts.entities, facts: tooltipFacts, relations, refs: tooltipRefs, resolve: createReferenceResolver(tooltipRefs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map() });
+
+  expect((documents.get("items:101") as PublicItem).facts).toMatchObject({
+    useLines: line("Restores 120 health."), actionAbilities: [{ ability: { key: "abilities:202", name: "Healing potion" }, rankIndex: 3 }],
+  });
+  expect((documents.get("items:102") as PublicItem).facts.useLines).toEqual(line("Increases weapon damage."));
+  expect((documents.get("items:103") as PublicItem).facts.stats).toEqual([{ stat: { key: "stats:104", kind: "stats", name: "Lifesteal" }, amount: 2, isPercent: true }]);
+  expect((documents.get("npcs:2") as PublicNpc).abilityPhases[0]?.abilities).toEqual([{ ability: { key: "abilities:201", kind: "abilities", name: "Cleave", slug: "cleave" }, rankIndex: 0 }]);
+  const cleave = documents.get("abilities:201") as PublicAbility;
+  const healingPotion = documents.get("abilities:202") as PublicAbility;
+  expect(cleave.facts.ranks).toEqual([{ rankIndex: 0, lines: line("Cleave rank zero") }]);
+  expect(cleave.usedBy).toEqual([{ key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }]);
+  expect(cleave.taughtBy).toEqual([]);
+  expect(healingPotion.facts.ranks.map((rank) => rank.rankIndex)).toEqual([0, 1, 2, 3]);
+  expect(healingPotion.usedBy).toEqual([]);
+  expect(healingPotion.taughtBy).toEqual([{ key: "items:101", kind: "items", name: "Minor health potion", slug: "minor-health-potion" }]);
+
+  const schemaIds = new Map<string, string>([...documents].map(([key, document]) => [key, STATIC_DOCUMENT_SCHEMA_IDS[document.ref.kind as keyof typeof STATIC_DOCUMENT_SCHEMA_IDS]]));
+  expect(auditPublicTooltipCoverage(tooltipFacts, relations, documents, schemaIds)).toEqual([]);
+
+  const missingRank = new Map(documents);
+  missingRank.set("abilities:202", { ...healingPotion, facts: { ranks: healingPotion.facts.ranks.slice(0, -1) } } as PublicDocument);
+  const missingRankIssues = auditPublicTooltipCoverage(tooltipFacts, relations, missingRank, schemaIds);
+  expect(missingRankIssues).toContain("Ability abilities:202 is missing public rank 3.");
+  expect(() => assertCompleteTooltipCoverage(true, missingRankIssues)).toThrow("Ability abilities:202 is missing public rank 3.");
+
+  const unclassifiedRelations: CatalogRelations = { ...relations, conditions: [{ ...relations.conditions[0]!, scope: null }] };
+  const unclassifiedIssues = auditPublicTooltipCoverage(tooltipFacts, unclassifiedRelations, documents, schemaIds);
+  expect(unclassifiedIssues).toContain("Condition oathbreaker has unclassified or mixed requirement predicates.");
+  expect(() => assertCompleteTooltipCoverage(true, unclassifiedIssues)).toThrow("Condition oathbreaker has unclassified or mixed requirement predicates.");
+
+  const mixedSchemaIds = new Map(schemaIds);
+  mixedSchemaIds.set("items:101", "compendium.static-item.v1");
+  const mixedSchemaIssues = auditPublicTooltipCoverage(tooltipFacts, relations, documents, mixedSchemaIds);
+  expect(mixedSchemaIssues).toContain("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v2.");
+  expect(() => assertCompleteTooltipCoverage(true, mixedSchemaIssues)).toThrow("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v2.");
+  expect(() => assertCompleteTooltipCoverage(false, mixedSchemaIssues)).not.toThrow();
+
+  const changedUseText = new Map(documents);
+  const minorPotion = changedUseText.get("items:101") as PublicItem;
+  changedUseText.set("items:101", { ...minorPotion, facts: { ...minorPotion.facts, useLines: [] } });
+  expect(auditPublicTooltipCoverage(tooltipFacts, relations, changedUseText, schemaIds)).toContain("Item items:101 changed its native use-text block.");
+});
+
 test("publishes a gear set's members and tiers and names the set on its member item", () => {
   const refs = buildEntityReferences(entities, { facts, relations });
   const documents = projectPublicDocuments({ entities, facts, relations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map() });
   const set = documents.get("gearSets:17") as PublicGearSet, item = documents.get("items:1") as PublicItem;
   expect(set.ref).toMatchObject({ kind: "gearSets", name: "Adept Leather", slug: "adept-leather" });
   expect(set.facts.memberCount).toBe(2);
-  expect(set.members).toEqual([{ key: "items:1", kind: "items", name: "Blade", slug: "blade" }, { key: null, label: "Item 999" }]);
+  expect(set.members).toEqual([{ key: "items:1", kind: "items", name: "Oathbreaker's Edge", slug: "oathbreakers-edge" }, { key: null, label: "Item 999" }]);
   expect(set.tiers).toEqual([
     { equipped: 3, stats: [{ stat: { key: "stats:12", kind: "stats", name: "Poison Damage" }, amount: 10, isPercent: true }] },
     { equipped: 7, stats: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amount: 40, isPercent: false }] },

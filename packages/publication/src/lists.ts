@@ -25,6 +25,11 @@ function facetValue(value: string | null | undefined): string[] {
   return value ? [value] : [];
 }
 
+export function publicItemLevelRequirement(document: PublicItem): number | null {
+  const level = document.facts.equipmentRequirements.flatMap((group) => group.requirements).find((requirement) => requirement.type.name === "Level")?.amounts.primary;
+  return level === undefined || level <= 0 ? null : level;
+}
+
 function itemRow(document: PublicItem): ListRow {
   const sourceKinds = [document.droppedBy.length > 0 ? "drop" : null, document.soldBy.length > 0 ? "vendor" : null,
     document.gatheredFrom.length > 0 ? "gather" : null, document.inContainers.length > 0 ? "container" : null,
@@ -34,7 +39,7 @@ function itemRow(document: PublicItem): ListRow {
     ref: document.ref,
     values: { rarity: document.facts.rarity ?? null, itemType: document.facts.itemType ?? null, slot: slot ?? null,
       itemPower: document.facts.itemPower ?? null, damagePerSecond: document.facts.damagePerSecond ?? null,
-      levelRequirement: document.facts.levelRequirement ?? null, sellPrice: document.facts.sellPrice?.amount ?? null },
+      levelRequirement: publicItemLevelRequirement(document), sellPrice: document.facts.sellPrice?.amount ?? null },
     facets: { slot: facetValue(slot), itemType: facetValue(document.facts.itemType), rarity: facetValue(document.facts.rarity), sourceKind: sourceKinds },
   };
 }

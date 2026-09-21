@@ -24,10 +24,11 @@ import {
 import { generateArtworkResources } from "./artwork";
 import { countUnresolvedReferences, projectPublicDocuments } from "./documents";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
-import { buildKindLists } from "./lists";
+import { buildKindLists, publicItemLevelRequirement } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
 import { partitionStaticRecords, writeStaticJson, type GeneratedStaticResource } from "./resources";
 import type { PublicationCandidateAsset } from "./selection";
+import { auditPublicTooltipCoverage } from "./tooltip-coverage";
 
 export interface GeneratedIndexResources {
   refs: ReadonlyMap<string, EntityRef>;
@@ -36,6 +37,7 @@ export interface GeneratedIndexResources {
   search: GeneratedStaticResource<StaticSearchIndex>[];
   artwork: PublicationCandidateAsset[];
   unresolvedReferenceCount: number;
+  publicationIssues: string[];
 }
 
 function assertSameIdentity(expected: { buildId: string; catalogId: string }, actual: { buildId: string; catalogId: string }, subject: string): void {
@@ -44,7 +46,7 @@ function assertSameIdentity(expected: { buildId: string; catalogId: string }, ac
 
 function searchLevel(document: PublicDocument): PublicSearchEntry["level"] {
   switch (document.ref.kind) {
-    case "items": return (document as PublicItem).facts.levelRequirement;
+    case "items": return publicItemLevelRequirement(document as PublicItem) ?? undefined;
     case "npcs": {
       const facts = (document as PublicNpc).facts;
       return facts.level ?? facts.levelRange;
@@ -98,6 +100,9 @@ export async function generateIndexResources(
     documents.set(key, resource);
   }
 
+  const schemaIdByKey = new Map([...documents].map(([key, resource]) => [key, resource.reference.schemaId]));
+  const publicationIssues = auditPublicTooltipCoverage(facts.records, relations.records, publicDocuments, schemaIdByKey);
+
   const listValues = buildKindLists(identity, PUBLIC_KIND_REGISTRY, publicDocuments);
   const lists = new Map<string, GeneratedStaticResource<StaticKindList>[]>();
   for (const [kind, values] of listValues) {
@@ -139,5 +144,5 @@ export async function generateIndexResources(
     return asset;
   }).sort((left, right) => left.path.localeCompare(right.path));
   const unresolvedReferenceCount = [...publicDocuments.values()].reduce((count, document) => count + countUnresolvedReferences(document), 0);
-  return { refs, documents, lists, search, artwork: assets, unresolvedReferenceCount };
+  return { refs, documents, lists, search, artwork: assets, unresolvedReferenceCount, publicationIssues };
 }

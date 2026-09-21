@@ -2,10 +2,10 @@ import { expect, test } from "bun:test";
 import { Assert } from "typebox/value";
 import {
   ArtRefSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, VendorRowSchema,
-  PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
+  PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
   type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe, type PublicGearSet,
-  type StaticRootManifest, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, type StaticItemDocumentSchema, type StaticCoverage,
+  type StaticRootManifest, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, StaticItemDocumentSchema, type StaticCoverage,
 } from "./index";
 import type { Static } from "typebox";
 
@@ -16,6 +16,11 @@ const boss: EntityRef = { key: "npcs:286", kind: "npcs", name: "Kraath the Hiveb
 const gold: EntityRef = { key: "currencies:0", kind: "currencies", name: "Gold Coin" };
 const unresolved: UnresolvedRef = { key: null, label: "Unknown item 9999" };
 const placement = { placementId: "p1", mapSpaceId: "map", label: "Duskfall Depths" };
+const requirement = (type: string, label: string, fields: Record<string, unknown> = {}) => ({ type: { value: 0, name: type }, rule: { value: 0, name: "Mandatory" }, label, references: {}, amounts: { primary: 0, secondary: 0, float: 0, isPercent: false }, flags: { consume: false, first: false, second: false, third: false }, subtypes: {}, times: [null, null], ...fields });
+const legacySchemaIds = {
+  items: "compendium.static-item.v1", npcs: "compendium.static-npc.v1", quests: "compendium.static-quest.v1", places: "compendium.static-place.v1",
+  properties: "compendium.static-property.v1", abilities: "compendium.static-ability.v1", recipes: "compendium.static-recipe.v1", gearSets: "compendium.static-gear-set.v1",
+} as const;
 
 test("references are keyed and typed; name-only shapes are rejected", () => {
   Assert(EntityRefSchema, item);
@@ -28,13 +33,16 @@ test("references are keyed and typed; name-only shapes are rejected", () => {
   expect(() => Assert(EntityRefSchema, { ...item, href: "/items/peasant-gloves/" })).toThrow();
 });
 
-test("a requirement group carries its mode, its target and its threshold", () => {
-  const group = { mode: "any", requiredCount: 1, requirements: [{ type: "Class", label: "Warrior", target: { key: "classes:0", kind: "classes", name: "Warrior" } }, { type: "Class", label: "Assassin", target: { key: "classes:5", kind: "classes", name: "Assassin" } }] };
+test("a requirement group retains its complete typed predicates", () => {
+  const group = { mode: "any", checkCount: true, requiredCount: 1, requirements: [
+    requirement("Class", "Warrior", { rule: { value: 1, name: "Optional" }, references: { class: { key: "classes:0", kind: "classes", name: "Warrior" } } }),
+    requirement("Class", "Assassin", { rule: { value: 1, name: "Optional" }, references: { class: { key: "classes:5", kind: "classes", name: "Assassin" } } }),
+  ] };
   Assert(RequirementGroupSchema, group);
-  Assert(RequirementGroupSchema, { mode: "all", requirements: [{ type: "Level", label: "Level 27", amount: 27 }] });
+  Assert(RequirementGroupSchema, { mode: "all", checkCount: false, requirements: [requirement("Level", "Level 27", { amounts: { primary: 27, secondary: 0, float: 0, isPercent: false } })] });
   expect(() => Assert(RequirementGroupSchema, { ...group, requirements: [] })).toThrow();
   expect(() => Assert(RequirementGroupSchema, { ...group, mode: "either" })).toThrow();
-  expect(() => Assert(RequirementGroupSchema, { mode: "all", requirements: [{ type: "Class", label: "Warrior", mandatory: true }] })).toThrow();
+  expect(() => Assert(RequirementGroupSchema, { mode: "all", checkCount: false, requirements: [{ type: "Class", label: "Warrior" }] })).toThrow();
 });
 
 test("relation rows accept an unresolved endpoint and omit an unmeasured chance", () => {
@@ -44,7 +52,7 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
   expect(() => Assert(DropRowSchema, { ...drop, chance: 101 })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, placements: [placement] })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, chance: null })).toThrow();
-  Assert(VendorRowSchema, { counterpart: item, price: { amount: 45, currency: gold }, requirements: [{ mode: "all", requirements: [{ type: "Stat", label: "Item power 400", target: { key: "stats:53", kind: "stats", name: "Item power" }, amount: 400 }] }] });
+  Assert(VendorRowSchema, { counterpart: item, price: { amount: 45, currency: gold }, requirements: [{ mode: "all", checkCount: false, requirements: [requirement("Stat", "Item power 400", { references: { stat: { key: "stats:53", kind: "stats", name: "Item power" } }, amounts: { primary: 400, secondary: 0, float: 0, isPercent: false } })] }] });
   Assert(GatherRowSchema, { label: "Copper vein", rank: 1, min: 1, max: 2, placementCount: 345 });
   Assert(ContainerRowSchema, { counterpart: unresolved, label: "Chest", requirements: [], placementCount: 53 });
   Assert(RecipeRowSchema, { counterpart: item, count: 1 });
@@ -56,13 +64,13 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
 const base = { description: null, art: {} };
 const located = { ...base, locations: [placement] };
 const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } = {
-  items: { ...base, ref: item, facts: { rarity: "Common", itemType: "ARMOR", slot: "GLOVES", stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 7, isPercent: false }], randomStats: [{ stat: { key: "stats:0", kind: "stats", name: "Health" }, min: 10, max: 40, isPercent: false, whole: false, chance: 100 }], randomStatsMax: 0, sockets: [{ gemType: "Green Gem" }], sellPrice: { amount: 5, currency: gold }, stackLimit: 1, questDropOnly: false, corruptionToken: false, requirements: [] },
+  items: { ...base, ref: item, facts: { rarity: "Common", itemType: "ARMOR", slot: "GLOVES", stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 7, isPercent: false }], randomStats: [{ stat: { key: "stats:0", kind: "stats", name: "Health" }, min: 10, max: 40, isPercent: false, whole: false, chance: 100 }], randomStatsMax: 0, sockets: [{ gemType: "Green Gem" }], sellPrice: { amount: 5, currency: gold }, stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
     droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [] }], soldBy: [], gatheredFrom: [], inContainers: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [] } satisfies PublicItem,
   npcs: { ...located, ref: boss, facts: { level: 21, scalesWithPlayer: false, roles: ["boss"], stats: [], immunities: [], lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE"] } }, drops: [{ counterpart: item, min: 1, max: 1, requirements: [] }], sells: [], quests: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], usedInQuests: [], bossOf: [] } satisfies PublicNpc,
   quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, givers: [boss], turnIns: [], objectives: [{ index: 0, label: "Kill 3 Branchweavers", type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [] } satisfies PublicQuest,
   places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], quests: [], properties: [], connections: [], regions: [] } satisfies PublicPlace,
   properties: { ...located, ref: { key: "properties:1", kind: "properties", name: "Mill", slug: "mill" }, facts: { income: 60 } } satisfies PublicProperty,
-  abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, facts: {}, usedBy: [boss], taughtBy: [] } satisfies PublicAbility,
+  abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, facts: { ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Deals damage", tone: "damage", italic: false }] }] }] }, usedBy: [boss], taughtBy: [] } satisfies PublicAbility,
   gearSets: { ...base, ref: { key: "gearSets:17", kind: "gearSets", name: "Adept Leather", slug: "adept-leather" }, facts: { memberCount: 7 }, members: [item], tiers: [{ equipped: 3, stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 10, isPercent: true }] }] } satisfies PublicGearSet,
   recipes: { ...base, ref: { key: "recipes:81", kind: "recipes", name: "Aetherial Elixir", slug: "aetherial-elixir" }, facts: {}, product: { counterpart: item, count: 1 }, materials: [] } satisfies PublicRecipe,
 };
@@ -75,12 +83,16 @@ test("every kind document validates and rejects unknown properties", () => {
     expect(() => Assert(schema, { ...document, facts: { ...document.facts, extra: 1 } })).toThrow();
   }
   expect(collectRefs(fixtures.items).map((ref) => ref.key)).toEqual(["items:1", "stats:20", "stats:0", "currencies:0", "npcs:286"]);
+  for (const kind of Object.keys(legacySchemaIds) as (keyof typeof legacySchemaIds)[]) {
+    const schema = STATIC_DOCUMENT_SCHEMAS[STATIC_DOCUMENT_SCHEMA_IDS[kind]];
+    expect(() => Assert(schema, { schemaVersion: legacySchemaIds[kind], ...identity, kind, document: fixtures[kind] })).toThrow();
+  }
 });
 
 test("a v3 root reaches documents and artwork through graph edges and passes semantics", () => {
   const ref = (schemaId: string, sha: string) => ({ path: `resources/${sha}.json`, sha256: sha, bytes: 10, schemaId });
-  const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: "compendium.static-item.v1", ...identity, kind: "items", document: fixtures.items as PublicItem };
-  const npcDocument = { schemaVersion: "compendium.static-npc.v1", ...identity, kind: "npcs", document: fixtures.npcs as PublicNpc } as const;
+  const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: "compendium.static-item.v2", ...identity, kind: "items", document: fixtures.items as PublicItem };
+  const npcDocument = { schemaVersion: "compendium.static-npc.v2", ...identity, kind: "npcs", document: fixtures.npcs as PublicNpc } as const;
   const itemReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.items, "1".repeat(64)), npcReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.npcs, "2".repeat(64));
   const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v3", ...identity, part: 0, entries: [{ ref: item, hasPlacements: false, sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, hasPlacements: true, sourceKinds: [], document: npcReference as never }] };
   const itemList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "items", part: 0, rows: [{ ref: item, values: { level: null, rarity: "Common" }, facets: { slot: ["GLOVES"] } }] };

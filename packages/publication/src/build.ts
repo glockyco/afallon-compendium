@@ -16,6 +16,7 @@ import {
 } from "@afallon/contracts/public";
 import { generateImageryResources } from "./imagery";
 import { generateIndexResources } from "./index-resources";
+import { assertCompleteTooltipCoverage } from "./tooltip-coverage";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { generateMapShards } from "./map-shards";
 import { writeStaticJson, type GeneratedStaticResource } from "./resources";
@@ -86,11 +87,13 @@ export async function buildStaticPublication(
   const placementIdsByKey = new Map([...placementIdsByKeySets].map(([key, ids]) => [key, [...ids].sort()]));
   const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, mapSpaceLabels, regionIdsByMapSpace, protection);
   const coverageQuery = queryCatalogCoverage(db);
+  assertCompleteTooltipCoverage(gate.complete, indexes.publicationIssues);
+  const publicationIssueCount = indexes.publicationIssues.length;
   const coverage: StaticCoverage = {
     schemaVersion: "compendium.static-coverage.v1", buildId: coverageQuery.buildId, catalogId: coverageQuery.catalogId,
-    complete: gate.complete, unresolvedIssueCount: coverageQuery.records.unresolvedIssues.length + indexes.unresolvedReferenceCount,
-    occurrenceCount: coverageQuery.records.occurrenceCount + indexes.unresolvedReferenceCount, exclusionCount: coverageQuery.records.exclusions.length,
-    messages: gate.complete ? [] : ["This preview has unresolved catalog coverage."],
+    complete: gate.complete, unresolvedIssueCount: coverageQuery.records.unresolvedIssues.length + indexes.unresolvedReferenceCount + publicationIssueCount,
+    occurrenceCount: coverageQuery.records.occurrenceCount + indexes.unresolvedReferenceCount + publicationIssueCount, exclusionCount: coverageQuery.records.exclusions.length,
+    messages: gate.complete ? [] : ["This preview has unresolved catalog coverage.", ...indexes.publicationIssues],
   };
   Assert(StaticCoverageSchema, coverage);
   const coverageResource = await writeStaticJson(store, coverage.schemaVersion, coverage, protection);

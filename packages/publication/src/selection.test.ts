@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PUBLICATION_ESSENTIAL_BUDGET, type StaticCoverage, type StaticDocument, type StaticRootManifest, type StaticSearchIndex } from "@afallon/contracts/public";
+import { PUBLICATION_ESSENTIAL_BUDGET, STATIC_DOCUMENT_SCHEMA_IDS, type StaticCoverage, type StaticDocument, type StaticRootManifest, type StaticSearchIndex } from "@afallon/contracts/public";
 import { writeStaticJson } from "./resources";
 import { selectPublication, type PublicationCandidateResource } from "./selection";
 import { publishFromPlan } from "./application";
@@ -44,7 +44,7 @@ test("rejects broken v3 edges and damaged reuse without replacing the selected p
     await expect(selectPublication(store, publicationRoot, oversizedRoot, replaceResource(generated.resources, coverageCandidate.reference.path, largeCoverage), generated.assets, gate)).rejects.toThrow();
     expect(await readFile(join(publicationRoot, "selected.json"), "utf8")).toBe(selectedBytes);
 
-    const document = generated.resources.find((resource) => resource.reference.schemaId === "compendium.static-item.v1")!;
+    const document = generated.resources.find((resource) => resource.reference.schemaId === STATIC_DOCUMENT_SCHEMA_IDS.items)!;
     const copiedDocument = join(publicationRoot, selected.directory, document.reference.path);
     await chmod(copiedDocument, 0o644);
     await writeFile(copiedDocument, "damaged");
@@ -58,7 +58,7 @@ test("names the referencing document and key when a referenced document is not p
   try {
     const { store, plan, options } = await publicationFixture(root);
     const generated = await publishFromPlan(store, plan, { ...options, select: false });
-    const itemCandidate = generated.resources.find((resource) => resource.reference.schemaId === "compendium.static-item.v1")!;
+    const itemCandidate = generated.resources.find((resource) => resource.reference.schemaId === STATIC_DOCUMENT_SCHEMA_IDS.items)!;
     const item = JSON.parse(await readFile(store.objectPath(itemCandidate.identity.sha256), "utf8")) as StaticItemDocument;
     const badItem = await writeStaticJson<StaticItemDocument>(store, item.schemaVersion, {
       ...item,

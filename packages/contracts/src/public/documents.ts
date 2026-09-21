@@ -43,21 +43,31 @@ export type Ref = Static<typeof RefSchema>;
 export const PlacementRefSchema = Type.Object({ placementId: text, mapSpaceId: text, label: text }, { additionalProperties: false });
 export type PlacementRef = Static<typeof PlacementRefSchema>;
 
-// One gate the game checks. `target` is the entity the gate names, so a class requirement links to
-// its class; `amount` is the threshold, never the target's id.
+const tooltipTone = Type.Union([Type.Literal("positive"), Type.Literal("info"), Type.Literal("effect"), Type.Literal("muted"), Type.Literal("damage"), Type.Literal("negative"), Type.Literal("control"), Type.Literal("description")]);
+export const NativeTextSpanSchema = Type.Object({ text, tone: Type.Union([tooltipTone, Type.Null()]), italic: Type.Boolean() }, { additionalProperties: false });
+export const NativeTextLineSchema = Type.Object({ spans: Type.Array(NativeTextSpanSchema) }, { additionalProperties: false });
+export type NativeTextSpan = Static<typeof NativeTextSpanSchema>;
+export type NativeTextLine = Static<typeof NativeTextLineSchema>;
+
+export const RequirementNamedValueSchema = Type.Object({ value: Type.Integer(), name: text }, { additionalProperties: false });
+export const RequirementEntrySchema = Type.Object({ nativeId: Type.Integer(), name: nullableText, internalName: nullableText, fileName: nullableText, description: nullableText, nativeType: text, text }, { additionalProperties: false });
+export const RequirementTimeSchema = Type.Object({ checkYear: Type.Boolean(), checkMonth: Type.Boolean(), checkWeek: Type.Boolean(), checkDay: Type.Boolean(), checkHour: Type.Boolean(), checkMinute: Type.Boolean(), checkSecond: Type.Boolean(), checkGlobalSpeed: Type.Boolean(), year: Type.Integer(), month: Type.Integer(), week: Type.Integer(), day: Type.Integer(), hour: Type.Integer(), minute: Type.Integer(), second: Type.Integer(), globalSpeed: number }, { additionalProperties: false });
+const requirementReferences = Type.Object({ ability: optional(RefSchema), bonus: optional(RefSchema), recipe: optional(RefSchema), resource: optional(RefSchema), effect: optional(RefSchema), npc: optional(RefSchema), stat: optional(RefSchema), faction: optional(RefSchema), combo: optional(RefSchema), race: optional(RefSchema), levels: optional(RefSchema), class: optional(RefSchema), species: optional(RefSchema), item: optional(RefSchema), currency: optional(RefSchema), point: optional(RefSchema), talentTree: optional(RefSchema), skill: optional(RefSchema), spellbook: optional(RefSchema), weaponTemplate: optional(RefSchema), enchantment: optional(RefSchema), gearSet: optional(RefSchema), gameScene: optional(RefSchema), quest: optional(RefSchema), dialogue: optional(RefSchema) }, { additionalProperties: false });
+const requirementSubtypes = Type.Object({ effectTag: optional(RequirementEntrySchema), factionStance: optional(RequirementEntrySchema), itemType: optional(RequirementEntrySchema), weaponType: optional(RequirementEntrySchema), weaponSlot: optional(RequirementEntrySchema), armorType: optional(RequirementEntrySchema), armorSlot: optional(RequirementEntrySchema), gender: optional(RequirementEntrySchema), npcFamily: optional(RequirementEntrySchema), region: optional(RequirementEntrySchema) }, { additionalProperties: false });
 export const RequirementRefSchema = Type.Object({
-  type: text, label: text,
-  target: optional(RefSchema), amount: optional(number), secondaryAmount: optional(number),
+  type: RequirementNamedValueSchema, rule: RequirementNamedValueSchema, label: text, references: requirementReferences,
+  knowledge: optional(RequirementNamedValueSchema), state: optional(RequirementNamedValueSchema), comparison: optional(RequirementNamedValueSchema), value: optional(RequirementNamedValueSchema), ownership: optional(RequirementNamedValueSchema), itemCondition: optional(RequirementNamedValueSchema), progression: optional(RequirementNamedValueSchema), entity: optional(RequirementNamedValueSchema), pointType: optional(RequirementNamedValueSchema), dialogueNodeState: optional(RequirementNamedValueSchema), effectCondition: optional(RequirementNamedValueSchema), amountType: optional(RequirementNamedValueSchema), timeType: optional(RequirementNamedValueSchema), timeValue: optional(RequirementNamedValueSchema), effectType: optional(RequirementNamedValueSchema), questState: optional(RequirementNamedValueSchema),
+  amounts: Type.Object({ primary: number, secondary: number, float: number, isPercent: Type.Boolean() }, { additionalProperties: false }),
+  flags: Type.Object({ consume: Type.Boolean(), first: Type.Boolean(), second: Type.Boolean(), third: Type.Boolean() }, { additionalProperties: false }),
+  subtypes: requirementSubtypes,
+  dialogueNode: optional(Type.Object({ nativeType: text, text }, { additionalProperties: false })),
+  times: Type.Tuple([Type.Union([RequirementTimeSchema, Type.Null()]), Type.Union([RequirementTimeSchema, Type.Null()])]),
 }, { additionalProperties: false });
 export type RequirementRef = Static<typeof RequirementRefSchema>;
 
-// The game authors gates in groups, and a group can be satisfied by one of its members: a melee
-// weapon reads "Warrior or Assassin, level 27", not four repeated class rows. `mode` carries that
-// distinction and `requiredCount` the authored count when the group checks one.
 export const RequirementGroupSchema = Type.Object({
-  mode: Type.Union([Type.Literal("all"), Type.Literal("any")]),
-  requiredCount: optional(count),
-  requirements: Type.Array(RequirementRefSchema, { minItems: 1 }),
+  mode: Type.Union([Type.Literal("all"), Type.Literal("any")]), checkCount: Type.Boolean(),
+  requiredCount: optional(count), requirements: Type.Array(RequirementRefSchema, { minItems: 1 }),
 }, { additionalProperties: false });
 export type RequirementGroup = Static<typeof RequirementGroupSchema>;
 
@@ -123,7 +133,9 @@ export type QuestLinkRow = Static<typeof QuestLinkRowSchema>;
 export const RecipeRowSchema = Type.Object({ counterpart: RefSchema, count }, { additionalProperties: false });
 export type RecipeRow = Static<typeof RecipeRowSchema>;
 
-export const AbilityPhaseSchema = Type.Object({ phaseIndex: count, name: optional(text), requirement: optional(text), abilities: refs }, { additionalProperties: false });
+export const ContextualAbilityRefSchema = Type.Object({ ability: RefSchema, rankIndex: count }, { additionalProperties: false });
+export type ContextualAbilityRef = Static<typeof ContextualAbilityRefSchema>;
+export const AbilityPhaseSchema = Type.Object({ phaseIndex: count, name: optional(text), requirement: optional(text), abilities: Type.Array(ContextualAbilityRefSchema) }, { additionalProperties: false });
 export type AbilityPhase = Static<typeof AbilityPhaseSchema>;
 
 export const FactionRewardRowSchema = Type.Object({ counterpart: RefSchema, amount: number }, { additionalProperties: false });
@@ -178,7 +190,8 @@ export const ItemFactsSchema = Type.Object({
   sockets: Type.Array(SocketRowSchema), gem: optional(GemSchema),
   enchantment: optional(RefSchema), sellPrice: optional(PriceSchema), buyPrice: optional(PriceSchema),
   stackLimit: count, questDropOnly: Type.Boolean(), corruptionToken: Type.Boolean(),
-  levelRequirement: optional(count), requirements, gearSet: optional(RefSchema),
+  actionAbilities: Type.Array(ContextualAbilityRefSchema), useLines: Type.Array(NativeTextLineSchema),
+  equipmentRequirements: requirements, useConditions: requirements, gearSet: optional(RefSchema),
 }, { additionalProperties: false });
 export type ItemFacts = Static<typeof ItemFactsSchema>;
 
@@ -258,7 +271,9 @@ export type PropertyFacts = Static<typeof PropertyFactsSchema>;
 export const PublicPropertySchema = Type.Object({ ...documentBase, facts: PropertyFactsSchema, locations: placements, place: optional(RefSchema) }, { additionalProperties: false });
 export type PublicProperty = Static<typeof PublicPropertySchema>;
 
-export const AbilityFactsSchema = Type.Object({}, { additionalProperties: false });
+export const AbilityRankSchema = Type.Object({ rankIndex: count, lines: Type.Array(NativeTextLineSchema, { minItems: 1 }) }, { additionalProperties: false });
+export type AbilityRank = Static<typeof AbilityRankSchema>;
+export const AbilityFactsSchema = Type.Object({ ranks: Type.Array(AbilityRankSchema, { minItems: 1 }) }, { additionalProperties: false });
 export type AbilityFacts = Static<typeof AbilityFactsSchema>;
 
 export const PublicAbilitySchema = Type.Object({ ...documentBase, facts: AbilityFactsSchema, usedBy: refs, taughtBy: refs }, { additionalProperties: false });
@@ -291,8 +306,8 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v1", npcs: "compendium.static-npc.v1", quests: "compendium.static-quest.v1", places: "compendium.static-place.v1",
-  properties: "compendium.static-property.v1", abilities: "compendium.static-ability.v1", recipes: "compendium.static-recipe.v1", gearSets: "compendium.static-gear-set.v1",
+  items: "compendium.static-item.v2", npcs: "compendium.static-npc.v2", quests: "compendium.static-quest.v2", places: "compendium.static-place.v2",
+  properties: "compendium.static-property.v2", abilities: "compendium.static-ability.v2", recipes: "compendium.static-recipe.v2", gearSets: "compendium.static-gear-set.v2",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -308,16 +323,16 @@ export const StaticAbilityDocumentSchema = staticDocument("abilities");
 export const StaticRecipeDocumentSchema = staticDocument("recipes");
 export const StaticGearSetDocumentSchema = staticDocument("gearSets");
 export const STATIC_DOCUMENT_SCHEMAS = {
-  "compendium.static-item.v1": StaticItemDocumentSchema, "compendium.static-npc.v1": StaticNpcDocumentSchema,
-  "compendium.static-quest.v1": StaticQuestDocumentSchema, "compendium.static-place.v1": StaticPlaceDocumentSchema,
-  "compendium.static-property.v1": StaticPropertyDocumentSchema, "compendium.static-ability.v1": StaticAbilityDocumentSchema,
-  "compendium.static-recipe.v1": StaticRecipeDocumentSchema, "compendium.static-gear-set.v1": StaticGearSetDocumentSchema,
+  "compendium.static-item.v2": StaticItemDocumentSchema, "compendium.static-npc.v2": StaticNpcDocumentSchema,
+  "compendium.static-quest.v2": StaticQuestDocumentSchema, "compendium.static-place.v2": StaticPlaceDocumentSchema,
+  "compendium.static-property.v2": StaticPropertyDocumentSchema, "compendium.static-ability.v2": StaticAbilityDocumentSchema,
+  "compendium.static-recipe.v2": StaticRecipeDocumentSchema, "compendium.static-gear-set.v2": StaticGearSetDocumentSchema,
 } as const;
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema> | Static<typeof StaticRecipeDocumentSchema> | Static<typeof StaticGearSetDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v1"), resourceReference("compendium.static-npc.v1"), resourceReference("compendium.static-quest.v1"), resourceReference("compendium.static-place.v1"),
-  resourceReference("compendium.static-property.v1"), resourceReference("compendium.static-ability.v1"), resourceReference("compendium.static-recipe.v1"), resourceReference("compendium.static-gear-set.v1"),
+  resourceReference("compendium.static-item.v2"), resourceReference("compendium.static-npc.v2"), resourceReference("compendium.static-quest.v2"), resourceReference("compendium.static-place.v2"),
+  resourceReference("compendium.static-property.v2"), resourceReference("compendium.static-ability.v2"), resourceReference("compendium.static-recipe.v2"), resourceReference("compendium.static-gear-set.v2"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;
 
@@ -406,24 +421,28 @@ schemaRegistry.register("compendium.public-art-ref.v1", ArtRefSchema);
 schemaRegistry.register("compendium.public-entity-ref.v1", EntityRefSchema);
 schemaRegistry.register("compendium.public-unresolved-ref.v1", UnresolvedRefSchema);
 schemaRegistry.register("compendium.public-placement-ref.v1", PlacementRefSchema);
-schemaRegistry.register("compendium.public-requirement-ref.v1", RequirementRefSchema);
-schemaRegistry.register("compendium.public-requirement-group.v1", RequirementGroupSchema);
+schemaRegistry.register("compendium.public-native-text-span.v1", NativeTextSpanSchema);
+schemaRegistry.register("compendium.public-native-text-line.v1", NativeTextLineSchema);
+schemaRegistry.register("compendium.public-requirement-ref.v2", RequirementRefSchema);
+schemaRegistry.register("compendium.public-requirement-group.v2", RequirementGroupSchema);
 schemaRegistry.register("compendium.public-place-space.v1", PlaceSpaceSchema);
 schemaRegistry.register("compendium.public-gear-set-tier.v1", GearSetTierSchema);
 schemaRegistry.register("compendium.public-loot-specialization.v1", LootSpecializationSchema);
 schemaRegistry.register("compendium.public-random-stat-row.v1", RandomStatRowSchema);
 schemaRegistry.register("compendium.public-gem.v1", GemSchema);
-schemaRegistry.register("compendium.public-drop-row.v1", DropRowSchema);
-schemaRegistry.register("compendium.public-vendor-row.v1", VendorRowSchema);
+schemaRegistry.register("compendium.public-drop-row.v2", DropRowSchema);
+schemaRegistry.register("compendium.public-vendor-row.v2", VendorRowSchema);
 schemaRegistry.register("compendium.public-gather-row.v1", GatherRowSchema);
-schemaRegistry.register("compendium.public-container-row.v1", ContainerRowSchema);
+schemaRegistry.register("compendium.public-container-row.v2", ContainerRowSchema);
 schemaRegistry.register("compendium.public-quest-given-row.v1", QuestGivenRowSchema);
 schemaRegistry.register("compendium.public-quest-reward-row.v1", QuestRewardRowSchema);
 schemaRegistry.register("compendium.public-quest-link-row.v1", QuestLinkRowSchema);
 schemaRegistry.register("compendium.public-quest-objective.v1", QuestObjectiveSchema);
 schemaRegistry.register("compendium.public-quest-objective-row.v1", QuestObjectiveRowSchema);
 schemaRegistry.register("compendium.public-recipe-row.v1", RecipeRowSchema);
-schemaRegistry.register("compendium.public-ability-phase.v1", AbilityPhaseSchema);
+schemaRegistry.register("compendium.public-contextual-ability-ref.v1", ContextualAbilityRefSchema);
+schemaRegistry.register("compendium.public-ability-rank.v1", AbilityRankSchema);
+schemaRegistry.register("compendium.public-ability-phase.v2", AbilityPhaseSchema);
 schemaRegistry.register("compendium.public-faction-reward-row.v1", FactionRewardRowSchema);
 schemaRegistry.register("compendium.public-creature-row.v1", CreatureRowSchema);
 schemaRegistry.register("compendium.public-placement-group.v1", PlacementGroupSchema);
@@ -431,4 +450,4 @@ schemaRegistry.register("compendium.public-connection-row.v1", ConnectionRowSche
 schemaRegistry.register("compendium.public-kind-entry.v1", PublicKindEntrySchema);
 schemaRegistry.register("compendium.public-search-entry.v1", PublicSearchEntrySchema);
 // Schema ids are lower case with hyphens, so a camel-case kind becomes hyphenated.
-for (const [kind, schema] of Object.entries(PUBLIC_DOCUMENT_SCHEMAS)) schemaRegistry.register(`compendium.public-${kind.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}-document.v1`, schema);
+for (const [kind, schema] of Object.entries(PUBLIC_DOCUMENT_SCHEMAS)) schemaRegistry.register(`compendium.public-${kind.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}-document.v2`, schema);
