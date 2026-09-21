@@ -50,6 +50,11 @@ export async function buildStaticPublication(
   for (const map of imagery) for (const layer of map.resource.value.layers) {
     if (layer.kind === "captured" && !capturedMapSpaceIds.includes(layer.mapSpaceId)) throw new Error(`Captured imagery is outside the reviewed overworld scope: ${layer.id}.`);
   }
+  const gameMapByMap = new Map(imagery.map((entry) => {
+    const gameMaps = entry.resource.value.layers.filter((layer) => layer.kind === "game-map");
+    if (gameMaps.length !== 1) throw new Error(`Publication requires one game-map extent for ${entry.mapSpaceId}; found ${gameMaps.length}.`);
+    return [entry.mapSpaceId, gameMaps[0]!] as const;
+  }));
   const publishedMapIds = new Set(imagery.map((entry) => entry.mapSpaceId));
   const allMaps = queryCatalogMaps(db).records;
   const allMapIds = new Set(allMaps.map((map) => map.mapSpaceId));
@@ -57,7 +62,8 @@ export async function buildStaticPublication(
   for (const mapId of publishedMapIds) if (!allMapIds.has(mapId)) throw new Error(`Imagery references an unknown catalog map: ${mapId}.`);
   const publishedOffsets = worldOffsets.filter((offset) => publishedMapIds.has(offset.mapSpaceId)).sort((left, right) => left.mapSpaceId.localeCompare(right.mapSpaceId));
   if (publishedOffsets.length !== publishedMapIds.size || new Set(publishedOffsets.map((offset) => offset.mapSpaceId)).size !== publishedMapIds.size) throw new Error("Publication requires one reviewed world offset per published map.");
-  const mapShards = await generateMapShards(db, store, publishedOffsets, protection, publishedMapIds);
+  const publishedExtents = new Map([...gameMapByMap].map(([mapSpaceId, layer]) => [mapSpaceId, layer.extent] as const));
+  const mapShards = await generateMapShards(db, store, publishedOffsets, protection, publishedMapIds, publishedExtents);
   const imageryByMap = new Map(imagery.map((entry) => [entry.mapSpaceId, entry.resource]));
   const placements = new Map<string, PlacementRef>();
   const placementIdsByKeySets = new Map<string, Set<string>>();
@@ -92,25 +98,12 @@ export async function buildStaticPublication(
   const maps = mapShards.map((entry) => {
     const mapImagery = imageryByMap.get(entry.summary.mapSpaceId), offset = offsetByMap.get(entry.summary.mapSpaceId);
     if (!mapImagery || !offset) throw new Error(`Publication map has no imagery metadata or reviewed world offset: ${entry.summary.mapSpaceId}.`);
-    const firstLayer = mapImagery.value.layers[0];
-    if (!firstLayer) throw new Error(`Publication map has no imagery layers: ${entry.summary.mapSpaceId}.`);
+    const gameMap = gameMapByMap.get(entry.summary.mapSpaceId);
+    if (!gameMap) throw new Error(`Publication map has no game-map extent: ${entry.summary.mapSpaceId}.`);
     const bounds = {
-      min: { x: firstLayer.extent[0] + offset.worldX, y: firstLayer.extent[1] + offset.worldY },
-      max: { x: firstLayer.extent[2] + offset.worldX, y: firstLayer.extent[3] + offset.worldY },
+      min: { x: gameMap.extent[0] + offset.worldX, y: gameMap.extent[1] + offset.worldY },
+      max: { x: gameMap.extent[2] + offset.worldX, y: gameMap.extent[3] + offset.worldY },
     };
-    for (const layer of mapImagery.value.layers.slice(1)) {
-      bounds.min.x = Math.min(bounds.min.x, layer.extent[0] + offset.worldX);
-      bounds.min.y = Math.min(bounds.min.y, layer.extent[1] + offset.worldY);
-      bounds.max.x = Math.max(bounds.max.x, layer.extent[2] + offset.worldX);
-      bounds.max.y = Math.max(bounds.max.y, layer.extent[3] + offset.worldY);
-    }
-    const hasSpatialContent = entry.resources.some((resource) => resource.value.placements.length > 0 || resource.value.regions.length > 0);
-    if (hasSpatialContent) {
-      bounds.min.x = Math.min(bounds.min.x, entry.summary.bounds.min.x);
-      bounds.min.y = Math.min(bounds.min.y, entry.summary.bounds.min.y);
-      bounds.max.x = Math.max(bounds.max.x, entry.summary.bounds.max.x);
-      bounds.max.y = Math.max(bounds.max.y, entry.summary.bounds.max.y);
-    }
     return { ...entry.summary, bounds, imagery: mapImagery.reference };
   });
   if (maps.length === 0) throw new Error("Publication has no maps.");

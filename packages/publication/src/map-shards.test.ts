@@ -23,6 +23,9 @@ test("keeps map records isolated and stable across equivalent compilations", asy
     db.query("INSERT INTO canonical_entities (build_id, kind, native_id, entity_key, name, internal_name, description, source_key, details_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("build", "npcs", 7, "npcs:7", "Skywarden", null, null, null, "{}", "[]");
     db.query("INSERT INTO entity_details VALUES (?, ?)").run("npcs:7", JSON.stringify({ entityKey: "npcs:7", publicData: { gameplay: { isAuctioneer: true, isBanker: true, isFlightMaster: true, flightStopId: "camp", flightNetwork: { available: true, stops: [{ id: "camp", name: "Wayfarer's Camp" }] } } } }));
     db.query("INSERT INTO placement_roles VALUES (?, ?, ?, ?, ?, ?)").run("placement-a", "source-a", "townsfolk", "npcs:7", "authored", "{}");
+    db.query("INSERT INTO placement_roles VALUES (?, ?, ?, ?, ?, ?)").run("placement-a", "source-a", "transition", null, "authored", "{}");
+    db.query("INSERT INTO source_details VALUES (?, ?, ?, ?, ?)").run("travel-a", "source-a", "placement-a", "transition", JSON.stringify({ transitionId: "travel-a", source: { enabled: true }, actions: [{ effectTeleport: { type: { name: "position" }, position: { x: 2, y: 0, z: 2 } } }] }));
+    db.query("INSERT INTO map_space_bindings VALUES (?, ?, ?, ?, ?, ?, ?)").run("build", "binding-a", "a", 1, "scene", JSON.stringify({ origin: { x: 0, z: 0 }, xAxis: { x: 1, z: 0 }, yAxis: { x: 0, z: 1 } }), JSON.stringify({ kind: "scene" }));
     for (const [id, component] of [["icon-a", "10"], ["icon-b", "11"]] as const) {
       db.query("INSERT INTO placements (placement_id, build_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, label, shape_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(id, "build", 1, "scene", "a", 5, 0, 5, 5, 5, null, "null", "[]");
       db.query("INSERT INTO placement_identities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(id, "build", 1, "d".repeat(64), id.padEnd(64, "0"), "scene", component, "scene", null);
@@ -33,14 +36,20 @@ test("keeps map records isolated and stable across equivalent compilations", asy
       db.query("INSERT INTO regions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(id, "build", 1, "scene", "Shared Region", null, "box", JSON.stringify({ corners: [[x, x], [x + 2, x], [x + 2, x + 2], [x, x + 2]] }), "a", JSON.stringify({ corners: [[x, x], [x + 2, x], [x + 2, x + 2], [x, x + 2]] }), "[]");
     }
     const store = new ArtifactStore(join(root, "objects"));
-    const first = await generateMapShards(db, store);
-    const second = await generateMapShards(db, store);
+    const offsets = [{ mapSpaceId: "a", worldX: 0, worldY: 0, source: "reviewed", status: "placed" }, { mapSpaceId: "b", worldX: 0, worldY: 0, source: "reviewed", status: "placed" }] as const;
+    const first = await generateMapShards(db, store, offsets);
+    const second = await generateMapShards(db, store, offsets);
     expect(first.map((map) => map.resources.map((part) => part.identity.sha256))).toEqual(second.map((map) => map.resources.map((part) => part.identity.sha256)));
     expect(first.map((map) => map.summary.mapSpaceId)).toEqual(["a", "b"]);
     expect(first[0]!.resources.flatMap((part) => part.value.placements.map((placement) => placement[0]))).toEqual(["icon-a", "placement-a"]);
     const servicePlacement = first[0]!.resources.flatMap((part) => part.value.placements).find((placement) => placement[0] === "placement-a");
     expect(servicePlacement?.[3]).toBe("Wayfarer's Camp Flight Point");
     expect(servicePlacement?.[4]).toEqual(expect.arrayContaining(["auctioneer", "banker", "flightPoint"]));
+    expect(servicePlacement?.[4]).not.toContain("townsfolk");
+    const serviceGeometry = first[0]!.geometry.flatMap((part) => part.value.placements).find((placement) => placement.placementId === "placement-a");
+    expect(serviceGeometry?.travel?.destination).toEqual({ status: "resolved", mapSpaceId: "a", position: [2, 2] });
+    const cropped = await generateMapShards(db, store, offsets, undefined, new Set(["a", "b"]), new Map<string, readonly [number, number, number, number]>([["a", [0, 0, 4, 4]], ["b", [0, 0, 4, 4]]]));
+    expect(cropped[0]!.resources.flatMap((part) => part.value.placements.map((placement) => placement[0]))).toEqual(["placement-a"]);
     expect(first[0]!.resources.flatMap((part) => part.value.regions.map((region) => region.id))).toEqual(["region-a"]);
     expect(first[0]!.resources[0]!.value.mapSpaceId).toBe("a");
     expect(first[0]!.resources[0]!.value).not.toEqual(expect.objectContaining({ mapSpaceId: "b" }));

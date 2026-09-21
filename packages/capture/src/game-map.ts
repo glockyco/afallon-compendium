@@ -48,6 +48,25 @@ function transformedBounds(frame: Affine, width: number, height: number): [numbe
   return [Math.min(...corners.map(point => point.x)), Math.min(...corners.map(point => point.y)), Math.max(...corners.map(point => point.x)), Math.max(...corners.map(point => point.y))];
 }
 
+function visibleDeliveryExtent(image: DecodedImage, plan: IllustrationPlan): [number, number, number, number] {
+  let minX = image.width, minY = image.height, maxX = -1, maxY = -1;
+  for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) {
+    if (image.data[(y * image.width + x) * CHANNELS + 3] === 0) continue;
+    minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+  }
+  if (maxX < minX || maxY < minY) throw new Error("Game-map generation rejected: calibrated image has no visible pixels.");
+  const frame = plan.registration.mapFromPixelEdge;
+  const visibleFrame: Affine = {
+    origin: apply(frame, { x: minX, y: minY }),
+    xAxis: frame.xAxis,
+    yAxis: frame.yAxis,
+  };
+  const visible = transformedBounds(visibleFrame, maxX - minX + 1, maxY - minY + 1), reviewed = plan.deliveryExtent;
+  const extent: [number, number, number, number] = [Math.max(reviewed[0], visible[0]), Math.max(reviewed[1], visible[1]), Math.min(reviewed[2], visible[2]), Math.min(reviewed[3], visible[3])];
+  if (extent[0] >= extent[2] || extent[1] >= extent[3]) throw new Error("Game-map generation rejected: reviewed delivery extent contains no visible pixels.");
+  return extent;
+}
+
 function chooseMaxZoom(frame: Affine): number {
   const xScale = Math.hypot(frame.xAxis.x, frame.xAxis.y), yScale = Math.hypot(frame.yAxis.x, frame.yAxis.y);
   const scale = Math.sqrt(xScale * yScale);
@@ -138,8 +157,9 @@ export async function generateGameMap(store: ArtifactStore, planPath: string, op
   const run = await beginArtifactRun(store, { buildId: plan.buildId, operation: "game-map", settings, schemas, implementationFingerprint: fingerprint.implementation, cacheKey: fingerprint.cacheKey, probeHashes: fingerprint.probeHashes, diagnosticRevision: options.diagnosticRevision, inputs, inputManifests: [] });
   try {
     await run.setPhase("execution");
-    const frame = plan.registration.mapFromPixelEdge, toPixel = inverse(frame), bounds = plan.deliveryExtent, maxZoom = chooseMaxZoom(frame);
+    const frame = plan.registration.mapFromPixelEdge, toPixel = inverse(frame), maxZoom = chooseMaxZoom(frame);
     validateGameMapDeliveryExtent(plan, image.width, image.height);
+    const bounds = visibleDeliveryExtent(image, plan);
     const rangeAt = (z: number) => ({ minX: Math.floor(bounds[0] / (TILE_SIZE * 2 ** -z)), minY: Math.floor(bounds[1] / (TILE_SIZE * 2 ** -z)), maxX: Math.ceil(bounds[2] / (TILE_SIZE * 2 ** -z)) - 1, maxY: Math.ceil(bounds[3] / (TILE_SIZE * 2 ** -z)) - 1 });
     let minZoom = maxZoom - 5;
     for (let z = maxZoom; z >= maxZoom - 5; z--) { const range = rangeAt(z); if ((range.maxX - range.minX + 1) * (range.maxY - range.minY + 1) <= 4) { minZoom = z; break; } }
@@ -148,7 +168,7 @@ export async function generateGameMap(store: ArtifactStore, planPath: string, op
     for (let z = minZoom; z <= maxZoom; z++) {
       const range = rangeAt(z);
       for (let y = range.minY; y <= range.maxY; y++) for (let x = range.minX; x <= range.maxX; x++) {
-        const tile = renderTile(image, toPixel, plan.deliveryExtent, z, maxZoom, x, y);
+        const tile = renderTile(image, toPixel, bounds, z, maxZoom, x, y);
         if (!tile.visible) continue;
         const webp = await sharp(tile.data, { raw: { width: TILE_SIZE, height: TILE_SIZE, channels: CHANNELS } }).webp({ lossless: true }).toBuffer();
         const object = await run.putBytes(webp), path = `tiles/${z}/${x}/${y}.${object.sha256}.webp`;
@@ -158,10 +178,7 @@ export async function generateGameMap(store: ArtifactStore, planPath: string, op
       }
     }
     if (tiles.length === 0) throw new Error("Game-map generation rejected: calibrated image produced no visible tiles.");
-    const tileWorldSize = TILE_SIZE * 2 ** -maxZoom;
-    const finest = tiles.filter(tile => tile.z === maxZoom);
-    const extent: [number, number, number, number] = [Math.min(...finest.map(tile => tile.x * tileWorldSize)), Math.min(...finest.map(tile => tile.y * tileWorldSize)), Math.max(...finest.map(tile => (tile.x + 1) * tileWorldSize)), Math.max(...finest.map(tile => (tile.y + 1) * tileWorldSize))];
-    const imagery: CatalogImagery = { schemaVersion: "compendium.catalog-imagery.v1", buildId: plan.buildId, layer: { id: plan.layerId, mapSpaceId: plan.mapSpaceId, label: plan.label, kind: "game-map", tileSize: TILE_SIZE, minZoom, maxZoom, extent, tiles }, inputs: Object.values(inputs) };
+    const imagery: CatalogImagery = { schemaVersion: "compendium.catalog-imagery.v1", buildId: plan.buildId, layer: { id: plan.layerId, mapSpaceId: plan.mapSpaceId, label: plan.label, kind: "game-map", tileSize: TILE_SIZE, minZoom, maxZoom, extent: bounds, tiles }, inputs: Object.values(inputs) };
     Assert(CatalogImagerySchema, imagery);
     await run.setPhase("finalization");
     const imageryObject = await run.putBytes(new TextEncoder().encode(`${canonicalJson(imagery)}\n`));

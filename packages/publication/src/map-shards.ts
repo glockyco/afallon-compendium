@@ -164,6 +164,7 @@ function findTravelTarget(value: unknown, sourceSceneNativeId: number): TravelTa
   return null;
 }
 function contains(domainValue: Record<string, unknown>, point: { x: number; y: number; z: number }): boolean {
+  if (domainValue.kind === "scene") return true;
   if (domainValue.kind !== "boxes" || !Array.isArray(domainValue.boxes)) return false;
   return domainValue.boxes.some((boxValue) => {
     const box = record(boxValue), min = record(box?.min), max = record(box?.max);
@@ -312,7 +313,7 @@ export interface GeneratedMapShard {
   geometry: GeneratedStaticResource<StaticGeometry>[];
 }
 
-export async function generateMapShards(db: Database, store: ArtifactStore, worldOffsets: readonly PublicWorldOffset[] = [], protection?: ObjectWriteProtection, publishedMapSpaceIds?: ReadonlySet<string>): Promise<GeneratedMapShard[]> {
+export async function generateMapShards(db: Database, store: ArtifactStore, worldOffsets: readonly PublicWorldOffset[] = [], protection?: ObjectWriteProtection, publishedMapSpaceIds?: ReadonlySet<string>, publishedExtents?: ReadonlyMap<string, readonly [number, number, number, number]>): Promise<GeneratedMapShard[]> {
   const offsets = new Map(worldOffsets.map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }]));
   const maps = queryCatalogMaps(db);
   const spatial = queryCatalogSpatialContext(db).records;
@@ -325,13 +326,16 @@ export async function generateMapShards(db: Database, store: ArtifactStore, worl
     const queried = queryCatalogMap(db, map.mapSpaceId);
     if (queried.records === null) throw new Error(`Catalog map disappeared during publication: ${map.mapSpaceId}.`);
     const offset = offsets.get(map.mapSpaceId) ?? { worldX: 0, worldY: 0 };
+    const extent = publishedExtents?.get(map.mapSpaceId);
     const unfoldedPlacements: ProjectedPlacement[] = foldMapIcons(queried.records.placements).flatMap((placement) => {
+      if (extent && (placement.position[0] < extent[0] || placement.position[1] < extent[1] || placement.position[0] >= extent[2] || placement.position[1] >= extent[3])) return [];
       const entityKeys = [...new Set(placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [role.npcEntityKey]))].sort();
       const foundCategories = new Set(categories(placement.roles));
       const serviceData = entityKeys.map((key) => record(gameplayByEntity.get(key)));
       if (serviceData.some((gameplay) => gameplay?.isAuctioneer === true)) foundCategories.add("auctioneer");
       if (serviceData.some((gameplay) => gameplay?.isBanker === true)) foundCategories.add("banker");
       if (serviceData.some((gameplay) => gameplay?.isFlightMaster === true)) foundCategories.add("flightPoint");
+      if (foundCategories.has("auctioneer") || foundCategories.has("banker") || foundCategories.has("flightPoint")) foundCategories.delete("townsfolk");
       const placementCategories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => foundCategories.has(category));
       if (placementCategories.length === 0) return [];
       const serviceLabel = serviceData.map(flightPointLabel).find((value): value is string => value !== null);
