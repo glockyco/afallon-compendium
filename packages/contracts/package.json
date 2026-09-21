@@ -6,7 +6,8 @@
     ".": "./src/index.ts",
     "./catalog": "./src/catalog/index.ts",
     "./spatial": "./src/spatial/index.ts",
-    "./public": "./src/public/index.ts"
+    "./public": "./src/public/index.ts",
+    "./public/primitives": "./src/public/primitives.ts"
   },
   "scripts": { "test": "bun test src", "check": "tsc -b" },
   "dependencies": { "typebox": "1.3.27" }

@@ -13,6 +13,6 @@ export default {
       ...(production ? { pages: stage.outputDir, assets: stage.outputDir } : {}),
     }),
     ...(production ? { files: { assets: stage.staticDir } } : {}),
-    paths: { base: process.env.BASE_PATH ?? '' },
+    paths: { base: process.env.BASE_PATH ?? '', relative: false },
   },
 };
