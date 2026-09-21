@@ -1002,15 +1002,16 @@ Evidence: `local/evidence-pipeline-fresh-selected-store/spike-artwork/artwork.js
 ## Compendium publication measurements
 
 The selected Afallon 0.16.2 preview uses build 25419293, catalog
-`7d528dcc1d40ce9e4ba0fa231d5a324c584146d1306e0e680e8f071ff2fe83ae`, and publication root
-`9c2815be893480982f4b3dade020dea87d93d36fdccca3fb487593df8ec2052e`. It contains 3,764 entities,
-6,911 placements, 160 regions, 9,456 roles, and 20,475 domain relations. The atlas publishes 21 game
-maps and defaults to eight flight points, three auctioneers, and two bankers. Coverage remains
-incomplete: all 10,652 required obligations have accepted dispositions, including 7,093 reviewed
-exclusions, and none are unsatisfied. Acceptance retains build 25153357 publication
-`3a94326c0f6c633119d1d9a2264de239e24187b1c30e79dc31953a9cbcc500c9` as rollback evidence.
+`284d5f4c4fa41879a4e6832a7668760e5c6f0f7560627367d656709c2de5ffcb`, and publication root
+`86df849d9c020a5ff833882d4dd6786524a2ed7cf411d8e149ef804af1a3d8e3`. It contains 3,764 entities,
+6,911 placements, 160 regions, 9,456 roles, and 20,475 domain relations. The atlas publishes 21 game maps
+with exact extents and 3,877 in-map placements. It defaults to eight flight points, three auctioneers,
+and two bankers. Coverage remains incomplete: all 10,652 required obligations have accepted
+dispositions, including 7,093 reviewed exclusions, and none are unsatisfied. Acceptance retains the
+prior same-build publication `9c2815be893480982f4b3dade020dea87d93d36fdccca3fb487593df8ec2052e`
+as rollback evidence.
 
-The following measurements describe that retained build 25153357 publication. It carries 2,117 entity documents over eight paged kinds: 1,076 items, 357 NPCs, 347
+The following measurements describe the earlier build 25153357 publication. It carries 2,117 entity documents over eight paged kinds: 1,076 items, 357 NPCs, 347
 abilities, 133 quests, 132 recipes, 40 places, 27 gear sets, and 5 properties. Documents total
 6,125,540 bytes and the largest is `scenes:3` at 66,297 bytes against the 262,144-byte budget. The
 search corpus is 1,132,601 bytes in three parts and doubles as the page index; kind lists are
