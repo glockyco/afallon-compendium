@@ -1002,14 +1002,22 @@ Evidence: `local/evidence-pipeline-fresh-selected-store/spike-artwork/artwork.js
 ## Compendium publication measurements
 
 The selected Afallon 0.16.2 preview uses build 25419293, catalog
-`284d5f4c4fa41879a4e6832a7668760e5c6f0f7560627367d656709c2de5ffcb`, and publication root
-`86df849d9c020a5ff833882d4dd6786524a2ed7cf411d8e149ef804af1a3d8e3`. It contains 3,764 entities,
-6,911 placements, 160 regions, 9,456 roles, and 20,475 domain relations. The atlas publishes 21 game maps
-with exact extents and 3,877 in-map placements. It defaults to eight flight points, three auctioneers,
-and two bankers. Coverage remains incomplete: all 10,652 required obligations have accepted
-dispositions, including 7,093 reviewed exclusions, and none are unsatisfied. Acceptance retains the
-prior same-build publication `9c2815be893480982f4b3dade020dea87d93d36fdccca3fb487593df8ec2052e`
-as rollback evidence.
+`6b6bc2ae26bf4e9dadef874eb6d6bfcbe6c3ba84d74860257e42ea4eb7261008`, and publication root
+`8e1232ab07147894fc405a868667d827b8a2edd0d94f7ed8b3d65398eeb42ca9`. It contains 3,764 entities,
+6,460 placements, 139 regions, 8,894 roles, and 20,112 domain relations. The essential graph is
+2,981,483 bytes over 45 requests. Coverage remains incomplete because this is a preview. All 10,370
+required obligations have accepted dispositions, including 7,009 reviewed exclusions, and none are
+unsatisfied.
+
+A fresh canonical scene scan accounts for all 373 authored ability ranks, 87 non-empty item use
+blocks, 247 effective percentage stat rows, 634 equipment predicates, 20 use predicates, and 184 set
+members. The two remaining item condition rows contain empty native groups and no predicates. The
+production-stage site renders the observed values for Oathbreaker's Edge, Frost loop, Red gem of
+lifesteal, Minor health potion, Rough Sharpening Stone, Adept Leather hood, Cleave #0, and all four
+Healing potion ranks. Tooltips have no focusable descendants. A long set tooltip keeps its pointer
+lifetime while the pointer moves from the link, scrolls from offset 0 to 34, retains link focus after
+Escape, fits a 360-pixel viewport at 328 pixels wide, and lets a touch pointer navigate without opening
+the tooltip.
 
 The following measurements describe the earlier build 25153357 publication. It carries 2,117 entity documents over eight paged kinds: 1,076 items, 357 NPCs, 347
 abilities, 133 quests, 132 recipes, 40 places, 27 gear sets, and 5 properties. Documents total
@@ -1034,6 +1042,8 @@ that share them, 67 of them NPCs such as the six Oakenvale guards at level 100 i
 Gear sets carry no native artwork, so each keeps an `artwork-unavailable` issue and its page falls
 back to the kind glyph.
 
-A local rollback rehearsal between this root and `17d4515adf0705827fbc27803825bace94602e714b72e96a7790272e12b0d836`
-restored the prior identity and returned the stage to the current one, with both roots passing graph
-verification and the parity gate.
+A clean-cut rollback rehearsal used an isolated worktree at site revision `0976223` to stage, build,
+and assert prior publication `c8a26c46b36d24c5999c6e6dba368fc749493af0b7a7dee7b91c0b556422dd84`
+as a 15,553-file pair. The current deployment verifier then completed its stage, build, and assertion
+cycles and left the 15,554-file `8e1232ab` pair selected. This verifies both deployable pairs without
+adding a version-1 document reader to the current site.
