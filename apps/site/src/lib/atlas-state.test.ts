@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { DEFAULT_ATLAS_STATE, readAtlasUrl, transitionAtlasState, writeAtlasUrl, type AtlasState } from "./atlas-state";
+import { DEFAULT_ATLAS_STATE, readAtlasUrl, repairAtlasUrl, transitionAtlasState, writeAtlasUrl, type AtlasState } from "./atlas-state";
 
 const complete: AtlasState = {
   layerIds: ["game-coalway"], selectedPlacementId: "placement",
@@ -14,6 +14,14 @@ test("round-trips every canonical shareable atlas field", () => {
   expect([...url.searchParams.keys()]).not.toContain("layer");
   expect([...url.searchParams.keys()]).not.toContain("roles");
   expect([...url.searchParams.keys()]).not.toContain("level-min");
+});
+
+test("repairs Steam-escaped query separators", () => {
+  const escaped = new URL("https://atlas.test/?layers=game-maps&amp;categories=flightPoint%2Cbanker%2Cauctioneer");
+  const parsed = readAtlasUrl(escaped.search);
+  expect(parsed.layerIds).toEqual(["game-maps"]);
+  expect(parsed.categories).toEqual(["flightPoint", "banker", "auctioneer"]);
+  expect(repairAtlasUrl(escaped).search).toBe("?layers=game-maps&categories=flightPoint%2Cbanker%2Cauctioneer");
 });
 
 test("ignores removed aliases and never mutates prior state", () => {

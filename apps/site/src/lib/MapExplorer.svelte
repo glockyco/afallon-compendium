@@ -8,7 +8,7 @@
   import { clientAtlasLoader } from './client-publication';
   import { AtlasController, type AtlasSnapshot } from './atlas-controller';
   import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, resultHighlightIds, summarizePlacements } from './atlas-search';
-  import { DEFAULT_ATLAS_STATE, readAtlasUrl, writeAtlasUrl } from './atlas-state';
+  import { DEFAULT_ATLAS_STATE, readAtlasUrl, repairAtlasUrl, writeAtlasUrl } from './atlas-state';
   import AtlasDevelopmentDetails from './map/AtlasDevelopmentDetails.svelte';
   import AtlasCanvasShell from './map/AtlasCanvasShell.svelte';
   import AtlasSearchResults from './map/AtlasSearchResults.svelte';
@@ -153,8 +153,14 @@
     rendererError = message;
   }
 
+  function readAndRepairAtlasUrl(url: URL) {
+    const repaired = repairAtlasUrl(new URL(url));
+    if (repaired.search !== url.search) replaceState(repaired, {});
+    return readAtlasUrl(repaired.search);
+  }
+
   afterNavigate(({ to }) => {
-    if (controller && to) controller.navigate(readAtlasUrl(to.url.search));
+    if (controller && to) controller.navigate(readAndRepairAtlasUrl(to.url));
   });
 
   onMount(() => {
@@ -166,7 +172,7 @@
     } catch {
       // Expanded panels are a safe default when browser storage is unavailable.
     }
-    const onPopState = () => controller?.navigate(readAtlasUrl(window.location.search));
+    const onPopState = () => controller?.navigate(readAndRepairAtlasUrl(new URL(window.location.href)));
     const onKeydown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault();
@@ -203,7 +209,9 @@
         adapter?.setView(restored);
       },
     });
-    controller.start(readAtlasUrl(window.location.search));
+    const initialUrl = repairAtlasUrl(new URL(window.location.href));
+    if (initialUrl.search !== window.location.search) window.history.replaceState(window.history.state, '', initialUrl);
+    controller.start(readAtlasUrl(initialUrl.search));
     return () => {
       disposed = true;
       window.removeEventListener('popstate', onPopState);

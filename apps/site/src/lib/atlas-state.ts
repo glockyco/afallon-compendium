@@ -128,8 +128,33 @@ function freezeState(state: AtlasState, previous?: AtlasState): AtlasState {
   });
 }
 
-export function readAtlasUrl(search: string): AtlasState {
+const ATLAS_URL_KEYS = new Set([
+  "layers", "selected", "q", "source-q", "detail-q", "categories", "zones", "connections", "movement",
+  "item", "entity", "place", "x", "y", "z", "zoom",
+]);
+
+function readAtlasParams(search: string): { params: URLSearchParams; repaired: boolean } {
   const params = new URLSearchParams(search);
+  let repaired = false;
+  for (const [key, value] of [...params.entries()]) {
+    let restored = key;
+    while (restored.startsWith("amp;")) restored = restored.slice(4);
+    if (restored === key || !ATLAS_URL_KEYS.has(restored)) continue;
+    params.delete(key);
+    params.append(restored, value);
+    repaired = true;
+  }
+  return { params, repaired };
+}
+
+export function repairAtlasUrl(url: URL): URL {
+  const { params, repaired } = readAtlasParams(url.search);
+  if (repaired) url.search = params.toString();
+  return url;
+}
+
+export function readAtlasUrl(search: string): AtlasState {
+  const { params } = readAtlasParams(search);
   const x = finiteNumber(params.get("x"));
   const y = finiteNumber(params.get("y"));
   const z = finiteNumber(params.get("z"));
