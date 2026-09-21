@@ -1,4 +1,4 @@
-import { PUBLIC_MARKER_CATEGORY_LABELS, type PublicMarkerCategory } from '@afallon/contracts/public/primitives';
+import { PUBLIC_MARKER_CATEGORY_LABELS, type PublicMarkerCategory } from '@afallon/contracts/public';
 
 const RARITY_TONES: Record<string, true> = { common: true, uncommon: true, rare: true, gold: true, epic: true, legendary: true };
 const numberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
