@@ -1,12 +1,15 @@
 import { expect, test } from "bun:test";
-import { decodeItemGameplay, decodeNpcGameplay, decodePropertyGameplay, decodeQuestGameplay, decodeTaskGameplay, decodedPrice, decodedReference } from "./decoders";
+import { decodeAbilityGameplay, decodeItemGameplay, decodeNpcGameplay, decodePropertyGameplay, decodeQuestGameplay, decodeTaskGameplay, decodedPrice, decodedReference } from "./decoders";
 
 const reference = { path: "objects/gameplay.json", sha256: "a".repeat(64) };
+const successfulItemTooltip = { generator: "ConsumableTooltip.Build(RPGItem, false)", includeHint: false, succeeded: true, text: null, error: null } as const;
+const itemGameplay = (value: Record<string, unknown>) => ({ actionAbilities: [], nativeUseTooltip: successfulItemTooltip, ...value });
+const successfulAbilityRank = { rankIndex: 0, generator: "AbilityTooltipGenerator.Generate(null, RPGAbility, RPGAbilityRankData)", succeeded: true, text: "Instant\nRange: 3 m", error: null } as const;
 const enumValue = (value: number, name: string) => ({ value, name });
 const reward = (value: number, name: string) => ({ rewardType: enumValue(value, name), itemId: -1, currencyId: -1, treePointId: -1, factionId: -1, weaponTemplateId: -1, count: 1, experience: 0 });
 
 test("decodes every supported canonical gameplay enum", () => {
-  expect(decodeItemGameplay({ itemType: { available: true, name: "WEAPON" }, armorSlot: { available: true, name: "HEAD" }, weaponType: { available: true, name: "SWORD" }, armorType: { available: true, name: "PLATE" }, weaponSlot: { available: true, name: "MAIN_HAND" }, rarity: { available: true, name: "RARE" }, sockets: [{ gemSocketType: { available: true, name: "RED" } }] }, reference, "/items/0/gameplay").issues).toEqual([]);
+  expect(decodeItemGameplay(itemGameplay({ itemType: { available: true, name: "WEAPON" }, armorSlot: { available: true, name: "HEAD" }, weaponType: { available: true, name: "SWORD" }, armorType: { available: true, name: "PLATE" }, weaponSlot: { available: true, name: "MAIN_HAND" }, rarity: { available: true, name: "RARE" }, sockets: [{ gemSocketType: { available: true, name: "RED" } }] }), reference, "/items/0/gameplay").issues).toEqual([]);
   expect(decodeNpcGameplay({ npcType: enumValue(3, "BOSS"), creatureType: enumValue(6, "ELEMENTAL"), npcFamily: { available: true, name: "FAMILY" }, lootSpecializationArmorType: { available: true, name: "PLATE" }, lootSpecializationWeaponType: { available: true, name: "SWORD" }, lootSpecializationWeaponType2: { available: true, name: "AXE" }, lootSpecializationWeaponType3: { available: true, name: "MACE" } }, reference, "/npcs/0/gameplay").issues).toEqual([]);
   expect(decodeQuestGameplay({ objectives: [{ objectiveType: enumValue(0, "task"), taskId: 7, timeLimit: 0 }], rewardsGiven: [reward(0, "item"), reward(1, "currency"), reward(2, "treePoint"), reward(3, "Experience"), reward(4, "FactionPoint"), reward(5, "weaponTemplateEXP")] }, reference, "/quests/0/gameplay").issues).toEqual([]);
   expect(decodePropertyGameplay({ propertyType: enumValue(0, "House") }, reference, "/properties/0/gameplay").issues).toEqual([]);
@@ -25,14 +28,27 @@ test("validates adventurer roles and flight network references", () => {
 });
 
 test("decodes projected gem data without inventing absent values", () => {
-  const decoded = decodeItemGameplay({ gemDataAvailable: true, gemData: { socketType: "", gemSocketType: { available: true, name: "Blue Gem" }, statsAvailable: true, stats: [{ statId: 27, amount: 8, isPercent: false }] } }, reference, "/items/0/gameplay");
+  const decoded = decodeItemGameplay(itemGameplay({ gemDataAvailable: true, gemData: { socketType: "", gemSocketType: { available: true, name: "Blue Gem" }, statsAvailable: true, stats: [{ statId: 27, amount: 8, isPercent: false }] } }), reference, "/items/0/gameplay");
   expect(decoded.value.gemData).toEqual({ socketType: "", gemSocketType: { available: true, name: "Blue Gem" }, statsAvailable: true, stats: [{ statId: 27, amount: 8, isPercent: false }] });
+});
+
+test("decodes generated tooltip text and contextual ranks", () => {
+  expect(decodeAbilityGameplay({ ranks: [successfulAbilityRank] }, reference, "/abilities/0/gameplay").value.ranks[0]?.text).toBe("Instant\nRange: 3 m");
+  expect(decodeItemGameplay(itemGameplay({ actionAbilities: [{ sourceIndex: 0, abilityId: 31, rankIndex: 2 }] }), reference, "/items/0/gameplay").value.actionAbilities[0]?.rankIndex).toBe(2);
+  expect(decodeNpcGameplay({ aiPhases: [{ phaseIndex: 0, name: "Enraged", abilityRefs: [{ behaviorIndex: 1, potentialIndex: 0, sourceIndex: 2, abilityId: 31, rankIndex: 3 }] }] }, reference, "/npcs/0/gameplay").value.aiPhases?.[0]?.abilityRefs[0]?.rankIndex).toBe(3);
+});
+
+test("rejects incomplete or failed generated tooltip evidence", () => {
+  expect(() => decodeAbilityGameplay({ ranks: [{ ...successfulAbilityRank, rankIndex: undefined }] }, reference, "/abilities/0/gameplay")).toThrow();
+  expect(() => decodeAbilityGameplay({ ranks: [{ ...successfulAbilityRank, text: "  \n" }] }, reference, "/abilities/0/gameplay")).toThrow();
+  expect(() => decodeAbilityGameplay({ ranks: [{ ...successfulAbilityRank, succeeded: false, text: null, error: "generator failed" }] }, reference, "/abilities/0/gameplay")).toThrow();
+  expect(() => decodeItemGameplay(itemGameplay({ nativeUseTooltip: { ...successfulItemTooltip, succeeded: false, error: "generator failed" } }), reference, "/items/0/gameplay")).toThrow();
 });
 
 test("records unsupported and unavailable enum values as coverage issues", () => {
   expect(decodeNpcGameplay({ npcType: enumValue(99, "UNKNOWN") }, reference, "/npcs/0/gameplay").issues).toEqual([{ path: "/npcs/0/gameplay/npcType", detail: "Unsupported enum value 99 (UNKNOWN)." }]);
-  expect(decodeItemGameplay({ itemType: { available: false } }, reference, "/items/0/gameplay").issues).toEqual([{ path: "/items/0/gameplay/itemType", detail: "Enum value is unavailable." }]);
-  expect(decodeItemGameplay({ itemType: { available: true, name: "Trinket" }, rarity: { available: true, name: "Rare" }, armorSlot: { available: true, name: "Trinket" }, armorType: { available: true, name: "JEWELRY" }, weaponType: { available: false }, weaponSlot: { available: false } }, reference, "/items/1/gameplay").issues).toEqual([]);
+  expect(decodeItemGameplay(itemGameplay({ itemType: { available: false } }), reference, "/items/0/gameplay").issues).toEqual([{ path: "/items/0/gameplay/itemType", detail: "Enum value is unavailable." }]);
+  expect(decodeItemGameplay(itemGameplay({ itemType: { available: true, name: "Trinket" }, rarity: { available: true, name: "Rare" }, armorSlot: { available: true, name: "Trinket" }, armorType: { available: true, name: "JEWELRY" }, weaponType: { available: false }, weaponSlot: { available: false } }), reference, "/items/1/gameplay").issues).toEqual([]);
 });
 
 test("turns negative reference sentinels into absent facts", () => {

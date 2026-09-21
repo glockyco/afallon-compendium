@@ -8,8 +8,27 @@ export function conditionSemanticPayload(value: unknown): unknown {
   return Object.fromEntries(Object.entries(value).filter(([key]) => key !== "sourceFieldPath").map(([key, child]) => [key, conditionSemanticPayload(child)]));
 }
 
+const equipmentRequirementTypes = new Set(["Level", "Class", "Race", "Gender", "Species"]);
+const useRequirementTypes = new Set(["Effect", "Item", "Region", "CombatState", "Stealth", "Mounted", "Grounded", "Time"]);
+
+export function classifyItemCondition(payload: unknown): { scope: "equipment" | "use" | null; requirementTypes: string[] } {
+  if (payload === null || typeof payload !== "object") return { scope: null, requirementTypes: [] };
+  const root = payload as Record<string, unknown>;
+  const groups = Array.isArray(root.groups) ? root.groups : Array.isArray(root.requirements) ? [{ requirements: root.requirements }] : [];
+  const requirementTypes = [...new Set(groups.flatMap((group) => {
+    if (group === null || typeof group !== "object") return [];
+    const requirements = (group as Record<string, unknown>).requirements;
+    if (!Array.isArray(requirements)) return [];
+    return requirements.flatMap((requirement) => requirement !== null && typeof requirement === "object" && typeof (requirement as Record<string, unknown>).requirementType === "string" ? [(requirement as Record<string, unknown>).requirementType as string] : []);
+  }))].sort();
+  if (requirementTypes.length === 0) return { scope: null, requirementTypes };
+  if (requirementTypes.every((type) => equipmentRequirementTypes.has(type))) return { scope: "equipment", requirementTypes };
+  if (requirementTypes.every((type) => useRequirementTypes.has(type))) return { scope: "use", requirementTypes };
+  return { scope: null, requirementTypes };
+}
+
 export function conditionFrom(ownerType: string, ownerKey: string, payload: unknown, semantics: string, sourceFieldPath: string | null, provenance: ArtifactReference[]): NormalizedCondition {
-  return { conditionId: hashRelation("condition", [ownerType, ownerKey, 0, conditionSemanticPayload(payload)]), ownerType, ownerKey, ordinal: 0, semantics, sourceFieldPath, payload, provenance };
+  return { conditionId: hashRelation("condition", [ownerType, ownerKey, 0, conditionSemanticPayload(payload)]), ownerType, ownerKey, ordinal: 0, semantics, scope: null, sourceFieldPath, payload, provenance };
 }
 
 export function conditionRowsFor(ownerType: string, ownerKey: string, raw: object, provenance: ArtifactReference): NormalizedCondition[] {
@@ -19,7 +38,7 @@ export function conditionRowsFor(ownerType: string, ownerKey: string, raw: objec
     if (payload === undefined || payload === null) continue;
     const ordinal = rows.length;
     const sourceFieldPath = payload !== null && typeof payload === "object" && "sourceFieldPath" in payload && typeof payload.sourceFieldPath === "string" ? payload.sourceFieldPath : null;
-    rows.push({ conditionId: hashRelation("condition", [ownerType, ownerKey, ordinal, conditionSemanticPayload(payload)]), ownerType, ownerKey, ordinal, semantics, sourceFieldPath, payload, provenance: [pointer(provenance, `/${field}`)] });
+    rows.push({ conditionId: hashRelation("condition", [ownerType, ownerKey, ordinal, conditionSemanticPayload(payload)]), ownerType, ownerKey, ordinal, semantics, scope: null, sourceFieldPath, payload, provenance: [pointer(provenance, `/${field}`)] });
   }
   return rows;
 }

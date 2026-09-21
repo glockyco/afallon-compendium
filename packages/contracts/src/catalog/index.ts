@@ -22,3 +22,4 @@ export * from "./query";
 export * from "./roles";
 
 export * from "./facts";
+export * from "./tooltip";

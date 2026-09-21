@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementGroup, CatalogRelations } from "@afallon/contracts/catalog";
+import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogAbilityFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementGroup, CatalogRequirementNamedValue, CatalogRequirementEntry, CatalogRequirementTime, CatalogRelations } from "@afallon/contracts/catalog";
 import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
 
 export interface CatalogQueryIdentity {
@@ -321,6 +321,7 @@ export function queryCatalogEntities(db: Database): CatalogQueryResult<CatalogEn
 
 export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts> {
   const refs = entityEndpointIndex(db);
+  const conditionById = new Map(queryConditions(db).records.map((condition) => [condition.conditionId, condition]));
   // Gear sets come first: an item's own facts name the set that lists it, so the relation reads
   // from both ends without a second source.
   const gearSetMembers = new Map<string, CatalogEndpoint[]>(), gearSetByItem = new Map<string, CatalogEndpoint>();
@@ -340,11 +341,11 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
   for (const row of db.query<{ entity_key: string; stat_entity_key: string | null; stat_label: string; min_value: number; max_value: number; is_percent: number; whole: number; chance: number | null }, []>("SELECT entity_key, stat_entity_key, stat_label, min_value, max_value, is_percent, whole, chance FROM item_random_stats ORDER BY entity_key, stat_index").all()) { const values = itemRandomStats.get(row.entity_key) ?? []; values.push({ stat: endpoint(refs, row.stat_entity_key, row.stat_label), min: row.min_value, max: row.max_value, isPercent: row.is_percent === 1, whole: row.whole === 1, chance: row.chance }); itemRandomStats.set(row.entity_key, values); }
   for (const row of db.query<{ entity_key: string; stat_entity_key: string | null; stat_label: string; amount: number; is_percent: number }, []>("SELECT entity_key, stat_entity_key, stat_label, amount, is_percent FROM item_gem_stats ORDER BY entity_key, stat_index").all()) { const values = itemGemStats.get(row.entity_key) ?? []; values.push({ stat: endpoint(refs, row.stat_entity_key, row.stat_label), amount: row.amount, isPercent: row.is_percent === 1 }); itemGemStats.set(row.entity_key, values); }
   for (const row of db.query<{ entity_key: string; socket_type: string | null; gem_type: string | null }, []>("SELECT entity_key, socket_type, gem_type FROM item_sockets ORDER BY entity_key, socket_index").all()) { const values = itemSockets.get(row.entity_key) ?? []; values.push({ socketType: row.socket_type, gemType: row.gem_type }); itemSockets.set(row.entity_key, values); }
-  const items = db.query<{ entity_key: string; rarity: string | null; item_type: string | null; armor_slot: string | null; weapon_slot: string | null; weapon_type: string | null; armor_type: string | null; attack_speed: number | null; min_damage: number | null; max_damage: number | null; random_stats_max: number; gem_type: string | null; enchantment_entity_key: string | null; enchantment_label: string | null; sell_price: number | null; sell_currency_entity_key: string | null; sell_currency_label: string | null; buy_price: number | null; buy_currency_entity_key: string | null; buy_currency_label: string | null; stack_limit: number; quest_drop_only: number; corruption_token: number; level_requirement: number | null; action_abilities_json: string; condition_ids_json: string }, []>("SELECT * FROM item_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, rarity: row.rarity, itemType: row.item_type, armorSlot: row.armor_slot, weaponSlot: row.weapon_slot, weaponType: row.weapon_type, armorType: row.armor_type, attackSpeed: row.attack_speed, minDamage: row.min_damage, maxDamage: row.max_damage, stats: itemStats.get(row.entity_key) ?? [], randomStatsMax: row.random_stats_max, randomStats: itemRandomStats.get(row.entity_key) ?? [], sockets: itemSockets.get(row.entity_key) ?? [], gem: row.gem_type === null && !itemGemStats.has(row.entity_key) ? null : { gemType: row.gem_type, stats: itemGemStats.get(row.entity_key) ?? [] }, enchantment: row.enchantment_entity_key === null && row.enchantment_label === null ? null : endpoint(refs, row.enchantment_entity_key, row.enchantment_label), sellPrice: row.sell_price, sellCurrency: row.sell_currency_entity_key === null && row.sell_currency_label === null ? null : endpoint(refs, row.sell_currency_entity_key, row.sell_currency_label), buyPrice: row.buy_price, buyCurrency: row.buy_currency_entity_key === null && row.buy_currency_label === null ? null : endpoint(refs, row.buy_currency_entity_key, row.buy_currency_label), stackLimit: row.stack_limit, questDropOnly: row.quest_drop_only === 1, corruptionToken: row.corruption_token === 1, levelRequirement: row.level_requirement, actionAbilities: (parse(row.action_abilities_json) as unknown[]).map((value) => endpointJson(refs, value)), conditionIds: textArray(row.condition_ids_json), gearSet: gearSetByItem.get(row.entity_key) ?? null }));
+  const items = db.query<{ entity_key: string; rarity: string | null; item_type: string | null; armor_slot: string | null; weapon_slot: string | null; weapon_type: string | null; armor_type: string | null; attack_speed: number | null; min_damage: number | null; max_damage: number | null; random_stats_max: number; gem_type: string | null; enchantment_entity_key: string | null; enchantment_label: string | null; sell_price: number | null; sell_currency_entity_key: string | null; sell_currency_label: string | null; buy_price: number | null; buy_currency_entity_key: string | null; buy_currency_label: string | null; stack_limit: number; quest_drop_only: number; corruption_token: number; level_requirement: number | null; action_abilities_json: string; use_lines_json: string; condition_ids_json: string }, []>("SELECT * FROM item_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, rarity: row.rarity, itemType: row.item_type, armorSlot: row.armor_slot, weaponSlot: row.weapon_slot, weaponType: row.weapon_type, armorType: row.armor_type, attackSpeed: row.attack_speed, minDamage: row.min_damage, maxDamage: row.max_damage, stats: itemStats.get(row.entity_key) ?? [], randomStatsMax: row.random_stats_max, randomStats: itemRandomStats.get(row.entity_key) ?? [], sockets: itemSockets.get(row.entity_key) ?? [], gem: row.gem_type === null && !itemGemStats.has(row.entity_key) ? null : { gemType: row.gem_type, stats: itemGemStats.get(row.entity_key) ?? [] }, enchantment: row.enchantment_entity_key === null && row.enchantment_label === null ? null : endpoint(refs, row.enchantment_entity_key, row.enchantment_label), sellPrice: row.sell_price, sellCurrency: row.sell_currency_entity_key === null && row.sell_currency_label === null ? null : endpoint(refs, row.sell_currency_entity_key, row.sell_currency_label), buyPrice: row.buy_price, buyCurrency: row.buy_currency_entity_key === null && row.buy_currency_label === null ? null : endpoint(refs, row.buy_currency_entity_key, row.buy_currency_label), stackLimit: row.stack_limit, questDropOnly: row.quest_drop_only === 1, corruptionToken: row.corruption_token === 1, equipmentRequirements: itemRequirementGroups(conditionById, textArray(row.condition_ids_json), "equipment", row.level_requirement), useConditions: itemRequirementGroups(conditionById, textArray(row.condition_ids_json), "use", null), actionAbilities: (parse(row.action_abilities_json) as Array<{ ability: unknown; rankIndex: number }>).map((value) => ({ ability: endpointJson(refs, value.ability), rankIndex: value.rankIndex })), useLines: parse(row.use_lines_json) as CatalogItemFacts["useLines"], conditionIds: textArray(row.condition_ids_json), gearSet: gearSetByItem.get(row.entity_key) ?? null }));
 
   const npcStats = new Map<string, CatalogNpcFacts["stats"]>(), phases = new Map<string, CatalogNpcFacts["abilityPhases"]>(), rewards = new Map<string, CatalogNpcFacts["factionRewards"]>();
-  const phaseAbilities = new Map<string, CatalogEndpoint[]>();
-  for (const row of db.query<{ entity_key: string; phase_index: number; ability_entity_key: string | null; ability_label: string }, []>("SELECT entity_key, phase_index, ability_entity_key, ability_label FROM npc_phase_abilities ORDER BY entity_key, phase_index, ability_index").all()) { const key = `${row.entity_key}:${row.phase_index}`, values = phaseAbilities.get(key) ?? []; values.push(endpoint(refs, row.ability_entity_key, row.ability_label)); phaseAbilities.set(key, values); }
+  const phaseAbilities = new Map<string, CatalogNpcFacts["abilityPhases"][number]["abilities"]>();
+  for (const row of db.query<{ entity_key: string; phase_index: number; ability_entity_key: string | null; ability_label: string; rank_index: number }, []>("SELECT entity_key, phase_index, ability_entity_key, ability_label, rank_index FROM npc_phase_abilities ORDER BY entity_key, phase_index, ability_index").all()) { const key = `${row.entity_key}:${row.phase_index}`, values = phaseAbilities.get(key) ?? []; values.push({ ability: endpoint(refs, row.ability_entity_key, row.ability_label), rankIndex: row.rank_index }); phaseAbilities.set(key, values); }
   for (const row of db.query<{ entity_key: string; phase_index: number; name: string | null; requirement: string | null }, []>("SELECT entity_key, phase_index, name, requirement FROM npc_ability_phases ORDER BY entity_key, phase_index").all()) { const values = phases.get(row.entity_key) ?? []; values.push({ phaseIndex: row.phase_index, name: row.name, requirement: row.requirement, abilities: phaseAbilities.get(`${row.entity_key}:${row.phase_index}`) ?? [] }); phases.set(row.entity_key, values); }
   for (const row of db.query<{ entity_key: string; stat_entity_key: string | null; stat_label: string; amount: number; is_percent: number }, []>("SELECT entity_key, stat_entity_key, stat_label, amount, is_percent FROM npc_stats ORDER BY entity_key, stat_index").all()) { const values = npcStats.get(row.entity_key) ?? []; values.push({ stat: endpoint(refs, row.stat_entity_key, row.stat_label), amount: row.amount, isPercent: row.is_percent === 1 }); npcStats.set(row.entity_key, values); }
   for (const row of db.query<{ entity_key: string; faction_entity_key: string | null; faction_label: string; amount: number }, []>("SELECT entity_key, faction_entity_key, faction_label, amount FROM npc_faction_rewards ORDER BY entity_key, reward_index").all()) { const values = rewards.get(row.entity_key) ?? []; values.push({ faction: endpoint(refs, row.faction_entity_key, row.faction_label), amount: row.amount }); rewards.set(row.entity_key, values); }
@@ -353,7 +354,7 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
   const quests = db.query<{ entity_key: string; chain_name: string | null; chain_order: number | null; repeatable: number; turn_in_without_npc: number; completed_description: string | null; objective_text: string | null; level_requirement: number | null; experience: number | null; condition_ids_json: string }, []>("SELECT entity_key, chain_name, chain_order, repeatable, turn_in_without_npc, completed_description, objective_text, level_requirement, experience, condition_ids_json FROM quest_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, chainName: row.chain_name, chainOrder: row.chain_order, repeatable: row.repeatable === 1, turnInWithoutNpc: row.turn_in_without_npc === 1, completedDescription: row.completed_description, objectiveText: row.objective_text, levelRequirement: row.level_requirement, experience: row.experience, conditionIds: textArray(row.condition_ids_json) }));
   const places = db.query<{ entity_key: string; place_type: CatalogPlaceFacts["placeType"]; guide_included: number; guide_description: string | null; level_min: number | null; level_max: number | null; map_space_ids_json: string; bosses_json: string; parent_scene_key: string | null }, []>("SELECT entity_key, place_type, guide_included, guide_description, level_min, level_max, map_space_ids_json, bosses_json, parent_scene_key FROM place_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, placeType: row.place_type, guideIncluded: row.guide_included === 1, guideDescription: row.guide_description, levelRange: row.level_min === null || row.level_max === null ? null : { min: row.level_min, max: row.level_max }, mapSpaceIds: textArray(row.map_space_ids_json), bosses: (parse(row.bosses_json) as unknown[]).map((value) => endpointJson(refs, value)), parentSceneKey: row.parent_scene_key }));
   const properties = db.query<{ entity_key: string; income: number | null; purchase_price: number | null; sell_price: number | null; currency_entity_key: string | null; currency_label: string | null; property_type: string | null }, []>("SELECT entity_key, income, purchase_price, sell_price, currency_entity_key, currency_label, property_type FROM property_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, income: row.income, purchasePrice: row.purchase_price, sellPrice: row.sell_price, currency: row.currency_entity_key === null && row.currency_label === null ? null : endpoint(refs, row.currency_entity_key, row.currency_label), propertyType: row.property_type }));
-  const abilities = db.query<{ entity_key: string }, []>("SELECT entity_key FROM ability_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key }));
+  const abilities = db.query<{ entity_key: string; ranks_json: string }, []>("SELECT entity_key, ranks_json FROM ability_facts ORDER BY entity_key").all().map((row): CatalogAbilityFacts => ({ entityKey: row.entity_key, ranks: (parse(row.ranks_json) as Array<{ rankIndex: number; lines: CatalogAbilityFacts["ranks"][number]["lines"] }>).map((rank) => ({ rankIndex: rank.rankIndex, lines: rank.lines })) }));
   const ranks = new Map<string, CatalogRecipeFacts["ranks"]>();
   const products = new Map<string, CatalogRecipeFacts["ranks"][number]["products"]>(), materials = new Map<string, CatalogRecipeFacts["ranks"][number]["materials"]>();
   for (const row of db.query<{ entity_key: string; rank: number; item_entity_key: string | null; item_label: string; count: number; chance: number }, []>("SELECT entity_key, rank, item_entity_key, item_label, count, chance FROM recipe_products ORDER BY entity_key, rank, product_index").all()) { const key = `${row.entity_key}:${row.rank}`, values = products.get(key) ?? []; values.push({ item: endpoint(refs, row.item_entity_key, row.item_label), count: row.count, chance: row.chance }); products.set(key, values); }
@@ -429,44 +430,122 @@ export function queryTransitions(db: Database): CatalogQueryResult<CatalogTransi
   return { ...identity(db), records };
 }
 
-const requirementTargetKinds: Readonly<Record<string, string>> = { abilityID: "abilities", bonusID: "bonuses", recipeID: "recipes", resourceID: "resources", effectID: "effects", NPCID: "npcs", statID: "stats", factionID: "factions", raceID: "races", classID: "classes", speciesID: "species", itemID: "items", currencyID: "currencies", talentTreeID: "talentTrees", skillID: "skills", enchantmentID: "enchantments", gearSetID: "gearSets", gameSceneID: "scenes", questID: "quests" };
+function requirementNamedValue(value: unknown): CatalogRequirementNamedValue | null {
+  if (value === null || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  return typeof row.value === "number" && typeof row.name === "string" ? { value: row.value, name: row.name } : null;
+}
+
+function requirementEntry(value: unknown): CatalogRequirementEntry | null {
+  if (value === null || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  if (typeof row.nativeId !== "number" || typeof row.nativeType !== "string" || typeof row.text !== "string") return null;
+  const optionalText = (field: string) => typeof row[field] === "string" ? row[field] as string : null;
+  return { nativeId: row.nativeId, name: optionalText("name"), internalName: optionalText("internalName"), fileName: optionalText("fileName"), description: optionalText("description"), nativeType: row.nativeType, text: row.text };
+}
+
+function requirementTime(value: unknown): CatalogRequirementTime | null {
+  if (value === null || typeof value !== "object") return null;
+  const row = value as CatalogRequirementTime;
+  return row;
+}
+
+function requirementEndpoint(refs: ReadonlyMap<string, CatalogEndpoint>, requirement: Record<string, unknown>, field: string, kind: string): CatalogEndpoint | null {
+  const nativeId = requirement[field];
+  return typeof nativeId === "number" && nativeId >= 0 ? endpoint(refs, `${kind}:${nativeId}`, `${kind} ${nativeId}`) : null;
+}
+
+function requirementLabel(requirement: CatalogRequirement): string {
+  const amount = requirement.amounts.primary;
+  if (requirement.type.name === "Level") return `Level ${amount}`;
+  if (requirement.type.name === "Class") return requirement.references.class?.label ?? "Unresolved class";
+  if (requirement.type.name === "Race") return requirement.references.race?.label ?? "Unresolved race";
+  if (requirement.type.name === "Species") return requirement.references.species?.label ?? "Unresolved species";
+  if (requirement.type.name === "Gender") return requirement.subtypes.gender?.name ?? "Unresolved gender";
+  if (requirement.type.name === "Effect") return [requirement.references.effect?.label, requirement.state?.name.toLowerCase()].filter(Boolean).join(" ");
+  if (requirement.type.name === "Item") {
+    const subtype = requirement.subtypes.weaponType ?? requirement.subtypes.weaponSlot ?? requirement.subtypes.armorType ?? requirement.subtypes.armorSlot ?? requirement.subtypes.itemType;
+    return [requirement.ownership?.name, subtype?.name ?? requirement.references.item?.label].filter(Boolean).join(" ");
+  }
+  if (requirement.type.name === "Region") return ["Region", requirement.subtypes.region?.name].filter(Boolean).join(" ");
+  if (requirement.type.name === "CombatState") return requirement.flags.first ? "In combat" : "Out of combat";
+  const target = Object.values(requirement.references).find((value) => value !== null) ?? Object.values(requirement.subtypes).find((value) => value !== null);
+  return [target?.label ?? target?.name ?? requirement.type.name, amount !== 0 ? amount : null].filter((value) => value !== null && value !== "").join(" ");
+}
+
+function projectRequirement(refs: ReadonlyMap<string, CatalogEndpoint>, requirement: Record<string, unknown>): CatalogRequirement {
+  const type = { value: typeof requirement.requirementTypeValue === "number" ? requirement.requirementTypeValue : -1, name: typeof requirement.requirementType === "string" ? requirement.requirementType : "Unknown" };
+  const rule = { value: typeof requirement.conditionRuleValue === "number" ? requirement.conditionRuleValue : -1, name: typeof requirement.conditionRule === "string" ? requirement.conditionRule : "Unknown" };
+  const projected: CatalogRequirement = {
+    type, rule, label: "",
+    references: {
+      ability: requirementEndpoint(refs, requirement, "abilityID", "abilities"), bonus: requirementEndpoint(refs, requirement, "bonusID", "bonuses"), recipe: requirementEndpoint(refs, requirement, "recipeID", "recipes"), resource: requirementEndpoint(refs, requirement, "resourceID", "resources"), effect: requirementEndpoint(refs, requirement, "effectID", "effects"), npc: requirementEndpoint(refs, requirement, "NPCID", "npcs"), stat: requirementEndpoint(refs, requirement, "statID", "stats"), faction: requirementEndpoint(refs, requirement, "factionID", "factions"), combo: requirementEndpoint(refs, requirement, "comboID", "combos"), race: requirementEndpoint(refs, requirement, "raceID", "races"), levels: requirementEndpoint(refs, requirement, "levelsID", "levels"), class: requirementEndpoint(refs, requirement, "classID", "classes"), species: requirementEndpoint(refs, requirement, "speciesID", "species"), item: requirementEndpoint(refs, requirement, "itemID", "items"), currency: requirementEndpoint(refs, requirement, "currencyID", "currencies"), point: requirementEndpoint(refs, requirement, "pointID", "points"), talentTree: requirementEndpoint(refs, requirement, "talentTreeID", "talentTrees"), skill: requirementEndpoint(refs, requirement, "skillID", "skills"), spellbook: requirementEndpoint(refs, requirement, "spellbookID", "spellbooks"), weaponTemplate: requirementEndpoint(refs, requirement, "weaponTemplateID", "weaponTemplates"), enchantment: requirementEndpoint(refs, requirement, "enchantmentID", "enchantments"), gearSet: requirementEndpoint(refs, requirement, "gearSetID", "gearSets"), gameScene: requirementEndpoint(refs, requirement, "gameSceneID", "scenes"), quest: requirementEndpoint(refs, requirement, "questID", "quests"), dialogue: requirementEndpoint(refs, requirement, "dialogueID", "dialogues"),
+    },
+    knowledge: requirementNamedValue(requirement.knowledge), state: requirementNamedValue(requirement.state), comparison: requirementNamedValue(requirement.comparison), value: requirementNamedValue(requirement.value), ownership: requirementNamedValue(requirement.ownership), itemCondition: requirementNamedValue(requirement.itemCondition), progression: requirementNamedValue(requirement.progression), entity: requirementNamedValue(requirement.entity), pointType: requirementNamedValue(requirement.pointType), dialogueNodeState: requirementNamedValue(requirement.dialogueNodeState), effectCondition: requirementNamedValue(requirement.effectCondition), amountType: requirementNamedValue(requirement.amountType), timeType: requirementNamedValue(requirement.timeType), timeValue: requirementNamedValue(requirement.timeValue), effectType: requirementNamedValue(requirement.effectType), questState: requirementNamedValue(requirement.questState),
+    amounts: { primary: typeof requirement.amount1 === "number" ? requirement.amount1 : 0, secondary: typeof requirement.amount2 === "number" ? requirement.amount2 : 0, float: typeof requirement.float1 === "number" ? requirement.float1 : 0, isPercent: requirement.isPercent === true },
+    flags: { consume: requirement.consume === true, first: requirement.boolBalue1 === true, second: requirement.boolBalue2 === true, third: requirement.boolBalue3 === true },
+    subtypes: { effectTag: requirementEntry(requirement.effectTag), factionStance: requirementEntry(requirement.factionStance), itemType: requirementEntry(requirement.itemType), weaponType: requirementEntry(requirement.weaponType), weaponSlot: requirementEntry(requirement.weaponSlot), armorType: requirementEntry(requirement.armorType), armorSlot: requirementEntry(requirement.armorSlot), gender: requirementEntry(requirement.gender), npcFamily: requirementEntry(requirement.NPCFamily), region: requirementEntry(requirement.region) },
+    dialogueNode: requirement.dialogueNode !== null && typeof requirement.dialogueNode === "object" && typeof (requirement.dialogueNode as Record<string, unknown>).nativeType === "string" && typeof (requirement.dialogueNode as Record<string, unknown>).text === "string" ? requirement.dialogueNode as { nativeType: string; text: string } : null,
+    times: [requirementTime(requirement.timeRequirement1), requirementTime(requirement.timeRequirement2)],
+  };
+  projected.label = requirementLabel(projected);
+  return projected;
+}
+
+function requirementIdentity(requirement: CatalogRequirement): string {
+  const { label: _label, ...identity } = requirement;
+  return JSON.stringify(identity);
+}
+
+function deduplicateRequirementGroups(groups: CatalogRequirementGroup[], seen = new Set<string>()): CatalogRequirementGroup[] {
+  return groups.flatMap((group) => {
+    const requirements = group.requirements.filter((requirement) => {
+      const identity = requirementIdentity(requirement);
+      if (seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    });
+    if (requirements.length === 0) return [];
+    const requiredCount = group.requiredCount === null ? null : Math.min(group.requiredCount, requirements.length);
+    return [{ ...group, requiredCount, requirements }];
+  });
+}
+
+function itemRequirementGroups(conditionById: ReadonlyMap<string, CatalogCondition>, conditionIds: string[], scope: "equipment" | "use", scalarLevel: number | null): CatalogRequirementGroup[] {
+  const groups = deduplicateRequirementGroups(conditionIds.flatMap((id) => {
+    const condition = conditionById.get(id);
+    return condition?.scope === scope ? condition.requirements : [];
+  }));
+  if (scope !== "equipment" || scalarLevel === null || scalarLevel <= 0 || groups.some((group) => group.requirements.some((requirement) => requirement.type.name === "Level" && requirement.amounts.primary === scalarLevel))) return groups;
+  const requirement = projectRequirement(new Map(), { requirementType: "Level", requirementTypeValue: 13, conditionRule: "Mandatory", conditionRuleValue: 0, amount1: scalarLevel, amount2: 0, float1: 0, consume: false, isPercent: false });
+  return [...groups, { mode: "all", checkCount: false, requiredCount: null, requirements: [requirement] }];
+}
+
 function conditionRequirements(refs: ReadonlyMap<string, CatalogEndpoint>, payload: unknown): CatalogRequirementGroup[] {
   if (payload === null || typeof payload !== "object") return [];
   const root = payload as Record<string, unknown>, groups = Array.isArray(root.groups) ? root.groups : Array.isArray(root.requirements) ? [{ requirements: root.requirements }] : [];
   const result: CatalogRequirementGroup[] = [];
   for (const groupValue of groups) {
     if (groupValue === null || typeof groupValue !== "object") continue;
-    const group = groupValue as Record<string, unknown>, values = Array.isArray(group.requirements) ? group.requirements : [], requirements: CatalogRequirement[] = [];
-    let hasOptional = false;
-    for (const requirementValue of values) {
-      if (requirementValue === null || typeof requirementValue !== "object") continue;
-      const requirement = requirementValue as Record<string, unknown>, type = typeof requirement.requirementType === "string" ? requirement.requirementType : "Requirement";
-      if (requirement.conditionRule === "Optional") hasOptional = true;
-      let target: CatalogEndpoint | null = null;
-      for (const [field, kind] of Object.entries(requirementTargetKinds)) if (typeof requirement[field] === "number" && requirement[field] >= 0) { const nativeId = requirement[field] as number; target = endpoint(refs, `${kind}:${nativeId}`, `${kind} ${nativeId}`); break; }
-      const amountValue = typeof requirement.amount1 === "number" && requirement.amount1 !== 0 ? requirement.amount1 : typeof requirement.float1 === "number" && requirement.float1 !== 0 ? requirement.float1 : null;
-      const secondaryValue = typeof requirement.amount2 === "number" && requirement.amount2 !== 0 ? requirement.amount2 : null;
-      const amount = amountValue as number | null, secondaryAmount = secondaryValue as number | null;
-      const threshold = [amount, secondaryAmount].filter((value): value is number => value !== null).join("–"), label = [target?.label ?? type, threshold].filter(Boolean).join(" ");
-      requirements.push({ type, label, target, amount, secondaryAmount });
-    }
+    const group = groupValue as Record<string, unknown>, values = Array.isArray(group.requirements) ? group.requirements : [];
+    const requirements = values.flatMap((value) => value !== null && typeof value === "object" ? [projectRequirement(refs, value as Record<string, unknown>)] : []);
     if (requirements.length === 0) continue;
-    const requiredCount = typeof group.requiredCount === "number" && group.requiredCount > 0 ? group.requiredCount : null;
-    result.push({ mode: hasOptional ? "any" : "all", requiredCount, requirements });
+    const checkCount = group.checkCount === true, requiredCount = checkCount && typeof group.requiredCount === "number" && group.requiredCount > 0 ? group.requiredCount : null;
+    result.push({ mode: requirements.some((requirement) => requirement.rule.name === "Optional") ? "any" : "all", checkCount, requiredCount, requirements });
   }
   return result;
 }
 
 export function queryConditions(db: Database): CatalogQueryResult<CatalogCondition[]> {
   const refs = entityEndpointIndex(db), seenByOwner = new Map<string, Set<string>>();
-  const records = db.query<{ condition_id: string; owner_key: string; semantics: string; payload_json: string }, []>("SELECT condition_id, owner_key, semantics, payload_json FROM conditions ORDER BY condition_id").all().flatMap((row) => {
+  const records = db.query<{ condition_id: string; owner_key: string; semantics: string; scope: "equipment" | "use" | null; payload_json: string }, []>("SELECT condition_id, owner_key, semantics, scope, payload_json FROM conditions ORDER BY condition_id").all().flatMap((row) => {
     const payload = parse(row.payload_json);
     if (row.semantics === "inline-requirements" && payload !== null && typeof payload === "object" && "groups" in payload && Array.isArray(payload.groups) && payload.groups.length === 0) return [];
-    const seen = seenByOwner.get(row.owner_key) ?? new Set<string>(), requirements = conditionRequirements(refs, payload).filter((group) => { const key = JSON.stringify(group); if (seen.has(key)) return false; seen.add(key); return true; });
+    const seen = seenByOwner.get(row.owner_key) ?? new Set<string>(), requirements = deduplicateRequirementGroups(conditionRequirements(refs, payload), seen);
     seenByOwner.set(row.owner_key, seen);
     const sourceName = payload !== null && typeof payload === "object" && "sourceName" in payload && typeof payload.sourceName === "string" && payload.sourceName.length > 0 ? payload.sourceName : null;
     const label = requirements.flatMap((group) => group.requirements.map((requirement) => requirement.label).join(group.mode === "any" ? " or " : " and ")).join(", ");
-    return [{ conditionId: row.condition_id, semantics: row.semantics, label: (sourceName ?? label) || row.semantics, requirements }];
+    return [{ conditionId: row.condition_id, semantics: row.semantics, scope: row.scope, label: (sourceName ?? label) || row.semantics, requirements }];
   });
   return { ...identity(db), records };
 }

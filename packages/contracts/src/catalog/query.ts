@@ -3,6 +3,7 @@ import { Assert } from "typebox/value";
 import type { PlacementIdentityResult } from "../raw/placement";
 import type { SpatialResolution } from "../spatial/reviewed";
 import type { RoleScope } from "./roles";
+import type { TooltipLine } from "./tooltip";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
 export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v5" as const;
@@ -59,11 +60,13 @@ export interface CatalogImageryRow {
 }
 
 export interface NormalizedReference { entityKey: string | null; label: string }
+export interface NormalizedContextualAbilityReference { ability: NormalizedReference; rankIndex: number; sourceIndex: number }
+export interface NormalizedAbilityRank { rankIndex: number; lines: TooltipLine[]; provenance: ProvenanceReference[] }
 export interface NormalizedItemFact {
   entityKey: string; rarity: string | null; itemType: string | null; armorSlot: string | null; weaponSlot: string | null; weaponType: string | null; armorType: string | null;
   attackSpeed: number | null; minDamage: number | null; maxDamage: number | null; randomStatsMax: number; gemType: string | null; enchantment: NormalizedReference | null;
   sellPrice: number | null; sellCurrency: NormalizedReference | null; buyPrice: number | null; buyCurrency: NormalizedReference | null; stackLimit: number; questDropOnly: boolean; corruptionToken: boolean;
-  levelRequirement: number | null; actionAbilities: NormalizedReference[]; conditionIds: string[]; provenance: ProvenanceReference[];
+  levelRequirement: number | null; actionAbilities: NormalizedContextualAbilityReference[]; useLines: TooltipLine[]; conditionIds: string[]; provenance: ProvenanceReference[];
 }
 export interface NormalizedItemStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
 export interface NormalizedItemRandomStat { entityKey: string; statIndex: number; stat: NormalizedReference; min: number; max: number; isPercent: boolean; whole: boolean; chance: number | null; provenance: ProvenanceReference[] }
@@ -87,7 +90,7 @@ export interface NormalizedNpcFact {
 }
 export interface NormalizedNpcStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
 export interface NormalizedNpcAbilityPhase { entityKey: string; phaseIndex: number; name: string | null; requirement: string | null; provenance: ProvenanceReference[] }
-export interface NormalizedNpcPhaseAbility { entityKey: string; phaseIndex: number; abilityIndex: number; ability: NormalizedReference; provenance: ProvenanceReference[] }
+export interface NormalizedNpcPhaseAbility { entityKey: string; phaseIndex: number; abilityIndex: number; sourceIndex: number; ability: NormalizedReference; rankIndex: number; provenance: ProvenanceReference[] }
 export interface NormalizedNpcFactionReward { entityKey: string; rewardIndex: number; faction: NormalizedReference; amount: number; provenance: ProvenanceReference[] }
 export interface NormalizedQuestFact { entityKey: string; chainName: string | null; chainOrder: number | null; repeatable: boolean; turnInWithoutNpc: boolean; completedDescription: string | null; objectiveText: string | null; levelRequirement: number | null; experience: number | null; conditionIds: string[]; provenance: ProvenanceReference[] }
 export interface NormalizedQuestObjective { questEntityKey: string; objectiveIndex: number; taskType: string; task: NormalizedReference; target: NormalizedReference | null; count: number | null; keepItems: boolean | null; sceneName: string | null; provenance: ProvenanceReference[] }
@@ -95,7 +98,7 @@ export interface NormalizedQuestReward { questEntityKey: string; rewardSet: "giv
 export interface NormalizedPlaceFact { entityKey: string; placeType: "dungeon" | "zone" | "region" | "interior"; guideIncluded: boolean; guideDescription: string | null; levelMin: number | null; levelMax: number | null; mapSpaceIds: string[]; bosses: NormalizedReference[]; parentSceneKey: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedPropertyFact { entityKey: string; income: number | null; purchasePrice: number | null; sellPrice: number | null; currency: NormalizedReference | null; propertyType: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedTaskFact { entityKey: string; taskType: string; target: NormalizedReference | null; count: number | null; keepItems: boolean | null; sceneName: string | null; provenance: ProvenanceReference[] }
-export interface NormalizedAbilityFact { entityKey: string; provenance: ProvenanceReference[] }
+export interface NormalizedAbilityFact { entityKey: string; ranks: NormalizedAbilityRank[]; provenance: ProvenanceReference[] }
 export interface NormalizedRecipeFact { entityKey: string; skill: NormalizedReference | null; station: NormalizedReference | null; learnedByDefault: boolean; provenance: ProvenanceReference[] }
 export interface NormalizedRecipeRank { entityKey: string; rank: number; unlockCost: number; experience: number; craftTime: number; provenance: ProvenanceReference[] }
 export interface NormalizedRecipeProduct { entityKey: string; rank: number; productIndex: number; item: NormalizedReference; count: number; chance: number; provenance: ProvenanceReference[] }
@@ -170,6 +173,7 @@ export interface NormalizedCondition {
   ownerKey: string;
   ordinal: number;
   semantics: string;
+  scope: "equipment" | "use" | null;
   sourceFieldPath: string | null;
   payload: unknown;
   provenance: ProvenanceReference[];

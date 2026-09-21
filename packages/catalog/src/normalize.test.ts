@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type { NormalizedDatabaseInput, NormalizedEntity } from "@afallon/contracts/catalog";
 import { collectTypedFacts } from "./normalize";
+import { classifyItemCondition } from "./conditions";
 import type { AdmittedCatalog } from "./evidence";
 import type { Blocker } from "./context";
 
@@ -14,7 +15,7 @@ function entity(kind: string, nativeId: number, name: string): NormalizedEntity 
 // nothing else. The cast keeps the fixture to the fields the path under test consults.
 function admitted(gearSetGameplay: unknown): AdmittedCatalog {
   return {
-    canonical: { value: { items: [], npcs: [], quests: [], scenes: [], regions: [], properties: [], stats: [] }, reference },
+    canonical: { value: { items: [], npcs: [], quests: [], scenes: [], regions: [], properties: [], stats: [{ nativeId: 126, gameplay: { isPercentStat: true } }] }, reference },
     relationships: { value: { tasks: [] }, reference },
     lootRules: { value: { itemLevels: [] }, reference },
     support: { value: { tables: { gearSets: [{ sourceKey: 17, entry: { nativeId: 17, name: "Adept Leather", internalName: "Adept Leather" }, gameplay: gearSetGameplay }] } }, reference },
@@ -42,9 +43,15 @@ function admittedNpc(npcGameplay: unknown): AdmittedCatalog {
   } as unknown as AdmittedCatalog;
 }
 
-function admittedItems(items: Array<{ nativeId: number; gameplay: unknown }>): AdmittedCatalog {
+const itemGameplay = (value: Record<string, unknown>) => ({
+  actionAbilities: [],
+  nativeUseTooltip: { generator: "ConsumableTooltip.Build(RPGItem, false)", includeHint: false, succeeded: true, text: null, error: null },
+  ...value,
+});
+
+function admittedItems(items: Array<{ nativeId: number; gameplay: unknown }>, stats: Array<{ nativeId: number; gameplay: { isPercentStat: boolean } }> = []): AdmittedCatalog {
   return {
-    canonical: { value: { items, npcs: [], quests: [], scenes: [], regions: [], properties: [], stats: [] }, reference },
+    canonical: { value: { items, npcs: [], quests: [], scenes: [], regions: [], properties: [], stats }, reference },
     relationships: { value: { tasks: [] }, reference },
     lootRules: { value: { itemLevels: [] }, reference },
     support: { value: { tables: {} }, reference },
@@ -74,7 +81,7 @@ test("resolves every gear set member and tier stat to its entity", () => {
   expect(rows.gearSetTiers.map((row) => [row.tierIndex, row.equipped])).toEqual([[0, 3], [1, 7]]);
   expect(rows.gearSetTierStats.map((row) => [row.tierIndex, row.stat.label, row.amount, row.isPercent])).toEqual([
     [0, "Poison Damage", 10, true],
-    [0, "Dodge chance", 10, false],
+    [0, "Dodge chance", 10, true],
     [1, "Health", 200, false],
   ]);
 });
@@ -82,8 +89,8 @@ test("resolves every gear set member and tier stat to its entity", () => {
 test("keeps only equipment fields that apply to each item type", () => {
   const available = (name: string) => ({ available: true, name });
   const items = [
-    { nativeId: 1175, gameplay: { itemType: available("WEAPON"), rarity: available("Rare"), armorSlot: available("BELT"), armorType: available("CLOTH"), weaponSlot: available("One-Hand"), weaponType: available("One handed sword") } },
-    { nativeId: 1177, gameplay: { itemType: available("Trinket"), rarity: available("Rare"), armorSlot: available("Trinket"), armorType: available("JEWELRY"), weaponSlot: { available: false }, weaponType: { available: false } } },
+    { nativeId: 1175, gameplay: itemGameplay({ itemType: available("WEAPON"), rarity: available("Rare"), armorSlot: available("BELT"), armorType: available("CLOTH"), weaponSlot: available("One-Hand"), weaponType: available("One handed sword") }) },
+    { nativeId: 1177, gameplay: itemGameplay({ itemType: available("Trinket"), rarity: available("Rare"), armorSlot: available("Trinket"), armorType: available("JEWELRY"), weaponSlot: { available: false }, weaponType: { available: false } }) },
   ];
   const blockers: Blocker[] = [];
   const rows = collectTypedFacts(admittedItems(items), [entity("items", 1175, "Fenfoot's Hivecleaver"), entity("items", 1177, "Knotted Rootguard")], [] as NormalizedDatabaseInput["bindings"], [], blockers);
@@ -93,6 +100,37 @@ test("keeps only equipment fields that apply to each item type", () => {
     { itemType: "WEAPON", armorSlot: null, armorType: null, weaponSlot: "One-Hand", weaponType: "One handed sword" },
     { itemType: "Trinket", armorSlot: "Trinket", armorType: "JEWELRY", weaponSlot: null, weaponType: null },
   ]);
+});
+
+test("combines row and canonical percentage semantics for item stats", () => {
+  const gameplay = itemGameplay({
+    stats: [
+      { sourceIndex: 0, statId: 1, amount: 5, isPercent: false },
+      { sourceIndex: 1, statId: 3, amount: 7, isPercent: true },
+    ],
+    randomStats: [{ sourceIndex: 0, statId: 2, minValue: 3, maxValue: 9, isPercent: false }],
+    gemData: { stats: [{ sourceIndex: 0, statId: 4, amount: 4, isPercent: false }] },
+  });
+  const stats = [
+    { nativeId: 1, name: "Lifesteal", isPercentStat: true },
+    { nativeId: 2, name: "Frost Resistance", isPercentStat: true },
+    { nativeId: 3, name: "Movement Speed", isPercentStat: false },
+    { nativeId: 4, name: "Gem Haste", isPercentStat: true },
+  ];
+  const entities = [entity("items", 1, "Percentage item"), ...stats.map((stat) => entity("stats", stat.nativeId, stat.name))];
+  const rows = collectTypedFacts(admittedItems([{ nativeId: 1, gameplay }], stats.map((stat) => ({ nativeId: stat.nativeId, gameplay: { isPercentStat: stat.isPercentStat } }))), entities, [] as NormalizedDatabaseInput["bindings"], [], []);
+
+  expect(rows.itemStats.map((row) => [row.stat.label, row.isPercent])).toEqual([["Lifesteal", true], ["Movement Speed", true]]);
+  expect(rows.itemRandomStats.map((row) => [row.stat.label, row.isPercent])).toEqual([["Frost Resistance", true]]);
+  expect(rows.itemGemStats.map((row) => [row.stat.label, row.isPercent])).toEqual([["Gem Haste", true]]);
+});
+
+test("classifies every supported item predicate without a generic fallback", () => {
+  const payload = (types: string[]) => ({ groups: [{ requirements: types.map((requirementType) => ({ requirementType })) }] });
+  expect(classifyItemCondition(payload(["Level", "Class"]))).toEqual({ scope: "equipment", requirementTypes: ["Class", "Level"] });
+  for (const type of ["Effect", "Item", "Region", "CombatState", "Stealth", "Mounted", "Grounded", "Time"]) expect(classifyItemCondition(payload([type]))).toEqual({ scope: "use", requirementTypes: [type] });
+  expect(classifyItemCondition(payload(["Ability"]))).toEqual({ scope: null, requirementTypes: ["Ability"] });
+  expect(classifyItemCondition(payload(["Level", "Effect"]))).toEqual({ scope: null, requirementTypes: ["Effect", "Level"] });
 });
 
 test("normalizes adventurer references and an authored flight network", () => {

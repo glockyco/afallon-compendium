@@ -146,6 +146,20 @@ if (items != null)
             }
         }
 
+        string itemNativeTooltipText = null;
+        string itemNativeTooltipError = null;
+        var itemNativeTooltipSucceeded = false;
+        try
+        {
+            var generated = Il2Cpp.ConsumableTooltip.Build(item, false);
+            itemNativeTooltipText = string.IsNullOrWhiteSpace(generated) ? null : generated;
+            itemNativeTooltipSucceeded = true;
+        }
+        catch (System.Exception error)
+        {
+            itemNativeTooltipError = error.GetType().FullName + ": " + error.Message;
+        }
+
         var itemActionAbilities = new System.Collections.Generic.List<object>();
         var itemActionAbilitiesAvailable = item.actionAbilities != null;
         if (item.actionAbilities != null)
@@ -154,7 +168,7 @@ if (items != null)
             {
                 var action = item.actionAbilities[actionIndex];
                 if (action == null) { itemActionAbilities.Add(new { sourceIndex = actionIndex, unavailable = "null ActionAbilityDATA record" }); continue; }
-                itemActionAbilities.Add(new { sourceIndex = actionIndex, keyType = new { value = (int)action.keyType, name = action.keyType.ToString() }, key = action.key.ToString(), actionKeyName = action.actionKeyName, abilityId = action.abilityID });
+                itemActionAbilities.Add(new { sourceIndex = actionIndex, keyType = new { value = (int)action.keyType, name = action.keyType.ToString() }, key = action.key.ToString(), actionKeyName = action.actionKeyName, abilityId = action.abilityID, rankIndex = 0 });
             }
         }
 
@@ -225,6 +239,14 @@ if (items != null)
                 sockets = itemSockets,
                 actionAbilitiesAvailable = itemActionAbilitiesAvailable,
                 actionAbilities = itemActionAbilities,
+                nativeUseTooltip = new
+                {
+                    generator = "ConsumableTooltip.Build(RPGItem, false)",
+                    includeHint = false,
+                    succeeded = itemNativeTooltipSucceeded,
+                    text = itemNativeTooltipText,
+                    error = itemNativeTooltipError
+                },
                 requirementsAvailable = item.Requirements != null,
                 requirementsGroupCount = item.Requirements == null ? -1 : item.Requirements.Count,
                 useRequirementsTemplate = item.UseRequirementsTemplate,
@@ -298,7 +320,7 @@ if (npcs != null)
                     : phase.Preset.entryDisplayName ?? phase.Preset.entryName;
                 var requirementTemplate = template.EnterPhaseRequirementsTemplate;
                 var requirement = requirementTemplate == null ? null : (requirementTemplate.entryDisplayName ?? requirementTemplate.entryName);
-                var abilityIds = new System.Collections.Generic.List<int>();
+                var abilityRefs = new System.Collections.Generic.List<object>();
                 var behaviors = new System.Collections.Generic.List<object>();
                 if (template.PotentialBehaviors != null)
                 {
@@ -309,11 +331,17 @@ if (npcs != null)
                         if (behavior == null) continue;
                         if (behavior.PotentialAbilities != null)
                         {
-                            foreach (var potentialAbilities in behavior.PotentialAbilities)
+                            for (var potentialIndex = 0; potentialIndex < behavior.PotentialAbilities.Count; potentialIndex++)
                             {
+                                var potentialAbilities = behavior.PotentialAbilities[potentialIndex];
                                 var abilitiesTemplate = potentialAbilities == null ? null : potentialAbilities.AbilitiesTemplate;
                                 if (abilitiesTemplate == null || abilitiesTemplate.Abilities == null) continue;
-                                foreach (var ability in abilitiesTemplate.Abilities) if (ability != null && !abilityIds.Contains(ability.abilityID)) abilityIds.Add(ability.abilityID);
+                                for (var abilityIndex = 0; abilityIndex < abilitiesTemplate.Abilities.Count; abilityIndex++)
+                                {
+                                    var ability = abilitiesTemplate.Abilities[abilityIndex];
+                                    if (ability == null) continue;
+                                    abilityRefs.Add(new { behaviorIndex = behaviorIndex, potentialIndex = potentialIndex, sourceIndex = abilityIndex, abilityId = ability.abilityID, rankIndex = ability.abilityRank });
+                                }
                             }
                         }
 
@@ -361,7 +389,7 @@ if (npcs != null)
                         });
                     }
                 }
-                npcAiPhases.Add(new { phaseIndex = phaseIndex, name = phaseName, requirement = requirement, abilityIds = abilityIds, behaviors });
+                npcAiPhases.Add(new { phaseIndex = phaseIndex, name = phaseName, requirement = requirement, abilityRefs = abilityRefs, behaviors });
             }
         }
         var npcGuideStatsById = new System.Collections.Generic.Dictionary<int, float>();

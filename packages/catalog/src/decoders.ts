@@ -11,7 +11,16 @@ const optional = <T extends TSchema>(schema: T) => Type.Optional(schema);
 const availableEnum = Type.Object({ available: boolean, name: optional(text), nativeId: optional(integer), sourceName: optional(text) });
 const valueEnum = Type.Object({ value: integer, name: text });
 const stat = Type.Object({ sourceIndex: optional(integer), statId: integer, amount: number, isPercent: boolean });
-const referenceRow = Type.Object({ sourceIndex: optional(integer), abilityId: optional(integer), abilityID: optional(integer) });
+const nonEmptyText = Type.String({ minLength: 1, pattern: "\\S" });
+const contextualAbilityReference = Type.Object({ sourceIndex: Type.Integer({ minimum: 0 }), abilityId: Type.Integer({ minimum: 0 }), rankIndex: Type.Integer({ minimum: 0 }), behaviorIndex: optional(Type.Integer({ minimum: 0 })), potentialIndex: optional(Type.Integer({ minimum: 0 })) });
+const itemNativeTooltip = Type.Object({
+  generator: Type.Literal("ConsumableTooltip.Build(RPGItem, false)"), includeHint: Type.Literal(false),
+  succeeded: Type.Literal(true), text: Type.Union([nonEmptyText, Type.Null()]), error: Type.Null(),
+});
+const generatedAbilityRank = Type.Object({
+  rankIndex: Type.Integer({ minimum: 0 }), generator: Type.Literal("AbilityTooltipGenerator.Generate(null, RPGAbility, RPGAbilityRankData)"),
+  succeeded: Type.Literal(true), text: nonEmptyText, error: Type.Null(),
+});
 const reward = Type.Object({ sourceIndex: optional(integer), rewardType: valueEnum, itemId: integer, currencyId: integer, treePointId: integer, factionId: integer, weaponTemplateId: integer, count: number, experience: number });
 const MovementSchema = Type.Union([
   Type.Null(),
@@ -41,7 +50,8 @@ export const ItemGameplaySchema = Type.Object({
   isCorruptionToken: optional(boolean), enchantmentId: optional(integer), randomStatsMax: optional(integer), stats: optional(Type.Array(stat)),
   randomStats: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), statId: integer, minValue: number, maxValue: number, isPercent: boolean, isInt: optional(boolean), chance: optional(number) }))), sockets: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), socketType: optional(text), gemSocketType: optional(availableEnum) }))),
   gemDataAvailable: optional(boolean), gemData: optional(Type.Object({ socketType: optional(text), gemSocketType: optional(availableEnum), statsAvailable: optional(boolean), stats: optional(Type.Array(stat)) })),
-  actionAbilities: optional(Type.Array(referenceRow)), requirementsGroupCount: optional(integer), useRequirementsTemplate: optional(boolean), requirementsTemplateId: optional(Type.Union([integer, Type.Null()])),
+  actionAbilities: Type.Array(contextualAbilityReference), nativeUseTooltip: itemNativeTooltip,
+  requirementsGroupCount: optional(integer), useRequirementsTemplate: optional(boolean), requirementsTemplateId: optional(Type.Union([integer, Type.Null()])),
 });
 export type ItemGameplay = Static<typeof ItemGameplaySchema>;
 
@@ -49,7 +59,7 @@ export const NpcGameplaySchema = Type.Object({
   npcType: optional(valueEnum), creatureType: optional(valueEnum), npcFamily: optional(availableEnum), factionId: optional(integer), speciesId: optional(integer),
   hunterTamable: optional(boolean), hunterBeastRole: optional(valueEnum), equipmentAppearanceSelections: optional(text), adventurer: optional(AdventurerSchema),
   isAuctioneer: optional(boolean), isBanker: optional(boolean), isFlightMaster: optional(boolean), flightNetworkResourcePath: optional(nullableText), flightStopId: optional(nullableText), flightInteractionDistance: optional(number), flightNetwork: optional(FlightNetworkSchema),
-  minLevel: optional(integer), maxLevel: optional(integer), aiPhases: optional(Type.Array(Type.Object({ phaseIndex: integer, name: nullableText, requirement: optional(nullableText), abilityIds: Type.Array(integer), behaviors: optional(Type.Array(BehaviorSchema)) }))),
+  minLevel: optional(integer), maxLevel: optional(integer), aiPhases: optional(Type.Array(Type.Object({ phaseIndex: integer, name: nullableText, requirement: optional(nullableText), abilityRefs: Type.Array(contextualAbilityReference), behaviors: optional(Type.Array(BehaviorSchema)) }))),
   guideStats: optional(Type.Array(Type.Object({ statId: integer, value: number }))), stats: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), statId: integer, minValue: optional(number), maxValue: optional(number), baseValue: optional(number), bonusPerLevel: optional(number) }))),
   isScalingWithPlayer: optional(boolean), minExperience: optional(number), maxExperience: optional(number), minRespawn: optional(number), maxRespawn: optional(number),
   isCombatEnabled: optional(boolean), isMerchant: optional(boolean), isQuestGiver: optional(boolean), linkedNpcId: optional(Type.Union([integer, Type.Null()])), hasLinkedNpc: optional(boolean),
@@ -105,8 +115,11 @@ export const GearSetGameplaySchema = Type.Object({
 });
 export type GearSetGameplay = Static<typeof GearSetGameplaySchema>;
 
+export const AbilityGameplaySchema = Type.Object({ ranks: Type.Array(generatedAbilityRank, { minItems: 1 }) });
+export type AbilityGameplay = Static<typeof AbilityGameplaySchema>;
+
 export const SupportedGameplaySchema = Type.Union([ItemGameplaySchema, NpcGameplaySchema, QuestGameplaySchema, SceneGameplaySchema, RegionGameplaySchema, PropertyGameplaySchema, TaskGameplaySchema, RecipeGameplaySchema, CraftingStationGameplaySchema, Type.Object({
-  isMerchant: optional(boolean), isQuestGiver: optional(boolean), startPositionId: optional(integer), minLevel: optional(integer), maxLevel: optional(integer), includedInAdventureGuide: optional(boolean), dungeonLevelMin: optional(integer), dungeonLevelMax: optional(integer), levelRangeMin: optional(integer), levelRangeMax: optional(integer), adventureGuideDescription: optional(nullableText), income: optional(number), isPercentStat: optional(boolean), adventureGuideBosses: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), npcId: integer }))), aiPhases: optional(Type.Array(Type.Object({ phaseIndex: integer, name: nullableText, requirement: optional(nullableText), abilityIds: Type.Array(integer), behaviors: optional(Type.Array(BehaviorSchema)) }))), guideStats: optional(Type.Array(Type.Object({ statId: integer, value: number }))),
+  isMerchant: optional(boolean), isQuestGiver: optional(boolean), startPositionId: optional(integer), minLevel: optional(integer), maxLevel: optional(integer), includedInAdventureGuide: optional(boolean), dungeonLevelMin: optional(integer), dungeonLevelMax: optional(integer), levelRangeMin: optional(integer), levelRangeMax: optional(integer), adventureGuideDescription: optional(nullableText), income: optional(number), isPercentStat: optional(boolean), adventureGuideBosses: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), npcId: integer }))), aiPhases: optional(Type.Array(Type.Object({ phaseIndex: integer, name: nullableText, requirement: optional(nullableText), abilityRefs: Type.Array(contextualAbilityReference), behaviors: optional(Type.Array(BehaviorSchema)) }))), guideStats: optional(Type.Array(Type.Object({ statId: integer, value: number }))),
 })]);
 export interface SupportedGameplay {
   isMerchant?: boolean;
@@ -123,7 +136,7 @@ export interface SupportedGameplay {
   income?: number;
   isPercentStat?: boolean;
   adventureGuideBosses?: Array<{ sourceIndex?: number; npcId: number }>;
-  aiPhases?: Array<{ phaseIndex: number; name: string | null; requirement?: string | null; abilityIds: number[] }>;
+  aiPhases?: Array<{ phaseIndex: number; name: string | null; requirement?: string | null; abilityRefs: Array<{ sourceIndex: number; abilityId: number; rankIndex: number; behaviorIndex?: number; potentialIndex?: number }> }>;
   guideStats?: Array<{ statId: number; value: number }>;
 }
 
@@ -202,9 +215,24 @@ export function decodeTaskGameplay(value: unknown, reference: ArtifactReference,
 export function decodeRecipeGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<RecipeGameplay> { return { value: decode(RecipeGameplaySchema, value, reference, path), issues: [] }; }
 export function decodeCraftingStationGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<CraftingStationGameplay> { return { value: decode(CraftingStationGameplaySchema, value, reference, path), issues: [] }; }
 export function decodeGearSetGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<GearSetGameplay> { return { value: decode(GearSetGameplaySchema, value, reference, path), issues: [] }; }
+export function decodeAbilityGameplay(value: unknown, reference: ArtifactReference, path: string): DecodedGameplay<AbilityGameplay> {
+  const decoded = decode(AbilityGameplaySchema, value, reference, path);
+  decoded.ranks.forEach((rank, index) => {
+    if (rank.rankIndex !== index) throw new Error(`Ability rank identity ${rank.rankIndex} does not match source position ${index} at ${path}/ranks/${index}.`);
+  });
+  return { value: decoded, issues: [] };
+}
 
+const RequirementEnumSchema = Type.Object({ value: integer, name: text });
+const RequirementEntrySchema = Type.Union([Type.Null(), Type.Object({ nativeId: integer, name: nullableText, internalName: nullableText, fileName: nullableText, description: nullableText, nativeType: text, text })]);
+const RequirementObjectSchema = Type.Union([Type.Null(), Type.Object({ nativeType: text, text })]);
+const TimeRequirementSchema = Type.Object({ checkYear: boolean, checkMonth: boolean, checkWeek: boolean, checkDay: boolean, checkHour: boolean, checkMinute: boolean, checkSecond: boolean, checkGlobalSpeed: boolean, year: integer, month: integer, week: integer, day: integer, hour: integer, minute: integer, second: integer, globalSpeed: number });
 const RequirementSchema = Type.Object({
-  sourceFieldPath: optional(text), groupIndex: optional(integer), requirementIndex: optional(integer), requirementType: optional(text), requirementTypeValue: optional(integer), conditionRule: optional(text), conditionRuleValue: optional(integer), evaluation: optional(text), amount1: optional(number), amount2: optional(number), float1: optional(number), consume: optional(boolean), abilityID: optional(integer), bonusID: optional(integer), recipeID: optional(integer), resourceID: optional(integer), effectID: optional(integer), NPCID: optional(integer), statID: optional(integer), factionID: optional(integer), comboID: optional(integer), raceID: optional(integer), levelsID: optional(integer), classID: optional(integer), speciesID: optional(integer), itemID: optional(integer), currencyID: optional(integer), pointID: optional(integer), talentTreeID: optional(integer), skillID: optional(integer), spellbookID: optional(integer), weaponTemplateID: optional(integer), enchantmentID: optional(integer), gearSetID: optional(integer), gameSceneID: optional(integer), questID: optional(integer), dialogueID: optional(integer),
+  sourceFieldPath: optional(text), groupIndex: optional(integer), requirementIndex: optional(integer), requirementType: optional(text), requirementTypeValue: optional(integer), conditionRule: optional(text), conditionRuleValue: optional(integer), evaluation: optional(text),
+  abilityID: optional(integer), bonusID: optional(integer), recipeID: optional(integer), resourceID: optional(integer), effectID: optional(integer), NPCID: optional(integer), statID: optional(integer), factionID: optional(integer), comboID: optional(integer), raceID: optional(integer), levelsID: optional(integer), classID: optional(integer), speciesID: optional(integer), itemID: optional(integer), currencyID: optional(integer), pointID: optional(integer), talentTreeID: optional(integer), skillID: optional(integer), spellbookID: optional(integer), weaponTemplateID: optional(integer), enchantmentID: optional(integer), gearSetID: optional(integer), gameSceneID: optional(integer), questID: optional(integer), dialogueID: optional(integer),
+  knowledge: optional(RequirementEnumSchema), state: optional(RequirementEnumSchema), comparison: optional(RequirementEnumSchema), value: optional(RequirementEnumSchema), ownership: optional(RequirementEnumSchema), itemCondition: optional(RequirementEnumSchema), progression: optional(RequirementEnumSchema), entity: optional(RequirementEnumSchema), pointType: optional(RequirementEnumSchema), dialogueNodeState: optional(RequirementEnumSchema), effectCondition: optional(RequirementEnumSchema), amountType: optional(RequirementEnumSchema), timeType: optional(RequirementEnumSchema), timeValue: optional(RequirementEnumSchema), effectType: optional(RequirementEnumSchema), questState: optional(RequirementEnumSchema),
+  amount1: optional(number), amount2: optional(number), float1: optional(number), consume: optional(boolean), boolBalue1: optional(boolean), boolBalue2: optional(boolean), boolBalue3: optional(boolean), isPercent: optional(boolean),
+  effectTag: optional(RequirementEntrySchema), factionStance: optional(RequirementEntrySchema), itemType: optional(RequirementEntrySchema), weaponType: optional(RequirementEntrySchema), weaponSlot: optional(RequirementEntrySchema), armorType: optional(RequirementEntrySchema), armorSlot: optional(RequirementEntrySchema), gender: optional(RequirementEntrySchema), NPCFamily: optional(RequirementEntrySchema), region: optional(RequirementEntrySchema), dialogueNode: optional(RequirementObjectSchema), timeRequirement1: optional(TimeRequirementSchema), timeRequirement2: optional(TimeRequirementSchema),
 });
 const RequirementGroupSchema = Type.Object({ nativeRequirementCount: integer, checkCount: optional(boolean), requiredCount: optional(integer), requirements: Type.Array(Type.Union([RequirementSchema, Type.Null()])) });
 export const RequirementTemplateSchema = Type.Union([Type.Null(), Type.Object({ nativeId: integer, sourceName: Type.Union([text, Type.Null()]), groups: Type.Array(Type.Union([RequirementGroupSchema, Type.Null()])) })]);
@@ -220,6 +248,7 @@ schemaRegistry.register("compendium.catalog-task-gameplay.v1", TaskGameplaySchem
 schemaRegistry.register("compendium.catalog-recipe-gameplay.v1", RecipeGameplaySchema);
 schemaRegistry.register("compendium.catalog-crafting-station-gameplay.v1", CraftingStationGameplaySchema);
 schemaRegistry.register("compendium.catalog-gear-set-gameplay.v1", GearSetGameplaySchema);
+schemaRegistry.register("compendium.catalog-ability-gameplay.v1", AbilityGameplaySchema);
 schemaRegistry.register("compendium.catalog-supported-gameplay.v1", SupportedGameplaySchema);
 schemaRegistry.register("compendium.catalog-requirement-template.v1", RequirementTemplateSchema);
 schemaRegistry.register("compendium.catalog-relationship-extras.v1", RelationshipExtrasSchema);

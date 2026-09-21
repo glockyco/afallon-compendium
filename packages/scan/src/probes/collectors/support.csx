@@ -22,8 +22,33 @@ var skills = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetSkills()) skills.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "skill") });
 var stats = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetStats()) stats.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "stat") });
+var projectAbility = new System.Func<Il2Cpp.RPGAbility, object>((ability) =>
+{
+    var ranks = new System.Collections.Generic.List<object>();
+    var nativeRanks = ability.ranks;
+    var rankCount = nativeRanks == null ? 0 : nativeRanks.Count;
+    for (var rankIndex = 0; rankIndex < rankCount; rankIndex++)
+    {
+        var rank = nativeRanks[rankIndex];
+        if (rank == null)
+        {
+            ranks.Add(new { rankIndex = rankIndex, generator = "AbilityTooltipGenerator.Generate(null, RPGAbility, RPGAbilityRankData)", succeeded = false, text = (string)null, error = "null RPGAbilityRankData record" });
+            continue;
+        }
+        try
+        {
+            var generated = Il2Cpp.AbilityTooltipGenerator.Generate(null, ability, rank);
+            ranks.Add(new { rankIndex = rankIndex, generator = "AbilityTooltipGenerator.Generate(null, RPGAbility, RPGAbilityRankData)", succeeded = true, text = generated, error = (string)null });
+        }
+        catch (System.Exception error)
+        {
+            ranks.Add(new { rankIndex = rankIndex, generator = "AbilityTooltipGenerator.Generate(null, RPGAbility, RPGAbilityRankData)", succeeded = false, text = (string)null, error = error.GetType().FullName + ": " + error.Message });
+        }
+    }
+    return new { ranks = ranks };
+});
 var abilities = new System.Collections.Generic.List<object>();
-foreach (var pair in database.GetAbilities()) abilities.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "ability") });
+foreach (var pair in database.GetAbilities()) abilities.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "ability"), gameplay = projectAbility(pair.Value) });
 var effects = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetEffects()) effects.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "effect") });
 var factions = new System.Collections.Generic.List<object>();

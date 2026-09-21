@@ -1,3 +1,5 @@
+import type { TooltipLine } from "./tooltip";
+
 // Typed catalog facts and relation rows for the compendium. Publication reads these through the
 // catalog queries and projects them into public documents; it never re-derives a fact from the
 // opaque source payload.
@@ -28,6 +30,7 @@ export interface CatalogArtworkBinding {
 }
 
 export interface CatalogStatValue { stat: CatalogEndpoint; amount: number; isPercent: boolean }
+export interface CatalogContextualAbilityReference { ability: CatalogEndpoint; rankIndex: number }
 export interface CatalogRandomStatRule { stat: CatalogEndpoint; min: number; max: number; isPercent: boolean; whole: boolean; chance: number | null }
 
 export interface CatalogItemFacts {
@@ -54,8 +57,10 @@ export interface CatalogItemFacts {
   stackLimit: number;
   questDropOnly: boolean;
   corruptionToken: boolean;
-  levelRequirement: number | null;
-  actionAbilities: CatalogEndpoint[];
+  equipmentRequirements: CatalogRequirementGroup[];
+  useConditions: CatalogRequirementGroup[];
+  actionAbilities: CatalogContextualAbilityReference[];
+  useLines: TooltipLine[];
   conditionIds: string[];
   // The set this item belongs to, from the set's own member list. An item that no set names has
   // none; the game's tooltip shows the set under the item's stats.
@@ -100,7 +105,7 @@ export interface CatalogNpcFacts {
   immuneToSlow: boolean;
   aggroRange: number | null;
   stats: CatalogStatValue[];
-  abilityPhases: Array<{ phaseIndex: number; name: string | null; requirement: string | null; abilities: CatalogEndpoint[] }>;
+  abilityPhases: Array<{ phaseIndex: number; name: string | null; requirement: string | null; abilities: CatalogContextualAbilityReference[] }>;
   factionRewards: Array<{ faction: CatalogEndpoint; amount: number }>;
   linkedNpc: CatalogEndpoint | null;
   lootSpecialization: { armorType: string | null; weaponTypes: string[]; stat: CatalogEndpoint | null } | null;
@@ -148,7 +153,7 @@ export interface CatalogPropertyFacts {
   propertyType: string | null;
 }
 
-export interface CatalogAbilityFacts { entityKey: string }
+export interface CatalogAbilityFacts { entityKey: string; ranks: Array<{ rankIndex: number; lines: TooltipLine[] }> }
 
 export interface CatalogRecipeFacts {
   entityKey: string;
@@ -179,9 +184,44 @@ export interface CatalogFacts {
   gearSets: CatalogGearSetFacts[];
 }
 
-export interface CatalogCondition { conditionId: string; semantics: string; label: string; requirements: CatalogRequirementGroup[] }
-export interface CatalogRequirementGroup { mode: "all" | "any"; requiredCount: number | null; requirements: CatalogRequirement[] }
-export interface CatalogRequirement { type: string; label: string; target: CatalogEndpoint | null; amount: number | null; secondaryAmount: number | null }
+export interface CatalogCondition { conditionId: string; semantics: string; scope: "equipment" | "use" | null; label: string; requirements: CatalogRequirementGroup[] }
+export interface CatalogRequirementGroup { mode: "all" | "any"; checkCount: boolean; requiredCount: number | null; requirements: CatalogRequirement[] }
+export interface CatalogRequirementNamedValue { value: number; name: string }
+export interface CatalogRequirementEntry { nativeId: number; name: string | null; internalName: string | null; fileName: string | null; description: string | null; nativeType: string; text: string }
+export interface CatalogRequirementTime { checkYear: boolean; checkMonth: boolean; checkWeek: boolean; checkDay: boolean; checkHour: boolean; checkMinute: boolean; checkSecond: boolean; checkGlobalSpeed: boolean; year: number; month: number; week: number; day: number; hour: number; minute: number; second: number; globalSpeed: number }
+export interface CatalogRequirementReferences {
+  ability: CatalogEndpoint | null; bonus: CatalogEndpoint | null; recipe: CatalogEndpoint | null; resource: CatalogEndpoint | null; effect: CatalogEndpoint | null; npc: CatalogEndpoint | null; stat: CatalogEndpoint | null; faction: CatalogEndpoint | null; combo: CatalogEndpoint | null; race: CatalogEndpoint | null; levels: CatalogEndpoint | null; class: CatalogEndpoint | null; species: CatalogEndpoint | null; item: CatalogEndpoint | null; currency: CatalogEndpoint | null; point: CatalogEndpoint | null; talentTree: CatalogEndpoint | null; skill: CatalogEndpoint | null; spellbook: CatalogEndpoint | null; weaponTemplate: CatalogEndpoint | null; enchantment: CatalogEndpoint | null; gearSet: CatalogEndpoint | null; gameScene: CatalogEndpoint | null; quest: CatalogEndpoint | null; dialogue: CatalogEndpoint | null;
+}
+export interface CatalogRequirementSubtypes {
+  effectTag: CatalogRequirementEntry | null; factionStance: CatalogRequirementEntry | null; itemType: CatalogRequirementEntry | null; weaponType: CatalogRequirementEntry | null; weaponSlot: CatalogRequirementEntry | null; armorType: CatalogRequirementEntry | null; armorSlot: CatalogRequirementEntry | null; gender: CatalogRequirementEntry | null; npcFamily: CatalogRequirementEntry | null; region: CatalogRequirementEntry | null;
+}
+export interface CatalogRequirement {
+  type: CatalogRequirementNamedValue;
+  rule: CatalogRequirementNamedValue;
+  label: string;
+  references: CatalogRequirementReferences;
+  knowledge: CatalogRequirementNamedValue | null;
+  state: CatalogRequirementNamedValue | null;
+  comparison: CatalogRequirementNamedValue | null;
+  value: CatalogRequirementNamedValue | null;
+  ownership: CatalogRequirementNamedValue | null;
+  itemCondition: CatalogRequirementNamedValue | null;
+  progression: CatalogRequirementNamedValue | null;
+  entity: CatalogRequirementNamedValue | null;
+  pointType: CatalogRequirementNamedValue | null;
+  dialogueNodeState: CatalogRequirementNamedValue | null;
+  effectCondition: CatalogRequirementNamedValue | null;
+  amountType: CatalogRequirementNamedValue | null;
+  timeType: CatalogRequirementNamedValue | null;
+  timeValue: CatalogRequirementNamedValue | null;
+  effectType: CatalogRequirementNamedValue | null;
+  questState: CatalogRequirementNamedValue | null;
+  amounts: { primary: number; secondary: number; float: number; isPercent: boolean };
+  flags: { consume: boolean; first: boolean; second: boolean; third: boolean };
+  subtypes: CatalogRequirementSubtypes;
+  dialogueNode: { nativeType: string; text: string } | null;
+  times: [CatalogRequirementTime | null, CatalogRequirementTime | null];
+}
 
 // Loot rows: `displayedChance` is the value the game's own guide shows, which the measured rule
 // establishes only for NPC loot entries (the authored rate rounded to one decimal). Other contexts
