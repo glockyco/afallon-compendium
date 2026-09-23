@@ -4,7 +4,8 @@ import { DEFAULT_ATLAS_STATE, readAtlasUrl, repairAtlasUrl, transitionAtlasState
 const complete: AtlasState = {
   layerIds: ["game-coalway"], selectedPlacementId: "placement",
   query: "merchant", itemSourceQuery: "vendor", detailQuery: "stock", categories: ["merchant", "questGiver"],
-  showZones: true, showConnections: true, showMovement: true, itemKey: "items:1", entityKey: "npcs:2", placeKey: "places:3",
+  showZones: true, showConnections: true, showMovement: true, markerSize: 125,
+  itemKey: "items:1", entityKey: "npcs:2", placeKey: "places:3",
   view: { target: [12.5, -3, 0], zoom: 4 },
 };
 
@@ -16,12 +17,33 @@ test("round-trips every canonical shareable atlas field", () => {
   expect([...url.searchParams.keys()]).not.toContain("level-min");
 });
 
+test("reads and writes marker size boundary percentages", () => {
+  expect(readAtlasUrl("?marker-size=75").markerSize).toBe(75);
+  expect(readAtlasUrl("?marker-size=300").markerSize).toBe(300);
+  expect(writeAtlasUrl(new URL("https://atlas.test/"), { ...DEFAULT_ATLAS_STATE, markerSize: 75 }).search).toBe("?marker-size=75");
+  expect(writeAtlasUrl(new URL("https://atlas.test/"), { ...DEFAULT_ATLAS_STATE, markerSize: 300 }).search).toBe("?marker-size=300");
+});
+
+test("uses the default marker size for malformed, decimal, and out-of-range URL values", () => {
+  for (const value of ["large", "100.5", "1e2", "0x64", "74", "301"]) {
+    expect(readAtlasUrl(`?marker-size=${value}`).markerSize).toBe(100);
+  }
+});
+
+test("omits the default marker size and transitions marker size independently", () => {
+  const resized = transitionAtlasState(complete, { type: "set-marker-size", markerSize: 150 });
+  expect(resized).toEqual({ ...complete, markerSize: 150 });
+  expect(complete.markerSize).toBe(125);
+  expect(writeAtlasUrl(new URL("https://atlas.test/?marker-size=150"), DEFAULT_ATLAS_STATE).searchParams.has("marker-size")).toBe(false);
+});
+
 test("repairs Steam-escaped query separators", () => {
-  const escaped = new URL("https://atlas.test/?layers=game-maps&amp;categories=flightPoint%2Cbanker%2Cauctioneer");
+  const escaped = new URL("https://atlas.test/?layers=game-maps&amp;categories=flightPoint%2Cbanker%2Cauctioneer&amp;marker-size=150");
   const parsed = readAtlasUrl(escaped.search);
   expect(parsed.layerIds).toEqual(["game-maps"]);
   expect(parsed.categories).toEqual(["flightPoint", "banker", "auctioneer"]);
-  expect(repairAtlasUrl(escaped).search).toBe("?layers=game-maps&categories=flightPoint%2Cbanker%2Cauctioneer");
+  expect(parsed.markerSize).toBe(150);
+  expect(repairAtlasUrl(escaped).search).toBe("?layers=game-maps&categories=flightPoint%2Cbanker%2Cauctioneer&marker-size=150");
 });
 
 test("ignores removed aliases and never mutates prior state", () => {

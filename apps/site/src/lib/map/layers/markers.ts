@@ -15,20 +15,22 @@ export function markerColor(markerId: MarkerId, selected: boolean, hovered: bool
 export function createPlacementIconLayer(
   markers: readonly MarkerRecord[],
   iconAtlas: IconAtlasResult,
+  markerSize: number,
   selectedId: string | null = null,
   hoveredId: string | null = null,
   onSelect?: (placementId: string) => void,
   onHover?: (placementId: string | null) => void,
 ): IconLayer<MarkerRecord> {
+  const scale = markerSize / 100;
   const pickedId = (object: MarkerRecord | null | undefined): string | null => object?.placementId ?? null;
   return new IconLayer<MarkerRecord>({
     id: MARKER_LAYER_ID, data: markers, iconAtlas: iconAtlas.atlas as unknown as string, iconMapping: iconAtlas.mapping,
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: true, billboard: false,
     getPosition: marker => marker.position, getIcon: marker => marker.markerId,
-    getSize: marker => markerFor(marker.markerId).iconSize.base,
+    getSize: marker => markerFor(marker.markerId).iconSize.base * scale,
     getColor: marker => markerColor(marker.markerId, marker.members.includes(selectedId || ""), marker.members.includes(hoveredId || ""), marker.enabled),
-    sizeUnits: "pixels", sizeMinPixels: 14, sizeMaxPixels: 44,
-    updateTriggers: { getColor: [selectedId, hoveredId], getSize: [selectedId, hoveredId] },
+    sizeUnits: "pixels", sizeMinPixels: 14 * scale, sizeMaxPixels: 44 * scale,
+    updateTriggers: { getColor: [selectedId, hoveredId], getSize: [markerSize] },
     onClick: onSelect ? info => { const placementId = pickedId(info.object); if (placementId) onSelect(placementId); } : undefined,
     onHover: onHover ? info => onHover(pickedId(info.object)) : undefined,
   });
@@ -40,9 +42,11 @@ export function createHighlightLayers(
   color: [number, number, number, number],
   fill: [number, number, number, number],
   radiusOffset: number,
+  markerSize: number,
 ): Layer[] {
   if (data.length === 0) return [];
-  const radius = (marker: MarkerRecord) => markerFor(marker.markerId).iconSize.base / 2 + radiusOffset;
+  const scale = markerSize / 100;
+  const radius = (marker: MarkerRecord) => (markerFor(marker.markerId).iconSize.base / 2 + radiusOffset) * scale;
   return [
     new ScatterplotLayer<MarkerRecord>({
       id: `${id}-outline`,
@@ -55,6 +59,7 @@ export function createHighlightLayers(
       getPosition: marker => marker.position,
       getRadius: radius,
       getLineColor: [0, 0, 0, 255],
+      updateTriggers: { getRadius: [markerSize] },
       getLineWidth: 6,
       lineWidthUnits: "pixels",
     }),
@@ -70,20 +75,23 @@ export function createHighlightLayers(
       getRadius: radius,
       getFillColor: fill,
       getLineColor: color,
+      updateTriggers: { getRadius: [markerSize] },
       getLineWidth: 3,
       lineWidthUnits: "pixels",
     }),
   ];
 }
 
-export function createStackCountLayer(stacks: readonly MarkerRecord[]): TextLayer<MarkerRecord> | null {
-  return stacks.length === 0 ? null : new TextLayer<MarkerRecord>({
+export function createStackCountLayer(stacks: readonly MarkerRecord[], markerSize: number): TextLayer<MarkerRecord> | null {
+  if (stacks.length === 0) return null;
+  const stackOffset = 9 * markerSize / 100;
+  return new TextLayer<MarkerRecord>({
     id: "map-placement-stack-counts",
     data: stacks,
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
     pickable: false,
     getPosition: (marker) => marker.position,
-    getPixelOffset: [9, -9],
+    getPixelOffset: [stackOffset, -stackOffset],
     getText: (marker) => String(marker.members.length),
     getSize: 12,
     sizeUnits: "pixels",

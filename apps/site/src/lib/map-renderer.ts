@@ -24,6 +24,7 @@ export type MapAdapterUpdate = {
   layerIds: readonly string[];
   categories: readonly MarkerId[];
   placements: PublicPlacement[];
+  markerSize: number;
   selectedId: string | null;
   highlightedPlacementIds: readonly string[];
   hoveredPlacementIds: readonly string[];
@@ -257,7 +258,7 @@ export async function createMapAdapter(
     const regionsChanged = !previous || previous.data.regions !== next.data.regions || offsetChanged;
     const boundsChanged = !previous || previous.data.maps !== next.data.maps || offsetChanged;
     const imageryChanged = !previous || previous.data.tileLayers !== next.data.tileLayers || !sameValues(previous.layerIds, next.layerIds) || offsetChanged;
-    const styleChanged = !previous || previous.selectedId !== next.selectedId || !sameValues(previous.highlightedPlacementIds, next.highlightedPlacementIds) || !sameValues(previous.hoveredPlacementIds, next.hoveredPlacementIds) || previous.authoring !== next.authoring || previous.showConnections !== next.showConnections || previous.showMovement !== next.showMovement || previous.showZones !== next.showZones || !sameValues(previous.selectedRegionIds, next.selectedRegionIds);
+    const styleChanged = !previous || previous.selectedId !== next.selectedId || !sameValues(previous.highlightedPlacementIds, next.highlightedPlacementIds) || !sameValues(previous.hoveredPlacementIds, next.hoveredPlacementIds) || previous.markerSize !== next.markerSize || previous.authoring !== next.authoring || previous.showConnections !== next.showConnections || previous.showMovement !== next.showMovement || previous.showZones !== next.showZones || !sameValues(previous.selectedRegionIds, next.selectedRegionIds);
     previousUpdate = next;
     if (!placementChanged && !regionsChanged && !boundsChanged && !imageryChanged && !styleChanged) return;
     if (placementChanged) {
@@ -323,8 +324,8 @@ export async function createMapAdapter(
       const selectedIndex = stack.members.indexOf(next.selectedId ?? "");
       callbacks.onSelect(stack.members[(selectedIndex + 1) % stack.members.length]!);
     };
-    const markerLayer = createPlacementIconLayer(renderMarkers, iconAtlas, next.selectedId, null, selectStacked);
-    const stackCounts = createStackCountLayer(stacks);
+    const markerLayer = createPlacementIconLayer(renderMarkers, iconAtlas, next.markerSize, next.selectedId, null, selectStacked);
+    const stackCounts = createStackCountLayer(stacks, next.markerSize);
     const groupedMarkersFor = (placementIds: readonly string[]): readonly MarkerRecord[] => {
       const ids = new Set(placementIds);
       return groupCoincidentMarkers(baseMarkers.filter(marker => ids.has(marker.placementId)));
@@ -332,9 +333,9 @@ export async function createMapAdapter(
     const selectedGroup = groupedMarkersFor(next.highlightedPlacementIds.filter(id => id !== next.selectedId));
     const primarySelection = next.selectedId ? groupedMarkersFor([next.selectedId]) : [];
     const hoverSelection = groupedMarkersFor(next.hoveredPlacementIds.filter(id => id !== next.selectedId));
-    const hoverHighlightLayers = createHighlightLayers("hover-highlight", hoverSelection, [250, 204, 21, 255], [250, 204, 21, 40], 2);
-    const groupHighlightLayers = createHighlightLayers("selection-group-highlight", selectedGroup, [255, 255, 255, 255], [255, 255, 255, 40], 2);
-    const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6);
+    const hoverHighlightLayers = createHighlightLayers("hover-highlight", hoverSelection, [250, 204, 21, 255], [250, 204, 21, 40], 2, next.markerSize);
+    const groupHighlightLayers = createHighlightLayers("selection-group-highlight", selectedGroup, [255, 255, 255, 255], [255, 255, 255, 40], 2, next.markerSize);
+    const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6, next.markerSize);
     layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, ...regionLayers, ...connectionLayers, ...movementLayers, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
 
     // Hiding every layer is a reader choice; only a layer that cannot be drawn is a failure.
@@ -390,8 +391,8 @@ export async function createMapAdapter(
     if (!changed && !refresh) return;
     lastPickedId = placementId;
     const marker = placementId ? renderMarkers.find(candidate => candidate.members.includes(placementId)) : null;
-    pointerHoverLayers = marker
-      ? createHighlightLayers("pointer-hover-highlight", [marker], [250, 204, 21, 255], [250, 204, 21, 40], 2)
+    pointerHoverLayers = marker && current
+      ? createHighlightLayers("pointer-hover-highlight", [marker], [250, 204, 21, 255], [250, 204, 21, 40], 2, current.markerSize)
       : [];
     // A hovered door shows where it leads even while the connections option is off.
     const hoveredConnections = marker && current && !current.showConnections && !current.authoring ? allConnections.filter((connection) => marker.members.includes(connection.placementId)) : [];

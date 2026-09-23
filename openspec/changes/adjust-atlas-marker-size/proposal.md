@@ -4,7 +4,7 @@ The atlas uses fixed marker sizes, which can obscure dense areas or make markers
 
 ## What Changes
 
-- Add a Marker Size slider under Map Options, with a 100% default, a 75–150% range, a visible percentage, and a reset action.
+- Add a Marker Size slider under Map Options, with a 100% default, a 75–300% range, a visible percentage, and a reset action.
 - Apply the chosen scale to all map placement icons and their selection or hover outlines while preserving category glyphs and marker interaction.
 - Keep the setting in the atlas URL so a reload or shared link restores it. Omit the parameter at the default value.
 

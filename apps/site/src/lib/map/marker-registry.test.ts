@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { PUBLIC_MARKER_CATEGORY_VALUES } from "@afallon/contracts/public"
+import { MARKER_SIZE_RANGE } from "../atlas-state";
 import type { PublicPlacement } from "@afallon/contracts/public"
 import { buildMarkers } from "./render-data";
 import { createPlacementIconLayer } from "./layers/markers";
@@ -58,7 +59,7 @@ test("every registered marker reaches the rendered icon layer and atlas", () => 
   }));
   const atlas = { atlas: {} as HTMLCanvasElement, mapping: iconAtlasMapping() };
   const records = buildMarkers(placements);
-  const layer = createPlacementIconLayer(records, atlas);
+  const layer = createPlacementIconLayer(records, atlas, MARKER_SIZE_RANGE.default);
   const renderedIds = (layer.props.data as readonly { markerId: string }[]).map((marker) => marker.markerId);
   expect(renderedIds.sort()).toEqual([...MARKER_IDS].sort());
   expect(Object.keys(layer.props.iconMapping ?? {}).sort()).toEqual([...MARKER_IDS].sort());

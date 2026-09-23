@@ -52,6 +52,12 @@ button, select { cursor: pointer; }
   .control-section > label.tool-option, .tool-option { display: flex; align-items: center; gap: .45rem; margin: .6rem 0; color: #dedbd2; font-size: .78rem; font-weight: 700; letter-spacing: normal; text-transform: none; cursor: pointer; }
   .tool-option input { width: 14px; height: 14px; margin: 0; accent-color: #bca36e; }
   .world-tools h2 { margin-bottom: .5rem; }
+  .marker-size-option { display: grid; gap: .4rem; margin: .8rem 0 1rem; }
+  .marker-size-heading { display: flex; justify-content: space-between; color: #dedbd2; font-size: .78rem; font-weight: 700; }
+  .marker-size-heading output { color: #d6bd84; }
+  .marker-size-option input[type="range"] { width: 100%; height: 1.4rem; padding: 0; border: 0; background: transparent; accent-color: #bca36e; }
+  .marker-size-option .text-button { justify-self: start; }
+  .marker-size-option .text-button:disabled { color: #85857e; text-decoration: none; cursor: default; }
   .text-button, .inline-link { border: 0; padding: 0; background: none; color: #d5b978; text-decoration: underline; text-underline-offset: 2px; }
   .text-button { font-size: .75rem; }
   .notice, .stale-warning { padding: .55rem; border-left: 2px solid #b98751; background: #2b2721; color: #e2c399; font-size: .73rem; line-height: 1.45; }

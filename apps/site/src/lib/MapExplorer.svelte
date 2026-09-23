@@ -90,6 +90,7 @@
   $: showZones = state.showZones;
   $: showConnections = state.showConnections;
   $: showMovement = state.showMovement;
+  $: markerSize = state.markerSize;
 
   $: layerOptions = (publication?.tileLayers ?? []).map((layer): LayerOption => ({ id: layer.id, label: mapLabel(publication, layer.mapSpaceId), kind: layer.kind })).sort((left, right) => left.label.localeCompare(right.label));
   $: tileLayerOptions = layerOptions.filter((option) => option.kind === 'captured');
@@ -223,7 +224,7 @@
   });
 
   $: if (adapterReady && adapter && publication) {
-    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds: layerIds.filter((id) => id !== NO_IMAGERY_LAYER_ID), categories, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: effectiveOffsets, authoring, showConnections, showMovement, showZones, selectedRegionIds });
+    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds: layerIds.filter((id) => id !== NO_IMAGERY_LAYER_ID), categories, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: effectiveOffsets, authoring, showConnections, showMovement, showZones, markerSize, selectedRegionIds });
   }
   $: if (!placeKey) fittedPlaceKey = null;
   $: if (adapterReady && mapReady && selectedPlace?.space && placeKey && state.view === null && fittedPlaceKey !== placeKey) {
@@ -389,6 +390,10 @@
     controller?.dispatch({ type: 'set-overlay', field: 'showZones', visible: !showZones }, 'push');
   }
 
+  function setMarkerSize(size: number): void {
+    controller?.dispatch({ type: 'set-marker-size', markerSize: size }, 'replace');
+  }
+
   function togglePanel(): void {
     panelCollapsed = !panelCollapsed;
     try {
@@ -482,13 +487,14 @@
         collapsed={panelCollapsed} logoBase={base} bind:searchInput {query} sections={markerSections} {categories} {categoryCounts} countsPending={resultsPending}
         placementCount={allMapPlacements.length} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
         {visibleTileLayerIds} {visibleGameMapIds} {capturedChecked} {capturedPartial} {gameMapsChecked} {gameMapsPartial}
-        {showConnections} {showMovement} {showZones} {authoring} {worldOffsetOverrides} onToggle={togglePanel}
+        {showConnections} {showMovement} {showZones} {markerSize} {authoring} {worldOffsetOverrides} onToggle={togglePanel}
         onQuery={(next) => controller?.setQuery('query', next)} onSubmitSearch={submitSearch}
         onResetCategories={() => controller?.dispatch({ type: 'select-categories', categories: DEFAULT_MARKER_IDS }, 'push')}
         onShowAllCategories={() => controller?.dispatch({ type: 'select-categories', categories: [] }, 'push')} onToggleCategory={toggleCategory}
         onToggleAllCategories={toggleAllCategories} onToggleCaptured={toggleCaptured} onToggleMapLayer={toggleMapLayer}
         onToggleGameMaps={toggleGameMaps} onToggleGameMap={toggleGameMap} onToggleConnections={toggleConnections}
-        onToggleMovement={toggleMovement} onToggleZones={toggleZones} onToggleAuthoring={toggleAuthoring}
+        onToggleMovement={toggleMovement} onToggleZones={toggleZones} onMarkerSizeChange={setMarkerSize}
+        onResetMarkerSize={() => setMarkerSize(DEFAULT_ATLAS_STATE.markerSize)} onToggleAuthoring={toggleAuthoring}
         onExportWorldOffsets={exportWorldOffsets} onDiscardWorldOffsets={discardWorldOffsets}
       />
       {#if !panelCollapsed}<button class="panel-backdrop" type="button" aria-label="Close atlas controls" on:click={togglePanel}></button>{/if}

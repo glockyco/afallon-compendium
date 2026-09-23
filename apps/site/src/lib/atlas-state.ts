@@ -15,6 +15,7 @@ export interface AtlasState {
   readonly showZones: boolean;
   readonly showConnections: boolean;
   readonly showMovement: boolean;
+  readonly markerSize: number;
   readonly itemKey: string | null;
   readonly entityKey: string | null;
   readonly placeKey: string | null;
@@ -34,8 +35,11 @@ export type AtlasAction =
   | { type: "search"; field: AtlasQueryField; query: string }
   | { type: "select-categories"; categories: readonly string[] }
   | { type: "set-overlay"; field: "showZones" | "showConnections" | "showMovement"; visible: boolean }
+  | { type: "set-marker-size"; markerSize: number }
   | { type: "set-view"; view: AtlasView | null }
   | { type: "replace"; state: AtlasState };
+
+export const MARKER_SIZE_RANGE = { min: 75, max: 300, default: 100 } as const;
 
 export const DEFAULT_ATLAS_STATE: AtlasState = Object.freeze({
   layerIds: Object.freeze([]),
@@ -47,6 +51,7 @@ export const DEFAULT_ATLAS_STATE: AtlasState = Object.freeze({
   showZones: false,
   showConnections: false,
   showMovement: false,
+  markerSize: MARKER_SIZE_RANGE.default,
   itemKey: null,
   entityKey: null,
   placeKey: null,
@@ -95,6 +100,9 @@ export function transitionAtlasState(state: AtlasState, action: AtlasAction): At
     case "set-overlay":
       next = { ...state, [action.field]: action.visible };
       break;
+    case "set-marker-size":
+      next = { ...state, markerSize: action.markerSize };
+      break;
     case "set-view":
       next = { ...state, view: action.view };
       break;
@@ -129,7 +137,7 @@ function freezeState(state: AtlasState, previous?: AtlasState): AtlasState {
 }
 
 const ATLAS_URL_KEYS = new Set([
-  "layers", "selected", "q", "source-q", "detail-q", "categories", "zones", "connections", "movement",
+  "layers", "selected", "q", "source-q", "detail-q", "categories", "zones", "connections", "movement", "marker-size",
   "item", "entity", "place", "x", "y", "z", "zoom",
 ]);
 
@@ -159,6 +167,10 @@ export function readAtlasUrl(search: string): AtlasState {
   const y = finiteNumber(params.get("y"));
   const z = finiteNumber(params.get("z"));
   const zoom = finiteNumber(params.get("zoom"));
+  const rawMarkerSize = params.get("marker-size");
+  const requestedMarkerSize = rawMarkerSize !== null && /^\d+$/.test(rawMarkerSize) ? Number(rawMarkerSize) : null;
+  const markerSize = requestedMarkerSize !== null && Number.isInteger(requestedMarkerSize) && requestedMarkerSize >= MARKER_SIZE_RANGE.min && requestedMarkerSize <= MARKER_SIZE_RANGE.max
+    ? requestedMarkerSize : MARKER_SIZE_RANGE.default;
   const view = x !== null && y !== null && z === 0 && zoom !== null && zoom >= -12 && zoom <= 12 ? { target: [x, y, z] as [number, number, number], zoom } : null;
   const requestedCategories = params.getAll("categories").flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
   const categories = requestedCategories.length === 0 ? DEFAULT_MARKER_IDS : requestedCategories.includes("all") ? [] : requestedCategories;
@@ -172,6 +184,7 @@ export function readAtlasUrl(search: string): AtlasState {
     showZones: params.get("zones") === "1",
     showConnections: params.get("connections") === "1",
     showMovement: params.get("movement") === "1",
+    markerSize,
     itemKey: params.get("item"),
     entityKey: params.get("entity"),
     placeKey: params.get("place"),
@@ -185,6 +198,7 @@ export function writeAtlasUrl(url: URL, state: AtlasState): URL {
     ["layers", state.layerIds.join(",") || null], ["selected", state.selectedPlacementId],
     ["q", state.query.trim() || null], ["source-q", state.itemSourceQuery.trim() || null], ["detail-q", state.detailQuery.trim() || null],
     ["zones", state.showZones ? "1" : null], ["connections", state.showConnections ? "1" : null], ["movement", state.showMovement ? "1" : null],
+    ["marker-size", state.markerSize === MARKER_SIZE_RANGE.default ? null : String(state.markerSize)],
     ["item", state.itemKey], ["entity", state.entityKey], ["place", state.placeKey],
   ];
   for (const [key, value] of entries) if (value !== null) params.set(key, value);
