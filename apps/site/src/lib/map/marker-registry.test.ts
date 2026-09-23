@@ -6,6 +6,8 @@ import { createPlacementIconLayer } from "./layers/markers";
 import { iconAtlasMapping } from "./icon-atlas";
 import { MARKER_IDS, MARKER_LAYER_ID, markerFor, markerRegistry, resolveMarker } from "./marker-registry";
 
+const NAMED_STATION_IDS = ["alchemyStation", "cookingStation", "smithingStation", "furnace", "tailoringStation"] as const;
+
 test("registry keys match the published category contract", () => {
   expect([...MARKER_IDS].sort()).toEqual([...PUBLIC_MARKER_CATEGORY_VALUES].sort());
   expect(Object.keys(markerRegistry).sort()).toEqual([...PUBLIC_MARKER_CATEGORY_VALUES].sort());
@@ -20,6 +22,17 @@ test("bankers appear above auctioneers in controls and map markers", () => {
   expect(MARKER_IDS.indexOf("banker")).toBeLessThan(MARKER_IDS.indexOf("auctioneer"));
   expect(resolveMarker({ categories: ["auctioneer", "banker"] })).toBe("banker");
   expect(markerFor("banker").renderOrder).toBeGreaterThan(markerFor("auctioneer").renderOrder);
+});
+
+test("named stations are opt-in object markers and outrank generic and merchant roles", () => {
+  for (const id of NAMED_STATION_IDS) {
+    const marker = markerFor(id);
+    expect(marker.section).toBe("objects");
+    expect(marker.defaultVisible).toBe(false);
+    expect(marker.precedence).toBeGreaterThan(markerFor("craftingStation").precedence);
+    expect(marker.precedence).toBeGreaterThan(markerFor("merchant").precedence);
+    expect(resolveMarker({ categories: ["merchant", id] })).toBe(id);
+  }
 });
 
 test("no two markers share a glyph", () => {

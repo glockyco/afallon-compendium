@@ -34,6 +34,13 @@ const ROLE_CATEGORIES: Readonly<Record<string, PublicMarkerCategory | null>> = {
 const MAP_ICON_CATEGORIES: Readonly<Record<string, PublicMarkerCategory>> = {
   town: "town", fort: "fort", camp: "camp", dungeon: "dungeonEntrance", challengeStone: "challengeStone",
 };
+const CRAFTING_STATION_CATEGORIES: Readonly<Partial<Record<number, { name: string; category: PublicMarkerCategory }>>> = {
+  0: { name: "Alchemy", category: "alchemyStation" },
+  1: { name: "Cooking", category: "cookingStation" },
+  2: { name: "Smithing", category: "smithingStation" },
+  3: { name: "Furnace", category: "furnace" },
+  5: { name: "Tailoring", category: "tailoringStation" },
+};
 
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -219,6 +226,20 @@ function categories(roles: readonly { role: string; scope: string }[]): PublicMa
   return PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => found.has(category));
 }
 
+function craftingStationCategory(placement: CatalogMapPlacement, canonicalNames: ReadonlyMap<number, string>): PublicMarkerCategory {
+  const details = placement.sourceDetails.filter((detail) => detail.family === "craftingStation");
+  let stationId: number | null = null;
+  for (const { data } of details) {
+    const id = data.stationID, station = record(data.station);
+    if (data.stationReferenceStatus !== "resolved" || typeof id !== "number" || !Number.isInteger(id) || !station || station.nativeId !== id) return "craftingStation";
+    if (stationId !== null && stationId !== id) return "craftingStation";
+    stationId = id;
+  }
+  if (stationId === null) return "craftingStation";
+  const supported = CRAFTING_STATION_CATEGORIES[stationId];
+  return supported && canonicalNames.get(stationId)?.trim() === supported.name ? supported.category : "craftingStation";
+}
+
 function foldMapIcons(placements: readonly CatalogMapPlacement[]): CatalogMapPlacement[] {
   const groups = new Map<string, CatalogMapPlacement[]>();
   const result: CatalogMapPlacement[] = [];
@@ -317,8 +338,10 @@ export async function generateMapShards(db: Database, store: ArtifactStore, worl
   const offsets = new Map(worldOffsets.map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }]));
   const maps = queryCatalogMaps(db);
   const spatial = queryCatalogSpatialContext(db).records;
-  const search = queryCatalogSearch(db).records;
-  const entityNames = new Map(search.map((entity) => [entity.entityKey, plainText(entity.name ?? "") || "Unnamed entry"]));
+  const search = queryCatalogSearch(db);
+  if (search.buildId !== maps.buildId) throw new Error("Catalog search and map records belong to different builds.");
+  const entityNames = new Map(search.records.map((entity) => [entity.entityKey, plainText(entity.name ?? "") || "Unnamed entry"]));
+  const craftingStationNames = new Map(search.records.filter((entity) => entity.kind === "craftingStations" && entity.name !== null).map((entity) => [entity.nativeId, entity.name!]));
   const gameplayByEntity = new Map(queryCatalogFullEntities(db).records.map((detail) => [detail.entityKey, detail.publicData.gameplay]));
   const result: GeneratedMapShard[] = [];
   for (const map of maps.records) {
@@ -331,6 +354,7 @@ export async function generateMapShards(db: Database, store: ArtifactStore, worl
       if (extent && (placement.position[0] < extent[0] || placement.position[1] < extent[1] || placement.position[0] >= extent[2] || placement.position[1] >= extent[3])) return [];
       const entityKeys = [...new Set(placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [role.npcEntityKey]))].sort();
       const foundCategories = new Set(categories(placement.roles));
+      if (foundCategories.delete("craftingStation")) foundCategories.add(craftingStationCategory(placement, craftingStationNames));
       const serviceData = entityKeys.map((key) => record(gameplayByEntity.get(key)));
       if (serviceData.some((gameplay) => gameplay?.isAuctioneer === true)) foundCategories.add("auctioneer");
       if (serviceData.some((gameplay) => gameplay?.isBanker === true)) foundCategories.add("banker");

@@ -34,6 +34,7 @@ import type {
 import { plainText } from "./text";
 
 export type ReferenceResolver = (endpoint: CatalogEndpoint) => Ref;
+export type PublishedPlacement = PlacementRef & { categories: readonly PublicMarkerCategory[] };
 
 export interface DocumentProjectionInput {
   entities: readonly CatalogEntityRow[];
@@ -42,7 +43,7 @@ export interface DocumentProjectionInput {
   refs: ReadonlyMap<string, EntityRef>;
   resolve: ReferenceResolver;
   artByEntity: ReadonlyMap<string, Art>;
-  placements: ReadonlyMap<string, PlacementRef>;
+  placements: ReadonlyMap<string, PublishedPlacement>;
   regionIdsByMapSpace: ReadonlyMap<string, readonly string[]>;
 }
 
@@ -163,7 +164,10 @@ function publishedPlacements(ids: readonly string[], placements: ReadonlyMap<str
   const seen = new Set<string>();
   for (const id of ids) {
     const placement = placements.get(id);
-    if (placement && !seen.has(id)) { result.push(placement); seen.add(id); }
+    if (placement && !seen.has(id)) {
+      result.push({ placementId: placement.placementId, mapSpaceId: placement.mapSpaceId, label: placement.label });
+      seen.add(id);
+    }
   }
   return result;
 }
@@ -400,17 +404,16 @@ function projectQuest(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
   };
 }
 
-function placementGroups(placements: readonly CatalogPlacementRow[], categories: ReadonlySet<string>, input: DocumentProjectionInput): PlacementGroup[] {
+function placementGroups(placements: readonly CatalogPlacementRow[], categories: Readonly<Record<string, true>>, input: DocumentProjectionInput): PlacementGroup[] {
   const grouped = new Map<PublicMarkerCategory, Set<string>>();
   for (const placement of placements) {
     const publicPlacement = input.placements.get(placement.placementId);
     if (!publicPlacement) continue;
-    const values = new Set([...placement.roles.map((role) => role.role), ...placement.families]);
-    for (const value of values) {
-      if (!categories.has(value) || !PUBLIC_ROLE[value]) continue;
-      const rows = grouped.get(value as PublicMarkerCategory) ?? new Set<string>();
+    for (const category of publicPlacement.categories) {
+      if (!Object.hasOwn(categories, category)) continue;
+      const rows = grouped.get(category) ?? new Set<string>();
       rows.add(publicPlacement.placementId);
-      grouped.set(value as PublicMarkerCategory, rows);
+      grouped.set(category, rows);
     }
   }
   return [...grouped].sort(([left], [right]) => left.localeCompare(right)).map(([category, rows]) => ({ category, placementCount: rows.size }));
@@ -440,9 +443,11 @@ function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
   const mapSpaceId = fact?.mapSpaceIds.find((candidate) => input.regionIdsByMapSpace.has(candidate)) ?? null;
   const placeType = fact?.placeType ?? (entity.kind === "regions" ? "region" : "zone");
   const placePlacements = indexes.placementsByScene.get(entity.entityKey) ?? [];
-  const serviceCategories = new Set(["merchant", "auctioneer", "banker", "questGiver", "flightPoint", "townsfolk", "craftingStation", "travelPoint", "neutral"]);
-  const resourceCategories = new Set(["oreVein", "herb", "mushroom", "fishingSpot"]);
-  const containerCategories = new Set(["container"]);
+  const serviceCategories = { merchant: true, auctioneer: true, banker: true, questGiver: true, flightPoint: true, townsfolk: true,
+    craftingStation: true, alchemyStation: true, cookingStation: true, smithingStation: true, furnace: true, tailoringStation: true,
+    travelPoint: true, neutral: true } as const;
+  const resourceCategories = { oreVein: true, herb: true, mushroom: true, fishingSpot: true } as const;
+  const containerCategories = { container: true } as const;
   const questRefs = (indexes.questsByCounterpart.get(entity.entityKey) ?? []).filter((row) => row.kind === "worldZone").map((row) => input.resolve(row.quest));
   const connections = input.relations.transitions.flatMap((row) => {
     if (row.sourceSceneKey !== entity.entityKey && row.destinationSceneKey !== entity.entityKey) return [];

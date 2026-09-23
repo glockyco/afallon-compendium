@@ -9,11 +9,11 @@ import { queryCatalogCoverage, queryCatalogMaps, type CatalogGateResult } from "
 import {
   StaticCoverageSchema,
   StaticRootManifestSchema,
-  type PlacementRef,
   type PublicWorldOffset,
   type StaticCoverage,
   type StaticRootManifest,
 } from "@afallon/contracts/public";
+import type { PublishedPlacement } from "./documents";
 import { generateImageryResources } from "./imagery";
 import { generateIndexResources } from "./index-resources";
 import { assertCompleteTooltipCoverage } from "./tooltip-coverage";
@@ -66,7 +66,7 @@ export async function buildStaticPublication(
   const publishedExtents = new Map([...gameMapByMap].map(([mapSpaceId, layer]) => [mapSpaceId, layer.extent] as const));
   const mapShards = await generateMapShards(db, store, publishedOffsets, protection, publishedMapIds, publishedExtents);
   const imageryByMap = new Map(imagery.map((entry) => [entry.mapSpaceId, entry.resource]));
-  const placements = new Map<string, PlacementRef>();
+  const placements = new Map<string, PublishedPlacement>();
   const placementIdsByKeySets = new Map<string, Set<string>>();
   const regionIdsByMapSpace = new Map<string, string[]>();
   for (const entry of mapShards) {
@@ -74,7 +74,7 @@ export async function buildStaticPublication(
     for (const resource of entry.resources) {
       for (const region of resource.value.regions) regionIds.add(region.id);
       for (const placement of resource.value.placements) {
-        placements.set(placement[0], { placementId: placement[0], mapSpaceId: entry.summary.mapSpaceId, label: mapSpaceLabels.get(entry.summary.mapSpaceId) ?? entry.summary.label });
+        placements.set(placement[0], { placementId: placement[0], mapSpaceId: entry.summary.mapSpaceId, label: mapSpaceLabels.get(entry.summary.mapSpaceId) ?? entry.summary.label, categories: placement[4] });
         for (const key of [...placement[5], ...placement[6]]) {
           const ids = placementIdsByKeySets.get(key) ?? new Set<string>();
           ids.add(placement[0]);

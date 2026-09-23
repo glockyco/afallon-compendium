@@ -80,8 +80,8 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   const refs = buildEntityReferences(entities, { facts, relations });
   const documents = projectPublicDocuments({ entities, facts, relations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(),
     placements: new Map([
-      ["p1", { placementId: "p1", mapSpaceId: "world", label: "World" }],
-      ["p2", { placementId: "p2", mapSpaceId: "world", label: "World" }],
+      ["p1", { placementId: "p1", mapSpaceId: "world", label: "World", categories: ["boss"] }],
+      ["p2", { placementId: "p2", mapSpaceId: "world", label: "World", categories: ["container"] }],
     ]), regionIdsByMapSpace: new Map([["world", ["region-1"]]]) });
   const item = documents.get("items:1") as PublicItem, npc = documents.get("npcs:2") as PublicNpc, place = documents.get("scenes:10") as PublicPlace;
   expect(item.ref.name).toBe("Oathbreaker's Edge");
@@ -129,6 +129,23 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(place).not.toHaveProperty("locations");
   expect(place.space).toEqual({ mapSpaceId: "world", regionIds: ["region-1"] });
   expect(place.creatures).toMatchObject([{ counterpart: { key: "npcs:2" }, placementCount: 1 }]);
+});
+
+test("place service groups use the published station types", () => {
+  const stationRelations: CatalogRelations = { ...relations, placements: [
+    { placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Cooking", roles: [{ role: "craftingService", npcEntityKey: null, scope: "authored" }], families: ["craftingStation"] },
+    { placementId: "p2", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Unknown station", roles: [{ role: "craftingService", npcEntityKey: null, scope: "authored" }], families: ["craftingStation"] },
+  ] };
+  const refs = buildEntityReferences(entities, { facts, relations: stationRelations });
+  const documents = projectPublicDocuments({ entities, facts, relations: stationRelations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(),
+    placements: new Map([
+      ["p1", { placementId: "p1", mapSpaceId: "world", label: "World", categories: ["cookingStation" as const] }],
+      ["p2", { placementId: "p2", mapSpaceId: "world", label: "World", categories: ["craftingStation" as const] }],
+    ]), regionIdsByMapSpace: new Map([ ["world", []] ]) });
+  expect((documents.get("scenes:10") as PublicPlace).services).toEqual([
+    { category: "cookingStation", placementCount: 1 },
+    { category: "craftingStation", placementCount: 1 },
+  ]);
 });
 
 test("projects representative item use text, effective stats and contextual ability ranks", () => {

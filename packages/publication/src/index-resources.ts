@@ -10,7 +10,6 @@ import {
   StaticSearchIndexSchema,
   artEdges,
   type EntityRef,
-  type PlacementRef,
   type PublicDocument,
   type PublicItem,
   type PublicNpc,
@@ -22,7 +21,7 @@ import {
   type StaticSearchIndex,
 } from "@afallon/contracts/public";
 import { generateArtworkResources } from "./artwork";
-import { countUnresolvedReferences, projectPublicDocuments } from "./documents";
+import { countUnresolvedReferences, projectPublicDocuments, type PublishedPlacement } from "./documents";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists, publicItemLevelRequirement } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
@@ -68,7 +67,7 @@ function itemSourceKinds(document: PublicDocument): string[] {
 export async function generateIndexResources(
   db: Database,
   store: ArtifactStore,
-  placements: ReadonlyMap<string, PlacementRef>,
+  placements: ReadonlyMap<string, PublishedPlacement>,
   placementIdsByKey: ReadonlyMap<string, readonly string[]>,
   mapSpaceLabels: ReadonlyMap<string, string>,
   regionIdsByMapSpace: ReadonlyMap<string, readonly string[]>,
