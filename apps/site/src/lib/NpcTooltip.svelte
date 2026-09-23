@@ -7,6 +7,18 @@
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
 
+  function uniqueAbilities(phases: PublicNpc['abilityPhases']) {
+    const seen = new Set<string>();
+    return phases.flatMap((phase) => phase.abilities).filter((reference) => {
+      if (reference.ability.key === null) return true;
+      const identity = `${reference.ability.key}:${reference.rankIndex}`;
+      if (seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    });
+  }
+
+  $: abilities = uniqueAbilities(document.abilityPhases);
   $: facts = document.facts;
   $: level = facts.level !== undefined ? String(facts.level) : facts.levelRange ? `${facts.levelRange.min}–${facts.levelRange.max}` : null;
   $: creatureType = facts.npcType ?? facts.creatureType;
@@ -25,7 +37,7 @@
   <EntityHeader name={document.ref.name} art={document.art.portrait ?? document.art.icon ?? document.ref.icon} artRole="portrait" fallbackIcon={registry.find((entry) => entry.kind === 'npcs')?.icon} {badges} facts={headerFacts} description={document.description} compact />
   {#if facts.stats.length}<ul class="stats">{#each facts.stats as stat}<li>{signedAmount(stat.amount, stat.isPercent)} {stat.stat.key === null ? stat.stat.label : stat.stat.name}</li>{/each}</ul>{/if}
   {#if facts.immunities.length}<p class="summary">Immune to {facts.immunities.map(labelOf).join(', ')}</p>{/if}
-  {#if document.abilityPhases.some((phase) => phase.abilities.length > 0)}<section><h4>Abilities</h4><ul>{#each document.abilityPhases as phase}{#each phase.abilities as reference}<li><EntityReference ref={reference.ability} {registry} /><span>Rank {reference.rankIndex + 1}</span></li>{/each}{/each}</ul></section>{/if}
+  {#if abilities.length}<section><h4>Abilities</h4><ul>{#each abilities as reference}<li><EntityReference ref={reference.ability} {registry} /><span>Rank {reference.rankIndex + 1}</span></li>{/each}</ul></section>{/if}
   {#if relationCounts.length}<p class="summary">{relationCounts.map(([label, count]) => `${label}: ${count}`).join(' · ')}</p>{/if}
 </article>
 
