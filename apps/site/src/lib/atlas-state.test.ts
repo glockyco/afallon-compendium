@@ -18,14 +18,14 @@ test("round-trips every canonical shareable atlas field", () => {
 });
 
 test("reads and writes marker size boundary percentages", () => {
-  expect(readAtlasUrl("?marker-size=75").markerSize).toBe(75);
-  expect(readAtlasUrl("?marker-size=300").markerSize).toBe(300);
-  expect(writeAtlasUrl(new URL("https://atlas.test/"), { ...DEFAULT_ATLAS_STATE, markerSize: 75 }).search).toBe("?marker-size=75");
-  expect(writeAtlasUrl(new URL("https://atlas.test/"), { ...DEFAULT_ATLAS_STATE, markerSize: 300 }).search).toBe("?marker-size=300");
+  expect(readAtlasUrl("?marker-size=50").markerSize).toBe(50);
+  expect(readAtlasUrl("?marker-size=200").markerSize).toBe(200);
+  expect(writeAtlasUrl(new URL("https://atlas.test/"), { ...DEFAULT_ATLAS_STATE, markerSize: 50 }).search).toBe("?marker-size=50");
+  expect(writeAtlasUrl(new URL("https://atlas.test/"), { ...DEFAULT_ATLAS_STATE, markerSize: 200 }).search).toBe("?marker-size=200");
 });
 
 test("uses the default marker size for malformed, decimal, and out-of-range URL values", () => {
-  for (const value of ["large", "100.5", "1e2", "0x64", "74", "301"]) {
+  for (const value of ["large", "100.5", "1e2", "0x64", "49", "201", "300"]) {
     expect(readAtlasUrl(`?marker-size=${value}`).markerSize).toBe(100);
   }
 });

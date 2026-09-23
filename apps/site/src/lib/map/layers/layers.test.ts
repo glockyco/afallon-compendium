@@ -56,7 +56,7 @@ test("imagery ordering keeps game maps below captures", () => {
   expect(orderImageryLayers([layer("capture", "captured"), layer("game", "game-map")]).map(value => value.tileLayer.id)).toEqual(["game", "capture"]);
 });
 
-test("marker size scales icons, highlights, and stack offsets from the 100 percent appearance", () => {
+test("marker size scales icons, highlights, and stack offsets at the rebased endpoints", () => {
   const marker: MarkerRecord = {
     placementId: "travel",
     mapSpaceId: "map",
@@ -77,19 +77,25 @@ test("marker size scales icons, highlights, and stack offsets from the 100 perce
       maximum: property<number>(layer, "sizeMaxPixels"),
     };
   };
-  expect(iconSizes(100)).toEqual({ base: 23, minimum: 14, maximum: 44 });
-  expect(iconSizes(75)).toEqual({ base: 17.25, minimum: 10.5, maximum: 33 });
-  expect(iconSizes(300)).toEqual({ base: 69, minimum: 42, maximum: 132 });
+  for (const [percent, expectedScale] of [[50, 0.7], [100, 1.4], [200, 2.8]] as const) {
+    const sizes = iconSizes(percent);
+    expect(sizes.base).toBeCloseTo(23 * expectedScale);
+    expect(sizes.minimum).toBeCloseTo(14 * expectedScale);
+    expect(sizes.maximum).toBeCloseTo(44 * expectedScale);
+  }
 
   const radius = (markerSize: number) => property<(value: MarkerRecord) => number>(
     createHighlightLayers("highlight", [marker], [255, 255, 255, 255], [255, 255, 255, 40], 2, markerSize)[0]!,
     "getRadius",
   )(marker);
-  expect([radius(75), radius(100), radius(300)]).toEqual([10.125, 13.5, 40.5]);
-
   const stackOffset = (markerSize: number) => property<[number, number]>(createStackCountLayer([marker], markerSize)!, "getPixelOffset");
-  expect([stackOffset(75), stackOffset(100), stackOffset(300)]).toEqual([[6.75, -6.75], [9, -9], [27, -27]]);
-  expect(property<number>(createStackCountLayer([marker], 300)!, "getSize")).toBe(12);
+  for (const [percent, scale] of [[50, 0.7], [100, 1.4], [200, 2.8]] as const) {
+    expect(radius(percent)).toBeCloseTo(13.5 * scale);
+    const [x, y] = stackOffset(percent);
+    expect(x).toBeCloseTo(9 * scale);
+    expect(y).toBeCloseTo(-9 * scale);
+  }
+  expect(property<number>(createStackCountLayer([marker], 200)!, "getSize")).toBe(12);
 });
 
 test("marker styles preserve selection, hover, disabled, and category colors", () => {

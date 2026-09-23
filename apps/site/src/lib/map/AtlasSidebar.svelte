@@ -1,10 +1,9 @@
 <script lang="ts">
   import { dev } from '$app/environment';
-  import { MARKER_SIZE_RANGE } from '../atlas-state';
+  import { MARKER_SIZE_RANGE, type MarkerDefinition, type MarkerId } from './marker-registry';
   import CategoryRow from './CategoryRow.svelte';
   import MapSidebarSection from './MapSidebarSection.svelte';
   import AtlasLayerControls, { type LayerOption } from './AtlasLayerControls.svelte';
-  import type { MarkerDefinition, MarkerId } from './marker-registry';
   import type { WorldOffsetOverrides } from './world-layout';
 
   export let collapsed: boolean;

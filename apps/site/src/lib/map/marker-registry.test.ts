@@ -1,11 +1,10 @@
 import { expect, test } from "bun:test";
 import { PUBLIC_MARKER_CATEGORY_VALUES } from "@afallon/contracts/public"
-import { MARKER_SIZE_RANGE } from "../atlas-state";
 import type { PublicPlacement } from "@afallon/contracts/public"
 import { buildMarkers } from "./render-data";
 import { createPlacementIconLayer } from "./layers/markers";
 import { iconAtlasMapping } from "./icon-atlas";
-import { DEFAULT_MARKER_IDS, MARKER_IDS, MARKER_LAYER_ID, markerFor, markerRegistry, resolveMarker } from "./marker-registry";
+import { DEFAULT_MARKER_IDS, MARKER_IDS, MARKER_LAYER_ID, MARKER_SIZE_RANGE, markerFor, markerRegistry, resolveMarker } from "./marker-registry";
 
 const NAMED_STATION_IDS = ["alchemyStation", "cookingStation", "smithingStation", "furnace", "tailoringStation"] as const;
 

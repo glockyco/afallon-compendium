@@ -1,4 +1,4 @@
-import { DEFAULT_MARKER_IDS } from "./map/marker-registry";
+import { DEFAULT_MARKER_IDS, MARKER_SIZE_RANGE } from "./map/marker-registry";
 
 export interface AtlasView {
   readonly target: readonly [number, number, number];
@@ -38,8 +38,6 @@ export type AtlasAction =
   | { type: "set-marker-size"; markerSize: number }
   | { type: "set-view"; view: AtlasView | null }
   | { type: "replace"; state: AtlasState };
-
-export const MARKER_SIZE_RANGE = { min: 75, max: 300, default: 100 } as const;
 
 export const DEFAULT_ATLAS_STATE: AtlasState = Object.freeze({
   layerIds: Object.freeze([]),

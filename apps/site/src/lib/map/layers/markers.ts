@@ -1,7 +1,7 @@
 import { COORDINATE_SYSTEM, type Layer } from "@deck.gl/core";
 import { IconLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { IconAtlasResult } from "../icon-atlas";
-import { MARKER_LAYER_ID, markerFor, type MarkerId } from "../marker-registry";
+import { MARKER_LAYER_ID, markerFor, markerSizeScale, type MarkerId } from "../marker-registry";
 import type { MarkerRecord } from "../render-data";
 
 export function markerColor(markerId: MarkerId, selected: boolean, hovered: boolean, enabled = true): [number, number, number, number] {
@@ -21,7 +21,7 @@ export function createPlacementIconLayer(
   onSelect?: (placementId: string) => void,
   onHover?: (placementId: string | null) => void,
 ): IconLayer<MarkerRecord> {
-  const scale = markerSize / 100;
+  const scale = markerSizeScale(markerSize);
   const pickedId = (object: MarkerRecord | null | undefined): string | null => object?.placementId ?? null;
   return new IconLayer<MarkerRecord>({
     id: MARKER_LAYER_ID, data: markers, iconAtlas: iconAtlas.atlas as unknown as string, iconMapping: iconAtlas.mapping,
@@ -45,7 +45,7 @@ export function createHighlightLayers(
   markerSize: number,
 ): Layer[] {
   if (data.length === 0) return [];
-  const scale = markerSize / 100;
+  const scale = markerSizeScale(markerSize);
   const radius = (marker: MarkerRecord) => (markerFor(marker.markerId).iconSize.base / 2 + radiusOffset) * scale;
   return [
     new ScatterplotLayer<MarkerRecord>({
@@ -84,7 +84,7 @@ export function createHighlightLayers(
 
 export function createStackCountLayer(stacks: readonly MarkerRecord[], markerSize: number): TextLayer<MarkerRecord> | null {
   if (stacks.length === 0) return null;
-  const stackOffset = 9 * markerSize / 100;
+  const stackOffset = 9 * markerSizeScale(markerSize);
   return new TextLayer<MarkerRecord>({
     id: "map-placement-stack-counts",
     data: stacks,

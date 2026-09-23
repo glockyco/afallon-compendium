@@ -100,6 +100,11 @@ export interface MarkerDefinition {
 
 const markerLayer: MarkerLayer = { id: "map-placement-markers", kind: "icon" };
 export const MARKER_LAYER_ID = markerLayer.id;
+export const MARKER_SIZE_RANGE = { min: 50, max: 200, default: 100, baseScale: 1.4 } as const;
+
+export function markerSizeScale(percent: number): number {
+  return percent / MARKER_SIZE_RANGE.default * MARKER_SIZE_RANGE.baseScale;
+}
 
 export const markerRegistry = {
   enemy: {

@@ -6,15 +6,15 @@ Let visitors resize atlas markers for their screen and map density while keeping
 
 ### Requirement: One map option changes marker size
 
-The atlas SHALL provide a labeled Marker Size slider under Map Options. Its range SHALL be 75% through 300%, with a 100% default, a visible percentage, and a reset action. Changing it SHALL resize all map placement icons and their selection and hover outlines without changing marker categories, result counts, or selection targets.
+The atlas SHALL provide a labeled Marker Size slider under Map Options. Its range SHALL be 50% through 200%, with a 100% default, a visible percentage, and a reset action. The displayed 100% SHALL render at the former 140% size; 50% SHALL render at the former 70% size, and 200% at the former 280% size. Changing it SHALL resize all map placement icons and their selection and hover outlines without changing marker categories, result counts, or selection targets.
 
 #### Scenario: Visitor enlarges markers
-- **WHEN** a visitor moves the slider from 100% to 300%
+- **WHEN** a visitor moves the slider from 100% to 200%
 - **THEN** map placement icons and their selection or hover outlines become larger together
 - **AND** the visible placement count and selected placement do not change
 
 #### Scenario: Visitor reduces marker clutter
-- **WHEN** a visitor moves the slider from 100% to 75%
+- **WHEN** a visitor moves the slider from 100% to 50%
 - **THEN** map placement icons and their selection or hover outlines become smaller together
 - **AND** the marker glyphs remain legible and selectable
 
