@@ -17,6 +17,15 @@ The atlas SHALL offer separate marker categories and filters for Alchemy, Cookin
 - **WHEN** a placed station references the Furnace record with the Metallurgy skill
 - **THEN** it appears as Furnace, not Smithing
 
+### Requirement: Rare stations are visible initially
+
+The atlas SHALL show Alchemy, Smithing, Furnace, and Tailoring markers by default. Cooking and generic Crafting Station markers SHALL remain available but disabled by default.
+
+#### Scenario: Atlas opens without a category filter
+- **WHEN** a player opens the atlas without category selections
+- **THEN** Alchemy, Smithing, Furnace, and Tailoring filters are enabled
+- **AND** Cooking and generic Crafting Station filters are disabled
+
 ### Requirement: Unknown stations remain discoverable
 
 A crafting service with no verified station reference or no supported station category SHALL retain a generic Crafting Station marker and filter. The atlas SHALL NOT infer a type from the station name, object name, or craft skill rows. A station type without a verified placement SHALL NOT add an empty type-specific filter.

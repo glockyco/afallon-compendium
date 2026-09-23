@@ -238,7 +238,7 @@ export const markerRegistry = {
     iconSize: { base: 21, min: 16, max: 44 },
     precedence: 654,
     renderOrder: 654,
-    defaultVisible: false,
+    defaultVisible: true,
     layer: markerLayer,
     matches: (row) => row.categories.includes("alchemyStation"),
   },
@@ -266,7 +266,7 @@ export const markerRegistry = {
     iconSize: { base: 21, min: 16, max: 44 },
     precedence: 652,
     renderOrder: 652,
-    defaultVisible: false,
+    defaultVisible: true,
     layer: markerLayer,
     matches: (row) => row.categories.includes("smithingStation"),
   },
@@ -280,7 +280,7 @@ export const markerRegistry = {
     iconSize: { base: 21, min: 16, max: 44 },
     precedence: 651,
     renderOrder: 651,
-    defaultVisible: false,
+    defaultVisible: true,
     layer: markerLayer,
     matches: (row) => row.categories.includes("furnace"),
   },
@@ -294,7 +294,7 @@ export const markerRegistry = {
     iconSize: { base: 21, min: 16, max: 44 },
     precedence: 650,
     renderOrder: 650,
-    defaultVisible: false,
+    defaultVisible: true,
     layer: markerLayer,
     matches: (row) => row.categories.includes("tailoringStation"),
   },
@@ -525,8 +525,8 @@ export const markerRegistry = {
 } as const satisfies Record<MarkerId, MarkerDefinition>;
 
 const allMarkers = Object.values(markerRegistry) as readonly MarkerDefinition[];
-// The atlas opens with the game's own world map markers (places) and bosses; the visitor
-// chooses the other categories.
+// The atlas opens with place markers, bosses, key services, and rare crafting stations.
+// Common cooking stations and other optional categories remain available in the filters.
 export const DEFAULT_MARKER_IDS: readonly MarkerId[] = allMarkers.filter((marker) => marker.defaultVisible).map((marker) => marker.id);
 const markersByPrecedence = [...allMarkers].sort((left, right) => right.precedence - left.precedence);
 
