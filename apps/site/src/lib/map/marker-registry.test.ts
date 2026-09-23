@@ -87,4 +87,11 @@ test("an overlapping placement resolves from its enabled categories", () => {
 
   expect(buildMarkers([placement], null, {}, new Set(["dungeonEntrance"]))[0]?.markerId).toBe("dungeonEntrance");
   expect(buildMarkers([placement], null, {}, new Set(["travelPoint"]))[0]?.markerId).toBe("travelPoint");
+
+  const related = { ...placement, placementId: "related" };
+  const hidden = { ...placement, placementId: "hidden" };
+  const focused = buildMarkers([placement, related, hidden], null, {}, new Set(["boss"]), new Set(["dungeon-door", "related"]));
+  expect(focused.map((marker) => [marker.placementId, marker.markerId])).toEqual([
+    ["dungeon-door", "dungeonEntrance"], ["related", "dungeonEntrance"],
+  ]);
 });

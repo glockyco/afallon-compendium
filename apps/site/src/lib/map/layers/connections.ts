@@ -33,20 +33,3 @@ export function createConnectionLayers(
     }),
   ];
 }
-
-export function createHoverConnectionLayers(connections: readonly TravelConnection[]): Layer[] {
-  if (connections.length === 0) return [];
-  return [
-    new LineLayer<TravelConnection>({
-      id: "pointer-hover-connections", data: connections, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: false,
-      getSourcePosition: connection => connection.source, getTargetPosition: connection => connection.target,
-      getColor: connection => connection.enabled ? [100, 230, 255, 255] : [120, 120, 120, 180], getWidth: 4, widthUnits: "pixels",
-    }),
-    new ScatterplotLayer<TravelConnection>({
-      id: "pointer-hover-destinations", data: connections, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: false,
-      radiusUnits: "pixels", getPosition: connection => connection.target, getRadius: 5,
-      getFillColor: connection => connection.enabled ? [100, 210, 255, 220] : [120, 120, 120, 190],
-      getLineColor: [20, 40, 50, 230], stroked: true, lineWidthMinPixels: 1,
-    }),
-  ];
-}

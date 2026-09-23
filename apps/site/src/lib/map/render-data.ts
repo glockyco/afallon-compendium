@@ -36,13 +36,13 @@ function point(value: readonly number[] | null | undefined): Point | null {
   return [value[0], value[1]];
 }
 
-export function buildMarkers(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null): MarkerRecord[] {
+export function buildMarkers(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null, focusedIds?: ReadonlySet<string>): MarkerRecord[] {
   const byId = new Map<string, MarkerRecord>();
   for (const placement of placements) {
     if (!placement.placementId || byId.has(placement.placementId)) continue;
     const position = point(placement.position);
     if (!position) continue;
-    const categories = activeCategories ? placement.categories.filter((category) => activeCategories.has(category)) : placement.categories;
+    const categories = activeCategories && !focusedIds?.has(placement.placementId) ? placement.categories.filter((category) => activeCategories.has(category)) : placement.categories;
     const markerId = resolveMarker({categories});
     if (!markerId) continue;
     const delta = data ? effectiveMapDelta(data, placement.mapSpaceId, overrides) : { worldX: 0, worldY: 0 };
@@ -110,7 +110,7 @@ export function buildRegions(regions: readonly PublicRegion[], data: Publication
   });
 }
 
-export function buildAreas(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null): AreaRecord[] {
+export function buildAreas(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null, focusedIds?: ReadonlySet<string>): AreaRecord[] {
   const areas: AreaRecord[] = [];
   for (const placement of placements) {
     for (let index = 0; index < placement.areas.length; index++) {
@@ -122,7 +122,7 @@ export function buildAreas(placements: readonly PublicPlacement[], data: Publica
         .filter((value): value is Point => value !== null)
         .map(([x, y]) => [x + delta.worldX, y + delta.worldY] as Point);
       if (polygon.length < 3) continue;
-      const categories = activeCategories ? placement.categories.filter((category) => activeCategories.has(category)) : placement.categories;
+      const categories = activeCategories && !focusedIds?.has(placement.placementId) ? placement.categories.filter((category) => activeCategories.has(category)) : placement.categories;
       const markerId = resolveMarker({categories});
       if (!markerId) continue;
       areas.push({

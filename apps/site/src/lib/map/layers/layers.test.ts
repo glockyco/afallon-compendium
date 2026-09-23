@@ -49,6 +49,10 @@ test("movement layer visibility and styles follow supplied state", () => {
   const [path] = createMovementLayers("movement", geometry, new Set(["npc"]), new Set(), true, () => undefined);
   expect(property<(value: MovementGeometry["paths"][number]) => unknown>(path!, "getPath")(geometry.paths[0]!)).toEqual([[1, 2], [3, 4]]);
   expect(property<(value: MovementGeometry["paths"][number]) => unknown>(path!, "getColor")(geometry.paths[0]!)).toEqual([250, 204, 21, 255]);
+  const [selectedAndHovered] = createMovementLayers("movement", geometry, new Set(["npc"]), new Set(["npc"]), true, () => undefined);
+  const [hovered] = createMovementLayers("movement", geometry, new Set(), new Set(["npc"]), true, () => undefined);
+  expect(property<(value: MovementGeometry["paths"][number]) => unknown>(selectedAndHovered!, "getColor")(geometry.paths[0]!)).toEqual([250, 204, 21, 255]);
+  expect(property<(value: MovementGeometry["paths"][number]) => unknown>(hovered!, "getColor")(geometry.paths[0]!)).toEqual([255, 255, 255, 255]);
 });
 
 test("imagery ordering keeps game maps below captures", () => {

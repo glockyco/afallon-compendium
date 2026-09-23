@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { PublicSearchEntry } from '@afallon/contracts/public';
-  import type { ResultSummary, SearchResult } from '../atlas-search-types';
+  import type { PublicPlacement } from '@afallon/contracts/public';
+  import type { ResultSummary } from '../atlas-search-types';
   import { markerColorCss } from './marker-registry';
   import { markerGlyphSvg } from './icon-atlas';
   export let pending = false;
@@ -9,31 +9,28 @@
   export let onRetry: () => void;
   export let resultList: HTMLElement;
   export let collapsed: boolean;
-  export let displayedResults: SearchResult[];
+  export let displayedResults: PublicPlacement[];
   export let totalResults: number;
   export let resultLimit: number;
   export let placementCount: number;
-  export let entryCount: number;
+  export let searching: boolean;
   export let hasViewport: boolean;
   export let mapUnavailable: boolean;
-  export let selectedKey: string | null;
   export let selectedPlacementId: string | null;
-  export let summaryFor: (result: SearchResult) => ResultSummary;
+  export let summaryFor: (placement: PublicPlacement) => ResultSummary;
   export let onToggle: () => void;
-  export let onSelectEntry: (entry: PublicSearchEntry, origin: HTMLElement) => void;
   export let onSelectPlacement: (placementId: string, origin: HTMLElement) => void;
-  export let onHover: (result: SearchResult) => void;
+  export let onHover: (placement: PublicPlacement) => void;
   export let onClearHover: () => void;
 </script>
 
 <section class:collapsed class="results" aria-labelledby="results-heading" bind:this={resultList}>
-  <div class="results-header"><div><h2 id="results-heading">Results</h2>{#if searchPending}<p role="status">Loading search data…</p>{/if}{#if error}<p role="alert">{error} <button type="button" on:click={onRetry}>Retry search data</button></p>{/if}{#if pending}<p role="status">Results are not complete.</p>{:else}<p>{placementCount} distinct placements{#if hasViewport && !mapUnavailable}{' in the current viewport'}{/if}{#if entryCount > 0}{' · '}{entryCount} compendium entries{/if}</p>{/if}{#if !pending && totalResults > resultLimit}<p class="result-limit">Showing the first {displayedResults.length} of {totalResults} results.</p>{/if}</div><div class="results-actions"><button type="button" class="quiet-button" aria-expanded={!collapsed} aria-controls="results-content" on:click={onToggle}>{collapsed ? 'Show results' : 'Hide results'}</button></div></div>
+  <div class="results-header"><div><h2 id="results-heading">Results</h2>{#if searchPending}<p role="status">Loading search data…</p>{/if}{#if error}<p role="alert">{error} <button type="button" on:click={onRetry}>Retry search data</button></p>{/if}{#if pending}<p role="status">Results are not complete.</p>{:else}<p>{placementCount} distinct placements{#if hasViewport && !mapUnavailable}{' in the current viewport'}{/if}</p>{/if}{#if !pending && totalResults > resultLimit}<p class="result-limit">Showing the first {displayedResults.length} of {totalResults} results.</p>{/if}</div><div class="results-actions"><button type="button" class="quiet-button" aria-expanded={!collapsed} aria-controls="results-content" on:click={onToggle}>{collapsed ? 'Show results' : 'Hide results'}</button></div></div>
   <div id="results-content" hidden={collapsed}>
-    {#if !pending && !error && placementCount === 0 && entryCount === 0}<p class="empty">No published places or compendium entries match this search.</p>{:else}
-      <ol class="result-list">{#each displayedResults as result (result.key)}
-        {@const summary = summaryFor(result)}
-        {#if result.kind === 'entry'}<li><button data-result type="button" class:selected-result={result.entry.ref.key === selectedKey} on:click={(event) => onSelectEntry(result.entry, event.currentTarget)} on:mouseenter={() => onHover(result)} on:mouseleave={onClearHover} on:focus={() => onHover(result)} on:blur={onClearHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{result.entry.ref.name}</strong><small>{result.entry.place ?? summary.categories}</small></span></button></li>
-        {:else}<li><button data-result type="button" class:selected-result={result.placement.placementId === selectedPlacementId} on:click={(event) => onSelectPlacement(result.placement.placementId, event.currentTarget)} on:mouseenter={() => onHover(result)} on:mouseleave={onClearHover} on:focus={() => onHover(result)} on:blur={onClearHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{result.placement.label}</strong><small>{summary.categories}</small></span></button></li>{/if}
+    {#if !pending && !error && placementCount === 0}<p class="empty">{searching ? 'No map locations match this search.' : 'No map locations are visible with the selected categories.'}</p>{:else}
+      <ol class="result-list">{#each displayedResults as placement (placement.placementId)}
+        {@const summary = summaryFor(placement)}
+        <li><button data-result type="button" class:selected-result={placement.placementId === selectedPlacementId} on:click={(event) => onSelectPlacement(placement.placementId, event.currentTarget)} on:mouseenter={() => onHover(placement)} on:mouseleave={onClearHover} on:focus={() => onHover(placement)} on:blur={onClearHover}><span class="marker-badge" style:background={markerColorCss(summary.marker)} aria-hidden="true">{@html markerGlyphSvg(summary.marker)}</span><span class="result-copy"><strong>{placement.label}</strong><small>{summary.categories}</small></span></button></li>
       {/each}</ol>
     {/if}
   </div>

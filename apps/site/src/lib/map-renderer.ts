@@ -1,7 +1,7 @@
 import { Deck, OrthographicView, type Layer, type PickingInfo } from "@deck.gl/core";
 import type { PublicPlacement, PublicTile, PublicTileLayer, PublicationData } from "@afallon/contracts/public";
 import { createIconAtlas } from "./map/icon-atlas";
-import { createConnectionLayers, createHoverConnectionLayers, type TravelConnection } from "./map/layers/connections";
+import { createConnectionLayers, type TravelConnection } from "./map/layers/connections";
 import { createImageryLayer, orderImageryLayers, type LoadedTile, type TileRequest } from "./map/layers/imagery";
 import { createHighlightLayers, createPlacementIconLayer, createStackCountLayer } from "./map/layers/markers";
 import { createAreaLayer } from "./map/layers/areas";
@@ -129,7 +129,6 @@ export async function createMapAdapter(
   let destroyed = false;
   let current: MapAdapterUpdate | null = null;
   let activeView = normalizeView(initialView, {target: [0, 0, 0], zoom: 0});
-  let lastPickedId: string | null = null;
   let missingLayerWarningKey: string | null = null;
   let deckLoaded = false;
   let viewSpaceKey: string | null = null;
@@ -148,7 +147,6 @@ export async function createMapAdapter(
   let imagerySource: PublicationData['tileLayers'] | null = null;
   let imageryKey = "";
   let layers: Layer[] = [];
-  let pointerHoverLayers: Layer[] = [];
   let allConnections: TravelConnection[] = [];
   const iconAtlas = await createIconAtlas();
 
@@ -254,7 +252,8 @@ export async function createMapAdapter(
     const tileLayersForView = matchingTileLayers(next.data, next.layerIds);
     const previous = previousUpdate;
     const offsetChanged = !previous || previous.worldOffsets !== next.worldOffsets || previous.data.world !== next.data.world;
-    const placementChanged = !previous || previous.placements !== next.placements || !sameValues(previous.categories, next.categories) || offsetChanged;
+    const focusChanged = !previous || previous.selectedId !== next.selectedId || !sameValues(previous.highlightedPlacementIds, next.highlightedPlacementIds);
+    const placementChanged = !previous || previous.placements !== next.placements || !sameValues(previous.categories, next.categories) || focusChanged || offsetChanged;
     const regionsChanged = !previous || previous.data.regions !== next.data.regions || offsetChanged;
     const boundsChanged = !previous || previous.data.maps !== next.data.maps || offsetChanged;
     const imageryChanged = !previous || previous.data.tileLayers !== next.data.tileLayers || !sameValues(previous.layerIds, next.layerIds) || offsetChanged;
@@ -263,8 +262,10 @@ export async function createMapAdapter(
     if (!placementChanged && !regionsChanged && !boundsChanged && !imageryChanged && !styleChanged) return;
     if (placementChanged) {
       const activeCategories = next.categories.length > 0 ? new Set(next.categories) : null;
-      baseMarkers = buildMarkers(next.placements, next.data, next.worldOffsets, activeCategories);
-      baseAreas = buildAreas(next.placements, next.data, next.worldOffsets, activeCategories);
+      const focusedIds = new Set(next.highlightedPlacementIds);
+      if (next.selectedId) focusedIds.add(next.selectedId);
+      baseMarkers = buildMarkers(next.placements, next.data, next.worldOffsets, activeCategories, focusedIds);
+      baseAreas = buildAreas(next.placements, next.data, next.worldOffsets, activeCategories, focusedIds);
       baseMovement = buildMovementGeometry(next.placements, next.data, next.worldOffsets);
       renderMarkers = groupCoincidentMarkers(baseMarkers);
       stacks = renderMarkers.filter((marker) => marker.members.length > 1);
@@ -332,11 +333,11 @@ export async function createMapAdapter(
     };
     const selectedGroup = groupedMarkersFor(next.highlightedPlacementIds.filter(id => id !== next.selectedId));
     const primarySelection = next.selectedId ? groupedMarkersFor([next.selectedId]) : [];
-    const hoverSelection = groupedMarkersFor(next.hoveredPlacementIds.filter(id => id !== next.selectedId));
+    const hoverSelection = groupedMarkersFor(next.hoveredPlacementIds);
     const hoverHighlightLayers = createHighlightLayers("hover-highlight", hoverSelection, [250, 204, 21, 255], [250, 204, 21, 40], 2, next.markerSize);
     const groupHighlightLayers = createHighlightLayers("selection-group-highlight", selectedGroup, [255, 255, 255, 255], [255, 255, 255, 40], 2, next.markerSize);
     const primaryHighlightLayers = createHighlightLayers("primary-selection-highlight", primarySelection, [250, 204, 21, 255], [250, 204, 21, 80], 6, next.markerSize);
-    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, ...regionLayers, ...connectionLayers, ...movementLayers, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...hoverHighlightLayers, ...primaryHighlightLayers].filter((layer): layer is Layer => layer !== null);
+    layers = [backgroundLayer, ...imageLayers, boundsLayer, mapLabelLayer, ...regionLayers, ...connectionLayers, ...movementLayers, areaLayer, markerLayer, stackCounts, ...groupHighlightLayers, ...primaryHighlightLayers, ...hoverHighlightLayers].filter((layer): layer is Layer => layer !== null);
 
     // Hiding every layer is a reader choice; only a layer that cannot be drawn is a failure.
     const requestedImagery = next.layerIds.length > 0;
@@ -367,7 +368,7 @@ export async function createMapAdapter(
     viewState: {...activeView, minZoom: MIN_VIEW_ZOOM, maxZoom: MAX_VIEW_ZOOM},
     eventRecognizerOptions: MAP_EVENT_RECOGNIZER_OPTIONS,
     layers: [],
-    onHover: info => handleHover(pickedPlacementId(info)),
+    onHover: info => callbacks.onHover(pickedPlacementId(info)),
     onViewStateChange: params => {
       if (destroyed) return;
       const nextView = normalizeView(params.viewState, activeView);
@@ -385,29 +386,6 @@ export async function createMapAdapter(
     onAfterRender: reportReadyWhenSized,
     onError: error => report(`Map rendering error: ${textFromError(error)}`),
   });
-
-  const handleHover = (placementId: string | null, refresh = false): void => {
-    const changed = placementId !== lastPickedId;
-    if (!changed && !refresh) return;
-    lastPickedId = placementId;
-    const marker = placementId ? renderMarkers.find(candidate => candidate.members.includes(placementId)) : null;
-    pointerHoverLayers = marker && current
-      ? createHighlightLayers("pointer-hover-highlight", [marker], [250, 204, 21, 255], [250, 204, 21, 40], 2, current.markerSize)
-      : [];
-    // A hovered door shows where it leads even while the connections option is off.
-    const hoveredConnections = marker && current && !current.showConnections && !current.authoring ? allConnections.filter((connection) => marker.members.includes(connection.placementId)) : [];
-    pointerHoverLayers.push(...createHoverConnectionLayers(hoveredConnections));
-    if (marker && current) {
-      const memberIds = new Set(marker.members);
-      const hoveredMovement = {
-        paths: baseMovement.paths.filter((movement) => memberIds.has(movement.placementId)),
-        radii: baseMovement.radii.filter((movement) => memberIds.has(movement.placementId)),
-      };
-      pointerHoverLayers.push(...createMovementLayers("pointer-hover-movement", hoveredMovement, new Set(), memberIds, false, callbacks.onSelect));
-    }
-    deck.setProps({layers: [...layers, ...pointerHoverLayers]});
-    if (changed) callbacks.onHover(placementId);
-  };
 
   let notifiedBounds: Bounds | null = null;
   const notifyView = (): void => {
@@ -461,7 +439,7 @@ export async function createMapAdapter(
       else viewsBySpace.set(nextViewSpaceKey, activeView);
     }
     refreshLayers(next);
-    handleHover(lastPickedId, true);
+    deck.setProps({layers});
     notifyView();
   };
 
@@ -482,7 +460,6 @@ export async function createMapAdapter(
     window.removeEventListener("pointerup", onPointerUp);
     deck.finalize();
     layers = [];
-    pointerHoverLayers = [];
     imageryLayers = [];
     current = null;
   };

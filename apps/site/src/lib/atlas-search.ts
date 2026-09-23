@@ -1,8 +1,6 @@
 import type { PublicPlacement, PublicSearchEntry, PublicationData } from '@afallon/contracts/public';
-import type { ResultSummary, SearchResult } from './atlas-search-types';
+import type { ResultSummary } from './atlas-search-types';
 import { MARKER_IDS, markerFor, resolveMarker, type MarkerId } from './map/marker-registry';
-
-const searchKindOrder: Record<SearchResult['kind'], number> = { entry: 0, placement: 1 };
 
 export interface SearchIndexes {
   entriesByKey: ReadonlyMap<string, PublicSearchEntry>;
@@ -11,7 +9,6 @@ export interface SearchIndexes {
   placementsById: ReadonlyMap<string, PublicPlacement>;
   placementsByEntryKey: ReadonlyMap<string, readonly PublicPlacement[]>;
   placementSummaries: ReadonlyMap<string, ResultSummary>;
-  entrySummaries: ReadonlyMap<string, ResultSummary>;
 }
 
 export function getCategoryCounts(placements: PublicPlacement[]): Record<MarkerId, number> {
@@ -33,12 +30,9 @@ export function rankCompendiumEntries(query: string, entries: readonly PublicSea
     .sort((left, right) => nameRank(needle, left.ref.name) - nameRank(needle, right.ref.name) || left.ref.name.localeCompare(right.ref.name) || left.ref.key.localeCompare(right.ref.key));
 }
 
-export function rankResults(needle: string, entries: PublicSearchEntry[], placements: PublicPlacement[]): SearchResult[] {
-  const results: SearchResult[] = [
-    ...entries.map((entry): SearchResult => ({ kind: 'entry', key: entry.ref.key, name: entry.ref.name, rank: nameRank(needle, entry.ref.name), entry })),
-    ...placements.map((placement): SearchResult => ({ kind: 'placement', key: placement.placementId, name: placement.label, rank: nameRank(needle, placement.label), placement })),
-  ];
-  return results.sort((left, right) => left.rank - right.rank || (searchKindOrder[left.kind] ?? 0) - (searchKindOrder[right.kind] ?? 0) || left.name.localeCompare(right.name) || left.key.localeCompare(right.key));
+export function rankResults(needle: string, placements: readonly PublicPlacement[]): PublicPlacement[] {
+  return [...placements].sort((left, right) => nameRank(needle, left.label) - nameRank(needle, right.label)
+    || left.label.localeCompare(right.label) || left.placementId.localeCompare(right.placementId));
 }
 
 export function emptySearchIndexes(): SearchIndexes {
@@ -49,7 +43,6 @@ export function emptySearchIndexes(): SearchIndexes {
     placementsById: new Map(),
     placementsByEntryKey: new Map(),
     placementSummaries: new Map(),
-    entrySummaries: new Map(),
   };
 }
 
@@ -79,7 +72,6 @@ export function buildSearchIndexes(data: PublicationData, entries: readonly Publ
     placementsById,
     placementsByEntryKey,
     placementSummaries: new Map(data.placements.map((placement) => [placement.placementId, summarizePlacements([placement], 'interactiveObject')])),
-    entrySummaries: new Map(entries.map((entry) => [entry.ref.key, summarizePlacements(placementsByEntryKey.get(entry.ref.key) ?? [], entry.ref.kind === 'items' ? 'container' : 'townsfolk')])),
   };
 }
 
@@ -102,10 +94,4 @@ export function selectionHighlightIds(
   // so expanding through item keys lit up every boss on the map.
   const related = placement.entityKeys.flatMap((key) => indexes.placementsByEntryKey.get(key) ?? []);
   return placementIds([placement, ...related]);
-}
-
-export function resultHighlightIds(result: SearchResult | null, indexes: SearchIndexes): string[] {
-  if (!result) return [];
-  if (result.kind === 'placement') return [result.placement.placementId];
-  return placementIds(indexes.placementsByEntryKey.get(result.entry.ref.key) ?? []);
 }

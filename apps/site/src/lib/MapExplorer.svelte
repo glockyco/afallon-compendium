@@ -7,12 +7,12 @@
   import type { MapAdapter, MapRendererController, MapViewState } from './map-renderer';
   import { clientAtlasLoader } from './client-publication';
   import { AtlasController, type AtlasSnapshot } from './atlas-controller';
-  import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, resultHighlightIds, summarizePlacements } from './atlas-search';
+  import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, summarizePlacements } from './atlas-search';
   import { DEFAULT_ATLAS_STATE, readAtlasUrl, repairAtlasUrl, writeAtlasUrl } from './atlas-state';
   import AtlasDevelopmentDetails from './map/AtlasDevelopmentDetails.svelte';
   import AtlasCanvasShell from './map/AtlasCanvasShell.svelte';
   import AtlasSearchResults from './map/AtlasSearchResults.svelte';
-  import type { ResultSummary, SearchResult } from './atlas-search-types';
+  import type { ResultSummary } from './atlas-search-types';
   import AtlasSidebar from './map/AtlasSidebar.svelte';
   import type { LayerOption } from './map/AtlasLayerControls.svelte';
 
@@ -28,7 +28,7 @@
   import { MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from './map/interaction';
   import { canonicalLayerIds, NO_IMAGERY_LAYER_ID } from './map/layer-policy';
   import { clearWorldOffsetOverrides, downloadWorldOffsets, effectiveMapDelta, loadWorldOffsetOverrides, saveWorldOffsetOverrides, placementInViewport, NO_WORLD_OVERRIDES, type WorldOffsetOverrides } from './map/world-layout';
-  import type { PublicDocument, PublicPlace, PublicSearchEntry, PublicationData } from '@afallon/contracts/public';
+  import type { PublicDocument, PublicPlace, PublicPlacement, PublicationData } from '@afallon/contracts/public';
 
   const RESULT_LIMIT = 200;
   const WEBGL_STARTUP_FAILURE = /webgl map unavailable|failed to create webgl context|webgl creation failed|webgl is not supported|exhausted gl driver options/i;
@@ -47,7 +47,6 @@
   let mapUnavailable = false;
   let rendererError = '';
   let hoveredId: string | null = null;
-  let hoveredResult: SearchResult | null = null;
   let viewportBounds: [number, number, number, number] | null = null;
   let view: MapViewState = { target: [0, 0, 0], zoom: -1 };
   let adapterReady = false;
@@ -113,7 +112,7 @@
   $: queryPlacementIds = new Set(matchingEntries.flatMap((entry) => searchIndexes.placementsByEntryKey.get(entry.ref.key)?.map((placement) => placement.placementId) ?? []));
   // Placements that pass every filter except the category selection keep category counts stable.
   $: candidatePlacements = allMapPlacements.filter((placement) => (!itemKey || (searchState.status === 'loaded' && !entriesByKey.has(itemKey)) || itemPlacementIds.has(placement.placementId)) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || queryPlacementIds.has(placement.placementId)));
-  $: matchingPlacements = candidatePlacements.filter((placement) => categories.length === 0 || categories.some((category) => placement.categories.includes(category)));
+  $: matchingPlacements = searchNeedle ? candidatePlacements : candidatePlacements.filter((placement) => categories.length === 0 || categories.some((category) => placement.categories.includes(category)));
   $: categoryCounts = getCategoryCounts(candidatePlacements);
   $: publishedCounts = getCategoryCounts(allMapPlacements);
   // Every category the publication carries stays listed, selected or not.
@@ -135,13 +134,17 @@
   $: selectedDocument = selectedDocumentKey ? documents.get(selectedDocumentKey) ?? null : null;
   $: selectedPlace = selectedDocument?.ref.kind === 'places' ? selectedDocument as PublicPlace : null;
   $: selectedRegionIds = selectedPlace?.space?.regionIds ?? [];
-  $: resultPlacements = !mapUnavailable && viewportBounds ? viewportPlacements : matchingPlacements;
-  $: rankedResults = rankResults(searchNeedle, matchingEntries, resultPlacements);
+  $: resultPlacements = !searchNeedle && !mapUnavailable && viewportBounds ? viewportPlacements : matchingPlacements;
+  $: rankedResults = rankResults(searchNeedle, resultPlacements);
   $: displayedResults = rankedResults.slice(0, RESULT_LIMIT);
-  $: extraSelection = selectedPlacement && !staleSelection && !matchingPlacements.some((placement) => placement.placementId === selectedId) ? selectedPlacement : null;
-  $: adapterPlacements = extraSelection ? [...matchingPlacements, extraSelection] : matchingPlacements;
   $: highlightedPlacementIds = selectionHighlightIds(selectedPlacement, selectedEntityKey, itemKey, searchIndexes);
-  $: hoveredPlacementIds = resultHighlightIds(hoveredResult, searchIndexes);
+  $: matchingPlacementIds = new Set(matchingPlacements.map((placement) => placement.placementId));
+  $: extraSelection = selectedPlacement && !staleSelection && !matchingPlacementIds.has(selectedPlacement.placementId) ? selectedPlacement : null;
+  $: extraRelatedPlacements = highlightedPlacementIds.filter((id) => !matchingPlacementIds.has(id) && id !== extraSelection?.placementId)
+    .flatMap((id) => searchIndexes.placementsById.get(id) ?? []);
+  $: adapterPlacements = extraSelection || extraRelatedPlacements.length
+    ? [...matchingPlacements, ...(extraSelection ? [extraSelection] : []), ...extraRelatedPlacements] : matchingPlacements;
+  $: hoveredPlacementIds = hoveredId ? [hoveredId] : [];
   $: resultsPending = mapState.status !== 'loaded' || Boolean(searchNeedle && searchState.status !== 'loaded');
   $: resultsError = searchState.status === 'error' ? searchState.message : '';
 
@@ -224,7 +227,7 @@
   });
 
   $: if (adapterReady && adapter && publication) {
-    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds: layerIds.filter((id) => id !== NO_IMAGERY_LAYER_ID), categories, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: effectiveOffsets, authoring, showConnections, showMovement, showZones, markerSize, selectedRegionIds });
+    adapter.update({ data: publication, mapSpaceId: publication.world.mapSpaceId, layerIds: layerIds.filter((id) => id !== NO_IMAGERY_LAYER_ID), categories: searchNeedle ? [] : categories, placements: adapterPlacements, selectedId, highlightedPlacementIds, hoveredPlacementIds, worldOffsets: effectiveOffsets, authoring, showConnections, showMovement, showZones, markerSize, selectedRegionIds });
   }
   $: if (!placeKey) fittedPlaceKey = null;
   $: if (adapterReady && mapReady && selectedPlace?.space && placeKey && state.view === null && fittedPlaceKey !== placeKey) {
@@ -254,7 +257,7 @@
     adapter = await renderer.replace(canvas, view, {
       onViewChange(nextView, bounds) { view = nextView; viewportBounds = bounds; controller?.scheduleView(nextView); },
       onSelect(placementId) { selectPlacement(placementId, canvas); },
-      onHover(placementId) { hoveredResult = null; hoveredId = placementId; },
+      onHover(placementId) { hoveredId = placementId; },
       onWorldOffsetChange(changedMapSpaceId, offset) { worldOffsetOverrides = { ...worldOffsetOverrides, [changedMapSpaceId]: offset }; saveWorldOffsetOverrides(worldOffsetOverrides); },
       onReady() { mapReady = true; },
       onError(message) { handleMapError(message); },
@@ -285,19 +288,16 @@
   }
 
 
-  function setResultHover(result: SearchResult): void {
-    hoveredResult = result;
-    hoveredId = result.kind === 'placement' ? result.placement.placementId : null;
+  function setResultHover(placement: PublicPlacement): void {
+    hoveredId = placement.placementId;
   }
 
   function clearResultHover(): void {
-    hoveredResult = null;
     hoveredId = null;
   }
 
-  function resultSummary(result: SearchResult): ResultSummary {
-    if (result.kind === 'placement') return searchIndexes.placementSummaries.get(result.placement.placementId) ?? summarizePlacements([result.placement], 'interactiveObject');
-    return searchIndexes.entrySummaries.get(result.entry.ref.key) ?? summarizePlacements([], result.entry.ref.kind === 'items' ? 'container' : 'townsfolk');
+  function resultSummary(placement: PublicPlacement): ResultSummary {
+    return searchIndexes.placementSummaries.get(placement.placementId) ?? summarizePlacements([placement], 'interactiveObject');
   }
 
   function setMapView(next: MapViewState): void {
@@ -322,14 +322,6 @@
   async function focusDetails(): Promise<void> {
     await tick();
     detailsPanel?.querySelector<HTMLElement>('h2')?.focus();
-  }
-
-  function selectEntry(entry: PublicSearchEntry, origin: HTMLElement | null = null): void {
-    detailOrigin = origin;
-    if (entry.ref.kind === 'items') controller?.dispatch({ type: 'select-item', itemKey: entry.ref.key }, 'push');
-    else if (entry.ref.kind === 'places') controller?.dispatch({ type: 'select-place', placeKey: entry.ref.key }, 'push');
-    else controller?.dispatch({ type: 'select-entity', entityKey: entry.ref.key }, 'push');
-    void focusDetails();
   }
 
   function mapLabel(data: PublicationData | null, mapSpaceId: string): string {
@@ -512,10 +504,10 @@
         {#if !dev && detailError}<p class="inline-error" role="alert">{detailError} <button type="button" on:click={() => controller?.retry('detail')}>Retry selection</button></p>{/if}
         <AtlasSearchResults bind:resultList collapsed={resultsCollapsed} {displayedResults} totalResults={rankedResults.length}
           pending={resultsPending} error={resultsError} searchPending={searchState.status === 'loading'} onRetry={() => controller?.retry('search')}
-          resultLimit={RESULT_LIMIT} placementCount={resultPlacements.length} entryCount={matchingEntries.length}
-          hasViewport={Boolean(viewportBounds)} {mapUnavailable} selectedKey={itemKey ?? selectedEntityKey ?? placeKey}
+          resultLimit={RESULT_LIMIT} placementCount={resultPlacements.length} searching={Boolean(searchNeedle)}
+          hasViewport={Boolean(viewportBounds) && !searchNeedle} {mapUnavailable}
           selectedPlacementId={selectedId} summaryFor={resultSummary} onToggle={toggleResults}
-          onSelectEntry={selectEntry} onSelectPlacement={selectPlacement} onHover={setResultHover} onClearHover={clearResultHover}
+          onSelectPlacement={selectPlacement} onHover={setResultHover} onClearHover={clearResultHover}
         />
       </section>
 
