@@ -36,6 +36,10 @@ function point(value: readonly number[] | null | undefined): Point | null {
   return [value[0], value[1]];
 }
 
+function compareMarkerDrawOrder(left: MarkerRecord, right: MarkerRecord): number {
+  return markerFor(left.markerId).renderOrder - markerFor(right.markerId).renderOrder || left.placementId.localeCompare(right.placementId);
+}
+
 export function buildMarkers(placements: readonly PublicPlacement[], data: PublicationData | null = null, overrides: WorldOffsetOverrides = {}, activeCategories: ReadonlySet<MarkerId> | null = null, focusedIds?: ReadonlySet<string>): MarkerRecord[] {
   const byId = new Map<string, MarkerRecord>();
   for (const placement of placements) {
@@ -58,7 +62,7 @@ export function buildMarkers(placements: readonly PublicPlacement[], data: Publi
       isTravel: placement.travelEnabled !== undefined,
     });
   }
-  return [...byId.values()].sort((left, right) => markerFor(left.markerId).renderOrder - markerFor(right.markerId).renderOrder || left.placementId.localeCompare(right.placementId));
+  return [...byId.values()].sort(compareMarkerDrawOrder);
 }
 
 function clipPolygonEdge(polygon: readonly Point[], axis: 0 | 1, boundary: number, keepGreater: boolean): Point[] {
@@ -200,16 +204,16 @@ export function groupCoincidentMarkers(markers: readonly MarkerRecord[]): readon
   }
   const result: MarkerRecord[] = [];
   for (const group of groups.values()) {
-    if (group.length === 1) {
-      const only = group[0];
+    const ordered = [...group].sort(compareMarkerDrawOrder);
+    if (ordered.length === 1) {
+      const only = ordered[0];
       if (only) result.push(only);
       continue;
     }
-    const ordered = [...group].sort((left, right) => left.placementId.localeCompare(right.placementId));
     const members = ordered.flatMap((marker) => marker.members);
     const categories = new Set<PublicPlacement["categories"][number]>();
     for (const marker of ordered) marker.categories.forEach((category) => categories.add(category));
-    const markerId = [...group].sort((left, right) => markerFor(right.markerId).precedence - markerFor(left.markerId).precedence)[0]!.markerId;
+    const markerId = ordered.at(-1)!.markerId;
     result.push({
       placementId: members[0]!,
       mapSpaceId: group[0]!.mapSpaceId,

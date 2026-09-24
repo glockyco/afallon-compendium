@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { PUBLIC_MARKER_CATEGORY_VALUES } from "@afallon/contracts/public"
 import type { PublicPlacement } from "@afallon/contracts/public"
-import { buildMarkers } from "./render-data";
+import { buildMarkers, groupCoincidentMarkers } from "./render-data";
 import { createPlacementIconLayer } from "./layers/markers";
 import { iconAtlasMapping } from "./icon-atlas";
 import { DEFAULT_MARKER_IDS, MARKER_IDS, MARKER_LAYER_ID, MARKER_SIZE_RANGE, markerFor, markerRegistry, resolveMarker } from "./marker-registry";
@@ -34,6 +34,30 @@ test("named stations are object markers and outrank generic and merchant roles",
     expect(marker.precedence).toBeGreaterThan(markerFor("merchant").precedence);
     expect(resolveMarker({ categories: ["merchant", id] })).toBe(id);
   }
+});
+
+test("station stacks draw alchemy, tailoring, smithing, furnace, then cooking", () => {
+  const stationOrder = ["cookingStation", "furnace", "smithingStation", "tailoringStation", "alchemyStation"] as const;
+  expect(stationOrder.map((id) => markerFor(id).precedence)).toEqual([650, 651, 652, 653, 654]);
+  expect(stationOrder.map((id) => markerFor(id).renderOrder)).toEqual([650, 651, 652, 653, 654]);
+  const placements: PublicPlacement[] = stationOrder.map((category, index) => ({
+    placementId: category,
+    mapSpaceId: "fixture-map",
+    position: [index, 0],
+    height: 0,
+    label: category,
+    categories: [category],
+    entityKeys: [],
+    itemKeys: [],
+    searchText: category,
+    areas: [],
+    movement: [],
+  }));
+
+  expect(buildMarkers(placements).map((marker) => marker.markerId)).toEqual([...stationOrder]);
+  const overlapping = buildMarkers([placements[0]!, placements[2]!, { ...placements[4]!, position: [0, 0] }]);
+  expect(groupCoincidentMarkers(overlapping).map((marker) => marker.markerId)).toEqual(["alchemyStation", "smithingStation"]);
+  expect(groupCoincidentMarkers(buildMarkers(placements.map((placement) => ({ ...placement, position: [0, 0] }))))[0]?.markerId).toBe("alchemyStation");
 });
 
 test("no two markers share a glyph", () => {
