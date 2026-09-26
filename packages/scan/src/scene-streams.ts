@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { Assert } from "typebox/value";
-import { StreamCleanupSchema, type StreamVisitSchema } from "@afallon/contracts";
+import { StreamCleanupSchema, type ScanBuildSceneTarget, type StreamVisitSchema } from "@afallon/contracts";
 import { toRuntimePath, type ProbeBundle, type Runtime } from "@afallon/runtime";
 import type { SceneTargetController } from "./scene-target";
 import type { BuildSceneVisitor, ScanStateReader, ScanTargetExecution } from "./state-machine";
@@ -17,8 +17,11 @@ export class SceneStreamsVisitor implements BuildSceneVisitor {
     private readonly timeoutMs: number,
   ) {}
 
-  visit(sceneNativeId: number, outputDirectory: string, collect: () => Promise<void>): Promise<void | ScanTargetExecution> {
-    return this.sceneController.visit(sceneNativeId, outputDirectory, async () => {
+  async visit(target: ScanBuildSceneTarget, outputDirectory: string, collect: () => Promise<void>): Promise<void | ScanTargetExecution> {
+    const sceneNativeId = target.sceneNativeId;
+    // A loader that stays inactive or disabled cannot load, so the collection does not contain its content.
+    const skipped: string[] = [];
+    const execution = await this.sceneController.visit(target, outputDirectory, async () => {
       const state = await this.stateReader.read(resolve(outputDirectory, "scene-streams-state.json"));
       const cleanupPath = resolve(outputDirectory, "scene-streams-cleanup.json");
       let sequence = 0;
@@ -35,7 +38,9 @@ export class SceneStreamsVisitor implements BuildSceneVisitor {
       const start = await invoke("start", { sceneLoaders: true, holdSeconds: Math.ceil(this.timeoutMs / 1000) + 5, cleanupPath: await toRuntimePath(this.runtime.config, cleanupPath) });
       let operationError: unknown;
       try {
-        while ((await invoke("poll", { key: start.key })).phase !== "ready") await Bun.sleep(250);
+        let polled = await invoke("poll", { key: start.key });
+        while (polled.phase !== "ready") { await Bun.sleep(250); polled = await invoke("poll", { key: start.key }); }
+        for (const row of polled.rows) if (row.skippedReason !== null) skipped.push(`${row.assetGuid} (${row.skippedReason})`);
         await collect();
       } catch (error) {
         operationError = error;
@@ -51,5 +56,7 @@ export class SceneStreamsVisitor implements BuildSceneVisitor {
       }
       if (operationError !== undefined) throw operationError;
     });
+    if (execution !== undefined || skipped.length === 0) return execution;
+    return { outcome: "succeeded", diagnostics: [{ code: "streamed-sources-skipped", message: `${skipped.length} streamed sources of scene ${sceneNativeId} could not load: ${skipped.join(", ")}.` }] };
   }
 }

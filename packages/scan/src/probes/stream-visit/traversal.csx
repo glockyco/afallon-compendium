@@ -82,8 +82,10 @@ if (action == "start")
         foreach (var pair in loadersById)
         {
             var candidate = pair.Value;
-            if (candidate.gameObject != null && candidate.gameObject.scene.handle == scene.handle && candidate.addressableAsset != null && !string.IsNullOrEmpty(candidate.addressableAsset.AssetGUID))
-                requestedLoaderIds.Add(pair.Key);
+            if (candidate.gameObject == null || candidate.gameObject.scene.handle != scene.handle) continue;
+            if (candidate.addressableAsset == null || string.IsNullOrEmpty(candidate.addressableAsset.AssetGUID))
+                throw new System.InvalidOperationException("An AddressableLoader of the active scene has no asset GUID, so the scene cannot load all of its streamed sources.");
+            requestedLoaderIds.Add(pair.Key);
         }
         requestedLoaderIds.Sort();
         if (requestedLoaderIds.Count > 2048) throw new System.InvalidOperationException("The active scene has more than 2048 streamed loaders.");
