@@ -2,7 +2,7 @@
   "name": "@afallon/scan",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./inventory": "./src/inventory-probe.ts", "./scene-visit": "./src/scene-visit-probe.ts" },
+  "exports": { ".": "./src/index.ts", "./inventory": "./src/inventory-probe.ts", "./visits": "./src/visit-probes.ts" },
   "dependencies": {
     "@afallon/artifacts": "workspace:*",
     "@afallon/contracts": "workspace:*",

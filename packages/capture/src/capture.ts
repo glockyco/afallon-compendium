@@ -1,5 +1,5 @@
 import { createWorldInventoryBundle } from "@afallon/scan/inventory";
-import { createSceneVisitBundle } from "@afallon/scan/scene-visit";
+import { createSceneVisitBundle } from "@afallon/scan/visits";
 import captureSessionSource from "./probes/capture-session.csx" with { type: "text" };
 import captureVisualsSource from "./probes/capture-visuals.csx" with { type: "text" };
 import { createHash, randomUUID } from "node:crypto";

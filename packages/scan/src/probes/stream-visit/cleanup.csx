@@ -1,4 +1,35 @@
     state["currentRow"] = currentRow;
+    // Wide merged-world frames can intersect about 600 loaders. Unbounded requests can strand
+    // loaders, while smaller batches cannot finish within the capture readiness budget. A loader
+    // under a held chunk joins a batch once the chunk has activated it.
+    const int maxConcurrentPreloads = 32;
+    var requestPreloadBatch = new System.Action(() =>
+    {
+        var inFlight = 0;
+        foreach (var row in rows)
+        {
+            if (!(bool)row["preloadRequested"] || (bool)row["initiallyLoaded"]) continue;
+            var target = row["loader"] as Il2Cpp.AddressableLoader;
+            if (target != null && getAsset(target) == null && getLoading(target)) inFlight++;
+        }
+        foreach (var row in rows)
+        {
+            if (inFlight >= maxConcurrentPreloads) break;
+            if ((string)row["skippedReason"] != null || (bool)row["initiallyLoaded"] || (bool)row["preloadRequested"]) continue;
+            var target = row["loader"] as Il2Cpp.AddressableLoader;
+            if (target == null || target.gameObject == null)
+                throw new System.InvalidOperationException("A stream visit loader disappeared before preload.");
+            if (row["chunkHold"] != null)
+            {
+                if (!target.gameObject.activeInHierarchy) continue;
+                if (getAsset(target) != null || getLoading(target) || getHandle(target))
+                    throw new System.InvalidOperationException("A loader under a held chunk started its automatic load, so the visit does not own it.");
+            }
+            requestLoad(row, holdSecondsFloat);
+            inFlight++;
+        }
+    });
+    state["requestPreloadBatch"] = requestPreloadBatch;
     var cleanupWritten = false;
     var writeCleanupReceipt = new System.Action(() =>
     {

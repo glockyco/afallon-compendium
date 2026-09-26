@@ -1,6 +1,6 @@
 import captureGeometrySource from "./probes/capture-geometry.csx" with { type: "text" };
 import captureVisualsSource from "./probes/capture-visuals.csx" with { type: "text" };
-import streamVisitSource from "./probes/stream-visit.csx" with { type: "text" };
+import { createStreamVisitBundle } from "@afallon/scan/visits";
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Static } from "typebox";
@@ -400,6 +400,7 @@ export async function withCaptureGeometry<T>(
     assertFiniteScalars(plan, "Capture plan");
 
     const geometry = geometryDirectory(tile, run);
+    const streamVisitBundle = await createStreamVisitBundle();
     const cleanupRelative = `${geometry.relative}/stream-cleanup.json`;
     const cleanupPath = resolve(run.directory, cleanupRelative);
     const probeSource = captureGeometrySource;
@@ -519,7 +520,7 @@ export async function withCaptureGeometry<T>(
       const registerStream = async (relativePath: string, absolutePath: string, action: "start" | "poll" | "restore", key?: string): Promise<StreamVisit> => {
         checkDeadline();
         if (action === "start") streamAcquisitionAttempted = true;
-        const reply = await runtime.probe(streamVisitSource, absolutePath, {
+        const reply = await runtime.runProbe(streamVisitBundle, absolutePath, {
           parameters: action === "start"
             ? {
                 action,
@@ -532,9 +533,9 @@ export async function withCaptureGeometry<T>(
             : { action, researchCharacter: config.character, sceneHandle: sceneHandle!, key },
           captureContext: true,
         });
-        if (action === "start" && reply.value !== null && typeof reply.value === "object" && "key" in reply.value && typeof reply.value.key === "string") streamKey = reply.value.key;
-        assertSchema(StreamVisitSchema, reply.value, `Stream visit ${action} response`);
-        const value = reply.value as StreamVisit;
+        // Restoration needs the key even when a later check of this reply fails.
+        if (action === "start") streamKey = reply.value.key;
+        const value = reply.value;
         assertObservationContext(reply.observationContext, config, plan, sceneHandle, value.frame, `Stream visit ${action} response`);
         await registerProbeArtifact(relativePath, reply.reference, reply.observationContext);
         return value;

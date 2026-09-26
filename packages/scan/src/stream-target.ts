@@ -61,7 +61,7 @@ export class StreamTargetController implements StreamedSourceVisitor {
     try {
       start = await invoke("start", {
         loaderInstanceIds: [this.binding.loaderInstanceId],
-        holdSeconds: Math.min(360, Math.ceil(this.timeoutMs / 1000) + 5),
+        holdSeconds: Math.ceil(this.timeoutMs / 1000) + 5,
         cleanupPath: await toRuntimePath(this.runtime.config, cleanupPath),
       });
       const initial = this.row(start);

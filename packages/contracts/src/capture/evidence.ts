@@ -21,7 +21,8 @@ const sha256 = Type.String({ pattern: "^[a-f0-9]{64}$" });
 export const CaptureSurveySchema = Type.Object({ path: text, sha256 }, { additionalProperties: false });
 export type CaptureSurvey = Static<typeof CaptureSurveySchema>;
 export const CaptureReadinessProfileSchema = Type.Object({
-  timeoutMs: Type.Integer({ minimum: 1000, maximum: 300000 }),
+  // One readiness holds every source under a plan's tiles; the bound matches the scan target limit.
+  timeoutMs: Type.Integer({ minimum: 1000, maximum: 900000 }),
   stableFrames: Type.Integer({ minimum: 2, maximum: 10 }),
   // Frames the required membership must hold before the baseline is taken; the game switches
   // terrain off in the frames after the player arrives.

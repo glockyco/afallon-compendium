@@ -1,16 +1,21 @@
 
     // Nothing above mutates loader state. Register restoration before the first HoldLoaded call.
-    // A loader under a hidden chunk loads once the held chunk has activated it.
-    state["holdSeconds"] = holdSecondsFloat;
+    // A loaded source only needs its hold; the others load in bounded batches, and a source under
+    // a hidden chunk joins a batch once its chunk hold has activated it.
     foreach (var row in rows)
     {
         if ((string)row["skippedReason"] != null) continue;
         var target = row["loader"] as Il2Cpp.AddressableLoader;
         if ((bool)row["chunkHidden"])
+        {
             row["chunkHold"] = Il2Cpp.ChunkHider.HoldPosition(target.transform.position);
-        else
-            requestLoad(row, holdSecondsFloat);
+            continue;
+        }
+        if (!(bool)row["initiallyLoaded"]) continue;
+        row["holdChanged"] = true;
+        target.HoldLoaded(holdSecondsFloat);
     }
+    requestPreloadBatch();
 
     var startRows = new System.Collections.Generic.List<object>();
     foreach (var row in rows) startRows.Add(currentRow(row));
@@ -33,9 +38,10 @@ if ((int)stateForRequest["sceneHandle"] != requestedSceneHandle)
     throw new System.InvalidOperationException("sceneHandle does not match the stream visit key.");
 var stateRows = stateForRequest["rows"] as System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, object>>;
 var stateCurrentRow = stateForRequest["currentRow"] as System.Func<System.Collections.Generic.Dictionary<string, object>, object>;
+var stateRequestPreloadBatch = stateForRequest["requestPreloadBatch"] as System.Action;
 var stateRestoreStep = stateForRequest["restorationDelegate"] as System.Func<bool>;
 var stateRemove = stateForRequest["removeState"] as System.Action;
-if (stateRows == null || stateCurrentRow == null || stateRestoreStep == null || stateRemove == null)
+if (stateRows == null || stateCurrentRow == null || stateRequestPreloadBatch == null || stateRestoreStep == null || stateRemove == null)
     throw new System.InvalidOperationException("The stream visit state is incomplete.");
 var statePhase = stateForRequest["phase"] as string;
 
@@ -67,13 +73,15 @@ if (action == "poll")
 
     foreach (var row in stateRows)
     {
-        if (row["chunkHold"] == null || (bool)row["preloadRequested"]) continue;
-        var heldTarget = row["loader"] as Il2Cpp.AddressableLoader;
-        if (heldTarget == null || heldTarget.gameObject == null || !heldTarget.gameObject.activeInHierarchy) continue;
-        if (getAsset(heldTarget) != null || getLoading(heldTarget) || getHandle(heldTarget))
-            throw new System.InvalidOperationException("A loader under a held chunk started its automatic load, so the visit does not own it.");
-        requestLoad(row, (float)stateForRequest["holdSeconds"]);
+        if ((string)row["skippedReason"] != null || (bool)row["initiallyLoaded"] || !(bool)row["preloadRequested"]) continue;
+        var target = row["loader"] as Il2Cpp.AddressableLoader;
+        if (target == null || target.gameObject == null)
+            throw new System.InvalidOperationException("A stream visit loader disappeared during preload.");
+        if (getAsset(target) == null && !getLoading(target) && !getHandle(target))
+            throw new System.InvalidOperationException("A requested streamed asset stopped without producing an instance: " + (string)row["assetGuid"] + ".");
     }
+    stateRequestPreloadBatch();
+
     var readyScene = sceneIsReady();
     var allReady = readyScene;
     foreach (var row in stateRows)

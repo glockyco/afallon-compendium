@@ -46,11 +46,7 @@ test.each(["poll", "start-context"] as const)("early %s failure releases acquire
     sources: [{ instanceId: 7, assetGuid: "source", hierarchyPath: "Source", category: null, position: row.position, activeSelf: true, activeInHierarchy: true, enabled: true, coversEnvelope: true, coversFrustum: true, intersectsFrustum: true, loadedOrLoading: false, loaded: false, loading: false, hasHandle: false, automaticLoadPending: false, rootId: null, rootActive: null, holdUntil: 0, loadDistance: 10, playerDistance: 0 }],
     meshes: [], terrains: [], otherRenderers: [], issues: [],
   };
-  const runtime = {
-    ownerToken, signal: abort.signal,
-    cancel(error: unknown) { abort.abort(error); },
-    async close() { held = false; },
-    async probe(_source: string, path: string, options: { parameters?: Record<string, unknown> }) {
+  const respond = async (_source: string, path: string, options: { parameters?: Record<string, unknown> }) => {
       const action = options.parameters?.action;
       if (action === "poll") throw new Error("Readiness failed after acquisition.");
       let value: unknown = geometry;
@@ -64,7 +60,13 @@ test.each(["poll", "start-context"] as const)("early %s failure releases acquire
       await Bun.write(path, bytes);
       const context = { researchCharacter: failurePoint === "start-context" && action === "start" ? "other" : "research", frame: nativeFrame, scene: { name: "World", path: plan.scenePath, handle: 2, isLoaded: true }, gameSceneNativeId: 1 };
       return { value, reference: { sha256: createHash("sha256").update(bytes).digest("hex") }, observationContext: { schemaVersion: "compendium.observation-context.v1", started: context, completed: context } };
-    },
+  };
+  const runtime = {
+    ownerToken, signal: abort.signal,
+    cancel(error: unknown) { abort.abort(error); },
+    async close() { held = false; },
+    probe: respond,
+    runProbe: (bundle: { source: string }, path: string, options: { parameters?: Record<string, unknown> }) => respond(bundle.source, path, options),
   } as unknown as Runtime;
   try {
     await expect(withCaptureGeometry(runtime, config, workspace, plan, { tile: plan.tiles[0]!, frame }, async () => { rendered = true; })).rejects.toThrow();

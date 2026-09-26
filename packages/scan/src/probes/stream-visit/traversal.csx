@@ -14,8 +14,9 @@ if (action == "start")
     if (holdSecondsToken == null || (holdSecondsToken.Type != Newtonsoft.Json.Linq.JTokenType.Integer && holdSecondsToken.Type != Newtonsoft.Json.Linq.JTokenType.Float))
         throw new System.ArgumentException("holdSeconds must be a number.");
     var holdSeconds = holdSecondsToken.ToObject<double>();
-    if (double.IsNaN(holdSeconds) || double.IsInfinity(holdSeconds) || holdSeconds < 1.0 || holdSeconds > 360.0)
-        throw new System.ArgumentException("holdSeconds must be between 1 and 360 seconds.");
+    // A hold covers the longest capture readiness (900 s) and scan target (900 s), plus 5 s.
+    if (double.IsNaN(holdSeconds) || double.IsInfinity(holdSeconds) || holdSeconds < 1.0 || holdSeconds > 905.0)
+        throw new System.ArgumentException("holdSeconds must be between 1 and 905 seconds.");
     var holdSecondsFloat = (float)holdSeconds;
 
     var idsToken = args["loaderInstanceIds"] as Newtonsoft.Json.Linq.JArray;

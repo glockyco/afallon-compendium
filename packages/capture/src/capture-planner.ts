@@ -253,8 +253,10 @@ const lighting = {
   directionalIntensity: 1.2,
   directionalEuler: { x: 65, y: -30, z: 0 },
 };
-// The game switched distant terrain off within about 150 frames of arrival in scene 9.
-const readiness = { timeoutMs: 300000, stableFrames: 3, settleFrames: 300, boundaryOverlap: LOADER_MARGIN_WORLD_UNITS };
+// The game switched distant terrain off within about 150 frames of arrival in scene 9. One readiness
+// holds every source under a plan's tiles; a four-tile world-surface plan holds 585 sources, which load
+// at about 3 frames per second and needed more than 300000 ms on build 25434619.
+const readiness = { timeoutMs: 900000, stableFrames: 3, settleFrames: 300, boundaryOverlap: LOADER_MARGIN_WORLD_UNITS };
 const reports: Report[] = [];
 let totalTiles = 0;
 

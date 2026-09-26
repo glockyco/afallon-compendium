@@ -25,7 +25,7 @@ const entrypointRules = Object.keys(packageDependencies).map(name => ({
     pathNot: name === "contracts"
       ? "^packages/contracts/src/(?:index\\.ts|(?:catalog|public|spatial)/index\\.ts)$"
       : name === "scan"
-        ? "^packages/scan/src/(?:index|inventory-probe|scene-visit-probe)\\.ts$"
+        ? "^packages/scan/src/(?:index|inventory-probe|visit-probes)\\.ts$"
         : `^packages/${name}/src/index\\.ts$`,
   },
 }));
