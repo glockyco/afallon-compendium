@@ -1,4 +1,4 @@
-import { Type, type Static } from "typebox";
+import { Type, type Static, type TSchema } from "typebox";
 import { schemaRegistry } from "../schema-registry";
 import { ContentIdentitySchema } from "../lifecycle";
 import { PublicKindEntrySchema, STATIC_COMPENDIUM_SCHEMAS, artEdges, isStaticDocument, type StaticCompendiumResource } from "./documents";
@@ -289,17 +289,22 @@ export type PublicationPresentation = Static<typeof PublicationPresentationSchem
 schemaRegistry.register("compendium.publish-plan.v2", PublicationPlanSchema);
 schemaRegistry.register("compendium.publication-presentation.v1", PublicationPresentationSchema);
 
-export const STATIC_RESOURCE_SCHEMAS = {
+// An explicit type that names each schema keeps the declaration small enough for the compiler to emit.
+export const STATIC_RESOURCE_SCHEMAS: typeof STATIC_COMPENDIUM_SCHEMAS & {
+  "compendium.static-root.v3": typeof StaticRootManifestSchema; "compendium.static-map.v2": typeof StaticMapShardSchema;
+  "compendium.static-geometry.v1": typeof StaticGeometrySchema; "compendium.static-coverage.v1": typeof StaticCoverageSchema;
+  "compendium.static-imagery.v2": typeof StaticImagerySchema;
+} = {
   "compendium.static-root.v3": StaticRootManifestSchema,
   "compendium.static-map.v2": StaticMapShardSchema,
   "compendium.static-geometry.v1": StaticGeometrySchema,
   "compendium.static-coverage.v1": StaticCoverageSchema,
   "compendium.static-imagery.v2": StaticImagerySchema,
   ...STATIC_COMPENDIUM_SCHEMAS,
-} as const;
+};
 export type StaticResource = StaticRootManifest | StaticMapShard | StaticGeometry | StaticCoverage | StaticImagery | StaticCompendiumResource;
 
-export function staticResourceSchema(schemaId: string) {
+export function staticResourceSchema(schemaId: string): TSchema {
   if (!Object.hasOwn(STATIC_RESOURCE_SCHEMAS, schemaId)) throw new Error(`Unknown static resource schema: ${schemaId}.`);
   return STATIC_RESOURCE_SCHEMAS[schemaId as keyof typeof STATIC_RESOURCE_SCHEMAS];
 }

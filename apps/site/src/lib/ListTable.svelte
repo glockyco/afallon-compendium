@@ -5,17 +5,19 @@
   import Badge from './Badge.svelte';
   import DataTable, { type TableColumn } from './DataTable.svelte';
   import EntityLink from './EntityLink.svelte';
-  import { formatNumber, labelOf, rarityTone, roleLabel } from './format';
+  import { formatNumber, labelOf, questStartLabel, rarityTone, roleLabel, sourceKindLabel } from './format';
   import { sortRows, toggleSort, type SortState, type SortValue } from './table';
 
   export let list: StaticKindList;
   export let kind: PublicKindEntry;
   export let registry: PublicKindEntry[];
 
-  // Published column and facet ids whose values are native enums or marker roles rather than
-  // authored names. Everything else prints as published, because a place or faction name is text.
-  const ENUM_FIELDS: Record<string, true> = { rarity: true, itemType: true, slot: true, placeType: true, sourceKind: true };
+  // Published column and facet ids whose values are native enums, marker roles, item source kinds, or quest start
+  // kinds rather than authored names. Everything else prints as published, because a place or faction name is text.
+  const ENUM_FIELDS: Record<string, true> = { rarity: true, itemType: true, slot: true, placeType: true };
   const ROLE_FIELDS: Record<string, true> = { role: true };
+  const SOURCE_KIND_FIELDS: Record<string, true> = { sourceKind: true };
+  const QUEST_START_FIELDS: Record<string, true> = { startType: true };
   const BOOLEAN_LABELS: Record<string, string> = { true: 'Yes', false: 'No' };
   // Currency columns carry the game's coin colour, as a price does on a page.
   const PRICE_FIELDS: Record<string, true> = { sellPrice: true, buyPrice: true, price: true, income: true };
@@ -128,7 +130,16 @@
   function fieldLabel(id: string, value: string): string {
     if (BOOLEAN_LABELS[value]) return BOOLEAN_LABELS[value]!;
     if (ROLE_FIELDS[id]) return roleLabel(value);
+    if (SOURCE_KIND_FIELDS[id]) return sourceKindLabel(value);
+    if (QUEST_START_FIELDS[id]) return questStartLabel(value);
     return ENUM_FIELDS[id] ? labelOf(value) : value;
+  }
+
+  // A column that shares its id with a facet shows the facet's values, so a row with several roles or start kinds
+  // labels each one. Any other column shows its one published value.
+  function cellValues(row: ListRow, id: string): string[] {
+    const values = row.facets[id];
+    return values && values.length > 0 ? values : [String(row.values[id])];
   }
 </script>
 
@@ -173,11 +184,11 @@
             {:else if column.id === 'rarity'}
               <span data-rarity={rarityTone(String(row.values[column.id]))}><Badge label={fieldLabel(column.id, String(row.values[column.id]))} tone="rarity" /></span>
             {:else if column.id === 'role'}
-              <Badge label={fieldLabel(column.id, String(row.values[column.id]))} tone={row.values[column.id] === 'boss' ? 'boss' : 'neutral'} />
+              <span class="badges">{#each cellValues(row, column.id) as role}<Badge label={fieldLabel(column.id, role)} tone={role === 'boss' ? 'boss' : 'neutral'} />{/each}</span>
             {:else if typeof row.values[column.id] === 'number'}
               <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>
             {:else}
-              {fieldLabel(column.id, String(row.values[column.id]))}
+              {cellValues(row, column.id).map((value) => fieldLabel(column.id, value)).join(', ')}
             {/if}
           </td>
         {/each}
@@ -207,6 +218,7 @@
 
   .list { padding: .35rem .5rem .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .empty { padding: 1.5rem .6rem; text-align: center; }
+  .badges { display: inline-flex; flex-wrap: wrap; gap: .3rem; }
 
   @media (max-width: 640px) {
     .filters { grid-template-columns: 1fr; }

@@ -25,21 +25,17 @@ function facetValue(value: string | null | undefined): string[] {
   return value ? [value] : [];
 }
 
-export function publicItemLevelRequirement(document: PublicItem): number | null {
-  const level = document.facts.equipmentRequirements.flatMap((group) => group.requirements).find((requirement) => requirement.type.name === "Level")?.amounts.primary;
-  return level === undefined || level <= 0 ? null : level;
-}
-
 function itemRow(document: PublicItem): ListRow {
   const sourceKinds = [document.droppedBy.length > 0 ? "drop" : null, document.soldBy.length > 0 ? "vendor" : null,
     document.gatheredFrom.length > 0 ? "gather" : null, document.inContainers.length > 0 ? "container" : null,
-    document.rewardedBy.length > 0 ? "quest" : null, document.craftedBy.length > 0 ? "recipe" : null].filter((value): value is string => value !== null);
+    document.collectedFrom.length > 0 ? "interaction" : null, document.rewardedBy.length > 0 ? "quest" : null,
+    document.craftedBy.length > 0 ? "recipe" : null].filter((value): value is string => value !== null);
   const slot = document.facts.slot ?? document.facts.weaponSlot;
   return {
     ref: document.ref,
     values: { rarity: document.facts.rarity ?? null, itemType: document.facts.itemType ?? null, slot: slot ?? null,
       itemPower: document.facts.itemPower ?? null, damagePerSecond: document.facts.damagePerSecond ?? null,
-      levelRequirement: publicItemLevelRequirement(document), sellPrice: document.facts.sellPrice?.amount ?? null },
+      levelRequirement: document.facts.levelRequirement ?? null, sellPrice: document.facts.sellPrice?.amount ?? null },
     facets: { slot: facetValue(slot), itemType: facetValue(document.facts.itemType), rarity: facetValue(document.facts.rarity), sourceKind: sourceKinds },
   };
 }
@@ -53,12 +49,17 @@ function npcRow(document: PublicNpc): ListRow {
     facets: { role: document.facts.roles, place: facetValue(place), faction: facetValue(faction) } };
 }
 
-function questRow(document: PublicQuest, documents: ReadonlyMap<string, PublicDocument>): ListRow {
-  const giver = document.givers[0], giverDocument = giver?.key === null || !giver ? undefined : documents.get(giver.key);
-  const giverPlace = giverDocument && "locations" in giverDocument ? giverDocument.locations[0]?.label ?? null : null;
+function questRow(document: PublicQuest): ListRow {
+  const starts = document.starts;
+  const types = [...new Set(starts.map((start) => start.kind))];
+  const areas = [...new Set(starts.flatMap((start) => start.kind === "npc" ? start.areas : start.placements.map((placement) => placement.label)))].sort();
+  const giver = starts.find((start) => start.kind === "npc");
+  const range = document.facts.levelRange ? `${document.facts.levelRange.min}–${document.facts.levelRange.max}` : null;
   return { ref: document.ref,
-    values: { chain: document.facts.chain?.name ?? null, levelRequirement: document.facts.levelRequirement ?? null, giver: refName(giver) },
-    facets: { chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)], giverPlace: facetValue(giverPlace) } };
+    values: { levelRange: range, levelRequirement: document.facts.levelRequirement ?? null, chain: document.facts.chain?.name ?? null,
+      startType: types.join(", ") || null, area: areas.join(", ") || null,
+      giver: giver?.kind === "npc" ? refName(giver.npc) : null, experience: document.facts.experience ?? null },
+    facets: { startType: types, area: areas, chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)] } };
 }
 
 function placeRow(document: PublicPlace): ListRow {
@@ -97,7 +98,7 @@ export function buildKindLists(
     switch (document.ref.kind) {
       case "items": row = itemRow(document as PublicItem); break;
       case "npcs": row = npcRow(document as PublicNpc); break;
-      case "quests": row = questRow(document as PublicQuest, documents); break;
+      case "quests": row = questRow(document as PublicQuest); break;
       case "places": row = placeRow(document as PublicPlace); break;
       case "properties": row = propertyRow(document as PublicProperty); break;
       case "abilities": row = abilityRow(document as PublicAbility); break;

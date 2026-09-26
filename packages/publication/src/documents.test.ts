@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts, CatalogRequirement } from "@afallon/contracts/catalog";
-import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicGearSet, type PublicItem, type PublicNpc, type PublicPlace } from "@afallon/contracts/public";
+import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow } from "@afallon/contracts/catalog";
+import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicGearSet, type PublicItem, type PublicNpc, type PublicPlace, type PublicQuest } from "@afallon/contracts/public";
 import { projectPublicDocuments, projectQuestObjective } from "./documents";
 import { assertCompleteTooltipCoverage, auditPublicTooltipCoverage } from "./tooltip-coverage";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
@@ -26,12 +26,12 @@ const emptyRequirementReferences: CatalogRequirement["references"] = {
 };
 const emptyRequirementSubtypes: CatalogRequirement["subtypes"] = { effectTag: null, factionStance: null, itemType: null, weaponType: null, weaponSlot: null, armorType: null, armorSlot: null, gender: null, npcFamily: null, region: null };
 function requirement(type: string, label: string, overrides: Partial<CatalogRequirement> = {}): CatalogRequirement {
-  return { type: { value: 0, name: type }, rule: { value: 0, name: "Mandatory" }, label, references: { ...emptyRequirementReferences }, knowledge: null, state: null, comparison: null, value: null, ownership: null, itemCondition: null, progression: null, entity: null, pointType: null, dialogueNodeState: null, effectCondition: null, amountType: null, timeType: null, timeValue: null, effectType: null, questState: null, amounts: { primary: 0, secondary: 0, float: 0, isPercent: false }, flags: { consume: false, first: false, second: false, third: false }, subtypes: { ...emptyRequirementSubtypes }, dialogueNode: null, times: [null, null], ...overrides };
+  return { type: { value: 0, name: type }, rule: { value: 0, name: "Mandatory" }, label, spans: [{ text: label }], references: { ...emptyRequirementReferences }, knowledge: null, state: null, comparison: null, value: null, ownership: null, itemCondition: null, progression: null, entity: null, pointType: null, dialogueNodeState: null, effectCondition: null, amountType: null, timeType: null, timeValue: null, effectType: null, questState: null, amounts: { primary: 0, secondary: 0, float: 0, isPercent: false }, flags: { consume: false, first: false, second: false, third: false }, subtypes: { ...emptyRequirementSubtypes }, dialogueNode: null, times: [null, null], ...overrides };
 }
 const equipmentRequirements = [
   { mode: "any" as const, checkCount: true, requiredCount: 1, requirements: [
-    requirement("Class", "Shieldmaster", { rule: { value: 1, name: "Optional" }, references: { ...emptyRequirementReferences, class: { entityKey: "classes:0", label: "Shieldmaster" } } }),
-    requirement("Class", "Assassin", { rule: { value: 1, name: "Optional" }, references: { ...emptyRequirementReferences, class: { entityKey: "classes:5", label: "Assassin" } } }),
+    requirement("Class", "Shieldmaster", { rule: { value: 1, name: "Optional" }, references: { ...emptyRequirementReferences, class: { entityKey: "classes:0", label: "Shieldmaster" } }, spans: [{ endpoint: { entityKey: "classes:0", label: "Shieldmaster" } }] }),
+    requirement("Class", "Assassin", { rule: { value: 1, name: "Optional" }, references: { ...emptyRequirementReferences, class: { entityKey: "classes:5", label: "Assassin" } }, spans: [{ endpoint: { entityKey: "classes:5", label: "Assassin" } }] }),
   ] },
   { mode: "all" as const, checkCount: false, requiredCount: null, requirements: [requirement("Level", "Level 27", { type: { value: 13, name: "Level" }, amounts: { primary: 27, secondary: 0, float: 0, isPercent: false } })] },
 ];
@@ -50,7 +50,7 @@ const facts: CatalogFacts = {
     minExperience: null, maxExperience: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [],
     factionRewards: [], linkedNpc: null, lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { entityKey: "stats:5", label: "Item power" } } }],
   quests: [{ entityKey: "quests:3", chainName: null, chainOrder: null, repeatable: false, turnInWithoutNpc: false, completedDescription: null,
-    objectiveText: null, levelRequirement: null, experience: null, conditionIds: [] }],
+    objectiveText: null, levelRequirement: null, levelRange: null, dungeon: null, experience: null, conditionIds: [], worldQuest: null }],
   tasks: [], places: [{ entityKey: "scenes:10", placeType: "dungeon", guideIncluded: true, guideDescription: null, levelRange: null,
     mapSpaceIds: ["world"], bosses: [], parentSceneKey: null }], properties: [], abilities: [], recipes: [],
   gearSets: [{ entityKey: "gearSets:17", members: [{ entityKey: "items:1", label: "Blade" }, { entityKey: null, label: "Item 999" }], tiers: [
@@ -68,12 +68,12 @@ const relations: CatalogRelations = {
     { producerLabel: "Iron node", sourceId: "source-2", sceneNativeId: 10, resource: null, item: { entityKey: "items:1", label: "Blade" }, skill: null, rank: null, min: 1, max: 2, rawRate: 25, conditionIds: [], placementIds: ["p2"] },
   ],
   containers: [
-    { containerType: "Chest", sourceId: "container-1", place: { entityKey: "scenes:10", label: "Crypt" }, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, conditionIds: [], placementIds: ["p1"] },
-    { containerType: "Chest", sourceId: "container-2", place: { entityKey: "scenes:10", label: "Crypt" }, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, conditionIds: [], placementIds: ["p2"] },
-  ], quests: [], recipes: [],
-  placements: [{ placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guardian", roles: [{ role: "boss", npcEntityKey: "npcs:2", scope: "authored" }], families: [] }],
+    { containerType: "Chest", sourceId: "container-1", place: { entityKey: "scenes:10", label: "Crypt" }, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, availability: [], placementIds: ["p1"] },
+    { containerType: "Chest", sourceId: "container-2", place: { entityKey: "scenes:10", label: "Crypt" }, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, availability: [], placementIds: ["p2"] },
+  ], interactions: [], quests: [], recipes: [],
+  placements: [{ placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guardian", area: null, roles: [{ role: "boss", npcEntityKey: "npcs:2", scope: "authored" }], families: [] }],
   transitions: [{ transitionId: "transition-1", sourceSceneKey: "scenes:10", destinationSceneKey: null, transitionKind: "entrance", placementIds: ["p2"] }],
-  conditions: [{ conditionId: "oathbreaker", semantics: "equipment", scope: "equipment", label: "Requirements", requirements: equipmentRequirements }],
+  conditions: [{ conditionId: "oathbreaker", semantics: "equipment", scope: "equipment", label: "Requirements", requirements: equipmentRequirements }], gatedSources: [],
 };
 
 test("projects one symmetric boss drop row and strips native rich text", () => {
@@ -94,17 +94,17 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(item.facts).not.toHaveProperty("armorType");
   expect(item.facts).not.toHaveProperty("enchantment");
   expect(item.facts).not.toHaveProperty("buyPrice");
-  expect(item.facts.equipmentRequirements).toMatchObject([
+  expect(item.facts.equipmentRequirements).toEqual([
     { mode: "any", checkCount: true, requiredCount: 1, requirements: [
-      { type: { name: "Class" }, label: "Shieldmaster", references: { class: { key: "classes:0", kind: "classes", name: "Shieldmaster" } } },
-      { type: { name: "Class" }, label: "Assassin", references: { class: { key: "classes:5", kind: "classes", name: "Assassin" } } },
+      { type: { value: 0, name: "Class" }, rule: { value: 1, name: "Optional" }, label: "Shieldmaster", spans: [{ ref: { key: "classes:0", kind: "classes", name: "Shieldmaster" } }] },
+      { type: { value: 0, name: "Class" }, rule: { value: 1, name: "Optional" }, label: "Assassin", spans: [{ ref: { key: "classes:5", kind: "classes", name: "Assassin" } }] },
     ] },
-    { mode: "all", checkCount: false, requirements: [{ type: { name: "Level" }, label: "Level 27", amounts: { primary: 27 } }] },
+    { mode: "all", checkCount: false, requirements: [{ type: { value: 13, name: "Level" }, rule: { value: 0, name: "Mandatory" }, label: "Level 27", spans: [{ text: "Level 27" }] }] },
   ]);
   expect(item.facts.useLines).toEqual([{ spans: [{ text: "Use: Test", tone: "positive", italic: false }] }]);
   const itemList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")?.[0];
   const itemRow = itemList?.rows.find((row) => row.ref.key === "items:1");
-  expect(itemRow).toMatchObject({ values: { slot: "MAIN HAND", itemPower: 99 }, facets: { slot: ["MAIN HAND"] } });
+  expect(itemRow).toMatchObject({ values: { slot: "MAIN HAND", itemPower: 99, levelRequirement: 27 }, facets: { slot: ["MAIN HAND"] } });
   expect(itemRow?.values.damagePerSecond as number).toBeCloseTo(55.27777777777778);
   expect(PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "items")?.columns).toEqual(expect.arrayContaining([
     { id: "itemPower", label: "Item power", sortable: true, numeric: true },
@@ -123,7 +123,7 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(itemValues).not.toHaveProperty("placements");
   expect(item.gatheredFrom).toEqual([{ label: "Iron node", min: 1, max: 2, chance: 25, placementCount: 2 }]);
   expect(item.inContainers).toEqual([{ counterpart: { key: "scenes:10", kind: "places", name: "Crypt", slug: "crypt" },
-    label: "Chest", min: 1, max: 1, requirements: [], placementCount: 2 }]);
+    label: "Chest", min: 1, max: 1, availability: [], placementCount: 2 }]);
   expect(item).not.toHaveProperty("locations");
   expect(npc.locations).toEqual([{ placementId: "p1", mapSpaceId: "world", label: "World" }]);
   expect(place).not.toHaveProperty("locations");
@@ -133,8 +133,8 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
 
 test("place service groups use the published station types", () => {
   const stationRelations: CatalogRelations = { ...relations, placements: [
-    { placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Cooking", roles: [{ role: "craftingService", npcEntityKey: null, scope: "authored" }], families: ["craftingStation"] },
-    { placementId: "p2", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Unknown station", roles: [{ role: "craftingService", npcEntityKey: null, scope: "authored" }], families: ["craftingStation"] },
+    { placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Cooking", area: null, roles: [{ role: "craftingService", npcEntityKey: null, scope: "authored" }], families: ["craftingStation"] },
+    { placementId: "p2", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Unknown station", area: null, roles: [{ role: "craftingService", npcEntityKey: null, scope: "authored" }], families: ["craftingStation"] },
   ] };
   const refs = buildEntityReferences(entities, { facts, relations: stationRelations });
   const documents = projectPublicDocuments({ entities, facts, relations: stationRelations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(),
@@ -211,8 +211,8 @@ test("projects representative item use text, effective stats and contextual abil
   const mixedSchemaIds = new Map(schemaIds);
   mixedSchemaIds.set("items:101", "compendium.static-item.v1");
   const mixedSchemaIssues = auditPublicTooltipCoverage(tooltipFacts, relations, documents, mixedSchemaIds);
-  expect(mixedSchemaIssues).toContain("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v2.");
-  expect(() => assertCompleteTooltipCoverage(true, mixedSchemaIssues)).toThrow("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v2.");
+  expect(mixedSchemaIssues).toContain("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v3.");
+  expect(() => assertCompleteTooltipCoverage(true, mixedSchemaIssues)).toThrow("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v3.");
   expect(() => assertCompleteTooltipCoverage(false, mixedSchemaIssues)).not.toThrow();
 
   const changedUseText = new Map(documents);
@@ -268,8 +268,123 @@ test("maps every supported native task type and preserves unsupported types", ()
     { entityKey: "tasks:7", taskType: "learnAbility", target: { entityKey: null, label: "Parry" }, count: null, keepItems: null, sceneName: null },
     { entityKey: "tasks:8", taskType: "dance", target: null, count: null, keepItems: null, sceneName: null },
   ];
-  expect(tasks.map((task, index) => projectQuestObjective(task, resolve, index).type)).toEqual([
+  expect(tasks.map((task, index) => projectQuestObjective(task, resolve, index, "", []).type)).toEqual([
     "killNpc", "getItem", "talkToNpc", "enterScene", "enterRegion", "useItem", "learnAbility", "unsupported",
   ]);
-  expect(projectQuestObjective(tasks.at(-1)!, resolve, 7)).toMatchObject({ type: "unsupported", rawType: "dance" });
+  expect(projectQuestObjective(tasks.at(-1)!, resolve, 7, "", [])).toMatchObject({ type: "unsupported", rawType: "dance", text: "dance" });
+});
+
+test("projects quest starts, world effects, and related item, NPC, and place pages", () => {
+  const endpoint = (entityKey: string, label: string) => ({ entityKey, label });
+  const quest = endpoint("quests:3", "Trial"), later = endpoint("quests:4", "The Return");
+  const night = { effect: "requires" as const, conditionId: "night", durationSeconds: null };
+  const afterQuest = { effect: "excludes" as const, conditionId: "after-quest", durationSeconds: null };
+  const temporary = { effect: "temporary" as const, conditionId: "after-quest", durationSeconds: 30 };
+  const questPredicate = requirement("Quest", "Trial turned in", {
+    references: { ...emptyRequirementReferences, quest }, spans: [{ endpoint: quest }, { text: " turned in" }],
+    questState: { value: 4, name: "turnedIn" },
+  });
+  const scenarioEntities: CatalogEntityRow[] = [...entities,
+    { entityKey: "quests:1", kind: "quests", nativeId: 1, name: "Beginning", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "quests:4", kind: "quests", nativeId: 4, name: "The Return", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "currencies:0", kind: "currencies", nativeId: 0, name: "Gold Coin", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "tasks:8", kind: "tasks", nativeId: 8, name: "Enter grove", description: "<b>Find the old grove</b>", iconAssetName: null, artwork: [] },
+    { entityKey: "tasks:9", kind: "tasks", nativeId: 9, name: "Defeat Guardian", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "tasks:10", kind: "tasks", nativeId: 10, name: "Enter Crypt", description: null, iconAssetName: null, artwork: [] },
+  ];
+  const questFact = facts.quests[0]!;
+  const scenarioFacts: CatalogFacts = { ...facts, entities: scenarioEntities,
+    npcs: [{ ...facts.npcs[0]!, isQuestGiver: true }],
+    quests: [
+      { ...questFact, entityKey: "quests:1", chainName: "Pilgrimage", chainOrder: 1 },
+      { ...questFact, chainName: " Pilgrimage ", chainOrder: 2, levelRequirement: 16, experience: 500,
+        objectiveText: "<b>Meet the trial</b>", completedDescription: "<b>Done</b>",
+        worldQuest: { availableSeconds: 120, cooldownAfterCompletionSeconds: 300, cooldownAfterExpirySeconds: 600, cooldownJitterSeconds: 60, initialRollSeconds: 20 } },
+      { ...questFact, entityKey: "quests:4", chainName: "Pilgrimage", chainOrder: 3, conditionIds: ["after-quest"] },
+    ] };
+  const row = (associationId: string, kind: CatalogQuestRow["kind"], overrides: Partial<CatalogQuestRow> = {}): CatalogQuestRow => ({
+    associationId, quest, kind, index: 0, counterpart: null, task: null, count: null, rewardType: null,
+    sourceId: null, label: null, availability: [], completions: [], worldOffer: null, placementIds: [], ...overrides,
+  });
+  const scenarioRelations: CatalogRelations = { ...relations,
+    placements: [
+      { ...relations.placements[0]!, area: "Raven Camp" },
+      ...(["p2", "p3", "p4"] as const).map((placementId) => ({ ...relations.placements[0]!, placementId, roles: [], area: placementId === "p3" ? "Coalway Woods" : "Raven Camp" })),
+    ],
+    conditions: [...relations.conditions,
+      { conditionId: "night", semantics: "world", scope: null, label: "Night", requirements: [
+        { mode: "all", checkCount: false, requiredCount: null, requirements: [requirement("Time", "At night")] },
+      ] },
+      { conditionId: "after-quest", semantics: "world", scope: null, label: "Quest complete", requirements: [
+        { mode: "all", checkCount: false, requiredCount: null, requirements: [questPredicate] },
+      ] },
+      { conditionId: "empty", semantics: "world", scope: null, label: "Empty", requirements: [] },
+    ],
+    quests: [
+      row("giver", "giver", { counterpart: endpoint("npcs:2", "Guardian") }),
+      row("offer-1", "worldOffer", { sourceId: "zone-1", availability: [night], worldOffer: { zoneDelaySeconds: 45, pool: [quest, later] }, placementIds: ["p2"] }),
+      row("offer-2", "worldOffer", { sourceId: "zone-2", availability: [night], worldOffer: { zoneDelaySeconds: 45, pool: [quest, later] }, placementIds: ["p3", "p2"] }),
+      row("other-offer", "worldOffer", { quest: endpoint("quests:1", "Beginning"), sourceId: "zone-3", worldOffer: { zoneDelaySeconds: 45, pool: [quest] }, placementIds: ["p3"] }),
+      row("object", "objectStart", { label: "<b>Old altar</b>", availability: [temporary], placementIds: ["p4"] }),
+      row("later-object", "objectStart", { quest: later, label: "Passage", placementIds: ["p4"] }),
+      row("objective", "objective", { task: { entityKey: "tasks:8", taskType: "enterRegion", target: null, count: null, keepItems: null, sceneName: "Old grove" },
+        completions: [
+          { sourceId: "object-1", label: "Ancient stone", availability: [night], placementIds: ["p2"] },
+          { sourceId: "object-2", label: "Ancient stone", availability: [night], placementIds: ["p4"] },
+        ] }),
+      row("reward", "reward", { counterpart: endpoint("currencies:0", "Gold Coin"), rewardType: "Currency", count: 40 }),
+      row("turn-in", "turnIn", { counterpart: endpoint("npcs:2", "Guardian") }),
+      row("objective-later", "objective", { quest: later, counterpart: endpoint("npcs:2", "Guardian"), task: { entityKey: "tasks:9", taskType: "killNPC", target: endpoint("npcs:2", "Guardian"), count: 2, keepItems: null, sceneName: null } }),
+      row("objective-first", "objective", { quest: endpoint("quests:1", "Beginning"), counterpart: endpoint("scenes:10", "Crypt"),
+        task: { entityKey: "tasks:10", taskType: "enterScene", target: endpoint("scenes:10", "Crypt"), count: null, keepItems: null, sceneName: "Crypt" } }),
+    ],
+    containers: [{ ...relations.containers[0]!, availability: [night], placementIds: ["p2"] }],
+    interactions: [{ objectName: "Egg cluster", sourceId: "chest-action", place: endpoint("scenes:10", "Crypt"),
+      item: endpoint("items:1", "Blade"), min: 2, max: 3, rawRate: 30, availability: [night, { effect: "requires", conditionId: "empty", durationSeconds: null }], placementIds: ["p4"] }],
+    gatedSources: [
+      { sourceId: "spawn-1", family: "npcProducer", label: null, subjects: [endpoint("npcs:2", "Guardian")], placementIds: ["p1"], availability: [afterQuest] },
+      { sourceId: "spawn-2", family: "npcProducer", label: null, subjects: [endpoint("npcs:2", "Guardian")], placementIds: ["p2", "unpublished"], availability: [afterQuest] },
+      { sourceId: "object-change", family: "interaction", label: "Locked altar", subjects: [], placementIds: ["p4"], availability: [afterQuest, night] },
+      { sourceId: "missing-change", family: "resource", label: "Unmapped", subjects: [], placementIds: ["unpublished"], availability: [afterQuest] },
+    ],
+  };
+  const refs = buildEntityReferences(scenarioEntities, { facts: scenarioFacts, relations: scenarioRelations });
+  const placements = new Map(["p1", "p2", "p3", "p4"].map((placementId) => [placementId,
+    { placementId, mapSpaceId: "world", label: placementId === "p3" ? "Coalway Woods" : "Raven Camp", categories: [] }] as const));
+  const documents = projectPublicDocuments({ entities: scenarioEntities, facts: scenarioFacts, relations: scenarioRelations,
+    refs, resolve: createReferenceResolver(refs), artByEntity: new Map(), placements, regionIdsByMapSpace: new Map([["world", []]]) });
+  const publicQuest = documents.get("quests:3") as PublicQuest;
+  expect(publicQuest.facts).toMatchObject({ levelRequirement: 16, experience: 500, chain: { name: "Pilgrimage", order: 2 },
+    objectiveText: "Meet the trial", completedDescription: "Done",
+    worldQuest: { availableSeconds: 120, cooldownAfterCompletionSeconds: 300, cooldownAfterExpirySeconds: 600, cooldownJitterSeconds: 60, initialRollSeconds: 20 } });
+  expect(publicQuest.starts).toEqual([
+    { kind: "npc", npc: refs.get("npcs:2")!, areas: ["Raven Camp"] },
+    { kind: "worldZone", placements: [placements.get("p2")!, placements.get("p3")!].map(({ categories, ...location }) => location),
+      availability: [{ effect: "requires", requirements: [{ mode: "all", checkCount: false, requirements: [expect.objectContaining({ label: "At night" })] }] }],
+      zoneDelaySeconds: 45, pool: [refs.get("quests:4")!] },
+    { kind: "object", label: "Old altar", placements: [placements.get("p4")!].map(({ categories, ...location }) => location),
+      availability: [{ effect: "temporary", durationSeconds: 30, requirements: [expect.objectContaining({ mode: "all" })] }] },
+  ]);
+  expect(publicQuest.objectives).toEqual([{ index: 0, type: "enterRegion", text: "Find the old grove",
+    completions: [{ label: "Ancient stone", availability: [expect.objectContaining({ effect: "requires" })],
+      placements: [placements.get("p2")!, placements.get("p4")!].map(({ categories, ...location }) => location) }] }]);
+  expect(publicQuest.rewards).toEqual([{ counterpart: refs.get("currencies:0")!, count: 40, choice: false }]);
+  expect(publicQuest.chainQuests.map((ref) => ref.key)).toEqual(["quests:1", "quests:3", "quests:4"]);
+  expect(publicQuest.unlocks.map((ref) => ref.key)).toEqual(["quests:4"]);
+  expect(publicQuest.worldChanges).toMatchObject([
+    { sourceKind: "creature", subjects: [{ key: "npcs:2" }], availability: [{ effect: "excludes", requirements: [{ requirements: [{
+      spans: [{ ref: { key: "quests:3" } }, { text: " turned in" }],
+    }] }] }], placements: [{ placementId: "p1" }, { placementId: "p2" }] },
+    { sourceKind: "object", label: "Locked altar", availability: [{ effect: "excludes" }, { effect: "requires" }], placements: [{ placementId: "p4" }] },
+  ]);
+  const item = documents.get("items:1") as PublicItem;
+  expect(item.inContainers).toMatchObject([{ availability: [{ effect: "requires" }], placementCount: 1 }]);
+  expect(item.collectedFrom).toMatchObject([{ label: "Egg cluster", counterpart: { key: "scenes:10" }, min: 2, max: 3, chance: 30,
+    availability: [{ effect: "requires" }], placementCount: 1 }]);
+  const npc = documents.get("npcs:2") as PublicNpc;
+  expect(npc.spawnConditions).toMatchObject([{ availability: [{ effect: "excludes" }], placements: [{ placementId: "p1" }, { placementId: "p2" }] }]);
+  expect(npc.usedInQuests).toMatchObject([{ counterpart: { key: "quests:4" }, objective: { type: "killNpc", target: { key: "npcs:2" }, count: 2 } }]);
+  const place = documents.get("scenes:10") as PublicPlace;
+  expect(place.quests.map((ref) => ref.key)).toEqual(["quests:3", "quests:1", "quests:4"]);
+  expect(place.questObjectives.map((ref) => ref.key)).toEqual(["quests:3", "quests:4", "quests:1"]);
 });

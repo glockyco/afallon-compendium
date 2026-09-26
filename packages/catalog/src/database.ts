@@ -1,7 +1,7 @@
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 import { createHash } from "node:crypto";
 import { openIdentityDatabase, recordPlacementIdentities } from "./identity-store";
-import type { NormalizedDatabaseInput, NormalizedEntity } from "@afallon/contracts/catalog"
+import { NORMALIZED_OUTPUT_SCHEMA_VERSION, type NormalizedDatabaseInput, type NormalizedEntity } from "@afallon/contracts/catalog";
 
 function json(value: unknown): string {
   return JSON.stringify(value ?? null);
@@ -128,6 +128,11 @@ export function openNormalizedDatabase(path: string): Database {
         FOREIGN KEY(build_id, map_space_id) REFERENCES map_spaces,
         CHECK((map_space_id IS NULL AND map_geometry_json IS NULL) OR (map_space_id IS NOT NULL AND map_geometry_json IS NOT NULL))
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS placement_areas (
+        placement_id TEXT PRIMARY KEY NOT NULL REFERENCES placements(placement_id),
+        region_id TEXT NOT NULL REFERENCES regions(region_id),
+        area_name TEXT NOT NULL
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS placement_sources (
         placement_id TEXT NOT NULL REFERENCES placements(placement_id),
         source_id TEXT NOT NULL REFERENCES source_identities(source_id),
@@ -158,6 +163,16 @@ export function openNormalizedDatabase(path: string): Database {
         payload_json TEXT NOT NULL,
         provenance_json TEXT NOT NULL,
         UNIQUE(build_id, owner_type, owner_key, ordinal)
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS source_gates (
+        gate_id TEXT PRIMARY KEY NOT NULL,
+        source_id TEXT NOT NULL REFERENCES source_identities(source_id),
+        via_source_id TEXT REFERENCES source_identities(source_id),
+        condition_id TEXT NOT NULL REFERENCES conditions(condition_id),
+        effect TEXT NOT NULL CHECK(effect IN ('requires', 'excludes', 'temporary')),
+        duration_seconds REAL,
+        provenance_json TEXT NOT NULL,
+        CHECK((effect = 'temporary') = (duration_seconds IS NOT NULL))
       ) STRICT;
       CREATE TABLE IF NOT EXISTS spawn_candidates (
         source_id TEXT NOT NULL REFERENCES source_identities(source_id),
@@ -357,7 +372,18 @@ export function openNormalizedDatabase(path: string): Database {
         entity_key TEXT NOT NULL REFERENCES npc_facts(entity_key), reward_index INTEGER NOT NULL CHECK(reward_index >= 0), faction_entity_key TEXT REFERENCES canonical_entities(entity_key), faction_label TEXT NOT NULL, amount REAL NOT NULL, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, reward_index)
       ) STRICT;
       CREATE TABLE IF NOT EXISTS quest_facts (
-        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), chain_name TEXT, chain_order INTEGER, repeatable INTEGER NOT NULL CHECK(repeatable IN (0, 1)), turn_in_without_npc INTEGER NOT NULL CHECK(turn_in_without_npc IN (0, 1)), completed_description TEXT, objective_text TEXT, level_requirement INTEGER, experience REAL, condition_ids_json TEXT NOT NULL, provenance_json TEXT NOT NULL
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), chain_name TEXT, chain_order INTEGER, repeatable INTEGER NOT NULL CHECK(repeatable IN (0, 1)), turn_in_without_npc INTEGER NOT NULL CHECK(turn_in_without_npc IN (0, 1)), completed_description TEXT, objective_text TEXT, level_requirement INTEGER, level_min INTEGER, level_max INTEGER, dungeon_entity_key TEXT REFERENCES canonical_entities(entity_key), dungeon_label TEXT, experience REAL, condition_ids_json TEXT NOT NULL, provenance_json TEXT NOT NULL,
+        CHECK((level_min IS NULL) = (level_max IS NULL))
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS world_quest_facts (
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES quest_facts(entity_key),
+        world_quest_native_id INTEGER NOT NULL,
+        available_seconds REAL NOT NULL,
+        cooldown_after_completion_seconds REAL NOT NULL,
+        cooldown_after_expiry_seconds REAL NOT NULL,
+        cooldown_jitter_seconds REAL NOT NULL,
+        initial_roll_seconds REAL NOT NULL,
+        provenance_json TEXT NOT NULL
       ) STRICT;
       CREATE TABLE IF NOT EXISTS quest_objectives (
         quest_entity_key TEXT NOT NULL REFERENCES quest_facts(entity_key), objective_index INTEGER NOT NULL CHECK(objective_index >= 0), task_type TEXT NOT NULL, task_entity_key TEXT REFERENCES canonical_entities(entity_key), task_label TEXT NOT NULL, target_entity_key TEXT REFERENCES canonical_entities(entity_key), target_label TEXT, count REAL, keep_items INTEGER CHECK(keep_items IS NULL OR keep_items IN (0, 1)), scene_name TEXT, provenance_json TEXT NOT NULL, PRIMARY KEY(quest_entity_key, objective_index)
@@ -564,7 +590,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
   const bySource = new Map(input.sources.map((source) => [source.sourceId, source]));
   db.transaction(() => {
     for (const identity of input.identityResults) recordPlacementIdentities(db, { runId: identity.runId, snapshotId: identity.snapshotId, snapshotPrefix: identity.snapshotPrefix, snapshotSha256: identity.snapshotSha256, character: identity.character, sceneHandle: identity.sceneHandle }, identity.result);
-    insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, "compendium.normalized-output.v5", json(input.provenance)]);
+    insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, NORMALIZED_OUTPUT_SCHEMA_VERSION, json(input.provenance)]);
     for (const source of sourceFiles) addSourceManifest(db, input.buildId, source.key, source.kind, source.ref.path, source.ref.sha256);
 
     const sceneRows = new Map<number, { nativeId: number; path: string; name: string | null }>();
@@ -586,7 +612,8 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const row of input.npcAbilityPhases ?? []) insertChecked(db, "npc_ability_phases", ["entity_key", "phase_index"], ["entity_key", "phase_index", "name", "requirement", "provenance_json"], [row.entityKey, row.phaseIndex, row.name, row.requirement, json(row.provenance)]);
     for (const row of input.npcPhaseAbilities ?? []) insertChecked(db, "npc_phase_abilities", ["entity_key", "phase_index", "ability_index"], ["entity_key", "phase_index", "ability_index", "source_index", "ability_entity_key", "ability_label", "rank_index", "provenance_json"], [row.entityKey, row.phaseIndex, row.abilityIndex, row.sourceIndex, row.ability.entityKey, row.ability.label, row.rankIndex, json(row.provenance)]);
     for (const row of input.npcFactionRewards ?? []) insertChecked(db, "npc_faction_rewards", ["entity_key", "reward_index"], ["entity_key", "reward_index", "faction_entity_key", "faction_label", "amount", "provenance_json"], [row.entityKey, row.rewardIndex, row.faction.entityKey, row.faction.label, row.amount, json(row.provenance)]);
-    for (const row of input.questFacts ?? []) insertChecked(db, "quest_facts", ["entity_key"], ["entity_key", "chain_name", "chain_order", "repeatable", "turn_in_without_npc", "completed_description", "objective_text", "level_requirement", "experience", "condition_ids_json", "provenance_json"], [row.entityKey, row.chainName, row.chainOrder, row.repeatable ? 1 : 0, row.turnInWithoutNpc ? 1 : 0, row.completedDescription, row.objectiveText, row.levelRequirement, row.experience, json(row.conditionIds), json(row.provenance)]);
+    for (const row of input.questFacts ?? []) insertChecked(db, "quest_facts", ["entity_key"], ["entity_key", "chain_name", "chain_order", "repeatable", "turn_in_without_npc", "completed_description", "objective_text", "level_requirement", "level_min", "level_max", "dungeon_entity_key", "dungeon_label", "experience", "condition_ids_json", "provenance_json"], [row.entityKey, row.chainName, row.chainOrder, row.repeatable ? 1 : 0, row.turnInWithoutNpc ? 1 : 0, row.completedDescription, row.objectiveText, row.levelRequirement, row.levelRange?.min ?? null, row.levelRange?.max ?? null, row.dungeon?.entityKey ?? null, row.dungeon?.label ?? null, row.experience, json(row.conditionIds), json(row.provenance)]);
+    for (const row of input.worldQuestFacts ?? []) insertChecked(db, "world_quest_facts", ["entity_key"], ["entity_key", "world_quest_native_id", "available_seconds", "cooldown_after_completion_seconds", "cooldown_after_expiry_seconds", "cooldown_jitter_seconds", "initial_roll_seconds", "provenance_json"], [row.entityKey, row.worldQuestNativeId, row.availableSeconds, row.cooldownAfterCompletionSeconds, row.cooldownAfterExpirySeconds, row.cooldownJitterSeconds, row.initialRollSeconds, json(row.provenance)]);
     for (const row of input.questObjectives ?? []) insertChecked(db, "quest_objectives", ["quest_entity_key", "objective_index"], ["quest_entity_key", "objective_index", "task_type", "task_entity_key", "task_label", "target_entity_key", "target_label", "count", "keep_items", "scene_name", "provenance_json"], [row.questEntityKey, row.objectiveIndex, row.taskType, row.task.entityKey, row.task.label, row.target?.entityKey ?? null, row.target?.label ?? null, row.count, row.keepItems === null ? null : row.keepItems ? 1 : 0, row.sceneName, json(row.provenance)]);
     for (const row of input.questRewards ?? []) insertChecked(db, "quest_rewards", ["quest_entity_key", "reward_set", "reward_index"], ["quest_entity_key", "reward_set", "reward_index", "reward_type", "target_entity_key", "target_label", "count", "experience", "provenance_json"], [row.questEntityKey, row.rewardSet, row.rewardIndex, row.rewardType, row.target?.entityKey ?? null, row.target?.label ?? null, row.count, row.experience, json(row.provenance)]);
     for (const row of input.placeFacts ?? []) insertChecked(db, "place_facts", ["entity_key"], ["entity_key", "place_type", "guide_included", "guide_description", "level_min", "level_max", "map_space_ids_json", "bosses_json", "parent_scene_key", "provenance_json"], [row.entityKey, row.placeType, row.guideIncluded ? 1 : 0, row.guideDescription, row.levelMin, row.levelMax, json(row.mapSpaceIds), json(row.bosses), row.parentSceneKey, json(row.provenance)]);
@@ -613,6 +640,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const region of input.regions) {
       insertChecked(db, "regions", ["region_id"], ["region_id", "build_id", "scene_native_id", "scene_path", "name", "internal_name", "shape", "world_geometry_json", "map_space_id", "map_geometry_json", "provenance_json"], [region.regionId, input.buildId, region.sceneNativeId, region.scenePath, region.name, region.internalName, region.shape, json(region.worldGeometry), region.mapSpaceId, region.mapGeometry === null ? null : json(region.mapGeometry), json(region.provenance)]);
     }
+    for (const row of input.placementAreas) insertChecked(db, "placement_areas", ["placement_id"], ["placement_id", "region_id", "area_name"], [row.placementId, row.regionId, row.areaName]);
     for (const source of input.sources) {
       if (!db.query("SELECT 1 AS present FROM source_identities WHERE source_id = ?").get(source.sourceId)) throw new Error(`Source ${source.sourceId} references no persisted identity record.`);
     }
@@ -631,6 +659,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
       insertChecked(db, "placement_roles", ["placement_id", "source_id", "role", "npc_entity_key", "scope"], ["placement_id", "source_id", "role", "npc_entity_key", "scope", "evidence_json"], [role.placementId, role.sourceId, role.role, role.npcId === null ? null : `npcs:${role.npcId}`, role.scope, json(role.evidence)]);
     }
     for (const condition of input.conditions) insertChecked(db, "conditions", ["condition_id"], ["condition_id", "build_id", "owner_type", "owner_key", "ordinal", "semantics", "scope", "source_field_path", "payload_json", "provenance_json"], [condition.conditionId, input.buildId, condition.ownerType, condition.ownerKey, condition.ordinal, condition.semantics, condition.scope, condition.sourceFieldPath, json(condition.payload), json(condition.provenance)]);
+    for (const row of input.sourceGates) insertChecked(db, "source_gates", ["gate_id"], ["gate_id", "source_id", "via_source_id", "condition_id", "effect", "duration_seconds", "provenance_json"], [row.gateId, row.sourceId, row.viaSourceId, row.conditionId, row.effect, row.durationSeconds, json(row.provenance)]);
     for (const candidate of input.spawnCandidates) {
       insertChecked(db, "spawn_candidates", ["source_id", "candidate_index"], ["source_id", "candidate_index", "npc_entity_key", "min_count", "max_count", "raw_chance", "chance_semantics", "payload_json", "provenance_json"], [candidate.sourceId, candidate.candidateIndex, candidate.npcId === null ? null : `npcs:${candidate.npcId}`, candidate.minCount, candidate.maxCount, candidate.rawChance, candidate.chanceSemantics, json(candidate.payload), json(candidate.provenance)]);
     }

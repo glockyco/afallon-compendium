@@ -71,13 +71,38 @@ export const NpcGameplaySchema = Type.Object({
 export type NpcGameplay = Static<typeof NpcGameplaySchema>;
 
 export const QuestGameplaySchema = Type.Object({
-  questChainName: optional(nullableText), questChainOrder: optional(integer), repeatable: optional(boolean), canBeTurnedInWithoutNpc: optional(boolean),
-  completedDescription: optional(nullableText), objectiveText: optional(nullableText),
+  questChainOrder: optional(integer), repeatable: optional(boolean), canBeTurnedInWithoutNpc: optional(boolean),
   itemsGiven: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), itemId: integer, count: number }))),
   objectives: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), objectiveType: valueEnum, taskId: integer, timeLimit: number }))),
   rewardsGiven: optional(Type.Array(reward)), rewardsToPick: optional(Type.Array(reward)), requirementsGroupCount: optional(integer), useRequirementsTemplate: optional(boolean), requirementsTemplateId: optional(Type.Union([integer, Type.Null()])),
 });
 export type QuestGameplay = Static<typeof QuestGameplaySchema>;
+
+export const QuestLocalizationSchema = Type.Object({ questChainName: optional(nullableText), objectiveText: optional(nullableText), completedDescription: optional(nullableText) });
+export function decodeQuestLocalization(value: unknown, reference: ArtifactReference, path: string) {
+  const decoded = decode(QuestLocalizationSchema, value, reference, path);
+  const clean = (text: string | null | undefined) => text?.trim() || null;
+  return { questChainName: clean(decoded.questChainName), objectiveText: clean(decoded.objectiveText), completedDescription: clean(decoded.completedDescription) };
+}
+/** A requirement group in a condition payload, as the conditions collector projects it; a null native group is null. */
+export interface RequirementGroupPayload {
+  checkCount?: boolean; requiredCount?: number;
+  requirements: readonly ({ requirementType?: string; conditionRule?: string; value?: { name: string }; amount1?: number } | null)[];
+}
+export function questMinimumLevel(groups: readonly (RequirementGroupPayload | null)[]): number | null {
+  let minimum: number | null = null;
+  for (const group of groups) {
+    if (group === null) continue;
+    const requirements = group.requirements.filter((row) => row !== null);
+    if (group.checkCount && group.requiredCount !== requirements.length || requirements.some((row) => row!.conditionRule === "Optional")) continue;
+    for (const row of requirements) {
+      if (row?.requirementType !== "Level" || row.conditionRule !== "Mandatory" || typeof row.amount1 !== "number") continue;
+      const threshold = row.value?.name === "EqualOrAbove" ? row.amount1 : row.value?.name === "Above" ? row.amount1 + 1 : null;
+      if (threshold !== null) minimum = Math.max(minimum ?? threshold, threshold);
+    }
+  }
+  return minimum;
+}
 
 export const SceneGameplaySchema = Type.Object({
   startPositionId: optional(integer), includedInAdventureGuide: optional(boolean), dungeonLevelMin: optional(integer), dungeonLevelMax: optional(integer), zoneScalingMinLevel: optional(integer), zoneScalingMaxLevel: optional(integer), adventureGuideDescription: optional(nullableText),
@@ -241,6 +266,7 @@ export const RelationshipExtrasSchema = Type.Object({ sourceFieldPath: optional(
 schemaRegistry.register("compendium.catalog-item-gameplay.v1", ItemGameplaySchema);
 schemaRegistry.register("compendium.catalog-npc-gameplay.v1", NpcGameplaySchema);
 schemaRegistry.register("compendium.catalog-quest-gameplay.v1", QuestGameplaySchema);
+schemaRegistry.register("compendium.catalog-quest-localization.v1", QuestLocalizationSchema);
 schemaRegistry.register("compendium.catalog-scene-gameplay.v1", SceneGameplaySchema);
 schemaRegistry.register("compendium.catalog-region-gameplay.v1", RegionGameplaySchema);
 schemaRegistry.register("compendium.catalog-property-gameplay.v1", PropertyGameplaySchema);

@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
-import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogAbilityFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementGroup, CatalogRequirementNamedValue, CatalogRequirementEntry, CatalogRequirementTime, CatalogRelations } from "@afallon/contracts/catalog";
+import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogAbilityFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogInteractionRow, CatalogGatedSourceRow, CatalogAvailabilityRule, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementSpan, CatalogRequirementGroup, CatalogRequirementNamedValue, CatalogRequirementEntry, CatalogRequirementTime, CatalogRelations } from "@afallon/contracts/catalog";
 import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
+import { containerTypeFromHierarchyPath } from "./world";
 
 export interface CatalogQueryIdentity {
   buildId: string;
@@ -306,6 +307,32 @@ function placementIdsByNpc(db: Database): Map<string, string[]> {
   return result;
 }
 
+function sourcePlacements(db: Database): Map<string, string[]> {
+  const result = new Map<string, string[]>();
+  for (const row of db.query<{ source_id: string; placement_id: string }, []>("SELECT source_id, placement_id FROM placement_sources ORDER BY source_id, placement_id").all()) {
+    const values = result.get(row.source_id) ?? []; values.push(row.placement_id); result.set(row.source_id, values);
+  }
+  return result;
+}
+
+function availabilityBySource(db: Database): Map<string, CatalogAvailabilityRule[]> {
+  const result = new Map<string, CatalogAvailabilityRule[]>();
+  for (const row of db.query<{ source_id: string; effect: CatalogAvailabilityRule["effect"]; condition_id: string; duration_seconds: number | null }, []>("SELECT source_id, effect, condition_id, duration_seconds FROM source_gates ORDER BY source_id, effect, condition_id, via_source_id, gate_id").all()) {
+    const values = result.get(row.source_id) ?? [];
+    if (!values.some((value) => value.effect === row.effect && value.conditionId === row.condition_id && value.durationSeconds === row.duration_seconds)) values.push({ effect: row.effect, conditionId: row.condition_id, durationSeconds: row.duration_seconds });
+    result.set(row.source_id, values);
+  }
+  return result;
+}
+
+// A world item source is available under its own requirement conditions and its world source's gates; each
+// meaning appears once.
+function itemSourceAvailability(conditionIds: readonly string[], gates: readonly CatalogAvailabilityRule[]): CatalogAvailabilityRule[] {
+  const own = conditionIds.map((conditionId): CatalogAvailabilityRule => ({ effect: "requires", conditionId, durationSeconds: null }));
+  return [...new Map([...own, ...gates].map((rule) => [`${rule.effect}:${rule.conditionId}:${rule.durationSeconds}`, rule])).values()]
+    .sort((a, b) => a.effect.localeCompare(b.effect) || a.conditionId.localeCompare(b.conditionId));
+}
+
 export function queryCatalogEntities(db: Database): CatalogQueryResult<CatalogEntityRow[]> {
   const artwork = new Map<string, CatalogEntityRow["artwork"]>();
   for (const row of db.query<{ entity_key: string; role: "icon" | "portrait" | "artwork"; asset_id: string; sha256: string; bytes: number; width: number; height: number; source_name: string }, []>(`
@@ -351,7 +378,8 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
   for (const row of db.query<{ entity_key: string; faction_entity_key: string | null; faction_label: string; amount: number }, []>("SELECT entity_key, faction_entity_key, faction_label, amount FROM npc_faction_rewards ORDER BY entity_key, reward_index").all()) { const values = rewards.get(row.entity_key) ?? []; values.push({ faction: endpoint(refs, row.faction_entity_key, row.faction_label), amount: row.amount }); rewards.set(row.entity_key, values); }
   const npcs = db.query<Record<string, string | number | null>, []>("SELECT * FROM npc_facts ORDER BY entity_key").all().map((row) => { const specialization = row.loot_specialization_json === null ? null : object(String(row.loot_specialization_json)); return { entityKey: String(row.entity_key), minLevel: row.min_level as number | null, maxLevel: row.max_level as number | null, scalesWithPlayer: row.scales_with_player === 1, npcType: row.npc_type as string | null, creatureType: row.creature_type as string | null, family: row.family as string | null, faction: row.faction_entity_key === null && row.faction_label === null ? null : endpoint(refs, row.faction_entity_key as string | null, row.faction_label as string | null), species: row.species_entity_key === null && row.species_label === null ? null : endpoint(refs, row.species_entity_key as string | null, row.species_label as string | null), isMerchant: row.is_merchant === 1, isQuestGiver: row.is_quest_giver === 1, isCombatEnabled: row.is_combat_enabled === 1, isAuctioneer: row.is_auctioneer === 1, isBanker: row.is_banker === 1, isFlightMaster: row.is_flight_master === 1, hunterTamable: row.hunter_tamable === 1, hunterBeastRole: row.hunter_beast_role as string | null, equipmentAppearanceSelections: row.equipment_appearance_selections as string | null, adventurer: npcAdventurer(refs, row.adventurer_json), flightNetwork: npcFlightNetwork(refs, row.flight_network_json), minRespawn: row.min_respawn as number | null, maxRespawn: row.max_respawn as number | null, minExperience: row.min_experience as number | null, maxExperience: row.max_experience as number | null, immuneToStun: row.immune_to_stun === 1, immuneToSlow: row.immune_to_slow === 1, aggroRange: row.aggro_range as number | null, stats: npcStats.get(String(row.entity_key)) ?? [], abilityPhases: phases.get(String(row.entity_key)) ?? [], factionRewards: rewards.get(String(row.entity_key)) ?? [], linkedNpc: row.linked_npc_entity_key === null && row.linked_npc_label === null ? null : endpoint(refs, row.linked_npc_entity_key as string | null, row.linked_npc_label as string | null), lootSpecialization: specialization === null ? null : { armorType: typeof specialization.armorType === "string" ? specialization.armorType : null, weaponTypes: Array.isArray(specialization.weaponTypes) ? specialization.weaponTypes.filter((value): value is string => typeof value === "string") : [], stat: nullableEndpointJson(refs, specialization.stat) } }; });
   const tasks = db.query<{ entity_key: string; task_type: string; target_entity_key: string | null; target_label: string | null; count: number | null; keep_items: number | null; scene_name: string | null }, []>("SELECT entity_key, task_type, target_entity_key, target_label, count, keep_items, scene_name FROM task_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, taskType: row.task_type, target: row.target_entity_key === null && row.target_label === null ? null : endpoint(refs, row.target_entity_key, row.target_label), count: row.count, keepItems: row.keep_items === null ? null : row.keep_items === 1, sceneName: row.scene_name }));
-  const quests = db.query<{ entity_key: string; chain_name: string | null; chain_order: number | null; repeatable: number; turn_in_without_npc: number; completed_description: string | null; objective_text: string | null; level_requirement: number | null; experience: number | null; condition_ids_json: string }, []>("SELECT entity_key, chain_name, chain_order, repeatable, turn_in_without_npc, completed_description, objective_text, level_requirement, experience, condition_ids_json FROM quest_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, chainName: row.chain_name, chainOrder: row.chain_order, repeatable: row.repeatable === 1, turnInWithoutNpc: row.turn_in_without_npc === 1, completedDescription: row.completed_description, objectiveText: row.objective_text, levelRequirement: row.level_requirement, experience: row.experience, conditionIds: textArray(row.condition_ids_json) }));
+  const worldQuestFacts = new Map(db.query<{ entity_key: string; available_seconds: number; cooldown_after_completion_seconds: number; cooldown_after_expiry_seconds: number; cooldown_jitter_seconds: number; initial_roll_seconds: number }, []>("SELECT entity_key, available_seconds, cooldown_after_completion_seconds, cooldown_after_expiry_seconds, cooldown_jitter_seconds, initial_roll_seconds FROM world_quest_facts ORDER BY entity_key").all().map((row) => [row.entity_key, { availableSeconds: row.available_seconds, cooldownAfterCompletionSeconds: row.cooldown_after_completion_seconds, cooldownAfterExpirySeconds: row.cooldown_after_expiry_seconds, cooldownJitterSeconds: row.cooldown_jitter_seconds, initialRollSeconds: row.initial_roll_seconds }] as const));
+  const quests = db.query<{ entity_key: string; chain_name: string | null; chain_order: number | null; repeatable: number; turn_in_without_npc: number; completed_description: string | null; objective_text: string | null; level_requirement: number | null; level_min: number | null; level_max: number | null; dungeon_entity_key: string | null; dungeon_label: string | null; experience: number | null; condition_ids_json: string }, []>("SELECT entity_key, chain_name, chain_order, repeatable, turn_in_without_npc, completed_description, objective_text, level_requirement, level_min, level_max, dungeon_entity_key, dungeon_label, experience, condition_ids_json FROM quest_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, chainName: row.chain_name, chainOrder: row.chain_order, repeatable: row.repeatable === 1, turnInWithoutNpc: row.turn_in_without_npc === 1, completedDescription: row.completed_description, objectiveText: row.objective_text, levelRequirement: row.level_requirement, levelRange: row.level_min === null || row.level_max === null ? null : { min: row.level_min, max: row.level_max }, dungeon: row.dungeon_entity_key === null && row.dungeon_label === null ? null : endpoint(refs, row.dungeon_entity_key, row.dungeon_label ?? row.dungeon_entity_key ?? ""), experience: row.experience, conditionIds: textArray(row.condition_ids_json), worldQuest: worldQuestFacts.get(row.entity_key) ?? null }));
   const places = db.query<{ entity_key: string; place_type: CatalogPlaceFacts["placeType"]; guide_included: number; guide_description: string | null; level_min: number | null; level_max: number | null; map_space_ids_json: string; bosses_json: string; parent_scene_key: string | null }, []>("SELECT entity_key, place_type, guide_included, guide_description, level_min, level_max, map_space_ids_json, bosses_json, parent_scene_key FROM place_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, placeType: row.place_type, guideIncluded: row.guide_included === 1, guideDescription: row.guide_description, levelRange: row.level_min === null || row.level_max === null ? null : { min: row.level_min, max: row.level_max }, mapSpaceIds: textArray(row.map_space_ids_json), bosses: (parse(row.bosses_json) as unknown[]).map((value) => endpointJson(refs, value)), parentSceneKey: row.parent_scene_key }));
   const properties = db.query<{ entity_key: string; income: number | null; purchase_price: number | null; sell_price: number | null; currency_entity_key: string | null; currency_label: string | null; property_type: string | null }, []>("SELECT entity_key, income, purchase_price, sell_price, currency_entity_key, currency_label, property_type FROM property_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, income: row.income, purchasePrice: row.purchase_price, sellPrice: row.sell_price, currency: row.currency_entity_key === null && row.currency_label === null ? null : endpoint(refs, row.currency_entity_key, row.currency_label), propertyType: row.property_type }));
   const abilities = db.query<{ entity_key: string; ranks_json: string }, []>("SELECT entity_key, ranks_json FROM ability_facts ORDER BY entity_key").all().map((row): CatalogAbilityFacts => ({ entityKey: row.entity_key, ranks: (parse(row.ranks_json) as Array<{ rankIndex: number; lines: CatalogAbilityFacts["ranks"][number]["lines"] }>).map((rank) => ({ rankIndex: rank.rankIndex, lines: rank.lines })) }));
@@ -392,23 +420,107 @@ export function queryGatherRows(db: Database): CatalogQueryResult<CatalogGatherR
 }
 
 export function queryContainerRows(db: Database): CatalogQueryResult<CatalogContainerRow[]> {
-  const refs = entityEndpointIndex(db), records: CatalogContainerRow[] = [];
+  const refs = entityEndpointIndex(db), gates = availabilityBySource(db), sources = sourcePlacements(db), records: CatalogContainerRow[] = [];
   for (const row of db.query<{ item_entity_key: string; source_key: string; placement_ids_json: string; condition_ids_json: string; context_json: string }, []>("SELECT item_entity_key, source_key, placement_ids_json, condition_ids_json, context_json FROM item_sources WHERE source_kind = 'container' ORDER BY item_entity_key, source_key").all()) {
     const context = object(row.context_json), sourceId = typeof context.sourceId === "string" ? context.sourceId : null;
     if (sourceId === null) throw new Error(`Container source ${row.source_key} has no source identity.`);
     const placementIds = textArray(row.placement_ids_json);
-    if (placementIds.length === 0) placementIds.push(...db.query<{ placement_id: string }, [string]>("SELECT DISTINCT placement_id FROM source_details WHERE source_id = ? ORDER BY placement_id").all(sourceId).map((detail) => detail.placement_id));
+    if (placementIds.length === 0) placementIds.push(...sources.get(sourceId) ?? []);
     const placement = placementIds.length === 0 ? null : db.query<{ scene_native_id: number }, [string]>("SELECT scene_native_id FROM placements WHERE placement_id = ?").get(placementIds[0]!);
-    records.push({ containerType: typeof context.containerType === "string" ? context.containerType : null, sourceId, place: placement === null ? null : endpoint(refs, `scenes:${placement.scene_native_id}`, `Scene ${placement.scene_native_id}`), item: endpoint(refs, row.item_entity_key, row.item_entity_key), min: typeof context.min === "number" ? context.min : null, max: typeof context.max === "number" ? context.max : null, rawRate: typeof context.rawRate === "number" ? context.rawRate : null, conditionIds: textArray(row.condition_ids_json), placementIds });
+    records.push({ containerType: typeof context.containerType === "string" ? context.containerType : null, sourceId, place: placement === null ? null : endpoint(refs, `scenes:${placement.scene_native_id}`, `Scene ${placement.scene_native_id}`), item: endpoint(refs, row.item_entity_key, row.item_entity_key), min: typeof context.min === "number" ? context.min : null, max: typeof context.max === "number" ? context.max : null, rawRate: typeof context.rawRate === "number" ? context.rawRate : null, availability: itemSourceAvailability(textArray(row.condition_ids_json), gates.get(sourceId) ?? []), placementIds });
+  }
+  return { ...identity(db), records };
+}
+
+export function queryInteractionRows(db: Database): CatalogQueryResult<CatalogInteractionRow[]> {
+  const refs = entityEndpointIndex(db), gates = availabilityBySource(db), sources = sourcePlacements(db);
+  const records: CatalogInteractionRow[] = [];
+  for (const row of db.query<{ item_entity_key: string; source_key: string; placement_ids_json: string; condition_ids_json: string; context_json: string }, []>("SELECT item_entity_key, source_key, placement_ids_json, condition_ids_json, context_json FROM item_sources WHERE source_kind = 'interaction' ORDER BY item_entity_key, source_key").all()) {
+    const context = object(row.context_json), sourceId = typeof context.sourceId === "string" ? context.sourceId : null;
+    if (sourceId === null) throw new Error(`Interaction source ${row.source_key} has no source identity.`);
+    const placementIds = textArray(row.placement_ids_json);
+    if (placementIds.length === 0) placementIds.push(...sources.get(sourceId) ?? []);
+    const placement = placementIds.length === 0 ? null : db.query<{ scene_native_id: number }, [string]>("SELECT scene_native_id FROM placements WHERE placement_id = ?").get(placementIds[0]!);
+    records.push({ objectName: typeof context.objectName === "string" ? context.objectName : null, sourceId, place: placement === null ? null : endpoint(refs, `scenes:${placement.scene_native_id}`, `Scene ${placement.scene_native_id}`), item: endpoint(refs, row.item_entity_key, row.item_entity_key), min: typeof context.min === "number" ? context.min : null, max: typeof context.max === "number" ? context.max : null, rawRate: typeof context.rawRate === "number" ? context.rawRate : null, availability: itemSourceAvailability(textArray(row.condition_ids_json), gates.get(sourceId) ?? []), placementIds });
   }
   return { ...identity(db), records };
 }
 
 export function queryQuestRows(db: Database): CatalogQueryResult<CatalogQuestRow[]> {
-  const refs = entityEndpointIndex(db), placements = placementIdsByNpc(db), tasks = new Map(queryCatalogFacts(db).records.tasks.map((row) => [row.entityKey, row]));
-  const records = db.query<{ association_id: string; association_kind: string; owner_entity_key: string | null; quest_entity_key: string | null; task_entity_key: string | null; item_entity_key: string | null; payload_json: string }, []>("SELECT association_id, association_kind, owner_entity_key, quest_entity_key, task_entity_key, item_entity_key, payload_json FROM quest_associations WHERE quest_entity_key IS NOT NULL ORDER BY quest_entity_key, association_kind, association_id").all().map((row) => { const payload = object(row.payload_json), association = typeof payload.association === "string" ? payload.association : "", rewardSource = typeof payload.rewardSource === "string" ? payload.rewardSource : "", kind: CatalogQuestRow["kind"] = row.association_kind === "npc-quest" ? (association === "completed" ? "turnIn" : "giver") : row.association_kind === "quest-objective" ? "objective" : row.association_kind === "quest-item-given" ? "itemGiven" : row.association_kind === "world-quest-zone" ? "worldZone" : rewardSource === "rewardsToPick" ? "rewardChoice" : "reward"; const counterpartKey = row.owner_entity_key ?? row.task_entity_key ?? row.item_entity_key, counterpart = counterpartKey === null ? null : endpoint(refs, counterpartKey, counterpartKey), indexValue = typeof payload.objectiveIndex === "number" ? payload.objectiveIndex : typeof payload.rewardIndex === "number" ? payload.rewardIndex : typeof payload.itemIndex === "number" ? payload.itemIndex : typeof payload.associationIndex === "number" ? payload.associationIndex : 0; return { associationId: row.association_id, quest: endpoint(refs, row.quest_entity_key, row.quest_entity_key), kind, index: indexValue, counterpart, task: row.task_entity_key === null ? null : tasks.get(row.task_entity_key) ?? null, count: typeof payload.count === "number" ? payload.count : null, experience: typeof payload.Experience === "number" ? payload.Experience : typeof payload.experience === "number" ? payload.experience : null, placementIds: row.owner_entity_key === null ? [] : placements.get(row.owner_entity_key) ?? [] }; });
+  const refs = entityEndpointIndex(db), npcPlacements = placementIdsByNpc(db), sources = sourcePlacements(db), gates = availabilityBySource(db);
+  const tasks = new Map(queryCatalogFacts(db).records.tasks.map((row) => [row.entityKey, row]));
+  const associations = db.query<{ association_id: string; association_kind: string; owner_entity_key: string | null; quest_entity_key: string | null; task_entity_key: string | null; source_id: string | null; payload_json: string }, []>(`
+    SELECT a.association_id, a.association_kind, a.owner_entity_key, a.quest_entity_key, a.task_entity_key, a.source_id, a.payload_json
+    FROM quest_associations a LEFT JOIN npc_facts n ON n.entity_key = a.owner_entity_key
+    WHERE a.association_kind = 'interaction-task' OR (a.quest_entity_key IS NOT NULL AND (a.association_kind <> 'npc-quest' OR n.is_quest_giver = 1))
+    ORDER BY a.quest_entity_key, a.association_kind, a.association_id
+  `).all();
+  const completions = new Map<string, CatalogQuestRow["completions"]>();
+  for (const row of associations) if (row.association_kind === "interaction-task" && row.task_entity_key && row.source_id) {
+    const payload = object(row.payload_json), action = payload.payload && typeof payload.payload === "object" ? payload.payload as Record<string, unknown> : payload;
+    const entries = completions.get(row.task_entity_key) ?? [];
+    if (!entries.some((entry) => entry.sourceId === row.source_id)) entries.push({ sourceId: row.source_id, label: typeof action.objectName === "string" ? action.objectName : null, placementIds: sources.get(row.source_id) ?? [], availability: gates.get(row.source_id) ?? [] });
+    completions.set(row.task_entity_key, entries);
+  }
+  for (const entries of completions.values()) entries.sort((a, b) => a.sourceId.localeCompare(b.sourceId));
+  const records: CatalogQuestRow[] = [];
+  for (const row of associations) {
+    if (row.quest_entity_key === null) continue;
+    const payload = object(row.payload_json), action = payload.payload && typeof payload.payload === "object" ? payload.payload as Record<string, unknown> : payload;
+    let kind: CatalogQuestRow["kind"];
+    if (row.association_kind === "npc-quest") kind = payload.association === "completed" ? "turnIn" : "giver";
+    else if (row.association_kind === "quest-objective") kind = "objective";
+    else if (row.association_kind === "world-quest-offer") kind = "worldOffer";
+    else if (row.association_kind === "interaction-quest") kind = "objectStart";
+    else continue;
+    const sourceId = kind === "worldOffer" || kind === "objectStart" ? row.source_id : null;
+    const task = row.task_entity_key === null ? null : tasks.get(row.task_entity_key) ?? null;
+    // An objective's counterpart is its task's target, so the NPC, item, scene, or ability that the task names
+    // lists the quest. Every other row names the NPC that owns the binding, if any.
+    const counterpart = kind === "objective" ? task?.target ?? null : row.owner_entity_key === null ? null : endpoint(refs, row.owner_entity_key, row.owner_entity_key);
+    const pool = Array.isArray(action.poolQuestIDs) ? action.poolQuestIDs.flatMap((id) => typeof id === "number" && id >= 0 ? [endpoint(refs, `quests:${id}`, `Quest ${id}`)] : []) : [];
+    records.push({ associationId: row.association_id, quest: endpoint(refs, row.quest_entity_key, row.quest_entity_key), kind, index: typeof payload.objectiveIndex === "number" ? payload.objectiveIndex : typeof payload.associationIndex === "number" ? payload.associationIndex : 0, counterpart, task, count: null, rewardType: null, sourceId, label: kind === "objectStart" && typeof action.objectName === "string" ? action.objectName : null, availability: sourceId === null ? [] : gates.get(sourceId) ?? [], completions: row.task_entity_key === null ? [] : completions.get(row.task_entity_key) ?? [], worldOffer: kind === "worldOffer" ? { zoneDelaySeconds: typeof action.zoneRespawnCooldown === "number" ? action.zoneRespawnCooldown : null, pool } : null, placementIds: sourceId !== null ? sources.get(sourceId) ?? [] : row.owner_entity_key === null ? [] : npcPlacements.get(row.owner_entity_key) ?? [] });
+  }
+  for (const row of db.query<{ quest_entity_key: string; reward_set: "given" | "pick" | "itemGiven"; reward_index: number; reward_type: string; target_entity_key: string | null; target_label: string | null; count: number | null }, []>("SELECT quest_entity_key, reward_set, reward_index, reward_type, target_entity_key, target_label, count FROM quest_rewards WHERE target_entity_key IS NOT NULL OR target_label IS NOT NULL ORDER BY quest_entity_key, reward_set, reward_index").all()) {
+    records.push({ associationId: `reward:${row.quest_entity_key}:${row.reward_set}:${row.reward_index}`, quest: endpoint(refs, row.quest_entity_key, row.quest_entity_key), kind: row.reward_set === "given" ? "reward" : row.reward_set === "pick" ? "rewardChoice" : "itemGiven", index: row.reward_index, counterpart: endpoint(refs, row.target_entity_key, row.target_label), task: null, count: row.count, rewardType: row.reward_type, sourceId: null, label: null, availability: [], completions: [], worldOffer: null, placementIds: [] });
+  }
+  records.sort((a, b) => String(a.quest.entityKey).localeCompare(String(b.quest.entityKey)) || a.kind.localeCompare(b.kind) || a.index - b.index || a.associationId.localeCompare(b.associationId));
   return { ...identity(db), records };
 }
+
+// The world source families whose presence a reader can observe: a creature spawner, an interactive object, a
+// container, a gathering node, a crafting station, and a world quest zone.
+const GATED_SOURCE_FAMILY: Readonly<Record<string, CatalogGatedSourceRow["family"]>> = {
+  npcProducer: "npcProducer", interactableObject: "interaction", enhancedInteractableObject: "interaction", chest: "container",
+  oreSpawner: "resource", craftingStation: "craftingStation", worldQuestZone: "worldQuestZone",
+};
+
+export function queryGatedSources(db: Database): CatalogQueryResult<CatalogGatedSourceRow[]> {
+  const refs = entityEndpointIndex(db), gates = availabilityBySource(db), placements = sourcePlacements(db);
+  const details = new Map<string, { family: string; data: Record<string, unknown> }>();
+  for (const row of db.query<{ source_id: string; family: string; data_json: string }, []>("SELECT source_id, family, data_json FROM source_details ORDER BY source_id, detail_id").all()) if (!details.has(row.source_id)) details.set(row.source_id, { family: row.family, data: object(row.data_json) });
+  const candidates = new Map<string, CatalogEndpoint[]>();
+  for (const row of db.query<{ source_id: string; npc_entity_key: string }, []>("SELECT DISTINCT source_id, npc_entity_key FROM spawn_candidates WHERE npc_entity_key IS NOT NULL ORDER BY source_id, npc_entity_key").all()) {
+    const entries = candidates.get(row.source_id) ?? []; entries.push(endpoint(refs, row.npc_entity_key, row.npc_entity_key)); candidates.set(row.source_id, entries);
+  }
+  const records: CatalogGatedSourceRow[] = [];
+  for (const [sourceId, availability] of gates) {
+    if (!(placements.get(sourceId)?.length)) continue;
+    const detail = details.get(sourceId);
+    if (!detail) continue;
+    const family: CatalogGatedSourceRow["family"] | null = GATED_SOURCE_FAMILY[detail.family] ?? null;
+    if (!family) continue;
+    const data = detail.data, stationId = typeof data.stationID === "number" ? data.stationID : null;
+    const subjects = family === "npcProducer" ? candidates.get(sourceId) ?? [] : family === "craftingStation" && stationId !== null && refs.has(`craftingStations:${stationId}`) ? [refs.get(`craftingStations:${stationId}`)!] : [];
+    const objectName = typeof data.interactableName === "string" && data.interactableName ? data.interactableName : null;
+    const source = data.source && typeof data.source === "object" ? data.source as { source?: { hierarchyPath?: string | null } } : null;
+    const label = family === "interaction" ? objectName : family === "container" ? containerTypeFromHierarchyPath(source?.source?.hierarchyPath ?? null) : null;
+    records.push({ sourceId, family, label, subjects, placementIds: placements.get(sourceId)!, availability });
+  }
+  records.sort((a, b) => a.sourceId.localeCompare(b.sourceId));
+  return { ...identity(db), records };
+}
+
 
 export function queryRecipeRows(db: Database): CatalogQueryResult<CatalogRecipeRow[]> {
   const refs = entityEndpointIndex(db), records: CatalogRecipeRow[] = [];
@@ -421,7 +533,7 @@ export function queryContainment(db: Database): CatalogQueryResult<CatalogPlacem
   const roles = new Map<string, CatalogPlacementRow["roles"]>(), families = new Map<string, Set<string>>();
   for (const row of db.query<{ placement_id: string; role: string; npc_entity_key: string | null; scope: string }, []>("SELECT placement_id, role, npc_entity_key, scope FROM placement_roles ORDER BY placement_id, role, scope, COALESCE(npc_entity_key, '')").all()) { const values = roles.get(row.placement_id) ?? []; values.push({ role: row.role, npcEntityKey: row.npc_entity_key, scope: row.scope }); roles.set(row.placement_id, values); }
   for (const row of db.query<{ placement_id: string; families_json: string }, []>("SELECT placement_id, families_json FROM placement_sources ORDER BY placement_id, source_id").all()) { const values = families.get(row.placement_id) ?? new Set<string>(); for (const family of textArray(row.families_json)) values.add(family); families.set(row.placement_id, values); }
-  const records = db.query<{ placement_id: string; scene_native_id: number; map_space_id: string | null; label: string | null }, []>("SELECT placement_id, scene_native_id, map_space_id, label FROM placements ORDER BY placement_id").all().map((row) => ({ placementId: row.placement_id, sceneNativeId: row.scene_native_id, sceneKey: `scenes:${row.scene_native_id}`, mapSpaceId: row.map_space_id, label: row.label, roles: roles.get(row.placement_id) ?? [], families: [...families.get(row.placement_id) ?? []].sort() }));
+  const records = db.query<{ placement_id: string; scene_native_id: number; map_space_id: string | null; label: string | null; area_name: string | null }, []>("SELECT p.placement_id, p.scene_native_id, p.map_space_id, p.label, a.area_name FROM placements p LEFT JOIN placement_areas a ON a.placement_id = p.placement_id ORDER BY p.placement_id").all().map((row) => ({ placementId: row.placement_id, sceneNativeId: row.scene_native_id, sceneKey: `scenes:${row.scene_native_id}`, mapSpaceId: row.map_space_id, label: row.label, area: row.area_name, roles: roles.get(row.placement_id) ?? [], families: [...families.get(row.placement_id) ?? []].sort() }));
   return { ...identity(db), records };
 }
 
@@ -455,29 +567,42 @@ function requirementEndpoint(refs: ReadonlyMap<string, CatalogEndpoint>, require
   return typeof nativeId === "number" && nativeId >= 0 ? endpoint(refs, `${kind}:${nativeId}`, `${kind} ${nativeId}`) : null;
 }
 
-function requirementLabel(requirement: CatalogRequirement): string {
+function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSpan[] {
+  const spans: CatalogRequirementSpan[] = [];
+  const text = (value: string) => { if (value) spans.push({ text: value }); };
+  const reference = (value: CatalogEndpoint | null, fallback: string) => value ? spans.push({ endpoint: value }) : text(fallback);
   const amount = requirement.amounts.primary;
-  if (requirement.type.name === "Level") return `Level ${amount}`;
-  if (requirement.type.name === "Class") return requirement.references.class?.label ?? "Unresolved class";
-  if (requirement.type.name === "Race") return requirement.references.race?.label ?? "Unresolved race";
-  if (requirement.type.name === "Species") return requirement.references.species?.label ?? "Unresolved species";
-  if (requirement.type.name === "Gender") return requirement.subtypes.gender?.name ?? "Unresolved gender";
-  if (requirement.type.name === "Effect") return [requirement.references.effect?.label, requirement.state?.name.toLowerCase()].filter(Boolean).join(" ");
-  if (requirement.type.name === "Item") {
+  const numberPhrase = requirement.value?.name === "EqualOrAbove" ? `${amount} or higher` : requirement.value?.name === "EqualOrBelow" ? `${amount} or lower` : requirement.value?.name === "Above" ? `above ${amount}` : requirement.value?.name === "Below" ? `below ${amount}` : String(amount);
+  if (requirement.type.name === "Quest") {
+    reference(requirement.references.quest, "Unresolved quest");
+    const state: Record<string, string> = { onGoing: "in progress", completed: "completed", abandonned: "abandoned", failed: "failed", turnedIn: "turned in", Tracked: "tracked", TrackedOngoing: "in progress and tracked", TrackedCompleted: "completed and tracked" };
+    if (requirement.questState) text(` ${state[requirement.questState.name] ?? requirement.questState.name}`);
+  } else if (requirement.type.name === "Level") text(`Level ${numberPhrase}`);
+  else if (requirement.type.name === "Class") reference(requirement.references.class, "Unresolved class");
+  else if (requirement.type.name === "Race") reference(requirement.references.race, "Unresolved race");
+  else if (requirement.type.name === "Species") reference(requirement.references.species, "Unresolved species");
+  else if (requirement.type.name === "Gender") text(requirement.subtypes.gender?.name ?? "Unresolved gender");
+  else if (requirement.type.name === "Effect") { reference(requirement.references.effect, "Unresolved effect"); if (requirement.state) text(` ${requirement.state.name.toLowerCase()}`); }
+  else if (requirement.type.name === "Item") {
+    if (requirement.ownership) text(`${requirement.ownership.name} `);
     const subtype = requirement.subtypes.weaponType ?? requirement.subtypes.weaponSlot ?? requirement.subtypes.armorType ?? requirement.subtypes.armorSlot ?? requirement.subtypes.itemType;
-    return [requirement.ownership?.name, subtype?.name ?? requirement.references.item?.label].filter(Boolean).join(" ");
+    if (subtype) text(subtype.name ?? "Unresolved item type"); else reference(requirement.references.item, "Unresolved item");
+  } else if (requirement.type.name === "Region") text(["Region", requirement.subtypes.region?.name].filter(Boolean).join(" "));
+  else if (requirement.type.name === "CombatState") text(requirement.flags.first ? "In combat" : "Out of combat");
+  else {
+    const target = Object.values(requirement.references).find((value) => value !== null);
+    if (target) spans.push({ endpoint: target });
+    else text(Object.values(requirement.subtypes).find((value) => value !== null)?.name ?? requirement.type.name);
+    if (amount !== 0) text(` ${numberPhrase}`);
   }
-  if (requirement.type.name === "Region") return ["Region", requirement.subtypes.region?.name].filter(Boolean).join(" ");
-  if (requirement.type.name === "CombatState") return requirement.flags.first ? "In combat" : "Out of combat";
-  const target = Object.values(requirement.references).find((value) => value !== null) ?? Object.values(requirement.subtypes).find((value) => value !== null);
-  return [target?.label ?? target?.name ?? requirement.type.name, amount !== 0 ? amount : null].filter((value) => value !== null && value !== "").join(" ");
+  return spans;
 }
 
 function projectRequirement(refs: ReadonlyMap<string, CatalogEndpoint>, requirement: Record<string, unknown>): CatalogRequirement {
   const type = { value: typeof requirement.requirementTypeValue === "number" ? requirement.requirementTypeValue : -1, name: typeof requirement.requirementType === "string" ? requirement.requirementType : "Unknown" };
   const rule = { value: typeof requirement.conditionRuleValue === "number" ? requirement.conditionRuleValue : -1, name: typeof requirement.conditionRule === "string" ? requirement.conditionRule : "Unknown" };
   const projected: CatalogRequirement = {
-    type, rule, label: "",
+    type, rule, label: "", spans: [],
     references: {
       ability: requirementEndpoint(refs, requirement, "abilityID", "abilities"), bonus: requirementEndpoint(refs, requirement, "bonusID", "bonuses"), recipe: requirementEndpoint(refs, requirement, "recipeID", "recipes"), resource: requirementEndpoint(refs, requirement, "resourceID", "resources"), effect: requirementEndpoint(refs, requirement, "effectID", "effects"), npc: requirementEndpoint(refs, requirement, "NPCID", "npcs"), stat: requirementEndpoint(refs, requirement, "statID", "stats"), faction: requirementEndpoint(refs, requirement, "factionID", "factions"), combo: requirementEndpoint(refs, requirement, "comboID", "combos"), race: requirementEndpoint(refs, requirement, "raceID", "races"), levels: requirementEndpoint(refs, requirement, "levelsID", "levels"), class: requirementEndpoint(refs, requirement, "classID", "classes"), species: requirementEndpoint(refs, requirement, "speciesID", "species"), item: requirementEndpoint(refs, requirement, "itemID", "items"), currency: requirementEndpoint(refs, requirement, "currencyID", "currencies"), point: requirementEndpoint(refs, requirement, "pointID", "points"), talentTree: requirementEndpoint(refs, requirement, "talentTreeID", "talentTrees"), skill: requirementEndpoint(refs, requirement, "skillID", "skills"), spellbook: requirementEndpoint(refs, requirement, "spellbookID", "spellbooks"), weaponTemplate: requirementEndpoint(refs, requirement, "weaponTemplateID", "weaponTemplates"), enchantment: requirementEndpoint(refs, requirement, "enchantmentID", "enchantments"), gearSet: requirementEndpoint(refs, requirement, "gearSetID", "gearSets"), gameScene: requirementEndpoint(refs, requirement, "gameSceneID", "scenes"), quest: requirementEndpoint(refs, requirement, "questID", "quests"), dialogue: requirementEndpoint(refs, requirement, "dialogueID", "dialogues"),
     },
@@ -488,7 +613,8 @@ function projectRequirement(refs: ReadonlyMap<string, CatalogEndpoint>, requirem
     dialogueNode: requirement.dialogueNode !== null && typeof requirement.dialogueNode === "object" && typeof (requirement.dialogueNode as Record<string, unknown>).nativeType === "string" && typeof (requirement.dialogueNode as Record<string, unknown>).text === "string" ? requirement.dialogueNode as { nativeType: string; text: string } : null,
     times: [requirementTime(requirement.timeRequirement1), requirementTime(requirement.timeRequirement2)],
   };
-  projected.label = requirementLabel(projected);
+  projected.spans = requirementSpans(projected);
+  projected.label = projected.spans.map((span) => "text" in span ? span.text : span.endpoint.label ?? span.endpoint.entityKey ?? "Unknown").join("");
   return projected;
 }
 
@@ -551,5 +677,5 @@ export function queryConditions(db: Database): CatalogQueryResult<CatalogConditi
 }
 
 export function queryCatalogRelations(db: Database): CatalogQueryResult<CatalogRelations> {
-  return { ...identity(db), records: { drops: queryDropRows(db).records, vendors: queryVendorRows(db).records, gathers: queryGatherRows(db).records, containers: queryContainerRows(db).records, quests: queryQuestRows(db).records, recipes: queryRecipeRows(db).records, placements: queryContainment(db).records, transitions: queryTransitions(db).records, conditions: queryConditions(db).records } };
+  return { ...identity(db), records: { drops: queryDropRows(db).records, vendors: queryVendorRows(db).records, gathers: queryGatherRows(db).records, containers: queryContainerRows(db).records, interactions: queryInteractionRows(db).records, quests: queryQuestRows(db).records, recipes: queryRecipeRows(db).records, placements: queryContainment(db).records, transitions: queryTransitions(db).records, conditions: queryConditions(db).records, gatedSources: queryGatedSources(db).records } };
 }

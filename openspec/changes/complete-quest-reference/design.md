@@ -64,30 +64,36 @@ Each interactive object `Chest` action with a loot table expands through the sam
 
 A new catalog module computes `source_gates` for each observation context. A source's own conditions contribute rules: spawner requirements, interaction requirement templates, and enhanced interaction activation and deactivation requirements. For each requirement toggle, every world source whose hierarchy path equals the target path, or starts with the target path and `/`, receives a rule from the toggle's conditions. `ActiveRequirement` gives `requires`, `DisableRequirement` gives `excludes`, and `TimedActiveRequirement` gives `temporary` with its duration. Nested toggles compose because each ancestor contributes its own rule. Gates are keyed by source ID, so repeated observations merge.
 
+A spawner contributes only the requirement set that it evaluates. The collector reports it as `requirements-template`, `inline-requirement-groups`, or `none`; `none` is an enabled template that is null in the scene, which the game passes without a check. Any other value is an `unsupported-enum` coverage issue, and the spawner gets no own rule.
+
 Item source rows from world objects publish `availability` instead of `requirements`. Existing source and loot table conditions become `requires` rules. Drop and vendor rows keep `requirements`, because toggles do not apply to them.
 
 ### 8. Requirements carry spans
 
 `requirementLabel` becomes a span builder. A span is either text or a catalog endpoint. The label is the joined text. Quest requirements read "<quest> <state>", with states "in progress", "completed", "abandoned", "failed", "turned in", "tracked", "in progress and tracked", and "completed and tracked". Numeric requirements read "<subject> <amount>" followed by the comparison, for example "Level 16 or higher". Publication resolves endpoint spans to refs, and the site renders refs with `EntityLink`.
 
+A public requirement carries the type, the rule, the label, and the spans. The raw predicate fields (states, comparisons, amounts, flags, subtypes, times, and references) stay in the catalog, which words every requirement from them. No page, tooltip, list, or search consumer reads the raw fields, and with availability rules on every world source they take more than half of all document bytes: the projected Gold item document is 573,073 bytes with them and 152,781 bytes without them, against a 262,144-byte document budget. The item level that lists and search sort by becomes the item fact `levelRequirement`. Alternative: raise the budget or split large documents. Rejected because the removed fields carry no information that the wording does not already give.
+
 ### 9. Areas are derived in the catalog
 
-`placement_areas` stores, for each placement with a map position, the smallest named region box that contains the position in the same map space. Box containment uses the four map corners as a convex polygon. Area size is the polygon area. Ties sort by name. Publication uses the area as the `PlacementRef` label and as the first disambiguation suffix for NPC names.
+`placement_areas` stores, for each placement with a map position, the smallest named region box that contains the position in the same map space. Box containment uses the four map corners as a convex polygon. Area size is the polygon area. Ties sort by name. Publication uses the area as the `PlacementRef` label and as the first disambiguation suffix for displayed NPC names. A displayed suffix names at most three areas or places; an NPC seen in more takes the next suffix or its native ID, because two Oakenvale guards otherwise carry eleven area names. Slugs keep their level, place, and native-ID suffixes, because a slug is a published URL and staging parity rejects a removed page path.
 
 ### 10. Public documents
 
 - `PublicQuest`: `starts` (npc, worldZone, or object rows), `turnIns`, objectives with `text` and `completions`, typed rewards, `chainQuests` in order, `unlocks`, `worldChanges`, and `facts.worldQuest`. `givers`, `previous`, and `next` are removed.
-- `PublicItem`: `collectedFrom`. Container rows publish `availability`.
+- `PublicItem`: `collectedFrom`. Container rows publish `availability`. `PublicItem` and `PublicNpc` list the quests whose objectives target them in `usedInQuests`, because objective rows now name the task target as their counterpart.
 - `PublicNpc`: `spawnConditions`.
 - `PublicPlace`: `quests` starting in the place and `questObjectives`.
-- `RequirementRef`: `spans`.
+- `RequirementRef`: `type`, `rule`, `label`, and `spans` only (decision 8). `ItemFacts`: `levelRequirement`.
 - Document schema IDs for items, NPCs, quests, and places increase to v3. The graph check validates every `PlacementRef` in a document, not only `locations`.
 
 A row keeps a `PlacementRef` list only when its subject has no page (world zones, objects, and gated spawners). An NPC start links the NPC and the atlas entity view instead.
 
 ### 11. Quest level range from the runtime
 
-The canonical collector calls `QuestLevelRange.TryGetRange` and `GetDungeonScene` for each quest and writes the result to quest gameplay. A new scan of the canonical target adds it. The catalog decodes it into `quest_facts`, and publication adds `facts.levelRange` and `dungeon`. This decision needs Steam and the game. The rest of the change does not depend on it.
+A new collector, `quest-levels`, belongs to the canonical family and writes `compendium.quest-levels.v1`: for each quest, the range from `QuestLevelRange.TryGetRange` and the scene ID from `GetDungeonScene`. A separate artifact leaves `compendium.canonical.v4` and every admitted scan valid, because older envelopes simply lack the new artifact. The catalog reads it from the canonical target when present, stores the range and dungeon in `quest_facts`, and publication adds `facts.levelRange` and `dungeon`.
+
+Runtime checks on the installed game gave the same 136 ranges at the main menu and in the world, so the values depend on database records and not on the character. `FormatPrefix` renders exactly these ranges as the "[min-max]" prefix; only its colour depends on the character's level, and the colour is not published. The installed game is build 25434619, while the published evidence is build 25419293. A scan of one build cannot enter a catalog of the other, so the ranges appear when the evidence moves to the installed build through the game update workflow.
 
 ## Risks / Trade-offs
 
@@ -95,12 +101,12 @@ The canonical collector calls `QuestLevelRange.TryGetRange` and `GetDungeonScene
 - [The effective pool rule has no runtime proof] → It follows the authored tooltip. In the current build the fixed quest is always in the pool, so both readings give the same offers.
 - [`Tracked*` states have no recovered semantics] → Publish them as "tracked" states without further interpretation.
 - [Area names from large regions, such as Coalway woods, are coarse] → The smallest containing region wins, so a named camp inside the woods takes precedence.
-- [A new canonical scan changes admitted evidence] → Add the new scan manifest alongside the existing manifests. Do not replace the manifests that the coverage review cites.
+- [The installed game is newer than the published evidence] → Do not mix builds. The collector ships now and is proven by a candidate scan of the installed build; the published catalog gains the ranges with the next complete scan.
 
 ## Migration Plan
 
 1. Implement the catalog, publication, and site changes with the tests that defend them.
-2. Rebuild the catalog from the current plan, publish, stage against the current publication as baseline, and verify pages in a browser.
-3. Add the runtime level range with a new canonical scan when the game is available, then rebuild and publish again.
+2. Rebuild the catalog from the current plan and publish. Run the non-regression gate against the current publication. The current graph check rejects that publication because its documents use the retired schema IDs, so the gate reads both roots structurally and verifies every file identity. Stage with a candidate of this change as the graph-verified baseline, build, and verify pages in a browser.
+3. Publish the quest level ranges with the next complete scan of the installed build.
 
 Rollback uses the previous publication root with `verify:deployment`.

@@ -16,9 +16,9 @@ const boss: EntityRef = { key: "npcs:286", kind: "npcs", name: "Kraath the Hiveb
 const gold: EntityRef = { key: "currencies:0", kind: "currencies", name: "Gold Coin" };
 const unresolved: UnresolvedRef = { key: null, label: "Unknown item 9999" };
 const placement = { placementId: "p1", mapSpaceId: "map", label: "Duskfall Depths" };
-const requirement = (type: string, label: string, fields: Record<string, unknown> = {}) => ({ type: { value: 0, name: type }, rule: { value: 0, name: "Mandatory" }, label, references: {}, amounts: { primary: 0, secondary: 0, float: 0, isPercent: false }, flags: { consume: false, first: false, second: false, third: false }, subtypes: {}, times: [null, null], ...fields });
+const requirement = (type: string, label: string, fields: Record<string, unknown> = {}) => ({ type: { value: 0, name: type }, rule: { value: 0, name: "Mandatory" }, label, spans: [{ text: label }], ...fields });
 const legacySchemaIds = {
-  items: "compendium.static-item.v1", npcs: "compendium.static-npc.v1", quests: "compendium.static-quest.v1", places: "compendium.static-place.v1",
+  items: "compendium.static-item.v2", npcs: "compendium.static-npc.v2", quests: "compendium.static-quest.v2", places: "compendium.static-place.v2",
   properties: "compendium.static-property.v1", abilities: "compendium.static-ability.v1", recipes: "compendium.static-recipe.v1", gearSets: "compendium.static-gear-set.v1",
 } as const;
 
@@ -33,13 +33,14 @@ test("references are keyed and typed; name-only shapes are rejected", () => {
   expect(() => Assert(EntityRefSchema, { ...item, href: "/items/peasant-gloves/" })).toThrow();
 });
 
-test("a requirement group retains its complete typed predicates", () => {
+test("a requirement group carries worded requirements whose spans link the named entities", () => {
   const group = { mode: "any", checkCount: true, requiredCount: 1, requirements: [
-    requirement("Class", "Warrior", { rule: { value: 1, name: "Optional" }, references: { class: { key: "classes:0", kind: "classes", name: "Warrior" } } }),
-    requirement("Class", "Assassin", { rule: { value: 1, name: "Optional" }, references: { class: { key: "classes:5", kind: "classes", name: "Assassin" } } }),
+    requirement("Class", "Warrior", { rule: { value: 1, name: "Optional" }, spans: [{ ref: { key: "classes:0", kind: "classes", name: "Warrior" } }] }),
+    requirement("Class", "Assassin", { rule: { value: 1, name: "Optional" }, spans: [{ ref: { key: "classes:5", kind: "classes", name: "Assassin" } }] }),
   ] };
   Assert(RequirementGroupSchema, group);
-  Assert(RequirementGroupSchema, { mode: "all", checkCount: false, requirements: [requirement("Level", "Level 27", { amounts: { primary: 27, secondary: 0, float: 0, isPercent: false } })] });
+  Assert(RequirementGroupSchema, { mode: "all", checkCount: false, requirements: [requirement("Level", "Level 27 or higher")] });
+  expect(() => Assert(RequirementGroupSchema, { mode: "all", checkCount: false, requirements: [requirement("Level", "Level 27", { spans: [] })] })).toThrow();
   expect(() => Assert(RequirementGroupSchema, { ...group, requirements: [] })).toThrow();
   expect(() => Assert(RequirementGroupSchema, { ...group, mode: "either" })).toThrow();
   expect(() => Assert(RequirementGroupSchema, { mode: "all", checkCount: false, requirements: [{ type: "Class", label: "Warrior" }] })).toThrow();
@@ -52,23 +53,23 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
   expect(() => Assert(DropRowSchema, { ...drop, chance: 101 })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, placements: [placement] })).toThrow();
   expect(() => Assert(DropRowSchema, { ...drop, chance: null })).toThrow();
-  Assert(VendorRowSchema, { counterpart: item, price: { amount: 45, currency: gold }, requirements: [{ mode: "all", checkCount: false, requirements: [requirement("Stat", "Item power 400", { references: { stat: { key: "stats:53", kind: "stats", name: "Item power" } }, amounts: { primary: 400, secondary: 0, float: 0, isPercent: false } })] }] });
+  Assert(VendorRowSchema, { counterpart: item, price: { amount: 45, currency: gold }, requirements: [{ mode: "all", checkCount: false, requirements: [requirement("Stat", "Item power 400", { spans: [{ ref: { key: "stats:53", kind: "stats", name: "Item power" } }, { text: " 400" }] })] }] });
   Assert(GatherRowSchema, { label: "Copper vein", rank: 1, min: 1, max: 2, placementCount: 345 });
-  Assert(ContainerRowSchema, { counterpart: unresolved, label: "Chest", requirements: [], placementCount: 53 });
+  Assert(ContainerRowSchema, { counterpart: unresolved, label: "Chest", availability: [{ effect: "requires", requirements: [{ mode: "all", checkCount: false, requirements: [requirement("Class", "Warrior")] }] }], placementCount: 53 });
   Assert(RecipeRowSchema, { counterpart: item, count: 1 });
-  Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 0, label: "Kill 3 Branchweavers", type: "killNpc", target: boss, count: 3 } });
-  Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 1, label: "?", type: "unsupported", rawType: "customTask" } });
-  expect(() => Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 0, label: "x", type: "killNpc", target: boss } })).toThrow();
+  Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 0, text: "Kill 3 Branchweavers", completions: [], type: "killNpc", target: boss, count: 3 } });
+  Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 1, text: "?", completions: [], type: "unsupported", rawType: "customTask" } });
+  expect(() => Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 0, text: "x", completions: [], type: "killNpc", target: boss } })).toThrow();
 });
 
 const base = { description: null, art: {} };
 const located = { ...base, locations: [placement] };
 const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } = {
   items: { ...base, ref: item, facts: { rarity: "Common", itemType: "ARMOR", slot: "GLOVES", stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 7, isPercent: false }], randomStats: [{ stat: { key: "stats:0", kind: "stats", name: "Health" }, min: 10, max: 40, isPercent: false, whole: false, chance: 100 }], randomStatsMax: 0, sockets: [{ gemType: "Green Gem" }], sellPrice: { amount: 5, currency: gold }, stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
-    droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [] }], soldBy: [], gatheredFrom: [], inContainers: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [] } satisfies PublicItem,
-  npcs: { ...located, ref: boss, facts: { level: 21, scalesWithPlayer: false, roles: ["boss"], stats: [], immunities: [], lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE"] } }, drops: [{ counterpart: item, min: 1, max: 1, requirements: [] }], sells: [], quests: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], usedInQuests: [], bossOf: [] } satisfies PublicNpc,
-  quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, givers: [boss], turnIns: [], objectives: [{ index: 0, label: "Kill 3 Branchweavers", type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [] } satisfies PublicQuest,
-  places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], quests: [], properties: [], connections: [], regions: [] } satisfies PublicPlace,
+    droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [] }], soldBy: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [] } satisfies PublicItem,
+  npcs: { ...located, ref: boss, facts: { level: 21, scalesWithPlayer: false, roles: ["boss"], stats: [], immunities: [], lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE"] } }, spawnConditions: [], drops: [{ counterpart: item, min: 1, max: 1, requirements: [] }], sells: [], quests: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], usedInQuests: [], bossOf: [] } satisfies PublicNpc,
+  quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, starts: [{ kind: "npc", npc: boss, areas: ["Duskfall Depths"] }], turnIns: [], objectives: [{ index: 0, text: "Kill 3 Branchweavers", completions: [], type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [] } satisfies PublicQuest,
+  places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], quests: [], questObjectives: [], properties: [], connections: [], regions: [] } satisfies PublicPlace,
   properties: { ...located, ref: { key: "properties:1", kind: "properties", name: "Mill", slug: "mill" }, facts: { income: 60 } } satisfies PublicProperty,
   abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, facts: { ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Deals damage", tone: "damage", italic: false }] }] }] }, usedBy: [boss], taughtBy: [] } satisfies PublicAbility,
   gearSets: { ...base, ref: { key: "gearSets:17", kind: "gearSets", name: "Adept Leather", slug: "adept-leather" }, facts: { memberCount: 7 }, members: [item], tiers: [{ equipped: 3, stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 10, isPercent: true }] }] } satisfies PublicGearSet,
@@ -91,8 +92,8 @@ test("every kind document validates and rejects unknown properties", () => {
 
 test("a v3 root reaches documents and artwork through graph edges and passes semantics", () => {
   const ref = (schemaId: string, sha: string) => ({ path: `resources/${sha}.json`, sha256: sha, bytes: 10, schemaId });
-  const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: "compendium.static-item.v2", ...identity, kind: "items", document: fixtures.items as PublicItem };
-  const npcDocument = { schemaVersion: "compendium.static-npc.v2", ...identity, kind: "npcs", document: fixtures.npcs as PublicNpc } as const;
+  const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: "compendium.static-item.v3", ...identity, kind: "items", document: fixtures.items as PublicItem };
+  const npcDocument = { schemaVersion: "compendium.static-npc.v3", ...identity, kind: "npcs", document: fixtures.npcs as PublicNpc } as const;
   const itemReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.items, "1".repeat(64)), npcReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.npcs, "2".repeat(64));
   const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v3", ...identity, part: 0, entries: [{ ref: item, hasPlacements: false, sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, hasPlacements: true, sourceKinds: [], document: npcReference as never }] };
   const itemList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "items", part: 0, rows: [{ ref: item, values: { level: null, rarity: "Common" }, facets: { slot: ["GLOVES"] } }] };
@@ -135,4 +136,18 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
   const unknownPlacement = new Map(values);
   unknownPlacement.set(itemReference.path, { ...itemDocument, document: { ...itemDocument.document, droppedBy: [{ counterpart: { ...boss, key: "npcs:999" }, requirements: [] }] } });
   expect(() => assertStaticPublicationSemantics(root, unknownPlacement)).toThrow("unpublished entity npcs:999");
+  const questReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.quests, "f".repeat(64));
+  const questDocument = { schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.quests, ...identity, kind: "quests" as const,
+    document: { ...fixtures.quests as PublicQuest, starts: [{ kind: "object" as const, label: "Shrine", availability: [], placements: [{ placementId: "missing", mapSpaceId: "map", label: "Duskfall Depths" }] }] } };
+  const withQuest = new Map(values);
+  withQuest.set(questReference.path, questDocument);
+  withQuest.set(root.search[0]!.path, { ...search, entries: [...search.entries, { ref: questDocument.document.ref, hasPlacements: false, sourceKinds: [], document: questReference as never }] });
+  withQuest.set(itemReference.path, { ...itemDocument, document: { ...itemDocument.document, rewardedBy: [{ counterpart: questDocument.document.ref, count: 1, choice: false }] } });
+  withQuest.set(root.lists.items![0]!.path, itemList);
+  withQuest.set(root.lists.npcs![0]!.path, npcList);
+  const questKind = { kind: "quests" as const, label: "Quest", plural: "Quests", route: "quests", icon: "quest", pages: true, searchable: true, columns: [], facets: [] };
+  const questListReference = ref("compendium.static-kind-list.v1", "0".repeat(64));
+  const questRoot = { ...root, kinds: [...root.kinds, questKind], lists: { ...root.lists, quests: [questListReference as never] } };
+  withQuest.set(questListReference.path, { schemaVersion: "compendium.static-kind-list.v1", ...identity, kind: "quests", part: 0, rows: [{ ref: questDocument.document.ref, values: {}, facets: {} }] });
+  expect(() => assertStaticPublicationSemantics(questRoot, withQuest)).toThrow("Document placement is not a published placement: missing");
 });

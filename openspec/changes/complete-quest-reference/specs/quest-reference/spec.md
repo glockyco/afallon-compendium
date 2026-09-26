@@ -37,12 +37,16 @@ A quest page SHALL show each way that the quest starts. An NPC start SHALL link 
 
 ### Requirement: Objectives show their task text and where they complete
 
-Each objective SHALL show the task text, with the target entity and count when the task names them. An objective that an interactive object completes SHALL name that object and link its placements on the atlas. An objective without a target or completion object SHALL show its text only.
+Each objective SHALL show the task text, with the target entity and count when the task names them. An objective that an interactive object completes SHALL name that object and link its placements on the atlas. An objective without a target or completion object SHALL show its text only. The NPC or item page of an objective's target SHALL list the quest with the objective.
 
 #### Scenario: A reader views a region objective
 - **WHEN** a task has no target and four interactive objects complete it
 - **THEN** the objective shows the task text and links the four placements
 - **AND** it does not show an unknown target
+
+#### Scenario: A creature is a quest target
+- **WHEN** a quest asks the player to defeat 12 Strawhaunts
+- **THEN** the Strawhaunt page lists the quest under quest objectives with the objective text and the count
 
 ### Requirement: Quest text, chain, and level requirement are published
 
@@ -82,7 +86,7 @@ A place page SHALL list the quests that start in the place and the quests that h
 
 ### Requirement: The quest list shows how to choose a quest
 
-The quest list SHALL show level, chain, start type, area, giver, and experience columns. It SHALL offer start type, area, chain, and repeatable facets. The quest tooltip SHALL show the objectives with their text and counts, the fixed rewards, and the reward choices as a separate group.
+The quest list SHALL show level range, minimum level, chain, start type, area, giver, and experience columns. It SHALL offer start type, area, chain, and repeatable facets. The quest tooltip SHALL show the objectives with their text and counts, the fixed rewards, and the reward choices as a separate group.
 
 #### Scenario: A reader filters world quests by area
 - **WHEN** the reader selects the world quest type and one area
@@ -90,8 +94,13 @@ The quest list SHALL show level, chain, start type, area, giver, and experience 
 
 ### Requirement: The game's quest level range is published
 
-The catalog SHALL record the level range and the dungeon that the game computes for each quest, and the quest page, tooltip, and list SHALL show them when the game returns them.
+The catalog SHALL record the level range and the dungeon that the game computes for each quest. The quest page and the quest tooltip SHALL show both when the game returns them. The quest list and the search result SHALL show the range as the quest level.
 
 #### Scenario: The game computes a level range
 - **WHEN** the runtime probe returns a level range for a quest
 - **THEN** the quest page and the quest list show that range
+- **AND** a search result for the quest shows that range as its level
+
+#### Scenario: The game assigns a dungeon
+- **WHEN** the runtime probe returns a dungeon scene for a quest
+- **THEN** the quest page and the quest tooltip link the dungeon's place page

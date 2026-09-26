@@ -1,5 +1,5 @@
 import type { WorldSources } from "@afallon/contracts";
-import type { ArtifactReference, NormalizedCondition, NormalizedSourceDetail, ProvenanceReference } from "@afallon/contracts/catalog";
+import type { ArtifactReference, NormalizedCondition, NormalizedSourceDetail, NormalizedWorldQuestFact, ProvenanceReference } from "@afallon/contracts/catalog";
 import { hashRelation } from "./database";
 import { pointer, type SceneContext, type SourceIdentityRow, type Blocker } from "./context";
 import { addSourceIndex, type ItemSourceAccumulator, type RelationData } from "./relations";
@@ -8,6 +8,8 @@ export interface WorldRelationData {
   resourceYields: Array<Record<string, unknown> & { yieldId: string; itemID: number; sourceId: string; provenance: ProvenanceReference[] }>;
   transitions: Array<Record<string, unknown> & { transitionId: string; sourceId: string | null; sourceSceneNativeId: number; destinationSceneNativeId: number | null; destinationMapSpaceId: string | null; transitionKind: string; provenance: ProvenanceReference[] }>;
   questAssociations: Array<Record<string, unknown> & { associationId: string; associationKind: string; provenance: ProvenanceReference[] }>;
+  /** One row per offering zone and context; normalization merges rows of the same quest and rejects conflicting timing. */
+  worldQuestFacts: NormalizedWorldQuestFact[];
 }
 
 export function containerTypeFromHierarchyPath(path: string | null): string | null {
@@ -24,11 +26,19 @@ export function containerTypeFromHierarchyPath(path: string | null): string | nu
   }
   return null;
 }
+
+// The authored display name of an interactive object, which can carry rich-text markup; publication removes the
+// markup with every other published name.
+function objectNameOf(interaction: WorldSources["interactions"][number]): string | null {
+  return "interactableName" in interaction && interaction.interactableName ? interaction.interactableName : null;
+}
+
 type WorldSource = WorldSources["transitions"][number]["source"];
 type LootEntry = RelationData["lootEntries"][number];
 
 export function worldRelations(contexts: readonly SceneContext[], sourcePlacement: ReadonlyMap<string, string>, lootEntries: readonly LootEntry[], conditions: readonly NormalizedCondition[], itemIndex: Map<number, Map<string, ItemSourceAccumulator>>, blockers: Blocker[]): WorldRelationData {
   const resourceYields: WorldRelationData["resourceYields"] = [], transitions: WorldRelationData["transitions"] = [], questAssociations: WorldRelationData["questAssociations"] = [];
+  const worldQuestFacts: NormalizedWorldQuestFact[] = [];
   const entriesByTable = new Map<number, LootEntry[]>();
   for (const entry of lootEntries) { const rows = entriesByTable.get(entry.lootTableID) ?? []; rows.push(entry); entriesByTable.set(entry.lootTableID, rows); }
   const sourceConditions = new Map<string, string[]>();
@@ -37,7 +47,7 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
     const identityFor = (source: WorldSource) => source.componentInstanceId === null ? undefined : context.sourceByComponent.get(source.componentInstanceId);
     const conditionIds = (identity: SourceIdentityRow) => sourceConditions.get(`source:${identity.sourceId}`) ?? [];
     const placementIds = (identity: SourceIdentityRow) => { const placement = sourcePlacement.get(identity.sourceId); return placement ? [placement] : []; };
-    function tableOutputs(identity: SourceIdentityRow, tableId: number, sourceKey: string, reference: ArtifactReference, sourceKind: "resource" | "container", details: Record<string, unknown>) {
+    function tableOutputs(identity: SourceIdentityRow, tableId: number, sourceKey: string, reference: ArtifactReference, sourceKind: "resource" | "container" | "interaction", details: Record<string, unknown>) {
       const entries = entriesByTable.get(tableId);
       if (!entries) { blockers.push({ kind: "missing-reference", key: `${identity.sourceId}:lootTables:${tableId}`, detail: `World output references an unavailable loot table ${tableId}.`, provenance: [reference] }); return; }
       for (const entry of entries) {
@@ -80,8 +90,19 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
     }
     for (const [index, zone] of context.world.questZones.entries()) {
       const identity = identityFor(zone.source), reference = pointer(context.worldReference, `/questZones/${index}`);
-      if (zone.worldQuest) questAssociations.push({ associationId: hashRelation("world-quest-zone", [identity?.sourceId ?? context.snapshotId, zone.worldQuest.nativeId]), associationKind: "world-quest-zone", questID: zone.worldQuest.quest?.nativeId ?? null, sourceId: identity?.sourceId ?? null, payload: { worldQuest: zone.worldQuest, selectionRule: zone.selectionRule, zoneRespawnCooldown: zone.zoneRespawnCooldown }, provenance: [reference] });
-      for (const [questIndex, candidate] of zone.possibleQuests.entries()) if (!("unavailable" in candidate)) questAssociations.push({ associationId: hashRelation("world-quest-zone-candidate", [identity?.sourceId ?? context.snapshotId, candidate.worldQuest.nativeId]), associationKind: "world-quest-zone-candidate", questID: candidate.worldQuest.quest?.nativeId ?? null, sourceId: identity?.sourceId ?? null, payload: candidate, selectionRule: zone.selectionRule, provenance: [pointer(reference, `/possibleQuests/${questIndex}`)] });
+      if (!identity) continue;
+      const pool = zone.possibleQuests.flatMap((row) => "unavailable" in row ? [] : [row.worldQuest]);
+      const selected = pool.length ? pool : zone.worldQuest ? [zone.worldQuest] : [];
+      const poolQuestIDs = [...new Set(selected.flatMap((row) => row.quest && row.quest.nativeId >= 0 ? [row.quest.nativeId] : []))].sort((a, b) => a - b);
+      for (const worldQuest of selected) {
+        const questID = worldQuest.quest?.nativeId;
+        if (questID === undefined || questID < 0) continue;
+        const key = `quests:${questID}`;
+        questAssociations.push({ associationId: hashRelation("world-quest-offer", [identity.sourceId, worldQuest.nativeId]), associationKind: "world-quest-offer", questID, sourceId: identity.sourceId, payload: { worldQuest, zoneRespawnCooldown: zone.zoneRespawnCooldown, selection: pool.length ? "pool" : "single", poolQuestIDs }, provenance: [reference] });
+        const { availableDuration, cooldownAfterCompletion, cooldownAfterExpiry, cooldownRandomJitter, initialRollWindow } = worldQuest;
+        if ([availableDuration, cooldownAfterCompletion, cooldownAfterExpiry, cooldownRandomJitter, initialRollWindow].some((value) => value === undefined)) throw new Error(`Incomplete world quest timing for ${key}.`);
+        worldQuestFacts.push({ entityKey: key, worldQuestNativeId: worldQuest.nativeId, availableSeconds: availableDuration!, cooldownAfterCompletionSeconds: cooldownAfterCompletion!, cooldownAfterExpirySeconds: cooldownAfterExpiry!, cooldownJitterSeconds: cooldownRandomJitter!, initialRollSeconds: initialRollWindow!, provenance: [reference] });
+      }
     }
     for (const [index, row] of context.world.transitions.entries()) {
       const identity = identityFor(row.source);
@@ -91,9 +112,17 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
     for (const [index, interaction] of context.world.interactions.entries()) {
       if (!("actions" in interaction)) continue;
       const identity = identityFor(interaction.source);
+      const objectName = objectNameOf(interaction);
       for (const [actionIndex, action] of interaction.actions.entries()) {
         if ("unavailable" in action) continue;
         const reference = pointer(context.worldReference, `/interactions/${index}/actions/${actionIndex}`);
+        // Quest starts, task completions, and loot need a placed source; teleports keep an unplaced source as coverage evidence.
+        if (identity) {
+          const payload = { objectName, activationType: action.activationType.name, chance: action.chance };
+          if (action.type.name === "Quest" && action.quest?.nativeId !== undefined && action.quest.nativeId >= 0) questAssociations.push({ associationId: hashRelation("interaction-quest", [identity.sourceId, action.sourceFieldPath, action.quest.nativeId]), associationKind: "interaction-quest", questID: action.quest.nativeId, sourceId: identity.sourceId, payload, provenance: [reference] });
+          if (action.type.name === "CompleteTask" && action.task?.nativeId !== undefined && action.task.nativeId >= 0) questAssociations.push({ associationId: hashRelation("interaction-task", [identity.sourceId, action.sourceFieldPath, action.task.nativeId]), associationKind: "interaction-task", taskID: action.task.nativeId, sourceId: identity.sourceId, payload, provenance: [reference] });
+          if (action.type.name === "Chest" && action.lootTable?.nativeId !== undefined && action.lootTable.nativeId >= 0 && entriesByTable.has(action.lootTable.nativeId)) tableOutputs(identity, action.lootTable.nativeId, action.sourceFieldPath, reference, "interaction", { objectName, activationType: action.activationType.name, authoredActionChance: action.chance });
+        }
         const addTeleport = (destination: { sceneNativeId: number; position: { x: number; y: number; z: number } }, kind: string, pointerReference: ArtifactReference) => transitions.push({ transitionId: hashRelation("action-teleport", [identity?.sourceId ?? context.snapshotId, destination, kind, action.sourceFieldPath]), sourceId: identity?.sourceId ?? null, sourceSceneNativeId: context.sceneNativeId, destinationSceneNativeId: destination.sceneNativeId < 0 ? context.sceneNativeId : destination.sceneNativeId, destinationMapSpaceId: null, transitionKind: kind, destinationPosition: destination.position, payload: { destination, authoredActionChance: action.chance, activationType: action.activationType }, provenance: [pointerReference] });
         if (action.effectTeleport) addTeleport(action.effectTeleport, "effect-teleport", pointer(reference, "/effectTeleport"));
         for (const [family, actions] of [["template", action.gameActions.template?.actions], ["inline", action.gameActions.inline.actions]] as const) {
@@ -107,7 +136,7 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
       }
     }
   }
-  return { resourceYields, transitions, questAssociations };
+  return { resourceYields, transitions, questAssociations, worldQuestFacts };
 }
 
 export function sourceDetails(contexts: readonly SceneContext[], sourcePlacement: ReadonlyMap<string, string>): NormalizedSourceDetail[] {

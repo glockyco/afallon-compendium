@@ -1,5 +1,6 @@
 import type { PublicPlacement, PublicSearchEntry, PublicationData } from '@afallon/contracts/public';
 import type { ResultSummary } from './atlas-search-types';
+import { sourceKindLabel } from './format';
 import { MARKER_IDS, markerFor, resolveMarker, type MarkerId } from './map/marker-registry';
 
 export interface SearchIndexes {
@@ -67,7 +68,7 @@ export function buildSearchIndexes(data: PublicationData, entries: readonly Publ
   }
   return {
     entriesByKey: new Map(entries.map((entry) => [entry.ref.key, entry])),
-    searchEntries: entries.map((entry) => ({ entry, text: [entry.ref.name, entry.place ?? '', ...entry.sourceKinds].join(' ').toLocaleLowerCase() })),
+    searchEntries: entries.map((entry) => ({ entry, text: [entry.ref.name, entry.place ?? '', ...entry.sourceKinds, ...entry.sourceKinds.map(sourceKindLabel)].join(' ').toLocaleLowerCase() })),
     placementSearchText: new Map(data.placements.map((placement) => [placement.placementId, placement.searchText.toLocaleLowerCase()])),
     placementsById,
     placementsByEntryKey,

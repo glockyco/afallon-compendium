@@ -128,7 +128,8 @@
         </div>
       {/if}
 
-      <RefList title="Quests" refs={document.quests} {registry} {limit} />
+      <RefList title="Quests that start here" refs={document.quests} {registry} {limit} />
+      <RefList title="Quest objectives here" refs={document.questObjectives} {registry} {limit} />
       <RefList title="Properties" refs={document.properties} {registry} {limit} />
       <RefList title="Regions" refs={document.regions} {registry} {limit} />
 

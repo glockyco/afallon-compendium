@@ -10,9 +10,11 @@
   $: facts = document.facts;
   $: badges = [
     ...(facts.chain ? [{ label: facts.chain.name, tone: 'accent' as const }] : []),
+    ...(facts.worldQuest ? [{ label: 'World quest' }] : []),
     ...(facts.repeatable ? [{ label: 'Repeatable' }] : []),
   ] satisfies HeaderBadge[];
   $: headerFacts = [
+    ...(facts.levelRange ? [{ label: 'Level', value: `${facts.levelRange.min}–${facts.levelRange.max}` }] : []),
     ...(facts.levelRequirement !== undefined ? [{ label: 'Requires level', value: String(facts.levelRequirement) }] : []),
     ...(facts.experience !== undefined ? [{ label: 'Experience', value: formatNumber(facts.experience) }] : []),
   ] satisfies HeaderFact[];
@@ -21,11 +23,17 @@
 <article>
   <EntityHeader name={document.ref.name} art={document.art.icon ?? document.ref.icon} fallbackIcon={registry.find((entry) => entry.kind === 'quests')?.icon} {badges} facts={headerFacts} description={document.description} compact />
   <dl>
-    {#if document.givers.length}<div><dt>Giver</dt><dd>{#each document.givers as ref}<EntityReference {ref} {registry} />{/each}</dd></div>{/if}
+    {#if document.starts.length}
+      <div><dt>Start</dt><dd>{#each document.starts as start}
+        {#if start.kind === 'npc'}<EntityReference ref={start.npc} {registry} />{:else if start.kind === 'worldZone'}World quest{:else}{start.label ?? 'Interactive object'}{/if}
+      {/each}</dd></div>
+    {/if}
     {#if document.turnIns.length}<div><dt>Turn-in</dt><dd>{#each document.turnIns as ref}<EntityReference {ref} {registry} />{/each}</dd></div>{:else if facts.turnInWithoutNpc}<div><dt>Turn-in</dt><dd>No NPC required</dd></div>{/if}
+    {#if document.dungeon}<div><dt>Dungeon</dt><dd><EntityReference ref={document.dungeon} {registry} /></dd></div>{/if}
   </dl>
-  {#if document.objectives.length}<section><h4>Objectives</h4><ul>{#each document.objectives as objective}<li>{objective.label}</li>{/each}</ul></section>{/if}
-  {#if document.rewards.length || document.rewardChoices.length}<section><h4>Rewards</h4><ul>{#each [...document.rewards, ...document.rewardChoices] as reward}<li><EntityReference ref={reward.counterpart} {registry} /><span>×{reward.count}</span></li>{/each}</ul></section>{/if}
+  {#if document.objectives.length}<section><h4>Objectives</h4><ul>{#each document.objectives as objective}<li>{objective.text}{#if 'count' in objective}<span>×{objective.count}</span>{/if}</li>{/each}</ul></section>{/if}
+  {#if document.rewards.length}<section><h4>Rewards</h4><ul>{#each document.rewards as reward}<li><EntityReference ref={reward.counterpart} {registry} /><span>×{reward.count}</span></li>{/each}</ul></section>{/if}
+  {#if document.rewardChoices.length}<section><h4>Choose one</h4><ul>{#each document.rewardChoices as reward}<li><EntityReference ref={reward.counterpart} {registry} /><span>×{reward.count}</span></li>{/each}</ul></section>{/if}
   {#if facts.objectiveText}<p class="quest-text">{facts.objectiveText}</p>{/if}
   {#if facts.completedDescription}<p class="quest-text">{facts.completedDescription}</p>{/if}
 </article>

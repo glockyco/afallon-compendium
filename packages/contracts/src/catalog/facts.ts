@@ -129,8 +129,23 @@ export interface CatalogQuestFacts {
   completedDescription: string | null;
   objectiveText: string | null;
   levelRequirement: number | null;
+  // The level range and the dungeon that the game's QuestLevelRange computes; null without that evidence.
+  levelRange: CatalogLevelRange | null;
+  dungeon: CatalogEndpoint | null;
   experience: number | null;
   conditionIds: string[];
+  worldQuest: CatalogWorldQuestFacts | null;
+}
+
+// The timing of the `RPGWorldQuest` that grants a quest when the player enters an active zone. The
+// fields keep the authored seconds: active duration once it spawns, the cooldowns after completion and
+// after expiry, the random jitter added to a cooldown, and the random initial cooldown at scene start.
+export interface CatalogWorldQuestFacts {
+  availableSeconds: number;
+  cooldownAfterCompletionSeconds: number;
+  cooldownAfterExpirySeconds: number;
+  cooldownJitterSeconds: number;
+  initialRollSeconds: number;
 }
 
 export interface CatalogPlaceFacts {
@@ -185,6 +200,17 @@ export interface CatalogFacts {
 }
 
 export interface CatalogCondition { conditionId: string; semantics: string; scope: "equipment" | "use" | null; label: string; requirements: CatalogRequirementGroup[] }
+
+// How a world source's presence depends on a condition. `requires`: the source exists or works only while
+// the condition holds; its own spawn, interaction, and activation requirements and every activation toggle
+// above it give this effect. `excludes`: a deactivation toggle above it removes it while the condition
+// holds. `temporary`: a timed toggle above it keeps it for `durationSeconds` after the condition holds.
+export type CatalogAvailabilityEffect = "requires" | "excludes" | "temporary";
+export interface CatalogAvailabilityRule { effect: CatalogAvailabilityEffect; conditionId: string; durationSeconds: number | null }
+
+// A requirement's display text in reading order. An endpoint span names the entity that the requirement
+// references, so a page can link it; the requirement label is the spans' text joined.
+export type CatalogRequirementSpan = { text: string } | { endpoint: CatalogEndpoint };
 export interface CatalogRequirementGroup { mode: "all" | "any"; checkCount: boolean; requiredCount: number | null; requirements: CatalogRequirement[] }
 export interface CatalogRequirementNamedValue { value: number; name: string }
 export interface CatalogRequirementEntry { nativeId: number; name: string | null; internalName: string | null; fileName: string | null; description: string | null; nativeType: string; text: string }
@@ -199,6 +225,7 @@ export interface CatalogRequirement {
   type: CatalogRequirementNamedValue;
   rule: CatalogRequirementNamedValue;
   label: string;
+  spans: CatalogRequirementSpan[];
   references: CatalogRequirementReferences;
   knowledge: CatalogRequirementNamedValue | null;
   state: CatalogRequirementNamedValue | null;
@@ -275,11 +302,29 @@ export interface CatalogContainerRow {
   min: number | null;
   max: number | null;
   rawRate: number | null;
-  conditionIds: string[];
+  availability: CatalogAvailabilityRule[];
   placementIds: string[];
 }
 
-export type CatalogQuestRelationKind = "giver" | "turnIn" | "objective" | "reward" | "rewardChoice" | "itemGiven" | "worldZone";
+// Loot from an interactive object whose `Chest` action names a loot table: a pumpkin, a coin purse, or an
+// egg cluster that a quest asks for. `objectName` is the object's authored display name, which can carry markup.
+export interface CatalogInteractionRow {
+  objectName: string | null;
+  sourceId: string;
+  place: CatalogEndpoint | null;
+  item: CatalogEndpoint;
+  min: number | null;
+  max: number | null;
+  rawRate: number | null;
+  availability: CatalogAvailabilityRule[];
+  placementIds: string[];
+}
+
+// `giver` and `turnIn` rows name an NPC whose native quest service is on. `worldOffer` rows name a world
+// quest zone that offers the quest; `objectStart` rows name an interactive object whose `Quest` action
+// starts it. An `objective` row's counterpart is its task's target. Reward rows come from the typed rewards,
+// so `counterpart` is the entity that `rewardType` names: an item, a currency, or a faction.
+export type CatalogQuestRelationKind = "giver" | "turnIn" | "objective" | "reward" | "rewardChoice" | "itemGiven" | "worldOffer" | "objectStart";
 export interface CatalogQuestRow {
   associationId: string;
   quest: CatalogEndpoint;
@@ -288,8 +333,32 @@ export interface CatalogQuestRow {
   counterpart: CatalogEndpoint | null;
   task: CatalogTaskFacts | null;
   count: number | null;
-  experience: number | null;
+  rewardType: string | null;
+  // The world source of a `worldOffer` or `objectStart` row, its object name, and its availability.
+  sourceId: string | null;
+  label: string | null;
+  availability: CatalogAvailabilityRule[];
+  // The objects whose `CompleteTask` action completes an `objective` row's task.
+  completions: CatalogObjectiveCompletion[];
+  worldOffer: CatalogWorldOffer | null;
   placementIds: string[];
+}
+
+export interface CatalogObjectiveCompletion { sourceId: string; label: string | null; placementIds: string[]; availability: CatalogAvailabilityRule[] }
+
+// A zone's delay before it picks the next quest, and every quest in the zone's effective pool.
+export interface CatalogWorldOffer { zoneDelaySeconds: number | null; pool: CatalogEndpoint[] }
+
+// A world source with at least one availability rule. `subjects` are the NPCs a spawner can spawn or the
+// crafting station a station source serves; `label` is an interactive object's or container's name.
+export type CatalogGatedSourceFamily = "npcProducer" | "interaction" | "container" | "resource" | "craftingStation" | "worldQuestZone";
+export interface CatalogGatedSourceRow {
+  sourceId: string;
+  family: CatalogGatedSourceFamily;
+  label: string | null;
+  subjects: CatalogEndpoint[];
+  placementIds: string[];
+  availability: CatalogAvailabilityRule[];
 }
 
 export interface CatalogRecipeRow {
@@ -307,6 +376,8 @@ export interface CatalogPlacementRow {
   sceneKey: string;
   mapSpaceId: string | null;
   label: string | null;
+  // The smallest named region that contains the placement's map position, when one does.
+  area: string | null;
   roles: Array<{ role: string; npcEntityKey: string | null; scope: string }>;
   families: string[];
 }
@@ -324,9 +395,11 @@ export interface CatalogRelations {
   vendors: CatalogVendorRow[];
   gathers: CatalogGatherRow[];
   containers: CatalogContainerRow[];
+  interactions: CatalogInteractionRow[];
   quests: CatalogQuestRow[];
   recipes: CatalogRecipeRow[];
   placements: CatalogPlacementRow[];
   transitions: CatalogTransitionRow[];
   conditions: CatalogCondition[];
+  gatedSources: CatalogGatedSourceRow[];
 }

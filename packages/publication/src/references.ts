@@ -1,4 +1,4 @@
-import type { CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogRelations } from "@afallon/contracts/catalog";
+import type { CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogPlacementRow, CatalogRelations } from "@afallon/contracts/catalog";
 import type { Art, EntityRef, Ref, UnresolvedRef } from "@afallon/contracts/public";
 import { plainText } from "./text";
 import { PUBLIC_KIND_BY_KIND, publicKindForCatalogKind } from "./kind-registry";
@@ -50,21 +50,28 @@ function npcLevelLabels(facts: CatalogFacts | undefined): ReadonlyMap<string, st
   return labels;
 }
 
-function npcPlaceLabels(entities: readonly CatalogEntityRow[], relations: CatalogRelations | undefined): ReadonlyMap<string, string> {
-  const entityByKey = new Map(entities.map((entity) => [entity.entityKey, entity]));
-  const places = new Map<string, Set<string>>();
+// A display suffix names at most this many areas or places; a longer list is not a readable name, so such an NPC
+// takes the next suffix candidate or its native ID.
+const READABLE_PLACEMENT_LABELS = 3;
+
+/** Each NPC's distinct placement labels, sorted, for one label source. */
+function npcPlacementLabels(relations: CatalogRelations | undefined, labelOf: (placement: CatalogPlacementRow) => string): ReadonlyMap<string, readonly string[]> {
+  const labels = new Map<string, Set<string>>();
   for (const placement of relations?.placements ?? []) {
-    const place = entityByKey.get(placement.sceneKey);
-    const label = plainText(place?.name ?? placement.label ?? "");
+    const label = labelOf(placement);
     if (!label) continue;
     for (const role of placement.roles) {
       if (role.npcEntityKey === null) continue;
-      const labels = places.get(role.npcEntityKey) ?? new Set<string>();
-      labels.add(label);
-      places.set(role.npcEntityKey, labels);
+      const npcLabels = labels.get(role.npcEntityKey) ?? new Set<string>();
+      npcLabels.add(label);
+      labels.set(role.npcEntityKey, npcLabels);
     }
   }
-  return new Map([...places].map(([key, labels]) => [key, [...labels].sort().join(" / ")]));
+  return new Map([...labels].map(([key, values]) => [key, [...values].sort()]));
+}
+
+function joinedLabels(labels: ReadonlyMap<string, readonly string[]>, limit = Number.POSITIVE_INFINITY): ReadonlyMap<string, string> {
+  return new Map([...labels].flatMap(([key, values]) => values.length <= limit ? [[key, values.join(" / ")] as const] : []));
 }
 
 function readableFact(value: string | null | undefined): string | undefined {
@@ -93,8 +100,7 @@ function placeTypeLabels(facts: CatalogFacts | undefined): ReadonlyMap<string, s
   }));
 }
 
-function placeParentLabels(entities: readonly CatalogEntityRow[], facts: CatalogFacts | undefined): ReadonlyMap<string, string> {
-  const entityByKey = new Map(entities.map((entity) => [entity.entityKey, entity]));
+function placeParentLabels(entityByKey: ReadonlyMap<string, CatalogEntityRow>, facts: CatalogFacts | undefined): ReadonlyMap<string, string> {
   return new Map((facts?.places ?? []).flatMap((place) => {
     if (place.parentSceneKey === null) return [];
     const label = plainText(entityByKey.get(place.parentSceneKey)?.name ?? "");
@@ -181,9 +187,14 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     if (group) group.push(entry);
     else groups.set(key, [entry]);
   }
-  const levelLabels = npcLevelLabels(context.facts), npcPlaces = npcPlaceLabels(entities, context.relations);
+  const entityByKey = new Map(entities.map((entity) => [entity.entityKey, entity]));
+  const levelLabels = npcLevelLabels(context.facts);
+  const npcAreaSets = npcPlacementLabels(context.relations, (placement) => plainText(placement.area ?? ""));
+  const npcPlaceSets = npcPlacementLabels(context.relations, (placement) => plainText(entityByKey.get(placement.sceneKey)?.name ?? placement.label ?? ""));
+  const npcPlaces = joinedLabels(npcPlaceSets);
+  const readableAreas = joinedLabels(npcAreaSets, READABLE_PLACEMENT_LABELS), readablePlaces = joinedLabels(npcPlaceSets, READABLE_PLACEMENT_LABELS);
   const itemLabels = itemFactLabels(context.facts);
-  const placeTypes = placeTypeLabels(context.facts), placeParents = placeParentLabels(entities, context.facts);
+  const placeTypes = placeTypeLabels(context.facts), placeParents = placeParentLabels(entityByKey, context.facts);
   const placeLevels = placeLevelLabels(context.facts), placeMaps = placeMapLabels(context.facts, context.mapSpaceLabels);
   const names = new Map<string, string>(), slugNames = new Map<string, string>();
   for (const group of groups.values()) {
@@ -193,10 +204,12 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
       continue;
     }
     const rows = group.map((entry) => entry.entity), kind = group[0]!.kind;
+    // Slugs are published URLs, so their suffixes keep the original order of level, place, and native id; the
+    // area labels only improve the displayed names.
     const stableSuffixes = kind === "npcs" && distinctSuffixes(rows, levelLabels) ? levelLabels
       : kind === "npcs" && distinctSuffixes(rows, npcPlaces) ? npcPlaces
         : new Map(rows.map((entity) => [entity.entityKey, `#${entity.nativeId}`]));
-    const candidates = kind === "npcs" ? [levelLabels, npcPlaces, combinedLabels(levelLabels, npcPlaces)]
+    const candidates = kind === "npcs" ? [levelLabels, readableAreas, readablePlaces, combinedLabels(levelLabels, readableAreas), combinedLabels(levelLabels, readablePlaces)]
       : kind === "items" ? [itemLabels]
           : kind === "places" ? [placeTypes, placeParents, placeLevels, placeMaps,
             combinedLabels(placeTypes, placeParents), combinedLabels(placeTypes, placeLevels), combinedLabels(placeTypes, placeMaps)]

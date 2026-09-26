@@ -24,7 +24,7 @@
   export let limit: number | undefined = undefined;
 
   $: facts = document.facts;
-  $: hasSources = document.droppedBy.length > 0 || document.soldBy.length > 0 || document.gatheredFrom.length > 0 || document.inContainers.length > 0 || document.rewardedBy.length > 0 || document.givenBy.length > 0 || document.craftedBy.length > 0;
+  $: hasSources = document.droppedBy.length > 0 || document.soldBy.length > 0 || document.gatheredFrom.length > 0 || document.inContainers.length > 0 || document.collectedFrom.length > 0 || document.rewardedBy.length > 0 || document.givenBy.length > 0 || document.craftedBy.length > 0;
   $: damage = rangeText(facts.minDamage, facts.maxDamage);
   $: gearType = facts.weaponType ?? facts.armorType;
   $: slot = facts.weaponType && facts.weaponSlot ? facts.weaponSlot : facts.slot;
@@ -109,8 +109,8 @@
           {#if facts.actionAbilities.length}<ul class="ability-list">{#each facts.actionAbilities as reference}<li><EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} /> <span>Rank {reference.rankIndex + 1}</span></li>{/each}</ul>{/if}
         </Card>
       {/if}
-      {#if facts.equipmentRequirements.length}<Card title="Equipment requirements"><Requirements requirements={facts.equipmentRequirements} /></Card>{/if}
-      {#if facts.useConditions.length}<Card title="Use conditions"><Requirements requirements={facts.useConditions} /></Card>{/if}
+      {#if facts.equipmentRequirements.length}<Card title="Equipment requirements"><Requirements requirements={facts.equipmentRequirements} {registry} /></Card>{/if}
+      {#if facts.useConditions.length}<Card title="Use conditions"><Requirements requirements={facts.useConditions} {registry} /></Card>{/if}
     </div>
 
     {#if showRelations}
@@ -118,7 +118,8 @@
       <VendorTable rows={document.soldBy} {registry} heading="Sold by" counterpartLabel="Vendor" {limit} />
       <GatherTable rows={document.gatheredFrom} {registry} itemKey={document.ref.key} {limit} />
       <ContainerTable rows={document.inContainers} {registry} itemKey={document.ref.key} {limit} />
-      <QuestTable rows={[...document.rewardedBy, ...document.givenBy, ...document.usedInQuests]} {registry} heading="Quests" {limit} />
+      <ContainerTable rows={document.collectedFrom} {registry} heading="Collected from" counterpartLabel="Object" itemKey={document.ref.key} {limit} />
+      <QuestTable rows={[...document.rewardedBy, ...document.givenBy, ...document.usedInQuests]} {registry} heading="Quests" counterpartLabel="Quest" {limit} />
       <RecipeTable rows={document.craftedBy} {registry} heading="Crafted by" counterpartLabel="Recipe" {limit} />
       <RecipeTable rows={document.usedInRecipes} {registry} heading="Used in recipes" counterpartLabel="Recipe" {limit} />
     {/if}

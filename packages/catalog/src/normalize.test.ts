@@ -4,6 +4,7 @@ import { collectTypedFacts } from "./normalize";
 import { classifyItemCondition } from "./conditions";
 import type { AdmittedCatalog } from "./evidence";
 import type { Blocker } from "./context";
+import { questMinimumLevel } from "./decoders";
 
 const reference = { path: "objects/support.json", sha256: "a".repeat(64) };
 
@@ -176,4 +177,41 @@ test("keeps an unresolvable gear set member as an unresolved endpoint and a cove
     detail: "Typed fact references missing items:539.",
     provenance: [{ ...reference, pointer: "/tables/gearSets/0" }],
   }]);
+});
+
+test("decodes quest localization and derives the largest mandatory minimum level", () => {
+  const admittedQuest = {
+    ...admittedItems([]),
+    canonical: { value: { items: [], npcs: [], quests: [{ nativeId: 8, gameplay: { questChainOrder: 3, questChainName: "wrong gameplay value", objectiveText: "wrong", completedDescription: "wrong" }, localization: { questChainName: "  Wanderer  ", objectiveText: "  Find the camp  ", completedDescription: "   " } }], scenes: [], regions: [], properties: [], stats: [] }, reference },
+  } as unknown as AdmittedCatalog;
+  const condition = { conditionId: "level", ownerKey: "quests:8", semantics: "inline-requirements", payload: { groups: [{ requirements: [{ requirementType: "Level", conditionRule: "Mandatory", value: { name: "EqualOrAbove" }, amount1: 16 }] }] } } as NormalizedDatabaseInput["conditions"][number];
+  const rows = collectTypedFacts(admittedQuest, [entity("quests", 8, "Camp search")], [], [condition], []);
+  expect(rows.questFacts).toMatchObject([{ chainName: "Wanderer", chainOrder: 3, objectiveText: "Find the camp", completedDescription: null, levelRequirement: 16 }]);
+});
+
+test("takes the game's level range and dungeon from quest-levels evidence and only the selected requirement set", () => {
+  const levels = { path: "quest-levels.json", sha256: "e".repeat(64) };
+  const admittedQuest = {
+    ...admittedItems([]),
+    canonical: { value: { items: [], npcs: [], quests: [{ nativeId: 8, gameplay: { useRequirementsTemplate: true }, localization: {} }, { nativeId: 9, gameplay: {}, localization: {} }], scenes: [], regions: [], properties: [], stats: [] }, reference },
+    questLevels: { value: { schemaVersion: "compendium.quest-levels.v1", sourceCount: 2, quests: [{ nativeId: 8, levelRange: { min: 18, max: 20 }, dungeonSceneId: 46 }, { nativeId: 9, levelRange: null, dungeonSceneId: null }] }, reference: levels },
+  } as unknown as AdmittedCatalog;
+  const level = (conditionId: string, semantics: string, amount1: number) => ({ conditionId, ownerKey: "quests:8", semantics, payload: { groups: [{ requirements: [{ requirementType: "Level", conditionRule: "Mandatory", value: { name: "EqualOrAbove" }, amount1 }] }] } }) as NormalizedDatabaseInput["conditions"][number];
+  const rows = collectTypedFacts(admittedQuest, [entity("quests", 8, "Deep roots"), entity("quests", 9, "Brew"), entity("scenes", 46, "Duskfall Depths")], [], [level("inline", "inline-requirements", 30), level("template", "requirements-template", 16)], []);
+  expect(rows.questFacts).toMatchObject([
+    { entityKey: "quests:8", levelRequirement: 16, conditionIds: ["template"], levelRange: { min: 18, max: 20 }, dungeon: { entityKey: "scenes:46", label: "Duskfall Depths" } },
+    { entityKey: "quests:9", levelRequirement: null, conditionIds: [], levelRange: null, dungeon: null },
+  ]);
+});
+
+test("finds the maximum all-mode level threshold and ignores upper limits, optional limits, and null groups", () => {
+  const requirement = (amount1: number, name: string, conditionRule = "Mandatory") => ({ requirementType: "Level", conditionRule, value: { name }, amount1 });
+  expect(questMinimumLevel([
+    null,
+    { requirements: [requirement(16, "EqualOrAbove"), requirement(19, "Above")] },
+    { requirements: [requirement(60, "EqualOrBelow")] },
+    { checkCount: true, requiredCount: 1, requirements: [requirement(90, "EqualOrAbove"), requirement(80, "Above")] },
+    { requirements: [requirement(90, "Above", "Optional")] },
+  ])).toBe(20);
+  expect(questMinimumLevel([{ requirements: [requirement(19, "Below"), requirement(30, "EqualOrBelow")] }])).toBeNull();
 });

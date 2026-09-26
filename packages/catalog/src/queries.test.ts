@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { openNormalizedDatabase, recordCoverageIssue } from "./database";
-import { queryCatalogCoverage, queryCatalogEntity, queryCatalogImagery, queryCatalogItemSources, queryCatalogMaps, queryCatalogSearch, queryConditions, queryContainerRows, queryDropRows, queryVendorRows } from "./queries";
+import { queryCatalogCoverage, queryCatalogEntity, queryCatalogImagery, queryCatalogItemSources, queryCatalogMaps, queryCatalogSearch, queryConditions, queryContainerRows, queryDropRows, queryVendorRows, queryQuestRows, queryInteractionRows, queryContainment, queryGatedSources, queryCatalogFacts } from "./queries";
+import { relationRows } from "./relations";
 import { containerTypeFromHierarchyPath } from "./world";
 
 test("returns the same conditional vendor and boss drop rows from both endpoints", () => {
@@ -62,7 +63,7 @@ test("derives readable container types and exposes their place", () => {
     db.query("INSERT INTO placements (placement_id, build_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, shape_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("chest-placement", "build", 31, "cave", "world", 0, 0, 0, 5, 5, "null", "[]");
     db.query("INSERT INTO item_sources VALUES (?, ?, ?, ?, ?, ?, ?)").run("items:14", "container", "output-hash", "[\"chest-placement\"]", "[]", JSON.stringify({ sourceId: "chest-source", containerType: "Backpack", min: 1, max: 1, rawRate: 100 }), "null");
 
-    expect(queryContainerRows(db).records).toEqual([{ containerType: "Backpack", sourceId: "chest-source", place: { entityKey: "scenes:31", label: "Coalway Cave" }, item: { entityKey: "items:14", label: "Novice Plate Boots" }, min: 1, max: 1, rawRate: 100, conditionIds: [], placementIds: ["chest-placement"] }]);
+    expect(queryContainerRows(db).records).toEqual([{ containerType: "Backpack", sourceId: "chest-source", place: { entityKey: "scenes:31", label: "Coalway Cave" }, item: { entityKey: "items:14", label: "Novice Plate Boots" }, min: 1, max: 1, rawRate: 100, availability: [], placementIds: ["chest-placement"] }]);
   } finally { db.close(); }
 });
 
@@ -164,5 +165,106 @@ test("returns stable ordered catalog records with exact identity", () => {
     expect(queryCatalogItemSources(db, "items:1").records.map((row) => row.sourceKind)).toEqual(["merchant", "world"]);
     expect(queryCatalogImagery(db, "a-map").records.map((row) => row.kind)).toEqual(["captured", "game-map"]);
     expect(queryCatalogCoverage(db).records).toMatchObject({ occurrenceCount: 2, unresolvedIssues: [{ occurrenceCount: 2 }] });
+  } finally { db.close(); }
+});
+
+test("typed currency rewards never expose a stale item endpoint or item source", () => {
+  const evidence = { path: "relationships.json", sha256: "a".repeat(64) };
+  const relationships = { merchantTables: [], merchantBindings: [], merchantStock: [], lootTables: [], npcLootBindings: [], worldLootBindings: [], lootEntries: [], clothDrops: { tiers: [] }, npcQuestBindings: [], questObjectives: [], questItemsGiven: [], questRewards: [{ questID: 8, rewardType: "currency", itemID: 1, currencyID: 2, treePointID: -1, factionID: -1, weaponTemplateID: -1, rewardIndex: 0, rewardSource: "rewardsGiven" }], resourceYields: [] };
+  const relations = relationRows(relationships as never, {} as never, { dynamicTables: [], linkedNpcs: [] } as never, [], new Set(["quests:8", "items:1", "currencies:2"]), new Map(), evidence, evidence, []);
+  expect(relations.questAssociations[0]).toMatchObject({ itemID: null });
+  expect(relations.itemIndex.has(1)).toBe(false);
+
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "schema", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "schema", "{}", "d".repeat(64));
+    const entity = db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    for (const [kind, id, name] of [["quests", 8, "Quest"], ["items", 1, "Stale item"], ["currencies", 2, "Gold Coin"]] as const) entity.run("build", kind, id, `${kind}:${id}`, name, null, null, null, "{}", "[]");
+    db.query("INSERT INTO quest_facts(entity_key, repeatable, turn_in_without_npc, condition_ids_json, provenance_json) VALUES (?, ?, ?, ?, ?)").run("quests:8", 0, 0, "[]", "[]");
+    db.query("INSERT INTO quest_rewards VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("quests:8", "given", 0, "currency", "currencies:2", "Gold Coin", 40, null, "[]");
+    db.query("INSERT INTO quest_associations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("authored-reward", "build", "quest-reward", null, "quests:8", null, null, null, JSON.stringify(relations.questAssociations[0]));
+    expect(queryQuestRows(db).records).toMatchObject([{ kind: "reward", counterpart: { entityKey: "currencies:2", label: "Gold Coin" }, count: 40, rewardType: "currency" }]);
+  } finally { db.close(); }
+});
+
+test("inactive NPC quest bindings are retained as evidence but excluded from quest rows", () => {
+  const evidence = { path: "relationships.json", sha256: "a".repeat(64) }, blockers: Array<{ kind: string }> = [];
+  const relationships = { merchantTables: [], merchantBindings: [], merchantStock: [], lootTables: [], npcLootBindings: [], worldLootBindings: [], lootEntries: [], clothDrops: { tiers: [] }, npcQuestBindings: [{ ownerNativeId: 3, questID: 8, association: "given", associationIndex: 0 }], questObjectives: [], questItemsGiven: [], questRewards: [], resourceYields: [] };
+  const relations = relationRows(relationships as never, {} as never, { dynamicTables: [], linkedNpcs: [] } as never, [], new Set(["npcs:3", "quests:8"]), new Map([["npcs:3", { isQuestGiver: false }]]), evidence, evidence, blockers as never);
+  expect(blockers).toMatchObject([{ kind: "inactive-quest-binding" }]);
+  expect(relations.questAssociations).toMatchObject([{ associationKind: "npc-quest" }]);
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "schema", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "schema", "{}", "d".repeat(64));
+    const entity = db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    for (const [kind, id] of [["quests", 8], ["npcs", 3]] as const) entity.run("build", kind, id, `${kind}:${id}`, `${kind} ${id}`, null, null, null, "{}", "[]");
+    db.query("INSERT INTO quest_facts(entity_key, repeatable, turn_in_without_npc, condition_ids_json, provenance_json) VALUES (?, ?, ?, ?, ?)").run("quests:8", 0, 0, "[]", "[]");
+    db.query("INSERT INTO npc_facts(entity_key, scales_with_player, is_merchant, is_quest_giver, is_combat_enabled, immune_to_stun, immune_to_slow, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("npcs:3", 0, 0, 0, 0, 0, 0, "[]");
+    db.query("INSERT INTO quest_associations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("binding", "build", "npc-quest", "npcs:3", "quests:8", null, null, null, JSON.stringify(relations.questAssociations[0]));
+    expect(queryQuestRows(db).records).toEqual([]);
+    db.query("UPDATE npc_facts SET is_quest_giver = 1 WHERE entity_key = 'npcs:3'").run();
+    expect(queryQuestRows(db).records).toMatchObject([{ kind: "giver", counterpart: { entityKey: "npcs:3" } }]);
+  } finally { db.close(); }
+});
+
+test("requirement spans link quest states and retain numeric comparisons", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "schema", "{}");
+    const entity = db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "schema", "{}", "d".repeat(64));
+    for (const [kind, id, name] of [["quests", 8, "Wrath of the Matriarch"], ["stats", 1, "Power"]] as const) entity.run("build", kind, id, `${kind}:${id}`, name, null, null, null, "{}", "[]");
+    const insert = db.query("INSERT INTO conditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    const group = (requirement: unknown) => JSON.stringify({ groups: [{ requirements: [requirement] }] });
+    insert.run("a", "build", "entity", "quests:9", 0, "requirements", null, null, group({ requirementType: "Quest", questID: 8, questState: { value: 4, name: "turnedIn" } }), "[]");
+    insert.run("b", "build", "entity", "quests:9", 1, "requirements", null, null, group({ requirementType: "Level", amount1: 16, value: { value: 2, name: "EqualOrAbove" } }), "[]");
+    insert.run("c", "build", "entity", "quests:9", 2, "requirements", null, null, group({ requirementType: "Stat", statID: 1, amount1: 150, value: { value: 3, name: "EqualOrBelow" } }), "[]");
+    const requirements = queryConditions(db).records.flatMap((condition) => condition.requirements.flatMap((group) => group.requirements));
+    expect(requirements.map(({ label }) => label)).toEqual(["Wrath of the Matriarch turned in", "Level 16 or higher", "Power 150 or lower"]);
+    expect(requirements[0]?.spans).toEqual([{ endpoint: { entityKey: "quests:8", label: "Wrath of the Matriarch" } }, { text: " turned in" }]);
+    expect(requirements[2]?.spans).toEqual([{ endpoint: { entityKey: "stats:1", label: "Power" } }, { text: " 150 or lower" }]);
+  } finally { db.close(); }
+});
+
+test("joins world offers, object starts, objective completions, availability, interaction loot, and areas", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "schema", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "schema", "{}", "d".repeat(64));
+    db.query("INSERT INTO identity_scenes VALUES (?, ?, ?)").run("build", 1, "scene");
+    db.query("INSERT INTO map_spaces VALUES (?, ?, ?)").run("build", "map", "Map");
+    const entity = db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    for (const [kind, id, name] of [["quests", 1, "First"], ["quests", 2, "Second"], ["tasks", 3, "Collect"], ["items", 4, "Egg"], ["scenes", 1, "Woods"]] as const) entity.run("build", kind, id, `${kind}:${id}`, name, null, null, null, "{}", "[]");
+    db.query("INSERT INTO quest_facts(entity_key, repeatable, turn_in_without_npc, condition_ids_json, provenance_json) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)").run("quests:1", 0, 0, "[]", "[]", "quests:2", 0, 0, "[]", "[]");
+    db.query("INSERT INTO task_facts VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("tasks:3", "getItem", "items:4", "Egg", 2, 0, null, "[]");
+    db.query("INSERT INTO world_quest_facts VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("quests:1", 8, 600, 900, 300, 60, 30, "[]");
+    db.query("INSERT INTO regions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("camp", "build", 1, "scene", "Camp", null, "box", "{}", "map", "{}", "[]");
+    for (const [placementId, sourceId, index, family] of [["zone-place", "zone", 1, "worldQuestZone"], ["object-place", "object", 2, "interactableObject"]] as const) {
+      db.query("INSERT INTO placement_identities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(placementId, "build", 1, "a".repeat(64), "b".repeat(64), "scene", placementId, "scene", null);
+      db.query("INSERT INTO source_identities VALUES (?, ?, ?, ?, ?, ?, ?)").run(sourceId, placementId, "build", 1, String(index), family, "Game");
+      db.query("INSERT INTO placements(placement_id, build_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, shape_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(placementId, "build", 1, "scene", "map", 0, 0, 0, 1, 1, "null", "[]");
+      db.query("INSERT INTO placement_sources VALUES (?, ?, ?, ?)").run(placementId, sourceId, JSON.stringify([family]), "[]");
+      db.query("INSERT INTO placement_areas VALUES (?, ?, ?)").run(placementId, "camp", "Camp");
+      db.query("INSERT INTO source_details VALUES (?, ?, ?, ?, ?)").run(`${sourceId}-detail`, sourceId, placementId, family, JSON.stringify({ interactableName: "Purse" }));
+    }
+    db.query("INSERT INTO conditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("night", "build", "world-source", "source:zone", 0, "requirements-template", null, null, JSON.stringify({ groups: [{ requirements: [{ requirementType: "Time" }] }] }), "[]");
+    db.query("INSERT INTO source_gates VALUES (?, ?, ?, ?, ?, ?, ?)").run("gate", "zone", "zone", "night", "requires", null, "[]");
+    const association = db.query("INSERT INTO quest_associations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    association.run("world", "build", "world-quest-offer", null, "quests:1", null, null, "zone", JSON.stringify({ payload: { zoneRespawnCooldown: 20, poolQuestIDs: [1, 2] } }));
+    association.run("start", "build", "interaction-quest", null, "quests:1", null, null, "object", JSON.stringify({ payload: { objectName: "Purse" } }));
+    association.run("objective", "build", "quest-objective", null, "quests:1", "tasks:3", null, null, JSON.stringify({ objectiveIndex: 0 }));
+    association.run("complete", "build", "interaction-task", null, null, "tasks:3", null, "object", JSON.stringify({ payload: { objectName: "Purse" } }));
+    db.query("INSERT INTO item_sources VALUES (?, ?, ?, ?, ?, ?, ?)").run("items:4", "interaction", "output", "[\"object-place\"]", "[]", JSON.stringify({ sourceId: "object", objectName: "Purse", min: 1, max: 2, rawRate: 50 }), "null");
+
+    expect(queryCatalogFacts(db).records.quests[0]?.worldQuest).toEqual({ availableSeconds: 600, cooldownAfterCompletionSeconds: 900, cooldownAfterExpirySeconds: 300, cooldownJitterSeconds: 60, initialRollSeconds: 30 });
+    const questRows = queryQuestRows(db).records;
+    expect(questRows.find((row) => row.kind === "objectStart")).toMatchObject({ sourceId: "object", label: "Purse", placementIds: ["object-place"] });
+    expect(questRows.find((row) => row.kind === "objective")).toMatchObject({ counterpart: { entityKey: "items:4", label: "Egg" }, completions: [{ sourceId: "object", label: "Purse", placementIds: ["object-place"] }] });
+    expect(questRows.find((row) => row.kind === "worldOffer")).toMatchObject({ sourceId: "zone", worldOffer: { zoneDelaySeconds: 20, pool: [{ entityKey: "quests:1" }, { entityKey: "quests:2" }] }, availability: [{ effect: "requires", conditionId: "night" }], placementIds: ["zone-place"] });
+    expect(queryInteractionRows(db).records).toMatchObject([{ objectName: "Purse", item: { entityKey: "items:4" }, min: 1, max: 2, rawRate: 50, placementIds: ["object-place"] }]);
+    expect(queryGatedSources(db).records).toMatchObject([{ sourceId: "zone", family: "worldQuestZone", placementIds: ["zone-place"], availability: [{ conditionId: "night" }] }]);
+    expect(queryContainment(db).records.map((row) => row.area)).toEqual(["Camp", "Camp"]);
   } finally { db.close(); }
 });

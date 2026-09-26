@@ -115,6 +115,7 @@ export function relationRows(value: Relationships, canonical: Canonical, nativeL
     if (!valid("npcs", row.ownerNativeId, path) || !valid("quests", row.questID, path)) continue;
     questAssociations.push({ ...row, associationId: `npc:${row.ownerNativeId}:${row.association}:${row.associationIndex}`, associationKind: "npc-quest", provenance: [pointer(reference, path)] });
     if (gameplay.get(`npcs:${row.ownerNativeId}`)?.isQuestGiver === true) { const owners = questOwners.get(row.questID) ?? new Set<number>(); owners.add(row.ownerNativeId); questOwners.set(row.questID, owners); }
+    else blockers.push({ kind: "inactive-quest-binding", key: `quest:${row.ownerNativeId}:${row.association}:${row.associationIndex}`, detail: `NPC ${row.ownerNativeId} has a quest binding but its quest service is off.`, provenance: [pointer(reference, path)] });
   }
   for (const [index, row] of value.questObjectives.entries()) if (valid("quests", row.questID, `/questObjectives/${index}`) && valid("tasks", row.taskID, `/questObjectives/${index}`)) questAssociations.push({ ...row, associationId: `objective:${row.questID}:${row.objectiveIndex}`, associationKind: "quest-objective", provenance: [pointer(reference, `/questObjectives/${index}`)] });
   for (const [family, kind] of [["questItemsGiven", "quest-item-given"], ["questRewards", "quest-reward"]] as const) for (const [index, row] of value[family].entries()) {
@@ -125,8 +126,9 @@ export function relationRows(value: Relationships, canonical: Canonical, nativeL
     if (sourceIndex === undefined || (kind === "quest-reward" && metadata.rewardSource === undefined)) throw new Error(`Quest output ${reference.sha256}${path} has no authored source identity.`);
     const associationId = `${kind === "quest-item-given" ? "given" : "reward"}:${row.questID}:${metadata.rewardSource ?? ""}:${sourceIndex}`;
     const provenance = [pointer(reference, path)];
-    questAssociations.push({ ...row, associationId, associationKind: kind, provenance });
-    if (row.itemID >= 0 && valid("items", row.itemID, path)) addSourceIndex(itemIndex, row.itemID, "quest", associationId, [...questOwners.get(row.questID) ?? []].flatMap((owner) => [...npcPlacements.get(owner) ?? []]), [], { ...row, ownerEntityKeys: [entityKey("quests", row.questID)], questId: row.questID, association: kind, locationScope: "Associated quest NPCs; delivery at each NPC is not established.", provenance });
+    const itemID = kind === "quest-item-given" || ("rewardType" in row && row.rewardType === "item") ? row.itemID : null;
+    questAssociations.push({ ...row, itemID, associationId, associationKind: kind, provenance });
+    if (itemID !== null && itemID >= 0 && valid("items", itemID, path)) addSourceIndex(itemIndex, itemID, "quest", associationId, [...questOwners.get(row.questID) ?? []].flatMap((owner) => [...npcPlacements.get(owner) ?? []]), [], { ...row, ownerEntityKeys: [entityKey("quests", row.questID)], questId: row.questID, association: kind, locationScope: "Associated quest NPCs; delivery at each NPC is not established.", provenance });
   }
   for (const [sourceIndex, row] of value.resourceYields.entries()) if (valid("items", row.itemID, `/resourceYields/${sourceIndex}`) && valid("resources", row.resourceID, `/resourceYields/${sourceIndex}`)) {
     const yieldId = `relationship:${sourceIndex}`, provenance = [pointer(reference, `/resourceYields/${sourceIndex}`)];

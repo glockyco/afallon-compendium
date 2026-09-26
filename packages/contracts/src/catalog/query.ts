@@ -6,7 +6,7 @@ import type { RoleScope } from "./roles";
 import type { TooltipLine } from "./tooltip";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v5" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v6" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });
@@ -92,9 +92,17 @@ export interface NormalizedNpcStat { entityKey: string; statIndex: number; stat:
 export interface NormalizedNpcAbilityPhase { entityKey: string; phaseIndex: number; name: string | null; requirement: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedNpcPhaseAbility { entityKey: string; phaseIndex: number; abilityIndex: number; sourceIndex: number; ability: NormalizedReference; rankIndex: number; provenance: ProvenanceReference[] }
 export interface NormalizedNpcFactionReward { entityKey: string; rewardIndex: number; faction: NormalizedReference; amount: number; provenance: ProvenanceReference[] }
-export interface NormalizedQuestFact { entityKey: string; chainName: string | null; chainOrder: number | null; repeatable: boolean; turnInWithoutNpc: boolean; completedDescription: string | null; objectiveText: string | null; levelRequirement: number | null; experience: number | null; conditionIds: string[]; provenance: ProvenanceReference[] }
+export interface NormalizedQuestFact { entityKey: string; chainName: string | null; chainOrder: number | null; repeatable: boolean; turnInWithoutNpc: boolean; completedDescription: string | null; objectiveText: string | null; levelRequirement: number | null; levelRange: { min: number; max: number } | null; dungeon: NormalizedReference | null; experience: number | null; conditionIds: string[]; provenance: ProvenanceReference[] }
 export interface NormalizedQuestObjective { questEntityKey: string; objectiveIndex: number; taskType: string; task: NormalizedReference; target: NormalizedReference | null; count: number | null; keepItems: boolean | null; sceneName: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedQuestReward { questEntityKey: string; rewardSet: "given" | "pick" | "itemGiven"; rewardIndex: number; rewardType: string; target: NormalizedReference | null; count: number | null; experience: number | null; provenance: ProvenanceReference[] }
+// The authored timing of the `RPGWorldQuest` that grants a quest; see `CatalogWorldQuestFacts`.
+export interface NormalizedWorldQuestFact { entityKey: string; worldQuestNativeId: number; availableSeconds: number; cooldownAfterCompletionSeconds: number; cooldownAfterExpirySeconds: number; cooldownJitterSeconds: number; initialRollSeconds: number; provenance: ProvenanceReference[] }
+// One availability rule of a world source. `viaSourceId` is the source whose condition gives the rule: the
+// source itself for its own requirements, or the requirement toggle whose target is the source or an ancestor.
+// It is null when that toggle has no verified source identity.
+export interface NormalizedSourceGate { gateId: string; sourceId: string; effect: "requires" | "excludes" | "temporary"; conditionId: string; viaSourceId: string | null; durationSeconds: number | null; provenance: ProvenanceReference[] }
+// The smallest named region box that contains a placement's map position in the placement's map space.
+export interface NormalizedPlacementArea { placementId: string; regionId: string; areaName: string }
 export interface NormalizedPlaceFact { entityKey: string; placeType: "dungeon" | "zone" | "region" | "interior"; guideIncluded: boolean; guideDescription: string | null; levelMin: number | null; levelMax: number | null; mapSpaceIds: string[]; bosses: NormalizedReference[]; parentSceneKey: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedPropertyFact { entityKey: string; income: number | null; purchasePrice: number | null; sellPrice: number | null; currency: NormalizedReference | null; propertyType: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedTaskFact { entityKey: string; taskType: string; target: NormalizedReference | null; count: number | null; keepItems: boolean | null; sceneName: string | null; provenance: ProvenanceReference[] }
@@ -274,7 +282,7 @@ export interface ItemSource {
   itemKey: string;
   itemId: number;
   sources: Array<{
-    sourceKind: "merchant" | "npc-loot" | "world-loot" | "container" | "resource" | "quest" | "npc-start-item";
+    sourceKind: "merchant" | "npc-loot" | "world-loot" | "container" | "interaction" | "resource" | "quest" | "npc-start-item";
     sourceKey: string;
     placementIds: string[];
     conditionIds: string[];
@@ -332,6 +340,7 @@ export interface NormalizedDatabaseInput {
   questFacts?: NormalizedQuestFact[];
   questObjectives?: NormalizedQuestObjective[];
   questRewards?: NormalizedQuestReward[];
+  worldQuestFacts?: NormalizedWorldQuestFact[];
   placeFacts?: NormalizedPlaceFact[];
   propertyFacts?: NormalizedPropertyFact[];
   taskFacts?: NormalizedTaskFact[];
@@ -358,6 +367,8 @@ export interface NormalizedDatabaseInput {
   regions: NormalizedRegion[];
   conditions: NormalizedCondition[];
   spawnCandidates: NormalizedSpawnCandidate[];
+  sourceGates: NormalizedSourceGate[];
+  placementAreas: NormalizedPlacementArea[];
   merchantTables: Array<Record<string, unknown>>;
   merchantBindings: Array<Record<string, unknown>>;
   merchantStock: Array<Record<string, unknown>>;

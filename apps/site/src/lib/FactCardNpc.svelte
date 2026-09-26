@@ -2,6 +2,7 @@
   import { base } from '$app/paths';
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import AbilityPhases from './AbilityPhases.svelte';
+  import Availability from './Availability.svelte';
   import Card from './Card.svelte';
   import ChipGrid, { type Chip } from './ChipGrid.svelte';
   import DropTable from './DropTable.svelte';
@@ -10,6 +11,7 @@
   import Fact from './Fact.svelte';
   import FactGrid from './FactGrid.svelte';
   import LocationList from './LocationList.svelte';
+  import LocationLinks from './LocationLinks.svelte';
   import QuestTable from './QuestTable.svelte';
   import RefList from './RefList.svelte';
   import VendorTable from './VendorTable.svelte';
@@ -89,15 +91,29 @@
       {#if immunityChips.length}<Card title="Immunities" count={immunityChips.length}><ChipGrid chips={immunityChips} /></Card>{/if}
       {#if rewardChips.length}<Card title="Faction rewards" count={rewardChips.length}><ChipGrid chips={rewardChips} /></Card>{/if}
     </div>
+    {#if document.spawnConditions.length}
+      <Card title="Spawn conditions" count={document.spawnConditions.length}>
+        <ul class="spawn-conditions">
+          {#each (limit === undefined ? document.spawnConditions : document.spawnConditions.slice(0, limit)) as condition}
+            <li><Availability rules={condition.availability} {registry} /><LocationLinks placements={condition.placements} /></li>
+          {/each}
+        </ul>
+      </Card>
+    {/if}
 
     {#if showRelations}
       <AbilityPhases phases={document.abilityPhases} {registry} {limit} />
       <DropTable rows={document.drops} {registry} heading="Drops" counterpartLabel="Item" {limit} />
       <VendorTable rows={document.sells} {registry} heading="Sells" counterpartLabel="Item" {limit} />
-      <QuestTable rows={document.quests} {registry} heading="Quests" {limit} />
-      <QuestTable rows={document.usedInQuests} {registry} heading="Quest objectives" {limit} />
+      <QuestTable rows={document.quests} {registry} heading="Quests" counterpartLabel="Quest" {limit} />
+      <QuestTable rows={document.usedInQuests} {registry} heading="Quest objectives" counterpartLabel="Quest" {limit} />
       <RefList title="Boss of" refs={document.bossOf} {registry} {limit} />
       <LocationList locations={document.locations} entityKey={document.ref.key} {limit} />
     {/if}
   </div>
 </article>
+
+<style>
+  .spawn-conditions { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
+  .spawn-conditions li { display: grid; gap: .3rem; }
+</style>

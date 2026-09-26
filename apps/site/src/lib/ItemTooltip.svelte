@@ -4,7 +4,7 @@
   import EntityReference from './EntityReference.svelte';
   import NativeText from './NativeText.svelte';
   import Price from './Price.svelte';
-  import Requirements from './Requirements.svelte';
+  import TooltipRequirements from './TooltipRequirements.svelte';
   import { formatNumber, labelOf, rangeText, rarityTone, signedAmount } from './format';
 
   export let document: PublicItem;
@@ -57,7 +57,7 @@
       </section>
     {/if}
 
-    {#if facts.equipmentRequirements.length}<Requirements requirements={facts.equipmentRequirements} fulfilled />{/if}
+    {#if facts.equipmentRequirements.length}<TooltipRequirements requirements={facts.equipmentRequirements} {registry} fulfilled />{/if}
     {#if facts.sellPrice}<p class="sell-price"><span>Sell price</span> <Price price={facts.sellPrice} showName /></p>{/if}
   </div>
 </article>

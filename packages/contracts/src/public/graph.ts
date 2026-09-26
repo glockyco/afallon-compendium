@@ -6,7 +6,7 @@ import {
   type StaticResourceReference,
   type StaticRootManifest,
 } from "./resources";
-import { collectRefs, isStaticDocument, isStaticDocumentSchemaId, type EntityRef, type PublicKindEntry } from "./documents";
+import { collectPlacementRefs, collectRefs, isStaticDocument, isStaticDocumentSchemaId, type EntityRef, type PublicKindEntry } from "./documents";
 
 export const PUBLICATION_ROOT_BUDGET = 65_536;
 export const PUBLICATION_PART_BUDGET = 524_288;
@@ -129,7 +129,7 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
   for (const [path, value] of values) {
     if (isStaticDocument(value)) {
       for (const ref of collectRefs(value.document)) checkRef(ref, path);
-      for (const placement of "locations" in value.document ? value.document.locations : []) if (!placementIds.has(placement.placementId)) throw new Error(`Document location is not a published placement: ${placement.placementId} in ${path}.`);
+      for (const placement of collectPlacementRefs(value.document)) if (!placementIds.has(placement.placementId)) throw new Error(`Document placement is not a published placement: ${placement.placementId} in ${path}.`);
       if (value.kind === "places" && value.document.space && !root.maps.some((map) => map.mapSpaceId === value.document.space!.mapSpaceId)) throw new Error(`Place references an unpublished map space: ${value.document.space.mapSpaceId} in ${path}.`);
     } else if (value.schemaVersion === "compendium.static-kind-list.v1") {
       for (const row of value.rows) checkRef(row.ref, path);

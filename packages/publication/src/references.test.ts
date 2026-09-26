@@ -7,7 +7,7 @@ const entity = (kind: string, nativeId: number, name: string): CatalogEntityRow 
 });
 
 const emptyFacts: CatalogFacts = { entities: [], items: [], npcs: [], quests: [], tasks: [], places: [], properties: [], abilities: [], recipes: [], gearSets: [] };
-const emptyRelations: CatalogRelations = { drops: [], vendors: [], gathers: [], containers: [], quests: [], recipes: [], placements: [], transitions: [], conditions: [] };
+const emptyRelations: CatalogRelations = { drops: [], vendors: [], gathers: [], containers: [], interactions: [], quests: [], recipes: [], placements: [], transitions: [], conditions: [], gatedSources: [] };
 
 function npcFact(entityKey: string, level: number, abilities: CatalogNpcFacts["abilityPhases"] = []): CatalogNpcFacts {
   return { entityKey, minLevel: level, maxLevel: level, scalesWithPlayer: false, npcType: null, creatureType: null, family: null,
@@ -35,6 +35,29 @@ test("disambiguates equal NPC names by level and freezes the reference map", () 
   expect(refs.get("npcs:1")).toMatchObject({ name: "Warden (lvl. 21)", slug: "warden-lvl-21" });
   expect(refs.get("npcs:2")).toMatchObject({ name: "Warden (lvl. 22)", slug: "warden-lvl-22" });
   expect(() => (refs as Map<string, unknown>).clear()).toThrow("frozen");
+});
+
+test("names equal NPCs by their named areas and keeps their published slugs", () => {
+  const entities = [entity("scenes", 10, "World"), entity("npcs", 1, "Thalgrim Wayfinder"), entity("npcs", 2, "Thalgrim Wayfinder")];
+  const relations: CatalogRelations = { ...emptyRelations, placements: [
+    { placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Thalgrim", area: "Raven Camp", roles: [{ role: "npc", npcEntityKey: "npcs:1", scope: "authored" }], families: [] },
+    { placementId: "p2", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Thalgrim", area: "Coalway Woods", roles: [{ role: "npc", npcEntityKey: "npcs:2", scope: "authored" }], families: [] },
+  ] };
+  const refs = buildEntityReferences(entities, { facts: { ...emptyFacts, npcs: [npcFact("npcs:1", 20), npcFact("npcs:2", 20)] }, relations });
+  expect(refs.get("npcs:1")).toMatchObject({ name: "Thalgrim Wayfinder (Raven Camp)", slug: "thalgrim-wayfinder-1" });
+  expect(refs.get("npcs:2")).toMatchObject({ name: "Thalgrim Wayfinder (Coalway Woods)", slug: "thalgrim-wayfinder-2" });
+});
+
+test("names an NPC seen in more than three areas by its next suffix instead of a long area list", () => {
+  const entities = [entity("scenes", 10, "World"), entity("npcs", 1, "Guard"), entity("npcs", 2, "Guard")];
+  const placement = (placementId: string, npcEntityKey: string, area: string) => ({ placementId, sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guard", area, roles: [{ role: "npc", npcEntityKey, scope: "authored" }], families: [] });
+  const relations: CatalogRelations = { ...emptyRelations, placements: [
+    placement("p1", "npcs:1", "Fort"), placement("p2", "npcs:1", "Gate"), placement("p3", "npcs:1", "Mill"), placement("p4", "npcs:1", "Port"),
+    placement("p5", "npcs:2", "Fort"), placement("p6", "npcs:2", "Gate"), placement("p7", "npcs:2", "Mill"),
+  ] };
+  const refs = buildEntityReferences(entities, { facts: { ...emptyFacts, npcs: [npcFact("npcs:1", 20), npcFact("npcs:2", 20)] }, relations });
+  expect(refs.get("npcs:1")?.name).toBe("Guard (World)");
+  expect(refs.get("npcs:2")?.name).toBe("Guard (Fort / Gate / Mill)");
 });
 
 test("uses item facts for names while preserving stable slugs and page-less references", () => {

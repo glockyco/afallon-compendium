@@ -23,10 +23,11 @@ import {
 import { generateArtworkResources } from "./artwork";
 import { countUnresolvedReferences, projectPublicDocuments, type PublishedPlacement } from "./documents";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
-import { buildKindLists, publicItemLevelRequirement } from "./lists";
+import { buildKindLists } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
 import { partitionStaticRecords, writeStaticJson, type GeneratedStaticResource } from "./resources";
 import type { PublicationCandidateAsset } from "./selection";
+import { plainText } from "./text";
 import { auditPublicTooltipCoverage } from "./tooltip-coverage";
 
 export interface GeneratedIndexResources {
@@ -45,12 +46,15 @@ function assertSameIdentity(expected: { buildId: string; catalogId: string }, ac
 
 function searchLevel(document: PublicDocument): PublicSearchEntry["level"] {
   switch (document.ref.kind) {
-    case "items": return publicItemLevelRequirement(document as PublicItem) ?? undefined;
+    case "items": return (document as PublicItem).facts.levelRequirement;
     case "npcs": {
       const facts = (document as PublicNpc).facts;
       return facts.level ?? facts.levelRange;
     }
-    case "quests": return (document as PublicQuest).facts.levelRequirement;
+    case "quests": {
+      const facts = (document as PublicQuest).facts;
+      return facts.levelRange ?? facts.levelRequirement;
+    }
     case "places": return (document as PublicPlace).facts.levelRange;
     default: return undefined;
   }
@@ -61,7 +65,8 @@ function itemSourceKinds(document: PublicDocument): string[] {
   const item = document as PublicItem;
   return [item.droppedBy.length > 0 ? "drop" : null, item.soldBy.length > 0 ? "vendor" : null,
     item.gatheredFrom.length > 0 ? "gather" : null, item.inContainers.length > 0 ? "container" : null,
-    item.rewardedBy.length > 0 ? "quest" : null, item.craftedBy.length > 0 ? "recipe" : null].filter((value): value is string => value !== null);
+    item.collectedFrom.length > 0 ? "interaction" : null, item.rewardedBy.length > 0 ? "quest" : null,
+    item.craftedBy.length > 0 ? "recipe" : null].filter((value): value is string => value !== null);
 }
 
 export async function generateIndexResources(
@@ -79,10 +84,11 @@ export async function generateIndexResources(
   const identity = { buildId: entities.buildId, catalogId: entities.catalogId };
   const artwork = await generateArtworkResources(store, entities.records, protection);
   const refs = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, mapSpaceLabels });
-  const sceneKeyByPlacement = new Map(relations.records.placements.map((placement) => [placement.placementId, placement.sceneKey]));
+  const catalogPlacements = new Map(relations.records.placements.map((placement) => [placement.placementId, placement]));
   const publishedPlacements = new Map([...placements].map(([placementId, placement]) => {
-    const sceneKey = sceneKeyByPlacement.get(placementId), scene = sceneKey === undefined ? undefined : refs.get(sceneKey);
-    return [placementId, scene?.kind === "places" ? { ...placement, label: scene.name } : placement] as const;
+    const catalogPlacement = catalogPlacements.get(placementId), scene = catalogPlacement ? refs.get(catalogPlacement.sceneKey) : undefined;
+    const area = plainText(catalogPlacement?.area ?? "");
+    return [placementId, area ? { ...placement, label: area } : scene?.kind === "places" ? { ...placement, label: scene.name } : placement] as const;
   }));
   const publicDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, refs,
     resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace });
@@ -121,7 +127,7 @@ export async function generateIndexResources(
     if (!registry?.searchable || !resource) continue;
     const level = searchLevel(document);
     const placementIds = [...new Set(placementIdsByKey.get(key) ?? [])].filter((placementId) => placements.has(placementId));
-    const sceneKeys = new Set(placementIds.map((placementId) => sceneKeyByPlacement.get(placementId)).filter((sceneKey): sceneKey is string => sceneKey !== undefined && refs.get(sceneKey)?.kind === "places"));
+    const sceneKeys = new Set(placementIds.map((placementId) => catalogPlacements.get(placementId)?.sceneKey).filter((sceneKey): sceneKey is string => sceneKey !== undefined && refs.get(sceneKey)?.kind === "places"));
     const onlySceneKey = sceneKeys.size === 1 ? sceneKeys.values().next().value : undefined;
     const place = onlySceneKey === undefined ? (sceneKeys.size > 1 ? `${sceneKeys.size} places` : undefined) : refs.get(onlySceneKey)?.name;
     entries.push({ ref: document.ref, ...(level === undefined ? {} : { level }), ...(place ? { place } : {}),
