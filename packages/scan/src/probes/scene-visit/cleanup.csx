@@ -23,7 +23,7 @@
             {
                 sceneVisitState["restoreRequested"] = true;
                 sceneVisitState["restoreRequestFrame"] = UnityEngine.Time.frameCount;
-                currentLoader.LoadGameScene(finalSceneId);
+                enterScene(finalSceneId, (UnityEngine.Vector3)sceneVisitState["finalArrival"]);
             }
             return false;
         }

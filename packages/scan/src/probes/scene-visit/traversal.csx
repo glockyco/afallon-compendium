@@ -51,6 +51,9 @@
     if (string.IsNullOrEmpty(targetNativeScene.entryName) || !UnityEngine.Application.CanStreamedLevelBeLoaded(targetNativeScene.entryName) ||
         string.IsNullOrEmpty(sourceNativeScene.entryName) || !UnityEngine.Application.CanStreamedLevelBeLoaded(sourceNativeScene.entryName))
         throw new System.InvalidOperationException("The target and original scene must both be available to the native scene loader.");
+    // Both arrivals resolve before the visit changes anything.
+    var targetArrival = authoredArrival(requestedTargetId);
+    var finalArrival = finalSceneId == sourceNativeScene.ID ? playerTransform.position : authoredArrival(finalSceneId);
 
     sceneVisitKey = "afallon-compendium.scene-visit." + System.Guid.NewGuid().ToString("N");
     sceneVisitState = new System.Collections.Generic.Dictionary<string, object>();
@@ -71,6 +74,7 @@
     sceneVisitState["finalSceneNativeId"] = finalSceneId;
     sceneVisitState["finalScenePath"] = finalNativeScene.entryName;
     sceneVisitState["sourcePosition"] = playerTransform.position;
+    sceneVisitState["finalArrival"] = finalArrival;
     sceneVisitState["sourceRotation"] = playerTransform.rotation;
     sceneVisitState["requestFrame"] = UnityEngine.Time.frameCount;
     sceneVisitState["restoreRequested"] = false;

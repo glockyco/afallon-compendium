@@ -25,7 +25,7 @@
     });
 
     if (requestedTargetId != sourceNativeScene.ID)
-        sceneLoader.LoadGameScene(requestedTargetId);
+        enterScene(requestedTargetId, targetArrival);
     return ((System.Func<object>)sceneVisitState["report"])();
 }
 
@@ -56,6 +56,7 @@ if (requestedAction == "retarget")
     var retargetEssentials = Il2CppBLINK.RPGBuilder.LogicMono.RPGBuilderEssentials.Instance;
     if (retargetLoader == null || retargetEssentials == null || !retargetCurrentScene.isLoaded || !retargetEssentials.SceneInitialized || retargetLoader.isSceneLoading || Il2CppBLINK.RPGBuilder.Managers.LoadingScreenManager.HasSceneReadyHolds)
         throw new System.InvalidOperationException("The current scene must be ready before retargeting.");
+    var retargetArrival = authoredArrival(requestedTargetId);
     sceneVisitState["targetSceneNativeId"] = requestedTargetId;
     sceneVisitState["targetSceneName"] = retargetNativeScene.entryName;
     sceneVisitState["phase"] = "loading";
@@ -63,7 +64,7 @@ if (requestedAction == "retarget")
     sceneVisitState["restoreRequested"] = false;
     sceneVisitState["restoreRequestFrame"] = -1;
     if (retargetCurrentScene.name != retargetNativeScene.entryName)
-        retargetLoader.LoadGameScene(requestedTargetId);
+        enterScene(requestedTargetId, retargetArrival);
     return ((System.Func<object>)sceneVisitState["report"])();
 }
 
@@ -116,9 +117,9 @@ if (requestedAction == "poll")
             placeAtCapturePosition();
             sceneVisitState["phase"] = hasCapturePosition ? "settling" : "ready";
         }
-        // A challenge-stone scene loads and then the game reloads its parent at once: the target
-        // was seen, and the source scene is ready again. Such a scene is not reachable by loading
-        // it, which the visit reports instead of polling to its deadline.
+        // Since build 25434619 the game cancels an entry whose destination does not finish loading
+        // and reloads the source scene: the target was seen, and the source scene is ready again.
+        // The visit reports that instead of polling to its deadline.
         else if ((bool)sceneVisitState["sawTargetScene"] && (int)observed["frame"] > requestedFrame && (bool)observed["sceneReady"] && observedName == (sceneVisitState["sourceSceneName"] as string))
         {
             sceneVisitState["phase"] = "returned";

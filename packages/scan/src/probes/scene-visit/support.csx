@@ -31,9 +31,9 @@ if (requestedFinalPathToken != null && requestedFinalPathToken.Type != Newtonsof
         throw new System.ArgumentException("finalScenePath must be a non-empty string.");
     requestedFinalPath = (string)requestedFinalPathToken;
 }
-// Where the player stands once the target scene is ready. Some scenes arrive outside their level
-// and the player falls, so nothing near the map stays resident; placing the player at the map
-// on the walkable surface makes the scene static for capture.
+// Where the player stands once the target scene is ready. The authored arrival can lie far from
+// the mapped area, where no loader near the map is within range; placing the player at the map on
+// the walkable surface makes the scene static for capture.
 var capturePositionToken = args["capturePosition"];
 var hasCapturePosition = capturePositionToken != null && capturePositionToken.Type == Newtonsoft.Json.Linq.JTokenType.Object;
 var placeAtCapturePosition = new System.Action(() =>
@@ -53,6 +53,39 @@ var placeAtCapturePosition = new System.Action(() =>
     UnityEngine.Physics.SyncTransforms();
     if (controller != null) controller.enabled = controllerWasEnabled;
     sceneVisitState["capturePosition"] = playerEntity.transform.position;
+});
+// Where a visit enters a scene. A later native entry lands where the character last left the
+// scene, so arrival through LoadGameScene depends on the character's save history, and a stale
+// saved position can lie outside the scene. Since build 25434619 the game cancels such an entry.
+// A visit therefore enters like a door does: RPGBuilderEssentials.TeleportToGameScene with the
+// destination of the lowest-ID gameScene teleport effect into the scene, or, for a scene that no
+// teleport effect enters, the scene's authored start position.
+var authoredArrival = new System.Func<int, UnityEngine.Vector3>(sceneId =>
+{
+    var arrivalDatabase = Il2CppBLINK.RPGBuilder.Managers.GameDatabase.Instance;
+    if (arrivalDatabase == null) throw new System.InvalidOperationException("The runtime database is required to resolve a scene arrival.");
+    var arrivalEffectId = int.MaxValue;
+    var arrival = UnityEngine.Vector3.zero;
+    foreach (var pair in arrivalDatabase.GetEffects())
+    {
+        var effect = pair.Value;
+        if (effect == null || effect.effectType != Il2Cpp.RPGEffect.EFFECT_TYPE.Teleport || effect.ranks == null || effect.ranks.Count == 0 || effect.ID >= arrivalEffectId) continue;
+        var rank = effect.ranks[0];
+        if (rank == null || rank.teleportType != Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene || rank.gameSceneID != sceneId) continue;
+        arrivalEffectId = effect.ID;
+        arrival = rank.teleportPOS;
+    }
+    if (arrivalEffectId != int.MaxValue) return arrival;
+    var arrivalScene = arrivalDatabase.GetGameScenes()[sceneId];
+    foreach (var pair in arrivalDatabase.GetWorldPositions())
+        if (pair.Value != null && pair.Value.ID == arrivalScene.startPositionID) return pair.Value.position;
+    throw new System.InvalidOperationException("Scene " + sceneId + " has neither a gameScene teleport effect nor an authored start position.");
+});
+var enterScene = new System.Action<int, UnityEngine.Vector3>((sceneId, position) =>
+{
+    var enteringEssentials = Il2CppBLINK.RPGBuilder.LogicMono.RPGBuilderEssentials.Instance;
+    if (enteringEssentials == null) throw new System.InvalidOperationException("RPGBuilderEssentials is required to enter a scene.");
+    enteringEssentials.TeleportToGameScene(sceneId, position);
 });
 if (requestedTargetToken != null && requestedTargetToken.Type != Newtonsoft.Json.Linq.JTokenType.Null)
 {

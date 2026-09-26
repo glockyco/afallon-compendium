@@ -1,7 +1,7 @@
 import { createWorldInventoryBundle } from "@afallon/scan/inventory";
+import { createSceneVisitBundle } from "@afallon/scan/scene-visit";
 import captureSessionSource from "./probes/capture-session.csx" with { type: "text" };
 import captureVisualsSource from "./probes/capture-visuals.csx" with { type: "text" };
-import sceneVisitSource from "./probes/scene-visit.csx" with { type: "text" };
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -48,7 +48,7 @@ import {
   tileCompatibilityKey,
   type ReusableCaptureTile,
 } from "./capture-cache";
-import { SceneVisitSchema, type SceneVisit } from "@afallon/contracts"
+import type { SceneVisit } from "@afallon/contracts"
 import { captureRunInput } from "./fingerprints";
 
 export interface CaptureBuildIdentity {
@@ -657,6 +657,7 @@ export async function capture(
     retarget: async () => { throw new Error("Sweep scene controller is not initialized."); },
     restore: async () => { throw new Error("Sweep scene controller is not initialized."); },
   };
+  const sceneVisitBundle = await createSceneVisitBundle();
   const transitionScene = async (action: "start" | "retarget" | "restore", targetSceneNativeId: number, timeoutMs: number, capturePosition: CapturePosition | null = null): Promise<SceneVisit> => {
     const deadline = Date.now() + timeoutMs;
     const timeout = new Error(`Capture scene ${action} exceeded its readiness deadline.`);
@@ -680,8 +681,7 @@ export async function capture(
       }
       // Scene loading and post-placement asset bursts stall the main thread; a transition poll
       // tolerates that with the readiness budget instead of the per-call default.
-      const reply = await runtime.probe(sceneVisitSource, resolve(sweep.run.directory, path), { parameters, timeoutMs });
-      assertSchema(SceneVisitSchema, reply.value, "Capture scene transition");
+      const reply = await runtime.runProbe(sceneVisitBundle, resolve(sweep.run.directory, path), { parameters, timeoutMs });
       const state = reply.value;
       sweep.visit = state;
       if (key !== undefined && state.key !== key) throw new Error("Capture scene transition returned another owner key.");
@@ -698,6 +698,7 @@ export async function capture(
         await Bun.sleep(500);
         continue;
       }
+      if (state.phase === "returned") throw new Error(`Capture scene ${targetSceneNativeId} returned to its source scene before it was ready.`);
       const finished = state.phase === (action === "restore" ? "restored" : "ready");
       if (nextAction === "start" || nextAction === "retarget" || finished) sweep.sceneTransitions.push(await registerProbeArtifact(sweep.run, path, reply.reference));
       if (finished) {
