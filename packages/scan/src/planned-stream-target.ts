@@ -20,7 +20,7 @@ export class PlannedStreamTargetController implements StreamedSourceVisitor {
 
   async visit(target: ScanStreamedSourceTarget, _started: RuntimeScanState, outputDirectory: string, collect: () => Promise<void>): Promise<ScanTargetExecution> {
     let execution: ScanTargetExecution | null = null;
-    const parentExecution = await this.sceneController.visit(target.sceneNativeId, outputDirectory, async () => {
+    const parentExecution = await this.sceneController.visit({ kind: "build-scene", sceneNativeId: target.sceneNativeId }, outputDirectory, async () => {
       const parentState = await this.stateReader.read(resolve(outputDirectory, "stream-parent-state.json"));
       const snapshot = (await this.runtime.runProbe(this.placementBundle, resolve(outputDirectory, "stream-binding-snapshot.json"), {
         parameters: { researchCharacter: this.character },

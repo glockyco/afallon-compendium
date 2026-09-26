@@ -38,6 +38,9 @@ export const ScanBuildSceneTargetSchema = Type.Object({
   // "all": load every streamed source of the scene before collection, so that collection does not
   // depend on which sources load near the arrival. Absent: collect what the scene loads on its own.
   streamedSources: Type.Optional(Type.Literal("all")),
+  // An observed doorway into the scene, taken from the previous accepted catalog. Without it the
+  // visit enters at the scene's start position.
+  arrival: Type.Optional(Type.Object({ transitionId: text, position: vector }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type ScanBuildSceneTarget = Static<typeof ScanBuildSceneTargetSchema>;
 export const ScanStreamedSourceTargetSchema = Type.Object({
@@ -187,12 +190,12 @@ export const SceneVisitSchema = Type.Object({
   sourceSceneNativeId: count,
   sourceSceneHandle: integer,
   targetSceneNativeId: count,
-  // Where the visit entered the target: the gameScene teleport effect or the scene start position it used.
-  targetArrival: Type.Object({
-    source: Type.Union([Type.Literal("teleport-effect"), Type.Literal("start-position")]),
-    nativeId: count,
-    position: vector,
-  }, { additionalProperties: false }),
+  // Where the visit entered the target: a planned doorway, identified by its transition in the
+  // catalog it came from, or the scene's start position, identified by its RPGWorldPosition ID.
+  targetArrival: Type.Union([
+    Type.Object({ source: Type.Literal("doorway"), transitionId: text, position: vector }, { additionalProperties: false }),
+    Type.Object({ source: Type.Literal("start-position"), worldPositionId: count, position: vector }, { additionalProperties: false }),
+  ]),
   finalSceneNativeId: Type.Optional(count),
   sceneNativeId: Type.Union([count, Type.Null()]),
   sceneReady: Type.Boolean(),

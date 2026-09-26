@@ -51,8 +51,8 @@ test("build-scene targets use the shared envelope after restoration", async () =
   try {
     let visited = false;
     const visitor = {
-      async visit(sceneNativeId: number, _outputDirectory: string, collect: () => Promise<void>): Promise<void> {
-        expect(sceneNativeId).toBe(7);
+      async visit(target: { sceneNativeId: number }, _outputDirectory: string, collect: () => Promise<void>): Promise<void> {
+        expect(target.sceneNativeId).toBe(7);
         visited = true;
         await collect();
       },

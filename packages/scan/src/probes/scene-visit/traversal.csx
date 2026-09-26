@@ -52,8 +52,8 @@
         string.IsNullOrEmpty(sourceNativeScene.entryName) || !UnityEngine.Application.CanStreamedLevelBeLoaded(sourceNativeScene.entryName))
         throw new System.InvalidOperationException("The target and original scene must both be available to the native scene loader.");
     // Both arrivals resolve before the visit changes anything.
-    var targetArrival = authoredArrival(requestedTargetId);
-    var finalArrival = finalSceneId == sourceNativeScene.ID ? playerTransform.position : (UnityEngine.Vector3)authoredArrival(finalSceneId)["position"];
+    var targetArrival = authoredArrival(requestedTargetId, arrivalToken);
+    var finalArrival = finalSceneId == sourceNativeScene.ID ? playerTransform.position : (UnityEngine.Vector3)authoredArrival(finalSceneId, null)["position"];
 
     sceneVisitKey = "afallon-compendium.scene-visit." + System.Guid.NewGuid().ToString("N");
     sceneVisitState = new System.Collections.Generic.Dictionary<string, object>();

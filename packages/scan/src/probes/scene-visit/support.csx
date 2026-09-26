@@ -57,42 +57,35 @@ var placeAtCapturePosition = new System.Action(() =>
 // Where a visit enters a scene. A later native entry lands where the character last left the
 // scene, so arrival through LoadGameScene depends on the character's save history, and a stale
 // saved position can lie outside the scene. Since build 25434619 the game cancels such an entry.
-// A visit therefore enters like a door does: RPGBuilderEssentials.TeleportToGameScene with the
-// destination of the lowest-ID gameScene teleport effect into the scene, or, for a scene that no
-// teleport effect enters, the scene's authored start position.
-var authoredArrival = new System.Func<int, System.Collections.Generic.Dictionary<string, object>>(sceneId =>
+// A visit therefore enters like a door does, through RPGBuilderEssentials.TeleportToGameScene: at
+// the planned doorway, an observed transition into the scene from the previous accepted catalog,
+// or, for a scene without one, at the scene's authored start position.
+var arrivalToken = args["arrival"];
+var authoredArrival = new System.Func<int, Newtonsoft.Json.Linq.JToken, System.Collections.Generic.Dictionary<string, object>>((sceneId, planned) =>
 {
-    var arrivalDatabase = Il2CppBLINK.RPGBuilder.Managers.GameDatabase.Instance;
-    if (arrivalDatabase == null) throw new System.InvalidOperationException("The runtime database is required to resolve a scene arrival.");
-    var arrivalEffectId = int.MaxValue;
-    var arrival = UnityEngine.Vector3.zero;
-    foreach (var pair in arrivalDatabase.GetEffects())
-    {
-        var effect = pair.Value;
-        if (effect == null || effect.effectType != Il2Cpp.RPGEffect.EFFECT_TYPE.Teleport || effect.ranks == null || effect.ranks.Count == 0 || effect.ID >= arrivalEffectId) continue;
-        var rank = effect.ranks[0];
-        if (rank == null || rank.teleportType != Il2Cpp.RPGEffect.TELEPORT_TYPE.gameScene || rank.gameSceneID != sceneId) continue;
-        arrivalEffectId = effect.ID;
-        arrival = rank.teleportPOS;
-    }
     var record = new System.Collections.Generic.Dictionary<string, object>();
-    if (arrivalEffectId != int.MaxValue)
+    if (planned != null && planned.Type == Newtonsoft.Json.Linq.JTokenType.Object)
     {
-        record["source"] = "teleport-effect";
-        record["nativeId"] = arrivalEffectId;
-        record["position"] = arrival;
+        var transitionId = (string)planned["transitionId"];
+        var position = planned["position"];
+        if (string.IsNullOrEmpty(transitionId) || position == null) throw new System.ArgumentException("arrival must name a transitionId and a position.");
+        record["source"] = "doorway";
+        record["transitionId"] = transitionId;
+        record["position"] = new UnityEngine.Vector3((float)position["x"], (float)position["y"], (float)position["z"]);
         return record;
     }
+    var arrivalDatabase = Il2CppBLINK.RPGBuilder.Managers.GameDatabase.Instance;
+    if (arrivalDatabase == null) throw new System.InvalidOperationException("The runtime database is required to resolve a scene arrival.");
     var arrivalScene = arrivalDatabase.GetGameScenes()[sceneId];
     foreach (var pair in arrivalDatabase.GetWorldPositions())
     {
         if (pair.Value == null || pair.Value.ID != arrivalScene.startPositionID) continue;
         record["source"] = "start-position";
-        record["nativeId"] = pair.Value.ID;
+        record["worldPositionId"] = pair.Value.ID;
         record["position"] = pair.Value.position;
         return record;
     }
-    throw new System.InvalidOperationException("Scene " + sceneId + " has neither a gameScene teleport effect nor an authored start position.");
+    throw new System.InvalidOperationException("Scene " + sceneId + " has no planned doorway and no authored start position.");
 });
 var enterScene = new System.Action<int, UnityEngine.Vector3>((sceneId, position) =>
 {

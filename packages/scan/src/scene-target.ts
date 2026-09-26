@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { SceneVisitSchema, type SceneVisit } from "@afallon/contracts";
+import { SceneVisitSchema, type ScanBuildSceneTarget, type SceneVisit } from "@afallon/contracts";
 import type { ProbeBundle, Runtime } from "@afallon/runtime";
 import type { BuildSceneVisitor, ScanTargetExecution } from "./state-machine";
 
@@ -11,7 +11,8 @@ export class SceneTargetController implements BuildSceneVisitor {
     private readonly timeoutMs: number,
   ) {}
 
-  async visit(sceneNativeId: number, outputDirectory: string, collect: () => Promise<void>): Promise<void | ScanTargetExecution> {
+  async visit(target: ScanBuildSceneTarget, outputDirectory: string, collect: () => Promise<void>): Promise<void | ScanTargetExecution> {
+    const sceneNativeId = target.sceneNativeId;
     let deadline = Date.now() + this.timeoutMs;
     let sequence = 0;
     let started: SceneVisit | null = null;
@@ -36,7 +37,7 @@ export class SceneTargetController implements BuildSceneVisitor {
     };
 
     try {
-      started = await invoke("start", { targetSceneNativeId: sceneNativeId });
+      started = await invoke("start", { targetSceneNativeId: sceneNativeId, arrival: target.arrival ?? null });
       const ready = await settle("poll", started.key, "ready");
       if (ready.phase === "returned") {
         execution = { outcome: "unreachable", diagnostics: [{ code: "scene-returned", message: `Build scene ${sceneNativeId} returned to source scene ${String(ready.sceneNativeId)} before collection.` }] };

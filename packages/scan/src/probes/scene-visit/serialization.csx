@@ -11,12 +11,12 @@
             sourceSceneNativeId = (int)sceneVisitState["sourceSceneNativeId"],
             sourceSceneHandle = (int)sceneVisitState["sourceSceneHandle"],
             targetSceneNativeId = (int)sceneVisitState["targetSceneNativeId"],
-            targetArrival = new
+            targetArrival = ((System.Func<System.Collections.Generic.Dictionary<string, object>, object>)(arrival =>
             {
-                source = (string)((System.Collections.Generic.Dictionary<string, object>)sceneVisitState["targetArrival"])["source"],
-                nativeId = (int)((System.Collections.Generic.Dictionary<string, object>)sceneVisitState["targetArrival"])["nativeId"],
-                position = vector((UnityEngine.Vector3)((System.Collections.Generic.Dictionary<string, object>)sceneVisitState["targetArrival"])["position"])
-            },
+                var report = new System.Collections.Generic.Dictionary<string, object>(arrival);
+                report["position"] = vector((UnityEngine.Vector3)arrival["position"]);
+                return report;
+            }))((System.Collections.Generic.Dictionary<string, object>)sceneVisitState["targetArrival"]),
             finalSceneNativeId = (int)sceneVisitState["finalSceneNativeId"],
             sceneNativeId = observed["sceneNativeId"],
             sceneReady = (bool)observed["sceneReady"],
@@ -62,7 +62,7 @@ if (requestedAction == "retarget")
     var retargetEssentials = Il2CppBLINK.RPGBuilder.LogicMono.RPGBuilderEssentials.Instance;
     if (retargetLoader == null || retargetEssentials == null || !retargetCurrentScene.isLoaded || !retargetEssentials.SceneInitialized || retargetLoader.isSceneLoading || Il2CppBLINK.RPGBuilder.Managers.LoadingScreenManager.HasSceneReadyHolds)
         throw new System.InvalidOperationException("The current scene must be ready before retargeting.");
-    var retargetArrival = authoredArrival(requestedTargetId);
+    var retargetArrival = authoredArrival(requestedTargetId, arrivalToken);
     sceneVisitState["targetSceneNativeId"] = requestedTargetId;
     sceneVisitState["targetArrival"] = retargetArrival;
     sceneVisitState["targetSceneName"] = retargetNativeScene.entryName;

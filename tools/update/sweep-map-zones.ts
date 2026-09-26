@@ -1,5 +1,6 @@
 // Operator tool: visits every interior scene that the profile binds and dumps its map-zone textures and corners.
-// usage: bun tools/update/sweep-map-zones.ts CONFIG PROFILE
+// usage: bun tools/update/sweep-map-zones.ts CONFIG PROFILE SCAN_PLAN...
+// Each interior is entered at the doorway arrival that the scan plans give it, or else at its start position.
 import { resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { loadConfig } from "../../apps/compendium-cli/src/config";
@@ -7,8 +8,10 @@ import { withRuntime } from "@afallon/runtime";
 import { createSceneVisitBundle } from "../../packages/scan/src/visit-probes";
 import { buildIdentity } from "../../apps/compendium-cli/src/build";
 
-const [configPath, profilePath] = Bun.argv.slice(2);
-if (!configPath || !profilePath) throw new Error("usage: sweep-map-zones CONFIG PROFILE");
+const [configPath, profilePath, ...scanPlans] = Bun.argv.slice(2);
+if (!configPath || !profilePath || scanPlans.length === 0) throw new Error("usage: sweep-map-zones CONFIG PROFILE SCAN_PLAN...");
+const arrivals = new Map<number, unknown>();
+for (const path of scanPlans) for (const target of (await Bun.file(path).json() as { targets: Array<{ kind: string; sceneNativeId: number; arrival?: unknown }> }).targets) if (target.kind === "build-scene" && target.arrival) arrivals.set(target.sceneNativeId, target.arrival);
 const config = await loadConfig(configPath);
 const { buildId } = await buildIdentity(config);
 const profile = await Bun.file(profilePath).json() as { bindings: Array<{ mapSpaceId: string; sceneNativeId: number; domain: { kind: string } }> };
@@ -26,7 +29,7 @@ await withRuntime(config, async runtime => {
     const deadline = Date.now() + 300000;
     let next: "start" | "retarget" | "poll" | "restore" = action;
     while (Date.now() < deadline) {
-      const parameters: Record<string, unknown> = { researchCharacter: config.character, action: next, key, targetSceneNativeId: action === "restore" ? lastTarget : target, capturePosition: null };
+      const parameters: Record<string, unknown> = { researchCharacter: config.character, action: next, key, targetSceneNativeId: action === "restore" ? lastTarget : target, arrival: action === "restore" ? null : arrivals.get(target) ?? null, capturePosition: null };
       if (next === "start") { parameters.finalSceneNativeId = config.finalSceneNativeId; parameters.finalScenePath = config.finalScenePath; }
       const reply = await runtime.runProbe(visitBundle, resolve(outputDirectory, `visit-${ordinal++}.json`), { parameters, timeoutMs: 300000 });
       const state = reply.value;

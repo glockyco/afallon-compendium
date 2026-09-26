@@ -59,7 +59,7 @@ Map-data readiness waits for every declared geometry part. Search loads independ
 
 A new game build is scanned, captured, catalogued, and published as a candidate before `accept-update` selects it. The scripts in [`tools/update/`](tools/update/) author the build-bound reviewed inputs from that build's evidence, in this order:
 
-1. `load-character.ts` loads the research character; `quit-game.ts` quits the game at the end.
+1. `load-character.ts` loads the research character; `quit-game.ts` quits the game at the end. `author-scan-arrivals.ts` gives each scene of the scan plans an observed doorway from the previous accepted catalog as its arrival.
 2. `author-map-profile.ts` and `verify-map-profile.ts` author and check the map-space profile from the scene scans.
 3. `sweep-map-zones.ts`, `author-game-map-plans.ts`, `extract-overworld-texture.py`, and `author-overworld-plan.ts` produce the game-map plans.
 4. `author-capture-plans.ts` re-authors the reviewed terrain plans; `capture-plans.ts` captures each plan in its own sweep.

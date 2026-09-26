@@ -31,7 +31,7 @@ export class RuntimeProbeStateReader implements ScanStateReader {
 }
 
 export interface BuildSceneVisitor {
-  visit(sceneNativeId: number, outputDirectory: string, collect: () => Promise<void>): Promise<void | ScanTargetExecution>;
+  visit(target: ScanBuildSceneTarget, outputDirectory: string, collect: () => Promise<void>): Promise<void | ScanTargetExecution>;
 }
 
 export interface ScanTargetExecution {
@@ -76,7 +76,7 @@ export class ScanStateMachine {
     return this.execute(target, targetIndex, async (directory, started) => {
       let artifacts: readonly ScanEvidenceArtifact[] = [];
       try {
-        const execution = await visitor.visit(target.sceneNativeId, directory, async () => { artifacts = await collect(directory, started); });
+        const execution = await visitor.visit(target, directory, async () => { artifacts = await collect(directory, started); });
         return { outcome: "succeeded", ...(execution ?? {}), artifacts };
       } catch (error) { throw new ScanCollectionError(artifacts, error); }
     });
