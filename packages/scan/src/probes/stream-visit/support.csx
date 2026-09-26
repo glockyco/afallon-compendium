@@ -46,6 +46,26 @@ var getLoading = new System.Func<Il2Cpp.AddressableLoader, bool>(loader => (bool
 var getHandle = new System.Func<Il2Cpp.AddressableLoader, bool>(loader => (bool)handleProperty.GetValue(loader));
 var getHold = new System.Func<Il2Cpp.AddressableLoader, float>(loader => (float)holdProperty.GetValue(loader));
 var setHold = new System.Action<Il2Cpp.AddressableLoader, float>((loader, value) => holdProperty.SetValue(loader, value));
+// Requests a visit-owned load: hold the loader, then start its native preload.
+var requestLoad = new System.Action<System.Collections.Generic.Dictionary<string, object>, float>((row, holdSeconds) =>
+{
+    var target = row["loader"] as Il2Cpp.AddressableLoader;
+    row["holdChanged"] = true;
+    target.HoldLoaded(holdSeconds);
+    row["preloadRequested"] = true;
+    preloadMethod.Invoke(target, null);
+});
+// ChunkHider deactivates the content of terrain chunks far from the player, so whether a distant
+// loader is active depends on where the research character stands. A visit shows such a chunk
+// with the native ChunkHider.HoldPosition, which teleport preloads also use, and disposes the
+// hold on restoration.
+var chunkHiders = UnityEngine.Object.FindObjectsOfType<Il2Cpp.ChunkHider>(true);
+var chunkHiddenAround = new System.Func<UnityEngine.Vector3, bool>(position =>
+{
+    foreach (var hider in chunkHiders)
+        if (hider != null && hider.HasHiddenChunkAround(position)) return true;
+    return false;
+});
 
 var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
 var essentials = Il2CppBLINK.RPGBuilder.LogicMono.RPGBuilderEssentials.Instance;

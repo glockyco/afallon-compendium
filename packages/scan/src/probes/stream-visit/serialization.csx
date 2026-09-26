@@ -1,13 +1,15 @@
 
     // Nothing above mutates loader state. Register restoration before the first HoldLoaded call.
+    // A loader under a hidden chunk loads once the held chunk has activated it.
+    state["holdSeconds"] = holdSecondsFloat;
     foreach (var row in rows)
     {
         if ((string)row["skippedReason"] != null) continue;
         var target = row["loader"] as Il2Cpp.AddressableLoader;
-        row["holdChanged"] = true;
-        target.HoldLoaded(holdSecondsFloat);
-        row["preloadRequested"] = true;
-        preloadMethod.Invoke(target, null);
+        if ((bool)row["chunkHidden"])
+            row["chunkHold"] = Il2Cpp.ChunkHider.HoldPosition(target.transform.position);
+        else
+            requestLoad(row, holdSecondsFloat);
     }
 
     var startRows = new System.Collections.Generic.List<object>();
@@ -63,6 +65,15 @@ if (action == "poll")
         return new { key = requestedKey, phase = "restoring", frame = UnityEngine.Time.frameCount, sceneHandle = requestedSceneHandle, rows = restoringRows.ToArray() };
     }
 
+    foreach (var row in stateRows)
+    {
+        if (row["chunkHold"] == null || (bool)row["preloadRequested"]) continue;
+        var heldTarget = row["loader"] as Il2Cpp.AddressableLoader;
+        if (heldTarget == null || heldTarget.gameObject == null || !heldTarget.gameObject.activeInHierarchy) continue;
+        if (getAsset(heldTarget) != null || getLoading(heldTarget) || getHandle(heldTarget))
+            throw new System.InvalidOperationException("A loader under a held chunk started its automatic load, so the visit does not own it.");
+        requestLoad(row, (float)stateForRequest["holdSeconds"]);
+    }
     var readyScene = sceneIsReady();
     var allReady = readyScene;
     foreach (var row in stateRows)

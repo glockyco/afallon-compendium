@@ -86,6 +86,25 @@
             if (getHold(target) != (float)row["originalHoldUntil"])
                 allRestored = false;
         }
+        // A chunk hold ends after the visit's own loads are released, so the hidden chunk does not
+        // deactivate a loader that the visit still owns. ChunkHider then hides the chunk on its own
+        // check, and restoration waits until each such loader is inactive again.
+        if (allRestored)
+        {
+            foreach (var row in rows)
+            {
+                var chunkHold = row["chunkHold"] as Il2CppSystem.IDisposable;
+                if (chunkHold == null) continue;
+                chunkHold.Dispose();
+                row["chunkHold"] = null;
+            }
+            foreach (var row in rows)
+            {
+                var target = row["loader"] as Il2Cpp.AddressableLoader;
+                if ((bool)row["chunkHidden"] && target != null && target.gameObject != null && target.gameObject.activeInHierarchy)
+                    allRestored = false;
+            }
+        }
 
         if (firstRestore)
         {

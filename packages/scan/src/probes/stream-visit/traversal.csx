@@ -97,7 +97,10 @@ if (action == "start")
         row["initiallyLoaded"] = initialRoot != null;
         row["initialRoot"] = initialRoot;
         row["originalHoldUntil"] = getHold(target);
-        row["skippedReason"] = !target.gameObject.activeInHierarchy ? "inactive" : (!target.enabled ? "disabled" : null);
+        var chunkHidden = !target.gameObject.activeInHierarchy && chunkHiddenAround(target.transform.position);
+        row["chunkHidden"] = chunkHidden;
+        row["chunkHold"] = null;
+        row["skippedReason"] = !target.gameObject.activeInHierarchy && !chunkHidden ? "inactive" : (!target.enabled ? "disabled" : null);
         row["releaseRequested"] = false;
         row["ownedRoot"] = null;
         row["preloadRequested"] = false;
