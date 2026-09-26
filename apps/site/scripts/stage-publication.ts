@@ -1,4 +1,4 @@
-import { chmodSync, cpSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, mkdirSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { hashFile, listFiles, parseJson } from "./deployment-files";
 import type { StaticResourceReference } from "@afallon/contracts/public";
@@ -51,6 +51,10 @@ export function stagePublication(
   const stagedPublication = join(paths.staticDir, "data");
   cpSync(publicDir, stagedPublication, { recursive: true });
   makeWritable(stagedPublication);
+  // The dev server reads apps/site/static; its data is the staged publication, so it never serves an older one.
+  const devData = join(siteDir, "static", "data");
+  rmSync(devData, { recursive: true, force: true });
+  symlinkSync(relative(join(siteDir, "static"), stagedPublication), devData);
 
   const metadata: DeploymentMetadata = {
     schemaVersion: "afallon.deployment.v2",
