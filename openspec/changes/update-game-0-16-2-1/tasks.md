@@ -1,11 +1,12 @@
 ## 1. Report contract
 
-- [ ] 1.1 Replace `compendium.update-report.v1` with `v2`: add the registered release notes as a report artifact, declare risk areas as unique kebab-case identifiers, and remove the fixed 0.16.2 list. Verify with contract and acceptance tests.
+- [x] 1.1 Replace `compendium.update-report.v1` with `v2`: add the registered release notes as a report artifact, declare risk areas as unique kebab-case identifiers, and remove the fixed 0.16.2 list. Verify with contract and acceptance tests.
 
 ## 2. Installation and declarations
 
-- [ ] 2.1 Record the Steam update receipt for 0.16.2.1. Verify build 25434619, `StateFlags` 4, and the input hashes.
-- [ ] 2.2 Recover the 0.16.2.1 declarations with the pinned Cpp2IL and compare them with the 0.16.2 snapshot. Register the comparison and record the types and fields that can affect collectors or decoders.
+- [x] 2.1 Record the Steam update receipt for 0.16.2.1. Verify build 25434619, `StateFlags` 4, and the input hashes.
+- [x] 2.2 Recover the 0.16.2.1 declarations with the pinned Cpp2IL and compare them with the 0.16.2 snapshot. Register the comparison and record the types and fields that can affect collectors or decoders.
+- [x] 2.3 Enter scanned and captured scenes at authored arrivals through `TeleportToGameScene`, and let capture run the scan package's scene-visit probe. Verify with a candidate scan of scenes 14, 15, and 44, whose saved arrival positions are stale.
 
 ## 3. Candidate evidence
 
