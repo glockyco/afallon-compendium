@@ -739,8 +739,12 @@ export async function capture(
       catch (restoreError) { failures.push(restoreError); runtime.cancel(restoreError); }
     }
     try { await runtime.close(); } catch (cleanupError) { failures.push(cleanupError); }
+    // The proof attaches runtime cleanup to plan checkpoints. Without a prepared plan, the sweep
+    // run keeps the runtime cleanup receipt itself below.
     let cleanup: ContentIdentity | undefined;
-    try { cleanup = await registerSweepCleanup(runtime, sweep); } catch (cleanupError) { failures.push(cleanupError); }
+    if (sweep.pending.length > 0) {
+      try { cleanup = await registerSweepCleanup(runtime, sweep); } catch (cleanupError) { failures.push(cleanupError); }
+    }
     for (const pending of sweep.pending) {
       // A sealed successful plan remains immutable if later sweep finalization fails.
       if (pending.workspace.run.status !== "running") continue;
