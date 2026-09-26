@@ -6,7 +6,6 @@ import { expect, test } from "bun:test";
 import { ArtifactStore, beginArtifactRun } from "@afallon/artifacts";
 import {
   UPDATE_CHECK_AREAS,
-  UPDATE_RISK_AREAS,
   canonicalJson,
   type AcceptedBuildDescriptor,
   type ContentIdentity,
@@ -108,13 +107,14 @@ async function fixture(): Promise<Fixture> {
 
   const pointer = { buildId: BUILD_ID, content: evidence };
   const report: UpdateReport = {
-    schemaVersion: "compendium.update-report.v1",
+    schemaVersion: "compendium.update-report.v2",
     releaseVersion: "0.16.2",
     recordedAt: "2026-09-20T00:00:00.000Z",
     previous: { buildId: "25153357", inputHashes: { installation: "3".repeat(64) } },
     current: { buildId: BUILD_ID, inputHashes: { installation: "4".repeat(64) } },
     artifacts: {
       updateReceipt: pointer,
+      releaseNotes: pointer,
       schemaSnapshot: pointer,
       buildComparison: pointer,
       scans: [pointer],
@@ -123,7 +123,7 @@ async function fixture(): Promise<Fixture> {
       publication: { buildId: BUILD_ID, content: publicationManifest },
     },
     checks: UPDATE_CHECK_AREAS.map(area => ({ area, passed: true as const, detail: `${area} passed.`, evidence: [pointer] })),
-    risks: UPDATE_RISK_AREAS.map(area => ({ area, disposition: "supported-changed" as const, detail: `${area} reviewed.`, evidence: [pointer] })),
+    risks: [{ area: "teleport-loading", disposition: "supported-unchanged" as const, detail: "Teleport destinations reviewed.", evidence: [pointer] }],
   };
   const reportPath = join(root, "update-report.json");
   await writeFile(reportPath, `${canonicalJson(report)}\n`);

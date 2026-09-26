@@ -3,7 +3,7 @@ import { lstat, mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
 import { ArtifactStore, createArtifactLease, resolveArtifactRun } from "@afallon/artifacts";
-import { AcceptedBuildDescriptorSchema, canonicalJson, validateUpdateReport, type AcceptedBuildDescriptor, type ContentIdentity } from "@afallon/contracts";
+import { AcceptedBuildDescriptorSchema, canonicalJson, validateUpdateReport, type AcceptedBuildDescriptor, type ContentIdentity, type UpdateReport } from "@afallon/contracts";
 import { StaticResourceReferenceSchema, StaticRootManifestSchema } from "@afallon/contracts/public";
 export interface DeploymentMetadata {
   schemaVersion: "afallon.deployment.v2";
@@ -66,8 +66,8 @@ async function replace(path: string, bytes: Uint8Array): Promise<void> {
   } finally { await rm(temporary, { force: true }); }
 }
 
-async function verifyReportEvidence(store: ArtifactStore, report: ReturnType<typeof validateUpdateReport>): Promise<void> {
-  const pointers = [report.artifacts.updateReceipt, report.artifacts.schemaSnapshot, report.artifacts.buildComparison, ...report.artifacts.scans, ...report.artifacts.reviewedInputs, report.artifacts.catalog, report.artifacts.publication, ...report.checks.flatMap(check => check.evidence), ...report.risks.flatMap(risk => risk.evidence)];
+async function verifyReportEvidence(store: ArtifactStore, report: UpdateReport): Promise<void> {
+  const pointers = [report.artifacts.updateReceipt, report.artifacts.releaseNotes, report.artifacts.schemaSnapshot, report.artifacts.buildComparison, ...report.artifacts.scans, ...report.artifacts.reviewedInputs, report.artifacts.catalog, report.artifacts.publication, ...report.checks.flatMap(check => check.evidence), ...report.risks.flatMap(risk => risk.evidence)];
   const unique = new Map(pointers.map(pointer => [`${pointer.content.sha256}:${pointer.content.bytes}`, pointer.content]));
   for (const value of unique.values()) await store.verify(value);
 }

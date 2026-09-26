@@ -6,24 +6,9 @@ import { schemaRegistry } from "./schema-registry";
 const NonEmptyString = Type.String({ minLength: 1 });
 const Sha256 = Type.String({ pattern: SHA256_PATTERN });
 
-export const UPDATE_RISK_AREAS = [
-  "merged-outdoor-world",
-  "teleports",
-  "adventurers-and-roles",
-  "dungeon-quests-and-rewards",
-  "items-and-equipment",
-  "weapon-proficiency",
-  "healing-power",
-  "loot",
-  "bankers-and-auctioneers",
-  "flight-network",
-  "mail",
-  "bank-contents",
-  "auctions",
-  "friends",
-  "dungeon-finder",
-  "adventurer-progression",
-] as const;
+// A risk area is a short kebab-case name for one area that the release notes of the new build name, such as
+// `teleport-loading` or `quest-hand-ins`. Each update declares its own areas; no list carries over between releases.
+const RiskAreaDefinition = Type.String({ pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" });
 
 export const UPDATE_CHECK_AREAS = [
   "installation-identity",
@@ -54,13 +39,11 @@ const InstallationIdentityDefinition = Type.Object({
   inputHashes: Type.Record(Type.String(), Sha256),
 }, { additionalProperties: false });
 
-type UpdateRiskArea = typeof UPDATE_RISK_AREAS[number];
 type UpdateCheckArea = typeof UPDATE_CHECK_AREAS[number];
-const UpdateRiskAreaDefinition = Type.Unsafe<UpdateRiskArea>({ type: "string", enum: [...UPDATE_RISK_AREAS] });
 const UpdateCheckAreaDefinition = Type.Unsafe<UpdateCheckArea>({ type: "string", enum: [...UPDATE_CHECK_AREAS] });
 
 const RiskDispositionDefinition = Type.Object({
-  area: UpdateRiskAreaDefinition,
+  area: RiskAreaDefinition,
   disposition: Type.Union([
     Type.Literal("supported-unchanged"),
     Type.Literal("supported-changed"),
@@ -79,13 +62,15 @@ const UpdateCheckDefinition = Type.Object({
 }, { additionalProperties: false });
 
 const UpdateReportDefinition = Type.Object({
-  schemaVersion: Type.Literal("compendium.update-report.v1"),
+  schemaVersion: Type.Literal("compendium.update-report.v2"),
   releaseVersion: NonEmptyString,
   recordedAt: NonEmptyString,
   previous: InstallationIdentityDefinition,
   current: InstallationIdentityDefinition,
   artifacts: Type.Object({
     updateReceipt: UpdateEvidencePointerSchema,
+    // The registered release notes that define the declared risk areas.
+    releaseNotes: UpdateEvidencePointerSchema,
     schemaSnapshot: UpdateEvidencePointerSchema,
     buildComparison: UpdateEvidencePointerSchema,
     scans: Type.Array(UpdateEvidencePointerSchema, { minItems: 1 }),
@@ -94,9 +79,9 @@ const UpdateReportDefinition = Type.Object({
     publication: UpdateEvidencePointerSchema,
   }, { additionalProperties: false }),
   checks: Type.Array(UpdateCheckDefinition, { minItems: UPDATE_CHECK_AREAS.length, maxItems: UPDATE_CHECK_AREAS.length }),
-  risks: Type.Array(RiskDispositionDefinition, { minItems: UPDATE_RISK_AREAS.length, maxItems: UPDATE_RISK_AREAS.length }),
+  risks: Type.Array(RiskDispositionDefinition, { minItems: 1 }),
 }, { additionalProperties: false });
-export const UpdateReportSchema = schemaRegistry.register("compendium.update-report.v1", UpdateReportDefinition).schema;
+export const UpdateReportSchema = schemaRegistry.register("compendium.update-report.v2", UpdateReportDefinition).schema;
 export type UpdateReport = Static<typeof UpdateReportSchema>;
 
 export const AcceptedBuildDescriptorSchema = schemaRegistry.register("compendium.accepted-build.v1", Type.Object({
@@ -123,19 +108,24 @@ export const AcceptedBuildDescriptorSchema = schemaRegistry.register("compendium
 }, { additionalProperties: false })).schema;
 export type AcceptedBuildDescriptor = Static<typeof AcceptedBuildDescriptorSchema>;
 
+function assertUnique(values: readonly string[], label: string): void {
+  if (new Set(values).size !== values.length) throw new Error(`Update report repeats a ${label}.`);
+}
+
 function assertCompleteSet(values: readonly string[], required: readonly string[], label: string): void {
+  assertUnique(values, label);
   const observed = new Set(values);
-  if (observed.size !== values.length) throw new Error(`Update report repeats a ${label}.`);
   const missing = required.filter(value => !observed.has(value));
   if (missing.length > 0) throw new Error(`Update report is missing ${label}: ${missing.join(", ")}.`);
 }
 
 export function validateUpdateReport(value: unknown): UpdateReport {
   Assert(UpdateReportSchema, value);
-  assertCompleteSet(value.risks.map(risk => risk.area), UPDATE_RISK_AREAS, "risk disposition");
+  assertUnique(value.risks.map(risk => risk.area), "risk disposition");
   assertCompleteSet(value.checks.map(check => check.area), UPDATE_CHECK_AREAS, "verification check");
 
   const currentPointers = [
+    value.artifacts.releaseNotes,
     value.artifacts.schemaSnapshot,
     value.artifacts.buildComparison,
     ...value.artifacts.scans,
