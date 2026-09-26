@@ -11,6 +11,12 @@
             sourceSceneNativeId = (int)sceneVisitState["sourceSceneNativeId"],
             sourceSceneHandle = (int)sceneVisitState["sourceSceneHandle"],
             targetSceneNativeId = (int)sceneVisitState["targetSceneNativeId"],
+            targetArrival = new
+            {
+                source = (string)((System.Collections.Generic.Dictionary<string, object>)sceneVisitState["targetArrival"])["source"],
+                nativeId = (int)((System.Collections.Generic.Dictionary<string, object>)sceneVisitState["targetArrival"])["nativeId"],
+                position = vector((UnityEngine.Vector3)((System.Collections.Generic.Dictionary<string, object>)sceneVisitState["targetArrival"])["position"])
+            },
             finalSceneNativeId = (int)sceneVisitState["finalSceneNativeId"],
             sceneNativeId = observed["sceneNativeId"],
             sceneReady = (bool)observed["sceneReady"],
@@ -25,7 +31,7 @@
     });
 
     if (requestedTargetId != sourceNativeScene.ID)
-        enterScene(requestedTargetId, targetArrival);
+        enterScene(requestedTargetId, (UnityEngine.Vector3)targetArrival["position"]);
     return ((System.Func<object>)sceneVisitState["report"])();
 }
 
@@ -58,13 +64,14 @@ if (requestedAction == "retarget")
         throw new System.InvalidOperationException("The current scene must be ready before retargeting.");
     var retargetArrival = authoredArrival(requestedTargetId);
     sceneVisitState["targetSceneNativeId"] = requestedTargetId;
+    sceneVisitState["targetArrival"] = retargetArrival;
     sceneVisitState["targetSceneName"] = retargetNativeScene.entryName;
     sceneVisitState["phase"] = "loading";
     sceneVisitState["requestFrame"] = UnityEngine.Time.frameCount;
     sceneVisitState["restoreRequested"] = false;
     sceneVisitState["restoreRequestFrame"] = -1;
     if (retargetCurrentScene.name != retargetNativeScene.entryName)
-        enterScene(requestedTargetId, retargetArrival);
+        enterScene(requestedTargetId, (UnityEngine.Vector3)retargetArrival["position"]);
     return ((System.Func<object>)sceneVisitState["report"])();
 }
 

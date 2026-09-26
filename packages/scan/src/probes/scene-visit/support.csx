@@ -60,7 +60,7 @@ var placeAtCapturePosition = new System.Action(() =>
 // A visit therefore enters like a door does: RPGBuilderEssentials.TeleportToGameScene with the
 // destination of the lowest-ID gameScene teleport effect into the scene, or, for a scene that no
 // teleport effect enters, the scene's authored start position.
-var authoredArrival = new System.Func<int, UnityEngine.Vector3>(sceneId =>
+var authoredArrival = new System.Func<int, System.Collections.Generic.Dictionary<string, object>>(sceneId =>
 {
     var arrivalDatabase = Il2CppBLINK.RPGBuilder.Managers.GameDatabase.Instance;
     if (arrivalDatabase == null) throw new System.InvalidOperationException("The runtime database is required to resolve a scene arrival.");
@@ -75,10 +75,23 @@ var authoredArrival = new System.Func<int, UnityEngine.Vector3>(sceneId =>
         arrivalEffectId = effect.ID;
         arrival = rank.teleportPOS;
     }
-    if (arrivalEffectId != int.MaxValue) return arrival;
+    var record = new System.Collections.Generic.Dictionary<string, object>();
+    if (arrivalEffectId != int.MaxValue)
+    {
+        record["source"] = "teleport-effect";
+        record["nativeId"] = arrivalEffectId;
+        record["position"] = arrival;
+        return record;
+    }
     var arrivalScene = arrivalDatabase.GetGameScenes()[sceneId];
     foreach (var pair in arrivalDatabase.GetWorldPositions())
-        if (pair.Value != null && pair.Value.ID == arrivalScene.startPositionID) return pair.Value.position;
+    {
+        if (pair.Value == null || pair.Value.ID != arrivalScene.startPositionID) continue;
+        record["source"] = "start-position";
+        record["nativeId"] = pair.Value.ID;
+        record["position"] = pair.Value.position;
+        return record;
+    }
     throw new System.InvalidOperationException("Scene " + sceneId + " has neither a gameScene teleport effect nor an authored start position.");
 });
 var enterScene = new System.Action<int, UnityEngine.Vector3>((sceneId, position) =>

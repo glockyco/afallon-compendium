@@ -41,7 +41,7 @@ schemaRegistry.register("compendium.scan-evidence-artifact.v2", ScanEvidenceArti
 schemaRegistry.register("compendium.runtime-scan-state.v1", RuntimeScanStateSchema);
 schemaRegistry.register("compendium.scan-source-evidence.v1", ScanSourceEvidenceSchema);
 schemaRegistry.register("compendium.scan-target-envelope.v2", ScanTargetEnvelopeSchema);
-schemaRegistry.register("compendium.scene-visit.v1", SceneVisitSchema);
+schemaRegistry.register("compendium.scene-visit.v2", SceneVisitSchema);
 schemaRegistry.register("compendium.stream-visit.v1", StreamVisitSchema);
 schemaRegistry.register("compendium.stream-cleanup.v1", StreamCleanupSchema);
 schemaRegistry.register("compendium.world-inventory.v2", WorldInventorySchema);

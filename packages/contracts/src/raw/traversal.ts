@@ -10,8 +10,8 @@ const common = {
   key: text,
   // "settling": the scene is loaded and the player was placed at the capture position; the
   // loaders that placement started are still running.
-  // "returned": the target scene loaded and the game reloaded the source scene at once; the
-  // target is not reachable by loading it.
+  // "returned": the target scene loaded and the game reloaded the source scene, because it cancelled
+  // an entry whose destination did not finish loading.
   phase: Type.Union([Type.Literal("loading"), Type.Literal("settling"), Type.Literal("ready"), Type.Literal("returned"), Type.Literal("restoring"), Type.Literal("restored")]),
   frame: count,
   sceneHandle: integer,
@@ -184,6 +184,12 @@ export const SceneVisitSchema = Type.Object({
   sourceSceneNativeId: count,
   sourceSceneHandle: integer,
   targetSceneNativeId: count,
+  // Where the visit entered the target: the gameScene teleport effect or the scene start position it used.
+  targetArrival: Type.Object({
+    source: Type.Union([Type.Literal("teleport-effect"), Type.Literal("start-position")]),
+    nativeId: count,
+    position: vector,
+  }, { additionalProperties: false }),
   finalSceneNativeId: Type.Optional(count),
   sceneNativeId: Type.Union([count, Type.Null()]),
   sceneReady: Type.Boolean(),
