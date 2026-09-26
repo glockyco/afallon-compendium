@@ -8,6 +8,7 @@
     { "path": "packages/scan" },
     { "path": "packages/capture" },
     { "path": "packages/catalog" },
-    { "path": "packages/publication" }
+    { "path": "packages/publication" },
+    { "path": "tools" }
   ]
 }

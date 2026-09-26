@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": { "composite": true, "rootDir": ".", "outDir": "../node_modules/.cache/tools-types", "tsBuildInfoFile": "../node_modules/.cache/tools.tsbuildinfo" },
+  "include": ["**/*.ts"],
+  "references": [
+    { "path": "../apps/compendium-cli" },
+    { "path": "../packages/contracts" },
+    { "path": "../packages/runtime" },
+    { "path": "../packages/scan" }
+  ]
+}

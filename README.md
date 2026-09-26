@@ -55,6 +55,19 @@ Add `--candidate` to produce a verified result without changing the workflow's s
 
 Map-data readiness waits for every declared geometry part. Search loads independently, and overlay toggles use geometry that is already loaded. The 3,300,000-byte essential-resource budget excludes geometry; actual map-ready JSON transfer includes it. Pan stops on mouse or touch release. Selection does not move the camera.
 
+### Game updates
+
+A new game build is scanned, captured, catalogued, and published as a candidate before `accept-update` selects it. The scripts in [`tools/update/`](tools/update/) author the build-bound reviewed inputs from that build's evidence, in this order:
+
+1. `load-character.ts` loads the research character; `quit-game.ts` quits the game at the end.
+2. `author-map-profile.ts` and `verify-map-profile.ts` author and check the map-space profile from the scene scans.
+3. `sweep-map-zones.ts`, `author-game-map-plans.ts`, `extract-overworld-texture.py`, and `author-overworld-plan.ts` produce the game-map plans.
+4. `author-capture-plans.ts` re-authors the reviewed terrain plans; `capture-plans.ts` captures each plan in its own sweep.
+5. `author-bootstrap-review.ts`, `author-catalog-plan.ts`, and `author-coverage-review.ts` produce the coverage review and the catalog plans.
+6. `compare-catalogs.ts` compares the new catalog with the previous one.
+
+Each script prints its usage when it is started without arguments. Scan plans set `streamedSources: "all"` on build-scene targets whose streamed sources should all load before collection.
+
 Generated artifacts, local configuration, and extracted game assets are not committed.
 
 ## Deployment
