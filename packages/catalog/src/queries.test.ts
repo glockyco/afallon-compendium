@@ -122,7 +122,7 @@ test("renders complete classified item use predicates", () => {
 
     expect(queryConditions(db).records.map((condition) => [condition.scope, condition.label])).toEqual([
       ["use", "Out of combat"],
-      ["use", "Potion Sickness inactive"],
+      ["use", "Potion Sickness is inactive"],
       ["use", "Region Quest complete"],
       ["use", "Equipped AXE or Equipped One handed sword or Equipped Two handed sword"],
     ]);

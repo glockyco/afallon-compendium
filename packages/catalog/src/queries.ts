@@ -582,7 +582,7 @@ function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSp
   else if (requirement.type.name === "Race") reference(requirement.references.race, "Unresolved race");
   else if (requirement.type.name === "Species") reference(requirement.references.species, "Unresolved species");
   else if (requirement.type.name === "Gender") text(requirement.subtypes.gender?.name ?? "Unresolved gender");
-  else if (requirement.type.name === "Effect") { reference(requirement.references.effect, "Unresolved effect"); if (requirement.state) text(` ${requirement.state.name.toLowerCase()}`); }
+  else if (requirement.type.name === "Effect") { reference(requirement.references.effect, "Unresolved effect"); if (requirement.state) text(` is ${requirement.state.name.toLowerCase()}`); }
   else if (requirement.type.name === "Item") {
     if (requirement.ownership) text(`${requirement.ownership.name} `);
     const subtype = requirement.subtypes.weaponType ?? requirement.subtypes.weaponSlot ?? requirement.subtypes.armorType ?? requirement.subtypes.armorSlot ?? requirement.subtypes.itemType;
