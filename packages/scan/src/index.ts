@@ -5,5 +5,6 @@ export * from "./observation";
 export * from "./planned-stream-target";
 export * from "./probes";
 export * from "./scene-target";
+export * from "./scene-streams";
 export * from "./state-machine";
 export * from "./stream-target";

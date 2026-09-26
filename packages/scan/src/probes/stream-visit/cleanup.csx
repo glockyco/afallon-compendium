@@ -15,7 +15,7 @@
         foreach (var row in rows)
         {
             if (inFlight >= maxConcurrentPreloads) break;
-            if ((string)row["skippedReason"] != null || (bool)row["initiallyLoaded"] || (bool)row["preloadRequested"]) continue;
+            if ((string)row["skippedReason"] != null || (bool)row["gameOwned"] || (bool)row["initiallyLoaded"] || (bool)row["preloadRequested"]) continue;
             var target = row["loader"] as Il2Cpp.AddressableLoader;
             if (target == null || target.gameObject == null)
                 throw new System.InvalidOperationException("A stream visit loader disappeared before preload.");

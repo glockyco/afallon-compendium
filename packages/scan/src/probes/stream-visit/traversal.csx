@@ -19,22 +19,30 @@ if (action == "start")
         throw new System.ArgumentException("holdSeconds must be between 1 and 905 seconds.");
     var holdSecondsFloat = (float)holdSeconds;
 
+    // A visit selects either explicit loaders or, with sceneLoaders, every loader of the active scene.
+    var sceneLoadersToken = args["sceneLoaders"];
+    var sceneMode = sceneLoadersToken != null && sceneLoadersToken.Type == Newtonsoft.Json.Linq.JTokenType.Boolean && (bool)sceneLoadersToken;
     var idsToken = args["loaderInstanceIds"] as Newtonsoft.Json.Linq.JArray;
-    if (idsToken == null || idsToken.Count < 1 || idsToken.Count > 2048)
-        throw new System.ArgumentException("loaderInstanceIds must contain 1 to 2048 unique integers.");
+    if (sceneMode == (idsToken != null))
+        throw new System.ArgumentException("Pass either loaderInstanceIds or sceneLoaders.");
     var requestedLoaderIds = new System.Collections.Generic.List<int>();
     var requestedLoaderIdSet = new System.Collections.Generic.HashSet<int>();
-    foreach (var idToken in idsToken)
+    if (idsToken != null)
     {
-        if (idToken == null || idToken.Type != Newtonsoft.Json.Linq.JTokenType.Integer)
-            throw new System.ArgumentException("loaderInstanceIds must contain only integers.");
-        var idLong = idToken.ToObject<long>();
-        if (idLong < int.MinValue || idLong > int.MaxValue)
-            throw new System.ArgumentException("loaderInstanceIds must contain Int32 values.");
-        var loaderId = (int)idLong;
-        if (!requestedLoaderIdSet.Add(loaderId))
-            throw new System.ArgumentException("loaderInstanceIds must be unique.");
-        requestedLoaderIds.Add(loaderId);
+        if (idsToken.Count < 1 || idsToken.Count > 2048)
+            throw new System.ArgumentException("loaderInstanceIds must contain 1 to 2048 unique integers.");
+        foreach (var idToken in idsToken)
+        {
+            if (idToken == null || idToken.Type != Newtonsoft.Json.Linq.JTokenType.Integer)
+                throw new System.ArgumentException("loaderInstanceIds must contain only integers.");
+            var idLong = idToken.ToObject<long>();
+            if (idLong < int.MinValue || idLong > int.MaxValue)
+                throw new System.ArgumentException("loaderInstanceIds must contain Int32 values.");
+            var loaderId = (int)idLong;
+            if (!requestedLoaderIdSet.Add(loaderId))
+                throw new System.ArgumentException("loaderInstanceIds must be unique.");
+            requestedLoaderIds.Add(loaderId);
+        }
     }
 
     var priorActiveKeyValue = System.AppDomain.CurrentDomain.GetData(activeStateDataKey);
@@ -69,6 +77,17 @@ if (action == "start")
         if (loadersById.ContainsKey(candidateId)) throw new System.InvalidOperationException("The native loader query returned a duplicate instance ID.");
         loadersById.Add(candidateId, candidate);
     }
+    if (sceneMode)
+    {
+        foreach (var pair in loadersById)
+        {
+            var candidate = pair.Value;
+            if (candidate.gameObject != null && candidate.gameObject.scene.handle == scene.handle && candidate.addressableAsset != null && !string.IsNullOrEmpty(candidate.addressableAsset.AssetGUID))
+                requestedLoaderIds.Add(pair.Key);
+        }
+        requestedLoaderIds.Sort();
+        if (requestedLoaderIds.Count > 2048) throw new System.InvalidOperationException("The active scene has more than 2048 streamed loaders.");
+    }
     var rows = new System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, object>>();
     foreach (var requestedLoaderId in requestedLoaderIds)
     {
@@ -79,19 +98,29 @@ if (action == "start")
             throw new System.InvalidOperationException("A requested AddressableLoader belongs to a foreign scene.");
         if (target.addressableAsset == null || string.IsNullOrEmpty(target.addressableAsset.AssetGUID))
             throw new System.InvalidOperationException("A requested AddressableLoader has no valid addressable asset GUID.");
+        // In scene mode a loader that the game is loading near the player stays the game's: the
+        // visit waits for it and never holds or releases it.
+        var gameOwned = false;
         if (getLoading(target))
-            throw new System.InvalidOperationException("A requested AddressableLoader is already loading.");
+        {
+            if (!sceneMode) throw new System.InvalidOperationException("A requested AddressableLoader is already loading.");
+            gameOwned = true;
+        }
         if (target.transform == null)
             throw new System.InvalidOperationException("A requested AddressableLoader has no transform.");
 
         var initialRoot = getAsset(target);
         var initialHandle = getHandle(target);
-        if ((initialRoot != null) != initialHandle)
+        if (!gameOwned && (initialRoot != null) != initialHandle)
             throw new System.InvalidOperationException("A requested AddressableLoader has inconsistent root and instance-handle state.");
         if (initialRoot == null && target.gameObject.activeInHierarchy && target.enabled &&
             (bool)playerWithinMethod.Invoke(target, new object[] { System.Math.Max(0f, target.loadDistance) }))
-            throw new System.InvalidOperationException("A requested near-player loader has not settled its automatic load. Wait for native streaming before starting the visit.");
+        {
+            if (!sceneMode) throw new System.InvalidOperationException("A requested near-player loader has not settled its automatic load. Wait for native streaming before starting the visit.");
+            gameOwned = true;
+        }
         var row = new System.Collections.Generic.Dictionary<string, object>();
+        row["gameOwned"] = gameOwned;
         row["loader"] = target;
         row["loaderInstanceId"] = requestedLoaderId;
         row["assetGuid"] = target.addressableAsset.AssetGUID;

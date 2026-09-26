@@ -35,6 +35,9 @@ export type ScanCurrentSceneTarget = Static<typeof ScanCurrentSceneTargetSchema>
 export const ScanBuildSceneTargetSchema = Type.Object({
   kind: Type.Literal("build-scene"),
   sceneNativeId: count,
+  // "all": load every streamed source of the scene before collection, so that collection does not
+  // depend on which sources load near the arrival. Absent: collect what the scene loads on its own.
+  streamedSources: Type.Optional(Type.Literal("all")),
 }, { additionalProperties: false });
 export type ScanBuildSceneTarget = Static<typeof ScanBuildSceneTargetSchema>;
 export const ScanStreamedSourceTargetSchema = Type.Object({

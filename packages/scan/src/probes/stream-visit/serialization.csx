@@ -4,7 +4,7 @@
     // a hidden chunk joins a batch once its chunk hold has activated it.
     foreach (var row in rows)
     {
-        if ((string)row["skippedReason"] != null) continue;
+        if ((string)row["skippedReason"] != null || (bool)row["gameOwned"]) continue;
         var target = row["loader"] as Il2Cpp.AddressableLoader;
         if ((bool)row["chunkHidden"])
         {

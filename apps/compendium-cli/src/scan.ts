@@ -10,7 +10,7 @@ import {
 import { ArtifactStore, beginArtifactRun, createArtifactLease, fingerprintStep, selectLatestSuccess, type ArtifactRun } from "@afallon/artifacts";
 import type { Runtime } from "@afallon/runtime";
 import {
-  DERIVED_SCAN_SCHEMAS, PlannedStreamTargetController, RuntimeProbeStateReader, ScanCollectorSuite, ScanStateMachine, SceneTargetController,
+  DERIVED_SCAN_SCHEMAS, PlannedStreamTargetController, RuntimeProbeStateReader, ScanCollectorSuite, ScanStateMachine, SceneStreamsVisitor, SceneTargetController,
   createRuntimeStateProbeBundle, createScanCollectorBundles, createTraversalProbeBundles, indexScanTargets, targetIdentity,
   validateInventoryContext, validateObservationContext, validateScanPlan, validateScanPlanStructure, type ScanCollectorBundle,
 } from "@afallon/scan";
@@ -98,6 +98,7 @@ export async function runScanCommand(runtime: Runtime, input: ScanCommandInput):
     const scanner = new ScanStateMachine({ buildId: input.buildId, sourceRunId: run.runId, character: input.config.character, outputDirectory: workingDirectory, stateReader });
     const suite = new ScanCollectorSuite(runtime, input.config, input.buildId, collectorBundles);
     const sceneController = new SceneTargetController(runtime, traversalBundles.sceneVisit, input.config.character, plan.targetTimeoutMs);
+    const sceneStreams = new SceneStreamsVisitor(runtime, sceneController, traversalBundles.streamVisit, stateReader, input.config.character, plan.targetTimeoutMs);
     const placementBundle = requireCollector(collectorBundles, "placement-snapshot").bundle;
     let stopped = false;
     for (const [targetIndex, target] of plan.targets.entries()) {
@@ -109,7 +110,7 @@ export async function runScanCommand(runtime: Runtime, input: ScanCommandInput):
       const envelope: ScanTargetEnvelope = stopped
         ? await scanner.notAttempted(target, targetIndex, null, "A prior target did not succeed. No further traversal was attempted.")
         : target.kind === "current-scene" ? await scanner.scanCurrentScene(targetIndex, collect)
-        : target.kind === "build-scene" ? await scanner.scanBuildScene(target, targetIndex, sceneController, collect)
+        : target.kind === "build-scene" ? await scanner.scanBuildScene(target, targetIndex, target.streamedSources === "all" ? sceneStreams : sceneController, collect)
         : await scanner.scanStreamedSource(target, targetIndex, new PlannedStreamTargetController(runtime, sceneController, traversalBundles.streamVisit, placementBundle, stateReader, inventory, input.config.character, plan.targetTimeoutMs), collect);
       targets.push(envelope);
       const references = envelope.artifacts.flatMap(artifact => [artifact.content, ...artifact.inputs, ...(artifact.observationContext === null ? [] : [artifact.observationContext])]);
