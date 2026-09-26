@@ -1,4 +1,4 @@
-import { Assert } from "typebox/value";
+import { Check, Errors } from "typebox/value";
 import type { Static, TSchema } from "typebox";
 import {
   PUBLICATION_SCHEMA_VERSION,
@@ -239,7 +239,11 @@ export class AtlasDataLoader {
       if (sha256 !== expected.sha256) throw new Error(`Atlas resource hash mismatch: ${path}.`);
     }
     const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
-    Assert(schema, value);
+    if (!Check(schema, value)) {
+      // A resource that passes its hash but not its schema comes from a publication that this client cannot read.
+      const [first] = Errors(schema, value);
+      throw new Error(`Atlas resource does not match its schema: ${path}${first ? ` at ${first.instancePath || "/"}: ${first.message}` : ""}.`);
+    }
     return value;
   }
 }
