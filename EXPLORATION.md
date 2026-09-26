@@ -1086,7 +1086,55 @@ page, the quest list with a start-type and area filter, the NPC list with severa
 item tooltips. The atlas loads the new documents without console errors. Before this change, the NPC list labelled only
 the first of several roles, for example "Enemy, questGiver"; each role now has its own badge.
 
-Quest level ranges are not published yet. The `quest-levels` collector returned 136 quests, 132 ranges, and 13
-dungeons in a candidate scan of the installed build 25434619. A catalog cannot mix that build with build 25419293
-evidence, so the ranges appear after a complete update to the installed build. Four travel points carry the map label
-"0" in both the reviewed and the new publication; that defect is in map-shard labels and is outside this change.
+The `quest-levels` collector returned 136 quests, 132 level ranges, and 13 dungeons from the installed build 25434619. A
+catalog cannot mix that build with build 25419293 evidence, so the ranges were published with the 0.16.2.1 update below.
+The reviewed publication labelled four Underglow travel points "0"; map shards now ignore placeholder object names that
+contain no letter, so those points carry their travel label.
+
+## Afallon 0.16.2.1 update
+
+Steam installed Afallon 0.16.2.1 as build 25434619. `GameAssembly.dll`, `global-metadata.dat`, and the Steam manifest
+changed; `UnityPlayer.dll` did not. The pinned Cpp2IL declarations add and remove no types and modify 10: scene and
+teleport preload (`AddressableLoader.PreloadAround`, `PreloadLease`, `ChunkHider.HoldPosition`,
+`LoadingScreenManager.ReturnToMenuAfterLoadFailure`), quest hand-in (`QuestInteractionPanel`), and interface types. The
+update report `compendium.update-report.v2` declares the five areas that the release notes name.
+
+### Scene arrival
+
+A later native entry into a scene lands where the character last left it. Earlier visits had left stale entries in the
+research character's save: scene 15 held the position of scene 20, and scenes 14, 16, and 44 held positions far below
+the world. Build 25434619 cancels an entry whose destination does not finish loading and returns to the source scene,
+so the scan of scene 15 failed. Scene visits now enter through `RPGBuilderEssentials.TeleportToGameScene` at an authored
+arrival: the destination of the lowest-ID `gameScene` teleport effect into the scene, or else the scene's start
+position. Three interiors have start positions outside their own map zone, so a start position alone is not a safe
+arrival.
+
+### Hidden chunks and streamed sources
+
+`ChunkHider` deactivates terrain chunks far from the player. In 0.16.2 the character stood 742 units from the two
+streamed Coalway sources, and their loaders were active; now it stood 1,141 units away, and both loaders were inactive.
+A stream visit now shows such a chunk with the native `ChunkHider.HoldPosition` and disposes the hold on restoration;
+restoration waits until the loader is inactive again. Scan and capture share this probe; the capture copy had bounded
+preload batches, which the shared probe keeps.
+
+### Capture budget and game health
+
+Each world-surface plan holds every source under its tiles for one readiness; a four-tile plan holds 585 sources. After
+several hours of scans, the game loaded them at about 3 frames per second and exceeded the 300,000 ms readiness limit,
+which 0.16.2 had almost reached. The limit is now 900,000 ms. After a restart, all 12 plans and 36 tiles took about 9
+minutes. During one long sweep the game process died without a crash report. The runtime then gave the operation its
+bookkeeping deadline at the same time as the cleanup wait, so no failure evidence was written; the bookkeeping deadline
+now starts after cleanup confirmation settles, and a forced game exit left failed manifests and no leases.
+
+### Results
+
+Catalog `ce9beaf999ce07d489aa966df8db1bda1f592acb1c750680bbc3f2d4df6e7c3e` keeps the 3,764 entity keys, 6,911
+placements, and 8,114 sources of the 0.16.2 candidate. Two authored records changed without mention in the release
+notes: Ignivar the Unhinged has Health 3,500 instead of -939, and the Training Dummy scales with the player. Four
+scenes were re-serialized, so their component path IDs changed while counts and types did not. The 21 map-zone textures
+are byte-identical to 0.16.2. Publication `4c02861adba6c6c40c078e98a85ab9f38819f0a694028e18ab67366432d60c4f` passed the
+verified-update parity gate against `e8c2e115` and shows the quest level ranges. `accept-update` selected it and kept
+0.16.2 publication `c8a26c46` as the rollback. Nothing was deployed.
+
+Browser screenshots failed while the macOS display slept, because Chrome received no frames. `caffeinate -u` wakes the
+display; `caffeinate -d` alone does not.

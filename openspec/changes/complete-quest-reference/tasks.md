@@ -35,7 +35,7 @@
 
 - [x] 5.1 Probe `QuestLevelRange` in the running game and add the `quest-levels` collector to the canonical family. Verify that the ranges agree at the main menu and in the world, that `FormatPrefix` renders the same ranges, and that a candidate scan of the installed build produces a valid artifact.
 - [x] 5.2 Admit the optional `quest-levels` artifact from the canonical target, decode the level range and dungeon, and publish them on the quest page, tooltip, and list. Verify with catalog and projection tests.
-- [ ] 5.3 Publish the level ranges from a complete scan of the installed build through the game update workflow.
+- [x] 5.3 Publish the level ranges from a complete scan of the installed build through the game update workflow.
 
 ## 6. Delivery
 

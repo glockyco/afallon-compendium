@@ -29,7 +29,8 @@ None.
 ## Impact
 
 - Contracts: `packages/contracts/src/update-report.ts` and its tests; `apps/compendium-cli/src/accept-update.ts` and its tests.
-- Scan and capture: `packages/scan/src/probes/scene-visit/`, the new `@afallon/scan/scene-visit` entrypoint, and `packages/capture/src/capture.ts`. The copy `packages/capture/src/probes/scene-visit.csx` is removed.
+- Scan and capture: `packages/scan/src/probes/scene-visit/`, `packages/scan/src/probes/stream-visit/`, the new `@afallon/scan/visits` entrypoint, `packages/capture/src/capture.ts`, and `packages/capture/src/capture-readiness.ts`. The copies `packages/capture/src/probes/scene-visit.csx` and `stream-visit.csx` are removed. The capture readiness limit in `packages/contracts/src/capture/evidence.ts` rises to 900000 ms.
+- Runtime: `withRuntime` in `packages/runtime/src/runtime.ts` waits for cleanup confirmation before the bookkeeping deadline of a cancelled operation.
 - Operator tooling under `local/` that authors the profile, game-map plans, capture plans, and coverage review reads the build identity from its evidence inputs.
 - Build-scoped artifacts in the local store, the local production stage, and the accepted-build descriptor. Nothing is deployed.
 - `openspec/changes/complete-quest-reference` task 5.3 completes with the 0.16.2.1 publication.
