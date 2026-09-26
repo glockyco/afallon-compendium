@@ -1,6 +1,6 @@
 # Afallon compendium exploration
 
-Updated: 2026-09-20. Status: the content-addressed evidence pipeline, unified scan, canonical catalog, bounded static publication, and production atlas are selected for Afallon 0.16.2, Steam build 25419293. Complete supported-build coverage remains open, so publication remains in preview mode.
+Updated: 2026-09-26. Status: the content-addressed evidence pipeline, unified scan, canonical catalog, bounded static publication, and production atlas are selected for Afallon 0.16.2, Steam build 25419293. Complete supported-build coverage remains open, so publication remains in preview mode.
 
 The architecture cutover uses `compendium scan`, `capture`, `catalog`, and `publish` as its only data-workflow commands. Runtime and reviewed inputs enter an immutable object store. A successful catalog is the only normalized source of truth, and publication queries it directly. Candidate mode verifies output without replacing the selected reference. The frozen pre-cutover source and publication remain local rollback evidence; they are not runtime dependencies or supported readers.
 
@@ -1047,3 +1047,46 @@ and assert prior publication `c8a26c46b36d24c5999c6e6dba368fc749493af0b7a7dee7b9
 as a 15,553-file pair. The current deployment verifier then completed its stage, build, and assertion
 cycles and left the 15,554-file `8e1232ab` pair selected. This verifies both deployable pairs without
 adding a version-1 document reader to the current site.
+
+## Quest reference publication
+
+The quest reference change rebuilt build 25419293 as candidate catalog
+`b1e3796a9c991e47c05e577ef9c0c842114810965445d1189e64b1fe3171c170` (object
+`232c4816c96e6f09b3ecece50dede8a736ebc3ab9657b377f560e1e3dc651e37`) from the reviewed catalog plan. It published root
+`e8c2e115e723277242cf27177186454df328e2455b4dcbd9e24bfc69693f2bb4`, which publish run `0cbae47c` selected as the build's
+latest successful publication. The catalog took 5 min 45 s and the publish took 2 min 49 s. Nothing was deployed.
+
+All 136 quests have a start: 122 start at an NPC, 13 are world quests, and 1 starts at an interactive object. Pages
+show 60 currency rewards. The reviewed publication omitted 58 of them and linked an unrelated item for the other 2. 37
+`enterRegion` objectives have no target and show only their text. No objective shows an unknown target, and 33
+objectives link the objects that complete them. 93 quests belong to 21 chains. 61 quests have objective text, 121 have
+completion text, and 3 have a minimum level. 65 quests unlock other quests, and 36 quests change world sources.
+
+The relations in the other direction are new. 88 NPC pages show spawn conditions. NPC pages list 74 quest objectives
+and item pages list 43, because an objective row now names its task target. 30 items list the interactive objects that
+give them, and 1,192 container rows show availability. The catalog records 68 new `inactive-quest-binding` issues, and
+`unmodeled-item-source` issues fell from 164 to 147. The publication reports 33,241 unresolved issues and 36,435
+occurrences.
+
+Documents total 8,212,707 bytes over 2,343 resources. The largest is `scenes:47` at 128,994 bytes. Availability rules
+made the projected Gold item document 573,073 bytes, above the 262,144-byte budget, because each requirement repeated
+its raw predicate fields. The same projection without them is 152,781 bytes. Public requirements now carry only type,
+rule, label, and spans, and the published Gold document is 126,279 bytes. Essential resources are 3,047,365 bytes over
+45 requests. The production build prerenders 2,354 pages with 56,533,523 bytes of HTML.
+
+The reviewed publication `796b1e73` uses the retired document schema IDs, so the current graph check rejects it as a
+staging baseline. Staging used an earlier candidate of the same change, `a3b4fb2a`, as its baseline. A separate run of
+`assertNonRegressivePublication` read both roots structurally and verified every file identity. It passed: both keep
+3,877 placements, 2,343 pages and documents, 80 regions, and 22 imagery layers, and artwork grows from 1,329 to 1,337
+assets.
+
+The browser check covered a chain quest, a world quest, the object-start quest, a talk quest, a quest with a minimum
+level, the Funnel weaver egg and Gold item pages, NPC spawn conditions and quest objectives, the Duskfall Depths place
+page, the quest list with a start-type and area filter, the NPC list with several roles on one row, and the quest and
+item tooltips. The atlas loads the new documents without console errors. Before this change, the NPC list labelled only
+the first of several roles, for example "Enemy, questGiver"; each role now has its own badge.
+
+Quest level ranges are not published yet. The `quest-levels` collector returned 136 quests, 132 ranges, and 13
+dungeons in a candidate scan of the installed build 25434619. A catalog cannot mix that build with build 25419293
+evidence, so the ranges appear after a complete update to the installed build. Four travel points carry the map label
+"0" in both the reviewed and the new publication; that defect is in map-shard labels and is outside this change.

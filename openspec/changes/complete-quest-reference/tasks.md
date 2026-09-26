@@ -40,4 +40,4 @@
 ## 6. Delivery
 
 - [x] 6.1 Run package, site, and dependency checks and the test suite.
-- [ ] 6.2 Rebuild the catalog, publish, stage against the current publication, build, and preview. Verify the defects in proposal.md are gone in the browser, and record measurements in `EXPLORATION.md`.
+- [x] 6.2 Rebuild the catalog, publish, stage against the current publication, build, and preview. Verify the defects in proposal.md are gone in the browser, and record measurements in `EXPLORATION.md`.
