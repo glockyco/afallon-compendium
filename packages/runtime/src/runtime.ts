@@ -84,6 +84,9 @@ export async function withRuntime<T>(config: CompendiumConfig, operation: (runti
     } finally {
       owner.signal.removeEventListener("abort", onAbort!);
       if (owner.signal.aborted) {
+        // A cancelled operation first waits for the same cleanup confirmation, which has its own deadline, and
+        // then records its failure evidence. The bookkeeping deadline starts after that confirmation settles.
+        await owner.close().catch(() => {});
         await deadline(running.then(() => {}, () => {}), config.timeoutMs, () => owner.cancel(new Error("The cancelled host operation did not finish its bookkeeping.")));
       }
     }
