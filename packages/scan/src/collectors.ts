@@ -7,6 +7,7 @@ import {
   CanonicalSchema,
   FactionRolesSchema,
   LocalizationSchema,
+  QuestLevelsSchema,
   LootRulesSchema,
   MapGeometrySchema,
   NavigationGeometrySchema,
@@ -45,6 +46,7 @@ import { ScanCollectionError, validateInventoryContext, validateObservationConte
 import canonicalSource from "./probes/collectors/canonical.csx" with { type: "text" };
 import artworkSource from "./probes/collectors/artwork.csx" with { type: "text" };
 import localizationSource from "./probes/collectors/localization.csx" with { type: "text" };
+import quest_levelsSource from "./probes/collectors/quest-levels.csx" with { type: "text" };
 import { createWorldInventoryBundle } from "./inventory-probe";
 import addressable_locationsSource from "./probes/collectors/addressable-locations.csx" with { type: "text" };
 import npc_producersSource from "./probes/collectors/npc-producers.csx" with { type: "text" };
@@ -62,6 +64,7 @@ const COLLECTOR_SOURCES: Record<string, string> = {
   "canonical": canonicalSource,
   "artwork": artworkSource,
   "localization": localizationSource,
+  "quest-levels": quest_levelsSource,
   "addressable-locations": addressable_locationsSource,
   "npc-producers": npc_producersSource,
   "world-sources": world_sourcesSource,
@@ -100,6 +103,7 @@ export interface CollectedScanEvidence {
 const DEFINITIONS: readonly CollectorDefinition[] = [
   { family: "canonical", name: "canonical", schema: CanonicalSchema, modules: ["canonical"] },
   { family: "canonical", name: "localization", schema: LocalizationSchema, modules: ["localization"] },
+  { family: "canonical", name: "quest-levels", schema: QuestLevelsSchema, modules: ["quest-levels"] },
   { family: "canonical", name: "artwork", schema: ArtworkSchema, modules: ["artwork"], timeoutMs: 600_000 },
   { family: "inventory", name: "addressable-locations", schema: AddressableGraphSchema, modules: ["addressable-locations"] },
   { family: "producers", name: "npc-producers", schema: NpcProducersSchema, modules: ["conditions", "npc-producers"] },

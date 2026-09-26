@@ -66,6 +66,13 @@ export const LocalizationSchema = Type.Object({
   entries: Type.Array(Type.Object({ key: text, text })),
 });
 export type Localization = Static<typeof LocalizationSchema>;
+// The level range and dungeon that the game's QuestLevelRange computes for each non-null quest record.
+// `levelRange` is null when the game computes no range; `sourceCount` counts every database entry.
+export const QuestLevelsSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.quest-levels.v1"), sourceCount: integer,
+  quests: Type.Array(Type.Object({ nativeId: integer, levelRange: Type.Union([Type.Null(), Type.Object({ min: integer, max: integer })]), dungeonSceneId: Type.Union([Type.Null(), integer]) })),
+});
+export type QuestLevels = Static<typeof QuestLevelsSchema>;
 // `gameplay` carries the family's player-facing fields (recipe ranks, ability effects) when the
 // collector projects them; the catalog decodes it at its typed boundary like canonical `gameplay`.
 export const SupportEntrySchema = Type.Object({ sourceKey: integer, entry: definition, gameplay: Type.Optional(rawObject) });

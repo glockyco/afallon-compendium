@@ -4,6 +4,7 @@ import {
   LocalizationSchema,
   LootRulesSchema,
   ObservationContextSchema,
+  QuestLevelsSchema,
   RelationshipsSchema,
   SupportSchema,
 } from "./database";
@@ -18,6 +19,7 @@ import { WorldSourcesSchema } from "./world-sources";
 schemaRegistry.register("compendium.observation-context.v1", ObservationContextSchema);
 schemaRegistry.register("compendium.canonical.v4", CanonicalSchema);
 schemaRegistry.register("compendium.localization.v1", LocalizationSchema);
+schemaRegistry.register("compendium.quest-levels.v1", QuestLevelsSchema);
 schemaRegistry.register("compendium.support.v1", SupportSchema);
 schemaRegistry.register("compendium.artwork.v1", ArtworkSchema);
 schemaRegistry.register("compendium.relationships.v1", RelationshipsSchema);

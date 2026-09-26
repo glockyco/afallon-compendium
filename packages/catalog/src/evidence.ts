@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import type { Static, TSchema } from "typebox";
 import { Assert } from "typebox/value";
 import { ArtifactStore, resolveArtifactRun } from "@afallon/artifacts";
-import { ArtifactRunManifestSchema, ArtworkSchema, CaptureSetSchema, canonicalJson, CanonicalSchema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, NpcProducersSchema, WorldSourcesSchema, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, ScanTargetEnvelopeSchema, ObservationContextSchema, WorldInventorySchema, CoverageLedgerSchema, ScanCoverageSchema, ScanPlanningEvidenceSchema, validateScanTargetEnvelope, decodeContract, schemaRegistry, type ContentIdentity, type ScanTargetEnvelope, type ScanCollectorFamily, type ArtifactRunManifest, type WorldInventory } from "@afallon/contracts";
+import { ArtifactRunManifestSchema, ArtworkSchema, CaptureSetSchema, canonicalJson, CanonicalSchema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema, QuestLevelsSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, NpcProducersSchema, WorldSourcesSchema, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, ScanTargetEnvelopeSchema, ObservationContextSchema, WorldInventorySchema, CoverageLedgerSchema, ScanCoverageSchema, ScanPlanningEvidenceSchema, validateScanTargetEnvelope, decodeContract, schemaRegistry, type ContentIdentity, type ScanTargetEnvelope, type ScanCollectorFamily, type ArtifactRunManifest, type WorldInventory } from "@afallon/contracts";
 import { PlacementRolesSchema, type ArtifactReference, type NormalizedDatabaseInput } from "@afallon/contracts/catalog";
 import { CatalogPlanSchema, CatalogImagerySchema, CoverageReviewSchema, CoveragePolicySchema, type CatalogPlan, type CatalogImagery, type CoverageAccountingInput, type VerifiedCoverageEvidence, type RoleEvidence } from "@afallon/contracts/catalog";
 import { sourceIdentityRows } from "./placements";
@@ -11,7 +11,7 @@ import { coverageInventorySubjects, coverageTargetSubjects } from "./coverage-ac
 import type { SceneContext, SourceRecord } from "./context";
 
 const FAMILY_BY_SCHEMA: Readonly<Record<string, ScanCollectorFamily>> = {
-  "compendium.canonical.v4": "canonical", "compendium.localization.v1": "canonical", "compendium.artwork.v1": "canonical",
+  "compendium.canonical.v4": "canonical", "compendium.localization.v1": "canonical", "compendium.quest-levels.v1": "canonical", "compendium.artwork.v1": "canonical",
   "compendium.world-inventory.v2": "inventory", "compendium.addressable-locations.v1": "inventory",
   "compendium.npc-producers.v3": "producers", "compendium.world-sources.v7": "producers",
   "compendium.placement-snapshot.v1": "placements", "compendium.placement-identities.v1": "placements", "compendium.serialized-assets.v2": "placements", "compendium.scene-source-issues.v2": "placements",
@@ -51,6 +51,8 @@ export interface AdmittedCatalog {
   support: AdmittedObject<Static<typeof SupportSchema>>;
   artwork: AdmittedObject<Static<typeof ArtworkSchema>> | null;
   localization: AdmittedObject<Static<typeof LocalizationSchema>>;
+  // The game's quest level ranges; scans made before the collector existed have none.
+  questLevels: AdmittedObject<Static<typeof QuestLevelsSchema>> | null;
   sceneCatalog: AdmittedObject<Static<typeof SceneCatalogSchema>>;
   profile: Static<typeof MapSpaceProfileSchema>;
   contexts: SceneContext[];
@@ -202,6 +204,7 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
   const lootRules = await load(canonicalTarget, "relationships", LootRulesSchema);
   const support = await load(canonicalTarget, "relationships", SupportSchema);
   const localization = await load(canonicalTarget, "canonical", LocalizationSchema);
+  const questLevels = await loadOptional(canonicalTarget, "canonical", QuestLevelsSchema);
   const sceneCatalog = await load(canonicalTarget, "spatial", SceneCatalogSchema);
   const profile = await readObject(store, plan.spatialProfile, MapSpaceProfileSchema, "reviewed spatial profile");
   if (profile.buildId !== plan.buildId) throw new Error(`Spatial profile belongs to build ${profile.buildId}, not ${plan.buildId}.`);
@@ -290,6 +293,6 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
   const policy = { reference: review.document.policy, document: await readObject(store, review.document.policy, CoveragePolicySchema, "coverage policy") };
   register("coverage-review", review.reference, review.document, canonicalTarget.envelope.sourceRunId, "review");
   register("coverage-policy", policy.reference, policy.document, canonicalTarget.envelope.sourceRunId, "review");
-  return { plan, canonical, relationships, lootRules, support, artwork, localization, sceneCatalog, profile, contexts, sources, imagery, inventories, evidence, review, policy };
+  return { plan, canonical, relationships, lootRules, support, artwork, localization, questLevels, sceneCatalog, profile, contexts, sources, imagery, inventories, evidence, review, policy };
 }
 
