@@ -10,7 +10,7 @@
   import LocationLinks from './LocationLinks.svelte';
   import MissingValue from './MissingValue.svelte';
   import RefList from './RefList.svelte';
-  import { connectionLabel, labelOf, roleLabel } from './format';
+  import { connectionLabel, labelOf, levelText, roleLabel } from './format';
 
   export let document: PublicPlace;
   export let registry: PublicKindEntry[];
@@ -43,7 +43,7 @@
     ...(facts.guideIncluded ? [{ label: 'Guide entry', tone: 'accent' as const }] : []),
   ] satisfies HeaderBadge[];
   $: headerFacts = [
-    ...(facts.levelRange ? [{ label: 'Level', value: `${facts.levelRange.min}–${facts.levelRange.max}` }] : []),
+    ...(facts.levelRange ? [{ label: 'Level', value: levelText(facts.levelRange) }] : []),
     ...(mapSpaceLabel ? [{ label: 'Map space', value: mapSpaceLabel }] : []),
   ] satisfies HeaderFact[];
   $: placementGroups = [
@@ -91,7 +91,7 @@
             {#each visible(document.creatures) as creature}
               <tr>
                 <td><EntityLink ref={creature.counterpart} {registry} /></td>
-                <td class="c-num">{#if creature.levelRange}{creature.levelRange.min}–{creature.levelRange.max}{:else}<MissingValue explanation="Not measured for this build" />{/if}</td>
+                <td class="c-num">{#if creature.levelRange}{levelText(creature.levelRange)}{:else}<MissingValue explanation="Not measured for this build" />{/if}</td>
                 <td>{creature.roles.map(roleLabel).join(', ')}</td>
                 <td class="c-num">{#if creature.placementCount === 0}<MissingValue explanation="No location is published" />{:else if creature.counterpart.key}<a class="c-link" href={`${base}/?entity=${encodeURIComponent(creature.counterpart.key)}`}>{creature.placementCount}</a>{:else}{creature.placementCount}{/if}</td>
               </tr>

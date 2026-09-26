@@ -2,14 +2,15 @@
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
-  import { labelOf, roleLabel, signedAmount } from './format';
+  import { labelOf, levelText, roleLabel, signedAmount } from './format';
 
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
 
   $: grouped = document.abilityPhases.length > 1 || document.abilityPhases.some((phase) => phase.name || phase.requirement);
   $: facts = document.facts;
-  $: level = facts.level !== undefined ? String(facts.level) : facts.levelRange ? `${facts.levelRange.min}–${facts.levelRange.max}` : null;
+  $: npcLevel = facts.level ?? facts.levelRange;
+  $: level = npcLevel === undefined ? null : levelText(npcLevel);
   $: creatureType = facts.npcType ?? facts.creatureType;
   $: badges = facts.roles.map((role) => ({ label: roleLabel(role), tone: role === 'boss' ? ('boss' as const) : ('neutral' as const) })) satisfies HeaderBadge[];
   $: headerFacts = [

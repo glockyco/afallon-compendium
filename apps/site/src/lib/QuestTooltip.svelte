@@ -2,7 +2,7 @@
   import type { PublicKindEntry, PublicQuest } from '@afallon/contracts/public';
   import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
-  import { formatNumber } from './format';
+  import { formatNumber, levelText } from './format';
 
   export let document: PublicQuest;
   export let registry: PublicKindEntry[];
@@ -14,7 +14,7 @@
     ...(facts.repeatable ? [{ label: 'Repeatable' }] : []),
   ] satisfies HeaderBadge[];
   $: headerFacts = [
-    ...(facts.levelRange ? [{ label: 'Level', value: `${facts.levelRange.min}–${facts.levelRange.max}` }] : []),
+    ...(facts.levelRange ? [{ label: 'Level', value: levelText(facts.levelRange) }] : []),
     ...(facts.levelRequirement !== undefined ? [{ label: 'Requires level', value: String(facts.levelRequirement) }] : []),
     ...(facts.experience !== undefined ? [{ label: 'Experience', value: formatNumber(facts.experience) }] : []),
   ] satisfies HeaderFact[];

@@ -2,7 +2,7 @@
   import type { PublicKindEntry, PublicPlace } from '@afallon/contracts/public';
   import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
-  import { labelOf } from './format';
+  import { labelOf, levelText } from './format';
 
   export let document: PublicPlace;
   export let registry: PublicKindEntry[];
@@ -11,7 +11,7 @@
   $: facts = document.facts;
   $: badges = [{ label: labelOf(facts.placeType) }, ...(facts.guideIncluded ? [{ label: 'Guide entry', tone: 'accent' as const }] : [])] satisfies HeaderBadge[];
   $: headerFacts = [
-    ...(facts.levelRange ? [{ label: 'Level', value: `${facts.levelRange.min}–${facts.levelRange.max}` }] : []),
+    ...(facts.levelRange ? [{ label: 'Level', value: levelText(facts.levelRange) }] : []),
     ...(document.space && mapSpaceLabels[document.space.mapSpaceId] ? [{ label: 'Map space', value: mapSpaceLabels[document.space.mapSpaceId]! }] : []),
   ] satisfies HeaderFact[];
   $: counts = [

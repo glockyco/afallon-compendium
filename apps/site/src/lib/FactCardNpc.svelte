@@ -15,7 +15,7 @@
   import QuestTable from './QuestTable.svelte';
   import RefList from './RefList.svelte';
   import VendorTable from './VendorTable.svelte';
-  import { formatNumber, labelOf, rangeText, roleLabel, signedAmount } from './format';
+  import { formatNumber, labelOf, levelText, rangeText, roleLabel, signedAmount } from './format';
 
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
@@ -23,7 +23,8 @@
   export let limit: number | undefined = undefined;
 
   $: facts = document.facts;
-  $: level = facts.level !== undefined ? String(facts.level) : facts.levelRange ? `${facts.levelRange.min}–${facts.levelRange.max}` : null;
+  $: npcLevel = facts.level ?? facts.levelRange;
+  $: level = npcLevel === undefined ? null : levelText(npcLevel);
   $: creatureType = facts.npcType ?? facts.creatureType;
   $: badges = [
     ...facts.roles.map((role) => ({ label: roleLabel(role), tone: role === 'boss' ? ('boss' as const) : ('neutral' as const) })),

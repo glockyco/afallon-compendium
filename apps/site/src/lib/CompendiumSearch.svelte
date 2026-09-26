@@ -5,6 +5,7 @@
   import { clientAtlasLoader } from './client-publication';
   import { rankCompendiumEntries } from './atlas-search';
   import EntityLink from './EntityLink.svelte';
+  import { levelText } from './format';
 
   export let registry: PublicKindEntry[] = [];
   export let limit = 8;
@@ -15,6 +16,11 @@
   let error = '';
 
   $: results = query.trim() ? rankCompendiumEntries(query, entries).slice(0, limit) : [];
+
+  // A result names the entity's level and its place when the search corpus publishes them.
+  function entryDetail(entry: PublicSearchEntry): string {
+    return [entry.level === undefined ? null : `Level ${levelText(entry.level)}`, entry.place].filter((part): part is string => Boolean(part)).join(' · ');
+  }
 
   onMount(() => {
     const loader = clientAtlasLoader();
@@ -33,7 +39,7 @@
   <label for="compendium-search">Search the compendium</label>
   <input id="compendium-search" type="search" bind:value={query} placeholder="Item, NPC, quest, or place" autocomplete="off" />
   {#if loading}<p role="status">Loading search…</p>{:else if error}<p class="error" role="alert">Search is unavailable.</p>{/if}
-  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entry.place}<small>{entry.place}</small>{/if}{#if entry.ref.kind === 'places'}<a class="atlas-link" href={`${base}/?place=${encodeURIComponent(entry.ref.key)}`}>Atlas location</a>{:else if entry.hasPlacements}<a class="atlas-link" href={`${base}/?${entry.ref.kind === 'items' ? 'item' : 'entity'}=${encodeURIComponent(entry.ref.key)}`}>Atlas locations</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading}<p>No published page matches this search.</p>{/if}
+  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="atlas-link" href={`${base}/?place=${encodeURIComponent(entry.ref.key)}`}>Atlas location</a>{:else if entry.hasPlacements}<a class="atlas-link" href={`${base}/?${entry.ref.kind === 'items' ? 'item' : 'entity'}=${encodeURIComponent(entry.ref.key)}`}>Atlas locations</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading}<p>No published page matches this search.</p>{/if}
 </div>
 
 <style>

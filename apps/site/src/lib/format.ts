@@ -1,4 +1,4 @@
-import { PUBLIC_MARKER_CATEGORY_LABELS, type PublicMarkerCategory, type QuestObjective, type QuestStart, type RequirementGroup } from '@afallon/contracts/public';
+import { PUBLIC_MARKER_CATEGORY_LABELS, type PublicLevelRange, type PublicMarkerCategory, type QuestObjective, type QuestStart, type RequirementGroup } from '@afallon/contracts/public';
 
 const RARITY_TONES: Record<string, true> = { common: true, uncommon: true, rare: true, gold: true, epic: true, legendary: true };
 const numberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
@@ -46,6 +46,11 @@ export function rangeText(min: number | undefined, max: number | undefined): str
   if (max === undefined || min === max) return formatNumber(min ?? 0);
   if (min === undefined) return formatNumber(max);
   return `${formatNumber(min)}\u2013${formatNumber(max)}`;
+}
+
+/** A level is one number or a range; a range whose ends agree reads as one number. */
+export function levelText(level: number | PublicLevelRange): string {
+  return typeof level === 'number' ? formatNumber(level) : rangeText(level.min, level.max)!;
 }
 
 /** The rarity tone drives the name colour, the icon ring, and the badge through one attribute. */

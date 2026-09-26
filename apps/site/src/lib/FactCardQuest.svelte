@@ -14,7 +14,7 @@
   import QuestTable from './QuestTable.svelte';
   import RefList from './RefList.svelte';
   import Requirements from './Requirements.svelte';
-  import { formatDuration, formatNumber, objectiveLabel } from './format';
+  import { formatDuration, formatNumber, levelText, objectiveLabel } from './format';
 
   export let document: PublicQuest;
   export let registry: PublicKindEntry[];
@@ -44,7 +44,7 @@
   ] satisfies HeaderBadge[];
   $: headerFacts = [
     ...(chainStep >= 0 ? [{ label: 'Chain step', value: `${chainStep + 1} of ${chainQuests.length}` }] : []),
-    ...(facts.levelRange ? [{ label: 'Level', value: `${facts.levelRange.min}–${facts.levelRange.max}` }] : []),
+    ...(facts.levelRange ? [{ label: 'Level', value: levelText(facts.levelRange) }] : []),
     ...(facts.levelRequirement !== undefined ? [{ label: 'Requires level', value: String(facts.levelRequirement) }] : []),
     ...(facts.experience !== undefined ? [{ label: 'Experience', value: formatNumber(facts.experience) }] : []),
   ] satisfies HeaderFact[];
