@@ -11,6 +11,7 @@ interface CraftingPlacementFixture {
   id: string;
   roles?: readonly string[];
   details?: readonly Record<string, unknown>[];
+  label?: string | null;
 }
 
 async function publishCraftingPlacements(stations: readonly { id: number; name: string }[], placements: readonly CraftingPlacementFixture[]): Promise<PublicEssentialPlacement[]> {
@@ -24,7 +25,7 @@ async function publishCraftingPlacements(stations: readonly { id: number; name: 
     for (const station of stations) db.query("INSERT INTO canonical_entities (build_id, kind, native_id, entity_key, name, internal_name, description, source_key, details_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("build", "craftingStations", station.id, `craftingStations:${station.id}`, station.name, null, null, null, "{}", "[]");
     for (const [placementIndex, placement] of placements.entries()) {
       const component = String(placementIndex + 1);
-      db.query("INSERT INTO placements (placement_id, build_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, label, shape_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(placement.id, "build", 1, "scene", "world", placementIndex, 0, 0, placementIndex, placementIndex, `Workbench ${placement.id}`, "null", "[]");
+      db.query("INSERT INTO placements (placement_id, build_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, label, shape_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(placement.id, "build", 1, "scene", "world", placementIndex, 0, 0, placementIndex, placementIndex, placement.label === undefined ? `Workbench ${placement.id}` : placement.label, "null", "[]");
       db.query("INSERT INTO placement_identities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(placement.id, "build", 1, "d".repeat(64), placement.id.padEnd(64, "0"), "scene", component, "scene", null);
       const sourceCount = Math.max(1, placement.details?.length ?? 0);
       const sourceIds = Array.from({ length: sourceCount }, (_, detailIndex) => `${placement.id}-source-${detailIndex}`);
@@ -156,4 +157,12 @@ test("keeps ambiguous and unsupported crafting references generic", async () => 
     ["unresolved", ["craftingStation"]],
   ]);
   expect(expandEssentialPlacement(placements.find((placement) => placement[0] === "unresolved")!, "world").searchText).toContain("Crafting station");
+});
+
+test("names an object by its readable authored name and ignores placeholder names such as 0", async () => {
+  const placements = await publishCraftingPlacements([], [
+    { id: "placeholder", label: null, roles: ["usefulInteraction"], details: [{ interactableName: "0" }] },
+    { id: "named", label: null, roles: ["usefulInteraction"], details: [{ interactableName: "<b>Old gate</b>" }] },
+  ]);
+  expect(placements.map((placement) => [placement[0], placement[3]])).toEqual([["named", "Old gate"], ["placeholder", "Interactive object"]]);
 });

@@ -82,13 +82,21 @@ function placementAreaRadius(placement: CatalogMapPlacement): number | null {
   const shape = record(placement.shape), radius = shape?.radius;
   return shape?.kind !== "point" && typeof radius === "number" && radius > 0 ? radius : null;
 }
+// Authored object names include placeholders such as "0"; a name without a letter names nothing.
+function readableName(value: unknown): string | null {
+  const name = typeof value === "string" ? plainText(value) : "";
+  return /\p{L}/u.test(name) ? name : null;
+}
 function sourceName(placement: CatalogMapPlacement): string | null {
   for (const { data } of placement.sourceDetails) {
-    const values: unknown[] = [data.interactableName, data.chestName, record(data.station)?.name, record(data.property)?.name];
-    const name = values.find((value) => typeof value === "string" && value.trim().length > 0);
-    if (typeof name === "string") return plainText(name);
+    const name = [data.interactableName, data.chestName, record(data.station)?.name, record(data.property)?.name].map(readableName).find((value) => value !== null);
+    if (name) return name;
   }
   return null;
+}
+// A travel point without its own name carries the category label, so a merged marker prefers any other label.
+function namedTravelLabel(label: string): boolean {
+  return label.toLocaleLowerCase() !== CATEGORY_LABELS.travelPoint.toLocaleLowerCase();
 }
 function position(value: unknown): { x: number; y: number; z: number } | null {
   const point = record(value);
@@ -306,7 +314,7 @@ function foldTravelPlacements(placements: readonly ProjectedPlacement[]): Projec
     if (claimed.has(representative.placementId) || !representative.travel) continue;
     const equivalents = travelPoints.filter((travel) => travel.travel && travel.mapSpaceId === representative.mapSpaceId && Math.hypot(travel.position[0] - representative.position[0], travel.position[1] - representative.position[1]) <= 0.1 && sameTravelDestination(representative.travel!, travel.travel));
     if (equivalents.length < 2) continue;
-    const labels = equivalents.map((travel) => travel.label).filter((value) => value !== "0" && value.toLocaleLowerCase() !== "travel point").sort((left, right) => left.localeCompare(right));
+    const labels = equivalents.map((travel) => travel.label).filter(namedTravelLabel).sort((left, right) => left.localeCompare(right));
     const mergedLabel = labels[0] ?? representative.label;
     const mergedCategories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => equivalents.some((travel) => travel.categories.includes(category)));
     for (const travel of equivalents) if (travel.placementId !== representative.placementId) claimed.add(travel.placementId);
@@ -322,7 +330,7 @@ function foldTravelPlacements(placements: readonly ProjectedPlacement[]): Projec
     const equivalents = nearby.filter((candidate) => candidate.travel && (candidate.travel.destination.status === "unresolved" || sameTravelDestination(representative.travel!, candidate.travel)));
     for (const candidate of equivalents) claimed.add(candidate.placementId);
     const mergedCategories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => category === "travelPoint" || dungeon.categories.includes(category));
-    const mergedLabel = representative.label !== "0" && representative.label.toLocaleLowerCase() !== "travel point" ? representative.label : dungeon.label;
+    const mergedLabel = namedTravelLabel(representative.label) ? representative.label : dungeon.label;
     mergedDungeons.set(dungeon.placementId, { ...dungeon, label: mergedLabel, categories: mergedCategories, entityKeys: [...new Set([...dungeon.entityKeys, ...equivalents.flatMap((candidate) => candidate.entityKeys)])].sort(), itemKeys: [...new Set([...dungeon.itemKeys, ...equivalents.flatMap((candidate) => candidate.itemKeys)])].sort(), travel: representative.travel, searchText: [mergedLabel, ...mergedCategories.map((category) => CATEGORY_LABELS[category])].join(" ") });
   }
   return deduplicated.filter((placement) => !claimed.has(placement.placementId)).map((placement) => mergedDungeons.get(placement.placementId) ?? placement);
@@ -363,7 +371,7 @@ export async function generateMapShards(db: Database, store: ArtifactStore, worl
       const placementCategories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => foundCategories.has(category));
       if (placementCategories.length === 0) return [];
       const serviceLabel = serviceData.map(flightPointLabel).find((value): value is string => value !== null);
-      const label = serviceLabel || placement.label?.trim() || entityKeys.map((key) => entityNames.get(key)).filter((name): name is string => Boolean(name)).join(" / ") || sourceName(placement) || placementCategories.map((category) => CATEGORY_LABELS[category]).join(" / ");
+      const label = serviceLabel || readableName(placement.label) || entityKeys.map((key) => entityNames.get(key)).filter((name): name is string => Boolean(name)).join(" / ") || sourceName(placement) || placementCategories.map((category) => CATEGORY_LABELS[category]).join(" / ");
       const range = placementLevelRange(placement, gameplayByEntity);
       const travel = offsetTravel(travelForPlacement(placement, spatial), offsets);
       return [{
