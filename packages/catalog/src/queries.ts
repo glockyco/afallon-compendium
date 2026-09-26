@@ -662,13 +662,15 @@ function conditionRequirements(refs: ReadonlyMap<string, CatalogEndpoint>, paylo
   return result;
 }
 
+// Each condition keeps its own requirements: a toggle's activation set and its inline set, or a spawner's template
+// and inline groups, are separate rules that consumers select by condition ID. Consumers that combine several
+// conditions of one owner, such as item requirement groups, remove repeats themselves.
 export function queryConditions(db: Database): CatalogQueryResult<CatalogCondition[]> {
-  const refs = entityEndpointIndex(db), seenByOwner = new Map<string, Set<string>>();
-  const records = db.query<{ condition_id: string; owner_key: string; semantics: string; scope: "equipment" | "use" | null; payload_json: string }, []>("SELECT condition_id, owner_key, semantics, scope, payload_json FROM conditions ORDER BY condition_id").all().flatMap((row) => {
+  const refs = entityEndpointIndex(db);
+  const records = db.query<{ condition_id: string; semantics: string; scope: "equipment" | "use" | null; payload_json: string }, []>("SELECT condition_id, semantics, scope, payload_json FROM conditions ORDER BY condition_id").all().flatMap((row) => {
     const payload = parse(row.payload_json);
     if (row.semantics === "inline-requirements" && payload !== null && typeof payload === "object" && "groups" in payload && Array.isArray(payload.groups) && payload.groups.length === 0) return [];
-    const seen = seenByOwner.get(row.owner_key) ?? new Set<string>(), requirements = deduplicateRequirementGroups(conditionRequirements(refs, payload), seen);
-    seenByOwner.set(row.owner_key, seen);
+    const requirements = deduplicateRequirementGroups(conditionRequirements(refs, payload));
     const sourceName = payload !== null && typeof payload === "object" && "sourceName" in payload && typeof payload.sourceName === "string" && payload.sourceName.length > 0 ? payload.sourceName : null;
     const label = requirements.flatMap((group) => group.requirements.map((requirement) => requirement.label).join(group.mode === "any" ? " or " : " and ")).join(", ");
     return [{ conditionId: row.condition_id, semantics: row.semantics, scope: row.scope, label: (sourceName ?? label) || row.semantics, requirements }];

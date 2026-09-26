@@ -67,7 +67,7 @@ test("derives readable container types and exposes their place", () => {
   } finally { db.close(); }
 });
 
-test("groups and deduplicates the authored requirements for items:1040", () => {
+test("keeps each condition's requirements and combines one item's conditions once for items:1040", () => {
   const db = openNormalizedDatabase(":memory:");
   try {
     db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
@@ -84,15 +84,20 @@ test("groups and deduplicates the authored requirements for items:1040", () => {
       "b-inline", "build", "entity", "items:1040", 1, "inline-requirements", "equipment", "/items/1040/inline", JSON.stringify({ groups: [classes, level] }), "[]",
     );
 
+    // Both conditions keep the class group: a consumer selects conditions by ID and must not find one emptied.
+    const classGroup = { mode: "any", checkCount: false, requiredCount: null, requirements: [
+      { type: { name: "Class" }, rule: { name: "Optional" }, label: "Shieldmaster", references: { class: { entityKey: "classes:0", label: "Shieldmaster" } } },
+      { type: { name: "Class" }, rule: { name: "Optional" }, label: "Assassin", references: { class: { entityKey: "classes:5", label: "Assassin" } } },
+    ] };
+    const levelGroup = { mode: "all", checkCount: false, requiredCount: null, requirements: [{ type: { name: "Level" }, rule: { name: "Mandatory" }, label: "Level 27", amounts: { primary: 27, secondary: 0 } }] };
     expect(queryConditions(db).records).toMatchObject([
-      { scope: "equipment", requirements: [{ mode: "any", checkCount: false, requiredCount: null, requirements: [
-        { type: { name: "Class" }, rule: { name: "Optional" }, label: "Shieldmaster", references: { class: { entityKey: "classes:0", label: "Shieldmaster" } } },
-        { type: { name: "Class" }, rule: { name: "Optional" }, label: "Assassin", references: { class: { entityKey: "classes:5", label: "Assassin" } } },
-      ] }] },
-      { scope: "equipment", requirements: [{ mode: "all", checkCount: false, requiredCount: null, requirements: [
-        { type: { name: "Level" }, rule: { name: "Mandatory" }, label: "Level 27", amounts: { primary: 27, secondary: 0 } },
-      ] }] },
+      { conditionId: "a-template", scope: "equipment", requirements: [classGroup] },
+      { conditionId: "b-inline", scope: "equipment", requirements: [classGroup, levelGroup] },
     ]);
+    db.query("INSERT INTO item_facts(entity_key, random_stats_max, stack_limit, quest_drop_only, corruption_token, action_abilities_json, use_lines_json, condition_ids_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      "items:1040", 0, 1, 0, 0, "[]", "[]", JSON.stringify(["a-template", "b-inline"]), "[]",
+    );
+    expect(queryCatalogFacts(db).records.items[0]?.equipmentRequirements).toMatchObject([classGroup, levelGroup]);
   } finally { db.close(); }
 });
 
