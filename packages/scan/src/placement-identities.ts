@@ -303,14 +303,24 @@ function mappingCandidates(context: MappingContext, nodeId: number): Set<string>
   } else {
     const parentCandidates = mappingCandidates(context, node.parentInstanceId);
     for (const parentId of parentCandidates) {
-      const parent = context.model.objectById.get(parentId)!;
-      const childId = parent.transform.children[node.siblingIndex];
-      const child = childId === undefined ? undefined : context.model.objectByTransformId.get(childId);
-      if (child !== undefined && child.name === node.name) result.add(child.pathId);
+      const child = serializedChild(context.model, context.model.objectById.get(parentId)!, node);
+      if (child !== undefined) result.add(child.pathId);
     }
   }
   context.candidates.set(nodeId, result);
   return result;
+}
+
+// A runtime child has the sibling index of its serialized object, unless the game destroyed an earlier
+// sibling at run time. The later siblings then move down by one index each, so such a child matches
+// the one later serialized sibling that has its name. Two or more later siblings of that name leave
+// the child without a candidate.
+function serializedChild(model: SerializedModel, parent: SerializedObject, node: NativeNode): SerializedObject | undefined {
+  const children = parent.transform.children;
+  const exact = model.objectByTransformId.get(children[node.siblingIndex] ?? "");
+  if (exact?.name === node.name) return exact;
+  const later = children.slice(node.siblingIndex + 1).map((id) => model.objectByTransformId.get(id)).filter((child) => child?.name === node.name);
+  return later.length === 1 ? later[0] : undefined;
 }
 
 function componentMatch(serialized: SerializedObject, component: NativeComponent): SerializedComponent | null {

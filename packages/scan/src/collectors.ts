@@ -104,7 +104,6 @@ const DEFINITIONS: readonly CollectorDefinition[] = [
   { family: "canonical", name: "canonical", schema: CanonicalSchema, modules: ["canonical"] },
   { family: "canonical", name: "localization", schema: LocalizationSchema, modules: ["localization"] },
   { family: "canonical", name: "quest-levels", schema: QuestLevelsSchema, modules: ["quest-levels"] },
-  { family: "canonical", name: "artwork", schema: ArtworkSchema, modules: ["artwork"], timeoutMs: 600_000 },
   { family: "inventory", name: "addressable-locations", schema: AddressableGraphSchema, modules: ["addressable-locations"] },
   { family: "producers", name: "npc-producers", schema: NpcProducersSchema, modules: ["conditions", "npc-producers"] },
   { family: "producers", name: "world-sources", schema: WorldSourcesSchema, modules: ["conditions", "world-sources"] },
@@ -117,19 +116,24 @@ const DEFINITIONS: readonly CollectorDefinition[] = [
   { family: "spatial", name: "navigation-geometry", schema: NavigationGeometrySchema, modules: ["navigation-geometry"] },
 ];
 
+// Artwork reads the database, not the scene, and takes thousands of frames. It runs after the world inventory, so
+// the scene evidence does not depend on how long the artwork takes. An object that a CountdownDestroyer removes
+// a fixed time after the scene starts stays in the scene evidence unless that time ends before the scene is read.
+const ARTWORK: CollectorDefinition = { family: "canonical", name: "artwork", schema: ArtworkSchema, modules: ["artwork"], timeoutMs: 600_000 };
+
+function collectorBundle(definition: CollectorDefinition): Promise<ScanCollectorBundle> {
+  return createProbeBundle({
+    id: `scan/${definition.name}`,
+    schema: definition.schema,
+    modules: definition.modules.map(name => ({ id: `collector/${name}`, source: COLLECTOR_SOURCES[name]! })),
+  }).then(bundle => ({ family: definition.family, name: definition.name, ...(definition.timeoutMs === undefined ? {} : { timeoutMs: definition.timeoutMs }), bundle }));
+}
+
 export async function createScanCollectorBundles(): Promise<readonly ScanCollectorBundle[]> {
   return Promise.all([
-    ...DEFINITIONS.map(async definition => ({
-      family: definition.family,
-      name: definition.name,
-      ...(definition.timeoutMs === undefined ? {} : { timeoutMs: definition.timeoutMs }),
-      bundle: await createProbeBundle({
-        id: `scan/${definition.name}`,
-        schema: definition.schema,
-        modules: definition.modules.map(name => ({ id: `collector/${name}`, source: COLLECTOR_SOURCES[name]! })),
-      }),
-    })),
+    ...DEFINITIONS.map(collectorBundle),
     createWorldInventoryBundle().then(bundle => ({ family: "inventory" as const, name: "world-inventory", bundle })),
+    collectorBundle(ARTWORK),
   ]);
 }
 
