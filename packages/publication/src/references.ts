@@ -160,12 +160,16 @@ function placeEntrances(relations: CatalogRelations | undefined): ReadonlyMap<st
   return readableLabels(new Map([...entrances].map(([key, areas]) => [key, [...areas].sort()])));
 }
 
+/** A label that tells a record apart from the other records of its group. An ordinal label only numbers the record. */
+interface RecordLabel { text: string; ordinal: boolean }
+
 /**
- * The first candidate label that names a record uniquely in its group. Records that no candidate names take a label from
- * `fallback`, which numbers records that share a last readable label, or their native id.
+ * The first candidate label that names a record uniquely in its group. Records that no candidate names take their
+ * readable label from `numbered`, with a number when several records share it. Other records take `fallback` of their
+ * position in the group, which lists the records in native id order.
  */
-function readableSuffixes(group: readonly CatalogEntityRow[], candidates: readonly ReadonlyMap<string, string>[], ordinal?: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
-  const result = new Map<string, string>(), remaining = new Map(group.map((entity) => [entity.entityKey, entity]));
+function recordLabels(group: readonly CatalogEntityRow[], candidates: readonly ReadonlyMap<string, string>[], fallback: (position: number) => string, numbered?: ReadonlyMap<string, string>): ReadonlyMap<string, RecordLabel> {
+  const result = new Map<string, RecordLabel>(), remaining = new Map(group.map((entity) => [entity.entityKey, entity]));
   const used = new Set<string>();
   for (const labels of candidates) {
     const byLabel = new Map<string, CatalogEntityRow[]>();
@@ -179,26 +183,32 @@ function readableSuffixes(group: readonly CatalogEntityRow[], candidates: readon
     for (const [label, rows] of byLabel) {
       if (rows.length !== 1) continue;
       const entity = rows[0]!;
-      result.set(entity.entityKey, label);
+      result.set(entity.entityKey, { text: label, ordinal: false });
       remaining.delete(entity.entityKey);
       used.add(label);
     }
   }
-  const byOrdinal = new Map<string, CatalogEntityRow[]>();
+  const byNumbered = new Map<string, CatalogEntityRow[]>();
   for (const entity of remaining.values()) {
-    const label = ordinal?.get(entity.entityKey);
-    if (label === undefined) { result.set(entity.entityKey, `#${entity.nativeId}`); continue; }
-    const rows = byOrdinal.get(label) ?? [];
+    const label = numbered?.get(entity.entityKey);
+    if (label === undefined || used.has(label)) { result.set(entity.entityKey, { text: fallback(group.indexOf(entity) + 1), ordinal: true }); continue; }
+    const rows = byNumbered.get(label) ?? [];
     rows.push(entity);
-    byOrdinal.set(label, rows);
+    byNumbered.set(label, rows);
   }
-  for (const [label, rows] of byOrdinal) {
-    if (rows.length === 1) result.set(rows[0]!.entityKey, label);
-    else rows.forEach((entity, index) => result.set(entity.entityKey, `${label} ${index + 1}`));
+  for (const [label, rows] of byNumbered) {
+    if (rows.length === 1) result.set(rows[0]!.entityKey, { text: label, ordinal: false });
+    else rows.forEach((entity, index) => result.set(entity.entityKey, { text: `${label} ${index + 1}`, ordinal: false }));
+  }
+  const texts = new Set<string>();
+  for (const label of result.values()) {
+    if (texts.has(label.text)) throw new Error(`Two records of ${group[0]!.entityKey}'s group share the label ${label.text}.`);
+    texts.add(label.text);
   }
   return result;
 }
 
+/** Qualified names that still match take their position among the matching pages, in native id order. */
 function ensureUniqueNames(entries: readonly { entity: CatalogEntityRow; kind: string }[], names: Map<string, string>): void {
   const groups = new Map<string, Array<{ entity: CatalogEntityRow; kind: string }>>();
   for (const entry of entries) {
@@ -208,31 +218,31 @@ function ensureUniqueNames(entries: readonly { entity: CatalogEntityRow; kind: s
     else groups.set(key, [entry]);
   }
   for (const group of groups.values()) if (group.length > 1) {
-    for (const entry of group) names.set(entry.entity.entityKey, `${names.get(entry.entity.entityKey)!} (#${entry.entity.nativeId})`);
+    [...group].sort((left, right) => left.entity.nativeId - right.entity.nativeId)
+      .forEach((entry, index) => names.set(entry.entity.entityKey, `${names.get(entry.entity.entityKey)!} (${index + 1})`));
   }
 }
 
 // Creature records of one name differ in where they stand, their level, or their type. A qualifier uses the first of
-// these that names each record uniquely.
+// these that names each record uniquely. MOB is the type of an ordinary creature, so it tells no record apart.
 function npcCandidates(entityByKey: ReadonlyMap<string, CatalogEntityRow>, context: ReferenceBuildContext): ReadonlyMap<string, string>[] {
   const placements = context.relations?.placements ?? [];
   const places = readableLabels(npcPlacementLabels(placements, (placement) => displayName(entityByKey.get(placement.sceneKey)?.name ?? placement.label ?? "")));
   const areas = readableLabels(npcPlacementLabels(placements, (placement) => displayName(placement.area ?? "")));
   const levels = new Map([...context.npcLevels ?? []].map(([key, level]) => [key, levelLabel(level)] as const));
-  const types = labelsOf(context.facts?.npcs ?? [], (npc) => readableFact(npc.npcType));
+  const types = labelsOf(context.facts?.npcs ?? [], (npc) => npc.npcType === "MOB" ? undefined : readableFact(npc.npcType));
   return [places, areas, levels, types, combinedLabels(places, levels), combinedLabels(places, types)];
 }
 
-function anchorFor(entity: CatalogEntityRow, label: string, unique: boolean): string {
-  return unique && !label.startsWith("#") ? slugify(label) : `n${entity.nativeId}`;
-}
-
-function variantMembers(group: EntityGroup, labels: ReadonlyMap<string, string>): PageMember[] {
+// A readable label that names one variant gives its anchor. An ordinal label, or a label whose slug another variant
+// shares, keeps the native id anchor, because a position can change with the next build.
+function variantMembers(group: EntityGroup, labels: ReadonlyMap<string, RecordLabel>): PageMember[] {
   const counts = new Map<string, number>();
-  for (const member of group.members) { const label = labels.get(member.entityKey)!; counts.set(slugify(label), (counts.get(slugify(label)) ?? 0) + 1); }
+  for (const member of group.members) { const slug = slugify(labels.get(member.entityKey)!.text); counts.set(slug, (counts.get(slug) ?? 0) + 1); }
   return group.members.map((entity) => {
     const label = labels.get(entity.entityKey)!;
-    return { entity, label, anchor: anchorFor(entity, label, counts.get(slugify(label)) === 1) };
+    const anchor = !label.ordinal && counts.get(slugify(label.text)) === 1 ? slugify(label.text) : `n${entity.nativeId}`;
+    return { entity, label: label.text, anchor };
   });
 }
 
@@ -265,17 +275,18 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
   }
   const names = new Map<string, string>();
   const itemLabels = itemCandidates(context.facts), placeLabels = placeCandidates(entityByKey, context.facts), entrances = placeEntrances(context.relations);
+  const npcLabelCandidates = npcCandidates(entityByKey, context);
+  const candidatesOf = (kind: PublicReferenceKind) => kind === "items" ? itemLabels : kind === "places" ? placeLabels : kind === "npcs" ? npcLabelCandidates : [];
   for (const same of qualified.values()) {
     if (same.length === 1) { names.set(same[0]!.key, same[0]!.name); continue; }
-    const rows = same.map((group) => group.members[0]!);
+    const rows = same.map((group) => group.members[0]!).sort((left, right) => left.nativeId - right.nativeId);
     const kind = same[0]!.kind;
-    const suffixes = readableSuffixes(rows, kind === "items" ? itemLabels : kind === "places" ? placeLabels : [], kind === "places" ? entrances : undefined);
-    for (const group of same) names.set(group.key, `${group.name} (${suffixes.get(group.key)!})`);
+    const suffixes = recordLabels(rows, candidatesOf(kind), (position) => String(position), kind === "places" ? entrances : undefined);
+    for (const group of same) names.set(group.key, `${group.name} (${suffixes.get(group.key)!.text})`);
   }
   const pageEntries = groups.map((group) => ({ entity: group.members[0]!, kind: group.kind }));
   ensureUniqueNames(pageEntries, names);
 
-  const npcLabelCandidates = npcCandidates(entityByKey, context);
   const usedSlugs = new Map<string, Set<string>>();
   const refs: Array<readonly [string, EntityRef]> = [];
   const pages = new Map<string, PublishedPage>();
@@ -294,7 +305,9 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     const pageIcon = group.members.map(iconOf).find((icon) => icon !== undefined);
     const pageRef: EntityRef = { key: group.key, kind: group.kind, name, ...(slug ? { slug } : {}), ...(pageIcon ? { icon: pageIcon } : {}) };
     const variantFields = group.kind === "npcs" ? npcVariantFields(group.members.map((member) => npcFacts.get(member.entityKey)).filter((fact): fact is CatalogNpcFacts => fact !== undefined), abilityVersion) : [];
-    const members = group.members.length > 1 ? variantMembers(group, readableSuffixes(group.members, group.kind === "npcs" ? npcLabelCandidates : [])) : [{ entity: group.members[0]!, label: name, anchor: `n${group.members[0]!.nativeId}` }];
+    const members = group.members.length > 1
+      ? variantMembers(group, recordLabels(group.members, group.kind === "npcs" ? npcLabelCandidates : [], (position) => `Variant ${position}`))
+      : [{ entity: group.members[0]!, label: name, anchor: `n${group.members[0]!.nativeId}` }];
     const versions = versionsByGroup.get(group.key) ?? [];
     if (registry.pages) pages.set(group.key, { kind: group.kind, ref: pageRef, members, variantFields, versions });
     for (const member of members) {

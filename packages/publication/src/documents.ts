@@ -805,10 +805,11 @@ function projectRecipe(entity: CatalogEntityRow, ref: EntityRef, input: Document
  */
 function projectGearSet(setKey: string, input: DocumentProjectionInput): GearSet | undefined {
   const fact = input.facts.gearSets.find((candidate) => candidate.entityKey === setKey);
-  const entity = input.entities.find((candidate) => candidate.entityKey === setKey);
-  if (!fact || !entity) return undefined;
+  if (!fact || !input.entities.some((candidate) => candidate.entityKey === setKey)) return undefined;
+  // The set's reference carries its formatted and qualified name, so the tooltip names the set as every other link does.
+  const set = input.resolve({ entityKey: setKey, label: setKey });
   return {
-    key: setKey, name: displayName(entity.name ?? "") || `Gear set ${entity.nativeId}`, members: fact.members.map(input.resolve),
+    key: setKey, name: isEntityRef(set) ? set.name : set.label, members: fact.members.map(input.resolve),
     tiers: fact.tiers.map((tier) => ({ equipped: Math.max(1, tier.equipped),
       stats: tier.stats.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })) })),
   };

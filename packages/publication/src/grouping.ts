@@ -21,8 +21,12 @@ export function nameKey(name: string): string {
   return name.normalize("NFKC").toLowerCase().replaceAll("’", "'").replaceAll(/\s+/g, " ").trim();
 }
 
+/**
+ * The formatted name of a record. A record without a name reads as "Unnamed" and its kind, and the qualifier step
+ * tells several unnamed records of one kind apart, because a native id is not a name that a player sees.
+ */
 export function baseName(entity: CatalogEntityRow, kind: PublicReferenceKind): string {
-  return displayName(entity.name ?? "") || `${PUBLIC_KIND_BY_KIND[kind].label} ${entity.nativeId}`;
+  return displayName(entity.name ?? "") || displayName(`Unnamed ${PUBLIC_KIND_BY_KIND[kind].label}`);
 }
 
 // The title uses the most frequent spelling in the group, and a tie takes the spelling of the lowest native id.
@@ -41,7 +45,9 @@ export function groupEntities(entities: readonly CatalogEntityRow[]): EntityGrou
   for (const entity of entities) {
     const kind = publicKindForCatalogKind(entity.kind);
     if (kind === null) continue;
-    const key = GROUPED_KINDS.has(kind) ? `${kind}\u0000${nameKey(baseName(entity, kind))}` : `${kind}\u0000${entity.entityKey}`;
+    // Records without a name are different characters or abilities, so each keeps a page of its own.
+    const named = displayName(entity.name ?? "") !== "";
+    const key = GROUPED_KINDS.has(kind) && named ? `${kind}\u0000${nameKey(baseName(entity, kind))}` : `${kind}\u0000${entity.entityKey}`;
     const group = groups.get(key);
     if (group) group.members.push(entity);
     else groups.set(key, { kind, members: [entity] });

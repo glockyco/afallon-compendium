@@ -75,7 +75,23 @@ test("qualifies places of one name by the area of their entrance and numbers pla
     { transitionId: "t34", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:34", transitionKind: "door", placementIds: ["d34"] },
   ] };
   const { refs } = buildEntityReferences(entities, { facts, relations });
-  expect(["scenes:31", "scenes:32", "scenes:34", "scenes:43", "scenes:44"].map((key) => refs.get(key)?.name)).toEqual(["Cave (Coalway Woods 1)", "Cave (Coalway Woods 2)", "Cave (Oakenvale)", "Glacier Cave (#43)", "Glacier Cave (lvl. 20–30)"]);
+  expect(["scenes:31", "scenes:32", "scenes:34", "scenes:43", "scenes:44"].map((key) => refs.get(key)?.name)).toEqual(["Cave (Coalway Woods 1)", "Cave (Coalway Woods 2)", "Cave (Oakenvale)", "Glacier Cave (1)", "Glacier Cave (lvl. 20–30)"]);
+});
+
+test("labels variants that no fact tells apart by their position and keeps native id anchors for them", () => {
+  const entities = [entity("npcs", 76, "Outlaw Rogue"), entity("npcs", 77, "Outlaw Rogue"), entity("npcs", 90, "Outlaw Rogue")];
+  const facts: CatalogFacts = { ...emptyFacts, entities, npcs: [npcFact("npcs:76", 100), npcFact("npcs:77", 200), npcFact("npcs:90", 300)] };
+  const { refs, pages } = buildEntityReferences(entities, { facts, relations: emptyRelations });
+  expect(pages.get("npcs:76")?.members.map((member) => [member.label, member.anchor])).toEqual([["Variant 1", "n76"], ["Variant 2", "n77"], ["Variant 3", "n90"]]);
+  expect(refs.get("npcs:77")).toMatchObject({ name: "Outlaw Rogue (Variant 2)", variant: "n77" });
+});
+
+test("gives each unnamed record its own page and a name without its native id", () => {
+  const entities = [entity("npcs", 125, ""), entity("npcs", 130, "  "), entity("scenes", 1, "")];
+  const facts: CatalogFacts = { ...emptyFacts, entities, npcs: [npcFact("npcs:125"), npcFact("npcs:130")] };
+  const { refs, pages } = buildEntityReferences(entities, { facts, relations: emptyRelations });
+  expect([...pages.keys()]).toEqual(["npcs:125", "npcs:130", "scenes:1"]);
+  expect(["npcs:125", "npcs:130", "scenes:1"].map((key) => refs.get(key)?.name)).toEqual(["Unnamed NPC (1)", "Unnamed NPC (2)", "Unnamed Place"]);
 });
 
 test("drops apostrophes instead of splitting a slug", () => {

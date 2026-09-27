@@ -26,7 +26,7 @@ Each grouped NPC document SHALL retain each member's key, anchor, label, optiona
 
 ### Requirement: Separate entities use readable qualifiers
 
-Same-name items SHALL use differing rarity, gear type, damage, level requirement, or stats when possible. Same-name places SHALL use type, parent, closed level range, or entrance area with an ordinal. Creature variant labels SHALL use place, area, level, or type when possible. An ordinal SHALL be the fallback. A variant without a readable label SHALL be labeled "Variant N", where N is the position of the variant on its page. A page without a readable qualifier SHALL add its position among the pages of the same name. When two qualified names of one kind still match, each SHALL add its position among them. Names, qualifiers, and labels SHALL NOT display a native ID, level zero, or an internal scene object name.
+Same-name items SHALL use differing rarity, gear type, damage, level requirement, or stats when possible. Same-name places SHALL use type, parent, closed level range, or entrance area with an ordinal. Creature variant labels SHALL use place, area, level, or type other than MOB when possible. An ordinal SHALL be the fallback. A variant without a readable label SHALL be labeled "Variant N", where N is the position of the variant on its page. A page without a readable qualifier SHALL add its position among the pages of the same name. When two qualified names of one kind still match, each SHALL add its position among them. A record without a name SHALL be named "Unnamed" with its kind, and SHALL NOT share a page with another record. Names, qualifiers, and labels SHALL NOT display a native ID, level zero, or an internal scene object name.
 
 #### Scenario: Two different chest items
 - **WHEN** two Peasant Chest items differ in armor type
@@ -48,3 +48,7 @@ Same-name items SHALL use differing rarity, gear type, damage, level requirement
 #### Scenario: Variant without a readable label
 - **WHEN** the second and third variants of a page share place, area, level, and type
 - **THEN** their labels are "Variant 2" and "Variant 3"
+
+#### Scenario: Records without a name
+- **WHEN** two NPC records have no name
+- **THEN** they have separate pages named "Unnamed NPC (1)" and "Unnamed NPC (2)"
