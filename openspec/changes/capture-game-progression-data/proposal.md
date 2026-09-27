@@ -21,7 +21,7 @@ The compendium cannot tell a player which class learns an ability, what a talent
 - **BREAKING** for evidence: the support evidence schema becomes `compendium.support.v2`. A catalog built from this change reads only v2 support evidence.
 - The catalog decodes these records into typed facts and relations: which classes learn each ability and at which level or talent tier, which talent nodes unlock each recipe and resource node, and which abilities and effects apply each effect.
 - One new scan of scene 44, the canonical target of build 25434619, and a catalog candidate from it. The new scan replaces the current scene 44 scan in the catalog plan. The other five scene scans stay unchanged.
-- No page changes. The publication ignores the new facts in this change. Follow-up changes publish class, skill, effect, enchantment, faction, and reference pages. After them, a list change polishes the Places and Abilities lists, adds a Class column to the ability list, and specifies the list filters. The NPC Place filter, which matches each place of an NPC, has no spec yet.
+- No page shows the new facts yet: the publication ignores them in this change. Follow-up changes publish class, skill, effect, enchantment, faction, and reference pages. After them, a list change polishes the Places and Abilities lists, adds a Class column to the ability list, and specifies the list filters. The NPC Place filter, which matches each place of an NPC, has no spec yet.
 
 ## Capabilities
 
@@ -39,4 +39,4 @@ None.
 - Contracts: `packages/contracts/src/raw/database.ts` (`SupportSchema` v2) and `packages/contracts/src/catalog/facts.ts` (new fact types in `CatalogFacts`).
 - Catalog: decoders, normalization, SQLite tables, and queries in `packages/catalog/src/`, with their tests.
 - Runtime: one scan of scene 44 through HotRepl with the configured research character, a new catalog plan, and a catalog candidate.
-- Publication, site, and the accepted publication: unchanged. The catalog candidate is accepted together with the first publication that uses its facts.
+- Publication code, site code, and the accepted publication: unchanged by this change. The catalog candidate is accepted together with the first publication that uses its facts.
