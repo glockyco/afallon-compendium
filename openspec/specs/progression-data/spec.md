@@ -1,0 +1,122 @@
+## Purpose
+
+Record in the catalog how characters progress and what game systems do: classes, spellbooks, talent trees, passive bonuses, talent points, professions, experience per level, effects, enchantments, stats, factions, and ability ranks, with the relations between them, so that pages can answer which class learns an ability and what a talent or effect gives.
+
+## Requirements
+
+### Requirement: Classes record their progression
+
+The catalog SHALL record for each class its auto-attack ability, its base stats with the growth of each stat per level, its skill bonuses, its level template, its spellbooks, its talent trees, its starting items with their count and whether they start equipped, its action abilities, and its stat allocation points and entries. When a class takes its stats from a stat list template, the catalog SHALL record the stats of that template and SHALL state that the class uses it.
+
+#### Scenario: Class with talent trees
+- **WHEN** the catalog is built from a scan of build 25434619
+- **THEN** the Shieldmaster class names its five talent trees, and Bastion Breaker is one of them
+
+### Requirement: Spellbooks and talent trees record their nodes
+
+The catalog SHALL record the source of each spellbook, class or weapon, and its nodes in their authored order. Each spellbook node SHALL name its ability or bonus and its unlock level. The catalog SHALL record the tier count of each talent tree, its talent point type, and its nodes. Each talent tree node SHALL name its ability, bonus, recipe, or resource node, its tier and its row, and its requirement groups.
+
+#### Scenario: Talent node with a requirement
+- **WHEN** a talent tree node requires another node or a character level
+- **THEN** the catalog records that requirement group with the node
+
+### Requirement: Passive bonuses record their ranks
+
+The catalog SHALL record whether a character knows a bonus by default and, for each rank, its unlock cost, its requirement groups, its stat changes, its pet stat changes, and whether the rank is empty, with the tooltip text of an empty rank.
+
+#### Scenario: Bonus rank with a stat change
+- **WHEN** a bonus rank gives 5 percent of a stat
+- **THEN** the catalog records that stat, the amount 5, and that the amount is a percentage
+
+### Requirement: Talent points record how a character gains them
+
+The catalog SHALL record for each talent point type its starting amount, its maximum, and each gain rule with its trigger, its amount, and the class, skill, item and item count, NPC, or weapon template that the rule names. The triggers SHALL be character level-up, skill level-up, NPC kill, item gain, and weapon template level-up.
+
+#### Scenario: Points from level-ups
+- **WHEN** a talent point type grants one point for each character level-up of a class
+- **THEN** the catalog records the trigger, the amount 1, and that class
+
+### Requirement: Skills record their levels and talent trees
+
+The catalog SHALL record for each skill its maximum level, whether a character receives it automatically, its level template, its talent trees, its stats with the growth of each stat per level, its starting items, and its action abilities.
+
+#### Scenario: Profession with a talent tree
+- **WHEN** a profession skill names a talent tree
+- **THEN** the catalog lists that tree with the skill
+
+### Requirement: Level templates record the experience per level
+
+The catalog SHALL record for each level template its number of levels, its base experience, its increase amount, and for each level its number, its name, and the experience that it requires.
+
+#### Scenario: Experience of a class level
+- **WHEN** a class names a level template
+- **THEN** the catalog gives the experience that each level of that class requires
+
+### Requirement: Effects record what they do
+
+The catalog SHALL record for each effect its type, its tag, whether it is a state, whether it is a buff on the caster, its stack limit, whether several casters can apply it, its pulses, its duration, whether it lasts without end, whether a player can remove it, and whether it persists. For each rank, the catalog SHALL record the damage type and the damage, the stat that the rank alters, the weapon damage and skill modifiers, lifesteal, the health modifiers, the delay, the effect that the rank requires with its modifier, the stat changes, the nested effects with their chance and rank, the teleport destination scene, the loot table, the pet with its count and duration, the knockback and motion distances, the dispel target, the taunt threat, and the resurrection health. A value of a native enum that the collector cannot name SHALL keep its number.
+
+#### Scenario: Stun effect
+- **WHEN** an effect of the type Stun lasts 3 seconds
+- **THEN** the catalog records the type Stun and the duration 3
+
+### Requirement: Enchantments record where they apply and their tiers
+
+The catalog SHALL record for each enchantment the item types, rarities, armor types and slots, and weapon types and slots that accept it, and for each tier its currency costs, its item costs, its success rate, its enchanting time, its skill and skill experience, and its stats.
+
+#### Scenario: Tier with a cost and a stat
+- **WHEN** an enchantment tier costs gold and a material and gives a stat
+- **THEN** the catalog records both costs and the stat with that tier
+
+### Requirement: Stats record their rules
+
+The catalog SHALL record for each stat its minimum and maximum when the game checks them, its base value, whether it is a percentage, whether it is a vitality stat, its starting percentage, its regeneration in and out of combat and while sprinting or blocking with the amount and the interval, its interface category, its stat category, its stat bonuses, its on-hit effects with their rank, target, tag, and chance, and its proc cooldown.
+
+#### Scenario: Regenerating vitality stat
+- **WHEN** a vitality stat regenerates outside combat
+- **THEN** the catalog records the amount and the interval of that regeneration
+
+### Requirement: Factions record reputation
+
+The catalog SHALL record for each faction whether the reputation window shows it, its stances in their authored order with the points that each stance requires and its alignment toward the player, and its default relation to each other faction with the starting points.
+
+#### Scenario: Stance thresholds
+- **WHEN** a faction has the stances Hostile, Neutral, and Friendly
+- **THEN** the catalog lists them in the authored order with their required points
+
+### Requirement: Abilities record their rank mechanics
+
+The catalog SHALL record for each ability its type, whether a character knows it by default, and whether it requires a ranged weapon. For each rank, the catalog SHALL record its unlock cost, its activation type, its cast time, its channel time, its cooldown, whether it uses the global cooldown, its minimum and maximum range, its target type, its area radius, its cone angle and range, its projectile count, the most targets that it hits, the effects that it applies to its targets and to its caster with their chance, rank, and target, and its requirement groups. The tooltip text of each rank SHALL stay.
+
+#### Scenario: Ability that applies an effect
+- **WHEN** an ability rank applies a bleed effect with a chance of 50 percent
+- **THEN** the catalog records that effect, the chance 50, and the rank of the effect with the ability rank
+
+### Requirement: The catalog derives who learns and applies what
+
+The catalog SHALL derive for each ability the classes and skills that give it: through a spellbook node with its unlock level, through a talent tree node with its tree, tier, and row, as the auto-attack ability of a class, or as an action ability. The catalog SHALL derive for each recipe and resource node the talent tree nodes that unlock it, and for each effect the abilities, effects, and stats that apply it.
+
+#### Scenario: Class ability from a spellbook
+- **WHEN** a class spellbook has an ability node with the unlock level 10
+- **THEN** the ability lists that class at level 10
+
+#### Scenario: Profession unlock
+- **WHEN** a skill talent tree has a recipe node at tier 2
+- **THEN** that recipe lists the tree, tier 2, and the row of the node
+
+### Requirement: Missing and unresolved data stay visible
+
+When a record, a list, or a list member is null in the game data, the evidence SHALL record it as unavailable with its field path, and the catalog SHALL NOT invent a value for it. When a node, a bonus rank, an effect, or a class names an ID that no record has, the catalog SHALL record a missing-reference coverage issue, SHALL keep the reference with the ID in its label and without a target, and SHALL derive no relation from it. The catalog SHALL read support evidence only from the canonical target of its plan, and SHALL stop when that target has no `compendium.support.v2` evidence. Other targets of the plan MAY keep `compendium.support.v1` evidence.
+
+#### Scenario: Node names a missing ability
+- **WHEN** a talent tree node names an ability ID that the game database lacks
+- **THEN** the catalog records a missing-reference issue for that node
+- **AND** no class lists that ability through the node
+
+#### Scenario: Old support evidence on the canonical target
+- **WHEN** a catalog plan names a canonical target that has only `compendium.support.v1` evidence
+- **THEN** the catalog build stops with an error that names the target
+
+#### Scenario: Old support evidence on another target
+- **WHEN** a catalog plan admits a scene scan with `compendium.support.v1` evidence beside a canonical target with `compendium.support.v2` evidence
+- **THEN** the catalog admits that scene scan
