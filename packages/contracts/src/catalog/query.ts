@@ -1,3 +1,4 @@
+import type { NormalizedProgressionFact, NormalizedProgressionLink, NormalizedSpellbookNode, NormalizedTalentNode } from "./progression";
 import { Type, type Static } from "typebox";
 import { Assert } from "typebox/value";
 import type { PlacementIdentityResult } from "../raw/placement";
@@ -6,7 +7,7 @@ import type { RoleScope } from "./roles";
 import type { TooltipLine } from "./tooltip";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v6" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v7" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });
@@ -360,6 +361,10 @@ export interface NormalizedDatabaseInput {
   gearSetMembers?: NormalizedGearSetMember[];
   gearSetTiers?: NormalizedGearSetTier[];
   gearSetTierStats?: NormalizedGearSetTierStat[];
+  progressionFacts?: NormalizedProgressionFact[];
+  progressionLinks?: NormalizedProgressionLink[];
+  talentNodes?: NormalizedTalentNode[];
+  spellbookNodes?: NormalizedSpellbookNode[];
   artworkAssets?: NormalizedArtworkAsset[];
   artworkBindings?: NormalizedArtworkBinding[];
   identityResults: Array<{ runId: string; snapshotId: string; snapshotPrefix: string; snapshotSha256: string; character: string; sceneHandle: number; result: PlacementIdentityResult }>;

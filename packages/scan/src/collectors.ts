@@ -111,7 +111,7 @@ const DEFINITIONS: readonly CollectorDefinition[] = [
   { family: "roles", name: "faction-roles", schema: FactionRolesSchema, modules: ["faction-roles"] },
   { family: "relationships", name: "relationships", schema: RelationshipsSchema, modules: ["conditions", "relationships"] },
   { family: "relationships", name: "loot-rules", schema: LootRulesSchema, modules: ["loot-rules"] },
-  { family: "relationships", name: "support", schema: SupportSchema, modules: ["support"] },
+  { family: "relationships", name: "support", schema: SupportSchema, modules: ["conditions", "support"] },
   { family: "spatial", name: "map-geometry", schema: MapGeometrySchema, modules: ["map-geometry"] },
   { family: "spatial", name: "navigation-geometry", schema: NavigationGeometrySchema, modules: ["navigation-geometry"] },
 ];

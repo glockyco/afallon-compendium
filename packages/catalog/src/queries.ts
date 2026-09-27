@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogAbilityFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogInteractionRow, CatalogGatedSourceRow, CatalogAvailabilityRule, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementSpan, CatalogRequirementGroup, CatalogRequirementNamedValue, CatalogRequirementEntry, CatalogRequirementTime, CatalogRelations } from "@afallon/contracts/catalog";
-import type { CatalogRandomChoice } from "@afallon/contracts/catalog";
+import type { CatalogProgression, CatalogProgressionApplier, CatalogProgressionFact, CatalogProgressionLearner, CatalogProgressionUnlock, CatalogRandomChoice, NormalizedReference, ProgressionDetails } from "@afallon/contracts/catalog";
 import { categoryLabel } from "@afallon/contracts/public";
 import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
 import { containerTypeFromHierarchyPath } from "./world";
@@ -427,7 +427,7 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
   for (const row of db.query<{ entity_key: string; rank: number; item_entity_key: string | null; item_label: string; count: number }, []>("SELECT entity_key, rank, item_entity_key, item_label, count FROM recipe_materials ORDER BY entity_key, rank, material_index").all()) { const key = `${row.entity_key}:${row.rank}`, values = materials.get(key) ?? []; values.push({ item: endpoint(refs, row.item_entity_key, row.item_label), count: row.count }); materials.set(key, values); }
   for (const row of db.query<{ entity_key: string; rank: number; unlock_cost: number; experience: number; craft_time: number }, []>("SELECT entity_key, rank, unlock_cost, experience, craft_time FROM recipe_ranks ORDER BY entity_key, rank").all()) { const values = ranks.get(row.entity_key) ?? []; values.push({ rank: row.rank, unlockCost: row.unlock_cost, experience: row.experience, craftTime: row.craft_time, products: products.get(`${row.entity_key}:${row.rank}`) ?? [], materials: materials.get(`${row.entity_key}:${row.rank}`) ?? [] }); ranks.set(row.entity_key, values); }
   const recipes = db.query<{ entity_key: string; skill_entity_key: string | null; skill_label: string | null; station_entity_key: string | null; station_label: string | null; learned_by_default: number }, []>("SELECT entity_key, skill_entity_key, skill_label, station_entity_key, station_label, learned_by_default FROM recipe_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, skill: row.skill_entity_key === null && row.skill_label === null ? null : endpoint(refs, row.skill_entity_key, row.skill_label), station: row.station_entity_key === null && row.station_label === null ? null : endpoint(refs, row.station_entity_key, row.station_label), learnedByDefault: row.learned_by_default === 1, ranks: ranks.get(row.entity_key) ?? [] }));
-  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets } };
+  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets, progression: queryProgression(db) } };
 }
 
 // The world loot settings and the level band that the loot relations keep with each world and level-band entry.
@@ -673,6 +673,60 @@ function requirementTime(value: unknown): CatalogRequirementTime | null {
   if (value === null || typeof value !== "object") return null;
   const row = value as CatalogRequirementTime;
   return row;
+}
+
+// Progression records with the relations that pages read: who learns each ability, which talent node unlocks each
+// recipe or resource node, and what applies each effect. Relations follow the facts, so the catalog stores them once.
+function queryProgression(db: Database): CatalogProgression {
+  const ref = (key: string | null, label: string | null): NormalizedReference => ({ entityKey: key, label: label ?? key ?? "Unknown" });
+  const facts: CatalogProgressionFact[] = db.query<{ entity_key: string; name: string | null; kind: string; details_json: string }, []>("SELECT entity_key, name, kind, details_json FROM progression_facts ORDER BY entity_key").all().map((row) => {
+    const details: ProgressionDetails = JSON.parse(`{"kind":${JSON.stringify(row.kind)},"details":${row.details_json}}`);
+    return { ...details, entityKey: row.entity_key, name: row.name };
+  });
+  const names = new Map(facts.map((fact) => [fact.entityKey, fact.name]));
+  const links = db.query<{ owner_key: string; link_kind: "talentTree" | "spellbook"; link_index: number; target_key: string | null; target_label: string }, []>("SELECT owner_key, link_kind, link_index, target_key, target_label FROM progression_links ORDER BY owner_key, link_kind, link_index").all()
+    .map((row) => ({ owner: row.owner_key, linkIndex: row.link_index, linkKind: row.link_kind, target: ref(row.target_key, row.target_label) }));
+  const talentNodes = db.query<{ tree_key: string; node_index: number; node_type_json: string; target_key: string | null; target_label: string | null; tier: number; row: number; condition_id: string | null }, []>("SELECT tree_key, node_index, node_type_json, target_key, target_label, tier, row, condition_id FROM talent_nodes ORDER BY tree_key, node_index").all()
+    .map((row) => ({ tree: row.tree_key, nodeIndex: row.node_index, nodeType: enumName(row.node_type_json), target: row.target_label === null ? null : ref(row.target_key, row.target_label), tier: row.tier, row: row.row, conditionId: row.condition_id }));
+  const spellbookNodes = db.query<{ book_key: string; node_index: number; node_type_json: string; target_key: string | null; target_label: string | null; unlock_level: number }, []>("SELECT book_key, node_index, node_type_json, target_key, target_label, unlock_level FROM spellbook_nodes ORDER BY book_key, node_index").all()
+    .map((row) => ({ book: row.book_key, nodeIndex: row.node_index, nodeType: enumName(row.node_type_json), target: row.target_label === null ? null : ref(row.target_key, row.target_label), unlockLevel: row.unlock_level }));
+  const owners = new Map<string, string[]>();
+  for (const link of links) if (link.target.entityKey !== null) owners.set(link.target.entityKey, [...owners.get(link.target.entityKey) ?? [], link.owner]);
+  const learners: CatalogProgressionLearner[] = [], unlocks: CatalogProgressionUnlock[] = [], appliers: CatalogProgressionApplier[] = [];
+  for (const node of talentNodes) {
+    if (node.target?.entityKey == null) continue;
+    const tree = ref(node.tree, names.get(node.tree) ?? null), treeOwners = owners.get(node.tree) ?? [];
+    if (node.nodeType === "ability") for (const owner of treeOwners) learners.push({ ability: node.target.entityKey, owner: ref(owner, names.get(owner) ?? null), via: "talentTree", source: tree, level: null, tier: node.tier, row: node.row });
+    if (node.nodeType === "recipe" || node.nodeType === "resourceNode") {
+      if (treeOwners.length === 0) unlocks.push({ target: node.target.entityKey, owner: null, tree, tier: node.tier, row: node.row });
+      for (const owner of treeOwners) unlocks.push({ target: node.target.entityKey, owner: ref(owner, names.get(owner) ?? null), tree, tier: node.tier, row: node.row });
+    }
+  }
+  for (const node of spellbookNodes) {
+    if (node.nodeType !== "ability" || node.target?.entityKey == null) continue;
+    for (const owner of owners.get(node.book) ?? []) learners.push({ ability: node.target.entityKey, owner: ref(owner, names.get(owner) ?? null), via: "spellbook", source: ref(node.book, names.get(node.book) ?? null), level: node.unlockLevel, tier: null, row: null });
+  }
+  for (const fact of facts) {
+    const owner = ref(fact.entityKey, fact.name);
+    if (fact.kind === "classes" && fact.details.autoAttackAbility?.entityKey) learners.push({ ability: fact.details.autoAttackAbility.entityKey, owner, via: "autoAttack", source: null, level: null, tier: null, row: null });
+    if (fact.kind === "classes" || fact.kind === "skills") for (const action of fact.details.actionAbilities) if (action.ability.entityKey !== null) learners.push({ ability: action.ability.entityKey, owner, via: "actionAbility", source: null, level: null, tier: null, row: null });
+    if (fact.kind === "abilities") for (const rank of fact.details.ranks) {
+      for (const effect of rank.effectsApplied) if (effect.effect.entityKey !== null) appliers.push({ effect: effect.effect.entityKey, source: owner, via: "ability", rank: rank.rank, chance: effect.chance });
+      for (const effect of rank.casterEffectsApplied) if (effect.effect.entityKey !== null) appliers.push({ effect: effect.effect.entityKey, source: owner, via: "casterAbility", rank: rank.rank, chance: effect.chance });
+    }
+    if (fact.kind === "effects") for (const rank of fact.details.ranks) for (const effect of rank.nestedEffects) if (effect.effect.entityKey !== null) appliers.push({ effect: effect.effect.entityKey, source: owner, via: "effect", rank: rank.rank, chance: effect.chance });
+    if (fact.kind === "stats") for (const hit of fact.details.onHitEffects) if (hit.effect.entityKey !== null) appliers.push({ effect: hit.effect.entityKey, source: owner, via: "statOnHit", rank: null, chance: hit.chance });
+  }
+  const order = (value: number | null) => value ?? -1;
+  learners.sort((a, b) => a.ability.localeCompare(b.ability) || a.owner.label.localeCompare(b.owner.label) || order(a.level) - order(b.level) || order(a.tier) - order(b.tier) || order(a.row) - order(b.row) || a.via.localeCompare(b.via));
+  unlocks.sort((a, b) => a.target.localeCompare(b.target) || (a.owner?.label ?? "").localeCompare(b.owner?.label ?? "") || a.tier - b.tier || a.row - b.row);
+  appliers.sort((a, b) => a.effect.localeCompare(b.effect) || a.source.label.localeCompare(b.source.label) || order(a.rank) - order(b.rank) || a.via.localeCompare(b.via));
+  return { facts, links, talentNodes, spellbookNodes, learners, unlocks, appliers };
+}
+
+function enumName(value: string): string {
+  const parsed: unknown = JSON.parse(value);
+  return parsed !== null && typeof parsed === "object" && "name" in parsed && typeof parsed.name === "string" ? parsed.name : "Unknown";
 }
 
 function requirementEndpoint(refs: ReadonlyMap<string, CatalogEndpoint>, requirement: Record<string, unknown>, field: string, kind: string): CatalogEndpoint | null {

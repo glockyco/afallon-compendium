@@ -16,13 +16,35 @@ const FAMILY_BY_SCHEMA: Readonly<Record<string, ScanCollectorFamily>> = {
   "compendium.npc-producers.v3": "producers", "compendium.world-sources.v8": "producers",
   "compendium.placement-snapshot.v1": "placements", "compendium.placement-identities.v1": "placements", "compendium.serialized-assets.v2": "placements", "compendium.scene-source-issues.v2": "placements",
   "compendium.faction-roles.v1": "roles", "compendium.placement-roles.v1": "roles",
-  "compendium.relationships.v1": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships",
+  "compendium.relationships.v1": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships", "compendium.support.v2": "relationships",
   "compendium.scene-catalog.v1": "spatial", "compendium.map-geometry.v3": "spatial", "compendium.navigation-geometry.v2": "spatial",
   "compendium.scan-coverage.v1": "coverage", "compendium.coverage.v2": "coverage",
 };
 
 export function evidenceReference(identity: ContentIdentity): ArtifactReference {
   return { path: `objects/sha256/${identity.sha256.slice(0, 2)}/${identity.sha256.slice(2)}`, sha256: identity.sha256, bytes: identity.bytes };
+}
+
+type EnvelopeArtifact = ScanTargetEnvelope["artifacts"][number];
+
+/**
+ * The registered schema of an artifact that a scan target declares. The schema must belong to the declared family and
+ * match the registered identity. Relationships v1 and support v1 artifacts from older scans keep their identity names
+ * with an earlier schema text, so admission accepts them under the registered schema of that name.
+ */
+export function admittedArtifactSchema(targetIdentity: string, artifact: Pick<EnvelopeArtifact, "family" | "name" | "schema">) {
+  const key = `${artifact.family}/${artifact.name}`;
+  if (FAMILY_BY_SCHEMA[artifact.schema.id] !== artifact.family) throw new Error(`Target ${targetIdentity}/${key} declares a schema from another family.`);
+  const schema = schemaRegistry.require(artifact.schema.id);
+  if (schema.sha256 !== artifact.schema.sha256 && artifact.schema.id !== "compendium.relationships.v1" && artifact.schema.id !== "compendium.support.v1") throw new Error(`Target ${targetIdentity}/${key} has an incompatible schema identity.`);
+  return schema;
+}
+
+/** The one artifact of a family and schema that a target must supply, such as the support evidence of the canonical target. */
+export function requiredTargetArtifact<A extends Pick<EnvelopeArtifact, "family" | "schema">>(envelope: { targetIdentity: string; artifacts: readonly A[] }, family: string, schemaId: string): A {
+  const matches = envelope.artifacts.filter((artifact) => artifact.family === family && artifact.schema.id === schemaId);
+  if (matches.length !== 1) throw new Error(`Target ${envelope.targetIdentity}/${family} requires exactly one ${schemaId}; found ${matches.length}.`);
+  return matches[0]!;
 }
 
 export async function readObject<T extends TSchema>(store: ArtifactStore, identity: ContentIdentity, schema: T, target: string): Promise<Static<T>> {
@@ -135,9 +157,7 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
         if (names.has(key)) throw new Error(`Target ${envelope.targetIdentity} repeats artifact ${key}.`);
         names.add(key);
         if (!families.has(artifact.family)) throw new Error(`Target ${envelope.targetIdentity} has undeclared family ${artifact.family}.`);
-        if (FAMILY_BY_SCHEMA[artifact.schema.id] !== artifact.family) throw new Error(`Target ${envelope.targetIdentity}/${key} declares a schema from another family.`);
-        const schema = schemaRegistry.require(artifact.schema.id);
-        if (schema.sha256 !== artifact.schema.sha256 && artifact.schema.id !== "compendium.relationships.v1" && artifact.schema.id !== "compendium.support.v1") throw new Error(`Target ${envelope.targetIdentity}/${key} has an incompatible schema identity.`);
+        const schema = admittedArtifactSchema(envelope.targetIdentity, artifact);
         const document = await readObject(store, artifact.content, schema.schema, `${envelope.targetIdentity}/${key}`);
         for (const dependency of artifact.inputs) {
           await store.verify(dependency);
@@ -170,10 +190,7 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
   const canonicalTarget = targets.find((target) => target.manifest.sha256 === plan.canonicalTarget.manifest.sha256 && target.envelope.targetIdentity === plan.canonicalTarget.targetIdentity);
   if (!canonicalTarget) throw new Error("The explicit canonical target is absent from its manifest.");
   const load = async <T extends TSchema>(target: AdmittedTarget, family: ScanCollectorFamily, schema: T) => {
-    const registered = schemaRegistry.identify(schema);
-    const matches = target.envelope.artifacts.filter((artifact) => artifact.family === family && artifact.schema.id === registered.id);
-    if (matches.length !== 1) throw new Error(`Target ${target.envelope.targetIdentity}/${family} requires exactly one ${registered.id}; found ${matches.length}.`);
-    const artifact = matches[0]!;
+    const artifact = requiredTargetArtifact(target.envelope, family, schemaRegistry.identify(schema).id);
     const value = await readObject(store, artifact.content, schema, `${target.envelope.targetIdentity}/${family}`);
     return { value, reference: evidenceReference(artifact.content), content: artifact.content };
   };

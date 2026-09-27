@@ -8,9 +8,9 @@ Record in the catalog how characters progress and what game systems do: classes,
 
 The catalog SHALL record for each class its auto-attack ability, its base stats with the growth of each stat per level, its skill bonuses, its level template, its spellbooks, its talent trees, its starting items with their count and whether they start equipped, its action abilities, and its stat allocation points and entries. When a class takes its stats from a stat list template, the catalog SHALL record the stats of that template and SHALL state that the class uses it.
 
-#### Scenario: Class with spellbooks and talent trees
+#### Scenario: Class with talent trees
 - **WHEN** the catalog is built from a scan of build 25434619
-- **THEN** the Shieldmaster class names its spellbooks and its talent trees, and Bastion Breaker is one of the talent trees
+- **THEN** the Shieldmaster class names its five talent trees, and Bastion Breaker is one of them
 
 ### Requirement: Spellbooks and talent trees record their nodes
 

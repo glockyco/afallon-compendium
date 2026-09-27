@@ -13,6 +13,7 @@ import { pointer, type Blocker, type Exclusion } from "./context";
 import { hashRelation } from "./database";
 import { collectSourceGates } from "./availability";
 import { collectPlacementAreas } from "./areas";
+import { normalizeProgression } from "./progression";
 
 // A place has a closed level range only when its maximum is a level. The game reads a zone scaling of 0 to 0 as no
 // range. A minimum below 1 becomes 1, and a maximum below the minimum becomes the minimum.
@@ -20,6 +21,17 @@ function placeLevels(min: number | null | undefined, max: number | null | undefi
   if (max === null || max === undefined || max < 1) return { levelMin: null, levelMax: null };
   const levelMin = Math.max(1, min ?? 1);
   return { levelMin, levelMax: Math.max(max, levelMin) };
+}
+
+// Entity rows keep the gameplay that support evidence carried before the progression capture: the tooltip ranks of
+// abilities, the weapon types of classes, and the recipe, station, and gear set fields. The progression tables hold the
+// rest, so entity details and the pages that read them do not change with the capture.
+function entityGameplay(kind: string, gameplay: Record<string, unknown> | undefined): unknown {
+  if (gameplay === undefined) return null;
+  if (kind === "abilities") return { ranks: gameplay.ranks };
+  if (kind === "classes") return { allowedWeaponTypes: gameplay.allowedWeaponTypes };
+  if (kind === "recipes" || kind === "craftingStations" || kind === "gearSets") return gameplay;
+  return null;
 }
 
 function canonicalEntities(canonical: Canonical, buildId: string, reference: ArtifactReference): NormalizedEntity[] {
@@ -188,6 +200,7 @@ export function collectTypedFacts(admitted: AdmittedCatalog, entities: Normalize
 
   const supportFamilies = ["abilities", "recipes", "craftingStations", "gearSets"] as const;
   for (const family of supportFamilies) for (const [index, support] of (admitted.support.value.tables[family] ?? []).entries()) {
+    if ("unavailable" in support) continue;
     const key = entityKey(family, support.entry.nativeId), path = `/tables/${family}/${index}`, provenance = [pointer(admitted.support.reference, path)];
     if (family === "abilities") {
       if (support.gameplay === undefined) throw new Error(`Ability ${key} has no gameplay tooltip evidence.`);
@@ -246,14 +259,18 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   const entities = canonicalEntities(canonical.value, plan.buildId, canonical.reference);
   const supportKinds = ["abilities", "effects", "recipes", "craftingStations", "factions", "currencies", "skills", "classes", "races", "talentTrees", "enchantments", "gearSets", "species", "stats"] as const;
   const admittedKeys = new Set(entities.map((row) => row.entityKey));
+  for (const [kind, table] of Object.entries(admitted.support.value.tables)) for (const [index, row] of table.entries()) {
+    if ("unavailable" in row) blockers.push({ kind: "unavailable-support-record", key: `support:${kind}:${row.sourceKey}`, detail: `${row.unavailable} at ${row.sourceFieldPath}.`, provenance: [pointer(admitted.support.reference, `/tables/${kind}/${index}`)] });
+  }
   for (const kind of supportKinds) {
     const table = admitted.support.value.tables[kind] ?? [], expected = admitted.support.value.sourceTotals[kind];
     if (expected !== undefined && table.length !== expected) throw new Error(`Support ${kind} count ${table.length} differs from source total ${expected}.`);
     if (kind === "stats") continue;
     for (const [index, row] of table.entries()) {
+      if ("unavailable" in row) continue;
       const key = entityKey(kind, row.entry.nativeId); if (admittedKeys.has(key)) continue;
       const definition = row.entry as typeof row.entry & { description?: unknown; localization?: unknown; icon?: unknown };
-      entities.push({ entityKey: key, buildId: plan.buildId, kind, nativeId: row.entry.nativeId, ...publicEntityDetails(definition), sourceKey: row.sourceKey, publicData: { localization: definition.localization ?? null, gameplay: row.gameplay ?? null, icon: definition.icon ?? null }, provenance: [pointer(admitted.support.reference, `/tables/${kind}/${index}`)] }); admittedKeys.add(key);
+      entities.push({ entityKey: key, buildId: plan.buildId, kind, nativeId: row.entry.nativeId, ...publicEntityDetails(definition), sourceKey: row.sourceKey, publicData: { localization: definition.localization ?? null, gameplay: entityGameplay(kind, row.gameplay), icon: definition.icon ?? null }, provenance: [pointer(admitted.support.reference, `/tables/${kind}/${index}`)] }); admittedKeys.add(key);
     }
   }
   for (const [index, row] of relationships.value.currencies.entries()) { const key = entityKey("currencies", row.nativeId); if (!admittedKeys.has(key)) { entities.push({ entityKey: key, buildId: plan.buildId, kind: "currencies", nativeId: row.nativeId, ...publicEntityDetails(row), sourceKey: null, publicData: { localization: null, gameplay: null, icon: null }, provenance: [pointer(relationships.reference, `/currencies/${index}`)] }); admittedKeys.add(key); } }
@@ -276,7 +293,8 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
     const linked = (nativeId: number | null, field: string): number | null => { if (nativeId === null || nativeId < 0) return null; if (knownEntities.has(entityKey("npcs", nativeId))) return nativeId; blockers.push({ kind: "missing-reference", key: `linked-npc:${row.npcId}:${field}:${nativeId}`, detail: `Linked NPC rule references missing NPC ${nativeId}.`, provenance }); return null; };
     return [{ ...row, authoredLinkedNpcId: linked(row.authoredLinkedNpcId, "authored") ?? -1, resolvedLinkedNpcId: linked(row.resolvedLinkedNpcId, "resolved"), resolvedLootSpecNpcId: linked(row.resolvedLootSpecNpcId, "loot-specialization") }];
   });
-  const conditions = [...spawn.conditions, ...collectWorldConditions(contexts, blockers), ...relations.conditions];
+  const progression = normalizeProgression(admitted.support.value, admitted.support.reference, new Map(entities.map((row) => [row.entityKey, row.name])), blockers);
+  const conditions = [...spawn.conditions, ...collectWorldConditions(contexts, blockers), ...relations.conditions, ...progression.conditions];
   for (const kind of ["lootTables", "quests", "tasks", "resources"] as const) for (const [index, row] of relationships.value[kind].entries()) if ("nativeId" in row && typeof row.nativeId === "number") conditions.push(...conditionRowsFor("entity", entityKey(kind, row.nativeId), row, pointer(relationships.reference, `/${kind}/${index}`)));
   for (const [index, row] of (relationships.value.items ?? []).entries()) conditions.push(...conditionRowsFor("entity", entityKey("items", row.nativeId), row, pointer(relationships.reference, `/items/${index}`)));
   for (const condition of conditions) {
@@ -454,5 +472,5 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   const sourceRunIds = Object.fromEntries(admitted.sources.map((source) => [source.reference.sha256, [...new Set(source.origins.map((origin) => origin.runId))]]));
   const sourceRunId = contexts[0]?.snapshotRunId;
   if (!sourceRunId) throw new Error("Catalog has no admitted observation context.");
-  return { buildId: plan.buildId, sourceRunId, sourceRunIds, derivations: [...derivationIndex.values()], imagery: admitted.imagery.map(({ reference, document }) => ({ assetId: `${document.layer.mapSpaceId}:${document.layer.id}`, mapSpaceId: document.layer.mapSpaceId, kind: document.layer.kind, sha256: reference.sha256, bytes: reference.bytes, metadata: document.layer, provenance: [evidenceReference(reference)] })), ...factRows, worldQuestFacts: worlds.worldQuestFacts, identityResults: contexts.map((context) => ({ runId: context.snapshotRunId, snapshotId: context.snapshotId, snapshotPrefix: context.snapshotPrefix, snapshotSha256: context.snapshotReference.sha256, character: context.character, sceneHandle: context.sceneHandle, result: context.identityResult })), entities, scenes: [...sceneRows.values()], mapSpaces: profile.mapSpaces, bindings, placements: placements.placements, sources: placements.sources, roles, regions, conditions: uniqueConditions, spawnCandidates: mergeEvidence(spawn.candidates, (row) => `${row.sourceId}:${row.candidateIndex}`), sourceGates, randomChoices: choices, placementAreas, merchantTables: relations.merchantTables, merchantBindings: relations.merchantBindings, merchantStock: relations.merchantStock, lootTables: relations.lootTables, lootBindings: relations.lootBindings, lootEntries: relations.lootEntries, linkedNpcRules: relations.linkedNpcRules, resourceYields, questAssociations, transitions: worlds.transitions, itemSources, entityDetails: details, sourceDetails: sourceDetails(contexts, placements.sourcePlacement), patrolPaths, sceneSpawns, blockers: [...new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values()], coverageOccurrences, exclusions: [...new Map(exclusions.map((row) => [row.key, row])).values()], inputCoverage: null, provenance: { plan: planReference, profile: profileReference, sources: admitted.sources.map((source) => source.reference) } };
+  return { buildId: plan.buildId, sourceRunId, sourceRunIds, derivations: [...derivationIndex.values()], imagery: admitted.imagery.map(({ reference, document }) => ({ assetId: `${document.layer.mapSpaceId}:${document.layer.id}`, mapSpaceId: document.layer.mapSpaceId, kind: document.layer.kind, sha256: reference.sha256, bytes: reference.bytes, metadata: document.layer, provenance: [evidenceReference(reference)] })), ...factRows, progressionFacts: progression.progressionFacts, progressionLinks: progression.progressionLinks, talentNodes: progression.talentNodes, spellbookNodes: progression.spellbookNodes, worldQuestFacts: worlds.worldQuestFacts, identityResults: contexts.map((context) => ({ runId: context.snapshotRunId, snapshotId: context.snapshotId, snapshotPrefix: context.snapshotPrefix, snapshotSha256: context.snapshotReference.sha256, character: context.character, sceneHandle: context.sceneHandle, result: context.identityResult })), entities, scenes: [...sceneRows.values()], mapSpaces: profile.mapSpaces, bindings, placements: placements.placements, sources: placements.sources, roles, regions, conditions: uniqueConditions, spawnCandidates: mergeEvidence(spawn.candidates, (row) => `${row.sourceId}:${row.candidateIndex}`), sourceGates, randomChoices: choices, placementAreas, merchantTables: relations.merchantTables, merchantBindings: relations.merchantBindings, merchantStock: relations.merchantStock, lootTables: relations.lootTables, lootBindings: relations.lootBindings, lootEntries: relations.lootEntries, linkedNpcRules: relations.linkedNpcRules, resourceYields, questAssociations, transitions: worlds.transitions, itemSources, entityDetails: details, sourceDetails: sourceDetails(contexts, placements.sourcePlacement), patrolPaths, sceneSpawns, blockers: [...new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values()], coverageOccurrences, exclusions: [...new Map(exclusions.map((row) => [row.key, row])).values()], inputCoverage: null, provenance: { plan: planReference, profile: profileReference, sources: admitted.sources.map((source) => source.reference) } };
 }

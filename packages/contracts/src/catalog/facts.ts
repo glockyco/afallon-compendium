@@ -1,3 +1,4 @@
+import type { CatalogProgression } from "./progression";
 import type { TooltipLine } from "./tooltip";
 
 // Typed catalog facts and relation rows for the compendium. Publication reads these through the
@@ -199,6 +200,7 @@ export interface CatalogFacts {
   abilities: CatalogAbilityFacts[];
   recipes: CatalogRecipeFacts[];
   gearSets: CatalogGearSetFacts[];
+  progression: CatalogProgression;
 }
 
 export interface CatalogCondition { conditionId: string; semantics: string; scope: "equipment" | "use" | null; label: string; requirements: CatalogRequirementGroup[] }

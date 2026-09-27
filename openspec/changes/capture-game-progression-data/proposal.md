@@ -36,7 +36,7 @@ None.
 ## Impact
 
 - Scan: `packages/scan/src/probes/collectors/support.csx` gains projections, and `packages/scan/src/collectors.ts` composes the support collector with the shared `conditions` module.
-- Contracts: `packages/contracts/src/raw/database.ts` (`SupportSchema` v2) and `packages/contracts/src/catalog/facts.ts` (new fact types in `CatalogFacts`).
+- Contracts: `packages/contracts/src/raw/database.ts` (`SupportSchema` v2) and `packages/contracts/src/catalog/progression.ts` (new fact types, returned in `CatalogFacts`).
 - Catalog: decoders, normalization, SQLite tables, and queries in `packages/catalog/src/`, with their tests.
 - Runtime: one scan of scene 44 through HotRepl with the configured research character, a new catalog plan, and a catalog candidate.
 - Publication code, site code, and the accepted publication: unchanged by this change. The catalog candidate is accepted together with the first publication that uses its facts.

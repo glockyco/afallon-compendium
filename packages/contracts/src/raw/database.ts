@@ -77,10 +77,23 @@ export type QuestLevels = Static<typeof QuestLevelsSchema>;
 // collector projects them; the catalog decodes it at its typed boundary like canonical `gameplay`.
 export const SupportEntrySchema = Type.Object({ sourceKey: integer, entry: definition, gameplay: Type.Optional(rawObject) });
 export type SupportEntry = Static<typeof SupportEntrySchema>;
-export const SupportSchema = Type.Object({
+// Scans made before the progression capture carry v1 support evidence. Admission still validates it, but the
+// catalog reads support evidence only from its canonical target, which must carry v2.
+export const SupportV1Schema = Type.Object({
   schemaVersion: Type.Literal("compendium.support.v1"), language: text,
   sourceTotals: Type.Record(text, integer),
   tables: Type.Record(text, Type.Array(SupportEntrySchema)),
+});
+// v2 adds the gameplay of classes, skills, level templates, effects, enchantments, stats, factions, talent points,
+// bonuses, talent trees, and spellbooks, and the rank mechanics of abilities. `requirementIssues` lists requirement
+// rows that the shared condition projection could not read.
+// A null record in a game table stays visible as an unavailable row with its field path.
+export const SupportUnavailableSchema = Type.Object({ sourceKey: integer, unavailable: text, sourceFieldPath: text });
+export type SupportUnavailable = Static<typeof SupportUnavailableSchema>;
+export const SupportSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.support.v2"), language: text, requirementIssues: rawRows,
+  sourceTotals: Type.Record(text, integer),
+  tables: Type.Record(text, Type.Array(Type.Union([SupportEntrySchema, SupportUnavailableSchema]))),
 });
 export type Support = Static<typeof SupportSchema>;
 
