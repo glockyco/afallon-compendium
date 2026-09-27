@@ -1,43 +1,80 @@
 ## ADDED Requirements
 
-### Requirement: Random spawn choices are alternatives
+### Requirement: Random activators retain entry choices
 
-The catalog SHALL model an active `RandomActivator` whose targets contain NPC spawners as a placement rule. The rule SHALL state how many targets the game enables and the weight of each distinct target, counted from repeated entries. The map and pages SHALL present its placements as alternatives, not as simultaneous spawns.
+The catalog SHALL store admitted activators with known target counts in `random_choices` and their target entries in `random_choice_entries`. Each target entry SHALL retain its index, target path, and descendant source IDs. Repeated targets SHALL remain repeated entries. Each placement SHALL list its enclosing choices from outermost to innermost. A choice SHALL report its entry count, distinct target options, enabled count clamped to the entry count, and matching entry indexes.
 
-#### Scenario: Three daytime poses
-- **WHEN** an activator enables one of three Fenric Doryn spawners
-- **THEN** Fenric Doryn's page says he appears at one of three spots by day
-- **AND** each of the three map markers says it is one of three alternatives
+#### Scenario: One placement appears in two entries
+- **WHEN** an activator has six entries and two entries target the same placement
+- **THEN** the placement's choice retains both entry indexes
+- **AND** the distinct option count counts their target once
 
-#### Scenario: Weighted targets
-- **WHEN** an activator lists the Zombie spawner twice among six entries
-- **THEN** the rule gives that spawner a weight of two in six
+#### Scenario: Nested activators
+- **WHEN** a placement belongs to a choice nested within another choice
+- **THEN** its choice list puts the outer choice before the inner choice
 
-### Requirement: NPC levels come from confirmed rules
+### Requirement: Random locations show their chance
 
-An NPC level SHALL come from a rule that native code or runtime observation confirms. A spawner that scales with the player SHALL give "scales with the player" and the zone range that `ZoneLevelRules.TryGetZoneRangeFor` returns, which is the spawner's zone range or else its scene's range. A record level of 100 SHALL NOT be shown as a level. When no confirmed rule applies, the NPC SHALL show no level. The map, pages, lists, and name qualifiers SHALL use the same level.
+The publication SHALL calculate the chance that a uniform selection of distinct enabled entries includes a placement. It SHALL multiply the chances of nested choices and reject a placement with zero chance. Other map placements and creature locations SHALL carry `alternative: { chance, options }` when a choice applies. The site SHALL describe multiple random spots and show a chance below 100 percent. A single option SHALL be described as a random spawn.
 
-#### Scenario: A zone-scaled spawner
-- **WHEN** a spawner has fixed levels 1–2, scales with the player, and has zone range 15–30
-- **THEN** its NPC shows "15–30, scales with the player"
-- **AND** the map marker shows the same range
+#### Scenario: One creature spot among three targets
+- **WHEN** a choice enables one of three different target spots and only one spot has this creature
+- **THEN** its map spot has a 33.3 percent chance and three distinct target options
+- **AND** its creature location says “Random spawn, 33.3% chance”
 
-#### Scenario: A level rule is not confirmed
-- **WHEN** an NPC appears only through a producer whose level rule is not confirmed
-- **THEN** its page shows no level
+#### Scenario: Two spots of one creature among three targets
+- **WHEN** a choice enables one of three entries and two compatible spots have the same creature
+- **THEN** their grouped location says “One of 2 random spots, 66.7% chance”
 
-### Requirement: Hostility comes from faction standing
+#### Scenario: Two matching entries of four
+- **WHEN** a choice enables two distinct entries of four and two entries contain a placement
+- **THEN** the placement chance is the probability that at least one matching entry is enabled
+- **AND** repeated targets do not become simultaneous spawns
 
-The published hostility of an NPC SHALL come from its faction standing toward the player, as map markers already use. The ability to fight SHALL NOT make an NPC an enemy.
+### Requirement: Creature levels use confirmed native rules
 
-#### Scenario: A friendly quest giver can fight
-- **WHEN** Fenric Doryn is friendly and combat is enabled
-- **THEN** his page and list row do not show the enemy role
+A spawner SHALL use its enabled level override before its NPC record level. Player scaling SHALL use its enabled spawner zone range, otherwise its scene zone range. `COMPANION` and `ADVENTURER` records SHALL publish no level. The placeholder record range 100–100 SHALL not become a record level. Unconfirmed producers SHALL publish no level.
 
-### Requirement: Pages say where and when a character appears
+#### Scenario: Scaled spawner in a zone
+- **WHEN** a spawner scales with the player in an enabled 15–30 spawner zone
+- **THEN** its level is “15–30, scales with the player”
 
-An NPC page SHALL list each place where the character appears with its conditions: time of day, quest progress, and random alternatives. When the character's variants follow quest progress, the page SHALL order them by that progress.
+#### Scenario: Saved progression determines a level
+- **WHEN** an `ADVENTURER` or `COMPANION` record has a spawner
+- **THEN** no level is published for that record
 
-#### Scenario: Story stages
-- **WHEN** Thalgrim Wayfinder has five records gated by quest progress
-- **THEN** his page lists the five places in quest order with the quests of each stage
+### Requirement: Level displays agree across surfaces
+
+The map marker SHALL show the union of its known creature levels. A creature location and variant SHALL show their known level. A creature page SHALL show the union of its location levels. Place creature rows SHALL use the same placement levels. A list SHALL show an open level range as “15+”.
+
+#### Scenario: An open scaling range
+- **WHEN** the confirmed level range starts at 15 and has no maximum
+- **THEN** the creature list row shows “15+”
+
+### Requirement: Placement categories express hostility and services
+
+Map markers and pages SHALL derive creature roles from placement categories. Combat enablement alone SHALL NOT make a creature an enemy. When a friendly creature offers a service, its visible categories SHALL show that service instead of townsfolk.
+
+#### Scenario: Friendly merchant can fight
+- **WHEN** a friendly merchant has combat enabled
+- **THEN** map and page categories show merchant rather than enemy or townsfolk
+
+### Requirement: Creature locations show conditions and story order
+
+A creature page SHALL list its published locations with availability, levels, quests, roles, and random alternatives where available. Locations SHALL sort by the earliest chain order of the quests in their availability rules and own quest links. Ties SHALL sort by label and placement ID.
+
+#### Scenario: A quest moves a character
+- **WHEN** a character's places have availability quests at different chain steps
+- **THEN** the earlier chain step appears first
+
+### Requirement: Quest people appear once per page
+
+A quest SHALL show one NPC start entry and one turn-in entry per character page. Each entry SHALL carry the sorted area labels of the participating records. `turnIns` SHALL have entries of the shape `{ npc, areas }`. When several variants participate, the NPC reference SHALL point to their page.
+
+#### Scenario: Multiple records give a quest
+- **WHEN** three Fenric Doryn records give one quest in two areas
+- **THEN** its Start card shows one Fenric Doryn entry with both areas
+
+#### Scenario: Multiple records receive a quest
+- **WHEN** two variants of one character receive a quest
+- **THEN** its Turn-in card shows one page reference and their area labels

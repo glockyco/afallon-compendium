@@ -1,59 +1,94 @@
 ## ADDED Requirements
 
-### Requirement: One page for each NPC and ability name
+### Requirement: NPC and ability names identify pages
 
-The publication SHALL publish one page for each NPC display name and one page for each ability display name. Names SHALL be compared after Unicode normalization, case folding, apostrophe folding, and whitespace collapse. The page title SHALL use the most frequent spelling in the group, and ties SHALL take the spelling of the lowest native ID. Each native record SHALL appear on its page as a variant with its catalog entity key.
+The publication SHALL group NPC and ability records by a normalized name. Normalization SHALL apply NFKC, lowercase letters, fold curly apostrophes into straight apostrophes, and collapse whitespace. The page key SHALL be its member with the lowest native ID. The title SHALL use the most frequent formatted spelling. Ties SHALL use the spelling of the lowest-native-ID member.
 
-#### Scenario: Pose variants of one character
-- **WHEN** the catalog holds four NPC records named "Fenric Doryn"
-- **THEN** the publication has one page "Fenric Doryn" at `/npcs/fenric-doryn/`
-- **AND** the page lists the four records as variants
+#### Scenario: Records with different casing
+- **WHEN** NPC records have the names “Lysander blazeborn” and “Lysander Blazeborn”
+- **THEN** they share one page and retain separate record keys
 
-#### Scenario: Names that differ only in case
-- **WHEN** records are named "Lysander blazeborn" and "Lysander Blazeborn"
-- **THEN** they share one page
+#### Scenario: Equal spelling frequencies
+- **WHEN** two members of one normalized group have different formatted spellings with equal frequencies
+- **THEN** the title uses the formatted spelling of the lowest-native-ID member
 
-### Requirement: Variants are shown only where they differ
+### Requirement: Published names use readable casing
 
-A grouped page SHALL show facts that all variants share once. It SHALL show a variants table only when variants differ in level, health, abilities, loot, hostility, or ability numbers. The table SHALL show only the facts that differ. Each variant SHALL have a stable anchor on its page, derived from player-visible facts and falling back to the native ID.
+The publication SHALL format entity names, map labels, region names, area labels, object and container labels, and quest chain names. The formatter SHALL capitalize the first lowercase letter of each word without lowercasing other letters. Already lowercase short words such as “of”, “the”, and “into” SHALL stay lowercase inside a name. Unresolved reference labels SHALL retain their available source text. Native enum qualifiers SHALL use readable enum labels.
 
-#### Scenario: Variants differ only in place and time
-- **WHEN** all Skywarden records share every combat and loot fact
-- **THEN** the Skywarden page shows no variants table
+#### Scenario: Mixed spelling and a short word
+- **WHEN** a source names an entity “march into the Web”
+- **THEN** its formatted name is “March into the Web”
 
-#### Scenario: Monster variants differ in stats
-- **WHEN** Skeleton Warrior records differ in health and abilities
-- **THEN** the page shows a variants table with those facts per variant
+#### Scenario: Existing uppercase letters
+- **WHEN** a source names an entity “DEV RING”
+- **THEN** its formatted name stays “DEV RING”
 
-### Requirement: Record-specific references keep their variant
+### Requirement: Creature variants retain record identity
 
-A reference that names one record SHALL link to the grouped page and the variant anchor. Its label SHALL add a qualifier only when the group has more than one variant that differs in the facts shown. Quest start and turn-in lists SHALL show each page once and merge the areas of its variants.
+Each grouped NPC document SHALL retain each member's key, anchor, label, optional level, optional differing portrait, and differing record facts. Shared facts SHALL appear once. A variants table SHALL appear when `variantFields` is nonempty or a drop row has variant attribution. Otherwise, the Where to find table SHALL name the variants and hold their anchors. A variant without a published location SHALL retain an anchor in the unplaced list.
 
-#### Scenario: A kill objective targets one boss fight
-- **WHEN** "Heart of the Crag" targets one of two Cragborn Alpha records
-- **THEN** the objective links to `/npcs/cragborn-alpha/` with that variant's anchor
-- **AND** its label names the variant
+#### Scenario: Records differ only in their locations
+- **WHEN** all members share record facts and drops but appear in different places
+- **THEN** the page shows no variants table
+- **AND** the Where to find table names the members and holds their anchors
 
-#### Scenario: Three givers of one quest are one character
-- **WHEN** three Fenric Doryn records give "Hook, Line, and Frostscale"
-- **THEN** the quest shows one start entry for Fenric Doryn
+#### Scenario: Record facts differ
+- **WHEN** two records differ in health or ability phases
+- **THEN** the page shows a variants table with the differing facts
 
-### Requirement: Slugs follow display names
+#### Scenario: Drops are attributed between variants with drops
+- **WHEN** two variants have different drop rows and both have at least one drop
+- **THEN** a drop row exclusive to one variant names that variant
+- **AND** the page shows a variants table
 
-Every page slug SHALL be the slug of its display name, including any qualifier. The publication SHALL NOT keep slugs from earlier publications and SHALL NOT publish redirects.
+#### Scenario: Only one variant has drops
+- **WHEN** one variant has drops and every other variant has no drop rows or differing record facts
+- **THEN** the drop rows have no variant attribution
+- **AND** the page anchors variants in Where to find instead of showing a variants table
 
-#### Scenario: A grouped NPC page replaces record pages
-- **WHEN** a publication groups the Fenric Doryn records
-- **THEN** `/npcs/fenric-doryn-206/` does not exist
+### Requirement: Record references resolve to the right section
 
-### Requirement: Distinct entities carry readable qualifiers
+A reference to one NPC member SHALL link to its page and variant anchor. It SHALL append a variant label to its name only when `variantFields` is nonempty. A merged reference to several variants of the same page SHALL link to the page without a variant anchor.
 
-Entities that stay separate and share a name SHALL carry a qualifier built from a fact that differs between them, such as armor type, weapon damage, rarity, level requirement, place type, parent place, or level range. Names SHALL be compared without case. A qualifier SHALL NOT show a level of 0 or an internal object name. A native ID SHALL appear only when no published fact differs.
+#### Scenario: Two records with different facts
+- **WHEN** an objective targets one Cragborn Alpha record among records with different health
+- **THEN** its reference links to that record's anchor and names the variant
 
-#### Scenario: Two chest items differ in armor type
-- **WHEN** two "Peasant Chest" items are cloth and leather
-- **THEN** their names show "Cloth" and "Leather", not native IDs
+#### Scenario: Several records of one page
+- **WHEN** one relation names two members of the same creature page
+- **THEN** its merged reference links to the page without a variant anchor
 
-#### Scenario: A place has no level range
-- **WHEN** a place records a level range of 0
-- **THEN** its qualifier does not show a level
+### Requirement: Ability versions group identical rank texts
+
+An ability page SHALL group records with identical rank indexes and rank texts into one version. Each version SHALL provide its ranks, creatures that use it, items that teach it, and an icon when it differs from the page icon. A record reference SHALL link to its version anchor when the page has multiple versions.
+
+#### Scenario: Three ability records with two sets of texts
+- **WHEN** two Cleave records share their rank texts and a third has different rank texts
+- **THEN** the page shows two versions
+- **AND** each version lists the users and teaching items of its member records
+
+### Requirement: Slugs follow formatted display names
+
+A page slug SHALL derive from its formatted name and qualifier. A native-ID suffix SHALL resolve a slug collision. Earlier publication slugs SHALL NOT be retained and redirects SHALL NOT be published.
+
+#### Scenario: Records share one page
+- **WHEN** Fenric Doryn records form one page
+- **THEN** the page slug is `fenric-doryn`
+- **AND** the old per-record page slug is not published
+
+### Requirement: Separate entities use readable qualifiers
+
+Same-name items SHALL use differing rarity, gear type, damage, level requirement, or stats when possible. Same-name places SHALL use type, parent, closed level range, or entrance area with an ordinal. Creature variant labels SHALL use place, area, level, or type when possible. A native ID SHALL be the fallback. Qualifiers SHALL NOT display level zero or an internal scene object name.
+
+#### Scenario: Two different chest items
+- **WHEN** two Peasant Chest items differ in armor type
+- **THEN** their qualifiers distinguish cloth from leather without native IDs
+
+#### Scenario: Two entrances from one area
+- **WHEN** places of the same name need the same entrance area to distinguish them
+- **THEN** their qualifiers include distinct ordinals
+
+#### Scenario: Place level is not a closed range
+- **WHEN** a place has no closed positive level range
+- **THEN** its qualifier does not use that level

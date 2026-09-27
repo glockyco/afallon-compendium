@@ -1,44 +1,54 @@
-## 1. Level rules
+## 1. Native rules and catalog
 
-- [x] 1.1 Decompile `MobCombatEntity.InitNPCLevel`, `GetScaledPlayerLevel`, `ZoneLevelRules.*`, and the adventurer spawn path for build 25434619
-- [x] 1.2 Check the decompiled rules against the runtime observations and record them in EXPLORATION.md
-- [x] 1.3 Decide whether any rule needs data that the scans do not record
+- [x] 1.1 Decompile the NPC level and random activator rules for build 25434619 and compare them with runtime observations
+- [x] 1.2 Store activators as random choices and target entries, including repeated entries and nested membership
+- [x] 1.3 Supply spawner overrides, scene ranges, and producer details to publication level rules
+- [x] 1.4 Read property type, currency, purchase price, sale price, and income from typed for-sale sign references and reject conflicting signs
+- [x] 1.5 Generate item ownership phrases from catalog requirements
+- [ ] 1.6 Confirm the native interval and currency for property income and publish both
+- [ ] 1.7 Derive world loot drops on item pages from the native loot rule
+- [ ] 1.8 Explain the challenge completion effect in availability
 
-## 2. Catalog
+## 2. Publication identity and relations
 
-- [ ] 2.1 Admit random activators over placements as weighted alternative groups
-- [ ] 2.2 Provide the level-rule inputs (spawner overrides, scene zone ranges, producer kind) per placement
+- [x] 2.1 Group creature and ability records by normalized name and choose the most frequent formatted title
+- [x] 2.2 Publish creature variants with anchors, levels, differing portraits, and differing record facts
+- [x] 2.3 Group identical ability rank texts into versions with users, teaching items, and differing icons
+- [x] 2.4 Resolve one record to its variant and several variants to their page
+- [x] 2.5 Derive slugs from formatted names and qualify colliding items, places, and creature records
+- [x] 2.6 Format published entity names, map labels, region names, area labels, objects, containers, and chain names
+- [x] 2.7 Embed gear set members and tiers in member items without publishing gear set pages
 
-## 3. Publication identity
+## 3. Publication content and map
 
-- [ ] 3.1 Group NPC and ability records by normalized name with variants and anchors
-- [ ] 3.2 Resolve record keys to group refs with variant anchors in every reference
-- [ ] 3.3 Derive slugs from display names and remove the stable-suffix branch
-- [ ] 3.4 Build readable qualifiers for items and places, without level 0 or internal names
+- [x] 3.1 Compute random-choice probability and option counts for map placements and creature locations
+- [x] 3.2 Apply confirmed native levels to markers, locations, variants, pages, place rows, and list rows
+- [x] 3.3 Derive creature hostility and services from placement categories in map and pages
+- [x] 3.4 Group quest starts and turn-ins per character and carry participating areas
+- [x] 3.5 Sort creature locations by the earliest chain order of availability quests and own quests
+- [x] 3.6 Link property purchase signs to property pages and project purchase panel facts
+- [x] 3.7 Publish reader coverage counts and affected-page references, and validate them in the graph
 
-## 4. Publication content
+## 4. Site presentation
 
-- [ ] 4.1 Build grouped NPC documents with where-to-find, story order, and a variants table
-- [ ] 4.2 Build grouped ability documents with a variants table
-- [ ] 4.3 Apply one effective-level function in documents, lists, map shards, and qualifiers
-- [ ] 4.4 Derive hostility from placement faction roles
-- [ ] 4.5 Show one start and turn-in entry per character
-- [ ] 4.6 Carry alternative groups on map placements
+- [x] 4.1 Render the creature variants table for differing record facts or variant-attributed drops, otherwise anchor variants in Where to find
+- [x] 4.2 Render ability versions, item gear sets, linked item tooltip cards, and acquisition summaries
+- [x] 4.3 Render property purchase panels and where-to-buy locations
+- [x] 4.4 Use one artwork-only entity header with a title, fact line, and description
+- [x] 4.5 Place desktop tooltips beside links with fallbacks and shorten quest completion previews
+- [x] 4.6 Align quest Start, Turn-in, and Requirements cards and label chain context in the header
+- [x] 4.7 Render inline requirement phrases with type prefixes and ordered availability rules
+- [x] 4.8 Show a search spinner in its input and name the atlas Map in navigation
+- [x] 4.9 Show published counts and gap pages in reader coverage without loading coverage on the map
 
-## 5. Site
+## 5. Operator workflow
 
-- [ ] 5.1 Render NPC and ability pages with locations and variants
-- [ ] 5.2 Link record references to variant anchors
-- [ ] 5.3 Position tooltips with Floating UI and shorten quest tooltip texts
-- [ ] 5.4 Remove empty and constant quest columns, join quest texts, and unify widths
-- [ ] 5.5 Check parity by entity coverage
+- [x] 5.1 Check parity across search, page, variant, ability version, and embedded gear set keys, without old URL constraints
+- [x] 5.2 Require lists only for kinds that still have pages and read baseline resources by shape
+- [x] 5.3 Release runtime ownership before quitting the game and wait for listener shutdown
 
-## 6. Tools
+## 6. Verification and acceptance
 
-- [ ] 6.1 Release runtime ownership before quitting in `quit-game.ts`
-
-## 7. Verification and acceptance
-
-- [ ] 7.1 Rebuild the catalog and publish a candidate
-- [ ] 7.2 Verify Fenric Doryn, Thalgrim Wayfinder, Skeleton Warrior, Cleave, Peasant Chest, and a quest page in the browser
-- [ ] 7.3 Accept the publication and update EXPLORATION.md
+- [ ] 6.1 Rebuild the catalog from the rescan and publish a candidate
+- [ ] 6.2 Verify creature, ability, item, property, quest, map, and coverage pages in the browser
+- [ ] 6.3 Accept the publication
