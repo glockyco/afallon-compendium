@@ -30,9 +30,9 @@
 ## 5. Publication and acceptance
 
 - [x] 5.1 Author a publish plan with the new catalog, publish a candidate, and stage it with the accepted publication 808fafa2 as its baseline. Verify that the publish run reports no publication issues, and that the graph and update parity checks pass. Result: plan `local/publish-25434619-classes.json` with a presentation from the reviewed offsets and the bounds of catalog 6bc13a4c, which equal the accepted bounds. Candidate 60415893 has no publication issues, and staging against 808fafa2 passes the graph and parity checks. The unresolved coverage issues go from 30,912 to 30,914.
-- [ ] 5.2 Check the staged candidate in the browser at 1440 px and 390 px: the class and skill pages and lists, search, the ability pages, and a class requirement on an item page that now links its class. Verify each scenario of this change, and write the results into this task.
-- [ ] 5.3 Author the update report, and accept the catalog candidate and the publication candidate together. Verify that the accepted build names both candidates and keeps 808fafa2 as its rollback.
+- [x] 5.2 Check the staged candidate in the browser at 1440 px and 390 px: the class and skill pages and lists, search, the ability pages, and a class requirement on an item page that now links its class. Verify each scenario of this change, and write the results into this task. Result: at 1440 px and 390 px, the class and skill pages and lists, search, the Maul, Cleave, and Barbed Quarrel pages, and Flesh Rend, which links its Shieldmaster requirement, show the results of tasks 4.1 to 4.5. No checked page scrolls sideways at 390 px.
+- [x] 5.3 Author the update report, and accept the catalog candidate and the publication candidate together. Verify that the accepted build names both candidates and keeps 808fafa2 as its rollback. Result: report `local/update-report-25434619-classes.json` passes validation. The accepted build names catalog 6bc13a4c and publication 60415893, and its rollback is 808fafa2.
 
 ## 6. Checks
 
-- [ ] 6.1 Run `bunx tsc -b packages/contracts`, `bun run check`, `bun run --cwd apps/site check`, `bun test ./packages ./apps`, and `openspec validate publish-class-and-skill-pages --strict`. Verify that each command passes.
+- [x] 6.1 Run `bunx tsc -b packages/contracts`, `bun run check`, `bun run --cwd apps/site check`, `bun test ./packages ./apps`, and `openspec validate publish-class-and-skill-pages --strict`. Verify that each command passes. Result: each command passes, with 308 tests and no failures.
