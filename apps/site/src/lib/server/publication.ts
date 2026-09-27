@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { AtlasDataLoader, type AtlasFetch } from '../atlas-data';
@@ -17,12 +17,19 @@ const fileFetch: AtlasFetch = async (input) => {
 };
 
 let loader: AtlasDataLoader | undefined;
+let loadedRoot = 0;
 
 // Pages read the staged publication in every mode. Staging also links the dev server's static data to it.
+// A restage replaces the publication, so a running dev server starts a new loader when its root changes.
 export function serverAtlasLoader(): AtlasDataLoader {
-  if (!existsSync(join(dataRoot, 'publication.json'))) {
+  const rootPath = join(dataRoot, 'publication.json');
+  if (!existsSync(rootPath)) {
     throw new Error(`No staged publication at ${dataRoot}. Run bun run stage:production first.`);
   }
-  loader ??= new AtlasDataLoader(fileFetch, 'https://atlas.invalid/data/');
+  const modified = statSync(rootPath).mtimeMs;
+  if (!loader || modified !== loadedRoot) {
+    loader = new AtlasDataLoader(fileFetch, 'https://atlas.invalid/data/');
+    loadedRoot = modified;
+  }
   return loader;
 }
