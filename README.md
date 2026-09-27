@@ -14,6 +14,10 @@ The compendium gives each published entity its own page at `/<kind>/<slug>/` and
 
 The pipeline uses [HotRepl](https://github.com/glockyco/HotRepl), a runtime C# REPL for Unity games, to execute C# evidence probes inside the running game. Repository tooling validates immutable evidence into a canonical SQLite catalog and builds a static publication for the SvelteKit and deck.gl site.
 
+## Project knowledge
+
+[`EXPLORATION.md`](EXPLORATION.md) records accepted-build game facts, evidence, and limits. Agent procedures live in [`.agent/skills/`](.agent/skills/), including runtime inspection and native analysis. This README gives operator commands. [`openspec/specs/`](openspec/specs/) and [`openspec/changes/`](openspec/changes/) hold requirements and design decisions.
+
 ## Development
 
 Development requires [Bun](https://bun.sh/). Install dependencies and run the repository checks from the project root:
