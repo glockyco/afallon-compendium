@@ -25,9 +25,9 @@
   $: hasRequirements = rows.some((row) => row.requirements.length > 0);
   // How to read the loot columns. The Adventure Guide shows the same Chance value.
   $: notes = hasLevels || hasTables ? [
-    'Chance is the authored entry rate that the Adventure Guide shows, not an effective chance per kill.',
-    ...(hasTables ? ['Table shows the authored rate of the roll for the whole loot table, and how many of its items one roll gives.'] : []),
-    ...(hasLevels ? ['World loot can drop from any creature whose level is in the Level range.'] : []),
+    'Chance: the item’s entry rate, as the Adventure Guide shows it.',
+    ...(hasTables ? ['Table: the authored table roll and the items one roll gives.'] : []),
+    ...(hasLevels ? ['Level: the creature levels that can drop world loot.'] : []),
   ] : [];
   $: columns = [
     { id: 'name', label: counterpartLabel, sortable: true },

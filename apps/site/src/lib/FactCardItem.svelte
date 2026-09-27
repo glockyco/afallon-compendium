@@ -48,58 +48,63 @@
 <article class="document" data-rarity={rarityTone(facts.rarity)}>
   <EntityHeader name={document.ref.name} rarity={rarityTone(facts.rarity)} description={document.description} />
 
-  <div class="overview">
-    <section class="tooltip-card" aria-label="In-game tooltip">
-      <ItemTooltip {document} {registry}>
-        <svelte:fragment slot="ref" let:ref let:rankIndex><EntityLink {ref} {rankIndex} {registry} /></svelte:fragment>
-      </ItemTooltip>
-    </section>
-
-    <Card title="How to get it">
-      <svelte:fragment slot="action">{#if onMap}<a class="c-link action" href={`${base}/?item=${encodeURIComponent(document.ref.key)}`}>View on the map</a>{/if}</svelte:fragment>
-      {#if sources.length}
-        <ul class="summary">{#each sources as source}<li><a class="c-link" href={`#${source.id}`}>{source.text(source.count)}</a></li>{/each}</ul>
-      {:else}
-        <p class="c-empty"><MissingValue explanation="No source is published" /> No way to get this item is known for this build.</p>
-      {/if}
-      {#if uses.length}
-        <h3>Used for</h3>
-        <ul class="summary">{#each uses as use}<li><a class="c-link" href={`#${use.id}`}>{use.text(use.count)}</a></li>{/each}</ul>
-      {/if}
-      {#if facts.stackLimit > 1 || facts.buyPrice}
+  <div class="overview" class:full={showRelations}>
+    <div class="aside">
+      <section class="tooltip-card" aria-label="In-game tooltip">
+        <ItemTooltip {document} {registry}>
+          <svelte:fragment slot="ref" let:ref let:rankIndex><EntityLink {ref} {rankIndex} {registry} /></svelte:fragment>
+        </ItemTooltip>
+      </section>
+      {#if facts.stackLimit > 1 || facts.buyPrice || onMap}
         <dl class="extra">
           {#if facts.stackLimit > 1}<dt>Stack size</dt><dd>{formatNumber(facts.stackLimit)}</dd>{/if}
           {#if facts.buyPrice}<dt>Buy price</dt><dd><Price price={facts.buyPrice} showName /></dd>{/if}
+          {#if onMap}<dt>Map</dt><dd><a class="c-link" href={`${base}/?item=${encodeURIComponent(document.ref.key)}`}>Show every place</a></dd>{/if}
         </dl>
       {/if}
-    </Card>
-  </div>
-
-  {#if showRelations}
-    <div class="c-stack">
-      <div id="dropped-by"><DropTable rows={document.droppedBy} {registry} heading="Dropped by" counterpartLabel="Creature" {limit} /></div>
-      <div id="sold-by"><VendorTable rows={document.soldBy} {registry} heading="Sold by" counterpartLabel="Vendor" {limit} /></div>
-      <div id="gathered-from"><GatherTable rows={document.gatheredFrom} {registry} itemKey={document.ref.key} {limit} /></div>
-      <div id="in-containers"><ContainerTable rows={document.inContainers} {registry} itemKey={document.ref.key} {limit} /></div>
-      <div id="collected-from"><ContainerTable rows={document.collectedFrom} {registry} heading="Collected from" counterpartLabel="Object" itemKey={document.ref.key} {limit} /></div>
-      <div id="from-quests"><QuestTable rows={questRows} {registry} heading="Given by quests" counterpartLabel="Quest" {limit} /></div>
-      <div id="crafted-by"><RecipeTable rows={document.craftedBy} {registry} heading="Crafted from" counterpartLabel="Recipe" {limit} /></div>
-      <div id="used-in-recipes"><RecipeTable rows={document.usedInRecipes} {registry} heading="Material in recipes" counterpartLabel="Recipe" {limit} /></div>
-      <div id="quest-objectives"><QuestTable rows={document.usedInQuests} {registry} heading="Needed by quests" counterpartLabel="Quest" {limit} /></div>
     </div>
-  {/if}
+
+    {#if showRelations}
+      <!-- The source sections themselves sit beside the tooltip, so the page has no separate summary to repeat them. -->
+      <div class="c-stack sources">
+        {#if !sources.length}<Card title="How to get it"><p class="c-empty"><MissingValue explanation="No source is published" /> No way to get this item is known for this build.</p></Card>{/if}
+        <div id="dropped-by"><DropTable rows={document.droppedBy} {registry} heading="Dropped by" counterpartLabel="Creature" {limit} /></div>
+        <div id="sold-by"><VendorTable rows={document.soldBy} {registry} heading="Sold by" counterpartLabel="Vendor" {limit} /></div>
+        <div id="gathered-from"><GatherTable rows={document.gatheredFrom} {registry} itemKey={document.ref.key} {limit} /></div>
+        <div id="in-containers"><ContainerTable rows={document.inContainers} {registry} itemKey={document.ref.key} {limit} /></div>
+        <div id="collected-from"><ContainerTable rows={document.collectedFrom} {registry} heading="Collected from" counterpartLabel="Object" itemKey={document.ref.key} {limit} /></div>
+        <div id="from-quests"><QuestTable rows={questRows} {registry} heading="Given by quests" counterpartLabel="Quest" {limit} /></div>
+        <div id="crafted-by"><RecipeTable rows={document.craftedBy} {registry} heading="Crafted from" counterpartLabel="Recipe" {limit} /></div>
+        <div id="used-in-recipes"><RecipeTable rows={document.usedInRecipes} {registry} heading="Material in recipes" counterpartLabel="Recipe" {limit} /></div>
+        <div id="quest-objectives"><QuestTable rows={document.usedInQuests} {registry} heading="Needed by quests" counterpartLabel="Quest" {limit} /></div>
+      </div>
+    {:else}
+      <Card title="How to get it">
+        {#if sources.length}
+          <ul class="summary">{#each sources as source}<li>{source.text(source.count)}</li>{/each}</ul>
+        {:else}
+          <p class="c-empty"><MissingValue explanation="No source is published" /> No way to get this item is known for this build.</p>
+        {/if}
+        {#if uses.length}
+          <h3>Used for</h3>
+          <ul class="summary">{#each uses as use}<li>{use.text(use.count)}</li>{/each}</ul>
+        {/if}
+      </Card>
+    {/if}
+  </div>
 </article>
 
 <style>
   .overview { display: grid; grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); gap: 1rem; align-items: start; margin-bottom: 1rem; }
+  .aside { display: grid; gap: .75rem; }
+  .overview.full .aside { position: sticky; top: 5rem; }
   .tooltip-card { padding: .85rem; border: 1px solid #74684e; border-radius: var(--c-radius); background: var(--c-surface-1); box-shadow: 0 6px 20px #0006; }
   .summary { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; font-size: .88rem; }
   h3 { margin: 1rem 0 .45rem; color: var(--c-text-dim); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-  .extra { display: grid; grid-template-columns: auto 1fr; gap: .3rem 1rem; margin: 1rem 0 0; padding-top: .8rem; border-top: 1px solid var(--c-line-soft); font-size: .86rem; }
+  .extra { display: grid; grid-template-columns: auto 1fr; gap: .3rem 1rem; margin: 0; padding: .7rem .85rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); font-size: .86rem; }
   dt { color: var(--c-text-dim); }
-  dd { margin: 0; }
-  .action { font-size: .8rem; }
+  dd { margin: 0; justify-self: end; }
   [id] { scroll-margin-top: 5rem; }
-  .c-stack > div:empty { display: none; }
-  @media (max-width: 760px) { .overview { grid-template-columns: 1fr; } }
+  .sources > div:empty { display: none; }
+  @media (max-width: 760px) { .overview { grid-template-columns: 1fr; } .overview.full .aside { position: static; } }
 </style>
