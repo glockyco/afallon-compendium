@@ -1153,3 +1153,27 @@ corrections now allow shifts under 2 map units. `accept-update` selected publica
 `fecbf98a0e91ff590e4a27974b59930d481fc78e3819a25d120de019c98a27b6` from catalog
 `81b32eecf37a03879464f89a1b1fbd89dc2e53f77d1469c4756c3bad1ea72f1a` and kept `4c02861a` as the rollback. The publication
 reports 31,861 unresolved issues, 54 more than before. Nothing was deployed.
+
+## NPC levels in build 25434619
+
+`research/ghidra/25434619/npc-level-functions.json` holds hash-checked decompilations of `MobCombatEntity.InitNPCLevel`,
+`GetScaledPlayerLevel`, the `ZoneLevelRules` methods, `AdventurerPopulationManager.SpawnAdventurer`, and the saved-level
+step that `InitNPCLevel` calls last. Runtime method metadata gave the addresses and PE unwind entries gave the ranges.
+
+- A spawner with `OverrideLevels` gives the scaled player level when `ScaleWithPlayer` is set, and otherwise a random
+  level from `MinLevel` to `MaxLevel`. Without that override, the record's `isScalingWithPlayer`, `MinLevel`, and
+  `MaxLevel` decide in the same way.
+- The scaled level clamps the player level into the zone range, adds a random offset from a global setting, and stays
+  within the range and at least 1. `TryGetZoneRangeFor` returns the spawner range when `OverrideZoneScaling` is set, and
+  otherwise the current scene's `ZoneScalingMinLevel` and `ZoneScalingMaxLevel`.
+- For NPC types 8 and 9 (adventurer and companion) with saved state, a last step replaces the level with the saved
+  progression level. These levels are player state.
+
+A runtime check at player level 2 in Coalway outdoors agreed. NPCs from spawners with fixed levels 1–2, player scaling,
+and zone 15–30 were level 15–18, Thistlefoot in zone 1–20 was level 3, and adventurers were level 23–28. The earlier
+map rule that preferred the fixed override was wrong for 1,529 spawners. The catalog already holds every input of the
+rule, so no rescan is needed.
+
+`RandomActivator` enables `numberToEnable` distinct targets when it becomes active. 162 of 164 observations of
+activators over NPC spawners matched, and the 2 others were under an inactive event object. Repeated targets weight
+the choice. `killNPC` tasks store one `npcToKillID`, `killNPCFamily` is unused, and no NPC has a family.

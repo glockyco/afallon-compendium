@@ -1,8 +1,8 @@
 ## 1. Level rules
 
-- [ ] 1.1 Decompile `MobCombatEntity.InitNPCLevel`, `GetScaledPlayerLevel`, `ZoneLevelRules.*`, and the adventurer spawn path for build 25434619
-- [ ] 1.2 Check the decompiled rules against the runtime observations and record them in EXPLORATION.md
-- [ ] 1.3 Decide whether any rule needs data that the scans do not record
+- [x] 1.1 Decompile `MobCombatEntity.InitNPCLevel`, `GetScaledPlayerLevel`, `ZoneLevelRules.*`, and the adventurer spawn path for build 25434619
+- [x] 1.2 Check the decompiled rules against the runtime observations and record them in EXPLORATION.md
+- [x] 1.3 Decide whether any rule needs data that the scans do not record
 
 ## 2. Catalog
 
