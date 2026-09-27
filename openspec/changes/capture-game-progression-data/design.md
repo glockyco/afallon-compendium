@@ -1,6 +1,6 @@
 ## Context
 
-See proposal.md for the motivation. The support collector (`packages/scan/src/probes/collectors/support.csx`) reads the initialized `GameDatabase` and writes one support artifact per scan target. It projects gameplay for four tables only: abilities (tooltip text per rank), recipes, crafting stations, and gear sets. Every other table carries only its entry header. `SupportSchema` (`compendium.support.v1`) accepts any gameplay object, and the catalog decoders type the four projected tables. The catalog reads support evidence from the canonical target of its plan (`admitted.support`), so the support artifacts of other targets do not enter the catalog. The recovered declarations of build 25434619 hold every field that this change records: `RPGClass`, `RPGSpellbook`, `RPGTalentTree`, `RPGBonus`, `RPGTreePoint`, `RPGSkill`, `RPGLevelsTemplate`, `RPGEffect`, `RPGEnchantment`, `RPGStat`, `RPGFaction`, and `RPGAbility`.
+See proposal.md for the motivation. The support collector (`packages/scan/src/probes/collectors/support.csx`) reads the initialized `GameDatabase` and writes one support artifact per scan target. It projects gameplay for four tables only: abilities (tooltip text per rank), recipes, crafting stations, and gear sets. Every other table carries only its entry header. `SupportSchema` (`compendium.support.v1`) accepts any gameplay object, and the catalog decoders type the four projected tables. The catalog reads support evidence from the canonical target of its plan (`admitted.support`), so the support artifacts of other targets do not enter the catalog. The recovered declarations of build 25434619 declare every field that this change records, and the probes of tasks 2.2 and 2.3 show which fields hold values: `RPGClass`, `RPGSpellbook`, `RPGTalentTree`, `RPGBonus`, `RPGTreePoint`, `RPGSkill`, `RPGLevelsTemplate`, `RPGEffect`, `RPGEnchantment`, `RPGStat`, `RPGFaction`, and `RPGAbility`.
 
 ## Goals / Non-Goals
 
@@ -9,6 +9,7 @@ See proposal.md for the motivation. The support collector (`packages/scan/src/pr
 **Non-Goals:**
 - Pages, lists, and tooltips for the new facts. Follow-up changes publish them.
 - Races, dialogues, combos, species, weapon templates, and game modifiers. Races were not chosen, and the other tables hold 0 to 5 records in build 25434619.
+- Links from weapon spellbooks to weapon templates. Build 25434619 has no weapon templates, so the catalog records only the source of each spellbook.
 - Visual, animation, sound, prefab, collider, layer mask, socket, and editor fields of the game types.
 - Runtime evaluation of requirements. The catalog keeps them as authored.
 
@@ -39,7 +40,7 @@ The canonical target of the accepted catalog is scene 44, and its scan also supp
 ## Risks / Trade-offs
 
 - IL2CPP interop can fail on a nested list. → Each list read catches the failure and records `unavailable` with the field path and the error.
-- The 843 effects with their ranks enlarge the support artifact. → The projections record only the listed fields. The task records the artifact size.
+- The 843 effects with their ranks enlarge the support artifact. → The projections record only the listed fields. Task 2.3 reports the artifact size.
 - A native enum value without a name. → The decoder keeps the number and reports an unsupported-enum issue, as other decoders do.
 - The scan can leave the runtime unclean. → The scan follows the HotRepl runtime procedure and requires a clean receipt.
 - The new scene 44 scan can differ from the old one in scene evidence, for example in streamed sources. → The comparison with the accepted catalog shows every such difference, and the change stops for review.
@@ -49,7 +50,3 @@ The canonical target of the accepted catalog is scene 44, and its scan also supp
 ## Migration Plan
 
 Implement the collector, contract, and catalog changes. Run the canonical scan, build the catalog candidate, and compare it with the accepted catalog. Keep the candidate for the follow-up publication change, which accepts both. Rollback needs no step, because nothing is selected before that acceptance.
-
-## Open Questions
-
-- Weapon spellbooks name weapon templates, and build 25434619 has no weapon templates. The catalog records the spellbook source, and a page can decide later how to show a weapon spellbook.
