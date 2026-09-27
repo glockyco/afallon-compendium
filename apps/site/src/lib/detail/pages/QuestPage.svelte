@@ -19,7 +19,7 @@
     ...(facts.levelRange ? [{ label: 'Quest level', text: levelText(facts.levelRange) }] : []),
     ...(facts.levelRequirement !== undefined ? [{ label: 'Minimum level', text: String(facts.levelRequirement) }] : []),
     ...(facts.chain && step >= 0 ? [{ label: 'Chain', text: `${facts.chain.name}, step ${step + 1} of ${document.chainQuests.length}` }] : []),
-    ...(facts.worldQuest ? [{ text: 'World quest' }] : []),
+    ...(facts.worldQuest ? [{ text: 'World Quest' }] : []),
     ...(facts.repeatable ? [{ text: 'Repeatable' }] : []),
     ...(document.dungeon ? [{ label: 'Dungeon', refs: [document.dungeon] }] : []),
   ] satisfies TitleFact[];

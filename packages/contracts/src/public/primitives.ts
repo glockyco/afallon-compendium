@@ -41,13 +41,14 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
   "travelPoint",
 ] as const;
 export type PublicMarkerCategory = typeof PUBLIC_MARKER_CATEGORY_VALUES[number];
+// A category name reads in title case wherever it appears, as on the map.
 export const PUBLIC_MARKER_CATEGORY_LABELS: Readonly<Record<PublicMarkerCategory, string>> = {
-  boss: "Boss", enemy: "Enemy", neutral: "Neutral", merchant: "Merchant", auctioneer: "Auctioneer", banker: "Banker", questGiver: "Quest giver",
-  townsfolk: "Townsfolk", craftingStation: "Crafting station", alchemyStation: "Alchemy station", cookingStation: "Cooking station", smithingStation: "Smithing station", furnace: "Furnace", tailoringStation: "Tailoring station", container: "Container", oreVein: "Ore vein",
-  herb: "Herb", mushroom: "Mushroom", fishingSpot: "Fishing spot", interactiveObject: "Interactive object",
-  town: "Town", fort: "Fort", camp: "Camp", property: "Property", dungeonEntrance: "Dungeon entrance",
+  boss: "Boss", enemy: "Enemy", neutral: "Neutral", merchant: "Merchant", auctioneer: "Auctioneer", banker: "Banker", questGiver: "Quest Giver",
+  townsfolk: "Townsfolk", craftingStation: "Crafting Station", alchemyStation: "Alchemy Station", cookingStation: "Cooking Station", smithingStation: "Smithing Station", furnace: "Furnace", tailoringStation: "Tailoring Station", container: "Container", oreVein: "Ore Vein",
+  herb: "Herb", mushroom: "Mushroom", fishingSpot: "Fishing Spot", interactiveObject: "Interactive Object",
+  town: "Town", fort: "Fort", camp: "Camp", property: "Property", dungeonEntrance: "Dungeon Entrance",
   // Only flight master characters carry the flight point category, so the label names the character, as the map does.
-  corruptionAltar: "Altar of corruption", challengeStone: "Challenge stone", graveyard: "Graveyard", flightPoint: "Flight master", travelPoint: "Travel point",
+  corruptionAltar: "Altar of Corruption", challengeStone: "Challenge Stone", graveyard: "Graveyard", flightPoint: "Flight Master", travelPoint: "Travel Point",
 };
 export const publicMarkerCategory = Type.Union([
   Type.Literal("boss"),

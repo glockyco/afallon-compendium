@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { PublicItem, PublicKindEntry, Ref } from '@afallon/contracts/public';
+  import { categoryLabel } from '@afallon/contracts/public';
   import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
   import NativeText from './NativeText.svelte';
   import Price from './Price.svelte';
   import RequirementList from './RequirementList.svelte';
-  import { formatNumber, labelOf, rangeText, rarityTone, signedAmount } from './format';
+  import { formatNumber, rangeText, rarityTone, signedAmount } from './format';
 
   // The item as the game's own tooltip shows it. A page links the entities that it names through the `ref` slot.
   // A hover tooltip names them with EntityReference, because a link opens a tooltip of its own.
@@ -18,8 +19,8 @@
   $: slot = facts.weaponType && facts.weaponSlot ? facts.weaponSlot : facts.slot;
   $: headerFacts = [
     ...(facts.rarity ? [{ value: facts.rarity }] : []),
-    ...(slot ? [{ value: labelOf(slot) }] : []),
-    ...(gearType ? [{ value: labelOf(gearType) }] : facts.itemType ? [{ value: labelOf(facts.itemType) }] : []),
+    ...(slot ? [{ value: categoryLabel(slot) }] : []),
+    ...(gearType ? [{ value: categoryLabel(gearType) }] : facts.itemType ? [{ value: categoryLabel(facts.itemType) }] : []),
   ] satisfies HeaderFact[];
   const statName = (row: { stat: Ref }) => row.stat.key === null ? row.stat.label : row.stat.name;
   $: set = facts.gearSet;
@@ -48,7 +49,7 @@
       <ul class="plain">{#each facts.actionAbilities as reference}<li>Use: <slot name="ref" ref={reference.ability} rankIndex={reference.rankIndex}><EntityReference ref={reference.ability} {registry} /></slot> <span class="dim">Rank {reference.rankIndex + 1}</span></li>{/each}</ul>
     {/if}
 
-    {#each facts.sockets as socket}<p class="dim">Empty {labelOf(socket.socketType ?? socket.gemType ?? 'socket')} socket</p>{/each}
+    {#each facts.sockets as socket}<p class="dim">Empty {categoryLabel(socket.socketType ?? socket.gemType ?? 'socket')} socket</p>{/each}
     {#if facts.gem}{#each facts.gem.stats as stat}<p class="good">{signedAmount(stat.amount, stat.isPercent)} {statName(stat)}</p>{/each}{/if}
     {#if facts.enchantment}<p>Enchantment: <slot name="ref" ref={facts.enchantment} rankIndex={undefined}><EntityReference ref={facts.enchantment} {registry} /></slot></p>{/if}
 

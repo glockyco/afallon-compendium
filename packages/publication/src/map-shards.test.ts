@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArtifactStore } from "@afallon/artifacts";
-import { expandEssentialPlacement, type PublicEssentialPlacement } from "@afallon/contracts/public";
+import { PUBLIC_MARKER_CATEGORY_LABELS, expandEssentialPlacement, type PublicEssentialPlacement } from "@afallon/contracts/public";
 import { openNormalizedDatabase } from "../../catalog/src/database";
 import { generateMapShards } from "./map-shards";
 
@@ -128,7 +128,7 @@ test("classifies five canonical crafting stations while preserving overlap and s
   expect(byId.get("station-5")?.[4]).toEqual(["tailoringStation"]);
   const stationCategories = new Set(["craftingStation", "alchemyStation", "cookingStation", "smithingStation", "furnace", "tailoringStation"]);
   for (const placement of placements) expect(placement[4].filter((category) => stationCategories.has(category))).toHaveLength(1);
-  expect(expandEssentialPlacement(byId.get("station-1")!, "world").searchText).toContain("Cooking station");
+  expect(expandEssentialPlacement(byId.get("station-1")!, "world").searchText).toContain(PUBLIC_MARKER_CATEGORY_LABELS.cookingStation);
 });
 
 test("keeps ambiguous and unsupported crafting references generic", async () => {
@@ -156,7 +156,7 @@ test("keeps ambiguous and unsupported crafting references generic", async () => 
     ["typed-conflict", ["craftingStation"]],
     ["unresolved", ["craftingStation"]],
   ]);
-  expect(expandEssentialPlacement(placements.find((placement) => placement[0] === "unresolved")!, "world").searchText).toContain("Crafting station");
+  expect(expandEssentialPlacement(placements.find((placement) => placement[0] === "unresolved")!, "world").searchText).toContain(PUBLIC_MARKER_CATEGORY_LABELS.craftingStation);
 });
 
 test("names an object by its readable authored name and ignores placeholder names such as 0", async () => {
@@ -164,5 +164,5 @@ test("names an object by its readable authored name and ignores placeholder name
     { id: "placeholder", label: null, roles: ["usefulInteraction"], details: [{ interactableName: "0" }] },
     { id: "named", label: null, roles: ["usefulInteraction"], details: [{ interactableName: "<b>Old gate</b>" }] },
   ]);
-  expect(placements.map((placement) => [placement[0], placement[3]])).toEqual([["named", "Old Gate"], ["placeholder", "Interactive object"]]);
+  expect(placements.map((placement) => [placement[0], placement[3]])).toEqual([["named", "Old Gate"], ["placeholder", PUBLIC_MARKER_CATEGORY_LABELS.interactiveObject]]);
 });

@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
+  import { categoryLabel } from '@afallon/contracts/public';
   import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
-  import { labelOf, npcLevelText, placesText, roleLabel, signedAmount } from './format';
+  import { npcLevelText, placesText, roleLabel, signedAmount } from './format';
 
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
@@ -20,7 +21,7 @@
   $: headerFacts = [
     ...facts.roles.map((role) => ({ value: roleLabel(role) })),
     ...(level ? [{ label: 'Level', value: npcLevelText(level) }] : []),
-    ...(creatureType ? [{ label: 'Type', value: labelOf(creatureType) }] : []),
+    ...(creatureType ? [{ label: 'Type', value: categoryLabel(creatureType) }] : []),
     ...(places ? [{ label: 'Found in', value: places }] : []),
   ] satisfies HeaderFact[];
   $: relationCounts = [
@@ -32,7 +33,7 @@
   <EntityHeader name={document.ref.name} art={selected?.portrait ?? document.art.portrait ?? document.art.icon ?? document.ref.icon} artRole="portrait" facts={headerFacts} description={document.description} compact />
   {#if selected && document.variantFields.length}<p class="summary">{selected.label}</p>{/if}
   {#if facts.stats.length}<ul class="stats">{#each facts.stats as stat}<li>{signedAmount(stat.amount, stat.isPercent)} {stat.stat.key === null ? stat.stat.label : stat.stat.name}</li>{/each}</ul>{/if}
-  {#if facts.immunities.length}<p class="summary">Immune to {facts.immunities.map(labelOf).join(', ')}</p>{/if}
+  {#if facts.immunities.length}<p class="summary">Immune to {facts.immunities.map(categoryLabel).join(', ')}</p>{/if}
   {#if phases.some((phase) => phase.abilities.length > 0)}
     <section>
       <h4>Abilities</h4>

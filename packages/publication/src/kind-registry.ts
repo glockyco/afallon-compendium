@@ -25,7 +25,7 @@ export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
   { kind: "recipes", label: "Recipe", plural: "Recipes", route: "recipes", icon: "recipe", pages: true, searchable: true,
     columns: [column("station", "Station"), column("skill", "Skill"), column("product", "Product")],
     facets: [facet("station", "Station"), facet("skill", "Skill")] },
-  { kind: "gearSets", label: "Gear set", plural: "Gear sets", route: "gear-sets", icon: "gear-set", pages: false, searchable: false, columns: [], facets: [] },
+  { kind: "gearSets", label: "Gear Set", plural: "Gear Sets", route: "gear-sets", icon: "gear-set", pages: false, searchable: false, columns: [], facets: [] },
   { kind: "currencies", label: "Currency", plural: "Currencies", route: "currencies", icon: "currency", pages: false, searchable: false, columns: [], facets: [] },
   { kind: "stats", label: "Stat", plural: "Stats", route: "stats", icon: "stat", pages: false, searchable: false, columns: [], facets: [] },
   { kind: "factions", label: "Faction", plural: "Factions", route: "factions", icon: "faction", pages: false, searchable: false, columns: [], facets: [] },
@@ -35,8 +35,8 @@ export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
   { kind: "enchantments", label: "Enchantment", plural: "Enchantments", route: "enchantments", icon: "enchantment", pages: false, searchable: false, columns: [], facets: [] },
   { kind: "effects", label: "Effect", plural: "Effects", route: "effects", icon: "effect", pages: false, searchable: false, columns: [], facets: [] },
   { kind: "species", label: "Species", plural: "Species", route: "species", icon: "species", pages: false, searchable: false, columns: [], facets: [] },
-  { kind: "lootTables", label: "Loot table", plural: "Loot tables", route: "loot-tables", icon: "loot-table", pages: false, searchable: false, columns: [], facets: [] },
-  { kind: "craftingStations", label: "Crafting station", plural: "Crafting stations", route: "crafting-stations", icon: "crafting-station", pages: false, searchable: false, columns: [], facets: [] },
+  { kind: "lootTables", label: "Loot Table", plural: "Loot Tables", route: "loot-tables", icon: "loot-table", pages: false, searchable: false, columns: [], facets: [] },
+  { kind: "craftingStations", label: "Crafting Station", plural: "Crafting Stations", route: "crafting-stations", icon: "crafting-station", pages: false, searchable: false, columns: [], facets: [] },
 ] satisfies PublicKindEntry[]);
 
 export const PUBLIC_KIND_BY_KIND: Readonly<Record<PublicReferenceKind, PublicKindEntry>> = Object.freeze(

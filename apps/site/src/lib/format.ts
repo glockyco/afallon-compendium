@@ -1,4 +1,4 @@
-import { PUBLIC_MARKER_CATEGORY_LABELS, type CreatureLevel, type DropRow, type PublicLevel, type PublicMarkerCategory, type QuestObjective, type QuestStart, type Ref, type RequirementGroup } from '@afallon/contracts/public';
+import { PUBLIC_MARKER_CATEGORY_LABELS, categoryLabel, type CreatureLevel, type DropRow, type PublicLevel, type PublicMarkerCategory, type QuestObjective, type QuestStart, type Ref, type RequirementGroup } from '@afallon/contracts/public';
 
 const RARITY_TONES: Record<string, true> = { common: true, uncommon: true, rare: true, gold: true, epic: true, legendary: true };
 // Rarity tiers from lowest to highest. Gold is the rarity of the Gold currency item alone, so it comes last.
@@ -14,16 +14,6 @@ export function compareFacetValues(facet: string, left: string, right: string): 
   return left.localeCompare(right);
 }
 const numberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
-
-/**
- * Native enums arrive as `MAIN HAND`, `QUEST_ITEM`, or `game-action-effect-teleport`. Authored
- * text arrives already cased and keeps its casing; only the first letter is forced.
- */
-export function labelOf(value: string): string {
-  const spaced = value.replace(/[_-]+/g, ' ').trim();
-  const cased = /[a-z]/.test(spaced) ? spaced : spaced.toLocaleLowerCase();
-  return cased.charAt(0).toLocaleUpperCase() + cased.slice(1);
-}
 
 export function formatNumber(value: number): string {
   return numberFormat.format(value);
@@ -43,14 +33,14 @@ export function intervalText(seconds: number): string {
 const SOURCE_KIND_LABELS: Record<string, string> = { interaction: 'Object' };
 
 export function sourceKindLabel(kind: string): string {
-  return SOURCE_KIND_LABELS[kind] ?? labelOf(kind);
+  return SOURCE_KIND_LABELS[kind] ?? categoryLabel(kind);
 }
 
 /** Quest lists publish each start kind as its id; a reader wants the kind of start. */
-const QUEST_START_LABELS: Record<string, string> = { npc: 'NPC', worldZone: 'World quest', object: 'Object' } satisfies Record<QuestStart['kind'], string>;
+const QUEST_START_LABELS: Record<string, string> = { npc: 'NPC', worldZone: 'World Quest', object: 'Object' } satisfies Record<QuestStart['kind'], string>;
 
 export function questStartLabel(kind: string): string {
-  return QUEST_START_LABELS[kind] ?? labelOf(kind);
+  return QUEST_START_LABELS[kind] ?? categoryLabel(kind);
 }
 
 /** The game writes a stat modifier sign first: `+21 Stamina`, `+11% Lifesteal`. */
@@ -195,7 +185,7 @@ function isMarkerCategory(role: string): role is PublicMarkerCategory {
 }
 
 export function roleLabel(role: string): string {
-  return isMarkerCategory(role) ? PUBLIC_MARKER_CATEGORY_LABELS[role] : labelOf(role);
+  return isMarkerCategory(role) ? PUBLIC_MARKER_CATEGORY_LABELS[role] : categoryLabel(role);
 }
 
 /** The name of a reference, or its label when no published entity resolves it. */
@@ -205,25 +195,25 @@ export function nameOf(ref: Ref): string {
 
 // The native NPC types in plain words. MOB is an ordinary NPC without a rank.
 const NPC_TYPE_NAMES: Record<string, string> = {
-  MOB: 'Ordinary', ELITE: 'Elite', BOSS: 'Boss', MERCHANT: 'Merchant', BANK: 'Banker', ADVENTURER: 'Adventurer', COMPANION: 'Companion', QUEST_COMPANION: 'Quest companion',
+  MOB: 'Ordinary', ELITE: 'Elite', BOSS: 'Boss', MERCHANT: 'Merchant', BANK: 'Banker', ADVENTURER: 'Adventurer', COMPANION: 'Companion', QUEST_COMPANION: 'Quest Companion',
 };
 
 /** The NPC type in plain words, for a table that compares the types of variants. */
 export function npcTypeName(npcType: string): string {
-  return NPC_TYPE_NAMES[npcType] ?? labelOf(npcType);
+  return NPC_TYPE_NAMES[npcType] ?? categoryLabel(npcType);
 }
 
 // A title block names neither an ordinary NPC nor the types that its roles already name: bosses, merchants, and bankers.
 const UNSHOWN_NPC_TYPES = new Set(['MOB', 'BOSS', 'MERCHANT', 'BANK']);
 
-/** The NPC type that a title block names, such as "Elite" or "Quest companion". */
+/** The NPC type that a title block names, such as "Elite" or "Quest Companion". */
 export function npcTypeLabel(npcType: string | undefined): string | undefined {
   return npcType === undefined || UNSHOWN_NPC_TYPES.has(npcType) ? undefined : npcTypeName(npcType);
 }
 
 /** The creature type, such as "Humanoid". NONE means that the record has no type. */
 export function creatureTypeLabel(creatureType: string | undefined): string | undefined {
-  return creatureType === undefined || creatureType === 'NONE' ? undefined : labelOf(creatureType);
+  return creatureType === undefined || creatureType === 'NONE' ? undefined : categoryLabel(creatureType);
 }
 
 const FRIENDLY_ROLES = new Set(['questGiver', 'merchant', 'townsfolk', 'banker', 'auctioneer', 'flightPoint']);

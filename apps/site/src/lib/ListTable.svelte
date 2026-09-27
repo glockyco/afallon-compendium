@@ -2,10 +2,11 @@
   import { pushState, replaceState } from '$app/navigation';
   import { onMount } from 'svelte';
   import type { ListRow, PublicKindEntry, StaticKindList } from '@afallon/contracts/public';
+  import { categoryLabel } from '@afallon/contracts/public';
   import Badge from './Badge.svelte';
   import DataTable, { type TableColumn } from './DataTable.svelte';
   import EntityLink from './EntityLink.svelte';
-  import { compareFacetValues, formatNumber, labelOf, questStartLabel, rarityTone, roleLabel, sourceKindLabel } from './format';
+  import { compareFacetValues, formatNumber, questStartLabel, rarityTone, roleLabel, sourceKindLabel } from './format';
   import { sortRows, toggleSort, type SortState, type SortValue } from './table';
 
   export let list: StaticKindList;
@@ -132,7 +133,7 @@
     if (ROLE_FIELDS[id]) return roleLabel(value);
     if (SOURCE_KIND_FIELDS[id]) return sourceKindLabel(value);
     if (QUEST_START_FIELDS[id]) return questStartLabel(value);
-    return ENUM_FIELDS[id] ? labelOf(value) : value;
+    return ENUM_FIELDS[id] ? categoryLabel(value) : value;
   }
 
   // A column that shares its id with a facet shows the facet's values, so a row with several roles or start kinds

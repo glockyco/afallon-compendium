@@ -1,8 +1,9 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
+  import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { creatureTypeLabel, formatNumber, labelOf, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, placesText, rangeText, roleLabel, signedAmount } from '../../format';
+  import { creatureTypeLabel, formatNumber, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, placesText, rangeText, roleLabel, signedAmount } from '../../format';
   import { entityOnMap } from '../../map-links';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
@@ -61,10 +62,10 @@
           {#if combat && facts.respawn}<FactRow label="Respawn">{rangeText(facts.respawn.min, facts.respawn.max)} s</FactRow>{/if}
           {#if combat && facts.experience}<FactRow label="Experience">{rangeText(facts.experience.min, facts.experience.max)}</FactRow>{/if}
           {#if combat && facts.aggroRange !== undefined}<FactRow label="Aggro range">{formatNumber(facts.aggroRange)} m</FactRow>{/if}
-          {#if facts.immunities.length}<FactRow label="Immune to">{facts.immunities.map(labelOf).join(', ')}</FactRow>{/if}
+          {#if facts.immunities.length}<FactRow label="Immune to">{facts.immunities.map(categoryLabel).join(', ')}</FactRow>{/if}
           {#if loot}
             <FactRow label="Gear drops favour">
-              {[loot.armorType ? labelOf(loot.armorType) : '', ...loot.weaponTypes.map(labelOf)].filter(Boolean).join(', ')}{#if loot.stat}{loot.armorType || loot.weaponTypes.length ? ', ' : ''}<EntityLink ref={loot.stat} {registry} />{/if}
+              {[loot.armorType ? categoryLabel(loot.armorType) : '', ...loot.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if loot.stat}{loot.armorType || loot.weaponTypes.length ? ', ' : ''}<EntityLink ref={loot.stat} {registry} />{/if}
             </FactRow>
           {/if}
           {#if document.factionRewards.length}

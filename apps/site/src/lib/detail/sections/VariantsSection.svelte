@@ -1,9 +1,10 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import type { NpcVariant, NpcVariantField, PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
+  import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import NpcLevel from '../../NpcLevel.svelte';
-  import { creatureTypeLabel, formatNumber, labelOf, levelText, nameOf, npcTypeName, rangeText } from '../../format';
+  import { creatureTypeLabel, formatNumber, levelText, nameOf, npcTypeName, rangeText } from '../../format';
   import { omitAlways, planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
@@ -25,13 +26,13 @@
     switch (field) {
       case 'npcType': return facts.npcType ? npcTypeName(facts.npcType) : undefined;
       case 'creatureType': return creatureTypeLabel(facts.creatureType);
-      case 'family': return facts.family ? labelOf(facts.family) : undefined;
+      case 'family': return facts.family ? categoryLabel(facts.family) : undefined;
       case 'faction': return facts.faction ? nameOf(facts.faction) : undefined;
       case 'species': return facts.species ? nameOf(facts.species) : undefined;
       case 'respawn': return facts.respawn ? `${rangeText(facts.respawn.min, facts.respawn.max)} s` : undefined;
       case 'experience': return facts.experience ? rangeText(facts.experience.min, facts.experience.max) ?? undefined : undefined;
       case 'stats': return facts.stats?.map((stat) => `${nameOf(stat.stat)} ${statText(stat.amount, stat.isPercent)}`).join(', ') || undefined;
-      case 'immunities': return facts.immunities?.map(labelOf).join(', ') || undefined;
+      case 'immunities': return facts.immunities?.map(categoryLabel).join(', ') || undefined;
       case 'aggroRange': return facts.aggroRange === undefined ? undefined : `${formatNumber(facts.aggroRange)} m`;
       case 'lootSpecialization': return facts.lootSpecialization ? JSON.stringify(facts.lootSpecialization) : undefined;
       case 'abilityPhases': return facts.abilityPhases?.flatMap((phase) => phase.abilities).map((reference) => nameOf(reference.ability)).join(', ') || undefined;
@@ -68,7 +69,7 @@
         <ul>{#each row.facts.abilityPhases.flatMap((phase) => phase.abilities) as reference}<li><EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} /></li>{/each}</ul>
       {:else if field === 'lootSpecialization' && row.facts.lootSpecialization}
         {@const loot = row.facts.lootSpecialization}
-        {[loot.armorType ? labelOf(loot.armorType) : '', ...loot.weaponTypes.map(labelOf)].filter(Boolean).join(', ')}{#if loot.stat}<div><EntityLink ref={loot.stat} {registry} /></div>{/if}
+        {[loot.armorType ? categoryLabel(loot.armorType) : '', ...loot.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if loot.stat}<div><EntityLink ref={loot.stat} {registry} /></div>{/if}
       {:else if field}{fieldValue(row, field) ?? 'None'}{/if}
     </svelte:fragment>
   </RelationTable>

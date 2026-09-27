@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { PublicKindEntry, PublicPlace } from '@afallon/contracts/public';
+  import { categoryLabel } from '@afallon/contracts/public';
   import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
-  import { labelOf, levelText } from './format';
+  import { levelText } from './format';
 
   export let document: PublicPlace;
   export let registry: PublicKindEntry[];
@@ -10,8 +11,8 @@
 
   $: facts = document.facts;
   $: headerFacts = [
-    { value: labelOf(facts.placeType) },
-    ...(facts.guideIncluded ? [{ value: 'Adventure guide entry' }] : []),
+    { value: categoryLabel(facts.placeType) },
+    ...(facts.guideIncluded ? [{ value: 'In the Adventure Guide' }] : []),
     ...(facts.levelRange ? [{ label: 'Level', value: levelText(facts.levelRange) }] : []),
     ...(document.space && mapSpaceLabels[document.space.mapSpaceId] ? [{ label: 'Map', value: mapSpaceLabels[document.space.mapSpaceId]! }] : []),
   ] satisfies HeaderFact[];

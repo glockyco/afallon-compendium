@@ -1,7 +1,8 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import type { PublicKindEntry, PublicPlace } from '@afallon/contracts/public';
-  import { labelOf, levelText } from '../../format';
+  import { categoryLabel } from '@afallon/contracts/public';
+  import { levelText } from '../../format';
   import { placeOnMap } from '../../map-links';
   import Hero from '../Hero.svelte';
   import { placeCreatureRows, placePointsOfInterest } from '../place-rows';
@@ -18,7 +19,7 @@
 
   $: facts = document.facts;
   $: titleFacts = [
-    ...(facts.placeType ? [{ text: labelOf(facts.placeType) }] : []),
+    ...(facts.placeType ? [{ text: categoryLabel(facts.placeType) }] : []),
     ...(facts.levelRange ? [{ label: 'Level', text: levelText(facts.levelRange) }] : []),
     ...(document.parent ? [{ label: 'Part of', refs: [document.parent] }] : []),
     ...(facts.guideIncluded ? [{ text: 'In the Adventure Guide' }] : []),

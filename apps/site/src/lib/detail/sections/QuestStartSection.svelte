@@ -83,7 +83,7 @@
 
     {#if document.facts.worldQuest}
       <div class="timing">
-        <FactList title="World quest timing">
+        <FactList title="World Quest timing">
           <FactRow label="Active for">{intervalText(document.facts.worldQuest.availableSeconds)}</FactRow>
           <FactRow label="Returns after completion">{intervalText(document.facts.worldQuest.cooldownAfterCompletionSeconds)}</FactRow>
           <FactRow label="Returns after expiry">{intervalText(document.facts.worldQuest.cooldownAfterExpirySeconds)}</FactRow>

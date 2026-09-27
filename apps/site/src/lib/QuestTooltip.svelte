@@ -12,7 +12,7 @@
   $: chainStep = chainQuests.findIndex((quest) => quest.key === document.ref.key);
   $: headerFacts = [
     ...(facts.chain ? [{ label: 'Chain', value: `${facts.chain.name}${chainStep >= 0 ? `, step ${chainStep + 1} of ${chainQuests.length}` : ''}` }] : []),
-    ...(facts.worldQuest ? [{ value: 'World quest' }] : []),
+    ...(facts.worldQuest ? [{ value: 'World Quest' }] : []),
     ...(facts.repeatable ? [{ value: 'Repeatable' }] : []),
     ...(facts.levelRange ? [{ label: 'Quest level', value: levelText(facts.levelRange) }] : []),
     ...(facts.levelRequirement !== undefined ? [{ label: 'Minimum level', value: String(facts.levelRequirement) }] : []),
@@ -25,7 +25,7 @@
   <dl>
     {#if document.starts.length}
       <div><dt>Start</dt><dd>{#each document.starts as start}
-        {#if start.kind === 'npc'}<EntityReference ref={start.npc} {registry} />{:else if start.kind === 'worldZone'}World quest{:else}{start.label ?? 'Interactive object'}{/if}
+        {#if start.kind === 'npc'}<EntityReference ref={start.npc} {registry} />{:else if start.kind === 'worldZone'}World Quest{:else}{start.label ?? 'Interactive Object'}{/if}
       {/each}</dd></div>
     {/if}
     {#if document.turnIns.length}<div><dt>Turn-in</dt><dd>{#each document.turnIns as turnIn}<EntityReference ref={turnIn.npc} {registry} />{#if turnIn.areas.length}<span class="area">{turnIn.areas.join(', ')}</span>{/if}{/each}</dd></div>{:else if facts.turnInWithoutNpc}<div><dt>Turn-in</dt><dd>No NPC required</dd></div>{/if}

@@ -30,7 +30,7 @@
         {:else if column === 'completion'}
           {#each row.completions as completion}
             <div class="completion">
-              <div>{completion.label ?? 'Interactive object'}</div>
+              <div>{completion.label ?? 'Interactive Object'}</div>
               {#if completion.placements.length}<LocationLinks placements={completion.placements} />{/if}
               {#if completion.availability.length}<Availability rules={completion.availability} {registry} />{/if}
             </div>

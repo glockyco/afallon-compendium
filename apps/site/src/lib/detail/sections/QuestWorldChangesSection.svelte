@@ -13,7 +13,7 @@
 
   const kinds: Record<QuestWorldChange['sourceKind'], string> = {
     creature: 'Creature', object: 'Object', container: 'Container', resource: 'Resource',
-    craftingStation: 'Crafting station', worldZone: 'World quest zone',
+    craftingStation: 'Crafting Station', worldZone: 'World Quest Zone',
   };
   const columns: RelationColumn<QuestWorldChange>[] = [
     { id: 'source', label: 'Source', value: (change) => [change.label, ...change.subjects.map(nameOf)].filter(Boolean).join(', ') || kinds[change.sourceKind] },
