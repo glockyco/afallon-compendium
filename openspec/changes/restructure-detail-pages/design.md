@@ -32,7 +32,7 @@ Every fact is conditional on a published value. Full-width sections replace the 
 
 ### Components
 
-New components live in `apps/site/src/lib/detail/`: `DetailPage` (kind switch), `TitleBlock`, `Hero`, `Section`, `FactList`, `LinkGrid`, `RelationTable`, `Hint`, and one page component per kind. Section components per relation replace the table components listed in the proposal. The `FactCard*` components, `Card`, `Fact`, `FactGrid`, `ChipGrid`, `RefList`, and the unused `LocationList` go away. `EntityHeader` keeps only its compact form for tooltips and its page form for coverage.
+New components live in `apps/site/src/lib/detail/`: `DetailPage` (kind switch), `TitleBlock`, `Hero`, `Section`, `FactList`, `LinkGrid`, `RelationTable`, `Hint`, and one page component per kind. Section components per relation replace the table components listed in the proposal. The `FactCard*` components, `Fact`, `FactGrid`, `ChipGrid`, `RefList`, and the unused `LocationList` go away. `EntityHeader` keeps only its compact form for tooltips and its page form for coverage, which also keeps `Card`.
 
 ### Table rules as pure functions
 
