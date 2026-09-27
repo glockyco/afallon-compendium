@@ -14,7 +14,7 @@
       {#each quests as quest, index}
         <li>
           <span class="number" aria-hidden="true">{index + 1}</span>
-          {#if quest.key === currentKey}<strong aria-current="step">{quest.name}</strong>
+          {#if quest.key === currentKey}<strong class="name" aria-current="step">{quest.name}</strong>
           {:else}<EntityLink ref={quest} {registry} />{/if}
         </li>
       {/each}
@@ -23,9 +23,13 @@
 {/if}
 
 <style>
-  .steps { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0; padding: 0; list-style: none; }
-  li { display: inline-flex; min-width: 0; max-width: 100%; align-items: baseline; gap: .5rem; padding: .4rem .65rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-2); font-size: .85rem; }
+  /* Equal cells fill each row. A name that does not fit its cell ends in an ellipsis, and the hover tooltip of the link
+     names the quest in full. The truncation sits on the link's own box, so the tooltip beside it stays unclipped. The
+     box has room for the 2px focus ring and its 2px offset, which the clipping would otherwise hide. */
+  .steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .5rem; margin: 0; padding: 0; list-style: none; }
+  li { display: flex; min-width: 0; align-items: center; gap: .5rem; padding: .4rem .65rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-2); font-size: .85rem; }
   .number { display: inline-grid; width: 1.25rem; height: 1.25rem; flex: none; place-items: center; color: var(--c-text-dim); font-variant-numeric: tabular-nums; }
-  strong { color: #f2e4bb; font-weight: 600; overflow-wrap: break-word; }
+  .name, li > :global(:is(.tooltip-anchor, .entity-link, .entity-text)) { min-width: 0; margin: -4px; padding: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  strong { color: #f2e4bb; font-weight: 600; }
   li:has([aria-current]) { border-color: var(--c-accent); }
 </style>
