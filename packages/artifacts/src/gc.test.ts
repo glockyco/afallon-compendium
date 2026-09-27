@@ -205,3 +205,22 @@ test("an admission lease protects inputs before collectible publication", async 
     expect(released.objects.find(candidate => candidate.content.sha256 === object.sha256)?.disposition).toBe("unreachable");
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test("a batch protection records every object and manifest before it checks them", async () => {
+  const root = await mkdtemp(join(tmpdir(), "afallon-lease-batch-"));
+  const store = new ArtifactStore(root);
+  try {
+    const first = await store.putBytes(new TextEncoder().encode("first"));
+    const manifest = await store.putBytes(new TextEncoder().encode("manifest"));
+    const lease = await createArtifactLease(store, { runId: "batch", buildId: "25153357", operation: "batch", objects: [] });
+    try {
+      await lease.protectAll([{ sha256: first.sha256, bytes: first.bytes }, { sha256: first.sha256, bytes: first.bytes }], [{ sha256: manifest.sha256, bytes: manifest.bytes }]);
+      const [recorded] = await readArtifactLeases(store);
+      expect(recorded?.objects.map((object) => object.sha256).sort()).toEqual([first.sha256, manifest.sha256].sort());
+      expect(recorded?.manifests.map((object) => object.sha256)).toEqual([manifest.sha256]);
+      // A missing object fails the batch, but the lease still protects what it recorded.
+      await expect(lease.protectAll([{ sha256: "c".repeat(64), bytes: 1 }])).rejects.toThrow();
+      expect((await readArtifactLeases(store))[0]?.objects.length).toBe(3);
+    } finally { await lease.release(); }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
