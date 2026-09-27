@@ -17,9 +17,11 @@
 
 <style>
   .entity-reference { color: var(--c-text); overflow-wrap: break-word; }
-  img, .kind-icon { box-sizing: border-box; width: 1.4rem; height: 1.4rem; margin-right: .45rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: #141514; object-fit: contain; vertical-align: middle; }
+  /* The icon scales with the text. `middle` centers it on the lower-case letters, and the lift moves it to the
+     center of the whole line of letters. */
+  img, .kind-icon { box-sizing: border-box; width: 1.45em; height: 1.45em; margin-right: .35em; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: #141514; object-fit: contain; vertical-align: middle; position: relative; top: -.12em; }
   .kind-icon { display: inline-grid; place-items: center; border-color: #4a463c; background: var(--c-surface-2); color: #8d8778; }
-  .kind-icon :global(svg) { width: .9rem; height: .9rem; }
+  .kind-icon :global(svg) { width: .65em; height: .65em; }
   [data-rarity] { color: var(--c-rarity); }
   [data-rarity] img { border-color: color-mix(in srgb, var(--c-rarity) 60%, transparent); }
 </style>

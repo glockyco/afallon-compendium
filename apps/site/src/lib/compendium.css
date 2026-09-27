@@ -187,7 +187,9 @@
 .c-link:hover { color: var(--c-accent-strong); }
 
 .c-price { color: var(--c-currency); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.c-price img { width: 1.1rem; height: 1.1rem; margin-right: .3rem; object-fit: contain; vertical-align: middle; }
+/* The coin scales with the text. `middle` centers it on the lower-case letters, and the lift moves it to the center of
+   the whole line of letters. */
+.c-price img { position: relative; top: -.12em; width: 1.15em; height: 1.15em; margin-right: .3em; object-fit: contain; vertical-align: middle; }
 
 .c-action {
   display: inline-flex;
