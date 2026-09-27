@@ -15,6 +15,8 @@ The detail pages grew one fix at a time, and each kind now arranges its content 
 - Reader text calls the interactive map "the map".
 - The hover tooltip of an item shows its How to get it summary, as the accepted item requirement already demands.
 - Place documents list the properties in the place. The field exists but the publication leaves it empty.
+- Place connections say which way each teleport goes: to another place, from another place, or within the place, with the map spots where it starts. They leave out the dungeon entrance trigger, which loads nothing, and leftover copies of teleporters that stand outside the game map of their place.
+- NPC variants no longer differ by the order of their stats or by a stat of zero, and a publication stops when two loot lists of one NPC would merge on the page.
 
 ## Capabilities
 
@@ -32,6 +34,6 @@ The detail pages grew one fix at a time, and each kind now arranges its content 
 ## Impact
 
 - Site: the detail route `apps/site/src/routes/[kind]/[slug]/`, new detail components under `apps/site/src/lib/detail/`, the item hover tooltip, `EntityTooltip.svelte` (shared floating behaviour), `EntityLink.svelte` (word wrapping), `MissingValue.svelte`, `compendium.css`. The `FactCard*.svelte`, `RefList.svelte`, `DropTable.svelte`, `VendorTable.svelte`, `ContainerTable.svelte`, `GatherTable.svelte`, `QuestTable.svelte`, `RecipeTable.svelte`, `NpcLocations.svelte`, `NpcVariants.svelte`, `AbilityPhases.svelte`, `Fact.svelte`, `FactGrid.svelte`, `ChipGrid.svelte`, and the unused `LocationList.svelte` components go away.
-- Publication: fallback qualifiers and labels in `packages/publication/src/references.ts`, and place properties in `packages/publication/src/documents.ts`. No schema changes.
-- No catalog, scan, or contract changes. A new preview publication and an acceptance follow.
+- Publication: fallback qualifiers and labels in `packages/publication/src/references.ts`, variant comparisons in `packages/publication/src/variants.ts`, place properties, the loot rule check, and stats in `packages/publication/src/documents.ts`, and place connections in a new `packages/publication/src/connections.ts`.
+- Contracts: `isPublicPageKind`, `ConnectionRow` v2 with `direction` instead of `kind`, and the place document schema `compendium.static-place.v5`. The catalog transition query returns the position of each start object. The catalog database and the scan do not change. A new preview publication and an acceptance follow.
 - Verification: the site check, unit tests for the table rules and the fallback qualifiers, and browser screenshots of every kind at 1440 px and 390 px widths.

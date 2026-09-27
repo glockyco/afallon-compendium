@@ -56,7 +56,7 @@ Each section SHALL have a heading with an icon, a title, and an optional heading
 
 ### Requirement: Relation tables show only useful columns
 
-A relation table SHALL show a column only when at least one row has a value for it. In a table with two or more rows, a column SHALL be omitted when all rows have the same value and that value is a default, such as a quantity of one, or appears elsewhere on the page, such as the NPC level in the title block. When all rows of a drops section have the same loot roll, the heading line SHALL state the loot roll once, and the table SHALL NOT show a loot roll column. The name column and the values that a reader compares, such as chance and price, SHALL remain.
+A relation table SHALL show a column only when at least one row has a value for it. A column SHALL be omitted when all rows have the same value and that value is a default, such as a quantity of one, or appears elsewhere on the page, such as the NPC level in the title block. When all rows of a drops section have the same loot roll, the heading line SHALL state the loot roll once, and the table SHALL NOT show a loot roll column. The name column and the values that a reader compares, such as chance and price, SHALL remain.
 
 #### Scenario: Vendor stock without unlock requirements
 - **WHEN** no item of a vendor has an unlock requirement
@@ -70,6 +70,10 @@ A relation table SHALL show a column only when at least one row has a value for 
 #### Scenario: Table with one row
 - **WHEN** an NPC sells one item
 - **THEN** the row shows the item and its price
+
+#### Scenario: One location
+- **WHEN** an NPC has one location, and the title block shows its level and roles
+- **THEN** the Where to find table has no level column and no role column
 
 ### Requirement: Relation tables merge only equivalent rows
 
@@ -121,7 +125,7 @@ A reader SHALL understand the values of each section without another page and wi
 
 ### Requirement: Reader text shows no record ids or internal words
 
-Page text, table cells, and labels SHALL NOT show a native record id or an internal enum word, such as "Mob". The NPC type MOB SHALL NOT appear, because it marks an ordinary NPC. The NPC types BOSS, MERCHANT, and BANK SHALL NOT appear, because the roles already name them. A connection SHALL name its way of travel with the existing readable connection label.
+Page text, table cells, and labels SHALL NOT show a native record id or an internal enum word, such as "Mob". The NPC type MOB SHALL NOT appear, because it marks an ordinary NPC. The NPC types BOSS, MERCHANT, and BANK SHALL NOT appear, because the roles already name them. A connection SHALL NOT show the authored kind of its teleport.
 
 #### Scenario: Variants without readable labels
 - **WHEN** three variants of an NPC differ in stats but not in place, area, level, or type
@@ -170,7 +174,7 @@ Each fact below SHALL appear only when the publication has a value for it. A que
 
 ### Requirement: Place pages list what a player finds there
 
-Each fact below SHALL appear only when the publication has a value for it. A place page SHALL show its place type, its level range, its parent place, and its Adventure Guide listing in the title block. Its hero SHALL show its artwork and description. Its sections SHALL follow this order: Bosses, Creatures, NPCs, Points of interest, Quests, Properties, Connections, Areas. Each creature SHALL appear in one section only. Points of interest SHALL list the map categories of the place that no creature or NPC row shows, with their spot counts. The Quests section SHALL show one row for each quest that starts in the place or has an objective in it, and SHALL name both roles when both apply. The Connections section SHALL show one row for each connected place and connection label, with all its spots. A connection without a published spot SHALL say that no spot is published.
+Each fact below SHALL appear only when the publication has a value for it. A place page SHALL show its place type, its level range, its parent place, and its Adventure Guide listing in the title block. Its hero SHALL show its artwork and description. Its sections SHALL follow this order: Bosses, Creatures, NPCs, Points of interest, Quests, Properties, Connections, Areas. Each creature SHALL appear in one section only. Points of interest SHALL list the map categories of the place that no creature or NPC row shows, with their spot counts. The Quests section SHALL show one row for each quest that starts in the place or has an objective in it, and SHALL name both roles when both apply. The Connections section SHALL show one row for each direction and connected place: a teleport to that place, a teleport from that place, or a teleport within the place. Each row SHALL show the map spots where its teleports start. A row whose teleports start at no map spot SHALL say that the map shows no start for it. The Connections section SHALL NOT list a dungeon entrance trigger, because it loads nothing. It SHALL NOT list a teleport whose start lies outside the game map of its place when a teleport in another place starts at the same world position and has the same destination.
 
 #### Scenario: Dungeon with bosses
 - **WHEN** a dungeon has four bosses and two other creatures
@@ -179,7 +183,22 @@ Each fact below SHALL appear only when the publication has a value for it. A pla
 
 #### Scenario: Several teleports to one place
 - **WHEN** a place has four teleports to Afallon
-- **THEN** its Connections section has one Afallon teleport row with four spots
+- **THEN** its Connections section has one "To Afallon" row with four spots
+
+#### Scenario: Teleport into the place
+- **WHEN** a teleport in Afallon leads into Duskfall Depths
+- **THEN** the Connections section of Duskfall Depths has a "From Afallon" row with the spot of that teleport
+
+#### Scenario: Leftover copy of a teleporter
+- **WHEN** Cave (Coalway Woods 1) holds a copy of the Duskfall Depths entrance teleporter outside the game map of the cave
+- **AND** Challenge Stone Blood holds a copy at the same world position on its game map
+- **THEN** neither the cave page nor the Duskfall Depths page lists the teleport of the cave
+- **AND** both the Challenge Stone Blood page and the Duskfall Depths page list the teleport of Challenge Stone Blood
+
+#### Scenario: Teleport outside its map without a copy
+- **WHEN** the exit teleporter of Sanctum of the Veilpiercer starts outside the game map of the sanctum
+- **AND** no other place holds a teleporter at that position
+- **THEN** the sanctum page lists a "To Afallon" row
 
 ### Requirement: Property pages show the purchase
 

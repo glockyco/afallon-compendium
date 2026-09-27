@@ -14,6 +14,10 @@ Each grouped NPC document SHALL retain each member's key, anchor, label, optiona
 - **WHEN** two records differ in health or ability phases
 - **THEN** the page shows a variants table with the differing facts
 
+#### Scenario: Stats in another order
+- **WHEN** two records list the same stats in a different order, and one record adds a stat of zero
+- **THEN** the page shows no variants table for their stats
+
 #### Scenario: Drops are attributed between variants with drops
 - **WHEN** two variants have different drop rows and both have at least one drop
 - **THEN** a drop row exclusive to one variant names that variant
