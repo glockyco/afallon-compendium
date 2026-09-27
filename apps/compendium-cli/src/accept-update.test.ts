@@ -47,7 +47,7 @@ function priorDescriptor(evidence: ContentIdentity, publication: ContentIdentity
     catalog: { catalogId: "d".repeat(64), manifest: evidence, object: evidence },
     publication: {
       manifest: evidence,
-      root: { path: `resources/${publication.sha256}.json`, ...publication, schemaId: "compendium.static-root.v3" },
+      root: { path: `resources/${publication.sha256}.json`, ...publication, schemaId: "compendium.static-root.v4" },
     },
     stage: {
       schemaVersion: "afallon.deployment.v2",
@@ -73,9 +73,9 @@ async function fixture(): Promise<Fixture> {
   const catalogObject = await store.putBytes(bytes("catalog object"));
   const catalogManifest = { sha256: catalogManifestObject.sha256, bytes: catalogManifestObject.bytes };
   const sealedCatalog = { sha256: catalogObject.sha256, bytes: catalogObject.bytes };
-  const reference = { path: "resources/coverage.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v1" as const };
+  const reference = { path: "resources/coverage.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v2" as const };
   const publication: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v3",
+    schemaVersion: "compendium.static-root.v4",
     buildId: BUILD_ID,
     catalogId: CATALOG_ID,
     mode: "preview",
@@ -83,8 +83,8 @@ async function fixture(): Promise<Fixture> {
     world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [],
     kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, searchable: true, columns: [], facets: [] }],
-    lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v1" }] },
-    search: [{ ...reference, schemaId: "compendium.static-search.v3" }],
+    lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v2" }] },
+    search: [{ ...reference, schemaId: "compendium.static-search.v4" }],
     coverage: reference,
   };
   const publicationObject = await store.putBytes(bytes(`${canonicalJson(publication)}\n`));
@@ -99,7 +99,7 @@ async function fixture(): Promise<Fixture> {
     diagnosticRevision: "test",
     inputs: {},
   });
-  await publicationRun.addArtifact("publication.json", publicationObject, { mediaType: "application/json", schemaId: "compendium.static-root.v3" });
+  await publicationRun.addArtifact("publication.json", publicationObject, { mediaType: "application/json", schemaId: "compendium.static-root.v4" });
   await publicationRun.succeed();
   const publicationManifest = publicationRun.manifestIdentity;
   await publicationRun.release();
@@ -134,7 +134,7 @@ async function fixture(): Promise<Fixture> {
   const selectionPath = join(publicationRoot, "selected.json"), descriptorPath = join(storeRoot, "accepted-build.json"), stageRoot = join(siteDirectory, ".stage", "production");
   const priorPublication = { ...publication, buildId: "25153357", catalogId: "d".repeat(64) } satisfies StaticRootManifest;
   const priorPublicationBytes = bytes(`${canonicalJson(priorPublication)}\n`), priorPublicationIdentity = identity(priorPublicationBytes), priorPublicationId = priorPublicationIdentity.sha256;
-  const priorRoot = { path: `resources/${priorPublicationId}.json`, ...priorPublicationIdentity, schemaId: "compendium.static-root.v3" as const };
+  const priorRoot = { path: `resources/${priorPublicationId}.json`, ...priorPublicationIdentity, schemaId: "compendium.static-root.v4" as const };
   const priorSelectionBytes = bytes(`${canonicalJson({ root: priorRoot, directory: `publications/${priorPublicationId}` })}\n`), priorSelectionIdentity = identity(priorSelectionBytes);
   await mkdir(join(publicationRoot, "publications", priorPublicationId), { recursive: true });
   await writeFile(join(publicationRoot, "publications", priorPublicationId, "publication.json"), priorPublicationBytes);

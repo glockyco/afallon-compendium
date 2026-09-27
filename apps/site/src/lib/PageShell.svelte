@@ -22,7 +22,7 @@
         <span class="brand-copy"><strong>Afallon</strong><span>Compendium</span></span>
       </a>
       <nav class="bar-links" aria-label="Site">
-        <a class="c-link" href={`${base}/`}>World atlas</a>
+        <a class="c-link" href={`${base}/`}>Map</a>
         {#each registry.filter((entry) => entry.pages) as entry}<a class="c-link" href={`${base}/${entry.route}/`}>{entry.plural}</a>{/each}
       </nav>
       <div class="bar-search"><CompendiumSearch {registry} /></div>

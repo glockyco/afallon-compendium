@@ -42,7 +42,37 @@ test("returns the same conditional vendor and boss drop rows from both endpoints
     const fromBoss = dropRows.filter((row) => row.owner.entityKey === "npcs:2");
     const fromDropItem = dropRows.filter((row) => row.item.entityKey === "items:1");
     expect(fromBoss).toEqual(fromDropItem);
-    expect(fromBoss).toEqual([{ context: "npc", owner: { entityKey: "npcs:2", label: "Boss" }, item: { entityKey: "items:1", label: "Sword" }, lootTableId: 9, entryIndex: 0, min: 1, max: 2, rawRate: 12.34, displayedChance: 12.3, levelBand: null, conditionIds: [], placementIds: [] }]);
+    expect(fromBoss).toEqual([{ context: "npc", owner: { entityKey: "npcs:2", label: "Boss" }, item: { entityKey: "items:1", label: "Sword" }, lootTableId: 9, entryIndex: 0, min: 1, max: 2, rawRate: 12.34, displayedChance: 12.3, tableRate: 12.34, tableMinimum: null, tableLimit: null, creatureLevel: null, conditionIds: [], placementIds: [] }]);
+  } finally { db.close(); }
+});
+
+test("world loot reaches the creature levels of its binding and of the item's level band", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("f".repeat(64), "build", "catalog.v1", "{}", "e".repeat(64));
+    for (const id of [1, 2, 3]) db.query("INSERT INTO canonical_entities (build_id, kind, native_id, entity_key, name, internal_name, description, source_key, details_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("build", "items", id, `items:${id}`, `Item ${id}`, null, null, null, "{}", "[]");
+    // Table 5 gives any item. Table 6 is a level-band table with a limit of two items and a minimum of one.
+    db.query("INSERT INTO loot_tables VALUES (?, ?, ?, ?), (?, ?, ?, ?)").run("build", 5, 0, "{}", "build", 6, 1, JSON.stringify({ limitDroppedItems: true, maxDroppedItems: 2, hasMinimumDrops: true, minDroppedItems: 1 }));
+    const bind = (index: number, table: number, rate: number, min: number, max: number) => db.query("INSERT INTO loot_bindings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(`world-${index}`, "build", "world", null, table, index, rate, "authored", null, JSON.stringify({ minimumNPCLevel: min, maximumNPCLevel: max }));
+    bind(0, 5, 30, 0, 0); bind(1, 6, 5, 7, 20); bind(2, 6, 5, 20, 0);
+    db.query("INSERT INTO loot_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      "build", 5, 0, "items:1", 1, 1, 0.8, "authored", "{}", "build", 6, 0, "items:2", 1, 1, 2.5, "authored", "{}",
+      "build", 6, 1, "items:3", 1, 1, 2.5, "authored", "{}", "build", 6, 2, "items:1", 1, 1, 2.5, "authored", "{}",
+    );
+    const eligibility = (requiredLevel: number) => JSON.stringify({ worldLootSettings: { minimumNPCRank: 0, minimumNPCRankName: "MOB" }, levelEligibility: { requiredLevel, levelBand: { range: 4 } } });
+    const source = (item: string, key: string, requiredLevel: number) => db.query("INSERT INTO item_sources VALUES (?, ?, ?, ?, ?, ?, ?)").run(item, "world-loot", key, "[]", "[]", eligibility(requiredLevel), "null");
+    source("items:1", "0:0", 0); source("items:2", "1:0", 8); source("items:3", "1:1", 26); source("items:1", "1:2", 0);
+    source("items:2", "2:0", 8); source("items:3", "2:1", 26); source("items:1", "2:2", 0);
+    const levels = queryDropRows(db).records.map((row) => [row.item.entityKey, row.lootTableId, row.creatureLevel, row.owner.label, row.tableRate, row.tableMinimum, row.tableLimit]);
+    expect(levels).toEqual([
+      ["items:1", 5, { min: 1, max: null }, "Any creature", 30, null, null],
+      // Level 8 reaches creatures of levels 4 to 12, and the binding keeps 7 to 12. Level 26 is outside 7 to 20.
+      ["items:2", 6, { min: 7, max: 12 }, "Any creature", 5, 1, 2],
+      ["items:1", 6, { min: 7, max: 20 }, "Any creature", 5, 1, 2],
+      ["items:3", 6, { min: 22, max: 30 }, "Any creature", 5, 1, 2],
+      ["items:1", 6, { min: 20, max: null }, "Any creature", 5, 1, 2],
+    ]);
   } finally { db.close(); }
 });
 
@@ -111,6 +141,8 @@ test("renders complete classified item use predicates", () => {
     const entry = (name: string) => ({ nativeId: -1, name, internalName: name, fileName: `${name}_TYPE`, description: "", nativeType: "Game.Entry", text: name });
     const group = (requirements: unknown[]) => JSON.stringify({ groups: [{ checkCount: false, requiredCount: 0, requirements }] });
     const effect = { requirementType: "Effect", conditionRule: "Mandatory", effectID: 30, state: named(1, "Inactive") };
+    // The game compares stacks only when the first flag is set.
+    const stacks = { requirementType: "Effect", conditionRule: "Mandatory", effectID: 30, state: named(0, "Active"), boolBalue1: true, amount1: 34, value: named(3, "EqualOrAbove") };
     const weapons = ["AXE", "One handed sword", "Two handed sword"].map((name) => ({ requirementType: "Item", conditionRule: "Optional", ownership: named(2, "Equipped"), itemCondition: named(2, "WeaponType"), weaponType: entry(name) }));
     const region = { requirementType: "Region", conditionRule: "Mandatory", region: entry("Quest complete") };
     const combat = { requirementType: "CombatState", conditionRule: "Mandatory", boolBalue1: false };
@@ -119,12 +151,14 @@ test("renders complete classified item use predicates", () => {
     insert.run("weapons", "build", "entity", "items:954", 0, "inline-requirements", "use", "/weapons", group(weapons), "[]");
     insert.run("region", "build", "entity", "items:222", 0, "inline-requirements", "use", "/region", group([region]), "[]");
     insert.run("combat", "build", "entity", "items:235", 0, "inline-requirements", "use", "/combat", group([combat]), "[]");
+    insert.run("stacks", "build", "entity", "items:236", 0, "inline-requirements", "use", "/stacks", group([stacks]), "[]");
 
     expect(queryConditions(db).records.map((condition) => [condition.scope, condition.label])).toEqual([
       ["use", "Out of combat"],
       ["use", "Potion Sickness is inactive"],
       ["use", "Region Quest complete"],
-      ["use", "Equipped AXE or Equipped One handed sword or Equipped Two handed sword"],
+      ["use", "Potion Sickness is active with 34 or more stacks"],
+      ["use", "Axe equipped or One handed sword equipped or Two handed sword equipped"],
     ]);
   } finally { db.close(); }
 });

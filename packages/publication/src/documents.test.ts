@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow } from "@afallon/contracts/catalog";
-import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicGearSet, type PublicItem, type PublicNpc, type PublicPlace, type PublicQuest } from "@afallon/contracts/public";
-import { projectPublicDocuments, projectQuestObjective } from "./documents";
+import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicItem, type PublicNpc, type PublicPlace, type PublicQuest } from "@afallon/contracts/public";
+import { projectPublicDocuments, projectQuestObjective, type DocumentProjectionInput } from "./documents";
 import { assertCompleteTooltipCoverage, auditPublicTooltipCoverage } from "./tooltip-coverage";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
@@ -61,7 +61,7 @@ const facts: CatalogFacts = {
 
 const relations: CatalogRelations = {
   drops: [{ context: "npc", owner: { entityKey: "npcs:2", label: "Guardian" }, item: { entityKey: "items:1", label: "Blade" },
-    lootTableId: 4, entryIndex: 0, min: 1, max: 2, rawRate: 0.125, displayedChance: 12.5, levelBand: null, conditionIds: [], placementIds: ["p1"] }],
+    lootTableId: 4, entryIndex: 0, min: 1, max: 2, rawRate: 0.125, displayedChance: 12.5, tableRate: 100, tableMinimum: null, tableLimit: null, creatureLevel: null, conditionIds: [], placementIds: ["p1"] }],
   vendors: [],
   gathers: [
     { producerLabel: "Iron node", sourceId: "source-1", sceneNativeId: 10, resource: null, item: { entityKey: "items:1", label: "Blade" }, skill: null, rank: null, min: 1, max: 2, rawRate: 25, conditionIds: [], placementIds: ["p1"] },
@@ -71,18 +71,22 @@ const relations: CatalogRelations = {
     { containerType: "Chest", sourceId: "container-1", place: { entityKey: "scenes:10", label: "Crypt" }, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, availability: [], placementIds: ["p1"] },
     { containerType: "Chest", sourceId: "container-2", place: { entityKey: "scenes:10", label: "Crypt" }, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, availability: [], placementIds: ["p2"] },
   ], interactions: [], quests: [], recipes: [],
-  placements: [{ placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guardian", area: null, roles: [{ role: "boss", npcEntityKey: "npcs:2", scope: "authored" }], families: [] }],
+  placements: [{ placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guardian", area: null, roles: [{ role: "boss", npcEntityKey: "npcs:2", scope: "authored" }], families: [], randomChoices: [] }],
   transitions: [{ transitionId: "transition-1", sourceSceneKey: "scenes:10", destinationSceneKey: null, transitionKind: "entrance", placementIds: ["p2"] }],
   conditions: [{ conditionId: "oathbreaker", semantics: "equipment", scope: "equipment", label: "Requirements", requirements: equipmentRequirements }], gatedSources: [],
 };
 
+function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map()) {
+  const references = buildEntityReferences(projectEntities, { facts: projectFacts, relations: projectRelations });
+  const documents = projectPublicDocuments({ entities: projectEntities, facts: projectFacts, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey: new Map() });
+  return { refs: references.refs, documents };
+}
+
 test("projects one symmetric boss drop row and strips native rich text", () => {
-  const refs = buildEntityReferences(entities, { facts, relations });
-  const documents = projectPublicDocuments({ entities, facts, relations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(),
-    placements: new Map([
-      ["p1", { placementId: "p1", mapSpaceId: "world", label: "World", categories: ["boss"] }],
-      ["p2", { placementId: "p2", mapSpaceId: "world", label: "World", categories: ["container"] }],
-    ]), regionIdsByMapSpace: new Map([["world", ["region-1"]]]) });
+  const { documents } = project(entities, facts, relations, new Map([
+    ["p1", { placementId: "p1", mapSpaceId: "world", label: "World", categories: ["boss"] }],
+    ["p2", { placementId: "p2", mapSpaceId: "world", label: "World", categories: ["container"] }],
+  ]), new Map([["world", ["region-1"]]]));
   const item = documents.get("items:1") as PublicItem, npc = documents.get("npcs:2") as PublicNpc, place = documents.get("scenes:10") as PublicPlace;
   expect(item.ref.name).toBe("Oathbreaker's Edge");
   expect(item.description).toBe("Sharp\nSteel");
@@ -111,7 +115,7 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
     { id: "damagePerSecond", label: "Damage per second", sortable: true, numeric: true },
   ]));
   expect(npc.facts).not.toHaveProperty("species");
-  expect(npc.facts.lootSpecialization).toEqual({ armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { key: "stats:5", kind: "stats", name: "Loot stat" } });
+  expect(npc.facts.lootSpecialization).toEqual({ armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { key: "stats:5", kind: "stats", name: "Loot Stat" } });
   expect(item.droppedBy).toHaveLength(1);
   expect(npc.drops).toHaveLength(1);
   const { counterpart: itemCounterpart, ...itemValues } = item.droppedBy[0]!;
@@ -121,11 +125,11 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(itemValues).toEqual(npcValues);
   expect(itemValues).toMatchObject({ min: 1, max: 2, chance: 12.5 });
   expect(itemValues).not.toHaveProperty("placements");
-  expect(item.gatheredFrom).toEqual([{ label: "Iron node", min: 1, max: 2, chance: 25, placementCount: 2 }]);
+  expect(item.gatheredFrom).toEqual([{ label: "Iron Node", min: 1, max: 2, chance: 25, placementCount: 2 }]);
   expect(item.inContainers).toEqual([{ counterpart: { key: "scenes:10", kind: "places", name: "Crypt", slug: "crypt" },
     label: "Chest", min: 1, max: 1, availability: [], placementCount: 2 }]);
   expect(item).not.toHaveProperty("locations");
-  expect(npc.locations).toEqual([{ placementId: "p1", mapSpaceId: "world", label: "World" }]);
+  expect(npc.locations).toEqual([{ label: "World", placements: [{ placementId: "p1", mapSpaceId: "world", label: "World" }], availability: [], variants: ["n2"], roles: ["boss"], quests: [] }]);
   expect(place).not.toHaveProperty("locations");
   expect(place.space).toEqual({ mapSpaceId: "world", regionIds: ["region-1"] });
   expect(place.creatures).toMatchObject([{ counterpart: { key: "npcs:2" }, placementCount: 1 }]);
@@ -133,15 +137,13 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
 
 test("place service groups use the published station types", () => {
   const stationRelations: CatalogRelations = { ...relations, placements: [
-    { placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Cooking", area: null, roles: [{ role: "craftingService", npcEntityKey: null, scope: "authored" }], families: ["craftingStation"] },
-    { placementId: "p2", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Unknown station", area: null, roles: [{ role: "craftingService", npcEntityKey: null, scope: "authored" }], families: ["craftingStation"] },
+    { placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Cooking", area: null, roles: [{ role: "craftingService", npcEntityKey: null, scope: "authored" }], families: ["craftingStation"], randomChoices: [] },
+    { placementId: "p2", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Unknown station", area: null, roles: [{ role: "craftingService", npcEntityKey: null, scope: "authored" }], families: ["craftingStation"], randomChoices: [] },
   ] };
-  const refs = buildEntityReferences(entities, { facts, relations: stationRelations });
-  const documents = projectPublicDocuments({ entities, facts, relations: stationRelations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(),
-    placements: new Map([
-      ["p1", { placementId: "p1", mapSpaceId: "world", label: "World", categories: ["cookingStation" as const] }],
-      ["p2", { placementId: "p2", mapSpaceId: "world", label: "World", categories: ["craftingStation" as const] }],
-    ]), regionIdsByMapSpace: new Map([ ["world", []] ]) });
+  const { documents } = project(entities, facts, stationRelations, new Map([
+    ["p1", { placementId: "p1", mapSpaceId: "world", label: "World", categories: ["cookingStation" as const] }],
+    ["p2", { placementId: "p2", mapSpaceId: "world", label: "World", categories: ["craftingStation" as const] }],
+  ]), new Map([["world", []]]));
   expect((documents.get("scenes:10") as PublicPlace).services).toEqual([
     { category: "cookingStation", placementCount: 1 },
     { category: "craftingStation", placementCount: 1 },
@@ -174,23 +176,20 @@ test("projects representative item use text, effective stats and contextual abil
     ],
     gearSets: [{ ...facts.gearSets[0]!, members: [facts.gearSets[0]!.members[0]!] }],
   };
-  const tooltipRefs = buildEntityReferences(tooltipFacts.entities, { facts: tooltipFacts, relations });
-  const documents = projectPublicDocuments({ entities: tooltipFacts.entities, facts: tooltipFacts, relations, refs: tooltipRefs, resolve: createReferenceResolver(tooltipRefs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map() });
+  const { documents } = project(tooltipFacts.entities, tooltipFacts, relations);
 
   expect((documents.get("items:101") as PublicItem).facts).toMatchObject({
-    useLines: line("Restores 120 health."), actionAbilities: [{ ability: { key: "abilities:202", name: "Healing potion" }, rankIndex: 3 }],
+    useLines: line("Restores 120 health."), actionAbilities: [{ ability: { key: "abilities:202", name: "Healing Potion" }, rankIndex: 3 }],
   });
   expect((documents.get("items:102") as PublicItem).facts.useLines).toEqual(line("Increases weapon damage."));
   expect((documents.get("items:103") as PublicItem).facts.stats).toEqual([{ stat: { key: "stats:104", kind: "stats", name: "Lifesteal" }, amount: 2, isPercent: true }]);
   expect((documents.get("npcs:2") as PublicNpc).abilityPhases[0]?.abilities).toEqual([{ ability: { key: "abilities:201", kind: "abilities", name: "Cleave", slug: "cleave" }, rankIndex: 0 }]);
   const cleave = documents.get("abilities:201") as PublicAbility;
   const healingPotion = documents.get("abilities:202") as PublicAbility;
-  expect(cleave.facts.ranks).toEqual([{ rankIndex: 0, lines: line("Cleave rank zero") }]);
-  expect(cleave.usedBy).toEqual([{ key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }]);
-  expect(cleave.taughtBy).toEqual([]);
-  expect(healingPotion.facts.ranks.map((rank) => rank.rankIndex)).toEqual([0, 1, 2, 3]);
-  expect(healingPotion.usedBy).toEqual([]);
-  expect(healingPotion.taughtBy).toEqual([{ key: "items:101", kind: "items", name: "Minor health potion", slug: "minor-health-potion" }]);
+  expect(cleave.versions).toEqual([{ keys: ["abilities:201"], anchor: "n201", ranks: [{ rankIndex: 0, lines: line("Cleave rank zero") }], usedBy: [{ key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }], taughtBy: [] }]);
+  expect(healingPotion.versions[0]!.ranks.map((rank) => rank.rankIndex)).toEqual([0, 1, 2, 3]);
+  expect(healingPotion.versions[0]!.usedBy).toEqual([]);
+  expect(healingPotion.versions[0]!.taughtBy).toEqual([{ key: "items:101", kind: "items", name: "Minor Health Potion", slug: "minor-health-potion" }]);
 
   const schemaIds = new Map<string, string>([...documents].map(([key, document]) => [key, STATIC_DOCUMENT_SCHEMA_IDS[document.ref.kind as keyof typeof STATIC_DOCUMENT_SCHEMA_IDS]]));
   expect(auditPublicTooltipCoverage(tooltipFacts, relations, documents, schemaIds)).toEqual([]);
@@ -198,7 +197,7 @@ test("projects representative item use text, effective stats and contextual abil
   expect(auditPublicTooltipCoverage(tooltipFacts, unrelatedRelations, documents, schemaIds)).toEqual([]);
 
   const missingRank = new Map(documents);
-  missingRank.set("abilities:202", { ...healingPotion, facts: { ranks: healingPotion.facts.ranks.slice(0, -1) } } as PublicDocument);
+  missingRank.set("abilities:202", { ...healingPotion, versions: [{ ...healingPotion.versions[0]!, ranks: healingPotion.versions[0]!.ranks.slice(0, -1) }] } as PublicDocument);
   const missingRankIssues = auditPublicTooltipCoverage(tooltipFacts, relations, missingRank, schemaIds);
   expect(missingRankIssues).toContain("Ability abilities:202 is missing public rank 3.");
   expect(() => assertCompleteTooltipCoverage(true, missingRankIssues)).toThrow("Ability abilities:202 is missing public rank 3.");
@@ -211,8 +210,8 @@ test("projects representative item use text, effective stats and contextual abil
   const mixedSchemaIds = new Map(schemaIds);
   mixedSchemaIds.set("items:101", "compendium.static-item.v1");
   const mixedSchemaIssues = auditPublicTooltipCoverage(tooltipFacts, relations, documents, mixedSchemaIds);
-  expect(mixedSchemaIssues).toContain("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v3.");
-  expect(() => assertCompleteTooltipCoverage(true, mixedSchemaIssues)).toThrow("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v3.");
+  expect(mixedSchemaIssues).toContain("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v4.");
+  expect(() => assertCompleteTooltipCoverage(true, mixedSchemaIssues)).toThrow("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v4.");
   expect(() => assertCompleteTooltipCoverage(false, mixedSchemaIssues)).not.toThrow();
 
   const changedUseText = new Map(documents);
@@ -221,26 +220,23 @@ test("projects representative item use text, effective stats and contextual abil
   expect(auditPublicTooltipCoverage(tooltipFacts, relations, changedUseText, schemaIds)).toContain("Item items:101 changed its native use-text block.");
 });
 
-test("publishes a gear set's members and tiers and names the set on its member item", () => {
-  const refs = buildEntityReferences(entities, { facts, relations });
-  const documents = projectPublicDocuments({ entities, facts, relations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map() });
-  const set = documents.get("gearSets:17") as PublicGearSet, item = documents.get("items:1") as PublicItem;
-  expect(set.ref).toMatchObject({ kind: "gearSets", name: "Adept Leather", slug: "adept-leather" });
-  expect(set.facts.memberCount).toBe(2);
-  expect(set.members).toEqual([{ key: "items:1", kind: "items", name: "Oathbreaker's Edge", slug: "oathbreakers-edge" }, { key: null, label: "Item 999" }]);
-  expect(set.tiers).toEqual([
-    { equipped: 3, stats: [{ stat: { key: "stats:12", kind: "stats", name: "Poison Damage" }, amount: 10, isPercent: true }] },
-    { equipped: 7, stats: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amount: 40, isPercent: false }] },
-  ]);
-  expect(item.facts.gearSet).toEqual({ key: "gearSets:17", kind: "gearSets", name: "Adept Leather", slug: "adept-leather" });
-  const setList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("gearSets")?.[0];
-  expect(setList?.rows).toEqual([{ ref: set.ref, values: { memberCount: 2, tierCount: 2 }, facets: { memberCount: ["2"], tierCount: ["2"] } }]);
+test("shows a gear set in full on its member item and publishes no gear set page", () => {
+  const { documents } = project(entities, facts, relations);
+  const item = documents.get("items:1") as PublicItem;
+  expect(documents.has("gearSets:17")).toBe(false);
+  expect(item.facts.gearSet).toEqual({
+    key: "gearSets:17", name: "Adept Leather",
+    members: [{ key: "items:1", kind: "items", name: "Oathbreaker's Edge", slug: "oathbreakers-edge" }, { key: null, label: "Item 999" }],
+    tiers: [
+      { equipped: 3, stats: [{ stat: { key: "stats:12", kind: "stats", name: "Poison Damage" }, amount: 10, isPercent: true }] },
+      { equipped: 7, stats: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amount: 40, isPercent: false }] },
+    ],
+  });
 });
 
 test("projects only the armor branch when native weapon defaults remain", () => {
   const armorFacts: CatalogFacts = { ...facts, items: [{ ...facts.items[0]!, itemType: "ARMOR", armorSlot: "GLOVES", armorType: "LEATHER" }] };
-  const refs = buildEntityReferences(entities, { facts: armorFacts, relations });
-  const documents = projectPublicDocuments({ entities, facts: armorFacts, relations, refs, resolve: createReferenceResolver(refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map() });
+  const { documents } = project(entities, armorFacts, relations);
   const item = documents.get("items:1") as PublicItem;
   expect(item.facts).toMatchObject({ slot: "GLOVES", armorType: "LEATHER" });
   expect(item.facts).not.toHaveProperty("weaponSlot");
@@ -257,7 +253,7 @@ test("projects only the armor branch when native weapon defaults remain", () => 
 });
 
 test("maps every supported native task type and preserves unsupported types", () => {
-  const refs = buildEntityReferences(entities), resolve = createReferenceResolver(refs);
+  const resolve = createReferenceResolver(buildEntityReferences(entities).refs);
   const tasks: CatalogTaskFacts[] = [
     { entityKey: "tasks:1", taskType: "killNPC", target: { entityKey: "npcs:2", label: "Guardian" }, count: 2, keepItems: null, sceneName: null },
     { entityKey: "tasks:2", taskType: "getItem", target: { entityKey: "items:1", label: "Blade" }, count: 1, keepItems: true, sceneName: null },
@@ -348,11 +344,9 @@ test("projects quest starts, world effects, and related item, NPC, and place pag
       { sourceId: "missing-change", family: "resource", label: "Unmapped", subjects: [], placementIds: ["unpublished"], availability: [afterQuest] },
     ],
   };
-  const refs = buildEntityReferences(scenarioEntities, { facts: scenarioFacts, relations: scenarioRelations });
   const placements = new Map(["p1", "p2", "p3", "p4"].map((placementId) => [placementId,
     { placementId, mapSpaceId: "world", label: placementId === "p3" ? "Coalway Woods" : "Raven Camp", categories: [] }] as const));
-  const documents = projectPublicDocuments({ entities: scenarioEntities, facts: scenarioFacts, relations: scenarioRelations,
-    refs, resolve: createReferenceResolver(refs), artByEntity: new Map(), placements, regionIdsByMapSpace: new Map([["world", []]]) });
+  const { refs, documents } = project(scenarioEntities, scenarioFacts, scenarioRelations, placements, new Map([["world", []]]));
   const publicQuest = documents.get("quests:3") as PublicQuest;
   expect(publicQuest.facts).toMatchObject({ levelRequirement: 16, experience: 500, chain: { name: "Pilgrimage", order: 2 },
     objectiveText: "Meet the trial", completedDescription: "Done",
@@ -362,11 +356,11 @@ test("projects quest starts, world effects, and related item, NPC, and place pag
     { kind: "worldZone", placements: [placements.get("p2")!, placements.get("p3")!].map(({ categories, ...location }) => location),
       availability: [{ effect: "requires", requirements: [{ mode: "all", checkCount: false, requirements: [expect.objectContaining({ label: "At night" })] }] }],
       zoneDelaySeconds: 45, pool: [refs.get("quests:4")!] },
-    { kind: "object", label: "Old altar", placements: [placements.get("p4")!].map(({ categories, ...location }) => location),
+    { kind: "object", label: "Old Altar", placements: [placements.get("p4")!].map(({ categories, ...location }) => location),
       availability: [{ effect: "temporary", durationSeconds: 30, requirements: [expect.objectContaining({ mode: "all" })] }] },
   ]);
   expect(publicQuest.objectives).toEqual([{ index: 0, type: "enterRegion", text: "Find the old grove",
-    completions: [{ label: "Ancient stone", availability: [expect.objectContaining({ effect: "requires" })],
+    completions: [{ label: "Ancient Stone", availability: [expect.objectContaining({ effect: "requires" })],
       placements: [placements.get("p2")!, placements.get("p4")!].map(({ categories, ...location }) => location) }] }]);
   expect(publicQuest.rewards).toEqual([{ counterpart: refs.get("currencies:0")!, count: 40, choice: false }]);
   expect(publicQuest.chainQuests.map((ref) => ref.key)).toEqual(["quests:1", "quests:3", "quests:4"]);
@@ -375,16 +369,55 @@ test("projects quest starts, world effects, and related item, NPC, and place pag
     { sourceKind: "creature", subjects: [{ key: "npcs:2" }], availability: [{ effect: "excludes", requirements: [{ requirements: [{
       spans: [{ ref: { key: "quests:3" } }, { text: " turned in" }],
     }] }] }], placements: [{ placementId: "p1" }, { placementId: "p2" }] },
-    { sourceKind: "object", label: "Locked altar", availability: [{ effect: "excludes" }, { effect: "requires" }], placements: [{ placementId: "p4" }] },
+    { sourceKind: "object", label: "Locked Altar", availability: [{ effect: "excludes" }, { effect: "requires" }], placements: [{ placementId: "p4" }] },
   ]);
   const item = documents.get("items:1") as PublicItem;
   expect(item.inContainers).toMatchObject([{ availability: [{ effect: "requires" }], placementCount: 1 }]);
-  expect(item.collectedFrom).toMatchObject([{ label: "Egg cluster", counterpart: { key: "scenes:10" }, min: 2, max: 3, chance: 30,
+  expect(item.collectedFrom).toMatchObject([{ label: "Egg Cluster", counterpart: { key: "scenes:10" }, min: 2, max: 3, chance: 30,
     availability: [{ effect: "requires" }], placementCount: 1 }]);
   const npc = documents.get("npcs:2") as PublicNpc;
-  expect(npc.spawnConditions).toMatchObject([{ availability: [{ effect: "excludes" }], placements: [{ placementId: "p1" }, { placementId: "p2" }] }]);
+  expect(npc.locations).toMatchObject([{ label: "Raven Camp", availability: [{ effect: "excludes" }], placements: [{ placementId: "p1" }] }]);
   expect(npc.usedInQuests).toMatchObject([{ counterpart: { key: "quests:4" }, objective: { type: "killNpc", target: { key: "npcs:2" }, count: 2 } }]);
   const place = documents.get("scenes:10") as PublicPlace;
   expect(place.quests.map((ref) => ref.key)).toEqual(["quests:3", "quests:1", "quests:4"]);
   expect(place.questObjectives.map((ref) => ref.key)).toEqual(["quests:3", "quests:4", "quests:1"]);
+});
+
+test("projects one creature page with random options, story entries, and rows that name the variants they apply to", () => {
+  const scenarioEntities: CatalogEntityRow[] = [...entities,
+    { entityKey: "npcs:206", kind: "npcs", nativeId: 206, name: "Fenric Doryn", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "npcs:225", kind: "npcs", nativeId: 225, name: "Fenric Doryn", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "npcs:234", kind: "npcs", nativeId: 234, name: "Fenric Doryn", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "items:7", kind: "items", nativeId: 7, name: "Frostscale Pike", description: null, iconAssetName: null, artwork: [] },
+  ];
+  const fenric = (entityKey: string) => ({ ...facts.npcs[0]!, entityKey, lootSpecialization: null });
+  const scenarioFacts: CatalogFacts = { ...facts, entities: scenarioEntities, npcs: [...facts.npcs, fenric("npcs:206"), fenric("npcs:225"), fenric("npcs:234")],
+    items: [...facts.items, { ...facts.items[0]!, entityKey: "items:7", gearSet: null, conditionIds: [], equipmentRequirements: [] }] };
+  const choice = (entryIndex: number) => [{ choiceId: "fisher", entries: 3, options: 3, enabled: 1, entryIndexes: [entryIndex] }];
+  const spot = (placementId: string, npcEntityKey: string, randomChoices: CatalogRelations["placements"][number]["randomChoices"] = []) =>
+    ({ placementId, sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: null, area: "Lake Thaldrin", roles: [{ role: "friendly", npcEntityKey, scope: "player-state" }], families: [], randomChoices });
+  const drop = (owner: string, item: string) => ({ ...relations.drops[0]!, owner: { entityKey: owner, label: owner }, item: { entityKey: item, label: item } });
+  const scenarioRelations: CatalogRelations = { ...relations,
+    placements: [spot("day-a", "npcs:206", choice(0)), spot("day-b", "npcs:234", choice(1)), spot("night", "npcs:225")],
+    drops: [drop("npcs:206", "items:1"), drop("npcs:234", "items:1"), drop("npcs:234", "items:7")],
+    conditions: [...relations.conditions, { conditionId: "night", semantics: "world", scope: null, label: "Night", requirements: [{ mode: "all", checkCount: false, requiredCount: null, requirements: [requirement("Effect", "Night active is active")] }] }],
+    gatedSources: [{ sourceId: "sleeping", family: "npcProducer", label: null, subjects: [{ entityKey: "npcs:225", label: "Fenric Doryn" }], placementIds: ["night"], availability: [{ effect: "requires", conditionId: "night", durationSeconds: null }] }],
+  };
+  const placements = new Map(["day-a", "day-b", "night"].map((placementId) => [placementId, { placementId, mapSpaceId: "world", label: "Lake Thaldrin", categories: ["townsfolk" as const] }] as const));
+  const level = { min: 15, max: 30, scales: true };
+  const { documents } = project(scenarioEntities, scenarioFacts, scenarioRelations, placements, new Map([["world", []]]),
+    new Map([["day-a", new Map([["npcs:206", level]])], ["day-b", new Map([["npcs:234", level]])], ["night", new Map([["npcs:225", level]])]]));
+  const npc = documents.get("npcs:206") as PublicNpc;
+  expect(documents.has("npcs:225")).toBe(false);
+  expect(npc.ref).toMatchObject({ name: "Fenric Doryn", slug: "fenric-doryn" });
+  expect(npc.variantFields).toEqual([]);
+  expect(npc.locations.map(({ placements: spots, variants, availability, alternative }) => ({ placements: spots.map((row) => row.placementId), variants, rules: availability.length, alternative })))
+    .toEqual([
+      { placements: ["day-a", "day-b"], variants: ["n206", "n234"], rules: 0, alternative: { chance: 66.7, options: 2 } },
+      { placements: ["night"], variants: ["n225"], rules: 1, alternative: undefined },
+    ]);
+  expect(npc.facts.level).toEqual(level);
+  expect(npc.drops.map((row) => [row.counterpart.key, row.variants])).toEqual([["items:1", undefined], ["items:7", ["n234"]]]);
+  expect((documents.get("items:1") as PublicItem).droppedBy.map((row) => row.counterpart)).toContainEqual(expect.objectContaining({ key: "npcs:206", name: "Fenric Doryn", slug: "fenric-doryn" }));
+  expect((documents.get("items:1") as PublicItem).droppedBy.some((row) => "variant" in row.counterpart)).toBe(false);
 });

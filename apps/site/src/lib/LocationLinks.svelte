@@ -20,6 +20,7 @@
 <style>
   a { color: #d9bd79; text-underline-offset: .18em; }
   .location { display: block; }
+  /* The numbered links carry no spaces between them, so the label and the numbers wrap as flex items. */
+  span.location { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .4rem; }
   .location + .location { margin-top: .2rem; }
-  span.location a { margin-left: .4rem; }
 </style>

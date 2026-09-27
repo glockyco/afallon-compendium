@@ -1,4 +1,4 @@
-import type { PublicDocument, PublicKindEntry, PublicationData, StaticCoverage, StaticGeometry, StaticRootManifest } from '@afallon/contracts/public';
+import type { PublicDocument, PublicKindEntry, PublicationData, StaticGeometry, StaticRootManifest } from '@afallon/contracts/public';
 import { AtlasDataLoader, atlasPublicationData, type AtlasIndexes, type AtlasMapData, type AtlasRequestState } from './atlas-data';
 import { DEFAULT_ATLAS_STATE, transitionAtlasState, type AtlasAction, type AtlasQueryField, type AtlasState, type AtlasView } from './atlas-state';
 import { buildSearchIndexes, emptySearchIndexes, type SearchIndexes } from './atlas-search';
@@ -29,7 +29,6 @@ export class AtlasController {
   readonly #options: AtlasControllerOptions;
   #root: StaticRootManifest | null = null;
   #maps: AtlasMapData[] | null = null;
-  #coverage: StaticCoverage | null = null;
   #search: AtlasIndexes | undefined;
   #base: PublicationData | null = null;
   #geometry = new Map<string, StaticGeometry[]>();
@@ -123,9 +122,8 @@ export class AtlasController {
     this.#emit();
     try {
       const root = await this.#loader.loadRoot();
-      const [maps, coverage, geometry] = await Promise.all([
+      const [maps, geometry] = await Promise.all([
         this.#loader.loadMaps(),
-        this.#loader.loadCoverage(),
         Promise.all(root.maps.map(async ({ mapSpaceId }) => [mapSpaceId, await this.#loader.loadGeometry(mapSpaceId)] as const)),
       ]);
       if (this.#disposed) return;
@@ -137,9 +135,8 @@ export class AtlasController {
       }
       this.#root = root;
       this.#maps = maps;
-      this.#coverage = coverage;
       this.#geometry = new Map(geometry);
-      this.#base = atlasPublicationData(root, maps, coverage);
+      this.#base = atlasPublicationData(root, maps);
       this.#snapshot = {
         ...this.#snapshot,
         map: { status: 'loaded' },

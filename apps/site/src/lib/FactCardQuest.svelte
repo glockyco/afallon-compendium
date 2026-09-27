@@ -4,7 +4,7 @@
   import Availability from './Availability.svelte';
   import Card from './Card.svelte';
   import DataTable, { type TableColumn } from './DataTable.svelte';
-  import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
+  import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityLink from './EntityLink.svelte';
   import Fact from './Fact.svelte';
   import FactGrid from './FactGrid.svelte';
@@ -37,13 +37,10 @@
   $: facts = document.facts;
   $: chainQuests = document.chainQuests;
   $: chainStep = chainQuests.findIndex((quest) => quest.key === document.ref.key);
-  $: badges = [
-    ...(facts.chain ? [{ label: facts.chain.name, tone: 'accent' as const }] : []),
-    ...(facts.worldQuest ? [{ label: 'World quest' }] : []),
-    ...(facts.repeatable ? [{ label: 'Repeatable' }] : []),
-  ] satisfies HeaderBadge[];
   $: headerFacts = [
-    ...(chainStep >= 0 ? [{ label: 'Chain step', value: `${chainStep + 1} of ${chainQuests.length}` }] : []),
+    ...(facts.chain ? [{ label: 'Chain', value: `${facts.chain.name}${chainStep >= 0 ? `, step ${chainStep + 1} of ${chainQuests.length}` : ''}` }] : []),
+    ...(facts.worldQuest ? [{ value: 'World quest' }] : []),
+    ...(facts.repeatable ? [{ value: 'Repeatable' }] : []),
     ...(facts.levelRange ? [{ label: 'Quest level', value: levelText(facts.levelRange) }] : []),
     ...(facts.levelRequirement !== undefined ? [{ label: 'Minimum level', value: String(facts.levelRequirement) }] : []),
     ...(facts.experience !== undefined ? [{ label: 'Experience', value: formatNumber(facts.experience) }] : []),
@@ -61,31 +58,31 @@
   <EntityHeader
     name={document.ref.name}
     art={document.art.icon ?? document.ref.icon}
-    fallbackIcon={registry.find((entry) => entry.kind === 'quests')?.icon}
-    {badges}
     facts={headerFacts}
   />
 
   <div class="c-stack">
     <div class="c-card-grid">
-      <Card title="Start" count={document.starts.length || undefined}>
+      <Card title="Start" count={document.starts.length}>
         {#if document.starts.length}
-          <ul class="start-list">
+          <ul class="quest-list">
             {#each visibleStarts as start}
               <li>
                 {#if start.kind === 'npc'}
-                  <span>Talk to <EntityLink ref={start.npc} {registry} /></span>
-                  {#if start.areas.length}
-                    <span class="detail">{start.areas.join(', ')}</span>
-                    {#if start.npc.key !== null}<a class="c-link detail" href={`${base}/?entity=${encodeURIComponent(start.npc.key)}`}>View on the atlas</a>{/if}
+                  <EntityLink ref={start.npc} {registry} />
+                  {#if start.areas.length || start.npc.key !== null}
+                    <span class="quest-secondary">
+                      {#if start.areas.length}<span>{start.areas.join(', ')}</span>{/if}
+                      {#if start.npc.key !== null}<a class="c-link" href={`${base}/?entity=${encodeURIComponent(start.npc.key)}`}>View on the atlas</a>{/if}
+                    </span>
                   {/if}
                 {:else if start.kind === 'worldZone'}
                   Enter an active world quest zone
                   <LocationLinks placements={start.placements} />
                   <Availability rules={start.availability} {registry} />
                   {#if start.pool.length}
-                    <span class="detail">Also offered here:</span>
-                    <ul class="reference-list">{#each start.pool as quest}<li><EntityLink ref={quest} {registry} /></li>{/each}</ul>
+                    <span class="quest-secondary">Also offered here:</span>
+                    <ul class="quest-list">{#each start.pool as quest}<li><EntityLink ref={quest} {registry} /></li>{/each}</ul>
                   {/if}
                 {:else}
                   Interact with {start.label ?? 'object'}
@@ -97,15 +94,27 @@
           </ul>
         {:else}<MissingValue explanation="No start is authored" />{/if}
       </Card>
-      <Card title="Turn-in">
+      <Card title="Turn-in" count={document.turnIns.length}>
         {#if document.turnIns.length}
-          <ul class="reference-list">{#each document.turnIns as turnIn}<li><EntityLink ref={turnIn} {registry} /></li>{/each}</ul>
+          <ul class="quest-list">
+            {#each document.turnIns as turnIn}
+              <li>
+                <EntityLink ref={turnIn.npc} {registry} />
+                {#if turnIn.areas.length || turnIn.npc.key !== null}
+                  <span class="quest-secondary">
+                    {#if turnIn.areas.length}<span>{turnIn.areas.join(', ')}</span>{/if}
+                    {#if turnIn.npc.key !== null}<a class="c-link" href={`${base}/?entity=${encodeURIComponent(turnIn.npc.key)}`}>View on the atlas</a>{/if}
+                  </span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
         {:else if facts.turnInWithoutNpc}No NPC required
         {:else if facts.worldQuest}<MissingValue explanation="The authored world quest names no turn-in NPC" />
         {:else}<MissingValue explanation="No turn-in is published" />{/if}
       </Card>
       {#if document.dungeon}<Card title="Dungeon"><EntityLink ref={document.dungeon} {registry} /></Card>{/if}
-      {#if facts.requirements.length}<Card title="Requirements"><Requirements requirements={facts.requirements} {registry} /></Card>{/if}
+      {#if facts.requirements.length}<Card title="Requirements" count={facts.requirements.length}><div class="quest-requirements"><Requirements requirements={facts.requirements} {registry} /></div></Card>{/if}
     </div>
 
     {#if document.description || facts.objectiveText || facts.completedDescription}
@@ -179,9 +188,10 @@
 </article>
 
 <style>
-  .start-list, .reference-list { display: grid; gap: .45rem; margin: 0; padding: 0; list-style: none; }
-  .start-list > li { display: grid; justify-items: start; gap: .35rem; font-size: .85rem; }
-  .detail { display: block; color: var(--c-text-dim); font-size: .78rem; }
+  .quest-list, .quest-requirements :global(.requirements) { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+  .quest-list > li { display: grid; justify-items: start; gap: .2rem; font-size: .9rem; line-height: 1.45; }
+  .quest-requirements :global(.requirements > li) { font-size: .9rem; line-height: 1.45; }
+  .quest-secondary { display: flex; flex-wrap: wrap; gap: .2rem .55rem; color: var(--c-text-dim); font-size: .9rem; }
   .quest-prose { display: block; max-width: 70ch; white-space: pre-line; }
   .chain { display: grid; gap: .4rem; margin: 0; padding-left: 1.4rem; }
   .chain li { font-size: .85rem; }

@@ -1,11 +1,14 @@
 import type { CatalogFacts, CatalogRelations, TooltipLine } from "@afallon/contracts/catalog";
 import {
   STATIC_DOCUMENT_SCHEMA_IDS,
+  type AbilityVersion,
+  type AbilityPhase,
+  type GearSet,
   type PublicAbility,
   type PublicDocument,
-  type PublicGearSet,
   type PublicItem,
   type PublicNpc,
+  type Ref,
 } from "@afallon/contracts/public";
 
 function hasNativeText(lines: readonly TooltipLine[]): boolean {
@@ -27,23 +30,39 @@ export function auditPublicTooltipCoverage(
   schemaIdByKey?: ReadonlyMap<string, string>,
 ): string[] {
   const issues: string[] = [];
-  const rankIndexesByAbility = new Map(facts.abilities.map((ability) => [ability.entityKey, new Set(ability.ranks.map((rank) => rank.rankIndex))]));
+  const versionByRecord = new Map<string, AbilityVersion>();
+  for (const document of documents.values()) if (document.ref.kind === "abilities") {
+    for (const version of (document as PublicAbility).versions) for (const key of version.keys) versionByRecord.set(key, version);
+  }
+  // A reference to an ability page names its version when the page has several.
+  const referencedRanks = (ref: Ref): ReadonlySet<number> | undefined => {
+    if (ref.key === null) return undefined;
+    const document = documents.get(ref.key);
+    if (document?.ref.kind !== "abilities") return undefined;
+    const versions = (document as PublicAbility).versions;
+    const version = ref.variant === undefined ? (versions.length === 1 ? versions[0] : undefined) : versions.find((candidate) => candidate.anchor === ref.variant);
+    return version ? new Set(version.ranks.map((rank) => rank.rankIndex)) : undefined;
+  };
+  const checkPhases = (owner: string, phases: readonly AbilityPhase[]) => {
+    for (const phase of phases) for (const reference of phase.abilities) {
+      if (reference.ability.key !== null && !referencedRanks(reference.ability)?.has(reference.rankIndex)) issues.push(`NPC ${owner} references missing ability rank ${reference.ability.key}#${reference.rankIndex}.`);
+    }
+  };
 
   for (const ability of facts.abilities) {
-    const document = documents.get(ability.entityKey);
-    if (document?.ref.kind !== "abilities") {
+    const version = versionByRecord.get(ability.entityKey);
+    if (!version) {
       issues.push(`Ability ${ability.entityKey} has no public document.`);
       continue;
     }
-    const published = document as PublicAbility;
-    const publishedByRank = new Map(published.facts.ranks.map((rank) => [rank.rankIndex, rank]));
+    const publishedByRank = new Map(version.ranks.map((rank) => [rank.rankIndex, rank]));
     for (const rank of ability.ranks) {
       const publicRank = publishedByRank.get(rank.rankIndex);
       if (!publicRank) issues.push(`Ability ${ability.entityKey} is missing public rank ${rank.rankIndex}.`);
       else if (!hasNativeText(publicRank.lines)) issues.push(`Ability ${ability.entityKey} rank ${rank.rankIndex} has an empty public native-text block.`);
       else if (!sameLines(rank.lines, publicRank.lines)) issues.push(`Ability ${ability.entityKey} rank ${rank.rankIndex} changed its native-text block.`);
     }
-    for (const rank of published.facts.ranks) if (!ability.ranks.some((candidate) => candidate.rankIndex === rank.rankIndex)) {
+    for (const rank of version.ranks) if (!ability.ranks.some((candidate) => candidate.rankIndex === rank.rankIndex)) {
       issues.push(`Ability ${ability.entityKey} has unexpected public rank ${rank.rankIndex}.`);
     }
   }
@@ -54,18 +73,14 @@ export function auditPublicTooltipCoverage(
     const published = document as PublicItem;
     if (!sameLines(item.useLines, published.facts.useLines)) issues.push(`Item ${item.entityKey} changed its native use-text block.`);
     for (const reference of published.facts.actionAbilities) {
-      const key = reference.ability.key;
-      if (key !== null && !rankIndexesByAbility.get(key)?.has(reference.rankIndex)) issues.push(`Item ${item.entityKey} references missing ability rank ${key}#${reference.rankIndex}.`);
+      if (reference.ability.key !== null && !referencedRanks(reference.ability)?.has(reference.rankIndex)) issues.push(`Item ${item.entityKey} references missing ability rank ${reference.ability.key}#${reference.rankIndex}.`);
     }
   }
 
-  for (const npc of facts.npcs) {
-    const document = documents.get(npc.entityKey);
-    if (document?.ref.kind !== "npcs") continue;
-    for (const phase of (document as PublicNpc).abilityPhases) for (const reference of phase.abilities) {
-      const key = reference.ability.key;
-      if (key !== null && !rankIndexesByAbility.get(key)?.has(reference.rankIndex)) issues.push(`NPC ${npc.entityKey} references missing ability rank ${key}#${reference.rankIndex}.`);
-    }
+  for (const document of documents.values()) if (document.ref.kind === "npcs") {
+    const npc = document as PublicNpc;
+    checkPhases(npc.ref.key, npc.abilityPhases);
+    for (const variant of npc.variants) checkPhases(variant.key, variant.facts.abilityPhases ?? []);
   }
 
   const itemConditionIds = new Set(facts.items.flatMap((item) => item.conditionIds));
@@ -73,12 +88,14 @@ export function auditPublicTooltipCoverage(
     issues.push(`Condition ${condition.conditionId} has unclassified or mixed requirement predicates.`);
   }
 
-  for (const set of facts.gearSets) {
-    const document = documents.get(set.entityKey);
-    if (document?.ref.kind !== "gearSets") continue;
-    for (const [index, member] of (document as PublicGearSet).members.entries()) if (member.key === null) {
-      issues.push(`Gear set ${set.entityKey} has unresolved public member ${index}: ${member.label}.`);
-    }
+  // A gear set shows in full on the page of each member. Each set is checked once.
+  const sets = new Map<string, GearSet>();
+  for (const document of documents.values()) {
+    const set = document.ref.kind === "items" ? (document as PublicItem).facts.gearSet : undefined;
+    if (set) sets.set(set.key, set);
+  }
+  for (const set of sets.values()) for (const [index, member] of set.members.entries()) if (member.key === null) {
+    issues.push(`Gear set ${set.key} has unresolved public member ${index}: ${member.label}.`);
   }
 
   if (schemaIdByKey) for (const [key, document] of documents) {

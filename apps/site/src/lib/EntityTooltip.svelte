@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { autoUpdate, computePosition, flip, offset, shift, size } from '@floating-ui/dom';
-  import type { EntityRef, PublicDocument, PublicGearSet, PublicItem, PublicKindEntry } from '@afallon/contracts/public';
+  import type { EntityRef, PublicDocument, PublicKindEntry } from '@afallon/contracts/public';
   import { clientAtlasLoader } from './client-publication';
   import TooltipPresenter from './TooltipPresenter.svelte';
 
@@ -17,7 +17,6 @@
   let loading = false;
   let error = '';
   let document: PublicDocument | null = null;
-  let gearSet: PublicGearSet | null = null;
   let mapSpaceLabels: Readonly<Record<string, string>> = {};
   let intentTimer: number | undefined;
   let closeTimer: number | undefined;
@@ -34,14 +33,6 @@
       const [loadedDocument, root] = await Promise.all([activeLoader.loadDocumentForRef(ref), activeLoader.loadRoot()]);
       document = loadedDocument;
       mapSpaceLabels = Object.fromEntries(root.maps.map((map) => [map.mapSpaceId, map.label]));
-      if (loadedDocument.ref.kind === 'items') {
-        const setRef = (loadedDocument as PublicItem).facts.gearSet;
-        if (setRef && setRef.key !== null) {
-          const loadedSet = await activeLoader.loadDocumentForRef(setRef as EntityRef);
-          if (loadedSet.ref.kind !== 'gearSets' || loadedSet.ref.key !== setRef.key) throw new Error(`Gear set details do not match ${setRef.name}.`);
-          gearSet = loadedSet as PublicGearSet;
-        }
-      }
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally {
@@ -93,13 +84,15 @@
       // `size` writes a max height. Clearing it first lets `flip` measure the content's natural height, so a
       // tooltip that grows when its document loads moves to the side with room instead of scrolling.
       node.style.maxHeight = '';
+      // A tooltip opens right of its link, or left when the right side lacks room, so it never covers the rows
+      // above or below. Only horizontal room decides the side. A vertical shift keeps it inside the viewport.
       void computePosition(reference, node, {
-        placement: 'bottom-start',
+        placement: 'right-start',
         strategy: 'fixed',
         middleware: [
-          offset(8),
-          flip({ padding: 12 }),
-          shift({ padding: 12 }),
+          offset(10),
+          flip({ padding: 12, crossAxis: false, fallbackPlacements: ['left-start'] }),
+          shift({ padding: 12, mainAxis: true, crossAxis: false }),
           size({
             padding: 12,
             apply({ availableHeight, elements }) {
@@ -122,7 +115,7 @@
   <span {id} class="entity-tooltip" role="tooltip" use:positionTooltip on:pointerenter={keepOpen} on:pointerleave={closeAfterIntent}>
     {#if loading}<span class="tooltip-status">Loading details…</span>
     {:else if error}<span class="tooltip-status error">Details are unavailable.</span>
-    {:else if document}<TooltipPresenter {document} {registry} {mapSpaceLabels} {rankIndex} {gearSet} />{/if}
+    {:else if document}<TooltipPresenter {document} {registry} {mapSpaceLabels} {rankIndex} variant={ref.variant} />{/if}
   </span>
 {/if}
 

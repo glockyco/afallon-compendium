@@ -765,6 +765,12 @@ var worldLootSettings = new
     sourceBindingCount = economySettings.WorldLootTables.Count,
     sourceFieldPath = "GameDatabase.EconomySettings"
 };
+// PropertyManager pays each owned property its income when this many seconds of game time pass, only while the game runs.
+var propertySettings = new
+{
+    incomeInterval = economySettings.PropertyIncomeInterval,
+    sourceFieldPath = "GameDatabase.EconomySettings.PropertyIncomeInterval"
+};
 
 var clothType = typeof(Il2Cpp.ClothDrops);
 var clothStaticFlags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
@@ -1366,6 +1372,7 @@ return new
     npcLootBindings = npcLootBindings,
     worldLootBindings = worldLootBindings,
     worldLootSettings = worldLootSettings,
+    propertySettings = propertySettings,
     clothDrops = clothDrops,
     lootTables = lootTablesOutput,
     lootEntries = lootEntries,

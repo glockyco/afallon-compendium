@@ -5,7 +5,7 @@ import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { Assert } from "typebox/value";
 import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
-import { queryCatalogCoverage, queryCatalogMaps, type CatalogGateResult } from "@afallon/catalog";
+import { queryCatalogEntities, queryCatalogMaps, type CatalogGateResult } from "@afallon/catalog";
 import {
   StaticCoverageSchema,
   StaticRootManifestSchema,
@@ -14,6 +14,7 @@ import {
   type StaticRootManifest,
 } from "@afallon/contracts/public";
 import type { PublishedPlacement } from "./documents";
+import { pagesOfRecords } from "./grouping";
 import { generateImageryResources } from "./imagery";
 import { generateIndexResources } from "./index-resources";
 import { assertCompleteTooltipCoverage } from "./tooltip-coverage";
@@ -35,6 +36,8 @@ export interface StaticPublicationBuildResult {
   resources: PublicationCandidateResource[];
   assets: PublicationCandidateAsset[];
   measurements: PublicationMeasurements;
+  /** Tooltip and schema findings of the publication audit. A release accepts none. */
+  publicationIssues: string[];
 }
 
 export async function buildStaticPublication(
@@ -64,7 +67,10 @@ export async function buildStaticPublication(
   const publishedOffsets = worldOffsets.filter((offset) => publishedMapIds.has(offset.mapSpaceId)).sort((left, right) => left.mapSpaceId.localeCompare(right.mapSpaceId));
   if (publishedOffsets.length !== publishedMapIds.size || new Set(publishedOffsets.map((offset) => offset.mapSpaceId)).size !== publishedMapIds.size) throw new Error("Publication requires one reviewed world offset per published map.");
   const publishedExtents = new Map([...gameMapByMap].map(([mapSpaceId, layer]) => [mapSpaceId, layer.extent] as const));
-  const mapShards = await generateMapShards(db, store, publishedOffsets, protection, publishedMapIds, publishedExtents);
+  // Map markers link creature pages, so the grouping of creature records into pages comes first.
+  const pageOf = pagesOfRecords(queryCatalogEntities(db).records, "npcs");
+  const mapShards = await generateMapShards(db, store, pageOf, publishedOffsets, protection, publishedMapIds, publishedExtents);
+  const npcLevels = new Map(mapShards.flatMap((entry) => [...entry.npcLevels]));
   const imageryByMap = new Map(imagery.map((entry) => [entry.mapSpaceId, entry.resource]));
   const placements = new Map<string, PublishedPlacement>();
   const placementIdsByKeySets = new Map<string, Set<string>>();
@@ -85,15 +91,12 @@ export async function buildStaticPublication(
     regionIdsByMapSpace.set(entry.summary.mapSpaceId, [...regionIds].sort());
   }
   const placementIdsByKey = new Map([...placementIdsByKeySets].map(([key, ids]) => [key, [...ids].sort()]));
-  const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, mapSpaceLabels, regionIdsByMapSpace, protection);
-  const coverageQuery = queryCatalogCoverage(db);
+  const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, regionIdsByMapSpace, npcLevels, protection);
+  const identity = queryCatalogMaps(db);
   assertCompleteTooltipCoverage(gate.complete, indexes.publicationIssues);
-  const publicationIssueCount = indexes.publicationIssues.length;
   const coverage: StaticCoverage = {
-    schemaVersion: "compendium.static-coverage.v1", buildId: coverageQuery.buildId, catalogId: coverageQuery.catalogId,
-    complete: gate.complete, unresolvedIssueCount: coverageQuery.records.unresolvedIssues.length + indexes.unresolvedReferenceCount + publicationIssueCount,
-    occurrenceCount: coverageQuery.records.occurrenceCount + indexes.unresolvedReferenceCount + publicationIssueCount, exclusionCount: coverageQuery.records.exclusions.length,
-    messages: gate.complete ? [] : ["This preview has unresolved catalog coverage.", ...indexes.publicationIssues],
+    schemaVersion: "compendium.static-coverage.v2", buildId: identity.buildId, catalogId: identity.catalogId,
+    ...indexes.coverage, mapCount: mapShards.length, placementCount: placements.size,
   };
   Assert(StaticCoverageSchema, coverage);
   const coverageResource = await writeStaticJson(store, coverage.schemaVersion, coverage, protection);
@@ -115,7 +118,7 @@ export async function buildStaticPublication(
     max: { x: Math.max(bounds.max.x, map.bounds.max.x), y: Math.max(bounds.max.y, map.bounds.max.y) },
   }), structuredClone(maps[0]!.bounds));
   const manifest: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v3", buildId: coverageQuery.buildId, catalogId: coverageQuery.catalogId, mode, complete: gate.complete,
+    schemaVersion: "compendium.static-root.v4", buildId: identity.buildId, catalogId: identity.catalogId, mode, complete: gate.complete,
     world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: publishedOffsets, unplacedMapSpaceIds: [...allMapIds].filter((mapSpaceId) => !publishedMapIds.has(mapSpaceId)).sort() },
     maps, kinds: [...PUBLIC_KIND_REGISTRY], lists: Object.fromEntries([...indexes.lists].map(([kind, resources]) => [kind, resources.map((resource) => resource.reference)])),
     search: indexes.search.map((resource) => resource.reference), coverage: coverageResource.reference,
@@ -127,7 +130,8 @@ export async function buildStaticPublication(
     search: indexes.search, lists: [...indexes.lists.values()].flat(), documents: [...indexes.documents.values()],
     optionalGeometry: mapShards.flatMap((entry) => entry.geometry), coverage: [coverageResource],
   };
-  const essentialBytes = [...groups.root!, ...groups.atlas!, ...groups.imageryMetadata!, ...groups.coverage!].reduce((sum, resource) => sum + resource.identity.bytes, 0);
+  // The map loads the root, its map parts, and imagery declarations before it is ready. Other groups load on demand.
+  const essentialBytes = [...groups.root!, ...groups.atlas!, ...groups.imageryMetadata!].reduce((sum, resource) => sum + resource.identity.bytes, 0);
   const resources = [...new Map(Object.entries(groups).filter(([name]) => name !== "root").flatMap(([, values]) => values).map((resource) => [resource.reference.path, { reference: resource.reference, identity: resource.identity }])).values()];
   const assetsByPath = new Map<string, PublicationCandidateAsset>();
   for (const entry of imagery) for (const layer of entry.resource.value.layers) for (const tile of layer.tiles) assetsByPath.set(tile.url, { path: tile.url, identity: { sha256: tile.sha256, bytes: tile.bytes } });
@@ -137,7 +141,7 @@ export async function buildStaticPublication(
   await verifyPublicationGraph(store, root, resources, assets, gate);
   const measurements: PublicationMeasurements = {
     groups: {}, essentialBytes,
-    essentialRequests: groups.root!.length + groups.atlas!.length + groups.imageryMetadata!.length + groups.coverage!.length,
+    essentialRequests: groups.root!.length + groups.atlas!.length + groups.imageryMetadata!.length,
     applicationCode: { bytes: null, reason: "Application code is measured separately by the static site build." },
   };
   for (const [name, values] of Object.entries(groups)) {
@@ -154,5 +158,5 @@ export async function buildStaticPublication(
   }
   measurements.groups.images = { resources: assets.length, bytes: assets.reduce((sum, asset) => sum + asset.identity.bytes, 0), gzipBytes: null };
   measurements.groups.artwork = { resources: indexes.artwork.length, bytes: indexes.artwork.reduce((sum, asset) => sum + asset.identity.bytes, 0), gzipBytes: null };
-  return { manifest, root, resources, assets, measurements };
+  return { manifest, root, resources, assets, measurements, publicationIssues: indexes.publicationIssues };
 }

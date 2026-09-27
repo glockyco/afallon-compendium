@@ -1,13 +1,16 @@
 <script lang="ts">
-  import type { PublicKindEntry, VendorRow } from '@afallon/contracts/public';
+  import type { NpcVariant, NpcVendorRow, PublicKindEntry } from '@afallon/contracts/public';
   import Card from './Card.svelte';
   import DataTable, { type TableColumn } from './DataTable.svelte';
   import EntityLink from './EntityLink.svelte';
   import Price from './Price.svelte';
   import Requirements from './Requirements.svelte';
+  import VariantLinks from './VariantLinks.svelte';
   import { sortRows, toggleSort, type SortState, type SortValue } from './table';
 
-  export let rows: VendorRow[];
+  export let rows: NpcVendorRow[];
+  /** The variants of a creature page. A row that only some variants sell names them. */
+  export let variants: NpcVariant[] = [];
   export let registry: PublicKindEntry[];
   export let heading = 'Vendor stock';
   export let counterpartLabel = 'Entity';
@@ -15,21 +18,23 @@
 
   let sort: SortState = { id: 'name', dir: 'asc' };
 
+  $: hasVariants = rows.some((row) => row.variants);
   $: columns = [
     { id: 'name', label: counterpartLabel, sortable: true },
     { id: 'price', label: 'Price', numeric: true, sortable: true },
     { id: 'unlock', label: 'Unlock requirement' },
+    ...(hasVariants ? [{ id: 'variant', label: 'Variant' }] : []),
   ] satisfies TableColumn[];
   $: visible = compactRows(sortRows(rows, value, sort), limit);
 
-  function value(row: VendorRow, id: string): SortValue {
+  function value(row: NpcVendorRow, id: string): SortValue {
     if (id === 'price') return row.price.amount;
     return row.counterpart.key === null ? row.counterpart.label : row.counterpart.name;
   }
 
   // A shortened list keeps one conditional row, because an unlock requirement is the fact a reader
   // most needs from a merchant and the first rows rarely carry one.
-  function compactRows(allRows: VendorRow[], maximum: number | undefined): VendorRow[] {
+  function compactRows(allRows: NpcVendorRow[], maximum: number | undefined): NpcVendorRow[] {
     if (maximum === undefined) return allRows;
     const compact = allRows.slice(0, maximum);
     if (compact.some((row) => row.requirements.length > 0)) return compact;
@@ -47,6 +52,7 @@
           <td><EntityLink ref={row.counterpart} {registry} /></td>
           <td class="c-num"><Price price={row.price} /></td>
           <td><Requirements requirements={row.requirements} {registry} emptyExplanation="Unlock requirement unknown" /></td>
+          {#if hasVariants}<td>{#if row.variants}<VariantLinks anchors={row.variants} {variants} />{:else}All{/if}</td>{/if}
         </tr>
       {/each}
     </DataTable>

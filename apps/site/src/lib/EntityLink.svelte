@@ -19,20 +19,21 @@
   $: resolved = ref.key !== null ? ref as EntityRef : null;
   $: kind = resolved ? registry.find((entry) => entry.kind === resolved?.kind) : undefined;
   $: linked = Boolean(resolved?.slug && kind?.pages);
+  $: href = resolved && kind ? `${base}/${kind.route}/${resolved.slug}/${resolved.variant ? `#${resolved.variant}` : ''}` : '';
   $: glyph = kindGlyphSvg(kind?.icon);
 </script>
 
 {#if resolved && linked && kind}
   {#if tooltip}
     <span class="tooltip-anchor" role="group" bind:this={anchorElement} on:pointerenter={() => tooltipController.keepOpen()} on:pointerleave={() => tooltipController.closeAfterIntent()}>
-      <a class="entity-link" data-rarity={rarity} href={`${base}/${kind.route}/${resolved.slug}/`} aria-describedby={tooltipId} on:pointerenter={(event) => { if (event.pointerType !== 'touch') tooltipController.showAfterIntent(); }} on:focus={() => void tooltipController.show()} on:blur={() => tooltipController.close()} on:keydown={(event) => tooltipController.handleKeydown(event)}>
+      <a class="entity-link" data-rarity={rarity} {href} aria-describedby={tooltipId} on:pointerenter={(event) => { if (event.pointerType !== 'touch') tooltipController.showAfterIntent(); }} on:focus={() => void tooltipController.show()} on:blur={() => tooltipController.close()} on:keydown={(event) => tooltipController.handleKeydown(event)}>
         {#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}
         <span>{resolved.name}</span>
       </a>
     </span>
     <EntityTooltip bind:this={tooltipController} ref={resolved} {registry} {rankIndex} anchor={anchorElement} id={tooltipId} />
   {:else}
-    <a class="entity-link" data-rarity={rarity} href={`${base}/${kind.route}/${resolved.slug}/`}>
+    <a class="entity-link" data-rarity={rarity} {href}>
       {#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}
       <span>{resolved.name}</span>
     </a>

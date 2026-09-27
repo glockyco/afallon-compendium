@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
 import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogAbilityFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogInteractionRow, CatalogGatedSourceRow, CatalogAvailabilityRule, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementSpan, CatalogRequirementGroup, CatalogRequirementNamedValue, CatalogRequirementEntry, CatalogRequirementTime, CatalogRelations } from "@afallon/contracts/catalog";
+import type { CatalogRandomChoice } from "@afallon/contracts/catalog";
 import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
 import { containerTypeFromHierarchyPath } from "./world";
 
@@ -28,6 +29,7 @@ export interface CatalogMapPlacement {
   roles: Array<{ role: string; scope: string; npcEntityKey: string | null }>;
   itemEntityKeys: string[];
   sourceDetails: Array<{ sourceId: string; family: string; data: Record<string, unknown> }>;
+  randomChoices: ReadonlyArray<CatalogRandomChoice>;
 }
 
 export interface CatalogMapRegion {
@@ -126,6 +128,40 @@ function textArray(value: string): string[] {
   return parsed;
 }
 
+// The random choices that can disable each placement, from the outermost to the innermost. A choice whose target is an
+// ancestor of another choice's target has the shorter target path, so the target path length orders the nesting.
+function randomChoicesByPlacement(db: Database, mapSpaceId: string | null = null): Map<string, ReadonlyArray<CatalogRandomChoice>> {
+  const rows = db.query<{ placement_id: string; choice_id: string; number_to_enable: number; entry_count: number; option_count: number; entry_index: number; depth: number }, [string | null, string | null]>(`
+    SELECT DISTINCT ps.placement_id, c.choice_id, c.number_to_enable, c.entry_count, e.entry_index, length(e.target_path) AS depth,
+      (SELECT COUNT(DISTINCT COALESCE(o.target_path, 'entry ' || o.entry_index)) FROM random_choice_entries o WHERE o.choice_id = c.choice_id) AS option_count
+    FROM random_choice_entries e
+    JOIN random_choices c ON c.choice_id = e.choice_id
+    JOIN json_each(e.source_ids_json) s
+    JOIN placement_sources ps ON ps.source_id = s.value
+    JOIN placements p ON p.placement_id = ps.placement_id
+    WHERE ? IS NULL OR p.map_space_id = ?
+    ORDER BY ps.placement_id, c.choice_id, e.entry_index
+  `).all(mapSpaceId, mapSpaceId);
+  const grouped = new Map<string, Map<string, { entryCount: number; optionCount: number; numberToEnable: number; entryIndexes: number[]; depth: number }>>();
+  for (const row of rows) {
+    const choices = grouped.get(row.placement_id) ?? new Map();
+    const choice = choices.get(row.choice_id) ?? { entryCount: row.entry_count, optionCount: row.option_count, numberToEnable: row.number_to_enable, entryIndexes: [], depth: row.depth };
+    if (!choice.entryIndexes.includes(row.entry_index)) choice.entryIndexes.push(row.entry_index);
+    choice.depth = Math.min(choice.depth, row.depth);
+    choices.set(row.choice_id, choice);
+    grouped.set(row.placement_id, choices);
+  }
+  const result = new Map<string, ReadonlyArray<CatalogRandomChoice>>();
+  for (const [placementId, choices] of grouped) {
+    result.set(placementId, [...choices].sort(([idA, a], [idB, b]) => a.depth - b.depth || idA.localeCompare(idB)).map(([choiceId, choice]) => ({
+      // RandomActivator.Start clamps numberToEnable into 0..entries. An entry without a known target is its own option.
+      choiceId, entries: choice.entryCount, options: choice.optionCount, enabled: Math.max(0, Math.min(choice.numberToEnable, choice.entryCount)),
+      entryIndexes: [...choice.entryIndexes].sort((left, right) => left - right),
+    })));
+  }
+  return result;
+}
+
 export function queryCatalogMaps(db: Database): CatalogQueryResult<CatalogMapSummary[]> {
   const records = db.query<{ map_space_id: string; label: string; placement_count: number; region_count: number }, []>(`
     SELECT m.map_space_id, m.label,
@@ -140,6 +176,7 @@ export function queryCatalogMap(db: Database, mapSpaceId: string): CatalogQueryR
   const map = db.query<{ map_space_id: string; label: string }, [string]>("SELECT map_space_id, label FROM map_spaces WHERE map_space_id = ?").get(mapSpaceId);
   if (map === null) return { ...identity(db), records: null };
   const rolesByPlacement = new Map<string, CatalogMapPlacement["roles"]>();
+  const randomChoices = randomChoicesByPlacement(db, mapSpaceId);
   for (const row of db.query<{ placement_id: string; role: string; scope: string; npc_entity_key: string | null }, [string]>(`
     SELECT r.placement_id, r.role, r.scope, r.npc_entity_key FROM placement_roles r
     JOIN placements p ON p.placement_id = r.placement_id
@@ -171,7 +208,7 @@ export function queryCatalogMap(db: Database, mapSpaceId: string): CatalogQueryR
   }
   const placements = db.query<{ placement_id: string; scene_native_id: number; scene_path: string; map_space_id: string; world_x: number; world_y: number; world_z: number; map_x: number; map_y: number; label: string | null; shape_json: string | null }, [string]>(
     "SELECT placement_id, scene_native_id, scene_path, map_space_id, world_x, world_y, world_z, map_x, map_y, label, shape_json FROM placements WHERE map_space_id = ? AND map_x IS NOT NULL AND map_y IS NOT NULL ORDER BY placement_id",
-  ).all(mapSpaceId).map((row) => ({ placementId: row.placement_id, sceneNativeId: row.scene_native_id, scenePath: row.scene_path, mapSpaceId: row.map_space_id, worldPosition: { x: row.world_x, y: row.world_y, z: row.world_z }, position: [row.map_x, row.map_y] as [number, number], height: row.world_y, label: row.label, shape: row.shape_json === null ? null : parse(row.shape_json), roles: rolesByPlacement.get(row.placement_id) ?? [], itemEntityKeys: itemsByPlacement.get(row.placement_id) ?? [], sourceDetails: sourceDetailsByPlacement.get(row.placement_id) ?? [] }));
+  ).all(mapSpaceId).map((row) => ({ placementId: row.placement_id, sceneNativeId: row.scene_native_id, scenePath: row.scene_path, mapSpaceId: row.map_space_id, worldPosition: { x: row.world_x, y: row.world_y, z: row.world_z }, position: [row.map_x, row.map_y] as [number, number], height: row.world_y, label: row.label, shape: row.shape_json === null ? null : parse(row.shape_json), roles: rolesByPlacement.get(row.placement_id) ?? [], itemEntityKeys: itemsByPlacement.get(row.placement_id) ?? [], sourceDetails: sourceDetailsByPlacement.get(row.placement_id) ?? [], randomChoices: randomChoices.get(row.placement_id) ?? [] }));
   const regions = db.query<{ region_id: string; map_space_id: string; name: string; shape: "box" | "sphere"; map_geometry_json: string }, [string]>(
     "SELECT region_id, map_space_id, name, shape, map_geometry_json FROM regions WHERE map_space_id = ? AND map_geometry_json IS NOT NULL ORDER BY region_id",
   ).all(mapSpaceId).map((row) => ({ regionId: row.region_id, mapSpaceId: row.map_space_id, name: row.name, shape: row.shape, geometry: parse(row.map_geometry_json) }));
@@ -381,7 +418,7 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
   const worldQuestFacts = new Map(db.query<{ entity_key: string; available_seconds: number; cooldown_after_completion_seconds: number; cooldown_after_expiry_seconds: number; cooldown_jitter_seconds: number; initial_roll_seconds: number }, []>("SELECT entity_key, available_seconds, cooldown_after_completion_seconds, cooldown_after_expiry_seconds, cooldown_jitter_seconds, initial_roll_seconds FROM world_quest_facts ORDER BY entity_key").all().map((row) => [row.entity_key, { availableSeconds: row.available_seconds, cooldownAfterCompletionSeconds: row.cooldown_after_completion_seconds, cooldownAfterExpirySeconds: row.cooldown_after_expiry_seconds, cooldownJitterSeconds: row.cooldown_jitter_seconds, initialRollSeconds: row.initial_roll_seconds }] as const));
   const quests = db.query<{ entity_key: string; chain_name: string | null; chain_order: number | null; repeatable: number; turn_in_without_npc: number; completed_description: string | null; objective_text: string | null; level_requirement: number | null; level_min: number | null; level_max: number | null; dungeon_entity_key: string | null; dungeon_label: string | null; experience: number | null; condition_ids_json: string }, []>("SELECT entity_key, chain_name, chain_order, repeatable, turn_in_without_npc, completed_description, objective_text, level_requirement, level_min, level_max, dungeon_entity_key, dungeon_label, experience, condition_ids_json FROM quest_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, chainName: row.chain_name, chainOrder: row.chain_order, repeatable: row.repeatable === 1, turnInWithoutNpc: row.turn_in_without_npc === 1, completedDescription: row.completed_description, objectiveText: row.objective_text, levelRequirement: row.level_requirement, levelRange: row.level_min === null || row.level_max === null ? null : { min: row.level_min, max: row.level_max }, dungeon: row.dungeon_entity_key === null && row.dungeon_label === null ? null : endpoint(refs, row.dungeon_entity_key, row.dungeon_label ?? row.dungeon_entity_key ?? ""), experience: row.experience, conditionIds: textArray(row.condition_ids_json), worldQuest: worldQuestFacts.get(row.entity_key) ?? null }));
   const places = db.query<{ entity_key: string; place_type: CatalogPlaceFacts["placeType"]; guide_included: number; guide_description: string | null; level_min: number | null; level_max: number | null; map_space_ids_json: string; bosses_json: string; parent_scene_key: string | null }, []>("SELECT entity_key, place_type, guide_included, guide_description, level_min, level_max, map_space_ids_json, bosses_json, parent_scene_key FROM place_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, placeType: row.place_type, guideIncluded: row.guide_included === 1, guideDescription: row.guide_description, levelRange: row.level_min === null || row.level_max === null ? null : { min: row.level_min, max: row.level_max }, mapSpaceIds: textArray(row.map_space_ids_json), bosses: (parse(row.bosses_json) as unknown[]).map((value) => endpointJson(refs, value)), parentSceneKey: row.parent_scene_key }));
-  const properties = db.query<{ entity_key: string; income: number | null; purchase_price: number | null; sell_price: number | null; currency_entity_key: string | null; currency_label: string | null; property_type: string | null }, []>("SELECT entity_key, income, purchase_price, sell_price, currency_entity_key, currency_label, property_type FROM property_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, income: row.income, purchasePrice: row.purchase_price, sellPrice: row.sell_price, currency: row.currency_entity_key === null && row.currency_label === null ? null : endpoint(refs, row.currency_entity_key, row.currency_label), propertyType: row.property_type }));
+  const properties = db.query<{ entity_key: string; income: number | null; income_interval: number | null; purchase_price: number | null; sell_price: number | null; currency_entity_key: string | null; currency_label: string | null; property_type: string | null }, []>("SELECT entity_key, income, income_interval, purchase_price, sell_price, currency_entity_key, currency_label, property_type FROM property_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, income: row.income, incomeInterval: row.income_interval, purchasePrice: row.purchase_price, sellPrice: row.sell_price, currency: row.currency_entity_key === null && row.currency_label === null ? null : endpoint(refs, row.currency_entity_key, row.currency_label), propertyType: row.property_type }));
   const abilities = db.query<{ entity_key: string; ranks_json: string }, []>("SELECT entity_key, ranks_json FROM ability_facts ORDER BY entity_key").all().map((row): CatalogAbilityFacts => ({ entityKey: row.entity_key, ranks: (parse(row.ranks_json) as Array<{ rankIndex: number; lines: CatalogAbilityFacts["ranks"][number]["lines"] }>).map((rank) => ({ rankIndex: rank.rankIndex, lines: rank.lines })) }));
   const ranks = new Map<string, CatalogRecipeFacts["ranks"]>();
   const products = new Map<string, CatalogRecipeFacts["ranks"][number]["products"]>(), materials = new Map<string, CatalogRecipeFacts["ranks"][number]["materials"]>();
@@ -392,12 +429,71 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
   return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets } };
 }
 
+// The world loot settings and the level band that the loot relations keep with each world and level-band entry.
+// A world loot binding reaches a creature of at least the minimum rank. A level-band table gives an item only to a
+// creature within `levelBandRange` levels of the item's level requirement.
+interface LootRules { minimumRank: number; minimumRankName: string; levelBandRange: number | null }
+
+function lootRules(db: Database): LootRules {
+  // Supplemental cloth loot is also world loot, but only the binding entries carry the world loot settings.
+  const settings = db.query<{ value: string }, []>("SELECT DISTINCT json_extract(context_json, '$.worldLootSettings') AS value FROM item_sources WHERE source_kind = 'world-loot' AND json_extract(context_json, '$.worldLootSettings') IS NOT NULL").all();
+  const ranges = db.query<{ value: number }, []>("SELECT DISTINCT json_extract(context_json, '$.levelEligibility.levelBand.range') AS value FROM item_sources WHERE source_kind IN ('npc-loot', 'world-loot') AND json_extract(context_json, '$.levelEligibility') IS NOT NULL").all();
+  if (settings.length > 1 || ranges.length > 1) throw new Error("Loot relations disagree on the world loot settings or the level band range.");
+  const world = settings.length === 0 ? {} : object(settings[0]!.value);
+  return {
+    minimumRank: typeof world.minimumNPCRank === "number" ? world.minimumNPCRank : 0,
+    minimumRankName: typeof world.minimumNPCRankName === "string" ? world.minimumNPCRankName : "",
+    levelBandRange: ranges.length === 0 ? null : ranges[0]!.value,
+  };
+}
+
+// The creature levels that a world loot binding gives an item to. The binding range bounds the creature level, and 0
+// leaves a bound open. An item with a positive level requirement in a level-band table also needs a creature within
+// the band range of that requirement. Null means that no creature level qualifies.
+function worldCreatureLevel(minimum: number, maximum: number, requiredLevel: number | null, bandRange: number | null): CatalogDropRow["creatureLevel"] {
+  let min = Math.max(1, minimum), max = maximum >= 1 ? maximum : null;
+  if (requiredLevel !== null && requiredLevel > 0) {
+    if (bandRange === null) throw new Error("A level-band world loot entry has no level band range.");
+    min = Math.max(min, requiredLevel - bandRange);
+    max = Math.min(max ?? Number.POSITIVE_INFINITY, requiredLevel + bandRange);
+  }
+  return max !== null && max < min ? null : { min, max };
+}
+
 export function queryDropRows(db: Database): CatalogQueryResult<CatalogDropRow[]> {
-  const refs = entityEndpointIndex(db), placements = placementIdsByNpc(db), records: CatalogDropRow[] = [];
-  for (const row of db.query<{ context: "npc" | "world"; owner_entity_key: string | null; loot_table_id: number; entry_index: number; item_entity_key: string; min_count: number; max_count: number; raw_rate: number | null; condition_id: string | null; payload_json: string }, []>(`
-    SELECT b.context, b.owner_entity_key, b.loot_table_id, e.entry_index, e.item_entity_key, e.min_count, e.max_count, e.raw_rate, b.condition_id, b.payload_json FROM loot_bindings b JOIN loot_entries e ON e.build_id = b.build_id AND e.loot_table_id = b.loot_table_id ORDER BY b.context, COALESCE(b.owner_entity_key, ''), b.binding_index, e.entry_index
-  `).all()) { const payload = object(row.payload_json), minimum = typeof payload.minimumNPCLevel === "number" ? payload.minimumNPCLevel : null, maximum = typeof payload.maximumNPCLevel === "number" ? payload.maximumNPCLevel : null; records.push({ context: row.context, owner: row.owner_entity_key === null ? { entityKey: null, label: "World loot" } : endpoint(refs, row.owner_entity_key, row.owner_entity_key), item: endpoint(refs, row.item_entity_key, row.item_entity_key), lootTableId: row.loot_table_id, entryIndex: row.entry_index, min: row.min_count, max: row.max_count, rawRate: row.raw_rate, displayedChance: row.context === "npc" && row.raw_rate !== null ? Math.round(row.raw_rate * 10) / 10 : null, levelBand: minimum === null || maximum === null ? null : { min: minimum, max: maximum }, conditionIds: row.condition_id === null ? [] : [row.condition_id], placementIds: row.owner_entity_key === null ? [] : placements.get(row.owner_entity_key) ?? [] }); }
-  for (const row of db.query<{ item_entity_key: string; source_key: string; placement_ids_json: string; condition_ids_json: string; context_json: string }, []>("SELECT item_entity_key, source_key, placement_ids_json, condition_ids_json, context_json FROM item_sources WHERE source_kind = 'container' ORDER BY item_entity_key, source_key").all()) { const context = object(row.context_json), placementIds = textArray(row.placement_ids_json), placement = placementIds.length === 0 ? null : db.query<{ label: string | null }, [string]>("SELECT label FROM placements WHERE placement_id = ?").get(placementIds[0]!), label = placement?.label ?? `Container ${row.source_key.slice(0, 8)}`; records.push({ context: "container", owner: { entityKey: null, label }, item: endpoint(refs, row.item_entity_key, row.item_entity_key), lootTableId: null, entryIndex: null, min: typeof context.min === "number" ? context.min : null, max: typeof context.max === "number" ? context.max : null, rawRate: typeof context.rawRate === "number" ? context.rawRate : null, displayedChance: null, levelBand: null, conditionIds: textArray(row.condition_ids_json), placementIds }); }
+  const refs = entityEndpointIndex(db), placements = placementIdsByNpc(db), rules = lootRules(db), records: CatalogDropRow[] = [];
+  const requiredLevels = new Map(db.query<{ item_entity_key: string; source_key: string; required_level: number | null }, []>("SELECT item_entity_key, source_key, json_extract(context_json, '$.levelEligibility.requiredLevel') AS required_level FROM item_sources WHERE source_kind = 'world-loot'").all()
+    .map((row) => [`${row.item_entity_key}|${row.source_key}`, row.required_level]));
+  const worldOwner = rules.minimumRank <= 0 ? "Any creature" : `Creatures of rank ${rules.minimumRankName || rules.minimumRank} or higher`;
+  for (const row of db.query<{ context: "npc" | "world"; owner_entity_key: string | null; binding_index: number; table_rate: number | null; condition_id: string | null; binding_json: string; loot_table_id: number; level_band_gear: number; table_json: string; entry_count: number; entry_index: number; item_entity_key: string; min_count: number; max_count: number; raw_rate: number | null }, []>(`
+    SELECT b.context, b.owner_entity_key, b.binding_index, b.raw_rate AS table_rate, b.condition_id, b.payload_json AS binding_json, b.loot_table_id, t.level_band_gear, t.payload_json AS table_json,
+      (SELECT COUNT(*) FROM loot_entries n WHERE n.build_id = b.build_id AND n.loot_table_id = b.loot_table_id) AS entry_count,
+      e.entry_index, e.item_entity_key, e.min_count, e.max_count, e.raw_rate
+    FROM loot_bindings b JOIN loot_tables t ON t.build_id = b.build_id AND t.loot_table_id = b.loot_table_id JOIN loot_entries e ON e.build_id = b.build_id AND e.loot_table_id = b.loot_table_id
+    ORDER BY b.context, COALESCE(b.owner_entity_key, ''), b.binding_index, e.entry_index
+  `).all()) {
+    const binding = object(row.binding_json), table = object(row.table_json);
+    const limit = table.limitDroppedItems === true && typeof table.maxDroppedItems === "number" && table.maxDroppedItems >= 1 ? table.maxDroppedItems : null;
+    // The minimum-drop pass fills up to the minimum, never past the limit, and picks each entry at most once.
+    const minimum = table.hasMinimumDrops === true && typeof table.minDroppedItems === "number" && table.minDroppedItems >= 1 ? Math.min(table.minDroppedItems, limit ?? row.entry_count, row.entry_count) : null;
+    let creatureLevel: CatalogDropRow["creatureLevel"] = null;
+    if (row.context === "world") {
+      const sourceKey = `${row.item_entity_key}|${row.binding_index}:${row.entry_index}`;
+      if (row.level_band_gear === 1 && !requiredLevels.has(sourceKey)) throw new Error(`World loot entry ${sourceKey} of a level-band table has no level eligibility.`);
+      const requiredLevel = row.level_band_gear === 1 ? requiredLevels.get(sourceKey) ?? null : null;
+      creatureLevel = worldCreatureLevel(typeof binding.minimumNPCLevel === "number" ? binding.minimumNPCLevel : 0, typeof binding.maximumNPCLevel === "number" ? binding.maximumNPCLevel : 0, requiredLevel, rules.levelBandRange);
+      // No creature level passes both the binding range and the level band, so the game never gives this entry.
+      if (creatureLevel === null) continue;
+    }
+    records.push({
+      context: row.context,
+      owner: row.owner_entity_key === null ? { entityKey: null, label: worldOwner } : endpoint(refs, row.owner_entity_key, row.owner_entity_key),
+      item: endpoint(refs, row.item_entity_key, row.item_entity_key), lootTableId: row.loot_table_id, entryIndex: row.entry_index,
+      min: row.min_count, max: row.max_count, rawRate: row.raw_rate, displayedChance: row.raw_rate === null ? null : Math.round(row.raw_rate * 10) / 10,
+      tableRate: row.table_rate, tableMinimum: minimum, tableLimit: limit !== null && row.entry_count > limit ? limit : null, creatureLevel,
+      conditionIds: row.condition_id === null ? [] : [row.condition_id], placementIds: row.owner_entity_key === null ? [] : placements.get(row.owner_entity_key) ?? [],
+    });
+  }
   return { ...identity(db), records };
 }
 
@@ -530,10 +626,10 @@ export function queryRecipeRows(db: Database): CatalogQueryResult<CatalogRecipeR
 }
 
 export function queryContainment(db: Database): CatalogQueryResult<CatalogPlacementRow[]> {
-  const roles = new Map<string, CatalogPlacementRow["roles"]>(), families = new Map<string, Set<string>>();
+  const roles = new Map<string, CatalogPlacementRow["roles"]>(), families = new Map<string, Set<string>>(), randomChoices = randomChoicesByPlacement(db);
   for (const row of db.query<{ placement_id: string; role: string; npc_entity_key: string | null; scope: string }, []>("SELECT placement_id, role, npc_entity_key, scope FROM placement_roles ORDER BY placement_id, role, scope, COALESCE(npc_entity_key, '')").all()) { const values = roles.get(row.placement_id) ?? []; values.push({ role: row.role, npcEntityKey: row.npc_entity_key, scope: row.scope }); roles.set(row.placement_id, values); }
   for (const row of db.query<{ placement_id: string; families_json: string }, []>("SELECT placement_id, families_json FROM placement_sources ORDER BY placement_id, source_id").all()) { const values = families.get(row.placement_id) ?? new Set<string>(); for (const family of textArray(row.families_json)) values.add(family); families.set(row.placement_id, values); }
-  const records = db.query<{ placement_id: string; scene_native_id: number; map_space_id: string | null; label: string | null; area_name: string | null }, []>("SELECT p.placement_id, p.scene_native_id, p.map_space_id, p.label, a.area_name FROM placements p LEFT JOIN placement_areas a ON a.placement_id = p.placement_id ORDER BY p.placement_id").all().map((row) => ({ placementId: row.placement_id, sceneNativeId: row.scene_native_id, sceneKey: `scenes:${row.scene_native_id}`, mapSpaceId: row.map_space_id, label: row.label, area: row.area_name, roles: roles.get(row.placement_id) ?? [], families: [...families.get(row.placement_id) ?? []].sort() }));
+  const records = db.query<{ placement_id: string; scene_native_id: number; map_space_id: string | null; label: string | null; area_name: string | null }, []>("SELECT p.placement_id, p.scene_native_id, p.map_space_id, p.label, a.area_name FROM placements p LEFT JOIN placement_areas a ON a.placement_id = p.placement_id ORDER BY p.placement_id").all().map((row) => ({ placementId: row.placement_id, sceneNativeId: row.scene_native_id, sceneKey: `scenes:${row.scene_native_id}`, mapSpaceId: row.map_space_id, label: row.label, area: row.area_name, roles: roles.get(row.placement_id) ?? [], families: [...families.get(row.placement_id) ?? []].sort(), randomChoices: randomChoices.get(row.placement_id) ?? [] }));
   return { ...identity(db), records };
 }
 
@@ -582,11 +678,26 @@ function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSp
   else if (requirement.type.name === "Race") reference(requirement.references.race, "Unresolved race");
   else if (requirement.type.name === "Species") reference(requirement.references.species, "Unresolved species");
   else if (requirement.type.name === "Gender") text(requirement.subtypes.gender?.name ?? "Unresolved gender");
-  else if (requirement.type.name === "Effect") { reference(requirement.references.effect, "Unresolved effect"); if (requirement.state) text(` is ${requirement.state.name.toLowerCase()}`); }
+  else if (requirement.type.name === "Effect") {
+    // The game compares the stacks of the effect with the amount only when the first flag is set: "Stacking Effect
+    // Done is active with 34 stacks". Without the flag, any stack count passes.
+    reference(requirement.references.effect, "Unresolved effect");
+    if (requirement.state) text(` is ${requirement.state.name.toLowerCase()}`);
+    if (requirement.flags.first) {
+      const stacks = requirement.value?.name === "EqualOrAbove" ? `${amount} or more` : requirement.value?.name === "EqualOrBelow" ? `${amount} or fewer` : requirement.value?.name === "Above" ? `more than ${amount}` : requirement.value?.name === "Below" ? `fewer than ${amount}` : String(amount);
+      text(` with ${stacks} ${amount === 1 && requirement.value?.name === "Equal" ? "stack" : "stacks"}`);
+    }
+  }
   else if (requirement.type.name === "Item") {
-    if (requirement.ownership) text(`${requirement.ownership.name} `);
+    // "Has Iron Key", "Does not have Iron Key", "Axe equipped". A native enum such as AXE reads as "Axe".
+    const ownership = requirement.ownership?.name;
+    if (ownership === "Owned") text("Has ");
+    else if (ownership === "NotOwned") text("Does not have ");
     const subtype = requirement.subtypes.weaponType ?? requirement.subtypes.weaponSlot ?? requirement.subtypes.armorType ?? requirement.subtypes.armorSlot ?? requirement.subtypes.itemType;
-    if (subtype) text(subtype.name ?? "Unresolved item type"); else reference(requirement.references.item, "Unresolved item");
+    const readable = (value: string) => /^[A-Z_ ]+$/.test(value) ? `${value[0]}${value.slice(1).toLowerCase().replaceAll("_", " ")}` : value;
+    if (subtype) text(subtype.name ? readable(subtype.name) : "Unresolved item type"); else reference(requirement.references.item, "Unresolved item");
+    if (ownership === "Equipped") text(" equipped");
+    else if (ownership !== undefined && ownership !== "Owned" && ownership !== "NotOwned") text(` (${ownership})`);
   } else if (requirement.type.name === "Region") text(["Region", requirement.subtypes.region?.name].filter(Boolean).join(" "));
   else if (requirement.type.name === "CombatState") text(requirement.flags.first ? "In combat" : "Out of combat");
   else {

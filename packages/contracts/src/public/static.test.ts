@@ -11,9 +11,9 @@ import {
   type StaticRootManifest,
 } from "./index";
 
-const reference = { path: "resources/value.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v1" };
+const reference = { path: "resources/value.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v2" };
 const root: StaticRootManifest = {
-  schemaVersion: "compendium.static-root.v3",
+  schemaVersion: "compendium.static-root.v4",
   buildId: "build",
   catalogId: "b".repeat(64),
   mode: "preview",
@@ -21,19 +21,18 @@ const root: StaticRootManifest = {
   world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
   maps: [],
   kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, searchable: true, columns: [], facets: [] }],
-  lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v1" }] },
-  search: [{ ...reference, schemaId: "compendium.static-search.v3" }],
+  lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v2" }] },
+  search: [{ ...reference, schemaId: "compendium.static-search.v4" }],
   coverage: reference,
 };
 const coverage: StaticCoverage = {
-  schemaVersion: "compendium.static-coverage.v1",
+  schemaVersion: "compendium.static-coverage.v2",
   buildId: root.buildId,
   catalogId: root.catalogId,
-  complete: false,
-  unresolvedIssueCount: 1,
-  occurrenceCount: 2,
-  exclusionCount: 0,
-  messages: ["Incomplete preview."],
+  pages: [{ kind: "items", count: 1 }],
+  mapCount: 1,
+  placementCount: 1,
+  gaps: [{ gap: "itemWithoutSource", pages: [{ key: "items:1", kind: "items", name: "Peasant Gloves", slug: "peasant-gloves" }] }],
 };
 
 test("rejects mismatched build, catalog, schema, and resource identities", () => {
@@ -41,7 +40,7 @@ test("rejects mismatched build, catalog, schema, and resource identities", () =>
   Assert(StaticCoverageSchema, coverage);
   expect(() => assertStaticResourceIdentity(root, { ...coverage, buildId: "other" })).toThrow("build mismatch");
   expect(() => assertStaticResourceIdentity(root, { ...coverage, catalogId: "c".repeat(64) })).toThrow("catalog mismatch");
-  expect(() => Assert(StaticCoverageSchema, { ...coverage, schemaVersion: "compendium.static-coverage.v2" })).toThrow();
+  expect(() => Assert(StaticCoverageSchema, { ...coverage, schemaVersion: "compendium.static-coverage.v1" })).toThrow();
   expect(() => Assert(StaticRootManifestSchema, { ...root, coverage: { ...root.coverage, sha256: "not-a-hash" } })).toThrow();
 });
 

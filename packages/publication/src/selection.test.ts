@@ -26,7 +26,7 @@ test("rejects broken v3 edges and damaged reuse without replacing the selected p
     const selectedBytes = await readFile(join(publicationRoot, "selected.json"), "utf8");
     await selectPublication(store, publicationRoot, generated.root, generated.resources, generated.assets, gate);
 
-    const coverageCandidate = generated.resources.find((resource) => resource.reference.schemaId === "compendium.static-coverage.v1")!;
+    const coverageCandidate = generated.resources.find((resource) => resource.reference.schemaId === "compendium.static-coverage.v2")!;
     await expect(selectPublication(store, publicationRoot, generated.root, generated.resources.filter((resource) => resource !== coverageCandidate), generated.assets, gate)).rejects.toThrow("missing");
     await expect(selectPublication(store, publicationRoot, { reference: { ...generated.root.reference, sha256: "f".repeat(64) }, identity: generated.root.identity }, generated.resources, generated.assets, gate)).rejects.toThrow("reference");
     await expect(selectPublication(store, publicationRoot, generated.root, generated.resources, generated.assets, { ...gate, accepted: false })).rejects.toThrow("catalog gate");
@@ -39,9 +39,10 @@ test("rejects broken v3 edges and damaged reuse without replacing the selected p
     const wrongBuildRoot = await writeStaticJson<StaticRootManifest>(store, generated.manifest.schemaVersion, { ...generated.manifest, coverage: wrongCoverage.reference });
     await expect(selectPublication(store, publicationRoot, wrongBuildRoot, replaceResource(generated.resources, coverageCandidate.reference.path, wrongCoverage), generated.assets, gate)).rejects.toThrow("build mismatch");
 
-    const largeCoverage = await writeStaticJson<StaticCoverage>(store, coverage.schemaVersion, { ...coverage, messages: ["x".repeat(PUBLICATION_ESSENTIAL_BUDGET)] });
+    const pages = Array.from({ length: 6_000 }, (_, index) => ({ key: `items:${index}`, kind: "items" as const, name: "x".repeat(80), slug: `x-${index}` }));
+    const largeCoverage = await writeStaticJson<StaticCoverage>(store, coverage.schemaVersion, { ...coverage, gaps: [{ gap: "itemWithoutSource", pages }] });
     const oversizedRoot = await writeStaticJson<StaticRootManifest>(store, generated.manifest.schemaVersion, { ...generated.manifest, coverage: largeCoverage.reference });
-    await expect(selectPublication(store, publicationRoot, oversizedRoot, replaceResource(generated.resources, coverageCandidate.reference.path, largeCoverage), generated.assets, gate)).rejects.toThrow();
+    await expect(selectPublication(store, publicationRoot, oversizedRoot, replaceResource(generated.resources, coverageCandidate.reference.path, largeCoverage), generated.assets, gate)).rejects.toThrow("byte budget");
     expect(await readFile(join(publicationRoot, "selected.json"), "utf8")).toBe(selectedBytes);
 
     const document = generated.resources.find((resource) => resource.reference.schemaId === STATIC_DOCUMENT_SCHEMA_IDS.items)!;
@@ -65,7 +66,7 @@ test("names the referencing document and key when a referenced document is not p
       document: { ...item.document, facts: { ...item.document.facts, enchantment: { key: "items:404", kind: "items", name: "Missing item", slug: "missing-item" } } },
     });
 
-    const searchCandidates = generated.resources.filter((resource) => resource.reference.schemaId === "compendium.static-search.v3");
+    const searchCandidates = generated.resources.filter((resource) => resource.reference.schemaId === "compendium.static-search.v4");
     const badSearch = await Promise.all(searchCandidates.map(async (candidate) => {
       const search = JSON.parse(await readFile(store.objectPath(candidate.identity.sha256), "utf8")) as StaticSearchIndex;
       return await writeStaticJson<StaticSearchIndex>(store, search.schemaVersion, { ...search,

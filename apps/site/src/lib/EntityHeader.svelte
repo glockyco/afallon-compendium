@@ -1,45 +1,34 @@
 <script lang="ts" context="module">
-  export type HeaderBadge = { label: string; tone?: 'neutral' | 'rarity' | 'accent' | 'boss' };
-  export type HeaderFact = { label: string; value: string };
+  /**
+   * One fact of the header line. A fact without a label is a plain value, such as "Merchant" or "Repeatable". A fact
+   * with `href` links its value, for example a place to the map.
+   */
+  export type HeaderFact = { label?: string; value: string; href?: string };
 </script>
 
 <script lang="ts">
   import { base } from '$app/paths';
   import type { ArtRef } from '@afallon/contracts/public';
-  import Badge from './Badge.svelte';
-  import { kindGlyphSvg } from './kind-icon';
 
   export let name: string;
+  /** Real artwork only. A page without artwork shows no image box. */
   export let art: ArtRef | undefined = undefined;
-  export let artRole = 'icon';
-  export let fallbackIcon: string | undefined = undefined;
+  /** Icons are square and keep their whole image. Portraits and artwork fill a box of the same height. */
+  export let artRole: 'icon' | 'portrait' | 'artwork' = 'icon';
   export let rarity: string | undefined = undefined;
-  export let badges: HeaderBadge[] = [];
   export let facts: HeaderFact[] = [];
   export let description: string | null = null;
-  export let atlasHref: string | undefined = undefined;
-  export let atlasLabel = 'View on the atlas';
   export let compact = false;
-
-  $: glyph = kindGlyphSvg(fallbackIcon);
 </script>
 
 <header class="entity-header" class:compact data-rarity={rarity}>
-  <div class="art" class:ringed={Boolean(rarity)}>
-    {#if art}
-      <img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt={`${name} ${artRole}`} />
-    {:else if glyph}
-      <span class="fallback" aria-hidden="true">{@html glyph}</span>
-    {/if}
-  </div>
+  {#if art}
+    <img class="art {artRole}" class:ringed={Boolean(rarity)} src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt={`${name} ${artRole}`} />
+  {/if}
   <div class="copy">
-    <div class="title-row">
-      {#if compact}<h3 class:coloured={Boolean(rarity)}>{name}</h3>{:else}<h1 class:coloured={Boolean(rarity)}>{name}</h1>{/if}
-      {#if atlasHref}<a class="c-action" href={atlasHref}>{atlasLabel}</a>{/if}
-      {#each badges as badge}<Badge label={badge.label} tone={badge.tone ?? 'neutral'} />{/each}
-    </div>
+    {#if compact}<h3 class:coloured={Boolean(rarity)}>{name}</h3>{:else}<h1 class:coloured={Boolean(rarity)}>{name}</h1>{/if}
     {#if facts.length}
-      <p class="subline">{#each facts as fact}<span class="subline-fact"><span class="key">{fact.label}</span><span class="value">{fact.value}</span></span>{/each}</p>
+      <ul class="facts">{#each facts as fact}<li>{#if fact.label}<span class="label">{fact.label}</span>{/if}{#if fact.href}<a class="value c-link" href={fact.href}>{fact.value}</a>{:else}<span class="value">{fact.value}</span>{/if}</li>{/each}</ul>
     {/if}
     {#if description}<p class="description">{description}</p>{/if}
     <slot />
@@ -47,33 +36,37 @@
 </header>
 
 <style>
-  .entity-header { display: flex; align-items: flex-start; gap: 1.25rem; margin-bottom: 1.5rem; }
-  .art { flex: none; }
-  .art img, .fallback { display: block; width: min(9rem, 24vw); height: auto; max-height: 11rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: #141514; object-fit: contain; }
-  .art.ringed img, .art.ringed .fallback { border-color: color-mix(in srgb, var(--c-rarity) 70%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-rarity) 22%, transparent), 0 0 18px -6px var(--c-rarity); }
-  .fallback { display: grid; width: 4.5rem; aspect-ratio: 1; place-items: center; color: #7d786c; }
-  .fallback :global(svg) { width: 45%; height: 45%; }
+  .entity-header { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; }
+  .art { flex: none; height: 4.5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: #141514; }
+  .art.icon, .art.portrait { width: 4.5rem; }
+  .art.icon { object-fit: contain; }
+  .art.portrait { object-fit: cover; }
+  .art.artwork { width: 8rem; object-fit: cover; }
+  .art.ringed { border-color: color-mix(in srgb, var(--c-rarity) 70%, transparent); }
   .copy { min-width: 0; flex: 1; }
-  .title-row { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem .7rem; }
   h1, h3 { margin: 0; color: #f6f2e7; font-family: var(--c-serif); font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }
-  h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); }
+  h1 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); }
   h3 { font-size: 1rem; }
   .coloured { color: var(--c-rarity); }
-  .subline { display: flex; flex-wrap: wrap; gap: .25rem 1.1rem; margin: .6rem 0 0; font-size: .84rem; }
-  .subline-fact { display: inline-flex; gap: .4rem; }
-  .key { color: var(--c-text-dim); }
-  .value { color: #ece7db; font-weight: 600; }
-  .description { max-width: 62ch; margin: .8rem 0 0; color: #c0bcb2; font-size: .9rem; line-height: 1.6; white-space: pre-line; }
+  .facts { display: flex; flex-wrap: wrap; gap: .2rem 0; margin: .45rem 0 0; padding: 0; list-style: none; font-size: .86rem; }
+  .facts li { display: inline-flex; align-items: baseline; gap: .35rem; }
+  .facts li + li::before { content: '·'; margin: 0 .2rem; color: var(--c-text-mute); }
+  .label { color: var(--c-text-dim); }
+  .value { color: #ece7db; }
+  .description { max-width: 62ch; margin: .6rem 0 0; color: #c0bcb2; font-size: .9rem; line-height: 1.6; white-space: pre-line; }
 
-  .compact { gap: .7rem; margin-bottom: .8rem; }
-  .compact .art img, .compact .fallback { width: 3.25rem; max-height: 3.25rem; }
-  .compact .fallback { font-size: 1.1rem; }
-  .compact .subline { margin-top: .35rem; gap: .2rem .7rem; font-size: .75rem; }
+  .compact { gap: .7rem; margin-bottom: .7rem; }
+  .compact .art { height: 3rem; }
+  .compact .art.icon, .compact .art.portrait { width: 3rem; }
+  .compact .art.artwork { width: 5.3rem; }
+  .compact .facts { margin-top: .3rem; font-size: .75rem; }
+  .compact .facts li + li::before { margin: 0 .4rem; }
   .compact .description { margin-top: .45rem; font-size: .78rem; line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
 
   @media (max-width: 640px) {
     .entity-header { gap: .8rem; margin-bottom: 1.1rem; }
-    .art img, .fallback { width: 4.5rem; max-height: 5.5rem; }
-    h1 { font-size: 1.5rem; }
+    .art { height: 3.5rem; }
+    .art.icon, .art.portrait { width: 3.5rem; }
+    .art.artwork { width: 6.2rem; }
   }
 </style>

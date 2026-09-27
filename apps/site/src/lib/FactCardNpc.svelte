@@ -2,20 +2,19 @@
   import { base } from '$app/paths';
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import AbilityPhases from './AbilityPhases.svelte';
-  import Availability from './Availability.svelte';
   import Card from './Card.svelte';
   import ChipGrid, { type Chip } from './ChipGrid.svelte';
   import DropTable from './DropTable.svelte';
-  import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
+  import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityLink from './EntityLink.svelte';
   import Fact from './Fact.svelte';
   import FactGrid from './FactGrid.svelte';
-  import LocationList from './LocationList.svelte';
-  import LocationLinks from './LocationLinks.svelte';
+  import NpcLocations from './NpcLocations.svelte';
+  import NpcVariants from './NpcVariants.svelte';
   import QuestTable from './QuestTable.svelte';
   import RefList from './RefList.svelte';
   import VendorTable from './VendorTable.svelte';
-  import { formatNumber, labelOf, levelText, rangeText, roleLabel, signedAmount } from './format';
+  import { formatNumber, labelOf, npcLevelText, placesText, rangeText, roleLabel, signedAmount } from './format';
 
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
@@ -23,18 +22,17 @@
   export let limit: number | undefined = undefined;
 
   $: facts = document.facts;
-  $: npcLevel = facts.level ?? facts.levelRange;
-  $: level = npcLevel === undefined ? null : levelText(npcLevel);
+  // The variants table appears when the records differ in facts or in loot. Otherwise the records differ only in where
+  // and when they appear, which the location table shows.
+  $: variantTable = document.variants.length > 1 && (document.variantFields.length > 0 || document.drops.some((row) => row.variants));
   $: creatureType = facts.npcType ?? facts.creatureType;
-  $: badges = [
-    ...facts.roles.map((role) => ({ label: roleLabel(role), tone: role === 'boss' ? ('boss' as const) : ('neutral' as const) })),
-    ...(facts.scalesWithPlayer ? [{ label: 'Scales with player', tone: 'accent' as const }] : []),
-  ] satisfies HeaderBadge[];
+  $: places = placesText(document.locations.map((location) => location.label));
   $: headerFacts = [
-    ...(level ? [{ label: 'Level', value: level }] : []),
+    ...facts.roles.map((role) => ({ value: roleLabel(role) })),
+    ...(facts.level ? [{ label: 'Level', value: npcLevelText(facts.level) }] : []),
     ...(creatureType ? [{ label: 'Type', value: labelOf(creatureType) }] : []),
     ...(facts.faction ? [{ label: 'Faction', value: facts.faction.key === null ? facts.faction.label : facts.faction.name }] : []),
-    ...(document.locations.length > 0 ? [{ label: 'Found in', value: document.locations[0]!.label }] : []),
+    ...(places ? [{ label: 'Found in', value: places, href: `${base}/?entity=${encodeURIComponent(document.ref.key)}` }] : []),
   ] satisfies HeaderFact[];
   $: statChips = facts.stats.map((stat) => ({
     label: stat.stat.key === null ? stat.stat.label : stat.stat.name,
@@ -51,8 +49,6 @@
   $: factCount = [facts.species !== undefined, facts.family !== undefined, facts.experience !== undefined,
     facts.respawn !== undefined, facts.aggroRange !== undefined, lootSpecialization !== undefined,
     document.linkedNpc !== undefined].filter(Boolean).length;
-  $: hasFacts = facts.species !== undefined || facts.family !== undefined || facts.respawn !== undefined
-    || facts.experience !== undefined || facts.aggroRange !== undefined || lootSpecialization !== undefined || document.linkedNpc !== undefined;
 </script>
 
 <article class="document">
@@ -60,17 +56,13 @@
     name={document.ref.name}
     art={document.art.portrait ?? document.art.icon ?? document.ref.icon}
     artRole="portrait"
-    fallbackIcon={registry.find((entry) => entry.kind === 'npcs')?.icon}
-    {badges}
     facts={headerFacts}
     description={document.description}
-    atlasHref={document.locations.length > 0 ? `${base}/?entity=${encodeURIComponent(document.ref.key)}` : undefined}
-    atlasLabel="View on the atlas"
   />
 
   <div class="c-stack">
     <div class="c-card-grid">
-      {#if hasFacts}
+      {#if factCount > 0}
       <Card title="Facts" wide={factCount > 2}>
         <FactGrid wide>
             {#if facts.species}<Fact label="Species"><EntityLink ref={facts.species} {registry} /></Fact>{/if}
@@ -92,29 +84,16 @@
       {#if immunityChips.length}<Card title="Immunities" count={immunityChips.length}><ChipGrid chips={immunityChips} /></Card>{/if}
       {#if rewardChips.length}<Card title="Faction rewards" count={rewardChips.length}><ChipGrid chips={rewardChips} /></Card>{/if}
     </div>
-    {#if document.spawnConditions.length}
-      <Card title="Spawn conditions" count={document.spawnConditions.length}>
-        <ul class="spawn-conditions">
-          {#each (limit === undefined ? document.spawnConditions : document.spawnConditions.slice(0, limit)) as condition}
-            <li><Availability rules={condition.availability} {registry} /><LocationLinks placements={condition.placements} /></li>
-          {/each}
-        </ul>
-      </Card>
-    {/if}
+    <NpcLocations {document} {registry} {variantTable} />
+    {#if variantTable}<NpcVariants {document} {registry} />{/if}
 
     {#if showRelations}
       <AbilityPhases phases={document.abilityPhases} {registry} {limit} />
-      <DropTable rows={document.drops} {registry} heading="Drops" counterpartLabel="Item" {limit} />
-      <VendorTable rows={document.sells} {registry} heading="Sells" counterpartLabel="Item" {limit} />
+      <DropTable rows={document.drops} variants={document.variants} {registry} heading="Drops" counterpartLabel="Item" {limit} />
+      <VendorTable rows={document.sells} variants={document.variants} {registry} heading="Sells" counterpartLabel="Item" {limit} />
       <QuestTable rows={document.quests} {registry} heading="Quests" counterpartLabel="Quest" {limit} />
       <QuestTable rows={document.usedInQuests} {registry} heading="Quest objectives" counterpartLabel="Quest" {limit} />
       <RefList title="Boss of" refs={document.bossOf} {registry} {limit} />
-      <LocationList locations={document.locations} entityKey={document.ref.key} {limit} />
     {/if}
   </div>
 </article>
-
-<style>
-  .spawn-conditions { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
-  .spawn-conditions li { display: grid; gap: .3rem; }
-</style>

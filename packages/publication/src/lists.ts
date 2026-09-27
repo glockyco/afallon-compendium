@@ -1,9 +1,9 @@
+import { levelText } from "./levels";
 import { partitionStaticRecords } from "./resources";
 import type {
   ListRow,
   PublicAbility,
   PublicDocument,
-  PublicGearSet,
   PublicItem,
   PublicKindEntry,
   PublicNpc,
@@ -41,7 +41,7 @@ function itemRow(document: PublicItem): ListRow {
 }
 
 function npcRow(document: PublicNpc): ListRow {
-  const level = document.facts.level ?? (document.facts.levelRange ? `${document.facts.levelRange.min}–${document.facts.levelRange.max}` : null);
+  const level = document.facts.level ? levelText(document.facts.level) : null;
   const places = new Set(document.locations.map((location) => location.label));
   const place = places.size === 1 ? places.values().next().value! : places.size > 1 ? `${places.size} places` : null;
   const faction = refName(document.facts.faction);
@@ -68,22 +68,19 @@ function placeRow(document: PublicPlace): ListRow {
 }
 
 function propertyRow(document: PublicProperty): ListRow {
-  const place = refName(document.place);
-  return { ref: document.ref, values: { place, income: document.facts.income ?? null }, facets: { place: facetValue(place) } };
+  const place = refName(document.place), type = document.facts.propertyType ?? null;
+  return { ref: document.ref, values: { type, place, price: document.facts.price?.amount ?? null, income: document.facts.income?.amount ?? null },
+    facets: { type: facetValue(type), place: facetValue(place) } };
 }
 
 function abilityRow(document: PublicAbility): ListRow {
-  return { ref: document.ref, values: { usedBy: document.usedBy.map((ref) => refName(ref)).filter((value): value is string => value !== null).join(", ") || null }, facets: {} };
+  const users = [...new Set(document.versions.flatMap((version) => version.usedBy).map((ref) => refName(ref)).filter((value): value is string => value !== null))];
+  return { ref: document.ref, values: { usedBy: users.join(", ") || null }, facets: {} };
 }
 
 function recipeRow(document: PublicRecipe): ListRow {
   const station = refName(document.facts.station), skill = refName(document.facts.skill);
   return { ref: document.ref, values: { station, skill, product: refName(document.product?.counterpart) }, facets: { station: facetValue(station), skill: facetValue(skill) } };
-}
-
-function gearSetRow(document: PublicGearSet): ListRow {
-  return { ref: document.ref, values: { memberCount: document.facts.memberCount, tierCount: document.tiers.length },
-    facets: { memberCount: [String(document.facts.memberCount)], tierCount: [String(document.tiers.length)] } };
 }
 
 export function buildKindLists(
@@ -102,7 +99,6 @@ export function buildKindLists(
       case "properties": row = propertyRow(document as PublicProperty); break;
       case "abilities": row = abilityRow(document as PublicAbility); break;
       case "recipes": row = recipeRow(document as PublicRecipe); break;
-      case "gearSets": row = gearSetRow(document as PublicGearSet); break;
       default: continue;
     }
     const rows = rowsByKind.get(document.ref.kind) ?? [];
@@ -114,7 +110,7 @@ export function buildKindLists(
     if (!entry.pages) continue;
     const kind = entry.kind as PublicPageKind;
     result.set(kind, partitionStaticRecords(rowsByKind.get(kind) ?? [], (rows, part): StaticKindList => ({
-      schemaVersion: "compendium.static-kind-list.v1", ...identity, kind, part, rows,
+      schemaVersion: "compendium.static-kind-list.v2", ...identity, kind, part, rows,
     })));
   }
   return result;

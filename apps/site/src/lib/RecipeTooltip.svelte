@@ -15,7 +15,7 @@
 </script>
 
 <article>
-  <EntityHeader name={document.ref.name} art={document.art.icon ?? document.ref.icon} fallbackIcon={registry.find((entry) => entry.kind === 'recipes')?.icon} facts={headerFacts} description={document.description} compact />
+  <EntityHeader name={document.ref.name} art={document.art.icon ?? document.ref.icon} facts={headerFacts} description={document.description} compact />
   {#if document.product}<p><span>Produces</span><EntityReference ref={document.product.counterpart} {registry} /> ×{document.product.count}</p>{/if}
   {#if document.materials.length}<h4>Materials</h4><ul>{#each document.materials as material}<li><EntityReference ref={material.counterpart} {registry} /><span>×{material.count}</span></li>{/each}</ul>{/if}
 </article>

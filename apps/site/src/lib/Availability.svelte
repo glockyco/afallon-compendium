@@ -6,14 +6,21 @@
 
   export let rules: AvailabilityRule[];
   export let registry: PublicKindEntry[];
+
+  const effectOrder: Record<AvailabilityRule['effect'], number> = { requires: 0, excludes: 1, temporary: 2 };
+  $: orderedRules = rules.length > 1 ? [...rules].sort((a, b) =>
+    effectOrder[a.effect] - effectOrder[b.effect]
+    || (a.requirements[0]?.requirements[0]?.type.name ?? '').localeCompare(b.requirements[0]?.requirements[0]?.type.name ?? '')
+    || (a.requirements[0]?.requirements[0]?.label ?? '').localeCompare(b.requirements[0]?.requirements[0]?.label ?? '')
+  ) : rules;
 </script>
 
-{#if rules.length}
+{#if orderedRules.length}
   <ul class="availability">
-    {#each rules as rule}
+    {#each orderedRules as rule}
       <li>
-        {#if rule.effect === 'excludes'}Not while
-        {:else if rule.effect === 'temporary'}For {#if rule.durationSeconds === undefined}<MissingValue explanation="The toggle's duration is not published" />{:else}{formatDuration(rule.durationSeconds)}{/if} after{/if}
+        {#if rule.effect === 'excludes'}Not while{' '}
+        {:else if rule.effect === 'temporary'}For {#if rule.durationSeconds === undefined}<MissingValue explanation="The toggle's duration is not published" />{:else}{formatDuration(rule.durationSeconds)}{/if} after{' '}{/if}
         <Requirements requirements={rule.requirements} {registry} />
       </li>
     {/each}
@@ -21,7 +28,7 @@
 {/if}
 
 <style>
-  .availability { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; }
-  li { font-size: .85rem; }
-  li :global(.requirements) { display: inline-grid; vertical-align: baseline; }
+  .availability { margin: 0; padding: 0; list-style: none; line-height: 1.5; }
+  li { display: inline; font-size: .85rem; }
+  li + li::before { content: ' and '; color: var(--c-text-dim); }
 </style>

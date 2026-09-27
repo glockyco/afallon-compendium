@@ -1,4 +1,4 @@
-import { PUBLIC_MARKER_CATEGORY_LABELS, type PublicLevelRange, type PublicMarkerCategory, type QuestObjective, type QuestStart, type RequirementGroup } from '@afallon/contracts/public';
+import { PUBLIC_MARKER_CATEGORY_LABELS, type CreatureLevel, type DropRow, type PublicLevel, type PublicMarkerCategory, type QuestObjective, type QuestStart, type RequirementGroup } from '@afallon/contracts/public';
 
 const RARITY_TONES: Record<string, true> = { common: true, uncommon: true, rare: true, gold: true, epic: true, legendary: true };
 const numberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
@@ -19,6 +19,12 @@ export function formatNumber(value: number): string {
 
 export function formatDuration(seconds: number): string {
   return seconds !== 0 && seconds % 60 === 0 ? `${formatNumber(seconds / 60)} min` : `${formatNumber(seconds)} s`;
+}
+
+/** A game-time interval in words: "5 minutes", "90 seconds". */
+export function intervalText(seconds: number): string {
+  if (seconds % 60 === 0) return `${formatNumber(seconds / 60)} ${seconds === 60 ? 'minute' : 'minutes'}`;
+  return `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
 }
 
 /** Item source kinds are native-style ids; an interactive object source reads as the object that gives the item. */
@@ -48,9 +54,42 @@ export function rangeText(min: number | undefined, max: number | undefined): str
   return `${formatNumber(min)}\u2013${formatNumber(max)}`;
 }
 
-/** A level is one number or a range; a range whose ends agree reads as one number. */
-export function levelText(level: number | PublicLevelRange): string {
-  return typeof level === 'number' ? formatNumber(level) : rangeText(level.min, level.max)!;
+/** A level or a level range. A range whose ends agree reads as one number, and a range without a maximum as "15+". */
+export function levelText(level: number | { min: number; max?: number }): string {
+  if (typeof level === 'number') return formatNumber(level);
+  return level.max === undefined ? `${formatNumber(level.min)}+` : rangeText(level.min, level.max)!;
+}
+
+/** A creature's level with the game's rule: "15–30, scales with the player". */
+export function npcLevelText(level: PublicLevel): string {
+  return level.scales ? `${levelText(level)}, scales with the player` : levelText(level);
+}
+
+/** The creature levels that can drop world loot: "7–12", "20+", or "Any" when every level qualifies. */
+export function creatureLevelText(level: CreatureLevel): string {
+  return level.min <= 1 && level.max === undefined ? 'Any' : levelText(level);
+}
+
+/** One roll of a loot table: "5% table roll, 1–2 items". The rate is authored, not an effective chance per kill. */
+export function lootTableText(row: Pick<DropRow, 'tableChance' | 'tableMinimum' | 'tableLimit'>): string | null {
+  const { tableChance, tableMinimum: least, tableLimit: most } = row;
+  const items = least !== undefined && most !== undefined ? (least === most ? `${least} ${least === 1 ? 'item' : 'items'}` : `${least}\u2013${most} items`)
+    : least !== undefined ? `at least ${least} ${least === 1 ? 'item' : 'items'}`
+    : most !== undefined ? `at most ${most} ${most === 1 ? 'item' : 'items'}` : null;
+  const parts = [...(tableChance === undefined ? [] : [`${formatNumber(tableChance)}% table roll`]), ...(items === null ? [] : [items])];
+  return parts.length === 0 ? null : parts.join(', ');
+}
+
+/** A random spawn: "One of 3 random spots, 66.7% chance". A certain choice leaves out the chance. */
+export function alternativeText(chance: number, spots: number): string {
+  return [spots > 1 ? `One of ${spots} random spots` : 'Random spawn', ...(chance < 100 ? [`${formatNumber(chance)}% chance`] : [])].join(', ');
+}
+
+/** The places of a creature for a header: the first place and how many others. */
+export function placesText(labels: readonly string[]): string | null {
+  const unique = [...new Set(labels)];
+  if (unique.length <= 1) return unique[0] ?? null;
+  return `${unique[0]} and ${unique.length - 1} more`;
 }
 
 /** The rarity tone drives the name colour, the icon ring, and the badge through one attribute. */

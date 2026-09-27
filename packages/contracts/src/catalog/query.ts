@@ -101,10 +101,16 @@ export interface NormalizedWorldQuestFact { entityKey: string; worldQuestNativeI
 // source itself for its own requirements, or the requirement toggle whose target is the source or an ancestor.
 // It is null when that toggle has no verified source identity.
 export interface NormalizedSourceGate { gateId: string; sourceId: string; effect: "requires" | "excludes" | "temporary"; conditionId: string; viaSourceId: string | null; durationSeconds: number | null; provenance: ProvenanceReference[] }
+export interface NormalizedRandomChoice {
+  choiceId: string;
+  numberToEnable: number;
+  entries: Array<{ entryIndex: number; targetPath: string | null; sourceIds: string[]; provenance: ProvenanceReference[] }>;
+  provenance: ProvenanceReference[];
+}
 // The smallest named region box that contains a placement's map position in the placement's map space.
 export interface NormalizedPlacementArea { placementId: string; regionId: string; areaName: string }
 export interface NormalizedPlaceFact { entityKey: string; placeType: "dungeon" | "zone" | "region" | "interior"; guideIncluded: boolean; guideDescription: string | null; levelMin: number | null; levelMax: number | null; mapSpaceIds: string[]; bosses: NormalizedReference[]; parentSceneKey: string | null; provenance: ProvenanceReference[] }
-export interface NormalizedPropertyFact { entityKey: string; income: number | null; purchasePrice: number | null; sellPrice: number | null; currency: NormalizedReference | null; propertyType: string | null; provenance: ProvenanceReference[] }
+export interface NormalizedPropertyFact { entityKey: string; income: number | null; incomeInterval: number | null; purchasePrice: number | null; sellPrice: number | null; currency: NormalizedReference | null; propertyType: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedTaskFact { entityKey: string; taskType: string; target: NormalizedReference | null; count: number | null; keepItems: boolean | null; sceneName: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedAbilityFact { entityKey: string; ranks: NormalizedAbilityRank[]; provenance: ProvenanceReference[] }
 export interface NormalizedRecipeFact { entityKey: string; skill: NormalizedReference | null; station: NormalizedReference | null; learnedByDefault: boolean; provenance: ProvenanceReference[] }
@@ -368,6 +374,7 @@ export interface NormalizedDatabaseInput {
   conditions: NormalizedCondition[];
   spawnCandidates: NormalizedSpawnCandidate[];
   sourceGates: NormalizedSourceGate[];
+  randomChoices: NormalizedRandomChoice[];
   placementAreas: NormalizedPlacementArea[];
   merchantTables: Array<Record<string, unknown>>;
   merchantBindings: Array<Record<string, unknown>>;

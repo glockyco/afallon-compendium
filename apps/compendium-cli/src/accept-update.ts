@@ -41,7 +41,7 @@ async function describeRollback(publicationRoot: string, selectionBytes: Buffer 
   const parsed: unknown = JSON.parse(selectionBytes.toString("utf8"));
   if (!parsed || typeof parsed !== "object" || !("root" in parsed) || !("directory" in parsed) || typeof parsed.directory !== "string") throw new Error("Selected publication is invalid.");
   Assert(StaticResourceReferenceSchema, parsed.root);
-  if (parsed.root.schemaId !== "compendium.static-root.v3") throw new Error("Selected publication has an unsupported root schema.");
+  if (parsed.root.schemaId !== "compendium.static-root.v4") throw new Error("Selected publication has an unsupported root schema.");
   const rootPath = resolve(publicationRoot, parsed.directory, "publication.json");
   const boundary = relative(publicationRoot, rootPath);
   if (boundary === "" || boundary.startsWith("..") || isAbsolute(boundary)) throw new Error("Selected publication root escapes the publication directory.");
@@ -78,7 +78,7 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
   const report = validateUpdateReport(JSON.parse(new TextDecoder().decode(reportBytes)));
   await verifyReportEvidence(store, report);
   const publicationRun = await resolveArtifactRun(store, report.artifacts.publication.content, { buildId: report.current.buildId, operation: "publish" });
-  const publicationOutput = publicationRun.outputs.find(output => output.name === "publication.json" && output.schemaId === "compendium.static-root.v3");
+  const publicationOutput = publicationRun.outputs.find(output => output.name === "publication.json" && output.schemaId === "compendium.static-root.v4");
   if (!publicationOutput) throw new Error("Accepted update report does not reference a successful static publication run.");
   const rootValue: unknown = JSON.parse(await readFile(store.objectPath(publicationOutput.content.sha256), "utf8"));
   Assert(StaticRootManifestSchema, rootValue);
@@ -99,7 +99,7 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
   const candidateDirectory = join(publicationRoot, "publications", publicationOutput.content.sha256);
   const stat = await lstat(candidateDirectory);
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Candidate publication directory is unavailable.");
-  const selection = { root: { path: `resources/${publicationOutput.content.sha256}.json`, sha256: publicationOutput.content.sha256, bytes: publicationOutput.content.bytes, schemaId: "compendium.static-root.v3" as const }, directory: `publications/${publicationOutput.content.sha256}` };
+  const selection = { root: { path: `resources/${publicationOutput.content.sha256}.json`, sha256: publicationOutput.content.sha256, bytes: publicationOutput.content.bytes, schemaId: "compendium.static-root.v4" as const }, directory: `publications/${publicationOutput.content.sha256}` };
   const selectionBytes = new TextEncoder().encode(`${canonicalJson(selection)}\n`), selectionIdentity = identity(selectionBytes);
   const stageBackup = `${stageRoot}.rollback-${randomUUID()}`;
   let backedUp = false, selectionChanged = false, descriptorChanged = false;

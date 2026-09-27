@@ -162,6 +162,8 @@ export interface CatalogPlaceFacts {
 export interface CatalogPropertyFacts {
   entityKey: string;
   income: number | null;
+  // Seconds of game time between two income payments, a global economy setting.
+  incomeInterval: number | null;
   purchasePrice: number | null;
   sellPrice: number | null;
   currency: CatalogEndpoint | null;
@@ -250,20 +252,26 @@ export interface CatalogRequirement {
   times: [CatalogRequirementTime | null, CatalogRequirementTime | null];
 }
 
-// Loot rows: `displayedChance` is the value the game's own guide shows, which the measured rule
-// establishes only for NPC loot entries (the authored rate rounded to one decimal). Other contexts
-// keep `rawRate` and leave `displayedChance` null.
+// Loot rows of the tables that creatures and the world loot settings bind, one row per table entry. `rawRate` is the
+// authored entry rate, and `displayedChance` rounds it to one decimal, which is the value that the Adventure Guide
+// shows for creature loot. `tableRate` is the authored chance that a kill rolls the table. `tableMinimum` and
+// `tableLimit` are the fewest and the most items that one roll gives. The limit is set only when the table has more
+// entries than the limit. World loot rows carry `creatureLevel`: the creature levels that can drop the item, with an
+// open maximum as null.
 export interface CatalogDropRow {
-  context: "npc" | "world" | "container";
+  context: "npc" | "world";
   owner: CatalogEndpoint;
   item: CatalogEndpoint;
-  lootTableId: number | null;
-  entryIndex: number | null;
+  lootTableId: number;
+  entryIndex: number;
   min: number | null;
   max: number | null;
   rawRate: number | null;
   displayedChance: number | null;
-  levelBand: CatalogLevelRange | null;
+  tableRate: number | null;
+  tableMinimum: number | null;
+  tableLimit: number | null;
+  creatureLevel: { min: number; max: number | null } | null;
   conditionIds: string[];
   placementIds: string[];
 }
@@ -370,6 +378,17 @@ export interface CatalogRecipeRow {
   chance: number | null;
 }
 
+// A RandomActivator choice that can disable a placement. `entries` counts the entries of the choice's list, and
+// `options` counts their distinct targets. `enabled` is how many distinct entries the game enables, and `entryIndexes`
+// lists the entries whose targets contain the placement.
+export interface CatalogRandomChoice {
+  choiceId: string;
+  entries: number;
+  options: number;
+  enabled: number;
+  entryIndexes: number[];
+}
+
 export interface CatalogPlacementRow {
   placementId: string;
   sceneNativeId: number;
@@ -380,6 +399,7 @@ export interface CatalogPlacementRow {
   area: string | null;
   roles: Array<{ role: string; npcEntityKey: string | null; scope: string }>;
   families: string[];
+  randomChoices: ReadonlyArray<CatalogRandomChoice>;
 }
 
 export interface CatalogTransitionRow {

@@ -46,7 +46,7 @@ export interface AtlasIndexes {
   entriesByKey: ReadonlyMap<string, PublicSearchEntry>;
 }
 
-export function atlasPublicationData(root: StaticRootManifest, maps: readonly AtlasMapData[], coverage: StaticCoverage): PublicationData {
+export function atlasPublicationData(root: StaticRootManifest, maps: readonly AtlasMapData[]): PublicationData {
   const loadedIds = new Set(maps.map((map) => map.mapSpaceId));
   if (maps.length !== root.maps.length || root.maps.some((map) => !loadedIds.has(map.mapSpaceId))) {
     throw new Error("Atlas map parts do not cover every published map.");
@@ -55,7 +55,6 @@ export function atlasPublicationData(root: StaticRootManifest, maps: readonly At
     schemaVersion: PUBLICATION_SCHEMA_VERSION,
     buildId: root.buildId,
     mode: root.mode,
-    coverage: { complete: coverage.complete, messages: coverage.messages, excludedPlacements: coverage.exclusionCount },
     world: root.world,
     maps: root.maps.map(({ mapSpaceId, label, bounds }) => ({ mapSpaceId, label, bounds })),
     placements: maps.flatMap((map) => map.placements),
@@ -101,7 +100,7 @@ export class AtlasDataLoader {
     if (!references?.length) throw new Error(`Publication has no list for ${kind}.`);
     const parts = await Promise.all(references.map((reference) => this.#loadReference(reference, StaticKindListSchema, root)));
     if (parts.some((part, index) => part.kind !== kind || part.part !== index)) throw new Error(`Kind-list identity mismatch for ${kind}.`);
-    return { schemaVersion: 'compendium.static-kind-list.v1', buildId: root.buildId, catalogId: root.catalogId, kind, part: 0, rows: parts.flatMap((part) => part.rows) };
+    return { schemaVersion: 'compendium.static-kind-list.v2', buildId: root.buildId, catalogId: root.catalogId, kind, part: 0, rows: parts.flatMap((part) => part.rows) };
   }
 
   async loadDocument(kind: PublicPageKind, slug: string): Promise<StaticDocument> {

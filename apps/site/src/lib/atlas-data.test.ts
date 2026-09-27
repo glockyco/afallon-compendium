@@ -22,7 +22,7 @@ function fixture() {
     const ref = { key, kind: 'items' as const, name, slug: name };
     refs.set(key, ref);
     documents.set(key, register({
-      schemaVersion: 'compendium.static-item.v3', ...identity, kind: 'items',
+      schemaVersion: 'compendium.static-item.v4', ...identity, kind: 'items',
       document: {
         ref, description: null, art: {},
         facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
@@ -30,17 +30,17 @@ function fixture() {
       },
     }));
   }
-  const list = register({ schemaVersion: 'compendium.static-kind-list.v1', ...identity, kind: 'items', part: 0, rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
+  const list = register({ schemaVersion: 'compendium.static-kind-list.v2', ...identity, kind: 'items', part: 0, rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
   const search = register({
-    schemaVersion: 'compendium.static-search.v3', ...identity, part: 0,
+    schemaVersion: 'compendium.static-search.v4', ...identity, part: 0,
     entries: [...refs].map(([key, ref]) => ({ ref, hasPlacements: true, sourceKinds: ['vendor'], document: documents.get(key) })),
   });
-  const parts = ['a', 'b'].map((name, part) => register({ schemaVersion: 'compendium.static-map.v2', ...identity, mapSpaceId: 'map', part, placements: [[`place:${name}`, [part * 10, 0], 0, name, ['merchant'], [], [`item:${name}`], null, null, null]], regions: [] }));
+  const parts = ['a', 'b'].map((name, part) => register({ schemaVersion: 'compendium.static-map.v3', ...identity, mapSpaceId: 'map', part, placements: [[`place:${name}`, [part * 10, 0], 0, name, ['merchant'], [], [`item:${name}`], null, null, null, null]], regions: [] }));
   const imagery = register({ schemaVersion: 'compendium.static-imagery.v2', ...identity, mapSpaceId: 'map', defaultLayerId: 'game', layers: [{ id: 'game', mapSpaceId: 'map', label: 'Map', kind: 'game-map', tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 256, 256], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${'d'.repeat(64)}.webp`, sha256: 'd'.repeat(64), bytes: 1, width: 256, height: 256, state: 'captured', schemaId: 'image/webp' }] }] });
-  const coverage = register({ schemaVersion: 'compendium.static-coverage.v1', ...identity, complete: false, unresolvedIssueCount: 1, occurrenceCount: 1, exclusionCount: 0, messages: ['Incomplete'] });
+  const coverage = register({ schemaVersion: 'compendium.static-coverage.v2', ...identity, pages: [{ kind: 'items', count: 1 }], mapCount: 1, placementCount: 1, gaps: [] });
   const bounds = { min: { x: 0, y: 0 }, max: { x: 256, y: 256 } };
   const root: StaticRootManifest = {
-    schemaVersion: 'compendium.static-root.v3', ...identity, mode: 'preview', complete: false,
+    schemaVersion: 'compendium.static-root.v4', ...identity, mode: 'preview', complete: false,
     world: { mapSpaceId: 'world', label: 'Afallon', bounds, offsets: [{ mapSpaceId: 'map', worldX: 0, worldY: 0, source: 'native', status: 'placed' }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: 'map', label: 'Map', bounds, parts, optionalGeometry: [], imagery }],
     kinds: [{ kind: 'items', label: 'Item', plural: 'Items', route: 'items', icon: 'package', pages: true, searchable: true, columns: [], facets: [] }],
@@ -89,8 +89,8 @@ test('loads all geometry before first render and retries a failed geometry resou
   const geometryReferences: StaticResourceReference[] = [];
   data.root.maps = ['a', 'b'].map((name, index) => {
     const mapSpaceId = `map:${name}`;
-    const part = data.register({ schemaVersion: 'compendium.static-map.v2', ...data.identity, mapSpaceId, part: 0,
-      placements: [[`place:${name}`, [index * 10, 0], 0, name, ['merchant'], ['item:a'], [`item:${name}`], null, null, areaRadius]], regions: [] });
+    const part = data.register({ schemaVersion: 'compendium.static-map.v3', ...data.identity, mapSpaceId, part: 0,
+      placements: [[`place:${name}`, [index * 10, 0], 0, name, ['merchant'], ['item:a'], [`item:${name}`], null, null, areaRadius, null]], regions: [] });
     const geometry = data.register({ schemaVersion: 'compendium.static-geometry.v1', ...data.identity, mapSpaceId, part: 0,
       placements: [{ placementId: `place:${name}`, movement: [{ kind: 'roaming', owner: { kind: 'spawnerOverride' }, distance: 12, aroundSpawner: true, usePois: false }] }], connections: [] });
     geometryReferences.push(geometry);

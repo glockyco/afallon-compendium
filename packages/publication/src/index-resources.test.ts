@@ -44,8 +44,8 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
       store,
       new Map([["p1", { placementId: "p1", mapSpaceId: "world", label: "World", categories: ["enemy" as const] }]]),
       new Map([["npcs:2", ["p1"]]]),
-      new Map([["world", "World"]]),
       new Map([["world", []]]),
+      new Map(),
     );
     const entries = generated.search.flatMap((part) => part.value.entries);
     expect(entries.find((entry) => entry.ref.key === "quests:3")).toMatchObject({ hasPlacements: false, level: { min: 18, max: 20 } });

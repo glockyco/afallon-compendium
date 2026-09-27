@@ -87,6 +87,24 @@ export const PublicLevelRangeSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicLevelRange = Static<typeof PublicLevelRangeSchema>;
 
+// The level that the game gives a creature at one placement. With `scales`, the game clamps the player's level into
+// min..max and adds a small random offset, and an absent `max` means that no upper bound applies. Without `scales`,
+// the game rolls a level from min to max.
+export const PublicLevelSchema = Type.Object({
+  min: count,
+  max: Type.Optional(count),
+  scales: Type.Boolean(),
+}, { additionalProperties: false });
+export type PublicLevel = Static<typeof PublicLevelSchema>;
+
+// A RandomActivator choice that can disable a spawn. `chance` is the probability, in percent, that the game keeps the
+// spawn active. `options` counts the random spots that the game picks one from, and 1 means an independent chance.
+export const PublicAlternativeSchema = Type.Object({
+  chance: Type.Number({ exclusiveMinimum: 0, maximum: 100 }),
+  options: Type.Integer({ minimum: 1 }),
+}, { additionalProperties: false });
+export type PublicAlternative = Static<typeof PublicAlternativeSchema>;
+
 export const StaticResourceIdentityFields = {
   buildId: text,
   catalogId: hash,

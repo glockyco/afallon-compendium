@@ -9,6 +9,7 @@ import {
   StaticGeometrySchema,
   type StaticGeometry,
   type PublicEssentialPlacement,
+  type PublicLevel,
   type PublicMarkerCategory,
   type PublicMovement,
   type PublicPatrolPath,
@@ -19,21 +20,12 @@ import {
   type StaticMapShard,
   type StaticMapSummary,
 } from "@afallon/contracts/public";
+import { markerCategories, type CreatureServices } from "./categories";
+import { record } from "./json";
+import { authoredLevel, levelUnion, npcLevelRecord, placementAlternative, sceneZoneRange, spawnerLevel } from "./levels";
 import { partitionStaticRecords, writeStaticJson, type GeneratedStaticResource } from "./resources";
-import { plainText } from "./text";
+import { displayName } from "./text";
 
-const ROLE_CATEGORIES: Readonly<Record<string, PublicMarkerCategory | null>> = {
-  enemy: "enemy", boss: "boss", elite: "enemy", neutral: "neutral", friendly: "townsfolk", npc: null,
-  merchant: "merchant", questGiver: "questGiver", resourceProducer: null, oreVein: "oreVein", herb: "herb",
-  mushroom: "mushroom", fishingHole: "fishingSpot", container: "container", storage: "container",
-  transition: "travelPoint", respawnDestination: "graveyard", usefulInteraction: "interactiveObject",
-  questLocation: "interactiveObject", craftingService: "craftingStation", propertyPurchaseService: "property",
-  corruptionAltar: "corruptionAltar", combatant: null, dialogue: null, inspect: null, trade: null,
-  adventurerProducer: null, adventurerPopulationManager: null,
-};
-const MAP_ICON_CATEGORIES: Readonly<Record<string, PublicMarkerCategory>> = {
-  town: "town", fort: "fort", camp: "camp", dungeon: "dungeonEntrance", challengeStone: "challengeStone",
-};
 const CRAFTING_STATION_CATEGORIES: Readonly<Partial<Record<number, { name: string; category: PublicMarkerCategory }>>> = {
   0: { name: "Alchemy", category: "alchemyStation" },
   1: { name: "Cooking", category: "cookingStation" },
@@ -42,39 +34,29 @@ const CRAFTING_STATION_CATEGORIES: Readonly<Partial<Record<number, { name: strin
   5: { name: "Tailoring", category: "tailoringStation" },
 };
 
-
-function record(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
-}
-function levelRange(min: unknown, max: unknown): { min: number; max: number } | undefined {
-  return typeof min === "number" && Number.isInteger(min) && min >= 1 && typeof max === "number" && Number.isInteger(max) && max >= min && (min !== 100 || max !== 100) ? { min, max } : undefined;
-}
-function gameplayLevelRange(gameplay: unknown): { min: number; max: number } | undefined {
-  const value = record(gameplay);
-  if (!value) return undefined;
-  const candidates: ReadonlyArray<readonly [string, string]> = [["minLevel", "maxLevel"], ["dungeonLevelMin", "dungeonLevelMax"], ["zoneScalingMinLevel", "zoneScalingMaxLevel"], ["levelRangeMin", "levelRangeMax"], ["LevelRangeMin", "LevelRangeMax"]];
-  for (const [min, max] of candidates) {
-    const range = levelRange(value[min], value[max]);
-    if (range) return range;
+// The level of each creature that the placement's spawners produce, keyed by NPC entity key.
+function npcLevelsAt(placement: CatalogMapPlacement, gameplayByEntity: ReadonlyMap<string, unknown>): Map<string, PublicLevel> {
+  const sceneZone = sceneZoneRange(gameplayByEntity.get(`scenes:${placement.sceneNativeId}`));
+  const levels = new Map<string, PublicLevel[]>();
+  for (const detail of placement.sourceDetails) {
+    if (detail.family !== "npcProducer" || !Array.isArray(detail.data.candidates)) continue;
+    for (const candidate of detail.data.candidates) {
+      const npcId = record(candidate)?.npcId;
+      if (typeof npcId !== "number" || !Number.isInteger(npcId)) continue;
+      const key = `npcs:${npcId}`;
+      const level = spawnerLevel(detail.data, npcLevelRecord(gameplayByEntity.get(key)), sceneZone);
+      if (!level) continue;
+      const known = levels.get(key) ?? [];
+      known.push(level);
+      levels.set(key, known);
+    }
   }
-  return undefined;
+  return new Map([...levels].map(([key, known]) => [key, levelUnion(known)!] as const));
 }
-function placementLevelRange(placement: CatalogMapPlacement, gameplayByNpc: ReadonlyMap<string, unknown>): { min: number; max: number } | undefined {
-  const sourceRanges = placement.sourceDetails.map(({ data }) => {
-    const overrides = record(data.overrides), levels = record(overrides?.levels), scaling = record(overrides?.zoneScaling);
-    return {
-      override: levels?.enabled === true ? levelRange(levels.minLevel, levels.maxLevel) : undefined,
-      scaling: scaling?.enabled === true ? levelRange(scaling.minLevel, scaling.maxLevel) : undefined,
-      direct: [levelRange(data.LevelRangeMin, data.LevelRangeMax), levelRange(data.levelRangeMin, data.levelRangeMax)],
-    };
-  });
-  const canonical = placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [gameplayLevelRange(gameplayByNpc.get(role.npcEntityKey))]);
-  for (const ranges of [sourceRanges.map((range) => range.override), sourceRanges.map((range) => range.scaling), [...sourceRanges.flatMap((range) => range.direct), ...canonical]]) {
-    const known = ranges.filter((range): range is { min: number; max: number } => range !== undefined);
-    if (known.length === 0) continue;
-    return known.every((range) => range.min === known[0]!.min && range.max === known[0]!.max) ? known[0] : undefined;
-  }
-  return undefined;
+// A placement shows the levels of its creatures, or else a level range that its source authors directly.
+function placementLevel(placement: CatalogMapPlacement, npcLevels: ReadonlyMap<string, PublicLevel>): PublicLevel | undefined {
+  if (npcLevels.size > 0) return levelUnion([...npcLevels.values()]);
+  return levelUnion(placement.sourceDetails.flatMap(({ data }) => [authoredLevel(data.LevelRangeMin, data.LevelRangeMax), authoredLevel(data.levelRangeMin, data.levelRangeMax)]).filter((level): level is PublicLevel => level !== undefined));
 }
 type ProjectedPlacement = Omit<PublicPlacement, "areas"> & { areaRadius: number | null };
 
@@ -84,7 +66,7 @@ function placementAreaRadius(placement: CatalogMapPlacement): number | null {
 }
 // Authored object names include placeholders such as "0"; a name without a letter names nothing.
 function readableName(value: unknown): string | null {
-  const name = typeof value === "string" ? plainText(value) : "";
+  const name = typeof value === "string" ? displayName(value) : "";
   return /\p{L}/u.test(name) ? name : null;
 }
 function sourceName(placement: CatalogMapPlacement): string | null {
@@ -93,6 +75,11 @@ function sourceName(placement: CatalogMapPlacement): string | null {
     if (name) return name;
   }
   return null;
+}
+// A for-sale sign sells the property that its typed RPGProperty reference names.
+function propertiesSold(placement: CatalogMapPlacement): string[] {
+  return placement.sourceDetails.flatMap(({ family, data }) => family === "propertyForSaleSign" && data.propertyReferenceStatus === "resolved" && typeof data.propertyID === "number" && Number.isInteger(data.propertyID) && data.propertyID >= 0
+    ? [`properties:${data.propertyID}`] : []);
 }
 // A travel point without its own name carries the category label, so a merged marker prefers any other label.
 function namedTravelLabel(label: string): boolean {
@@ -107,7 +94,7 @@ function flightPointLabel(gameplay: Record<string, unknown> | null): string | nu
   const network = record(gameplay.flightNetwork);
   if (network?.available !== true || !Array.isArray(network.stops)) return null;
   const stop = network.stops.map(record).find((candidate) => candidate?.id === gameplay.flightStopId);
-  const name = typeof stop?.name === "string" ? plainText(stop.name).trim() : "";
+  const name = typeof stop?.name === "string" ? displayName(stop.name) : "";
   return name ? `${name} Flight Point` : null;
 }
 function pathByName(name: string, placement: CatalogMapPlacement, spatial: CatalogSpatialContext): PublicPatrolPath {
@@ -222,16 +209,8 @@ function offsetTravel(travel: PublicTravel | undefined, offsets: ReadonlyMap<str
   return offset ? { ...travel, destination: { ...travel.destination, position: [travel.destination.position[0] + offset.worldX, travel.destination.position[1] + offset.worldY] } } : { ...travel, destination: { status: "unresolved", reason: "Verified destination has no published map position." } };
 }
 
-function categories(roles: readonly { role: string; scope: string }[]): PublicMarkerCategory[] {
-  if (roles.some((role) => role.role === "adventurer")) return [];
-  const found = new Set<PublicMarkerCategory>();
-  for (const role of roles) {
-    const category = role.role === "mapIcon" ? MAP_ICON_CATEGORIES[role.scope] : ROLE_CATEGORIES[role.role];
-    if (category) found.add(category);
-  }
-  if (found.has("townsfolk") && (found.has("merchant") || found.has("questGiver"))) found.delete("townsfolk");
-  if (found.has("travelPoint") || found.has("container")) found.delete("interactiveObject");
-  return PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => found.has(category));
+function creatureServices(gameplay: Record<string, unknown> | null): CreatureServices {
+  return { isAuctioneer: gameplay?.isAuctioneer === true, isBanker: gameplay?.isBanker === true, isFlightMaster: gameplay?.isFlightMaster === true };
 }
 
 function craftingStationCategory(placement: CatalogMapPlacement, canonicalNames: ReadonlyMap<number, string>): PublicMarkerCategory {
@@ -299,7 +278,8 @@ function foldRegions(regions: readonly PublicRegion[]): PublicRegion[] {
     const key = JSON.stringify([region.mapSpaceId, region.name, region.shape, region.polygon.map(([x, y]) => [Math.round(x * 10), Math.round(y * 10)])]);
     if (!seen.has(key)) seen.set(key, region);
   }
-  return [...seen.values()].sort((left, right) => left.id.localeCompare(right.id));
+  // Regions fold by their authored names, and then show their names in title case.
+  return [...seen.values()].sort((left, right) => left.id.localeCompare(right.id)).map((region) => ({ ...region, name: displayName(region.name) }));
 }
 function sameTravelDestination(left: PublicTravel, right: PublicTravel): boolean {
   const a = left.destination, b = right.destination;
@@ -340,15 +320,19 @@ export interface GeneratedMapShard {
   summary: Omit<StaticMapSummary, "imagery">;
   resources: GeneratedStaticResource<StaticMapShard>[];
   geometry: GeneratedStaticResource<StaticGeometry>[];
+  /** For each published placement, the level of each creature record that it produces. */
+  npcLevels: ReadonlyMap<string, ReadonlyMap<string, PublicLevel>>;
 }
 
-export async function generateMapShards(db: Database, store: ArtifactStore, worldOffsets: readonly PublicWorldOffset[] = [], protection?: ObjectWriteProtection, publishedMapSpaceIds?: ReadonlySet<string>, publishedExtents?: ReadonlyMap<string, readonly [number, number, number, number]>): Promise<GeneratedMapShard[]> {
+/** The page that shows a creature record, by record key. */
+export type PageOfRecord = ReadonlyMap<string, { key: string; name: string }>;
+
+export async function generateMapShards(db: Database, store: ArtifactStore, pageOf: PageOfRecord, worldOffsets: readonly PublicWorldOffset[] = [], protection?: ObjectWriteProtection, publishedMapSpaceIds?: ReadonlySet<string>, publishedExtents?: ReadonlyMap<string, readonly [number, number, number, number]>): Promise<GeneratedMapShard[]> {
   const offsets = new Map(worldOffsets.map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }]));
   const maps = queryCatalogMaps(db);
   const spatial = queryCatalogSpatialContext(db).records;
   const search = queryCatalogSearch(db);
   if (search.buildId !== maps.buildId) throw new Error("Catalog search and map records belong to different builds.");
-  const entityNames = new Map(search.records.map((entity) => [entity.entityKey, plainText(entity.name ?? "") || "Unnamed entry"]));
   const craftingStationNames = new Map(search.records.filter((entity) => entity.kind === "craftingStations" && entity.name !== null).map((entity) => [entity.nativeId, entity.name!]));
   const gameplayByEntity = new Map(queryCatalogFullEntities(db).records.map((detail) => [detail.entityKey, detail.publicData.gameplay]));
   const result: GeneratedMapShard[] = [];
@@ -358,21 +342,23 @@ export async function generateMapShards(db: Database, store: ArtifactStore, worl
     if (queried.records === null) throw new Error(`Catalog map disappeared during publication: ${map.mapSpaceId}.`);
     const offset = offsets.get(map.mapSpaceId) ?? { worldX: 0, worldY: 0 };
     const extent = publishedExtents?.get(map.mapSpaceId);
+    const npcLevels = new Map<string, ReadonlyMap<string, PublicLevel>>();
     const unfoldedPlacements: ProjectedPlacement[] = foldMapIcons(queried.records.placements).flatMap((placement) => {
       if (extent && (placement.position[0] < extent[0] || placement.position[1] < extent[1] || placement.position[0] >= extent[2] || placement.position[1] >= extent[3])) return [];
-      const entityKeys = [...new Set(placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [role.npcEntityKey]))].sort();
-      const foundCategories = new Set(categories(placement.roles));
+      const recordKeys = [...new Set(placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [role.npcEntityKey]))].sort();
+      const entityKeys = [...new Set([...recordKeys.map((key) => pageOf.get(key)?.key ?? key), ...propertiesSold(placement)])].sort();
+      const serviceData = recordKeys.map((key) => record(gameplayByEntity.get(key)));
+      const foundCategories = new Set(markerCategories(placement.roles, serviceData.map(creatureServices)));
       if (foundCategories.delete("craftingStation")) foundCategories.add(craftingStationCategory(placement, craftingStationNames));
-      const serviceData = entityKeys.map((key) => record(gameplayByEntity.get(key)));
-      if (serviceData.some((gameplay) => gameplay?.isAuctioneer === true)) foundCategories.add("auctioneer");
-      if (serviceData.some((gameplay) => gameplay?.isBanker === true)) foundCategories.add("banker");
-      if (serviceData.some((gameplay) => gameplay?.isFlightMaster === true)) foundCategories.add("flightPoint");
-      if (foundCategories.has("auctioneer") || foundCategories.has("banker") || foundCategories.has("flightPoint")) foundCategories.delete("townsfolk");
       const placementCategories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => foundCategories.has(category));
       if (placementCategories.length === 0) return [];
       const serviceLabel = serviceData.map(flightPointLabel).find((value): value is string => value !== null);
-      const label = serviceLabel || readableName(placement.label) || entityKeys.map((key) => entityNames.get(key)).filter((name): name is string => Boolean(name)).join(" / ") || sourceName(placement) || placementCategories.map((category) => CATEGORY_LABELS[category]).join(" / ");
-      const range = placementLevelRange(placement, gameplayByEntity);
+      const pageNames = [...new Set(recordKeys.map((key) => pageOf.get(key)?.name).filter((name): name is string => Boolean(name)))];
+      const label = serviceLabel || readableName(placement.label) || pageNames.join(" / ") || sourceName(placement) || placementCategories.map((category) => CATEGORY_LABELS[category]).join(" / ");
+      const levels = npcLevelsAt(placement, gameplayByEntity);
+      if (levels.size > 0) npcLevels.set(placement.placementId, levels);
+      const level = placementLevel(placement, levels);
+      const alternative = placementAlternative(placement.placementId, placement.randomChoices);
       const travel = offsetTravel(travelForPlacement(placement, spatial), offsets);
       return [{
         placementId: placement.placementId,
@@ -381,7 +367,8 @@ export async function generateMapShards(db: Database, store: ArtifactStore, worl
         height: placement.height,
         label,
         categories: placementCategories,
-        ...(range ? { levelRange: range } : {}),
+        ...(level ? { level } : {}),
+        ...(alternative ? { alternative } : {}),
         entityKeys,
         itemKeys: placement.itemEntityKeys,
         searchText: [label, ...placementCategories.map((category) => CATEGORY_LABELS[category])].join(" "),
@@ -393,12 +380,14 @@ export async function generateMapShards(db: Database, store: ArtifactStore, worl
     const placements = foldTravelPlacements(unfoldedPlacements);
     const regions = foldRegions(queried.records.regions.map(publicRegion).filter((region): region is PublicRegion => region !== null).map((region) => ({ ...region, polygon: region.polygon.map(([x, y]) => [x + offset.worldX, y + offset.worldY]) })));
     const identity = { buildId: maps.buildId, catalogId: maps.catalogId, mapSpaceId: map.mapSpaceId };
-    const compact: PublicEssentialPlacement[] = placements.map((placement) => [placement.placementId, placement.position, placement.height, placement.label, placement.categories, placement.entityKeys, placement.itemKeys, placement.levelRange ?? null, placement.travel?.enabled ?? null, placement.areaRadius]);
+    const compact: PublicEssentialPlacement[] = placements.map((placement) => [placement.placementId, placement.position, placement.height, placement.label, placement.categories, placement.entityKeys, placement.itemKeys, placement.level ?? null, placement.travel?.enabled ?? null, placement.areaRadius, placement.alternative ?? null]);
+    const published = new Set(placements.map((placement) => placement.placementId));
+    for (const placementId of [...npcLevels.keys()]) if (!published.has(placementId)) npcLevels.delete(placementId);
     type AtlasRecord = { placement: PublicEssentialPlacement } | { region: PublicRegion };
     const atlasRecords: AtlasRecord[] = [...compact.map((placement) => ({ placement })), ...regions.map((region) => ({ region }))];
     const resources: GeneratedStaticResource<StaticMapShard>[] = [];
     for (const shard of partitionStaticRecords(atlasRecords, (rows, part): StaticMapShard => ({
-      schemaVersion: "compendium.static-map.v2", ...identity, part,
+      schemaVersion: "compendium.static-map.v3", ...identity, part,
       placements: rows.flatMap((row) => "placement" in row ? [row.placement] : []),
       regions: rows.flatMap((row) => "region" in row ? [row.region] : []),
     }))) {
@@ -422,7 +411,7 @@ export async function generateMapShards(db: Database, store: ArtifactStore, worl
     const points = [...placements.flatMap<[number, number]>(({ position: [x, y], areaRadius }) => areaRadius === null ? [[x, y]] : [[x - areaRadius, y - areaRadius], [x + areaRadius, y + areaRadius]]), ...regions.flatMap((region) => region.polygon)];
     const bounds = points.reduce((bounds, [x, y]) => ({ min: { x: Math.min(bounds.min.x, x), y: Math.min(bounds.min.y, y) }, max: { x: Math.max(bounds.max.x, x), y: Math.max(bounds.max.y, y) } }), { min: { x: Infinity, y: Infinity }, max: { x: -Infinity, y: -Infinity } });
     if (points.length === 0) { bounds.min = { x: offset.worldX, y: offset.worldY }; bounds.max = { ...bounds.min }; }
-    result.push({ summary: { mapSpaceId: map.mapSpaceId, label: map.label, bounds, parts: resources.map((resource) => resource.reference), optionalGeometry: geometry.map((resource) => resource.reference) }, resources, geometry });
+    result.push({ summary: { mapSpaceId: map.mapSpaceId, label: map.label, bounds, parts: resources.map((resource) => resource.reference), optionalGeometry: geometry.map((resource) => resource.reference) }, resources, geometry, npcLevels });
   }
   return result;
 }

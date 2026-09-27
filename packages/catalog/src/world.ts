@@ -1,5 +1,5 @@
 import type { WorldSources } from "@afallon/contracts";
-import type { ArtifactReference, NormalizedCondition, NormalizedSourceDetail, NormalizedWorldQuestFact, ProvenanceReference } from "@afallon/contracts/catalog";
+import type { ArtifactReference, NormalizedCondition, NormalizedRandomChoice, NormalizedSourceDetail, NormalizedWorldQuestFact, ProvenanceReference } from "@afallon/contracts/catalog";
 import { hashRelation } from "./database";
 import { pointer, type SceneContext, type SourceIdentityRow, type Blocker } from "./context";
 import { addSourceIndex, type ItemSourceAccumulator, type RelationData } from "./relations";
@@ -137,6 +137,79 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
     }
   }
   return { resourceYields, transitions, questAssociations, worldQuestFacts };
+}
+
+/** The authored RPGProperty fields that a for-sale sign reads from the property it sells. */
+export interface SignPropertyFacts {
+  propertyType: string | null;
+  currencyId: number | null;
+  purchasePrice: number | null;
+  sellPrice: number | null;
+  income: number | null;
+  provenance: ProvenanceReference[];
+}
+
+// A PropertyForSaleSign holds a typed RPGProperty reference, and the scan reads the property's authored type, currency,
+// prices, and income through it. Every sign of one property must agree, because they read one record.
+export function signPropertyFacts(contexts: readonly SceneContext[]): Map<number, SignPropertyFacts> {
+  const facts = new Map<number, SignPropertyFacts>();
+  for (const context of contexts) for (const [index, row] of context.world.services.entries()) {
+    if (row.family !== "propertyForSaleSign" || row.propertyReferenceStatus !== "resolved" || row.propertyID === null) continue;
+    const value = { propertyType: row.propertyType.name, currencyId: row.currencyID, purchasePrice: row.purchasePrice, sellPrice: row.sellPrice, income: row.incomeAmount };
+    const provenance = pointer(context.worldReference, `/services/${index}`), previous = facts.get(row.propertyID);
+    if (previous) {
+      const { provenance: known, ...fields } = previous;
+      if (JSON.stringify(fields) !== JSON.stringify(value)) throw new Error(`For-sale signs of property ${row.propertyID} disagree on its authored fields.`);
+      known.push(provenance);
+    } else facts.set(row.propertyID, { ...value, provenance: [provenance] });
+  }
+  return facts;
+}
+
+// The RandomActivator choices of the scanned scenes. Each entry of a choice names the sources inside its target, so a
+// placement can find the choices that can disable it. A repeated target keeps its own entry, which weights the pick.
+export function randomChoices(contexts: readonly SceneContext[], blockers: Blocker[]): NormalizedRandomChoice[] {
+  const choices = new Map<string, NormalizedRandomChoice>();
+  for (const context of contexts) {
+    const sources: Array<{ path: string; sourceId: string }> = [];
+    for (const collection of ["resourceProducers", "interactions", "containers", "questZones", "transitions", "mapZones", "regions", "mapIcons", "services", "conditionSources", "unsupportedSources", "randomActivators"] as const) for (const row of context.world[collection]) {
+      if (!("source" in row) || !row.source || row.source.componentInstanceId === null) continue;
+      const identity = context.sourceByComponent.get(row.source.componentInstanceId), path = row.source.source.hierarchyPath;
+      if (identity && path) sources.push({ path, sourceId: identity.sourceId });
+    }
+    for (const collection of ["producers", "adventurerProducers", "adventurerPopulationManagers"] as const) for (const row of context.npc[collection]) {
+      if ("unavailable" in row) continue;
+      const identity = context.sourceByComponent.get(row.componentInstanceId);
+      if (identity && row.source.hierarchyPath) sources.push({ path: row.source.hierarchyPath, sourceId: identity.sourceId });
+    }
+    for (const [index, activator] of context.world.randomActivators.entries()) {
+      if (activator.targetCount === -1) continue;
+      const reference = pointer(context.worldReference, `/randomActivators/${index}`), component = activator.source.componentInstanceId;
+      const identity = component === null ? undefined : context.sourceByComponent.get(component);
+      if (!identity) {
+        blockers.push({ kind: "unplaced-random-activator", key: `${context.snapshotId}:${index}`, detail: "Random activator has no verified source identity.", provenance: [reference] });
+        continue;
+      }
+      const choiceId = identity.sourceId, previous = choices.get(choiceId);
+      if (previous && (previous.numberToEnable !== activator.numberToEnable || previous.entries.length !== activator.targets.length)) throw new Error(`Conflicting repeated random choice ${choiceId}.`);
+      const choice = previous ?? { choiceId, numberToEnable: activator.numberToEnable, entries: [], provenance: [] };
+      choice.provenance.push(reference);
+      for (const [entryIndex, target] of activator.targets.entries()) {
+        const provenance = pointer(reference, `/targets/${entryIndex}`);
+        const targetPath = "unavailable" in target ? null : target.source.source.hierarchyPath;
+        if (!("unavailable" in target) && !targetPath) blockers.push({ kind: "unresolved-random-target", key: `${choiceId}:${entryIndex}`, detail: "Random target has no hierarchy path.", provenance: [provenance] });
+        const entry = choice.entries[entryIndex];
+        if (entry && entry.targetPath !== targetPath) throw new Error(`Conflicting repeated random target ${choiceId}:${entryIndex}.`);
+        const sourceIds = targetPath === null ? [] : sources.filter((source) => source.path === targetPath || source.path.startsWith(`${targetPath}/`)).map((source) => source.sourceId);
+        if (entry) {
+          entry.sourceIds = [...new Set([...entry.sourceIds, ...sourceIds])].sort();
+          entry.provenance.push(provenance);
+        } else choice.entries.push({ entryIndex, targetPath, sourceIds: [...new Set(sourceIds)].sort(), provenance: [provenance] });
+      }
+      choices.set(choiceId, choice);
+    }
+  }
+  return [...choices.values()].sort((a, b) => a.choiceId.localeCompare(b.choiceId));
 }
 
 export function sourceDetails(contexts: readonly SceneContext[], sourcePlacement: ReadonlyMap<string, string>): NormalizedSourceDetail[] {

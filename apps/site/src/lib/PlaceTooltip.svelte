@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PublicKindEntry, PublicPlace } from '@afallon/contracts/public';
-  import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
+  import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
   import { labelOf, levelText } from './format';
 
@@ -9,10 +9,11 @@
   export let mapSpaceLabels: Readonly<Record<string, string>> = {};
 
   $: facts = document.facts;
-  $: badges = [{ label: labelOf(facts.placeType) }, ...(facts.guideIncluded ? [{ label: 'Guide entry', tone: 'accent' as const }] : [])] satisfies HeaderBadge[];
   $: headerFacts = [
+    { value: labelOf(facts.placeType) },
+    ...(facts.guideIncluded ? [{ value: 'Adventure guide entry' }] : []),
     ...(facts.levelRange ? [{ label: 'Level', value: levelText(facts.levelRange) }] : []),
-    ...(document.space && mapSpaceLabels[document.space.mapSpaceId] ? [{ label: 'Map space', value: mapSpaceLabels[document.space.mapSpaceId]! }] : []),
+    ...(document.space && mapSpaceLabels[document.space.mapSpaceId] ? [{ label: 'Map', value: mapSpaceLabels[document.space.mapSpaceId]! }] : []),
   ] satisfies HeaderFact[];
   $: counts = [
     ['Bosses', document.bosses.length], ['Creatures', document.creatures.length], ['NPCs', document.npcs.length],
@@ -21,7 +22,7 @@
 </script>
 
 <article>
-  <EntityHeader name={document.ref.name} art={document.art.artwork ?? document.art.icon ?? document.ref.icon} artRole="artwork" fallbackIcon={registry.find((entry) => entry.kind === 'places')?.icon} {badges} facts={headerFacts} description={document.description} compact />
+  <EntityHeader name={document.ref.name} art={document.art.artwork ?? document.art.icon ?? document.ref.icon} artRole="artwork" facts={headerFacts} description={document.description} compact />
   {#if document.parent}<p class="parent"><span>Part of</span><EntityReference ref={document.parent} {registry} /></p>{/if}
   {#if counts.length}<dl>{#each counts as [label, count]}<div><dt>{label}</dt><dd>{count}</dd></div>{/each}</dl>{/if}
 </article>

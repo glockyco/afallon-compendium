@@ -9,116 +9,83 @@ const entity = (kind: string, nativeId: number, name: string): CatalogEntityRow 
 const emptyFacts: CatalogFacts = { entities: [], items: [], npcs: [], quests: [], tasks: [], places: [], properties: [], abilities: [], recipes: [], gearSets: [] };
 const emptyRelations: CatalogRelations = { drops: [], vendors: [], gathers: [], containers: [], interactions: [], quests: [], recipes: [], placements: [], transitions: [], conditions: [], gatedSources: [] };
 
-function npcFact(entityKey: string, level: number, abilities: CatalogNpcFacts["abilityPhases"] = []): CatalogNpcFacts {
-  return { entityKey, minLevel: level, maxLevel: level, scalesWithPlayer: false, npcType: null, creatureType: null, family: null,
+function npcFact(entityKey: string, health = 100): CatalogNpcFacts {
+  return { entityKey, minLevel: 100, maxLevel: 100, scalesWithPlayer: false, npcType: null, creatureType: null, family: null,
     faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null,
-    minExperience: null, maxExperience: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: abilities,
+    minExperience: null, maxExperience: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [{ stat: { entityKey: "stats:1", label: "Health" }, amount: health, isPercent: false }], abilityPhases: [],
     factionRewards: [], linkedNpc: null, lootSpecialization: null };
 }
 
-function itemFact(entityKey: string, rarity: string, armorSlot: string): CatalogItemFacts {
-  return { entityKey, rarity, itemType: "ARMOR", armorSlot, weaponSlot: null, weaponType: null, armorType: "LEATHER", attackSpeed: null,
+function itemFact(entityKey: string, armorType: string): CatalogItemFacts {
+  return { entityKey, rarity: "COMMON", itemType: "ARMOR", armorSlot: "CHEST", weaponSlot: null, weaponType: null, armorType, attackSpeed: null,
     minDamage: null, maxDamage: null, stats: [], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: null,
     sellPrice: null, sellCurrency: null, buyPrice: null, buyCurrency: null, stackLimit: 1, questDropOnly: false, corruptionToken: false,
     equipmentRequirements: [], useConditions: [], actionAbilities: [], useLines: [], conditionIds: [], gearSet: null };
 }
 
-test("disambiguates equal NPC names by level and freezes the reference map", () => {
-  const entities = [entity("npcs", 1, "Warden"), entity("npcs", 2, "Warden")];
-  const facts: CatalogFacts = { ...emptyFacts, entities,
-    npcs: entities.map((row, index) => ({ entityKey: row.entityKey, minLevel: 21 + index, maxLevel: 21 + index, scalesWithPlayer: false,
-      npcType: null, creatureType: null, family: null, faction: null, species: null, isMerchant: false, isQuestGiver: false,
-      isCombatEnabled: true, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null, minExperience: null, maxExperience: null, immuneToStun: false,
-      immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [], factionRewards: [], linkedNpc: null, lootSpecialization: null })),
-  };
-  const refs = buildEntityReferences(entities, { facts, relations: emptyRelations });
-  expect(refs.get("npcs:1")).toMatchObject({ name: "Warden (lvl. 21)", slug: "warden-lvl-21" });
-  expect(refs.get("npcs:2")).toMatchObject({ name: "Warden (lvl. 22)", slug: "warden-lvl-22" });
+const placement = (placementId: string, npcEntityKey: string, area: string) => ({ placementId, sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: null, area, roles: [{ role: "npc", npcEntityKey, scope: "authored" }], families: [], randomChoices: [] });
+
+test("groups the records of one creature name into one page whose variants need no label when their facts match", () => {
+  const entities = [entity("npcs", 206, "Fenric Doryn"), entity("npcs", 225, "fenric doryn"), entity("npcs", 234, "Fenric Doryn")];
+  const facts: CatalogFacts = { ...emptyFacts, entities, npcs: entities.map((row) => npcFact(row.entityKey)) };
+  const { refs, pages } = buildEntityReferences(entities, { facts, relations: emptyRelations });
+  expect([...pages.keys()]).toEqual(["npcs:206"]);
+  expect(pages.get("npcs:206")).toMatchObject({ ref: { name: "Fenric Doryn", slug: "fenric-doryn" }, variantFields: [] });
+  expect(refs.get("npcs:225")).toMatchObject({ key: "npcs:206", name: "Fenric Doryn", slug: "fenric-doryn", variant: "n225" });
   expect(() => (refs as Map<string, unknown>).clear()).toThrow("frozen");
 });
 
-test("names equal NPCs by their named areas and keeps their published slugs", () => {
-  const entities = [entity("scenes", 10, "World"), entity("npcs", 1, "Thalgrim Wayfinder"), entity("npcs", 2, "Thalgrim Wayfinder")];
-  const relations: CatalogRelations = { ...emptyRelations, placements: [
-    { placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Thalgrim", area: "Raven Camp", roles: [{ role: "npc", npcEntityKey: "npcs:1", scope: "authored" }], families: [] },
-    { placementId: "p2", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Thalgrim", area: "Coalway Woods", roles: [{ role: "npc", npcEntityKey: "npcs:2", scope: "authored" }], families: [] },
-  ] };
-  const refs = buildEntityReferences(entities, { facts: { ...emptyFacts, npcs: [npcFact("npcs:1", 20), npcFact("npcs:2", 20)] }, relations });
-  expect(refs.get("npcs:1")).toMatchObject({ name: "Thalgrim Wayfinder (Raven Camp)", slug: "thalgrim-wayfinder-1" });
-  expect(refs.get("npcs:2")).toMatchObject({ name: "Thalgrim Wayfinder (Coalway Woods)", slug: "thalgrim-wayfinder-2" });
+test("names the variant in a record reference when the variants differ in facts that the page shows", () => {
+  const entities = [entity("scenes", 10, "World"), entity("npcs", 1, "Cragborn Alpha"), entity("npcs", 2, "Cragborn Alpha")];
+  const facts: CatalogFacts = { ...emptyFacts, entities, npcs: [npcFact("npcs:1", 800), npcFact("npcs:2", 300)] };
+  const relations: CatalogRelations = { ...emptyRelations, placements: [placement("p1", "npcs:1", "Skittershade mine"), placement("p2", "npcs:2", "Glacier cave")] };
+  const { refs, pages } = buildEntityReferences(entities, { facts, relations });
+  expect(pages.get("npcs:1")?.variantFields).toEqual(["stats"]);
+  expect(refs.get("npcs:2")).toMatchObject({ key: "npcs:1", name: "Cragborn Alpha (Glacier Cave)", variant: "glacier-cave" });
 });
 
-test("names an NPC seen in more than three areas by its next suffix instead of a long area list", () => {
-  const entities = [entity("scenes", 10, "World"), entity("npcs", 1, "Guard"), entity("npcs", 2, "Guard")];
-  const placement = (placementId: string, npcEntityKey: string, area: string) => ({ placementId, sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guard", area, roles: [{ role: "npc", npcEntityKey, scope: "authored" }], families: [] });
-  const relations: CatalogRelations = { ...emptyRelations, placements: [
-    placement("p1", "npcs:1", "Fort"), placement("p2", "npcs:1", "Gate"), placement("p3", "npcs:1", "Mill"), placement("p4", "npcs:1", "Port"),
-    placement("p5", "npcs:2", "Fort"), placement("p6", "npcs:2", "Gate"), placement("p7", "npcs:2", "Mill"),
+test("publishes one ability page whose versions group the records that share their rank texts", () => {
+  const ranks = (text: string) => [{ rankIndex: 0, lines: [{ spans: [{ text, tone: null, italic: false }] }] }];
+  const entities = [entity("abilities", 0, "Cleave"), entity("abilities", 72, "Cleave"), entity("abilities", 95, "Cleave")];
+  const facts: CatalogFacts = { ...emptyFacts, entities, abilities: [
+    { entityKey: "abilities:0", ranks: ranks("Cooldown: 4 sec") }, { entityKey: "abilities:72", ranks: ranks("Cooldown: 1 sec") }, { entityKey: "abilities:95", ranks: ranks("Cooldown: 1 sec") },
   ] };
-  const refs = buildEntityReferences(entities, { facts: { ...emptyFacts, npcs: [npcFact("npcs:1", 20), npcFact("npcs:2", 20)] }, relations });
-  expect(refs.get("npcs:1")?.name).toBe("Guard (World)");
-  expect(refs.get("npcs:2")?.name).toBe("Guard (Fort / Gate / Mill)");
+  const { refs, pages } = buildEntityReferences(entities, { facts, relations: emptyRelations });
+  expect(pages.get("abilities:0")?.versions.map((version) => [version.anchor, version.members.map((member) => member.entityKey)])).toEqual([["n0", ["abilities:0"]], ["n72", ["abilities:72", "abilities:95"]]]);
+  expect(refs.get("abilities:95")).toMatchObject({ key: "abilities:0", name: "Cleave", slug: "cleave", variant: "n72" });
 });
 
-test("uses item facts for names while preserving stable slugs and page-less references", () => {
-  const entities = [entity("items", 7, "Iron Ring"), entity("items", 9, "Iron Ring"), entity("stats", 3, "Power")];
-  const facts: CatalogFacts = { ...emptyFacts, entities, items: [itemFact("items:7", "Rare", "FINGER"), itemFact("items:9", "Epic", "FINGER")] };
-  const refs = buildEntityReferences(entities, { facts, relations: emptyRelations });
-  expect(refs.get("items:7")).toMatchObject({ name: "Iron Ring (Rare, Finger)", slug: "iron-ring-7" });
-  expect(refs.get("items:9")).toMatchObject({ name: "Iron Ring (Epic, Finger)", slug: "iron-ring-9" });
+test("qualifies separate items of one name by the fact that differs, and compares names without case", () => {
+  const entities = [entity("items", 0, "Peasant Chest"), entity("items", 4, "Peasant chest"), entity("stats", 3, "Power")];
+  const facts: CatalogFacts = { ...emptyFacts, entities, items: [itemFact("items:0", "CLOTH"), itemFact("items:4", "LEATHER")] };
+  const { refs } = buildEntityReferences(entities, { facts, relations: emptyRelations });
+  expect(refs.get("items:0")).toMatchObject({ name: "Peasant Chest (Cloth)", slug: "peasant-chest-cloth" });
+  expect(refs.get("items:4")).toMatchObject({ name: "Peasant Chest (Leather)", slug: "peasant-chest-leather" });
   expect(refs.get("stats:3")).toEqual({ key: "stats:3", kind: "stats", name: "Power" });
 });
 
-test("uses stable native identifiers for duplicate ability names", () => {
-  const entities = [entity("abilities", 5, "Cleave"), entity("abilities", 6, "Cleave"),
-    entity("npcs", 10, "Skeleton Warrior"), entity("npcs", 11, "Crypt Warden")];
-  const facts: CatalogFacts = { ...emptyFacts, entities,
-    npcs: [
-      npcFact("npcs:10", 10, [{ phaseIndex: 0, name: null, requirement: null, abilities: [{ ability: { entityKey: "abilities:5", label: "Cleave" }, rankIndex: 0 }] }]),
-      npcFact("npcs:11", 11, [{ phaseIndex: 0, name: null, requirement: null, abilities: [{ ability: { entityKey: "abilities:6", label: "Cleave" }, rankIndex: 0 }] }]),
-    ],
-    abilities: [{ entityKey: "abilities:5", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Cleave", tone: null, italic: false }] }] }] }, { entityKey: "abilities:6", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Cleave", tone: null, italic: false }] }] }] }],
-  };
-  const refs = buildEntityReferences(entities, { facts, relations: emptyRelations });
-  expect(refs.get("abilities:5")).toMatchObject({ name: "Cleave (#5)", slug: "cleave-5" });
-  expect(refs.get("abilities:6")).toMatchObject({ name: "Cleave (#6)", slug: "cleave-6" });
-});
-
-test("uses a place parent when duplicate place types do not distinguish names", () => {
-  const entities = [entity("scenes", 1, "North Reach"), entity("scenes", 2, "South Reach"), entity("scenes", 3, "Cave"), entity("scenes", 4, "Cave")];
-  const facts: CatalogFacts = { ...emptyFacts, entities, places: [
-    { entityKey: "scenes:3", placeType: "interior", guideIncluded: false, guideDescription: null, levelRange: null, mapSpaceIds: [], bosses: [], parentSceneKey: "scenes:1" },
-    { entityKey: "scenes:4", placeType: "interior", guideIncluded: false, guideDescription: null, levelRange: null, mapSpaceIds: [], bosses: [], parentSceneKey: "scenes:2" },
+test("qualifies places of one name by the area of their entrance and numbers places that share it", () => {
+  const entities = [entity("scenes", 47, "Afallon"), entity("scenes", 31, "Cave"), entity("scenes", 32, "Cave"), entity("scenes", 34, "Cave"), entity("scenes", 43, "Glacier Cave"), entity("scenes", 44, "Glacier Cave")];
+  const place = (entityKey: string, levelRange: { min: number; max: number } | null) => ({ entityKey, placeType: "zone" as const, guideIncluded: false, guideDescription: null, levelRange, mapSpaceIds: [], bosses: [], parentSceneKey: null });
+  const facts: CatalogFacts = { ...emptyFacts, entities, places: [place("scenes:31", { min: 15, max: 30 }), place("scenes:32", { min: 15, max: 30 }), place("scenes:34", { min: 15, max: 30 }), place("scenes:43", null), place("scenes:44", { min: 20, max: 30 })] };
+  const door = (placementId: string, area: string) => ({ placementId, sceneNativeId: 47, sceneKey: "scenes:47", mapSpaceId: "world", label: null, area, roles: [], families: [], randomChoices: [] });
+  const relations: CatalogRelations = { ...emptyRelations, placements: [door("d31", "Coalway woods"), door("d32", "Coalway woods"), door("d34", "Oakenvale")], transitions: [
+    { transitionId: "t31", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:31", transitionKind: "door", placementIds: ["d31"] },
+    { transitionId: "t32", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:32", transitionKind: "door", placementIds: ["d32"] },
+    { transitionId: "t34", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:34", transitionKind: "door", placementIds: ["d34"] },
   ] };
-  const refs = buildEntityReferences(entities, { facts, relations: emptyRelations });
-  expect(refs.get("scenes:3")).toMatchObject({ name: "Cave (North Reach)", slug: "cave-3" });
-  expect(refs.get("scenes:4")).toMatchObject({ name: "Cave (South Reach)", slug: "cave-4" });
-});
-
-test("uses level ranges and map labels before place ids", () => {
-  const entities = [entity("scenes", 20, "Abandoned quarry"), entity("scenes", 21, "Abandoned quarry"), entity("scenes", 30, "Cave"), entity("scenes", 31, "Cave")];
-  const facts: CatalogFacts = { ...emptyFacts, entities, places: [
-    { entityKey: "scenes:20", placeType: "dungeon", guideIncluded: false, guideDescription: null, levelRange: { min: 1, max: 5 }, mapSpaceIds: [], bosses: [], parentSceneKey: null },
-    { entityKey: "scenes:21", placeType: "dungeon", guideIncluded: false, guideDescription: null, levelRange: { min: 1, max: 20 }, mapSpaceIds: [], bosses: [], parentSceneKey: null },
-    { entityKey: "scenes:30", placeType: "interior", guideIncluded: false, guideDescription: null, levelRange: null, mapSpaceIds: ["cave-a"], bosses: [], parentSceneKey: null },
-    { entityKey: "scenes:31", placeType: "interior", guideIncluded: false, guideDescription: null, levelRange: null, mapSpaceIds: ["cave-b"], bosses: [], parentSceneKey: null },
-  ] };
-  const refs = buildEntityReferences(entities, { facts, relations: emptyRelations, mapSpaceLabels: new Map([["cave-a", "North cave"], ["cave-b", "South cave"]]) });
-  expect(refs.get("scenes:20")?.name).toBe("Abandoned quarry (lvl. 1–5)");
-  expect(refs.get("scenes:21")?.name).toBe("Abandoned quarry (lvl. 1–20)");
-  expect(refs.get("scenes:30")?.name).toBe("Cave (North cave)");
-  expect(refs.get("scenes:31")?.name).toBe("Cave (South cave)");
+  const { refs } = buildEntityReferences(entities, { facts, relations });
+  expect(["scenes:31", "scenes:32", "scenes:34", "scenes:43", "scenes:44"].map((key) => refs.get(key)?.name)).toEqual(["Cave (Coalway Woods 1)", "Cave (Coalway Woods 2)", "Cave (Oakenvale)", "Glacier Cave (#43)", "Glacier Cave (lvl. 20–30)"]);
 });
 
 test("drops apostrophes instead of splitting a slug", () => {
-  const refs = buildEntityReferences([entity("items", 1040, "Oathbreaker's Edge"), entity("abilities", 8, "Nature’s Grasp")]);
+  const { refs } = buildEntityReferences([entity("items", 1040, "Oathbreaker's Edge"), entity("abilities", 8, "Nature’s Grasp")]);
   expect(refs.get("items:1040")?.slug).toBe("oathbreakers-edge");
   expect(refs.get("abilities:8")?.slug).toBe("natures-grasp");
 });
 
 test("adds the native id when distinct names produce the same slug", () => {
-  const entities = [entity("items", 11, "A B"), entity("items", 12, "A-B")];
-  const refs = buildEntityReferences(entities);
+  const { refs } = buildEntityReferences([entity("items", 11, "A B"), entity("items", 12, "A-B")]);
   expect(refs.get("items:11")?.slug).toBe("a-b");
   expect(refs.get("items:12")?.slug).toBe("a-b-12");
 });

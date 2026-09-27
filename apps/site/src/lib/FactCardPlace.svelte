@@ -3,7 +3,7 @@
   import type { PlacementGroup, PublicKindEntry, PublicPlace } from '@afallon/contracts/public';
   import Card from './Card.svelte';
   import DataTable, { type TableColumn } from './DataTable.svelte';
-  import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
+  import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityLink from './EntityLink.svelte';
   import Fact from './Fact.svelte';
   import FactGrid from './FactGrid.svelte';
@@ -38,13 +38,11 @@
 
   $: facts = document.facts;
   $: mapSpaceLabel = document.space ? mapSpaceLabels[document.space.mapSpaceId] : undefined;
-  $: badges = [
-    { label: labelOf(facts.placeType) },
-    ...(facts.guideIncluded ? [{ label: 'Guide entry', tone: 'accent' as const }] : []),
-  ] satisfies HeaderBadge[];
   $: headerFacts = [
+    { value: labelOf(facts.placeType) },
+    ...(facts.guideIncluded ? [{ value: 'Adventure guide entry' }] : []),
     ...(facts.levelRange ? [{ label: 'Level', value: levelText(facts.levelRange) }] : []),
-    ...(mapSpaceLabel ? [{ label: 'Map space', value: mapSpaceLabel }] : []),
+    ...(mapSpaceLabel ? [{ label: 'Map', value: mapSpaceLabel, href: `${base}/?place=${encodeURIComponent(document.ref.key)}` }] : []),
   ] satisfies HeaderFact[];
   $: placementGroups = [
     { title: 'Services', groups: document.services },
@@ -62,12 +60,8 @@
     name={document.ref.name}
     art={document.art.artwork ?? document.art.icon ?? document.ref.icon}
     artRole="artwork"
-    fallbackIcon={registry.find((entry) => entry.kind === 'places')?.icon}
-    {badges}
     facts={headerFacts}
     description={document.description}
-    atlasHref={document.space ? `${base}/?place=${encodeURIComponent(document.ref.key)}` : undefined}
-    atlasLabel="View the map space"
   />
 
   <div class="c-stack">
@@ -91,7 +85,7 @@
             {#each visible(document.creatures) as creature}
               <tr>
                 <td><EntityLink ref={creature.counterpart} {registry} /></td>
-                <td class="c-num">{#if creature.levelRange}{levelText(creature.levelRange)}{:else}<MissingValue explanation="Not measured for this build" />{/if}</td>
+                <td class="c-num">{#if creature.level}{levelText(creature.level)}{:else}<MissingValue explanation="No confirmed level rule applies" />{/if}</td>
                 <td>{creature.roles.map(roleLabel).join(', ')}</td>
                 <td class="c-num">{#if creature.placementCount === 0}<MissingValue explanation="No location is published" />{:else if creature.counterpart.key}<a class="c-link" href={`${base}/?entity=${encodeURIComponent(creature.counterpart.key)}`}>{creature.placementCount}</a>{:else}{creature.placementCount}{/if}</td>
               </tr>

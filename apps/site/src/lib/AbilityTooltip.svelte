@@ -1,24 +1,27 @@
 <script lang="ts">
-  import type { PublicAbility, PublicKindEntry } from '@afallon/contracts/public';
+  import type { PublicAbility } from '@afallon/contracts/public';
   import EntityHeader from './EntityHeader.svelte';
   import NativeText from './NativeText.svelte';
 
   export let document: PublicAbility;
-  export let registry: PublicKindEntry[];
   export let rankIndex: number | undefined = undefined;
+  /** The anchor of the version that the reference names. Without it, the tooltip shows the first version. */
+  export let variant: string | undefined = undefined;
 
-  $: selectedRanks = rankIndex === undefined ? document.facts.ranks : document.facts.ranks.filter((rank) => rank.rankIndex === rankIndex);
-  $: showLabels = document.facts.ranks.length > 1;
+  $: versionIndex = Math.max(0, document.versions.findIndex((candidate) => candidate.anchor === variant));
+  $: version = document.versions[versionIndex]!;
+  $: selectedRanks = rankIndex === undefined ? version.ranks : version.ranks.filter((rank) => rank.rankIndex === rankIndex);
+  $: showLabels = version.ranks.length > 1;
 </script>
 
 <article class="ability-tooltip">
   <EntityHeader
     name={document.ref.name}
-    art={document.art.icon ?? document.ref.icon}
-    fallbackIcon={registry.find((entry) => entry.kind === 'abilities')?.icon}
+    art={version.icon ?? document.art.icon ?? document.ref.icon}
     description={document.description}
     compact
   />
+  {#if document.versions.length > 1}<p class="version">Version {versionIndex + 1} of {document.versions.length}</p>{/if}
   <div class="ranks">
     {#each selectedRanks as rank}
       <section>
@@ -33,4 +36,5 @@
   .ranks, section { display: grid; gap: .35rem; }
   .ranks { gap: .75rem; font-size: .84rem; }
   h4 { margin: 0; color: var(--c-accent-strong); font: 600 .82rem/1.25 var(--c-serif); }
+  .version { margin: 0 0 .6rem; color: var(--c-text-dim); font-size: .76rem; }
 </style>

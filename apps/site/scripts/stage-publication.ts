@@ -29,7 +29,7 @@ export function stagePublication(
   parity: "strict" | "verified-update" = "strict",
 ): DeploymentMetadata {
   if (!baselineRoot) throw new Error("Publication parity requires PUBLICATION_BASELINE_ROOT or an explicit baseline root.");
-  const root = resolve(publicationRoot);
+  const root = realpathSync(resolve(publicationRoot));
   const selectionPath = join(root, "selected.json");
   const selection = parseJson<SelectedPublication>(selectionPath);
   const publicDir = realpathSync(join(root, selection.directory));

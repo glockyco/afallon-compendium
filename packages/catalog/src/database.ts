@@ -151,6 +151,20 @@ export function openNormalizedDatabase(path: string): Database {
       ) STRICT;
       CREATE UNIQUE INDEX IF NOT EXISTS placement_roles_identity_idx
         ON placement_roles(placement_id, source_id, role, COALESCE(npc_entity_key, ''), scope);
+      CREATE TABLE IF NOT EXISTS random_choices (
+        choice_id TEXT PRIMARY KEY NOT NULL REFERENCES source_identities(source_id),
+        number_to_enable INTEGER NOT NULL,
+        entry_count INTEGER NOT NULL CHECK(entry_count >= 0),
+        provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS random_choice_entries (
+        choice_id TEXT NOT NULL REFERENCES random_choices(choice_id),
+        entry_index INTEGER NOT NULL CHECK(entry_index >= 0),
+        target_path TEXT,
+        source_ids_json TEXT NOT NULL,
+        provenance_json TEXT NOT NULL,
+        PRIMARY KEY(choice_id, entry_index)
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS conditions (
         condition_id TEXT PRIMARY KEY NOT NULL,
         build_id TEXT NOT NULL REFERENCES normalized_builds(build_id),
@@ -395,7 +409,7 @@ export function openNormalizedDatabase(path: string): Database {
         entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), place_type TEXT NOT NULL CHECK(place_type IN ('dungeon', 'zone', 'region', 'interior')), guide_included INTEGER NOT NULL CHECK(guide_included IN (0, 1)), guide_description TEXT, level_min INTEGER, level_max INTEGER, map_space_ids_json TEXT NOT NULL, bosses_json TEXT NOT NULL, parent_scene_key TEXT REFERENCES canonical_entities(entity_key), provenance_json TEXT NOT NULL
       ) STRICT;
       CREATE TABLE IF NOT EXISTS property_facts (
-        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), income REAL, purchase_price REAL, sell_price REAL, currency_entity_key TEXT REFERENCES canonical_entities(entity_key), currency_label TEXT, property_type TEXT, provenance_json TEXT NOT NULL
+        entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), income REAL, income_interval REAL, purchase_price REAL, sell_price REAL, currency_entity_key TEXT REFERENCES canonical_entities(entity_key), currency_label TEXT, property_type TEXT, provenance_json TEXT NOT NULL
       ) STRICT;
       CREATE TABLE IF NOT EXISTS task_facts (
         entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), task_type TEXT NOT NULL, target_entity_key TEXT REFERENCES canonical_entities(entity_key), target_label TEXT, count REAL, keep_items INTEGER CHECK(keep_items IS NULL OR keep_items IN (0, 1)), scene_name TEXT, provenance_json TEXT NOT NULL
@@ -617,7 +631,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const row of input.questObjectives ?? []) insertChecked(db, "quest_objectives", ["quest_entity_key", "objective_index"], ["quest_entity_key", "objective_index", "task_type", "task_entity_key", "task_label", "target_entity_key", "target_label", "count", "keep_items", "scene_name", "provenance_json"], [row.questEntityKey, row.objectiveIndex, row.taskType, row.task.entityKey, row.task.label, row.target?.entityKey ?? null, row.target?.label ?? null, row.count, row.keepItems === null ? null : row.keepItems ? 1 : 0, row.sceneName, json(row.provenance)]);
     for (const row of input.questRewards ?? []) insertChecked(db, "quest_rewards", ["quest_entity_key", "reward_set", "reward_index"], ["quest_entity_key", "reward_set", "reward_index", "reward_type", "target_entity_key", "target_label", "count", "experience", "provenance_json"], [row.questEntityKey, row.rewardSet, row.rewardIndex, row.rewardType, row.target?.entityKey ?? null, row.target?.label ?? null, row.count, row.experience, json(row.provenance)]);
     for (const row of input.placeFacts ?? []) insertChecked(db, "place_facts", ["entity_key"], ["entity_key", "place_type", "guide_included", "guide_description", "level_min", "level_max", "map_space_ids_json", "bosses_json", "parent_scene_key", "provenance_json"], [row.entityKey, row.placeType, row.guideIncluded ? 1 : 0, row.guideDescription, row.levelMin, row.levelMax, json(row.mapSpaceIds), json(row.bosses), row.parentSceneKey, json(row.provenance)]);
-    for (const row of input.propertyFacts ?? []) insertChecked(db, "property_facts", ["entity_key"], ["entity_key", "income", "purchase_price", "sell_price", "currency_entity_key", "currency_label", "property_type", "provenance_json"], [row.entityKey, row.income, row.purchasePrice, row.sellPrice, row.currency?.entityKey ?? null, row.currency?.label ?? null, row.propertyType, json(row.provenance)]);
+    for (const row of input.propertyFacts ?? []) insertChecked(db, "property_facts", ["entity_key"], ["entity_key", "income", "income_interval", "purchase_price", "sell_price", "currency_entity_key", "currency_label", "property_type", "provenance_json"], [row.entityKey, row.income, row.incomeInterval, row.purchasePrice, row.sellPrice, row.currency?.entityKey ?? null, row.currency?.label ?? null, row.propertyType, json(row.provenance)]);
     for (const row of input.taskFacts ?? []) insertChecked(db, "task_facts", ["entity_key"], ["entity_key", "task_type", "target_entity_key", "target_label", "count", "keep_items", "scene_name", "provenance_json"], [row.entityKey, row.taskType, row.target?.entityKey ?? null, row.target?.label ?? null, row.count, row.keepItems === null ? null : row.keepItems ? 1 : 0, row.sceneName, json(row.provenance)]);
     for (const row of input.abilityFacts ?? []) insertChecked(db, "ability_facts", ["entity_key"], ["entity_key", "ranks_json", "provenance_json"], [row.entityKey, json(row.ranks), json(row.provenance)]);
     for (const row of input.recipeFacts ?? []) insertChecked(db, "recipe_facts", ["entity_key"], ["entity_key", "skill_entity_key", "skill_label", "station_entity_key", "station_label", "learned_by_default", "provenance_json"], [row.entityKey, row.skill?.entityKey ?? null, row.skill?.label ?? null, row.station?.entityKey ?? null, row.station?.label ?? null, row.learnedByDefault ? 1 : 0, json(row.provenance)]);
@@ -652,6 +666,14 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
       }
     }
     for (const detail of input.sourceDetails) insertChecked(db, "source_details", ["detail_id"], ["detail_id", "source_id", "placement_id", "family", "data_json"], [hash(detail), detail.sourceId, detail.placementId, detail.family, json(detail.data)]);
+    for (const choice of input.randomChoices) {
+      if (!bySource.has(choice.choiceId)) throw new Error(`Random choice ${choice.choiceId} references missing source identity.`);
+      insertChecked(db, "random_choices", ["choice_id"], ["choice_id", "number_to_enable", "entry_count", "provenance_json"], [choice.choiceId, choice.numberToEnable, choice.entries.length, json(choice.provenance)]);
+      for (const entry of choice.entries) {
+        for (const sourceId of entry.sourceIds) if (!bySource.has(sourceId)) throw new Error(`Random choice ${choice.choiceId} references missing target source ${sourceId}.`);
+        insertChecked(db, "random_choice_entries", ["choice_id", "entry_index"], ["choice_id", "entry_index", "target_path", "source_ids_json", "provenance_json"], [choice.choiceId, entry.entryIndex, entry.targetPath, json(entry.sourceIds), json(entry.provenance)]);
+      }
+    }
     for (const row of input.patrolPaths) insertChecked(db, "patrol_paths", ["path_key"], ["path_key", "scene_native_id", "name", "detail_json"], [hash(row), row.sceneNativeId, row.name, json(row)]);
     for (const row of input.sceneSpawns) insertChecked(db, "scene_spawns", ["scene_native_id"], ["scene_native_id", "detail_json"], [row.sceneNativeId, json(row)]);
     for (const role of input.roles) {

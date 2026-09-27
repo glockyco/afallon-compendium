@@ -1,36 +1,42 @@
 <script lang="ts">
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
-  import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
+  import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
-  import { labelOf, levelText, roleLabel, signedAmount } from './format';
+  import { labelOf, npcLevelText, placesText, roleLabel, signedAmount } from './format';
 
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
+  /** The anchor of the variant that the reference names. Its facts replace the page facts that differ. */
+  export let variant: string | undefined = undefined;
 
-  $: grouped = document.abilityPhases.length > 1 || document.abilityPhases.some((phase) => phase.name || phase.requirement);
-  $: facts = document.facts;
-  $: npcLevel = facts.level ?? facts.levelRange;
-  $: level = npcLevel === undefined ? null : levelText(npcLevel);
+  $: selected = document.variants.find((candidate) => candidate.anchor === variant);
+  $: facts = { ...document.facts, ...selected?.facts };
+  $: phases = selected?.facts.abilityPhases ?? document.abilityPhases;
+  $: level = selected ? selected.level : document.facts.level;
+  $: locations = selected ? document.locations.filter((location) => location.variants.includes(selected.anchor)) : document.locations;
+  $: grouped = phases.length > 1 || phases.some((phase) => phase.name || phase.requirement);
   $: creatureType = facts.npcType ?? facts.creatureType;
-  $: badges = facts.roles.map((role) => ({ label: roleLabel(role), tone: role === 'boss' ? ('boss' as const) : ('neutral' as const) })) satisfies HeaderBadge[];
+  $: places = placesText(locations.map((location) => location.label));
   $: headerFacts = [
-    ...(level ? [{ label: 'Level', value: level }] : []),
+    ...facts.roles.map((role) => ({ value: roleLabel(role) })),
+    ...(level ? [{ label: 'Level', value: npcLevelText(level) }] : []),
     ...(creatureType ? [{ label: 'Type', value: labelOf(creatureType) }] : []),
-    ...(document.locations.length ? [{ label: 'Found in', value: document.locations[0]!.label }] : []),
+    ...(places ? [{ label: 'Found in', value: places }] : []),
   ] satisfies HeaderFact[];
   $: relationCounts = [
-    ['Drops', document.drops.length], ['Sells', document.sells.length], ['Quests', document.quests.length], ['Locations', document.locations.length],
+    ['Drops', document.drops.length], ['Sells', document.sells.length], ['Quests', document.quests.length], ['Locations', locations.length],
   ].filter((entry) => Number(entry[1]) > 0) as [string, number][];
 </script>
 
 <article>
-  <EntityHeader name={document.ref.name} art={document.art.portrait ?? document.art.icon ?? document.ref.icon} artRole="portrait" fallbackIcon={registry.find((entry) => entry.kind === 'npcs')?.icon} {badges} facts={headerFacts} description={document.description} compact />
+  <EntityHeader name={document.ref.name} art={selected?.portrait ?? document.art.portrait ?? document.art.icon ?? document.ref.icon} artRole="portrait" facts={headerFacts} description={document.description} compact />
+  {#if selected && document.variantFields.length}<p class="summary">{selected.label}</p>{/if}
   {#if facts.stats.length}<ul class="stats">{#each facts.stats as stat}<li>{signedAmount(stat.amount, stat.isPercent)} {stat.stat.key === null ? stat.stat.label : stat.stat.name}</li>{/each}</ul>{/if}
   {#if facts.immunities.length}<p class="summary">Immune to {facts.immunities.map(labelOf).join(', ')}</p>{/if}
-  {#if document.abilityPhases.some((phase) => phase.abilities.length > 0)}
+  {#if phases.some((phase) => phase.abilities.length > 0)}
     <section>
       <h4>Abilities</h4>
-      {#each document.abilityPhases as phase}
+      {#each phases as phase}
         <div class="phase">
           {#if grouped}
             <p class="phase-name">{phase.name ?? `Phase ${phase.phaseIndex + 1}`}{#if phase.requirement}<span>{phase.requirement}</span>{/if}</p>

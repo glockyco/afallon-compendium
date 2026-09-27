@@ -1,34 +1,65 @@
-import {
-  expandEssentialPlacement,
-  isStaticDocument,
-  type PublicPlacement,
-  type PublicRegion,
-  type PublicTileLayer,
-  type StaticImagery,
-  type StaticKindList,
-  type StaticMapShard,
-  type StaticSearchIndex,
-  type VerifiedPublicationGraph,
-} from "@afallon/contracts/public";
-import { verifyPublicationGraph } from "./publication-graph";
+import type { StaticResourceReference } from "@afallon/contracts/public";
+import { readPublicationBaseline } from "./publication-graph";
+
+type Bounds = { min: { x: number; y: number }; max: { x: number; y: number } };
+
+/** The imagery fields that parity compares. */
+export interface ParityTileLayer {
+  id: string;
+  mapSpaceId: string;
+  kind: string;
+  tileSize: number;
+  minZoom: number;
+  maxZoom: number;
+  extent: readonly [number, number, number, number];
+  tiles: ReadonlyArray<{ z: number; x: number; y: number; sha256: string }>;
+}
 
 export interface PublicationSummary {
   mapIds: Set<string>;
   offsets: Map<string, { worldX: number; worldY: number }>;
   placementsByMap: Map<string, number>;
   placementsByCategory: Map<string, number>;
-  tileLayers: Map<string, PublicTileLayer>;
+  tileLayers: Map<string, ParityTileLayer>;
+  /** Every published entity key: search records, pages, the variants of a page, and the versions of an ability. */
   entityKeys: Set<string>;
   itemKeys: Set<string>;
   regionKeys: Set<string>;
   placementIds: Set<string>;
   placementLocations: Map<string, { mapSpaceId: string; position: readonly [number, number]; categories: readonly string[] }>;
-  boundsByMap: Map<string, { min: { x: number; y: number }; max: { x: number; y: number } }>;
-  pageEntries: Set<string>;
-  documentKeys: Set<string>;
+  boundsByMap: Map<string, Bounds>;
   listKinds: Set<string>;
+  /** The kinds that have pages. A kind can lose its pages when its entities move onto other pages. */
+  pageKinds: Set<string>;
   artworkAssets: Set<string>;
   placementCount: number;
+}
+
+/** A publication graph. A baseline from an earlier release uses the schemas of that release. */
+export interface PublicationView {
+  publication: unknown;
+  resources: ReadonlyMap<string, unknown>;
+  references: ReadonlyMap<string, StaticResourceReference>;
+}
+
+type Json = Record<string, unknown>;
+const object = (value: unknown): Json => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Json : {};
+const array = (value: unknown): readonly unknown[] => Array.isArray(value) ? value : [];
+const text = (value: unknown): string => typeof value === "string" ? value : "";
+const number = (value: unknown): number => typeof value === "number" ? value : Number.NaN;
+const point = (value: unknown): { x: number; y: number } => {
+  const record = object(value);
+  return { x: number(record.x), y: number(record.y) };
+};
+
+function tileLayer(value: unknown): ParityTileLayer {
+  const layer = object(value);
+  const [minX = Number.NaN, minY = Number.NaN, maxX = Number.NaN, maxY = Number.NaN] = array(layer.extent).map(number);
+  return {
+    id: text(layer.id), mapSpaceId: text(layer.mapSpaceId), kind: text(layer.kind),
+    tileSize: number(layer.tileSize), minZoom: number(layer.minZoom), maxZoom: number(layer.maxZoom), extent: [minX, minY, maxX, maxY],
+    tiles: array(layer.tiles).map(object).map((tile) => ({ z: number(tile.z), x: number(tile.x), y: number(tile.y), sha256: text(tile.sha256) })),
+  };
 }
 
 function increment(counts: Map<string, number>, key: string): void {
@@ -44,33 +75,46 @@ function uniqueSet(values: Iterable<string>, subject: string): Set<string> {
   return result;
 }
 
-function summarize(graph: VerifiedPublicationGraph): PublicationSummary {
-  const placements: PublicPlacement[] = [], regions: PublicRegion[] = [], layers: PublicTileLayer[] = [], searchKeys: string[] = [], itemKeys: string[] = [];
-  const pageEntries: string[] = [], documentKeys: string[] = [], listKinds: string[] = [];
-  for (const map of graph.publication.maps) {
-    for (const reference of map.parts) {
-      const shard = graph.resources.get(reference.path) as StaticMapShard;
-      placements.push(...shard.placements.map((placement) => expandEssentialPlacement(placement, map.mapSpaceId)));
-      regions.push(...shard.regions);
+/**
+ * Reads the parity facts of a publication by field names, so one reader serves the candidate and a baseline from an
+ * earlier schema version.
+ */
+export function summarizePublication(graph: PublicationView): PublicationSummary {
+  const root = object(graph.publication), resource = (reference: unknown) => object(graph.resources.get(text(object(reference).path)));
+  const maps = array(root.maps).map(object);
+  const placements: Array<{ placementId: string; mapSpaceId: string; position: readonly [number, number]; categories: readonly string[] }> = [];
+  const regions: Json[] = [], layers: ParityTileLayer[] = [], searchKeys: string[] = [], itemKeys: string[] = [], entityKeys = new Set<string>(), listKinds = new Set<string>(), pageKinds = new Set<string>();
+  for (const map of maps) {
+    const mapSpaceId = text(map.mapSpaceId);
+    for (const part of array(map.parts)) {
+      const shard = resource(part);
+      for (const tuple of array(shard.placements)) {
+        const [placementId, position, , , categories] = array(tuple);
+        const [x = Number.NaN, y = Number.NaN] = array(position).map(number);
+        placements.push({ placementId: text(placementId), mapSpaceId, position: [x, y], categories: array(categories).map(text) });
+      }
+      regions.push(...array(shard.regions).map(object));
     }
-    const imagery = graph.resources.get(map.imagery.path) as StaticImagery;
-    layers.push(...imagery.layers);
+    layers.push(...array(resource(map.imagery).layers).map(tileLayer));
   }
-  for (const reference of graph.publication.search) {
-    const resource = graph.resources.get(reference.path) as StaticSearchIndex;
-    for (const entry of resource.entries) {
-      searchKeys.push(entry.ref.key);
-      if (entry.ref.kind === "items") itemKeys.push(entry.ref.key);
-      if (entry.ref.slug !== undefined && entry.document) pageEntries.push(`${entry.ref.kind}/${entry.ref.slug}=${entry.ref.key}`);
-    }
+  for (const reference of array(root.search)) for (const entry of array(resource(reference).entries)) {
+    const ref = object(object(entry).ref);
+    searchKeys.push(text(ref.key));
+    if (ref.kind === "items") itemKeys.push(text(ref.key));
   }
-  for (const resource of graph.resources.values()) {
-    if (isStaticDocument(resource)) documentKeys.push(resource.document.ref.key);
-    else if (resource.schemaVersion === "compendium.static-kind-list.v1") {
-      const list = resource as StaticKindList;
-      listKinds.push(`${list.kind}:${list.part}`);
-    }
+  for (const key of uniqueSet(searchKeys, "searchable entity")) entityKeys.add(key);
+  for (const value of graph.resources.values()) {
+    const record = object(value), document = object(record.document);
+    if (Array.isArray(record.rows) && typeof record.kind === "string") listKinds.add(record.kind);
+    if (!("ref" in document)) continue;
+    pageKinds.add(text(object(document.ref).kind));
+    entityKeys.add(text(object(document.ref).key));
+    for (const variant of array(document.variants)) entityKeys.add(text(object(variant).key));
+    for (const version of array(document.versions)) for (const key of array(object(version).keys)) entityKeys.add(text(key));
+    // A gear set has no page. It is published in full on the page of each member item.
+    entityKeys.add(text(object(object(document.facts).gearSet).key));
   }
+  entityKeys.delete("");
   const placementsByMap = new Map<string, number>(), placementsByCategory = new Map<string, number>(), placementIds = new Set<string>();
   for (const placement of placements) {
     if (placementIds.has(placement.placementId)) throw new Error(`Publication repeats placement ${placement.placementId}.`);
@@ -84,28 +128,32 @@ function summarize(graph: VerifiedPublicationGraph): PublicationSummary {
     if (tileLayers.has(key)) throw new Error(`Publication repeats imagery layer ${key}.`);
     tileLayers.set(key, layer);
   }
-  const offsets = new Map(graph.publication.world.offsets.filter((offset) => offset.status === "placed").map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }]));
+  const offsets = new Map(array(object(root.world).offsets).map(object).filter((offset) => offset.status === "placed")
+    .map((offset) => [text(offset.mapSpaceId), { worldX: number(offset.worldX), worldY: number(offset.worldY) }] as const));
+  // A region stays when its identity and its geometry stay. Its displayed name is presentation.
   const regionKeys = regions.map((region) => {
-    const offset = offsets.get(region.mapSpaceId);
-    if (!offset) throw new Error(`Publication lacks a placed world offset for region ${region.id}.`);
+    const offset = offsets.get(text(region.mapSpaceId));
+    if (!offset) throw new Error(`Publication lacks a placed world offset for region ${text(region.id)}.`);
     return JSON.stringify({
       mapSpaceId: region.mapSpaceId,
       id: region.id,
-      name: region.name,
       shape: region.shape,
-      polygon: region.polygon.map(([x, y]) => [Math.round((x - offset.worldX) * 1e6) / 1e6, Math.round((y - offset.worldY) * 1e6) / 1e6]),
+      polygon: array(region.polygon).map((vertex) => {
+        const [x = Number.NaN, y = Number.NaN] = array(vertex).map(number);
+        return [Math.round((x - offset.worldX) * 1e6) / 1e6, Math.round((y - offset.worldY) * 1e6) / 1e6];
+      }),
     });
   });
   return {
-    mapIds: new Set(graph.publication.maps.map((map) => map.mapSpaceId)),
+    mapIds: new Set(maps.map((map) => text(map.mapSpaceId))),
     offsets,
     placementsByMap, placementsByCategory, tileLayers,
-    entityKeys: uniqueSet(searchKeys, "searchable entity"), itemKeys: uniqueSet(itemKeys, "searchable item"),
+    entityKeys, itemKeys: uniqueSet(itemKeys, "searchable item"),
     regionKeys: uniqueSet(regionKeys, "map region"),
     placementIds,
     placementLocations: new Map(placements.map((placement) => [placement.placementId, { mapSpaceId: placement.mapSpaceId, position: placement.position, categories: placement.categories }])),
-    boundsByMap: new Map(graph.publication.maps.map((map) => [map.mapSpaceId, map.bounds])),
-    pageEntries: uniqueSet(pageEntries, "page"), documentKeys: uniqueSet(documentKeys, "document"), listKinds: uniqueSet(listKinds, "kind list"),
+    boundsByMap: new Map(maps.map((map) => [text(map.mapSpaceId), { min: point(object(map.bounds).min), max: point(object(map.bounds).max) }])),
+    listKinds, pageKinds,
     artworkAssets: new Set([...graph.references.values()].filter((reference) => reference.schemaId === "image/webp" && reference.path.startsWith("art/")).map((reference) => reference.path)),
     placementCount: placements.length,
   };
@@ -123,6 +171,7 @@ function assertContains(candidate: Set<string>, baseline: Set<string>, subject: 
   throw new Error(`Publication removes ${subject}: ${missing.slice(0, 20).join(", ")}${remainder}.`);
 }
 
+// A page may group entities or change its URL. Parity requires every entity to stay published, not every URL.
 export function assertNonRegressivePublication(candidate: PublicationSummary, baseline: PublicationSummary): void {
   const missingMaps = [...baseline.mapIds].filter((mapSpaceId) => !candidate.mapIds.has(mapSpaceId));
   if (missingMaps.length > 0) throw new Error(`Publication removes map spaces: ${missingMaps.join(", ")}.`);
@@ -130,12 +179,10 @@ export function assertNonRegressivePublication(candidate: PublicationSummary, ba
   assertContains(candidate.placementIds, baseline.placementIds, "deployed placements");
   assertAtLeast(candidate.placementsByMap, baseline.placementsByMap, "per-map placement coverage");
   assertAtLeast(candidate.placementsByCategory, baseline.placementsByCategory, "per-category placement coverage");
-  assertContains(candidate.entityKeys, baseline.entityKeys, "searchable entities");
+  assertContains(candidate.entityKeys, baseline.entityKeys, "published entities");
   assertContains(candidate.itemKeys, baseline.itemKeys, "searchable items");
   assertContains(candidate.regionKeys, baseline.regionKeys, "map regions");
-  assertContains(candidate.pageEntries, baseline.pageEntries, "published pages");
-  assertContains(candidate.documentKeys, baseline.documentKeys, "published documents");
-  assertContains(candidate.listKinds, baseline.listKinds, "published lists");
+  assertContains(candidate.listKinds, new Set([...baseline.listKinds].filter((kind) => candidate.pageKinds.has(kind))), "published lists");
   assertContains(candidate.artworkAssets, baseline.artworkAssets, "published artwork");
   for (const [mapSpaceId, expected] of baseline.offsets) {
     const actual = candidate.offsets.get(mapSpaceId);
@@ -152,9 +199,15 @@ export function assertNonRegressivePublication(candidate: PublicationSummary, ba
   }
 }
 
-export function verifyPublicationParity(candidate: VerifiedPublicationGraph, baselineRoot: string): void {
-  const baseline = verifyPublicationGraph(baselineRoot);
-  assertNonRegressivePublication(summarize(candidate), summarize(baseline));
+// A baseline that the reader cannot read summarizes as empty, and every check would pass against it.
+function summarizeBaseline(baseline: PublicationView): PublicationSummary {
+  const summary = summarizePublication(baseline);
+  if (summary.mapIds.size === 0 || summary.placementCount === 0 || summary.entityKeys.size === 0) throw new Error("Baseline publication has no readable maps, placements, or entities.");
+  return summary;
+}
+
+export function verifyPublicationParity(candidate: PublicationView, baselineRoot: string): void {
+  assertNonRegressivePublication(summarizePublication(candidate), summarizeBaseline(readPublicationBaseline(baselineRoot)));
 }
 
 export function assertUpdatePublicationParity(candidate: PublicationSummary, baseline: PublicationSummary): void {
@@ -212,17 +265,15 @@ export function assertCorrectedPublicationParity(candidate: PublicationSummary, 
     return !foldedIntoDungeon;
   });
   if (unexpectedRemovals.length > 0) throw new Error(`Publication correction removes in-bounds placements: ${unexpectedRemovals.slice(0, 20).map(([id]) => id).join(", ")}.`);
-  assertContains(candidate.entityKeys, baseline.entityKeys, "searchable entities");
+  assertContains(candidate.entityKeys, baseline.entityKeys, "published entities");
   assertContains(candidate.itemKeys, baseline.itemKeys, "searchable items");
   assertContains(candidate.regionKeys, baseline.regionKeys, "map regions");
-  assertContains(candidate.pageEntries, baseline.pageEntries, "published pages");
-  assertContains(candidate.documentKeys, baseline.documentKeys, "published documents");
-  assertContains(candidate.listKinds, baseline.listKinds, "published lists");
+  assertContains(candidate.listKinds, new Set([...baseline.listKinds].filter((kind) => candidate.pageKinds.has(kind))), "published lists");
   assertContains(candidate.artworkAssets, baseline.artworkAssets, "published artwork");
 }
 
-export function verifyUpdatePublicationParity(candidate: VerifiedPublicationGraph, baselineRoot: string): void {
-  const baseline = verifyPublicationGraph(baselineRoot), candidateSummary = summarize(candidate), baselineSummary = summarize(baseline);
-  if (candidate.publication.buildId === baseline.publication.buildId) assertCorrectedPublicationParity(candidateSummary, baselineSummary);
+export function verifyUpdatePublicationParity(candidate: PublicationView, baselineRoot: string): void {
+  const baseline = readPublicationBaseline(baselineRoot), candidateSummary = summarizePublication(candidate), baselineSummary = summarizeBaseline(baseline);
+  if (object(candidate.publication).buildId === object(baseline.publication).buildId) assertCorrectedPublicationParity(candidateSummary, baselineSummary);
   else assertUpdatePublicationParity(candidateSummary, baselineSummary);
 }

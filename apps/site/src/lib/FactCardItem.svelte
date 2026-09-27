@@ -2,135 +2,104 @@
   import { base } from '$app/paths';
   import type { PublicItem, PublicKindEntry } from '@afallon/contracts/public';
   import Card from './Card.svelte';
-  import ChipGrid, { type Chip } from './ChipGrid.svelte';
   import ContainerTable from './ContainerTable.svelte';
   import DropTable from './DropTable.svelte';
-  import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
+  import EntityHeader from './EntityHeader.svelte';
   import EntityLink from './EntityLink.svelte';
-  import Fact from './Fact.svelte';
-  import FactGrid from './FactGrid.svelte';
   import GatherTable from './GatherTable.svelte';
-  import NativeText from './NativeText.svelte';
+  import ItemTooltip from './ItemTooltip.svelte';
+  import MissingValue from './MissingValue.svelte';
   import Price from './Price.svelte';
   import QuestTable from './QuestTable.svelte';
   import RecipeTable from './RecipeTable.svelte';
-  import Requirements from './Requirements.svelte';
   import VendorTable from './VendorTable.svelte';
-  import { formatNumber, labelOf, rangeText, rarityTone, signedAmount } from './format';
+  import { creatureLevelText, formatNumber, rarityTone } from './format';
 
   export let document: PublicItem;
   export let registry: PublicKindEntry[];
   export let showRelations = false;
   export let limit: number | undefined = undefined;
 
+  const plural = (count: number, one: string, many: string) => `${formatNumber(count)} ${count === 1 ? one : many}`;
+
   $: facts = document.facts;
-  $: hasSources = document.droppedBy.length > 0 || document.soldBy.length > 0 || document.gatheredFrom.length > 0 || document.inContainers.length > 0 || document.collectedFrom.length > 0 || document.rewardedBy.length > 0 || document.givenBy.length > 0 || document.craftedBy.length > 0;
-  $: damage = rangeText(facts.minDamage, facts.maxDamage);
-  $: gearType = facts.weaponType ?? facts.armorType;
-  $: slot = facts.weaponType && facts.weaponSlot ? facts.weaponSlot : facts.slot;
-  $: badges = [
-    ...(facts.rarity ? [{ label: facts.rarity, tone: 'rarity' as const }] : []),
-    ...(facts.questDropOnly ? [{ label: 'Quest item' }] : []),
-    ...(facts.corruptionToken ? [{ label: 'Corruption token' }] : []),
-  ] satisfies HeaderBadge[];
-  // The game names the slot and the gear type on one line above everything else.
-  $: headerFacts = [
-    ...(slot ? [{ label: 'Slot', value: labelOf(slot) }] : []),
-    ...(gearType ? [{ label: 'Type', value: labelOf(gearType) }] : facts.itemType ? [{ label: 'Type', value: labelOf(facts.itemType) }] : []),
-  ] satisfies HeaderFact[];
-  $: statChips = facts.stats.map((stat) => ({
-    label: stat.stat.key === null ? stat.stat.label : stat.stat.name,
-    value: signedAmount(stat.amount, stat.isPercent),
-  })) satisfies Chip[];
-  $: randomChips = facts.randomStats.map((stat) => ({
-    label: `${stat.stat.key === null ? stat.stat.label : stat.stat.name}${stat.chance === undefined ? '' : ` (${formatNumber(stat.chance)}%)`}`,
-    value: `+${rangeText(stat.min, stat.max)}${stat.isPercent ? '%' : ''}`,
-  })) satisfies Chip[];
-  $: socketChips = facts.sockets.map((socket) => ({ label: labelOf(socket.socketType ?? socket.gemType ?? 'Any socket'), value: 'Empty' })) satisfies Chip[];
-  $: gemChips = (facts.gem?.stats ?? []).map((stat) => ({
-    label: stat.stat.key === null ? stat.stat.label : stat.stat.name,
-    value: signedAmount(stat.amount, stat.isPercent),
-  })) satisfies Chip[];
-  $: coreFactCount = [damage !== null, facts.attackSpeed !== undefined, facts.damagePerSecond !== undefined,
-    facts.itemType !== undefined, facts.stackLimit > 1, facts.enchantment !== undefined,
-    facts.gearSet !== undefined, facts.sellPrice !== undefined, facts.buyPrice !== undefined].filter(Boolean).length;
-  $: hasCoreFacts = facts.itemPower !== undefined || damage !== null || facts.attackSpeed !== undefined || facts.stackLimit > 1
-    || facts.enchantment !== undefined || facts.gearSet !== undefined || facts.sellPrice !== undefined || facts.buyPrice !== undefined
-    || facts.itemType !== undefined;
+  $: questRows = [...document.rewardedBy, ...document.givenBy];
+  $: worldDrops = document.droppedBy.flatMap((row) => row.creatureLevel ? [row.creatureLevel] : []);
+  $: worldLevels = [...new Set(worldDrops.map(creatureLevelText))];
+  // How to get the item, in the order of the sections below. Each entry links its section.
+  $: sources = [
+    { id: 'dropped-by', count: document.droppedBy.length - worldDrops.length, text: (n: number) => `Dropped by ${plural(n, 'creature', 'creatures')}` },
+    { id: 'dropped-by', count: worldDrops.length, text: () => worldLevels.includes('Any') ? 'World drop from any creature' : `World drop from creatures of level ${worldLevels.join(' or ')}` },
+    { id: 'sold-by', count: document.soldBy.length, text: (n: number) => `Sold by ${plural(n, 'vendor', 'vendors')}` },
+    { id: 'gathered-from', count: document.gatheredFrom.length, text: (n: number) => `Gathered from ${plural(n, 'resource', 'resources')}` },
+    { id: 'in-containers', count: document.inContainers.length, text: (n: number) => `Found in ${plural(n, 'container', 'containers')}` },
+    { id: 'collected-from', count: document.collectedFrom.length, text: (n: number) => `Collected from ${plural(n, 'object', 'objects')}` },
+    { id: 'from-quests', count: questRows.length, text: (n: number) => `Given by ${plural(n, 'quest', 'quests')}` },
+    { id: 'crafted-by', count: document.craftedBy.length, text: (n: number) => `Crafted from ${plural(n, 'recipe', 'recipes')}` },
+  ].filter((source) => source.count > 0);
+  $: uses = [
+    { id: 'used-in-recipes', count: document.usedInRecipes.length, text: (n: number) => `Material in ${plural(n, 'recipe', 'recipes')}` },
+    { id: 'quest-objectives', count: document.usedInQuests.length, text: (n: number) => `Needed by ${plural(n, 'quest', 'quests')}` },
+  ].filter((use) => use.count > 0);
+  // Map placements come from gathering, containers, and objects. Creatures and vendors have their own pages.
+  $: onMap = document.gatheredFrom.length > 0 || document.inContainers.length > 0 || document.collectedFrom.length > 0;
 </script>
 
 <article class="document" data-rarity={rarityTone(facts.rarity)}>
-  <EntityHeader
-    name={document.ref.name}
-    art={document.art.icon ?? document.ref.icon}
-    fallbackIcon={registry.find((entry) => entry.kind === 'items')?.icon}
-    rarity={rarityTone(facts.rarity)}
-    {badges}
-    facts={headerFacts}
-    description={document.description}
-    atlasHref={hasSources ? `${base}/?item=${encodeURIComponent(document.ref.key)}` : undefined}
-    atlasLabel="View sources on the atlas"
-  />
+  <EntityHeader name={document.ref.name} rarity={rarityTone(facts.rarity)} description={document.description} />
 
-  <div class="c-stack">
-    <div class="c-card-grid">
-      {#if hasCoreFacts}
-      <Card title="Facts" wide={coreFactCount > 2}>
-        {#if facts.itemPower !== undefined}<p class="item-power">Item power <strong>{formatNumber(facts.itemPower)}</strong></p>{/if}
-        <FactGrid wide>
-          {#if damage}<Fact label="Damage">{damage}</Fact>{/if}
-          {#if facts.attackSpeed !== undefined}<Fact label="Attack speed">{formatNumber(facts.attackSpeed)}</Fact>{/if}
-          {#if facts.damagePerSecond !== undefined}<Fact label="Damage per second">{facts.damagePerSecond.toFixed(1)}</Fact>{/if}
-          {#if facts.itemType}<Fact label="Item type">{labelOf(facts.itemType)}</Fact>{/if}
-          {#if facts.stackLimit > 1}<Fact label="Stack limit">{formatNumber(facts.stackLimit)}</Fact>{/if}
-          {#if facts.enchantment}<Fact label="Enchantment"><EntityLink ref={facts.enchantment} {registry} /></Fact>{/if}
-          {#if facts.gearSet}<Fact label="Gear set"><EntityLink ref={facts.gearSet} {registry} /></Fact>{/if}
-          {#if facts.sellPrice}<Fact label="Sell price"><Price price={facts.sellPrice} showName /></Fact>{/if}
-          {#if facts.buyPrice}<Fact label="Buy price"><Price price={facts.buyPrice} showName /></Fact>{/if}
-        </FactGrid>
-      </Card>
-      {/if}
-      {#if statChips.length}<Card title="Stats" count={statChips.length}><ChipGrid chips={statChips} /></Card>{/if}
-      {#if randomChips.length}
-        <Card title="Random stats" count={randomChips.length}>
-          <ChipGrid chips={randomChips} />
-          {#if facts.randomStatsMax > 0}<p class="note">Up to {facts.randomStatsMax} of these roll on one item.</p>{/if}
-        </Card>
-      {/if}
-      {#if socketChips.length}<Card title="Sockets" count={socketChips.length}><ChipGrid chips={socketChips} /></Card>{/if}
-      {#if facts.gem}
-        <Card title={labelOf(facts.gem.gemType ?? 'Gem')}>
-          {#if gemChips.length}<ChipGrid chips={gemChips} />{:else}<p class="note">This gem grants no published stat.</p>{/if}
-        </Card>
-      {/if}
-      {#if facts.useLines.length || facts.actionAbilities.length}
-        <Card title="Use effects">
-          {#if facts.useLines.length}<NativeText lines={facts.useLines} />{/if}
-          {#if facts.actionAbilities.length}<ul class="ability-list">{#each facts.actionAbilities as reference}<li><EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} /> <span>Rank {reference.rankIndex + 1}</span></li>{/each}</ul>{/if}
-        </Card>
-      {/if}
-      {#if facts.equipmentRequirements.length}<Card title="Equipment requirements"><Requirements requirements={facts.equipmentRequirements} {registry} /></Card>{/if}
-      {#if facts.useConditions.length}<Card title="Use conditions"><Requirements requirements={facts.useConditions} {registry} /></Card>{/if}
-    </div>
+  <div class="overview">
+    <section class="tooltip-card" aria-label="In-game tooltip">
+      <ItemTooltip {document} {registry}>
+        <svelte:fragment slot="ref" let:ref let:rankIndex><EntityLink {ref} {rankIndex} {registry} /></svelte:fragment>
+      </ItemTooltip>
+    </section>
 
-    {#if showRelations}
-      <DropTable rows={document.droppedBy} {registry} heading="Dropped by" counterpartLabel="Source" {limit} />
-      <VendorTable rows={document.soldBy} {registry} heading="Sold by" counterpartLabel="Vendor" {limit} />
-      <GatherTable rows={document.gatheredFrom} {registry} itemKey={document.ref.key} {limit} />
-      <ContainerTable rows={document.inContainers} {registry} itemKey={document.ref.key} {limit} />
-      <ContainerTable rows={document.collectedFrom} {registry} heading="Collected from" counterpartLabel="Object" itemKey={document.ref.key} {limit} />
-      <QuestTable rows={[...document.rewardedBy, ...document.givenBy, ...document.usedInQuests]} {registry} heading="Quests" counterpartLabel="Quest" {limit} />
-      <RecipeTable rows={document.craftedBy} {registry} heading="Crafted by" counterpartLabel="Recipe" {limit} />
-      <RecipeTable rows={document.usedInRecipes} {registry} heading="Used in recipes" counterpartLabel="Recipe" {limit} />
-    {/if}
+    <Card title="How to get it">
+      <svelte:fragment slot="action">{#if onMap}<a class="c-link action" href={`${base}/?item=${encodeURIComponent(document.ref.key)}`}>View on the map</a>{/if}</svelte:fragment>
+      {#if sources.length}
+        <ul class="summary">{#each sources as source}<li><a class="c-link" href={`#${source.id}`}>{source.text(source.count)}</a></li>{/each}</ul>
+      {:else}
+        <p class="c-empty"><MissingValue explanation="No source is published" /> No way to get this item is known for this build.</p>
+      {/if}
+      {#if uses.length}
+        <h3>Used for</h3>
+        <ul class="summary">{#each uses as use}<li><a class="c-link" href={`#${use.id}`}>{use.text(use.count)}</a></li>{/each}</ul>
+      {/if}
+      {#if facts.stackLimit > 1 || facts.buyPrice}
+        <dl class="extra">
+          {#if facts.stackLimit > 1}<dt>Stack size</dt><dd>{formatNumber(facts.stackLimit)}</dd>{/if}
+          {#if facts.buyPrice}<dt>Buy price</dt><dd><Price price={facts.buyPrice} showName /></dd>{/if}
+        </dl>
+      {/if}
+    </Card>
   </div>
+
+  {#if showRelations}
+    <div class="c-stack">
+      <div id="dropped-by"><DropTable rows={document.droppedBy} {registry} heading="Dropped by" counterpartLabel="Creature" {limit} /></div>
+      <div id="sold-by"><VendorTable rows={document.soldBy} {registry} heading="Sold by" counterpartLabel="Vendor" {limit} /></div>
+      <div id="gathered-from"><GatherTable rows={document.gatheredFrom} {registry} itemKey={document.ref.key} {limit} /></div>
+      <div id="in-containers"><ContainerTable rows={document.inContainers} {registry} itemKey={document.ref.key} {limit} /></div>
+      <div id="collected-from"><ContainerTable rows={document.collectedFrom} {registry} heading="Collected from" counterpartLabel="Object" itemKey={document.ref.key} {limit} /></div>
+      <div id="from-quests"><QuestTable rows={questRows} {registry} heading="Given by quests" counterpartLabel="Quest" {limit} /></div>
+      <div id="crafted-by"><RecipeTable rows={document.craftedBy} {registry} heading="Crafted from" counterpartLabel="Recipe" {limit} /></div>
+      <div id="used-in-recipes"><RecipeTable rows={document.usedInRecipes} {registry} heading="Material in recipes" counterpartLabel="Recipe" {limit} /></div>
+      <div id="quest-objectives"><QuestTable rows={document.usedInQuests} {registry} heading="Needed by quests" counterpartLabel="Quest" {limit} /></div>
+    </div>
+  {/if}
 </article>
 
 <style>
-  .item-power { margin: 0 0 .75rem; color: var(--c-currency); font-size: .9rem; letter-spacing: .02em; }
-  .item-power strong { font-size: 1.1rem; }
-  .note { margin: .6rem 0 0; color: var(--c-text-mute); font-size: .76rem; }
-  .ability-list { display: grid; gap: .35rem; margin: .65rem 0 0; padding: 0; list-style: none; }
-  .ability-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
-  .ability-list span { color: var(--c-text-dim); font-size: .76rem; }
+  .overview { display: grid; grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); gap: 1rem; align-items: start; margin-bottom: 1rem; }
+  .tooltip-card { padding: .85rem; border: 1px solid #74684e; border-radius: var(--c-radius); background: var(--c-surface-1); box-shadow: 0 6px 20px #0006; }
+  .summary { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; font-size: .88rem; }
+  h3 { margin: 1rem 0 .45rem; color: var(--c-text-dim); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .extra { display: grid; grid-template-columns: auto 1fr; gap: .3rem 1rem; margin: 1rem 0 0; padding-top: .8rem; border-top: 1px solid var(--c-line-soft); font-size: .86rem; }
+  dt { color: var(--c-text-dim); }
+  dd { margin: 0; }
+  .action { font-size: .8rem; }
+  [id] { scroll-margin-top: 5rem; }
+  .c-stack > div:empty { display: none; }
+  @media (max-width: 760px) { .overview { grid-template-columns: 1fr; } }
 </style>

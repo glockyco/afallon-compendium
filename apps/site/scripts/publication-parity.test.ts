@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { PublicTileLayer } from "@afallon/contracts/public";
-import { assertCorrectedPublicationParity, assertNonRegressivePublication, assertUpdatePublicationParity, type PublicationSummary } from "./publication-parity";
+import { assertCorrectedPublicationParity, assertNonRegressivePublication, assertUpdatePublicationParity, summarizePublication, type PublicationSummary, type PublicationView } from "./publication-parity";
 
 function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummary {
   return {
@@ -24,14 +24,38 @@ function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummar
       ["world", { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } }],
       ["dungeon", { min: { x: 100, y: 200 }, max: { x: 105, y: 205 } }],
     ]),
-    pageEntries: new Set(["items/item=items:1"]),
-    documentKeys: new Set(["items:1"]),
-    listKinds: new Set(["items:0"]),
+    listKinds: new Set(["items"]),
+    pageKinds: new Set(["items"]),
     artworkAssets: new Set([`art/${"a".repeat(64)}.webp`]),
     placementCount: 25,
     ...overrides,
   };
 }
+
+// A publication with one map placement whose search lists each document.
+function view(documents: ReadonlyArray<{ ref: { kind: string; key: string } }>): PublicationView {
+  return {
+    publication: {
+      maps: [{ mapSpaceId: "world", parts: [{ path: "map" }], imagery: { path: "imagery" }, bounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } } }],
+      search: [{ path: "search" }],
+      world: { offsets: [] },
+    },
+    resources: new Map<string, unknown>([
+      ["map", { placements: [["placement-1", [1, 1], 0, "Fenric Doryn", ["merchant"]]], regions: [] }],
+      ["imagery", { layers: [] }],
+      ["search", { entries: documents.map((document) => ({ ref: document.ref })) }],
+      ...documents.map((document, index) => [`document-${index}`, { document }] as const),
+    ]),
+    references: new Map(),
+  };
+}
+
+test("counts records grouped into one page as published and names a lost record", () => {
+  const fenric = (key: string) => ({ ref: { kind: "npcs", key } });
+  const baseline = summarizePublication(view([fenric("npcs:206"), fenric("npcs:225")]));
+  assertNonRegressivePublication(summarizePublication(view([{ ...fenric("npcs:206"), variants: [{ key: "npcs:206" }, { key: "npcs:225" }] }])), baseline);
+  expect(() => assertNonRegressivePublication(summarizePublication(view([fenric("npcs:206")])), baseline)).toThrow("published entities: npcs:225");
+});
 
 test("accepts additive publication coverage", () => {
   assertNonRegressivePublication(summary({ placementCount: 26, placementsByMap: new Map([["world", 21], ["dungeon", 5]]) }), summary());
@@ -97,15 +121,10 @@ test("rejects map layout and imagery registration changes", () => {
   expect(() => assertNonRegressivePublication(summary(), baseline)).toThrow("imagery tiles");
 });
 
-test("rejects missing search and region records", () => {
-  expect(() => assertNonRegressivePublication(summary({ entityKeys: new Set() }), summary())).toThrow("searchable entities");
+test("rejects missing entities and region records", () => {
+  expect(() => assertNonRegressivePublication(summary({ entityKeys: new Set() }), summary())).toThrow("published entities: npcs:1");
   expect(() => assertNonRegressivePublication(summary({ itemKeys: new Set() }), summary())).toThrow("searchable items");
   expect(() => assertNonRegressivePublication(summary({ regionKeys: new Set() }), summary())).toThrow("map regions");
-});
-
-test("rejects a removed page and document", () => {
-  expect(() => assertNonRegressivePublication(summary({ pageEntries: new Set() }), summary())).toThrow("published pages");
-  expect(() => assertNonRegressivePublication(summary({ documentKeys: new Set() }), summary())).toThrow("published documents");
 });
 
 test("rejects a removed artwork asset", () => {

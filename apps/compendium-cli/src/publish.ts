@@ -16,6 +16,6 @@ export async function runPublishCommand(planPath: string, storeRoot: string, pub
     buildId: result.buildId, catalogId: result.catalogId, gate: result.gate,
     manifest: result.manifest, root: result.root.reference, candidate: result.candidate,
     selection: result.selection, manifestPath: result.manifestPath, manifestObject: result.manifestObject,
-    measurements: result.measurements,
+    measurements: result.measurements, publicationIssues: result.publicationIssues,
   };
 }

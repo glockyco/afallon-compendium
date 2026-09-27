@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PublicKindEntry, PublicQuest } from '@afallon/contracts/public';
-  import EntityHeader, { type HeaderBadge, type HeaderFact } from './EntityHeader.svelte';
+  import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
   import { formatNumber, levelText } from './format';
 
@@ -8,12 +8,12 @@
   export let registry: PublicKindEntry[];
 
   $: facts = document.facts;
-  $: badges = [
-    ...(facts.chain ? [{ label: facts.chain.name, tone: 'accent' as const }] : []),
-    ...(facts.worldQuest ? [{ label: 'World quest' }] : []),
-    ...(facts.repeatable ? [{ label: 'Repeatable' }] : []),
-  ] satisfies HeaderBadge[];
+  $: chainQuests = document.chainQuests;
+  $: chainStep = chainQuests.findIndex((quest) => quest.key === document.ref.key);
   $: headerFacts = [
+    ...(facts.chain ? [{ label: 'Chain', value: `${facts.chain.name}${chainStep >= 0 ? `, step ${chainStep + 1} of ${chainQuests.length}` : ''}` }] : []),
+    ...(facts.worldQuest ? [{ value: 'World quest' }] : []),
+    ...(facts.repeatable ? [{ value: 'Repeatable' }] : []),
     ...(facts.levelRange ? [{ label: 'Quest level', value: levelText(facts.levelRange) }] : []),
     ...(facts.levelRequirement !== undefined ? [{ label: 'Minimum level', value: String(facts.levelRequirement) }] : []),
     ...(facts.experience !== undefined ? [{ label: 'Experience', value: formatNumber(facts.experience) }] : []),
@@ -21,14 +21,14 @@
 </script>
 
 <article>
-  <EntityHeader name={document.ref.name} art={document.art.icon ?? document.ref.icon} fallbackIcon={registry.find((entry) => entry.kind === 'quests')?.icon} {badges} facts={headerFacts} description={document.description} compact />
+  <EntityHeader name={document.ref.name} art={document.art.icon ?? document.ref.icon} facts={headerFacts} description={document.description} compact />
   <dl>
     {#if document.starts.length}
       <div><dt>Start</dt><dd>{#each document.starts as start}
         {#if start.kind === 'npc'}<EntityReference ref={start.npc} {registry} />{:else if start.kind === 'worldZone'}World quest{:else}{start.label ?? 'Interactive object'}{/if}
       {/each}</dd></div>
     {/if}
-    {#if document.turnIns.length}<div><dt>Turn-in</dt><dd>{#each document.turnIns as ref}<EntityReference {ref} {registry} />{/each}</dd></div>{:else if facts.turnInWithoutNpc}<div><dt>Turn-in</dt><dd>No NPC required</dd></div>{/if}
+    {#if document.turnIns.length}<div><dt>Turn-in</dt><dd>{#each document.turnIns as turnIn}<EntityReference ref={turnIn.npc} {registry} />{#if turnIn.areas.length}<span class="area">{turnIn.areas.join(', ')}</span>{/if}{/each}</dd></div>{:else if facts.turnInWithoutNpc}<div><dt>Turn-in</dt><dd>No NPC required</dd></div>{/if}
     {#if document.dungeon}<div><dt>Dungeon</dt><dd><EntityReference ref={document.dungeon} {registry} /></dd></div>{/if}
   </dl>
   {#if document.objectives.length}<section><h4>Objectives</h4><ul>{#each document.objectives as objective}<li>{objective.text}{#if 'count' in objective}<span>×{objective.count}</span>{/if}</li>{/each}</ul></section>{/if}
@@ -43,6 +43,7 @@
   dl div { display: grid; grid-template-columns: 4rem 1fr; gap: .5rem; font-size: .82rem; }
   dt { color: var(--c-text-dim); }
   dd { display: grid; gap: .25rem; margin: 0; }
+  .area { color: var(--c-text-dim); font-size: .75rem; }
   h4 { margin: 0; color: var(--c-accent-strong); font: 600 .8rem/1.25 var(--c-serif); }
   ul { display: grid; gap: .3rem; margin: 0; padding: 0; list-style: none; font-size: .82rem; }
   li { display: flex; justify-content: space-between; gap: .5rem; }

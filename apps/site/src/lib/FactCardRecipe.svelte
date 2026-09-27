@@ -20,7 +20,6 @@
   <EntityHeader
     name={document.ref.name}
     art={document.art.icon ?? document.ref.icon}
-    fallbackIcon={registry.find((entry) => entry.kind === 'recipes')?.icon}
     facts={headerFacts}
     description={document.description}
   />

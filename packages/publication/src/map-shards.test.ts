@@ -33,7 +33,7 @@ async function publishCraftingPlacements(stations: readonly { id: number; name: 
       for (const role of placement.roles ?? ["craftingService"]) db.query("INSERT INTO placement_roles VALUES (?, ?, ?, ?, ?, ?)").run(placement.id, sourceIds[0]!, role, null, "authored", "{}");
       for (const [detailIndex, data] of (placement.details ?? []).entries()) db.query("INSERT INTO source_details VALUES (?, ?, ?, ?, ?)").run(`${placement.id}-detail-${detailIndex}`, sourceIds[detailIndex]!, placement.id, "craftingStation", JSON.stringify(data));
     }
-    const generated = await generateMapShards(db, new ArtifactStore(join(root, "objects")));
+    const generated = await generateMapShards(db, new ArtifactStore(join(root, "objects")), new Map());
     return generated[0]!.resources.flatMap((part) => part.value.placements);
   } finally {
     db.close();
@@ -72,8 +72,8 @@ test("keeps map records isolated and stable across equivalent compilations", asy
     }
     const store = new ArtifactStore(join(root, "objects"));
     const offsets = [{ mapSpaceId: "a", worldX: 0, worldY: 0, source: "reviewed", status: "placed" }, { mapSpaceId: "b", worldX: 0, worldY: 0, source: "reviewed", status: "placed" }] as const;
-    const first = await generateMapShards(db, store, offsets);
-    const second = await generateMapShards(db, store, offsets);
+    const first = await generateMapShards(db, store, new Map(), offsets);
+    const second = await generateMapShards(db, store, new Map(), offsets);
     expect(first.map((map) => map.resources.map((part) => part.identity.sha256))).toEqual(second.map((map) => map.resources.map((part) => part.identity.sha256)));
     expect(first.map((map) => map.summary.mapSpaceId)).toEqual(["a", "b"]);
     expect(first[0]!.resources.flatMap((part) => part.value.placements.map((placement) => placement[0]))).toEqual(["icon-a", "placement-a"]);
@@ -83,7 +83,7 @@ test("keeps map records isolated and stable across equivalent compilations", asy
     expect(servicePlacement?.[4]).not.toContain("townsfolk");
     const serviceGeometry = first[0]!.geometry.flatMap((part) => part.value.placements).find((placement) => placement.placementId === "placement-a");
     expect(serviceGeometry?.travel?.destination).toEqual({ status: "resolved", mapSpaceId: "a", position: [2, 2] });
-    const cropped = await generateMapShards(db, store, offsets, undefined, new Set(["a", "b"]), new Map<string, readonly [number, number, number, number]>([["a", [0, 0, 4, 4]], ["b", [0, 0, 4, 4]]]));
+    const cropped = await generateMapShards(db, store, new Map(), offsets, undefined, new Set(["a", "b"]), new Map<string, readonly [number, number, number, number]>([["a", [0, 0, 4, 4]], ["b", [0, 0, 4, 4]]]));
     expect(cropped[0]!.resources.flatMap((part) => part.value.placements.map((placement) => placement[0]))).toEqual(["placement-a"]);
     expect(first[0]!.resources.flatMap((part) => part.value.regions.map((region) => region.id))).toEqual(["region-a"]);
     expect(first[0]!.resources[0]!.value.mapSpaceId).toBe("a");
@@ -164,5 +164,5 @@ test("names an object by its readable authored name and ignores placeholder name
     { id: "placeholder", label: null, roles: ["usefulInteraction"], details: [{ interactableName: "0" }] },
     { id: "named", label: null, roles: ["usefulInteraction"], details: [{ interactableName: "<b>Old gate</b>" }] },
   ]);
-  expect(placements.map((placement) => [placement[0], placement[3]])).toEqual([["named", "Old gate"], ["placeholder", "Interactive object"]]);
+  expect(placements.map((placement) => [placement[0], placement[3]])).toEqual([["named", "Old Gate"], ["placeholder", "Interactive object"]]);
 });

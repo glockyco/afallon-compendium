@@ -10,6 +10,7 @@ import {
   StaticSearchIndexSchema,
   artEdges,
   type EntityRef,
+  type PublicLevel,
   type PublicDocument,
   type PublicItem,
   type PublicNpc,
@@ -18,16 +19,19 @@ import {
   type PublicSearchEntry,
   type StaticDocument,
   type StaticKindList,
+  type StaticCoverage,
   type StaticSearchIndex,
 } from "@afallon/contracts/public";
 import { generateArtworkResources } from "./artwork";
-import { countUnresolvedReferences, projectPublicDocuments, type PublishedPlacement } from "./documents";
+import { readerCoverage } from "./coverage";
+import { projectPublicDocuments, type PublishedPlacement } from "./documents";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
 import { partitionStaticRecords, writeStaticJson, type GeneratedStaticResource } from "./resources";
 import type { PublicationCandidateAsset } from "./selection";
-import { plainText } from "./text";
+import { levelUnion } from "./levels";
+import { displayName } from "./text";
 import { auditPublicTooltipCoverage } from "./tooltip-coverage";
 
 export interface GeneratedIndexResources {
@@ -36,7 +40,7 @@ export interface GeneratedIndexResources {
   lists: ReadonlyMap<string, GeneratedStaticResource<StaticKindList>[]>;
   search: GeneratedStaticResource<StaticSearchIndex>[];
   artwork: PublicationCandidateAsset[];
-  unresolvedReferenceCount: number;
+  coverage: Pick<StaticCoverage, "pages" | "gaps">;
   publicationIssues: string[];
 }
 
@@ -48,8 +52,8 @@ function searchLevel(document: PublicDocument): PublicSearchEntry["level"] {
   switch (document.ref.kind) {
     case "items": return (document as PublicItem).facts.levelRequirement;
     case "npcs": {
-      const facts = (document as PublicNpc).facts;
-      return facts.level ?? facts.levelRange;
+      const level = (document as PublicNpc).facts.level;
+      return level === undefined || level.max === undefined ? undefined : level.min === level.max ? level.min : { min: level.min, max: level.max };
     }
     case "quests": {
       const facts = (document as PublicQuest).facts;
@@ -74,8 +78,8 @@ export async function generateIndexResources(
   store: ArtifactStore,
   placements: ReadonlyMap<string, PublishedPlacement>,
   placementIdsByKey: ReadonlyMap<string, readonly string[]>,
-  mapSpaceLabels: ReadonlyMap<string, string>,
   regionIdsByMapSpace: ReadonlyMap<string, readonly string[]>,
+  npcLevels: ReadonlyMap<string, ReadonlyMap<string, PublicLevel>>,
   protection?: ObjectWriteProtection,
 ): Promise<GeneratedIndexResources> {
   const entities = queryCatalogEntities(db), facts = queryCatalogFacts(db), relations = queryCatalogRelations(db);
@@ -83,15 +87,19 @@ export async function generateIndexResources(
   assertSameIdentity(entities, relations, "Relation");
   const identity = { buildId: entities.buildId, catalogId: entities.catalogId };
   const artwork = await generateArtworkResources(store, entities.records, protection);
-  const refs = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, mapSpaceLabels });
+  const levelsByRecord = new Map<string, PublicLevel[]>();
+  for (const levels of npcLevels.values()) for (const [key, level] of levels) levelsByRecord.set(key, [...levelsByRecord.get(key) ?? [], level]);
+  const references = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity,
+    npcLevels: new Map([...levelsByRecord].map(([key, levels]) => [key, levelUnion(levels)!] as const)) });
+  const refs = references.refs;
   const catalogPlacements = new Map(relations.records.placements.map((placement) => [placement.placementId, placement]));
   const publishedPlacements = new Map([...placements].map(([placementId, placement]) => {
     const catalogPlacement = catalogPlacements.get(placementId), scene = catalogPlacement ? refs.get(catalogPlacement.sceneKey) : undefined;
-    const area = plainText(catalogPlacement?.area ?? "");
+    const area = displayName(catalogPlacement?.area ?? "");
     return [placementId, area ? { ...placement, label: area } : scene?.kind === "places" ? { ...placement, label: scene.name } : placement] as const;
   }));
-  const publicDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, refs,
-    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace });
+  const publicDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
+    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey });
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {
@@ -137,7 +145,7 @@ export async function generateIndexResources(
     });
   }
   const search: GeneratedStaticResource<StaticSearchIndex>[] = [];
-  for (const value of partitionStaticRecords(entries, (partEntries, part): StaticSearchIndex => ({ schemaVersion: "compendium.static-search.v3", ...identity, part, entries: partEntries }))) {
+  for (const value of partitionStaticRecords(entries, (partEntries, part): StaticSearchIndex => ({ schemaVersion: "compendium.static-search.v4", ...identity, part, entries: partEntries }))) {
     Assert(StaticSearchIndexSchema, value);
     search.push(await writeStaticJson(store, value.schemaVersion, value, protection));
   }
@@ -148,6 +156,5 @@ export async function generateIndexResources(
     if (!asset) throw new Error(`Document artwork has no publication asset: ${path}.`);
     return asset;
   }).sort((left, right) => left.path.localeCompare(right.path));
-  const unresolvedReferenceCount = [...publicDocuments.values()].reduce((count, document) => count + countUnresolvedReferences(document), 0);
-  return { refs, documents, lists, search, artwork: assets, unresolvedReferenceCount, publicationIssues };
+  return { refs, documents, lists, search, artwork: assets, coverage: readerCoverage(publicDocuments.values()), publicationIssues };
 }

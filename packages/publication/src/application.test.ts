@@ -16,7 +16,7 @@ async function shiftedPlan(store: ArtifactStore, plan: PublicationPlan): Promise
   return { ...plan, presentation: { sha256: object.sha256, bytes: object.bytes } };
 }
 
-test("hands off unselected candidates, counts startup coverage, and releases publication leases", async () => {
+test("hands off unselected candidates, counts the map startup requests, and releases publication leases", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "afallon-publish-handoff-")));
   try {
     const { store, plan, options } = await publicationFixture(root);
@@ -27,8 +27,8 @@ test("hands off unselected candidates, counts startup coverage, and releases pub
     const selected = await publishFromPlan(store, plan, options);
     expect((await readLatestSuccess(store, plan.buildId, "publish"))?.manifest.runId).toBe(selected.runManifest.runId);
     expect(JSON.parse(await readFile(join(options.publicationRoot, "selected.json"), "utf8"))).toEqual(selected.selection);
-    expect(selected.measurements.essentialBytes).toBe(selected.root.identity.bytes + selected.manifest.coverage.bytes + selected.manifest.maps.reduce((sum, map) => sum + map.imagery.bytes + map.parts.reduce((total, part) => total + part.bytes, 0), 0));
-    expect(selected.measurements.essentialRequests).toBe(2 + selected.manifest.maps.reduce((sum, map) => sum + 1 + map.parts.length, 0));
+    expect(selected.measurements.essentialBytes).toBe(selected.root.identity.bytes + selected.manifest.maps.reduce((sum, map) => sum + map.imagery.bytes + map.parts.reduce((total, part) => total + part.bytes, 0), 0));
+    expect(selected.measurements.essentialRequests).toBe(1 + selected.manifest.maps.reduce((sum, map) => sum + 1 + map.parts.length, 0));
     expect(selected.manifest.maps.find((map) => map.mapSpaceId === "empty")?.bounds).toEqual({ min: { x: 110, y: 220 }, max: { x: 130, y: 240 } });
     expect(await readArtifactLeases(store)).toEqual([]);
     await expect(publishFromPlan(store, { ...plan, mode: "release" }, options)).rejects.toThrow();

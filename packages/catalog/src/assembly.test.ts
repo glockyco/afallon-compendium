@@ -10,7 +10,7 @@ function normalized(): NormalizedDatabaseInput {
   const reference = { path: "input.json", sha256: "0".repeat(64) };
   return {
     buildId: "build", identityResults: [], entities: [], scenes: [], mapSpaces: [], bindings: [],
-    placements: [], sources: [], roles: [], regions: [], conditions: [], spawnCandidates: [], sourceGates: [], placementAreas: [],
+    placements: [], sources: [], roles: [], regions: [], conditions: [], spawnCandidates: [], sourceGates: [], randomChoices: [], placementAreas: [],
     merchantTables: [], merchantBindings: [], merchantStock: [], lootTables: [], lootBindings: [],
     lootEntries: [], linkedNpcRules: [], resourceYields: [], questAssociations: [], transitions: [],
     itemSources: [], entityDetails: [], sourceDetails: [], patrolPaths: [], sceneSpawns: [], blockers: [], coverageOccurrences: [], exclusions: [], inputCoverage: null,

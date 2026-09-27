@@ -12,7 +12,7 @@
   $: grouped = phases.length > 1 || phases.some((phase) => phase.name || phase.requirement);
 </script>
 
-{#if phases.length > 0}
+{#if total > 0}
   <Card title="Abilities" count={total}>
     <div class="phases">
       {#each visible as phase}

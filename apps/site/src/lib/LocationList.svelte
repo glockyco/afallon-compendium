@@ -22,7 +22,7 @@
       {#each visible as [label, members]}
         <li class:group={members.length > 1}>
           {#if members.length === 1}<a class="c-link" href={atlasHref(members[0]!.placementId)}>{label}</a>
-          {:else}{label}{#each members as placement, index}<a class="c-link number" href={atlasHref(placement.placementId)} aria-label={`${label}, location ${index + 1} of ${members.length}`}>{index + 1}</a>{/each}{/if}
+          {:else}{label}{#each members as placement, index}<a class="c-link" href={atlasHref(placement.placementId)} aria-label={`${label}, location ${index + 1} of ${members.length}`}>{index + 1}</a>{/each}{/if}
         </li>
       {/each}
     </ul>
@@ -34,6 +34,6 @@
 <style>
   ul { display: grid; gap: .4rem; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); margin: 0; padding: 0; list-style: none; }
   li { font-size: .84rem; }
-  .group { grid-column: 1 / -1; }
-  .number { margin-left: .4rem; }
+  /* The numbered links carry no spaces between them, so the label and the numbers wrap as flex items. */
+  .group { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .4rem; grid-column: 1 / -1; }
 </style>
