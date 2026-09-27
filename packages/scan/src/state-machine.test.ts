@@ -8,7 +8,7 @@ import { AttributedScanTargetError, ScanStateMachine, type ScanStateReader } fro
 const state: RuntimeScanState = {
   schemaVersion: "compendium.runtime-scan-state.v1",
   frame: 100,
-  character: "AtlasSurvey",
+  character: "ResearchCharacter",
   scene: { name: "Coalway woods", path: "Assets/SCENES/Coalway woods.unity", handle: 3, isLoaded: true },
   gameSceneNativeId: 3,
   position: { x: 1, y: 2, z: 3 },
@@ -35,7 +35,7 @@ test("current-scene scan emits a common envelope without changing runtime state"
   const root = await mkdtemp(join(tmpdir(), "afallon-current-scan-"));
   try {
     const completed = { ...state, frame: 101 };
-    const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, completed]) });
+    const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "ResearchCharacter", outputDirectory: root, stateReader: new SequenceStateReader([state, completed]) });
     const envelope = await scanner.scanCurrentScene(0, collectEvidence);
     expect(envelope.outcome).toBe("succeeded");
     expect(envelope.target).toEqual({ kind: "current-scene" });
@@ -57,7 +57,7 @@ test("build-scene targets use the shared envelope after restoration", async () =
         await collect();
       },
     };
-    const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: 120 }]) });
+    const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "ResearchCharacter", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: 120 }]) });
     const envelope = await scanner.scanBuildScene({ kind: "build-scene", sceneNativeId: 7 }, 2, visitor, collectEvidence);
     expect(visited).toBe(true);
     expect(envelope.targetIdentity).toBe("build-scene:7");
@@ -73,12 +73,12 @@ test("streamed-source outcomes retain source evidence", async () => {
   const evidence = { sceneNativeId: 3, sourceKey: target.sourceKey, loaderInstanceId: 42, assetGuid: "abc", runtimeKey: "forest/encounters", disposition: "observed", detail: "fixture discovery evidence" };
   try {
     for (const outcome of ["succeeded", "unsupported", "unreachable"] as const) {
-      const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: state.frame + 1 }]) });
+      const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "ResearchCharacter", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: state.frame + 1 }]) });
       const envelope = await scanner.scanStreamedSource(target, 0, { async visit(_target, _started, _directory, collect) { if (outcome === "succeeded") await collect(); return { outcome, sourceEvidence: { ...evidence, disposition: outcome } }; } }, collectEvidence);
       expect(envelope.outcome).toBe(outcome);
       expect(envelope.sourceEvidence?.sourceKey).toBe(target.sourceKey);
     }
-    const failedScanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: state.frame + 1 }]) });
+    const failedScanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "ResearchCharacter", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: state.frame + 1 }]) });
     const failed = await failedScanner.scanStreamedSource(target, 1, { async visit() { throw new AttributedScanTargetError("collector failed", { ...evidence, disposition: "failed" }); } }, collectEvidence);
     expect(failed.outcome).toBe("failed");
     expect(failed.sourceEvidence?.disposition).toBe("failed");
@@ -93,7 +93,7 @@ test("streamed-source outcomes retain source evidence", async () => {
 test("envelope admission permits distinct family artifacts and rejects ambiguous references", async () => {
   const root = await mkdtemp(join(tmpdir(), "afallon-envelope-admission-"));
   try {
-    const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: 101 }]) });
+    const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "ResearchCharacter", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: 101 }]) });
     const envelope = await scanner.scanCurrentScene(0, collectEvidence);
     const additional = { ...evidence[0]!, name: "second-canonical-object" };
     expect(validateScanTargetEnvelope({ ...envelope, artifacts: [...envelope.artifacts, additional] }).artifacts.at(-1)).toEqual(additional);
@@ -113,7 +113,7 @@ test("directory preparation failure does not strand the next operation", async (
   const blocked = join(root, "target-0");
   try {
     await Bun.write(blocked, "not a directory");
-    const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: 101 }]) });
+    const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "ResearchCharacter", outputDirectory: root, stateReader: new SequenceStateReader([state, { ...state, frame: 101 }]) });
     await expect(scanner.scanCurrentScene(0, collectEvidence)).rejects.toThrow();
     await rm(blocked);
     const next = await scanner.scanCurrentScene(0, collectEvidence);
@@ -128,7 +128,7 @@ test("state mismatch makes the target fail with restoration evidence", async () 
   const root = await mkdtemp(join(tmpdir(), "afallon-current-scan-failure-"));
   try {
     const moved = { ...state, frame: 101, position: { x: 2, y: 2, z: 3 } };
-    const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "AtlasSurvey", outputDirectory: root, stateReader: new SequenceStateReader([state, moved]) });
+    const scanner = new ScanStateMachine({ buildId: "25153357", sourceRunId: "fixture-run", character: "ResearchCharacter", outputDirectory: root, stateReader: new SequenceStateReader([state, moved]) });
     const envelope = await scanner.scanCurrentScene(0, collectEvidence);
     expect(envelope.outcome).toBe("failed");
     expect(envelope.observation.completed?.position).toEqual(moved.position);

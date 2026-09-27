@@ -11,7 +11,7 @@ const config: CompendiumConfig = {
   outputRoot: "/artifacts",
   runtimeOutputRoot: "Z:/artifacts",
   hotreplUrl: "ws://127.0.0.1:18601",
-  character: "AtlasSurvey",
+  character: "ResearchCharacter",
   finalSceneNativeId: 3,
   finalScenePath: "Assets/SCENES/Coalway woods.unity",
   timeoutMs: 10_000,
