@@ -3,7 +3,7 @@
 - [x] 1.1 Replace native-ID fallbacks in `recordLabels` and `ensureUniqueNames` with deterministic ordinals, keep `n<nativeId>` anchors, and verify with updated `references.test.ts` cases for a place and a variant
 - [x] 1.2 Fill place `properties` from property places and verify with a publication test that a place lists its property
 - [ ] 1.3 Return the start position of each teleport from the catalog transition query, publish `ConnectionRow` v2 with `direction` in place document v5, leave out dungeon entrance triggers and leftover teleporter copies, and stop on an unknown transition kind, then verify with publication tests for each direction, the trigger, a copy, a teleport outside its map without a copy, and an unknown kind
-- [ ] 1.4 Leave out zero stats, compare variant stats and faction changes without their order, and stop when two loot lists of one NPC have the same rule, then verify with publication tests
+- [x] 1.4 Leave out zero stats, compare variant stats and faction changes without their order, and stop when two loot lists of one NPC have the same rule, then verify with publication tests
 
 ## 2. Shared detail components
 

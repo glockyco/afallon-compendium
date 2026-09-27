@@ -228,10 +228,30 @@ function optionalChance(value: number | null): number | undefined {
   return value !== null && Number.isFinite(value) && value >= 0 && value <= 100 ? value : undefined;
 }
 
-// The fields that a drop row shares on the creature page and on the item page. A table roll of 100 or more always
-// happens, so the row omits it.
+// A table roll of 100 or more always happens, so a row omits it.
+function tableChanceOf(row: CatalogDropRow): number | undefined {
+  return row.tableRate !== null && row.tableRate < 100 ? optionalChance(Math.round(row.tableRate * 10) / 10) : undefined;
+}
+
+/**
+ * A creature page groups its drops by their loot list rule: the share of kills that roll the list and the number of
+ * items that the list gives. Two lists of one creature with the same rule and a limit or a minimum would merge into one
+ * group whose item count is wrong, so publication stops instead.
+ */
+function assertDistinctLootRules(owner: string, rows: readonly CatalogDropRow[]): void {
+  const tableByRule = new Map<string, number>();
+  for (const row of rows) {
+    if (row.tableMinimum === null && row.tableLimit === null) continue;
+    const rule = JSON.stringify([tableChanceOf(row) ?? null, row.tableMinimum, row.tableLimit]);
+    const table = tableByRule.get(rule);
+    if (table === undefined) tableByRule.set(rule, row.lootTableId);
+    else if (table !== row.lootTableId) throw new Error(`${owner} has the loot lists ${table} and ${row.lootTableId} with the same drop rule ${rule}, so its Drops section would merge them.`);
+  }
+}
+
+// The fields that a drop row shares on the creature page and on the item page.
 function lootFields(row: CatalogDropRow, conditions: ReadonlyMap<string, CatalogCondition>, input: DocumentProjectionInput) {
-  const tableChance = row.tableRate !== null && row.tableRate < 100 ? optionalChance(Math.round(row.tableRate * 10) / 10) : undefined;
+  const tableChance = tableChanceOf(row);
   return {
     ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
     ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }),
@@ -555,9 +575,11 @@ function projectNpcPage(page: PublishedPage, input: DocumentProjectionInput, ind
     ...(has("aggroRange") && shared.aggroRange !== undefined ? { aggroRange: shared.aggroRange } : {}),
     ...(has("lootSpecialization") && shared.lootSpecialization ? { lootSpecialization: shared.lootSpecialization } : {}),
   };
-  const drops = attributedRows(records.map(({ member }) => ({ anchor: member.anchor, rows: (indexes.dropsByOwner.get(member.entity.entityKey) ?? []).map((row) => ({
-    counterpart: input.resolve(row.item), ...lootFields(row, conditions, input),
-  })) })));
+  const drops = attributedRows(records.map(({ member }) => {
+    const rows = indexes.dropsByOwner.get(member.entity.entityKey) ?? [];
+    assertDistinctLootRules(member.entity.entityKey, rows);
+    return { anchor: member.anchor, rows: rows.map((row) => ({ counterpart: input.resolve(row.item), ...lootFields(row, conditions, input) })) };
+  }));
   const sells = attributedRows(records.map(({ member }) => ({ anchor: member.anchor, rows: (indexes.vendorsByNpc.get(member.entity.entityKey) ?? []).map((row) => ({
     counterpart: input.resolve(row.item), price: { amount: Math.max(0, row.cost), currency: endpointOrUnknown(input.resolve, row.currency, "Unknown currency") },
     requirements: requirementsFor(row.conditionIds, conditions, input.resolve),

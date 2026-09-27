@@ -145,6 +145,13 @@ test("place service groups use the published station types", () => {
   ]);
 });
 
+test("stops when two loot lists of one creature share a limited rule, because its Drops section would merge them", () => {
+  const drop = relations.drops[0]!;
+  const limited = (lootTableId: number, tableLimit: number) => ({ ...drop, lootTableId, tableLimit });
+  expect(() => project(entities, facts, { ...relations, drops: [limited(4, 3), limited(9, 3)] })).toThrow("the same drop rule");
+  expect(() => project(entities, facts, { ...relations, drops: [limited(4, 3), limited(9, 2)] })).not.toThrow();
+});
+
 test("a place lists the properties whose for-sale signs stand in it", () => {
   const property = (entityKey: string): CatalogFacts["properties"][number] => ({ entityKey, income: 10, incomeInterval: 300, purchasePrice: 100, sellPrice: 50, currency: null, propertyType: "House" });
   const propertyEntities: CatalogEntityRow[] = [...entities,
