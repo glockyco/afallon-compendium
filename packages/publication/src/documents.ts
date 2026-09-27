@@ -48,6 +48,7 @@ import type {
 import { collectRefs, isEntityRef } from "@afallon/contracts/public";
 import { markerCategories, shownCategories } from "./categories";
 import { chancePercent, choicesChance, enabledChance, levelUnion } from "./levels";
+import { shownNpcStats } from "./variants";
 import type { EntityReferences, PublishedPage } from "./references";
 import { displayName, plainText, withoutMarkup } from "./text";
 
@@ -429,7 +430,7 @@ function npcRecordFacts(fact: CatalogNpcFacts, input: DocumentProjectionInput): 
     ...(fact.family ? { family: plainText(fact.family) } : {}), ...(faction === undefined ? {} : { faction }), ...(species === undefined ? {} : { species }),
     ...(fact.minRespawn === null || fact.maxRespawn === null ? {} : { respawn: { min: fact.minRespawn, max: fact.maxRespawn } }),
     ...(minExperience === undefined || maxExperience === undefined ? {} : { experience: { min: minExperience, max: maxExperience } }),
-    stats: fact.stats.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
+    stats: shownNpcStats(fact.stats).map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
     immunities: [fact.immuneToStun ? "stun" : null, fact.immuneToSlow ? "slow" : null].filter((value): value is string => value !== null),
     ...(fact.aggroRange === null ? {} : { aggroRange: fact.aggroRange }),
     ...(fact.lootSpecialization === null ? {} : { lootSpecialization: {

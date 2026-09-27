@@ -44,6 +44,15 @@ test("names the variant in a record reference when the variants differ in facts 
   expect(refs.get("npcs:2")).toMatchObject({ key: "npcs:1", name: "Cragborn Alpha (Glacier Cave)", variant: "glacier-cave" });
 });
 
+test("does not treat stats in another order or a stat of zero as a difference between variants", () => {
+  const entities = [entity("npcs", 76, "Outlaw Rogue"), entity("npcs", 77, "Outlaw Rogue")];
+  const stat = (entityKey: string, label: string, amount: number) => ({ stat: { entityKey, label }, amount, isPercent: false });
+  const first = { ...npcFact("npcs:76"), stats: [stat("stats:1", "Health", 687.2), stat("stats:2", "Strength", 9)] };
+  const second = { ...npcFact("npcs:77"), stats: [stat("stats:2", "Strength", 9), stat("stats:1", "Health", 687.2), stat("stats:3", "Spirit", 0)] };
+  const { pages } = buildEntityReferences(entities, { facts: { ...emptyFacts, entities, npcs: [first, second] }, relations: emptyRelations });
+  expect(pages.get("npcs:76")?.variantFields).toEqual([]);
+});
+
 test("publishes one ability page whose versions group the records that share their rank texts", () => {
   const ranks = (text: string) => [{ rankIndex: 0, lines: [{ spans: [{ text, tone: null, italic: false }] }] }];
   const entities = [entity("abilities", 0, "Cleave"), entity("abilities", 72, "Cleave"), entity("abilities", 95, "Cleave")];

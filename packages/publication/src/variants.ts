@@ -21,17 +21,25 @@ export function abilityVersions(members: readonly AbilityFacts[]): AbilityFacts[
 
 const endpointKey = (endpoint: CatalogEndpoint | null) => endpoint === null ? null : endpoint.entityKey ?? plainText(endpoint.label ?? "");
 
+/** The stats that a page shows for an NPC record: a stat of zero tells a player nothing, so a page leaves it out. */
+export function shownNpcStats<Row extends { amount: number }>(stats: readonly Row[]): Row[] {
+  return stats.filter((row) => row.amount !== 0);
+}
+
+// The same members in another order are the same list for a player.
+const unordered = (rows: readonly unknown[]) => rows.map((row) => JSON.stringify(row)).sort();
+
 // The catalog value of each variant field. Abilities compare by version, because two records with the same rank texts
-// are the same ability for a player.
+// are the same ability for a player. Stats and faction rewards compare without their order.
 function fieldValues(fact: CatalogNpcFacts, abilityVersion: (key: string | null) => string | null): Record<NpcVariantField, unknown> {
   return {
     npcType: plainText(fact.npcType ?? "") || null, creatureType: plainText(fact.creatureType ?? "") || null, family: plainText(fact.family ?? "") || null,
     faction: endpointKey(fact.faction), species: endpointKey(fact.species),
     respawn: [fact.minRespawn, fact.maxRespawn], experience: [fact.minExperience, fact.maxExperience],
-    stats: fact.stats.map((row) => [endpointKey(row.stat), row.amount, row.isPercent]),
+    stats: unordered(shownNpcStats(fact.stats).map((row) => [endpointKey(row.stat), row.amount, row.isPercent])),
     immunities: [fact.immuneToStun, fact.immuneToSlow], aggroRange: fact.aggroRange, lootSpecialization: fact.lootSpecialization,
     abilityPhases: fact.abilityPhases.map((phase) => [phase.phaseIndex, phase.name, phase.requirement, phase.abilities.map((ability) => [abilityVersion(ability.ability.entityKey), ability.rankIndex])]),
-    factionRewards: fact.factionRewards.map((reward) => [endpointKey(reward.faction), reward.amount]),
+    factionRewards: unordered(fact.factionRewards.map((reward) => [endpointKey(reward.faction), reward.amount])),
     linkedNpc: endpointKey(fact.linkedNpc),
   };
 }
