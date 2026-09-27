@@ -740,9 +740,22 @@ function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
     space: mapSpaceId === null ? null : { mapSpaceId, regionIds: [...(input.regionIdsByMapSpace.get(mapSpaceId) ?? [])] },
     bosses: mergeRefs((fact?.bosses ?? []).map(input.resolve), input), creatures: creaturesForPlace(entity.entityKey, input, indexes, true), npcs: creaturesForPlace(entity.entityKey, input, indexes, false),
     services: placementGroups(placePlacements, serviceCategories, input), resources: placementGroups(placePlacements, resourceCategories, input), containers: placementGroups(placePlacements, containerCategories, input),
-    quests: questRefs(startsHere), questObjectives: questRefs(objectiveHere), properties: [], connections, regions: input.facts.places.filter((candidate) => candidate.placeType === "region" && candidate.parentSceneKey === entity.entityKey).map((candidate) => input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey })),
+    quests: questRefs(startsHere), questObjectives: questRefs(objectiveHere),
+    properties: input.facts.properties.filter((property) => propertySceneKey(property.entityKey, input) === entity.entityKey).map((property) => input.resolve({ entityKey: property.entityKey, label: property.entityKey })),
+    connections, regions: input.facts.places.filter((candidate) => candidate.placeType === "region" && candidate.parentSceneKey === entity.entityKey).map((candidate) => input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey })),
     ...(fact?.parentSceneKey ? { parent: input.resolve({ entityKey: fact.parentSceneKey, label: fact.parentSceneKey }) } : {}),
   };
+}
+
+/** The for-sale signs of a property that the publication places on the map. */
+function propertySigns(propertyKey: string, input: DocumentProjectionInput): PlacementRef[] {
+  return publishedPlacements(input.placementIdsByKey.get(propertyKey) ?? [], input.placements);
+}
+
+/** The place of a property is the one scene that holds all of its published for-sale signs. */
+function propertySceneKey(propertyKey: string, input: DocumentProjectionInput): string | undefined {
+  const scenes = new Set(propertySigns(propertyKey, input).flatMap((sign) => input.relations.placements.find((row) => row.placementId === sign.placementId)?.sceneKey ?? []));
+  return scenes.size === 1 ? [...scenes][0] : undefined;
 }
 
 function projectProperty(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput): PublicProperty {
@@ -750,9 +763,9 @@ function projectProperty(entity: CatalogEntityRow, ref: EntityRef, input: Docume
   const currency = optionalFactRef(input.resolve, fact?.currency);
   const price = (amount: number | null | undefined) => amount !== null && amount !== undefined && amount >= 0 && currency ? { amount, currency } : undefined;
   const purchase = price(fact?.purchasePrice), sale = price(fact?.sellPrice), income = price(fact?.income);
-  const locations = publishedPlacements(input.placementIdsByKey.get(entity.entityKey) ?? [], input.placements);
-  const scenes = new Set(locations.flatMap((location) => input.relations.placements.find((row) => row.placementId === location.placementId)?.sceneKey ?? []));
-  const place = scenes.size === 1 ? input.resolve({ entityKey: [...scenes][0]!, label: [...scenes][0]! }) : undefined;
+  const locations = propertySigns(entity.entityKey, input);
+  const sceneKey = propertySceneKey(entity.entityKey, input);
+  const place = sceneKey === undefined ? undefined : input.resolve({ entityKey: sceneKey, label: sceneKey });
   return {
     ...baseDocument(entity, ref, input),
     locations,

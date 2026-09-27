@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow } from "@afallon/contracts/catalog";
-import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicItem, type PublicNpc, type PublicPlace, type PublicQuest } from "@afallon/contracts/public";
+import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest } from "@afallon/contracts/public";
 import { projectPublicDocuments, projectQuestObjective, type DocumentProjectionInput } from "./documents";
 import { assertCompleteTooltipCoverage, auditPublicTooltipCoverage } from "./tooltip-coverage";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
@@ -76,9 +76,9 @@ const relations: CatalogRelations = {
   conditions: [{ conditionId: "oathbreaker", semantics: "equipment", scope: "equipment", label: "Requirements", requirements: equipmentRequirements }], gatedSources: [],
 };
 
-function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map()) {
+function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map(), placementIdsByKey: DocumentProjectionInput["placementIdsByKey"] = new Map()) {
   const references = buildEntityReferences(projectEntities, { facts: projectFacts, relations: projectRelations });
-  const documents = projectPublicDocuments({ entities: projectEntities, facts: projectFacts, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey: new Map() });
+  const documents = projectPublicDocuments({ entities: projectEntities, facts: projectFacts, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey });
   return { refs: references.refs, documents };
 }
 
@@ -143,6 +143,23 @@ test("place service groups use the published station types", () => {
     { category: "cookingStation", placementCount: 1 },
     { category: "craftingStation", placementCount: 1 },
   ]);
+});
+
+test("a place lists the properties whose for-sale signs stand in it", () => {
+  const property = (entityKey: string): CatalogFacts["properties"][number] => ({ entityKey, income: 10, incomeInterval: 300, purchasePrice: 100, sellPrice: 50, currency: null, propertyType: "House" });
+  const propertyEntities: CatalogEntityRow[] = [...entities,
+    { entityKey: "properties:30", kind: "properties", nativeId: 30, name: "Crypt Cottage", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "properties:31", kind: "properties", nativeId: 31, name: "Unsold Shed", description: null, iconAssetName: null, artwork: [] },
+  ];
+  const propertyFacts: CatalogFacts = { ...facts, entities: propertyEntities, properties: [property("properties:30"), property("properties:31")] };
+  const signRelations: CatalogRelations = { ...relations, placements: [...relations.placements,
+    { placementId: "sign-1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Crypt", area: null, roles: [], families: [], randomChoices: [] }] };
+  const { documents } = project(propertyEntities, propertyFacts, signRelations, new Map([
+    ["sign-1", { placementId: "sign-1", mapSpaceId: "world", label: "Crypt", categories: ["property" as const] }],
+  ]), new Map([["world", []]]), new Map(), new Map([["properties:30", ["sign-1"]]]));
+  const place = documents.get("scenes:10") as PublicPlace;
+  expect(place.properties.map((ref) => "name" in ref ? ref.name : ref.label)).toEqual(["Crypt Cottage"]);
+  expect((documents.get("properties:30") as PublicProperty).place).toMatchObject({ key: "scenes:10", name: "Crypt" });
 });
 
 test("projects representative item use text, effective stats and contextual ability ranks", () => {
