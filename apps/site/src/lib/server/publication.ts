@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { AtlasDataLoader, type AtlasFetch } from '../atlas-data';
@@ -17,9 +18,10 @@ const fileFetch: AtlasFetch = async (input) => {
 
 let loader: AtlasDataLoader | undefined;
 
+// Pages read the staged publication in every mode. Staging also links the dev server's static data to it.
 export function serverAtlasLoader(): AtlasDataLoader {
-  if (process.env.SITE_STAGE !== 'production') {
-    throw new Error(`Static publication reads require SITE_STAGE=production and ${dataRoot}`);
+  if (!existsSync(join(dataRoot, 'publication.json'))) {
+    throw new Error(`No staged publication at ${dataRoot}. Run bun run stage:production first.`);
   }
   loader ??= new AtlasDataLoader(fileFetch, 'https://atlas.invalid/data/');
   return loader;
