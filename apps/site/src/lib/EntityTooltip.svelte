@@ -23,6 +23,9 @@
 
   export async function show(): Promise<void> {
     clearTimeout(closeTimer);
+    // One tooltip at a time: a link keeps focus after a click, so an older tooltip would otherwise stay open.
+    if (openTooltip && openTooltip !== close) openTooltip();
+    openTooltip = close;
     open = true;
     if (document || loading) return;
     const activeLoader = clientAtlasLoader();
@@ -52,16 +55,14 @@
 
   export function closeAfterIntent(): void {
     clearTimeout(closeTimer);
-    closeTimer = window.setTimeout(() => {
-      if (anchor?.contains(globalThis.document.activeElement)) return;
-      close();
-    }, 100);
+    closeTimer = window.setTimeout(close, 100);
   }
 
   export function close(): void {
     clearTimeout(intentTimer);
     clearTimeout(closeTimer);
     open = false;
+    if (openTooltip === close) openTooltip = null;
   }
 
   export function handleKeydown(event: KeyboardEvent): void {
@@ -109,6 +110,10 @@
     });
     return { destroy() { active = false; stop(); } };
   }
+</script>
+
+<script lang="ts" context="module">
+  let openTooltip: (() => void) | null = null;
 </script>
 
 {#if open}
