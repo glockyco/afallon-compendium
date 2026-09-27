@@ -10,7 +10,7 @@ export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
     facets: [facet("slot", "Slot"), facet("itemType", "Type"), facet("rarity", "Rarity")] },
   { kind: "npcs", label: "NPC", plural: "NPCs", route: "npcs", icon: "npc", pages: true, searchable: true,
     columns: [column("level", "Level", true), column("role", "Role"), column("place", "Place"), column("faction", "Faction")],
-    facets: [facet("role", "Role"), facet("place", "Place"), facet("faction", "Faction")] },
+    facets: [facet("role", "Role"), facet("places", "Place"), facet("faction", "Faction")] },
   { kind: "quests", label: "Quest", plural: "Quests", route: "quests", icon: "quest", pages: true, searchable: true,
     columns: [column("levelRange", "Quest level"), column("chain", "Chain"),
       column("area", "Area"), column("giver", "Giver")],

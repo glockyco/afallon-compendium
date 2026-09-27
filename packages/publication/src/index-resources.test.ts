@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArtifactStore } from "@afallon/artifacts";
-import { PUBLICATION_PART_BUDGET, type PublicQuest } from "@afallon/contracts/public";
+import { PUBLICATION_PART_BUDGET, type PublicNpc, type PublicQuest } from "@afallon/contracts/public";
 import { openNormalizedDatabase } from "../../catalog/src/database";
 import { generateIndexResources } from "./index-resources";
 import { buildKindLists } from "./lists";
@@ -68,6 +68,20 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
     db.close();
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("an NPC row counts its places in the column and offers each place in the filter", () => {
+  const placement = (label: string): PublicNpc["locations"][number] => ({ label, placements: [{ placementId: label, mapSpaceId: "world", label }], availability: [], level: { min: 5, max: 5, scales: false }, variants: [], roles: ["enemy"], quests: [] });
+  const npc: PublicNpc = {
+    ref: { key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }, description: null, art: {},
+    facts: { level: { min: 5, max: 5, scales: false }, roles: ["enemy"], stats: [], immunities: [] }, variantFields: [], variants: [],
+    locations: [placement("Oakenvale"), placement("Coalway Woods")], drops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], usedInQuests: [], bossOf: [],
+  };
+  const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "npcs")!;
+  const row = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[npc.ref.key, npc]])).get("npcs")![0]!.rows[0]!;
+  expect(row.values.place).toBe("2 places");
+  expect(row.facets.places).toEqual(["Coalway Woods", "Oakenvale"]);
+  expect(Object.keys(row.facets).sort()).toEqual(registry.facets.map((facet) => facet.id).sort());
 });
 
 test("quest rows expose the level range, chain, areas, and giver for every column", () => {
