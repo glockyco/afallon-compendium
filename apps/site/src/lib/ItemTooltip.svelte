@@ -83,7 +83,9 @@
   .plain { display: grid; gap: .2rem; margin: 0; padding: 0; list-style: none; }
   .gear-set { display: grid; gap: .28rem; margin-top: .18rem; }
   h4 { margin: 0; color: var(--c-rarity-gold); font: 600 .86rem/1.3 var(--c-serif); }
-  .gear-set li:not(.current) { opacity: .75; }
+  /* Only the name dims. Opacity on the row would also dim the hover tooltip that the row holds, and a descendant rule
+     would reach into that tooltip, so the rule takes the row's direct child only. */
+  .gear-set li:not(.current) > :global(:is(.tooltip-anchor, .entity-link, .entity-text, .entity-reference)) { opacity: .75; }
   .tiers { color: var(--c-text-dim); }
   .requirements { color: #72c875; }
   .requirements :global(.count) { color: inherit; }
