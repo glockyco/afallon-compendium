@@ -1138,3 +1138,18 @@ verified-update parity gate against `e8c2e115` and shows the quest level ranges.
 
 Browser screenshots failed while the macOS display slept, because Chrome received no frames. `caffeinate -u` wakes the
 display; `caffeinate -d` alone does not.
+
+### Follow-up rescan
+
+Scene visits now enter each interior at an observed doorway from the previous accepted catalog; Tutorial cave, which
+has no doorway, uses its start position. All 27 arrivals of the rescan match a doorway of the new catalog. Each interior
+now loads every streamed source before collection. That added no entity, placement, or source, so the earlier partial
+loads had lost no published content. One source each in the Challenge stone logging camp and Pyromancer stays inactive
+and is reported as skipped; it probably appears only while a challenge runs. When a shown chunk puts a loader within the
+player's load distance, the game loads it, and a scene visit waits for that load.
+
+Four runtime-placed interactables moved by 0.09 to about 1 map unit between two scans of the build. Same-build
+corrections now allow shifts under 2 map units. `accept-update` selected publication
+`fecbf98a0e91ff590e4a27974b59930d481fc78e3819a25d120de019c98a27b6` from catalog
+`81b32eecf37a03879464f89a1b1fbd89dc2e53f77d1469c4756c3bad1ea72f1a` and kept `4c02861a` as the rollback. The publication
+reports 31,861 unresolved issues, 54 more than before. Nothing was deployed.
