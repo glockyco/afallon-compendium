@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogAbilityFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogInteractionRow, CatalogGatedSourceRow, CatalogAvailabilityRule, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementSpan, CatalogRequirementGroup, CatalogRequirementNamedValue, CatalogRequirementEntry, CatalogRequirementTime, CatalogRelations } from "@afallon/contracts/catalog";
 import type { CatalogRandomChoice } from "@afallon/contracts/catalog";
+import { categoryLabel } from "@afallon/contracts/public";
 import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
 import { containerTypeFromHierarchyPath } from "./world";
 
@@ -705,13 +706,13 @@ function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSp
     }
   }
   else if (requirement.type.name === "Item") {
-    // "Has Iron Key", "Does not have Iron Key", "Axe equipped". A native enum such as AXE reads as "Axe".
+    // "Has Iron Key", "Does not have Iron Key", "One Handed Sword equipped". An item type is a category value, so
+    // AXE reads as "Axe" and "One handed sword" as "One Handed Sword".
     const ownership = requirement.ownership?.name;
     if (ownership === "Owned") text("Has ");
     else if (ownership === "NotOwned") text("Does not have ");
     const subtype = requirement.subtypes.weaponType ?? requirement.subtypes.weaponSlot ?? requirement.subtypes.armorType ?? requirement.subtypes.armorSlot ?? requirement.subtypes.itemType;
-    const readable = (value: string) => /^[A-Z_ ]+$/.test(value) ? `${value[0]}${value.slice(1).toLowerCase().replaceAll("_", " ")}` : value;
-    if (subtype) text(subtype.name ? readable(subtype.name) : "Unresolved item type"); else reference(requirement.references.item, "Unresolved item");
+    if (subtype) text(subtype.name ? categoryLabel(subtype.name) : "Unresolved item type"); else reference(requirement.references.item, "Unresolved item");
     if (ownership === "Equipped") text(" equipped");
     else if (ownership !== undefined && ownership !== "Owned" && ownership !== "NotOwned") text(` (${ownership})`);
   } else if (requirement.type.name === "Region") text(["Region", requirement.subtypes.region?.name].filter(Boolean).join(" "));

@@ -158,7 +158,7 @@ test("renders complete classified item use predicates", () => {
       ["use", "Potion Sickness is inactive"],
       ["use", "Region Quest complete"],
       ["use", "Potion Sickness is active with 34 or more stacks"],
-      ["use", "Axe equipped or One handed sword equipped or Two handed sword equipped"],
+      ["use", "Axe equipped or One Handed Sword equipped or Two Handed Sword equipped"],
     ]);
   } finally { db.close(); }
 });
