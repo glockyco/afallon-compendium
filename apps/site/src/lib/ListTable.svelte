@@ -5,7 +5,7 @@
   import Badge from './Badge.svelte';
   import DataTable, { type TableColumn } from './DataTable.svelte';
   import EntityLink from './EntityLink.svelte';
-  import { formatNumber, labelOf, questStartLabel, rarityTone, roleLabel, sourceKindLabel } from './format';
+  import { compareFacetValues, formatNumber, labelOf, questStartLabel, rarityTone, roleLabel, sourceKindLabel } from './format';
   import { sortRows, toggleSort, type SortState, type SortValue } from './table';
 
   export let list: StaticKindList;
@@ -30,7 +30,7 @@
 
   $: facetOptions = Object.fromEntries(kind.facets.map((facet) => [
     facet.id,
-    [...new Set(list.rows.flatMap((row) => row.facets[facet.id] ?? []))].sort((left, right) => left.localeCompare(right)),
+    [...new Set(list.rows.flatMap((row) => row.facets[facet.id] ?? []))].sort((left, right) => compareFacetValues(facet.id, left, right)),
   ]));
   $: numericColumns = visibleColumns.filter((column) => column.numeric);
   // A facet with one value in the whole list separates nothing, so the control leaves.
@@ -210,6 +210,9 @@
   .range { display: grid; grid-template-columns: 1fr auto 1fr; gap: .3rem; align-items: center; }
   .range legend { grid-column: 1 / -1; }
   .range span { color: var(--c-text-mute); }
+  /* Spin buttons cover the placeholder of a narrow range field. */
+  .range input { appearance: textfield; -moz-appearance: textfield; }
+  .range input::-webkit-inner-spin-button, .range input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
   .result-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .6rem; }
   .result-bar p { margin: 0; color: var(--c-text-dim); font-size: .82rem; }

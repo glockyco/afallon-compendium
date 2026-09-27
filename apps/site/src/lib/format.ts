@@ -1,6 +1,18 @@
 import { PUBLIC_MARKER_CATEGORY_LABELS, type CreatureLevel, type DropRow, type PublicLevel, type PublicMarkerCategory, type QuestObjective, type QuestStart, type RequirementGroup } from '@afallon/contracts/public';
 
 const RARITY_TONES: Record<string, true> = { common: true, uncommon: true, rare: true, gold: true, epic: true, legendary: true };
+// Rarity tiers from lowest to highest. Gold is the rarity of the Gold currency item alone, so it comes last.
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'gold'];
+
+/** Orders facet values: rarities by tier, everything else alphabetically. */
+export function compareFacetValues(facet: string, left: string, right: string): number {
+  if (facet === 'rarity') {
+    const rank = (value: string) => { const index = RARITY_ORDER.indexOf(value.toLocaleLowerCase()); return index < 0 ? RARITY_ORDER.length : index; };
+    const difference = rank(left) - rank(right);
+    if (difference !== 0) return difference;
+  }
+  return left.localeCompare(right);
+}
 const numberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 
 /**
