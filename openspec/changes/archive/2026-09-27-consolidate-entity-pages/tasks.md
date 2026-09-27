@@ -5,9 +5,9 @@
 - [x] 1.3 Supply spawner overrides, scene ranges, and producer details to publication level rules
 - [x] 1.4 Read property type, currency, purchase price, sale price, and income from typed for-sale sign references and reject conflicting signs
 - [x] 1.5 Generate item ownership phrases from catalog requirements
-- [ ] 1.6 Confirm the native interval and currency for property income and publish both
-- [ ] 1.7 Derive world loot drops on item pages from the native loot rule
-- [ ] 1.8 Explain the challenge completion effect in availability
+- [x] 1.6 Confirm the native interval and currency for property income and publish both
+- [x] 1.7 Derive world loot drops on item pages from the native loot rule
+- [x] 1.8 Explain the challenge completion effect in availability
 
 ## 2. Publication identity and relations
 
@@ -49,6 +49,6 @@
 
 ## 6. Verification and acceptance
 
-- [ ] 6.1 Rebuild the catalog from the rescan and publish a candidate
-- [ ] 6.2 Verify creature, ability, item, property, quest, map, and coverage pages in the browser
-- [ ] 6.3 Accept the publication
+- [x] 6.1 Rebuild the catalog from the rescan and publish a candidate
+- [x] 6.2 Verify creature, ability, item, property, quest, map, and coverage pages in the browser
+- [x] 6.3 Accept the publication

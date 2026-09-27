@@ -1,4 +1,10 @@
-## ADDED Requirements
+# item-property-presentation Specification
+
+## Purpose
+
+Define what item and property pages show: the in-game tooltip, gear sets, sources, and the purchase facts that the for-sale signs supply.
+
+## Requirements
 
 ### Requirement: Item pages embed gear sets
 
@@ -11,11 +17,11 @@ Gear sets SHALL have no separate page or list. An item that belongs to a gear se
 
 ### Requirement: An item page shows its tooltip and sources
 
-An item page SHALL show the in-game tooltip card with linked references. Its How to get it summary SHALL link to the source relation tables below. The summary SHALL include only source kinds with rows. A missing source SHALL be stated as unknown, not invented.
+An item page SHALL show the in-game tooltip card with linked references, with stack size, buy price, and a map link below it. The source relation tables SHALL follow beside the tooltip. A tooltip preview SHALL show a How to get it summary with only the source kinds that have rows. A missing source SHALL be stated as unknown, not invented.
 
 #### Scenario: Item has several sources
 - **WHEN** an item is dropped by a creature and sold by a vendor
-- **THEN** the acquisition summary links to its Dropped by and Sold by tables
+- **THEN** its page shows the Dropped by and Sold by tables beside the tooltip
 
 #### Scenario: No source is published
 - **WHEN** no source relation is published for an item

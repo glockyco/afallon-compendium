@@ -14,11 +14,19 @@ Every entity page SHALL use one header style. The header SHALL show only availab
 
 ### Requirement: Tooltips open beside their links
 
-On desktop, an entity tooltip SHALL start at `right-start` relative to its link. It SHALL try `left-start`, `bottom-start`, and `top-start` when needed, then shift inside the viewport. Its position and available height SHALL update when its document loads, the page scrolls, or the viewport resizes. On narrow screens, it SHALL use a fixed bottom overlay.
+On desktop, an entity tooltip SHALL start at `right-start` relative to its link. When the right side lacks room, it SHALL use `left-start`. It SHALL NOT open above or below its link, and it SHALL shift only vertically to stay inside the viewport. Its position and available height SHALL update when its document loads, the page scrolls, or the viewport resizes. Only one tooltip SHALL be open at a time, and a tooltip SHALL close when the pointer leaves both its link and the tooltip, even if the link has focus. On narrow screens, it SHALL use a fixed bottom overlay.
 
 #### Scenario: Nearby table rows
 - **WHEN** a reader opens a tooltip from a desktop relation-table row with room on the right
 - **THEN** the tooltip opens to the right of the link instead of covering the next rows
+
+#### Scenario: A link near the right edge
+- **WHEN** a reader opens a tooltip from a link with no room on its right
+- **THEN** the tooltip opens to the left of the link
+
+#### Scenario: Pointer moves to the next link
+- **WHEN** a reader clicks a link and then moves the pointer to another link
+- **THEN** the first tooltip closes and only the second tooltip stays open
 
 #### Scenario: Content loads after opening
 - **WHEN** a tooltip's document loads after the tooltip opens
