@@ -56,9 +56,8 @@ function questRow(document: PublicQuest): ListRow {
   const giver = starts.find((start) => start.kind === "npc");
   const range = document.facts.levelRange ? `${document.facts.levelRange.min}–${document.facts.levelRange.max}` : null;
   return { ref: document.ref,
-    values: { levelRange: range, levelRequirement: document.facts.levelRequirement ?? null, chain: document.facts.chain?.name ?? null,
-      startType: types.join(", ") || null, area: areas.join(", ") || null,
-      giver: giver?.kind === "npc" ? refName(giver.npc) : null, experience: document.facts.experience ?? null },
+    values: { levelRange: range, chain: document.facts.chain?.name ?? null, area: areas.join(", ") || null,
+      giver: giver?.kind === "npc" ? refName(giver.npc) : null },
     facets: { startType: types, area: areas, chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)] } };
 }
 

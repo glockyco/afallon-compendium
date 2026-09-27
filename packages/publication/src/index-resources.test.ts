@@ -69,7 +69,7 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
   }
 });
 
-test("quest rows expose the level range, start types, areas, giver, level, and experience for every column", () => {
+test("quest rows expose the level range, chain, areas, and giver for every column", () => {
   const quest: PublicQuest = {
     ref: { key: "quests:3", kind: "quests", name: "Trial", slug: "trial" }, description: null, art: {},
     facts: { repeatable: true, turnInWithoutNpc: false, requirements: [], chain: { name: "Pilgrimage", order: 2 }, levelRange: { min: 15, max: 30 }, levelRequirement: 16, experience: 120 },
@@ -82,8 +82,7 @@ test("quest rows expose the level range, start types, areas, giver, level, and e
   };
   const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "quests")!;
   const row = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[quest.ref.key, quest]])).get("quests")![0]!.rows[0]!;
-  expect(row.values).toEqual({ levelRange: "15–30", levelRequirement: 16, chain: "Pilgrimage", startType: "npc, worldZone, object",
-    area: "Cedar Ridge, Coalway Woods", giver: "Guardian", experience: 120 });
+  expect(row.values).toEqual({ levelRange: "15–30", chain: "Pilgrimage", area: "Cedar Ridge, Coalway Woods", giver: "Guardian" });
   expect(Object.keys(row.values).sort()).toEqual(registry.columns.map((column) => column.id).sort());
   expect(Object.keys(row.facets).sort()).toEqual(registry.facets.map((facet) => facet.id).sort());
   expect(row.facets).toEqual({ startType: ["npc", "worldZone", "object"], area: ["Cedar Ridge", "Coalway Woods"],
