@@ -93,7 +93,8 @@ export const AcceptedBuildDescriptorSchema = schemaRegistry.register("compendium
   catalog: Type.Object({ catalogId: Sha256, manifest: ContentIdentitySchema, object: ContentIdentitySchema }, { additionalProperties: false }),
   publication: Type.Object({
     manifest: ContentIdentitySchema,
-    root: Type.Object({ path: NonEmptyString, sha256: Sha256, bytes: Type.Integer({ minimum: 0 }), schemaId: Type.Literal("compendium.static-root.v4") }, { additionalProperties: false }),
+    // A descriptor names the root that its release accepted, and an older release accepted an older root schema.
+    root: Type.Object({ path: NonEmptyString, sha256: Sha256, bytes: Type.Integer({ minimum: 0 }), schemaId: Type.String({ pattern: "^compendium\\.static-root\\.v[0-9]+$" }) }, { additionalProperties: false }),
   }, { additionalProperties: false }),
   stage: Type.Object({
     schemaVersion: Type.Literal("afallon.deployment.v2"), publicationId: Sha256, buildId: NonEmptyString, catalogId: Sha256,

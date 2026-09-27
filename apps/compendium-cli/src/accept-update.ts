@@ -41,14 +41,16 @@ async function describeRollback(publicationRoot: string, selectionBytes: Buffer 
   const parsed: unknown = JSON.parse(selectionBytes.toString("utf8"));
   if (!parsed || typeof parsed !== "object" || !("root" in parsed) || !("directory" in parsed) || typeof parsed.directory !== "string") throw new Error("Selected publication is invalid.");
   Assert(StaticResourceReferenceSchema, parsed.root);
-  if (parsed.root.schemaId !== "compendium.static-root.v4") throw new Error("Selected publication has an unsupported root schema.");
+  // The rollback target was published by an earlier release, so its root can use an older schema. Rollback needs
+  // only its identity and build, so it reads the root by shape instead of by today's root schema.
+  if (!/^compendium\.static-root\.v\d+$/.test(parsed.root.schemaId)) throw new Error("Selected publication has an unsupported root schema.");
   const rootPath = resolve(publicationRoot, parsed.directory, "publication.json");
   const boundary = relative(publicationRoot, rootPath);
   if (boundary === "" || boundary.startsWith("..") || isAbsolute(boundary)) throw new Error("Selected publication root escapes the publication directory.");
   const rootBytes = await readFile(rootPath), rootIdentity = identity(rootBytes);
   if (rootIdentity.sha256 !== parsed.root.sha256 || rootIdentity.bytes !== parsed.root.bytes) throw new Error("Selected publication root identity does not match its file.");
   const rootValue: unknown = JSON.parse(rootBytes.toString("utf8"));
-  Assert(StaticRootManifestSchema, rootValue);
+  if (!rootValue || typeof rootValue !== "object" || !("buildId" in rootValue) || typeof rootValue.buildId !== "string") throw new Error("Selected publication root has no build.");
   const selectionIdentity = identity(selectionBytes);
   if (prior && (prior.buildId !== rootValue.buildId || prior.publication.root.sha256 !== rootIdentity.sha256 || prior.publication.root.bytes !== rootIdentity.bytes || prior.stage.selectionSha256 !== selectionIdentity.sha256 || prior.stage.publicationSha256 !== rootIdentity.sha256)) {
     throw new Error("Accepted-build descriptor does not match the selected publication.");
