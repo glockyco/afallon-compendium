@@ -26,17 +26,13 @@ function facetValue(value: string | null | undefined): string[] {
 }
 
 function itemRow(document: PublicItem): ListRow {
-  const sourceKinds = [document.droppedBy.length > 0 ? "drop" : null, document.soldBy.length > 0 ? "vendor" : null,
-    document.gatheredFrom.length > 0 ? "gather" : null, document.inContainers.length > 0 ? "container" : null,
-    document.collectedFrom.length > 0 ? "interaction" : null, document.rewardedBy.length > 0 ? "quest" : null,
-    document.craftedBy.length > 0 ? "recipe" : null].filter((value): value is string => value !== null);
   const slot = document.facts.slot ?? document.facts.weaponSlot;
   return {
     ref: document.ref,
+    // `rarity` colours the name.
     values: { rarity: document.facts.rarity ?? null, itemType: document.facts.itemType ?? null, slot: slot ?? null,
-      itemPower: document.facts.itemPower ?? null, damagePerSecond: document.facts.damagePerSecond ?? null,
-      levelRequirement: document.facts.levelRequirement ?? null, sellPrice: document.facts.sellPrice?.amount ?? null },
-    facets: { slot: facetValue(slot), itemType: facetValue(document.facts.itemType), rarity: facetValue(document.facts.rarity), sourceKind: sourceKinds },
+      itemPower: document.facts.itemPower ?? null, levelRequirement: document.facts.levelRequirement ?? null },
+    facets: { slot: facetValue(slot), itemType: facetValue(document.facts.itemType), rarity: facetValue(document.facts.rarity) },
   };
 }
 

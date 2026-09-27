@@ -109,11 +109,6 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   const itemList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")?.[0];
   const itemRow = itemList?.rows.find((row) => row.ref.key === "items:1");
   expect(itemRow).toMatchObject({ values: { slot: "MAIN HAND", itemPower: 99, levelRequirement: 27 }, facets: { slot: ["MAIN HAND"] } });
-  expect(itemRow?.values.damagePerSecond as number).toBeCloseTo(55.27777777777778);
-  expect(PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "items")?.columns).toEqual(expect.arrayContaining([
-    { id: "itemPower", label: "Item power", sortable: true, numeric: true },
-    { id: "damagePerSecond", label: "Damage per second", sortable: true, numeric: true },
-  ]));
   expect(npc.facts).not.toHaveProperty("species");
   expect(npc.facts.lootSpecialization).toEqual({ armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { key: "stats:5", kind: "stats", name: "Loot Stat" } });
   expect(item.droppedBy).toHaveLength(1);
@@ -248,7 +243,7 @@ test("projects only the armor branch when native weapon defaults remain", () => 
   expect(item.facts.itemPower).toBe(99);
   const itemList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")?.[0];
   expect(itemList?.rows.find((row) => row.ref.key === "items:1")).toMatchObject({
-    values: { slot: "GLOVES", itemPower: 99, damagePerSecond: null }, facets: { slot: ["GLOVES"] },
+    values: { slot: "GLOVES", itemPower: 99 }, facets: { slot: ["GLOVES"] },
   });
 });
 

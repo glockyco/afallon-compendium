@@ -25,7 +25,7 @@
   $: hasRequirements = rows.some((row) => row.requirements.length > 0);
   // How to read the loot columns, in the reader's own terms.
   $: notes = hasLevels || hasTables ? [
-    ...(hasTables ? ['A kill first makes a loot roll with the chance under Loot roll. If it succeeds, each item then drops with its own Chance, and the roll gives the number of items shown.'] : ['Each item drops with its own Chance.']),
+    ...(hasTables ? ['A kill first makes the loot roll. If it succeeds, each item of that loot table then rolls its own Chance, and the roll picks as many items as Loot roll shows. Quantity is the stack of one picked item.'] : ['Each item rolls its own Chance on a kill.']),
     ...(hasLevels ? ['Level: the creature levels that can drop the item.'] : []),
   ] : [];
   $: columns = [
