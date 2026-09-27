@@ -20,6 +20,7 @@
     "@deck.gl/core": "9.3.7",
     "@deck.gl/geo-layers": "9.3.7",
     "@deck.gl/layers": "9.3.7",
+    "@floating-ui/dom": "^1.8.0",
     "@math.gl/core": "4.1.0",
     "lucide": "0.577.0"
   },

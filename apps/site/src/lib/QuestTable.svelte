@@ -12,14 +12,28 @@
   export let heading = 'Quests';
   export let counterpartLabel = 'Entity';
   export let limit: number | undefined = undefined;
+  /** A table whose heading already names the role of every row, such as "Rewards", shows no role column. */
+  export let showRole = true;
 
-  $: columns = [
-    { id: 'target', label: counterpartLabel },
-    { id: 'role', label: 'Role or objective' },
-    { id: 'count', label: 'Count', numeric: true },
-  ] satisfies TableColumn[];
+  function roleText(row: QuestGivenRow | QuestRewardRow | QuestLinkRow): string {
+    if ('role' in row) return row.role === 'gives' ? 'Quest giver' : 'Quest turn-in';
+    if ('choice' in row) return row.choice ? 'Choose as reward' : 'Reward';
+    return 'Given by quest';
+  }
+
+  function countValue(row: QuestRelationRow): number | undefined {
+    if ('objective' in row) return 'count' in row.objective ? row.objective.count : undefined;
+    return 'count' in row ? row.count : undefined;
+  }
 
   $: visibleRows = limit === undefined ? rows : rows.slice(0, limit);
+  // A count of one says nothing, so the column appears only when some row has another count.
+  $: showCount = visibleRows.some((row) => { const count = countValue(row); return count !== undefined && count !== 1; });
+  $: columns = [
+    { id: 'target', label: counterpartLabel },
+    ...(showRole ? [{ id: 'role', label: 'Role or objective' }] : []),
+    ...(showCount ? [{ id: 'count', label: 'Count', numeric: true }] : []),
+  ] satisfies TableColumn[];
 </script>
 
 {#if rows.length > 0}
@@ -28,13 +42,13 @@
       {#each visibleRows as row}
         <tr>
           <td><EntityLink ref={row.counterpart} {registry} /></td>
-          <td>
-            {#if 'objective' in row}<ObjectiveText objective={row.objective} />
-            {:else if 'role' in row}{row.role === 'gives' ? 'Quest giver' : 'Quest turn-in'}
-            {:else if 'choice' in row}{row.choice ? 'Choose as reward' : 'Reward'}
-            {:else}Given by quest{/if}
-          </td>
-          <td class="c-num">{#if 'objective' in row && 'count' in row.objective}{row.objective.count}{:else if 'count' in row}{row.count}{/if}</td>
+          {#if showRole}
+            <td>
+              {#if 'objective' in row}<ObjectiveText objective={row.objective} />
+              {:else}{roleText(row)}{/if}
+            </td>
+          {/if}
+          {#if showCount}<td class="c-num">{countValue(row) ?? ''}</td>{/if}
         </tr>
       {/each}
     </DataTable>

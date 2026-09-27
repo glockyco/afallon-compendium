@@ -35,7 +35,7 @@
   {#if document.rewards.length}<section><h4>Rewards</h4><ul>{#each document.rewards as reward}<li><EntityReference ref={reward.counterpart} {registry} /><span>×{reward.count}</span></li>{/each}</ul></section>{/if}
   {#if document.rewardChoices.length}<section><h4>Choose one</h4><ul>{#each document.rewardChoices as reward}<li><EntityReference ref={reward.counterpart} {registry} /><span>×{reward.count}</span></li>{/each}</ul></section>{/if}
   {#if facts.objectiveText}<p class="quest-text">{facts.objectiveText}</p>{/if}
-  {#if facts.completedDescription}<p class="quest-text">{facts.completedDescription}</p>{/if}
+  {#if facts.completedDescription}<p class="quest-text completion-text">{facts.completedDescription}</p>{/if}
 </article>
 
 <style>
@@ -48,4 +48,5 @@
   li { display: flex; justify-content: space-between; gap: .5rem; }
   li span { color: var(--c-text-dim); }
   .quest-text { margin: .6rem 0 0; color: var(--c-text-dim); font-size: .8rem; line-height: 1.45; }
+  .completion-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
 </style>

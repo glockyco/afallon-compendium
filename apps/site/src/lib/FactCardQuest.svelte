@@ -14,7 +14,7 @@
   import QuestTable from './QuestTable.svelte';
   import RefList from './RefList.svelte';
   import Requirements from './Requirements.svelte';
-  import { formatDuration, formatNumber, levelText, objectiveLabel } from './format';
+  import { formatDuration, formatNumber, levelText } from './format';
 
   export let document: PublicQuest;
   export let registry: PublicKindEntry[];
@@ -22,9 +22,9 @@
   export let limit: number | undefined = undefined;
 
   const objectiveColumns: TableColumn[] = [
-    { id: 'task', label: 'Objective' }, { id: 'action', label: 'Action' },
-    { id: 'count', label: 'Count', numeric: true }, { id: 'completion', label: 'Completed at' },
+    { id: 'task', label: 'Objective' }, { id: 'count', label: 'Count', numeric: true },
   ];
+  const completionColumn: TableColumn = { id: 'completion', label: 'Completed at' };
   const worldColumns: TableColumn[] = [
     { id: 'source', label: 'Source' }, { id: 'kind', label: 'Kind' },
     { id: 'availability', label: 'Availability' }, { id: 'locations', label: 'Locations' },
@@ -50,6 +50,7 @@
   ] satisfies HeaderFact[];
   $: visibleStarts = limit === undefined ? document.starts : document.starts.slice(0, limit);
   $: visibleObjectives = limit === undefined ? document.objectives : document.objectives.slice(0, limit);
+  $: hasCompletions = visibleObjectives.some((objective) => objective.completions.length > 0);
   $: visibleWorldChanges = limit === undefined ? document.worldChanges : document.worldChanges.slice(0, limit);
   $: visibleChain = limit === undefined ? chainQuests : chainQuests.slice(0, limit);
   // A zone delay names its zones only when the quest has several zone starts to tell apart.
@@ -63,7 +64,6 @@
     fallbackIcon={registry.find((entry) => entry.kind === 'quests')?.icon}
     {badges}
     facts={headerFacts}
-    description={document.description}
   />
 
   <div class="c-stack">
@@ -108,11 +108,12 @@
       {#if facts.requirements.length}<Card title="Requirements"><Requirements requirements={facts.requirements} {registry} /></Card>{/if}
     </div>
 
-    {#if facts.objectiveText || facts.completedDescription}
+    {#if document.description || facts.objectiveText || facts.completedDescription}
       <Card title="Quest text">
         <FactGrid wide>
-          {#if facts.objectiveText}<Fact label="Objective">{facts.objectiveText}</Fact>{/if}
-          {#if facts.completedDescription}<Fact label="On completion">{facts.completedDescription}</Fact>{/if}
+          {#if document.description}<Fact label="Offer" full><span class="quest-prose">{document.description}</span></Fact>{/if}
+          {#if facts.objectiveText}<Fact label="Objective" full><span class="quest-prose">{facts.objectiveText}</span></Fact>{/if}
+          {#if facts.completedDescription}<Fact label="On completion" full><span class="quest-prose">{facts.completedDescription}</span></Fact>{/if}
         </FactGrid>
       </Card>
     {/if}
@@ -136,21 +137,20 @@
     {#if showRelations}
       {#if document.objectives.length}
         <Card title="Objectives" count={document.objectives.length}>
-          <DataTable columns={objectiveColumns}>
+          <DataTable columns={hasCompletions ? [...objectiveColumns, completionColumn] : objectiveColumns}>
             {#each visibleObjectives as objective}
               <tr>
-                <td><ObjectiveText {objective} /></td>
-                <td>{#if 'target' in objective}{objectiveLabel(objective.type)} <EntityLink ref={objective.target} {registry} />{/if}</td>
+                <td><ObjectiveText {objective} />{#if 'target' in objective}<div class="objective-target"><EntityLink ref={objective.target} {registry} /></div>{/if}</td>
                 <td class="c-num">{#if 'count' in objective}{objective.count}{/if}</td>
-                <td>{#each objective.completions as completion}<div class="completion">{completion.label ?? 'Interactive object'}<LocationLinks placements={completion.placements} /><Availability rules={completion.availability} {registry} /></div>{/each}</td>
+                {#if hasCompletions}<td>{#each objective.completions as completion}<div class="completion">{completion.label ?? 'Interactive object'}<LocationLinks placements={completion.placements} /><Availability rules={completion.availability} {registry} /></div>{/each}</td>{/if}
               </tr>
             {/each}
           </DataTable>
         </Card>
       {/if}
-      <QuestTable rows={document.itemsGiven} {registry} heading="Items given" counterpartLabel="Item" {limit} />
-      <QuestTable rows={document.rewards} {registry} heading="Rewards" counterpartLabel="Reward" {limit} />
-      <QuestTable rows={document.rewardChoices} {registry} heading="Choose one" counterpartLabel="Reward" {limit} />
+      <QuestTable rows={document.itemsGiven} {registry} heading="Items given" counterpartLabel="Item" showRole={false} {limit} />
+      <QuestTable rows={document.rewards} {registry} heading="Rewards" counterpartLabel="Reward" showRole={false} {limit} />
+      <QuestTable rows={document.rewardChoices} {registry} heading="Choose one" counterpartLabel="Reward" showRole={false} {limit} />
 
       {#if chainQuests.length}
         <Card title="Quest chain" count={chainQuests.length}>
@@ -182,9 +182,11 @@
   .start-list, .reference-list { display: grid; gap: .45rem; margin: 0; padding: 0; list-style: none; }
   .start-list > li { display: grid; justify-items: start; gap: .35rem; font-size: .85rem; }
   .detail { display: block; color: var(--c-text-dim); font-size: .78rem; }
+  .quest-prose { display: block; max-width: 70ch; white-space: pre-line; }
   .chain { display: grid; gap: .4rem; margin: 0; padding-left: 1.4rem; }
   .chain li { font-size: .85rem; }
   .chain strong { color: var(--c-text); }
+  .objective-target { margin-top: .35rem; }
   .completion { display: grid; gap: .25rem; }
   .completion + .completion { margin-top: .5rem; }
 </style>
