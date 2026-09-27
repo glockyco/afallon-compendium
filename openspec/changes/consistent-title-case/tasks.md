@@ -16,5 +16,5 @@
 ## 4. Verification and acceptance
 
 - [x] 4.1 Run `openspec validate consistent-title-case --strict`, `bunx tsc -b packages/contracts`, `bun run check`, `bun run --cwd apps/site check`, and `bun test ./packages ./apps`
-- [ ] 4.2 Publish a candidate and check the item, NPC, and quest filters, an item tooltip, an NPC page, a place page, and the map search in a browser
-- [ ] 4.3 Accept the publication
+- [x] 4.2 Publish a candidate and check the item, NPC, and quest filters, an item tooltip, an NPC page, a place page, and the map search in a browser
+- [x] 4.3 Accept the publication
