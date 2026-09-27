@@ -167,6 +167,11 @@ function within(bounds: { min: { x: number; y: number }; max: { x: number; y: nu
   return position[0] >= bounds.min.x && position[1] >= bounds.min.y && position[0] < bounds.max.x && position[1] < bounds.max.y;
 }
 
+// Objects that the game places at run time can shift slightly between two scans of one build; four interactables
+// moved by up to about 1 map unit on build 25434619. A correction may move a placement by less than this distance,
+// which is well under the size of a map marker.
+const PLACEMENT_CORRECTION_TOLERANCE = 2;
+
 export function assertCorrectedPublicationParity(candidate: PublicationSummary, baseline: PublicationSummary): void {
   const missingMaps = [...baseline.mapIds].filter((mapSpaceId) => !candidate.mapIds.has(mapSpaceId));
   if (missingMaps.length > 0) throw new Error(`Publication correction removes map spaces: ${missingMaps.join(", ")}.`);
@@ -189,8 +194,8 @@ export function assertCorrectedPublicationParity(candidate: PublicationSummary, 
     if (placement.mapSpaceId !== previous.mapSpaceId) return true;
     const candidateOffset = candidate.offsets.get(placement.mapSpaceId), baselineOffset = baseline.offsets.get(previous.mapSpaceId);
     if (!candidateOffset || !baselineOffset) return true;
-    return Math.abs((placement.position[0] - candidateOffset.worldX) - (previous.position[0] - baselineOffset.worldX)) > 1e-6
-      || Math.abs((placement.position[1] - candidateOffset.worldY) - (previous.position[1] - baselineOffset.worldY)) > 1e-6;
+    return Math.hypot((placement.position[0] - candidateOffset.worldX) - (previous.position[0] - baselineOffset.worldX),
+      (placement.position[1] - candidateOffset.worldY) - (previous.position[1] - baselineOffset.worldY)) > PLACEMENT_CORRECTION_TOLERANCE;
   });
   if (changedLocalPlacements.length > 0) throw new Error(`Publication correction changes local placement coordinates: ${changedLocalPlacements.slice(0, 20).map(([id]) => id).join(", ")}.`);
   const unexpectedRemovals = [...baseline.placementLocations].filter(([id, placement]) => {

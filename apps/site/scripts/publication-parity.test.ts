@@ -68,7 +68,7 @@ test("same-build corrections only remove placements outside exact game-map bound
   expect(() => assertCorrectedPublicationParity({ ...folded, placementLocations: new Map([["dungeon", { mapSpaceId: "world", position: [3, 2] as const, categories: ["travelPoint"] }]]) }, travelBaseline)).toThrow("in-bounds placements");
 });
 
-test("same-build corrections may move reviewed maps without changing local placement coordinates", () => {
+test("same-build corrections may move reviewed maps and shift placements only within the tolerance", () => {
   const baseline = summary();
   const relocated = summary({
     offsets: new Map([["world", { worldX: 0, worldY: 0 }], ["dungeon", { worldX: 101, worldY: 201 }]]),
@@ -82,7 +82,9 @@ test("same-build corrections may move reviewed maps without changing local place
     ]),
   });
   assertCorrectedPublicationParity(relocated, baseline);
-  relocated.placementLocations.set("placement-2", { mapSpaceId: "dungeon", position: [102, 202], categories: ["container"] });
+  relocated.placementLocations.set("placement-2", { mapSpaceId: "dungeon", position: [104, 204], categories: ["container"] });
+  assertCorrectedPublicationParity(relocated, baseline);
+  relocated.placementLocations.set("placement-2", { mapSpaceId: "dungeon", position: [105.9, 205.9], categories: ["container"] });
   expect(() => assertCorrectedPublicationParity(relocated, baseline)).toThrow("local placement coordinates");
 });
 
