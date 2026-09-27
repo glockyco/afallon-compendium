@@ -22,8 +22,14 @@
             if (row["chunkHold"] != null)
             {
                 if (!target.gameObject.activeInHierarchy) continue;
+                // The shown chunk put the loader within the player's load distance, and the game
+                // started it. A scene visit waits for such a load; an explicit visit must own its loads.
                 if (getAsset(target) != null || getLoading(target) || getHandle(target))
-                    throw new System.InvalidOperationException("A loader under a held chunk started its automatic load, so the visit does not own it.");
+                {
+                    if (!sceneMode) throw new System.InvalidOperationException("A loader under a held chunk started its automatic load, so the visit does not own it.");
+                    row["gameOwned"] = true;
+                    continue;
+                }
             }
             requestLoad(row, holdSecondsFloat);
             inFlight++;
