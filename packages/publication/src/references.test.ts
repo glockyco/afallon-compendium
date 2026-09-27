@@ -84,7 +84,7 @@ test("qualifies places of one name by the area of their entrance and numbers pla
     { transitionId: "t34", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:34", transitionKind: "effect-teleport", placementIds: ["d34"], start: null },
   ] };
   const { refs } = buildEntityReferences(entities, { facts, relations });
-  expect(["scenes:31", "scenes:32", "scenes:34", "scenes:43", "scenes:44"].map((key) => refs.get(key)?.name)).toEqual(["Cave (Coalway Woods 1)", "Cave (Coalway Woods 2)", "Cave (Oakenvale)", "Glacier Cave (1)", "Glacier Cave (lvl. 20–30)"]);
+  expect(["scenes:31", "scenes:32", "scenes:34", "scenes:43", "scenes:44"].map((key) => refs.get(key)?.name)).toEqual(["Cave (Coalway Woods 1)", "Cave (Coalway Woods 2)", "Cave (Oakenvale)", "Glacier Cave (1)", "Glacier Cave (Level 20–30)"]);
 });
 
 test("labels variants that no fact tells apart by their position and keeps native id anchors for them", () => {

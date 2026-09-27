@@ -1,5 +1,6 @@
 import type { CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogNpcFacts, CatalogPlacementRow, CatalogRelations } from "@afallon/contracts/catalog";
 import type { Art, EntityRef, NpcVariantField, PublicLevel, PublicReferenceKind, Ref, UnresolvedRef } from "@afallon/contracts/public";
+import { categoryLabel } from "@afallon/contracts/public";
 import { groupEntities, nameKey, type EntityGroup } from "./grouping";
 import { PUBLIC_KIND_BY_KIND } from "./kind-registry";
 import { levelText } from "./levels";
@@ -68,16 +69,14 @@ function slugify(value: string): string {
   return slug || "entry";
 }
 
-// Native enum values such as QUEST_COMPANION read as "Quest companion".
+// Native enum values such as QUEST_COMPANION read as category labels: "Quest Companion".
 function readableFact(value: string | null | undefined): string | undefined {
-  const text = plainText(value ?? "").replaceAll("_", " ").trim();
-  if (!text) return undefined;
-  const lower = text.toLocaleLowerCase();
-  return `${lower[0]!.toLocaleUpperCase()}${lower.slice(1)}`;
+  const text = plainText(value ?? "");
+  return text ? categoryLabel(text) : undefined;
 }
 
 function levelLabel(level: PublicLevel): string {
-  return `lvl. ${levelText(level)}`;
+  return `Level ${levelText(level)}`;
 }
 
 // A qualifier names at most this many areas or places. A longer list is not a readable name, so such a record takes
@@ -130,7 +129,7 @@ function itemCandidates(facts: CatalogFacts | undefined): ReadonlyMap<string, st
     labelsOf(items, (item) => readableFact(item.rarity)),
     labelsOf(items, gear),
     labelsOf(items, (item) => item.itemType === "WEAPON" && item.minDamage !== null && item.maxDamage !== null ? `${item.minDamage}–${item.maxDamage} damage` : undefined),
-    labelsOf(items, (item) => { const level = levelOf(item); return level !== undefined && level > 0 ? `lvl. ${level}` : undefined; }),
+    labelsOf(items, (item) => { const level = levelOf(item); return level !== undefined && level > 0 ? `Level ${level}` : undefined; }),
     labelsOf(items, (item) => item.stats.filter((row) => row.stat.entityKey !== "stats:53").slice(0, 3).map((row) => `${displayName(row.stat.label ?? "") || "Stat"} ${row.amount >= 0 ? "+" : ""}${row.amount}${row.isPercent ? "%" : ""}`).join(", ") || undefined),
   ];
 }
