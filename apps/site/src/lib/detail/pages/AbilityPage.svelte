@@ -21,7 +21,7 @@
 
   <Hero view="wide">
     <div slot="view" class="c-game-frame"><AbilityTooltip {document} variant={main.anchor} /></div>
-    {#if main.useRequirements.length}<FactList><FactRow label="Requirements"><Requirements requirements={main.useRequirements} {registry} /></FactRow></FactList>{/if}
+    {#if main.useRequirements.length}<FactList><FactRow label="Requirements"><Requirements requirements={main.useRequirements} {registry} kindLabels={false} /></FactRow></FactList>{/if}
   </Hero>
 
   <div class="c-sections">

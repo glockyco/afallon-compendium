@@ -35,7 +35,7 @@
               <div>{#if row.version.ranks.length > 1}<h3>Rank {rank.rankIndex + 1}</h3>{/if}<NativeText lines={rank.lines} /></div>
             {/each}
           </div>
-        {:else if column === 'requirements'}<Requirements requirements={row.version.useRequirements} {registry} />
+        {:else if column === 'requirements'}<Requirements requirements={row.version.useRequirements} {registry} kindLabels={false} />
         {:else if column === 'users'}{row.version.usedBy.length}{/if}
       </svelte:fragment>
     </RelationTable>

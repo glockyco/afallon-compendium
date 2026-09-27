@@ -5,6 +5,8 @@
   // Renders requirement groups and their text spans. The caller renders each referenced entity through the
   // default slot, because pages link entities and tooltips cannot import the linking component.
   export let requirements: RequirementGroup[];
+  /** False for use requirements, whose phrases such as "Ursine Aspect is active" read fully without a kind label. */
+  export let kindLabels = true;
 
   function conditionPrefix(requirement: RequirementRef): string {
     switch (requirement.type.name) {
@@ -25,7 +27,7 @@
     <li>
       {#if countLabel}<span class="count">{countLabel}</span>{/if}
       {#each group.requirements as requirement, index}
-        {@const prefix = conditionPrefix(requirement)}
+        {@const prefix = kindLabels ? conditionPrefix(requirement) : ''}
         {requirementSeparator(group, index)}<span class="condition">{#if prefix}<span class="kind">{prefix}</span>{' '}{/if}{#each requirement.spans as span}{#if 'ref' in span}<slot ref={span.ref} />{:else}{span.text}{/if}{/each}</span>
       {/each}
     </li>
