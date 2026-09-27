@@ -199,9 +199,10 @@
 </div>
 
 <style>
-  .filters { display: grid; gap: .75rem 1rem; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); align-items: end; margin: 0 0 1rem; padding: .9rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  .field { display: grid; gap: .3rem; margin: 0; padding: 0; border: 0; min-width: 0; }
-  .wide { grid-column: span 2; }
+  .filters { gap: .75rem 1rem; display: flex; flex-wrap: wrap; align-items: end; margin: 0 0 1rem; padding: .9rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  /* Fields grow to share one row and wrap only when the page is narrow. */
+  .field { display: grid; flex: 1 1 8.5rem; gap: .3rem; margin: 0; padding: 0; border: 0; min-width: 0; }
+  .wide { flex: 2 1 14rem; }
   .field > span, legend { padding: 0; color: var(--c-text-dim); font-size: .68rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
   input, select { width: 100%; min-height: 2.35rem; padding: .4rem .55rem; border: 1px solid #4c4d48; border-radius: var(--c-radius-sm); background: #151616; color: var(--c-text); }
   select { appearance: none; padding-right: 1.6rem; background-image: linear-gradient(45deg, transparent 50%, #9a968c 50%), linear-gradient(135deg, #9a968c 50%, transparent 50%); background-position: right 1rem center, right .65rem center; background-size: .35rem .35rem; background-repeat: no-repeat; }
@@ -221,8 +222,7 @@
   .badges { display: inline-flex; flex-wrap: wrap; gap: .3rem; }
 
   @media (max-width: 640px) {
-    .filters { grid-template-columns: 1fr; }
-    .wide { grid-column: auto; }
+    .filters { flex-direction: column; align-items: stretch; }
     .list { padding: 0; border: 0; background: none; }
     .list :global(.c-table-scroll) { overflow: visible; }
     .list :global(table), .list :global(tbody), .list :global(tr), .list :global(td) { display: block; min-width: 0; }
