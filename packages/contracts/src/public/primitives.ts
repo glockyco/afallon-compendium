@@ -43,10 +43,11 @@ export const PUBLIC_MARKER_CATEGORY_VALUES = [
 export type PublicMarkerCategory = typeof PUBLIC_MARKER_CATEGORY_VALUES[number];
 export const PUBLIC_MARKER_CATEGORY_LABELS: Readonly<Record<PublicMarkerCategory, string>> = {
   boss: "Boss", enemy: "Enemy", neutral: "Neutral", merchant: "Merchant", auctioneer: "Auctioneer", banker: "Banker", questGiver: "Quest giver",
-  townsfolk: "Townsfolk", craftingStation: "Crafting station", alchemyStation: "Alchemy station", cookingStation: "Cooking station", smithingStation: "Smithing station", furnace: "Furnace", tailoringStation: "Tailoring station", container: "Container", oreVein: "Ore Vein",
-  herb: "Herb", mushroom: "Mushroom", fishingSpot: "Fishing Spot", interactiveObject: "Interactive object",
+  townsfolk: "Townsfolk", craftingStation: "Crafting station", alchemyStation: "Alchemy station", cookingStation: "Cooking station", smithingStation: "Smithing station", furnace: "Furnace", tailoringStation: "Tailoring station", container: "Container", oreVein: "Ore vein",
+  herb: "Herb", mushroom: "Mushroom", fishingSpot: "Fishing spot", interactiveObject: "Interactive object",
   town: "Town", fort: "Fort", camp: "Camp", property: "Property", dungeonEntrance: "Dungeon entrance",
-  corruptionAltar: "Altar of corruption", challengeStone: "Challenge stone", graveyard: "Graveyard", flightPoint: "Flight point", travelPoint: "Travel point",
+  // Only flight master characters carry the flight point category, so the label names the character, as the map does.
+  corruptionAltar: "Altar of corruption", challengeStone: "Challenge stone", graveyard: "Graveyard", flightPoint: "Flight master", travelPoint: "Travel point",
 };
 export const publicMarkerCategory = Type.Union([
   Type.Literal("boss"),
