@@ -13,7 +13,7 @@ const input: ArtifactRunInput = {
   buildId: "25153357",
   operation: "scan",
   settings: { target: "current-scene" },
-  schemas: [{ id: "compendium.world-sources.v7", sha256: "a".repeat(64) }],
+  schemas: [{ id: "compendium.world-sources.v8", sha256: "a".repeat(64) }],
   implementationFingerprint: "b".repeat(64),
   cacheKey: "c".repeat(64),
   probeHashes: {},
@@ -45,7 +45,7 @@ test("failed manifests retain produced objects and failure evidence", async () =
   const run = await begin();
   const admittedPath = join(root, "runs", run.runId, "revisions", "00000000.json");
   const object = await run.putBytes(new TextEncoder().encode("partial evidence"));
-  await run.addArtifact("raw/world-sources.json", object, { mediaType: "application/json", schemaId: "compendium.world-sources.v7" });
+  await run.addArtifact("raw/world-sources.json", object, { mediaType: "application/json", schemaId: "compendium.world-sources.v8" });
   const failed = await run.fail(new Error("collector failed"));
 
   expect(failed).toMatchObject({ status: "failed", phase: "preparation", outputs: [{ name: "raw/world-sources.json", content: { sha256: object.sha256, bytes: object.bytes } }], failure: { name: "Error", message: "collector failed" } });

@@ -142,7 +142,7 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
 export function sourceDetails(contexts: readonly SceneContext[], sourcePlacement: ReadonlyMap<string, string>): NormalizedSourceDetail[] {
   const details: NormalizedSourceDetail[] = [];
   for (const context of contexts) {
-    for (const collection of ["resourceProducers", "interactions", "containers", "services", "questZones", "transitions", "conditionSources", "mapIcons", "mapZones", "unsupportedSources"] as const) for (const row of context.world[collection]) {
+    for (const collection of ["resourceProducers", "interactions", "containers", "services", "questZones", "transitions", "conditionSources", "mapIcons", "mapZones", "unsupportedSources", "randomActivators"] as const) for (const row of context.world[collection]) {
       if (!("source" in row) || !row.source || row.source.componentInstanceId === null) continue;
       const identity = context.sourceByComponent.get(row.source.componentInstanceId);
       if (!identity) continue;

@@ -45,7 +45,7 @@ schemaRegistry.register("compendium.scene-visit.v2", SceneVisitSchema);
 schemaRegistry.register("compendium.stream-visit.v1", StreamVisitSchema);
 schemaRegistry.register("compendium.stream-cleanup.v1", StreamCleanupSchema);
 schemaRegistry.register("compendium.world-inventory.v2", WorldInventorySchema);
-schemaRegistry.register("compendium.world-sources.v7", WorldSourcesSchema);
+schemaRegistry.register("compendium.world-sources.v8", WorldSourcesSchema);
 
 export * from "./artwork";
 export * from "./database";

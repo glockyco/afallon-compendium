@@ -11,6 +11,7 @@ export type WorldRoleRow = {
     | "services"
     | "conditionSources"
     | "unsupportedSources"
+    | "randomActivators"
     | "mapIcons";
   index: number;
   families: string[];
@@ -31,6 +32,7 @@ const collections: readonly Collection[] = [
   "services",
   "conditionSources",
   "unsupportedSources",
+  "randomActivators",
   "mapIcons",
 ];
 
@@ -705,14 +707,20 @@ function classifyCondition(row: RecordValue, rowPath: string, facts: FactBuilder
 function classifyUnsupported(row: RecordValue, rowPath: string, issues: RoleIssue[]): void {
   const family = typeof row.family === "string" ? row.family : "<missing>";
   issue(issues, "unsupportedSourceFamily", `World source family ${family} has no verified player-facing role semantics.`, [...refs(`${rowPath}/family`), ...sourceRefs(rowPath, row)]);
-  if (family === "randomActivator") {
-    const targets = array(row.targets);
-    if (row.targetCount === -1 || targets === null) issue(issues, "unsupportedTargetsUnavailable", "RandomActivator target rows are unavailable; native selection behavior remains unresolved.", refs(`${rowPath}/targets`, `${rowPath}/targetCount`));
-    else targets.forEach((target, index) => {
-      const targetRow = record(target);
-      if (targetRow === null || typeof targetRow.unavailable === "string") issue(issues, "unavailableUnsupportedTarget", targetRow?.unavailable as string ?? "RandomActivator target row is unavailable.", refs(`${rowPath}/targets/${index}`));
-    });
+}
+
+// A RandomActivator adds no role. The catalog models its selection from the target list, so only a missing target
+// list or target is an issue.
+function classifyRandomActivator(row: RecordValue, rowPath: string, issues: RoleIssue[]): void {
+  const targets = array(row.targets);
+  if (row.targetCount === -1 || targets === null) {
+    issue(issues, "randomActivatorTargetsUnavailable", "The RandomActivator target list is unavailable.", refs(`${rowPath}/targets`, `${rowPath}/targetCount`));
+    return;
   }
+  targets.forEach((target, index) => {
+    const targetRow = record(target);
+    if (targetRow === null || typeof targetRow.unavailable === "string") issue(issues, "randomActivatorTargetUnavailable", typeof targetRow?.unavailable === "string" ? targetRow.unavailable : "The RandomActivator target row is unavailable.", refs(`${rowPath}/targets/${index}`));
+  });
 }
 
 function classify(collection: Collection, row: RecordValue, rowPath: string): { families: string[]; facts: RoleFact[]; issues: RoleIssue[] } {
@@ -728,6 +736,7 @@ function classify(collection: Collection, row: RecordValue, rowPath: string): { 
     case "services": classifyService(row, rowPath, facts, issues); break;
     case "conditionSources": classifyCondition(row, rowPath, facts, issues); break;
     case "unsupportedSources": classifyUnsupported(row, rowPath, issues); break;
+    case "randomActivators": classifyRandomActivator(row, rowPath, issues); break;
     case "mapIcons": classifyMapIcon(row, rowPath, facts); break;
   }
   return { families: [family], facts: [...facts.values()], issues };

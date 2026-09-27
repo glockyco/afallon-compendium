@@ -9,6 +9,7 @@ var worldMapIcons = new System.Collections.Generic.List<object>();
 var worldServices = new System.Collections.Generic.List<object>();
 var worldConditionSources = new System.Collections.Generic.List<object>();
 var worldUnsupportedSources = new System.Collections.Generic.List<object>();
+var worldRandomActivatorRows = new System.Collections.Generic.List<object>();
 
 var worldCurrentGameScene = (Il2Cpp.RPGGameScene)null;
 try
@@ -2038,16 +2039,15 @@ for (var index = 0; index < worldRandomActivatorCount; index++)
             activeInHierarchy = targetObject.activeInHierarchy
         });
     }
-    unresolved.Add(new { kind = "unsupportedWorldSourceFamily", source = sourceEvidence, family = "randomActivator", detail = "The declaration exposes target GameObjects and numberToEnable, but runtime selection behavior is not verified; no stable placement roles are inferred." });
-    worldUnsupportedSources.Add(new
+    // RandomActivator.Start disables every listed GameObject, shuffles the list indices, and enables the first
+    // numberToEnable entries, clamped to the list length. A GameObject listed twice has two entries.
+    worldRandomActivatorRows.Add(new
     {
         source = sourceEvidence,
         family = "randomActivator",
-        disposition = "unsupported",
         targetCount = nativeTargetObjects == null ? -1 : targetObjectCount,
         numberToEnable = randomActivator.numberToEnable,
-        targets = targetObjects,
-        reason = "The declaration exposes target GameObjects and numberToEnable, but runtime selection behavior is not verified; no stable authored placement rule is emitted."
+        targets = targetObjects
     });
 }
 
@@ -2380,6 +2380,7 @@ var worldExportedTotal = new
     services = worldServices.Count,
     conditionSources = worldConditionSources.Count,
     unsupportedSources = worldUnsupportedSources.Count,
+    randomActivators = worldRandomActivatorRows.Count,
     mapZones = worldMapZones.Count,
     regions = worldRegions.Count,
     mapIcons = worldMapIcons.Count
@@ -2387,7 +2388,7 @@ var worldExportedTotal = new
 
 return new
 {
-    schemaVersion = "compendium.world-sources.v7",
+    schemaVersion = "compendium.world-sources.v8",
     coverage = new
     {
         scope = "currently loaded Unity scenes and candidate prefab assets visible to the current process",
@@ -2412,7 +2413,7 @@ return new
         "MapZone.map is a Texture and MapZone methods provide calibration values, but the declarations do not establish that its collider bounds are screenshot capture bounds.",
         "CraftingStation.station and PropertyForSaleSign.property are typed service references. This probe exports their authored records and does not infer service roles from object names.",
         "ActiveRequirement, TimedActiveRequirement, DisableRequirement, and EnhancedInteractableObject retain requirement predicates as condition evidence. Their runtime target state changes are not evaluated.",
-        "RandomActivator, InteractiveZone, and HeroicConsole remain explicit unsupported source families because their runtime behavior is not a stable typed placement or relationship in this probe."
+        "InteractiveZone and HeroicConsole remain explicit unsupported source families because their runtime behavior is not a stable typed placement or relationship in this probe."
     },
     resourceProducers = worldResourceProducers,
     interactions = worldInteractions,
@@ -2425,6 +2426,7 @@ return new
     services = worldServices,
     conditionSources = worldConditionSources,
     unsupportedSources = worldUnsupportedSources,
+    randomActivators = worldRandomActivatorRows,
     totals = new
     {
         source = worldSourceTotal,

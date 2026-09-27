@@ -22,7 +22,7 @@ function input(entrypoint: string): StepFingerprintInput {
     entrypoint,
     buildId: "25153357",
     settings: { target: "current-scene" },
-    schemas: [{ id: "compendium.world-sources.v7", sha256: "a".repeat(64) }],
+    schemas: [{ id: "compendium.world-sources.v8", sha256: "a".repeat(64) }],
     inputs: { inventory: { sha256: "b".repeat(64), bytes: 10 } },
   };
 }
@@ -50,7 +50,7 @@ test("fingerprints follow the executable dependency closure", async () => {
     expect(settingsChange.cacheKey).not.toBe(baseline.cacheKey);
     const inputChange = await fingerprintStep({ ...input(secondEntry), inputs: { inventory: { sha256: "c".repeat(64), bytes: 10 } } });
     expect(inputChange.cacheKey).not.toBe(baseline.cacheKey);
-    const schemaChange = await fingerprintStep({ ...input(secondEntry), schemas: [{ id: "compendium.world-sources.v7", sha256: "d".repeat(64) }] });
+    const schemaChange = await fingerprintStep({ ...input(secondEntry), schemas: [{ id: "compendium.world-sources.v8", sha256: "d".repeat(64) }] });
     expect(schemaChange.cacheKey).not.toBe(baseline.cacheKey);
 
     await writeFile(join(root, "second", "probe.csx"), 'public static class Probe { public const int Value = 2; }\n');

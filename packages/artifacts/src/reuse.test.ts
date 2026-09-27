@@ -13,7 +13,7 @@ function input(): ArtifactRunInput {
     buildId: "25153357",
     operation: "scan",
     settings: { target: "current-scene" },
-    schemas: [{ id: "compendium.world-sources.v7", sha256: "a".repeat(64) }],
+    schemas: [{ id: "compendium.world-sources.v8", sha256: "a".repeat(64) }],
     implementationFingerprint: "b".repeat(64),
     cacheKey: "c".repeat(64),
     probeHashes: { "world.csx": "d".repeat(64) },
@@ -44,7 +44,7 @@ test("reuse requires the complete cache identity and intact outputs", async () =
     expect(hit?.runId).toBe(source.runId);
     expect(await findReusableStep(store, { ...runInput, settings: { target: "build-scenes" } })).toBeNull();
     expect(await findReusableStep(store, { ...runInput, implementationFingerprint: "f".repeat(64) })).toBeNull();
-    expect(await findReusableStep(store, { ...runInput, schemas: [{ id: "compendium.world-sources.v7", sha256: "1".repeat(64) }] })).toBeNull();
+    expect(await findReusableStep(store, { ...runInput, schemas: [{ id: "compendium.world-sources.v8", sha256: "1".repeat(64) }] })).toBeNull();
     expect(await findReusableStep(store, { ...runInput, probeHashes: { "world.csx": "2".repeat(64) } })).toBeNull();
     expect(await findReusableStep(store, { ...runInput, inputs: { inventory: { sha256: "3".repeat(64), bytes: 10 } } })).toBeNull();
     expect(await findReusableStep(store, { ...runInput, cacheKey: "4".repeat(64) })).toBeNull();

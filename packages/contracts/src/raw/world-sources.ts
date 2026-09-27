@@ -710,16 +710,14 @@ const conditionSource = Type.Union([
   }),
 ]);
 
+const randomActivator = Type.Object({
+  source: sourceEvidence,
+  family: Type.Literal("randomActivator"),
+  targetCount: integer,
+  numberToEnable: integer,
+  targets: Type.Array(Type.Union([Type.Object({ sourceFieldPath: text, name: text, source: sourceEvidence, activeSelf: boolean, activeInHierarchy: boolean }), actionUnavailable])),
+});
 const unsupportedSource = Type.Union([
-  Type.Object({
-    source: sourceEvidence,
-    family: Type.Literal("randomActivator"),
-    disposition: Type.Literal("unsupported"),
-    targetCount: integer,
-    numberToEnable: integer,
-    targets: Type.Array(Type.Union([Type.Object({ sourceFieldPath: text, name: text, source: sourceEvidence, activeSelf: boolean, activeInHierarchy: boolean }), actionUnavailable])),
-    reason: text,
-  }),
   Type.Object({
     source: sourceEvidence,
     family: Type.Literal("interactiveZone"),
@@ -812,13 +810,14 @@ const exportedTotals = Type.Object({
   services: integer,
   conditionSources: integer,
   unsupportedSources: integer,
+  randomActivators: integer,
   mapZones: integer,
   regions: integer,
   mapIcons: integer,
 });
 
 export const WorldSourcesSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.world-sources.v7"),
+  schemaVersion: Type.Literal("compendium.world-sources.v8"),
   coverage: Type.Object({
     scope: text,
     fullGameCoverage: boolean,
@@ -846,6 +845,7 @@ export const WorldSourcesSchema = Type.Object({
   services: Type.Array(service),
   conditionSources: Type.Array(conditionSource),
   unsupportedSources: Type.Array(unsupportedSource),
+  randomActivators: Type.Array(randomActivator),
   totals: Type.Object({ source: sourceTotals, exported: exportedTotals, unresolved: integer }),
   unresolved: Type.Array(diagnostic),
 });

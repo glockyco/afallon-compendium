@@ -25,7 +25,7 @@ function context(snapshotId: string) {
       { source: source(6, "Toggle[3]"), family: "enhancedInteractableObject", targetSource: source(null, "A[1]/Spawner[1]") },
       { source: source(null, "Toggle[4]"), family: "activeRequirement", requirementSource: { value: 1, name: "RequirementGroup" }, targetSource: source(null, "A[1]/Spawner[1]") },
     ],
-    resourceProducers: [], containers: [], questZones: [], transitions: [], services: [], mapZones: [], regions: [], mapIcons: [], unsupportedSources: [],
+    resourceProducers: [], containers: [], questZones: [], transitions: [], services: [], mapZones: [], regions: [], mapIcons: [], unsupportedSources: [], randomActivators: [],
   };
   const producers = [
     { componentInstanceId: 7, source: { hierarchyPath: "A[1]/Spawner[1]" }, conditions: { selectedConditionSource: "inline-requirement-groups" } },

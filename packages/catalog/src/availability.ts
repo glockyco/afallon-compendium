@@ -63,7 +63,7 @@ export function collectSourceGates(contexts: readonly SceneContext[], conditions
   };
   for (const context of contexts) {
     const paths = new Map<string, string>();
-    for (const collection of ["resourceProducers", "interactions", "containers", "questZones", "transitions", "services", "conditionSources", "mapZones", "regions", "mapIcons", "unsupportedSources"] as const) for (const row of context.world[collection]) {
+    for (const collection of ["resourceProducers", "interactions", "containers", "questZones", "transitions", "services", "conditionSources", "mapZones", "regions", "mapIcons", "unsupportedSources", "randomActivators"] as const) for (const row of context.world[collection]) {
       if (!("source" in row) || row.source.componentInstanceId === null) continue;
       const identity = context.sourceByComponent.get(row.source.componentInstanceId);
       if (identity && row.source.source.hierarchyPath) paths.set(identity.sourceId, row.source.source.hierarchyPath);

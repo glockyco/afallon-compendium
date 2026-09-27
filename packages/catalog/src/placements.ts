@@ -91,7 +91,7 @@ export function collectPlacements(contexts: SceneContext[], profile: NormalizedD
     const containerPlacementsBySource = new Map<string, string>(), containerRolePlacementIds = new Set<string>();
     for (const placement of roleRows.placements) for (const role of placement.roles) if (role.role === "container") { containerRolePlacementIds.add(placement.placementId); for (const sourceId of role.sourceIds) containerPlacementsBySource.set(sourceId, placement.placementId); }
     const sourcesByPath = new Map<string, string[]>();
-    for (const collection of ["resourceProducers", "interactions", "containers", "services", "questZones", "transitions", "conditionSources", "mapIcons", "mapZones", "unsupportedSources"] as const) for (const value of context.world[collection]) {
+    for (const collection of ["resourceProducers", "interactions", "containers", "services", "questZones", "transitions", "conditionSources", "mapIcons", "mapZones", "unsupportedSources", "randomActivators"] as const) for (const value of context.world[collection]) {
       const row = record(value), source = row?.source, identity = sourceEvidenceRow(context, source), path = record(record(source)?.source)?.hierarchyPath;
       if (!identity || typeof path !== "string") continue;
       const sourceIds = sourcesByPath.get(path) ?? []; sourceIds.push(identity.sourceId); sourcesByPath.set(path, sourceIds);
