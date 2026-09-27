@@ -79,3 +79,16 @@ test("an unavailable record adds no fact", () => {
   const rows = normalizeProgression(withNull, reference, entityNames, []);
   expect(rows.progressionFacts.filter((row) => row.kind === "bonuses").map((row) => row.entityKey)).toEqual(["bonuses:7"]);
 });
+
+test("a class counts as offered only when a race names its record", () => {
+  const withRace = support({ ...fixture.tables, races: table([{ id: 1, name: "Dwarf", gameplay: { availableClasses: [{ sourceIndex: 0, classId: 0 }, { sourceIndex: 1, classId: 99 }] } }]) });
+  const blockers: Blocker[] = [];
+  const rows = normalizeProgression(withRace, reference, new Map([...entityNames, ["races:1", "Dwarf"]]), blockers);
+  expect(blockers.filter((row) => row.kind === "missing-reference" && row.key.includes("classes:99"))).toHaveLength(1);
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    populateNormalizedDatabase(db, { ...emptyInput, progressionFacts: rows.progressionFacts }, []);
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "catalog.v1", "{}", "f".repeat(64));
+    expect(queryCatalogFacts(db).records.progression.offeredClasses).toEqual(["classes:0"]);
+  } finally { db.close(); }
+});

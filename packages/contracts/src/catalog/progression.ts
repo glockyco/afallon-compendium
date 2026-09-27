@@ -93,6 +93,8 @@ export interface ProgressionBonus {
 
 export interface ProgressionTalentTree { tiers: number; treePoint: NormalizedReference | null }
 export interface ProgressionSpellbook { sourceType: ProgressionEnum }
+// The classes that a race offers, in authored order. A class without a record keeps its id in the label and has no key.
+export interface ProgressionRace { offeredClasses: NormalizedReference[] }
 
 export interface ProgressionAbility {
   abilityType: ProgressionEnum; learnedByDefault: boolean; requiresRangedWeapon: boolean;
@@ -111,6 +113,7 @@ export type ProgressionDetails =
   | { kind: "bonuses"; details: ProgressionBonus }
   | { kind: "talentTrees"; details: ProgressionTalentTree }
   | { kind: "spellbooks"; details: ProgressionSpellbook }
+  | { kind: "races"; details: ProgressionRace }
   | { kind: "abilities"; details: ProgressionAbility };
 export type ProgressionKind = ProgressionDetails["kind"];
 
@@ -140,4 +143,6 @@ export interface CatalogProgression {
   learners: CatalogProgressionLearner[];
   unlocks: CatalogProgressionUnlock[];
   appliers: CatalogProgressionApplier[];
+  // Keys of the classes that at least one race offers.
+  offeredClasses: string[];
 }

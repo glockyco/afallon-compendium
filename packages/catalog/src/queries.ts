@@ -310,8 +310,11 @@ export function queryCatalogDerivations(db: Database, factKind: string, factKey:
   return { ...identity(db), records: row ? { factKind, factKey, rule: row.rule, version: row.version, inputs: JSON.parse(row.inputs_json) } : null };
 }
 
+// Talents, level templates, talent points, and spellbooks are progression records without entity rows. Their names let
+// requirements name them instead of showing a record id.
 function entityEndpointIndex(db: Database): Map<string, CatalogEndpoint> {
-  return new Map(db.query<{ entity_key: string; name: string | null }, []>("SELECT entity_key, name FROM canonical_entities ORDER BY entity_key").all().map((row) => [row.entity_key, { entityKey: row.entity_key, label: row.name }]));
+  const rows = db.query<{ entity_key: string; name: string | null }, []>("SELECT entity_key, name FROM canonical_entities UNION ALL SELECT entity_key, name FROM progression_facts WHERE kind IN ('bonuses', 'levels', 'treePoints', 'spellbooks') ORDER BY entity_key").all();
+  return new Map(rows.map((row) => [row.entity_key, { entityKey: row.entity_key, label: row.name }]));
 }
 function endpoint(index: ReadonlyMap<string, CatalogEndpoint>, key: string | null, label: string | null): CatalogEndpoint {
   if (key !== null) return index.get(key) ?? { entityKey: null, label: label ?? key };
@@ -721,7 +724,8 @@ function queryProgression(db: Database): CatalogProgression {
   learners.sort((a, b) => a.ability.localeCompare(b.ability) || a.owner.label.localeCompare(b.owner.label) || order(a.level) - order(b.level) || order(a.tier) - order(b.tier) || order(a.row) - order(b.row) || a.via.localeCompare(b.via));
   unlocks.sort((a, b) => a.target.localeCompare(b.target) || (a.owner?.label ?? "").localeCompare(b.owner?.label ?? "") || a.tier - b.tier || a.row - b.row);
   appliers.sort((a, b) => a.effect.localeCompare(b.effect) || a.source.label.localeCompare(b.source.label) || order(a.rank) - order(b.rank) || a.via.localeCompare(b.via));
-  return { facts, links, talentNodes, spellbookNodes, learners, unlocks, appliers };
+  const offeredClasses = [...new Set(facts.flatMap((fact) => fact.kind === "races" ? fact.details.offeredClasses.flatMap((row) => row.entityKey === null ? [] : [row.entityKey]) : []))].sort();
+  return { facts, links, talentNodes, spellbookNodes, learners, unlocks, appliers, offeredClasses };
 }
 
 function enumName(value: string): string {
@@ -745,6 +749,17 @@ function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSp
     const state: Record<string, string> = { onGoing: "in progress", completed: "completed", abandonned: "abandoned", failed: "failed", turnedIn: "turned in", Tracked: "tracked", TrackedOngoing: "in progress and tracked", TrackedCompleted: "completed and tracked" };
     if (requirement.questState) text(` ${state[requirement.questState.name] ?? requirement.questState.name}`);
   } else if (requirement.type.name === "Level") text(`Level ${numberPhrase}`);
+  else if (requirement.type.name === "Bonus" || requirement.type.name === "Ability") {
+    // "Weighted Strikes rank 4 or higher", "Cleave learned". Rank 0 means any rank.
+    reference(requirement.type.name === "Bonus" ? requirement.references.bonus : requirement.references.ability, requirement.type.name === "Bonus" ? "Unresolved talent" : "Unresolved ability");
+    if (requirement.knowledge?.name === "NotKnown") text(" not learned");
+    else if (amount > 0 && requirement.value?.name === "EqualOrAbove") text(` rank ${amount} or higher`);
+    else if (amount > 0) text(` rank ${amount}`);
+    else text(" learned");
+  } else if (requirement.type.name === "StatCost") {
+    text(`Costs ${amount}${requirement.amounts.isPercent ? "%" : ""} `);
+    reference(requirement.references.stat, "Unresolved stat");
+  }
   else if (requirement.type.name === "Class") reference(requirement.references.class, "Unresolved class");
   else if (requirement.type.name === "Race") reference(requirement.references.race, "Unresolved race");
   else if (requirement.type.name === "Species") reference(requirement.references.species, "Unresolved species");

@@ -38,7 +38,7 @@ const equipmentRequirements = [
 
 const facts: CatalogFacts = {
   entities,
-  progression: { facts: [], links: [], talentNodes: [], spellbookNodes: [], learners: [], unlocks: [], appliers: [] },
+  progression: { facts: [], links: [], talentNodes: [], spellbookNodes: [], learners: [], unlocks: [], appliers: [], offeredClasses: [] },
   items: [{ entityKey: "items:1", rarity: "Rare", itemType: "WEAPON", armorSlot: "BELT", weaponSlot: "MAIN HAND", weaponType: "One handed sword", armorType: "CLOTH",
     attackSpeed: 1.8, minDamage: 75, maxDamage: 124, stats: [
       { stat: { entityKey: "stats:53", label: "Item power" }, amount: 99, isPercent: false },

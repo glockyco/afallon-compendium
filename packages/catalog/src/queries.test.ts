@@ -307,3 +307,20 @@ test("joins world offers, object starts, objective completions, availability, in
     expect(queryContainment(db).records.map((row) => row.area)).toEqual(["Camp", "Camp"]);
   } finally { db.close(); }
 });
+
+test("progression requirements name talents, learned abilities, and costs", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "catalog.v1", "{}", "e".repeat(64));
+    db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("build", "abilities", 0, "abilities:0", "Cleave", null, null, null, "{}", "[]", "build", "stats", 121, "stats:121", "Mana", null, null, null, "{}", "[]");
+    db.query("INSERT INTO progression_facts VALUES (?, ?, ?, ?, ?)").run("bonuses:288", "bonuses", "Weighted Strikes", "{}", "[]");
+    const named = (value: number, name: string) => ({ value, name });
+    const group = (requirement: unknown) => JSON.stringify({ groups: [{ checkCount: false, requiredCount: 0, requirements: [{ conditionRule: "Mandatory", knowledge: named(0, "Known"), ...(requirement as object) }] }] });
+    const insert = db.query("INSERT INTO conditions(condition_id, build_id, owner_type, owner_key, ordinal, semantics, scope, source_field_path, payload_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    insert.run("a-rank", "build", "talentTreeNode", "talentTrees:18:3", 0, "inline-requirements", null, "/rank", group({ requirementType: "Bonus", bonusID: 288, amount1: 4, value: named(3, "EqualOrAbove") }), "[]");
+    insert.run("b-learned", "build", "talentTreeNode", "talentTrees:0:2", 0, "inline-requirements", null, "/learned", group({ requirementType: "Ability", abilityID: 0, amount1: 0, value: named(0, "Equal") }), "[]");
+    insert.run("c-cost", "build", "abilityRank", "abilities:362:0", 0, "inline-requirements", null, "/cost", group({ requirementType: "StatCost", statID: 121, amount1: 9, value: named(0, "Equal") }), "[]");
+    expect(queryConditions(db).records.map((condition) => condition.label)).toEqual(["Weighted Strikes rank 4 or higher", "Cleave learned", "Costs 9 Mana"]);
+  } finally { db.close(); }
+});

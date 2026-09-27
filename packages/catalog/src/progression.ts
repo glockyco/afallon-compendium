@@ -52,13 +52,14 @@ const FactionSchema = Type.Object({ showInReputation: boolean, stances: indexed(
 const TreePointSchema = Type.Object({ startAmount: integer, maxPoints: integer, gainRules: indexed(Type.Object({ gainType: valueEnum, amount: integer, classId: integer, skillId: integer, itemId: integer, itemCount: integer, npcId: integer, weaponTemplateId: integer })) });
 const BonusSchema = Type.Object({ learnedByDefault: boolean, ranks: list(Type.Object({ rankIndex: integer, unlockCost: integer, isEmpty: boolean, emptyTooltip: nullableText, requirements: requirementGroups, statEffects: stat, petStatEffects: indexed(Type.Object({ targetType: valueEnum, npcId: integer, speciesId: integer, statId: integer, amount: number, isPercent: boolean })) })) });
 const TalentTreeSchema = Type.Object({ tiers: integer, treePointId: integer, nodes: indexed(Type.Object({ nodeType: valueEnum, abilityId: integer, recipeId: integer, resourceNodeId: integer, bonusId: integer, tier: integer, row: integer, requirements: requirementGroups })) });
+const RaceSchema = Type.Object({ availableClasses: indexed(Type.Object({ classId: integer })) });
 const SpellbookSchema = Type.Object({ sourceType: valueEnum, nodes: indexed(Type.Object({ nodeType: valueEnum, abilityId: integer, bonusId: integer, unlockLevel: integer })) });
 const AbilitySchema = Type.Object({
   abilityType: valueEnum, learnedByDefault: boolean, requiresRangedWeapon: boolean,
   rankMechanics: list(Type.Object({ rankIndex: integer, unlockCost: integer, activationType: valueEnum, castTime: number, channelTime: number, cooldown: number, usesGlobalCooldown: boolean, minRange: number, maxRange: number, targetType: valueEnum, areaRadius: number, coneDegree: number, coneRange: number, projectileCount: integer, maxUnitsHit: integer, effectsApplied: applied, casterEffectsApplied: applied, requirements: requirementGroups })),
 }, { additionalProperties: true });
 
-for (const [name, schema] of [["class", ClassSchema], ["skill", SkillSchema], ["level-template", LevelSchema], ["effect", EffectSchema], ["enchantment", EnchantmentSchema], ["stat", StatSchema], ["faction", FactionSchema], ["tree-point", TreePointSchema], ["bonus", BonusSchema], ["talent-tree", TalentTreeSchema], ["spellbook", SpellbookSchema], ["ability", AbilitySchema]] as const) schemaRegistry.register(`compendium.catalog-${name}-progression.v1`, schema);
+for (const [name, schema] of [["class", ClassSchema], ["skill", SkillSchema], ["level-template", LevelSchema], ["effect", EffectSchema], ["enchantment", EnchantmentSchema], ["stat", StatSchema], ["faction", FactionSchema], ["tree-point", TreePointSchema], ["bonus", BonusSchema], ["talent-tree", TalentTreeSchema], ["spellbook", SpellbookSchema], ["race", RaceSchema], ["ability", AbilitySchema]] as const) schemaRegistry.register(`compendium.catalog-${name}-progression.v1`, schema);
 
 type Rows<T> = Static<typeof unavailableList> | Array<T | Static<typeof unavailableRow>>;
 
@@ -249,6 +250,10 @@ export function normalizeProgression(support: Support, reference: ArtifactRefere
       const nodeType = named(row.nodeType, `${nodePath}/nodeType`);
       out.spellbookNodes.push({ bookKey: key, nodeIndex: row.sourceIndex, nodeType, target: nodeTarget(nodeType.name, { ability: row.abilityId, bonus: row.bonusId }, nodePath), unlockLevel: row.unlockLevel, provenance: [pointer(reference, nodePath)] });
     }
+  });
+  each("races", (key, gameplay, path) => {
+    const value = decode(RaceSchema, gameplay, path);
+    fact({ entityKey: key, kind: "races", details: { offeredClasses: rows(value.availableClasses, `${path}/availableClasses`).map(({ row, path: rowPath }) => required("classes", row.classId, `${rowPath}/classId`)) } }, path);
   });
   each("abilities", (key, gameplay, path) => {
     const value = decode(AbilitySchema, gameplay, path);

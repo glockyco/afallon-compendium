@@ -197,7 +197,7 @@ foreach (var pair in database.GetArmorSlots())
     armorSlots.Add(new { sourceKey = armorSlot.ID, entry = projectSupportEntry(armorSlot, null), gameplay = new { itemSlot = itemSlot == null ? (object)null : new { nativeId = itemSlot.ID, name = itemSlot.entryDisplayName ?? itemSlot.entryName } } });
 }
 var races = new System.Collections.Generic.List<object>();
-foreach (var pair in database.GetRaces()) { if (pair.Value == null) { races.Add(NullRecord("Races", pair.Key)); continue; } races.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "race") }); }
+foreach (var pair in database.GetRaces()) { if (pair.Value == null) { races.Add(NullRecord("Races", pair.Key)); continue; } races.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "race"), gameplay = new { availableClasses = ListOf(pair.Value.availableClasses, At("GameDatabase.Races", pair.Key) + ".availableClasses", (row, index, rowPath) => (object)new { sourceIndex = index, classId = row.classID }) } }); }
 var levels = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetLevels())
 {
