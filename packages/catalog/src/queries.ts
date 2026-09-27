@@ -634,7 +634,23 @@ export function queryContainment(db: Database): CatalogQueryResult<CatalogPlacem
 }
 
 export function queryTransitions(db: Database): CatalogQueryResult<CatalogTransitionRow[]> {
-  const records = db.query<{ transition_id: string; source_scene_native_id: number | null; destination_scene_entity_key: string | null; transition_kind: string; source_id: string | null }, []>("SELECT transition_id, source_scene_native_id, destination_scene_entity_key, transition_kind, source_id FROM transitions ORDER BY transition_id").all().map((row) => ({ transitionId: row.transition_id, sourceSceneKey: row.source_scene_native_id === null ? null : `scenes:${row.source_scene_native_id}`, destinationSceneKey: row.destination_scene_entity_key, transitionKind: row.transition_kind, placementIds: row.source_id === null ? [] : db.query<{ placement_id: string }, [string]>("SELECT placement_id FROM placement_sources WHERE source_id = ? ORDER BY placement_id").all(row.source_id).map((placement) => placement.placement_id) }));
+  const placementIds = db.query<{ placement_id: string }, [string]>("SELECT placement_id FROM placement_sources WHERE source_id = ? ORDER BY placement_id");
+  const records = db.query<{ transition_id: string; source_scene_native_id: number | null; destination_scene_entity_key: string | null; transition_kind: string; source_id: string | null; map_space_id: string | null; map_x: number | null; map_y: number | null; world_x: number | null; world_y: number | null; world_z: number | null }, []>(
+    `SELECT t.transition_id, t.source_scene_native_id, t.destination_scene_entity_key, t.transition_kind, t.source_id, p.map_space_id, p.map_x, p.map_y, p.world_x, p.world_y, p.world_z
+     FROM transitions t LEFT JOIN source_identities s ON s.source_id = t.source_id LEFT JOIN placements p ON p.placement_id = s.placement_id
+     ORDER BY t.transition_id`,
+  ).all().map((row): CatalogTransitionRow => ({
+    transitionId: row.transition_id,
+    sourceSceneKey: row.source_scene_native_id === null ? null : `scenes:${row.source_scene_native_id}`,
+    destinationSceneKey: row.destination_scene_entity_key,
+    transitionKind: row.transition_kind,
+    placementIds: row.source_id === null ? [] : placementIds.all(row.source_id).map((placement) => placement.placement_id),
+    start: row.world_x === null || row.world_y === null || row.world_z === null ? null : {
+      mapSpaceId: row.map_space_id,
+      mapPosition: row.map_x === null || row.map_y === null ? null : [row.map_x, row.map_y],
+      worldPosition: [row.world_x, row.world_y, row.world_z],
+    },
+  }));
   return { ...identity(db), records };
 }
 

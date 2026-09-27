@@ -408,6 +408,9 @@ export interface CatalogTransitionRow {
   destinationSceneKey: string | null;
   transitionKind: string;
   placementIds: string[];
+  // The object that starts the transition, when the scan identified it. `mapPosition` is null when the object has no
+  // position on a map.
+  start: { mapSpaceId: string | null; mapPosition: [number, number] | null; worldPosition: [number, number, number] } | null;
 }
 
 export interface CatalogRelations {

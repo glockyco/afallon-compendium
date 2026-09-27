@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Assert } from "typebox/value";
 import {
-  ArtRefSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, VendorRowSchema,
+  ArtRefSchema, ConnectionRowSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, VendorRowSchema,
   PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
   type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe,
@@ -18,7 +18,7 @@ const unresolved: UnresolvedRef = { key: null, label: "Unknown item 9999" };
 const placement = { placementId: "p1", mapSpaceId: "map", label: "Duskfall Depths" };
 const requirement = (type: string, label: string, fields: Record<string, unknown> = {}) => ({ type: { value: 0, name: type }, rule: { value: 0, name: "Mandatory" }, label, spans: [{ text: label }], ...fields });
 const legacySchemaIds = {
-  items: "compendium.static-item.v3", npcs: "compendium.static-npc.v3", quests: "compendium.static-quest.v3", places: "compendium.static-place.v3",
+  items: "compendium.static-item.v3", npcs: "compendium.static-npc.v3", quests: "compendium.static-quest.v3", places: "compendium.static-place.v4",
   properties: "compendium.static-property.v2", abilities: "compendium.static-ability.v2", recipes: "compendium.static-recipe.v2",
 } as const;
 
@@ -58,6 +58,9 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
   Assert(GatherRowSchema, { label: "Copper vein", rank: 1, min: 1, max: 2, placementCount: 345 });
   Assert(ContainerRowSchema, { counterpart: unresolved, label: "Chest", availability: [{ effect: "requires", requirements: [{ mode: "all", checkCount: false, requirements: [requirement("Class", "Warrior")] }] }], placementCount: 53 });
   Assert(RecipeRowSchema, { counterpart: item, count: 1 });
+  Assert(ConnectionRowSchema, { counterpart: unresolved, direction: "to", placements: [placement] });
+  expect(() => Assert(ConnectionRowSchema, { counterpart: boss, kind: "effect-teleport", placements: [] })).toThrow();
+  expect(() => Assert(ConnectionRowSchema, { counterpart: boss, direction: "both", placements: [] })).toThrow();
   Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 0, text: "Kill 3 Branchweavers", completions: [], type: "killNpc", target: boss, count: 3 } });
   Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 1, text: "?", completions: [], type: "unsupported", rawType: "customTask" } });
   expect(() => Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 0, text: "x", completions: [], type: "killNpc", target: boss } })).toThrow();

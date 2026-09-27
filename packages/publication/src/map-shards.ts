@@ -327,7 +327,15 @@ export interface GeneratedMapShard {
 /** The page that shows a creature record, by record key. */
 export type PageOfRecord = ReadonlyMap<string, { key: string; name: string }>;
 
-export async function generateMapShards(db: Database, store: ArtifactStore, pageOf: PageOfRecord, worldOffsets: readonly PublicWorldOffset[] = [], protection?: ObjectWriteProtection, publishedMapSpaceIds?: ReadonlySet<string>, publishedExtents?: ReadonlyMap<string, readonly [number, number, number, number]>): Promise<GeneratedMapShard[]> {
+/** The extent of the game map of a map space: minimum x, minimum y, maximum x, and maximum y, in map coordinates. */
+export type MapExtent = readonly [number, number, number, number];
+
+/** Whether a map position lies outside the game map. The map shows nothing outside its extent. */
+export function outsideExtent(position: readonly [number, number], extent: MapExtent): boolean {
+  return position[0] < extent[0] || position[1] < extent[1] || position[0] >= extent[2] || position[1] >= extent[3];
+}
+
+export async function generateMapShards(db: Database, store: ArtifactStore, pageOf: PageOfRecord, worldOffsets: readonly PublicWorldOffset[] = [], protection?: ObjectWriteProtection, publishedMapSpaceIds?: ReadonlySet<string>, publishedExtents?: ReadonlyMap<string, MapExtent>): Promise<GeneratedMapShard[]> {
   const offsets = new Map(worldOffsets.map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }]));
   const maps = queryCatalogMaps(db);
   const spatial = queryCatalogSpatialContext(db).records;
@@ -344,7 +352,7 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
     const extent = publishedExtents?.get(map.mapSpaceId);
     const npcLevels = new Map<string, ReadonlyMap<string, PublicLevel>>();
     const unfoldedPlacements: ProjectedPlacement[] = foldMapIcons(queried.records.placements).flatMap((placement) => {
-      if (extent && (placement.position[0] < extent[0] || placement.position[1] < extent[1] || placement.position[0] >= extent[2] || placement.position[1] >= extent[3])) return [];
+      if (extent && outsideExtent(placement.position, extent)) return [];
       const recordKeys = [...new Set(placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [role.npcEntityKey]))].sort();
       const entityKeys = [...new Set([...recordKeys.map((key) => pageOf.get(key)?.key ?? key), ...propertiesSold(placement)])].sort();
       const serviceData = recordKeys.map((key) => record(gameplayByEntity.get(key)));

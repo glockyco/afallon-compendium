@@ -91,7 +91,7 @@ export async function buildStaticPublication(
     regionIdsByMapSpace.set(entry.summary.mapSpaceId, [...regionIds].sort());
   }
   const placementIdsByKey = new Map([...placementIdsByKeySets].map(([key, ids]) => [key, [...ids].sort()]));
-  const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, regionIdsByMapSpace, npcLevels, protection);
+  const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, regionIdsByMapSpace, npcLevels, publishedExtents, protection);
   const identity = queryCatalogMaps(db);
   assertCompleteTooltipCoverage(gate.complete, indexes.publicationIssues);
   const coverage: StaticCoverage = {

@@ -72,7 +72,7 @@ const relations: CatalogRelations = {
     { containerType: "Chest", sourceId: "container-2", place: { entityKey: "scenes:10", label: "Crypt" }, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, availability: [], placementIds: ["p2"] },
   ], interactions: [], quests: [], recipes: [],
   placements: [{ placementId: "p1", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Guardian", area: null, roles: [{ role: "boss", npcEntityKey: "npcs:2", scope: "authored" }], families: [], randomChoices: [] }],
-  transitions: [{ transitionId: "transition-1", sourceSceneKey: "scenes:10", destinationSceneKey: null, transitionKind: "entrance", placementIds: ["p2"] }],
+  transitions: [{ transitionId: "transition-1", sourceSceneKey: "scenes:10", destinationSceneKey: null, transitionKind: "effect-teleport", placementIds: ["p2"], start: null }],
   conditions: [{ conditionId: "oathbreaker", semantics: "equipment", scope: "equipment", label: "Requirements", requirements: equipmentRequirements }], gatedSources: [],
 };
 
@@ -167,6 +167,20 @@ test("a place lists the properties whose for-sale signs stand in it", () => {
   const place = documents.get("scenes:10") as PublicPlace;
   expect(place.properties.map((ref) => "name" in ref ? ref.name : ref.label)).toEqual(["Crypt Cottage"]);
   expect((documents.get("properties:30") as PublicProperty).place).toMatchObject({ key: "scenes:10", name: "Crypt" });
+});
+
+test("a place lists each teleport with its direction and the spots where it starts", () => {
+  const placeEntities: CatalogEntityRow[] = [...entities, { entityKey: "scenes:47", kind: "scenes", nativeId: 47, name: "Afallon", description: null, iconAssetName: null, artwork: [] }];
+  const teleport = (transitionId: string, sourceSceneKey: string, destinationSceneKey: string, placementIds: string[]) => ({ transitionId, sourceSceneKey, destinationSceneKey, transitionKind: "effect-teleport", placementIds, start: null });
+  const { documents } = project(placeEntities, facts, { ...relations, transitions: [
+    teleport("into-crypt", "scenes:47", "scenes:10", ["door"]), teleport("out-of-crypt", "scenes:10", "scenes:47", ["exit"]), teleport("inside-crypt", "scenes:10", "scenes:10", []),
+  ] }, new Map([
+    ["door", { placementId: "door", mapSpaceId: "world", label: "Afallon", categories: ["travelPoint"] }],
+    ["exit", { placementId: "exit", mapSpaceId: "crypt", label: "Crypt", categories: ["travelPoint"] }],
+  ]), new Map([["world", []]]));
+  const rows = (key: string) => (documents.get(key) as PublicPlace).connections.map((row) => [row.direction, row.counterpart.key, row.placements.map((placement) => placement.placementId)]);
+  expect(rows("scenes:10")).toEqual([["from", "scenes:47", ["door"]], ["to", "scenes:47", ["exit"]], ["within", "scenes:10", []]]);
+  expect(rows("scenes:47")).toEqual([["to", "scenes:10", ["door"]], ["from", "scenes:10", ["exit"]]]);
 });
 
 test("projects representative item use text, effective stats and contextual ability ranks", () => {

@@ -1,10 +1,10 @@
 import type { ConnectionRow, CreatureRow, PlacementGroup, PlacementRef, Ref } from '@afallon/contracts/public';
-import { connectionLabel, roleLabel } from '../format';
-import { uniquePlacements } from './relation-table';
+import { roleLabel } from '../format';
+import { mergeRows, uniquePlacements } from './relation-table';
 
 export interface PlaceConnectionRow {
+  direction: ConnectionRow['direction'];
   counterpart: Ref;
-  way: string;
   placements: PlacementRef[];
 }
 
@@ -30,27 +30,12 @@ export function placePointsOfInterest(groups: readonly PlacementGroup[], inhabit
   return groups.filter((group) => !shownRoles.has(group.category)).sort((left, right) => roleLabel(left.category).localeCompare(roleLabel(right.category)));
 }
 
-/** Connections differ only by placement when the place and readable way of travel agree. */
+/** Teleports in one direction between this place and one other place differ only in their spots, so they share a row. */
 export function placeConnectionRows(connections: readonly ConnectionRow[]): PlaceConnectionRow[] {
-  const groups = new Map<string, ConnectionRow[]>();
-  for (const connection of connections) {
-    const way = connectionLabel(connection.kind);
-    const key = JSON.stringify(connection.counterpart.key === null
-      ? ['unresolved', connection.counterpart.label, way]
-      : ['place', connection.counterpart.key, way]);
-    const group = groups.get(key);
-    if (group) group.push(connection);
-    else groups.set(key, [connection]);
-  }
-  const rows: PlaceConnectionRow[] = [];
-  for (const group of groups.values()) {
-    const first = group[0];
-    if (!first) continue;
-    rows.push({
-      counterpart: first.counterpart,
-      way: connectionLabel(first.kind),
-      placements: uniquePlacements(group.map((connection) => connection.placements)),
-    });
-  }
-  return rows;
+  const key = ({ direction, counterpart }: ConnectionRow) => JSON.stringify([direction, counterpart.key === null ? `label:${counterpart.label}` : counterpart.key]);
+  return mergeRows(connections, key, (group) => ({
+    direction: group[0]!.direction,
+    counterpart: group[0]!.counterpart,
+    placements: uniquePlacements(group.map((connection) => connection.placements)),
+  }));
 }

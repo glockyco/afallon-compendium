@@ -24,12 +24,14 @@ import {
 } from "@afallon/contracts/public";
 import { generateArtworkResources } from "./artwork";
 import { readerCoverage } from "./coverage";
+import { usableTeleports } from "./connections";
 import { projectPublicDocuments, type PublishedPlacement } from "./documents";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
 import { partitionStaticRecords, writeStaticJson, type GeneratedStaticResource } from "./resources";
 import type { PublicationCandidateAsset } from "./selection";
+import type { MapExtent } from "./map-shards";
 import { levelUnion } from "./levels";
 import { displayName } from "./text";
 import { auditPublicTooltipCoverage } from "./tooltip-coverage";
@@ -80,11 +82,14 @@ export async function generateIndexResources(
   placementIdsByKey: ReadonlyMap<string, readonly string[]>,
   regionIdsByMapSpace: ReadonlyMap<string, readonly string[]>,
   npcLevels: ReadonlyMap<string, ReadonlyMap<string, PublicLevel>>,
+  mapExtents: ReadonlyMap<string, MapExtent>,
   protection?: ObjectWriteProtection,
 ): Promise<GeneratedIndexResources> {
-  const entities = queryCatalogEntities(db), facts = queryCatalogFacts(db), relations = queryCatalogRelations(db);
+  const entities = queryCatalogEntities(db), facts = queryCatalogFacts(db), catalogRelations = queryCatalogRelations(db);
   assertSameIdentity(entities, facts, "Fact");
-  assertSameIdentity(entities, relations, "Relation");
+  assertSameIdentity(entities, catalogRelations, "Relation");
+  // Place names and place pages read only the teleports that a player can use.
+  const relations = { ...catalogRelations, records: { ...catalogRelations.records, transitions: usableTeleports(catalogRelations.records.transitions, mapExtents) } };
   const identity = { buildId: entities.buildId, catalogId: entities.catalogId };
   const artwork = await generateArtworkResources(store, entities.records, protection);
   const levelsByRecord = new Map<string, PublicLevel[]>();

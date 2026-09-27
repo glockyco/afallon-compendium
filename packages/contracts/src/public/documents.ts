@@ -184,7 +184,12 @@ const markerCategory = publicMarkerCategory;
 export const PlacementGroupSchema = Type.Object({ category: markerCategory, placementCount: Type.Integer({ minimum: 1 }) }, { additionalProperties: false });
 export type PlacementGroup = Static<typeof PlacementGroupSchema>;
 
-export const ConnectionRowSchema = Type.Object({ counterpart: RefSchema, kind: text, placements }, { additionalProperties: false });
+// A teleport of a place. `direction` is `to` when the teleport starts in the place and ends in the counterpart, `from`
+// when it starts in the counterpart and ends in the place, and `within` when it starts and ends in the place. The
+// placements are the published spots of the object that starts the teleport.
+export const ConnectionRowSchema = Type.Object({
+  counterpart: RefSchema, direction: Type.Union([Type.Literal("to"), Type.Literal("from"), Type.Literal("within")]), placements,
+}, { additionalProperties: false });
 export type ConnectionRow = Static<typeof ConnectionRowSchema>;
 
 // An interactive object whose `CompleteTask` action completes an objective's task. The object has no page,
@@ -447,7 +452,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v4", npcs: "compendium.static-npc.v4", quests: "compendium.static-quest.v4", places: "compendium.static-place.v4",
+  items: "compendium.static-item.v4", npcs: "compendium.static-npc.v4", quests: "compendium.static-quest.v4", places: "compendium.static-place.v5",
   properties: "compendium.static-property.v3", abilities: "compendium.static-ability.v3", recipes: "compendium.static-recipe.v3",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
@@ -469,19 +474,19 @@ export const StaticAbilityDocumentSchema = staticDocument("abilities");
 export const StaticRecipeDocumentSchema = staticDocument("recipes");
 export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-item.v4": typeof StaticItemDocumentSchema; "compendium.static-npc.v4": typeof StaticNpcDocumentSchema;
-  "compendium.static-quest.v4": typeof StaticQuestDocumentSchema; "compendium.static-place.v4": typeof StaticPlaceDocumentSchema;
+  "compendium.static-quest.v4": typeof StaticQuestDocumentSchema; "compendium.static-place.v5": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v3": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v3": typeof StaticAbilityDocumentSchema;
   "compendium.static-recipe.v3": typeof StaticRecipeDocumentSchema;
 } = {
   "compendium.static-item.v4": StaticItemDocumentSchema, "compendium.static-npc.v4": StaticNpcDocumentSchema,
-  "compendium.static-quest.v4": StaticQuestDocumentSchema, "compendium.static-place.v4": StaticPlaceDocumentSchema,
+  "compendium.static-quest.v4": StaticQuestDocumentSchema, "compendium.static-place.v5": StaticPlaceDocumentSchema,
   "compendium.static-property.v3": StaticPropertyDocumentSchema, "compendium.static-ability.v3": StaticAbilityDocumentSchema,
   "compendium.static-recipe.v3": StaticRecipeDocumentSchema,
 };
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema> | Static<typeof StaticRecipeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v4"), resourceReference("compendium.static-npc.v4"), resourceReference("compendium.static-quest.v4"), resourceReference("compendium.static-place.v4"),
+  resourceReference("compendium.static-item.v4"), resourceReference("compendium.static-npc.v4"), resourceReference("compendium.static-quest.v4"), resourceReference("compendium.static-place.v5"),
   resourceReference("compendium.static-property.v3"), resourceReference("compendium.static-ability.v3"), resourceReference("compendium.static-recipe.v3"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;
@@ -622,7 +627,7 @@ schemaRegistry.register("compendium.public-ability-phase.v2", AbilityPhaseSchema
 schemaRegistry.register("compendium.public-faction-reward-row.v1", FactionRewardRowSchema);
 schemaRegistry.register("compendium.public-creature-row.v1", CreatureRowSchema);
 schemaRegistry.register("compendium.public-placement-group.v1", PlacementGroupSchema);
-schemaRegistry.register("compendium.public-connection-row.v1", ConnectionRowSchema);
+schemaRegistry.register("compendium.public-connection-row.v2", ConnectionRowSchema);
 schemaRegistry.register("compendium.public-kind-entry.v1", PublicKindEntrySchema);
 schemaRegistry.register("compendium.public-search-entry.v1", PublicSearchEntrySchema);
 // Schema ids are lower case with hyphens, so a camel-case kind becomes hyphenated. A public document schema

@@ -79,9 +79,9 @@ test("qualifies places of one name by the area of their entrance and numbers pla
   const facts: CatalogFacts = { ...emptyFacts, entities, places: [place("scenes:31", { min: 15, max: 30 }), place("scenes:32", { min: 15, max: 30 }), place("scenes:34", { min: 15, max: 30 }), place("scenes:43", null), place("scenes:44", { min: 20, max: 30 })] };
   const door = (placementId: string, area: string) => ({ placementId, sceneNativeId: 47, sceneKey: "scenes:47", mapSpaceId: "world", label: null, area, roles: [], families: [], randomChoices: [] });
   const relations: CatalogRelations = { ...emptyRelations, placements: [door("d31", "Coalway woods"), door("d32", "Coalway woods"), door("d34", "Oakenvale")], transitions: [
-    { transitionId: "t31", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:31", transitionKind: "door", placementIds: ["d31"] },
-    { transitionId: "t32", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:32", transitionKind: "door", placementIds: ["d32"] },
-    { transitionId: "t34", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:34", transitionKind: "door", placementIds: ["d34"] },
+    { transitionId: "t31", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:31", transitionKind: "effect-teleport", placementIds: ["d31"], start: null },
+    { transitionId: "t32", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:32", transitionKind: "effect-teleport", placementIds: ["d32"], start: null },
+    { transitionId: "t34", sourceSceneKey: "scenes:47", destinationSceneKey: "scenes:34", transitionKind: "effect-teleport", placementIds: ["d34"], start: null },
   ] };
   const { refs } = buildEntityReferences(entities, { facts, relations });
   expect(["scenes:31", "scenes:32", "scenes:34", "scenes:43", "scenes:44"].map((key) => refs.get(key)?.name)).toEqual(["Cave (Coalway Woods 1)", "Cave (Coalway Woods 2)", "Cave (Oakenvale)", "Glacier Cave (1)", "Glacier Cave (lvl. 20–30)"]);

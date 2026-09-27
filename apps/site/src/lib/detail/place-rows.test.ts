@@ -30,16 +30,16 @@ describe('place relation rows', () => {
     expect(placePointsOfInterest(groups, [{ counterpart: creature, roles: ['merchant'], placementCount: 3 }]).map((row) => row.category)).toEqual(['container', 'oreVein']);
   });
 
-  test('merges the same place and way, deduplicates spots, and preserves a self-connection', () => {
+  test('merges teleports of one direction and place, counts each spot once, and keeps other directions apart', () => {
     const rows: ConnectionRow[] = [
-      { counterpart: place, kind: 'game-action-effect-teleport', placements: [spot('one'), spot('two')] },
-      { counterpart: place, kind: 'game-action-effect-teleport', placements: [spot('two'), spot('three')] },
-      { counterpart: place, kind: 'DungeonEntranceTrigger', placements: [] },
+      { counterpart: place, direction: 'to', placements: [spot('one'), spot('two')] },
+      { counterpart: place, direction: 'to', placements: [spot('two'), spot('three')] },
+      { counterpart: place, direction: 'from', placements: [] },
     ];
     const result = placeConnectionRows(rows);
-    expect(result.map((row) => [row.counterpart.key, row.way, row.placements.map((placement) => placement.placementId)])).toEqual([
-      [place.key, 'Teleport', ['one', 'two', 'three']],
-      [place.key, 'Dungeon Entrance Trigger', []],
+    expect(result.map((row) => [row.direction, row.counterpart.key, row.placements.map((placement) => placement.placementId)])).toEqual([
+      ['to', place.key, ['one', 'two', 'three']],
+      ['from', place.key, []],
     ]);
   });
 });

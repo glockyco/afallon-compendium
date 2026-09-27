@@ -17,6 +17,7 @@ import type {
 import type {
   Art,
   AvailabilityRule,
+  ConnectionRow,
   CreatureRow,
   EntityRef,
   GearSet,
@@ -752,10 +753,12 @@ function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
     || row.completions.some((completion) => placedHere(completion.placementIds)));
   const questRefs = (predicate: (row: CatalogQuestRow) => boolean) => [...new Map(input.relations.quests
     .filter(predicate).map((row) => [row.quest.entityKey ?? row.quest.label, input.resolve(row.quest)] as const)).values()];
-  const connections = input.relations.transitions.flatMap((row) => {
-    if (row.sourceSceneKey !== entity.entityKey && row.destinationSceneKey !== entity.entityKey) return [];
-    const counterpartKey = row.sourceSceneKey === entity.entityKey ? row.destinationSceneKey : row.sourceSceneKey;
-    return [{ counterpart: endpointOrUnknown(input.resolve, counterpartKey === null ? null : { entityKey: counterpartKey, label: counterpartKey }, "Unknown place"), kind: plainText(row.transitionKind) || "connection", placements: publishedPlacements(row.placementIds, input.placements) }];
+  const connections = input.relations.transitions.flatMap((row): ConnectionRow[] => {
+    const startsHere = row.sourceSceneKey === entity.entityKey, endsHere = row.destinationSceneKey === entity.entityKey;
+    if (!startsHere && !endsHere) return [];
+    const direction = startsHere && endsHere ? "within" : startsHere ? "to" : "from";
+    const counterpartKey = direction === "from" ? row.sourceSceneKey : row.destinationSceneKey;
+    return [{ counterpart: endpointOrUnknown(input.resolve, counterpartKey === null ? null : { entityKey: counterpartKey, label: counterpartKey }, "Unknown place"), direction, placements: publishedPlacements(row.placementIds, input.placements) }];
   });
   return {
     ...baseDocument(entity, ref, input, fact?.guideDescription),

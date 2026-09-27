@@ -12,10 +12,15 @@
   export let connections: ConnectionRow[];
   export let registry: PublicKindEntry[];
 
+  // Teleports out of the place come first, then teleports into it, then teleports inside it. In each direction, an
+  // unknown place follows the named places.
+  const ORDER: Record<PlaceConnectionRow['direction'], number> = { to: 0, from: 1, within: 2 };
+  const placeText = (row: PlaceConnectionRow) => row.counterpart.key === null ? 'an unknown place' : nameOf(row.counterpart);
+  const teleportText = (row: PlaceConnectionRow) => row.direction === 'within' ? 'Within this place' : `${row.direction === 'to' ? 'To' : 'From'} ${placeText(row)}`;
+
   const columns: RelationColumn<PlaceConnectionRow>[] = [
-    { id: 'name', label: 'Place', value: (row) => nameOf(row.counterpart), sort: (row) => nameOf(row.counterpart) },
-    { id: 'way', label: 'Way of travel', value: (row) => row.way, sort: (row) => row.way },
-    { id: 'spots', label: 'Map spots', value: (row) => row.placements.length },
+    { id: 'teleport', label: 'Teleport', value: teleportText, sort: (row) => `${ORDER[row.direction]} ${row.counterpart.key === null ? 1 : 0} ${placeText(row)}` },
+    { id: 'start', label: 'Starts at', value: (row) => row.placements.length, sort: (row) => row.placements.length },
   ];
 
   $: rows = placeConnectionRows(connections);
@@ -24,13 +29,14 @@
 
 {#if rows.length}
   <Section id="connections" title="Connections" icon="route" count={rows.length}>
-    <RelationTable columns={plan.columns} {rows} label="Connections" sort={{ id: 'name', dir: 'asc' }}>
+    <RelationTable columns={plan.columns} {rows} label="Connections" sort={{ id: 'teleport', dir: 'asc' }}>
       <svelte:fragment slot="cell" let:row let:column>
-        {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />
-        {:else if column === 'way'}{row.way}
-        {:else if column === 'spots'}
+        {#if column === 'teleport'}
+          {#if row.direction === 'within' || row.counterpart.key === null}{teleportText(row)}
+          {:else}{row.direction === 'to' ? 'To' : 'From'} <EntityLink ref={row.counterpart} {registry} />{/if}
+        {:else if column === 'start'}
           {#if row.placements.length}<LocationLinks placements={row.placements} />
-          {:else}<MissingValue explanation="No spot is published" />{/if}
+          {:else}<MissingValue explanation="The map shows no spot where this teleport starts" />{/if}
         {/if}
       </svelte:fragment>
     </RelationTable>

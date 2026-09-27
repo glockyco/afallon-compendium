@@ -63,7 +63,7 @@ export const stateInHeading = (): SharedPolicy => 'heading';
 /**
  * Groups rows whose `key` matches, in first-seen order, and merges each group into one row. The key holds every value
  * that the merged row takes from its first row, so rows merge only when those values agree. `merge` combines the rest,
- * such as the roles of a quest row.
+ * such as the roles of a quest row or the spots of a connection.
  */
 export function mergeRows<Row, Merged>(rows: readonly Row[], key: (row: Row) => string, merge: (group: readonly Row[]) => Merged): Merged[] {
   const groups = new Map<string, Row[]>();

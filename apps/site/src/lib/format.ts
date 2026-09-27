@@ -190,14 +190,6 @@ export function requirementCountLabel(group: RequirementGroup): string | null {
   return group.mode === 'any' && group.checkCount && (group.requiredCount ?? 1) > 1 ? `${group.requiredCount} of` : null;
 }
 
-/**
- * A connection kind arrives as the native trigger name: `game-action-effect-teleport` or
- * `DungeonEntranceTrigger`. The reader wants the kind of passage.
- */
-export function connectionLabel(kind: string): string {
-  return labelOf(kind.replace(/^game-action(-effect)?-/, '').replace(/([a-z0-9])([A-Z])/g, '$1 $2'));
-}
-
 function isMarkerCategory(role: string): role is PublicMarkerCategory {
   return Object.hasOwn(PUBLIC_MARKER_CATEGORY_LABELS, role);
 }
