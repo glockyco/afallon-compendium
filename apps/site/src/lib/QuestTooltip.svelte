@@ -14,8 +14,8 @@
     ...(facts.repeatable ? [{ label: 'Repeatable' }] : []),
   ] satisfies HeaderBadge[];
   $: headerFacts = [
-    ...(facts.levelRange ? [{ label: 'Level', value: levelText(facts.levelRange) }] : []),
-    ...(facts.levelRequirement !== undefined ? [{ label: 'Requires level', value: String(facts.levelRequirement) }] : []),
+    ...(facts.levelRange ? [{ label: 'Quest level', value: levelText(facts.levelRange) }] : []),
+    ...(facts.levelRequirement !== undefined ? [{ label: 'Minimum level', value: String(facts.levelRequirement) }] : []),
     ...(facts.experience !== undefined ? [{ label: 'Experience', value: formatNumber(facts.experience) }] : []),
   ] satisfies HeaderFact[];
 </script>
