@@ -61,7 +61,7 @@ The publication SHALL publish a page for each class that at least one race offer
 
 ### Requirement: Skill pages show recipes and levels
 
-The publication SHALL publish a page for each skill. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon, its highest level, and the crafting stations that use the skill. When a character does not receive the skill automatically, the hero SHALL state it. The sections SHALL follow this order: Recipes, Experience per level. The Recipes section SHALL show each recipe that uses the skill with its product and its station. A skill with a highest level of zero SHALL NOT show an Experience per level section.
+The publication SHALL publish a page for each skill. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. The sections SHALL follow this order: Recipes, Experience per level. The Recipes section SHALL show each recipe that uses the skill with its product and its station. A skill with a highest level of zero SHALL NOT show an Experience per level section.
 
 #### Scenario: Crafting skill
 - **WHEN** a reader opens the Alchemy page

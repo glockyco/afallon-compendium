@@ -5,7 +5,7 @@ The compendium cannot tell a player which classes learn an ability or what a tal
 ## What Changes
 
 - Class pages for each class that at least one race offers. In build 25434619 these are Shieldmaster, Wizard, Necromancer, Assassin, and Druid. A class page shows one table for each talent tree, with each talent, its first-rank and last-rank effect, and its requirements. It also shows the weapon types, the auto attack, the talent points, the starting gear, and the experience per level.
-- Skill pages for the 16 skills, with their recipes, crafting stations, and experience per level.
+- Skill pages for the 16 skills, with their recipes and the station of each recipe, and the experience per level.
 - Ability pages gain a Learned by section and the use requirements of each version: costs, such as "Costs 9 Mana", and conditions, such as "Ursine Aspect is active".
 - Requirement phrases for talents, learned abilities, and costs replace texts such as "bonuses 288 4 or higher" and "Mana 9". A talent reference links to its row on the class page.
 - The support collector records the classes that each race offers. No race offers Hunter or Berserker, so these classes get no page, and their abilities name no class.

@@ -6,7 +6,7 @@ The kind registry in `packages/publication/src/kind-registry.ts` already lists `
 
 Measurements on candidate catalog 3ed38843:
 
-- Talent tree nodes: 660 (515 passive talents, 145 abilities). 619 nodes have requirements: 406 talent requirements, 220 ability requirements, and 46 level requirements in total.
+- Talent tree nodes: 660 (515 passive talents, 145 abilities). 619 of the 660 nodes have at least one requirement. Across these nodes there are 406 talent requirements, 220 ability requirements, and 46 level requirements, and one node can have several.
 - Talent requirements read "bonuses 288 4 or higher", because talents are not catalog entities, so the reference index of the queries has no name for them.
 - Ability ranks: 76 abilities have use requirements, such as costs ("Mana 9") and active forms ("Ursine Aspect is active"). The ability tooltips show neither. 369 of 370 abilities have one rank.
 - Talent sharing: 15 passive talents appear in several Heroic Ascension trees, one tree for each class. Each tree has one owner class.
@@ -43,7 +43,7 @@ The class list shows the talent trees and the number of abilities. The skill lis
 
 ### Talent rows own the talent references
 
-A class document holds one table for each talent tree. Each row has the anchor `talent-<tree>-<node>` and holds the node, its tier, its position, its requirements, and, for a passive talent, the effect at its first rank and at its last rank. A talent reference is a class page reference: its `slug` names the class page, and its `variant` names the row anchor, as NPC variant references do. Because 15 talents appear in several Heroic Ascension trees, the projector resolves a talent reference on a class page to the row of the same class. Separate talent pages were rejected: 497 talents with one or five ranks each would make many thin pages, and the tree order would be lost.
+A class document holds one table for each talent tree. Each row has the anchor `talent-<tree>-<node>` and holds the node, its tier, its position, its requirements, and, for a passive talent, the effect at its first rank and at its last rank. A talent reference is a class page reference: its `key` and `kind` are those of the class, its `slug` names the class page, its `variant` names the row anchor, as NPC variant references do, and its `name` is the talent name. So talent references add no entity keys to the publication. Because 15 talents appear in several Heroic Ascension trees, the projector resolves a talent reference on a class page to the row of the same class. Separate talent pages were rejected: 497 talents with one or five ranks each would make many thin pages, and the tree order would be lost.
 
 The tooltip of a talent reference loads the class document and shows the row that its anchor names.
 
@@ -70,7 +70,6 @@ The update report of this change covers the new catalog and the publication. The
 ## Risks / Trade-offs
 
 - A class document holds up to 5 trees with about 30 rows each, plus requirement spans. → The task measures the largest class document against the 262,144-byte document budget.
-- Talent references add new entity keys to the publication. → Update parity treats them as additions. The staging check shows the new keys.
 - The character-creation meaning of `availableClasses` is an inference. → The class pages name the races that offer each class, so a reader can see the evidence. A later update that offers Hunter adds its page without code changes.
 - The new scan of scene 44 can move the placements that the previous change reviewed again. → The comparison reports them, and the user accepted such height differences.
 - The experience probe needs the running game. → The game already runs for the scan, and the probe only reads.
