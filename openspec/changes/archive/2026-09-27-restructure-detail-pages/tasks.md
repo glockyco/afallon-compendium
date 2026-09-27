@@ -25,5 +25,5 @@
 - [x] 4.1 Run `openspec validate restructure-detail-pages --strict`, `bunx tsc -b packages/contracts`, `bun run check`, `bun run --cwd apps/site check`, and `bun test ./packages ./apps`
 - [x] 4.2 Publish a preview candidate from the accepted catalog and verify the publication graph
 - [x] 4.3 Take screenshots of every kind at 1440 px and 390 px, and confirm no side-by-side cards, no sideways scroll, no words broken inside, and no native ids
-- [ ] 4.4 Accept the publication
-- [ ] 4.5 While archiving, update the `reference-layout` Purpose to name only tooltips, quest previews, search feedback, and navigation
+- [x] 4.4 Accept the publication
+- [x] 4.5 While archiving, update the `reference-layout` Purpose to name only tooltips, quest previews, search feedback, and navigation
