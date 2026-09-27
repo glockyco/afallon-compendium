@@ -38,7 +38,7 @@
 - [x] 4.5 Place desktop tooltips beside links with fallbacks and shorten quest completion previews
 - [x] 4.6 Align quest Start, Turn-in, and Requirements cards and label chain context in the header
 - [x] 4.7 Render inline requirement phrases with type prefixes and ordered availability rules
-- [x] 4.8 Show a search spinner in its input and name the atlas Map in navigation
+- [x] 4.8 Show a search spinner in its input and label map navigation Map
 - [x] 4.9 Show published counts and gap pages in reader coverage without loading coverage on the map
 
 ## 5. Operator workflow

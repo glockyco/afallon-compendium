@@ -1,6 +1,6 @@
 <script lang="ts">
   import { markerColorCss, type MarkerDefinition } from './marker-registry';
-  import { markerGlyphSvg } from './icon-atlas';
+  import { markerGlyphSvg } from './icon-sheet';
 
   export let marker: MarkerDefinition;
   export let checked = false;

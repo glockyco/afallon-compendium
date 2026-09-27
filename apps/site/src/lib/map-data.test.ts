@@ -1,9 +1,9 @@
 import { expect, jest, test } from 'bun:test';
 import type { StaticResourceReference, StaticRootManifest } from '@afallon/contracts/public';
-import { AtlasDataLoader, type AtlasFetch } from './atlas-data';
-import { AtlasController, type AtlasSnapshot } from './atlas-controller';
-import { readAtlasUrl, type AtlasState, type AtlasView } from './atlas-state';
-import { selectionHighlightIds } from './atlas-search';
+import { MapDataLoader, type MapFetch } from './map-data';
+import { MapController, type MapSnapshot } from './map-controller';
+import { readMapUrl, type MapState, type MapView } from './map-state';
+import { selectionHighlightIds } from './map-search';
 
 function fixture() {
   const identity = { buildId: 'build', catalogId: 'c'.repeat(64) };
@@ -49,7 +49,7 @@ function fixture() {
   bodies.set('publication.json', JSON.stringify(root));
   const counts = new Map<string, number>();
   const overrides = new Map<string, () => Promise<Response>>();
-  const fetcher: AtlasFetch = async (input) => {
+  const fetcher: MapFetch = async (input) => {
     const path = new URL(input instanceof Request ? input.url : input).pathname.replace(/^\/data\//, '');
     counts.set(path, (counts.get(path) ?? 0) + 1);
     const override = overrides.get(path);
@@ -57,21 +57,21 @@ function fixture() {
     const body = bodies.get(path);
     return body ? new Response(body) : new Response('missing', { status: 404 });
   };
-  return { loader: new AtlasDataLoader(fetcher, 'https://atlas.invalid/data/'), bodies, counts, overrides, documents, search, root, identity, register };
+  return { loader: new MapDataLoader(fetcher, 'https://map.invalid/data/'), bodies, counts, overrides, documents, search, root, identity, register };
 }
 
-function observe(loader: AtlasDataLoader) {
-  let latest: AtlasSnapshot | null = null;
+function observe(loader: MapDataLoader) {
+  let latest: MapSnapshot | null = null;
   const listeners = new Set<() => void>();
-  const navigations: { state: AtlasState; mode: 'push' | 'replace' }[] = [];
-  const restoredViews: (AtlasView | null)[] = [];
-  const controller = new AtlasController(loader, {
+  const navigations: { state: MapState; mode: 'push' | 'replace' }[] = [];
+  const restoredViews: (MapView | null)[] = [];
+  const controller = new MapController(loader, {
     onChange(snapshot) { latest = snapshot; for (const notify of listeners) notify(); },
     onNavigate(state, mode) { navigations.push({ state, mode }); },
     onRestoreView(view) { restoredViews.push(view); },
   });
-  const until = (condition: (snapshot: AtlasSnapshot) => boolean): Promise<AtlasSnapshot> => {
-    const { promise, resolve } = Promise.withResolvers<AtlasSnapshot>();
+  const until = (condition: (snapshot: MapSnapshot) => boolean): Promise<MapSnapshot> => {
+    const { promise, resolve } = Promise.withResolvers<MapSnapshot>();
     const notify = () => { if (latest && condition(latest)) { listeners.delete(notify); resolve(latest); } };
     listeners.add(notify);
     notify();
@@ -107,7 +107,7 @@ test('loads all geometry before first render and retries a failed geometry resou
   data.overrides.set(remoteGeometry, async () => new Response('unavailable', { status: 503 }));
   const { controller, until } = observe(data.loader);
   try {
-    controller.start(readAtlasUrl(''));
+    controller.start(readMapUrl(''));
     const failed = await until((snapshot) => snapshot.map.status === 'error');
     expect(failed.publication).toBeNull();
     expect(geometryReferences.map(({ path }) => data.counts.get(path))).toEqual([1, 1]);
@@ -145,11 +145,11 @@ test('essential multipart maps become usable while search is delayed, and naviga
   const search = responseGate();
   data.overrides.set(data.search.path, () => search.promise);
   const { controller, until } = observe(data.loader);
-  controller.start(readAtlasUrl(''));
+  controller.start(readMapUrl(''));
   const map = await until((snapshot) => snapshot.map.status === 'loaded');
   expect(map.search.status).toBe('loading');
   expect(map.publication?.placements.map((placement) => placement.placementId)).toEqual(['place:a', 'place:b']);
-  controller.navigate(readAtlasUrl('?item=item%3Ab'));
+  controller.navigate(readMapUrl('?item=item%3Ab'));
   search.resolve(new Response(data.bodies.get(data.search.path)));
   const restored = await until((snapshot) => snapshot.detail.status === 'loaded');
   expect(restored.documents.get('item:b')?.ref.key).toBe('item:b');
@@ -159,7 +159,7 @@ test('essential multipart maps become usable while search is delayed, and naviga
   const shard = restored.indexes.placementsById.get('place:b')!;
   expect(selectionHighlightIds(shard, null, null, restored.indexes)).toEqual(['place:b']);
   expect(data.counts.get(data.documents.get('item:b')!.path)).toBe(1);
-  controller.navigate(readAtlasUrl('?selected=removed'));
+  controller.navigate(readMapUrl('?selected=removed'));
   expect(controller.snapshot.staleSelection).not.toBe('');
   expect(controller.snapshot.indexes.placementsById.has('removed')).toBe(false);
   controller.dispose();
@@ -172,9 +172,9 @@ test('an obsolete failure cannot replace the new selection loading state, and cu
   data.overrides.set(pathA, () => a.promise);
   data.overrides.set(pathB, () => b.promise);
   const { controller, until } = observe(data.loader);
-  controller.start(readAtlasUrl('?item=item%3Aa'));
+  controller.start(readMapUrl('?item=item%3Aa'));
   await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
-  controller.navigate(readAtlasUrl('?item=item%3Ab'));
+  controller.navigate(readMapUrl('?item=item%3Ab'));
   a.resolve(new Response('old failure', { status: 503 }));
   await data.loader.loadDocument('items', 'a').catch(() => undefined);
   expect(controller.snapshot.state.itemKey).toBe('item:b');
@@ -194,12 +194,12 @@ test('history restoration invalidates pending query and camera persistence', asy
   const data = fixture();
   const { controller, until, navigations, restoredViews } = observe(data.loader);
   try {
-    controller.start(readAtlasUrl(''));
+    controller.start(readMapUrl(''));
     await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
     jest.useFakeTimers();
     controller.setQuery('query', 'pending');
     controller.scheduleView({ target: [90, 30, 0], zoom: 3 });
-    const restored = readAtlasUrl('?layers=game-maps&selected=place%3Ab&q=restored&categories=merchant&x=10&y=20&z=0&zoom=2');
+    const restored = readMapUrl('?layers=game-maps&selected=place%3Ab&q=restored&categories=merchant&x=10&y=20&z=0&zoom=2');
     controller.navigate(restored);
     jest.advanceTimersByTime(320);
     expect(controller.snapshot.state).toEqual(restored);
@@ -212,11 +212,11 @@ test('pending persistence keeps a new item selection and never restores a cleare
   const data = fixture();
   const { controller, until, navigations, restoredViews } = observe(data.loader);
   try {
-    controller.start(readAtlasUrl(''));
+    controller.start(readMapUrl(''));
     await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
     jest.useFakeTimers();
     controller.setQuery('query', 'merchant');
-    const view: AtlasView = { target: [60, 40, 0], zoom: 2 };
+    const view: MapView = { target: [60, 40, 0], zoom: 2 };
     controller.scheduleView(view);
     controller.dispatch({ type: 'select-item', itemKey: 'item:a' }, 'push');
     controller.dispatch({ type: 'select-placement', placementId: 'place:a' }, 'push');
@@ -232,11 +232,11 @@ test('explicit camera commands supersede pending movement and disposal cancels p
   const data = fixture();
   const { controller, until, navigations } = observe(data.loader);
   try {
-    controller.start(readAtlasUrl(''));
+    controller.start(readMapUrl(''));
     await until((snapshot) => snapshot.map.status === 'loaded' && snapshot.search.status === 'loaded');
     jest.useFakeTimers();
     controller.scheduleView({ target: [60, 40, 0], zoom: 2 });
-    const fitted: AtlasView = { target: [128, 128, 0], zoom: 0 };
+    const fitted: MapView = { target: [128, 128, 0], zoom: 0 };
     controller.dispatch({ type: 'set-view', view: fitted }, 'replace');
     jest.advanceTimersByTime(260);
     expect(controller.snapshot.state.view).toEqual(fitted);

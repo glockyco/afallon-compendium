@@ -24,7 +24,7 @@ Quest pages, NPC pages, quest lists, quest tooltips, and place pages SHALL treat
 
 ### Requirement: A quest page shows how the quest starts
 
-A quest page SHALL show each way that the quest starts. An NPC start SHALL link the NPC, name the areas where the NPC stands, and link the NPC's placements on the atlas. A world quest start SHALL link each zone placement on the atlas, state that entering an active zone grants the quest, and show the zone's availability and the other quests in the zone's pool. An object start SHALL name the interactive object and link its placements on the atlas. A quest with no authored start SHALL show a missing-value placeholder.
+A quest page SHALL show each way that the quest starts. An NPC start SHALL link the NPC, name the areas where the NPC stands, and link the NPC's placements on the map. A world quest start SHALL link each zone placement on the map, state that entering an active zone grants the quest, and show the zone's availability and the other quests in the zone's pool. An object start SHALL name the interactive object and link its placements on the map. A quest with no authored start SHALL show a missing-value placeholder.
 
 #### Scenario: A reader opens a world quest
 - **WHEN** a quest is in the pool of a world quest zone that is active only at night
@@ -37,7 +37,7 @@ A quest page SHALL show each way that the quest starts. An NPC start SHALL link 
 
 ### Requirement: Objectives show their task text and where they complete
 
-Each objective SHALL show the task text, with the target entity and count when the task names them. An objective that an interactive object completes SHALL name that object and link its placements on the atlas. An objective without a target or completion object SHALL show its text only. The NPC or item page of an objective's target SHALL list the quest with the objective.
+Each objective SHALL show the task text, with the target entity and count when the task names them. An objective that an interactive object completes SHALL name that object and link its placements on the map. An objective without a target or completion object SHALL show its text only. The NPC or item page of an objective's target SHALL list the quest with the objective.
 
 #### Scenario: A reader views a region objective
 - **WHEN** a task has no target and four interactive objects complete it
@@ -70,7 +70,7 @@ A requirement SHALL render as text in which each referenced entity links to its 
 
 ### Requirement: A quest page shows the world changes of the quest
 
-A quest page SHALL list the world sources whose availability names the quest: creatures that appear or stop appearing, objects that become usable or unusable, crafting stations, and world quest zones. Each row SHALL name the subject, show its availability, and link its placements on the atlas.
+A quest page SHALL list the world sources whose availability names the quest: creatures that appear or stop appearing, objects that become usable or unusable, crafting stations, and world quest zones. Each row SHALL name the subject, show its availability, and link its placements on the map.
 
 #### Scenario: A quest removes a spawn after turn-in
 - **WHEN** a requirement toggle removes a creature spawner when a quest is turned in

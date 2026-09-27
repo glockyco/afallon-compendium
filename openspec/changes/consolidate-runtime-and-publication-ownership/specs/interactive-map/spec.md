@@ -1,12 +1,12 @@
 ## Purpose
 
-The interactive atlas keeps navigation, controls, results, and details consistent while readers explore the shared world. Loading and gesture behavior must preserve stable geometry and a controllable camera.
+The interactive map keeps navigation, controls, results, and details consistent while readers explore the shared world. Loading and gesture behavior must preserve stable geometry and a controllable camera.
 
 ## ADDED Requirements
 
-### Requirement: Consistent atlas navigation state
+### Requirement: Consistent map navigation state
 
-The atlas SHALL use the same accepted navigation state for controls, results, details, and URL persistence. A pending input or camera timer SHALL NOT restore stale selection, filters, or queries after history navigation. Reader actions SHALL preserve unrelated state unless the action explicitly clears it. Closing details SHALL preserve the existing focus-restoration behavior.
+The map SHALL use the same accepted navigation state for controls, results, details, and URL persistence. A pending input or camera timer SHALL NOT restore stale selection, filters, or queries after history navigation. Reader actions SHALL preserve unrelated state unless the action explicitly clears it. Closing details SHALL preserve the existing focus-restoration behavior.
 
 #### Scenario: History navigation overtakes pending input
 
@@ -28,7 +28,7 @@ The atlas SHALL use the same accepted navigation state for controls, results, de
 
 ### Requirement: Stable eager geometry readiness
 
-The atlas SHALL load and validate all declared map and geometry parts before it reports map-data readiness. The publication field named `optionalGeometry` SHALL NOT imply deferred network loading. Visibility toggles SHALL use loaded geometry without resource requests or replacement of the publication's placement data.
+The map SHALL load and validate all declared map and geometry parts before it reports map-data readiness. The publication field named `optionalGeometry` SHALL NOT imply deferred network loading. Visibility toggles SHALL use loaded geometry without resource requests or replacement of the publication's placement data.
 
 Search and selected details SHALL retain independent loading and failure states. Geometry failure SHALL produce a map-data failure with a retry path, not a partially interactive map presented as complete. An empty declared geometry list SHALL NOT create a loading dependency.
 
@@ -41,13 +41,13 @@ Search and selected details SHALL retain independent loading and failure states.
 #### Scenario: Reader toggles movement and connections
 
 - **WHEN** a reader changes movement or connection visibility after map-data readiness
-- **THEN** the atlas uses the loaded geometry without additional data requests
+- **THEN** the map uses the loaded geometry without additional data requests
 - **AND** the basemap and placement positions remain stable
 
 #### Scenario: Geometry load fails and succeeds on retry
 
 - **WHEN** declared geometry fails to load and a subsequent retry succeeds
-- **THEN** the atlas first exposes a map-data error
+- **THEN** the map first exposes a map-data error
 - **AND** the successful retry makes all declared map geometry available before readiness
 
 #### Scenario: Search response is delayed

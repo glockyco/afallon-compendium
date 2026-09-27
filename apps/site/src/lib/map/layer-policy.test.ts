@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { PublicTileLayer } from "@afallon/contracts/public";
-import { DEFAULT_ATLAS_STATE, transitionAtlasState } from "../atlas-state";
+import { DEFAULT_MAP_STATE, transitionMapState } from "../map-state";
 import { canonicalLayerIds, defaultLayerIds, resolveLayerIds } from "./layer-policy";
 
 const tile = (id: string, kind: "captured" | "game-map"): PublicTileLayer => ({ id, kind } as PublicTileLayer);
@@ -19,8 +19,8 @@ test("canonical choices restore without enabling captured terrain", () => {
 });
 
 test("changing layers preserves world location", () => {
-  const located = transitionAtlasState(DEFAULT_ATLAS_STATE, { type: "set-view", view: { target: [12, 34, 0], zoom: 2 } });
-  const changed = transitionAtlasState(located, { type: "select-layers", layerIds: ["captured-world"] });
+  const located = transitionMapState(DEFAULT_MAP_STATE, { type: "set-view", view: { target: [12, 34, 0], zoom: 2 } });
+  const changed = transitionMapState(located, { type: "select-layers", layerIds: ["captured-world"] });
   expect(changed.view).toEqual(located.view);
   expect(changed.layerIds).toEqual(["captured-world"]);
 });

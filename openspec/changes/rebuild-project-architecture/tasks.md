@@ -66,16 +66,16 @@
 - [x] 7.6 Wire SvelteKit static builds and Cloudflare Static Assets input to the selected publication; verify a production-like static server displays every map in the shared world and supports search, filtering, selection, and layer changes without dynamic requests.
 - [x] 7.7 Compare public semantics and initial shared-world transfer against the frozen publication, record expected sharding differences, and remove map projection, entity-detail, item-source, and coverage-summary intermediates after parity passes.
 
-## 8. Atlas Refactor
+## 8. Map Refactor
 
-- [x] 8.1 Implement `atlas-data` loading for the root, current map, compact indexes, selected details, and request deduplication; verify failed and repeated requests expose stable error/loading states without duplicate fetches.
-- [x] 8.2 Implement immutable `atlas-state` transitions, selectors, and canonical URL serialization; verify all valid shareable fields round-trip and removed parameter aliases are ignored and never written.
+- [x] 8.1 Implement `map-data` loading for the root, current map, compact indexes, selected details, and request deduplication; verify failed and repeated requests expose stable error/loading states without duplicate fetches.
+- [x] 8.2 Implement immutable `map-state` transitions, selectors, and canonical URL serialization; verify all valid shareable fields round-trip and removed parameter aliases are ignored and never written.
 - [x] 8.3 Split deck.gl lifecycle, view synchronization, hit testing, and WebGL fallback into `map-renderer`; verify renderer replacement and component teardown release every deck.gl resource.
 - [x] 8.4 Split imagery, marker, region, connection, and movement layer construction into pure modules; verify representative public rows produce the existing coordinates, picking identities, visibility, and styles.
 - [x] 8.5 Split sidebar, search results, layer controls, canvas shell, and development details into focused Svelte components with `MapExplorer.svelte` as composition only; verify site checks pass with no pipeline or non-public package imports.
 - [x] 8.6 Implement the default-layer policy so game-provided imagery is selected for overworld and interiors while captured terrain remains disabled until explicitly selected; verify saved canonical choices restore and layer changes preserve world location.
 - [x] 8.7 Preserve the compile-time development boundary around detail panels and authoring controls; verify production output does not render them and a development build retains both interfaces.
-- [x] 8.8 Exercise the actual atlas in a browser across search, filtering, marker selection, map navigation, imagery switching, URL reload, WebGL fallback, and production/development modes; verify behavior against the static-publication scenarios and retain screenshots or logs as evidence.
+- [x] 8.8 Exercise the actual map in a browser across search, filtering, marker selection, map navigation, imagery switching, URL reload, WebGL fallback, and production/development modes; verify behavior against the static-publication scenarios and retain screenshots or logs as evidence.
 
 ## 9. Cutover and Cleanup
 

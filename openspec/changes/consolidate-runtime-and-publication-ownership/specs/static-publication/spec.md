@@ -1,6 +1,6 @@
 ## Purpose
 
-Static publication supplies verified, linked atlas resources to readers. Producer selection and deployment verification must agree on the meaning and consistency of the same resource graph.
+Static publication supplies verified, linked map resources to readers. Producer selection and deployment verification must agree on the meaning and consistency of the same resource graph.
 
 ## ADDED Requirements
 

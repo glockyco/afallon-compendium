@@ -3,8 +3,8 @@
 See `proposal.md` for motivation. The facts that shape the approach:
 
 - The sealed catalog (`packages/catalog/src/database.ts`) already holds canonical entities, `merchant_stock`, `loot_entries`, `resource_yields`, `quest_associations`, `transitions`, `conditions`, placements, and roles. Per-record game fields sit in `entity_details.publicData.gameplay` typed as `unknown`. `packages/scan/src/probes/collectors/support.csx` already exports 25 support families, including abilities, recipes, factions, currencies, enchantments, and gear sets.
-- Publication (`packages/publication/src/entity-projection.ts`) turns `gameplay` into generic `PublicDetailSection` rows with a regex blacklist and auto-labels. `guide-projection.ts` produces the four native groups. `atlas-search.ts` indexes entity and item summaries plus placements; guide records are not indexed.
-- The production atlas has no detail panel: `MapExplorer.svelte` gates `AtlasDevelopmentDetails` behind `dev`. The `/guide` routes are the only reference surface in production.
+- Publication (`packages/publication/src/entity-projection.ts`) turns `gameplay` into generic `PublicDetailSection` rows with a regex blacklist and auto-labels. `guide-projection.ts` produces the four native groups. `map-search.ts` indexes entity and item summaries plus placements; guide records are not indexed.
+- The production map has no detail panel: `MapExplorer.svelte` gates `MapDevelopmentDetails` behind `dev`. The `/guide` routes are the only reference surface in production.
 - The static graph is content-addressed and verified at selection and deployment (`StaticRootManifest`, `staticResourceEdges`, `apps/site/scripts/publication-graph.ts`). New resources must join that graph.
 - The repository's spec convention: main specs under `openspec/specs/` are empty. Later changes restate a requirement under `## ADDED Requirements` with the same name. This change follows that convention; the proposal's "modified" list names the requirements that were restated.
 - Public reference sites that work well converge on typed per-kind documents with named relation fields (for example the open `tarkov-api` schema: `Item.usedInTasks`, `Item.craftsFor`, `TaskObjective` as a typed union) or typed tables with declarative queries (MediaWiki Cargo on bg3.wiki and the PoE wiki). The sibling Ardenfall project's generic `entity_edges(predicate, label, weight, evidence_json)` graph shows the cost of the other route: relation lists without quantity, chance, or condition columns.
@@ -13,7 +13,7 @@ See `proposal.md` for motivation. The facts that shape the approach:
 
 **Goals:**
 
-- One publication-time model that serves pages, atlas panels, tooltips, and search from the same documents.
+- One publication-time model that serves pages, map panels, tooltips, and search from the same documents.
 - Adding a kind is a schema, a catalog projection, a registry entry, and a thin page. No new link, search, or list machinery per kind.
 - Every link is resolved and audited before the site builds. The site never resolves names.
 - Relation values (quantity, chance, price, requirement) appear identically on both endpoint pages.
@@ -23,7 +23,7 @@ See `proposal.md` for motivation. The facts that shape the approach:
 - A generic relation renderer or an entity-attribute-value store.
 - A browser-side SQLite or a request-time API. The site stays static.
 - Reader-facing provenance chips, coverage counts, or diagnostics on entity pages.
-- Pages for placement-only categories (towns, forts, camps, containers, resource nodes). They remain atlas placements and appear as locations on entity pages.
+- Pages for placement-only categories (towns, forts, camps, containers, resource nodes). They remain map placements and appear as locations on entity pages.
 - Planner features (build lists, leveling routes). They can consume the documents later.
 - Multi-game reuse. Kind schemas are Afallon's.
 
@@ -95,7 +95,7 @@ NPC roles are facets on one kind rather than separate kinds because the same `RP
 
 ### 7. Search corpus
 
-Search parts are regenerated from the `EntityRef` map for every searchable kind, with `kind`, `level`, `place`, `sourceKinds`, and a `hasPlacements` flag. The entry names no placement ids: the map shards already carry each placement's entity and item keys, so the atlas resolves an entry's places from loaded data, and the measured corpus fell from 2.93 MB to about 1.07 MB when the ids left. `StaticItemSearch` folds into the same parts. The atlas loads the same parts it loads today; readiness budgets are unchanged because search already loads after map data. A page-side search box reuses `atlas-search.ts` ranking with results that open pages, and offers the map location when `placementIds` is non-empty.
+Search parts are regenerated from the `EntityRef` map for every searchable kind, with `kind`, `level`, `place`, `sourceKinds`, and a `hasPlacements` flag. The entry names no placement ids: the map shards already carry each placement's entity and item keys, so the map resolves an entry's places from loaded data, and the measured corpus fell from 2.93 MB to about 1.07 MB when the ids left. `StaticItemSearch` folds into the same parts. The map loads the same parts it loads today; readiness budgets are unchanged because search already loads after map data. A page-side search box reuses `map-search.ts` ranking with results that open pages, and offers the map location when `placementIds` is non-empty.
 
 ### 8. Lists
 
@@ -105,9 +105,9 @@ Each kind gets a list resource partitioned like the map shards and the search co
 
 A new scan collector `artwork.csx` reads each referenced `Sprite` through a readable copy (`Graphics.Blit` to a temporary `RenderTexture`, then `Texture2D.ReadPixels`), encodes PNG bytes, and stores them as content-addressed evidence with the native asset name, entity family and id, and dimensions. Unreadable textures record a reason. The catalog registers assets in a new `artwork_assets` table with entity bindings. Publication derives sized lossy WebP variants (icon 128 px, portrait 512 px, artwork 1600 px wide, quality 86) with sharp, writes them to `/data/art/<sha256>.webp`, and references them by `ArtRef { url, sha256, bytes, width, height }`. The lossless PNG stays in the evidence store. Map tiles remain lossless because they are calibrated imagery; entity artwork is decoration, and lossless encoding made it 94 MB against about 12 MB at quality 86, with no visible difference at display size on a re-encoded portrait. Guide art for dungeons and regions comes from the fields the native `AdventureGuidePanel` reads; the task that adds the collector names those fields after inspecting `RPGGameScene` and `RegionTemplate`.
 
-### 10. The atlas keeps no production panel
+### 10. The map keeps no production panel
 
-Selection details stay development-only. A production panel would be a second, smaller rendering of facts the entity's page already carries, and it costs the map a column on the surface the atlas exists for. Selection itself is unchanged: a marker still selects, highlights, filters, and writes its URL state exactly as in development, and only the panel is absent. `AtlasDevelopmentDetails` stays behind `dev`; production keeps only the inline stale-selection and detail-error messages, because with no panel nothing else would explain a stale link.
+Selection details stay development-only. A production panel would be a second, smaller rendering of facts the entity's page already carries, and it costs the map a column on the surface the map exists for. Selection itself is unchanged: a marker still selects, highlights, filters, and writes its URL state exactly as in development, and only the panel is absent. `MapDevelopmentDetails` stays behind `dev`; production keeps only the inline stale-selection and detail-error messages, because with no panel nothing else would explain a stale link.
 
 ### 11. Evidence limits
 
@@ -122,7 +122,7 @@ Guide contracts (`PublicAdventureGuide*`, `GuideDocument`, `StaticGuideDocument`
 The v2 root, the guide schemas, the generic detail rows, and the entity, item, and item-source
 resources are deleted in the same change that adds their replacements. Keeping them would leave two
 ways to publish one fact, two link shapes, and a version branch in every consumer. `PublicationData`
-survives only as the atlas's composed in-browser model and loses its search indexes, because the
+survives only as the map's composed in-browser model and loses its search indexes, because the
 unified corpus is the only search input.
 
 The parity gate follows the same rule: it no longer reads an aggregate `publication.json` baseline.
@@ -137,7 +137,7 @@ compare against it directly rather than describing it:
 
 - A centred content column of about 72 rem with page margins, not a full-bleed panel.
 - A page header that carries the name, inline badges for the facts a reader scans first (rarity,
-  boss, place type), one atlas action, and a subline of two to four key facts.
+  boss, place type), one map action, and a subline of two to four key facts.
 - Titled cards for each group, each with a short heading and a count where a count exists
   (`Abilities (7)`, `Loot`, `Drops`), on a slightly raised surface with a soft border and radius.
 - Facts as label-above-value pairs in a two or three column grid, not label-left and value-right
@@ -161,7 +161,7 @@ owns the detailed requirement and tooltip behavior.
 
 Beyond that reference: the fact grid omits an absent optional fact rather than printing a dash, so a
 card shows what is known; a dash appears only where a value is expected and the build did not
-establish it. The serif display face stays for page titles to match the atlas and the parent domain;
+establish it. The serif display face stays for page titles to match the map and the parent domain;
 body text and tables are sans.
 
 ### 15. Verification boundaries

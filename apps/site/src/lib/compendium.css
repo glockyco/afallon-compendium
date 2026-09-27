@@ -1,6 +1,6 @@
 /* Tokens and chrome shared by every compendium surface: the pages, the entity tooltip, and the
-   atlas detail panel. Only custom properties and `c-` classes live here, so importing the file
-   next to the atlas cannot restyle the map. Table and chip rules are global because a row is
+   map detail panel. Only custom properties and `c-` classes live here, so importing the file
+   next to the map cannot restyle the map. Table and chip rules are global because a row is
    written by the component that owns its data and passed through a slot, which leaves the shared
    wrapper's scoped styles unable to reach it. */
 

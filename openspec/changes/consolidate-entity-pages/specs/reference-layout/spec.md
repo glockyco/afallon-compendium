@@ -51,4 +51,4 @@ Search SHALL show a spinner inside its input while loading, without changing pag
 #### Scenario: Search data is loading
 - **WHEN** a reader starts a search before its data loads
 - **THEN** the input displays a loading spinner
-- **AND** the navigation link to the atlas reads “Map”
+- **AND** the navigation link to the map reads “Map”

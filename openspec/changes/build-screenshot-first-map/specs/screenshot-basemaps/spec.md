@@ -8,20 +8,20 @@ Provide recognizable Afallon terrain imagery through reproducible in-game captur
 
 The world surface MAY carry terrain imagery captured by this project from the supported game build. Screenshot capture covers the overworld only: capture plans SHALL name the world surface, and interiors SHALL publish the game's own map instead. Missing or failed captures SHALL remain explicit in capture coverage. They SHALL NOT block publication of a verified game-provided map.
 
-Where the game ships its own map for a zone as a `MapZone` texture, publication SHALL carry that texture as a calibrated layer registered through the game's own world-to-map conversion. The atlas SHALL enable game-provided maps by default for the world surface and every interior. Captured terrain SHALL remain disabled until a reader selects it and SHALL NOT replace game-provided imagery.
+Where the game ships its own map for a zone as a `MapZone` texture, publication SHALL carry that texture as a calibrated layer registered through the game's own world-to-map conversion. The map SHALL enable game-provided maps by default for the world surface and every interior. Captured terrain SHALL remain disabled until a reader selects it and SHALL NOT replace game-provided imagery.
 
 #### Scenario: A zone ships its own map
 - **WHEN** a scene carries a `MapZone` with a texture
 - **THEN** the publication carries that texture as a calibrated pyramid registered by the zone's own conversion
-- **AND** the atlas opens that map on the game map
+- **AND** the map opens that map on the game map
 
 #### Scenario: A zone reuses another zone's texture
 - **WHEN** a scene's `MapZone` names a texture the game also shows for another zone
 - **THEN** the publication carries it as the game shows it and records the shared texture name
 
 #### Scenario: A map has both image sources
-- **WHEN** a reader opens the atlas without a saved layer choice
-- **THEN** the atlas displays the game-provided map
+- **WHEN** a reader opens the map without a saved layer choice
+- **THEN** the map displays the game-provided map
 - **AND** captured terrain remains available but disabled
 - **AND** changing layers preserves the shared world location
 
@@ -44,7 +44,7 @@ Overlapping markers from stacked content SHALL remain distinct records at their 
 #### Scenario: Two placements project onto the same point
 - **WHEN** a placement on an upper level shares its horizontal position with one below
 - **THEN** both remain separately selectable records
-- **AND** the atlas does not merge, hide, or displace either one
+- **AND** the map does not merge, hide, or displace either one
 
 ### Requirement: Capture renders each tile with its declared frame
 

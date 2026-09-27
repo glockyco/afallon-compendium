@@ -73,7 +73,7 @@
                   {#if start.areas.length || start.npc.key !== null}
                     <span class="quest-secondary">
                       {#if start.areas.length}<span>{start.areas.join(', ')}</span>{/if}
-                      {#if start.npc.key !== null}<a class="c-link" href={`${base}/?entity=${encodeURIComponent(start.npc.key)}`}>View on the atlas</a>{/if}
+                      {#if start.npc.key !== null}<a class="c-link" href={`${base}/?entity=${encodeURIComponent(start.npc.key)}`}>View on the Map</a>{/if}
                     </span>
                   {/if}
                 {:else if start.kind === 'worldZone'}
@@ -103,7 +103,7 @@
                 {#if turnIn.areas.length || turnIn.npc.key !== null}
                   <span class="quest-secondary">
                     {#if turnIn.areas.length}<span>{turnIn.areas.join(', ')}</span>{/if}
-                    {#if turnIn.npc.key !== null}<a class="c-link" href={`${base}/?entity=${encodeURIComponent(turnIn.npc.key)}`}>View on the atlas</a>{/if}
+                    {#if turnIn.npc.key !== null}<a class="c-link" href={`${base}/?entity=${encodeURIComponent(turnIn.npc.key)}`}>View on the Map</a>{/if}
                   </span>
                 {/if}
               </li>

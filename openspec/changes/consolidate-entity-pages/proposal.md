@@ -10,7 +10,7 @@ The game authors several creature and ability records with the same player-facin
 - Quest starts and turn-ins group records of one character and list its areas. Creature locations follow the earliest chain order of their availability quests and own quests.
 - Names and map labels use the publication's title-case formatter. Slugs follow display names, with native IDs only for collisions. Items, places, and creature variants use readable qualifiers where possible.
 - Gear sets have no pages. Member item pages embed set members and tiers. Item pages show an in-game tooltip card with links and a linked acquisition summary. Property pages show the purchase panel and for-sale signs.
-- Entity pages share one header style. Quest pages use aligned Start, Turn-in, and Requirements cards, with a labeled chain fact. Requirements use inline phrases. Search shows its loading spinner in the input and navigation calls the atlas “Map”. Entity tooltips open beside links when space permits.
+- Entity pages share one header style. Quest pages use aligned Start, Turn-in, and Requirements cards, with a labeled chain fact. Requirements use inline phrases. Search shows its loading spinner in the input and navigation calls the map “Map”. Entity tooltips open beside links when space permits.
 - A reader-facing coverage page lists published pages, maps, map locations, and gaps with affected pages. Publication parity checks entity keys rather than old URLs. The quit tool releases runtime ownership before game exit.
 
 ## Capabilities

@@ -34,9 +34,9 @@ export interface CapturePlannerOptions {
 }
 
 const DEFAULT_SURVEY_DIRECTORY = 'artifacts/scene-survey';
-// These two profile entries are not part of the 19-map atlas plan: tutorial-cave is a survey
+// These two profile entries are not part of the 19-map capture plan: tutorial-cave is a survey
 // fixture and ice-cave-1-chillwind has no navigation survey. Keep them out of generated output.
-const ATLAS_MAPS: Record<string, true> = {
+const CAPTURE_MAPS: Record<string, true> = {
   'world-surface': true,
   'abandoned-mine-swamp': true, 'abandoned-quarry': true, 'ancient-cave-swamp': true,
   'castle-ruins-swamp': true, 'castle-dungeons-swamp': true,
@@ -92,7 +92,7 @@ for (const binding of profile.bindings) {
 
 const db = new Database(databasePath, { readonly: true });
 const placementsByMap = new Map<string, Point[]>();
-for (const mapSpaceId of Object.keys(ATLAS_MAPS)) {
+for (const mapSpaceId of Object.keys(CAPTURE_MAPS)) {
   const rows = db.query(`
     SELECT p.world_x AS x, p.world_y AS y, p.world_z AS z
     FROM placements AS p
@@ -432,7 +432,7 @@ for (const entry of await readdir('local')) {
 
 reports.sort((left, right) => left.mapSpaceId.localeCompare(right.mapSpaceId) || (left.sceneNativeId ?? 0) - (right.sceneNativeId ?? 0));
   return {
-    mapSpaces: Object.keys(ATLAS_MAPS).length,
+    mapSpaces: Object.keys(CAPTURE_MAPS).length,
     totalTiles,
     margin: {
       navigationNeighbourhoodWorldUnits: NAVIGATION_NEIGHBOURHOOD,

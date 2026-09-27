@@ -1,0 +1,23 @@
+## Why
+
+The map uses fixed marker sizes, which can obscure dense areas or make markers difficult to see on some screens. Visitors need a single way to adjust marker size without changing which placements appear.
+
+## What Changes
+
+- Add a Marker Size slider under Map Options, with a 50–200% range, a 100% default that renders at the former 140% size, a visible percentage, and a reset action.
+- Apply the chosen scale to all map placement icons and their selection or hover outlines while preserving category glyphs and marker interaction.
+- Keep the setting in the map URL so a reload or shared link restores it. Omit the parameter at the default value.
+
+## Capabilities
+
+### New Capabilities
+
+- `map-marker-sizing`: Visitors can change map marker size and share the chosen size in a map URL.
+
+### Modified Capabilities
+
+None. Existing station category behavior does not change.
+
+## Impact
+
+The map sidebar, URL state, map renderer, marker icon layer, and highlight layers need updates. Static publication data and marker category contracts do not change.

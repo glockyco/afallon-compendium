@@ -1,5 +1,5 @@
 import type { PublicPlacement, PublicSearchEntry, PublicationData } from '@afallon/contracts/public';
-import type { ResultSummary } from './atlas-search-types';
+import type { ResultSummary } from './map-search-types';
 import { sourceKindLabel } from './format';
 import { MARKER_IDS, markerFor, resolveMarker, type MarkerId } from './map/marker-registry';
 

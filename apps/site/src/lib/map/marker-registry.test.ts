@@ -3,7 +3,7 @@ import { PUBLIC_MARKER_CATEGORY_VALUES } from "@afallon/contracts/public"
 import type { PublicPlacement } from "@afallon/contracts/public"
 import { buildMarkers, groupCoincidentMarkers } from "./render-data";
 import { createPlacementIconLayer } from "./layers/markers";
-import { iconAtlasMapping } from "./icon-atlas";
+import { iconSheetMapping } from "./icon-sheet";
 import { DEFAULT_MARKER_IDS, MARKER_IDS, MARKER_LAYER_ID, MARKER_SIZE_RANGE, markerFor, markerRegistry, resolveMarker } from "./marker-registry";
 
 const NAMED_STATION_IDS = ["alchemyStation", "cookingStation", "smithingStation", "furnace", "tailoringStation"] as const;
@@ -66,7 +66,7 @@ test("no two markers share a glyph", () => {
   expect(new Set(glyphs).size).toBe(markers.length);
 });
 
-test("every registered marker reaches the rendered icon layer and atlas", () => {
+test("every registered marker reaches the rendered icon layer and icon sheet", () => {
   const placements: PublicPlacement[] = MARKER_IDS.map((category, index) => ({
     placementId: `placement-${category}`,
     mapSpaceId: "fixture-map",
@@ -80,9 +80,9 @@ test("every registered marker reaches the rendered icon layer and atlas", () => 
     areas: [],
     movement: [],
   }));
-  const atlas = { atlas: {} as HTMLCanvasElement, mapping: iconAtlasMapping() };
+  const iconSheet = { canvas: {} as HTMLCanvasElement, mapping: iconSheetMapping() };
   const records = buildMarkers(placements);
-  const layer = createPlacementIconLayer(records, atlas, MARKER_SIZE_RANGE.default);
+  const layer = createPlacementIconLayer(records, iconSheet, MARKER_SIZE_RANGE.default);
   const renderedIds = (layer.props.data as readonly { markerId: string }[]).map((marker) => marker.markerId);
   expect(renderedIds.sort()).toEqual([...MARKER_IDS].sort());
   expect(Object.keys(layer.props.iconMapping ?? {}).sort()).toEqual([...MARKER_IDS].sort());

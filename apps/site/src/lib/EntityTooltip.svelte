@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { autoUpdate, computePosition, flip, offset, shift, size } from '@floating-ui/dom';
   import type { EntityRef, PublicDocument, PublicKindEntry } from '@afallon/contracts/public';
-  import { clientAtlasLoader } from './client-publication';
+  import { clientMapLoader } from './client-publication';
   import TooltipPresenter from './TooltipPresenter.svelte';
 
   export let ref: EntityRef;
@@ -28,7 +28,7 @@
     openTooltip = close;
     open = true;
     if (document || loading) return;
-    const activeLoader = clientAtlasLoader();
+    const activeLoader = clientMapLoader();
     if (!activeLoader) return;
     loading = true;
     error = '';

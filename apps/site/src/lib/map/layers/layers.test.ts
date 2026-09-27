@@ -72,9 +72,9 @@ test("marker size scales icons, highlights, and stack offsets at the rebased end
     enabled: true,
     isTravel: true,
   };
-  const atlas = { atlas: {} as HTMLCanvasElement, mapping: {} };
+  const iconSheet = { canvas: {} as HTMLCanvasElement, mapping: {} };
   const iconSizes = (markerSize: number) => {
-    const layer = createPlacementIconLayer([marker], atlas, markerSize);
+    const layer = createPlacementIconLayer([marker], iconSheet, markerSize);
     return {
       base: property<(value: MarkerRecord) => number>(layer, "getSize")(marker),
       minimum: property<number>(layer, "sizeMinPixels"),

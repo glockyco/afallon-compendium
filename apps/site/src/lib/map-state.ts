@@ -1,11 +1,11 @@
 import { DEFAULT_MARKER_IDS, MARKER_SIZE_RANGE } from "./map/marker-registry";
 
-export interface AtlasView {
+export interface MapView {
   readonly target: readonly [number, number, number];
   readonly zoom: number;
 }
 
-export interface AtlasState {
+export interface MapState {
   readonly layerIds: readonly string[];
   readonly selectedPlacementId: string | null;
   readonly query: string;
@@ -19,12 +19,12 @@ export interface AtlasState {
   readonly itemKey: string | null;
   readonly entityKey: string | null;
   readonly placeKey: string | null;
-  readonly view: AtlasView | null;
+  readonly view: MapView | null;
 }
 
-export type AtlasQueryField = "query" | "itemSourceQuery" | "detailQuery";
+export type MapQueryField = "query" | "itemSourceQuery" | "detailQuery";
 
-export type AtlasAction =
+export type MapAction =
   | { type: "select-layers"; layerIds: readonly string[] }
   | { type: "select-placement"; placementId: string }
   | { type: "select-entity"; entityKey: string }
@@ -32,14 +32,14 @@ export type AtlasAction =
   | { type: "select-place"; placeKey: string }
   | { type: "exit-item-context" }
   | { type: "close-details" }
-  | { type: "search"; field: AtlasQueryField; query: string }
+  | { type: "search"; field: MapQueryField; query: string }
   | { type: "select-categories"; categories: readonly string[] }
   | { type: "set-overlay"; field: "showZones" | "showConnections" | "showMovement"; visible: boolean }
   | { type: "set-marker-size"; markerSize: number }
-  | { type: "set-view"; view: AtlasView | null }
-  | { type: "replace"; state: AtlasState };
+  | { type: "set-view"; view: MapView | null }
+  | { type: "replace"; state: MapState };
 
-export const DEFAULT_ATLAS_STATE: AtlasState = Object.freeze({
+export const DEFAULT_MAP_STATE: MapState = Object.freeze({
   layerIds: Object.freeze([]),
   selectedPlacementId: null,
   query: "",
@@ -60,9 +60,9 @@ function unique(values: readonly string[]): readonly string[] {
   return Object.freeze([...new Set(values.map((value) => value.trim()).filter(Boolean))]);
 }
 
-export function transitionAtlasState(state: AtlasState, action: AtlasAction): AtlasState {
+export function transitionMapState(state: MapState, action: MapAction): MapState {
   if (action.type === "replace") return freezeState(action.state);
-  let next: AtlasState;
+  let next: MapState;
   switch (action.type) {
     case "select-layers":
       next = { ...state, layerIds: action.layerIds };
@@ -108,8 +108,8 @@ export function transitionAtlasState(state: AtlasState, action: AtlasAction): At
   return freezeState(next, state);
 }
 
-export function selectedDetailKey(state: AtlasState): string | null { return state.itemKey ?? state.entityKey ?? state.placeKey; }
-export function activeCategorySet(state: AtlasState): ReadonlySet<string> { return new Set(state.categories); }
+export function selectedDetailKey(state: MapState): string | null { return state.itemKey ?? state.entityKey ?? state.placeKey; }
+export function activeCategorySet(state: MapState): ReadonlySet<string> { return new Set(state.categories); }
 
 function finiteNumber(value: string | null): number | null {
   if (value === null || value.trim() === "") return null;
@@ -121,7 +121,7 @@ function sameSet(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value) => right.includes(value));
 }
 
-function freezeState(state: AtlasState, previous?: AtlasState): AtlasState {
+function freezeState(state: MapState, previous?: MapState): MapState {
   let view = state.view;
   if (view !== null && view !== previous?.view) {
     const target: readonly [number, number, number] = Object.freeze([view.target[0], view.target[1], view.target[2]]);
@@ -134,18 +134,18 @@ function freezeState(state: AtlasState, previous?: AtlasState): AtlasState {
   });
 }
 
-const ATLAS_URL_KEYS = new Set([
+const MAP_URL_KEYS = new Set([
   "layers", "selected", "q", "source-q", "detail-q", "categories", "zones", "connections", "movement", "marker-size",
   "item", "entity", "place", "x", "y", "z", "zoom",
 ]);
 
-function readAtlasParams(search: string): { params: URLSearchParams; repaired: boolean } {
+function readMapParams(search: string): { params: URLSearchParams; repaired: boolean } {
   const params = new URLSearchParams(search);
   let repaired = false;
   for (const [key, value] of [...params.entries()]) {
     let restored = key;
     while (restored.startsWith("amp;")) restored = restored.slice(4);
-    if (restored === key || !ATLAS_URL_KEYS.has(restored)) continue;
+    if (restored === key || !MAP_URL_KEYS.has(restored)) continue;
     params.delete(key);
     params.append(restored, value);
     repaired = true;
@@ -153,14 +153,14 @@ function readAtlasParams(search: string): { params: URLSearchParams; repaired: b
   return { params, repaired };
 }
 
-export function repairAtlasUrl(url: URL): URL {
-  const { params, repaired } = readAtlasParams(url.search);
+export function repairMapUrl(url: URL): URL {
+  const { params, repaired } = readMapParams(url.search);
   if (repaired) url.search = params.toString();
   return url;
 }
 
-export function readAtlasUrl(search: string): AtlasState {
-  const { params } = readAtlasParams(search);
+export function readMapUrl(search: string): MapState {
+  const { params } = readMapParams(search);
   const x = finiteNumber(params.get("x"));
   const y = finiteNumber(params.get("y"));
   const z = finiteNumber(params.get("z"));
@@ -190,7 +190,7 @@ export function readAtlasUrl(search: string): AtlasState {
   });
 }
 
-export function writeAtlasUrl(url: URL, state: AtlasState): URL {
+export function writeMapUrl(url: URL, state: MapState): URL {
   const params = new URLSearchParams();
   const entries: Array<[string, string | null]> = [
     ["layers", state.layerIds.join(",") || null], ["selected", state.selectedPlacementId],

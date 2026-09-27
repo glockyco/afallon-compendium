@@ -11,7 +11,7 @@ The documented scan-to-site pipeline is not executable end to end: catalog inges
 - Seal the catalog before downstream use. Preserve both logical catalog identity and the SQLite byte hash. Register imagery before sealing and make publication strictly read-only.
 - **BREAKING**: Replace absence-of-issues release logic with build-scoped coverage obligations, reviewed scope, evidence-backed dispositions, and explicit release policy. Empty or unreviewed coverage cannot satisfy a complete release.
 - Compile deterministic static publications from sealed inputs. Validate resource closure, identities, registration, and applicable coverage before atomic selection.
-- Preserve the shared-world atlas while separating essential atlas resources, search, optional geometry, and selected details. Correct immutable asset caching and establish measured resource budgets.
+- Preserve the shared-world map while separating essential map resources, search, optional geometry, and selected details. Correct immutable asset caching and establish measured resource budgets.
 - Centralize URL-driven selection and asynchronous loading. Keep transient UI state and the live renderer camera separate. Preserve development-only detail and authoring controls.
 - Prove the complete fresh-scan-to-browser path, failure safety, semantic parity, reproducibility, and rollback before removing obsolete implementations.
 
@@ -27,7 +27,7 @@ The main `openspec/specs/` directory is empty. These capability paths already oc
 - `canonical-catalog`: One typed ingestion and assembly boundary, complete transaction scope, immutable sealing, and traceable domain transformations.
 - `coverage-accounting`: Positive build-scoped obligations, reviewed dispositions, closure, and release evaluation.
 - `static-publication`: Read-only compilation, typed resource closure, bounded startup projections, and correct deployment caching.
-- `interactive-atlas`: Unified navigation effects, isolated resource state, progressive shared-world startup, and consistent authoring coordinates.
+- `interactive-map`: Unified navigation effects, isolated resource state, progressive shared-world startup, and consistent authoring coordinates.
 
 ### Modified Capabilities
 

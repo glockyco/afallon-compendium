@@ -158,7 +158,7 @@ Alternative rejected: `requiredSourceKeys: []`, zero issues, or zero exclusions 
 
 The publication application accepts a sealed catalog reference, mode, and immutable reviewed presentation settings. Imagery metadata is already cataloged. Open the catalog read-only and verify its byte identity before use.
 
-Use batched ordered catalog queries for public projections. Keep runtime/extraction semantics in catalog, while labels, marker presentation, and resource grouping belong to publication. All geometry uses explicit coordinate types: source world XYZ, map XY, and atlas XY. The pure spatial boundary performs transforms once. Optional authoring deltas are applied consistently by frontend selectors and renderer.
+Use batched ordered catalog queries for public projections. Keep runtime/extraction semantics in catalog, while labels, marker presentation, and resource grouping belong to publication. All geometry uses explicit coordinate types: source world XYZ, individual-map XY, and composed-world XY. The pure spatial boundary performs transforms once. Optional authoring deltas are applied consistently by frontend selectors and renderer.
 
 Replace recursive filename-pattern discovery with schema-specific resource-reference traversal. The declared graph checks expected resource kind, hash, size, build, catalog, and path safety at every edge. Validate nested entity/item/guide references, map parts, optional geometry, and imagery. Resource reachability is independent of object string formatting.
 
@@ -177,8 +177,8 @@ Adopt these initial budgets for that representative publication:
 | Resource | Uncompressed JSON budget |
 | --- | ---: |
 | Root manifest | 64 KiB |
-| Each essential atlas, search, or optional geometry part | 512 KiB |
-| Essential atlas startup total, including root and imagery metadata | 3,300,000 bytes |
+| Each essential map, search, or optional geometry part | 512 KiB |
+| Essential map startup total, including root and imagery metadata | 3,300,000 bytes |
 
 The essential-resource target is below half the observed 6,799,479-byte combined dependency. This accounting group excludes search, selected details, geometry, images, and application code. Map-data readiness also requires geometry, even when its display is disabled. Report actual map-ready transfer separately from the essential-resource budget. Moving bytes does not reduce total publication size.
 
@@ -200,7 +200,7 @@ Keep the existing canonical URL vocabulary. Separate:
 - resource state: idle/loading/loaded/failed, per resource key.
 - transient UI state: hover, panels, focus, authoring drag.
 
-One atlas controller applies initial navigation, direct actions, popstate, and programmatic navigation through the same transition/effect path. Resource requests deduplicate by immutable reference. Rejected requests leave a retryable failure state rather than a permanently cached rejected promise. Selection generations prevent stale completion/error handlers from changing active loading indicators. Keep useful verified results cached even if their initiating selection changes.
+One map controller applies initial navigation, direct actions, popstate, and programmatic navigation through the same transition/effect path. Resource requests deduplicate by immutable reference. Rejected requests leave a retryable failure state rather than a permanently cached rejected promise. Selection generations prevent stale completion/error handlers from changing active loading indicators. Keep useful verified results cached even if their initiating selection changes.
 
 Build immutable identity and search indexes once per loaded publication resource set. The renderer receives prepared immutable geometry and style/selection inputs. Use stable data references and update triggers rather than recomputing whole-geometry signatures for hover or selection. The renderer owns its live camera. URL persistence consumes snapshots and does not feed every pointer update back into the renderer.
 

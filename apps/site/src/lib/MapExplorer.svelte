@@ -5,16 +5,16 @@
   import './MapExplorer.css';
   import { onMount, tick } from 'svelte';
   import type { MapAdapter, MapRendererController, MapViewState } from './map-renderer';
-  import { clientAtlasLoader } from './client-publication';
-  import { AtlasController, type AtlasSnapshot } from './atlas-controller';
-  import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, summarizePlacements } from './atlas-search';
-  import { DEFAULT_ATLAS_STATE, readAtlasUrl, repairAtlasUrl, writeAtlasUrl } from './atlas-state';
-  import AtlasDevelopmentDetails from './map/AtlasDevelopmentDetails.svelte';
-  import AtlasCanvasShell from './map/AtlasCanvasShell.svelte';
-  import AtlasSearchResults from './map/AtlasSearchResults.svelte';
-  import type { ResultSummary } from './atlas-search-types';
-  import AtlasSidebar from './map/AtlasSidebar.svelte';
-  import type { LayerOption } from './map/AtlasLayerControls.svelte';
+  import { clientMapLoader } from './client-publication';
+  import { MapController, type MapSnapshot } from './map-controller';
+  import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, summarizePlacements } from './map-search';
+  import { DEFAULT_MAP_STATE, readMapUrl, repairMapUrl, writeMapUrl } from './map-state';
+  import MapDevelopmentDetails from './map/MapDevelopmentDetails.svelte';
+  import MapCanvasShell from './map/MapCanvasShell.svelte';
+  import MapSearchResults from './map/MapSearchResults.svelte';
+  import type { ResultSummary } from './map-search-types';
+  import MapSidebar from './map/MapSidebar.svelte';
+  import type { LayerOption } from './map/MapLayerControls.svelte';
 
   import {
     MARKER_IDS,
@@ -37,8 +37,8 @@
   let resultList: HTMLElement;
   let detailsPanel: HTMLElement;
   let searchInput: HTMLInputElement;
-  let snapshot: AtlasSnapshot | null = null;
-  let controller: AtlasController | null = null;
+  let snapshot: MapSnapshot | null = null;
+  let controller: MapController | null = null;
   let rendererStarting = false;
   let disposed = false;
   let adapter: MapAdapter | null = null;
@@ -62,12 +62,12 @@
 
   let publication: PublicationData | null = null;
   let searchIndexes = initialIndexes;
-  let searchState: AtlasSnapshot['search'] = idleRequest;
+  let searchState: MapSnapshot['search'] = idleRequest;
   let documents = initialDocuments;
-  let layerIds = DEFAULT_ATLAS_STATE.layerIds;
-  let categoryIds = DEFAULT_ATLAS_STATE.categories;
+  let layerIds = DEFAULT_MAP_STATE.layerIds;
+  let categoryIds = DEFAULT_MAP_STATE.categories;
 
-  $: state = snapshot?.state ?? DEFAULT_ATLAS_STATE;
+  $: state = snapshot?.state ?? DEFAULT_MAP_STATE;
   $: if (snapshot && publication !== snapshot.publication) publication = snapshot.publication;
   $: if (snapshot && searchIndexes !== snapshot.indexes) searchIndexes = snapshot.indexes;
   $: if (snapshot && documents !== snapshot.documents) documents = snapshot.documents;
@@ -157,26 +157,26 @@
     rendererError = message;
   }
 
-  function readAndRepairAtlasUrl(url: URL) {
-    const repaired = repairAtlasUrl(new URL(url));
+  function readAndRepairMapUrl(url: URL) {
+    const repaired = repairMapUrl(new URL(url));
     if (repaired.search !== url.search) replaceState(repaired, {});
-    return readAtlasUrl(repaired.search);
+    return readMapUrl(repaired.search);
   }
 
   afterNavigate(({ to }) => {
-    if (controller && to) controller.navigate(readAndRepairAtlasUrl(to.url));
+    if (controller && to) controller.navigate(readAndRepairMapUrl(to.url));
   });
 
   onMount(() => {
     worldOffsetOverrides = loadWorldOffsetOverrides();
     try {
-      const storedPanelState = localStorage.getItem('afallon-atlas-sidebar');
+      const storedPanelState = localStorage.getItem('afallon-map-sidebar');
       panelCollapsed = storedPanelState ? storedPanelState === 'collapsed' : window.matchMedia('(max-width: 680px)').matches;
-      resultsCollapsed = localStorage.getItem('afallon-atlas-results') === 'collapsed';
+      resultsCollapsed = localStorage.getItem('afallon-map-results') === 'collapsed';
     } catch {
       // Expanded panels are a safe default when browser storage is unavailable.
     }
-    const onPopState = () => controller?.navigate(readAndRepairAtlasUrl(new URL(window.location.href)));
+    const onPopState = () => controller?.navigate(readAndRepairMapUrl(new URL(window.location.href)));
     const onKeydown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault();
@@ -197,12 +197,12 @@
     };
     window.addEventListener('popstate', onPopState);
     window.addEventListener('keydown', onKeydown);
-    const loader = clientAtlasLoader();
+    const loader = clientMapLoader();
     if (!loader) return;
-    controller = new AtlasController(loader, {
+    controller = new MapController(loader, {
       onChange: acceptSnapshot,
       onNavigate(next, mode) {
-        const url = writeAtlasUrl(new URL(window.location.href), next);
+        const url = writeMapUrl(new URL(window.location.href), next);
         if (mode === 'push') pushState(url, {});
         else replaceState(url, {});
       },
@@ -213,9 +213,9 @@
         adapter?.setView(restored);
       },
     });
-    const initialUrl = repairAtlasUrl(new URL(window.location.href));
+    const initialUrl = repairMapUrl(new URL(window.location.href));
     if (initialUrl.search !== window.location.search) window.history.replaceState(window.history.state, '', initialUrl);
-    controller.start(readAtlasUrl(initialUrl.search));
+    controller.start(readMapUrl(initialUrl.search));
     return () => {
       disposed = true;
       window.removeEventListener('popstate', onPopState);
@@ -235,7 +235,7 @@
     fitMapSpace(selectedPlace.space.mapSpaceId);
   }
 
-  function acceptSnapshot(next: AtlasSnapshot): void {
+  function acceptSnapshot(next: MapSnapshot): void {
     snapshot = next;
   }
 
@@ -389,7 +389,7 @@
   function togglePanel(): void {
     panelCollapsed = !panelCollapsed;
     try {
-      localStorage.setItem('afallon-atlas-sidebar', panelCollapsed ? 'collapsed' : 'expanded');
+      localStorage.setItem('afallon-map-sidebar', panelCollapsed ? 'collapsed' : 'expanded');
     } catch {
       // The panel remains usable when browser storage is unavailable.
     }
@@ -398,7 +398,7 @@
   function setResultsCollapsed(collapsed: boolean): void {
     resultsCollapsed = collapsed;
     try {
-      localStorage.setItem('afallon-atlas-results', collapsed ? 'collapsed' : 'expanded');
+      localStorage.setItem('afallon-map-results', collapsed ? 'collapsed' : 'expanded');
     } catch {
       // The results panel remains usable when browser storage is unavailable.
     }
@@ -468,14 +468,14 @@
   <meta name="twitter:image" content="https://afallon.compendiums.org/og-default.png" />
 </svelte:head>
 
-<div class="atlas-shell">
+<div class="map-shell">
   {#if loading}
-    <main class="initial-loading" role="status"><div class="loading-indicator"><div class="spinner" aria-hidden="true"></div><span>Loading map...</span></div></main>
+    <main class="initial-loading" role="status"><div class="loading-indicator"><div class="spinner" aria-hidden="true"></div><span>Loading Map...</span></div></main>
   {:else if loadError && !publication}
-    <main class="state-card error" role="alert"><h1>Atlas unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p><button type="button" on:click={() => controller?.retry('map')}>Retry map data</button></main>
+    <main class="state-card error" role="alert"><h1>Map Unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p><button type="button" on:click={() => controller?.retry('map')}>Retry Map Data</button></main>
   {:else if publication}
     <main class="workspace" class:with-details={dev} class:has-details={dev && Boolean(selectedPlacement || selectedEntityKey || itemKey || placeKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
-      <AtlasSidebar
+      <MapSidebar
         collapsed={panelCollapsed} logoBase={base} bind:searchInput {query} sections={markerSections} {categories} {categoryCounts} countsPending={resultsPending}
         placementCount={allMapPlacements.length} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
         {visibleTileLayerIds} {visibleGameMapIds} {capturedChecked} {capturedPartial} {gameMapsChecked} {gameMapsPartial}
@@ -486,23 +486,23 @@
         onToggleAllCategories={toggleAllCategories} onToggleCaptured={toggleCaptured} onToggleMapLayer={toggleMapLayer}
         onToggleGameMaps={toggleGameMaps} onToggleGameMap={toggleGameMap} onToggleConnections={toggleConnections}
         onToggleMovement={toggleMovement} onToggleZones={toggleZones} onMarkerSizeChange={setMarkerSize}
-        onResetMarkerSize={() => setMarkerSize(DEFAULT_ATLAS_STATE.markerSize)} onToggleAuthoring={toggleAuthoring}
+        onResetMarkerSize={() => setMarkerSize(DEFAULT_MAP_STATE.markerSize)} onToggleAuthoring={toggleAuthoring}
         onExportWorldOffsets={exportWorldOffsets} onDiscardWorldOffsets={discardWorldOffsets}
       />
-      {#if !panelCollapsed}<button class="panel-backdrop" type="button" aria-label="Close atlas controls" on:click={togglePanel}></button>{/if}
+      {#if !panelCollapsed}<button class="panel-backdrop" type="button" aria-label="Close Map Controls" on:click={togglePanel}></button>{/if}
 
-      <section class:results-collapsed={resultsCollapsed} class="map-column" aria-label="Interactive map">
-        <AtlasCanvasShell bind:canvas {mapReady} {mapUnavailable} {previewPlacement} {previewMarker}
+      <section class:results-collapsed={resultsCollapsed} class="map-column" aria-label="Interactive Map">
+        <MapCanvasShell bind:canvas {mapReady} {mapUnavailable} {previewPlacement} {previewMarker}
           countsPending={resultsPending} matchingCount={matchingPlacements.length} viewportCount={resultPlacements.length} showsExtraSelection={Boolean(extraSelection)}
           onZoomIn={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}
           onZoomOut={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })} onFit={fitMap}
         />
         {#if loadError && publication && !mapUnavailable}<div class="inline-error" role="alert">{loadError}</div>{/if}
         <!-- Without a production details panel a stale or failed selection would be silent, and the
-             atlas spec requires a stale link to explain itself rather than select something else. -->
+             map spec requires a stale link to explain itself rather than select something else. -->
         {#if !dev && staleSelection}<p class="inline-error" role="alert">{staleSelection} <button type="button" on:click={closeDetails}>Clear selection</button></p>{/if}
         {#if !dev && detailError}<p class="inline-error" role="alert">{detailError} <button type="button" on:click={() => controller?.retry('detail')}>Retry selection</button></p>{/if}
-        <AtlasSearchResults bind:resultList collapsed={resultsCollapsed} {displayedResults} totalResults={rankedResults.length}
+        <MapSearchResults bind:resultList collapsed={resultsCollapsed} {displayedResults} totalResults={rankedResults.length}
           pending={resultsPending} error={resultsError} searchPending={searchState.status === 'loading'} onRetry={() => controller?.retry('search')}
           resultLimit={RESULT_LIMIT} placementCount={resultPlacements.length} searching={Boolean(searchNeedle)}
           hasViewport={Boolean(viewportBounds) && !searchNeedle} {mapUnavailable}
@@ -514,7 +514,7 @@
       <!-- Selection details stay development-only for now. A production reader follows a marker to
            its compendium page instead, so the map keeps its full width. -->
       {#if dev}
-        <AtlasDevelopmentDetails bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry} {mapSpaceLabels}
+        <MapDevelopmentDetails bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry} {mapSpaceLabels}
           loading={detailLoading} error={detailError} {staleSelection} onClose={closeDetails} onRetry={() => controller?.retry('detail')} />
       {/if}
     </main>

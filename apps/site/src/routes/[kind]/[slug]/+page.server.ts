@@ -1,10 +1,10 @@
 import { error } from '@sveltejs/kit';
 import type { EntryGenerator, PageServerLoad } from './$types';
-import { serverAtlasLoader } from '$lib/server/publication';
+import { serverMapLoader } from '$lib/server/publication';
 import type { PublicPageKind } from '@afallon/contracts/public';
 
 export const entries: EntryGenerator = async () => {
-  const loader = serverAtlasLoader();
+  const loader = serverMapLoader();
   const [registry, indexes] = await Promise.all([loader.loadRegistry(), loader.loadIndexes()]);
   const routeByKind = new Map(registry.filter((entry) => entry.pages).map((entry) => [entry.kind, entry.route]));
   return indexes.entries.filter((entry) => entry.document && entry.ref.slug && routeByKind.has(entry.ref.kind))
@@ -12,7 +12,7 @@ export const entries: EntryGenerator = async () => {
 };
 
 export const load: PageServerLoad = async ({ params }) => {
-  const loader = serverAtlasLoader();
+  const loader = serverMapLoader();
   const [registry, indexes, root] = await Promise.all([loader.loadRegistry(), loader.loadIndexes(), loader.loadRoot()]);
   const kind = registry.find((entry) => entry.pages && entry.route === params.kind);
   if (!kind) error(404, 'This compendium kind is not published.');

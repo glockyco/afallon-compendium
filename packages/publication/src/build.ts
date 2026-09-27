@@ -126,12 +126,12 @@ export async function buildStaticPublication(
   Assert(StaticRootManifestSchema, manifest);
   const rootResource = await writeStaticJson(store, manifest.schemaVersion, manifest, protection);
   const groups: Record<string, GeneratedStaticResource<unknown>[]> = {
-    root: [rootResource], atlas: mapShards.flatMap((entry) => entry.resources), imageryMetadata: imagery.map((entry) => entry.resource),
+    root: [rootResource], map: mapShards.flatMap((entry) => entry.resources), imageryMetadata: imagery.map((entry) => entry.resource),
     search: indexes.search, lists: [...indexes.lists.values()].flat(), documents: [...indexes.documents.values()],
     optionalGeometry: mapShards.flatMap((entry) => entry.geometry), coverage: [coverageResource],
   };
   // The map loads the root, its map parts, and imagery declarations before it is ready. Other groups load on demand.
-  const essentialBytes = [...groups.root!, ...groups.atlas!, ...groups.imageryMetadata!].reduce((sum, resource) => sum + resource.identity.bytes, 0);
+  const essentialBytes = [...groups.root!, ...groups.map!, ...groups.imageryMetadata!].reduce((sum, resource) => sum + resource.identity.bytes, 0);
   const resources = [...new Map(Object.entries(groups).filter(([name]) => name !== "root").flatMap(([, values]) => values).map((resource) => [resource.reference.path, { reference: resource.reference, identity: resource.identity }])).values()];
   const assetsByPath = new Map<string, PublicationCandidateAsset>();
   for (const entry of imagery) for (const layer of entry.resource.value.layers) for (const tile of layer.tiles) assetsByPath.set(tile.url, { path: tile.url, identity: { sha256: tile.sha256, bytes: tile.bytes } });
@@ -141,7 +141,7 @@ export async function buildStaticPublication(
   await verifyPublicationGraph(store, root, resources, assets, gate);
   const measurements: PublicationMeasurements = {
     groups: {}, essentialBytes,
-    essentialRequests: groups.root!.length + groups.atlas!.length + groups.imageryMetadata!.length,
+    essentialRequests: groups.root!.length + groups.map!.length + groups.imageryMetadata!.length,
     applicationCode: { bytes: null, reason: "Application code is measured separately by the static site build." },
   };
   for (const [name, values] of Object.entries(groups)) {

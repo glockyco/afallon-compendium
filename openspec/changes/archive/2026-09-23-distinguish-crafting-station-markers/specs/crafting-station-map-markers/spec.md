@@ -1,12 +1,12 @@
 ## Purpose
 
-Let players find the right crafting service on the atlas without inspecting every station. Station markers reflect verified game records and remain useful when a reference is unresolved.
+Let players find the right crafting service on the map without inspecting every station. Station markers reflect verified game records and remain useful when a reference is unresolved.
 
 ## ADDED Requirements
 
 ### Requirement: Station types have distinct map categories
 
-The atlas SHALL offer separate marker categories and filters for Alchemy, Cooking, Smithing, Furnace (Metallurgy), and Tailoring. Each category SHALL have a distinct glyph and a text label. A placed station SHALL receive its category from its verified game station reference, not from a scene object name or a display label.
+The map SHALL offer separate marker categories and filters for Alchemy, Cooking, Smithing, Furnace (Metallurgy), and Tailoring. Each category SHALL have a distinct glyph and a text label. A placed station SHALL receive its category from its verified game station reference, not from a scene object name or a display label.
 
 #### Scenario: Cooking and smithing are both present
 - **WHEN** a map contains verified Cooking and Smithing stations
@@ -19,16 +19,16 @@ The atlas SHALL offer separate marker categories and filters for Alchemy, Cookin
 
 ### Requirement: Rare stations are visible initially
 
-The atlas SHALL show Alchemy, Smithing, Furnace, and Tailoring markers by default. Cooking and generic Crafting Station markers SHALL remain available but disabled by default.
+The map SHALL show Alchemy, Smithing, Furnace, and Tailoring markers by default. Cooking and generic Crafting Station markers SHALL remain available but disabled by default.
 
-#### Scenario: Atlas opens without a category filter
-- **WHEN** a player opens the atlas without category selections
+#### Scenario: Map opens without a category filter
+- **WHEN** a player opens the map without category selections
 - **THEN** Alchemy, Smithing, Furnace, and Tailoring filters are enabled
 - **AND** Cooking and generic Crafting Station filters are disabled
 
 ### Requirement: Unknown stations remain discoverable
 
-A crafting service with no verified station reference or no supported station category SHALL retain a generic Crafting Station marker and filter. The atlas SHALL NOT infer a type from the station name, object name, or craft skill rows. A station type without a verified placement SHALL NOT add an empty type-specific filter.
+A crafting service with no verified station reference or no supported station category SHALL retain a generic Crafting Station marker and filter. The map SHALL NOT infer a type from the station name, object name, or craft skill rows. A station type without a verified placement SHALL NOT add an empty type-specific filter.
 
 #### Scenario: Station reference cannot be resolved
 - **WHEN** a crafting service has an unresolved station reference

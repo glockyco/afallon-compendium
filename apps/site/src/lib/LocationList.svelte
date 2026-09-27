@@ -13,7 +13,7 @@
 
   $: groups = groupPlacementsByLabel(locations);
   $: visible = limit === undefined ? groups : groups.slice(0, limit);
-  const atlasHref = (placementId: string) => `${base}/?selected=${encodeURIComponent(placementId)}${entityKey ? `&${item ? 'item' : 'entity'}=${encodeURIComponent(entityKey)}` : ''}`;
+  const mapHref = (placementId: string) => `${base}/?selected=${encodeURIComponent(placementId)}${entityKey ? `&${item ? 'item' : 'entity'}=${encodeURIComponent(entityKey)}` : ''}`;
 </script>
 
 <Card title={heading} count={locations.length > 0 ? locations.length : undefined}>
@@ -21,8 +21,8 @@
     <ul>
       {#each visible as [label, members]}
         <li class:group={members.length > 1}>
-          {#if members.length === 1}<a class="c-link" href={atlasHref(members[0]!.placementId)}>{label}</a>
-          {:else}{label}{#each members as placement, index}<a class="c-link" href={atlasHref(placement.placementId)} aria-label={`${label}, location ${index + 1} of ${members.length}`}>{index + 1}</a>{/each}{/if}
+          {#if members.length === 1}<a class="c-link" href={mapHref(members[0]!.placementId)}>{label}</a>
+          {:else}{label}{#each members as placement, index}<a class="c-link" href={mapHref(placement.placementId)} aria-label={`${label}, location ${index + 1} of ${members.length}`}>{index + 1}</a>{/each}{/if}
         </li>
       {/each}
     </ul>

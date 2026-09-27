@@ -3,7 +3,7 @@
   import { MARKER_SIZE_RANGE, type MarkerDefinition, type MarkerId } from './marker-registry';
   import CategoryRow from './CategoryRow.svelte';
   import MapSidebarSection from './MapSidebarSection.svelte';
-  import AtlasLayerControls, { type LayerOption } from './AtlasLayerControls.svelte';
+  import MapLayerControls, { type LayerOption } from './MapLayerControls.svelte';
   import type { WorldOffsetOverrides } from './world-layout';
 
   export let collapsed: boolean;
@@ -52,18 +52,18 @@
   export let onDiscardWorldOffsets: () => void;
 </script>
 
-<aside class:collapsed class="control-panel" aria-label="Atlas controls">
+<aside class:collapsed class="control-panel" aria-label="Map Controls">
   <div class="panel-header">
     {#if !collapsed}<a class="home-link" href="{logoBase}/" aria-label="Afallon Compendium home"><img src="{logoBase}/logo.png" alt="" /><span class="brand-copy"><strong>Afallon</strong><span>Compendium</span></span></a>{/if}
-    <button class="panel-toggle" type="button" on:click={onToggle} aria-label={collapsed ? 'Expand atlas controls' : 'Collapse atlas controls'} title="⌘/Ctrl+B" aria-expanded={!collapsed}>{collapsed ? '»' : '«'}</button>
+    <button class="panel-toggle" type="button" on:click={onToggle} aria-label={collapsed ? 'Expand Map Controls' : 'Collapse Map Controls'} title="⌘/Ctrl+B" aria-expanded={!collapsed}>{collapsed ? '»' : '«'}</button>
   </div>
   {#if collapsed}
     <nav class="panel-rail" aria-label="Quick category toggles">{#each sections as section}<div class="rail-group" aria-label={section.label}>{#each section.markers as marker (marker.id)}<CategoryRow marker={marker} checked={categories.includes(marker.id)} count={categoryCounts[marker.id] ?? 0} pending={countsPending} compact onToggle={() => onToggleCategory(marker.id)} />{/each}</div>{/each}</nav>
   {:else}
     <div class="panel-body">
-      <div class="control-section search-section"><div class="search-field"><span class="search-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg></span><input id="atlas-search" bind:this={searchInput} value={query} on:input={(event) => onQuery(event.currentTarget.value)} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onSubmitSearch(); } if (event.key === 'Escape' && query) { event.preventDefault(); onQuery(''); } }} placeholder="Search..." aria-label="Search places, entities, and items" autocomplete="off" /><kbd class="search-key" aria-hidden="true">⌘K</kbd></div></div>
-      <div class="categories-block"><div class="section-heading"><h2>Categories</h2><span class="heading-actions">{#if !isDefaultCategories}<button type="button" class="text-button" on:click={onResetCategories}>Reset</button>{/if}{#if categories.length > 0}<button type="button" class="text-button" on:click={onShowAllCategories}>Show all</button>{/if}</span><span class="count">{placementCount}</span></div>{#each sections as section (section.id)}<MapSidebarSection title={section.label} categories={section.markers} activeCategories={categories} counts={categoryCounts} {countsPending} storageKey={`afallon-atlas-section-${section.id}`} onToggleCategory={onToggleCategory} onToggleAll={onToggleAllCategories} />{/each}</div>
-      <AtlasLayerControls {layerOptions} {tileLayerOptions} {gameMapOptions} {visibleTileLayerIds} {visibleGameMapIds} {capturedChecked} {capturedPartial} {gameMapsChecked} {gameMapsPartial} toggleCaptured={onToggleCaptured} toggleMapLayer={onToggleMapLayer} toggleGameMaps={onToggleGameMaps} toggleGameMap={onToggleGameMap} />
+      <div class="control-section search-section"><div class="search-field"><span class="search-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg></span><input id="map-search" bind:this={searchInput} value={query} on:input={(event) => onQuery(event.currentTarget.value)} on:keydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onSubmitSearch(); } if (event.key === 'Escape' && query) { event.preventDefault(); onQuery(''); } }} placeholder="Search..." aria-label="Search places, entities, and items" autocomplete="off" /><kbd class="search-key" aria-hidden="true">⌘K</kbd></div></div>
+      <div class="categories-block"><div class="section-heading"><h2>Categories</h2><span class="heading-actions">{#if !isDefaultCategories}<button type="button" class="text-button" on:click={onResetCategories}>Reset</button>{/if}{#if categories.length > 0}<button type="button" class="text-button" on:click={onShowAllCategories}>Show all</button>{/if}</span><span class="count">{placementCount}</span></div>{#each sections as section (section.id)}<MapSidebarSection title={section.label} categories={section.markers} activeCategories={categories} counts={categoryCounts} {countsPending} storageKey={`afallon-map-section-${section.id}`} onToggleCategory={onToggleCategory} onToggleAll={onToggleAllCategories} />{/each}</div>
+      <MapLayerControls {layerOptions} {tileLayerOptions} {gameMapOptions} {visibleTileLayerIds} {visibleGameMapIds} {capturedChecked} {capturedPartial} {gameMapsChecked} {gameMapsPartial} toggleCaptured={onToggleCaptured} toggleMapLayer={onToggleMapLayer} toggleGameMaps={onToggleGameMaps} toggleGameMap={onToggleGameMap} />
       <div class="control-section world-tools"><h2>Map Options</h2>
         <div class="marker-size-option">
           <div class="marker-size-heading"><label for="marker-size">Marker Size</label><output for="marker-size">{markerSize}%</output></div>

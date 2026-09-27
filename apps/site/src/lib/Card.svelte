@@ -1,6 +1,6 @@
 <script lang="ts">
   // Every compendium surface reaches the shared tokens through a card, including the tooltip and
-  // the atlas detail panel, so the stylesheet is imported here rather than per page.
+  // the map detail panel, so the stylesheet is imported here rather than per page.
   import './compendium.css';
 
   export let title: string;

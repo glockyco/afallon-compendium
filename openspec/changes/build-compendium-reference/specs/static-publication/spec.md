@@ -2,7 +2,7 @@
 
 ### Requirement: Detail and authoring controls remain development-only
 
-Production builds SHALL NOT render the selection detail panel, the authoring controls, or the evidence panels. Development builds SHALL retain those interfaces for inspection and authoring workflows. Refactoring the atlas SHALL NOT weaken the build-time boundary.
+Production builds SHALL NOT render the selection detail panel, the authoring controls, or the evidence panels. Development builds SHALL retain those interfaces for inspection and authoring workflows. Refactoring the map SHALL NOT weaken the build-time boundary.
 
 #### Scenario: A production reader selects a marker
 - **WHEN** a marker is selected in a production build
@@ -56,7 +56,7 @@ The publication root SHALL carry a kind registry. Each entry SHALL declare the k
 
 ### Requirement: Publication emits page entries and a shared search corpus
 
-The publication root SHALL list every page path to prerender. Publication SHALL emit one search corpus that covers every searchable kind. Each corpus entry SHALL carry the reference shape, the kind, the level or level range when present, the primary place when present, and the placement references. The atlas and the pages SHALL consume the same corpus resources.
+The publication root SHALL list every page path to prerender. Publication SHALL emit one search corpus that covers every searchable kind. Each corpus entry SHALL carry the reference shape, the kind, the level or level range when present, the primary place when present, and the placement references. The map and the pages SHALL consume the same corpus resources.
 
 #### Scenario: The site prerenders from the publication
 - **WHEN** the site builds against a selected publication

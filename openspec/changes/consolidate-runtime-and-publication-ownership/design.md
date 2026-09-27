@@ -8,13 +8,13 @@ The audit found these concrete ownership boundaries:
 | --- | --- | --- |
 | Publication | `packages/publication/src/selection.ts` and `apps/site/scripts/publication-graph.ts` each walk and validate resources | Deployment omits producer checks for geometry membership, travel agreement, and search/detail relationships |
 | Parity | `apps/site/scripts/publication-parity.ts` reads candidate JSON after graph verification | Duplicate reads, parsing, and schema checks |
-| Atlas | `MapExplorer.svelte::acceptSnapshot` copies controller fields and `syncUrl` reconstructs them | Two mutable representations must agree |
+| Map | `MapExplorer.svelte::acceptSnapshot` copies controller fields and `syncUrl` reconstructs them | Two mutable representations must agree |
 | Artifacts | `runs.ts`, `references.ts`, and `leases.ts` repeat path validation and temporary-file operations | Similar code hides different persistence guarantees |
 | Renderer | `map-renderer.ts` mixes pure projection, layer creation, lifecycle, and interaction | Existing layer modules do not fully own layer construction |
 | Deployment | Staging and deployment assertion repeat regular-file traversal, hashing, and JSON reading | File-safety policy can diverge |
 | Capture | Capture and readiness repeat schema and finite-number validation | Numeric comparison tolerances differ and must remain explicit |
 
-`extentOfTiles` and `planBox` also calculate the same tile bounds. Existing tests cover publication selection, parity, artifact references, runs, capture plans, readiness, atlas URLs, and renderer replacement.
+`extentOfTiles` and `planBox` also calculate the same tile bounds. Existing tests cover publication selection, parity, artifact references, runs, capture plans, readiness, map URLs, and renderer replacement.
 
 The controller currently waits for all declared geometry before composing map data. Search remains independent. The current controller configuration deliberately disables inertia. Pending OpenSpec requirements still demand deferred geometry and inertial pan.
 
@@ -54,9 +54,9 @@ Keep artifact verification immediately before materialization and staged-file ve
 
 **Alternative rejected:** Importing publication into site scripts violates current dependency direction and risks pulling catalog, artifact, and image-processing dependencies into the site. A generic reader framework would add machinery without eliminating host-specific checks.
 
-### 2. Keep one accepted atlas snapshot and one live camera
+### 2. Keep one accepted map snapshot and one live camera
 
-`AtlasController` owns accepted persistent state. `MapExplorer.svelte` stores one snapshot and derives template values from it. Remove writable mirrors and the inverse full-state serializer. Readonly local aliases are acceptable for Svelte reactivity, but they must not become additional state owners.
+`MapController` owns accepted persistent state. `MapExplorer.svelte` stores one snapshot and derives template values from it. Remove writable mirrors and the inverse full-state serializer. Readonly local aliases are acceptable for Svelte reactivity, but they must not become additional state owners.
 
 Use existing focused actions where their semantics are complete. Add atomic domain actions only where one user operation changes related fields together. Preserve item-to-source context, placement selection, entity selection, detail close behavior, and query-clearing rules. Reserve full-state replacement for initial URLs and history restoration.
 
@@ -72,10 +72,10 @@ Resource data remains owned by the controller and loader. Preserve stale-respons
 
 During implementation, reconcile these exact sources:
 
-- `complete-evidence-pipeline-architecture/specs/interactive-atlas/spec.md`: replace the deferred-geometry clauses and toggle-fetch scenario with eager readiness.
+- `complete-evidence-pipeline-architecture/specs/interactive-map/spec.md`: replace the deferred-geometry clauses and toggle-fetch scenario with eager readiness.
 - Its `design.md`: distinguish the existing essential-resource accounting group from actual map-ready transfer, which now includes geometry.
 - Its relevant tasks and `static-publication` delta: remove statements that equate accounting categories with deferred network loading.
-- `build-screenshot-first-map/specs/interactive-atlas/spec.md`: replace the inertial-pan scenario with non-inertial behavior.
+- `build-screenshot-first-map/specs/interactive-map/spec.md`: replace the inertial-pan scenario with non-inertial behavior.
 - Its design and task 6.9: align gesture acceptance without marking unrelated tasks complete.
 - `openspec/config.yaml`: align the stale capture-first context with the existing game-map default and optional captured terrain described in `EXPLORATION.md`.
 

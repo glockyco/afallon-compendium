@@ -10,7 +10,7 @@ The compendium SHALL organize world content into dungeons, regions, and properti
 
 Structure SHALL come from the extracted native records: scene guide metadata and boss references, and region guide metadata and level ranges. The compendium SHALL NOT invent tabs, groupings, or categories that the game does not present.
 
-Content the game excludes from its guide SHALL NOT appear as guide content. It remains available through the atlas and search.
+Content the game excludes from its guide SHALL NOT appear as guide content. It remains available through the map and search.
 
 #### Scenario: A reader opens a dungeon
 - **WHEN** that scene is included in the game's guide
@@ -25,7 +25,7 @@ Content the game excludes from its guide SHALL NOT appear as guide content. It r
 #### Scenario: A scene is not in the game's guide
 - **WHEN** the scene has no guide metadata
 - **THEN** it does not appear as a dungeon entry
-- **AND** its places remain reachable through the atlas and search
+- **AND** its places remain reachable through the map and search
 
 ### Requirement: Guide loot states only measured chance semantics
 
@@ -49,7 +49,7 @@ A boss, a region, a dungeon, and a property SHALL link to their locations on the
 
 #### Scenario: A reader follows a boss to the map
 - **WHEN** the boss has a published location
-- **THEN** the atlas opens that location
+- **THEN** the map opens that location
 - **AND** browser back returns to the boss entry
 
 #### Scenario: A boss location is not published

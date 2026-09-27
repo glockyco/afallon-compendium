@@ -36,12 +36,12 @@ Overlapping categories SHALL NOT create duplicate physical markers. Dense views 
 
 #### Scenario: A low-zoom view contains many resources
 - **WHEN** individual markers would obscure terrain
-- **THEN** the atlas aggregates them with discoverable counts
+- **THEN** the map aggregates them with discoverable counts
 - **AND** zooming or selecting an aggregate reveals its members
 
 ### Requirement: One registry owns marker presentation
 
-Markers SHALL use recognizable glyph icons from the project's icon set, drawn as a glyph on a colored background, consistent with the sibling atlases. One registry SHALL own each marker's icon, color, label, plural label, size, precedence, render order, and default visibility. Consumers SHALL read that registry.
+Markers SHALL use recognizable glyph icons from the project's icon set, drawn as a glyph on a colored background, consistent with the sibling maps. One registry SHALL own each marker's icon, color, label, plural label, size, precedence, render order, and default visibility. Consumers SHALL read that registry.
 
 There SHALL NOT be a second registry, a compatibility mapping, or a per-consumer marker switch. Adding a category SHALL require one registry entry, and a test SHALL fail when a registered category has no rendered layer.
 
@@ -65,7 +65,7 @@ Render order SHALL be semantic, from terrain and areas, through paths and ranges
 
 ### Requirement: Level ranges are visible and filterable
 
-The atlas SHALL show the level range of a map or its associated `RegionTemplate` record the way the game does, next to its name. It SHALL provide a level filter over creature levels. Level data SHALL come from the extracted native sources: `RegionTemplate` level ranges, scene dungeon ranges, scene scaling ranges, and producer scaling overrides.
+The map SHALL show the level range of a map or its associated `RegionTemplate` record the way the game does, next to its name. It SHALL provide a level filter over creature levels. Level data SHALL come from the extracted native sources: `RegionTemplate` level ranges, scene dungeon ranges, scene scaling ranges, and producer scaling overrides.
 
 A creature whose level is unknown SHALL remain visible under a filter rather than silently disappear.
 
@@ -81,11 +81,11 @@ A creature whose level is unknown SHALL remain visible under a filter rather tha
 
 ### Requirement: One world map holds every place
 
-The atlas SHALL present one navigable world map. Scenes that the game already covers with a shared map texture SHALL occupy one map without manual composition. Maps the game does not position relative to each other, such as caves and dungeons, SHALL be placed on the world map by reviewed manual placement.
+The map SHALL present one navigable world map. Scenes that the game already covers with a shared map texture SHALL occupy one map without manual composition. Maps the game does not position relative to each other, such as caves and dungeons, SHALL be placed on the world map by reviewed manual placement.
 
-Placement SHALL be translation only at a shared world scale. The atlas SHALL NOT rescale or rotate a map to improve the layout. A reviewed placement file SHALL own the offsets. A development-only authoring mode MAY allow dragging a map with its markers and exporting those offsets for review. Production SHALL NOT include authoring controls. A placement override SHALL move a map and its markers together.
+Placement SHALL be translation only at a shared world scale. The map SHALL NOT rescale or rotate a map to improve the layout. A reviewed placement file SHALL own the offsets. A development-only authoring mode MAY allow dragging a map with its markers and exporting those offsets for review. Production SHALL NOT include authoring controls. A placement override SHALL move a map and its markers together.
 
-An offset MAY be any world translation. Publication SHALL NOT snap an offset to the tile lattice; a placed map's pyramid is indexed in that map's own coordinates and the atlas translates it when drawing. The reviewed layout places interiors on a ring around the overworld: the four corner maps have their centres at one distance from the overworld centre on each axis, and the maps on each side are spaced evenly between the corners, so every map keeps the same gap to the overworld.
+An offset MAY be any world translation. Publication SHALL NOT snap an offset to the tile lattice; a placed map's pyramid is indexed in that map's own coordinates and the map translates it when drawing. The reviewed layout places interiors on a ring around the overworld: the four corner maps have their centres at one distance from the overworld centre on each axis, and the maps on each side are spaced evenly between the corners, so every map keeps the same gap to the overworld.
 
 A placement SHALL publish when it resolves to a placed map, whether or not that map's imagery covers its position, and a map's bounds SHALL include every published placement. A door SHALL resolve to the published position of its arrival point through every action kind the game uses for a teleport: an interactable Effect action, a nested GameActions teleport, or a nested Effect game action whose effect teleports. Every published interior SHALL have at least one resolved door into it.
 
@@ -113,7 +113,7 @@ Each placed map SHALL show its player-facing name above its bounds. The label SH
 #### Scenario: A door teleports through a nested effect
 - **WHEN** a placement's only teleport is a GameActions template whose nested Effect game action applies a Teleport effect
 - **THEN** the door resolves to that effect's arrival position on its destination map
-- **AND** the atlas draws the connection when the door is selected or hovered
+- **AND** the map draws the connection when the door is selected or hovered
 
 #### Scenario: A placement lies outside the map art
 - **WHEN** a resolved placement sits where its map's imagery has no opaque pixels
@@ -123,11 +123,11 @@ Each placed map SHALL show its player-facing name above its bounds. The label SH
 
 ### Requirement: Travel connections are drawn on the world map
 
-Where a travel point has a resolved destination, the atlas SHALL draw the connection on the world map: the travel marker, a line from it to its destination, and a mark at the destination. One toggle SHALL control that group.
+Where a travel point has a resolved destination, the map SHALL draw the connection on the world map: the travel marker, a line from it to its destination, and a mark at the destination. One toggle SHALL control that group.
 
 Connections SHALL span maps, so a dungeon entrance links to the arrival point within that zone's map. A travel point whose destination is unresolved SHALL keep its marker without a line, and SHALL NOT be drawn to a guessed position. A destination that is disabled or otherwise inactive SHALL remain visible and visibly distinguished rather than hidden. Selection and hover SHALL strengthen the applicable line while preserving that disabled distinction.
 
-The atlas SHALL draw a connection only from a typed published relationship with explicit source and destination positions. It SHALL NOT infer trap, patrol, portal, blocker, or other lines from labels or detail text.
+The map SHALL draw a connection only from a typed published relationship with explicit source and destination positions. It SHALL NOT infer trap, patrol, portal, blocker, or other lines from labels or detail text.
 
 The authoring mode SHALL render connections while a reviewer positions maps, because a line whose ends are far apart or crossed reveals a wrong placement.
 
@@ -139,7 +139,7 @@ The authoring mode SHALL render connections while a reviewer positions maps, bec
 #### Scenario: A destination is unresolved
 - **WHEN** no verified destination position exists
 - **THEN** the travel marker remains without a line
-- **AND** the atlas draws no line to an assumed position
+- **AND** the map draws no line to an assumed position
 
 #### Scenario: A reviewer positions a dungeon
 - **WHEN** connections are visible in the authoring mode
@@ -154,7 +154,7 @@ Development detail panels SHALL NOT appear in production. They SHALL NOT show un
 
 #### Scenario: A vendor has several progression stock groups
 - **WHEN** a reader selects that vendor
-- **THEN** the atlas distinguishes unconditional and conditional stock
+- **THEN** the map distinguishes unconditional and conditional stock
 - **AND** the reader can search the complete stock list while retaining the selected location
 
 #### Scenario: A fact is not established
@@ -164,7 +164,7 @@ Development detail panels SHALL NOT appear in production. They SHALL NOT show un
 
 ### Requirement: The map conveys scale and hover identity
 
-The atlas SHALL show a scale indicator in world units that updates with zoom, so a reader can judge travel distance. Hovering a marker SHALL show its name and a short description, matching the game's own map, which supports pan, zoom, and hover descriptions.
+The map SHALL show a scale indicator in world units that updates with zoom, so a reader can judge travel distance. Hovering a marker SHALL show its name and a short description, matching the game's own map, which supports pan, zoom, and hover descriptions.
 
 Hover SHALL NOT replace selection, and it SHALL NOT open a panel that covers the map.
 
@@ -183,7 +183,7 @@ The rendering adapter SHALL own the live pan and zoom state. Pointer interaction
 
 Selecting a marker SHALL update selection only. A separate focus or fit action MAY move the camera. The selected physical placement SHALL have a primary highlight. Other placements that carry the same exact entity identity SHALL have a distinct group highlight. Group membership SHALL NOT use a shared label or category. Hovering or focusing a result SHALL highlight the exact placements that result resolves: one placement for a location, all placements for an entity, and all known source placements for an item. A result hover SHALL render above a group highlight and below the primary selection. Captured imagery and orientation-only illustrations SHALL keep separate camera snapshots, so switching layers does not discard the reader's position in either coordinate space.
 
-#### Scenario: A reader opens the atlas
+#### Scenario: A reader opens the map
 - **WHEN** the renderer is still sizing its canvas
 - **THEN** the interface keeps that canvas hidden behind the map loading surface
 - **AND** reveals it only after a correctly sized frame has rendered
@@ -227,16 +227,16 @@ The URL SHALL preserve the map, the selected place, the basemap choice, and rele
 
 #### Scenario: A reader follows a dungeon entrance
 - **WHEN** its destination is published
-- **THEN** the atlas opens that destination and keeps the entrance as source context
+- **THEN** the map opens that destination and keeps the entrance as source context
 - **AND** browser back restores the entrance selection
 
 #### Scenario: A link names a removed place
 - **WHEN** the current build no longer contains it
-- **THEN** the atlas reports the stale selection and offers navigation to available content
+- **THEN** the map reports the stale selection and offers navigation to available content
 
 ### Requirement: Accessible responsive browsing
 
-The atlas SHALL support keyboard navigation and narrow screens. Search and a synchronized result list SHALL provide access to marker details without pointer-only map interaction. Selection panels SHALL have predictable focus behavior and a visible close action. Marker meaning SHALL NOT depend on color alone. Map geometry SHALL remain visually stable in current Chromium and Firefox-based browsers while hovering and selecting results.
+The map SHALL support keyboard navigation and narrow screens. Search and a synchronized result list SHALL provide access to marker details without pointer-only map interaction. Selection panels SHALL have predictable focus behavior and a visible close action. Marker meaning SHALL NOT depend on color alone. Map geometry SHALL remain visually stable in current Chromium and Firefox-based browsers while hovering and selecting results.
 
 #### Scenario: A keyboard reader selects a search result
 - **WHEN** the reader opens the result details and then closes them
@@ -248,27 +248,27 @@ The atlas SHALL support keyboard navigation and narrow screens. Search and a syn
 - **THEN** the map retains the same basemap and vector geometry
 - **AND** no picking color, stray line, or malformed primitive reaches the visible canvas
 
-#### Scenario: A phone reader browses the atlas
+#### Scenario: A phone reader browses the map
 - **WHEN** the viewport is no wider than 680 CSS pixels
 - **THEN** the map and results use the full viewport width without horizontal scrolling
 - **AND** the closed category panel occupies only one touch target
 - **AND** the open category panel appears as a dismissible drawer above the map
 - **AND** touch zoom stays within useful map bounds without browser gesture interference
 
-#### Scenario: The portfolio embeds the atlas
-- **WHEN** `glockyco.com` frames the published atlas as a project demo
+#### Scenario: The portfolio embeds the map
+- **WHEN** `glockyco.com` frames the published map as a project demo
 - **THEN** the browser permits the trusted frame origin
-- **AND** other external origins remain unable to frame the atlas
+- **AND** other external origins remain unable to frame the map
 
 #### Scenario: WebGL2 cannot start
 - **WHEN** the browser cannot create the WebGL2 renderer
-- **THEN** the atlas replaces the loading state and raw driver error with a concise compatibility message
+- **THEN** the map replaces the loading state and raw driver error with a concise compatibility message
 - **AND** links to the WebGL2 support check
 - **AND** keeps search and reference results available
 
 ### Requirement: Evidence limits stay outside the interface
 
-The atlas SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. It SHALL NOT display completeness disclosures, coverage counts, or unresolved-semantics notices.
+The map SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. It SHALL NOT display completeness disclosures, coverage counts, or unresolved-semantics notices.
 
 Preview mode, coverage figures, diagnostic totals, and exclusion reasons SHALL live in the generated publication metadata, run manifest, and coverage report, which own those measurements. Progressive map loading SHALL NOT require downloading full-resolution imagery before interaction.
 
@@ -285,7 +285,7 @@ Preview mode, coverage figures, diagnostic totals, and exclusion reasons SHALL l
 
 ### Requirement: Shared map links carry Afallon identity
 
-The root map SHALL publish square favicon and touch-icon assets. It SHALL publish a `1200 × 630` PNG through absolute Open Graph and Twitter card metadata. The expanded atlas sidebar SHALL identify the Afallon Compendium while preserving its home navigation.
+The root map SHALL publish square favicon and touch-icon assets. It SHALL publish a `1200 × 630` PNG through absolute Open Graph and Twitter card metadata. The expanded map sidebar SHALL identify the Afallon Compendium while preserving its home navigation.
 
 #### Scenario: A reader shares the map in Discord
 - **WHEN** Discord fetches the root map metadata
@@ -296,7 +296,7 @@ The root map SHALL publish square favicon and touch-icon assets. It SHALL publis
 - **WHEN** the browser requests a favicon or touch icon
 - **THEN** the response returns a square Afallon `A` compass mark
 
-#### Scenario: A reader uses the atlas sidebar
-- **WHEN** the atlas sidebar is expanded
+#### Scenario: A reader uses the map sidebar
+- **WHEN** the map sidebar is expanded
 - **THEN** its header displays the Afallon compass mark and name
 - **AND** activating that brand returns to the compendium home page

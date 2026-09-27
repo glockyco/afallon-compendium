@@ -1,6 +1,6 @@
 import { Deck, OrthographicView, type Layer, type PickingInfo } from "@deck.gl/core";
 import type { PublicPlacement, PublicTile, PublicTileLayer, PublicationData } from "@afallon/contracts/public";
-import { createIconAtlas } from "./map/icon-atlas";
+import { createIconSheet } from "./map/icon-sheet";
 import { createConnectionLayers, type TravelConnection } from "./map/layers/connections";
 import { createImageryLayer, orderImageryLayers, type LoadedTile, type TileRequest } from "./map/layers/imagery";
 import { createHighlightLayers, createPlacementIconLayer, createStackCountLayer } from "./map/layers/markers";
@@ -148,7 +148,7 @@ export async function createMapAdapter(
   let imageryKey = "";
   let layers: Layer[] = [];
   let allConnections: TravelConnection[] = [];
-  const iconAtlas = await createIconAtlas();
+  const iconSheet = await createIconSheet();
 
   const report = (message: string): void => {
     if (!destroyed) callbacks.onError(message);
@@ -325,7 +325,7 @@ export async function createMapAdapter(
       const selectedIndex = stack.members.indexOf(next.selectedId ?? "");
       callbacks.onSelect(stack.members[(selectedIndex + 1) % stack.members.length]!);
     };
-    const markerLayer = createPlacementIconLayer(renderMarkers, iconAtlas, next.markerSize, next.selectedId, null, selectStacked);
+    const markerLayer = createPlacementIconLayer(renderMarkers, iconSheet, next.markerSize, next.selectedId, null, selectStacked);
     const stackCounts = createStackCountLayer(stacks, next.markerSize);
     const groupedMarkersFor = (placementIds: readonly string[]): readonly MarkerRecord[] => {
       const ids = new Set(placementIds);

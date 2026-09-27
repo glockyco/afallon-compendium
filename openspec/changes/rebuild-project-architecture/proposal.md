@@ -10,7 +10,7 @@ The project has proven its data model and runtime safeguards, but implementation
 - Make the canonical SQLite catalog the only normalized source of truth. Publication reads the catalog directly instead of consuming large intermediate projection documents.
 - Validate runtime output at ingestion and transform typed records after validation. Remove `any`-based normalization from the trusted core.
 - Store each distinct coverage issue once and attach its evidence occurrences separately. Release gates count unresolved issues rather than repeated occurrences.
-- Split publication generation, map rendering, atlas state, search, and Svelte presentation into focused modules with enforced dependency direction.
+- Split publication generation, map rendering, map state, search, and Svelte presentation into focused modules with enforced dependency direction.
 - Keep the existing HotRepl runtime owner, cleanup guarantees, Afallon-specific domain model, static SvelteKit site, deck.gl renderer, and Cloudflare Static Assets deployment.
 - Preserve selection details and authoring controls as development-only for now.
 - Preserve game-provided imagery as the default for the overworld and interiors. Keep captured terrain as an optional additional layer.
@@ -23,11 +23,11 @@ The project has proven its data model and runtime safeguards, but implementation
 - `artifact-lifecycle`: Immutable content-addressed evidence, run manifests, fingerprints, atomic successful-run selection, and verified artifact reuse.
 - `scan-workflow`: One target-driven runtime workflow for current-scene extraction, scene traversal, and streamed-source collection.
 - `canonical-catalog`: Typed evidence ingestion, the canonical relational catalog, normalized coverage issues, and direct publication queries.
-- `static-publication`: Validated, bounded static atlas assets with canonical navigation state, game-imagery defaults, optional captured terrain, and development-only detail controls.
+- `static-publication`: Validated, bounded static map assets with canonical navigation state, game-imagery defaults, optional captured terrain, and development-only detail controls.
 
 ### Modified Capabilities
 
-None. The related atlas capabilities are still change-local to `build-screenshot-first-map`, so this change records the preserved behavior as a new publication contract instead of pretending to modify an archived main spec.
+None. The related map capabilities are still change-local to `build-screenshot-first-map`, so this change records the preserved behavior as a new publication contract instead of pretending to modify an archived main spec.
 
 ## Impact
 

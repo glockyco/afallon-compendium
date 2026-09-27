@@ -2,8 +2,8 @@
   import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import type { PublicKindEntry, PublicSearchEntry } from '@afallon/contracts/public';
-  import { clientAtlasLoader } from './client-publication';
-  import { rankCompendiumEntries } from './atlas-search';
+  import { clientMapLoader } from './client-publication';
+  import { rankCompendiumEntries } from './map-search';
   import EntityLink from './EntityLink.svelte';
   import { levelText } from './format';
 
@@ -23,7 +23,7 @@
   }
 
   onMount(() => {
-    const loader = clientAtlasLoader();
+    const loader = clientMapLoader();
     if (!loader) return;
     loading = true;
     void Promise.all([loader.loadIndexes(), registry.length ? Promise.resolve(registry) : loader.loadRegistry()]).then(([indexes, loadedRegistry]) => {
@@ -42,7 +42,7 @@
     {#if loading}<span class="spinner" aria-hidden="true"></span>{:else if error}<span id="compendium-search-error" class="error" role="alert" title={error}>Search is unavailable.</span>{/if}
   </div>
   <span class="visually-hidden" role="status">{loading ? 'Loading search…' : ''}</span>
-  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="atlas-link" href={`${base}/?place=${encodeURIComponent(entry.ref.key)}`}>Atlas location</a>{:else if entry.hasPlacements}<a class="atlas-link" href={`${base}/?${entry.ref.kind === 'items' ? 'item' : 'entity'}=${encodeURIComponent(entry.ref.key)}`}>Atlas locations</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading && !error}<p>No published page matches this search.</p>{/if}
+  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="map-link" href={`${base}/?place=${encodeURIComponent(entry.ref.key)}`}>Map Location</a>{:else if entry.hasPlacements}<a class="map-link" href={`${base}/?${entry.ref.kind === 'items' ? 'item' : 'entity'}=${encodeURIComponent(entry.ref.key)}`}>Map Locations</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading && !error}<p>No published page matches this search.</p>{/if}
 </div>
 
 <style>
@@ -60,6 +60,6 @@
   ul { position: absolute; z-index: 12; left: 0; right: 0; display: grid; gap: 0; margin: .25rem 0 0; padding: .3rem; border: 1px solid #4c4d48; background: #202120; box-shadow: 0 8px 22px #0009; list-style: none; }
   li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .15rem .7rem; align-items: center; padding: .45rem; }
   li + li { border-top: 1px solid #393a37; } small { grid-column: 1; color: #aaa69d; }
-  .atlas-link { grid-column: 2; grid-row: 1 / span 2; color: #d9bd79; font-size: .72rem; }
+  .map-link { grid-column: 2; grid-row: 1 / span 2; color: #d9bd79; font-size: .72rem; }
   p { margin: .45rem 0 0; color: #aaa69d; font-size: .75rem; }
 </style>

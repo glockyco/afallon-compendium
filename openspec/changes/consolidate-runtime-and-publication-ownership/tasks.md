@@ -6,10 +6,10 @@
 - [x] 1.4 Exercise a valid graph and rehashed semantic corruptions through both boundaries. Cover foreign geometry placement, travel-state disagreement, incorrect detail identity, and coverage disagreement. Retain regression cases where one boundary previously accepted invalid data, and verify previous selectors and staged files remain unchanged on failure.
 - [x] 1.5 Run publication selection and site parity suites, then stage a valid publication into isolated output. Verify file identities, reference counts, and parity acceptance. Commit the coherent publication unit without deploying it.
 
-## 2. Canonical atlas state
+## 2. Canonical map state
 
 - [x] 2.1 Replace writable persistent-state mirrors in `MapExplorer.svelte` with one accepted snapshot and derived values. Verify all template controls and resource states still reflect controller updates without a reverse full-state serializer.
-- [x] 2.2 Migrate user handlers to focused actions in `atlas-state.ts` and `atlas-controller.ts`. Use atomic transitions for related selection fields. Verify placement, entity, item-to-source, detail-close, filter, and query behavior through the existing state suite and targeted behavioral cases.
+- [x] 2.2 Migrate user handlers to focused actions in `map-state.ts` and `map-controller.ts`. Use atomic transitions for related selection fields. Verify placement, entity, item-to-source, detail-close, filter, and query behavior through the existing state suite and targeted behavioral cases.
 - [x] 2.3 Make pending query and camera persistence field-specific and invalidate it during history restoration. Preserve push-versus-replace behavior and Deck ownership of the live camera. Verify Back and Forward during pending timers, selection during pan persistence, and camera-neutral selection in the browser.
 - [x] 2.4 Verify desktop and narrow-screen item search, source selection, detail focus restoration, URL reload, stale links, retries, and disposal in the actual site. Confirm no extra history entries or stale detail responses. Commit the state unit after these checks.
 
@@ -17,7 +17,7 @@
 
 - [x] 3.1 Exercise delayed geometry, failed geometry with retry, empty geometry lists, and independently delayed search in the browser. Verify map-data readiness waits for declared geometry and toggles cause no new data requests. Record actual map-ready bytes and requests separately from the unchanged essential-resource accounting group.
 - [x] 3.2 Verify mouse and touch pan release, pinch bounds, wheel zoom, and authoring drag transitions in the browser. Confirm that all controller construction uses `createMapView` and that no transition enables inertia.
-- [x] 3.3 Reconcile the conflicting interactive-atlas deltas, designs, and tasks in `complete-evidence-pipeline-architecture` and `build-screenshot-first-map`. Align related publication accounting text and `openspec/config.yaml` with the measured behavior. Verify no clause requires lazy geometry, inertial pan, or captured-terrain defaults. Preserve unrelated incomplete tasks and validate every changed planning artifact.
+- [x] 3.3 Reconcile the conflicting interactive-map deltas, designs, and tasks in `complete-evidence-pipeline-architecture` and `build-screenshot-first-map`. Align related publication accounting text and `openspec/config.yaml` with the measured behavior. Verify no clause requires lazy geometry, inertial pan, or captured-terrain defaults. Preserve unrelated incomplete tasks and validate every changed planning artifact.
 
 ## 4. Artifact filesystem invariants
 

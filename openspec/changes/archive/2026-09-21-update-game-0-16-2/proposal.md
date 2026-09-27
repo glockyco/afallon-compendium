@@ -21,7 +21,7 @@ Afallon 0.16.2 replaces the three outdoor scenes with one world and adds substan
 
 ### Modified Capabilities
 
-None. The existing scan, catalog, publication, and atlas contracts remain authoritative. This change defines how a new game build is admitted through them.
+None. The existing scan, catalog, publication, and map contracts remain authoritative. This change defines how a new game build is admitted through them.
 
 ## Impact
 

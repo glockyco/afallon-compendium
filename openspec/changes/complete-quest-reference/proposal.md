@@ -33,5 +33,5 @@ The live quest pages show wrong data and omit most of the quest data that the ca
 - Catalog: `packages/catalog/src/{evidence,assembly,relations,world,normalize,decoders,database,queries}.ts` and new availability and area modules. New tables for source gates, placement areas, and world quest facts.
 - Contracts: `packages/contracts/src/catalog/{facts,query}.ts`, `packages/contracts/src/public/{documents,resources}.ts`, and the `compendium.quest-levels.v1` raw schema. Document schema IDs for items, NPCs, quests, and places increase.
 - Publication: `packages/publication/src/{documents,lists,kind-registry,index-resources,references,text}.ts` and the graph placement check in `packages/contracts/src/public/graph.ts`.
-- Site: quest, item, NPC, and place fact cards, `QuestTable`, `QuestTooltip`, `ItemTooltip`, `Requirements`, `TooltipRequirements`, `Availability`, `ContainerTable`, `DropTable`, `VendorTable`, `ListTable`, `atlas-search.ts`, and `format.ts`.
+- Site: quest, item, NPC, and place fact cards, `QuestTable`, `QuestTooltip`, `ItemTooltip`, `Requirements`, `TooltipRequirements`, `Availability`, `ContainerTable`, `DropTable`, `VendorTable`, `ListTable`, `map-search.ts`, and `format.ts`.
 - Operations: a catalog rebuild, a new publication, and a staged site. The coverage review does not change unless the new scan changes the discovered subjects.

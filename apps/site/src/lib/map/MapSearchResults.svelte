@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { PublicPlacement } from '@afallon/contracts/public';
-  import type { ResultSummary } from '../atlas-search-types';
+  import type { ResultSummary } from '../map-search-types';
   import { markerColorCss } from './marker-registry';
-  import { markerGlyphSvg } from './icon-atlas';
+  import { markerGlyphSvg } from './icon-sheet';
   export let pending = false;
   export let error = '';
   export let searchPending = false;

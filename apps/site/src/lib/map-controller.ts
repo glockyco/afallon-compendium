@@ -1,35 +1,35 @@
 import type { PublicDocument, PublicKindEntry, PublicationData, StaticGeometry, StaticRootManifest } from '@afallon/contracts/public';
-import { AtlasDataLoader, atlasPublicationData, type AtlasIndexes, type AtlasMapData, type AtlasRequestState } from './atlas-data';
-import { DEFAULT_ATLAS_STATE, transitionAtlasState, type AtlasAction, type AtlasQueryField, type AtlasState, type AtlasView } from './atlas-state';
-import { buildSearchIndexes, emptySearchIndexes, type SearchIndexes } from './atlas-search';
+import { MapDataLoader, mapPublicationData, type MapIndexes, type LoadedMapData, type MapRequestState } from './map-data';
+import { DEFAULT_MAP_STATE, transitionMapState, type MapAction, type MapQueryField, type MapState, type MapView } from './map-state';
+import { buildSearchIndexes, emptySearchIndexes, type SearchIndexes } from './map-search';
 import { resolveLayerIds } from './map/layer-policy';
 
-export interface AtlasSnapshot {
-  state: AtlasState;
+export interface MapSnapshot {
+  state: MapState;
   publication: PublicationData | null;
   indexes: SearchIndexes;
   registry: PublicKindEntry[];
-  map: AtlasRequestState;
-  search: AtlasRequestState;
-  detail: AtlasRequestState;
+  map: MapRequestState;
+  search: MapRequestState;
+  detail: MapRequestState;
   documents: ReadonlyMap<string, PublicDocument>;
   staleSelection: string;
 }
 
-export interface AtlasControllerOptions {
-  onChange: (snapshot: AtlasSnapshot) => void;
-  onNavigate: (state: AtlasState, mode: 'push' | 'replace') => void;
-  onRestoreView: (view: AtlasView | null) => void;
+export interface MapControllerOptions {
+  onChange: (snapshot: MapSnapshot) => void;
+  onNavigate: (state: MapState, mode: 'push' | 'replace') => void;
+  onRestoreView: (view: MapView | null) => void;
 }
 
-const failed = (error: unknown): AtlasRequestState => ({ status: 'error', message: error instanceof Error ? error.message : String(error) });
+const failed = (error: unknown): MapRequestState => ({ status: 'error', message: error instanceof Error ? error.message : String(error) });
 
-export class AtlasController {
-  readonly #loader: AtlasDataLoader;
-  readonly #options: AtlasControllerOptions;
+export class MapController {
+  readonly #loader: MapDataLoader;
+  readonly #options: MapControllerOptions;
   #root: StaticRootManifest | null = null;
-  #maps: AtlasMapData[] | null = null;
-  #search: AtlasIndexes | undefined;
+  #maps: LoadedMapData[] | null = null;
+  #search: MapIndexes | undefined;
   #base: PublicationData | null = null;
   #geometry = new Map<string, StaticGeometry[]>();
   #selectionGeneration = 0;
@@ -37,8 +37,8 @@ export class AtlasController {
   #disposed = false;
   #viewTimer: ReturnType<typeof setTimeout> | undefined;
   #queryTimer: ReturnType<typeof setTimeout> | undefined;
-  #snapshot: AtlasSnapshot = {
-    state: DEFAULT_ATLAS_STATE,
+  #snapshot: MapSnapshot = {
+    state: DEFAULT_MAP_STATE,
     publication: null,
     indexes: emptySearchIndexes(),
     registry: [],
@@ -49,31 +49,31 @@ export class AtlasController {
     staleSelection: '',
   };
 
-  constructor(loader: AtlasDataLoader, options: AtlasControllerOptions) { this.#loader = loader; this.#options = options; }
-  get snapshot(): AtlasSnapshot { return this.#snapshot; }
+  constructor(loader: MapDataLoader, options: MapControllerOptions) { this.#loader = loader; this.#options = options; }
+  get snapshot(): MapSnapshot { return this.#snapshot; }
 
-  start(state: AtlasState): void {
+  start(state: MapState): void {
     this.navigate(state);
     void this.#loadMap();
     void this.#loadSearch();
   }
 
-  navigate(state: AtlasState): void {
+  navigate(state: MapState): void {
     if (this.#disposed) return;
     this.#cancelPersistence();
     this.dispatch({ type: 'replace', state });
     this.#options.onRestoreView(this.#snapshot.state.view);
   }
 
-  dispatch(action: AtlasAction, mode?: 'push' | 'replace'): void {
+  dispatch(action: MapAction, mode?: 'push' | 'replace'): void {
     if (this.#disposed) return;
     if (action.type === 'set-view') {
       clearTimeout(this.#viewTimer);
       this.#viewTimer = undefined;
     }
-    let state = transitionAtlasState(this.#snapshot.state, action);
+    let state = transitionMapState(this.#snapshot.state, action);
     if (this.#base && (action.type === 'select-layers' || action.type === 'replace')) {
-      state = transitionAtlasState(state, { type: 'select-layers', layerIds: resolveLayerIds(state.layerIds, this.#base.tileLayers) });
+      state = transitionMapState(state, { type: 'select-layers', layerIds: resolveLayerIds(state.layerIds, this.#base.tileLayers) });
     }
     this.#snapshot = { ...this.#snapshot, state };
     this.#selectionEffects();
@@ -81,7 +81,7 @@ export class AtlasController {
     if (mode) this.#options.onNavigate(this.#snapshot.state, mode);
   }
 
-  setQuery(field: AtlasQueryField, query: string): void {
+  setQuery(field: MapQueryField, query: string): void {
     if (this.#disposed) return;
     this.dispatch({ type: 'search', field, query });
     clearTimeout(this.#queryTimer);
@@ -91,7 +91,7 @@ export class AtlasController {
     }, 280);
   }
 
-  scheduleView(view: AtlasView): void {
+  scheduleView(view: MapView): void {
     if (this.#disposed) return;
     clearTimeout(this.#viewTimer);
     this.#viewTimer = setTimeout(() => {
@@ -136,11 +136,11 @@ export class AtlasController {
       this.#root = root;
       this.#maps = maps;
       this.#geometry = new Map(geometry);
-      this.#base = atlasPublicationData(root, maps);
+      this.#base = mapPublicationData(root, maps);
       this.#snapshot = {
         ...this.#snapshot,
         map: { status: 'loaded' },
-        state: transitionAtlasState(this.#snapshot.state, { type: 'select-layers', layerIds: resolveLayerIds(this.#snapshot.state.layerIds, this.#base.tileLayers) }),
+        state: transitionMapState(this.#snapshot.state, { type: 'select-layers', layerIds: resolveLayerIds(this.#snapshot.state.layerIds, this.#base.tileLayers) }),
       };
       this.#compose();
       this.#selectionKey = '';

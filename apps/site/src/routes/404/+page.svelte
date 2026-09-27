@@ -16,7 +16,7 @@
     <p class="lede">This address does not match a page in the current Afallon publication.</p>
     <nav aria-label="Recovery">
       <a class="c-action" href={`${base}/items/`}>Browse the compendium</a>
-      <a class="c-action" href={`${base}/`}>Search the atlas</a>
+      <a class="c-action" href={`${base}/`}>Search the Map</a>
     </nav>
   </div>
 </PageShell>

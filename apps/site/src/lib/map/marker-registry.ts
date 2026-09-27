@@ -530,7 +530,7 @@ export const markerRegistry = {
 } as const satisfies Record<MarkerId, MarkerDefinition>;
 
 const allMarkers = Object.values(markerRegistry) as readonly MarkerDefinition[];
-// The atlas opens with place markers, bosses, key services, and rare crafting stations.
+// The map opens with place markers, bosses, key services, and rare crafting stations.
 // Common cooking stations and other optional categories remain available in the filters.
 export const DEFAULT_MARKER_IDS: readonly MarkerId[] = allMarkers.filter((marker) => marker.defaultVisible).map((marker) => marker.id);
 const markersByPrecedence = [...allMarkers].sort((left, right) => right.precedence - left.precedence);

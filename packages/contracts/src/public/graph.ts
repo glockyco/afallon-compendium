@@ -50,13 +50,13 @@ export function assertStaticPublicationSemantics(root: StaticRootManifest, value
     const travelGeometryIds = new Set<string>();
     for (const [part, reference] of map.parts.entries()) {
       const value = values.get(reference.path);
-      if (value?.schemaVersion !== "compendium.static-map.v3" || value.mapSpaceId !== map.mapSpaceId || value.part !== part) throw new Error(`Atlas part identity mismatch: ${reference.path}.`);
+      if (value?.schemaVersion !== "compendium.static-map.v3" || value.mapSpaceId !== map.mapSpaceId || value.part !== part) throw new Error(`Map part identity mismatch: ${reference.path}.`);
       for (const placement of value.placements) {
         if (placementIds.has(placement[0])) throw new Error(`Duplicate public placement: ${placement[0]}.`);
         placementIds.add(placement[0]);
         mapPlacementStates.set(placement[0], placement[8]);
       }
-      if (value.regions.some((region) => region.mapSpaceId !== map.mapSpaceId)) throw new Error(`Atlas region map mismatch: ${reference.path}.`);
+      if (value.regions.some((region) => region.mapSpaceId !== map.mapSpaceId)) throw new Error(`Map region identity mismatch: ${reference.path}.`);
     }
     for (const [part, reference] of map.optionalGeometry.entries()) {
       const value = values.get(reference.path);

@@ -14,7 +14,7 @@ The verified current publication is the reader baseline. The intact alternate ca
 
 Semantic evidence is in `local/evidence-pipeline-baseline/semantic-baseline.json` (SHA-256 `64ccdafa77416ff68dceea63b2c17a8f8ace7e8dd2787daafd70fdf43330a926`). It includes 37 ordered table fingerprints, 103 recorded queries, raw record pointers, and the known merchant, spatial-pointer, and issue-lineage defects that must not become parity targets. Reader policy checks used the frozen source worktree at `local/evidence-pipeline-baseline/source`.
 
-`local/evidence-pipeline-baseline/browser-baseline.json` and its startup/search screenshots record Chrome 150 at 1440 × 1000, DPR 1, with HTTP cache disabled. The retained reader loaded 6,820,010 raw startup JSON bytes; atlas, root, and imagery metadata account for 4,548,327 bytes. One loopback sample observed usable search at 539.3 ms and map at 675 ms, with 112 HTTP requests. The host served identity encoding, so compressed-body bytes are not available. These timings are observations, not acceptance thresholds.
+`local/evidence-pipeline-baseline/browser-baseline.json` and its startup/search screenshots record Chrome 150 at 1440 × 1000, DPR 1, with HTTP cache disabled. The retained reader loaded 6,820,010 raw startup JSON bytes; map, root, and imagery metadata account for 4,548,327 bytes. One loopback sample observed usable search at 539.3 ms and map at 675 ms, with 112 HTTP requests. The host served identity encoding, so compressed-body bytes are not available. These timings are observations, not acceptance thresholds.
 
 ## 2. Define production boundary contracts
 
@@ -22,7 +22,7 @@ Semantic evidence is in `local/evidence-pipeline-baseline/semantic-baseline.json
 - [x] 2.2 Define catalog and publication plan contracts using immutable manifest/object references, explicit canonical-target selection, imagery, reviewed spatial inputs, and hashed policy. Verify plans reject retired path-based shapes and ambiguous global-family selection.
 - [x] 2.3 Define coverage review, obligation, disposition, and closure contracts with build, inventory, evidence, and review identities. Verify unsupported, unreachable, failed, not-attempted, verified, not-applicable, and reviewed-excluded states remain distinct.
 - [x] 2.4 Establish pure shared spatial frame and membership APIs under the contracts spatial boundary. Verify existing calibration and membership behavior without catalog imports from capture or filesystem I/O in pure transforms.
-- [x] 2.5 Define the versioned root, multipart atlas/search, optional geometry, and selected-detail contracts. Verify every reference declares its expected schema and identity and current canonical URL fields remain unchanged.
+- [x] 2.5 Define the versioned root, multipart map/search, optional geometry, and selected-detail contracts. Verify every reference declares its expected schema and identity and current canonical URL fields remain unchanged.
 
 ## 3. Unify artifact lifecycle and integrity
 
@@ -82,14 +82,14 @@ Semantic evidence is in `local/evidence-pipeline-baseline/semantic-baseline.json
 - [x] 9.1 Migrate all map, search, guide, entity, item-source, coverage, and imagery producers to the sealed catalog query API. Verify no publication code registers imagery or changes database bytes and every prior public family remains represented.
 - [x] 9.2 Replace filename-pattern reference discovery with typed resource-graph traversal. Verify nested missing detail, wrong-kind resource, hash mismatch, unsafe path, and cross-build/catalog references reject candidates before selection.
 - [x] 9.3 Finalize publication through the common run lifecycle and atomic selector with portable verified materialization. Verify cross-filesystem output, repeated identical candidates, and failed selection preserve valid old references.
-- [x] 9.4 Generate compact essential atlas parts, independently loaded search parts, and optional movement/connection resources. Verify every map and placement remains at the same world position without an active-map model.
-- [x] 9.5 Enforce a 64 KiB root, 512 KiB atlas/search/geometry parts, and a 3,300,000-byte essential startup total on the frozen representative preview. Verify semantic parity and report geometry, search, detail, image, and code totals separately. Report actual map-ready transfer with geometry included.
+- [x] 9.4 Generate compact essential map parts, independently loaded search parts, and optional movement/connection resources. Verify every map and placement remains at the same world position without an active-map model.
+- [x] 9.5 Enforce a 64 KiB root, 512 KiB map/search/geometry parts, and a 3,300,000-byte essential startup total on the frozen representative preview. Verify semantic parity and report geometry, search, detail, image, and code totals separately. Report actual map-ready transfer with geometry included.
 - [x] 9.6 Repeat compilation from identical evidence at a relocated store root. Verify equal public resource/root hashes and logical catalog identity independent of paths, timestamps, or SQLite page layout.
 - [x] 9.7 Update staging and immutable cache rules for actual generated resource and imagery paths while keeping selectors revalidatable. Verify response headers and corrupt-input rejection through a production-like static preview without deploying production.
 
-## 10. Centralize atlas state and progressive loading
+## 10. Centralize map state and progressive loading
 
-- [x] 10.1 Adapt the site loader to multipart resources and independent atlas/search/optional-detail readiness. Verify delayed or failed search does not block the map and partially loaded records do not appear as final zero counts.
+- [x] 10.1 Adapt the site loader to multipart resources and independent map/search/optional-detail readiness. Verify delayed or failed search does not block the map and partially loaded records do not appear as final zero counts.
 - [x] 10.2 Introduce one navigation transition/effect owner for initial URLs, direct selection, back, forward, and programmatic links. Verify uncached item/entity selections load the same resources and preserve canonical URL and stale-link behavior.
 - [x] 10.3 Add per-resource failure/retry state and current-selection generation checks while preserving request deduplication. Verify stale request failures cannot replace a newer loading/error state and an explicit retry can succeed.
 - [x] 10.4 Build immutable identity/search indexes once per loaded resource set and move orchestration out of `MapExplorer.svelte`. Verify category counts, item-to-place search, highlights, and guide links retain observable behavior.

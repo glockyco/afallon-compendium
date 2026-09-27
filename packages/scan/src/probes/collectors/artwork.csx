@@ -1,6 +1,6 @@
 // Reads every sprite the database references for a player-facing record and writes it as a PNG
 // beside this collector's JSON. A build's textures are not CPU-readable, so each sprite goes
-// through a temporary RenderTexture: blit the atlas, read the sprite's pixel rectangle, encode.
+// through a temporary RenderTexture: blit the source texture, read the sprite's pixel rectangle, encode.
 // Every temporary object is released in `finally`, and the active render target is restored.
 var database = Il2CppBLINK.RPGBuilder.Managers.GameDatabase.Instance;
 if (database == null) throw new System.InvalidOperationException("The game database is not initialized.");

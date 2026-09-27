@@ -1,11 +1,11 @@
 import { browser } from '$app/environment';
 import { base } from '$app/paths';
-import { AtlasDataLoader } from './atlas-data';
+import { MapDataLoader } from './map-data';
 
-let loader: AtlasDataLoader | undefined;
+let loader: MapDataLoader | undefined;
 
-export function clientAtlasLoader(): AtlasDataLoader | null {
+export function clientMapLoader(): MapDataLoader | null {
   if (!browser) return null;
-  loader ??= new AtlasDataLoader(fetch, new URL(`${base}/data/`, window.location.href));
+  loader ??= new MapDataLoader(fetch, new URL(`${base}/data/`, window.location.href));
   return loader;
 }

@@ -199,7 +199,7 @@ Keeping both SQLite and projection JSON as normalized authorities was rejected b
 `packages/publication` produces a root manifest plus content-addressed resources:
 
 ```text
-atlas.json
+map.json
 assets/data/maps/<map-id>/<hash>.json
 assets/data/index/entities-<hash>.json
 assets/data/index/items-<hash>.json
@@ -215,12 +215,12 @@ Publication writes a candidate directory, validates every referenced resource an
 
 One monolithic projection was rejected because its memory and transfer cost grows with unrelated maps and details. Runtime queries were rejected because the static data set does not justify a service.
 
-### 9. Separate atlas state, loading, rendering, and presentation
+### 9. Separate map state, loading, rendering, and presentation
 
 The site uses four boundaries:
 
-- `atlas-state`: immutable URL-backed state transitions and selectors;
-- `atlas-data`: root manifest, map shard, index, and detail loading with request deduplication;
+- `map-state`: immutable URL-backed state transitions and selectors;
+- `map-data`: root manifest, map shard, index, and detail loading with request deduplication;
 - `map-renderer`: deck.gl lifecycle, view synchronization, hit testing, and WebGL failure handling;
 - Svelte components: sidebar, results, layer controls, canvas shell, and development details.
 

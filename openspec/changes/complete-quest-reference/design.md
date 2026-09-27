@@ -87,7 +87,7 @@ A public requirement carries the type, the rule, the label, and the spans. The r
 - `RequirementRef`: `type`, `rule`, `label`, and `spans` only (decision 8). `ItemFacts`: `levelRequirement`.
 - Document schema IDs for items, NPCs, quests, and places increase to v3. The graph check validates every `PlacementRef` in a document, not only `locations`.
 
-A row keeps a `PlacementRef` list only when its subject has no page (world zones, objects, and gated spawners). An NPC start links the NPC and the atlas entity view instead.
+A row keeps a `PlacementRef` list only when its subject has no page (world zones, objects, and gated spawners). An NPC start links the NPC and the map entity view instead.
 
 ### 11. Quest level range from the runtime
 

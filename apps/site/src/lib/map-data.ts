@@ -29,27 +29,27 @@ import {
   type StaticRootManifest,
 } from "@afallon/contracts/public";
 
-export type AtlasFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-export type AtlasRequestState =
+export type MapFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+export type MapRequestState =
   | { status: "idle" | "loading" | "loaded" }
   | { status: "error"; message: string };
 
-export interface AtlasMapData {
+export interface LoadedMapData {
   mapSpaceId: string;
   placements: PublicPlacement[];
   regions: PublicationData["regions"];
   imagery: StaticImagery;
 }
 
-export interface AtlasIndexes {
+export interface MapIndexes {
   entries: PublicSearchEntry[];
   entriesByKey: ReadonlyMap<string, PublicSearchEntry>;
 }
 
-export function atlasPublicationData(root: StaticRootManifest, maps: readonly AtlasMapData[]): PublicationData {
+export function mapPublicationData(root: StaticRootManifest, maps: readonly LoadedMapData[]): PublicationData {
   const loadedIds = new Set(maps.map((map) => map.mapSpaceId));
   if (maps.length !== root.maps.length || root.maps.some((map) => !loadedIds.has(map.mapSpaceId))) {
-    throw new Error("Atlas map parts do not cover every published map.");
+    throw new Error("Map parts do not cover every published map.");
   }
   return {
     schemaVersion: PUBLICATION_SCHEMA_VERSION,
@@ -63,20 +63,20 @@ export function atlasPublicationData(root: StaticRootManifest, maps: readonly At
   };
 }
 
-export class AtlasDataLoader {
+export class MapDataLoader {
   readonly #requests = new Map<string, Promise<unknown>>();
   readonly #references = new Map<string, string>();
-  readonly #states = new Map<string, AtlasRequestState>();
-  readonly #fetch: AtlasFetch;
+  readonly #states = new Map<string, MapRequestState>();
+  readonly #fetch: MapFetch;
   readonly #base: URL;
-  #indexes: Promise<AtlasIndexes> | null = null;
+  #indexes: Promise<MapIndexes> | null = null;
 
-  constructor(fetchImplementation: AtlasFetch, baseUrl: string | URL) {
+  constructor(fetchImplementation: MapFetch, baseUrl: string | URL) {
     this.#fetch = fetchImplementation;
-    this.#base = new URL(baseUrl, "http://atlas.invalid/");
+    this.#base = new URL(baseUrl, "http://map.invalid/");
   }
 
-  state(path: string): AtlasRequestState { return this.#states.get(path) ?? { status: "idle" }; }
+  state(path: string): MapRequestState { return this.#states.get(path) ?? { status: "idle" }; }
 
   retryFailed(): void {
     for (const [path, state] of this.#states) {
@@ -122,7 +122,7 @@ export class AtlasDataLoader {
     return (await this.loadDocument(ref.kind as PublicPageKind, ref.slug)).document;
   }
 
-  async loadMap(mapSpaceId: string): Promise<AtlasMapData> {
+  async loadMap(mapSpaceId: string): Promise<LoadedMapData> {
     const root = await this.loadRoot();
     const summary = root.maps.find((map) => map.mapSpaceId === mapSpaceId);
     if (!summary) throw new Error(`Publication has no map ${mapSpaceId}.`);
@@ -155,7 +155,7 @@ export class AtlasDataLoader {
     };
   }
 
-  async loadMaps(): Promise<AtlasMapData[]> {
+  async loadMaps(): Promise<LoadedMapData[]> {
     const root = await this.loadRoot();
     const maps = await Promise.all(root.maps.map((map) => this.loadMap(map.mapSpaceId)));
     const ids = new Set<string>();
@@ -177,12 +177,12 @@ export class AtlasDataLoader {
     return parts;
   }
 
-  loadIndexes(): Promise<AtlasIndexes> {
+  loadIndexes(): Promise<MapIndexes> {
     this.#indexes ??= this.#readIndexes();
     return this.#indexes;
   }
 
-  async #readIndexes(): Promise<AtlasIndexes> {
+  async #readIndexes(): Promise<MapIndexes> {
     const root = await this.loadRoot();
     const parts = await Promise.all(root.search.map((reference) => this.#loadReference(reference, StaticSearchIndexSchema, root)));
     for (const [index, part] of parts.entries()) {
@@ -208,7 +208,7 @@ export class AtlasDataLoader {
   }
 
   #loadPath<T extends TSchema>(path: string, schema: T, expected?: StaticResourceReference): Promise<Static<T>> {
-    if (!/^(?:publication\.json|resources\/[a-f0-9]{64}\.json)$/.test(path)) return Promise.reject(new Error(`Unsafe atlas resource path: ${path}.`));
+    if (!/^(?:publication\.json|resources\/[a-f0-9]{64}\.json)$/.test(path)) return Promise.reject(new Error(`Unsafe map resource path: ${path}.`));
     const identity = expected ? `${expected.schemaId}:${expected.sha256}:${expected.bytes}` : "root";
     const previous = this.#references.get(path);
     if (previous && previous !== identity) return Promise.reject(new Error(`Conflicting resource identity: ${path}.`));
@@ -229,19 +229,19 @@ export class AtlasDataLoader {
 
   async #request<T extends TSchema>(path: string, schema: T, expected?: StaticResourceReference): Promise<Static<T>> {
     const response = await this.#fetch(new URL(path, this.#base));
-    if (!response.ok) throw new Error(`Atlas resource request failed (${response.status}): ${path}.`);
+    if (!response.ok) throw new Error(`Map resource request failed (${response.status}): ${path}.`);
     const bytes = new Uint8Array(await response.arrayBuffer());
-    if (expected && bytes.byteLength !== expected.bytes) throw new Error(`Atlas resource size mismatch: ${path}.`);
+    if (expected && bytes.byteLength !== expected.bytes) throw new Error(`Map resource size mismatch: ${path}.`);
     if (expected) {
       const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
       const sha256 = [...digest].map((part) => part.toString(16).padStart(2, "0")).join("");
-      if (sha256 !== expected.sha256) throw new Error(`Atlas resource hash mismatch: ${path}.`);
+      if (sha256 !== expected.sha256) throw new Error(`Map resource hash mismatch: ${path}.`);
     }
     const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
     if (!Check(schema, value)) {
       // A resource that passes its hash but not its schema comes from a publication that this client cannot read.
       const [first] = Errors(schema, value);
-      throw new Error(`Atlas resource does not match its schema: ${path}${first ? ` at ${first.instancePath || "/"}: ${first.message}` : ""}.`);
+      throw new Error(`Map resource does not match its schema: ${path}${first ? ` at ${first.instancePath || "/"}: ${first.message}` : ""}.`);
     }
     return value;
   }

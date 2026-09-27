@@ -64,11 +64,11 @@ async function smokeOnce(origin: string, expected: DeploymentMetadata, imagery: 
   const rootResponse = await freshFetch(`${origin}/`);
   const rootHtml = await rootResponse.text();
   if (!rootResponse.ok || !rootHtml.includes("<title>Afallon Compendium</title>")) {
-    throw new Error("The production atlas shell is unavailable.");
+    throw new Error("The production map shell is unavailable.");
   }
   if (!rootHtml.includes('property="og:image" content="https://afallon.compendiums.org/og-default.png"')
     || !rootHtml.includes('rel="apple-touch-icon" href="/apple-touch-icon.png"')) {
-    throw new Error("The production atlas shell is missing social identity metadata.");
+    throw new Error("The production map shell is missing social identity metadata.");
   }
 
   const socialImageResponse = await freshFetch(`${origin}/og-default.png`);

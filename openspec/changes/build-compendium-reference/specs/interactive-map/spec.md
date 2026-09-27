@@ -13,7 +13,7 @@ A stale or failed selection SHALL still explain itself in production, because no
 
 #### Scenario: A stale link is opened in production
 - **WHEN** the selected placement is not in the publication
-- **THEN** the atlas explains the missing selection and offers to clear it
+- **THEN** the map explains the missing selection and offers to clear it
 - **AND** it does not select an unrelated entity
 
 #### Scenario: A fact is not established
@@ -37,7 +37,7 @@ Search SHALL find places, creatures, NPCs, resources, items, quests, abilities, 
 
 ### Requirement: Evidence limits stay outside the interface
 
-The atlas SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. Reader surfaces SHALL NOT display completeness disclosures, coverage counts, or unresolved-semantics notices as rows, sections, or banners. A reader surface MAY show a placeholder for one specific missing fact in the position that fact would occupy. The build identity MAY appear in the page footer.
+The map SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. Reader surfaces SHALL NOT display completeness disclosures, coverage counts, or unresolved-semantics notices as rows, sections, or banners. A reader surface MAY show a placeholder for one specific missing fact in the position that fact would occupy. The build identity MAY appear in the page footer.
 
 Preview mode, coverage figures, diagnostic totals, and exclusion reasons SHALL live in the generated publication metadata, run manifest, coverage report, and the site's single coverage page. Progressive map loading SHALL NOT require downloading full-resolution imagery before interaction.
 

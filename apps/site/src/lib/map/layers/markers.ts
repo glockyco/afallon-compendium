@@ -1,6 +1,6 @@
 import { COORDINATE_SYSTEM, type Layer } from "@deck.gl/core";
 import { IconLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
-import type { IconAtlasResult } from "../icon-atlas";
+import type { IconSheetResult } from "../icon-sheet";
 import { MARKER_LAYER_ID, markerFor, markerSizeScale, type MarkerId } from "../marker-registry";
 import type { MarkerRecord } from "../render-data";
 
@@ -14,7 +14,7 @@ export function markerColor(markerId: MarkerId, selected: boolean, hovered: bool
 
 export function createPlacementIconLayer(
   markers: readonly MarkerRecord[],
-  iconAtlas: IconAtlasResult,
+  iconSheet: IconSheetResult,
   markerSize: number,
   selectedId: string | null = null,
   hoveredId: string | null = null,
@@ -24,7 +24,7 @@ export function createPlacementIconLayer(
   const scale = markerSizeScale(markerSize);
   const pickedId = (object: MarkerRecord | null | undefined): string | null => object?.placementId ?? null;
   return new IconLayer<MarkerRecord>({
-    id: MARKER_LAYER_ID, data: markers, iconAtlas: iconAtlas.atlas as unknown as string, iconMapping: iconAtlas.mapping,
+    id: MARKER_LAYER_ID, data: markers, iconAtlas: iconSheet.canvas as unknown as string, iconMapping: iconSheet.mapping,
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, pickable: true, billboard: false,
     getPosition: marker => marker.position, getIcon: marker => marker.markerId,
     getSize: marker => markerFor(marker.markerId).iconSize.base * scale,

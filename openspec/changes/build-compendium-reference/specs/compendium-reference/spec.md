@@ -27,7 +27,7 @@ The site SHALL publish one prerendered page for each published entity of a regis
 - **WHEN** a reader requests `/places/<slug>/` for a published scene or region
 - **THEN** the page shows its name, artwork, description, level range, bosses, creatures with levels, named NPCs, quests that start there, and connected places
 - **AND** services, resources, and containers appear as counts by category rather than as one entry per placement
-- **AND** the page links to the same place on the world atlas
+- **AND** the page links to the same place on the world map
 
 #### Scenario: A reader opens a gear set page
 - **WHEN** a reader requests `/gear-sets/<slug>/` for a published gear set
@@ -59,13 +59,13 @@ A fact card SHALL show a value only when the publication established it for the 
 
 A document SHALL name where its entity is only when the entity occupies space itself. A creature and a property SHALL publish their placements. A place SHALL publish the map space it occupies and the region areas that bound it, not a marker that stands for it and not the placements it contains. An item, a quest, an ability, and a recipe SHALL publish no location of their own; a reader reaches their places through the entities that do.
 
-The atlas SHALL accept a place in its URL state and show that place's map space and region areas.
+The map SHALL accept a place in its URL state and show that place's map space and region areas.
 
 #### Scenario: A reader opens a large zone
 - **WHEN** the zone contains hundreds of creature, resource, and container placements
 - **THEN** the page identifies the zone's own map space and region areas
-- **AND** its contents appear as counts by category with an atlas link
-- **AND** the atlas link shows that map space rather than an arbitrary marker
+- **AND** its contents appear as counts by category with a map link
+- **AND** the map link shows that map space rather than an arbitrary marker
 
 #### Scenario: A reader looks for an item's location
 - **WHEN** the item has drop, vendor, and gathering sources
@@ -123,20 +123,20 @@ The site SHALL publish a list page at `/<kind>/` for each registered kind. The l
 
 ### Requirement: Search covers pages and map in one corpus
 
-Site search SHALL find items, NPCs, quests, places, properties, abilities, and recipes by displayed name from one corpus. A result SHALL open the entity page. When the entity has published placements, the result SHALL also offer the atlas location. The atlas search SHALL use the same corpus and SHALL NOT index a separate set of guide records.
+Site search SHALL find items, NPCs, quests, places, properties, abilities, and recipes by displayed name from one corpus. A result SHALL open the entity page. When the entity has published placements, the result SHALL also offer the map location. The map search SHALL use the same corpus and SHALL NOT index a separate set of guide records.
 
 #### Scenario: A reader searches for a dungeon boss
 - **WHEN** the reader types part of the boss name
 - **THEN** the results include the NPC with its level and place
 - **AND** the reader can open the page or the map location
 
-### Requirement: The atlas and the pages link both ways
+### Requirement: The map and the pages link both ways
 
-Each entity page SHALL link to its placements on the world atlas. The atlas selection panel SHALL link to the selected entity's page. Following either link SHALL keep browser history so that back returns to the origin.
+Each entity page SHALL link to its placements on the world map. The map selection panel SHALL link to the selected entity's page. Following either link SHALL keep browser history so that back returns to the origin.
 
 #### Scenario: A reader follows an NPC to the map and back
 - **WHEN** the reader activates a location link on an NPC page
-- **THEN** the atlas opens with that placement selected
+- **THEN** the map opens with that placement selected
 - **AND** browser back returns to the NPC page
 
 ### Requirement: Each page carries build identity and machine-readable data

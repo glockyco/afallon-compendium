@@ -1,6 +1,6 @@
 ## Why
 
-The atlas shows every crafting station with the same hammer marker and filter. Players cannot distinguish cooking, smithing, tailoring, and other station services without opening each placement.
+The map shows every crafting station with the same hammer marker and filter. Players cannot distinguish cooking, smithing, tailoring, and other station services without opening each placement.
 
 ## What Changes
 
@@ -21,4 +21,4 @@ None.
 
 ## Impact
 
-The change affects map shard publication, public placement categories, the site marker registry and icon atlas, filters, search, and URL-backed filter state. Existing static publications keep their own contract and require regeneration to show the new categories.
+The change affects map shard publication, public placement categories, the site marker registry and icon sheet, filters, search, and URL-backed filter state. Existing static publications keep their own contract and require regeneration to show the new categories.

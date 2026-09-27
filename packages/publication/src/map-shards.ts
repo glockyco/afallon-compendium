@@ -383,10 +383,10 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
     const compact: PublicEssentialPlacement[] = placements.map((placement) => [placement.placementId, placement.position, placement.height, placement.label, placement.categories, placement.entityKeys, placement.itemKeys, placement.level ?? null, placement.travel?.enabled ?? null, placement.areaRadius, placement.alternative ?? null]);
     const published = new Set(placements.map((placement) => placement.placementId));
     for (const placementId of [...npcLevels.keys()]) if (!published.has(placementId)) npcLevels.delete(placementId);
-    type AtlasRecord = { placement: PublicEssentialPlacement } | { region: PublicRegion };
-    const atlasRecords: AtlasRecord[] = [...compact.map((placement) => ({ placement })), ...regions.map((region) => ({ region }))];
+    type MapRecord = { placement: PublicEssentialPlacement } | { region: PublicRegion };
+    const mapRecords: MapRecord[] = [...compact.map((placement) => ({ placement })), ...regions.map((region) => ({ region }))];
     const resources: GeneratedStaticResource<StaticMapShard>[] = [];
-    for (const shard of partitionStaticRecords(atlasRecords, (rows, part): StaticMapShard => ({
+    for (const shard of partitionStaticRecords(mapRecords, (rows, part): StaticMapShard => ({
       schemaVersion: "compendium.static-map.v3", ...identity, part,
       placements: rows.flatMap((row) => "placement" in row ? [row.placement] : []),
       regions: rows.flatMap((row) => "region" in row ? [row.region] : []),

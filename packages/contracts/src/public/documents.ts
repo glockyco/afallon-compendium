@@ -118,7 +118,7 @@ export type Price = Static<typeof PriceSchema>;
 // counterpart's locations belong to the counterpart's document, so repeating them per row would
 // square the data: one creature with 127 placements and 18 drops would carry 2,286 placement refs
 // that say nothing new. Where the source of a row has no page of its own, the row carries how many
-// placements produce it and the reader reaches them through the atlas, which already highlights
+// placements produce it and the reader reaches them through the map, which already highlights
 // every placement of an item key or a marker category.
 const itemCount = Type.Integer({ minimum: 1 });
 export const CreatureLevelSchema = Type.Object({ min: count, max: optional(count) }, { additionalProperties: false });
@@ -378,8 +378,8 @@ export type PublicQuest = Static<typeof PublicQuestSchema>;
 
 export const PLACE_TYPE_VALUES = ["dungeon", "zone", "region", "interior"] as const;
 
-// Where a place is on the world atlas: the map space it occupies, and the region areas that bound
-// it. The atlas root already publishes each map space's label and bounds and each shard publishes
+// Where a place is on the world map: the map space it occupies, and the region areas that bound
+// it. The map root already publishes each map space's label and bounds and each shard publishes
 // its region polygons, so a place references them instead of repeating geometry.
 export const PlaceSpaceSchema = Type.Object({ mapSpaceId: text, regionIds: Type.Array(text, { uniqueItems: true }) }, { additionalProperties: false });
 export type PlaceSpace = Static<typeof PlaceSpaceSchema>;
@@ -507,12 +507,12 @@ export const StaticKindListSchema = Type.Object({
 }, { additionalProperties: false });
 export type StaticKindList = Static<typeof StaticKindListSchema>;
 
-// One search corpus for the atlas and the pages, and the index of published pages: an entry of a
+// One search corpus for the map and the pages, and the index of published pages: an entry of a
 // paged kind carries that entity's slug in its reference and its document reference, so the site
 // derives its prerender entries from the corpus instead of a second list that repeats it.
 //
 // An entry names no placements. The map shards already carry each placement's entity and item
-// keys, so the atlas resolves an entry's places from data it has loaded; repeating them here cost
+// keys, so the map resolves an entry's places from data it has loaded; repeating them here cost
 // 1.86 MB of a 2.93 MB corpus, up to 594 ids for one creature. `hasPlacements` is the one bit a
 // result needs to offer a map link before the shards are consulted.
 export const PublicSearchEntrySchema = Type.Object({

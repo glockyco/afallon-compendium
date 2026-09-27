@@ -1,25 +1,25 @@
 ## Purpose
 
-Publish a validated static Afallon atlas that loads bounded data on demand, preserves familiar game imagery, and requires no request-time application service.
+Publish a validated static Afallon map that loads bounded data on demand, preserves familiar game imagery, and requires no request-time application service.
 
 ## ADDED Requirements
 
 ### Requirement: Publication emits bounded static resources
 
-Publication SHALL emit a small root manifest and independently addressable static resources for map placements, search data, entity details, item sources, coverage, and image layers. The atlas SHALL load and compose every published map shard so all maps remain visible together at their reviewed world offsets. Sharding SHALL bound individual files and enable immutable caching; it SHALL NOT introduce an active-map selection model or change world positions. Every resource SHALL carry or inherit the publication schema, game build, and source catalog identity.
+Publication SHALL emit a small root manifest and independently addressable static resources for map placements, search data, entity details, item sources, coverage, and image layers. The map SHALL load and compose every published map shard so all maps remain visible together at their reviewed world offsets. Sharding SHALL bound individual files and enable immutable caching; it SHALL NOT introduce an active-map selection model or change world positions. Every resource SHALL carry or inherit the publication schema, game build, and source catalog identity.
 
-#### Scenario: A reader opens the atlas
-- **WHEN** the atlas loads from a fresh session
+#### Scenario: A reader opens the map
+- **WHEN** the map loads from a fresh session
 - **THEN** it loads every published map shard and renders all maps in the shared world view
 - **AND** every map, marker, region, movement path, and image layer retains its reviewed world position
 - **AND** it does not download unrelated entity or item detail records
 
 #### Scenario: A reader opens one entity detail
 - **WHEN** the selected entity's detail is not already loaded
-- **THEN** the atlas fetches the independently addressable detail resource
+- **THEN** the map fetches the independently addressable detail resource
 - **AND** it does not fetch every entity detail
 
-### Requirement: The deployed atlas is static
+### Requirement: The deployed map is static
 
 The built site SHALL operate from versioned static files and image tiles on Cloudflare Static Assets. Search, filtering, layer selection, selection state, and map navigation SHALL execute in the browser without a request-time API, worker handler, database, account, or game installation.
 
@@ -30,7 +30,7 @@ The built site SHALL operate from versioned static files and image tiles on Clou
 
 ### Requirement: Game imagery is the default
 
-When a map has imagery supplied by the game, the atlas SHALL select that imagery by default for both the overworld and interiors. Captured terrain SHALL be an optional layer that a reader explicitly enables and SHALL NOT replace or automatically supersede game imagery. The atlas SHALL retain the selected world location when layers change.
+When a map has imagery supplied by the game, the map SHALL select that imagery by default for both the overworld and interiors. Captured terrain SHALL be an optional layer that a reader explicitly enables and SHALL NOT replace or automatically supersede game imagery. The map SHALL retain the selected world location when layers change.
 
 #### Scenario: The overworld has game and captured imagery
 - **WHEN** a reader opens the overworld without a saved layer choice
@@ -44,12 +44,12 @@ When a map has imagery supplied by the game, the atlas SHALL select that imagery
 
 #### Scenario: A reader enables captured terrain
 - **WHEN** a reader explicitly selects the captured layer
-- **THEN** the atlas displays it with its verified registration
+- **THEN** the map displays it with its verified registration
 - **AND** the selected world location and marker alignment remain stable
 
 ### Requirement: Detail and authoring controls remain development-only
 
-Production builds SHALL NOT render the selection detail panel or authoring controls. Development builds SHALL retain those interfaces for inspection and authoring workflows. Refactoring the atlas SHALL NOT weaken the build-time boundary.
+Production builds SHALL NOT render the selection detail panel or authoring controls. Development builds SHALL retain those interfaces for inspection and authoring workflows. Refactoring the map SHALL NOT weaken the build-time boundary.
 
 #### Scenario: A production reader selects a marker
 - **WHEN** a marker is selected in a production build
@@ -63,16 +63,16 @@ Production builds SHALL NOT render the selection detail panel or authoring contr
 
 ### Requirement: URL state uses one canonical form
 
-The atlas SHALL serialize shareable map state with one canonical set of URL parameters. Reading and writing that state SHALL preserve valid layer selection, marker selection, filters, search terms, view position, and zoom. Deprecated parameter aliases SHALL be rejected or ignored after cutover and SHALL NOT be written.
+The map SHALL serialize shareable map state with one canonical set of URL parameters. Reading and writing that state SHALL preserve valid layer selection, marker selection, filters, search terms, view position, and zoom. Deprecated parameter aliases SHALL be rejected or ignored after cutover and SHALL NOT be written.
 
 #### Scenario: A canonical shared URL is opened
-- **WHEN** the URL contains valid canonical atlas state
-- **THEN** the atlas restores that state
+- **WHEN** the URL contains valid canonical map state
+- **THEN** the map restores that state
 - **AND** writing the unchanged state produces the same canonical parameter form
 
 #### Scenario: A URL contains a removed alias
 - **WHEN** the URL uses a parameter alias removed by the cutover
-- **THEN** the atlas does not treat that alias as canonical state
+- **THEN** the map does not treat that alias as canonical state
 - **AND** subsequent URL updates do not write the alias
 
 ### Requirement: Publication is validated before selection

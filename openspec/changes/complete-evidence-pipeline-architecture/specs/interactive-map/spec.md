@@ -1,6 +1,6 @@
 ## Purpose
 
-Keep the shared-world atlas responsive and its navigation deterministic while preserving existing imagery, selection, and development-only inspection behavior.
+Keep the shared-world map responsive and its navigation deterministic while preserving existing imagery, selection, and development-only inspection behavior.
 
 ## ADDED Requirements
 
@@ -10,12 +10,12 @@ Initial URLs, direct selection, browser back, and browser forward SHALL use equi
 
 #### Scenario: History restores an uncached item selection
 - **WHEN** browser navigation restores an item whose sources are not cached
-- **THEN** the atlas loads those sources and applies the same placement filter and highlights as direct selection
+- **THEN** the map loads those sources and applies the same placement filter and highlights as direct selection
 - **AND** the URL and displayed state remain consistent
 
 #### Scenario: History restores a removed placement
 - **WHEN** the URL names a placement absent from the selected publication
-- **THEN** the atlas reports the stale selection without selecting an unrelated placement
+- **THEN** the map reports the stale selection without selecting an unrelated placement
 - **AND** available map navigation remains usable
 
 ### Requirement: Resource failures belong to the current request state
@@ -34,7 +34,7 @@ Resource loading SHALL deduplicate equivalent requests while permitting explicit
 
 ### Requirement: Shared-world rendering does not wait for unrelated search data
 
-The atlas SHALL load all essential map parts and declared geometry before map-data readiness. It SHALL NOT wait for search indexes or unrelated details. It SHALL compose placements for every published map without introducing active-map selection. Search SHALL expose its own loading or failure state. Partial loading SHALL NOT appear as a final zero-result count.
+The map SHALL load all essential map parts and declared geometry before map-data readiness. It SHALL NOT wait for search indexes or unrelated details. It SHALL compose placements for every published map without introducing active-map selection. Search SHALL expose its own loading or failure state. Partial loading SHALL NOT appear as a final zero-result count.
 
 #### Scenario: Search loading is delayed
 - **WHEN** search resources are delayed but all map and geometry resources are available
@@ -43,7 +43,7 @@ The atlas SHALL load all essential map parts and declared geometry before map-da
 
 #### Scenario: Optional movement is enabled
 - **WHEN** a reader enables movement after map-data readiness
-- **THEN** the atlas displays loaded verified paths without additional resource requests
+- **THEN** the map displays loaded verified paths without additional resource requests
 - **AND** unavailable paths are not inferred from labels or detail text
 
 ### Requirement: Renderer updates preserve camera and coordinate ownership
@@ -65,7 +65,7 @@ The renderer SHALL retain its live camera during pointer interaction. Selection,
 Game-provided imagery SHALL remain selected by default, and overworld captured terrain SHALL remain opt-in. The shared world, marker vocabulary, guide navigation, accessibility, and WebGL failure fallback SHALL remain available. Production SHALL NOT render development detail panels or authoring controls, or require raw evidence, a database, or a dynamic API.
 
 #### Scenario: A production reader opens a saved layer choice
-- **WHEN** the atlas restores a valid canonical URL
+- **WHEN** the map restores a valid canonical URL
 - **THEN** it preserves the requested layers and world position
 - **AND** no development panel appears while selection state resolves
 

@@ -4,8 +4,8 @@ import { MARKER_IDS, markerFor } from "./marker-registry";
 const CELL_SIZE = 64;
 const CIRCLE_PADDING = 2;
 
-export interface IconAtlasResult {
-  atlas: HTMLCanvasElement;
+export interface IconSheetResult {
+  canvas: HTMLCanvasElement;
   mapping: Record<string, { x: number; y: number; width: number; height: number; mask: boolean }>;
 }
 
@@ -35,24 +35,24 @@ export function markerGlyphSvg(marker: { icon: IconNode }): string {
   return iconNodeToSvg(marker.icon);
 }
 
-export function iconAtlasMapping(): IconAtlasResult["mapping"] {
+export function iconSheetMapping(): IconSheetResult["mapping"] {
   return Object.fromEntries(MARKER_IDS.map((id, index) => [id, {
     x: index * CELL_SIZE,
     y: 0,
     width: CELL_SIZE,
     height: CELL_SIZE,
     mask: false,
-  }])) as IconAtlasResult["mapping"];
+  }])) as IconSheetResult["mapping"];
 }
 
-async function buildIconAtlas(): Promise<IconAtlasResult> {
+async function buildIconSheet(): Promise<IconSheetResult> {
   const canvas = document.createElement("canvas");
   canvas.width = CELL_SIZE * MARKER_IDS.length;
   canvas.height = CELL_SIZE;
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("Unable to create the marker icon atlas canvas.");
+  if (!context) throw new Error("Unable to create the marker icon sheet canvas.");
   const images = await Promise.all(MARKER_IDS.map((id) => loadSvg(iconNodeToSvg(markerFor(id).icon))));
-  const mapping = iconAtlasMapping();
+  const mapping = iconSheetMapping();
   MARKER_IDS.forEach((id, index) => {
     const marker = markerFor(id);
     const x = index * CELL_SIZE;
@@ -72,12 +72,12 @@ async function buildIconAtlas(): Promise<IconAtlasResult> {
     context.drawImage(images[index]!, x + offset, offset, glyphSize, glyphSize);
     context.restore();
   });
-  return { atlas: canvas, mapping };
+  return { canvas, mapping };
 }
 
-let atlasPromise: Promise<IconAtlasResult> | null = null;
+let sheetPromise: Promise<IconSheetResult> | null = null;
 
-export function createIconAtlas(): Promise<IconAtlasResult> {
-  atlasPromise ??= buildIconAtlas();
-  return atlasPromise;
+export function createIconSheet(): Promise<IconSheetResult> {
+  sheetPromise ??= buildIconSheet();
+  return sheetPromise;
 }

@@ -88,7 +88,7 @@ Geometry observations SHALL retain query scope and world Y coordinates. Navigati
 
 The extractor SHALL retain reviewed map profiles separately from native MapZone registrations and capture bounds. Profiles SHALL bind exact source-scene IDs and paths to horizontal coordinate frames and membership domains. The extractor SHALL verify referenced review evidence hashes and JSON pointers. Missing profiles, unmatched domains, and contradictory scene bindings SHALL remain explicit.
 
-Membership SHALL be horizontal. A profile SHALL NOT define floor domains, and a placement SHALL NOT carry a floor identity. Each placement SHALL retain its world height as an ordinary field, which the atlas presents as a fact rather than using to select imagery.
+Membership SHALL be horizontal. A profile SHALL NOT define floor domains, and a placement SHALL NOT carry a floor identity. Each placement SHALL retain its world height as an ordinary field, which the map presents as a fact rather than using to select imagery.
 
 #### Scenario: Several source scenes share one rendered map
 - **WHEN** reviewed bindings place several source scenes in one map space
