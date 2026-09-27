@@ -70,13 +70,13 @@ export function creatureLevelText(level: CreatureLevel): string {
   return level.min <= 1 && level.max === undefined ? 'Any' : levelText(level);
 }
 
-/** One roll of a loot table: "5% table roll, 1–2 items". The rate is authored, not an effective chance per kill. */
+/** The loot roll of a table: "5% of kills, 1–2 items". Without a chance, the roll happens on every kill. */
 export function lootTableText(row: Pick<DropRow, 'tableChance' | 'tableMinimum' | 'tableLimit'>): string | null {
   const { tableChance, tableMinimum: least, tableLimit: most } = row;
   const items = least !== undefined && most !== undefined ? (least === most ? `${least} ${least === 1 ? 'item' : 'items'}` : `${least}\u2013${most} items`)
     : least !== undefined ? `at least ${least} ${least === 1 ? 'item' : 'items'}`
     : most !== undefined ? `at most ${most} ${most === 1 ? 'item' : 'items'}` : null;
-  const parts = [...(tableChance === undefined ? [] : [`${formatNumber(tableChance)}% table roll`]), ...(items === null ? [] : [items])];
+  const parts = [...(tableChance === undefined ? [] : [`${formatNumber(tableChance)}% of kills`]), ...(items === null ? [] : [items])];
   return parts.length === 0 ? null : parts.join(', ');
 }
 

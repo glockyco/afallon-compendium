@@ -27,11 +27,6 @@
 </svelte:head>
 
 <PageShell registry={data.registry} {crumbs} buildId={data.buildId} catalogId={data.catalogId}>
-  <div class="entity-column"><FactCard document={data.document} registry={data.registry} mapSpaceLabels={data.mapSpaceLabels} showRelations /></div>
+  <FactCard document={data.document} registry={data.registry} mapSpaceLabels={data.mapSpaceLabels} showRelations />
   <svelte:fragment slot="footer-extra"><a class="c-link" href={`${base}/data/${data.documentPath}`}>JSON</a></svelte:fragment>
 </PageShell>
-
-<style>
-  /* The breadcrumb above the column is left-aligned, so the column shares its left edge. */
-  .entity-column { width: min(100%, 60rem); }
-</style>

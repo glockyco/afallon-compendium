@@ -95,9 +95,15 @@
 </article>
 
 <style>
-  .overview { display: grid; grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); gap: 1rem; align-items: start; margin-bottom: 1rem; }
-  .aside { display: grid; gap: .75rem; }
-  .overview.full .aside { position: sticky; top: 5rem; }
+  /* Both columns share one height: the tooltip grows to match the sources, and the last source card grows to match
+     the tooltip, so the two columns end on one line and fill the page width. */
+  .overview { display: grid; grid-template-columns: minmax(0, 24rem) minmax(0, 1fr); gap: 1rem; align-items: stretch; margin-bottom: 1rem; }
+  .aside { display: flex; flex-direction: column; gap: .75rem; }
+  .aside > .tooltip-card { flex: 1; }
+  .sources { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+  .sources > div { width: 100%; }
+  .sources > div:not(:empty) { flex: 1 1 auto; display: flex; }
+  .sources > div > :global(.c-card) { flex: 1; width: 100%; box-sizing: border-box; }
   .tooltip-card { padding: .85rem; border: 1px solid #74684e; border-radius: var(--c-radius); background: var(--c-surface-1); box-shadow: 0 6px 20px #0006; }
   .summary { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; font-size: .88rem; }
   h3 { margin: 1rem 0 .45rem; color: var(--c-text-dim); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
@@ -106,5 +112,5 @@
   dd { margin: 0; justify-self: end; }
   [id] { scroll-margin-top: 5rem; }
   .sources > div:empty { display: none; }
-  @media (max-width: 760px) { .overview { grid-template-columns: 1fr; } .overview.full .aside { position: static; } }
+  @media (max-width: 760px) { .overview { grid-template-columns: 1fr; } }
 </style>

@@ -23,18 +23,17 @@
   $: hasTables = rows.some((row) => lootTableText(row) !== null);
   $: hasVariants = rows.some((row) => row.variants);
   $: hasRequirements = rows.some((row) => row.requirements.length > 0);
-  // How to read the loot columns. The Adventure Guide shows the same Chance value.
+  // How to read the loot columns, in the reader's own terms.
   $: notes = hasLevels || hasTables ? [
-    'Chance: the item’s entry rate, as the Adventure Guide shows it.',
-    ...(hasTables ? ['Table: the authored table roll and the items one roll gives.'] : []),
-    ...(hasLevels ? ['Level: the creature levels that can drop world loot.'] : []),
+    ...(hasTables ? ['A kill first makes a loot roll with the chance under Loot roll. If it succeeds, each item then drops with its own Chance, and the roll gives the number of items shown.'] : ['Each item drops with its own Chance.']),
+    ...(hasLevels ? ['Level: the creature levels that can drop the item.'] : []),
   ] : [];
   $: columns = [
     { id: 'name', label: counterpartLabel, sortable: true },
     ...(hasLevels ? [{ id: 'level', label: 'Level', numeric: true, sortable: true }] : []),
     { id: 'quantity', label: 'Quantity', numeric: true, sortable: true },
     { id: 'chance', label: 'Chance', numeric: true, sortable: true },
-    ...(hasTables ? [{ id: 'table', label: 'Table' }] : []),
+    ...(hasTables ? [{ id: 'table', label: 'Loot roll' }] : []),
     ...(hasRequirements ? [{ id: 'requirements', label: 'Requirements' }] : []),
     ...(hasVariants ? [{ id: 'variant', label: 'Variant' }] : []),
   ] satisfies TableColumn[];
