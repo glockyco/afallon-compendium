@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { Assert } from "typebox/value";
 import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
-import { queryCatalogEntities, queryCatalogFacts, queryCatalogRelations } from "@afallon/catalog";
+import { queryCatalogEntities, queryCatalogFacts, queryCatalogFullEntities, queryCatalogRelations } from "@afallon/catalog";
 import {
   PUBLICATION_DOCUMENT_BUDGET,
   STATIC_DOCUMENT_SCHEMA_IDS,
@@ -34,6 +34,7 @@ import type { PublicationCandidateAsset } from "./selection";
 import type { MapExtent } from "./map-shards";
 import { levelUnion } from "./levels";
 import { displayName } from "./text";
+import { categoryLabel } from "@afallon/contracts/public";
 import { auditPublicTooltipCoverage } from "./tooltip-coverage";
 
 export interface GeneratedIndexResources {
@@ -75,6 +76,18 @@ function itemSourceKinds(document: PublicDocument): string[] {
     item.craftedBy.length > 0 ? "recipe" : null].filter((value): value is string => value !== null);
 }
 
+// The weapon types of a class come from its entity gameplay, as the game names them: "One handed sword" reads "One
+// Handed Sword".
+function classWeapons(details: readonly { entityKey: string; kind: string; publicData: { gameplay: unknown } }[]): ReadonlyMap<string, readonly string[]> {
+  const result = new Map<string, string[]>();
+  for (const detail of details) {
+    if (detail.kind !== "classes") continue;
+    const gameplay = detail.publicData.gameplay, list = gameplay !== null && typeof gameplay === "object" && "allowedWeaponTypes" in gameplay && Array.isArray(gameplay.allowedWeaponTypes) ? gameplay.allowedWeaponTypes : [];
+    result.set(detail.entityKey, list.flatMap((row: unknown) => row !== null && typeof row === "object" && "name" in row && typeof row.name === "string" && row.name ? [categoryLabel(row.name)] : []));
+  }
+  return result;
+}
+
 export async function generateIndexResources(
   db: Database,
   store: ArtifactStore,
@@ -104,7 +117,8 @@ export async function generateIndexResources(
     return [placementId, area ? { ...placement, label: area } : scene?.kind === "places" ? { ...placement, label: scene.name } : placement] as const;
   }));
   const publicDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
-    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey });
+    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey,
+    classWeapons: classWeapons(queryCatalogFullEntities(db).records) });
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {

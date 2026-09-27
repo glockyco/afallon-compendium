@@ -4,7 +4,7 @@ import {
   ArtRefSchema, ConnectionRowSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, VendorRowSchema,
   PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
-  type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe,
+  type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe, type PublicClass, type PublicSkill,
   type StaticRootManifest, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, StaticItemDocumentSchema, type StaticCoverage,
 } from "./index";
 import type { Static } from "typebox";
@@ -19,7 +19,7 @@ const placement = { placementId: "p1", mapSpaceId: "map", label: "Duskfall Depth
 const requirement = (type: string, label: string, fields: Record<string, unknown> = {}) => ({ type: { value: 0, name: type }, rule: { value: 0, name: "Mandatory" }, label, spans: [{ text: label }], ...fields });
 const legacySchemaIds = {
   items: "compendium.static-item.v3", npcs: "compendium.static-npc.v3", quests: "compendium.static-quest.v3", places: "compendium.static-place.v4",
-  properties: "compendium.static-property.v2", abilities: "compendium.static-ability.v2", recipes: "compendium.static-recipe.v2",
+  properties: "compendium.static-property.v2", abilities: "compendium.static-ability.v3", recipes: "compendium.static-recipe.v2",
 } as const;
 
 test("references are keyed and typed; name-only shapes are rejected", () => {
@@ -76,8 +76,14 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
   quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, starts: [{ kind: "npc", npc: boss, areas: ["Duskfall Depths"] }], turnIns: [], objectives: [{ index: 0, text: "Kill 3 Branchweavers", completions: [], type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [] } satisfies PublicQuest,
   places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], quests: [], questObjectives: [], properties: [], connections: [], regions: [] } satisfies PublicPlace,
   properties: { ...located, ref: { key: "properties:1", kind: "properties", name: "Mill", slug: "mill" }, facts: { income: { amount: 60, currency: gold }, incomeInterval: 300 } } satisfies PublicProperty,
-  abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, versions: [{ keys: ["abilities:194"], anchor: "n194", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Deals damage", tone: "damage", italic: false }] }] }], usedBy: [boss], taughtBy: [] }] } satisfies PublicAbility,
+  abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, versions: [{ keys: ["abilities:194"], anchor: "n194", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Deals damage", tone: "damage", italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [boss], taughtBy: [] }] } satisfies PublicAbility,
   recipes: { ...base, ref: { key: "recipes:81", kind: "recipes", name: "Aetherial Elixir", slug: "aetherial-elixir" }, facts: {}, product: { counterpart: item, count: 1 }, materials: [] } satisfies PublicRecipe,
+  classes: { ...base, ref: { key: "classes:0", kind: "classes", name: "Shieldmaster", slug: "shieldmaster" }, facts: { races: ["Dwarf"], weapons: ["Shield"], talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], highestLevel: 60 },
+    trees: [{ anchor: "tree-18", name: "Aegis Mastery", points: "Talent Points", rows: [{ anchor: "talent-18-3", tier: 3, position: 2, name: "Aegis Discipline", ranks: 5,
+      first: { rank: 1, stats: [{ stat: { key: "stats:125", kind: "stats", name: "Block Chance" }, amount: 2, isPercent: false }], text: [] }, last: { rank: 5, stats: [{ stat: { key: "stats:125", kind: "stats", name: "Block Chance" }, amount: 10, isPercent: false }], text: [] },
+      requirements: [{ mode: "all", checkCount: false, requirements: [{ type: { value: 20, name: "Bonus" }, rule: { value: 0, name: "Mandatory" }, label: "Weighted Strikes rank 4 or higher", spans: [{ ref: { key: "classes:0", kind: "classes", name: "Weighted Strikes", slug: "shieldmaster", variant: "talent-18-1" } }, { text: " rank 4 or higher" }] }] }] }] }],
+    startingGear: [{ item, count: 1, equipped: true }], experience: [{ level: 1, experience: 20 }] } satisfies PublicClass,
+  skills: { ...base, ref: { key: "skills:0", kind: "skills", name: "Alchemy", slug: "alchemy" }, facts: { highestLevel: 300, automatic: true }, recipes: [{ recipe: { key: "recipes:81", kind: "recipes", name: "Aetherial Elixir", slug: "aetherial-elixir" }, product: item }], experience: [{ level: 1, experience: 20 }] } satisfies PublicSkill,
 };
 
 test("every kind document validates and rejects unknown properties", () => {

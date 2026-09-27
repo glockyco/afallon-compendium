@@ -27,7 +27,13 @@ import type {
   NpcVariantField,
   PlacementGroup,
   PlacementRef,
+  LearnerRow,
   PublicAbility,
+  PublicClass,
+  PublicSkill,
+  TalentPoints,
+  TalentRank,
+  TalentTree,
   PublicDocument,
   PublicItem,
   PublicLevel,
@@ -69,6 +75,8 @@ export interface DocumentProjectionInput {
   npcLevels: ReadonlyMap<string, ReadonlyMap<string, PublicLevel>>;
   /** The published placements that the map links to each entity key, such as the for-sale signs of a property. */
   placementIdsByKey: ReadonlyMap<string, readonly string[]>;
+  /** The weapon types that each class can use, as the game names them. */
+  classWeapons?: ReadonlyMap<string, readonly string[]>;
 }
 
 type RelationIndexes = {
@@ -806,7 +814,8 @@ function projectProperty(entity: CatalogEntityRow, ref: EntityRef, input: Docume
 
 // An ability page shows one version for each set of records that share their rank texts, with the creatures that use
 // them and the items that teach them.
-function projectAbilityPage(page: PublishedPage, input: DocumentProjectionInput): PublicAbility {
+function projectAbilityPage(page: PublishedPage, input: DocumentProjectionInput, conditions: ReadonlyMap<string, CatalogCondition>): PublicAbility {
+  const progression = new Map(input.facts.progression.facts.map((fact) => [fact.entityKey, fact]));
   const factsByKey = new Map(input.facts.abilities.map((fact) => [fact.entityKey, fact]));
   const covered = new Set(page.versions.flatMap((version) => version.members.map((member) => member.entityKey)));
   for (const member of page.members) if (!covered.has(member.entity.entityKey)) throw new Error(`Missing ability facts for ${member.entity.entityKey}.`);
@@ -819,9 +828,136 @@ function projectAbilityPage(page: PublishedPage, input: DocumentProjectionInput)
     const taughtBy = mergeRefs(input.facts.items.filter((item) => item.actionAbilities.some((ability) => ability.ability.entityKey !== null && keySet.has(ability.ability.entityKey)))
       .map((item) => input.resolve({ entityKey: item.entityKey, label: item.entityKey })), input);
     const icon = input.artByEntity.get(keys[0]!)?.icon;
-    return { keys, anchor: version.anchor, ...(icon && icon.sha256 !== base.art.icon?.sha256 ? { icon } : {}), ranks: fact.ranks.map((rank) => ({ rankIndex: Math.max(0, rank.rankIndex), lines: rank.lines })), usedBy, taughtBy };
+    const mechanics = progression.get(keys[0]!);
+    const useCondition = mechanics?.kind === "abilities" ? mechanics.details.ranks[0]?.conditionId ?? null : null;
+    const useRequirements = useCondition === null ? [] : requirementsFor([useCondition], conditions, input.resolve);
+    return { keys, anchor: version.anchor, ...(icon && icon.sha256 !== base.art.icon?.sha256 ? { icon } : {}), ranks: fact.ranks.map((rank) => ({ rankIndex: Math.max(0, rank.rankIndex), lines: rank.lines })), useRequirements, learnedBy: learnersOf(keySet, input, conditions), usedBy, taughtBy };
   });
   return { ...base, versions };
+}
+
+// A talent tree row has the anchor `talent-<tree id>-<node index>`, so a requirement or an ability page can link it.
+function talentAnchor(treeKey: string, nodeIndex: number): string {
+  return `talent-${treeKey.slice(treeKey.indexOf(":") + 1)}-${nodeIndex}`;
+}
+
+// The trees of a class in authored order, with the anchor of each passive talent. A talent that appears in several trees
+// of the game appears once in a class, so a reference on the class page resolves to the row of that class.
+function classTalents(classKey: string, input: DocumentProjectionInput) {
+  const progression = input.facts.progression;
+  const trees = progression.links.filter((link) => link.owner === classKey && link.linkKind === "talentTree" && link.target.entityKey !== null).sort((a, b) => a.linkIndex - b.linkIndex);
+  const anchors = new Map<string, string>();
+  for (const tree of trees) for (const node of progression.talentNodes) if (node.tree === tree.target.entityKey && node.target?.entityKey && !anchors.has(node.target.entityKey)) anchors.set(node.target.entityKey, talentAnchor(node.tree, node.nodeIndex));
+  return { trees, anchors };
+}
+
+// Resolves a talent to its row on the page of its class. Other references resolve as everywhere else.
+function talentResolver(classRef: Ref, anchors: ReadonlyMap<string, string>, input: DocumentProjectionInput): ReferenceResolver {
+  return (endpoint) => {
+    const anchor = endpoint.entityKey === null || !endpoint.entityKey.startsWith("bonuses:") ? undefined : anchors.get(endpoint.entityKey);
+    if (anchor === undefined || !isEntityRef(classRef) || classRef.slug === undefined) return input.resolve(endpoint);
+    return { key: classRef.key, kind: classRef.kind, name: displayName(endpoint.label ?? ""), slug: classRef.slug, variant: anchor };
+  };
+}
+
+// The published classes that learn one of the abilities, as the auto attack or through a talent tree node.
+function learnersOf(abilityKeys: ReadonlySet<string>, input: DocumentProjectionInput, conditions: ReadonlyMap<string, CatalogCondition>): LearnerRow[] {
+  const progression = input.facts.progression, rows: LearnerRow[] = [], seen = new Set<string>();
+  for (const learner of progression.learners) {
+    if (!abilityKeys.has(learner.ability) || learner.owner.entityKey === null) continue;
+    const classRef = input.resolve(learner.owner);
+    if (!isEntityRef(classRef) || classRef.kind !== "classes" || classRef.slug === undefined) continue;
+    if (learner.via === "autoAttack") {
+      const key = `${classRef.key}|auto`;
+      if (!seen.has(key)) { seen.add(key); rows.push({ class: classRef, via: "autoAttack", requirements: [] }); }
+      continue;
+    }
+    if (learner.via !== "talentTree" || learner.source?.entityKey == null) continue;
+    const node = progression.talentNodes.find((candidate) => candidate.tree === learner.source?.entityKey && candidate.target?.entityKey === learner.ability && candidate.tier === learner.tier && candidate.row === learner.row);
+    if (!node) continue;
+    const key = `${classRef.key}|${node.tree}|${node.nodeIndex}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const { anchors } = classTalents(classRef.key, input);
+    const requirements = node.conditionId === null ? [] : requirementsFor([node.conditionId], conditions, talentResolver(classRef, anchors, input));
+    rows.push({ class: classRef, via: "talentTree", tree: displayName(learner.source.label), tier: Math.max(0, node.tier), talent: { ...classRef, variant: talentAnchor(node.tree, node.nodeIndex) }, requirements });
+  }
+  return rows;
+}
+
+function talentRank(rank: { rank: number; statEffects: readonly { stat: CatalogEndpoint; amount: number; isPercent: boolean }[]; emptyTooltip: string | null }, input: DocumentProjectionInput): TalentRank {
+  const text = rank.statEffects.length === 0 && rank.emptyTooltip ? withoutMarkup(rank.emptyTooltip).trim() : "";
+  return { rank: Math.max(0, rank.rank) + 1, stats: rank.statEffects.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })), text: text ? [{ spans: [{ text, tone: null, italic: false }] }] : [] };
+}
+
+function experienceRows(template: CatalogEndpoint | null | undefined, highest: number | null, input: DocumentProjectionInput) {
+  const fact = template?.entityKey ? input.facts.progression.facts.find((candidate) => candidate.entityKey === template.entityKey) : undefined;
+  if (fact?.kind !== "levels") return [];
+  // The game reads a template row by its position. Skill templates store level 0 in every row, so the position is the level.
+  const rows = fact.details.rows.map((row, index) => ({ level: index + 1, experience: Math.max(0, row.experienceRequired) }));
+  return highest === null ? rows : rows.slice(0, highest);
+}
+
+function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, conditions: ReadonlyMap<string, CatalogCondition>): PublicClass {
+  const progression = input.facts.progression, facts = new Map(progression.facts.map((fact) => [fact.entityKey, fact]));
+  const fact = facts.get(entity.entityKey), details = fact?.kind === "classes" ? fact.details : undefined;
+  const { trees, anchors } = classTalents(entity.entityKey, input), resolve = talentResolver(ref, anchors, input);
+  const projectedTrees: TalentTree[] = trees.map((link) => {
+    const treeKey = link.target.entityKey!, tree = facts.get(treeKey), points = tree?.kind === "talentTrees" ? tree.details.treePoint : null;
+    const nodes = progression.talentNodes.filter((node) => node.tree === treeKey && node.target?.entityKey).sort((a, b) => a.tier - b.tier || a.row - b.row || a.nodeIndex - b.nodeIndex);
+    return {
+      anchor: `tree-${treeKey.slice(treeKey.indexOf(":") + 1)}`, name: displayName(link.target.label), ...(points?.label ? { points: displayName(points.label) } : {}),
+      rows: nodes.map((node) => {
+        const target = node.target!, bonus = node.nodeType === "bonus" ? facts.get(target.entityKey!) : undefined;
+        const ranks = bonus?.kind === "bonuses" ? bonus.details.ranks : [];
+        return {
+          anchor: talentAnchor(treeKey, node.nodeIndex), tier: Math.max(0, node.tier), position: Math.max(0, node.row), name: displayName(target.label),
+          ...(node.nodeType === "ability" ? { ability: input.resolve(target) } : {}), ranks: Math.max(1, ranks.length),
+          ...(ranks[0] ? { first: talentRank(ranks[0], input) } : {}), ...(ranks.length > 1 ? { last: talentRank(ranks.at(-1)!, input) } : {}),
+          requirements: node.conditionId === null ? [] : requirementsFor([node.conditionId], conditions, resolve),
+        };
+      }),
+    };
+  });
+  // Talent points that no rule grants and that have no start amount carry no information.
+  const pointKeys = [...new Set(trees.flatMap((link) => { const tree = facts.get(link.target.entityKey!); return tree?.kind === "talentTrees" && tree.details.treePoint?.entityKey ? [tree.details.treePoint.entityKey] : []; }))];
+  const talentPoints = pointKeys.flatMap((key): TalentPoints[] => {
+    const point = facts.get(key);
+    if (point?.kind !== "treePoints") return [];
+    const gains = point.details.gainRules.filter((rule) => rule.class === null || rule.class.entityKey === entity.entityKey).flatMap((rule): TalentPoints["gains"] => {
+      const trigger = rule.trigger.name;
+      return trigger === "characterLevelUp" || trigger === "skillLevelUp" || trigger === "npcKilled" || trigger === "itemGained" || trigger === "weaponTemplateLevelUp" ? [{ trigger, amount: Math.max(0, rule.amount) }] : [];
+    });
+    return gains.length === 0 && point.details.startAmount <= 0 ? [] : [{ name: displayName(point.name ?? ""), start: Math.max(0, point.details.startAmount), max: Math.max(0, point.details.maxPoints), gains }];
+  });
+  const races = progression.facts.flatMap((race) => race.kind === "races" && race.details.offeredClasses.some((row) => row.entityKey === entity.entityKey) ? [displayName(race.name ?? "")] : []).filter(Boolean);
+  const experience = experienceRows(details?.levelTemplate, null, input);
+  const autoAttack = optionalFactRef(input.resolve, details?.autoAttackAbility);
+  return {
+    ...baseDocument(entity, ref, input),
+    facts: { races, weapons: [...(input.classWeapons?.get(entity.entityKey) ?? [])], ...(autoAttack ? { autoAttack } : {}), talentPoints, ...(experience.length ? { highestLevel: experience.at(-1)!.level } : {}) },
+    trees: projectedTrees,
+    startingGear: (details?.startItems ?? []).map((row) => ({ item: input.resolve(row.item), count: Math.max(0, row.count), equipped: row.equipped })),
+    experience,
+  };
+}
+
+function projectSkill(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes): PublicSkill {
+  const fact = input.facts.progression.facts.find((candidate) => candidate.entityKey === entity.entityKey), details = fact?.kind === "skills" ? fact.details : undefined;
+  const highest = details && details.maxLevel > 0 ? details.maxLevel : null;
+  const recipes = input.facts.recipes.filter((recipe) => recipe.skill?.entityKey === entity.entityKey).map((recipe) => {
+    const product = (indexes.recipesByRecipe.get(recipe.entityKey) ?? []).find((row) => row.role === "product"), station = optionalFactRef(input.resolve, recipe.station);
+    return { recipe: input.resolve({ entityKey: recipe.entityKey, label: recipe.entityKey }), ...(product ? { product: input.resolve(product.item) } : {}), ...(station ? { station } : {}) };
+  }).sort((a, b) => refName(a.recipe).localeCompare(refName(b.recipe)));
+  return {
+    ...baseDocument(entity, ref, input),
+    facts: { ...(highest === null ? {} : { highestLevel: highest }), automatic: details?.automaticallyAdded ?? true },
+    recipes, experience: highest === null ? [] : experienceRows(details?.levelTemplate, highest, input),
+  };
+}
+
+function refName(ref: Ref): string {
+  return isEntityRef(ref) ? ref.name : ref.label;
 }
 
 function projectRecipe(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes): PublicRecipe {
@@ -868,8 +1004,10 @@ export function projectPublicDocuments(input: DocumentProjectionInput): Readonly
       case "quests": document = projectQuest(entity, ref, input, indexes, conditions); break;
       case "places": document = projectPlace(entity, ref, input, indexes); break;
       case "properties": document = projectProperty(entity, ref, input); break;
-      case "abilities": document = projectAbilityPage(page, input); break;
+      case "abilities": document = projectAbilityPage(page, input, conditions); break;
       case "recipes": document = projectRecipe(entity, ref, input, indexes); break;
+      case "classes": document = projectClass(entity, ref, input, conditions); break;
+      case "skills": document = projectSkill(entity, ref, input, indexes); break;
       default: continue;
     }
     result.set(key, document);

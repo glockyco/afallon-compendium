@@ -3,6 +3,7 @@ import { partitionStaticRecords } from "./resources";
 import type {
   ListRow,
   PublicAbility,
+  PublicClass,
   PublicDocument,
   PublicItem,
   PublicKindEntry,
@@ -12,6 +13,7 @@ import type {
   PublicProperty,
   PublicQuest,
   PublicRecipe,
+  PublicSkill,
   Ref,
   StaticKindList,
 } from "@afallon/contracts/public";
@@ -80,6 +82,18 @@ function recipeRow(document: PublicRecipe): ListRow {
   return { ref: document.ref, values: { station, skill, product: refName(document.product?.counterpart) }, facets: { station: facetValue(station), skill: facetValue(skill) } };
 }
 
+function isClass(document: PublicDocument): document is PublicClass { return document.ref.kind === "classes"; }
+function isSkill(document: PublicDocument): document is PublicSkill { return document.ref.kind === "skills"; }
+
+function classRow(document: PublicClass): ListRow {
+  const abilities = document.trees.reduce((sum, tree) => sum + tree.rows.filter((row) => row.ability !== undefined).length, document.facts.autoAttack ? 1 : 0);
+  return { ref: document.ref, values: { talentTrees: document.trees.length, abilities }, facets: {} };
+}
+
+function skillRow(document: PublicSkill): ListRow {
+  return { ref: document.ref, values: { highestLevel: document.facts.highestLevel ?? null, recipes: document.recipes.length }, facets: {} };
+}
+
 export function buildKindLists(
   identity: { buildId: string; catalogId: string },
   registry: readonly PublicKindEntry[],
@@ -96,6 +110,8 @@ export function buildKindLists(
       case "properties": row = propertyRow(document as PublicProperty); break;
       case "abilities": row = abilityRow(document as PublicAbility); break;
       case "recipes": row = recipeRow(document as PublicRecipe); break;
+      case "classes": if (!isClass(document)) continue; row = classRow(document); break;
+      case "skills": if (!isSkill(document)) continue; row = skillRow(document); break;
       default: continue;
     }
     const rows = rowsByKind.get(document.ref.kind) ?? [];

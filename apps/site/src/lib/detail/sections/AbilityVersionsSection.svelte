@@ -1,17 +1,21 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import type { AbilityVersion } from '@afallon/contracts/public';
+  import type { AbilityVersion, PublicKindEntry } from '@afallon/contracts/public';
   import NativeText from '../../NativeText.svelte';
+  import Requirements from '../../Requirements.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
 
   export let versions: AbilityVersion[];
+  export let registry: PublicKindEntry[];
 
   type VersionRow = { version: AbilityVersion; index: number };
   const columns: RelationColumn<VersionRow>[] = [
     { id: 'version', label: 'Version', value: (row) => `Version ${row.index + 1}` },
     { id: 'text', label: 'Text', value: (row) => row.version.ranks.flatMap((rank) => rank.lines.flatMap((line) => line.spans.map((span) => span.text))).join(' ') },
+    // The hero shows the requirements of the main version, so a column that every version shares leaves the table.
+    { id: 'requirements', label: 'Requirements', value: (row) => row.version.useRequirements.flatMap((group) => group.requirements.map((requirement) => requirement.label)).join(', ') || undefined, whenShared: () => 'omit' },
     { id: 'users', label: 'Users', numeric: true, value: (row) => row.version.usedBy.length },
   ];
 
@@ -31,6 +35,7 @@
               <div>{#if row.version.ranks.length > 1}<h3>Rank {rank.rankIndex + 1}</h3>{/if}<NativeText lines={rank.lines} /></div>
             {/each}
           </div>
+        {:else if column === 'requirements'}<Requirements requirements={row.version.useRequirements} {registry} />
         {:else if column === 'users'}{row.version.usedBy.length}{/if}
       </svelte:fragment>
     </RelationTable>

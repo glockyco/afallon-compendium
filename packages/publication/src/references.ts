@@ -289,10 +289,13 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
   const usedSlugs = new Map<string, Set<string>>();
   const refs: Array<readonly [string, EntityRef]> = [];
   const pages = new Map<string, PublishedPage>();
+  const offeredClasses = new Set(context.facts?.progression.offeredClasses ?? []);
   for (const group of groups) {
     const registry = PUBLIC_KIND_BY_KIND[group.kind], name = names.get(group.key)!;
+    // A class that no race offers is not playable, so it has no page.
+    const hasPage = registry.pages && (group.kind !== "classes" || offeredClasses.has(group.members[0]!.entityKey));
     let slug: string | undefined;
-    if (registry.pages) {
+    if (hasPage) {
       const used = usedSlugs.get(group.kind) ?? new Set<string>();
       const base = slugify(name);
       slug = used.has(base) ? `${base}-${group.members[0]!.nativeId}` : base;
@@ -308,7 +311,7 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
       ? variantMembers(group, recordLabels(group.members, group.kind === "npcs" ? npcLabelCandidates : [], (position) => `Variant ${position}`))
       : [{ entity: group.members[0]!, label: name, anchor: `n${group.members[0]!.nativeId}` }];
     const versions = versionsByGroup.get(group.key) ?? [];
-    if (registry.pages) pages.set(group.key, { kind: group.kind, ref: pageRef, members, variantFields, versions });
+    if (hasPage) pages.set(group.key, { kind: group.kind, ref: pageRef, members, variantFields, versions });
     for (const member of members) {
       if (group.members.length === 1) { refs.push([member.entity.entityKey, pageRef]); continue; }
       // A creature reference always links its variant. Its name adds the variant label only when the variants differ in

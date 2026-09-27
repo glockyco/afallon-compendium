@@ -9,14 +9,14 @@ const identity = StaticResourceIdentityFields;
 
 // Kinds with pages own a route and a document schema. Kinds without pages still have references,
 // names, and icons, so a stat or currency renders as text with its icon rather than as a dead link.
-export const PUBLIC_PAGE_KIND_VALUES = ["items", "npcs", "quests", "places", "properties", "abilities", "recipes"] as const;
+export const PUBLIC_PAGE_KIND_VALUES = ["items", "npcs", "quests", "places", "properties", "abilities", "recipes", "classes", "skills"] as const;
 export type PublicPageKind = typeof PUBLIC_PAGE_KIND_VALUES[number];
-export const PUBLIC_REFERENCE_KIND_VALUES = [...PUBLIC_PAGE_KIND_VALUES, "gearSets", "currencies", "stats", "factions", "skills", "classes", "races", "enchantments", "effects", "species", "lootTables", "craftingStations"] as const;
+export const PUBLIC_REFERENCE_KIND_VALUES = [...PUBLIC_PAGE_KIND_VALUES, "gearSets", "currencies", "stats", "factions", "races", "enchantments", "effects", "species", "lootTables", "craftingStations"] as const;
 export type PublicReferenceKind = typeof PUBLIC_REFERENCE_KIND_VALUES[number];
-export const PublicPageKindSchema = Type.Union([Type.Literal("items"), Type.Literal("npcs"), Type.Literal("quests"), Type.Literal("places"), Type.Literal("properties"), Type.Literal("abilities"), Type.Literal("recipes")]);
+export const PublicPageKindSchema = Type.Union([Type.Literal("items"), Type.Literal("npcs"), Type.Literal("quests"), Type.Literal("places"), Type.Literal("properties"), Type.Literal("abilities"), Type.Literal("recipes"), Type.Literal("classes"), Type.Literal("skills")]);
 const referenceKind = Type.Union([
   ...PublicPageKindSchema.anyOf,
-  Type.Literal("gearSets"), Type.Literal("currencies"), Type.Literal("stats"), Type.Literal("factions"), Type.Literal("skills"), Type.Literal("classes"), Type.Literal("races"),
+  Type.Literal("gearSets"), Type.Literal("currencies"), Type.Literal("stats"), Type.Literal("factions"), Type.Literal("races"),
   Type.Literal("enchantments"), Type.Literal("effects"), Type.Literal("species"), Type.Literal("lootTables"), Type.Literal("craftingStations"),
 ]);
 export const PUBLIC_SLUG_PATTERN = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
@@ -422,15 +422,64 @@ export type AbilityRank = Static<typeof AbilityRankSchema>;
 
 // The records of one ability name that share the same rank texts. `keys` lists their catalog entity keys. `icon` is
 // present when it differs from the page icon.
+// How a published class learns an ability: as its auto attack, or through a node of one of its talent trees. `talent`
+// links the row of that node on the class page, and `requirements` are the requirements of the node.
+export const LearnerRowSchema = Type.Object({
+  class: RefSchema, via: Type.Union([Type.Literal("autoAttack"), Type.Literal("talentTree")]),
+  tree: optional(text), tier: optional(count), talent: optional(RefSchema), requirements,
+}, { additionalProperties: false });
+export type LearnerRow = Static<typeof LearnerRowSchema>;
+
+// `useRequirements` are what a character needs to use the version: costs, such as "Costs 9 Mana", and conditions, such
+// as "Ursine Aspect is active". The ability tooltip shows neither.
 export const AbilityVersionSchema = Type.Object({
   keys: Type.Array(text, { minItems: 1, uniqueItems: true }), anchor, icon: optional(ArtRefSchema),
-  ranks: Type.Array(AbilityRankSchema, { minItems: 1 }), usedBy: refs, taughtBy: refs,
+  ranks: Type.Array(AbilityRankSchema, { minItems: 1 }), useRequirements: requirements, learnedBy: Type.Array(LearnerRowSchema), usedBy: refs, taughtBy: refs,
 }, { additionalProperties: false });
 export type AbilityVersion = Static<typeof AbilityVersionSchema>;
 
 // A page groups the ability records that share a display name. Records whose rank texts differ are separate versions.
 export const PublicAbilitySchema = Type.Object({ ...documentBase, versions: Type.Array(AbilityVersionSchema, { minItems: 1 }) }, { additionalProperties: false });
 export type PublicAbility = Static<typeof PublicAbilitySchema>;
+
+// One rank of a passive talent: the stats that it changes, and the tooltip text that the game authored for a rank that
+// changes no stat.
+export const TalentRankSchema = Type.Object({ rank: count, stats: Type.Array(StatRowSchema), text: Type.Array(NativeTextLineSchema) }, { additionalProperties: false });
+export type TalentRank = Static<typeof TalentRankSchema>;
+// One node of a talent tree. An ability node links its ability. A passive talent shows its first rank and its last rank.
+export const TalentRowSchema = Type.Object({
+  anchor, tier: count, position: count, name: text, ability: optional(RefSchema), ranks: count,
+  first: optional(TalentRankSchema), last: optional(TalentRankSchema), requirements,
+}, { additionalProperties: false });
+export type TalentRow = Static<typeof TalentRowSchema>;
+// `points` names the talent points that the tree spends.
+export const TalentTreeSchema = Type.Object({ anchor, name: text, points: optional(text), rows: Type.Array(TalentRowSchema) }, { additionalProperties: false });
+export type TalentTree = Static<typeof TalentTreeSchema>;
+export const TalentPointsSchema = Type.Object({
+  name: text, start: count, max: count,
+  gains: Type.Array(Type.Object({ trigger: Type.Union([Type.Literal("characterLevelUp"), Type.Literal("skillLevelUp"), Type.Literal("npcKilled"), Type.Literal("itemGained"), Type.Literal("weaponTemplateLevelUp")]), amount: count }, { additionalProperties: false })),
+}, { additionalProperties: false });
+export type TalentPoints = Static<typeof TalentPointsSchema>;
+export const ClassFactsSchema = Type.Object({
+  races: Type.Array(text), weapons: Type.Array(text), autoAttack: optional(RefSchema), talentPoints: Type.Array(TalentPointsSchema), highestLevel: optional(count),
+}, { additionalProperties: false });
+export type ClassFacts = Static<typeof ClassFactsSchema>;
+export const StartingItemRowSchema = Type.Object({ item: RefSchema, count, equipped: Type.Boolean() }, { additionalProperties: false });
+export type StartingItemRow = Static<typeof StartingItemRowSchema>;
+// The experience that the level template of a class or a skill assigns to each level.
+export const ExperienceRowSchema = Type.Object({ level: count, experience: count }, { additionalProperties: false });
+export type ExperienceRow = Static<typeof ExperienceRowSchema>;
+export const PublicClassSchema = Type.Object({
+  ...documentBase, facts: ClassFactsSchema, trees: Type.Array(TalentTreeSchema), startingGear: Type.Array(StartingItemRowSchema), experience: Type.Array(ExperienceRowSchema),
+}, { additionalProperties: false });
+export type PublicClass = Static<typeof PublicClassSchema>;
+// `automatic` is false when a character does not receive the skill automatically.
+export const SkillFactsSchema = Type.Object({ highestLevel: optional(count), automatic: Type.Boolean() }, { additionalProperties: false });
+export type SkillFacts = Static<typeof SkillFactsSchema>;
+export const SkillRecipeRowSchema = Type.Object({ recipe: RefSchema, product: optional(RefSchema), station: optional(RefSchema) }, { additionalProperties: false });
+export type SkillRecipeRow = Static<typeof SkillRecipeRowSchema>;
+export const PublicSkillSchema = Type.Object({ ...documentBase, facts: SkillFactsSchema, recipes: Type.Array(SkillRecipeRowSchema), experience: Type.Array(ExperienceRowSchema) }, { additionalProperties: false });
+export type PublicSkill = Static<typeof PublicSkillSchema>;
 
 export const RecipeFactsSchema = Type.Object({ station: optional(RefSchema), skill: optional(RefSchema), rank: optional(count) }, { additionalProperties: false });
 export type RecipeFacts = Static<typeof RecipeFactsSchema>;
@@ -444,16 +493,19 @@ export type PublicRecipe = Static<typeof PublicRecipeSchema>;
 export const PUBLIC_DOCUMENT_SCHEMAS: {
   items: typeof PublicItemSchema; npcs: typeof PublicNpcSchema; quests: typeof PublicQuestSchema; places: typeof PublicPlaceSchema;
   properties: typeof PublicPropertySchema; abilities: typeof PublicAbilitySchema; recipes: typeof PublicRecipeSchema;
+  classes: typeof PublicClassSchema; skills: typeof PublicSkillSchema;
 } = {
   items: PublicItemSchema, npcs: PublicNpcSchema, quests: PublicQuestSchema, places: PublicPlaceSchema,
   properties: PublicPropertySchema, abilities: PublicAbilitySchema, recipes: PublicRecipeSchema,
+  classes: PublicClassSchema, skills: PublicSkillSchema,
 } satisfies Record<PublicPageKind, TSchema>;
-export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace | PublicProperty | PublicAbility | PublicRecipe;
+export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace | PublicProperty | PublicAbility | PublicRecipe | PublicClass | PublicSkill;
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
   items: "compendium.static-item.v4", npcs: "compendium.static-npc.v4", quests: "compendium.static-quest.v4", places: "compendium.static-place.v5",
-  properties: "compendium.static-property.v3", abilities: "compendium.static-ability.v3", recipes: "compendium.static-recipe.v3",
+  properties: "compendium.static-property.v3", abilities: "compendium.static-ability.v4", recipes: "compendium.static-recipe.v3",
+  classes: "compendium.static-class.v1", skills: "compendium.static-skill.v1",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -472,22 +524,28 @@ export const StaticPlaceDocumentSchema = staticDocument("places");
 export const StaticPropertyDocumentSchema = staticDocument("properties");
 export const StaticAbilityDocumentSchema = staticDocument("abilities");
 export const StaticRecipeDocumentSchema = staticDocument("recipes");
+export const StaticClassDocumentSchema = staticDocument("classes");
+export const StaticSkillDocumentSchema = staticDocument("skills");
 export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-item.v4": typeof StaticItemDocumentSchema; "compendium.static-npc.v4": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v4": typeof StaticQuestDocumentSchema; "compendium.static-place.v5": typeof StaticPlaceDocumentSchema;
-  "compendium.static-property.v3": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v3": typeof StaticAbilityDocumentSchema;
-  "compendium.static-recipe.v3": typeof StaticRecipeDocumentSchema;
+  "compendium.static-property.v3": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v4": typeof StaticAbilityDocumentSchema;
+  "compendium.static-recipe.v3": typeof StaticRecipeDocumentSchema; "compendium.static-class.v1": typeof StaticClassDocumentSchema;
+  "compendium.static-skill.v1": typeof StaticSkillDocumentSchema;
 } = {
   "compendium.static-item.v4": StaticItemDocumentSchema, "compendium.static-npc.v4": StaticNpcDocumentSchema,
   "compendium.static-quest.v4": StaticQuestDocumentSchema, "compendium.static-place.v5": StaticPlaceDocumentSchema,
-  "compendium.static-property.v3": StaticPropertyDocumentSchema, "compendium.static-ability.v3": StaticAbilityDocumentSchema,
-  "compendium.static-recipe.v3": StaticRecipeDocumentSchema,
+  "compendium.static-property.v3": StaticPropertyDocumentSchema, "compendium.static-ability.v4": StaticAbilityDocumentSchema,
+  "compendium.static-recipe.v3": StaticRecipeDocumentSchema, "compendium.static-class.v1": StaticClassDocumentSchema,
+  "compendium.static-skill.v1": StaticSkillDocumentSchema,
 };
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
-  | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema> | Static<typeof StaticRecipeDocumentSchema>;
+  | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema> | Static<typeof StaticRecipeDocumentSchema>
+  | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema>;
 export const documentReference = Type.Union([
   resourceReference("compendium.static-item.v4"), resourceReference("compendium.static-npc.v4"), resourceReference("compendium.static-quest.v4"), resourceReference("compendium.static-place.v5"),
-  resourceReference("compendium.static-property.v3"), resourceReference("compendium.static-ability.v3"), resourceReference("compendium.static-recipe.v3"),
+  resourceReference("compendium.static-property.v3"), resourceReference("compendium.static-ability.v4"), resourceReference("compendium.static-recipe.v3"),
+  resourceReference("compendium.static-class.v1"), resourceReference("compendium.static-skill.v1"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;
 
@@ -622,7 +680,7 @@ schemaRegistry.register("compendium.public-world-quest-facts.v1", WorldQuestFact
 schemaRegistry.register("compendium.public-recipe-row.v1", RecipeRowSchema);
 schemaRegistry.register("compendium.public-contextual-ability-ref.v1", ContextualAbilityRefSchema);
 schemaRegistry.register("compendium.public-ability-rank.v1", AbilityRankSchema);
-schemaRegistry.register("compendium.public-ability-version.v1", AbilityVersionSchema);
+schemaRegistry.register("compendium.public-ability-version.v2", AbilityVersionSchema);
 schemaRegistry.register("compendium.public-ability-phase.v2", AbilityPhaseSchema);
 schemaRegistry.register("compendium.public-faction-reward-row.v1", FactionRewardRowSchema);
 schemaRegistry.register("compendium.public-creature-row.v1", CreatureRowSchema);

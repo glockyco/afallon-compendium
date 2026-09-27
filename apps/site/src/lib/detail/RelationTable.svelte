@@ -121,6 +121,8 @@
     tbody tr:nth-child(even), tbody tr:hover { background: none; }
     tbody td { display: grid; grid-template-columns: minmax(5.5rem, 35%) minmax(0, 1fr); align-items: baseline; gap: .75rem; padding: .12rem 0; border: 0; text-align: left; }
     tbody td.name { display: block; padding-bottom: .3rem; font-weight: 600; }
+    /* A label without a value tells a reader nothing, so a stacked cell with no value leaves the block. */
+    tbody td:not(.name):has(> .cell-value:empty) { display: none; }
     td.num { text-align: left; white-space: normal; }
     .cell-label { display: block; color: var(--c-text-mute); font-size: .76rem; }
     .cell-value { min-width: 0; }

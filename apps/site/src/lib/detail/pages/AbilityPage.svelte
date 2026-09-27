@@ -4,6 +4,10 @@
   import Hero from '../Hero.svelte';
   import AbilityReferencesSection from '../sections/AbilityReferencesSection.svelte';
   import AbilityVersionsSection from '../sections/AbilityVersionsSection.svelte';
+  import LearnedBySection from '../sections/LearnedBySection.svelte';
+  import Requirements from '../../Requirements.svelte';
+  import FactList from '../FactList.svelte';
+  import FactRow from '../FactRow.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
   export let document: PublicAbility;
@@ -17,10 +21,12 @@
 
   <Hero view="wide">
     <div slot="view" class="c-game-frame"><AbilityTooltip {document} variant={main.anchor} /></div>
+    {#if main.useRequirements.length}<FactList><FactRow label="Requirements"><Requirements requirements={main.useRequirements} {registry} /></FactRow></FactList>{/if}
   </Hero>
 
   <div class="c-sections">
-    <AbilityVersionsSection versions={document.versions} />
+    <AbilityVersionsSection versions={document.versions} {registry} />
+    <LearnedBySection versions={document.versions} {registry} />
     <AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} />
     <AbilityReferencesSection versions={document.versions} relation="taughtBy" {registry} />
   </div>
