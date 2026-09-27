@@ -12,6 +12,7 @@ import {
   StaticRootManifestSchema,
   StaticSearchIndexSchema,
   assertStaticResourceIdentity,
+  isPublicPageKind,
   expandEssentialPlacement,
   staticResourceSchema,
   type PublicDocument,
@@ -117,9 +118,10 @@ export class MapDataLoader {
     return document;
   }
 
-  async loadDocumentForRef(ref: PublicSearchEntry["ref"]): Promise<PublicDocument> {
-    if (!ref.slug || !Object.hasOwn(STATIC_DOCUMENT_SCHEMA_IDS, ref.kind)) throw new Error(`Reference has no published page: ${ref.key}.`);
-    return (await this.loadDocument(ref.kind as PublicPageKind, ref.slug)).document;
+  /** The page document of a reference, with its kind, so a caller can select the view of that kind without a cast. */
+  async loadPageForRef(ref: PublicSearchEntry["ref"]): Promise<StaticDocument> {
+    if (!ref.slug || !isPublicPageKind(ref.kind)) throw new Error(`Reference has no published page: ${ref.key}.`);
+    return this.loadDocument(ref.kind, ref.slug);
   }
 
   async loadMap(mapSpaceId: string): Promise<LoadedMapData> {

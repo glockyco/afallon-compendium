@@ -84,7 +84,7 @@ button, select { cursor: pointer; }
   .kofi-button { gap: .4rem; }
   .kofi-button svg { order: 1; width: 20px; height: 20px; transform: translateX(1px); }
   .map-status { position: absolute; left: .75rem; bottom: .7rem; padding: .35rem .5rem; background: rgb(18 19 19 / 88%); color: #aaa9a0; font-size: .7rem; }
-  .hover-preview { position: absolute; top: 0; left: 50%; max-width: min(20rem, 100%); transform: translateX(-50%); overflow-wrap: anywhere; padding: .45rem .6rem; background: #252622; border: 1px solid #706548; box-shadow: 0 3px 12px #0008; font-size: .75rem; text-align: center; pointer-events: none; }
+  .hover-preview { position: absolute; top: 0; left: 50%; max-width: min(20rem, 100%); transform: translateX(-50%); overflow-wrap: break-word; padding: .45rem .6rem; background: #252622; border: 1px solid #706548; box-shadow: 0 3px 12px #0008; font-size: .75rem; text-align: center; pointer-events: none; }
   .preview-title { display: flex; align-items: center; justify-content: center; gap: .4rem; }
   .preview-title strong { min-width: 0; }
   .preview-meta { display: block; margin-top: .15rem; color: #b9b5a9; }

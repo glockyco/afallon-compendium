@@ -28,7 +28,7 @@
   import { MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from './map/interaction';
   import { canonicalLayerIds, NO_IMAGERY_LAYER_ID } from './map/layer-policy';
   import { clearWorldOffsetOverrides, downloadWorldOffsets, effectiveMapDelta, loadWorldOffsetOverrides, saveWorldOffsetOverrides, placementInViewport, NO_WORLD_OVERRIDES, type WorldOffsetOverrides } from './map/world-layout';
-  import type { PublicDocument, PublicPlace, PublicPlacement, PublicationData } from '@afallon/contracts/public';
+  import type { PublicPlacement, PublicationData, StaticDocument } from '@afallon/contracts/public';
 
   const RESULT_LIMIT = 200;
   const WEBGL_STARTUP_FAILURE = /webgl map unavailable|failed to create webgl context|webgl creation failed|webgl is not supported|exhausted gl driver options/i;
@@ -57,7 +57,7 @@
   let worldOffsetOverrides: WorldOffsetOverrides = {};
   let fittedPlaceKey: string | null = null;
   const initialIndexes = emptySearchIndexes();
-  const initialDocuments: ReadonlyMap<string, PublicDocument> = new Map();
+  const initialDocuments: ReadonlyMap<string, StaticDocument> = new Map();
   const idleRequest = { status: 'idle' } as const;
 
   let publication: PublicationData | null = null;
@@ -131,8 +131,8 @@
   $: previewMarkerId = previewPlacement ? resolveMarker(previewPlacement) : null;
   $: previewMarker = previewMarkerId ? markerFor(previewMarkerId) : null;
   $: selectedDocumentKey = itemKey ?? selectedEntityKey ?? placeKey ?? selectedPlacement?.entityKeys.find((key) => documents.has(key)) ?? selectedPlacement?.itemKeys.find((key) => documents.has(key)) ?? null;
-  $: selectedDocument = selectedDocumentKey ? documents.get(selectedDocumentKey) ?? null : null;
-  $: selectedPlace = selectedDocument?.ref.kind === 'places' ? selectedDocument as PublicPlace : null;
+  $: selectedPage = selectedDocumentKey ? documents.get(selectedDocumentKey) ?? null : null;
+  $: selectedPlace = selectedPage?.kind === 'places' ? selectedPage.document : null;
   $: selectedRegionIds = selectedPlace?.space?.regionIds ?? [];
   $: resultPlacements = !searchNeedle && !mapUnavailable && viewportBounds ? viewportPlacements : matchingPlacements;
   $: rankedResults = rankResults(searchNeedle, resultPlacements);
@@ -514,7 +514,7 @@
       <!-- Selection details stay development-only for now. A production reader follows a marker to
            its compendium page instead, so the map keeps its full width. -->
       {#if dev}
-        <MapDevelopmentDetails bind:detailsPanel document={selectedDocument} {selectedPlacement} {registry} {mapSpaceLabels}
+        <MapDevelopmentDetails bind:detailsPanel page={selectedPage} {selectedPlacement} {registry} {mapSpaceLabels}
           loading={detailLoading} error={detailError} {staleSelection} onClose={closeDetails} onRetry={() => controller?.retry('detail')} />
       {/if}
     </main>

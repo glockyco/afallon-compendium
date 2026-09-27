@@ -44,7 +44,7 @@
   .art.artwork { width: 8rem; object-fit: cover; }
   .art.ringed { border-color: color-mix(in srgb, var(--c-rarity) 70%, transparent); }
   .copy { min-width: 0; flex: 1; }
-  h1, h3 { margin: 0; color: #f6f2e7; font-family: var(--c-serif); font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }
+  h1, h3 { margin: 0; color: #f6f2e7; font-family: var(--c-serif); font-weight: 600; line-height: 1.15; overflow-wrap: break-word; }
   h1 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); }
   h3 { font-size: 1rem; }
   .coloured { color: var(--c-rarity); }

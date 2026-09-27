@@ -1,4 +1,4 @@
-import { PUBLIC_MARKER_CATEGORY_LABELS, type CreatureLevel, type DropRow, type PublicLevel, type PublicMarkerCategory, type QuestObjective, type QuestStart, type RequirementGroup } from '@afallon/contracts/public';
+import { PUBLIC_MARKER_CATEGORY_LABELS, type CreatureLevel, type DropRow, type PublicLevel, type PublicMarkerCategory, type QuestObjective, type QuestStart, type Ref, type RequirementGroup } from '@afallon/contracts/public';
 
 const RARITY_TONES: Record<string, true> = { common: true, uncommon: true, rare: true, gold: true, epic: true, legendary: true };
 // Rarity tiers from lowest to highest. Gold is the rarity of the Gold currency item alone, so it comes last.
@@ -82,14 +82,67 @@ export function creatureLevelText(level: CreatureLevel): string {
   return level.min <= 1 && level.max === undefined ? 'Any' : levelText(level);
 }
 
-/** The loot roll of a table: "5% of kills, 1–2 items". Without a chance, the roll happens on every kill. */
-export function lootTableText(row: Pick<DropRow, 'tableChance' | 'tableMinimum' | 'tableLimit'>): string | null {
-  const { tableChance, tableMinimum: least, tableLimit: most } = row;
-  const items = least !== undefined && most !== undefined ? (least === most ? `${least} ${least === 1 ? 'item' : 'items'}` : `${least}\u2013${most} items`)
-    : least !== undefined ? `at least ${least} ${least === 1 ? 'item' : 'items'}`
-    : most !== undefined ? `at most ${most} ${most === 1 ? 'item' : 'items'}` : null;
-  const parts = [...(tableChance === undefined ? [] : [`${formatNumber(tableChance)}% of kills`]), ...(items === null ? [] : [items])];
-  return parts.length === 0 ? null : parts.join(', ');
+type LootRoll = Pick<DropRow, 'tableChance' | 'tableMinimum' | 'tableLimit'>;
+
+// A kill rolls each loot list of a creature. `tableChance` is the share of kills that roll the list, and a missing
+// chance means every kill. The list then rolls each item at its own chance, stops at `tableLimit` items, and adds
+// items by their chances until it has `tableMinimum` items. The texts below say this without game terms.
+
+/** How many items one kill drops from one loot list: "up to 3", "2", "1 or 2", "at least 1", or none without a rule. */
+function itemCount({ tableMinimum: least, tableLimit: most }: LootRoll): { amount: string; plural: boolean } | undefined {
+  if (least === undefined) return most === undefined ? undefined : { amount: `up to ${formatNumber(most)}`, plural: most !== 1 };
+  if (most === undefined) return { amount: `at least ${formatNumber(least)}`, plural: least !== 1 };
+  if (least === most) return { amount: formatNumber(least), plural: least !== 1 };
+  return { amount: `${formatNumber(least)} ${most === least + 1 ? 'or' : 'to'} ${formatNumber(most)}`, plural: true };
+}
+
+/** The count with its noun: "up to 3 items", "1 item". */
+function itemCountText(roll: LootRoll): string | undefined {
+  const count = itemCount(roll);
+  return count && `${count.amount} ${count.plural ? 'items' : 'item'}`;
+}
+
+/** When a kill can drop from the loot list of a row, and how many items it drops: "Every kill, up to 3 items". */
+export function dropsPerKillText(roll: LootRoll): string {
+  const kills = roll.tableChance === undefined ? 'Every kill' : `${formatNumber(roll.tableChance)}% of kills`;
+  return `${kills}, ${itemCountText(roll) ?? 'any number of items'}`;
+}
+
+/** The sentences above a group of an NPC's drops that share one loot list rule. `items` is the number of rows. */
+export function dropGroupText(roll: LootRoll, items: number): string {
+  const one = items === 1;
+  const count = itemCount(roll);
+  const some = roll.tableChance === undefined ? undefined : `Only ${formatNumber(roll.tableChance)}% of kills`;
+  if (roll.tableMinimum !== undefined && count !== undefined) {
+    // A minimum makes the game add items by their chances, so a chance tells how often an item is among the drops.
+    if (items <= roll.tableMinimum) {
+      const all = one ? 'this item' : 'all of these items';
+      return some ? `${some} drop ${all}.` : `Every kill drops ${all}.`;
+    }
+    return some
+      ? `${some} drop items from this list. Such a kill drops ${count.amount} of them, and items with a higher chance drop more often.`
+      : `Every kill drops ${count.amount} of these items. Items with a higher chance drop more often.`;
+  }
+  const limit = roll.tableLimit !== undefined && roll.tableLimit < items ? roll.tableLimit : undefined;
+  const each = one ? 'this item' : 'each of these items';
+  const cap = limit === undefined ? '' : `, but one kill drops at most ${formatNumber(limit)} of them`;
+  if (some) return one ? `${some} can drop this item. Such a kill has the listed chance to drop it.` : `${some} can drop these items. Such a kill has the listed chance to drop each of them${cap}.`;
+  return `Every kill has the listed chance to drop ${each}${cap}.`;
+}
+
+/** The sentence above the sources of an item when all of them share one loot list rule. */
+export function itemDropText(roll: LootRoll): string {
+  const count = itemCountText(roll);
+  const share = roll.tableChance;
+  if (roll.tableMinimum !== undefined && count !== undefined) {
+    const kills = share === undefined ? 'Every kill drops' : `Only ${formatNumber(share)}% of kills drop`;
+    return `${kills} ${count} from the loot list that holds this item. Items with a higher chance in that list drop more often.`;
+  }
+  const limit = roll.tableLimit;
+  const cap = limit === undefined ? '' : `, but a kill drops at most ${formatNumber(limit)} ${limit === 1 ? 'item' : 'items'} from the same list`;
+  return share === undefined
+    ? `Every kill has the listed chance to drop this item${cap}.`
+    : `Only ${formatNumber(share)}% of kills can drop this item, and such a kill has the listed chance to drop it${cap}.`;
 }
 
 /** A random spawn: "One of 3 random spots, 66.7% chance". A certain choice leaves out the chance. */
@@ -145,6 +198,45 @@ export function connectionLabel(kind: string): string {
   return labelOf(kind.replace(/^game-action(-effect)?-/, '').replace(/([a-z0-9])([A-Z])/g, '$1 $2'));
 }
 
+function isMarkerCategory(role: string): role is PublicMarkerCategory {
+  return Object.hasOwn(PUBLIC_MARKER_CATEGORY_LABELS, role);
+}
+
 export function roleLabel(role: string): string {
-  return PUBLIC_MARKER_CATEGORY_LABELS[role as PublicMarkerCategory] ?? labelOf(role);
+  return isMarkerCategory(role) ? PUBLIC_MARKER_CATEGORY_LABELS[role] : labelOf(role);
+}
+
+/** The name of a reference, or its label when no published entity resolves it. */
+export function nameOf(ref: Ref): string {
+  return ref.key === null ? ref.label : ref.name;
+}
+
+// The native NPC types in plain words. MOB is an ordinary NPC without a rank.
+const NPC_TYPE_NAMES: Record<string, string> = {
+  MOB: 'Ordinary', ELITE: 'Elite', BOSS: 'Boss', MERCHANT: 'Merchant', BANK: 'Banker', ADVENTURER: 'Adventurer', COMPANION: 'Companion', QUEST_COMPANION: 'Quest companion',
+};
+
+/** The NPC type in plain words, for a table that compares the types of variants. */
+export function npcTypeName(npcType: string): string {
+  return NPC_TYPE_NAMES[npcType] ?? labelOf(npcType);
+}
+
+// A title block names neither an ordinary NPC nor the types that its roles already name: bosses, merchants, and bankers.
+const UNSHOWN_NPC_TYPES = new Set(['MOB', 'BOSS', 'MERCHANT', 'BANK']);
+
+/** The NPC type that a title block names, such as "Elite" or "Quest companion". */
+export function npcTypeLabel(npcType: string | undefined): string | undefined {
+  return npcType === undefined || UNSHOWN_NPC_TYPES.has(npcType) ? undefined : npcTypeName(npcType);
+}
+
+/** The creature type, such as "Humanoid". NONE means that the record has no type. */
+export function creatureTypeLabel(creatureType: string | undefined): string | undefined {
+  return creatureType === undefined || creatureType === 'NONE' ? undefined : labelOf(creatureType);
+}
+
+const FRIENDLY_ROLES = new Set(['questGiver', 'merchant', 'townsfolk', 'banker', 'auctioneer', 'flightPoint']);
+
+/** A player cannot fight an NPC whose every role is a friendly service, so its combat values are only defaults. */
+export function onlyFriendlyRoles(roles: readonly string[]): boolean {
+  return roles.length > 0 && roles.every((role) => FRIENDLY_ROLES.has(role));
 }

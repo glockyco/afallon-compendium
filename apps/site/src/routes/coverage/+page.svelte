@@ -65,7 +65,7 @@
 
 <style>
   .published { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: .45rem 1rem; margin: 0; padding: 0; list-style: none; font-size: .9rem; }
-  .text { max-width: 70ch; margin: 0 0 .9rem; color: var(--c-text-dim); font-size: .88rem; line-height: 1.55; }
+  .text { margin: 0 0 .9rem; color: var(--c-text-dim); font-size: .88rem; line-height: 1.55; }
   .pages { columns: 16rem; column-gap: 1.5rem; margin: 0; padding: 0; list-style: none; font-size: .84rem; }
   .pages li { break-inside: avoid; padding: .15rem 0; }
 </style>

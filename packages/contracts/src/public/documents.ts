@@ -452,6 +452,11 @@ export const STATIC_DOCUMENT_SCHEMA_IDS = {
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
+/** Whether a reference kind has pages, which lets a caller narrow a registry or reference kind without a cast. */
+export function isPublicPageKind(kind: string): kind is PublicPageKind {
+  return Object.hasOwn(STATIC_DOCUMENT_SCHEMA_IDS, kind);
+}
+
 const staticDocument = <K extends PublicPageKind>(kind: K) => Type.Object({
   schemaVersion: Type.Literal(STATIC_DOCUMENT_SCHEMA_IDS[kind]), ...identity, kind: Type.Literal(kind), document: PUBLIC_DOCUMENT_SCHEMAS[kind],
 }, { additionalProperties: false });

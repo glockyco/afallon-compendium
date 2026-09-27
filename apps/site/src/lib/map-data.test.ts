@@ -152,7 +152,7 @@ test('essential multipart maps become usable while search is delayed, and naviga
   controller.navigate(readMapUrl('?item=item%3Ab'));
   search.resolve(new Response(data.bodies.get(data.search.path)));
   const restored = await until((snapshot) => snapshot.detail.status === 'loaded');
-  expect(restored.documents.get('item:b')?.ref.key).toBe('item:b');
+  expect(restored.documents.get('item:b')?.document.ref.key).toBe('item:b');
   expect(selectionHighlightIds(null, null, restored.state.itemKey, restored.indexes)).toEqual(['place:b']);
   // Selecting a place must not light up every place that shares one of its drops: Kraath's loot
   // keys are carried by 37 other placements, which highlighted every boss on the map.
@@ -185,7 +185,7 @@ test('an obsolete failure cannot replace the new selection loading state, and cu
   data.overrides.delete(pathB);
   controller.retry('detail');
   const recovered = await until((snapshot) => snapshot.detail.status === 'loaded');
-  expect(recovered.documents.get('item:b')?.ref.key).toBe('item:b');
+  expect(recovered.documents.get('item:b')?.document.ref.key).toBe('item:b');
   expect(data.counts.get(pathB)).toBe(2);
   controller.dispose();
 });

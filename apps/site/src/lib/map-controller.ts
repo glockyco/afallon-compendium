@@ -1,4 +1,4 @@
-import type { PublicDocument, PublicKindEntry, PublicationData, StaticGeometry, StaticRootManifest } from '@afallon/contracts/public';
+import type { PublicKindEntry, PublicationData, StaticDocument, StaticGeometry, StaticRootManifest } from '@afallon/contracts/public';
 import { MapDataLoader, mapPublicationData, type MapIndexes, type LoadedMapData, type MapRequestState } from './map-data';
 import { DEFAULT_MAP_STATE, transitionMapState, type MapAction, type MapQueryField, type MapState, type MapView } from './map-state';
 import { buildSearchIndexes, emptySearchIndexes, type SearchIndexes } from './map-search';
@@ -12,7 +12,8 @@ export interface MapSnapshot {
   map: MapRequestState;
   search: MapRequestState;
   detail: MapRequestState;
-  documents: ReadonlyMap<string, PublicDocument>;
+  /** The loaded page documents of the selection, keyed by the entity key of each page. */
+  documents: ReadonlyMap<string, StaticDocument>;
   staleSelection: string;
 }
 
@@ -217,11 +218,11 @@ export class MapController {
     this.#emit();
     void (async () => {
       try {
-        const documents = await Promise.all(entries.map((entry) => this.#loader.loadDocumentForRef(entry!.ref)));
+        const pages = await Promise.all(entries.map((entry) => this.#loader.loadPageForRef(entry!.ref)));
         if (this.#disposed) return;
         this.#snapshot = {
           ...this.#snapshot,
-          documents: new Map([...this.#snapshot.documents, ...documents.map((document) => [document.ref.key, document] as const)]),
+          documents: new Map([...this.#snapshot.documents, ...pages.map((page) => [page.document.ref.key, page] as const)]),
           ...(generation === this.#selectionGeneration ? { detail: { status: 'loaded' as const } } : {}),
         };
         this.#emit();

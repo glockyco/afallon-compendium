@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { PublicAbility, PublicDocument, PublicItem, PublicKindEntry, PublicNpc, PublicPlace, PublicProperty, PublicQuest, PublicRecipe } from '@afallon/contracts/public';
+  import type { PublicKindEntry, StaticDocument } from '@afallon/contracts/public';
   import AbilityTooltip from './AbilityTooltip.svelte';
+  import ItemSourceSummary from './ItemSourceSummary.svelte';
   import ItemTooltip from './ItemTooltip.svelte';
   import NpcTooltip from './NpcTooltip.svelte';
   import PlaceTooltip from './PlaceTooltip.svelte';
@@ -8,7 +9,8 @@
   import QuestTooltip from './QuestTooltip.svelte';
   import RecipeTooltip from './RecipeTooltip.svelte';
 
-  export let document: PublicDocument;
+  /** The published document with its kind, which selects the tooltip of that kind. */
+  export let page: StaticDocument;
   export let registry: PublicKindEntry[];
   export let mapSpaceLabels: Readonly<Record<string, string>> = {};
   export let rankIndex: number | undefined = undefined;
@@ -16,10 +18,10 @@
   export let variant: string | undefined = undefined;
 </script>
 
-{#if document.ref.kind === 'items'}<ItemTooltip document={document as PublicItem} {registry} />
-{:else if document.ref.kind === 'abilities'}<AbilityTooltip document={document as PublicAbility} {rankIndex} {variant} />
-{:else if document.ref.kind === 'recipes'}<RecipeTooltip document={document as PublicRecipe} {registry} />
-{:else if document.ref.kind === 'quests'}<QuestTooltip document={document as PublicQuest} {registry} />
-{:else if document.ref.kind === 'npcs'}<NpcTooltip document={document as PublicNpc} {registry} {variant} />
-{:else if document.ref.kind === 'places'}<PlaceTooltip document={document as PublicPlace} {registry} {mapSpaceLabels} />
-{:else if document.ref.kind === 'properties'}<PropertyTooltip document={document as PublicProperty} />{/if}
+{#if page.kind === 'items'}<ItemTooltip document={page.document} {registry} /><ItemSourceSummary document={page.document} />
+{:else if page.kind === 'abilities'}<AbilityTooltip document={page.document} {rankIndex} {variant} />
+{:else if page.kind === 'recipes'}<RecipeTooltip document={page.document} {registry} />
+{:else if page.kind === 'quests'}<QuestTooltip document={page.document} {registry} />
+{:else if page.kind === 'npcs'}<NpcTooltip document={page.document} {registry} {variant} />
+{:else if page.kind === 'places'}<PlaceTooltip document={page.document} {registry} {mapSpaceLabels} />
+{:else if page.kind === 'properties'}<PropertyTooltip document={page.document} />{/if}

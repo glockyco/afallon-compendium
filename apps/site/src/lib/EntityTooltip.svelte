@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { autoUpdate, computePosition, flip, offset, shift, size } from '@floating-ui/dom';
-  import type { EntityRef, PublicDocument, PublicKindEntry } from '@afallon/contracts/public';
+  import type { EntityRef, PublicKindEntry, StaticDocument } from '@afallon/contracts/public';
   import { clientMapLoader } from './client-publication';
+  import { FloatingController, placeBeside } from './floating';
   import TooltipPresenter from './TooltipPresenter.svelte';
 
   export let ref: EntityRef;
@@ -16,25 +16,20 @@
   let open = false;
   let loading = false;
   let error = '';
-  let document: PublicDocument | null = null;
+  let page: StaticDocument | null = null;
   let mapSpaceLabels: Readonly<Record<string, string>> = {};
-  let intentTimer: number | undefined;
-  let closeTimer: number | undefined;
 
-  export async function show(): Promise<void> {
-    clearTimeout(closeTimer);
-    // One tooltip at a time: a link keeps focus after a click, so an older tooltip would otherwise stay open.
-    if (openTooltip && openTooltip !== close) openTooltip();
-    openTooltip = close;
-    open = true;
-    if (document || loading) return;
+  const floating = new FloatingController(() => { open = true; void load(); }, () => { open = false; });
+
+  async function load(): Promise<void> {
+    if (page || loading) return;
     const activeLoader = clientMapLoader();
     if (!activeLoader) return;
     loading = true;
     error = '';
     try {
-      const [loadedDocument, root] = await Promise.all([activeLoader.loadDocumentForRef(ref), activeLoader.loadRoot()]);
-      document = loadedDocument;
+      const [loadedPage, root] = await Promise.all([activeLoader.loadPageForRef(ref), activeLoader.loadRoot()]);
+      page = loadedPage;
       mapSpaceLabels = Object.fromEntries(root.maps.map((map) => [map.mapSpaceId, map.label]));
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
@@ -43,84 +38,26 @@
     }
   }
 
-  export function showAfterIntent(): void {
-    clearTimeout(intentTimer);
-    clearTimeout(closeTimer);
-    intentTimer = window.setTimeout(() => void show(), 160);
-  }
+  export function show(): void { floating.show(); }
+  export function showAfterIntent(): void { floating.showAfterIntent(); }
+  export function keepOpen(): void { floating.keepOpen(); }
+  export function closeAfterIntent(): void { floating.closeAfterIntent(); }
+  export function close(): void { floating.close(); }
+  export function handleKeydown(event: KeyboardEvent): void { floating.handleKeydown(event, open); }
 
-  export function keepOpen(): void {
-    clearTimeout(closeTimer);
-  }
+  onDestroy(() => floating.destroy());
 
-  export function closeAfterIntent(): void {
-    clearTimeout(closeTimer);
-    closeTimer = window.setTimeout(close, 100);
-  }
-
-  export function close(): void {
-    clearTimeout(intentTimer);
-    clearTimeout(closeTimer);
-    open = false;
-    if (openTooltip === close) openTooltip = null;
-  }
-
-  export function handleKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Escape' || !open) return;
-    event.preventDefault();
-    event.stopPropagation();
-    close();
-  }
-
-  onDestroy(() => {
-    clearTimeout(intentTimer);
-    clearTimeout(closeTimer);
-  });
-
-  function positionTooltip(node: HTMLElement) {
+  function position(node: HTMLElement) {
     if (!anchor) return;
-    const reference = anchor;
-    let active = true;
-    const stop = autoUpdate(reference, node, () => {
-      // `size` writes a max height. Clearing it first lets `flip` measure the content's natural height, so a
-      // tooltip that grows when its document loads moves to the side with room instead of scrolling.
-      node.style.maxHeight = '';
-      // A tooltip opens right of its link, or left when the right side lacks room, so it never covers the rows
-      // above or below. Only horizontal room decides the side. A vertical shift keeps it inside the viewport.
-      void computePosition(reference, node, {
-        placement: 'right-start',
-        strategy: 'fixed',
-        middleware: [
-          offset(10),
-          flip({ padding: 12, crossAxis: false, fallbackPlacements: ['left-start'] }),
-          shift({ padding: 12, mainAxis: true, crossAxis: false }),
-          size({
-            padding: 12,
-            apply({ availableHeight, elements }) {
-              elements.floating.style.maxHeight = `${Math.max(0, availableHeight)}px`;
-            },
-          }),
-        ],
-      }).then(({ x, y }) => {
-        if (!active) return;
-        node.style.left = `${x}px`;
-        node.style.top = `${y}px`;
-        node.style.visibility = 'visible';
-      });
-    });
-    return { destroy() { active = false; stop(); } };
+    return { destroy: placeBeside(anchor, node) };
   }
-</script>
-
-<script lang="ts" context="module">
-  let openTooltip: (() => void) | null = null;
 </script>
 
 {#if open}
-  <span {id} class="entity-tooltip" role="tooltip" use:positionTooltip on:pointerenter={keepOpen} on:pointerleave={closeAfterIntent}>
+  <span {id} class="entity-tooltip" role="tooltip" use:position on:pointerenter={keepOpen} on:pointerleave={closeAfterIntent}>
     {#if loading}<span class="tooltip-status">Loading details…</span>
     {:else if error}<span class="tooltip-status error">Details are unavailable.</span>
-    {:else if document}<TooltipPresenter {document} {registry} {mapSpaceLabels} {rankIndex} variant={ref.variant} />{/if}
+    {:else if page}<TooltipPresenter {page} {registry} {mapSpaceLabels} {rankIndex} variant={ref.variant} />{/if}
   </span>
 {/if}
 

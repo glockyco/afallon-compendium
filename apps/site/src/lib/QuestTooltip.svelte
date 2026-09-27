@@ -40,7 +40,7 @@
 
 <style>
   dl, section { display: grid; gap: .35rem; margin: .6rem 0 0; }
-  dl div { display: grid; grid-template-columns: 4rem 1fr; gap: .5rem; font-size: .82rem; }
+  dl div { display: grid; grid-template-columns: 4rem 1fr; align-items: baseline; gap: .5rem; font-size: .82rem; }
   dt { color: var(--c-text-dim); }
   dd { display: grid; gap: .25rem; margin: 0; }
   .area { color: var(--c-text-dim); font-size: .75rem; }

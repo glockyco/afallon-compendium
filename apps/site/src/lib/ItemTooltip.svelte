@@ -31,7 +31,7 @@
   <div class="lines">
     {#if facts.itemPower !== undefined}<p class="item-power">Item power <strong>{formatNumber(facts.itemPower)}</strong></p>{/if}
     {#if damage}
-      <p><strong>{damage}</strong> Damage{#if facts.damagePerSecond !== undefined} <span class="dim">({facts.damagePerSecond.toFixed(1)} damage per second)</span>{/if}</p>
+      <p><strong>{damage}</strong> Damage{#if facts.damagePerSecond !== undefined}{' '}<span class="dim">({facts.damagePerSecond.toFixed(1)} damage per second)</span>{/if}</p>
     {/if}
     {#if facts.attackSpeed !== undefined}<p><strong>{formatNumber(facts.attackSpeed)}</strong> Attack speed</p>{/if}
 
@@ -39,7 +39,7 @@
     {#if facts.randomStats.length}
       <div class="group">
         <p class="dim">{facts.randomStatsMax > 0 ? `Up to ${facts.randomStatsMax} random stats` : 'Random stats'}</p>
-        {#each facts.randomStats as stat}<p class="good">+{rangeText(stat.min, stat.max)}{stat.isPercent ? '%' : ''} {statName(stat)}{#if stat.chance !== undefined} <span class="dim">({formatNumber(stat.chance)}%)</span>{/if}</p>{/each}
+        {#each facts.randomStats as stat}<p class="good">+{rangeText(stat.min, stat.max)}{stat.isPercent ? '%' : ''} {statName(stat)}{#if stat.chance !== undefined}{' '}<span class="dim">({formatNumber(stat.chance)}%)</span>{/if}</p>{/each}
       </div>
     {/if}
 

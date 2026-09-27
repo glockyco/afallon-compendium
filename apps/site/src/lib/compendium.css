@@ -1,8 +1,8 @@
 /* Tokens and chrome shared by every compendium surface: the pages, the entity tooltip, and the
    map detail panel. Only custom properties and `c-` classes live here, so importing the file
-   next to the map cannot restyle the map. Table and chip rules are global because a row is
-   written by the component that owns its data and passed through a slot, which leaves the shared
-   wrapper's scoped styles unable to reach it. */
+   next to the map cannot restyle the map. Table rules are global because a row is written by the
+   component that owns its data and passed through a slot, which leaves the shared wrapper's
+   scoped styles unable to reach it. */
 
 :root {
   --c-surface-0: #171818;
@@ -69,75 +69,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.c-card-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-  align-items: start;
-}
-
 .c-stack { display: grid; gap: 1rem; }
-.c-stack > *, .c-card-grid > * { min-width: 0; }
-.c-card-grid:empty { display: none; }
-
-@media (min-width: 60rem) {
-  .c-card-grid > .c-card--wide { grid-column: span 2; }
-}
-
-/* Label-above-value facts */
-
-.c-facts {
-  display: grid;
-  gap: .8rem 1.4rem;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  margin: 0;
-}
-
-.c-facts.c-facts--wide { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
-
-.c-fact { min-width: 0; }
-.c-fact--full { grid-column: 1 / -1; }
-
-.c-fact dt {
-  margin-bottom: .18rem;
-  color: var(--c-text-dim);
-  font-size: .72rem;
-  letter-spacing: .02em;
-}
-
-.c-fact dd {
-  margin: 0;
-  color: var(--c-text);
-  font-size: .9rem;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.c-fact dd > ul { margin: 0; padding-left: 1rem; }
-
-/* Chip grid for stats, resistances, immunities, and sockets */
-
-.c-chips {
-  display: grid;
-  gap: .4rem;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-}
-
-.c-chip {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: .75rem;
-  padding: .4rem .6rem;
-  border: 1px solid var(--c-line);
-  border-radius: var(--c-radius-sm);
-  background: var(--c-surface-2);
-  font-size: .82rem;
-}
-
-.c-chip .c-chip-name { color: #ddd8cd; overflow-wrap: anywhere; }
-.c-chip .c-chip-value { color: #f3eee2; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
-.c-chip.c-chip--plain { justify-content: flex-start; }
+.c-stack > * { min-width: 0; }
 
 /* Badges */
 
@@ -203,6 +136,9 @@
   vertical-align: middle;
 }
 
+/* A name after an icon sits on the text baseline, so plain values in the same row line up with it. */
+.c-table tbody td { vertical-align: baseline; }
+
 .c-table thead th {
   border-bottom: 1px solid var(--c-line);
   color: var(--c-text-dim);
@@ -250,8 +186,8 @@
 .c-link { color: var(--c-accent); text-underline-offset: .18em; }
 .c-link:hover { color: var(--c-accent-strong); }
 
-.c-price { display: inline-flex; align-items: center; gap: .3rem; color: var(--c-currency); font-variant-numeric: tabular-nums; }
-.c-price img { width: 1.1rem; height: 1.1rem; object-fit: contain; }
+.c-price { color: var(--c-currency); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.c-price img { width: 1.1rem; height: 1.1rem; margin-right: .3rem; object-fit: contain; vertical-align: middle; }
 
 .c-action {
   display: inline-flex;
@@ -274,8 +210,28 @@
 
 .c-empty { margin: 0; color: var(--c-text-mute); font-size: .82rem; }
 
+/* The entity as the game shows it: an item tooltip, an ability tooltip, or a purchase panel. */
+.c-game-frame {
+  padding: .85rem;
+  border: 1px solid #74684e;
+  border-radius: var(--c-radius);
+  background: #1b1c1a;
+  box-shadow: 0 6px 20px #0006;
+}
+
+/* Authored descriptions and quest text keep their line breaks. */
+.c-prose {
+  margin: 0;
+  color: #c9c5bb;
+  font-size: .92rem;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+/* The sections of a detail page, one below the other at the full width of the page column. */
+.c-sections { display: grid; gap: 1.75rem; }
+.c-sections > * { min-width: 0; }
+
 @media (max-width: 640px) {
   .c-card { padding: .85rem; }
-  .c-facts { grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: .7rem 1rem; }
-  .c-chips { grid-template-columns: 1fr; }
 }

@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { EntryGenerator, PageServerLoad } from './$types';
 import { serverMapLoader } from '$lib/server/publication';
-import type { PublicPageKind } from '@afallon/contracts/public';
+import { isPublicPageKind, type PublicItem } from '@afallon/contracts/public';
 
 export const entries: EntryGenerator = async () => {
   const loader = serverMapLoader();
@@ -13,12 +13,18 @@ export const entries: EntryGenerator = async () => {
 
 export const load: PageServerLoad = async ({ params }) => {
   const loader = serverMapLoader();
-  const [registry, indexes, root] = await Promise.all([loader.loadRegistry(), loader.loadIndexes(), loader.loadRoot()]);
+  const [registry, indexes] = await Promise.all([loader.loadRegistry(), loader.loadIndexes()]);
   const kind = registry.find((entry) => entry.pages && entry.route === params.kind);
-  if (!kind) error(404, 'This compendium kind is not published.');
-  const page = indexes.entries.find((entry) => entry.ref.kind === kind.kind && entry.ref.slug === params.slug && entry.document);
-  if (!page?.document) error(404, 'This compendium page is not published.');
-  const resource = await loader.loadDocument(kind.kind as PublicPageKind, params.slug);
-  const mapSpaceLabels = Object.fromEntries(root.maps.map((map) => [map.mapSpaceId, map.label]));
-  return { kind, document: resource.document, documentPath: page.document.path, buildId: resource.buildId, catalogId: resource.catalogId, registry, mapSpaceLabels };
+  if (!kind || !isPublicPageKind(kind.kind)) error(404, 'This compendium kind is not published.');
+  const entry = indexes.entries.find((candidate) => candidate.ref.kind === kind.kind && candidate.ref.slug === params.slug && candidate.document);
+  if (!entry?.document) error(404, 'This compendium page is not published.');
+  const page = await loader.loadDocument(kind.kind, params.slug);
+  // A recipe's hero shows the tooltip of the item that it makes, so its page carries that item's document.
+  let product: PublicItem | undefined;
+  const productRef = page.kind === 'recipes' ? page.document.product?.counterpart : undefined;
+  if (productRef && productRef.key !== null && productRef.kind === 'items' && productRef.slug) {
+    const productPage = await loader.loadDocument('items', productRef.slug);
+    if (productPage.kind === 'items') product = productPage.document;
+  }
+  return { kind, page, product, documentPath: entry.document.path, registry };
 };

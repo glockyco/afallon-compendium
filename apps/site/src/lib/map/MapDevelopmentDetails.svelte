@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { PublicDocument, PublicKindEntry, PublicPlacement } from '@afallon/contracts/public';
+  import type { PublicKindEntry, PublicPlacement, StaticDocument } from '@afallon/contracts/public';
   import TooltipPresenter from '../TooltipPresenter.svelte';
 
   export let detailsPanel: HTMLElement;
-  export let document: PublicDocument | null;
+  export let page: StaticDocument | null;
   export let selectedPlacement: PublicPlacement | null;
   export let registry: PublicKindEntry[];
   export let mapSpaceLabels: Readonly<Record<string, string>>;
@@ -15,13 +15,13 @@
 </script>
 
 <aside class="details-panel" bind:this={detailsPanel} aria-label="Development selection details">
-  <div class="details-header"><div><span class="eyebrow">Development evidence</span><h2 tabindex="-1">{document?.ref.name ?? selectedPlacement?.label ?? 'Selection'}</h2></div>{#if document || selectedPlacement || staleSelection}<button type="button" class="close-button" on:click={onClose}>Close</button>{/if}</div>
+  <div class="details-header"><div><span class="eyebrow">Development evidence</span><h2 tabindex="-1">{page?.document.ref.name ?? selectedPlacement?.label ?? 'Selection'}</h2></div>{#if page || selectedPlacement || staleSelection}<button type="button" class="close-button" on:click={onClose}>Close</button>{/if}</div>
   {#if staleSelection}<div class="stale-warning" role="alert"><p>{staleSelection}</p></div>{/if}
   {#if error}<div class="stale-warning" role="alert"><p>{error}</p><button type="button" class="inline-link" on:click={onRetry}>Retry details</button></div>{/if}
-  {#if loading && !document}<p class="muted" role="status">Loading document…</p>{/if}
-  {#if document}<TooltipPresenter {document} {registry} {mapSpaceLabels} /><details class="entity-block"><summary>Published document</summary><pre>{JSON.stringify(document, null, 2)}</pre></details>{/if}
+  {#if loading && !page}<p class="muted" role="status">Loading document…</p>{/if}
+  {#if page}<TooltipPresenter {page} {registry} {mapSpaceLabels} /><details class="entity-block"><summary>Published document</summary><pre>{JSON.stringify(page.document, null, 2)}</pre></details>{/if}
   {#if selectedPlacement}<details class="entity-block"><summary>Published placement</summary><pre>{JSON.stringify(selectedPlacement, null, 2)}</pre></details>{/if}
-  {#if !document && !selectedPlacement && !staleSelection}<div class="details-empty"><span class="eyebrow">Development details</span><p>Select a marker or a result to inspect its published data.</p></div>{/if}
+  {#if !page && !selectedPlacement && !staleSelection}<div class="details-empty"><span class="eyebrow">Development details</span><p>Select a marker or a result to inspect its published data.</p></div>{/if}
 </aside>
 
 <style>
