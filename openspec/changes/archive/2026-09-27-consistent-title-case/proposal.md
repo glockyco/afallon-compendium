@@ -12,7 +12,7 @@ Category values read in two styles. Enum words become sentence case ("Quest item
   - Level qualifiers read "Level 20–30" instead of "lvl. 20–30". **BREAKING**: the slugs of the pages with such qualifiers change, and slugs have no redirects.
 - The NPC list's Place filter offers each place of an NPC instead of a count such as "3 places".
 - The place tooltip names the Adventure Guide listing as the place page does: "In the Adventure Guide".
-- Requirement sentences come from the catalog, so they change with the next catalog rebuild in `capture-game-progression-data`.
+- Requirement sentences come from the catalog queries. A separate fix gives their item types the category rule.
 
 ## Capabilities
 

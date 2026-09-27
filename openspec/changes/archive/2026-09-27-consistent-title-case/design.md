@@ -8,7 +8,7 @@ Three formatters shape reader text. The publication's `displayName` capitalizes 
 
 **Non-Goals:**
 - Headings, fact labels, column labels, hints, and sentences. They stay in sentence case.
-- Requirement sentences, such as "One handed sword equipped". The catalog builds them, so they change with the catalog rebuild in `capture-game-progression-data`.
+- Requirement sentences, such as "One handed sword equipped". The catalog queries build them when a publication runs, and a separate fix gives their item types the category rule.
 - Redirects for changed slugs. The slug policy publishes none.
 
 ## Decisions
