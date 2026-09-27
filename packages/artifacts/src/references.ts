@@ -64,7 +64,7 @@ export async function verifyArtifactRunClosure(
     const size = verified.get(identity.sha256);
     if (size !== undefined && size !== identity.bytes) throw new Error(`Reference sizes disagree at ${attribution}: ${identity.sha256}.`);
     if (size === undefined) {
-      try { await store.verify(identity); }
+      try { await store.confirmUnchanged(identity); }
       catch (error) { throw new Error(`Broken artifact reference at ${attribution}: ${identity.sha256}.`, { cause: error }); }
       verified.set(identity.sha256, identity.bytes);
     }

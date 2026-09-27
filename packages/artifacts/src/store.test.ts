@@ -83,3 +83,15 @@ test("verification rejects corruption beyond the first megabyte", async () => fi
   finally { await handle.close(); }
   await expect(store.verify(stored)).rejects.toMatchObject({ name: "ObjectIntegrityError", expectedSha256: stored.sha256 });
 }));
+
+test("a re-check hashes an object again after its file changes", async () => fixture(async store => {
+  const object = await store.putBytes(new TextEncoder().encode("verified evidence"));
+  // The re-check trusts only files that last changed well before their hash, so the object must age first.
+  await Bun.sleep(2100);
+  expect(await store.confirmUnchanged(object)).toEqual(object);
+  const file = store.objectPath(object.sha256);
+  await chmod(file, 0o644);
+  await writeFile(file, "tampered evidence");
+  await chmod(file, 0o444);
+  await expect(store.confirmUnchanged(object)).rejects.toBeInstanceOf(ObjectIntegrityError);
+}));

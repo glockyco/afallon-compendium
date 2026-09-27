@@ -83,7 +83,7 @@ export async function createArtifactLease(
         add(objects, identity);
         pending.delete(identity.sha256);
         await persist();
-        await store.verify(identity);
+        await store.confirmUnchanged(identity);
       });
     },
     protectManifest(identity) {
@@ -92,7 +92,7 @@ export async function createArtifactLease(
         add(manifests, identity);
         pending.delete(identity.sha256);
         await persist();
-        await store.verify(identity);
+        await store.confirmUnchanged(identity);
       });
     },
     protectAll(identities, manifestIdentities = []) {
@@ -101,7 +101,7 @@ export async function createArtifactLease(
         for (const identity of identities) { add(objects, identity); pending.delete(identity.sha256); added.set(identity.sha256, identity); }
         for (const identity of manifestIdentities) { add(objects, identity); add(manifests, identity); pending.delete(identity.sha256); added.set(identity.sha256, identity); }
         await persist();
-        for (const identity of added.values()) await store.verify(identity);
+        for (const identity of added.values()) await store.confirmUnchanged(identity);
       });
     },
     release() {

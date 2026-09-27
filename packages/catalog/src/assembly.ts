@@ -32,7 +32,7 @@ function validateInput(input: CatalogAssemblyInput) {
 export async function assembleCatalog(store: ArtifactStore, destination: string, input: CatalogAssemblyInput, run?: ArtifactRun): Promise<CatalogAssemblyResult> {
   validateInput(input);
   const sources = [...input.sources].sort((a, b) => a.key.localeCompare(b.key));
-  for (const source of sources) await store.verify(source.identity);
+  for (const source of sources) await store.confirmUnchanged(source.identity);
   const catalogId = catalogLogicalIdentity({ buildId: input.normalized.buildId, ...input.identity, inputs: Object.fromEntries(sources.map((source) => [source.key, source.identity])) });
   const absoluteDestination = path.resolve(destination);
   await mkdir(path.dirname(absoluteDestination), { recursive: true });

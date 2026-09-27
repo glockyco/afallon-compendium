@@ -24,6 +24,18 @@ export class ObjectIntegrityError extends Error {
   }
 }
 
+// The file that a verified object was read from. The same values later mean the same, unchanged file, provided that the
+// file last changed well before the hash started: a write in the same timestamp tick as an earlier change would
+// otherwise keep the change time (the "racy" case that git also guards against).
+const RACY_MARGIN_MS = 2000;
+interface FileIdentity { dev: number; ino: number; size: number; mtimeMs: number; ctimeMs: number }
+function fileIdentity(metadata: FileIdentity): FileIdentity {
+  return { dev: metadata.dev, ino: metadata.ino, size: metadata.size, mtimeMs: metadata.mtimeMs, ctimeMs: metadata.ctimeMs };
+}
+function sameFile(a: FileIdentity, b: FileIdentity): boolean {
+  return a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
+}
+
 export interface StoredObject extends ContentIdentity {
   readonly path: string;
 }
@@ -126,18 +138,32 @@ export class ArtifactStore {
 
   /** Checks that the stored object has the expected bytes and SHA-256 hash, by hashing its bytes. */
   async verify(identity: ContentIdentity): Promise<StoredObject> {
-    await this.#checked(identity, false);
+    await this.#checked(identity, false, false);
+    return { ...identity, path: this.relativeObjectPath(identity.sha256) };
+  }
+
+  /**
+   * Checks the object again within one command. The first check of an object in this store instance hashes its bytes, as
+   * `verify` does. A later check accepts the object without hashing it when its file is unchanged since that hash: same
+   * device, inode, size, modification time, and change time, and the file had last changed at least two seconds before
+   * that hash began. Otherwise it hashes the bytes again. Use it only where the command already verified the object, such
+   * as leases and run closures that list the evidence of the same command.
+   */
+  async confirmUnchanged(identity: ContentIdentity): Promise<StoredObject> {
+    await this.#checked(identity, false, true);
     return { ...identity, path: this.relativeObjectPath(identity.sha256) };
   }
 
   /** Reads the object once, checks its bytes and hash, and returns the bytes. */
   async readVerified(identity: ContentIdentity): Promise<Buffer> {
-    const bytes = await this.#checked(identity, true);
+    const bytes = await this.#checked(identity, true, false);
     if (bytes === null) throw new Error(`Object ${identity.sha256} was not read.`);
     return bytes;
   }
 
-  async #checked(identity: ContentIdentity, keep: boolean): Promise<Buffer | null> {
+  readonly #verified = new Map<string, FileIdentity>();
+
+  async #checked(identity: ContentIdentity, keep: boolean, reuse: boolean): Promise<Buffer | null> {
     const objectPath = this.objectPath(identity.sha256);
     if (!Number.isSafeInteger(identity.bytes) || identity.bytes < 0) throw new TypeError("The object byte count must be a non-negative safe integer.");
     const handle = await open(objectPath, "r");
@@ -145,6 +171,9 @@ export class ArtifactStore {
     try {
       const metadata = await handle.stat();
       if (!metadata.isFile()) throw new ObjectIntegrityError(`Stored object is not a regular file: ${identity.sha256}`, identity.sha256, "not-a-file");
+      const file = fileIdentity(metadata), hashStarted = Date.now();
+      const known = this.#verified.get(identity.sha256);
+      if (reuse && known !== undefined && identity.bytes === metadata.size && sameFile(known, file)) return null;
       const digest = createHash("sha256");
       const kept = keep ? Buffer.allocUnsafe(metadata.size) : null;
       const buffer = kept ?? Buffer.allocUnsafe(Math.max(1, Math.min(OBJECT_CHUNK_BYTES, metadata.size)));
@@ -158,12 +187,15 @@ export class ArtifactStore {
       }
       const observedSha256 = digest.digest("hex");
       if (observedBytes !== identity.bytes || observedSha256 !== identity.sha256 || observedBytes !== metadata.size) {
+        this.#verified.delete(identity.sha256);
         throw new ObjectIntegrityError(
           `Stored object integrity failed: expected ${identity.bytes} bytes/${identity.sha256}, observed ${observedBytes} bytes/${observedSha256}.`,
           identity.sha256,
           observedSha256,
         );
       }
+      if (file.ctimeMs < hashStarted - RACY_MARGIN_MS && file.mtimeMs < hashStarted - RACY_MARGIN_MS) this.#verified.set(identity.sha256, file);
+      else this.#verified.delete(identity.sha256);
       return kept;
     } catch (error) {
       failed = true;
