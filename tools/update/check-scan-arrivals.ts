@@ -1,5 +1,5 @@
 // Operator tool: checks each scene visit of the scans against the doorways of the catalog built from them. A doorway
-// arrival must match a gameScene transition into its scene; a start-position arrival is reported when the scene now has
+// arrival must match a gameScene transition into its scene. A start-position arrival is reported when the scene now has
 // a doorway, because the next plans should use it. Exits with code 1 on any finding.
 // usage: bun tools/update/check-scan-arrivals.ts CATALOG_SQLITE SCAN_MANIFEST...
 import { Database } from "bun:sqlite";

@@ -1,5 +1,5 @@
 // Operator tool: re-authors the reviewed world-surface capture plans for one build. Each reviewed plan keeps its
-// tiles, frames, and readiness; the survey becomes the build's scene-47 navigation geometry from a scan run, and each
+// tiles, frames, and readiness. The survey becomes the build's scene-47 navigation geometry from a scan run, and each
 // tile id carries the build so that captures of different builds never share a tile identity.
 // usage: bun tools/update/author-capture-plans.ts SCAN_MANIFEST OUTPUT_DIRECTORY REVIEWED_PLAN...
 import { basename, join, relative, resolve } from "node:path";
@@ -30,7 +30,7 @@ for (const path of reviewed) {
   });
   const output = join(outputDirectory, basename(path).replace("-current-", `-${buildId}-`));
   const survey = relative(resolve(outputDirectory), resolve("artifacts/objects/sha256", surveyHash.slice(0, 2), surveyHash.slice(2)));
-  // One readiness holds every source under a plan's tiles; a four-tile plan holds 585 sources at about 3 frames
+  // One readiness holds every source under a plan's tiles. A four-tile plan holds 585 sources at about 3 frames
   // per second. That took almost 300000 ms on build 25419293 and more on 25434619, so the budget is 900000 ms.
   await Bun.write(output, `${JSON.stringify({ ...plan, readiness: { ...(plan.readiness as object), timeoutMs: 900000 }, survey: { path: survey, sha256: surveyHash }, tiles }, null, 2)}\n`);
   plans.push(output);

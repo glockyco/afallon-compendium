@@ -167,7 +167,7 @@ function within(bounds: { min: { x: number; y: number }; max: { x: number; y: nu
   return position[0] >= bounds.min.x && position[1] >= bounds.min.y && position[0] < bounds.max.x && position[1] < bounds.max.y;
 }
 
-// Objects that the game places at run time can shift slightly between two scans of one build; four interactables
+// Objects that the game places at run time can shift slightly between two scans of one build. Four interactables
 // moved by up to about 1 map unit on build 25434619. A correction may move a placement by less than this distance,
 // which is well under the size of a map marker.
 const PLACEMENT_CORRECTION_TOLERANCE = 2;

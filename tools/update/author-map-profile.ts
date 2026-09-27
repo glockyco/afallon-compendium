@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
-// usage: bun tools/update/author-map-profile.ts OUTPUT SCAN_MANIFEST... ; every manifest must name the same build.
+// usage: bun tools/update/author-map-profile.ts OUTPUT SCAN_MANIFEST... Every manifest must name the same build.
 const [outputPath, ...manifests] = process.argv.slice(2);
 if (!outputPath) throw new Error("usage: author-map-profile OUTPUT SCAN_MANIFEST...");
 if (manifests.length === 0) throw new Error("Pass scan manifests.");

@@ -1,6 +1,6 @@
 // Dumps every MapZone in the loaded scenes: its registration and its map texture as PNG bytes.
-// A map texture is usually not CPU-readable, so it is blitted to a RenderTexture and read back;
-// that works for any texture the GPU can sample.
+// A map texture is usually not CPU-readable, so it is blitted to a RenderTexture and read back.
+// That works for any texture the GPU can sample.
 var outputDirectory = args == null ? null : (string)args["outputDirectory"];
 if (string.IsNullOrEmpty(outputDirectory)) throw new System.ArgumentException("outputDirectory is required.");
 var zones = Il2CppMapMinimap.MapZone.GetAll();

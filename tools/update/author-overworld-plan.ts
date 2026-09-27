@@ -1,5 +1,5 @@
 // Operator tool: derives the calibrated overworld game-map plan from a scan's scene-47 map geometry. The overworld
-// MapZone calibration gives the texture's world corners and centre; the player's normalized map position gives a
+// MapZone calibration gives the texture's world corners and centre. The player's normalized map position gives a
 // sixth landmark that the scan observed independently of the corners.
 // usage: bun tools/update/author-overworld-plan.ts SCAN_MANIFEST IMAGE PROFILE OUTPUT
 import { createHash } from "node:crypto";
@@ -25,7 +25,7 @@ for (const output of manifest.outputs) {
 }
 if (geometries.length !== 1) throw new Error(`The scan holds ${geometries.length} scene-47 map geometries; exactly one is required.`);
 const geometry = geometries[0]!;
-// Scene 47 holds one MapZone per region, and each shows the overworld texture; the active one is the game's map.
+// Scene 47 holds one MapZone per region, and each shows the overworld texture. The active one is the game's map.
 const zones = geometry.value.mapZones.flatMap((zone, index) => zone.calibration && zone.texture?.name === "Newest map" && zone.source?.activeInHierarchy === true ? [{ index, calibration: zone.calibration, zone }] : []);
 if (zones.length !== 1) throw new Error(`Scene 47 has ${zones.length} active map zones that show "Newest map"; exactly one is required.`);
 if (zones[0]!.zone.texture!.width !== texture.width || zones[0]!.zone.texture!.height !== texture.height) throw new Error("The overworld texture size changed.");

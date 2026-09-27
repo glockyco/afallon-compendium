@@ -1,5 +1,5 @@
 // Operator tool: derives one calibrated game-map illustration plan per swept interior map zone. The sweep records
-// each map-zone texture with its four world corners and centre; the map-space profile binds each interior scene
+// each map-zone texture with its four world corners and centre. The map-space profile binds each interior scene
 // with an identity frame, so map coordinates are the world X and Z of those corners.
 // usage: bun tools/update/author-game-map-plans.ts SWEEP_JSON PROFILE_JSON OUTPUT_DIRECTORY
 import { createHash } from "node:crypto";
@@ -27,7 +27,7 @@ for (const [sceneIndex, scene] of sweep.scenes.entries()) {
   const identity = binding && binding.frame.origin.x === 0 && binding.frame.origin.z === 0 && binding.frame.xAxis.x === 1 && binding.frame.xAxis.z === 0 && binding.frame.yAxis.x === 0 && binding.frame.yAxis.z === 1;
   if (!identity) throw new Error(`${scene.mapSpaceId} has no identity-frame binding for scene ${scene.sceneNativeId}.`);
   const zone = scene.zones[0]!;
-  // A rotated zone maps pixel edges through its rotated corners; the delivery extent is the corners' bounding box.
+  // A rotated zone maps pixel edges through its rotated corners. The delivery extent is the corners' bounding box.
   const corner = (u: number, v: number) => { const found = zone.corners.find((row) => row.u === u && row.v === v); if (!found) throw new Error(`${scene.mapSpaceId} lacks corner ${u},${v}.`); return { x: found.world.x, y: found.world.z }; };
   const northWest = corner(-1, 1), northEast = corner(1, 1), southWest = corner(-1, -1), southEast = corner(1, -1);
   const { width, height } = zone.texture;

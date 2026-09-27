@@ -32,7 +32,7 @@ if (requestedFinalPathToken != null && requestedFinalPathToken.Type != Newtonsof
     requestedFinalPath = (string)requestedFinalPathToken;
 }
 // Where the player stands once the target scene is ready. The authored arrival can lie far from
-// the mapped area, where no loader near the map is within range; placing the player at the map on
+// the mapped area, where no loader near the map is within range. Placing the player at the map on
 // the walkable surface makes the scene static for capture.
 var capturePositionToken = args["capturePosition"];
 var hasCapturePosition = capturePositionToken != null && capturePositionToken.Type == Newtonsoft.Json.Linq.JTokenType.Object;

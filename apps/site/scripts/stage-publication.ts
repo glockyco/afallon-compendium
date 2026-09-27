@@ -51,7 +51,7 @@ export function stagePublication(
   const stagedPublication = join(paths.staticDir, "data");
   cpSync(publicDir, stagedPublication, { recursive: true });
   makeWritable(stagedPublication);
-  // The dev server reads apps/site/static; its data is the staged publication, so it never serves an older one.
+  // The dev server reads apps/site/static. Its data is the staged publication, so it never serves an older one.
   const devData = join(siteDir, "static", "data");
   rmSync(devData, { recursive: true, force: true });
   symlinkSync(relative(join(siteDir, "static"), stagedPublication), devData);

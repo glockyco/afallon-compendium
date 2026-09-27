@@ -1088,13 +1088,13 @@ the first of several roles, for example "Enemy, questGiver"; each role now has i
 
 The `quest-levels` collector returned 136 quests, 132 level ranges, and 13 dungeons from the installed build 25434619. A
 catalog cannot mix that build with build 25419293 evidence, so the ranges were published with the 0.16.2.1 update below.
-The reviewed publication labelled four Underglow travel points "0"; map shards now ignore placeholder object names that
+The reviewed publication labelled four Underglow travel points "0". Map shards now ignore placeholder object names that
 contain no letter, so those points carry their travel label.
 
 ## Afallon 0.16.2.1 update
 
 Steam installed Afallon 0.16.2.1 as build 25434619. `GameAssembly.dll`, `global-metadata.dat`, and the Steam manifest
-changed; `UnityPlayer.dll` did not. The pinned Cpp2IL declarations add and remove no types and modify 10: scene and
+changed, but `UnityPlayer.dll` did not. The pinned Cpp2IL declarations add and remove no types and modify 10: scene and
 teleport preload (`AddressableLoader.PreloadAround`, `PreloadLease`, `ChunkHider.HoldPosition`,
 `LoadingScreenManager.ReturnToMenuAfterLoadFailure`), quest hand-in (`QuestInteractionPanel`), and interface types. The
 update report `compendium.update-report.v2` declares the five areas that the release notes name.
@@ -1112,18 +1112,18 @@ arrival.
 ### Hidden chunks and streamed sources
 
 `ChunkHider` deactivates terrain chunks far from the player. In 0.16.2 the character stood 742 units from the two
-streamed Coalway sources, and their loaders were active; now it stood 1,141 units away, and both loaders were inactive.
-A stream visit now shows such a chunk with the native `ChunkHider.HoldPosition` and disposes the hold on restoration;
-restoration waits until the loader is inactive again. Scan and capture share this probe; the capture copy had bounded
+streamed Coalway sources, and their loaders were active. Now it stood 1,141 units away, and both loaders were inactive.
+A stream visit now shows such a chunk with the native `ChunkHider.HoldPosition` and disposes the hold on restoration.
+Restoration waits until the loader is inactive again. Scan and capture share this probe. The capture copy had bounded
 preload batches, which the shared probe keeps.
 
 ### Capture budget and game health
 
-Each world-surface plan holds every source under its tiles for one readiness; a four-tile plan holds 585 sources. After
+Each world-surface plan holds every source under its tiles for one readiness. A four-tile plan holds 585 sources. After
 several hours of scans, the game loaded them at about 3 frames per second and exceeded the 300,000 ms readiness limit,
 which 0.16.2 had almost reached. The limit is now 900,000 ms. After a restart, all 12 plans and 36 tiles took about 9
 minutes. During one long sweep the game process died without a crash report. The runtime then gave the operation its
-bookkeeping deadline at the same time as the cleanup wait, so no failure evidence was written; the bookkeeping deadline
+bookkeeping deadline at the same time as the cleanup wait, so no failure evidence was written. The bookkeeping deadline
 now starts after cleanup confirmation settles, and a forced game exit left failed manifests and no leases.
 
 ### Results
@@ -1137,15 +1137,15 @@ verified-update parity gate against `e8c2e115` and shows the quest level ranges.
 0.16.2 publication `c8a26c46` as the rollback. Nothing was deployed.
 
 Browser screenshots failed while the macOS display slept, because Chrome received no frames. `caffeinate -u` wakes the
-display; `caffeinate -d` alone does not.
+display, but `caffeinate -d` alone does not.
 
 ### Follow-up rescan
 
-Scene visits now enter each interior at an observed doorway from the previous accepted catalog; Tutorial cave, which
+Scene visits now enter each interior at an observed doorway from the previous accepted catalog. Tutorial cave, which
 has no doorway, uses its start position. All 27 arrivals of the rescan match a doorway of the new catalog. Each interior
 now loads every streamed source before collection. That added no entity, placement, or source, so the earlier partial
 loads had lost no published content. One source each in the Challenge stone logging camp and Pyromancer stays inactive
-and is reported as skipped; it probably appears only while a challenge runs. When a shown chunk puts a loader within the
+and is reported as skipped. It probably appears only while a challenge runs. When a shown chunk puts a loader within the
 player's load distance, the game loads it, and a scene visit waits for that load.
 
 Four runtime-placed interactables moved by 0.09 to about 1 map unit between two scans of the build. Same-build

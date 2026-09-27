@@ -7,7 +7,7 @@ const [profilePath, ...manifests] = process.argv.slice(2);
 if (!profilePath || manifests.length === 0) throw new Error("usage: verify-map-profile PROFILE SCAN_MANIFEST...");
 const profile = await Bun.file(profilePath).json();
 const objectPath = (hash: string) => resolve("artifacts/objects/sha256", hash.slice(0, 2), hash.slice(2));
-// Every target of every scan records the same native scene catalog; the profile compiles against it.
+// Every target of every scan records the same native scene catalog. The profile compiles against it.
 const catalogHashes = new Set<string>();
 for (const manifestPath of manifests) {
   const manifest = await Bun.file(manifestPath).json() as { input: { buildId: string }; outputs: Array<{ name: string; content: { sha256: string } }> };

@@ -1,6 +1,6 @@
 
     // Nothing above mutates loader state. Register restoration before the first HoldLoaded call.
-    // A loaded source only needs its hold; the others load in bounded batches, and a source under
+    // A loaded source only needs its hold. The others load in bounded batches, and a source under
     // a hidden chunk joins a batch once its chunk hold has activated it.
     foreach (var row in rows)
     {

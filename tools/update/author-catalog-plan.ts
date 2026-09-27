@@ -1,5 +1,5 @@
-// Operator tool: writes a catalog plan from run manifests. Scan manifests are admitted by their own identity; each
-// imagery run contributes its catalog-imagery.json output; the profile and review are registered objects.
+// Operator tool: writes a catalog plan from run manifests. Scan manifests are admitted by their own identity. Each
+// imagery run contributes its catalog-imagery.json output. The profile and review are registered objects.
 // usage: bun tools/update/author-catalog-plan.ts OUTPUT --canonical-scan SCAN_MANIFEST --canonical-target TARGET --profile SHA256 --review SHA256
 //          --scan SCAN_MANIFEST... --imagery RUN_MANIFEST...
 import { createHash } from "node:crypto";
