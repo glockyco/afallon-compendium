@@ -124,7 +124,20 @@ export class ArtifactStore {
     }
   }
 
+  /** Checks that the stored object has the expected bytes and SHA-256 hash, by hashing its bytes. */
   async verify(identity: ContentIdentity): Promise<StoredObject> {
+    await this.#checked(identity, false);
+    return { ...identity, path: this.relativeObjectPath(identity.sha256) };
+  }
+
+  /** Reads the object once, checks its bytes and hash, and returns the bytes. */
+  async readVerified(identity: ContentIdentity): Promise<Buffer> {
+    const bytes = await this.#checked(identity, true);
+    if (bytes === null) throw new Error(`Object ${identity.sha256} was not read.`);
+    return bytes;
+  }
+
+  async #checked(identity: ContentIdentity, keep: boolean): Promise<Buffer | null> {
     const objectPath = this.objectPath(identity.sha256);
     if (!Number.isSafeInteger(identity.bytes) || identity.bytes < 0) throw new TypeError("The object byte count must be a non-negative safe integer.");
     const handle = await open(objectPath, "r");
@@ -133,23 +146,25 @@ export class ArtifactStore {
       const metadata = await handle.stat();
       if (!metadata.isFile()) throw new ObjectIntegrityError(`Stored object is not a regular file: ${identity.sha256}`, identity.sha256, "not-a-file");
       const digest = createHash("sha256");
-      const buffer = Buffer.allocUnsafe(Math.max(1, Math.min(OBJECT_CHUNK_BYTES, metadata.size)));
+      const kept = keep ? Buffer.allocUnsafe(metadata.size) : null;
+      const buffer = kept ?? Buffer.allocUnsafe(Math.max(1, Math.min(OBJECT_CHUNK_BYTES, metadata.size)));
       let observedBytes = 0;
       while (true) {
-        const { bytesRead } = await handle.read(buffer, 0, buffer.byteLength, null);
+        const target = kept === null ? buffer : kept.subarray(observedBytes);
+        const { bytesRead } = target.byteLength === 0 ? { bytesRead: 0 } : await handle.read(target, 0, Math.min(target.byteLength, OBJECT_CHUNK_BYTES), null);
         if (bytesRead === 0) break;
-        digest.update(buffer.subarray(0, bytesRead));
+        digest.update(target.subarray(0, bytesRead));
         observedBytes += bytesRead;
       }
       const observedSha256 = digest.digest("hex");
-      if (observedBytes !== identity.bytes || observedSha256 !== identity.sha256) {
+      if (observedBytes !== identity.bytes || observedSha256 !== identity.sha256 || observedBytes !== metadata.size) {
         throw new ObjectIntegrityError(
           `Stored object integrity failed: expected ${identity.bytes} bytes/${identity.sha256}, observed ${observedBytes} bytes/${observedSha256}.`,
           identity.sha256,
           observedSha256,
         );
       }
-      return { ...identity, path: this.relativeObjectPath(identity.sha256) };
+      return kept;
     } catch (error) {
       failed = true;
       throw error;

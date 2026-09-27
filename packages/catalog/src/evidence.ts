@@ -1,4 +1,4 @@
-import { readFile, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import type { Static, TSchema } from "typebox";
 import { Assert } from "typebox/value";
 import { ArtifactStore, resolveArtifactRun } from "@afallon/artifacts";
@@ -26,8 +26,8 @@ export function evidenceReference(identity: ContentIdentity): ArtifactReference 
 }
 
 export async function readObject<T extends TSchema>(store: ArtifactStore, identity: ContentIdentity, schema: T, target: string): Promise<Static<T>> {
-  await store.verify(identity);
-  return decodeContract(schema, JSON.parse(await readFile(store.objectPath(identity.sha256), "utf8")), { objectId: identity.sha256, target });
+  const bytes = await store.readVerified(identity);
+  return decodeContract(schema, JSON.parse(bytes.toString("utf8")), { objectId: identity.sha256, target });
 }
 
 export function assertEvidencePointer(document: unknown, pointer: string, label: string): void {
@@ -212,8 +212,7 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
   for (const binding of profile.bindings) for (const reference of binding.evidence) {
     const metadata = await stat(store.objectPath(reference.sha256));
     const identity = { sha256: reference.sha256, bytes: metadata.size };
-    await store.verify(identity);
-    const document: unknown = JSON.parse(await readFile(store.objectPath(reference.sha256), "utf8"));
+    const document: unknown = JSON.parse((await store.readVerified(identity)).toString("utf8"));
     assertEvidencePointer(document, reference.pointer, `spatial binding ${binding.id}`);
     register("spatial-evidence", identity, document, canonicalTarget.envelope.sourceRunId, "review");
   }

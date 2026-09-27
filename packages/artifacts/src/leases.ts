@@ -10,6 +10,8 @@ export interface ActiveArtifactLease extends ObjectWriteProtection {
   readonly leaseId: string;
   readonly path: string;
   protectManifest(identity: ContentIdentity): Promise<void>;
+  // Protects many objects with one lease write, then checks each object. `manifests` are run manifests among them.
+  protectAll(objects: Iterable<ContentIdentity>, manifests?: Iterable<ContentIdentity>): Promise<void>;
   release(): Promise<void>;
 }
 
@@ -91,6 +93,15 @@ export async function createArtifactLease(
         pending.delete(identity.sha256);
         await persist();
         await store.verify(identity);
+      });
+    },
+    protectAll(identities, manifestIdentities = []) {
+      return enqueue(async () => {
+        const added = new Map<string, ContentIdentity>();
+        for (const identity of identities) { add(objects, identity); pending.delete(identity.sha256); added.set(identity.sha256, identity); }
+        for (const identity of manifestIdentities) { add(objects, identity); add(manifests, identity); pending.delete(identity.sha256); added.set(identity.sha256, identity); }
+        await persist();
+        for (const identity of added.values()) await store.verify(identity);
       });
     },
     release() {

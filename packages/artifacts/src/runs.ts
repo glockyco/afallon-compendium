@@ -153,11 +153,7 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
         candidate.input = { ...normalizedInput, inputs: {}, inputManifests: [] };
         candidate.outputs = [artifact];
         assertArtifactRunManifest(candidate);
-        await lease.protect(object);
-        for (const reference of references) {
-          if (reference.kind === "run-manifest") await lease.protectManifest(reference.content);
-          else await lease.protect(reference.content);
-        }
+        await lease.protectAll([object, ...references.filter((reference) => reference.kind !== "run-manifest").map((reference) => reference.content)], references.filter((reference) => reference.kind === "run-manifest").map((reference) => reference.content));
         await verifyArtifactRunClosure(store, candidate);
         outputs.push(artifact);
         try { await appendRevision(); } catch (error) { outputs.pop(); throw error; }
@@ -203,10 +199,8 @@ export async function beginArtifactRun(store: ArtifactStore, input: ArtifactRunI
   };
   try {
     const manifests = new Set(normalizedInput.inputManifests ?? []);
-    for (const [name, identity] of Object.entries(normalizedInput.inputs)) {
-      if (manifests.has(name)) await lease.protectManifest(identity);
-      else await lease.protect(identity);
-    }
+    const entries = Object.entries(normalizedInput.inputs);
+    await lease.protectAll(entries.filter(([name]) => !manifests.has(name)).map(([, identity]) => identity), entries.filter(([name]) => manifests.has(name)).map(([, identity]) => identity));
     await verifyArtifactRunClosure(store, snapshot("running", null));
   } catch (error) {
     try { await run.fail(error); }

@@ -144,8 +144,22 @@ function inventoryDiscrepancies(inventory: WorldInventory): string[] {
   return [...discrepancies];
 }
 
+// Admission and coverage accounting read the subjects of the same inventory several times, and each subject key costs a
+// canonical hash. The subjects depend only on the inventory, so each inventory computes them once.
+const inventorySubjects = new WeakMap<WorldInventory, readonly CoverageInventorySubject[]>();
+
 /** Enumerate records, not inventory totals or a caller-selected target list. */
-export function coverageInventorySubjects(inventory: WorldInventory): CoverageInventorySubject[] {
+export function coverageInventorySubjects(inventory: WorldInventory): readonly CoverageInventorySubject[] {
+  const known = inventorySubjects.get(inventory);
+  if (known !== undefined) return known;
+  const subjects = enumerateInventorySubjects(inventory);
+  for (const subject of subjects) Object.freeze(subject);
+  const frozen = Object.freeze(subjects);
+  inventorySubjects.set(inventory, frozen);
+  return frozen;
+}
+
+function enumerateInventorySubjects(inventory: WorldInventory): CoverageInventorySubject[] {
   const subjects: CoverageInventorySubject[] = [];
   const add = (collection: string, index: number, key: string, families: CoverageFamily[], gameplay: boolean, disposition: unknown) => {
     subjects.push({
