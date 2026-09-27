@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { NormalizedDatabaseInput, NormalizedEntity } from "@afallon/contracts/catalog";
-import { collectTypedFacts } from "./normalize";
+import { collectTypedFacts, entityGameplay } from "./normalize";
 import { classifyItemCondition } from "./conditions";
 import type { AdmittedCatalog } from "./evidence";
 import type { Blocker } from "./context";
@@ -214,4 +214,12 @@ test("finds the maximum all-mode level threshold and ignores upper limits, optio
     { requirements: [requirement(90, "Above", "Optional")] },
   ])).toBe(20);
   expect(questMinimumLevel([{ requirements: [requirement(19, "Below"), requirement(30, "EqualOrBelow")] }])).toBeNull();
+});
+
+test("entity rows keep only the gameplay that v1 support evidence carried", () => {
+  const ranks = [{ rankIndex: 0, text: "Deals damage" }];
+  expect(entityGameplay("abilities", { ranks, rankMechanics: [{ rankIndex: 0, cooldown: 4 }], abilityType: { value: 0, name: "Normal" } })).toEqual({ ranks });
+  expect(entityGameplay("classes", { allowedWeaponTypes: [], talentTreeIds: [{ sourceIndex: 0, talentTreeId: 0 }] })).toEqual({ allowedWeaponTypes: [] });
+  expect(entityGameplay("effects", { effectType: { value: 5, name: "Stun" } })).toBeNull();
+  expect(entityGameplay("recipes", { learnedByDefault: true })).toEqual({ learnedByDefault: true });
 });

@@ -26,7 +26,7 @@ function placeLevels(min: number | null | undefined, max: number | null | undefi
 // Entity rows keep the gameplay that support evidence carried before the progression capture: the tooltip ranks of
 // abilities, the weapon types of classes, and the recipe, station, and gear set fields. The progression tables hold the
 // rest, so entity details and the pages that read them do not change with the capture.
-function entityGameplay(kind: string, gameplay: Record<string, unknown> | undefined): unknown {
+export function entityGameplay(kind: string, gameplay: Record<string, unknown> | undefined): unknown {
   if (gameplay === undefined) return null;
   if (kind === "abilities") return { ranks: gameplay.ranks };
   if (kind === "classes") return { allowedWeaponTypes: gameplay.allowedWeaponTypes };
