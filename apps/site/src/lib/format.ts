@@ -165,14 +165,13 @@ export function readerNoun(label: string): string {
 const SEARCH_PLACEHOLDER_KINDS = 3;
 
 /**
- * The search placeholder names the first searchable kinds of the publication and counts the others. It changes when a
- * searchable kind is added or removed, and it never names a kind that search cannot find. One unnamed kind is named,
- * because "and 1 more" is no shorter than its name.
+ * The search placeholder names the first searchable kinds of the publication and ends with "more" when others exist. It
+ * never names a kind that search cannot find.
  */
 export function searchPlaceholder(plurals: readonly string[]): string {
   if (plurals.length === 0) return 'Search';
   const nouns = plurals.map(readerNoun);
-  const shown = nouns.length > SEARCH_PLACEHOLDER_KINDS + 1 ? [...nouns.slice(0, SEARCH_PLACEHOLDER_KINDS), `${nouns.length - SEARCH_PLACEHOLDER_KINDS} more`] : nouns;
+  const shown = nouns.length > SEARCH_PLACEHOLDER_KINDS ? [...nouns.slice(0, SEARCH_PLACEHOLDER_KINDS), 'more'] : nouns;
   return `Search ${new Intl.ListFormat('en-US', { type: 'conjunction' }).format(shown)}`;
 }
 

@@ -16,7 +16,7 @@ Search SHALL show a spinner inside its input while loading, without changing pag
 
 #### Scenario: Publication changes searchable kinds
 - **WHEN** a searchable kind is added to or removed from the publication
-- **THEN** the search placeholder reflects the current searchable kinds
+- **THEN** the search placeholder names only kinds that are searchable in the current publication
 - **AND** it does not claim to search an unpublished kind
 
 ## ADDED Requirements
