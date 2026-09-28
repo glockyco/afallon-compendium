@@ -474,9 +474,9 @@
 
 <div class="map-shell">
   {#if loading}
-    <main class="initial-loading" role="status"><div class="loading-indicator"><div class="spinner" aria-hidden="true"></div><span>Loading Map...</span></div></main>
+    <main class="initial-loading" role="status"><div class="loading-indicator"><div class="spinner" aria-hidden="true"></div><span>Loading map…</span></div></main>
   {:else if loadError && !publication}
-    <main class="state-card error" role="alert"><h1>Map Unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p><button type="button" on:click={() => controller?.retry('map')}>Retry Map Data</button></main>
+    <main class="state-card error" role="alert"><h1>Map unavailable</h1><p>{loadError}</p><p class="muted">The publication request failed. There is no fallback dataset.</p><button type="button" on:click={() => controller?.retry('map')}>Retry map data</button></main>
   {:else if publication}
     <main class="workspace" class:with-details={dev} class:has-details={dev && Boolean(selectedPlacement || selectedEntityKey || itemKey || placeKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
       <MapSidebar
@@ -493,9 +493,9 @@
         onResetMarkerSize={() => setMarkerSize(DEFAULT_MAP_STATE.markerSize)} onToggleAuthoring={toggleAuthoring}
         onExportWorldOffsets={exportWorldOffsets} onDiscardWorldOffsets={discardWorldOffsets}
       />
-      {#if !panelCollapsed}<button class="panel-backdrop" type="button" aria-label="Close Map Controls" on:click={togglePanel}></button>{/if}
+      {#if !panelCollapsed}<button class="panel-backdrop" type="button" aria-label="Close map controls" on:click={togglePanel}></button>{/if}
 
-      <section class:results-collapsed={resultsCollapsed} class="map-column" aria-label="Interactive Map">
+      <section class:results-collapsed={resultsCollapsed} class="map-column" aria-label="Interactive map">
         <MapCanvasShell bind:canvas {mapReady} {mapUnavailable} {previewPlacement} {previewMarker}
           countsPending={resultsPending} matchingCount={matchingPlacements.length} viewportCount={resultPlacements.length} showsExtraSelection={Boolean(extraSelection)}
           onZoomIn={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}
