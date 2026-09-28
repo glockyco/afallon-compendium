@@ -23,9 +23,17 @@ The update receipt, the update report, and the accepted descriptor all name rele
 
 ### Read published place pages when the hub is built
 
-The hub route loads the published place pages at build time and keeps the pages that have a level range. Because the hub reads the pages, each place that it shows has a published page. A separate hub resource would repeat these facts and need its own schema, graph edge, and parity rule. The route is prerendered, so no reader request loads the place pages. A place without a range remains in the Places list. The hub lists places in a neutral order by lower bound, upper bound, and name. It groups zones and dungeons by their published place type. It does not recommend a place.
+The hub route loads the published place pages at build time and keeps the pages that have a level range. Because the hub reads the pages, each place that it shows has a published page. A separate hub resource would repeat these facts and need its own schema, graph edge, and parity rule. The route is prerendered, so no reader request loads the place pages. A place without a range remains in the Places list.
 
-The hub also reads the class and skill lists, the coverage counts, and the list size of each published kind. The crafting and gathering entry links crafting skills, Recipes, Skills, and the gathering categories of the map. It does not promise a mechanics page before `publish-crafting-and-gathering`. Search appears once, at the top of the hub content. `PageShell` suppresses its header search on home, so the page has no two fields with the same label and identifier.
+The hub orders places neutrally by lower bound, upper bound, and name. Dungeons appear as cards with their artwork and their bosses. Zones with the same recorded range form one band, and a bar shows each range on one level scale. The hub does not recommend a place.
+
+### Show game artwork where it carries the hub
+
+Place pages carry wide artwork, and NPC pages carry portraits. The publication has one size of each image, and the 24 places with a range carry 2.1 MiB of artwork. The hub therefore shows full artwork only in the hero and on the dungeon cards. The place with the name of the world gives the hero image. Boss portraits, class icons, and skill icons complete the page, and the zone bands stay text.
+
+The sections run from search and the map through dungeons and their bosses, zones by level, classes, and crafting and gathering to the directory of every list. Map services such as merchants have no hub entry, because the map filters them.
+
+The hub also reads the class and skill lists, the coverage counts, and the list size of each published kind. The crafting and gathering entry links crafting skills, Recipes, Skills, and the gathering categories of the map. It does not promise a mechanics page before `publish-crafting-and-gathering`. Search appears once, in the hero at the top of the hub content. `PageShell` suppresses its header search on home, so the page has no two fields with the same label and identifier.
 
 ### Move the map without route compatibility code
 

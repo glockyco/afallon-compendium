@@ -87,25 +87,29 @@
     </div>
   </header>
 
-  <main class="c-page">
-    {#if crumbs.length}
-      <nav class="crumbs" aria-label="Breadcrumb">
-        {#each crumbs as crumb, index}
-          {#if index > 0}<span aria-hidden="true">/</span>{/if}
-          {#if crumb.href}<a class="c-link" href={crumb.href}>{crumb.label}</a>{:else}<span aria-current="page">{crumb.label}</span>{/if}
-        {/each}
-      </nav>
-    {/if}
-    <slot />
-    <footer>
-      {#if release}
-        <span>Afallon {release.version}</span>
-        <span>Updated {formatCalendarDate(release.dataDate)}</span>
-        <a class="c-link" href={release.patchNotes.url} rel="external" title={`${release.patchNotes.title}, ${formatCalendarDate(release.patchNotes.date)}`}>Patch notes</a>
+  <main>
+    <!-- A page can open with a full-width band above its centered content. -->
+    <slot name="hero" />
+    <div class="c-page">
+      {#if crumbs.length}
+        <nav class="crumbs" aria-label="Breadcrumb">
+          {#each crumbs as crumb, index}
+            {#if index > 0}<span aria-hidden="true">/</span>{/if}
+            {#if crumb.href}<a class="c-link" href={crumb.href}>{crumb.label}</a>{:else}<span aria-current="page">{crumb.label}</span>{/if}
+          {/each}
+        </nav>
       {/if}
-      <slot name="footer-extra" />
-      <a class="c-link" href={`${base}/coverage/`}>Coverage</a>
-    </footer>
+      <slot />
+      <footer>
+        {#if release}
+          <span>Afallon {release.version}</span>
+          <span>Updated {formatCalendarDate(release.dataDate)}</span>
+          <a class="c-link" href={release.patchNotes.url} rel="external" title={`${release.patchNotes.title}, ${formatCalendarDate(release.patchNotes.date)}`}>Patch notes</a>
+        {/if}
+        <slot name="footer-extra" />
+        <a class="c-link" href={`${base}/coverage/`}>Coverage</a>
+      </footer>
+    </div>
   </main>
 </div>
 
