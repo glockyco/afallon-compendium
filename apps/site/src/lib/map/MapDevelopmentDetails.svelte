@@ -27,7 +27,7 @@
     { label: 'Category', value: selectedPlacement.categories.map((category) => markerFor(category).label).join(', ') },
     { label: 'Level', value: selectedPlacement.level ? npcLevelText(selectedPlacement.level) : undefined },
     { label: 'Spawn', value: selectedPlacement.alternative ? alternativeText(selectedPlacement.alternative.chance, selectedPlacement.alternative.options) : undefined },
-    { label: 'Movement', value: [...new Set(selectedPlacement.movement.map((movement) => movement.kind === 'patrol' ? 'Patrols' : 'Roams'))].join(', ') || undefined },
+    { label: 'Movement', value: [...new Set(selectedPlacement.movement.map((movement) => movement.kind === 'patrol' ? 'Patrolling' : 'Roaming'))].join(', ') || undefined },
     { label: 'Position', value: selectedPlacement.position.map((coordinate) => formatNumber(Math.round(coordinate))).join(', ') },
   ].filter((fact): fact is { label: string; value: string } => Boolean(fact.value)) : [];
 </script>
