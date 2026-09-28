@@ -61,7 +61,7 @@ The ability projector reads `progression.learners`, keeps the learners whose cla
 
 ### Experience values follow the game's meaning
 
-The Experience per level table shows the template value of each level. A read-only probe compares the level and the experience limit of the loaded research character with the template, and so decides the column label. The class page shows the level template of the class, and the skill page shows the template of the skill up to its highest level.
+The Experience table shows the template value of each level. A read-only probe compares the level and the experience limit of the loaded research character with the template, and so decides the column label. The class page shows the level template of the class, and the skill page shows the template of the skill up to its highest level.
 
 ### One acceptance for the catalog and the publication
 

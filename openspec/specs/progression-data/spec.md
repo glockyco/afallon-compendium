@@ -120,3 +120,12 @@ When a record, a list, or a list member is null in the game data, the evidence S
 #### Scenario: Old support evidence on another target
 - **WHEN** a catalog plan admits a scene scan with `compendium.support.v1` evidence beside a canonical target with `compendium.support.v2` evidence
 - **THEN** the catalog admits that scene scan
+
+### Requirement: Races record the classes that they offer
+
+The catalog SHALL record for each race the classes that the race offers, in authored order. A class ID without a class record SHALL become a missing-reference issue, and SHALL NOT count as an offered class. The catalog SHALL derive the set of classes that at least one race offers.
+
+#### Scenario: Offered classes of build 25434619
+- **WHEN** the catalog is built from a scan of build 25434619
+- **THEN** Dwarf, Human, and Orc each offer Shieldmaster, Wizard, Necromancer, Assassin, and Druid
+- **AND** no race offers Hunter or Berserker

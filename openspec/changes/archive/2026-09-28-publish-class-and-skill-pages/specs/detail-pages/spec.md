@@ -40,11 +40,11 @@ An ability page SHALL show in its hero the tooltip of the version with the most 
 
 ### Requirement: Class pages show how a class progresses
 
-The publication SHALL publish a page for each class that at least one race offers. A class that no race offers SHALL NOT have a page. The title block of a class page SHALL show the kind and the races that offer the class. The hero SHALL show the class icon, the description, the weapon types that the class can use, its auto attack ability, the talent points that it gains, and its highest level. The sections SHALL follow this order: one section for each talent tree of the class in authored order, Starting gear, and Experience per level. The heading line of a talent tree section SHALL name the talent points that the tree uses. A talent tree table SHALL show one row for each node, ordered by tier and then by position in the tier. A row SHALL show the tier, the talent, the effect of a passive talent at its first rank and at its last rank, and the requirements of the node. The row of an ability node SHALL link the ability. Each row SHALL have an anchor. The Starting gear section SHALL show each starting item with its count, and SHALL show whether the character starts with the item equipped.
+The publication SHALL publish a page for each class that at least one race offers. A class that no race offers SHALL NOT have a page. The title block of a class page SHALL show the kind and the races that offer the class. The hero SHALL show the class icon, the description, the weapon types that the class can use, its auto attack ability, the talent points that it gains, and its highest level. The sections SHALL follow this order: one section for each talent tree of the class in authored order, Starting gear, and Experience. The heading line of a talent tree section SHALL name the talent points that the tree uses. A talent tree table SHALL show one row for each node, ordered by tier and then by position in the tier. A row SHALL show the tier, the talent, the effect of a passive talent at its first rank and at its last rank, and the requirements of the node. The row of an ability node SHALL link the ability. Each row SHALL have an anchor. The Starting gear section SHALL show each starting item with its count, and SHALL show whether the character starts with the item equipped.
 
 #### Scenario: Offered class
 - **WHEN** a reader opens the Shieldmaster page
-- **THEN** its sections are Bastion Breaker, Guardian, Templar, Aegis Mastery, Heroic Ascension, Starting gear, and Experience per level, in this order
+- **THEN** its sections are Bastion Breaker, Guardian, Templar, Aegis Mastery, Heroic Ascension, Starting gear, and Experience, in this order
 
 #### Scenario: Class that no race offers
 - **WHEN** no race offers the Hunter class
@@ -61,7 +61,7 @@ The publication SHALL publish a page for each class that at least one race offer
 
 ### Requirement: Skill pages show recipes and levels
 
-The publication SHALL publish a page for each skill. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. The sections SHALL follow this order: Recipes, Experience per level. The Recipes section SHALL show each recipe that uses the skill with its product and its station. A skill with a highest level of zero SHALL NOT show an Experience per level section.
+The publication SHALL publish a page for each skill. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. The sections SHALL follow this order: Recipes, Experience. The Recipes section SHALL show each recipe that uses the skill with its product and its station. A skill with a highest level of zero SHALL NOT show an Experience section.
 
 #### Scenario: Crafting skill
 - **WHEN** a reader opens the Alchemy page
@@ -70,17 +70,17 @@ The publication SHALL publish a page for each skill. The title block of a skill 
 #### Scenario: Weapon skill
 - **WHEN** a reader opens the Axes page
 - **THEN** the page has no Recipes section
-- **AND** the Experience per level section has 300 rows
+- **AND** the Experience section has 300 rows
 
 #### Scenario: Skill without levels
 - **WHEN** the Savers skill has a highest level of zero
-- **THEN** its page has no Experience per level section
+- **THEN** its page has no Experience section
 
 ### Requirement: Experience tables state what each value means
 
-The Experience per level section of a class or a skill SHALL show one row for each level from 1 to the highest level, with the experience that the level template of the class or skill assigns to that level. The label of the experience column SHALL state the meaning that the game gives the value: the experience that a character needs to complete that level, or the total experience that a character needs to reach it.
+The Experience section of a class or a skill SHALL show one row for each level from 1 to the highest level, with the experience that the level template of the class or skill assigns to that level. The game uses the value of a row as the experience that takes a character from that level to the next level. The label of the experience column SHALL state this meaning.
 
 #### Scenario: Class levels
 - **WHEN** the class level template assigns 40 experience to level 2
 - **THEN** the row for level 2 on each class page shows 40
-- **AND** the column label states the meaning of the value that the game uses
+- **AND** the column label is "Experience to next level"
