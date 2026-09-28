@@ -13,21 +13,35 @@
   export let rarity: string | undefined = undefined;
 
   // A list page shows a thousand links, so a link mounts its tooltip only when a reader first points at it or focuses
-  // it. The identifier ties the link to its tooltip from that moment. A reader can leave before the tooltip mounts, so
-  // `engaged` records whether the pointer or focus is still on the link when the mount finishes.
+  // it. The identifier ties the link to its tooltip from that moment. Hover and keyboard focus each keep the tooltip
+  // open: the pointer leaving does not close it while the link has keyboard focus, and a blur does not close it while
+  // the pointer is on the link. Focus from a mouse click does not count, so a clicked link closes when the pointer leaves.
   let tooltipController: EntityTooltip | undefined;
   let anchorElement: HTMLElement | undefined;
   let tooltipId: string | undefined;
-  let engaged = false;
-  async function withTooltip(action: (controller: EntityTooltip) => void): Promise<void> {
-    engaged = true;
+  let hovered = false;
+  let keyboardFocused = false;
+  async function openTooltip(action: (controller: EntityTooltip) => void): Promise<void> {
     tooltipId ??= `entity-tooltip-${crypto.randomUUID()}`;
     if (!tooltipController) await tick();
-    if (engaged && tooltipController) action(tooltipController);
+    if ((hovered || keyboardFocused) && tooltipController) action(tooltipController);
   }
-  function disengage(action: (controller: EntityTooltip) => void): void {
-    engaged = false;
-    if (tooltipController) action(tooltipController);
+  function onPointerEnter(event: PointerEvent): void {
+    if (event.pointerType === 'touch') return;
+    hovered = true;
+    void openTooltip((controller) => controller.showAfterIntent());
+  }
+  function onPointerLeave(): void {
+    hovered = false;
+    if (!keyboardFocused) tooltipController?.closeAfterIntent();
+  }
+  function onFocus(event: FocusEvent): void {
+    keyboardFocused = event.currentTarget instanceof HTMLElement && event.currentTarget.matches(':focus-visible');
+    void openTooltip((controller) => controller.show());
+  }
+  function onBlur(): void {
+    keyboardFocused = false;
+    if (!hovered) tooltipController?.close();
   }
   $: resolved = ref.key !== null ? ref : null;
   $: kind = resolved ? registry.find((entry) => entry.kind === resolved?.kind) : undefined;
@@ -39,8 +53,8 @@
 {#if resolved && linked && kind}
   {#if tooltip}
     <!-- The tooltip follows the anchor without a space, so punctuation after a link stays next to its name. -->
-    <span class="tooltip-anchor" role="group" bind:this={anchorElement} on:pointerenter={() => tooltipController?.keepOpen()} on:pointerleave={() => disengage((controller) => controller.closeAfterIntent())}>
-      <a class="entity-link" data-rarity={rarity} {href} aria-describedby={tooltipId} on:pointerenter={(event) => { if (event.pointerType !== 'touch') void withTooltip((controller) => controller.showAfterIntent()); }} on:focus={() => void withTooltip((controller) => controller.show())} on:blur={() => disengage((controller) => controller.close())} on:keydown={(event) => tooltipController?.handleKeydown(event)}>{#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
+    <span class="tooltip-anchor" role="group" bind:this={anchorElement} on:pointerenter={() => tooltipController?.keepOpen()} on:pointerleave={onPointerLeave}>
+      <a class="entity-link" data-rarity={rarity} {href} aria-describedby={tooltipId} on:pointerenter={onPointerEnter} on:focus={onFocus} on:blur={onBlur} on:keydown={(event) => tooltipController?.handleKeydown(event)}>{#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
     </span>{#if tooltipId}<EntityTooltip bind:this={tooltipController} ref={resolved} {registry} {rankIndex} anchor={anchorElement} id={tooltipId} />{/if}
   {:else}
     <a class="entity-link" data-rarity={rarity} {href}>{#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
