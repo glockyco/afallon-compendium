@@ -24,5 +24,5 @@ The home route opens the map, so readers cannot find the rest of the compendium 
 ## Impact
 
 - Site routes, `PageShell.svelte`, `CompendiumSearch.svelte`, `MapExplorer.svelte`, `map/MapDevelopmentDetails.svelte`, and all site map-link producers.
-- The static publication identity and staging flow gain the accepted release version, data date, and verified Steam article URL. This needs a catalog candidate comparison, a staged publication candidate, and joint acceptance.
+- The publish plan and the publication root gain the release version, the data date, and the Steam article from the registered release notes. Acceptance checks them against the update report. The candidate reuses the accepted catalog, and it needs a staged publication candidate and joint acceptance.
 - Existing page kinds and published place facts stay the source for hub links. No game numbers are embedded in site code.
