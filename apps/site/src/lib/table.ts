@@ -8,6 +8,10 @@ export function toggleSort(state: SortState, id: string, numeric = false): SortS
   return { id, dir: numeric ? 'desc' : 'asc' };
 }
 
+// One collator serves every comparison. `localeCompare` with options builds a new collator on each call, which made
+// sorting a list of a thousand rows take tens of milliseconds.
+const collator = new Intl.Collator('en', { numeric: true });
+
 /** Rows without a value for the active column sort last in both directions. */
 export function sortRows<T>(rows: readonly T[], value: (row: T, id: string) => SortValue, state: SortState): T[] {
   const decorated = rows.map((row, index) => ({ row, index, key: value(row, state.id) }));
@@ -20,7 +24,7 @@ export function sortRows<T>(rows: readonly T[], value: (row: T, id: string) => S
     if (!missingLeft && !missingRight) {
       comparison = typeof left.key === 'number' && typeof right.key === 'number'
         ? left.key - right.key
-        : String(left.key).localeCompare(String(right.key), 'en', { numeric: true });
+        : collator.compare(String(left.key), String(right.key));
     }
     return comparison === 0 ? left.index - right.index : comparison * sign;
   });
