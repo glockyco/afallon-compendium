@@ -8,8 +8,11 @@ function mapHref(parameters: Record<string, string>): string {
 /** Every spot of an NPC or a property. */
 export const entityOnMap = (key: string) => mapHref({ entity: key });
 
-/** Every resource, container, and object that gives an item. */
-export const itemOnMap = (key: string) => mapHref({ item: key });
+/**
+ * Every resource, container, and object that gives an item. The item filters the map to its sources, and most sources
+ * are in categories that the map hides by default, so the link shows all categories.
+ */
+export const itemOnMap = (key: string) => mapHref({ item: key, categories: 'all' });
 
 /** The area of a place, optionally with only one category of markers. */
 export const placeOnMap = (key: string, category?: string) => mapHref(category ? { place: key, categories: category } : { place: key });

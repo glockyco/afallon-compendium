@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import type { PublicKindEntry, PublicSearchEntry } from '@afallon/contracts/public';
   import { clientMapLoader } from './client-publication';
   import { rankCompendiumEntries } from './map-search';
   import EntityLink from './EntityLink.svelte';
   import { levelText, searchPlaceholder } from './format';
+  import { entityOnMap, itemOnMap, placeOnMap } from './map-links';
 
   export let registry: PublicKindEntry[] = [];
   export let limit = 8;
@@ -43,7 +43,7 @@
     {#if loading}<span class="spinner" aria-hidden="true"></span>{:else if error}<span id="compendium-search-error" class="error" role="alert" title={error}>Search is unavailable.</span>{/if}
   </div>
   <span class="visually-hidden" role="status">{loading ? 'Loading search…' : ''}</span>
-  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="map-link" href={`${base}/map/?place=${encodeURIComponent(entry.ref.key)}`}>View on map</a>{:else if entry.hasPlacements}<a class="map-link" href={`${base}/map/?${entry.ref.kind === 'items' ? 'item' : 'entity'}=${encodeURIComponent(entry.ref.key)}`}>View on map</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading && !error}<p class="empty" role="status">No published page matches this search.</p>{/if}
+  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="map-link" href={placeOnMap(entry.ref.key)}>View on map</a>{:else if entry.hasPlacements}<a class="map-link" href={entry.ref.kind === 'items' ? itemOnMap(entry.ref.key) : entityOnMap(entry.ref.key)}>View on map</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading && !error}<p class="empty" role="status">No published page matches this search.</p>{/if}
 </div>
 
 <style>
