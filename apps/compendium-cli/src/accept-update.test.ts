@@ -47,7 +47,7 @@ function priorDescriptor(evidence: ContentIdentity, publication: ContentIdentity
     catalog: { catalogId: "d".repeat(64), manifest: evidence, object: evidence },
     publication: {
       manifest: evidence,
-      root: { path: `resources/${publication.sha256}.json`, ...publication, schemaId: "compendium.static-root.v4" },
+      root: { path: `resources/${publication.sha256}.json`, ...publication, schemaId: "compendium.static-root.v5" },
     },
     stage: {
       schemaVersion: "afallon.deployment.v2",
@@ -63,7 +63,21 @@ function priorDescriptor(evidence: ContentIdentity, publication: ContentIdentity
   };
 }
 
-async function fixture(): Promise<Fixture> {
+type FixtureOptions = { publishedVersion?: string; publishedReleaseNotes?: "report" | "other"; dataDate?: string };
+
+// The update workflow registers its release notes: a register run whose input is the Steam news item.
+async function registerReleaseNotes(store: ArtifactStore, title: string): Promise<{ object: ContentIdentity; manifest: ContentIdentity }> {
+  const object = await store.putBytes(bytes(JSON.stringify({ gid: "1844115010498690", title, appid: 2597810, date: 1789900462 })));
+  const run = await beginArtifactRun(store, { buildId: BUILD_ID, operation: "register", settings: {}, schemas: [], implementationFingerprint: "5".repeat(64), cacheKey: "6".repeat(64), probeHashes: {}, diagnosticRevision: "test", inputs: {} });
+  await run.addArtifact("input", object, { mediaType: "application/octet-stream" });
+  await run.succeed();
+  const manifest = run.manifestIdentity;
+  await run.release();
+  if (!manifest) throw new Error("Release notes fixture did not produce a manifest.");
+  return { object: { sha256: object.sha256, bytes: object.bytes }, manifest };
+}
+
+async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
   const root = await mkdtemp(join(tmpdir(), "afallon-accept-update-"));
   const storeRoot = join(root, "artifacts"), publicationRoot = join(root, "publication"), baselineRoot = join(root, "baseline"), siteDirectory = join(root, "site");
   const store = new ArtifactStore(storeRoot);
@@ -74,12 +88,15 @@ async function fixture(): Promise<Fixture> {
   const catalogManifest = { sha256: catalogManifestObject.sha256, bytes: catalogManifestObject.bytes };
   const sealedCatalog = { sha256: catalogObject.sha256, bytes: catalogObject.bytes };
   const reference = { path: "resources/coverage.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v2" as const };
+  const releaseNotes = await registerReleaseNotes(store, "Afallon 0.16.2"), otherNotes = await registerReleaseNotes(store, "Hotfix #19");
+  const dataDate = options.dataDate ?? "2026-09-20";
   const publication: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v4",
+    schemaVersion: "compendium.static-root.v5",
     buildId: BUILD_ID,
     catalogId: CATALOG_ID,
     mode: "preview",
     complete: false,
+    release: { version: options.publishedVersion ?? "0.16.2", dataDate, patchNotes: { title: "Afallon 0.16.2", url: "https://store.steampowered.com/news/app/2597810/view/1844115010498690", date: "2026-09-20" } },
     world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [],
     kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, searchable: true, columns: [], facets: [] }],
@@ -91,7 +108,8 @@ async function fixture(): Promise<Fixture> {
   const publicationRun = await beginArtifactRun(store, {
     buildId: BUILD_ID,
     operation: "publish",
-    settings: { plan: { catalog: { catalogId: CATALOG_ID, manifest: catalogManifest, object: sealedCatalog } } },
+    settings: { plan: { schemaVersion: "compendium.publish-plan.v3", buildId: BUILD_ID, catalog: { catalogId: CATALOG_ID, manifest: catalogManifest, object: sealedCatalog }, mode: "preview", presentation: evidence,
+      release: { version: options.publishedVersion ?? "0.16.2", dataDate, releaseNotes: options.publishedReleaseNotes === "other" ? otherNotes.object : releaseNotes.object } } },
     schemas: [],
     implementationFingerprint: "1".repeat(64),
     cacheKey: "2".repeat(64),
@@ -99,7 +117,7 @@ async function fixture(): Promise<Fixture> {
     diagnosticRevision: "test",
     inputs: {},
   });
-  await publicationRun.addArtifact("publication.json", publicationObject, { mediaType: "application/json", schemaId: "compendium.static-root.v4" });
+  await publicationRun.addArtifact("publication.json", publicationObject, { mediaType: "application/json", schemaId: "compendium.static-root.v5" });
   await publicationRun.succeed();
   const publicationManifest = publicationRun.manifestIdentity;
   await publicationRun.release();
@@ -114,7 +132,7 @@ async function fixture(): Promise<Fixture> {
     current: { buildId: BUILD_ID, inputHashes: { installation: "4".repeat(64) } },
     artifacts: {
       updateReceipt: pointer,
-      releaseNotes: pointer,
+      releaseNotes: { buildId: BUILD_ID, content: releaseNotes.manifest },
       schemaSnapshot: pointer,
       buildComparison: pointer,
       scans: [pointer],
@@ -134,7 +152,7 @@ async function fixture(): Promise<Fixture> {
   const selectionPath = join(publicationRoot, "selected.json"), descriptorPath = join(storeRoot, "accepted-build.json"), stageRoot = join(siteDirectory, ".stage", "production");
   const priorPublication = { ...publication, buildId: "25153357", catalogId: "d".repeat(64) } satisfies StaticRootManifest;
   const priorPublicationBytes = bytes(`${canonicalJson(priorPublication)}\n`), priorPublicationIdentity = identity(priorPublicationBytes), priorPublicationId = priorPublicationIdentity.sha256;
-  const priorRoot = { path: `resources/${priorPublicationId}.json`, ...priorPublicationIdentity, schemaId: "compendium.static-root.v4" as const };
+  const priorRoot = { path: `resources/${priorPublicationId}.json`, ...priorPublicationIdentity, schemaId: "compendium.static-root.v5" as const };
   const priorSelectionBytes = bytes(`${canonicalJson({ root: priorRoot, directory: `publications/${priorPublicationId}` })}\n`), priorSelectionIdentity = identity(priorSelectionBytes);
   await mkdir(join(publicationRoot, "publications", priorPublicationId), { recursive: true });
   await writeFile(join(publicationRoot, "publications", priorPublicationId, "publication.json"), priorPublicationBytes);
@@ -215,6 +233,23 @@ test("restores the selected publication, descriptor, and stage when staging fail
     expect(await readFile(value.descriptorPath, "utf8")).toBe(new TextDecoder().decode(value.priorDescriptorBytes));
     expect(await readFile(join(value.stageRoot, "version.txt"), "utf8")).toBe("prior stage");
   } finally { await rm(value.root, { recursive: true, force: true }); }
+});
+
+test("rejects a publication whose release is not the release of the update report", async () => {
+  const cases: Array<[FixtureOptions, string]> = [
+    [{ publishedVersion: "0.16.1" }, "does not match update report release 0.16.2"],
+    [{ publishedReleaseNotes: "other" }, "release notes do not match"],
+    [{ dataDate: "2999-01-01" }, "is after the acceptance date"],
+  ];
+  for (const [options, message] of cases) {
+    const value = await fixture(options);
+    try {
+      let stageCalls = 0;
+      await expect(acceptUpdate({ ...value, stage: async () => { stageCalls++; return successfulStage(value); } })).rejects.toThrow(message);
+      expect(stageCalls).toBe(0);
+      expect(await readFile(value.descriptorPath, "utf8")).toBe(new TextDecoder().decode(value.priorDescriptorBytes));
+    } finally { await rm(value.root, { recursive: true, force: true }); }
+  }
 });
 
 test("rejects incomplete report evidence before staging", async () => {

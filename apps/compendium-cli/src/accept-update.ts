@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { Assert } from "typebox/value";
 import { ArtifactStore, createArtifactLease, resolveArtifactRun } from "@afallon/artifacts";
 import { AcceptedBuildDescriptorSchema, canonicalJson, validateUpdateReport, type AcceptedBuildDescriptor, type ContentIdentity, type UpdateReport } from "@afallon/contracts";
-import { StaticResourceReferenceSchema, StaticRootManifestSchema } from "@afallon/contracts/public";
+import { PublicationPlanSchema, StaticResourceReferenceSchema, StaticRootManifestSchema } from "@afallon/contracts/public";
 export interface DeploymentMetadata {
   schemaVersion: "afallon.deployment.v2";
   publicationId: string;
@@ -80,14 +80,22 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
   const report = validateUpdateReport(JSON.parse(new TextDecoder().decode(reportBytes)));
   await verifyReportEvidence(store, report);
   const publicationRun = await resolveArtifactRun(store, report.artifacts.publication.content, { buildId: report.current.buildId, operation: "publish" });
-  const publicationOutput = publicationRun.outputs.find(output => output.name === "publication.json" && output.schemaId === "compendium.static-root.v4");
+  const publicationOutput = publicationRun.outputs.find(output => output.name === "publication.json" && output.schemaId === "compendium.static-root.v5");
   if (!publicationOutput) throw new Error("Accepted update report does not reference a successful static publication run.");
   const rootValue: unknown = JSON.parse(await readFile(store.objectPath(publicationOutput.content.sha256), "utf8"));
   Assert(StaticRootManifestSchema, rootValue);
   if (rootValue.buildId !== report.current.buildId) throw new Error("Accepted publication build does not match the update report.");
-  const plan = publicationRun.input.settings.plan as { catalog?: { catalogId?: string; manifest?: ContentIdentity; object?: ContentIdentity } };
-  if (!plan.catalog?.catalogId || !plan.catalog.manifest || !plan.catalog.object || rootValue.catalogId !== plan.catalog.catalogId) throw new Error("Accepted publication has no matching sealed catalog identity.");
+  const plan: unknown = publicationRun.input.settings.plan;
+  Assert(PublicationPlanSchema, plan);
+  if (rootValue.catalogId !== plan.catalog.catalogId) throw new Error("Accepted publication has no matching sealed catalog identity.");
   if (report.artifacts.catalog.content.sha256 !== plan.catalog.manifest.sha256 || report.artifacts.catalog.content.bytes !== plan.catalog.manifest.bytes) throw new Error("Update report catalog does not match the published catalog.");
+  // The publication names the release of the update report and links the release notes that the update reviewed.
+  if (rootValue.release.version !== report.releaseVersion) throw new Error(`Accepted publication release ${rootValue.release.version} does not match update report release ${report.releaseVersion}.`);
+  const releaseNotesRun = await resolveArtifactRun(store, report.artifacts.releaseNotes.content, { buildId: report.current.buildId, operation: "register" });
+  const releaseNotes = releaseNotesRun.outputs.find(output => output.name === "input");
+  if (!releaseNotes || releaseNotes.content.sha256 !== plan.release.releaseNotes.sha256 || releaseNotes.content.bytes !== plan.release.releaseNotes.bytes) throw new Error("Accepted publication release notes do not match the update report release notes.");
+  const acceptedAt = new Date().toISOString();
+  if (rootValue.release.dataDate > acceptedAt.slice(0, 10)) throw new Error(`Accepted publication data date ${rootValue.release.dataDate} is after the acceptance date.`);
 
   const publicationRoot = resolve(options.publicationRoot), siteDirectory = resolve(options.siteDirectory ?? join(import.meta.dir, "../../site"));
   const descriptorPath = join(store.root, "accepted-build.json"), selectionPath = join(publicationRoot, "selected.json"), stageRoot = join(siteDirectory, ".stage", "production");
@@ -101,7 +109,7 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
   const candidateDirectory = join(publicationRoot, "publications", publicationOutput.content.sha256);
   const stat = await lstat(candidateDirectory);
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Candidate publication directory is unavailable.");
-  const selection = { root: { path: `resources/${publicationOutput.content.sha256}.json`, sha256: publicationOutput.content.sha256, bytes: publicationOutput.content.bytes, schemaId: "compendium.static-root.v4" as const }, directory: `publications/${publicationOutput.content.sha256}` };
+  const selection = { root: { path: `resources/${publicationOutput.content.sha256}.json`, sha256: publicationOutput.content.sha256, bytes: publicationOutput.content.bytes, schemaId: "compendium.static-root.v5" as const }, directory: `publications/${publicationOutput.content.sha256}` };
   const selectionBytes = new TextEncoder().encode(`${canonicalJson(selection)}\n`), selectionIdentity = identity(selectionBytes);
   const stageBackup = `${stageRoot}.rollback-${randomUUID()}`;
   let backedUp = false, selectionChanged = false, descriptorChanged = false;
@@ -123,7 +131,7 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
       if (previousDescriptorBytes) await store.putBytes(previousDescriptorBytes, lease);
     } finally { await lease.release(); }
     const descriptor: AcceptedBuildDescriptor = {
-      schemaVersion: "compendium.accepted-build.v1", acceptedAt: new Date().toISOString(), releaseVersion: report.releaseVersion, buildId: report.current.buildId,
+      schemaVersion: "compendium.accepted-build.v1", acceptedAt, releaseVersion: report.releaseVersion, buildId: report.current.buildId,
       report: reportIdentity,
       catalog: { catalogId: plan.catalog.catalogId, manifest: plan.catalog.manifest, object: plan.catalog.object },
       publication: { manifest: report.artifacts.publication.content, root: selection.root }, stage: metadata,

@@ -2,7 +2,7 @@ import { Type, type Static, type TSchema } from "typebox";
 import { schemaRegistry } from "../schema-registry";
 import { ContentIdentitySchema } from "../lifecycle";
 import { EntityRefSchema, PublicKindEntrySchema, PublicPageKindSchema, STATIC_COMPENDIUM_SCHEMAS, artEdges, isStaticDocument, type StaticCompendiumResource } from "./documents";
-import { count, hash, number, point, position, publicMarkerCategory, resourceReference, text, url, PublicAlternativeSchema, PublicLevelRangeSchema, PublicLevelSchema, StaticResourceIdentityFields, StaticResourceReferenceSchema, PUBLIC_MARKER_CATEGORY_LABELS, type StaticResourceReference } from "./primitives";
+import { calendarDate, count, hash, number, point, position, publicMarkerCategory, resourceReference, steamArticleUrl, text, url, PublicAlternativeSchema, PublicLevelRangeSchema, PublicLevelSchema, StaticResourceIdentityFields, StaticResourceReferenceSchema, PUBLIC_MARKER_CATEGORY_LABELS, type StaticResourceReference } from "./primitives";
 export { PUBLIC_MARKER_CATEGORY_VALUES, PUBLIC_MARKER_CATEGORY_LABELS, publicMarkerCategory, PublicAlternativeSchema, PublicLevelRangeSchema, PublicLevelSchema, StaticResourceReferenceSchema, resourceReference, type PublicAlternative, type PublicMarkerCategory, type PublicLevel, type PublicLevelRange, type StaticResourceReference } from "./primitives";
 
 export const PublicAffineSchema = Type.Object({ origin: point, xAxis: point, yAxis: point }, { additionalProperties: false });
@@ -172,11 +172,22 @@ export const StaticMapSummarySchema = Type.Object({
 }, { additionalProperties: false });
 export type StaticMapSummary = Static<typeof StaticMapSummarySchema>;
 
+// The game release that the publication describes. `dataDate` is the day on which the operator published the data.
+// The patch notes come from the release notes evidence of the update report, so the version and the article name
+// the same release.
+export const PublicReleaseSchema = Type.Object({
+  version: text,
+  dataDate: calendarDate,
+  patchNotes: Type.Object({ title: text, url: steamArticleUrl, date: calendarDate }, { additionalProperties: false }),
+}, { additionalProperties: false });
+export type PublicRelease = Static<typeof PublicReleaseSchema>;
+
 export const StaticRootManifestSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-root.v4"),
+  schemaVersion: Type.Literal("compendium.static-root.v5"),
   ...StaticResourceIdentityFields,
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   complete: Type.Boolean(),
+  release: PublicReleaseSchema,
   world: PublicWorldSchema,
   maps: Type.Array(StaticMapSummarySchema),
   kinds: Type.Array(PublicKindEntrySchema, { minItems: 1 }),
@@ -281,12 +292,34 @@ export function assertStaticResourceIdentity(expected: StaticIdentityContract, r
   if (resource.catalogId !== expected.catalogId) throw new Error(`Static resource catalog mismatch: expected ${expected.catalogId}, received ${resource.catalogId}.`);
 }
 
+// A Steam news item as the Steam news API returns it. The publication reads only these fields. Steam adds others.
+export const SteamNewsItemSchema = Type.Object({
+  gid: Type.String({ pattern: "^[1-9][0-9]*$" }),
+  title: text,
+  appid: Type.Integer({ minimum: 1 }),
+  date: Type.Integer({ minimum: 1 }),
+});
+export type SteamNewsItem = Static<typeof SteamNewsItemSchema>;
+
+/** The public store article of a Steam news item, with the UTC day of its publication. */
+export function steamPatchNotes(item: SteamNewsItem): PublicRelease["patchNotes"] {
+  return { title: item.title, url: `https://store.steampowered.com/news/app/${item.appid}/view/${item.gid}`, date: new Date(item.date * 1000).toISOString().slice(0, 10) };
+}
+
+/** True when a `YYYY-MM-DD` value names a real day, such as 2026-09-28 and not 2026-02-30. */
+export function isCalendarDate(value: string): boolean {
+  const time = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
+}
+
 export const PublicationPlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.publish-plan.v2"),
+  schemaVersion: Type.Literal("compendium.publish-plan.v3"),
   buildId: text,
   catalog: Type.Object({ manifest: ContentIdentitySchema, object: ContentIdentitySchema, catalogId: hash }, { additionalProperties: false }),
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   presentation: ContentIdentitySchema,
+  // `releaseNotes` is the registered Steam news item that the update report names as its release notes.
+  release: Type.Object({ version: text, dataDate: calendarDate, releaseNotes: ContentIdentitySchema }, { additionalProperties: false }),
 }, { additionalProperties: false });
 export type PublicationPlan = Static<typeof PublicationPlanSchema>;
 
@@ -299,16 +332,16 @@ export const PublicationPresentationSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicationPresentation = Static<typeof PublicationPresentationSchema>;
 
-schemaRegistry.register("compendium.publish-plan.v2", PublicationPlanSchema);
+schemaRegistry.register("compendium.publish-plan.v3", PublicationPlanSchema);
 schemaRegistry.register("compendium.publication-presentation.v1", PublicationPresentationSchema);
 
 // An explicit type that names each schema keeps the declaration small enough for the compiler to emit.
 export const STATIC_RESOURCE_SCHEMAS: typeof STATIC_COMPENDIUM_SCHEMAS & {
-  "compendium.static-root.v4": typeof StaticRootManifestSchema; "compendium.static-map.v3": typeof StaticMapShardSchema;
+  "compendium.static-root.v5": typeof StaticRootManifestSchema; "compendium.static-map.v3": typeof StaticMapShardSchema;
   "compendium.static-geometry.v1": typeof StaticGeometrySchema; "compendium.static-coverage.v2": typeof StaticCoverageSchema;
   "compendium.static-imagery.v2": typeof StaticImagerySchema;
 } = {
-  "compendium.static-root.v4": StaticRootManifestSchema,
+  "compendium.static-root.v5": StaticRootManifestSchema,
   "compendium.static-map.v3": StaticMapShardSchema,
   "compendium.static-geometry.v1": StaticGeometrySchema,
   "compendium.static-coverage.v2": StaticCoverageSchema,
@@ -324,7 +357,7 @@ export function staticResourceSchema(schemaId: string): TSchema {
 
 export function staticResourceEdges(value: StaticResource): StaticResourceReference[] {
   switch (value.schemaVersion) {
-    case "compendium.static-root.v4": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists).flat(), ...value.search, value.coverage];
+    case "compendium.static-root.v5": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists).flat(), ...value.search, value.coverage];
     case "compendium.static-search.v4": return value.entries.flatMap((entry) => entry.document ? [entry.document] : []);
     case "compendium.static-kind-list.v2": return value.rows.flatMap((row) => row.ref.icon ? [{ path: row.ref.icon.url, sha256: row.ref.icon.sha256, bytes: row.ref.icon.bytes, schemaId: "image/webp" }] : []);
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));
@@ -339,6 +372,7 @@ export function staticResourceEdges(value: StaticResource): StaticResourceRefere
 
 for (const [schemaId, schema] of Object.entries(STATIC_RESOURCE_SCHEMAS)) schemaRegistry.register(schemaId, schema);
 schemaRegistry.register("compendium.public-level-range.v1", PublicLevelRangeSchema);
+schemaRegistry.register("compendium.public-release.v1", PublicReleaseSchema);
 schemaRegistry.register("compendium.public-level.v1", PublicLevelSchema);
 schemaRegistry.register("compendium.public-alternative.v1", PublicAlternativeSchema);
 schemaRegistry.register("compendium.public-affine.v1", PublicAffineSchema);

@@ -36,6 +36,9 @@ export async function publicationFixture(root: string, buildId = "build", includ
   } finally { await catalogRun.release(); }
   const presentation: PublicationPresentation = { schemaVersion: "compendium.publication-presentation.v1", buildId, catalogId: "c".repeat(64), worldOffsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }, { mapSpaceId: "empty", worldX: 100, worldY: 200, source: "reviewed", status: "placed" }], spatialBounds: [{ mapSpaceId: "world", minX: 0, minY: 0, maxX: 10, maxY: 10 }, { mapSpaceId: "empty", minX: 10, minY: 20, maxX: 30, maxY: 40 }], capturedMapSpaceIds: [] };
   const presentationObject = await store.putBytes(new TextEncoder().encode(JSON.stringify(presentation)));
-  const plan: PublicationPlan = { schemaVersion: "compendium.publish-plan.v2", buildId, mode: "preview", catalog: { manifest: catalogRun.manifestIdentity!, object: { sha256: catalog.sha256, bytes: catalog.bytes }, catalogId: "c".repeat(64) }, presentation: { sha256: presentationObject.sha256, bytes: presentationObject.bytes } };
+  // The release notes are the Steam news item of the release, as the update workflow registers them.
+  const releaseNotes = await store.putBytes(new TextEncoder().encode(JSON.stringify({ gid: "1844115010501029", title: "Afallon 0.16.2.1", appid: 2597810, date: 1789987717, feedlabel: "Community Announcements" })));
+  const plan: PublicationPlan = { schemaVersion: "compendium.publish-plan.v3", buildId, mode: "preview", catalog: { manifest: catalogRun.manifestIdentity!, object: { sha256: catalog.sha256, bytes: catalog.bytes }, catalogId: "c".repeat(64) }, presentation: { sha256: presentationObject.sha256, bytes: presentationObject.bytes },
+    release: { version: "0.16.2.1", dataDate: "2026-09-28", releaseNotes: { sha256: releaseNotes.sha256, bytes: releaseNotes.bytes } } };
   return { store, plan, options: { publicationRoot: join(root, "publication"), diagnosticRevision: "test", select: true }, referencePath: join(store.root, "refs", buildId, "publish", "latest-success.json") };
 }

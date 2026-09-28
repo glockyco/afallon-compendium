@@ -40,7 +40,8 @@ function fixture() {
   const coverage = register({ schemaVersion: 'compendium.static-coverage.v2', ...identity, pages: [{ kind: 'items', count: 1 }], mapCount: 1, placementCount: 1, gaps: [] });
   const bounds = { min: { x: 0, y: 0 }, max: { x: 256, y: 256 } };
   const root: StaticRootManifest = {
-    schemaVersion: 'compendium.static-root.v4', ...identity, mode: 'preview', complete: false,
+    schemaVersion: 'compendium.static-root.v5', ...identity, mode: 'preview', complete: false,
+    release: { version: '0.16.2.1', dataDate: '2026-09-28', patchNotes: { title: 'Afallon 0.16.2.1', url: 'https://store.steampowered.com/news/app/2597810/view/1844115010501029', date: '2026-09-21' } },
     world: { mapSpaceId: 'world', label: 'Afallon', bounds, offsets: [{ mapSpaceId: 'map', worldX: 0, worldY: 0, source: 'native', status: 'placed' }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: 'map', label: 'Map', bounds, parts, optionalGeometry: [], imagery }],
     kinds: [{ kind: 'items', label: 'Item', plural: 'Items', route: 'items', icon: 'package', pages: true, searchable: true, columns: [], facets: [] }],

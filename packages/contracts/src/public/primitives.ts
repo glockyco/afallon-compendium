@@ -7,6 +7,10 @@ export const point = Type.Object({ x: number, y: number }, { additionalPropertie
 export const position = Type.Tuple([number, number]);
 export const url = Type.String({ minLength: 1, pattern: "^(?!/)(?!.*\\.\\.)(?!.*:)[a-zA-Z0-9_./-]+$" });
 export const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
+// A UTC day. `isCalendarDate` also rejects days that do not exist, such as 2026-02-30.
+export const calendarDate = Type.String({ pattern: "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$" });
+// The only external links that a publication carries: the public store articles of Steam news.
+export const steamArticleUrl = Type.String({ pattern: "^https://store\\.steampowered\\.com/news/app/[1-9][0-9]*/view/[1-9][0-9]*$" });
 
 export const PUBLIC_MARKER_CATEGORY_VALUES = [
   "boss",
