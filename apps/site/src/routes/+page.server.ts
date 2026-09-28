@@ -5,6 +5,14 @@ import type { ArtRef, EntityRef } from '@afallon/contracts/public';
 export interface HubWorld { ref: EntityRef; range: { min: number; max: number } | null; artwork: ArtRef | null }
 export interface HubDungeon { ref: EntityRef; min: number; max: number; artwork: ArtRef | null; bosses: Array<{ ref: EntityRef; portrait: ArtRef | null }> }
 export interface HubBand { min: number; max: number; places: EntityRef[] }
+export interface HubItemGroup { type: string; label: string; count: number; icon: ArtRef | null; rarity: string | null }
+
+// The item types that the hub offers, in reading order, with their plural labels. A type without items is left out.
+const ITEM_GROUPS: ReadonlyArray<{ type: string; label: string }> = [
+  { type: 'WEAPON', label: 'Weapons' }, { type: 'ARMOR', label: 'Armor' }, { type: 'Trinket', label: 'Trinkets' },
+  { type: 'GEM', label: 'Gems' }, { type: 'ENCHANTMENT', label: 'Enchantments' }, { type: 'CONSUMABLE', label: 'Consumables' },
+  { type: 'MATERIAL', label: 'Materials' }, { type: 'MOUNT', label: 'Mounts' },
+];
 
 // The hub reads the published pages when the site is built, so every place, boss, class, and skill that it names has a
 // page. It shows a level range only when a place page records one.
@@ -48,7 +56,23 @@ export const load: PageServerLoad = async ({ parent }) => {
   const skillRows = published.has('skills') ? (await loader.loadList('skills')).rows : [];
   const count = (value: string | number | null | undefined) => typeof value === 'number' ? value : null;
 
+  // Each item group opens the item list filtered to one type. Its icon comes from the most common slot of the group, so
+  // armor shows a chest piece and not a ring, and within that slot from the rarest tier. The icon is a picture, not a
+  // ranking.
+  const itemRows = published.has('items') ? (await loader.loadList('items')).rows : [];
+  const rarityOrder = ['legendary', 'epic', 'gold', 'rare', 'uncommon', 'common'];
+  const rarityRank = (row: typeof itemRows[number]) => { const rank = rarityOrder.indexOf((row.facets.rarity?.[0] ?? '').toLocaleLowerCase()); return rank < 0 ? rarityOrder.length : rank; };
+  const itemGroups: HubItemGroup[] = ITEM_GROUPS.flatMap(({ type, label }) => {
+    const rows = itemRows.filter((row) => row.facets.itemType?.includes(type));
+    const slots = new Map<string, number>();
+    for (const row of rows) for (const slot of row.facets.slot ?? []) slots.set(slot, (slots.get(slot) ?? 0) + 1);
+    const slot = [...slots].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]?.[0];
+    const pick = rows.filter((row) => row.ref.icon && (!slot || row.facets.slot?.includes(slot))).sort((left, right) => rarityRank(left) - rarityRank(right) || (count(right.values.itemPower) ?? 0) - (count(left.values.itemPower) ?? 0) || left.ref.name.localeCompare(right.ref.name))[0];
+    return rows.length ? [{ type, label, count: rows.length, icon: pick?.ref.icon ?? null, rarity: pick?.facets.rarity?.[0] ?? null }] : [];
+  });
+
   return {
+    itemGroups,
     world,
     dungeons,
     bands,

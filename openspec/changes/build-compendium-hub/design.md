@@ -31,7 +31,7 @@ The hub orders places neutrally by lower bound, upper bound, and name. Dungeons 
 
 Place pages carry wide artwork, and NPC pages carry portraits. The publication has one size of each image, and the 24 places with a range carry 2.1 MiB of artwork. The hub therefore shows full artwork only in the hero and on the dungeon cards. The place with the name of the world gives the hero image. Boss portraits, class icons, and skill icons complete the page, and the zone bands stay text.
 
-The sections run from search and the map through dungeons and their bosses, zones by level, classes, and crafting and gathering to the directory of every list. Map services such as merchants have no hub entry, because the map filters them.
+The sections run from search, the map, and the item list through item groups, dungeons and their bosses, zones by level, classes, and crafting and gathering to the directory of every list. Items come first after the hero, because readers of a game compendium open the item list more than any other list. Map services such as merchants have no hub entry, because the map filters them.
 
 The hub also reads the class and skill lists, the coverage counts, and the list size of each published kind. The crafting and gathering entry links crafting skills, Recipes, Skills, and the gathering categories of the map. It does not promise a mechanics page before `publish-crafting-and-gathering`. Search appears once, in the hero at the top of the hub content. `PageShell` suppresses its header search on home, so the page has no two fields with the same label and identifier.
 

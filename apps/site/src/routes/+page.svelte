@@ -3,7 +3,7 @@
   import { MapPin } from 'lucide';
   import type { ArtRef, EntityRef } from '@afallon/contracts/public';
   import CompendiumSearch from '$lib/CompendiumSearch.svelte';
-  import { formatCalendarDate, formatNumber } from '$lib/format';
+  import { formatCalendarDate, formatNumber, rarityTone } from '$lib/format';
   import { iconNodeToSvg } from '$lib/icon-svg';
   import { kindGlyphSvg } from '$lib/kind-icon';
   import { markerRegistry, type MarkerId } from '$lib/map/marker-registry';
@@ -52,6 +52,7 @@
       <div class="hero-search"><CompendiumSearch registry={data.registry} limit={8} size="large" /></div>
       <div class="hero-actions">
         <a class="map-action" href={`${base}/map/`}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Open the map</a>
+        {#if listHref('items')}<a class="items-action" href={listHref('items')}>Browse items</a>{/if}
         <p class="release">Afallon {data.release.version} · Updated {formatCalendarDate(data.release.dataDate)} · <a href={data.release.patchNotes.url} rel="external">Patch notes</a></p>
       </div>
     </div>
@@ -59,6 +60,25 @@
       <a class="hero-caption" href={pageHref(data.world.ref)}>{data.world.ref.name}{#if data.world.range}, levels {data.world.range.min}–{data.world.range.max}{/if}</a>
     {/if}
   </section>
+
+  {#if data.itemGroups.length && listHref('items')}
+    <section class="section" aria-labelledby="hub-items">
+      <div class="section-head">
+        <h2 id="hub-items">Items</h2>
+        <a class="section-link" href={listHref('items')}>All {countText(counts.get('items') ?? 0, 'item', 'items')}</a>
+      </div>
+      <ul class="item-groups">
+        {#each data.itemGroups as group (group.type)}
+          <li>
+            <a class="item-group" href={`${listHref('items')}?${new URLSearchParams({ itemType: group.type })}`}>
+              {#if group.icon}<img src={artUrl(group.icon)} width="56" height="56" alt="" loading="lazy" decoding="async" data-rarity={rarityTone(group.rarity ?? undefined)} />{:else}<span class="item-art fallback" aria-hidden="true">{@html kindGlyph('items')}</span>{/if}
+              <span class="skill-copy"><span class="tile-name">{group.label}</span><span class="tile-meta">{countText(group.count, 'item', 'items')}</span></span>
+            </a>
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
 
   {#if data.dungeons.length}
     <section class="section" aria-labelledby="hub-dungeons">
@@ -174,6 +194,8 @@
   .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem 1.4rem; margin-top: 1.1rem; }
   .map-action { display: inline-flex; align-items: center; gap: .5rem; padding: .62rem 1.05rem; border-radius: 6px; background: var(--c-accent); color: #1b1a16; font-size: .9rem; font-weight: 600; text-decoration: none; box-shadow: 0 6px 20px rgb(0 0 0 / .35); }
   .map-action:hover { background: var(--c-accent-strong); }
+  .items-action { display: inline-flex; align-items: center; padding: .62rem 1.05rem; border: 1px solid rgb(213 185 120 / .6); border-radius: 6px; background: rgb(14 15 15 / .7); color: var(--c-accent-strong); font-size: .9rem; font-weight: 600; text-decoration: none; }
+  .items-action:hover { border-color: var(--c-accent); background: rgb(14 15 15 / .9); }
   .glyph { display: inline-grid; flex: none; width: 1.05rem; height: 1.05rem; place-items: center; }
   .glyph :global(svg) { width: 100%; height: 100%; }
   .release { margin: 0; color: #d6cfbf; font-size: .8rem; text-shadow: 0 1px 8px rgb(0 0 0 / .7); }
@@ -211,6 +233,14 @@
   .bosses span { min-width: 0; line-height: 1.25; }
   .avatar { flex: none; width: 1.75rem; height: 1.75rem; border: 1px solid #5b523d; border-radius: 50%; background: #111; object-fit: cover; }
 
+  /* Item groups: two rows of four on desktop and two columns on a phone. Each tile puts the icon beside its name, as the
+     skill tiles do. The icon ring takes the rarity color of the pictured item. */
+  .item-groups { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+  .item-group { display: flex; align-items: center; gap: .9rem; height: 100%; padding: .85rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+  .item-group:hover { border-color: #7d6e4a; transform: translateY(-2px); }
+  .item-group img, .item-art { flex: none; width: 3.25rem; height: 3.25rem; border: 1px solid #4d4838; border-radius: 10px; background: #141514; box-shadow: 0 6px 16px rgb(0 0 0 / .45); }
+  .item-group img[data-rarity] { border-color: color-mix(in srgb, var(--c-rarity) 70%, transparent); }
+  .item-group .tile-name { font-size: 1.05rem; }
   .bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 1rem; }
   .band { padding: 1.05rem 1.1rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .band h3 { display: grid; gap: .2rem; margin: 0; }
@@ -266,6 +296,9 @@
     .dungeon h3 { margin-inline: .7rem; font-size: 1rem; }
     .bosses { margin-inline: .7rem; }
     .bands { grid-template-columns: minmax(0, 1fr); }
+    .item-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+    .item-group { flex-direction: column; gap: .55rem; padding: .9rem .6rem .8rem; text-align: center; }
+    .item-group img, .item-art { width: 3rem; height: 3rem; }
     .classes { grid-template-columns: minmax(0, 1fr); gap: .6rem; }
     .class-tile { grid-template-columns: auto minmax(0, 1fr); justify-items: start; align-items: center; column-gap: .9rem; row-gap: .1rem; padding: .75rem .9rem; text-align: left; }
     .class-art { grid-row: 1 / span 2; width: 3.25rem; height: 3.25rem; margin: 0; }
@@ -274,7 +307,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .dungeon, .class-tile { transition: none; }
-    .dungeon:hover, .class-tile:hover { transform: none; }
+    .dungeon, .class-tile, .item-group { transition: none; }
+    .dungeon:hover, .class-tile:hover, .item-group:hover { transform: none; }
   }
 </style>
