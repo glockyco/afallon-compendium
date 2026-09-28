@@ -74,7 +74,7 @@
             {#if dungeon.bosses.length}
               <ul class="bosses" aria-label={`Bosses of ${dungeon.ref.name}`}>
                 {#each dungeon.bosses as boss (boss.ref.key)}
-                  <li><a href={pageHref(boss.ref)} title={boss.ref.name}>{#if boss.portrait}<img class="avatar" src={artUrl(boss.portrait)} width="28" height="28" alt="" loading="lazy" decoding="async" />{:else}<span class="avatar" aria-hidden="true"></span>{/if}<span>{boss.ref.name}</span></a></li>
+                  <li><a href={pageHref(boss.ref)}>{#if boss.portrait}<img class="avatar" src={artUrl(boss.portrait)} width="28" height="28" alt="" loading="lazy" decoding="async" />{:else}<span class="avatar" aria-hidden="true"></span>{/if}<span>{boss.ref.name}</span></a></li>
                 {/each}
               </ul>
             {/if}
@@ -206,13 +206,13 @@
   .dungeon-link { color: #f6f1e4; text-decoration: none; }
   .dungeon-link:focus-visible { outline: none; }
   .dungeon-link::after { content: ''; position: absolute; inset: 0; z-index: 1; }
-  .bosses { display: grid; gap: .35rem; margin: 0 .9rem .95rem; }
+  .bosses { display: grid; grid-template-columns: minmax(0, 1fr); gap: .35rem; margin: 0 .9rem .95rem; }
   .bosses a { position: relative; z-index: 2; display: flex; align-items: center; gap: .5rem; min-width: 0; color: var(--c-text-dim); font-size: .8rem; text-decoration: none; }
   .bosses a:hover { color: var(--c-accent-strong); }
-  .bosses span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bosses span { min-width: 0; line-height: 1.25; }
   .avatar { flex: none; width: 1.75rem; height: 1.75rem; border: 1px solid #5b523d; border-radius: 50%; background: #111; object-fit: cover; }
 
-  .bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 1rem; align-items: start; }
+  .bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 1rem; }
   .band { padding: 1.05rem 1.1rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .band h3 { display: grid; gap: .2rem; margin: 0; }
   .band-label { color: var(--c-text-mute); font-size: .66rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
