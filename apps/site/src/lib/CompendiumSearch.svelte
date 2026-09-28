@@ -28,8 +28,8 @@
     return [entry.level === undefined ? null : `Level ${levelText(entry.level)}`, entry.place].filter((part): part is string => Boolean(part)).join(' · ');
   }
 
-  // The search corpus is large, and parsing it holds the main thread. It loads when a reader first focuses or points at
-  // the field, not with every page. The spinner shows in the field until it is ready.
+  // The search corpus is large, and parsing it holds the main thread. It loads when a reader first focuses or types in
+  // the field, not with every page or on a passing pointer. The spinner shows in the field until it is ready.
   let requested = false;
   function loadSearch(): void {
     if (requested) return;
@@ -51,7 +51,7 @@
 <div class="compendium-search" class:large={size === 'large'}>
   <label for="compendium-search" class="visually-hidden">Search the compendium</label>
   <div class="input-wrap">
-    <input id="compendium-search" type="search" bind:value={query} {placeholder} autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} on:focus={loadSearch} on:pointerenter={loadSearch} on:input={loadSearch} />
+    <input id="compendium-search" type="search" bind:value={query} {placeholder} autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} on:focus={loadSearch} on:input={loadSearch} />
     {#if loading}<span class="spinner" aria-hidden="true"></span>{:else if error}<span id="compendium-search-error" class="error" role="alert" title={error}>Search is unavailable.</span>{/if}
   </div>
   <span class="visually-hidden" role="status">{loading ? 'Loading search…' : ''}</span>

@@ -13,13 +13,20 @@
   export let rarity: string | undefined = undefined;
 
   // A list page shows a thousand links, so a link mounts its tooltip only when a reader first points at it or focuses
-  // it. The identifier ties the link to its tooltip from that moment.
+  // it. The identifier ties the link to its tooltip from that moment. A reader can leave before the tooltip mounts, so
+  // `engaged` records whether the pointer or focus is still on the link when the mount finishes.
   let tooltipController: EntityTooltip | undefined;
   let anchorElement: HTMLElement | undefined;
   let tooltipId: string | undefined;
+  let engaged = false;
   async function withTooltip(action: (controller: EntityTooltip) => void): Promise<void> {
+    engaged = true;
     tooltipId ??= `entity-tooltip-${crypto.randomUUID()}`;
     if (!tooltipController) await tick();
+    if (engaged && tooltipController) action(tooltipController);
+  }
+  function disengage(action: (controller: EntityTooltip) => void): void {
+    engaged = false;
     if (tooltipController) action(tooltipController);
   }
   $: resolved = ref.key !== null ? ref : null;
@@ -32,8 +39,8 @@
 {#if resolved && linked && kind}
   {#if tooltip}
     <!-- The tooltip follows the anchor without a space, so punctuation after a link stays next to its name. -->
-    <span class="tooltip-anchor" role="group" bind:this={anchorElement} on:pointerenter={() => tooltipController?.keepOpen()} on:pointerleave={() => tooltipController?.closeAfterIntent()}>
-      <a class="entity-link" data-rarity={rarity} {href} aria-describedby={tooltipId} on:pointerenter={(event) => { if (event.pointerType !== 'touch') void withTooltip((controller) => controller.showAfterIntent()); }} on:focus={() => void withTooltip((controller) => controller.show())} on:blur={() => tooltipController?.close()} on:keydown={(event) => tooltipController?.handleKeydown(event)}>{#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
+    <span class="tooltip-anchor" role="group" bind:this={anchorElement} on:pointerenter={() => tooltipController?.keepOpen()} on:pointerleave={() => disengage((controller) => controller.closeAfterIntent())}>
+      <a class="entity-link" data-rarity={rarity} {href} aria-describedby={tooltipId} on:pointerenter={(event) => { if (event.pointerType !== 'touch') void withTooltip((controller) => controller.showAfterIntent()); }} on:focus={() => void withTooltip((controller) => controller.show())} on:blur={() => disengage((controller) => controller.close())} on:keydown={(event) => tooltipController?.handleKeydown(event)}>{#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
     </span>{#if tooltipId}<EntityTooltip bind:this={tooltipController} ref={resolved} {registry} {rankIndex} anchor={anchorElement} id={tooltipId} />{/if}
   {:else}
     <a class="entity-link" data-rarity={rarity} {href}>{#if resolved.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
