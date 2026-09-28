@@ -155,11 +155,11 @@ export function placesText(labels: readonly string[]): string | null {
 }
 
 /**
- * A kind label inside a sentence. A label with one capital letter is written in lower case. A label with more capital
- * letters, as in "NPCs", keeps them.
+ * A label inside a sentence. A word with one capital letter is written in lower case. A word with more capital
+ * letters, as in "NPCs" or "HP", keeps them.
  */
 export function readerNoun(label: string): string {
-  return (label.match(/\p{Lu}/gu)?.length ?? 0) > 1 ? label : label.toLocaleLowerCase('en-US');
+  return label.split(' ').map((word) => (word.match(/\p{Lu}/gu)?.length ?? 0) > 1 ? word : word.toLocaleLowerCase('en-US')).join(' ');
 }
 
 const SEARCH_PLACEHOLDER_KINDS = 3;
