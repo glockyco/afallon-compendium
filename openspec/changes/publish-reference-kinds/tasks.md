@@ -1,0 +1,36 @@
+## 1. Verify game rules before projecting them
+
+- [ ] 1.1 Query the accepted catalog for all four record counts and every relation in the design audit. Check source owners, unresolved references, and rows with no source. Verify that a saved count report matches the audit or record each changed count before coding.
+- [ ] 1.2 Check the captured effect ranks, ability targets and chances, NPC phase ranks, and typed world game actions against their collector fields. For any rule the fields do not settle, use a read-only HotRepl probe or bounded Ghidra decompilation per `.agent/skills/native-analysis/SKILL.md`. Verify with one named ability and one named world interaction that a requirement is not treated as an application.
+- [ ] 1.3 Inspect the item-use dispatch and captured item fields to determine whether an item applies an effect directly or through an ability. Use a build-matched, read-only probe or bounded decompilation if the captured fields do not settle it. Verify the result with one named item and effect. Record why a structured item link is possible or why the source must stay unrecorded.
+- [ ] 1.4 Read the game's enchantment eligibility check and cost path with a read-only probe or bounded decompilation. Compare one armor and one weapon against captured `appliesTo` rules. Verify whether the zero item and currency cost rows are complete evidence or only a capture gap before deriving eligible items or showing costs.
+- [ ] 1.5 Check the game's kill and quest reputation reward paths and the faction requirement check. Inspect captured NPC rewards, quest rewards, and typed conditions first. If those do not settle behavior, use a read-only probe or bounded decompilation. Verify one concrete reward or requirement if present. Record explicit negative evidence if the build has none. Do not treat the 428 Race conditions carrying a `factionID` as faction unlocks.
+
+## 2. Capture and catalog missing relations
+
+- [ ] 2.1 If task 1.3 finds a real item application not in the catalog, extend the applicable scan collector and catalog extraction to retain the item, effect, rank, and application path. Verify against the named item from task 1.3. Otherwise preserve an explicit unrecorded state and verify no text-only item link is inferred.
+- [ ] 2.2 If task 1.5 finds reputation rewards or faction unlocks absent from the catalog, capture their typed owners, faction, amount or threshold, and provenance. Extend catalog decoding without synthesizing zero rows. Verify against the concrete reward or requirement from task 1.5. If no game record exists, verify the page model reports no recorded rows instead.
+- [ ] 2.3 Build reverse catalog queries for effect applications, typed effect requirements, stat sources, enchantment items and sources, faction members and verified changes or unlocks. Verify with focused query examples that effect conditions are not applications, shared talent references target the owning class row, and repeated placements do not duplicate interaction sources.
+- [ ] 2.4 If tasks 2.1 or 2.2 change collectors, scan the affected support or scene evidence and verify each run has a clean runtime cleanup receipt. Build a catalog candidate in all cases. Compare tables and rows against accepted catalog `3d602d72…`; explain each intended or incidental change and verify all four record counts remain covered.
+
+## 3. Contracts and publication
+
+- [ ] 3.1 Add public detail document contracts for effects, stats, enchantments, and factions in `packages/contracts/src/public/documents.ts`. Represent rank or tier context, linked sources, amounts, and absent evidence without fabricated values. Verify representative contract fixtures parse and malformed source references fail.
+- [ ] 3.2 Enable page and search publication for all four entries in `packages/publication/src/kind-registry.ts`. Build their list rows and search entries in `packages/publication/src/lists.ts`. Verify a list example per kind, including a hidden-reputation faction, and confirm every reachable record gets a page or an explicit coverage disposition.
+- [ ] 3.3 Project effect and stat documents in `packages/publication/src/documents.ts`. Retain all effect ranks and source paths and keep fixed stat values separate from ranges. Verify focused projections for an applied effect, a tested-only effect, and a stat with item, set, talent, and effect sources.
+- [ ] 3.4 Project enchantment and faction documents with verified eligibility, tier effects, recorded costs, item sources, faction members, and verified reputation relations. Verify an enchantment with no recorded cost and a faction with no recorded reward do not claim free application or zero reputation. Measure the largest document against the 262,144-byte document limit.
+- [ ] 3.5 Update reference resolution and reciprocal links for these kinds. Verify an item stat, an NPC faction, an applied effect, and an enchantment item open the right document. Verify unresolved targets retain labels without broken links or record IDs.
+
+## 4. Reader pages and navigation
+
+- [ ] 4.1 Add four detail views and dispatch them through `apps/site/src/lib/DetailPage.svelte`. Reuse the full-width hero, source tables, collapse behavior, and section anchors. Verify an effect with multiple ranks and a stat with multiple sources in the browser, including a missing-source label without an empty table.
+- [ ] 4.2 Add the four link tooltips through `apps/site/src/lib/TooltipPresenter.svelte`. Verify hover and keyboard focus for links from an ability, item, NPC, and quest or interaction. Confirm tooltips stay beside links or in the narrow-screen overlay.
+- [ ] 4.3 Insert Effects, Stats, Enchantments, and Factions into the C1 Reference navigation group without changing its other groups. Use the C2 "On this page" list when a detail page has four or more sections. Verify navigation from all four links and URL anchors on a long detail page.
+- [ ] 4.4 Check headings, columns, category values, and fallback text on the four kinds. Verify reader-facing text has sentence-case headings, title-case names, straight quotes, and no native ID or enum token. Check that lists and search do not rank records.
+
+## 5. Publish and accept together
+
+- [ ] 5.1 Author the publish plan with the catalog candidate. Publish a candidate and stage it against the accepted publication. Verify there are no publication issues and that graph, coverage, and update parity checks pass. Review all changed documents and list counts for these four kinds.
+- [ ] 5.2 Browse the staged publication at 1440 px and 390 px. Open the four lists, a detail page and tooltip of each kind, site search, the Reference links, and a cross-kind source and requirement link. Verify no sideways scroll at 390 px and no broken or unsupported claims.
+- [ ] 5.3 Author an update report and accept the catalog candidate and publication candidate together. Verify the accepted build names both candidates and retains the previous publication as rollback. Do not publish redirects or aliases.
+- [ ] 5.4 Run focused affected-package checks, then the repository checks used by the archived publication workflow and `openspec validate publish-reference-kinds --strict`. Verify every command passes. Remove throwaway probes and update only affected user documentation after the browser checks.
