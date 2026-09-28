@@ -3,7 +3,6 @@
   import { dev } from '$app/environment';
   import { base } from '$app/paths';
   import './MapExplorer.css';
-  import type { PublicRelease } from '@afallon/contracts/public';
   import { onMount, tick } from 'svelte';
   import type { MapAdapter, MapRendererController, MapViewState } from './map-renderer';
   import { clientMapLoader } from './client-publication';
@@ -29,7 +28,7 @@
   import { MAX_VIEW_ZOOM, MIN_VIEW_ZOOM } from './map/interaction';
   import { canonicalLayerIds, NO_IMAGERY_LAYER_ID } from './map/layer-policy';
   import { clearWorldOffsetOverrides, downloadWorldOffsets, effectiveMapDelta, loadWorldOffsetOverrides, saveWorldOffsetOverrides, placementInViewport, NO_WORLD_OVERRIDES, type WorldOffsetOverrides } from './map/world-layout';
-  import type { PublicPlacement, PublicationData, StaticDocument } from '@afallon/contracts/public';
+  import type { PublicPlacement, PublicRelease, PublicationData, StaticDocument } from '@afallon/contracts/public';
 
   /** The release of the selected publication. The map sidebar names it with its patch notes. */
   export let release: PublicRelease | undefined = undefined;
