@@ -89,6 +89,9 @@ button, select { cursor: pointer; }
   .preview-title strong { min-width: 0; }
   .preview-meta { display: block; margin-top: .15rem; color: #b9b5a9; }
   .inline-error { position: absolute; z-index: 2; left: .8rem; right: .8rem; top: 3.5rem; padding: .55rem; border: 1px solid #864c45; background: #2b1f1f; color: #e5afa6; font-size: .75rem; }
+  .inline-error button { margin-left: .4rem; padding: 0; border: 0; background: none; color: #f1cbc3; font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+  .inline-error button:hover { color: #fff; }
+  .inline-error button:focus-visible { outline: 2px solid #d5b978; outline-offset: 2px; }
   .results { padding: .8rem; overflow: auto; min-height: 0; }
   .results.collapsed { overflow: hidden; padding-block: .55rem; }
   .results.collapsed .results-header { align-items: center; }

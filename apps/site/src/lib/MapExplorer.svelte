@@ -497,7 +497,9 @@
           onZoomIn={() => setMapView({ ...view, zoom: Math.min(MAX_VIEW_ZOOM, view.zoom + 0.5) })}
           onZoomOut={() => setMapView({ ...view, zoom: Math.max(MIN_VIEW_ZOOM, view.zoom - 0.5) })} onFit={fitMap}
         />
-        {#if loadError && publication && !mapUnavailable}<div class="inline-error" role="alert">{loadError}</div>{/if}
+        <!-- A renderer error, such as one tile that fails to decode, leaves the rest of the map usable, so a reader can
+             dismiss it. A publication error has no dismissal because the map has nothing to show. -->
+        {#if loadError && publication && !mapUnavailable}<div class="inline-error" role="alert">{loadError}{#if loadError === rendererError} <button type="button" on:click={() => (rendererError = '')}>Dismiss</button>{/if}</div>{/if}
         <!-- Without a production details panel a stale or failed selection would be silent, and the
              map spec requires a stale link to explain itself rather than select something else. -->
         {#if !dev && staleSelection}<p class="inline-error" role="alert">{staleSelection} <button type="button" on:click={closeDetails}>Clear selection</button></p>{/if}

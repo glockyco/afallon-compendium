@@ -169,13 +169,22 @@ export async function createMapAdapter(
   // image shows a black square until the bytes arrive. The bitmap is never closed here:
   // deck.gl's tile cache owns its lifetime, so a tile scrolled back into view is drawn
   // from cache instead of fetched and decoded again.
+  // A browser can fail to decode a tile that the server delivered intact, for example from a damaged cache entry, so a
+  // failed decode downloads the tile once more past the HTTP cache. deck.gl reports an error without its tile, so the
+  // message names the tile.
   const loadTile = async (tileLayer: PublicTileLayer, props: TileRequest): Promise<LoadedTile | null> => {
     const tile = getTile(tileLayer, props.index.z, props.index.x, props.index.y);
     if (!tile || tile.state === "empty") return null;
-    const response = await fetch(tile.url, props.signal ? {signal: props.signal} : undefined);
-    if (!response.ok) throw new Error(`Tile ${tile.z}/${tile.x}/${tile.y} failed to load (${response.status} ${response.statusText})`);
-    const image = await createImageBitmap(await response.blob());
-    return {tile, image};
+    const name = `${tileLayer.id} ${tile.z}/${tile.x}/${tile.y}`;
+    let failure: unknown;
+    for (const cache of ["default", "reload"] as const) {
+      const response = await fetch(tile.url, {cache, ...(props.signal ? {signal: props.signal} : {})});
+      if (!response.ok) throw new Error(`Unable to load map tile ${name} (${response.status} ${response.statusText}).`);
+      const blob = await response.blob();
+      try { return {tile, image: await createImageBitmap(blob)}; }
+      catch (error) { failure = error; }
+    }
+    throw new Error(`Unable to decode map tile ${name}: ${failure instanceof Error ? failure.message : String(failure)}`);
   };
 
   const createImagery = (next: MapAdapterUpdate, tileLayersForView: PublicTileLayer[]): Layer[] => {

@@ -34,11 +34,10 @@ export function createImageryLayer(
         bounds: [west, south, east, north], coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         modelMatrix: props.modelMatrix, pickable: false });
     },
-    onTileError: (error, tile) => {
+    // deck.gl passes only the error. The tile loader names the tile in its message.
+    onTileError: (error) => {
       if (error instanceof Error && error.name === "AbortError") return;
-      const tileKey = tile ? `${tile.index.z}/${tile.index.x}/${tile.index.y}` : "unknown";
-      const message = error instanceof Error ? error.message : String(error);
-      onError(`Unable to load tile ${tileKey}: ${message}`);
+      onError(error instanceof Error ? error.message : String(error));
     },
   });
 }
