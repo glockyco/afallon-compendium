@@ -103,8 +103,9 @@
       <footer>
         {#if release}
           <span>Afallon {release.version}</span>
-          <span>Updated {formatCalendarDate(release.dataDate)}</span>
-          <a class="c-link" href={release.patchNotes.url} rel="external" title={`${release.patchNotes.title}, ${formatCalendarDate(release.patchNotes.date)}`}>Patch notes</a>
+          <span>Patched {formatCalendarDate(release.patchNotes.date)}</span>
+          <span>Data from {formatCalendarDate(release.dataDate)}</span>
+          <a class="c-link" href={release.patchNotes.url} rel="external">Patch notes</a>
         {/if}
         <slot name="footer-extra" />
         <a class="c-link" href={`${base}/coverage/`}>Coverage</a>

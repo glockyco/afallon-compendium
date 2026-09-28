@@ -53,8 +53,8 @@
       <div class="hero-actions">
         <a class="map-action" href={`${base}/map/`}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Open the map</a>
         {#if listHref('items')}<a class="items-action" href={listHref('items')}>Browse items</a>{/if}
-        <p class="release">Afallon {data.release.version} · Updated {formatCalendarDate(data.release.dataDate)} · <a href={data.release.patchNotes.url} rel="external">Patch notes</a></p>
       </div>
+      <p class="release">Afallon {data.release.version} · Patched {formatCalendarDate(data.release.patchNotes.date)} · Data from {formatCalendarDate(data.release.dataDate)} · <a href={data.release.patchNotes.url} rel="external">Patch notes</a></p>
     </div>
     {#if data.world}
       <a class="hero-caption" href={pageHref(data.world.ref)}>{data.world.ref.name}{#if data.world.range}, levels {data.world.range.min}–{data.world.range.max}{/if}</a>
@@ -198,7 +198,7 @@
   .items-action:hover { border-color: var(--c-accent); background: rgb(14 15 15 / .9); }
   .glyph { display: inline-grid; flex: none; width: 1.05rem; height: 1.05rem; place-items: center; }
   .glyph :global(svg) { width: 100%; height: 100%; }
-  .release { margin: 0; color: #d6cfbf; font-size: .8rem; text-shadow: 0 1px 8px rgb(0 0 0 / .7); }
+  .release { margin: 1rem 0 0; color: #d6cfbf; font-size: .8rem; text-shadow: 0 1px 8px rgb(0 0 0 / .7); }
   .release a { color: var(--c-accent-strong); }
   .hero-caption { position: absolute; right: max(1.5rem, calc((100% - 72rem) / 2 + 1.5rem)); bottom: 1.1rem; color: rgb(240 233 218 / .82); font-size: .74rem; text-decoration: none; text-shadow: 0 1px 6px rgb(0 0 0 / .9); }
   .hero-caption:hover { color: var(--c-accent-strong); text-decoration: underline; text-underline-offset: .18em; }
