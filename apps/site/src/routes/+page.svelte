@@ -49,7 +49,7 @@
     {#if data.world?.artwork}<img class="hero-art" src={artUrl(data.world.artwork)} width={data.world.artwork.width} height={data.world.artwork.height} alt="" fetchpriority="high" />{/if}
     <div class="hero-inner">
       <h1 id="hub-title">Afallon Compendium</h1>
-      <div class="hero-search"><CompendiumSearch registry={data.registry} limit={8} compact /></div>
+      <div class="hero-search"><CompendiumSearch registry={data.registry} limit={8} size="large" /></div>
       <div class="hero-actions">
         <a class="map-action" href={`${base}/map/`}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Open the map</a>
         <p class="release">Afallon {data.release.version} · Updated {formatCalendarDate(data.release.dataDate)} · <a href={data.release.patchNotes.url} rel="external">Patch notes</a></p>
@@ -170,8 +170,6 @@
   .hero-inner { width: min(72rem, 100%); margin: 0 auto; padding: 5rem 1.5rem 3.5rem; }
   h1 { max-width: 12ch; margin: 0 0 1.4rem; color: #fbf6ea; font: 600 clamp(2.5rem, 4.6vw, 3.75rem)/1.02 var(--c-serif); letter-spacing: -.01em; text-shadow: 0 2px 24px rgb(0 0 0 / .55); }
   .hero-search { max-width: 34rem; }
-  .hero-search :global(.compendium-search) { max-width: none; }
-  .hero-search :global(input) { min-height: 3.2rem; padding-inline: 1rem; border-color: #6f6650; border-radius: 6px; background: rgb(14 15 15 / .88); font-size: 1rem; box-shadow: 0 10px 30px rgb(0 0 0 / .45); }
   .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem 1.4rem; margin-top: 1.1rem; }
   .map-action { display: inline-flex; align-items: center; gap: .5rem; padding: .62rem 1.05rem; border-radius: 6px; background: var(--c-accent); color: #1b1a16; font-size: .9rem; font-weight: 600; text-decoration: none; box-shadow: 0 6px 20px rgb(0 0 0 / .35); }
   .map-action:hover { background: var(--c-accent-strong); }

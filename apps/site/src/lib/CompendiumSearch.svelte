@@ -9,8 +9,11 @@
 
   export let registry: PublicKindEntry[] = [];
   export let limit = 8;
-  /** In the header the label is read by screen readers only, so the header keeps one height on every page. */
-  export let compact = false;
+  /**
+   * The header shows the compact field, and the hub shows the large field. The component owns both sizes, so no page
+   * style competes with them. The label is for screen readers in both.
+   */
+  export let size: 'compact' | 'large' = 'compact';
 
   let query = '';
   let entries: PublicSearchEntry[] = [];
@@ -38,8 +41,8 @@
   });
 </script>
 
-<div class="compendium-search" class:compact>
-  <label for="compendium-search" class:visually-hidden={compact}>Search the compendium</label>
+<div class="compendium-search" class:large={size === 'large'}>
+  <label for="compendium-search" class="visually-hidden">Search the compendium</label>
   <div class="input-wrap">
     <input id="compendium-search" type="search" bind:value={query} {placeholder} autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} />
     {#if loading}<span class="spinner" aria-hidden="true"></span>{:else if error}<span id="compendium-search-error" class="error" role="alert" title={error}>Search is unavailable.</span>{/if}
@@ -50,13 +53,14 @@
 
 <style>
   .compendium-search { position: relative; max-width: 36rem; }
-  label { display: block; margin-bottom: .35rem; color: #bcb8ad; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
   .input-wrap { position: relative; }
-  input { width: 100%; min-height: 2.6rem; padding: .55rem .65rem; border: 1px solid #4c4d48; border-radius: 2px; background: #171818; color: #eee9dd; }
+  input { width: 100%; min-height: 2.3rem; padding: .4rem .65rem; border: 1px solid #4c4d48; border-radius: 2px; background: #171818; color: #eee9dd; }
+  /* The large field sits on the artwork of the hub. It sets only its left padding, so the error state keeps its room. */
+  .large { max-width: none; }
+  .large input { min-height: 3.2rem; padding-left: 1rem; border-color: #6f6650; border-radius: 6px; background: rgb(14 15 15 / .88); font-size: 1rem; box-shadow: 0 10px 30px rgb(0 0 0 / .45); }
   input:where(.has-error) { padding-right: 10rem; }
   .spinner { position: absolute; top: 50%; right: .85rem; width: 1rem; height: 1rem; margin-top: -.5rem; border: 2px solid var(--c-text-mute); border-top-color: var(--c-accent); border-radius: 50%; pointer-events: none; animation: spin .7s linear infinite; }
   .error { position: absolute; top: 50%; right: .65rem; transform: translateY(-50%); color: #e5afa6; font-size: .75rem; pointer-events: none; }
-  .compact input { min-height: 2.3rem; padding-block: .4rem; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }

@@ -83,7 +83,7 @@
           {/each}
         </ul>
       </nav>
-      {#if search}<div class="bar-search"><CompendiumSearch {registry} compact /></div>{/if}
+      {#if search}<div class="bar-search"><CompendiumSearch {registry} /></div>{/if}
     </div>
   </header>
 
