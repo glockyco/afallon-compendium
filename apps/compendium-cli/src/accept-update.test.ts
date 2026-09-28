@@ -63,7 +63,7 @@ function priorDescriptor(evidence: ContentIdentity, publication: ContentIdentity
   };
 }
 
-type FixtureOptions = { publishedVersion?: string; publishedReleaseNotes?: "report" | "other"; dataDate?: string };
+type FixtureOptions = { publishedVersion?: string; publishedReleaseNotes?: "report" | "other"; publishedArticle?: string; dataDate?: string };
 
 // The update workflow registers its release notes: a register run whose input is the Steam news item.
 async function registerReleaseNotes(store: ArtifactStore, title: string): Promise<{ object: ContentIdentity; manifest: ContentIdentity }> {
@@ -96,7 +96,7 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
     catalogId: CATALOG_ID,
     mode: "preview",
     complete: false,
-    release: { version: options.publishedVersion ?? "0.16.2", dataDate, patchNotes: { title: "Afallon 0.16.2", url: "https://store.steampowered.com/news/app/2597810/view/1844115010498690", date: "2026-09-20" } },
+    release: { version: options.publishedVersion ?? "0.16.2", dataDate, patchNotes: { title: "Afallon 0.16.2", url: options.publishedArticle ?? "https://store.steampowered.com/news/app/2597810/view/1844115010498690", date: "2026-09-20" } },
     world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [],
     kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, searchable: true, columns: [], facets: [] }],
@@ -239,6 +239,8 @@ test("rejects a publication whose release is not the release of the update repor
   const cases: Array<[FixtureOptions, string]> = [
     [{ publishedVersion: "0.16.1" }, "does not match update report release 0.16.2"],
     [{ publishedReleaseNotes: "other" }, "release notes do not match"],
+    // The plan names the reviewed release notes, but the root links another article.
+    [{ publishedArticle: "https://store.steampowered.com/news/app/2597810/view/1844115010501029" }, "release does not match its plan and release notes"],
     [{ dataDate: "2999-01-01" }, "is after the acceptance date"],
   ];
   for (const [options, message] of cases) {

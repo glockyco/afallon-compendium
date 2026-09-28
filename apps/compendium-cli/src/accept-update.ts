@@ -5,6 +5,7 @@ import { Assert } from "typebox/value";
 import { ArtifactStore, createArtifactLease, resolveArtifactRun } from "@afallon/artifacts";
 import { AcceptedBuildDescriptorSchema, canonicalJson, validateUpdateReport, type AcceptedBuildDescriptor, type ContentIdentity, type UpdateReport } from "@afallon/contracts";
 import { PublicationPlanSchema, StaticResourceReferenceSchema, StaticRootManifestSchema } from "@afallon/contracts/public";
+import { publicationRelease } from "@afallon/publication";
 export interface DeploymentMetadata {
   schemaVersion: "afallon.deployment.v2";
   publicationId: string;
@@ -94,6 +95,10 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
   const releaseNotesRun = await resolveArtifactRun(store, report.artifacts.releaseNotes.content, { buildId: report.current.buildId, operation: "register" });
   const releaseNotes = releaseNotesRun.outputs.find(output => output.name === "input");
   if (!releaseNotes || releaseNotes.content.sha256 !== plan.release.releaseNotes.sha256 || releaseNotes.content.bytes !== plan.release.releaseNotes.bytes) throw new Error("Accepted publication release notes do not match the update report release notes.");
+  // Readers see the release of the root, so it must be the release that the plan and those release notes give.
+  await store.verify(releaseNotes.content);
+  const expectedRelease = publicationRelease(plan.release, JSON.parse(await readFile(store.objectPath(releaseNotes.content.sha256), "utf8")));
+  if (canonicalJson(rootValue.release) !== canonicalJson(expectedRelease)) throw new Error("Accepted publication release does not match its plan and release notes.");
   const acceptedAt = new Date().toISOString();
   if (rootValue.release.dataDate > acceptedAt.slice(0, 10)) throw new Error(`Accepted publication data date ${rootValue.release.dataDate} is after the acceptance date.`);
 

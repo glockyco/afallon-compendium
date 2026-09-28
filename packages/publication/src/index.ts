@@ -9,4 +9,5 @@ export * from "./lists";
 export * from "./map-shards";
 export * from "./references";
 export * from "./resources";
+export * from "./release";
 export * from "./selection";
