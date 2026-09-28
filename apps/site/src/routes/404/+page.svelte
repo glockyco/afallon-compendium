@@ -15,7 +15,7 @@
   <div class="not-found">
     <p class="eyebrow">Error 404</p>
     <h1>Page not found</h1>
-    <p class="lede">This address does not match a page in the current Afallon publication.</p>
+    <p class="lede">No page exists at this address.</p>
     <nav aria-label="Recovery">
       <a class="c-action" href={`${base}/`}>Compendium home</a>
       <a class="c-action" href={`${base}/map/`}>Open the map</a>

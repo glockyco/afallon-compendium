@@ -14,7 +14,6 @@
 <PageShell registry={data.registry} {crumbs} release={data.release}>
   <header class="head">
     <h1>{data.kind.plural}</h1>
-    <p class="lede">Browse, sort, and filter every published {readerNoun(data.kind.label)}.</p>
   </header>
   <ListTable list={data.list} kind={data.kind} registry={data.registry} />
 </PageShell>
@@ -22,5 +21,4 @@
 <style>
   .head { margin-bottom: 1.25rem; }
   h1 { margin: 0; color: #f6f2e7; font: 600 clamp(1.8rem, 4vw, 2.5rem)/1.15 var(--c-serif); }
-  .lede { margin: .45rem 0 0; color: var(--c-text-dim); font-size: .9rem; }
 </style>

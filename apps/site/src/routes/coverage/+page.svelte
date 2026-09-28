@@ -41,7 +41,7 @@
 <svelte:head><title>Data coverage · Afallon Compendium</title><meta name="description" content="What the Afallon Compendium publishes for the current game release, and what it does not know yet." /></svelte:head>
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
-  <EntityHeader name="Data coverage" description={`What this site publishes for Afallon ${data.release.version}, and what it does not know yet.`} />
+  <EntityHeader name="Data coverage" />
 
   <div class="c-stack">
     <Card title="Published">
