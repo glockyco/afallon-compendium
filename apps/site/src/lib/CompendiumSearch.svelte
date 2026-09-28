@@ -28,9 +28,14 @@
     return [entry.level === undefined ? null : `Level ${levelText(entry.level)}`, entry.place].filter((part): part is string => Boolean(part)).join(' · ');
   }
 
-  onMount(() => {
+  // The search corpus is large, and parsing it holds the main thread. It loads when a reader first focuses or points at
+  // the field, not with every page. The spinner shows in the field until it is ready.
+  let requested = false;
+  function loadSearch(): void {
+    if (requested) return;
     const loader = clientMapLoader();
     if (!loader) return;
+    requested = true;
     loading = true;
     void Promise.all([loader.loadIndexes(), registry.length ? Promise.resolve(registry) : loader.loadRegistry()]).then(([indexes, loadedRegistry]) => {
       entries = indexes.entries;
@@ -38,13 +43,15 @@
     }, (cause: unknown) => {
       error = cause instanceof Error ? cause.message : String(cause);
     }).finally(() => { loading = false; });
-  });
+  }
+  // A reader may type before hydration ends. The field then already has focus or text, so the corpus loads at once.
+  onMount(() => { if (query || document.activeElement?.id === 'compendium-search') loadSearch(); });
 </script>
 
 <div class="compendium-search" class:large={size === 'large'}>
   <label for="compendium-search" class="visually-hidden">Search the compendium</label>
   <div class="input-wrap">
-    <input id="compendium-search" type="search" bind:value={query} {placeholder} autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} />
+    <input id="compendium-search" type="search" bind:value={query} {placeholder} autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} on:focus={loadSearch} on:pointerenter={loadSearch} on:input={loadSearch} />
     {#if loading}<span class="spinner" aria-hidden="true"></span>{:else if error}<span id="compendium-search-error" class="error" role="alert" title={error}>Search is unavailable.</span>{/if}
   </div>
   <span class="visually-hidden" role="status">{loading ? 'Loading search…' : ''}</span>
