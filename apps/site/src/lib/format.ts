@@ -164,12 +164,16 @@ export function readerNoun(label: string): string {
 
 const SEARCH_PLACEHOLDER_KINDS = 3;
 
-/** The search placeholder names the first searchable kinds of the publication, so it never names a kind that search cannot find. */
+/**
+ * The search placeholder names the first searchable kinds of the publication and counts the others. It changes when a
+ * searchable kind is added or removed, and it never names a kind that search cannot find. One unnamed kind is named,
+ * because "and 1 more" is no shorter than its name.
+ */
 export function searchPlaceholder(plurals: readonly string[]): string {
   if (plurals.length === 0) return 'Search';
   const nouns = plurals.map(readerNoun);
-  const named = nouns.slice(0, SEARCH_PLACEHOLDER_KINDS);
-  return `Search ${new Intl.ListFormat('en-US', { type: 'conjunction' }).format(nouns.length > named.length ? [...named, 'more'] : named)}`;
+  const shown = nouns.length > SEARCH_PLACEHOLDER_KINDS + 1 ? [...nouns.slice(0, SEARCH_PLACEHOLDER_KINDS), `${nouns.length - SEARCH_PLACEHOLDER_KINDS} more`] : nouns;
+  return `Search ${new Intl.ListFormat('en-US', { type: 'conjunction' }).format(shown)}`;
 }
 
 /** The rarity tone drives the name colour, the icon ring, and the badge through one attribute. */
