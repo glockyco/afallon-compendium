@@ -163,8 +163,9 @@
   ul { margin: 0; padding: 0; list-style: none; }
 
   /* The world artwork runs the full width. A dark wash on the left keeps the title and search readable, and the bottom
-     fades into the page. */
-  .hero { position: relative; isolation: isolate; display: flex; align-items: flex-end; min-height: clamp(24rem, 34vw, 31rem); overflow: hidden; background: #101111; }
+     fades into the page. The hero does not clip its content, so search results open over the sections below, and its
+     stacking level keeps them above the cards. */
+  .hero { position: relative; z-index: 2; display: flex; align-items: flex-end; min-height: clamp(24rem, 34vw, 31rem); background: #101111; }
   .hero-art { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }
   .hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgb(16 17 17 / .95) 0%, rgb(16 17 17 / .82) 30%, rgb(16 17 17 / .3) 60%, rgb(16 17 17 / .05) 82%), linear-gradient(0deg, var(--c-surface-0) 0%, rgb(23 24 24 / 0) 32%); }
   .hero-inner { width: min(72rem, 100%); margin: 0 auto; padding: 5rem 1.5rem 3.5rem; }
@@ -193,7 +194,7 @@
 
   /* A dungeon card is one link. Its boss links sit above the card link, so a boss opens its own page. */
   .dungeons { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1rem; }
-  .dungeon { position: relative; display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
+  .dungeon { position: relative; isolation: isolate; display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
   .dungeon:hover { border-color: #7d6e4a; transform: translateY(-2px); box-shadow: 0 12px 28px rgb(0 0 0 / .45); }
   .dungeon:has(.dungeon-link:focus-visible) { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .dungeon-art { position: relative; aspect-ratio: 16 / 10; background: #0f1010; }
