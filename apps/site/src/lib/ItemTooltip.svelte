@@ -14,7 +14,12 @@
   export let registry: PublicKindEntry[];
 
   $: facts = document.facts;
-  $: damage = rangeText(facts.minDamage, facts.maxDamage);
+  // The game adds the damage block only for a weapon whose maximum damage is above zero, and the block names the attack
+  // speed only when it is above zero (`ItemTooltip.Show` and `ItemTooltip.WeaponDamageBlock`, build 25434619). A shield
+  // has zero damage and zero attack speed, so its tooltip shows neither line.
+  $: showsDamage = (facts.maxDamage ?? 0) > 0;
+  $: damage = showsDamage ? rangeText(facts.minDamage, facts.maxDamage) : null;
+  $: attackSpeed = showsDamage && facts.attackSpeed !== undefined && facts.attackSpeed > 0 ? facts.attackSpeed : undefined;
   $: gearType = facts.weaponType ?? facts.armorType;
   $: slot = facts.weaponType && facts.weaponSlot ? facts.weaponSlot : facts.slot;
   $: headerFacts = [
@@ -34,7 +39,7 @@
     {#if damage}
       <p><strong>{damage}</strong> Damage{#if facts.damagePerSecond !== undefined}{' '}<span class="dim">({facts.damagePerSecond.toFixed(1)} damage per second)</span>{/if}</p>
     {/if}
-    {#if facts.attackSpeed !== undefined}<p><strong>{formatNumber(facts.attackSpeed)}</strong> Attack speed</p>{/if}
+    {#if attackSpeed !== undefined}<p><strong>{formatNumber(attackSpeed)}</strong> Attack speed</p>{/if}
 
     {#each facts.stats as stat}<p class="good">{signedAmount(stat.amount, stat.isPercent)} {statName(stat)}</p>{/each}
     {#if facts.randomStats.length}
