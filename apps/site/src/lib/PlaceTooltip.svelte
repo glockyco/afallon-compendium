@@ -29,9 +29,9 @@
 </article>
 
 <style>
-  .parent { display: flex; align-items: baseline; gap: .5rem; margin: 0; font-size: .82rem; }
+  .parent { display: flex; align-items: baseline; gap: .5rem; margin: 0; font-size: var(--c-text-small); }
   .parent > span { color: var(--c-text-dim); }
-  dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem .8rem; margin: .6rem 0 0; font-size: .8rem; }
+  dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem .8rem; margin: .6rem 0 0; font-size: var(--c-text-body); }
   dl div { display: flex; justify-content: space-between; gap: .5rem; }
   dt { color: var(--c-text-dim); }
   dd { margin: 0; color: var(--c-text); font-weight: 650; }

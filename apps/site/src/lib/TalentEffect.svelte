@@ -19,6 +19,6 @@
 <style>
   .rank { display: flex; gap: .5rem; align-items: baseline; }
   .rank + .rank { margin-top: .2rem; }
-  .label { flex: none; color: var(--c-text-mute); font-size: .78rem; white-space: nowrap; }
+  .label { flex: none; color: var(--c-text-mute); font-size: var(--c-text-small); white-space: nowrap; }
   .effect { min-width: 0; }
 </style>

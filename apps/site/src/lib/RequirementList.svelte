@@ -36,7 +36,7 @@
 
 <style>
   .requirements { display: inline; margin: 0; padding: 0; list-style: none; }
-  li { display: inline; font-size: .85rem; line-height: 1.5; }
+  li { display: inline; font-size: var(--c-text-body); line-height: 1.5; }
   li + li::before { content: ' and '; color: var(--c-text-dim); }
   .count, .kind { color: var(--c-text-dim); }
   .count { margin-right: .2rem; }

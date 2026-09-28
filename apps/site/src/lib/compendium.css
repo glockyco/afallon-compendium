@@ -13,13 +13,21 @@
   --c-line-soft: #2e2f2c;
   --c-text: #e9e4d9;
   --c-text-dim: #aaa69d;
-  --c-text-mute: #85857e;
+  /* 4.6:1 or more on every surface, so muted text meets the WCAG AA contrast minimum of 4.5:1. */
+  --c-text-mute: #96958c;
   --c-accent: #d5b978;
   --c-accent-strong: #e8d3a0;
   --c-currency: #e0b341;
   --c-radius: 8px;
   --c-radius-sm: 4px;
   --c-serif: Georgia, 'Times New Roman', serif;
+  /* The type scale. Every text size below a page title is one of these steps. */
+  --c-text-label: .75rem;   /* 12 px: uppercase labels, table headings, badges, keys */
+  --c-text-small: .8125rem; /* 13 px: counts, captions, hints, breadcrumbs, the footer, map controls */
+  --c-text-body: .9375rem;  /* 15 px: tables, lists, facts, tooltips, navigation, buttons */
+  --c-text-prose: 1rem;     /* 16 px: authored descriptions and quest text */
+  --c-text-lead: 1.0625rem; /* 17 px: tile and card names */
+  --c-text-title: 1.25rem;  /* 20 px: section headings */
   --c-rarity-common: #b5b0a5;
   --c-rarity-uncommon: #79c07a;
   --c-rarity-rare: #6aa9e0;
@@ -59,13 +67,13 @@
 .c-card > header h2 {
   margin: 0;
   color: #f1ecdf;
-  font: 600 .95rem/1.25 var(--c-serif);
+  font: 600 var(--c-text-lead)/1.25 var(--c-serif);
   letter-spacing: .01em;
 }
 
 .c-card > header .c-count {
   color: var(--c-text-mute);
-  font-size: .78rem;
+  font-size: var(--c-text-small);
   font-variant-numeric: tabular-nums;
 }
 
@@ -83,7 +91,7 @@
   border-radius: 999px;
   background: var(--c-surface-3);
   color: #ddd8cd;
-  font-size: .72rem;
+  font-size: var(--c-text-label);
   font-weight: 600;
   letter-spacing: .02em;
   line-height: 1.5;
@@ -126,7 +134,7 @@
   /* Narrower than this a column crushes its words one letter wide, so the wrapper scrolls. */
   min-width: 30rem;
   border-collapse: collapse;
-  font-size: .84rem;
+  font-size: var(--c-text-body);
 }
 
 .c-table th,
@@ -142,7 +150,7 @@
 .c-table thead th {
   border-bottom: 1px solid var(--c-line);
   color: var(--c-text-dim);
-  font-size: .7rem;
+  font-size: var(--c-text-label);
   font-weight: 700;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -161,7 +169,7 @@
 .c-table tbody td { border-top: 1px solid var(--c-line-soft); }
 .c-table .c-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .c-table th.c-num .c-sort { justify-content: flex-end; width: 100%; }
-.c-table td small { display: block; margin-top: .15rem; color: var(--c-text-mute); font-size: .72rem; }
+.c-table td small { display: block; margin-top: .15rem; color: var(--c-text-mute); font-size: var(--c-text-small); }
 
 .c-sort {
   display: inline-flex;
@@ -178,7 +186,7 @@
 
 .c-sort:not(:disabled):hover { color: var(--c-accent); }
 .c-sort:disabled { cursor: default; }
-.c-sort .c-sort-mark { color: var(--c-accent); font-size: .7rem; }
+.c-sort .c-sort-mark { color: var(--c-accent); font-size: var(--c-text-label); }
 .c-sort:disabled .c-sort-mark { display: none; }
 
 /* One accent for links and focus */
@@ -200,7 +208,7 @@
   border-radius: var(--c-radius-sm);
   background: var(--c-surface-2);
   color: var(--c-accent-strong);
-  font-size: .8rem;
+  font-size: var(--c-text-small);
   text-decoration: none;
 }
 
@@ -210,7 +218,7 @@
 .c-action:focus-visible,
 .c-sort:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
 
-.c-empty { margin: 0; color: var(--c-text-mute); font-size: .82rem; }
+.c-empty { margin: 0; color: var(--c-text-mute); font-size: var(--c-text-small); }
 
 /* The entity as the game shows it: an item tooltip, an ability tooltip, or a purchase panel. */
 .c-game-frame {
@@ -225,7 +233,7 @@
 .c-prose {
   margin: 0;
   color: #c9c5bb;
-  font-size: .92rem;
+  font-size: var(--c-text-prose);
   line-height: 1.6;
   white-space: pre-line;
 }

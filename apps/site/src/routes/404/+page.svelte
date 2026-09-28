@@ -25,7 +25,7 @@
 
 <style>
   .not-found { max-width: 34rem; margin: 6vh auto; padding: 1.5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  .eyebrow { margin: 0; color: var(--c-accent); font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .eyebrow { margin: 0; color: var(--c-accent); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
   h1 { margin: .5rem 0; color: #f6f2e7; font: 600 1.8rem/1.2 var(--c-serif); }
   .lede { margin: 0 0 1.2rem; color: var(--c-text-dim); line-height: 1.55; }
   nav { display: flex; flex-wrap: wrap; gap: .75rem; }

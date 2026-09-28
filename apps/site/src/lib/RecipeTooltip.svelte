@@ -21,9 +21,9 @@
 </article>
 
 <style>
-  p, li { display: flex; align-items: baseline; gap: .5rem; margin: 0; font-size: .82rem; }
+  p, li { display: flex; align-items: baseline; gap: .5rem; margin: 0; font-size: var(--c-text-body); }
   p > span:first-child, li > span:last-child { color: var(--c-text-dim); }
-  h4 { margin: .65rem 0 .35rem; color: var(--c-accent-strong); font: 600 .8rem/1.25 var(--c-serif); }
+  h4 { margin: .65rem 0 .35rem; color: var(--c-accent-strong); font: 600 var(--c-text-body)/1.25 var(--c-serif); }
   ul { display: grid; gap: .3rem; margin: 0; padding: 0; list-style: none; }
   li { justify-content: space-between; }
 </style>

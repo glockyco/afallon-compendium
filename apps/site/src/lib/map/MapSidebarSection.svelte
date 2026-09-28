@@ -98,7 +98,7 @@
     border: 0;
     background: transparent;
     color: #dedbd2;
-    font-size: .69rem;
+    font-size: var(--c-text-label);
     font-weight: 700;
     letter-spacing: .075em;
     text-align: left;
@@ -107,7 +107,7 @@
   .section-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .section-count {
     color: #9a998f;
-    font-size: .62rem;
+    font-size: var(--c-text-label);
     font-variant-numeric: tabular-nums;
     letter-spacing: normal;
     white-space: nowrap;

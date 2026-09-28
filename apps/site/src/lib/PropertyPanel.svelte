@@ -24,9 +24,9 @@
 <style>
   .property-panel { display: grid; gap: .75rem; }
   img { display: block; width: 100%; height: auto; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); }
-  dl { display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; margin: 0; font-size: .86rem; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; margin: 0; font-size: var(--c-text-body); }
   dt { color: var(--c-text-dim); }
   dd { margin: 0; justify-self: end; }
   .income { display: grid; justify-items: end; gap: .1rem; }
-  .income span { color: var(--c-text-dim); font-size: .78rem; }
+  .income span { color: var(--c-text-dim); font-size: var(--c-text-small); }
 </style>

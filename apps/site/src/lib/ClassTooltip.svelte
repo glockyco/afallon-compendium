@@ -27,5 +27,5 @@
 </article>
 
 <style>
-  .effect { margin-top: .5rem; font-size: .82rem; }
+  .effect { margin-top: .5rem; font-size: var(--c-text-body); }
 </style>

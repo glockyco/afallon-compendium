@@ -47,5 +47,5 @@
   .version { white-space: nowrap; }
   img { width: 2rem; height: 2rem; margin-right: .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); object-fit: cover; vertical-align: middle; }
   .ranks { display: grid; gap: .75rem; }
-  h3 { margin: 0 0 .2rem; color: var(--c-accent-strong); font: 600 .82rem/1.3 var(--c-serif); }
+  h3 { margin: 0 0 .2rem; color: var(--c-accent-strong); font: 600 var(--c-text-body)/1.3 var(--c-serif); }
 </style>

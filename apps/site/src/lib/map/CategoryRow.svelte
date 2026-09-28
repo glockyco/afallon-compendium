@@ -26,7 +26,7 @@
     min-height: 30px;
     margin: .12rem 0;
     color: #dedbd2;
-    font-size: .77rem;
+    font-size: var(--c-text-small);
     letter-spacing: normal;
     text-transform: none;
     cursor: pointer;
@@ -58,7 +58,7 @@
   }
   .category-count {
     color: #8f9089;
-    font-size: .68rem;
+    font-size: var(--c-text-label);
     font-variant-numeric: tabular-nums;
   }
   .category-row:has(input:focus-visible) {

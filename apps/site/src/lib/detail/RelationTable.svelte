@@ -96,17 +96,17 @@
 
 <style>
   .relation-table { min-width: 0; }
-  table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--c-text-body); }
   /* Cells align on the text baseline, so a name after an icon lines up with plain values in the same row. */
   th, td { padding: .5rem .6rem; text-align: left; vertical-align: baseline; }
-  th { border-bottom: 1px solid var(--c-line); color: var(--c-text-dim); font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; vertical-align: bottom; }
+  th { border-bottom: 1px solid var(--c-line); color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; vertical-align: bottom; }
   tbody tr:nth-child(even) { background: #ffffff06; }
   tbody tr:hover { background: #ffffff0d; }
   tbody td { border-top: 1px solid var(--c-line-soft); overflow-wrap: break-word; }
   tr[hidden] { display: none; }
   .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   th.num :global(.c-sort) { justify-content: flex-end; width: 100%; }
-  td :global(small) { display: block; margin-top: .15rem; color: var(--c-text-mute); font-size: .72rem; white-space: normal; }
+  td :global(small) { display: block; margin-top: .15rem; color: var(--c-text-mute); font-size: var(--c-text-small); white-space: normal; }
   .cell-label { display: none; }
   .anchor { scroll-margin-top: 6rem; }
   tr:has(.anchor:target) td { background: color-mix(in srgb, var(--c-accent) 12%, transparent); }
@@ -124,7 +124,7 @@
     /* A label without a value tells a reader nothing, so a stacked cell with no value leaves the block. */
     tbody td:not(.name):has(> .cell-value:empty) { display: none; }
     td.num { text-align: left; white-space: normal; }
-    .cell-label { display: block; color: var(--c-text-mute); font-size: .76rem; }
+    .cell-label { display: block; color: var(--c-text-mute); font-size: var(--c-text-small); }
     .cell-value { min-width: 0; }
     td.num .cell-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
   }

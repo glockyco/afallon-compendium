@@ -40,14 +40,14 @@
 
 <style>
   dl, section { display: grid; gap: .35rem; margin: .6rem 0 0; }
-  dl div { display: grid; grid-template-columns: 4rem 1fr; align-items: baseline; gap: .5rem; font-size: .82rem; }
+  dl div { display: grid; grid-template-columns: 4rem 1fr; align-items: baseline; gap: .5rem; font-size: var(--c-text-body); }
   dt { color: var(--c-text-dim); }
   dd { display: grid; gap: .25rem; margin: 0; }
-  .area { color: var(--c-text-dim); font-size: .75rem; }
-  h4 { margin: 0; color: var(--c-accent-strong); font: 600 .8rem/1.25 var(--c-serif); }
-  ul { display: grid; gap: .3rem; margin: 0; padding: 0; list-style: none; font-size: .82rem; }
+  .area { color: var(--c-text-dim); font-size: var(--c-text-small); }
+  h4 { margin: 0; color: var(--c-accent-strong); font: 600 var(--c-text-body)/1.25 var(--c-serif); }
+  ul { display: grid; gap: .3rem; margin: 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   li { display: flex; justify-content: space-between; gap: .5rem; }
   li span { color: var(--c-text-dim); }
-  .quest-text { margin: .6rem 0 0; color: var(--c-text-dim); font-size: .8rem; line-height: 1.45; }
+  .quest-text { margin: .6rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-body); line-height: 1.45; }
   .completion-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
 </style>

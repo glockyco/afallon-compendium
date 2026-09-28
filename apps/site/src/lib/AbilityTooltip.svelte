@@ -34,7 +34,7 @@
 
 <style>
   .ranks, section { display: grid; gap: .35rem; }
-  .ranks { gap: .75rem; font-size: .84rem; }
-  h4 { margin: 0; color: var(--c-accent-strong); font: 600 .82rem/1.25 var(--c-serif); }
-  .version { margin: 0 0 .6rem; color: var(--c-text-dim); font-size: .76rem; }
+  .ranks { gap: .75rem; font-size: var(--c-text-body); }
+  h4 { margin: 0; color: var(--c-accent-strong); font: 600 var(--c-text-body)/1.25 var(--c-serif); }
+  .version { margin: 0 0 .6rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
 </style>

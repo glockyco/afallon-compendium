@@ -54,5 +54,5 @@
 
 <style>
   .groups { display: grid; gap: 1.25rem; }
-  .group-line { margin: 0 0 .35rem; color: var(--c-text); font-size: .88rem; line-height: 1.5; }
+  .group-line { margin: 0 0 .35rem; color: var(--c-text); font-size: var(--c-text-body); line-height: 1.5; }
 </style>

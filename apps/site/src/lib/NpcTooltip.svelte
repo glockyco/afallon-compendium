@@ -52,13 +52,13 @@
 
 <style>
   section { display: grid; gap: .35rem; margin-top: .6rem; }
-  h4 { margin: 0; color: var(--c-accent-strong); font: 600 .8rem/1.25 var(--c-serif); }
+  h4 { margin: 0; color: var(--c-accent-strong); font: 600 var(--c-text-body)/1.25 var(--c-serif); }
   .phase + .phase { margin-top: .45rem; }
-  .phase-name { display: flex; gap: .5rem; margin: .2rem 0 0; color: var(--c-text-dim); font-size: .72rem; font-weight: 700; text-transform: uppercase; }
+  .phase-name { display: flex; gap: .5rem; margin: .2rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-small); font-weight: 700; text-transform: uppercase; }
   .phase-name span { color: var(--c-text-mute); font-weight: 400; text-transform: none; }
-  ul { display: grid; gap: .28rem; margin: .35rem 0 0; padding: 0; list-style: none; font-size: .82rem; }
+  ul { display: grid; gap: .28rem; margin: .35rem 0 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   li { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
   li span, .summary { color: var(--c-text-dim); }
   .stats { color: #72c875; }
-  .summary { margin: .55rem 0 0; font-size: .78rem; line-height: 1.4; }
+  .summary { margin: .55rem 0 0; font-size: var(--c-text-small); line-height: 1.4; }
 </style>

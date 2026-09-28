@@ -63,7 +63,7 @@
 
 <style>
   .entity-tooltip { position: fixed; z-index: 40; top: 0; left: 0; visibility: hidden; width: min(28rem, calc(100vw - 2rem)); overflow: auto; padding: .85rem; border: 1px solid #74684e; border-radius: var(--c-radius); background: var(--c-surface-1); box-shadow: 0 10px 30px #000b; color: var(--c-text); text-align: left; }
-  .tooltip-status { display: block; color: #bbb6aa; font-size: .8rem; }
+  .tooltip-status { display: block; color: #bbb6aa; font-size: var(--c-text-small); }
   .tooltip-status.error { color: #e5afa6; }
   @media (max-width: 640px) { .entity-tooltip { inset: auto 1rem 1rem !important; width: auto !important; max-height: 60vh !important; } }
 </style>

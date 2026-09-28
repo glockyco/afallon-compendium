@@ -79,7 +79,7 @@
 </article>
 
 <style>
-  .lines { display: grid; gap: .32rem; font-size: .84rem; }
+  .lines { display: grid; gap: .32rem; font-size: var(--c-text-body); }
   p { margin: 0; }
   strong { color: #f1ecdf; font-weight: 650; }
   .item-power { color: var(--c-currency); }
@@ -88,7 +88,7 @@
   .group { display: grid; gap: .2rem; }
   .plain { display: grid; gap: .2rem; margin: 0; padding: 0; list-style: none; }
   .gear-set { display: grid; gap: .28rem; margin-top: .18rem; }
-  h4 { margin: 0; color: var(--c-rarity-gold); font: 600 .86rem/1.3 var(--c-serif); }
+  h4 { margin: 0; color: var(--c-rarity-gold); font: 600 var(--c-text-body)/1.3 var(--c-serif); }
   /* Only the name dims. Opacity on the row would also dim the hover tooltip that the row holds, and a descendant rule
      would reach into that tooltip, so the rule takes the row's direct child only. */
   .gear-set li:not(.current) > :global(:is(.tooltip-anchor, .entity-link, .entity-text, .entity-reference)) { opacity: .75; }

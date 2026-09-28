@@ -51,7 +51,7 @@
   .map { flex: none; }
   .glyph { display: inline-grid; place-items: center; }
   .glyph :global(svg) { width: .95rem; height: .95rem; }
-  .facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 0; margin: 0; padding: 0; list-style: none; font-size: .88rem; }
+  .facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 0; margin: 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   .facts li { display: inline-flex; align-items: baseline; gap: .35rem; }
   .facts li + li::before { content: '·'; margin: 0 .55rem; color: var(--c-text-mute); }
   .label { color: var(--c-text-dim); }

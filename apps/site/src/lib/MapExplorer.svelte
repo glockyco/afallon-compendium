@@ -2,6 +2,7 @@
   import { afterNavigate, pushState, replaceState } from '$app/navigation';
   import { dev } from '$app/environment';
   import { base } from '$app/paths';
+  import './compendium.css';
   import './MapExplorer.css';
   import { onMount, tick } from 'svelte';
   import type { MapAdapter, MapRendererController, MapViewState } from './map-renderer';

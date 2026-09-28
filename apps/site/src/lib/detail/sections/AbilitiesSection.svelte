@@ -27,7 +27,7 @@
 
 <style>
   .phases { display: grid; gap: .9rem; }
-  h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; margin: 0 0 .45rem; color: var(--c-text-dim); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; margin: 0 0 .45rem; color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
   .requirement { color: var(--c-text-mute); font-weight: 400; letter-spacing: normal; text-transform: none; }
-  ul { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); margin: 0; padding: 0; list-style: none; font-size: .86rem; }
+  ul { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); margin: 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
 </style>

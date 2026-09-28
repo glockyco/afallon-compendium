@@ -17,6 +17,6 @@
 
 <style>
   .passages { display: grid; gap: .9rem; }
-  h3 { margin: 0 0 .25rem; color: var(--c-text-dim); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  h3 { margin: 0 0 .25rem; color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
   p { margin: 0; white-space: pre-line; }
 </style>

@@ -29,6 +29,6 @@
 
 <style>
   .availability { margin: 0; padding: 0; list-style: none; line-height: 1.5; }
-  li { display: inline; font-size: .85rem; }
+  li { display: inline; font-size: var(--c-text-body); }
   li + li::before { content: ' and '; color: var(--c-text-dim); }
 </style>

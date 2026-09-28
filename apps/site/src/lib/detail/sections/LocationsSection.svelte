@@ -65,7 +65,7 @@
 <style>
   .alternative { display: block; }
   .quests { display: grid; gap: .3rem; }
-  .unplaced { margin: .75rem 0 0; color: var(--c-text-dim); font-size: .85rem; }
+  .unplaced { margin: .75rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-body); }
   .variant { scroll-margin-top: 6rem; }
   .variant:target { color: var(--c-accent-strong); font-weight: 600; }
 </style>

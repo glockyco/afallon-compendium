@@ -29,6 +29,6 @@
 
 <style>
   .groups { display: grid; gap: 1rem; }
-  h3 { margin: 0 0 .5rem; color: var(--c-accent-strong); font: 600 .88rem/1.3 var(--c-serif); }
-  h3 span { margin-left: .25rem; color: var(--c-text-mute); font: 500 .78rem/1 Inter, ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  h3 { margin: 0 0 .5rem; color: var(--c-accent-strong); font: 600 var(--c-text-body)/1.3 var(--c-serif); }
+  h3 span { margin-left: .25rem; color: var(--c-text-mute); font: 500 var(--c-text-small)/1 Inter, ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
 </style>
