@@ -9,6 +9,8 @@
 
   export let registry: PublicKindEntry[] = [];
   export let limit = 8;
+  /** In the header the label is read by screen readers only, so the header keeps one height on every page. */
+  export let compact = false;
 
   let query = '';
   let entries: PublicSearchEntry[] = [];
@@ -36,8 +38,8 @@
   });
 </script>
 
-<div class="compendium-search">
-  <label for="compendium-search">Search the compendium</label>
+<div class="compendium-search" class:compact>
+  <label for="compendium-search" class:visually-hidden={compact}>Search the compendium</label>
   <div class="input-wrap">
     <input id="compendium-search" type="search" bind:value={query} {placeholder} autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} />
     {#if loading}<span class="spinner" aria-hidden="true"></span>{:else if error}<span id="compendium-search-error" class="error" role="alert" title={error}>Search is unavailable.</span>{/if}
@@ -54,6 +56,7 @@
   input:where(.has-error) { padding-right: 10rem; }
   .spinner { position: absolute; top: 50%; right: .85rem; width: 1rem; height: 1rem; margin-top: -.5rem; border: 2px solid var(--c-text-mute); border-top-color: var(--c-accent); border-radius: 50%; pointer-events: none; animation: spin .7s linear infinite; }
   .error { position: absolute; top: 50%; right: .65rem; transform: translateY(-50%); color: #e5afa6; font-size: .75rem; pointer-events: none; }
+  .compact input { min-height: 2.3rem; padding-block: .4rem; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }

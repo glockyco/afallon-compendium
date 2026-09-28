@@ -83,7 +83,7 @@
           {/each}
         </ul>
       </nav>
-      {#if search}<div class="bar-search"><CompendiumSearch {registry} /></div>{/if}
+      {#if search}<div class="bar-search"><CompendiumSearch {registry} compact /></div>{/if}
     </div>
   </header>
 
@@ -118,7 +118,7 @@
 
   .frame { min-height: 100vh; }
   .bar { position: relative; z-index: 20; border-bottom: 1px solid var(--c-line); background: var(--c-surface-1); }
-  .bar-inner { position: relative; display: flex; align-items: center; gap: 1.25rem; width: min(72rem, 100%); margin: 0 auto; padding: .7rem 1.5rem; }
+  .bar-inner { position: relative; display: flex; align-items: center; gap: 1.25rem; width: min(72rem, 100%); margin: 0 auto; padding: .7rem 1.5rem; min-height: 3.75rem; }
   .brand { display: inline-flex; align-items: center; gap: .55rem; color: var(--c-text); text-decoration: none; }
   .brand img { width: 32px; height: 32px; flex: none; object-fit: contain; }
   .brand-copy { display: grid; line-height: 1; }

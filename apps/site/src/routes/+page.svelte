@@ -41,7 +41,6 @@
 <PageShell registry={data.registry} release={data.release} search={false}>
   <header class="hub-head">
     <h1>Afallon Compendium</h1>
-    <p class="lede">A reference for Afallon, read from the game data: its map, places, creatures, items, quests, classes, and crafting.</p>
     <div class="hub-search"><CompendiumSearch registry={data.registry} limit={10} /></div>
     <p class="release">Afallon {data.release.version} · Updated {formatCalendarDate(data.release.dataDate)} · <a class="c-link" href={data.release.patchNotes.url} rel="external">Patch notes</a></p>
   </header>
@@ -117,7 +116,6 @@
 <style>
   .hub-head { display: grid; gap: .75rem; max-width: 44rem; margin: .5rem 0 2rem; }
   h1 { margin: 0; color: #f6f2e7; font: 600 clamp(2rem, 4.5vw, 2.8rem)/1.1 var(--c-serif); }
-  .lede { margin: 0; color: var(--c-text-dim); font-size: .95rem; line-height: 1.55; }
   .hub-search { margin-top: .35rem; }
   .hub-search :global(.compendium-search) { max-width: none; }
   .hub-search :global(input) { min-height: 3rem; font-size: 1rem; }
