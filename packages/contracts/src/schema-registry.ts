@@ -16,19 +16,19 @@ export class SchemaRegistry {
   readonly #schemas = new Map<string, RegisteredSchema>();
   readonly #identities = new WeakMap<TSchema, RegisteredSchema>();
 
-  // The site imports every public schema, but only the pipeline reads a schema hash. The hash is therefore computed on
-  // its first read and kept, so a page load does not hash every schema.
+  // The site imports every public schema, but only the pipeline reads a schema hash. Registration still rejects a schema
+  // that is not canonical JSON before it freezes it, and the hash is computed on its first read and kept.
   register<T extends TSchema>(id: string, schema: T): RegisteredSchema<T> {
     if (!SCHEMA_ID.test(id)) throw new TypeError(`Invalid schema identity: ${JSON.stringify(id)}`);
     if (this.#schemas.has(id)) throw new Error(`Schema identity is already registered: ${id}`);
 
+    canonicalJson(schema);
     const snapshot = deepFreeze(schema);
     let sha256: string | undefined;
     const registered: RegisteredSchema<T> = Object.freeze({
       id,
       schema: snapshot,
       get sha256(): string {
-        canonicalJson(snapshot);
         return sha256 ??= canonicalJsonSha256(normalizeSchemaIdentity(snapshot));
       },
     });
