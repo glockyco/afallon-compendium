@@ -92,6 +92,8 @@ button, select { cursor: pointer; }
   .inline-error button { margin-left: .4rem; padding: 0; border: 0; background: none; color: #f1cbc3; font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
   .inline-error button:hover { color: #fff; }
   .inline-error button:focus-visible { outline: 2px solid #d5b978; outline-offset: 2px; }
+  .release-note { margin: 1.1rem 0 0; padding-top: .7rem; border-top: 1px solid #353531; }
+  .release-note a { color: #d9bd79; }
   .results { padding: .8rem; overflow: auto; min-height: 0; }
   .results.collapsed { overflow: hidden; padding-block: .55rem; }
   .results.collapsed .results-header { align-items: center; }

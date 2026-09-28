@@ -5,7 +5,7 @@
   import EntityHeader from '$lib/EntityHeader.svelte';
   import EntityLink from '$lib/EntityLink.svelte';
   import PageShell from '$lib/PageShell.svelte';
-  import { formatNumber } from '$lib/format';
+  import { formatNumber, readerNoun } from '$lib/format';
   import type { PageData } from './$types';
   export let data: PageData;
 
@@ -38,19 +38,19 @@
   $: crumbs = [{ label: 'Compendium', href: `${base}/` }, { label: 'Coverage' }];
 </script>
 
-<svelte:head><title>Data coverage · Afallon Compendium</title><meta name="description" content="What the Afallon Compendium publishes for the current game build, and what it does not know yet." /></svelte:head>
+<svelte:head><title>Data coverage · Afallon Compendium</title><meta name="description" content="What the Afallon Compendium publishes for the current game release, and what it does not know yet." /></svelte:head>
 
-<PageShell registry={data.registry} {crumbs} buildId={coverage.buildId} catalogId={coverage.catalogId}>
-  <EntityHeader name="Data coverage" description={`What this site publishes for game build ${coverage.buildId}, and what it does not know yet.`} />
+<PageShell registry={data.registry} {crumbs} release={data.release}>
+  <EntityHeader name="Data coverage" description={`What this site publishes for Afallon ${data.release.version}, and what it does not know yet.`} />
 
   <div class="c-stack">
     <Card title="Published">
       <ul class="published">
         {#each coverage.pages as page}
           {@const kind = kinds.get(page.kind)}
-          <li>{#if kind}<a class="c-link" href={`${base}/${kind.route}/`}>{formatNumber(page.count)} {page.count === 1 ? kind.label.toLocaleLowerCase() : kind.plural.toLocaleLowerCase()}</a>{:else}{formatNumber(page.count)} {page.kind}{/if}</li>
+          <li>{#if kind}<a class="c-link" href={`${base}/${kind.route}/`}>{formatNumber(page.count)} {page.count === 1 ? readerNoun(kind.label) : readerNoun(kind.plural)}</a>{:else}{formatNumber(page.count)} {page.kind}{/if}</li>
         {/each}
-        <li><a class="c-link" href={`${base}/`}>{formatNumber(coverage.placementCount)} map locations on {formatNumber(coverage.mapCount)} maps</a></li>
+        <li><a class="c-link" href={`${base}/map/`}>{formatNumber(coverage.placementCount)} map locations on {formatNumber(coverage.mapCount)} maps</a></li>
       </ul>
     </Card>
 

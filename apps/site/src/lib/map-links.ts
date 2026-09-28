@@ -2,7 +2,7 @@ import { base } from '$app/paths';
 
 // Pages open the map with one selection. The map reads these parameters in `readMapUrl`.
 function mapHref(parameters: Record<string, string>): string {
-  return `${base}/?${new URLSearchParams(parameters).toString()}`;
+  return `${base}/map/?${new URLSearchParams(parameters).toString()}`;
 }
 
 /** Every spot of an NPC or a property. */

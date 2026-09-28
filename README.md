@@ -1,8 +1,8 @@
 # Afallon Compendium
 
-An interactive world map and a searchable compendium for the single-player RPG [Afallon](https://store.steampowered.com/app/2597810/Afallon/): more than 3,700 mapped locations and a page for every item, creature, quest, place, property, ability, and recipe in the supported build.
+An interactive world map and a searchable compendium for the single-player RPG [Afallon](https://store.steampowered.com/app/2597810/Afallon/): more than 3,700 mapped locations and a page for every item, creature, quest, place, property, ability, recipe, class, and skill in the supported build.
 
-[Open the map](https://afallon.compendiums.org/) · [Steam guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3800843227) · [Project page](https://glockyco.com/projects/afallon/)
+[Open the compendium](https://afallon.compendiums.org/) · [Steam guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3800843227) · [Project page](https://glockyco.com/projects/afallon/)
 
 ![Afallon Compendium showing the world map, interior maps, category filters, and search results](assets/afallon-compendium-map.png)
 
@@ -10,7 +10,7 @@ An interactive world map and a searchable compendium for the single-player RPG [
 
 Search and filter bosses, dungeons, merchants, quest givers, resources, and other points of interest across the overworld and interior maps.
 
-The compendium gives each published entity a page at `/<kind>/<slug>/` and each kind a filterable list at `/<kind>/`. Items, NPCs, quests, places, properties, abilities, and recipes have pages. Every page has the same structure: a title block with the name, the identity facts, and a map link, then a hero that shows the entity as the game shows it, then full-width sections in a fixed order for each kind. A page shows the relations of an entity in both directions, so an item names what drops, sells, and crafts it, and an NPC names what it drops. Relation rows link to the counterpart and show a tooltip with its facts. Each table explains its values in its column labels, so a reader needs no other page. A fact that the supported build does not establish shows a marked gap instead of a guess. Sources without a page of their own, such as chests and resource nodes, report how many spots produce them and link to the map. `/coverage/` reports the published page counts and the pages with known gaps.
+The home page at `/` starts with search and leads to the map, the places by level range, the classes, crafting and gathering, and every list. The map is at `/map/`. The compendium gives each published entity a page at `/<kind>/<slug>/` and each kind a filterable list at `/<kind>/`. Items, NPCs, quests, places, properties, abilities, recipes, classes, and skills have pages. Every page names the game release, the date of its data, and the patch notes of that release. Every page has the same structure: a title block with the name, the identity facts, and a map link, then a hero that shows the entity as the game shows it, then full-width sections in a fixed order for each kind. A page shows the relations of an entity in both directions, so an item names what drops, sells, and crafts it, and an NPC names what it drops. Relation rows link to the counterpart and show a tooltip with its facts. Each table explains its values in its column labels, so a reader needs no other page. A fact that the supported build does not establish shows a marked gap instead of a guess. Sources without a page of their own, such as chests and resource nodes, report how many spots produce them and link to the map. `/coverage/` reports the published page counts and the pages with known gaps.
 
 The pipeline uses [HotRepl](https://github.com/glockyco/HotRepl), a runtime C# REPL for Unity games, to execute C# evidence probes inside the running game. Repository tooling validates immutable evidence into a canonical SQLite catalog and builds a static publication for the SvelteKit and deck.gl site.
 

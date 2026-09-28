@@ -1,5 +1,6 @@
 <script lang="ts">
   import { base } from '$app/paths';
+  import { readerNoun } from '$lib/format';
   import ListTable from '$lib/ListTable.svelte';
   import PageShell from '$lib/PageShell.svelte';
   import type { PageData } from './$types';
@@ -8,12 +9,12 @@
   $: crumbs = [{ label: 'Compendium', href: `${base}/` }, { label: data.kind.plural }];
 </script>
 
-<svelte:head><title>{data.kind.plural} · Afallon Compendium</title><meta name="description" content={`Browse published ${data.kind.plural.toLocaleLowerCase()} in the Afallon Compendium.`} /></svelte:head>
+<svelte:head><title>{data.kind.plural} · Afallon Compendium</title><meta name="description" content={`Browse published ${readerNoun(data.kind.plural)} in the Afallon Compendium.`} /></svelte:head>
 
-<PageShell registry={data.registry} {crumbs} buildId={data.list.buildId} catalogId={data.list.catalogId}>
+<PageShell registry={data.registry} {crumbs} release={data.release}>
   <header class="head">
     <h1>{data.kind.plural}</h1>
-    <p class="lede">Browse, sort, and filter every published {data.kind.label.toLocaleLowerCase()}.</p>
+    <p class="lede">Browse, sort, and filter every published {readerNoun(data.kind.label)}.</p>
   </header>
   <ListTable list={data.list} kind={data.kind} registry={data.registry} />
 </PageShell>

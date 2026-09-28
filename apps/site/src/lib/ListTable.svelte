@@ -6,7 +6,7 @@
   import Badge from './Badge.svelte';
   import DataTable, { type TableColumn } from './DataTable.svelte';
   import EntityLink from './EntityLink.svelte';
-  import { compareFacetValues, formatNumber, questStartLabel, rarityTone, roleLabel, sourceKindLabel } from './format';
+  import { compareFacetValues, formatNumber, questStartLabel, rarityTone, readerNoun, roleLabel, sourceKindLabel } from './format';
   import { sortRows, toggleSort, type SortState, type SortValue } from './table';
 
   export let list: StaticKindList;
@@ -147,7 +147,7 @@
 <form class="filters" role="search" on:submit|preventDefault>
   <label class="field wide">
     <span>Name</span>
-    <input type="search" bind:value={nameFilter} on:input={() => writeUrl('replace')} placeholder={`Filter ${kind.plural.toLocaleLowerCase()}`} />
+    <input type="search" bind:value={nameFilter} on:input={() => writeUrl('replace')} placeholder={`Filter ${readerNoun(kind.plural)}`} />
   </label>
   {#each visibleFacets as facet}
     <label class="field">
@@ -161,15 +161,15 @@
   {#each numericColumns as column}
     <fieldset class="field range">
       <legend>{column.label}</legend>
-      <input type="number" inputmode="numeric" aria-label={`Minimum ${column.label.toLocaleLowerCase()}`} placeholder="Min" value={minimums[column.id] ?? ''} on:change={(event) => setRange('min', column.id, event.currentTarget.value)} />
+      <input type="number" inputmode="numeric" aria-label={`Minimum ${readerNoun(column.label)}`} placeholder="Min" value={minimums[column.id] ?? ''} on:change={(event) => setRange('min', column.id, event.currentTarget.value)} />
       <span aria-hidden="true">–</span>
-      <input type="number" inputmode="numeric" aria-label={`Maximum ${column.label.toLocaleLowerCase()}`} placeholder="Max" value={maximums[column.id] ?? ''} on:change={(event) => setRange('max', column.id, event.currentTarget.value)} />
+      <input type="number" inputmode="numeric" aria-label={`Maximum ${readerNoun(column.label)}`} placeholder="Max" value={maximums[column.id] ?? ''} on:change={(event) => setRange('max', column.id, event.currentTarget.value)} />
     </fieldset>
   {/each}
 </form>
 
 <div class="result-bar">
-  <p aria-live="polite"><strong>{formatNumber(filteredRows.length)}</strong> {filteredRows.length === 1 ? kind.label.toLocaleLowerCase() : kind.plural.toLocaleLowerCase()}{#if filteredRows.length !== list.rows.length}{' of '}{formatNumber(list.rows.length)}{/if}</p>
+  <p aria-live="polite"><strong>{formatNumber(filteredRows.length)}</strong> {filteredRows.length === 1 ? readerNoun(kind.label) : readerNoun(kind.plural)}{#if filteredRows.length !== list.rows.length}{' of '}{formatNumber(list.rows.length)}{/if}</p>
   {#if activeFilters}<button type="button" class="clear" on:click={clearFilters}>Clear filters</button>{/if}
 </div>
 
@@ -196,7 +196,7 @@
       </tr>
     {/each}
   </DataTable>
-  {#if filteredRows.length === 0}<p class="c-empty empty">No {kind.plural.toLocaleLowerCase()} match these filters.</p>{/if}
+  {#if filteredRows.length === 0}<p class="c-empty empty">No {readerNoun(kind.plural)} match these filters.</p>{/if}
 </div>
 
 <style>

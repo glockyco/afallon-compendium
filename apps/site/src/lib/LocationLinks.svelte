@@ -7,7 +7,7 @@
   export let placements: PlacementRef[];
 
   $: groups = groupPlacementsByLabel(placements);
-  const href = (placement: PlacementRef) => `${base}/?selected=${encodeURIComponent(placement.placementId)}`;
+  const href = (placement: PlacementRef) => `${base}/map/?selected=${encodeURIComponent(placement.placementId)}`;
 </script>
 
 {#if placements.length}

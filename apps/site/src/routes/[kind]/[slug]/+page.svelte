@@ -27,7 +27,7 @@
   <meta property="og:image:alt" content={document.ref.name} />
 </svelte:head>
 
-<PageShell registry={data.registry} {crumbs} buildId={data.page.buildId} catalogId={data.page.catalogId}>
+<PageShell registry={data.registry} {crumbs} release={data.release}>
   <DetailPage page={data.page} product={data.product} registry={data.registry} />
   <svelte:fragment slot="footer-extra"><a class="c-link" href={`${base}/data/${data.documentPath}`}>JSON</a></svelte:fragment>
 </PageShell>

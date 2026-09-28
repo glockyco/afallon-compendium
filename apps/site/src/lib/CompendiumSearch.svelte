@@ -5,7 +5,7 @@
   import { clientMapLoader } from './client-publication';
   import { rankCompendiumEntries } from './map-search';
   import EntityLink from './EntityLink.svelte';
-  import { levelText } from './format';
+  import { levelText, searchPlaceholder } from './format';
 
   export let registry: PublicKindEntry[] = [];
   export let limit = 8;
@@ -16,6 +16,7 @@
   let error = '';
 
   $: results = query.trim() ? rankCompendiumEntries(query, entries).slice(0, limit) : [];
+  $: placeholder = searchPlaceholder(registry.filter((entry) => entry.searchable).map((entry) => entry.plural));
 
   // A result names the entity's level and its place when the search corpus publishes them.
   function entryDetail(entry: PublicSearchEntry): string {
@@ -38,11 +39,11 @@
 <div class="compendium-search">
   <label for="compendium-search">Search the compendium</label>
   <div class="input-wrap">
-    <input id="compendium-search" type="search" bind:value={query} placeholder="Item, NPC, quest, or place" autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} />
+    <input id="compendium-search" type="search" bind:value={query} {placeholder} autocomplete="off" aria-busy={loading} aria-describedby={error ? 'compendium-search-error' : undefined} class:has-error={Boolean(error)} />
     {#if loading}<span class="spinner" aria-hidden="true"></span>{:else if error}<span id="compendium-search-error" class="error" role="alert" title={error}>Search is unavailable.</span>{/if}
   </div>
   <span class="visually-hidden" role="status">{loading ? 'Loading search…' : ''}</span>
-  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="map-link" href={`${base}/?place=${encodeURIComponent(entry.ref.key)}`}>Map Location</a>{:else if entry.hasPlacements}<a class="map-link" href={`${base}/?${entry.ref.kind === 'items' ? 'item' : 'entity'}=${encodeURIComponent(entry.ref.key)}`}>Map Locations</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading && !error}<p class="empty" role="status">No published page matches this search.</p>{/if}
+  {#if results.length > 0}<ul>{#each results as entry (entry.ref.key)}<li><EntityLink ref={entry.ref} {registry} tooltip={false} />{#if entryDetail(entry)}<small>{entryDetail(entry)}</small>{/if}{#if entry.ref.kind === 'places'}<a class="map-link" href={`${base}/map/?place=${encodeURIComponent(entry.ref.key)}`}>View on map</a>{:else if entry.hasPlacements}<a class="map-link" href={`${base}/map/?${entry.ref.kind === 'items' ? 'item' : 'entity'}=${encodeURIComponent(entry.ref.key)}`}>View on map</a>{/if}</li>{/each}</ul>{:else if query.trim() && !loading && !error}<p class="empty" role="status">No published page matches this search.</p>{/if}
 </div>
 
 <style>

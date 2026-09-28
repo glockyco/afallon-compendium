@@ -1,6 +1,8 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import PageShell from '$lib/PageShell.svelte';
+  import type { PageData } from './$types';
+  export let data: PageData;
 </script>
 
 <svelte:head>
@@ -9,14 +11,14 @@
   <meta name="robots" content="noindex" />
 </svelte:head>
 
-<PageShell>
+<PageShell registry={data.registry} release={data.release}>
   <div class="not-found">
     <p class="eyebrow">Error 404</p>
     <h1>Page not found</h1>
     <p class="lede">This address does not match a page in the current Afallon publication.</p>
     <nav aria-label="Recovery">
-      <a class="c-action" href={`${base}/items/`}>Browse the compendium</a>
-      <a class="c-action" href={`${base}/`}>Search the Map</a>
+      <a class="c-action" href={`${base}/`}>Compendium home</a>
+      <a class="c-action" href={`${base}/map/`}>Open the map</a>
     </nav>
   </div>
 </PageShell>

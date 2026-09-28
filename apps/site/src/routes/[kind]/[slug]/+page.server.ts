@@ -26,5 +26,5 @@ export const load: PageServerLoad = async ({ params }) => {
     const productPage = await loader.loadDocument('items', productRef.slug);
     if (productPage.kind === 'items') product = productPage.document;
   }
-  return { kind, page, product, documentPath: entry.document.path, registry };
+  return { kind, page, product, documentPath: entry.document.path };
 };

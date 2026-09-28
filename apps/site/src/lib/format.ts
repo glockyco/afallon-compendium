@@ -19,6 +19,13 @@ export function formatNumber(value: number): string {
   return numberFormat.format(value);
 }
 
+const dateFormat = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+
+/** A published day, such as "September 28, 2026". The value is a UTC day, so the reader's time zone cannot move it. */
+export function formatCalendarDate(value: string): string {
+  return dateFormat.format(new Date(`${value}T00:00:00Z`));
+}
+
 export function formatDuration(seconds: number): string {
   return seconds !== 0 && seconds % 60 === 0 ? `${formatNumber(seconds / 60)} min` : `${formatNumber(seconds)} s`;
 }
@@ -145,6 +152,24 @@ export function placesText(labels: readonly string[]): string | null {
   const unique = [...new Set(labels)];
   if (unique.length <= 1) return unique[0] ?? null;
   return `${unique[0]} and ${unique.length - 1} more`;
+}
+
+/**
+ * A kind label inside a sentence. A label with one capital letter is written in lower case. A label with more capital
+ * letters, as in "NPCs", keeps them.
+ */
+export function readerNoun(label: string): string {
+  return (label.match(/\p{Lu}/gu)?.length ?? 0) > 1 ? label : label.toLocaleLowerCase('en-US');
+}
+
+const SEARCH_PLACEHOLDER_KINDS = 3;
+
+/** The search placeholder names the first searchable kinds of the publication, so it never names a kind that search cannot find. */
+export function searchPlaceholder(plurals: readonly string[]): string {
+  if (plurals.length === 0) return 'Search';
+  const nouns = plurals.map(readerNoun);
+  const named = nouns.slice(0, SEARCH_PLACEHOLDER_KINDS);
+  return `Search ${new Intl.ListFormat('en-US', { type: 'conjunction' }).format(nouns.length > named.length ? [...named, 'more'] : named)}`;
 }
 
 /** The rarity tone drives the name colour, the icon ring, and the badge through one attribute. */

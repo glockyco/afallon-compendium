@@ -3,6 +3,7 @@
   import { dev } from '$app/environment';
   import { base } from '$app/paths';
   import './MapExplorer.css';
+  import type { PublicRelease } from '@afallon/contracts/public';
   import { onMount, tick } from 'svelte';
   import type { MapAdapter, MapRendererController, MapViewState } from './map-renderer';
   import { clientMapLoader } from './client-publication';
@@ -29,6 +30,9 @@
   import { canonicalLayerIds, NO_IMAGERY_LAYER_ID } from './map/layer-policy';
   import { clearWorldOffsetOverrides, downloadWorldOffsets, effectiveMapDelta, loadWorldOffsetOverrides, saveWorldOffsetOverrides, placementInViewport, NO_WORLD_OVERRIDES, type WorldOffsetOverrides } from './map/world-layout';
   import type { PublicPlacement, PublicationData, StaticDocument } from '@afallon/contracts/public';
+
+  /** The release of the selected publication. The map sidebar names it with its patch notes. */
+  export let release: PublicRelease | undefined = undefined;
 
   const RESULT_LIMIT = 200;
   const WEBGL_STARTUP_FAILURE = /webgl map unavailable|failed to create webgl context|webgl creation failed|webgl is not supported|exhausted gl driver options/i;
@@ -451,13 +455,13 @@
 </script>
 
 <svelte:head>
-  <title>Afallon Compendium</title>
+  <title>Map · Afallon Compendium</title>
   <meta name="description" content="Afallon interactive map — find bosses, dungeons, merchants, quests, resources, travel points, and item sources across the world." />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Afallon Compendium" />
   <meta property="og:title" content="Afallon Compendium — Interactive Map" />
   <meta property="og:description" content="Find bosses, dungeons, merchants, quests, resources, travel points, and more across Afallon." />
-  <meta property="og:url" content="https://afallon.compendiums.org/" />
+  <meta property="og:url" content={`https://afallon.compendiums.org${base}/map/`} />
   <meta property="og:image" content="https://afallon.compendiums.org/og-default.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -476,7 +480,7 @@
   {:else if publication}
     <main class="workspace" class:with-details={dev} class:has-details={dev && Boolean(selectedPlacement || selectedEntityKey || itemKey || placeKey || staleSelection)} class:sidebar-collapsed={panelCollapsed}>
       <MapSidebar
-        collapsed={panelCollapsed} logoBase={base} bind:searchInput {query} sections={markerSections} {categories} {categoryCounts} countsPending={resultsPending}
+        collapsed={panelCollapsed} logoBase={base} {release} bind:searchInput {query} sections={markerSections} {categories} {categoryCounts} countsPending={resultsPending}
         placementCount={allMapPlacements.length} {isDefaultCategories} {layerOptions} {tileLayerOptions} {gameMapOptions}
         {visibleTileLayerIds} {visibleGameMapIds} {capturedChecked} {capturedPartial} {gameMapsChecked} {gameMapsPartial}
         {showConnections} {showMovement} {showZones} {markerSize} {authoring} {worldOffsetOverrides} onToggle={togglePanel}

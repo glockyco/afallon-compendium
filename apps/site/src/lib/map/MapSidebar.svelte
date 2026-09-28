@@ -4,10 +4,14 @@
   import CategoryRow from './CategoryRow.svelte';
   import MapSidebarSection from './MapSidebarSection.svelte';
   import MapLayerControls, { type LayerOption } from './MapLayerControls.svelte';
+  import type { PublicRelease } from '@afallon/contracts/public';
+  import { formatCalendarDate } from '../format';
   import type { WorldOffsetOverrides } from './world-layout';
 
   export let collapsed: boolean;
   export let logoBase: string;
+  /** The release of the selected publication, named at the end of the panel with its patch notes. */
+  export let release: PublicRelease | undefined = undefined;
   export let searchInput: HTMLInputElement;
   export let query: string;
   export let sections: { id: string; label: string; markers: MarkerDefinition[] }[];
@@ -71,6 +75,7 @@
           <button type="button" class="text-button" disabled={markerSize === MARKER_SIZE_RANGE.default} on:click={onResetMarkerSize}>Reset marker size</button>
         </div>
         <label class="tool-option"><input type="checkbox" checked={showConnections} on:change={onToggleConnections} /><span>Travel Connections</span></label><label class="tool-option"><input type="checkbox" checked={showMovement} on:change={onToggleMovement} /><span>NPC Movement</span></label><label class="tool-option"><input type="checkbox" checked={showZones} on:change={onToggleZones} /><span>Zone Areas and Names</span></label>{#if dev}<label class="tool-option"><input type="checkbox" checked={authoring} on:change={onToggleAuthoring} /><span>Authoring Mode</span></label>{#if authoring}<button type="button" class="quiet-button" on:click={onExportWorldOffsets}>Export World Offsets</button>{#if Object.keys(worldOffsetOverrides).length > 0}<button type="button" class="quiet-button" on:click={onDiscardWorldOffsets}>Discard {Object.keys(worldOffsetOverrides).length} Dragged Offsets</button>{/if}<p class="hint">Drag a map anywhere inside its rectangle to review its placement. Dragged offsets show only while authoring and stay in this browser until exported or discarded.</p>{/if}{/if}</div>
+      {#if release}<p class="release-note muted">Afallon {release.version} · Updated {formatCalendarDate(release.dataDate)} · <a href={release.patchNotes.url} rel="external" title={`${release.patchNotes.title}, ${formatCalendarDate(release.patchNotes.date)}`}>Patch notes</a></p>{/if}
     </div>
   {/if}
 </aside>

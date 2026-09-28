@@ -14,5 +14,5 @@ export const load: PageServerLoad = async ({ params }) => {
   const kind = registry.find((entry) => entry.pages && entry.route === params.kind);
   if (!kind || !isPublicPageKind(kind.kind)) error(404, 'This compendium kind is not published.');
   const list = await loader.loadList(kind.kind);
-  return { kind, list, registry };
+  return { kind, list };
 };
