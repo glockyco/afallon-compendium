@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { pushState } from '$app/navigation';
   import { detailNavigation, followLocation, provideDetailNavigation } from './detail-navigation';
-  import { selectTab, tabOwningAnchor, withTab, type TabSpec } from './tab-state';
+  import { fragmentId, selectTab, tabOwningAnchor, withTab, type TabSpec } from './tab-state';
 
   /** The tabs in reading order. The first tab is selected when the address names no tab of this set. */
   export let tabs: TabSpec[];
@@ -36,7 +36,7 @@
     }
     if (url === handled) return;
     handled = url;
-    const anchor = decodeURIComponent(url.hash.slice(1));
+    const anchor = fragmentId(url.hash);
     if (tabOwningAnchor(tabs, anchor) !== undefined) await scrollTo(anchor);
   }
 
@@ -52,7 +52,7 @@
     const url = $location ?? new URL(window.location.href);
     if (key !== selectTab(tabs, url).key) {
       // An anchor of another tab no longer names a visible target, so an explicit choice removes it.
-      const owner = tabOwningAnchor(tabs, decodeURIComponent(url.hash.slice(1)));
+      const owner = tabOwningAnchor(tabs, fragmentId(url.hash));
       const next = withTab(url, key, owner !== undefined && owner !== key);
       handled = next;
       pushState(next, {});
@@ -79,7 +79,7 @@
     const onClick = (event: MouseEvent) => {
       const link = (event.target as Element | null)?.closest?.('a[href]');
       if (!(link instanceof HTMLAnchorElement) || link.origin !== window.location.origin || link.pathname !== window.location.pathname) return;
-      const anchor = decodeURIComponent(link.hash.slice(1));
+      const anchor = fragmentId(link.hash);
       if (link.hash === window.location.hash && tabOwningAnchor(tabs, anchor) !== undefined) void scrollTo(anchor);
     };
     document.addEventListener('click', onClick);

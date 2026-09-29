@@ -19,6 +19,8 @@ test('a fragment selects the tab that owns it, and an unknown fragment does not'
   expect(selectTab(tabs, at('#talent-21-5'))).toEqual({ key: 'list', replace: true });
   expect(selectTab(tabs, at('?tab=list#talent-21-5'))).toEqual({ key: 'list', replace: false });
   expect(selectTab(tabs, at('?tab=grid#starting-gear'))).toEqual({ key: 'grid', replace: false });
+  // A malformed escape is a valid address. It names no tab and must not stop the page.
+  expect(selectTab(tabs, at('?tab=grid#%'))).toEqual({ key: 'grid', replace: false });
 });
 
 test('a tab change keeps other query fields and clears the fragment only on request', () => {

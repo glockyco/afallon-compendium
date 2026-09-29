@@ -11,6 +11,19 @@ export interface TabSelection {
   replace: boolean;
 }
 
+/**
+ * The element id that a URL fragment names. A malformed escape such as `#%` is a valid address but not valid percent
+ * encoding, so it names the id with its raw text instead of failing.
+ */
+export function fragmentId(hash: string): string {
+  const raw = hash.startsWith('#') ? hash.slice(1) : hash;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 /** The tab whose panel renders the anchor, or undefined when no tab owns it. */
 export function tabOwningAnchor(tabs: readonly TabSpec[], anchor: string): string | undefined {
   if (!anchor) return undefined;
@@ -24,7 +37,7 @@ export function tabOwningAnchor(tabs: readonly TabSpec[], anchor: string): strin
  */
 export function selectTab(tabs: readonly TabSpec[], url: URL): TabSelection {
   const requested = url.searchParams.get('tab');
-  const owner = tabOwningAnchor(tabs, decodeURIComponent(url.hash.slice(1)));
+  const owner = tabOwningAnchor(tabs, fragmentId(url.hash));
   if (owner !== undefined) return { key: owner, replace: requested !== owner };
   if (requested !== null && tabs.some((tab) => tab.key === requested)) return { key: requested, replace: false };
   return { key: tabs[0]?.key ?? '', replace: requested !== null };

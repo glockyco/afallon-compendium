@@ -4,6 +4,7 @@
   import { sortRows, toggleSort, type SortState, type SortValue } from '../table';
   import { shownRowCount, type RelationColumn } from './relation-table';
   import { detailNavigation } from './detail-navigation';
+  import { fragmentId } from './tab-state';
 
   /** The columns that `planColumns` keeps. The first column names the counterpart of the row. */
   export let columns: RelationColumn<Row>[];
@@ -28,7 +29,7 @@
 
   // The address can name an anchor in a row that the limit hides. Such a row opens the table and scrolls into view.
   async function revealTarget(): Promise<void> {
-    const id = decodeURIComponent(window.location.hash.slice(1));
+    const id = fragmentId(window.location.hash);
     const index = id ? sorted.findIndex((row) => rowAnchors(row).includes(id)) : -1;
     if (index < shown) return;
     expanded = true;
