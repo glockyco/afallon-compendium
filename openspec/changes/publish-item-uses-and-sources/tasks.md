@@ -15,7 +15,7 @@
 - [ ] 3.1 Project the verified use results of items: Contents rows, currency amounts, companions, and recipes. Verify fixtures for a renown box, a gold sack, a companion contract, and an unverified action type.
 - [ ] 3.2 Project From items and From dialogue sources, and count them in coverage and in item source kinds. Verify fixtures for both sources and for a loot table with two owners.
 - [ ] 3.3 Project dialogue recipe teachers with the first-match rule of the game. Verify fixtures for a dialogue teacher, a node with two Recipe actions, and a recipe without a teacher.
-- [ ] 3.4 List the items that still have no source, including the 16 records that `correct-published-records` left published and the Task board giver. Record one decision for each item: an exclusion entry with evidence of its kind, or a kept page. Verify each decision against a recorded read-only catalog query.
+- [ ] 3.4 List the items that still have no source, including the 20 records that `correct-published-records` left published and the Task board giver. Record one decision for each item: an exclusion entry with evidence of its kind, or a kept page. Verify each decision against a recorded read-only catalog query.
 
 ## 4. Reader surfaces
 

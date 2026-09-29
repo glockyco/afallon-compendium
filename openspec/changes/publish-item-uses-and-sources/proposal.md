@@ -1,6 +1,6 @@
 ## Why
 
-Many item pages do not say what the item does or where it comes from. 18 consumables have no structured use data. Eight of them have descriptions that promise a result: four renown reward boxes, two gold sacks, a companion contract, and "Quest renown". After `correct-published-records`, 106 items still have no known source. 145 of the 210 captured loot tables have no captured loot binding, and 24 items appear only in those tables. The scan does not read the game actions of items, dialogue nodes, effects, scene regions, or stats, which can give items and name loot tables.
+Many item pages do not say what the item does or where it comes from. 18 consumables have no structured use data. Eight of them have descriptions that promise a result: four renown reward boxes, two gold sacks, a companion contract, and "Quest renown". After `correct-published-records`, 116 items still have no known source. 145 of the 210 captured loot tables have no captured loot binding, and 24 items appear only in those tables. The scan does not read the game actions of items, dialogue nodes, effects, scene regions, or stats, which can give items and name loot tables.
 
 ## What Changes
 
@@ -9,7 +9,7 @@ Many item pages do not say what the item does or where it comes from. 18 consuma
 - An item page shows what using the item gives: the contents of its loot table, a currency amount, a companion, a recipe, or another verified result. The contents keep their recorded quantity and chance without a claim of an effective chance.
 - An item that a box or a dialogue gives gets a "From items" or "From dialogue" source. A recipe page also names dialogue teachers. Other teachers need a readable identity first.
 - The change reviews each item that still has no known source after the capture. The review adds an item to the exclusion list of `correct-published-records` only with the evidence that list requires. Other items keep their pages and appear on the coverage page.
-- This includes the 16 records that `correct-published-records` leaves published, and the Task board giver without a name.
+- This includes the 20 records that `correct-published-records` leaves published, and the Task board giver without a name.
 - Out of scope: dialogue text and dialogue trees as reader pages, and any ranking of rewards.
 
 ## Capabilities

@@ -10,7 +10,7 @@
 - [ ] 2.1 Add `compendium.publication-presentation.v2` with exclusion entries of a catalog key, a reason code, and evidence text. Verify that the schema rejects an entry without evidence, an unknown reason code, and a duplicate key.
 - [ ] 2.2 Add the static exclusions resource with the excluded keys and reason codes, and reference it from the root. Verify that the graph check rejects a key that is both excluded and published.
 - [ ] 2.3 Add a required `startingGearOf` array to the item document schema, and increase its version. Verify schema fixtures for an item with three classes and an item with none.
-- [ ] 2.4 Write the v2 presentation input from the accepted v1 input. Add Savers (`skills:4` and 13 recipes), 9 test-named items, 30 appearance options, SM_hc_Inn, Iron Vein Icon, Test Area, The Void, and the records from task 1.4. Verify each evidence text against a recorded read-only catalog query.
+- [ ] 2.4 Write the v2 presentation input from the accepted v1 input. Add Savers (`skills:4` and 13 recipes), 5 test-named items, 30 appearance options, SM_hc_Inn, Iron Vein Icon, Test Area, The Void, and the records from task 1.4. Verify each evidence text against a recorded read-only catalog query.
 
 ## 3. Publication
 
