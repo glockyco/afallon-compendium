@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { PublicItem, PublicKindEntry, StaticDocument } from '@afallon/contracts/public';
   import AbilityPage from './pages/AbilityPage.svelte';
+  import CharacterProgressionPage from './pages/CharacterProgressionPage.svelte';
   import ClassPage from './pages/ClassPage.svelte';
+  import HeroicTierPage from './pages/HeroicTierPage.svelte';
   import ItemPage from './pages/ItemPage.svelte';
   import NpcPage from './pages/NpcPage.svelte';
   import PlacePage from './pages/PlacePage.svelte';
@@ -25,4 +27,6 @@
 {:else if page.kind === 'abilities'}<AbilityPage document={page.document} {registry} />
 {:else if page.kind === 'recipes'}<RecipePage document={page.document} {product} {registry} />
 {:else if page.kind === 'classes'}<ClassPage document={page.document} {registry} />
-{:else if page.kind === 'skills'}<SkillPage document={page.document} {registry} />{/if}
+{:else if page.kind === 'skills'}<SkillPage document={page.document} {registry} />
+{:else if page.kind === 'mechanics' && page.document.topic === 'character-progression'}<CharacterProgressionPage document={page.document} {registry} />
+{:else if page.kind === 'mechanics' && page.document.topic === 'heroic-tier'}<HeroicTierPage document={page.document} {registry} />{/if}

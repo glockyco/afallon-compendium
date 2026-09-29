@@ -4,7 +4,7 @@ import {
   ArtRefSchema, ConnectionRowSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, VendorRowSchema,
   PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
-  type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe, type PublicClass, type PublicSkill,
+  type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe, type PublicClass, type PublicSkill, type CharacterProgression, type HeroicTier, type MechanicsRule,
   type StaticRootManifest, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, StaticItemDocumentSchema, type StaticCoverage,
 } from "./index";
 import type { Static } from "typebox";
@@ -68,6 +68,19 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
 
 const base = { description: null, art: {} };
 const located = { ...base, locations: [placement] };
+const rule: MechanicsRule = { id: "weapon-skill-hit", section: "skill-experience", status: "verified", phrase: "Each hit gives {hitExperience} experience.", operands: { hitExperience: 2 }, links: [], sources: [{ method: "SkillSystem.OnPlayerAutoAttackHit", evidence: "Bounded decompilation" }] };
+const characterProgression: CharacterProgression = {
+  ...base, ref: { key: "mechanics:character-progression", kind: "mechanics", name: "Character progression", slug: "character-progression" }, topic: "character-progression",
+  curve: { template: "Character levels", cap: 3, rows: [{ level: 1, toNext: 20 }, { level: 2, toNext: 40 }] },
+  sources: { fixedCreatures: { count: 185, minLevel: 1, maxLevel: 30 }, scalingCreatures: { count: 31, aboveFixed: [{ creature: boss, minLevel: 1, maxLevel: 100 }] }, quests: { count: 136, maxLevel: 31, maxRequirement: 24, withoutRange: 4 }, levelModifiers: [{ lower: 0, higher: -30, creatures: 59 }] },
+  talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], rules: [rule],
+};
+const heroicTier: HeroicTier = {
+  ...base, ref: { key: "mechanics:heroic-tier", kind: "mechanics", name: "Heroic tier", slug: "heroic-tier" }, topic: "heroic-tier",
+  settings: { killExperienceMultiplier: 5, essencePoints: "Heroic Essence", essenceBaseAmount: 3, essencePerAffix: 3, essenceEliteMultiplier: 1.5, essenceRareMultiplier: 2, essenceBossMultiplier: 3, essenceHealthBaseline: 1, essenceHealthFactorMin: 0.25, essenceHealthFactorMax: 4,
+    baseHealthMultiplier: 3, baseDamageMultiplier: 2, gearScoreCoefficient: 0.0008, maxGearBonus: 1, affixChance: 0.25, extraAffixChance: 0.08, maxAffixes: 4, rareGuaranteedAffixes: 1, affixLootDropMultiplier: 1.5, heroicGearStatBonusPercent: 50 },
+  rules: [{ ...rule, id: "heroic-kill-rounding-ties", section: "kill-experience", status: "unknown", phrase: "The tie rule is not known.", operands: {} }],
+};
 const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } = {
   items: { ...base, ref: item, facts: { rarity: "Common", itemType: "ARMOR", slot: "GLOVES", stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 7, isPercent: false }], randomStats: [{ stat: { key: "stats:0", kind: "stats", name: "Health" }, min: 10, max: 40, isPercent: false, whole: false, chance: 100 }], randomStatsMax: 0, sockets: [{ gemType: "Green Gem" }], sellPrice: { amount: 5, currency: gold }, stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
     droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [] }], soldBy: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf: [] } satisfies PublicItem,
@@ -82,8 +95,9 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
     trees: [{ anchor: "tree-18", name: "Aegis Mastery", points: "Talent Points", rows: [{ anchor: "talent-18-3", tier: 3, position: 2, name: "Aegis Discipline", ranks: 5,
       first: { rank: 1, stats: [{ stat: { key: "stats:125", kind: "stats", name: "Block Chance" }, amount: 2, isPercent: false }], text: [] }, last: { rank: 5, stats: [{ stat: { key: "stats:125", kind: "stats", name: "Block Chance" }, amount: 10, isPercent: false }], text: [] },
       requirements: [{ mode: "all", checkCount: false, requirements: [{ type: { value: 20, name: "Bonus" }, rule: { value: 0, name: "Mandatory" }, label: "Weighted Strikes rank 4 or higher", spans: [{ ref: { key: "classes:0", kind: "classes", name: "Weighted Strikes", slug: "shieldmaster", variant: "talent-18-1" } }, { text: " rank 4 or higher" }] }] }] }] }],
-    startingGear: [{ item, count: 1, equipped: true }], experience: [{ level: 1, experience: 20 }] } satisfies PublicClass,
-  skills: { ...base, ref: { key: "skills:0", kind: "skills", name: "Alchemy", slug: "alchemy" }, facts: { highestLevel: 300, automatic: true }, recipes: [{ recipe: { key: "recipes:81", kind: "recipes", name: "Aetherial Elixir", slug: "aetherial-elixir" }, product: item }], experience: [{ level: 1, experience: 20 }] } satisfies PublicSkill,
+    startingGear: [{ item, count: 1, equipped: true }] } satisfies PublicClass,
+  skills: { ...base, ref: { key: "skills:0", kind: "skills", name: "Alchemy", slug: "alchemy" }, facts: { highestLevel: 300, automatic: true }, recipes: [{ recipe: { key: "recipes:81", kind: "recipes", name: "Aetherial Elixir", slug: "aetherial-elixir" }, product: item }] } satisfies PublicSkill,
+  mechanics: characterProgression,
 };
 
 test("every kind document validates and rejects unknown properties", () => {
@@ -98,6 +112,15 @@ test("every kind document validates and rejects unknown properties", () => {
     const schema = STATIC_DOCUMENT_SCHEMAS[STATIC_DOCUMENT_SCHEMA_IDS[kind]];
     expect(() => Assert(schema, { schemaVersion: legacySchemaIds[kind], ...identity, kind, document: fixtures[kind] })).toThrow();
   }
+});
+
+test("both mechanics topics validate, and a mechanics document of an unknown topic or kind does not", () => {
+  const schema = STATIC_DOCUMENT_SCHEMAS["compendium.static-mechanics.v1"];
+  for (const document of [characterProgression, heroicTier]) Assert(schema, { schemaVersion: "compendium.static-mechanics.v1", ...identity, kind: "mechanics", document });
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...heroicTier, settings: { unavailable: "The scan of this build recorded no Heroic tier settings." } });
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...heroicTier, topic: "corruption" })).toThrow();
+  expect(() => Assert(schema, { schemaVersion: "compendium.static-mechanics.v1", ...identity, kind: "guides", document: characterProgression })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, rules: [{ ...rule, status: "inferred" }] })).toThrow();
 });
 
 test("an item names each published class that starts with it", () => {

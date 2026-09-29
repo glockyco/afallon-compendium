@@ -112,6 +112,7 @@ export function buildKindLists(
       case "recipes": row = recipeRow(document as PublicRecipe); break;
       case "classes": if (!isClass(document)) continue; row = classRow(document); break;
       case "skills": if (!isSkill(document)) continue; row = skillRow(document); break;
+      case "mechanics": row = { ref: document.ref, values: {}, facets: {} }; break;
       default: continue;
     }
     const rows = rowsByKind.get(document.ref.kind) ?? [];

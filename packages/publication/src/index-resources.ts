@@ -27,6 +27,7 @@ import { generateArtworkResources } from "./artwork";
 import { readerCoverage } from "./coverage";
 import { usableTeleports } from "./connections";
 import { projectPublicDocuments, startingGearByItem, type PublishedPlacement } from "./documents";
+import { projectMechanicsDocuments } from "./mechanics";
 import { assertExclusionEvidence, withoutExcludedRelations } from "./exclusions";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
@@ -126,9 +127,10 @@ export async function generateIndexResources(
     const area = displayName(catalogPlacement?.area ?? "");
     return [placementId, area ? { ...placement, label: area } : scene?.kind === "places" ? { ...placement, label: scene.name } : placement] as const;
   }));
-  const publicDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
+  const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
     resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey,
     classWeapons: classWeapons(queryCatalogFullEntities(db).records) });
+  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), createReferenceResolver(refs))]);
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {

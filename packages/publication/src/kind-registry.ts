@@ -30,6 +30,8 @@ export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
     columns: [column("talentTrees", "Talent trees", true), column("abilities", "Abilities", true)], facets: [] },
   { kind: "skills", label: "Skill", plural: "Skills", route: "skills", icon: "skill", pages: true, searchable: true,
     columns: [column("highestLevel", "Highest level", true), column("recipes", "Recipes", true)], facets: [] },
+  // Mechanics topics explain game systems. Their keys belong to the publication, not to game records.
+  { kind: "mechanics", label: "Mechanic", plural: "Mechanics", route: "mechanics", icon: "guide", pages: true, searchable: true, columns: [], facets: [] },
   { kind: "gearSets", label: "Gear Set", plural: "Gear Sets", route: "gear-sets", icon: "gear-set", pages: false, searchable: false, columns: [], facets: [] },
   { kind: "currencies", label: "Currency", plural: "Currencies", route: "currencies", icon: "currency", pages: false, searchable: false, columns: [], facets: [] },
   { kind: "stats", label: "Stat", plural: "Stats", route: "stats", icon: "stat", pages: false, searchable: false, columns: [], facets: [] },

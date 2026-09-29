@@ -1,8 +1,8 @@
 <script lang="ts">
+  import { base } from '$app/paths';
   import type { PublicKindEntry, PublicSkill, SkillRecipeRow } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { nameOf } from '../../format';
-  import ExperienceSection from '../sections/ExperienceSection.svelte';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
   import Hero from '../Hero.svelte';
@@ -31,8 +31,9 @@
   <Hero>
     {#if document.description}<p class="c-prose">{document.description}</p>{/if}
     <FactList>
-      {#if facts.highestLevel !== undefined}<FactRow label="Highest level" href={document.experience.length ? '#experience' : undefined}>{facts.highestLevel}</FactRow>{/if}
+      {#if facts.highestLevel !== undefined}<FactRow label="Highest level" href={`${base}/mechanics/character-progression/`}>{facts.highestLevel}</FactRow>{/if}
       <FactRow label="Learned">{facts.automatic ? 'Automatically' : 'Not automatically'}</FactRow>
+      <FactRow label="Related mechanics"><a class="c-link" href={`${base}/mechanics/character-progression/`}>Character progression</a></FactRow>
       {#if document.recipes.length}<FactRow label="Recipes" href="#recipes">{document.recipes.length}</FactRow>{/if}
     </FactList>
   </Hero>
@@ -49,6 +50,5 @@
         </RelationTable>
       </Section>
     {/if}
-    <ExperienceSection rows={document.experience} />
   </Sections>
 </article>

@@ -913,12 +913,10 @@ function talentRank(rank: { rank: number; statEffects: readonly { stat: CatalogE
   return { rank: Math.max(0, rank.rank) + 1, stats: rank.statEffects.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })), text: text ? [{ spans: [{ text, tone: null, italic: false }] }] : [] };
 }
 
-function experienceRows(template: CatalogEndpoint | null | undefined, highest: number | null, input: DocumentProjectionInput) {
+// The level cap of a level template: the game stops experience at the template's `levels` value.
+function templateCap(template: CatalogEndpoint | null | undefined, input: DocumentProjectionInput): number | undefined {
   const fact = template?.entityKey ? input.facts.progression.facts.find((candidate) => candidate.entityKey === template.entityKey) : undefined;
-  if (fact?.kind !== "levels") return [];
-  // The game reads a template row by its position. Skill templates store level 0 in every row, so the position is the level.
-  const rows = fact.details.rows.map((row, index) => ({ level: index + 1, experience: Math.max(0, row.experienceRequired) }));
-  return highest === null ? rows : rows.slice(0, highest);
+  return fact?.kind === "levels" && fact.details.levels > 0 ? fact.details.levels : undefined;
 }
 
 function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, conditions: ReadonlyMap<string, CatalogCondition>): PublicClass {
@@ -954,14 +952,13 @@ function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
     return gains.length === 0 && point.details.startAmount <= 0 ? [] : [{ name: displayName(point.name ?? ""), start: Math.max(0, point.details.startAmount), max: Math.max(0, point.details.maxPoints), gains }];
   });
   const races = progression.facts.flatMap((race) => race.kind === "races" && race.details.offeredClasses.some((row) => row.entityKey === entity.entityKey) ? [displayName(race.name ?? "")] : []).filter(Boolean);
-  const experience = experienceRows(details?.levelTemplate, null, input);
+  const highestLevel = templateCap(details?.levelTemplate, input);
   const autoAttack = optionalFactRef(input.resolve, details?.autoAttackAbility);
   return {
     ...baseDocument(entity, ref, input),
-    facts: { races, weapons: [...(input.classWeapons?.get(entity.entityKey) ?? [])], ...(autoAttack ? { autoAttack } : {}), talentPoints, ...(experience.length ? { highestLevel: experience.at(-1)!.level } : {}) },
+    facts: { races, weapons: [...(input.classWeapons?.get(entity.entityKey) ?? [])], ...(autoAttack ? { autoAttack } : {}), talentPoints, ...(highestLevel === undefined ? {} : { highestLevel }) },
     trees: projectedTrees,
     startingGear: (details?.startItems ?? []).map((row) => ({ item: input.resolve(row.item), count: Math.max(0, row.count), equipped: row.equipped })),
-    experience,
   };
 }
 
@@ -975,7 +972,7 @@ function projectSkill(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
   return {
     ...baseDocument(entity, ref, input),
     facts: { ...(highest === null ? {} : { highestLevel: highest }), automatic: details?.automaticallyAdded ?? true },
-    recipes, experience: highest === null ? [] : experienceRows(details?.levelTemplate, highest, input),
+    recipes,
   };
 }
 

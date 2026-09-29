@@ -1,9 +1,9 @@
 <script lang="ts">
+  import { base } from '$app/paths';
   import type { PublicClass, PublicKindEntry, StartingItemRow } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { nameOf } from '../../format';
   import { talentPointText } from '../../progression-format';
-  import ExperienceSection from '../sections/ExperienceSection.svelte';
   import TalentTreeSection from '../sections/TalentTreeSection.svelte';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
@@ -36,7 +36,8 @@
       {#if facts.weapons.length}<FactRow label="Weapons">{facts.weapons.join(', ')}</FactRow>{/if}
       {#if facts.autoAttack}<FactRow label="Auto attack"><EntityLink ref={facts.autoAttack} {registry} /></FactRow>{/if}
       {#each facts.talentPoints as points}<FactRow label={points.name}>{talentPointText(points)}</FactRow>{/each}
-      {#if facts.highestLevel !== undefined}<FactRow label="Highest level" href="#experience">{facts.highestLevel}</FactRow>{/if}
+      {#if facts.highestLevel !== undefined}<FactRow label="Highest level" href={`${base}/mechanics/character-progression/`}>{facts.highestLevel}</FactRow>{/if}
+      <FactRow label="Related mechanics"><a class="c-link" href={`${base}/mechanics/character-progression/`}>Character progression</a></FactRow>
     </FactList>
   </Hero>
 
@@ -51,6 +52,5 @@
         </RelationTable>
       </Section>
     {/if}
-    <ExperienceSection rows={document.experience} />
   </Sections>
 </article>

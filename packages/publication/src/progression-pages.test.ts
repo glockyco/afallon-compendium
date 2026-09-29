@@ -111,7 +111,7 @@ test("a class page shows its trees in order, talent ranks, requirements, and pro
   expect([strikes.ranks, strikes.first?.rank, strikes.first?.stats[0]?.amount, strikes.last?.rank, strikes.last?.stats[0]?.amount]).toEqual([5, 1, 2, 5, 10]);
   expect(breaker!.rows[2]!.requirements[0]?.requirements[0]?.spans[0]).toEqual({ ref: { key: "classes:0", kind: "classes", name: "Weighted Strikes", slug: "shieldmaster", variant: "talent-0-1" } });
   expect(shieldmaster.startingGear).toEqual([{ item: { key: "items:1", kind: "items", name: "Potion", slug: "potion" }, count: 2, equipped: false }]);
-  expect(shieldmaster.experience.map((row) => row.experience)).toEqual([20, 40, 50]);
+  expect("experience" in shieldmaster).toBe(false);
 });
 
 test("an item names the offered classes that start with it, and coverage counts them as a source", () => {
@@ -131,14 +131,13 @@ test("a talent shared by several trees resolves to the row of the class that own
   expect(assassin.trees[0]!.rows[1]!.requirements[0]?.requirements[0]?.spans[0]).toEqual({ ref: { key: "classes:5", kind: "classes", name: "Heroic Might", slug: "assassin", variant: "talent-27-0" } });
 });
 
-test("skill pages show recipes and the levels up to the highest level", () => {
+test("skill pages show recipes and their highest level without an experience table", () => {
   const { documents } = project();
   const alchemy = documents.get("skills:0") as PublicSkill, axes = documents.get("skills:3") as PublicSkill, savers = documents.get("skills:11") as PublicSkill;
   expect(alchemy.recipes).toEqual([{ recipe: { key: "recipes:81", kind: "recipes", name: "Elixir", slug: "elixir" }, product: { key: "items:1", kind: "items", name: "Potion", slug: "potion" } }]);
-  // Skill templates store level 0 in every row, so the rows take their levels from their positions.
-  expect(alchemy.experience).toEqual([{ level: 1, experience: 4 }, { level: 2, experience: 8 }]);
-  expect([axes.recipes.length, axes.experience.length]).toEqual([0, 3]);
-  expect([savers.facts, savers.experience.length]).toEqual([{ automatic: false }, 0]);
+  expect([alchemy.facts.highestLevel, axes.recipes.length, axes.facts.highestLevel]).toEqual([2, 0, 3]);
+  expect(savers.facts).toEqual({ automatic: false });
+  expect(["experience" in alchemy, "experience" in axes]).toEqual([false, false]);
 });
 
 test("ability pages name the classes that learn them and their use requirements", () => {
