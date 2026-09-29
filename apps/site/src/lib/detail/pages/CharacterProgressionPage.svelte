@@ -63,7 +63,7 @@
       {#each document.talentPoints as points}
         <div class="point-group">
           <h3>{points.name}</h3>
-          <p>Starts with {format(points.start)}. {#each points.gains as gain}{format(gain.amount)} {gainText(gain.trigger)}. {/each}The recorded maximum is {format(points.max)}. This is a limit, not the points that every character has earned.</p>
+          <p>{[`Starts with ${format(points.start)}.`, ...points.gains.map((gain) => `Gains ${format(gain.amount)} ${gainText(gain.trigger)}.`), `The recorded maximum is ${format(points.max)}. This is a limit, not the points that every character has earned.`].join(' ')}</p>
         </div>
       {/each}
       <MechanicsRules rules={rulesFor('talent-points')} {registry} />
