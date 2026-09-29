@@ -20,27 +20,28 @@ A recipe page SHALL show its station, its skill, and a rank above zero in the ti
 
 ### Requirement: Skill pages show recipes and levels
 
-The publication SHALL publish a page for each skill that the reviewed exclusion list does not name. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. The page SHALL link to Character progression instead of showing an Experience table. The sections SHALL follow this order when they have content: Recipes, Resource nodes, How to gain experience. The Recipes section SHALL show each recipe that uses the skill with its product and station. The Resource nodes section SHALL link every captured node that uses the skill and SHALL keep nodes with unknown locations. The How to gain experience section SHALL list each evidenced source relevant to the skill, with links to specific recipes and nodes when possible. It SHALL distinguish verified experience rules from known call sites whose amounts or skill mappings remain unresolved. It SHALL not claim that the known call sites are exhaustive.
+The publication SHALL publish a page for each skill that the reviewed exclusion list does not name. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. Every skill page SHALL link to Character Progression for related experience rules. A skill page SHALL NOT show an Experience table. The sections SHALL follow this order when they have content: Levels, Recipes, Gathering nodes, How to gain experience. When the skill has a level template and a highest level above one, the Levels section SHALL show the skill's level curve with the chart and level control of Character Progression, from level 1 up to its highest level. The Recipes section SHALL show each recipe that uses the skill with its product and station. The Gathering nodes section SHALL link every gathering node that gives experience in the skill and SHALL keep nodes with unknown locations. The How to gain experience section SHALL list each evidenced source relevant to the skill, with links to specific recipes and nodes when possible. It SHALL distinguish verified experience rules from known call sites whose amounts or skill mappings remain unresolved. It SHALL not claim that the known call sites are exhaustive.
 
 #### Scenario: Crafting skill
 - **WHEN** a reader opens the Alchemy page
 - **THEN** the Recipes section shows its 22 recipes with their products and stations
-- **AND** the page links to Character progression and explains its verified crafting source
+- **AND** the page links to Character Progression and explains its verified crafting source
 
 #### Scenario: Gathering skill
-- **WHEN** a reader opens Mining and captured resource nodes name its skill
-- **THEN** the Resource nodes section links those nodes and their known yields
-- **AND** the How to gain experience section explains the verified node-use experience source
+- **WHEN** a reader opens the Mining page
+- **THEN** the Gathering nodes section links its veins with their skill gates and known yields
+- **AND** the How to gain experience section explains the verified experience of a gathered node
 
 #### Scenario: Weapon skill
 - **WHEN** a reader opens the Axes page
-- **THEN** the page has no Recipes section
-- **AND** it names auto-attack hits as a verified experience source without an Experience table
+- **THEN** the page has no Recipes section and no Experience table
+- **AND** a Levels section shows the Axes level curve up to its highest level
+- **AND** it names auto-attack hits as a verified experience source
 
 #### Scenario: Skill without levels
 - **WHEN** a published skill has a highest level of zero
-- **THEN** its hero shows no highest level and its page has no Experience section
-- **AND** it retains the Character progression link
+- **THEN** its hero shows no highest level and its page has no Levels section
+- **AND** it retains the Character Progression link
 
 #### Scenario: Known call site without a verified skill mapping
 - **WHEN** a skill experience call site has no verified mapping to one skill

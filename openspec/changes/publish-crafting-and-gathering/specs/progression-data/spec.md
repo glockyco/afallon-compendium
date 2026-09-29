@@ -1,22 +1,20 @@
 ## ADDED Requirements
 
-### Requirement: Resource nodes retain authored ranks and proven yields
+### Requirement: Gathering nodes retain their world evidence
 
-The catalog SHALL retain each captured resource node as an entity. It SHALL retain its gathering skill, automatic learning flag, and each available rank in authored order. Each rank SHALL retain its unlock cost, skill-level field, base experience, gather time, respawn time, and loot-table reference. A yield SHALL link to a node and rank only when captured evidence identifies that node and rank. The catalog SHALL keep source-only yields when that link is unresolved, with provenance and a coverage issue. Null ranks and unresolved item or skill references SHALL remain visible as unavailable evidence or coverage issues.
+The catalog SHALL retain each gathering node that a spawner option or a scene object gives, keyed by its name without rich-text tags. A gathering node SHALL retain its gathering skill, skill experience, character experience, loot table, requirements template, and each source with its placement when known. Sources that share a name SHALL agree on skill, loot table, experience, and requirements template. When they disagree, the catalog SHALL record a coverage issue and keep the sources as separate variants instead of merging them. A yield SHALL link to a gathering node only through its own spawner option or object record. The catalog SHALL keep every existing yield, and a yield without a node link SHALL keep its source with provenance and a coverage issue. The catalog SHALL NOT invent resource ranks, because the build has no resource node records.
 
-#### Scenario: Rank links to a known loot table
-- **WHEN** a resource rank names a known loot table and its item yields resolve
-- **THEN** the catalog associates those yields with that resource node and rank
-- **AND** the item facts retain the original source and quantity evidence
+#### Scenario: Spawner option and placed object share a name
+- **WHEN** a spawner option and a scene object both give Small iron vein with the same loot table, experience, and requirements template
+- **THEN** the catalog records one gathering node with both sources
 
-#### Scenario: Possible source cannot identify one rank
-- **WHEN** a spawner candidate gives an item but no captured fact identifies one resource rank
-- **THEN** its yield keeps the source without a guessed rank link
-- **AND** the catalog records the unresolved relation
+#### Scenario: Sources with one name disagree
+- **WHEN** two sources share a node name but name different loot tables
+- **THEN** the catalog records a coverage issue and two variants of the node
 
 #### Scenario: A node has no placed source
-- **WHEN** a resource node has authored ranks but no verified world placement
-- **THEN** the catalog retains its entity and all available ranks
+- **WHEN** a gathering node has captured evidence but no verified world placement
+- **THEN** the catalog retains the node and its yields
 
 ### Requirement: Crafting and spawner values retain their source
 
