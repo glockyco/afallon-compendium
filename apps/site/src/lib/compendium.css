@@ -171,11 +171,14 @@
 .c-table th.c-num .c-sort { justify-content: flex-end; width: 100%; }
 .c-table td small { display: block; margin-top: .15rem; color: var(--c-text-mute); font-size: var(--c-text-small); }
 
+/* A sort button reaches 26 px tall through padding that a matching negative margin cancels, so its target meets the
+   WCAG 2.2 minimum without making the heading row taller. */
 .c-sort {
   display: inline-flex;
   align-items: center;
   gap: .3rem;
-  padding: 0;
+  margin: -.35rem 0;
+  padding: .35rem 0;
   border: 0;
   background: none;
   color: inherit;
@@ -187,6 +190,12 @@
 .c-sort:not(:disabled):hover { color: var(--c-accent); }
 .c-sort:disabled { cursor: default; }
 .c-sort .c-sort-mark { color: var(--c-accent); font-size: var(--c-text-label); }
+/* Only the active column shows its arrow. An idle arrow appears on hover and keyboard focus, so the headings stay quiet
+   and each sortable column stays discoverable. A touch screen has no hover, so it shows idle arrows faintly. */
+.c-sort .c-sort-mark--idle { opacity: 0; transition: opacity .12s ease; }
+.c-sort:hover .c-sort-mark--idle, .c-sort:focus-visible .c-sort-mark--idle { opacity: .8; }
+@media (hover: none) { .c-sort .c-sort-mark--idle { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .c-sort .c-sort-mark--idle { transition: none; } }
 .c-sort:disabled .c-sort-mark { display: none; }
 
 /* One accent for links and focus */

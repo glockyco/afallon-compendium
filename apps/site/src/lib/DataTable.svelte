@@ -23,7 +23,7 @@
           <th scope="col" class:c-num={column.numeric} aria-sort={active ? (sort?.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
             {#if column.sortable && onSort}
               <button type="button" class="c-sort" on:click={() => onSort?.(column.id, column.numeric === true)}>
-                {column.label}<span class="c-sort-mark" aria-hidden="true">{active ? (sort?.dir === 'asc' ? '▲' : '▼') : '↕'}</span>
+                {column.label}<span class="c-sort-mark" class:c-sort-mark--idle={!active} aria-hidden="true">{active ? (sort?.dir === 'asc' ? '▲' : '▼') : '↕'}</span>
               </button>
             {:else}{column.label}{/if}
           </th>

@@ -22,6 +22,8 @@
 
   $: sorted = sort ? sortRows(rows, sortValue, sort) : rows;
   $: shown = shownRowCount(sorted.length, expanded);
+  // A table with one row has nothing to order, so its headings are plain text.
+  $: sortable = rows.length > 1;
 
   // The address can name an anchor in a row that the limit hides. Such a row opens the table and scrolls into view.
   async function revealTarget(): Promise<void> {
@@ -41,7 +43,7 @@
   });
 
   function ariaSort(column: RelationColumn<Row>): 'ascending' | 'descending' | 'none' | undefined {
-    if (!column.sort) return undefined;
+    if (!column.sort || !sortable) return undefined;
     if (sort?.id !== column.id) return 'none';
     return sort.dir === 'asc' ? 'ascending' : 'descending';
   }
@@ -61,13 +63,13 @@
       <tr role="row">
         {#each columns as column}
           <th scope="col" role="columnheader" class:num={column.numeric} aria-sort={ariaSort(column)}>
-            {#if column.sort}
+            {#if column.sort && sortable}
               {#if column.hint}
                 <Hint text={column.hint} wrapsControl let:control>
-                  <button type="button" class="c-sort" aria-describedby={control.describedBy} on:focus={control.show} on:blur={control.close} on:keydown={control.keydown} on:click={() => { sortBy(column); control.show(); }}><span class="hint-term">{column.label}</span><span class="c-sort-mark" aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
+                  <button type="button" class="c-sort" aria-describedby={control.describedBy} on:focus={control.show} on:blur={control.close} on:keydown={control.keydown} on:click={() => { sortBy(column); control.show(); }}><span class="hint-term">{column.label}</span><span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
                 </Hint>
               {:else}
-                <button type="button" class="c-sort" on:click={() => sortBy(column)}>{column.label}<span class="c-sort-mark" aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
+                <button type="button" class="c-sort" on:click={() => sortBy(column)}>{column.label}<span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
               {/if}
             {:else if column.hint}<Hint text={column.hint}>{column.label}</Hint>
             {:else}{column.label}{/if}
