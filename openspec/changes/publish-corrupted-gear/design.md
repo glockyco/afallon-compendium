@@ -36,7 +36,7 @@ Project the captured settings and confirmed eligibility into a versioned item do
 
 ### Extend the mechanics document and navigation
 
-Add one published mechanics document for `/mechanics/corruption` through the `mechanics` kind and route introduced by `explain-character-progression`. Add its link in the Mechanics group owned by `build-compendium-hub`. Keep all references to published items resolvable. Use sentence-case headings and columns, title-case names, and no record IDs. Use the shared "On this page" list from `add-page-navigation` if there are four or more sections. The page covers gear, keystones, timers, hearts, and tokens, but marks unsupported behavior explicitly. It neither ranks items nor claims a drop chance without evidence.
+Add one published mechanics document for `/mechanics/corruption` through the `mechanics` kind and route introduced by `explain-character-progression`. Add its link in the Mechanics group owned by `build-compendium-hub`. Keep all references to published items resolvable. Use sentence-case headings and columns, title-case names, and no record IDs. Use the shared section navigation from `add-page-navigation` if there are four or more sections. The page covers gear, keystones, timers, hearts, and tokens, but marks unsupported behavior explicitly. It neither ranks items nor claims a drop chance without evidence.
 
 ## Risks / Trade-offs
 

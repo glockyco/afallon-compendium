@@ -52,7 +52,7 @@ The stat document groups fixed item, random item, gem, gear-set tier, talent ran
 
 ### Use the existing shared site structure
 
-Add four detail views through `DetailPage.svelte` and four tooltips through `TooltipPresenter.svelte`, with the established hero and section pattern. Show concise lists with relevant columns: effects by type and rank count, stats by category and unit, enchantments by item type and outcome, factions by member count and recorded visibility. The list only exposes supported columns. `build-compendium-hub` owns the Reference group. This change inserts its four links there without replacing the grouped shell. The shared `add-page-navigation` "On this page" component handles any page with four or more sections.
+Add four detail views through `DetailPage.svelte` and four tooltips through `TooltipPresenter.svelte`, with the established hero and section pattern. Show concise lists with relevant columns: effects by type and rank count, stats by category and unit, enchantments by item type and outcome, factions by member count and recorded visibility. The list only exposes supported columns. `build-compendium-hub` owns the Reference group. This change inserts its four links there without replacing the grouped shell. The shared `add-page-navigation` section navigation component handles any page with four or more sections.
 
 ## Risks / Trade-offs
 

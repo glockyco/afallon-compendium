@@ -62,20 +62,24 @@ A link to a section or row inside a hidden tab SHALL select its owner before scr
 - **WHEN** a fragment does not name a target in any tab
 - **THEN** the tab chosen by the `tab` parameter stays selected
 
-### Requirement: Long detail pages list their rendered sections
+### Requirement: Long detail pages offer floating section navigation
 
-A detail page SHALL show an "On this page" navigation list only when at least four sections render. The list SHALL contain one link per rendered section, in page order, with the section's reader-facing heading. A link SHALL scroll to its section. At 1440 px the list SHALL appear beside the single column of page content and remain available while scrolling. At 390 px the list SHALL appear as a compact disclosure above the sections, with links operable by touch and keyboard. The page SHALL NOT scroll sideways at either width.
+A detail page SHALL offer section navigation only when at least four sections render. A compact control SHALL float at the lower right corner of the viewport and SHALL name the section that the reader is in. At the end of the page it SHALL name the last section. Opening the control SHALL show "Back to top" and one numbered link per rendered section, in page order, with the section's reader-facing heading, and SHALL mark the current section with more than color. A section link SHALL scroll to its section and close the control. Escape and a pointer press outside the control SHALL close it, and Escape SHALL return focus to the control. The control SHALL work with touch and keyboard. The section column SHALL keep the full width of the page content, and the page SHALL keep room below its last line for the control. The page SHALL NOT scroll sideways at 1440 px or 390 px.
 
 #### Scenario: Four rendered sections on a desktop
-- **WHEN** a detail page renders four sections at 1440 px
-- **THEN** the list shows four links beside the content column
-- **AND** the section cards stay in one column
+- **WHEN** a detail page renders four sections at 1440 px and the reader opens the control
+- **THEN** the control lists four numbered section links and "Back to top"
+- **AND** the section cards keep the full width of the content column
+
+#### Scenario: Current section
+- **WHEN** a reader scrolls the Plaguebearer tree of the Necromancer page past the upper quarter of the viewport
+- **THEN** the closed control names Plaguebearer
+- **AND** the open control marks Plaguebearer as the current section
 
 #### Scenario: Four rendered sections on a phone
-- **WHEN** a detail page renders four sections at 390 px
-- **THEN** a compact "On this page" control exposes four section links above the sections
-- **AND** selecting a link reaches its heading without horizontal page scrolling
+- **WHEN** a detail page renders four sections at 390 px and the reader selects a section link in the control
+- **THEN** the page reaches that heading, the control closes, and the page does not scroll sideways
 
 #### Scenario: Fewer than four sections
 - **WHEN** a detail page renders three sections
-- **THEN** it shows no "On this page" list
+- **THEN** it shows no section navigation

@@ -8,22 +8,22 @@ Give every entity detail page one structure that answers a player's questions in
 
 ### Requirement: Detail pages share one structure
 
-Every entity detail page SHALL show the breadcrumb, the title block, an optional hero, and its sections. A page with at least four rendered sections SHALL also show "On this page" navigation beside the section column on a wide screen and above the sections on a narrow screen. The title block, the hero, and each section SHALL use the full width of the page content column. A page SHALL NOT place two cards side by side.
+Every entity detail page SHALL show the breadcrumb, the title block, an optional hero, and its sections. A page with at least four rendered sections SHALL also show the floating section navigation of the page-navigation spec. The title block, the hero, and each section SHALL use the full width of the page content column. A page SHALL NOT place two cards side by side.
 
 #### Scenario: Item page on a wide screen
 - **WHEN** a reader opens an item page in a window that is 1440 px wide
 - **THEN** the title block, the hero, and each source section use the full width of the page content column
 - **AND** no two cards share a row
-- **AND** an "On this page" list appears beside the sections if at least four sections render
+- **AND** the section navigation appears if at least four sections render
 
 #### Scenario: Page with one short section
 - **WHEN** a page has one section with one row
 - **THEN** that section uses the full width of the page content column without a card beside it
-- **AND** the page has no "On this page" list
+- **AND** the page has no section navigation
 
 #### Scenario: Detail page on a phone
 - **WHEN** a class page with at least four sections opens at 390 px
-- **THEN** the "On this page" control precedes the sections without placing cards side by side
+- **THEN** the section navigation floats over the page without placing cards side by side
 
 ### Requirement: The title block names the entity
 

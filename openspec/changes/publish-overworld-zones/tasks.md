@@ -21,13 +21,13 @@
 
 ## 4. Site presentation and browser checks
 
-- [ ] 4.1 Render the Afallon zones with C2's shared URL-backed tab set and its shared "On this page" list for four or more sections. Show zone facts, areas, and assigned content. Verify in a browser that direct `?tab=<zone-slug>` links select the same zone after reload and that tab names contain no raw keys or enum words.
+- [ ] 4.1 Render the Afallon zones with C2's shared URL-backed tab set and its shared section navigation for four or more sections. Show zone facts, areas, and assigned content. Verify in a browser that direct `?tab=<zone-slug>` links select the same zone after reload and that tab names contain no raw keys or enum words.
 - [ ] 4.2 Show linked zone and area labels on NPC and quest pages, with the separate map spot links on C1's `/map`. Verify in a browser that an NPC in a minor area opens its major zone tab. Check a quest with locations in two zones and an unknown-zone map spot.
 - [ ] 4.3 Show missing-map and missing-content labels on scene pages and the Places list. Keep the existing detail structure for other place kinds. Verify in a browser that the three named lore scenes remain searchable and show their captured facts without a map action.
 
 ## 5. Publication and acceptance
 
 - [ ] 5.1 Publish a candidate from the reviewed catalog and stage it against the accepted publication. Verify no publication issues, valid graph references, coverage counts, map/placement parity, and a reviewable update diff. Keep the accepted publication as the baseline and rollback.
-- [ ] 5.2 Check the staged site in a browser at 1440 px and 390 px. Open Afallon tabs, direct tab links, a region page, NPC and quest area links, and an unmapped scene page. Verify keyboard tab selection, the "On this page" list, readable labels, and no horizontal overflow.
+- [ ] 5.2 Check the staged site in a browser at 1440 px and 390 px. Open Afallon tabs, direct tab links, a region page, NPC and quest area links, and an unmapped scene page. Verify keyboard tab selection, the section navigation, readable labels, and no horizontal overflow.
 - [ ] 5.3 Write the update report after reviewing the catalog and publication changes. Accept the catalog candidate and publication candidate together. Verify that the accepted build names both new artifacts and retains the previous publication as rollback.
 - [ ] 5.4 Run focused contract, catalog, publication, and site checks for the changed paths, then run the project checks needed by the update workflow. Verify all required checks pass and run `openspec validate publish-overworld-zones --strict`.

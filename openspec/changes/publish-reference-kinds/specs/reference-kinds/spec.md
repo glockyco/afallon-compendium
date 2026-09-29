@@ -6,7 +6,7 @@ Make effects, stats, enchantments, and factions readable as linked reference pag
 
 ### Requirement: Reference kinds are discoverable
 
-Effects, Stats, Enchantments, and Factions SHALL appear in the Reference navigation group. Each kind SHALL have a list, a detail page for each reachable record, search entries, and link tooltips. Lists SHALL expose names and useful comparable facts without ranking entries. References from other pages SHALL link to the matching detail page when the target exists. The pages SHALL use the shared detail layout and the "On this page" list when they have four or more sections.
+Effects, Stats, Enchantments, and Factions SHALL appear in the Reference navigation group. Each kind SHALL have a list, a detail page for each reachable record, search entries, and link tooltips. Lists SHALL expose names and useful comparable facts without ranking entries. References from other pages SHALL link to the matching detail page when the target exists. The pages SHALL use the shared detail layout and the section navigation when they have four or more sections.
 
 #### Scenario: Follow a stat from an item
 - **WHEN** a reader opens the tooltip of a stat on an item

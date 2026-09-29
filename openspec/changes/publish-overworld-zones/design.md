@@ -6,7 +6,7 @@ See `proposal.md` for the motivation. The accepted catalog query returned 42 sce
 
 The recovered `RegionTemplate` declaration has `regionType` and `parentMajorRegion` (`Templates/RegionTemplate.cs:3-14`). Its tooltip says that the smallest containing major region wins. The bounded `RegionManager_Outranks` decompilation confirms smaller-area precedence and shows tie comparisons (`research/ghidra/25434619/skill-corruption-region-functions-exact-20260928.json`, function `RegionManager_Outranks`). It does not prove which observed templates are major, whether every authored collider is active, or how vertical containment affects a placement. The tasks verify those facts before zone assignment.
 
-This change depends on `build-compendium-hub` for `/map` and the grouped Places link. It depends on `add-page-navigation` for URL-backed `tab` selection and the shared "On this page" list. It does not own either component or route.
+This change depends on `build-compendium-hub` for `/map` and the grouped Places link. It depends on `add-page-navigation` for URL-backed `tab` selection and the shared section navigation. It does not own either component or route.
 
 ## Goals / Non-Goals
 

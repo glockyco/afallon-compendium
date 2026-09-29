@@ -25,7 +25,7 @@
 
 - [ ] 4.1 Add four detail views and dispatch them through `apps/site/src/lib/DetailPage.svelte`. Reuse the full-width hero, source tables, collapse behavior, and section anchors. Verify an effect with multiple ranks and a stat with multiple sources in the browser, including a missing-source label without an empty table.
 - [ ] 4.2 Add the four link tooltips through `apps/site/src/lib/TooltipPresenter.svelte`. Verify hover and keyboard focus for links from an ability, item, NPC, and quest or interaction. Confirm tooltips stay beside links or in the narrow-screen overlay.
-- [ ] 4.3 Insert Effects, Stats, Enchantments, and Factions into the C1 Reference navigation group without changing its other groups. Use the C2 "On this page" list when a detail page has four or more sections. Verify navigation from all four links and URL anchors on a long detail page.
+- [ ] 4.3 Insert Effects, Stats, Enchantments, and Factions into the C1 Reference navigation group without changing its other groups. Use the C2 section navigation when a detail page has four or more sections. Verify navigation from all four links and URL anchors on a long detail page.
 - [ ] 4.4 Check headings, columns, category values, and fallback text on the four kinds. Verify reader-facing text has sentence-case headings, title-case names, straight quotes, and no native ID or enum token. Check that lists and search do not rank records.
 
 ## 5. Publish and accept together

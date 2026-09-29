@@ -20,7 +20,7 @@
 ## 4. Site
 
 - [ ] 4.1 Add the corruption-level control to eligible item pages. Show base and calculated values side by side, keep the ordinary tooltip and source sections, label variable rolls, and link the mechanics page. Verify in a running browser that an eligible weapon changes at a supported level and returns to base values at level zero. Verify that an ineligible item has no control.
-- [ ] 4.2 Render `/mechanics/corruption` with reader labels and the verified or unverified status of each topic. Use the shared "On this page" component from `add-page-navigation` when the page has four or more sections. Verify in the browser that the token link opens its item page and that no record IDs, enum words, or unsupported reward claims appear.
+- [ ] 4.2 Render `/mechanics/corruption` with reader labels and the verified or unverified status of each topic. Use the shared section navigation component from `add-page-navigation` when the page has four or more sections. Verify in the browser that the token link opens its item page and that no record IDs, enum words, or unsupported reward claims appear.
 
 ## 5. Publication and acceptance
 

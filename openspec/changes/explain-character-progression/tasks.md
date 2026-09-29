@@ -73,7 +73,7 @@
 - [ ] 4.1 Add `/mechanics/<topic>` through the public route, with the two topics in C1's Mechanics navigation group and an unknown-topic not-found result. Verify in the browser that both links load accepted publication documents, search finds the topics, and the dev-only map cards remain behind `{#if dev}`.
 - [ ] 4.2 Render the character level curve with logarithmic experience ticks and a keyboard-operable level control. Compute earned and remaining cumulative values from the published template, and link class and skill pages to the topic. Verify in the browser at the first level, an intermediate level, and the cap that the arithmetic is correct and no Experience table remains.
 - [ ] 4.3 Render the authored source ranges, verified experience rules, talent point rules, Heroic Essence formula, and captured Heroic settings. Distinguish unknown branches, scaling creatures, and quest versus kill experience. Verify in the browser that no reader text shows an internal id, unsupported claim, unqualified cutoff, or hard-coded build value.
-- [ ] 4.4 Check both mechanics pages and representative class and skill pages at 1440 px and 390 px. Verify accessible chart labels and level control, no page-level sideways overflow, sentence-case headings, title-case names and categories, C2's "On this page" list on pages with four or more sections, and direct links without redirects.
+- [ ] 4.4 Check both mechanics pages and representative class and skill pages at 1440 px and 390 px. Verify accessible chart labels and level control, no page-level sideways overflow, sentence-case headings, title-case names and categories, C2's section navigation on pages with four or more sections, and direct links without redirects.
 
 ## 5. Stage and accept both artifacts
 

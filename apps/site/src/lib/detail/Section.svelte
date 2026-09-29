@@ -13,7 +13,7 @@
   /** One sentence that explains the values or states the values that all rows share. */
   export let line: string | undefined = undefined;
 
-  // A rendered section enters the "On this page" list of its page, with the heading that the reader sees.
+  // A rendered section enters the section lens of its page, with the heading that the reader sees.
   let element: HTMLElement;
   const handle = detailNavigation()?.addSection(id, title);
   $: handle?.update(id, title);
