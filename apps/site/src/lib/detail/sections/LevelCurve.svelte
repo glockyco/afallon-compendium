@@ -5,7 +5,8 @@
   export let curve: LevelCurveData;
   /** The subject of the curve in labels: "Character" or a skill name. */
   export let subject = 'Character';
-  const uid = `curve-${Math.random().toString(36).slice(2, 8)}`;
+  // A page shows at most one curve, so the subject names its ids the same way on the server and in the browser.
+  $: uid = `curve-${subject.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
   const width = 920;
   const height = 320;
