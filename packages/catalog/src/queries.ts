@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogAbilityFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogInteractionRow, CatalogGatedSourceRow, CatalogAvailabilityRule, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementSpan, CatalogRequirementGroup, CatalogRequirementNamedValue, CatalogRequirementEntry, CatalogRequirementTime, CatalogRelations } from "@afallon/contracts/catalog";
-import type { CatalogProgression, CatalogProgressionApplier, CatalogProgressionFact, CatalogProgressionLearner, CatalogProgressionUnlock, CatalogRandomChoice, NormalizedReference, ProgressionDetails } from "@afallon/contracts/catalog";
+import type { CatalogMechanicsRule, CatalogProgression, CatalogProgressionApplier, CatalogProgressionFact, CatalogProgressionLearner, CatalogProgressionUnlock, CatalogRandomChoice, NormalizedReference, ProgressionDetails } from "@afallon/contracts/catalog";
 import { categoryLabel } from "@afallon/contracts/public";
 import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
 import { containerTypeFromHierarchyPath } from "./world";
@@ -731,7 +731,9 @@ function queryProgression(db: Database): CatalogProgression {
   unlocks.sort((a, b) => a.target.localeCompare(b.target) || (a.owner?.label ?? "").localeCompare(b.owner?.label ?? "") || a.tier - b.tier || a.row - b.row);
   appliers.sort((a, b) => a.effect.localeCompare(b.effect) || a.source.label.localeCompare(b.source.label) || order(a.rank) - order(b.rank) || a.via.localeCompare(b.via));
   const offeredClasses = [...new Set(facts.flatMap((fact) => fact.kind === "races" ? fact.details.offeredClasses.flatMap((row) => row.entityKey === null ? [] : [row.entityKey]) : []))].sort();
-  return { facts, links, talentNodes, spellbookNodes, learners, unlocks, appliers, offeredClasses };
+  const mechanicsRules = db.query<{ rule_id: string; topic: CatalogMechanicsRule["topic"]; section: string; ordinal: number; status: CatalogMechanicsRule["status"]; phrase: string; operands_json: string; links_json: string; sources_json: string }, []>("SELECT rule_id, topic, section, ordinal, status, phrase, operands_json, links_json, sources_json FROM mechanics_rules ORDER BY topic, ordinal").all()
+    .map((row): CatalogMechanicsRule => ({ ruleId: row.rule_id, topic: row.topic, section: row.section, ordinal: row.ordinal, status: row.status, phrase: row.phrase, operands: JSON.parse(row.operands_json), links: JSON.parse(row.links_json), sources: JSON.parse(row.sources_json) }));
+  return { facts, links, talentNodes, spellbookNodes, learners, unlocks, appliers, offeredClasses, mechanicsRules };
 }
 
 function enumName(value: string): string {

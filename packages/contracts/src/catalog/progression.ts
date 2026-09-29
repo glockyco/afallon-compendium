@@ -1,3 +1,4 @@
+import type { CatalogMechanicsRule } from "./mechanics";
 import type { NormalizedReference, ProvenanceReference } from "./query";
 
 // Progression facts: how characters progress and what game systems do. The catalog resolves each native id to a
@@ -161,4 +162,6 @@ export interface CatalogProgression {
   appliers: CatalogProgressionApplier[];
   // Keys of the classes that at least one race offers.
   offeredClasses: string[];
+  // The reviewed calculation rules of the build, in authored order within each topic.
+  mechanicsRules: CatalogMechanicsRule[];
 }

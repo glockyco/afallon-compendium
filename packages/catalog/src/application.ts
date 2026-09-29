@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { Assert } from "typebox/value";
 import { ArtifactStore, beginArtifactRun, createArtifactLease, fingerprintStep, selectLatestSuccess, type ArtifactRun } from "@afallon/artifacts";
 import { canonicalJson, schemaRegistry, MapSpaceProfileSchema, type ArtifactRunManifest, type ContentIdentity } from "@afallon/contracts";
-import { CatalogPlanSchema, CatalogImagerySchema, CoverageReviewSchema, CoveragePolicySchema, type CatalogPlan } from "@afallon/contracts/catalog";
+import { CatalogPlanSchema, CatalogImagerySchema, CoverageReviewSchema, CoveragePolicySchema, MechanicsRulesSchema, type CatalogPlan } from "@afallon/contracts/catalog";
 import { assembleCatalog } from "./assembly";
 import { admitCatalogPlan, coverageExclusionSubjects, evidenceReference } from "./evidence";
 import { normalizeCatalog } from "./normalize";
@@ -22,7 +22,7 @@ export interface CatalogResult {
 export async function assembleCatalogFromPlan(store: ArtifactStore, input: CatalogPlan, options: { diagnosticRevision: string; select?: boolean }): Promise<CatalogResult> {
   Assert(CatalogPlanSchema, input);
   const plan: CatalogPlan = { ...input, scans: [...input.scans].sort((a, b) => a.sha256.localeCompare(b.sha256)), imagery: [...input.imagery].sort((a, b) => a.sha256.localeCompare(b.sha256)) };
-  const declaredInputs = { profile: plan.spatialProfile, coverageReview: plan.coverageReview, ...Object.fromEntries(plan.scans.map((identity) => [`scan:${identity.sha256}`, identity])), ...Object.fromEntries(plan.imagery.map((identity) => [`imagery:${identity.sha256}`, identity])) };
+  const declaredInputs = { profile: plan.spatialProfile, coverageReview: plan.coverageReview, mechanicsRules: plan.mechanicsRules, ...Object.fromEntries(plan.scans.map((identity) => [`scan:${identity.sha256}`, identity])), ...Object.fromEntries(plan.imagery.map((identity) => [`imagery:${identity.sha256}`, identity])) };
   const lease = await createArtifactLease(store, { runId: `catalog-admission-${randomUUID()}`, buildId: plan.buildId, operation: "catalog", objects: Object.values(declaredInputs), manifests: plan.scans });
   let run: ArtifactRun;
   let planObject: ContentIdentity;
@@ -32,7 +32,7 @@ export async function assembleCatalogFromPlan(store: ArtifactStore, input: Catal
     const storedPlan = await store.putBytes(new TextEncoder().encode(canonicalJson(plan)), lease);
     planObject = { sha256: storedPlan.sha256, bytes: storedPlan.bytes };
     const inputs = { ...declaredInputs, plan: planObject };
-    const schemas = [CatalogPlanSchema, CatalogImagerySchema, MapSpaceProfileSchema, CoverageReviewSchema, CoveragePolicySchema].map((schema) => { const identity = schemaRegistry.identify(schema); return { id: identity.id, sha256: identity.sha256 }; });
+    const schemas = [CatalogPlanSchema, CatalogImagerySchema, MapSpaceProfileSchema, CoverageReviewSchema, CoveragePolicySchema, MechanicsRulesSchema].map((schema) => { const identity = schemaRegistry.identify(schema); return { id: identity.id, sha256: identity.sha256 }; });
     const fingerprint = await fingerprintStep({ entrypoint: import.meta.path, buildId: plan.buildId, settings, schemas, inputs });
     implementation = fingerprint.implementation;
     run = await beginArtifactRun(store, { buildId: plan.buildId, operation: "catalog", diagnosticRevision: options.diagnosticRevision, settings, schemas, inputs, inputManifests: plan.scans.map((identity) => `scan:${identity.sha256}`), implementationFingerprint: fingerprint.implementation, cacheKey: fingerprint.cacheKey, probeHashes: fingerprint.probeHashes });

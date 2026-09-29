@@ -5,14 +5,16 @@ import { schemaRegistry } from "../schema-registry";
 
 const text = Type.String({ minLength: 1 });
 
+// `mechanicsRules` is the registered `compendium.mechanics-rules.v1` record of the build's verified calculation rules.
 export const CatalogPlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.catalog-plan.v1"),
+  schemaVersion: Type.Literal("compendium.catalog-plan.v2"),
   buildId: text,
   scans: Type.Array(ContentIdentitySchema, { minItems: 1, uniqueItems: true }),
   canonicalTarget: Type.Object({ manifest: ContentIdentitySchema, targetIdentity: text }, { additionalProperties: false }),
   spatialProfile: ContentIdentitySchema,
   imagery: Type.Array(ContentIdentitySchema, { uniqueItems: true }),
   coverageReview: ContentIdentitySchema,
+  mechanicsRules: ContentIdentitySchema,
 }, { additionalProperties: false });
 export type CatalogPlan = Static<typeof CatalogPlanSchema>;
 
@@ -25,5 +27,5 @@ export const CatalogImagerySchema = Type.Object({
 }, { additionalProperties: false });
 export type CatalogImagery = Static<typeof CatalogImagerySchema>;
 
-schemaRegistry.register("compendium.catalog-plan.v1", CatalogPlanSchema);
+schemaRegistry.register("compendium.catalog-plan.v2", CatalogPlanSchema);
 schemaRegistry.register("compendium.catalog-imagery.v1", CatalogImagerySchema);

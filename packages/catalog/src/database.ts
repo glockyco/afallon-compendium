@@ -457,6 +457,10 @@ export function openNormalizedDatabase(path: string): Database {
         book_key TEXT NOT NULL REFERENCES progression_facts(entity_key), node_index INTEGER NOT NULL CHECK(node_index >= 0), node_type_json TEXT NOT NULL,
         target_key TEXT, target_label TEXT, unlock_level INTEGER NOT NULL, provenance_json TEXT NOT NULL, PRIMARY KEY(book_key, node_index)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS mechanics_rules (
+        rule_id TEXT PRIMARY KEY NOT NULL, topic TEXT NOT NULL, section TEXT NOT NULL, ordinal INTEGER NOT NULL CHECK(ordinal >= 0), status TEXT NOT NULL CHECK(status IN ('verified', 'unknown')),
+        phrase TEXT NOT NULL, operands_json TEXT NOT NULL, links_json TEXT NOT NULL, sources_json TEXT NOT NULL, provenance_json TEXT NOT NULL, UNIQUE(topic, ordinal)
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS crafting_station_facts (
         entity_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key), max_distance REAL NOT NULL, skill_refs_json TEXT NOT NULL, provenance_json TEXT NOT NULL
       ) STRICT;
@@ -661,6 +665,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const row of input.progressionLinks ?? []) insertChecked(db, "progression_links", ["owner_key", "link_kind", "link_index"], ["owner_key", "link_kind", "link_index", "target_key", "target_label", "provenance_json"], [row.ownerKey, row.linkKind, row.linkIndex, row.target.entityKey, row.target.label, json(row.provenance)]);
     for (const row of input.talentNodes ?? []) insertChecked(db, "talent_nodes", ["tree_key", "node_index"], ["tree_key", "node_index", "node_type_json", "target_key", "target_label", "tier", "row", "condition_id", "provenance_json"], [row.treeKey, row.nodeIndex, json(row.nodeType), row.target?.entityKey ?? null, row.target?.label ?? null, row.tier, row.row, row.conditionId, json(row.provenance)]);
     for (const row of input.spellbookNodes ?? []) insertChecked(db, "spellbook_nodes", ["book_key", "node_index"], ["book_key", "node_index", "node_type_json", "target_key", "target_label", "unlock_level", "provenance_json"], [row.bookKey, row.nodeIndex, json(row.nodeType), row.target?.entityKey ?? null, row.target?.label ?? null, row.unlockLevel, json(row.provenance)]);
+    for (const row of input.mechanicsRules ?? []) insertChecked(db, "mechanics_rules", ["rule_id"], ["rule_id", "topic", "section", "ordinal", "status", "phrase", "operands_json", "links_json", "sources_json", "provenance_json"], [row.ruleId, row.topic, row.section, row.ordinal, row.status, row.phrase, json(row.operands), json(row.links), json(row.sources), json(row.provenance)]);
     for (const row of input.craftingStationFacts ?? []) insertChecked(db, "crafting_station_facts", ["entity_key"], ["entity_key", "max_distance", "skill_refs_json", "provenance_json"], [row.entityKey, row.maxDistance, json(row.skillRefs), json(row.provenance)]);
     for (const row of input.artworkAssets ?? []) insertChecked(db, "artwork_assets", ["asset_id"], ["asset_id", "sha256", "bytes", "width", "height", "source_name", "provenance_json"], [row.assetId, row.sha256, row.bytes, row.width, row.height, row.sourceName, json(row.provenance)]);
     for (const row of input.artworkBindings ?? []) insertChecked(db, "artwork_bindings", ["entity_key", "role"], ["entity_key", "role", "asset_id", "provenance_json"], [row.entityKey, row.role, row.assetId, json(row.provenance)]);

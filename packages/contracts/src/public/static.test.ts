@@ -51,7 +51,7 @@ test("rejects mismatched build, catalog, schema, and resource identities", () =>
 
 test("publication plans accept only immutable inputs and one reviewed captured map space", () => {
   const content = { sha256: "a".repeat(64), bytes: 10 };
-  const catalogPlan = { schemaVersion: "compendium.catalog-plan.v1", buildId: "build", scans: [content], canonicalTarget: { manifest: content, targetIdentity: "current-scene" }, spatialProfile: content, imagery: [content], coverageReview: content };
+  const catalogPlan = { schemaVersion: "compendium.catalog-plan.v2", buildId: "build", scans: [content], canonicalTarget: { manifest: content, targetIdentity: "current-scene" }, spatialProfile: content, imagery: [content], coverageReview: content, mechanicsRules: content };
   Assert(CatalogPlanSchema, catalogPlan);
   expect(() => Assert(CatalogPlanSchema, { ...catalogPlan, catalogPath: "normalized.sqlite" })).toThrow();
   const ambiguousCatalogPlan: Partial<typeof catalogPlan> = { ...catalogPlan };

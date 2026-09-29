@@ -75,7 +75,7 @@ const facts: CatalogFacts = {
       { ability: "abilities:1", owner: ref("classes:6", "Hunter"), via: "talentTree", source: ref("talentTrees:40", "Trailcraft"), level: null, tier: 1, row: 1 },
       { ability: "abilities:2", owner: ref("classes:0", "Shieldmaster"), via: "autoAttack", source: null, level: null, tier: null, row: null },
     ],
-    unlocks: [], appliers: [], offeredClasses: ["classes:0", "classes:5"],
+    unlocks: [], appliers: [], offeredClasses: ["classes:0", "classes:5"], mechanicsRules: [],
   },
 };
 const relations: CatalogRelations = {

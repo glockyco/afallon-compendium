@@ -17,6 +17,7 @@ schemaRegistry.register("compendium.coverage.v2", CoverageLedgerSchema);
 
 export * from "./coverage";
 export * from "./accounting";
+export * from "./mechanics";
 export * from "./plans";
 export * from "./query";
 export * from "./roles";

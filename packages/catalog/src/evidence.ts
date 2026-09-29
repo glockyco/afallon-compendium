@@ -4,7 +4,7 @@ import { Assert } from "typebox/value";
 import { ArtifactStore, resolveArtifactRun } from "@afallon/artifacts";
 import { ArtifactRunManifestSchema, ArtworkSchema, CaptureSetSchema, canonicalJson, CanonicalSchema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema, QuestLevelsSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, NpcProducersSchema, WorldSourcesSchema, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, ScanTargetEnvelopeSchema, ObservationContextSchema, WorldInventorySchema, CoverageLedgerSchema, ScanCoverageSchema, ScanPlanningEvidenceSchema, validateScanTargetEnvelope, decodeContract, schemaRegistry, type ContentIdentity, type ScanTargetEnvelope, type ScanCollectorFamily, type ArtifactRunManifest, type WorldInventory } from "@afallon/contracts";
 import { PlacementRolesSchema, type ArtifactReference, type NormalizedDatabaseInput } from "@afallon/contracts/catalog";
-import { CatalogPlanSchema, CatalogImagerySchema, CoverageReviewSchema, CoveragePolicySchema, type CatalogPlan, type CatalogImagery, type CoverageAccountingInput, type VerifiedCoverageEvidence, type RoleEvidence } from "@afallon/contracts/catalog";
+import { CatalogPlanSchema, CatalogImagerySchema, CoverageReviewSchema, CoveragePolicySchema, MechanicsRulesSchema, type CatalogPlan, type CatalogImagery, type CoverageAccountingInput, type MechanicsRules, type VerifiedCoverageEvidence, type RoleEvidence } from "@afallon/contracts/catalog";
 import { sourceIdentityRows } from "./placements";
 import { identitySnapshotId } from "./identity-store";
 import { coverageInventorySubjects, coverageTargetSubjects } from "./coverage-accounting";
@@ -84,6 +84,7 @@ export interface AdmittedCatalog {
   evidence: VerifiedCoverageEvidence[];
   review: CoverageAccountingInput["review"];
   policy: CoverageAccountingInput["policy"];
+  mechanicsRules: { reference: ArtifactReference; document: MechanicsRules };
 }
 
 export function coverageExclusionSubjects(admitted: AdmittedCatalog, normalized: NormalizedDatabaseInput): NonNullable<CoverageAccountingInput["discoveredSubjects"]> {
@@ -309,6 +310,17 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
   const policy = { reference: review.document.policy, document: await readObject(store, review.document.policy, CoveragePolicySchema, "coverage policy") };
   register("coverage-review", review.reference, review.document, canonicalTarget.envelope.sourceRunId, "review");
   register("coverage-policy", policy.reference, policy.document, canonicalTarget.envelope.sourceRunId, "review");
-  return { plan, canonical, relationships, lootRules, support, artwork, localization, questLevels, sceneCatalog, profile, contexts, sources, imagery, inventories, evidence, review, policy };
+  const rules = await readObject(store, plan.mechanicsRules, MechanicsRulesSchema, "mechanics rules");
+  if (rules.buildId !== plan.buildId) throw new Error(`Mechanics rules ${plan.mechanicsRules.sha256} belong to build ${rules.buildId}, not ${plan.buildId}.`);
+  const evidenceIds = new Set<string>();
+  for (const item of rules.evidence) {
+    if (evidenceIds.has(item.id)) throw new Error(`Mechanics rules repeat evidence ${item.id}.`);
+    evidenceIds.add(item.id);
+    await store.verify(item.object);
+    register("mechanics-evidence", item.object, null, canonicalTarget.envelope.sourceRunId, "review");
+  }
+  register("mechanics-rules", plan.mechanicsRules, rules, canonicalTarget.envelope.sourceRunId, "review");
+  const mechanicsRules = { reference: evidenceReference(plan.mechanicsRules), document: rules };
+  return { plan, canonical, relationships, lootRules, support, artwork, localization, questLevels, sceneCatalog, profile, contexts, sources, imagery, inventories, evidence, review, policy, mechanicsRules };
 }
 
