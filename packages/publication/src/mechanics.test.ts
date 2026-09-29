@@ -18,21 +18,24 @@ const facts = {
   quests: [quest(1, 31), quest(2, null)],
   progression: { facts: progressionFacts, offeredClasses: ["classes:0"], mechanicsRules: [rule] },
 } as unknown as CatalogFacts;
+// Placeholder 100–100 records spawn in their zone: npcs:3 at 15–30, npcs:4 without an upper bound.
+const spawned = new Map([["npcs:3", { min: 15, max: 30, scales: true }], ["npcs:4", { min: 5, scales: true }]]);
 const published = new Set(["npcs:1", "npcs:2", "npcs:3", "npcs:4", "quests:1", "quests:2"]);
-const resolve = createReferenceResolver(new Map([["npcs:3", { key: "npcs:3", kind: "npcs" as const, name: "Infected Grain", slug: "infected-grain" }]]));
+const resolve = createReferenceResolver(new Map([["npcs:3", { key: "npcs:3", kind: "npcs" as const, name: "Infected Grain", slug: "infected-grain" }], ["npcs:4", { key: "npcs:4", kind: "npcs" as const, name: "Neonate Vampire", slug: "neonate-vampire" }]]));
 
-test("the level curve stops before the cap, and scaling creatures stay apart from the fixed-level range", () => {
-  const documents = projectMechanicsDocuments(facts, published, resolve);
+test("the level curve stops before the cap, and scaling creatures use their spawned levels", () => {
+  const documents = projectMechanicsDocuments(facts, published, spawned, resolve);
   const progression = documents.get("mechanics:character-progression") as CharacterProgression;
   expect([progression.curve.cap, progression.curve.rows]).toEqual([3, [{ level: 1, toNext: 20 }, { level: 2, toNext: 40 }]]);
   // The unpublished level-40 creature does not raise the fixed-level range.
   expect(progression.sources.fixedCreatures).toEqual({ count: 2, minLevel: 1, maxLevel: 30 });
-  expect([progression.sources.scalingCreatures.count, progression.sources.scalingCreatures.aboveFixed.map((row) => [row.creature, row.maxLevel])]).toEqual([2, [[{ key: "npcs:3", kind: "npcs", name: "Infected Grain", slug: "infected-grain" }, 100]]]);
+  // The authored 100–100 of npcs:3 is a placeholder: its spawned levels stay within the fixed range, so only the unbounded npcs:4 is listed.
+  expect([progression.sources.scalingCreatures.count, progression.sources.scalingCreatures.aboveFixed.map((row) => [row.creature.key, row.level])]).toEqual([2, [["npcs:4", { min: 5, scales: true }]]]);
   expect(progression.sources.quests).toEqual({ count: 2, maxLevel: 31, maxRequirement: 29, withoutRange: 1 });
   expect(progression.sources.levelModifiers).toEqual([{ lower: 20, higher: -20, creatures: 2 }]);
   expect((documents.get("mechanics:heroic-tier") as HeroicTier).settings).toEqual({ unavailable: "The scan of this build recorded no Heroic tier settings." });
 });
 
 test("a catalog without reviewed rules has no mechanics topics", () => {
-  expect(projectMechanicsDocuments({ ...facts, progression: { ...facts.progression, mechanicsRules: [] } }, published, resolve).size).toBe(0);
+  expect(projectMechanicsDocuments({ ...facts, progression: { ...facts.progression, mechanicsRules: [] } }, published, spawned, resolve).size).toBe(0);
 });

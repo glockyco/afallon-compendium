@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { CharacterProgression, MechanicsRule, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { rangeText } from '../../format';
+  import { npcLevelText, rangeText } from '../../format';
   import Hero from '../Hero.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
@@ -19,6 +19,13 @@
     { id: 'quest-experience', title: 'Quest experience' },
     { id: 'skill-experience', title: 'Skill experience' },
   ];
+  $: sources = document.sources;
+  $: fixedText = `${format(sources.fixedCreatures.count)} fixed-level creatures with experience have authored levels ${rangeText(sources.fixedCreatures.minLevel, sources.fixedCreatures.maxLevel)}.`;
+  $: scalingText = [`${format(sources.scalingCreatures.count)} creatures with experience scale with the player. The zone range of each spawner limits their level.`,
+    sources.scalingCreatures.aboveFixed.length ? `These scaling creatures can spawn above level ${format(sources.fixedCreatures.maxLevel)}:` : ''].filter(Boolean).join(' ');
+  $: questText = [`${format(sources.quests.count)} quests with experience have a highest quest level of ${format(sources.quests.maxLevel)}.`,
+    sources.quests.maxRequirement === undefined ? '' : `The highest level requirement is ${format(sources.quests.maxRequirement)}.`,
+    sources.quests.withoutRange ? `${format(sources.quests.withoutRange)} have no level range.` : ''].filter(Boolean).join(' ');
   function rulesFor(section: string): MechanicsRule[] {
     return document.rules.filter((rule) => rule.section === section);
   }
@@ -44,14 +51,13 @@
     </Section>
     <Section id="experience-sources" title="Experience sources" icon="creature">
       <div class="prose">
-        <p>{format(document.sources.fixedCreatures.count)} fixed-level creatures with experience have authored levels {rangeText(document.sources.fixedCreatures.minLevel, document.sources.fixedCreatures.maxLevel)}. The highest authored fixed-creature level is {format(document.sources.fixedCreatures.maxLevel)}.</p>
-        <p>{format(document.sources.scalingCreatures.count)} creatures with experience scale with the player. They are separate from the fixed-level range.</p>
+        <p>{fixedText}</p>
+        <p>{scalingText}</p>
         {#if document.sources.scalingCreatures.aboveFixed.length}
-          <p>Scaling creatures whose authored range exceeds the fixed-level maximum:</p>
-          <ul>{#each document.sources.scalingCreatures.aboveFixed as entry}<li><EntityLink ref={entry.creature} {registry} />: authored levels {rangeText(entry.minLevel, entry.maxLevel)}</li>{/each}</ul>
+          <ul>{#each document.sources.scalingCreatures.aboveFixed as entry}<li><EntityLink ref={entry.creature} {registry} />: {npcLevelText(entry.level)}</li>{/each}</ul>
         {/if}
-        <p>{format(document.sources.quests.count)} quests with experience have a highest authored quest level of {format(document.sources.quests.maxLevel)}{#if document.sources.quests.maxRequirement !== undefined} and a highest level requirement of {format(document.sources.quests.maxRequirement)}{/if}. {#if document.sources.quests.withoutRange}{format(document.sources.quests.withoutRange)} have no authored level range.{/if}</p>
-        <p>These are the highest authored levels of these experience sources, not a limit on earning experience at higher character levels.</p>
+        <p>{questText}</p>
+        <p>These are the highest levels of these experience sources, not a limit on earning experience at higher character levels.</p>
       </div>
     </Section>
     {#each ruleSections as group}

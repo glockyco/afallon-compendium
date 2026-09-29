@@ -114,8 +114,9 @@ export async function generateIndexResources(
   const artwork = await generateArtworkResources(store, entities.records, protection);
   const levelsByRecord = new Map<string, PublicLevel[]>();
   for (const levels of npcLevels.values()) for (const [key, level] of levels) levelsByRecord.set(key, [...levelsByRecord.get(key) ?? [], level]);
+  const spawnedLevels = new Map([...levelsByRecord].map(([key, levels]) => [key, levelUnion(levels)!] as const));
   const references = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, excluded,
-    npcLevels: new Map([...levelsByRecord].map(([key, levels]) => [key, levelUnion(levels)!] as const)) });
+    npcLevels: spawnedLevels });
   const refs = references.refs;
   // Each exclusion must still hold in this catalog, so the check reads the relations before exclusion.
   const spawnCandidates = querySpawnCandidateNpcs(db);
@@ -130,7 +131,7 @@ export async function generateIndexResources(
   const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
     resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey,
     classWeapons: classWeapons(queryCatalogFullEntities(db).records) });
-  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), createReferenceResolver(refs))]);
+  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), spawnedLevels, createReferenceResolver(refs))]);
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {

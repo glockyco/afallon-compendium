@@ -11,6 +11,7 @@
   import Section from '../Section.svelte';
   import TitleBlock from '../TitleBlock.svelte';
   import Sections from '../Sections.svelte';
+  import LevelCurve from '../sections/LevelCurve.svelte';
 
   export let document: PublicSkill;
   export let registry: PublicKindEntry[];
@@ -31,14 +32,19 @@
   <Hero>
     {#if document.description}<p class="c-prose">{document.description}</p>{/if}
     <FactList>
-      {#if facts.highestLevel !== undefined}<FactRow label="Highest level" href={`${base}/mechanics/character-progression/`}>{facts.highestLevel}</FactRow>{/if}
+      {#if facts.highestLevel !== undefined}<FactRow label="Highest level" href={document.curve ? '#levels' : undefined}>{facts.highestLevel}</FactRow>{/if}
       <FactRow label="Learned">{facts.automatic ? 'Automatically' : 'Not automatically'}</FactRow>
-      <FactRow label="Related mechanics"><a class="c-link" href={`${base}/mechanics/character-progression/`}>Character progression</a></FactRow>
+      <FactRow label="Related mechanics"><a class="c-link" href={`${base}/mechanics/character-progression/`}>Character Progression</a></FactRow>
       {#if document.recipes.length}<FactRow label="Recipes" href="#recipes">{document.recipes.length}</FactRow>{/if}
     </FactList>
   </Hero>
 
   <Sections>
+    {#if document.curve}
+      <Section id="levels" title="Levels" icon="talent">
+        <LevelCurve curve={document.curve} subject={document.ref.name} />
+      </Section>
+    {/if}
     {#if document.recipes.length}
       <Section id="recipes" title="Recipes" icon="recipe" count={document.recipes.length}>
         <RelationTable columns={plan.columns} rows={document.recipes} label="Recipes">

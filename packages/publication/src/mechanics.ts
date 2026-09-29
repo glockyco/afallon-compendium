@@ -1,11 +1,11 @@
 import { HEROIC_TIER_KEY, type CatalogFacts, type CatalogMechanicsRule, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { CharacterProgression, EntityRef, ExperienceSources, HeroicTier, MechanicsRule, PublicMechanics, TalentPoints } from "@afallon/contracts/public";
+import type { CharacterProgression, EntityRef, PublicLevel, ExperienceSources, HeroicTier, MechanicsRule, PublicMechanics, TalentPoints } from "@afallon/contracts/public";
 import type { ReferenceResolver } from "./documents";
 import { displayName } from "./text";
 
 const TOPICS: Record<MechanicsTopic, { name: string; description: string }> = {
-  "character-progression": { name: "Character progression", description: "How a character gains experience, levels, and talent points in this build." },
-  "heroic-tier": { name: "Heroic tier", description: "How the Heroic tier changes kill experience, Heroic Essence, creatures, and gear in this build." },
+  "character-progression": { name: "Character Progression", description: "How a character gains experience, levels, and talent points in this build." },
+  "heroic-tier": { name: "Heroic Tier", description: "How the Heroic tier changes kill experience, Heroic Essence, creatures, and gear in this build." },
 };
 
 function topicRef(topic: MechanicsTopic): EntityRef {
@@ -33,7 +33,7 @@ function characterTemplate(facts: CatalogFacts) {
   return template;
 }
 
-function experienceSources(facts: CatalogFacts, published: ReadonlySet<string>, resolve: ReferenceResolver): ExperienceSources {
+function experienceSources(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver): ExperienceSources {
   const creatures = facts.npcs.filter((npc) => published.has(npc.entityKey) && (npc.maxExperience ?? 0) > 0 && npc.minLevel !== null && npc.maxLevel !== null);
   const fixed = creatures.filter((npc) => !npc.scalesWithPlayer), scaling = creatures.filter((npc) => npc.scalesWithPlayer);
   if (fixed.length === 0) throw new Error("No published fixed-level creature gives experience.");
@@ -53,8 +53,9 @@ function experienceSources(facts: CatalogFacts, published: ReadonlySet<string>, 
     fixedCreatures: { count: fixed.length, minLevel: Math.max(0, Math.min(...fixed.map((npc) => npc.minLevel!))), maxLevel: fixedMax },
     scalingCreatures: {
       count: scaling.length,
-      aboveFixed: scaling.filter((npc) => npc.maxLevel! > fixedMax).sort((a, b) => a.entityKey.localeCompare(b.entityKey))
-        .map((npc) => ({ creature: resolve({ entityKey: npc.entityKey, label: npc.entityKey }), minLevel: Math.max(0, npc.minLevel!), maxLevel: npc.maxLevel! })),
+      // The authored range of a scaling creature is not its level: the spawner's zone range bounds it.
+      aboveFixed: scaling.flatMap((npc) => { const level = spawned.get(npc.entityKey); return level && (level.max === undefined || level.max > fixedMax) ? [{ npc, level }] : []; })
+        .sort((a, b) => a.npc.entityKey.localeCompare(b.npc.entityKey)).map(({ npc, level }) => ({ creature: resolve({ entityKey: npc.entityKey, label: npc.entityKey }), level })),
     },
     quests: { count: quests.length, maxLevel: Math.max(0, ...ranged), ...(requirements.length ? { maxRequirement: Math.max(...requirements) } : {}), withoutRange: quests.length - ranged.length },
     levelModifiers: [...modifiers.values()].sort((a, b) => b.creatures - a.creatures || a.lower - b.lower || a.higher - b.higher),
@@ -70,7 +71,7 @@ function levelUpTalentPoints(facts: CatalogFacts): TalentPoints[] {
   });
 }
 
-function characterProgression(facts: CatalogFacts, published: ReadonlySet<string>, resolve: ReferenceResolver): CharacterProgression {
+function characterProgression(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver): CharacterProgression {
   const template = characterTemplate(facts), cap = template.details.levels;
   // A template row holds the experience from its level to the next level. The cap has no next level.
   const rows = template.details.rows.slice(0, Math.max(0, cap - 1)).map((row, index) => ({ level: index + 1, toNext: Math.max(0, row.experienceRequired) }));
@@ -78,7 +79,7 @@ function characterProgression(facts: CatalogFacts, published: ReadonlySet<string
   return {
     ref: topicRef("character-progression"), description: TOPICS["character-progression"].description, art: {}, topic: "character-progression",
     curve: { template: displayName(template.name ?? "") || "Character levels", cap, rows },
-    sources: experienceSources(facts, published, resolve), talentPoints: levelUpTalentPoints(facts),
+    sources: experienceSources(facts, published, spawned, resolve), talentPoints: levelUpTalentPoints(facts),
     rules: rules(facts.progression.mechanicsRules, "character-progression", resolve),
   };
 }
@@ -99,10 +100,11 @@ function heroicTier(facts: CatalogFacts, resolve: ReferenceResolver): HeroicTier
 
 /**
  * The mechanics topic documents, keyed by their publication-owned keys. `published` holds the keys of records that have
- * references. A catalog built from a v2 plan always carries the reviewed rules; a catalog without them has no topics.
+ * references, and `spawned` the level range of each creature over its published spawners. A catalog built from a v2
+ * plan always carries the reviewed rules; a catalog without them has no topics.
  */
-export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, resolve: ReferenceResolver): ReadonlyMap<string, PublicMechanics> {
+export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver): ReadonlyMap<string, PublicMechanics> {
   if (facts.progression.mechanicsRules.length === 0) return new Map();
-  const documents: PublicMechanics[] = [characterProgression(facts, published, resolve), heroicTier(facts, resolve)];
+  const documents: PublicMechanics[] = [characterProgression(facts, published, spawned, resolve), heroicTier(facts, resolve)];
   return new Map(documents.map((document) => [document.ref.key, document]));
 }

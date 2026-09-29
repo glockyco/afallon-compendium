@@ -3,6 +3,9 @@
   import { cumulativeExperience } from '../level-curve';
 
   export let curve: LevelCurveData;
+  /** The subject of the curve in labels: "Character" or a skill name. */
+  export let subject = 'Character';
+  const uid = `curve-${Math.random().toString(36).slice(2, 8)}`;
 
   const width = 920;
   const height = 320;
@@ -44,9 +47,9 @@
 <!-- The scrollable chart needs focus so keyboard readers can pan it without changing the selected level. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div class="chart-scroll" role="region" aria-label="Level curve chart; scroll horizontally to see all levels" tabindex="0">
-  <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-labelledby="level-curve-title level-curve-description">
-    <title id="level-curve-title">Experience to next level by character level</title>
-    <desc id="level-curve-description">A logarithmic chart of experience to the next level for each published level below the cap. Select a level below for exact values.</desc>
+  <svg viewBox={`0 0 ${width} ${height}`} role="img" preserveAspectRatio="xMidYMid meet" aria-labelledby={`${uid}-title ${uid}-description`}>
+    <title id={`${uid}-title`}>Experience to next level by {subject.toLowerCase() === "character" ? "character" : subject} level</title>
+    <desc id={`${uid}-description`}>A logarithmic chart of experience to the next level for each published level below the cap. Select a level below for exact values.</desc>
     {#each ticks as tick}
       <line class="grid" x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} />
       <text class="tick" x={left - 10} y={y(tick) + 4} text-anchor="end">{format(tick)}</text>
@@ -63,12 +66,12 @@
   </svg>
 </div>
 <div class="selector">
-  <label for="curve-level">Character level: {format(level)}</label>
+  <label for={`${uid}-level`}>{subject} level: {format(level)}</label>
   <div class="controls">
-    <input id="curve-level" type="range" min="1" max={curve.cap} step="1" value={level} on:input={(event) => select(event.currentTarget.valueAsNumber)} />
-    <input class="level-number" type="number" min="1" max={curve.cap} step="1" value={level} aria-label="Character level number" on:change={(event) => { select(event.currentTarget.valueAsNumber); event.currentTarget.value = String(level); }} />
+    <input id={`${uid}-level`} type="range" min="1" max={curve.cap} step="1" value={level} on:input={(event) => select(event.currentTarget.valueAsNumber)} />
+    <input class="level-number" type="number" min="1" max={curve.cap} step="1" value={level} aria-label={`${subject} level number`} on:change={(event) => { select(event.currentTarget.valueAsNumber); event.currentTarget.value = String(level); }} />
   </div>
-  <p class="note">These are a fresh character's totals from the level template, not saved progress.</p>
+  <p class="note">These are totals from the level template for a fresh start, not saved progress.</p>
   <dl class="totals">
     <div><dt>Experience to next level</dt><dd>{format(next)}</dd></div>
     <div><dt>Experience earned before level {format(level)}</dt><dd>{format(earned)}</dd></div>
@@ -79,7 +82,7 @@
 <style>
   .intro, .note { margin: 0 0 .75rem; color: var(--c-text-dim); line-height: 1.5; }
   .chart-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
-  svg { display: block; max-width: none; background: var(--c-surface-sunken); border-radius: var(--c-radius-sm); }
+  svg { display: block; width: 100%; min-width: 36rem; height: auto; background: var(--c-surface-sunken); border-radius: var(--c-radius-sm); }
   .grid { stroke: var(--c-line); stroke-dasharray: 3 4; }
   .axis { stroke: var(--c-text-dim); }
   .curve { fill: none; stroke: var(--c-accent); stroke-width: 2.5; stroke-linejoin: round; }

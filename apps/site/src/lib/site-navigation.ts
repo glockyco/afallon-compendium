@@ -23,8 +23,8 @@ export function navigationGroups(registry: readonly PublicKindEntry[], base: str
   const link = (entry: PublicKindEntry): NavigationLink => ({ label: entry.plural, href: `${base}/${entry.route}/` });
   const mechanics = byKind.get('mechanics');
   const mechanicsLinks: NavigationLink[] = mechanics ? [
-    { label: 'Character progression', href: `${base}/${mechanics.route}/character-progression/` },
-    { label: 'Heroic tier', href: `${base}/${mechanics.route}/heroic-tier/` },
+    { label: 'Character Progression', href: `${base}/${mechanics.route}/character-progression/` },
+    { label: 'Heroic Tier', href: `${base}/${mechanics.route}/heroic-tier/` },
   ] : [];
   return GROUPS.map((group) => ({
     id: group.id,

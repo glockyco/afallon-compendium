@@ -965,6 +965,10 @@ function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
 function projectSkill(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes): PublicSkill {
   const fact = input.facts.progression.facts.find((candidate) => candidate.entityKey === entity.entityKey), details = fact?.kind === "skills" ? fact.details : undefined;
   const highest = details && details.maxLevel > 0 ? details.maxLevel : null;
+  // The game reads a skill template row by its position, so row n holds the experience from level n to the next level.
+  const template = details?.levelTemplate?.entityKey ? input.facts.progression.facts.find((candidate) => candidate.entityKey === details.levelTemplate!.entityKey) : undefined;
+  const rows = highest !== null && highest > 1 && template?.kind === "levels" ? template.details.rows.slice(0, highest - 1).map((row, index) => ({ level: index + 1, toNext: Math.max(0, row.experienceRequired) })) : [];
+  const curve = rows.length === highest! - 1 && rows.length > 0 ? { template: displayName(template!.name ?? "") || "Skill levels", cap: highest!, rows } : undefined;
   const recipes = input.facts.recipes.filter((recipe) => recipe.skill?.entityKey === entity.entityKey).map((recipe) => {
     const product = (indexes.recipesByRecipe.get(recipe.entityKey) ?? []).find((row) => row.role === "product"), station = optionalFactRef(input.resolve, recipe.station);
     return { recipe: input.resolve({ entityKey: recipe.entityKey, label: recipe.entityKey }), ...(product ? { product: input.resolve(product.item) } : {}), ...(station ? { station } : {}) };
@@ -972,7 +976,7 @@ function projectSkill(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
   return {
     ...baseDocument(entity, ref, input),
     facts: { ...(highest === null ? {} : { highestLevel: highest }), automatic: details?.automaticallyAdded ?? true },
-    recipes,
+    recipes, ...(curve ? { curve } : {}),
   };
 }
 

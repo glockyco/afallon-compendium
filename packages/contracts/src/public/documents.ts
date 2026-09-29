@@ -471,6 +471,9 @@ export const ClassFactsSchema = Type.Object({
 export type ClassFacts = Static<typeof ClassFactsSchema>;
 export const StartingItemRowSchema = Type.Object({ item: RefSchema, count, equipped: Type.Boolean() }, { additionalProperties: false });
 export type StartingItemRow = Static<typeof StartingItemRowSchema>;
+// Each row is the experience from its level to the next level, from the first level to the level before the cap.
+export const LevelCurveSchema = Type.Object({ template: text, cap: count, rows: Type.Array(Type.Object({ level: count, toNext: count }, { additionalProperties: false }), { minItems: 1 }) }, { additionalProperties: false });
+export type LevelCurve = Static<typeof LevelCurveSchema>;
 export const PublicClassSchema = Type.Object({
   ...documentBase, facts: ClassFactsSchema, trees: Type.Array(TalentTreeSchema), startingGear: Type.Array(StartingItemRowSchema),
 }, { additionalProperties: false });
@@ -480,7 +483,8 @@ export const SkillFactsSchema = Type.Object({ highestLevel: optional(count), aut
 export type SkillFacts = Static<typeof SkillFactsSchema>;
 export const SkillRecipeRowSchema = Type.Object({ recipe: RefSchema, product: optional(RefSchema), station: optional(RefSchema) }, { additionalProperties: false });
 export type SkillRecipeRow = Static<typeof SkillRecipeRowSchema>;
-export const PublicSkillSchema = Type.Object({ ...documentBase, facts: SkillFactsSchema, recipes: Type.Array(SkillRecipeRowSchema) }, { additionalProperties: false });
+// `curve` is the skill's level template up to its highest level, when the skill has one.
+export const PublicSkillSchema = Type.Object({ ...documentBase, facts: SkillFactsSchema, recipes: Type.Array(SkillRecipeRowSchema), curve: optional(LevelCurveSchema) }, { additionalProperties: false });
 export type PublicSkill = Static<typeof PublicSkillSchema>;
 
 export const RecipeFactsSchema = Type.Object({ station: optional(RefSchema), skill: optional(RefSchema), rank: optional(count) }, { additionalProperties: false });
@@ -499,15 +503,13 @@ export const MechanicsRuleSchema = Type.Object({
   sources: Type.Array(Type.Object({ method: text, evidence: text }, { additionalProperties: false }), { minItems: 1 }),
 }, { additionalProperties: false });
 export type MechanicsRule = Static<typeof MechanicsRuleSchema>;
-// Each row is the experience from its level to the next level, from the first level to the level before the cap.
-export const LevelCurveSchema = Type.Object({ template: text, cap: count, rows: Type.Array(Type.Object({ level: count, toNext: count }, { additionalProperties: false }), { minItems: 1 }) }, { additionalProperties: false });
-export type LevelCurve = Static<typeof LevelCurveSchema>;
 const levelSpan = Type.Object({ count, minLevel: count, maxLevel: count }, { additionalProperties: false });
-// The authored levels of the records that give character experience. A scaling creature takes its level from the
-// player, so its authored range is not a limit of the fixed-level creatures.
+// The levels of the records that give character experience. A fixed-level creature keeps its authored range. A scaling
+// creature takes its level from the player within the zone range of its spawner, so `aboveFixed` lists the scaling
+// creatures whose spawned level can exceed the highest fixed level, with that spawned level.
 export const ExperienceSourcesSchema = Type.Object({
   fixedCreatures: levelSpan,
-  scalingCreatures: Type.Object({ count, aboveFixed: Type.Array(Type.Object({ creature: RefSchema, minLevel: count, maxLevel: count }, { additionalProperties: false })) }, { additionalProperties: false }),
+  scalingCreatures: Type.Object({ count, aboveFixed: Type.Array(Type.Object({ creature: RefSchema, level: PublicLevelSchema }, { additionalProperties: false })) }, { additionalProperties: false }),
   quests: Type.Object({ count, maxLevel: count, maxRequirement: optional(count), withoutRange: count }, { additionalProperties: false }),
   levelModifiers: Type.Array(Type.Object({ lower: number, higher: number, creatures: count }, { additionalProperties: false })),
 }, { additionalProperties: false });

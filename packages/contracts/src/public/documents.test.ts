@@ -70,13 +70,13 @@ const base = { description: null, art: {} };
 const located = { ...base, locations: [placement] };
 const rule: MechanicsRule = { id: "weapon-skill-hit", section: "skill-experience", status: "verified", phrase: "Each hit gives {hitExperience} experience.", operands: { hitExperience: 2 }, links: [], sources: [{ method: "SkillSystem.OnPlayerAutoAttackHit", evidence: "Bounded decompilation" }] };
 const characterProgression: CharacterProgression = {
-  ...base, ref: { key: "mechanics:character-progression", kind: "mechanics", name: "Character progression", slug: "character-progression" }, topic: "character-progression",
+  ...base, ref: { key: "mechanics:character-progression", kind: "mechanics", name: "Character Progression", slug: "character-progression" }, topic: "character-progression",
   curve: { template: "Character levels", cap: 3, rows: [{ level: 1, toNext: 20 }, { level: 2, toNext: 40 }] },
-  sources: { fixedCreatures: { count: 185, minLevel: 1, maxLevel: 30 }, scalingCreatures: { count: 31, aboveFixed: [{ creature: boss, minLevel: 1, maxLevel: 100 }] }, quests: { count: 136, maxLevel: 31, maxRequirement: 24, withoutRange: 4 }, levelModifiers: [{ lower: 0, higher: -30, creatures: 59 }] },
+  sources: { fixedCreatures: { count: 185, minLevel: 1, maxLevel: 30 }, scalingCreatures: { count: 31, aboveFixed: [{ creature: boss, level: { min: 1, scales: true } }] }, quests: { count: 136, maxLevel: 31, maxRequirement: 24, withoutRange: 4 }, levelModifiers: [{ lower: 0, higher: -30, creatures: 59 }] },
   talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], rules: [rule],
 };
 const heroicTier: HeroicTier = {
-  ...base, ref: { key: "mechanics:heroic-tier", kind: "mechanics", name: "Heroic tier", slug: "heroic-tier" }, topic: "heroic-tier",
+  ...base, ref: { key: "mechanics:heroic-tier", kind: "mechanics", name: "Heroic Tier", slug: "heroic-tier" }, topic: "heroic-tier",
   settings: { killExperienceMultiplier: 5, essencePoints: "Heroic Essence", essenceBaseAmount: 3, essencePerAffix: 3, essenceEliteMultiplier: 1.5, essenceRareMultiplier: 2, essenceBossMultiplier: 3, essenceHealthBaseline: 1, essenceHealthFactorMin: 0.25, essenceHealthFactorMax: 4,
     baseHealthMultiplier: 3, baseDamageMultiplier: 2, gearScoreCoefficient: 0.0008, maxGearBonus: 1, affixChance: 0.25, extraAffixChance: 0.08, maxAffixes: 4, rareGuaranteedAffixes: 1, affixLootDropMultiplier: 1.5, heroicGearStatBonusPercent: 50 },
   rules: [{ ...rule, id: "heroic-kill-rounding-ties", section: "kill-experience", status: "unknown", phrase: "The tie rule is not known.", operands: {} }],

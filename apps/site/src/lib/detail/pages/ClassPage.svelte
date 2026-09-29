@@ -37,7 +37,7 @@
       {#if facts.autoAttack}<FactRow label="Auto attack"><EntityLink ref={facts.autoAttack} {registry} /></FactRow>{/if}
       {#each facts.talentPoints as points}<FactRow label={points.name}>{talentPointText(points)}</FactRow>{/each}
       {#if facts.highestLevel !== undefined}<FactRow label="Highest level" href={`${base}/mechanics/character-progression/`}>{facts.highestLevel}</FactRow>{/if}
-      <FactRow label="Related mechanics"><a class="c-link" href={`${base}/mechanics/character-progression/`}>Character progression</a></FactRow>
+      <FactRow label="Related mechanics"><a class="c-link" href={`${base}/mechanics/character-progression/`}>Character Progression</a></FactRow>
     </FactList>
   </Hero>
 

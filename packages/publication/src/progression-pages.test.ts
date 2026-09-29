@@ -131,13 +131,15 @@ test("a talent shared by several trees resolves to the row of the class that own
   expect(assassin.trees[0]!.rows[1]!.requirements[0]?.requirements[0]?.spans[0]).toEqual({ ref: { key: "classes:5", kind: "classes", name: "Heroic Might", slug: "assassin", variant: "talent-27-0" } });
 });
 
-test("skill pages show recipes and their highest level without an experience table", () => {
+test("skill pages show recipes, their highest level, and their level curve", () => {
   const { documents } = project();
   const alchemy = documents.get("skills:0") as PublicSkill, axes = documents.get("skills:3") as PublicSkill, savers = documents.get("skills:11") as PublicSkill;
   expect(alchemy.recipes).toEqual([{ recipe: { key: "recipes:81", kind: "recipes", name: "Elixir", slug: "elixir" }, product: { key: "items:1", kind: "items", name: "Potion", slug: "potion" } }]);
   expect([alchemy.facts.highestLevel, axes.recipes.length, axes.facts.highestLevel]).toEqual([2, 0, 3]);
   expect(savers.facts).toEqual({ automatic: false });
-  expect(["experience" in alchemy, "experience" in axes]).toEqual([false, false]);
+  // Skill templates store level 0 in every row, so a row takes its level from its position. The curve ends at the highest level.
+  expect(alchemy.curve).toEqual({ template: "Skill levels", cap: 2, rows: [{ level: 1, toNext: 4 }] });
+  expect([axes.curve?.rows.map((row) => row.toNext), savers.curve]).toEqual([[4, 8], undefined]);
 });
 
 test("ability pages name the classes that learn them and their use requirements", () => {

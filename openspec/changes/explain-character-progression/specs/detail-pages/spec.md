@@ -24,7 +24,7 @@ The publication SHALL publish a page for each class that at least one race offer
 
 ### Requirement: Skill pages show recipes and levels
 
-The publication SHALL publish a page for each skill that the reviewed exclusion list does not name. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. The sections SHALL show Recipes when the skill has recipes. The Recipes section SHALL show each recipe that uses the skill with its product and its station. Every skill page SHALL link to Character progression for related experience rules. A skill page SHALL NOT show an Experience table.
+The publication SHALL publish a page for each skill that the reviewed exclusion list does not name. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. The sections SHALL show Recipes when the skill has recipes. The Recipes section SHALL show each recipe that uses the skill with its product and its station. Every skill page SHALL link to Character Progression for related experience rules. When the skill has a level template and a highest level above one, a Levels section SHALL show the skill's level curve with the chart and level control of Character Progression, from level 1 up to its highest level. A skill page SHALL NOT show an Experience table.
 
 #### Scenario: Crafting skill
 - **WHEN** a reader opens the Alchemy page
@@ -34,7 +34,8 @@ The publication SHALL publish a page for each skill that the reviewed exclusion 
 #### Scenario: Weapon skill
 - **WHEN** a reader opens the Axes page
 - **THEN** the page has no Recipes section and no Experience table
-- **AND** the page links to Character progression
+- **AND** a Levels section shows the Axes level curve up to its highest level
+- **AND** the page links to Character Progression
 
 #### Scenario: Skill without levels
 - **WHEN** a published skill has a highest level of zero
