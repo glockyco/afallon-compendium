@@ -34,18 +34,19 @@ function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummar
   };
 }
 
-// A publication with one map placement whose search lists each document.
+// A publication with one map at its reviewed offset, its game-map layer, and one placement, whose search lists each
+// document.
 function view(documents: ReadonlyArray<{ ref: { kind: string; key: string; icon?: { url: string } } }>): PublicationView {
   const art = documents.flatMap((document) => document.ref.icon ? [document.ref.icon.url] : []);
   return {
     publication: {
       maps: [{ mapSpaceId: "world", parts: [{ path: "map" }], imagery: { path: "imagery" }, bounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } } }],
       search: [{ path: "search" }],
-      world: { offsets: [] },
+      world: { offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, status: "placed" }] },
     },
     resources: new Map<string, unknown>([
       ["map", { placements: [["placement-1", [1, 1], 0, "Fenric Doryn", ["merchant"]]], regions: [] }],
-      ["imagery", { layers: [] }],
+      ["imagery", { layers: [{ id: "world", mapSpaceId: "world", label: "World", kind: "game-map", tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 10, 10], tiles: [] }] }],
       ["search", { entries: documents.map((document) => ({ ref: document.ref })) }],
       ...documents.map((document, index) => [`document-${index}`, { document }] as const),
     ]),
@@ -152,4 +153,7 @@ test("accepts only the removals that the exclusion list of the candidate names",
   // Artwork that a published entity showed must stay, even when an excluded entity shared it.
   const sharedBaseline = summarizePublication(view([devRing, { ref: { kind: "items", key: "items:1", icon } }]));
   expect(() => assertNonRegressivePublication(summarizePublication(withExclusions(view([ironBar]), ["items:417"])), sharedBaseline)).toThrow("published artwork");
+  // A same-build correction, which acceptance checks, applies the same rule.
+  assertCorrectedPublicationParity(summarizePublication(withExclusions(view([ironBar]), ["items:417"])), baseline);
+  expect(() => assertCorrectedPublicationParity(summarizePublication(view([ironBar])), baseline)).toThrow("published entities: items:417");
 });
