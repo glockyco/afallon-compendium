@@ -106,7 +106,7 @@ Before new-build selection, the workflow SHALL produce an update report that bin
 
 ### Requirement: Publication parity preserves published entities
 
-The parity gate SHALL compare entity keys from search entries, page documents, NPC variants, ability version member keys, and embedded item gear sets. It SHALL NOT require a baseline URL to remain. It SHALL require a list only for a kind that still has pages. It SHALL read a baseline by its field shape without requiring today's schemas.
+The parity gate SHALL compare entity keys from search entries, page documents, NPC variants, ability version member keys, and embedded item gear sets. It SHALL NOT require a baseline URL to remain. It SHALL require a list only for a kind that still has pages. It SHALL read a baseline by its field shape without requiring today's schemas. It SHALL accept a missing baseline key only when the reviewed exclusion list of the candidate names that key.
 
 #### Scenario: Four records become one character page
 - **WHEN** four baseline NPC pages become one candidate page with all four record keys in its variants
@@ -119,6 +119,10 @@ The parity gate SHALL compare entity keys from search entries, page documents, N
 #### Scenario: A member record disappears
 - **WHEN** a baseline record key occurs in none of the candidate's search, page, variant, version, or embedded set keys
 - **THEN** the parity gate reports the missing key
+
+#### Scenario: A listed record leaves the publication
+- **WHEN** a baseline record key is missing from the candidate and the exclusion list of the candidate names that key
+- **THEN** the parity gate accepts the removal
 
 ### Requirement: Quitting confirms runtime cleanup
 

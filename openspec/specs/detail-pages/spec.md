@@ -271,7 +271,7 @@ The publication SHALL publish a page for each class that at least one race offer
 
 ### Requirement: Skill pages show recipes and levels
 
-The publication SHALL publish a page for each skill. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. The sections SHALL follow this order: Recipes, Experience. The Recipes section SHALL show each recipe that uses the skill with its product and its station. A skill with a highest level of zero SHALL NOT show an Experience section.
+The publication SHALL publish a page for each skill that the reviewed exclusion list does not name. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. The sections SHALL follow this order: Recipes, Experience. The Recipes section SHALL show each recipe that uses the skill with its product and its station. A skill with a highest level of zero SHALL NOT show an Experience section.
 
 #### Scenario: Crafting skill
 - **WHEN** a reader opens the Alchemy page
@@ -283,7 +283,7 @@ The publication SHALL publish a page for each skill. The title block of a skill 
 - **AND** the Experience section has 300 rows
 
 #### Scenario: Skill without levels
-- **WHEN** the Savers skill has a highest level of zero
+- **WHEN** a published skill has a highest level of zero
 - **THEN** its page has no Experience section
 
 ### Requirement: Experience tables state what each value means
