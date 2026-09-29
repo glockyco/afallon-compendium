@@ -36,7 +36,7 @@ Expose resource documents through the existing kind registry, reference resolver
 
 The items collector in `canonical.csx` reads the same list in the same way. It records each action's type, chance, node action, amount, and target identifiers, and the template identity when a template supplies the list. The catalog keeps every action. This change publishes Recipe RankUp actions only. A recipe item links its recipe and shows the product, and the recipe links back to each item that teaches it. Other action types stay in the catalog for later changes.
 
-Dialogue nodes, interactable objects, effects, regions, and combat triggers can also hold Recipe actions. The scan does not read them for recipes. A recipe that is not learned by default and has no teaching item therefore keeps its page, and the coverage page counts it. The page does not claim that nothing teaches it.
+Dialogue nodes, interactable objects, effects, regions, and combat triggers can also hold Recipe actions. This change does not read them for recipes, and `publish-item-uses-and-sources` adds them later. A recipe that is not learned by default and has no teaching item therefore keeps its page, and the coverage page counts it. The page does not claim that nothing teaches it.
 
 ### Publish one mechanics document from captured facts
 
