@@ -4,8 +4,8 @@ import { CatalogPlanSchema } from "../catalog/plans";
 import {
   StaticCoverageSchema,
   PublicationPlanSchema,
-  PublicationPresentationSchema,
   StaticRootManifestSchema,
+  assertPublicationPresentation,
   assertStaticResourceIdentity,
   type StaticCoverage,
   type StaticRootManifest,
@@ -14,7 +14,7 @@ import {
 const reference = { path: "resources/value.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v2" };
 const release = { version: "0.16.2.1", dataDate: "2026-09-28", patchNotes: { title: "Afallon 0.16.2.1", url: "https://store.steampowered.com/news/app/2597810/view/1844115010501029", date: "2026-09-21" } };
 const root: StaticRootManifest = {
-  schemaVersion: "compendium.static-root.v5",
+  schemaVersion: "compendium.static-root.v6",
   buildId: "build",
   catalogId: "b".repeat(64),
   mode: "preview",
@@ -26,6 +26,7 @@ const root: StaticRootManifest = {
   lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v2" }] },
   search: [{ ...reference, schemaId: "compendium.static-search.v4" }],
   coverage: reference,
+  exclusions: { ...reference, schemaId: "compendium.static-exclusions.v1" },
 };
 const coverage: StaticCoverage = {
   schemaVersion: "compendium.static-coverage.v2",
@@ -60,7 +61,18 @@ test("publication plans accept only immutable inputs and one reviewed captured m
   Assert(PublicationPlanSchema, plan);
   expect(() => Assert(PublicationPlanSchema, { ...plan, catalogPath: "catalog.sqlite" })).toThrow();
   expect(() => Assert(PublicationPlanSchema, { ...plan, release: { ...plan.release, dataDate: "28 September 2026" } })).toThrow();
-  const presentation = { schemaVersion: "compendium.publication-presentation.v1", buildId: "build", catalogId: "b".repeat(64), worldOffsets: [{ mapSpaceId: "world-surface", worldX: 0, worldY: 0, source: "native", status: "placed" }], spatialBounds: [{ mapSpaceId: "world-surface", minX: 0, minY: 0, maxX: 1, maxY: 1 }], capturedMapSpaceIds: ["world-surface"] };
-  Assert(PublicationPresentationSchema, presentation);
-  expect(() => Assert(PublicationPresentationSchema, { ...presentation, capturedMapSpaceIds: ["world-surface", "interior"] })).toThrow();
+  const presentation = { schemaVersion: "compendium.publication-presentation.v2", buildId: "build", catalogId: "b".repeat(64), worldOffsets: [{ mapSpaceId: "world-surface", worldX: 0, worldY: 0, source: "native", status: "placed" }], spatialBounds: [{ mapSpaceId: "world-surface", minX: 0, minY: 0, maxX: 1, maxY: 1 }], capturedMapSpaceIds: ["world-surface"], exclusions: [] };
+  assertPublicationPresentation(presentation);
+  expect(() => assertPublicationPresentation({ ...presentation, capturedMapSpaceIds: ["world-surface", "interior"] })).toThrow();
+});
+
+test("each reviewed exclusion names a key, a known reason, and its evidence once", () => {
+  const presentation = { schemaVersion: "compendium.publication-presentation.v2", buildId: "build", catalogId: "b".repeat(64), worldOffsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], spatialBounds: [{ mapSpaceId: "world", minX: 0, minY: 0, maxX: 1, maxY: 1 }], capturedMapSpaceIds: [] };
+  const scytheTest = { key: "items:220", reason: "test-record", evidence: "The internal name Scythe test marks a test record." };
+  assertPublicationPresentation({ ...presentation, exclusions: [scytheTest] });
+  expect(() => assertPublicationPresentation({ ...presentation, exclusions: [{ key: scytheTest.key, reason: scytheTest.reason }] })).toThrow();
+  expect(() => assertPublicationPresentation({ ...presentation, exclusions: [{ ...scytheTest, evidence: "" }] })).toThrow();
+  expect(() => assertPublicationPresentation({ ...presentation, exclusions: [{ ...scytheTest, reason: "missing-source" }] })).toThrow();
+  expect(() => assertPublicationPresentation({ ...presentation, exclusions: [scytheTest, { ...scytheTest, reason: "appearance-option" }] })).toThrow("Publication exclusions repeat a key: items:220.");
+  expect(() => assertPublicationPresentation({ ...presentation, exclusions: [scytheTest], schemaVersion: "compendium.publication-presentation.v1" })).toThrow();
 });

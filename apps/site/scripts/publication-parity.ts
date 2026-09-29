@@ -32,6 +32,10 @@ export interface PublicationSummary {
   /** The kinds that have pages. A kind can lose its pages when its entities move onto other pages. */
   pageKinds: Set<string>;
   artworkAssets: Set<string>;
+  /** For each artwork file, the keys of the pages, list rows, and search entries that show it. */
+  artworkOwners: Map<string, Set<string>>;
+  /** The keys that the reviewed exclusion list of this publication names. A baseline without the list has none. */
+  excludedKeys: Set<string>;
   placementCount: number;
 }
 
@@ -75,6 +79,19 @@ function uniqueSet(values: Iterable<string>, subject: string): Set<string> {
   return result;
 }
 
+// The artwork files inside a value, found by shape: an image reference has a url under `art/`.
+function artUrls(value: unknown, into: string[] = []): string[] {
+  if (Array.isArray(value)) {
+    for (const entry of value) artUrls(entry, into);
+    return into;
+  }
+  if (value === null || typeof value !== "object") return into;
+  const record = value as Json;
+  if (typeof record.url === "string" && record.url.startsWith("art/")) into.push(record.url);
+  for (const child of Object.values(record)) artUrls(child, into);
+  return into;
+}
+
 /**
  * Reads the parity facts of a publication by field names, so one reader serves the candidate and a baseline from an
  * earlier schema version.
@@ -103,10 +120,15 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
     if (ref.kind === "items") itemKeys.push(text(ref.key));
   }
   for (const key of uniqueSet(searchKeys, "searchable entity")) entityKeys.add(key);
+  const artworkOwners = new Map<string, Set<string>>();
+  const own = (key: unknown, value: unknown) => { for (const url of artUrls(value)) artworkOwners.set(url, (artworkOwners.get(url) ?? new Set()).add(text(key))); };
   for (const value of graph.resources.values()) {
     const record = object(value), document = object(record.document);
     if (Array.isArray(record.rows) && typeof record.kind === "string") listKinds.add(record.kind);
+    for (const row of array(record.rows)) own(object(object(row).ref).key, object(row).ref);
+    for (const entry of array(record.entries)) own(object(object(entry).ref).key, object(entry).ref);
     if (!("ref" in document)) continue;
+    own(object(document.ref).key, document);
     pageKinds.add(text(object(document.ref).kind));
     entityKeys.add(text(object(document.ref).key));
     for (const variant of array(document.variants)) entityKeys.add(text(object(variant).key));
@@ -155,6 +177,8 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
     boundsByMap: new Map(maps.map((map) => [text(map.mapSpaceId), { min: point(object(map.bounds).min), max: point(object(map.bounds).max) }])),
     listKinds, pageKinds,
     artworkAssets: new Set([...graph.references.values()].filter((reference) => reference.schemaId === "image/webp" && reference.path.startsWith("art/")).map((reference) => reference.path)),
+    artworkOwners,
+    excludedKeys: new Set(array(resource(root.exclusions).exclusions).map((entry) => text(object(entry).key)).filter(Boolean)),
     placementCount: placements.length,
   };
 }
@@ -164,11 +188,22 @@ function assertAtLeast(candidate: Map<string, number>, baseline: Map<string, num
   if (deficits.length > 0) throw new Error(`Publication regresses ${subject}: ${deficits.join(", ")}.`);
 }
 
-function assertContains(candidate: Set<string>, baseline: Set<string>, subject: string): void {
-  const missing = [...baseline].filter((key) => !candidate.has(key));
+function assertContains(candidate: Set<string>, baseline: Set<string>, subject: string, excused: (key: string) => boolean = () => false): void {
+  const missing = [...baseline].filter((key) => !candidate.has(key) && !excused(key));
   if (missing.length === 0) return;
   const remainder = missing.length > 20 ? ` (+${missing.length - 20} more)` : "";
   throw new Error(`Publication removes ${subject}: ${missing.slice(0, 20).join(", ")}${remainder}.`);
+}
+
+// The candidate may leave out an entity that its exclusion list names, and the artwork that only such entities showed.
+function assertListedRemovals(candidate: PublicationSummary, baseline: PublicationSummary): void {
+  const excluded = (key: string) => candidate.excludedKeys.has(key);
+  assertContains(candidate.entityKeys, baseline.entityKeys, "published entities", excluded);
+  assertContains(candidate.itemKeys, baseline.itemKeys, "searchable items", excluded);
+  assertContains(candidate.artworkAssets, baseline.artworkAssets, "published artwork", (path) => {
+    const owners = baseline.artworkOwners.get(path);
+    return owners !== undefined && owners.size > 0 && [...owners].every(excluded);
+  });
 }
 
 // A page may group entities or change its URL. Parity requires every entity to stay published, not every URL.
@@ -179,11 +214,9 @@ export function assertNonRegressivePublication(candidate: PublicationSummary, ba
   assertContains(candidate.placementIds, baseline.placementIds, "deployed placements");
   assertAtLeast(candidate.placementsByMap, baseline.placementsByMap, "per-map placement coverage");
   assertAtLeast(candidate.placementsByCategory, baseline.placementsByCategory, "per-category placement coverage");
-  assertContains(candidate.entityKeys, baseline.entityKeys, "published entities");
-  assertContains(candidate.itemKeys, baseline.itemKeys, "searchable items");
+  assertListedRemovals(candidate, baseline);
   assertContains(candidate.regionKeys, baseline.regionKeys, "map regions");
   assertContains(candidate.listKinds, new Set([...baseline.listKinds].filter((kind) => candidate.pageKinds.has(kind))), "published lists");
-  assertContains(candidate.artworkAssets, baseline.artworkAssets, "published artwork");
   for (const [mapSpaceId, expected] of baseline.offsets) {
     const actual = candidate.offsets.get(mapSpaceId);
     if (!actual || actual.worldX !== expected.worldX || actual.worldY !== expected.worldY) throw new Error(`Publication changes the reviewed world offset for ${mapSpaceId}.`);
@@ -265,11 +298,9 @@ export function assertCorrectedPublicationParity(candidate: PublicationSummary, 
     return !foldedIntoDungeon;
   });
   if (unexpectedRemovals.length > 0) throw new Error(`Publication correction removes in-bounds placements: ${unexpectedRemovals.slice(0, 20).map(([id]) => id).join(", ")}.`);
-  assertContains(candidate.entityKeys, baseline.entityKeys, "published entities");
-  assertContains(candidate.itemKeys, baseline.itemKeys, "searchable items");
+  assertListedRemovals(candidate, baseline);
   assertContains(candidate.regionKeys, baseline.regionKeys, "map regions");
   assertContains(candidate.listKinds, new Set([...baseline.listKinds].filter((kind) => candidate.pageKinds.has(kind))), "published lists");
-  assertContains(candidate.artworkAssets, baseline.artworkAssets, "published artwork");
 }
 
 export function verifyUpdatePublicationParity(candidate: PublicationView, baselineRoot: string): void {

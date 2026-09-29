@@ -1,4 +1,5 @@
 import { Type, type Static, type TSchema } from "typebox";
+import { Assert } from "typebox/value";
 import { schemaRegistry } from "../schema-registry";
 import { ContentIdentitySchema } from "../lifecycle";
 import { EntityRefSchema, PublicKindEntrySchema, PublicPageKindSchema, STATIC_COMPENDIUM_SCHEMAS, artEdges, isStaticDocument, type StaticCompendiumResource } from "./documents";
@@ -183,7 +184,7 @@ export const PublicReleaseSchema = Type.Object({
 export type PublicRelease = Static<typeof PublicReleaseSchema>;
 
 export const StaticRootManifestSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-root.v5"),
+  schemaVersion: Type.Literal("compendium.static-root.v6"),
   ...StaticResourceIdentityFields,
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   complete: Type.Boolean(),
@@ -194,6 +195,7 @@ export const StaticRootManifestSchema = Type.Object({
   lists: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z]*$" }), Type.Array(resourceReference("compendium.static-kind-list.v2"), { minItems: 1 })),
   search: Type.Array(resourceReference("compendium.static-search.v4"), { minItems: 1 }),
   coverage: resourceReference("compendium.static-coverage.v2"),
+  exclusions: resourceReference("compendium.static-exclusions.v1"),
 }, { additionalProperties: false });
 export type StaticRootManifest = Static<typeof StaticRootManifestSchema>;
 
@@ -270,6 +272,23 @@ export const StaticCoverageSchema = Type.Object({
 }, { additionalProperties: false });
 export type StaticCoverage = Static<typeof StaticCoverageSchema>;
 
+// Why the reviewed exclusion list keeps a catalog record out of the publication. Each reason needs direct evidence of
+// the record's kind. A missing source is not a reason, because source capture is incomplete.
+const exclusionReason = Type.Union([
+  Type.Literal("test-record"), Type.Literal("appearance-option"), Type.Literal("unplaced-record"),
+  Type.Literal("unloadable-scene"), Type.Literal("character-creation-scene"), Type.Literal("progress-flag"),
+]);
+export type ExclusionReason = Static<typeof exclusionReason>;
+
+// The records that the publication leaves out, with their reasons. Staging parity reads it to accept their removal from
+// a baseline. The site does not load it.
+export const StaticExclusionsSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.static-exclusions.v1"),
+  ...StaticResourceIdentityFields,
+  exclusions: Type.Array(Type.Object({ key: text, reason: exclusionReason }, { additionalProperties: false })),
+}, { additionalProperties: false });
+export type StaticExclusions = Static<typeof StaticExclusionsSchema>;
+
 export const StaticImagerySchema = Type.Object({
   schemaVersion: Type.Literal("compendium.static-imagery.v2"),
   ...StaticResourceIdentityFields,
@@ -323,32 +342,51 @@ export const PublicationPlanSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicationPlan = Static<typeof PublicationPlanSchema>;
 
+// One reviewed exclusion: the catalog key of the record, the reason, and the evidence that supports the reason.
+export const PublicationExclusionSchema = Type.Object({ key: text, reason: exclusionReason, evidence: text }, { additionalProperties: false });
+export type PublicationExclusion = Static<typeof PublicationExclusionSchema>;
+
 export const PublicationPresentationSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.publication-presentation.v1"),
+  schemaVersion: Type.Literal("compendium.publication-presentation.v2"),
   ...StaticResourceIdentityFields,
   worldOffsets: Type.Array(PublicWorldOffsetSchema, { minItems: 1 }),
   spatialBounds: Type.Array(Type.Object({ mapSpaceId: text, minX: number, minY: number, maxX: number, maxY: number }, { additionalProperties: false }), { minItems: 1 }),
   capturedMapSpaceIds: Type.Array(text, { maxItems: 1, uniqueItems: true }),
+  exclusions: Type.Array(PublicationExclusionSchema),
 }, { additionalProperties: false });
 export type PublicationPresentation = Static<typeof PublicationPresentationSchema>;
 
+/** Validates a presentation input, including the identities that the schema cannot express as unique. */
+export function assertPublicationPresentation(value: unknown): asserts value is PublicationPresentation {
+  Assert(PublicationPresentationSchema, value);
+  if (new Set(value.worldOffsets.map((offset) => offset.mapSpaceId)).size !== value.worldOffsets.length) throw new Error("Publication world offsets repeat a map identity.");
+  if (new Set(value.spatialBounds.map((bounds) => bounds.mapSpaceId)).size !== value.spatialBounds.length) throw new Error("Publication spatial bounds repeat a map identity.");
+  for (const bounds of value.spatialBounds) if (bounds.minX > bounds.maxX || bounds.minY > bounds.maxY) throw new Error(`Publication spatial bounds are reversed: ${bounds.mapSpaceId}.`);
+  const keys = new Set<string>();
+  for (const exclusion of value.exclusions) {
+    if (keys.has(exclusion.key)) throw new Error(`Publication exclusions repeat a key: ${exclusion.key}.`);
+    keys.add(exclusion.key);
+  }
+}
+
 schemaRegistry.register("compendium.publish-plan.v3", PublicationPlanSchema);
-schemaRegistry.register("compendium.publication-presentation.v1", PublicationPresentationSchema);
+schemaRegistry.register("compendium.publication-presentation.v2", PublicationPresentationSchema);
 
 // An explicit type that names each schema keeps the declaration small enough for the compiler to emit.
 export const STATIC_RESOURCE_SCHEMAS: typeof STATIC_COMPENDIUM_SCHEMAS & {
-  "compendium.static-root.v5": typeof StaticRootManifestSchema; "compendium.static-map.v3": typeof StaticMapShardSchema;
+  "compendium.static-root.v6": typeof StaticRootManifestSchema; "compendium.static-map.v3": typeof StaticMapShardSchema;
   "compendium.static-geometry.v1": typeof StaticGeometrySchema; "compendium.static-coverage.v2": typeof StaticCoverageSchema;
-  "compendium.static-imagery.v2": typeof StaticImagerySchema;
+  "compendium.static-imagery.v2": typeof StaticImagerySchema; "compendium.static-exclusions.v1": typeof StaticExclusionsSchema;
 } = {
-  "compendium.static-root.v5": StaticRootManifestSchema,
+  "compendium.static-root.v6": StaticRootManifestSchema,
   "compendium.static-map.v3": StaticMapShardSchema,
   "compendium.static-geometry.v1": StaticGeometrySchema,
   "compendium.static-coverage.v2": StaticCoverageSchema,
   "compendium.static-imagery.v2": StaticImagerySchema,
+  "compendium.static-exclusions.v1": StaticExclusionsSchema,
   ...STATIC_COMPENDIUM_SCHEMAS,
 };
-export type StaticResource = StaticRootManifest | StaticMapShard | StaticGeometry | StaticCoverage | StaticImagery | StaticCompendiumResource;
+export type StaticResource = StaticRootManifest | StaticMapShard | StaticGeometry | StaticCoverage | StaticImagery | StaticExclusions | StaticCompendiumResource;
 
 export function staticResourceSchema(schemaId: string): TSchema {
   if (!Object.hasOwn(STATIC_RESOURCE_SCHEMAS, schemaId)) throw new Error(`Unknown static resource schema: ${schemaId}.`);
@@ -357,13 +395,14 @@ export function staticResourceSchema(schemaId: string): TSchema {
 
 export function staticResourceEdges(value: StaticResource): StaticResourceReference[] {
   switch (value.schemaVersion) {
-    case "compendium.static-root.v5": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists).flat(), ...value.search, value.coverage];
+    case "compendium.static-root.v6": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists).flat(), ...value.search, value.coverage, value.exclusions];
     case "compendium.static-search.v4": return value.entries.flatMap((entry) => entry.document ? [entry.document] : []);
     case "compendium.static-kind-list.v2": return value.rows.flatMap((row) => row.ref.icon ? [{ path: row.ref.icon.url, sha256: row.ref.icon.sha256, bytes: row.ref.icon.bytes, schemaId: "image/webp" }] : []);
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));
     case "compendium.static-map.v3":
     case "compendium.static-geometry.v1":
-    case "compendium.static-coverage.v2": return [];
+    case "compendium.static-coverage.v2":
+    case "compendium.static-exclusions.v1": return [];
     default:
       if (isStaticDocument(value)) return artEdges(value.document).map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" }));
       throw new Error("Unknown static resource kind.");

@@ -1,8 +1,8 @@
 import type { CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogNpcFacts, CatalogPlacementRow, CatalogRelations } from "@afallon/contracts/catalog";
 import type { Art, EntityRef, NpcVariantField, PublicLevel, PublicReferenceKind, Ref, UnresolvedRef } from "@afallon/contracts/public";
 import { categoryLabel } from "@afallon/contracts/public";
-import { groupEntities, nameKey, type EntityGroup } from "./grouping";
-import { PUBLIC_KIND_BY_KIND } from "./kind-registry";
+import { baseName, groupEntities, nameKey, type EntityGroup } from "./grouping";
+import { PUBLIC_KIND_BY_KIND, publicKindForCatalogKind } from "./kind-registry";
 import { levelText } from "./levels";
 import { displayName, plainText } from "./text";
 import { abilityVersions, npcVariantFields } from "./variants";
@@ -13,6 +13,8 @@ export interface ReferenceBuildContext {
   artByEntity?: ReadonlyMap<string, Art>;
   /** The level of each creature record over its published placements. */
   npcLevels?: ReadonlyMap<string, PublicLevel>;
+  /** The records that the reviewed exclusion list keeps out of the publication. */
+  excluded?: ReadonlySet<string>;
 }
 
 /** One authored record of a page. `label` tells it apart from the other records of the page. */
@@ -247,7 +249,10 @@ function variantMembers(group: EntityGroup, labels: ReadonlyMap<string, RecordLa
 
 export function buildEntityReferences(entities: readonly CatalogEntityRow[], context: ReferenceBuildContext = {}): EntityReferences {
   const entityByKey = new Map(entities.map((entity) => [entity.entityKey, entity]));
-  const groups = groupEntities(entities);
+  const excluded = context.excluded ?? new Set<string>();
+  // An excluded record takes no part in grouping or name qualification, so a published record that shared its name only
+  // with excluded records keeps the base name.
+  const groups = groupEntities(entities.filter((entity) => !excluded.has(entity.entityKey)));
   const npcFacts = new Map((context.facts?.npcs ?? []).map((fact) => [fact.entityKey, fact]));
   const abilityFacts = new Map((context.facts?.abilities ?? []).map((fact) => [fact.entityKey, fact]));
 
@@ -323,6 +328,11 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
       const memberName = group.kind === "npcs" && variantFields.length > 0 ? `${name} (${member.label})` : name;
       refs.push([member.entity.entityKey, { ...pageRef, name: memberName, ...(variant ? { variant } : {}), ...(icon ? { icon } : {}) }]);
     }
+  }
+  // An excluded record keeps its formatted name for text, like a class without a page, but gets no page and no slug.
+  for (const entity of entities) {
+    const kind = excluded.has(entity.entityKey) ? publicKindForCatalogKind(entity.kind) : null;
+    if (kind !== null) refs.push([entity.entityKey, { key: entity.entityKey, kind, name: baseName(entity, kind) }]);
   }
   return { refs: new FrozenEntityRefMap(refs), pages };
 }

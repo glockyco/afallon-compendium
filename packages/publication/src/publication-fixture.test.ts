@@ -4,7 +4,8 @@ import { ArtifactStore, beginArtifactRun } from "@afallon/artifacts";
 import type { PublicationPlan, PublicationPresentation } from "@afallon/contracts/public";
 import { openNormalizedDatabase } from "../../catalog/src/database";
 
-export async function publicationFixture(root: string, buildId = "build", includeTravel = false) {
+// `includeDevRing` adds the item DEV RING, which has no source, so that a presentation can exclude it.
+export async function publicationFixture(root: string, buildId = "build", includeTravel = false, includeDevRing = false) {
   const store = new ArtifactStore(join(root, "store"));
   const tile = await store.putBytes(await sharp({ create: { width: 256, height: 256, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 1 } } }).webp().toBuffer());
   const layer = { id: "game", mapSpaceId: "world", label: "World", kind: "game-map", tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 10, 10], tiles: [{ z: 0, x: 0, y: 0, url: "tile.webp", sha256: tile.sha256, bytes: tile.bytes, width: 256, height: 256, state: "captured" }] };
@@ -27,6 +28,10 @@ export async function publicationFixture(root: string, buildId = "build", includ
       db.query("INSERT INTO source_identities VALUES (?, ?, ?, ?, ?, ?, ?)").run("source", "placement", buildId, 1, "1", "Transition", "Assembly-CSharp");
       db.query("INSERT INTO placement_roles VALUES (?, ?, ?, ?, ?, ?)").run("placement", "source", "transition", null, "authored", "{}");
     }
+    if (includeDevRing) {
+      db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(buildId, "items", 417, "items:417", "DEV RING", null, null, 1, "{}", "[]");
+      db.query("INSERT INTO entity_details VALUES (?, ?)").run("items:417", JSON.stringify({ entityKey: "items:417", kind: "items", nativeId: 417, name: "DEV RING", internalName: null, description: null, publicData: { localization: null, gameplay: null, icon: null }, roles: [], placementIds: [], sources: [], relationships: { merchantStock: [], lootBindings: [], lootEntries: [], resourceYields: [], questAssociations: [], transitions: [], conditions: [] }, provenance: [] }));
+    }
   } finally { db.close(); }
   const catalog = await store.putFile(databasePath);
   const catalogRun = await beginArtifactRun(store, { buildId, operation: "catalog", inputs: {}, settings: {}, schemas: [], implementationFingerprint: "a".repeat(64), cacheKey: "b".repeat(64), probeHashes: {}, diagnosticRevision: "test" });
@@ -34,7 +39,7 @@ export async function publicationFixture(root: string, buildId = "build", includ
     await catalogRun.addArtifact("catalog.sqlite", catalog, { mediaType: "application/vnd.sqlite3", schemaId: "compendium.catalog.v2", references: [imagery, emptyImagery, tile].map(({ sha256, bytes }) => ({ kind: "object" as const, content: { sha256, bytes } })) });
     await catalogRun.succeed();
   } finally { await catalogRun.release(); }
-  const presentation: PublicationPresentation = { schemaVersion: "compendium.publication-presentation.v1", buildId, catalogId: "c".repeat(64), worldOffsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }, { mapSpaceId: "empty", worldX: 100, worldY: 200, source: "reviewed", status: "placed" }], spatialBounds: [{ mapSpaceId: "world", minX: 0, minY: 0, maxX: 10, maxY: 10 }, { mapSpaceId: "empty", minX: 10, minY: 20, maxX: 30, maxY: 40 }], capturedMapSpaceIds: [] };
+  const presentation: PublicationPresentation = { schemaVersion: "compendium.publication-presentation.v2", buildId, catalogId: "c".repeat(64), worldOffsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }, { mapSpaceId: "empty", worldX: 100, worldY: 200, source: "reviewed", status: "placed" }], spatialBounds: [{ mapSpaceId: "world", minX: 0, minY: 0, maxX: 10, maxY: 10 }, { mapSpaceId: "empty", minX: 10, minY: 20, maxX: 30, maxY: 40 }], capturedMapSpaceIds: [], exclusions: [] };
   const presentationObject = await store.putBytes(new TextEncoder().encode(JSON.stringify(presentation)));
   // The release notes are the Steam news item of the release, as the update workflow registers them.
   const releaseNotes = await store.putBytes(new TextEncoder().encode(JSON.stringify({ gid: "1844115010501029", title: "Afallon 0.16.2.1", appid: 2597810, date: 1789987717, feedlabel: "Community Announcements" })));

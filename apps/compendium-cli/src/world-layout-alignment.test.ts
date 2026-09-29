@@ -11,12 +11,13 @@ const manualCenters: Record<string, readonly [number, number]> = {
 function fixture() {
   const mapSpaceIds = ["world", ...Object.keys(manualCenters)];
   const presentation: PublicationPresentation = {
-    schemaVersion: "compendium.publication-presentation.v1",
+    schemaVersion: "compendium.publication-presentation.v2",
     buildId: "build",
     catalogId: "c".repeat(64),
     worldOffsets: mapSpaceIds.map((mapSpaceId) => ({ mapSpaceId, worldX: 0, worldY: 0, source: mapSpaceId === "world" ? "native" : "reviewed", status: "placed" })),
     spatialBounds: mapSpaceIds.map((mapSpaceId) => ({ mapSpaceId, minX: -1, minY: -1, maxX: 1, maxY: 1 })),
     capturedMapSpaceIds: [],
+    exclusions: [],
   };
   const reviewed: WorldOffsets = {
     schemaVersion: "compendium.world-offsets.v1",

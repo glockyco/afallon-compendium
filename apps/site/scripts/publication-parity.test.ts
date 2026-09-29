@@ -27,13 +27,16 @@ function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummar
     listKinds: new Set(["items"]),
     pageKinds: new Set(["items"]),
     artworkAssets: new Set([`art/${"a".repeat(64)}.webp`]),
+    artworkOwners: new Map([[`art/${"a".repeat(64)}.webp`, new Set(["items:1"])]]),
+    excludedKeys: new Set(),
     placementCount: 25,
     ...overrides,
   };
 }
 
 // A publication with one map placement whose search lists each document.
-function view(documents: ReadonlyArray<{ ref: { kind: string; key: string } }>): PublicationView {
+function view(documents: ReadonlyArray<{ ref: { kind: string; key: string; icon?: { url: string } } }>): PublicationView {
+  const art = documents.flatMap((document) => document.ref.icon ? [document.ref.icon.url] : []);
   return {
     publication: {
       maps: [{ mapSpaceId: "world", parts: [{ path: "map" }], imagery: { path: "imagery" }, bounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } } }],
@@ -46,7 +49,15 @@ function view(documents: ReadonlyArray<{ ref: { kind: string; key: string } }>):
       ["search", { entries: documents.map((document) => ({ ref: document.ref })) }],
       ...documents.map((document, index) => [`document-${index}`, { document }] as const),
     ]),
-    references: new Map(),
+    references: new Map(art.map((path) => [path, { path, schemaId: "image/webp", sha256: "b".repeat(64), bytes: 1 }])),
+  };
+}
+
+function withExclusions(publication: PublicationView, keys: readonly string[]): PublicationView {
+  return {
+    ...publication,
+    publication: { ...publication.publication as object, exclusions: { path: "exclusions" } },
+    resources: new Map([...publication.resources, ["exclusions", { exclusions: keys.map((key) => ({ key, reason: "test-record" })) }]]),
   };
 }
 
@@ -129,4 +140,16 @@ test("rejects missing entities and region records", () => {
 
 test("rejects a removed artwork asset", () => {
   expect(() => assertNonRegressivePublication(summary({ artworkAssets: new Set() }), summary())).toThrow("published artwork");
+});
+
+test("accepts only the removals that the exclusion list of the candidate names", () => {
+  const icon = { url: `art/${"b".repeat(64)}.webp` };
+  const devRing = { ref: { kind: "items", key: "items:417", icon } }, ironBar = { ref: { kind: "items", key: "items:1" } };
+  const baseline = summarizePublication(view([devRing, ironBar]));
+  assertNonRegressivePublication(summarizePublication(withExclusions(view([ironBar]), ["items:417"])), baseline);
+  expect(() => assertNonRegressivePublication(summarizePublication(view([ironBar])), baseline)).toThrow("published entities: items:417");
+  expect(() => assertNonRegressivePublication(summarizePublication(withExclusions(view([ironBar]), ["items:999"])), baseline)).toThrow("published entities: items:417");
+  // Artwork that a published entity showed must stay, even when an excluded entity shared it.
+  const sharedBaseline = summarizePublication(view([devRing, { ref: { kind: "items", key: "items:1", icon } }]));
+  expect(() => assertNonRegressivePublication(summarizePublication(withExclusions(view([ironBar]), ["items:417"])), sharedBaseline)).toThrow("published artwork");
 });

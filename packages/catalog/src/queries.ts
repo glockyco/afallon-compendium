@@ -501,6 +501,12 @@ export function queryDropRows(db: Database): CatalogQueryResult<CatalogDropRow[]
   return { ...identity(db), records };
 }
 
+/** The NPCs that a spawner can spawn, including the candidates of spawners without a placement. */
+export function querySpawnCandidateNpcs(db: Database): CatalogQueryResult<string[]> {
+  const records = db.query<{ npc_entity_key: string }, []>("SELECT DISTINCT npc_entity_key FROM spawn_candidates WHERE npc_entity_key IS NOT NULL ORDER BY npc_entity_key").all().map((row) => row.npc_entity_key);
+  return { ...identity(db), records };
+}
+
 export function queryVendorRows(db: Database): CatalogQueryResult<CatalogVendorRow[]> {
   const refs = entityEndpointIndex(db), placements = placementIdsByNpc(db);
   const records = db.query<{ owner_entity_key: string; item_entity_key: string; currency_entity_key: string | null; cost: number; merchant_table_id: number; stock_index: number; binding_condition: string | null }, []>(`

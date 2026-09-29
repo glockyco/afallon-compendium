@@ -38,14 +38,15 @@ function fixture() {
   const parts = ['a', 'b'].map((name, part) => register({ schemaVersion: 'compendium.static-map.v3', ...identity, mapSpaceId: 'map', part, placements: [[`place:${name}`, [part * 10, 0], 0, name, ['merchant'], [], [`item:${name}`], null, null, null, null]], regions: [] }));
   const imagery = register({ schemaVersion: 'compendium.static-imagery.v2', ...identity, mapSpaceId: 'map', defaultLayerId: 'game', layers: [{ id: 'game', mapSpaceId: 'map', label: 'Map', kind: 'game-map', tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 256, 256], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${'d'.repeat(64)}.webp`, sha256: 'd'.repeat(64), bytes: 1, width: 256, height: 256, state: 'captured', schemaId: 'image/webp' }] }] });
   const coverage = register({ schemaVersion: 'compendium.static-coverage.v2', ...identity, pages: [{ kind: 'items', count: 1 }], mapCount: 1, placementCount: 1, gaps: [] });
+  const exclusions = register({ schemaVersion: 'compendium.static-exclusions.v1', ...identity, exclusions: [] });
   const bounds = { min: { x: 0, y: 0 }, max: { x: 256, y: 256 } };
   const root: StaticRootManifest = {
-    schemaVersion: 'compendium.static-root.v5', ...identity, mode: 'preview', complete: false,
+    schemaVersion: 'compendium.static-root.v6', ...identity, mode: 'preview', complete: false,
     release: { version: '0.16.2.1', dataDate: '2026-09-28', patchNotes: { title: 'Afallon 0.16.2.1', url: 'https://store.steampowered.com/news/app/2597810/view/1844115010501029', date: '2026-09-21' } },
     world: { mapSpaceId: 'world', label: 'Afallon', bounds, offsets: [{ mapSpaceId: 'map', worldX: 0, worldY: 0, source: 'native', status: 'placed' }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: 'map', label: 'Map', bounds, parts, optionalGeometry: [], imagery }],
     kinds: [{ kind: 'items', label: 'Item', plural: 'Items', route: 'items', icon: 'package', pages: true, searchable: true, columns: [], facets: [] }],
-    lists: { items: [list] }, search: [search], coverage,
+    lists: { items: [list] }, search: [search], coverage, exclusions,
   };
   bodies.set('publication.json', JSON.stringify(root));
   const counts = new Map<string, number>();

@@ -3,8 +3,8 @@ import { Assert } from "typebox/value";
 import { replaceFileAtomically } from "@afallon/artifacts";
 import { WorldOffsetsSchema, type WorldOffsets } from "@afallon/contracts";
 import {
-  PublicationPresentationSchema,
   StaticRootManifestSchema,
+  assertPublicationPresentation,
   type PublicationPresentation,
   type StaticRootManifest,
 } from "@afallon/contracts/public";
@@ -166,7 +166,7 @@ export function alignWorldLayout(
     return { ...offset, worldX: rounded(worldCenter.x + target.x - local.x), worldY: rounded(worldCenter.y + target.y - local.y) };
   });
   const aligned = { ...presentation, worldOffsets };
-  Assert(PublicationPresentationSchema, aligned);
+  assertPublicationPresentation(aligned);
   return { presentation: aligned, centerMapSpaceId, halfWidth, halfHeight, corners, sides };
 }
 
@@ -181,7 +181,7 @@ export async function alignWorldLayoutFiles(options: {
   const presentation: unknown = await Bun.file(options.presentationPath).json();
   const reviewed: unknown = await Bun.file(options.reviewedOffsetsPath).json();
   const publication: unknown = await Bun.file(resolve(options.publicationRoot, "publication.json")).json();
-  Assert(PublicationPresentationSchema, presentation);
+  assertPublicationPresentation(presentation);
   Assert(WorldOffsetsSchema, reviewed);
   Assert(StaticRootManifestSchema, publication);
   const aligned = alignWorldLayout(presentation, reviewed, publication, options);

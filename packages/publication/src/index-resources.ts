@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { Assert } from "typebox/value";
 import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
-import { queryCatalogEntities, queryCatalogFacts, queryCatalogFullEntities, queryCatalogRelations } from "@afallon/catalog";
+import { queryCatalogEntities, queryCatalogFacts, queryCatalogFullEntities, queryCatalogRelations, querySpawnCandidateNpcs } from "@afallon/catalog";
 import {
   PUBLICATION_DOCUMENT_BUDGET,
   STATIC_DOCUMENT_SCHEMA_IDS,
@@ -18,6 +18,7 @@ import {
   type PublicQuest,
   type PublicSearchEntry,
   type StaticDocument,
+  type PublicationExclusion,
   type StaticKindList,
   type StaticCoverage,
   type StaticSearchIndex,
@@ -25,7 +26,8 @@ import {
 import { generateArtworkResources } from "./artwork";
 import { readerCoverage } from "./coverage";
 import { usableTeleports } from "./connections";
-import { projectPublicDocuments, type PublishedPlacement } from "./documents";
+import { projectPublicDocuments, startingGearByItem, type PublishedPlacement } from "./documents";
+import { assertExclusionEvidence, withoutExcludedRelations } from "./exclusions";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
@@ -96,20 +98,28 @@ export async function generateIndexResources(
   regionIdsByMapSpace: ReadonlyMap<string, readonly string[]>,
   npcLevels: ReadonlyMap<string, ReadonlyMap<string, PublicLevel>>,
   mapExtents: ReadonlyMap<string, MapExtent>,
+  exclusions: readonly PublicationExclusion[],
   protection?: ObjectWriteProtection,
 ): Promise<GeneratedIndexResources> {
   const entities = queryCatalogEntities(db), facts = queryCatalogFacts(db), catalogRelations = queryCatalogRelations(db);
   assertSameIdentity(entities, facts, "Fact");
   assertSameIdentity(entities, catalogRelations, "Relation");
   // Place names and place pages read only the teleports that a player can use.
-  const relations = { ...catalogRelations, records: { ...catalogRelations.records, transitions: usableTeleports(catalogRelations.records.transitions, mapExtents) } };
+  const usable = { ...catalogRelations.records, transitions: usableTeleports(catalogRelations.records.transitions, mapExtents) };
+  // No page shows a row for an excluded record, and excluded records take no part in names.
+  const excluded = new Set(exclusions.map((exclusion) => exclusion.key));
+  const relations = { ...catalogRelations, records: withoutExcludedRelations(usable, excluded) };
   const identity = { buildId: entities.buildId, catalogId: entities.catalogId };
   const artwork = await generateArtworkResources(store, entities.records, protection);
   const levelsByRecord = new Map<string, PublicLevel[]>();
   for (const levels of npcLevels.values()) for (const [key, level] of levels) levelsByRecord.set(key, [...levelsByRecord.get(key) ?? [], level]);
-  const references = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity,
+  const references = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, excluded,
     npcLevels: new Map([...levelsByRecord].map(([key, levels]) => [key, levelUnion(levels)!] as const)) });
   const refs = references.refs;
+  // Each exclusion must still hold in this catalog, so the check reads the relations before exclusion.
+  const spawnCandidates = querySpawnCandidateNpcs(db);
+  assertSameIdentity(entities, spawnCandidates, "Spawn candidate");
+  assertExclusionEvidence(exclusions, { entities: entities.records, facts: facts.records, relations: usable, spawnCandidates: new Set(spawnCandidates.records), startingGear: startingGearByItem(entities.records, facts.records, refs) });
   const catalogPlacements = new Map(relations.records.placements.map((placement) => [placement.placementId, placement]));
   const publishedPlacements = new Map([...placements].map(([placementId, placement]) => {
     const catalogPlacement = catalogPlacements.get(placementId), scene = catalogPlacement ? refs.get(catalogPlacement.sceneKey) : undefined;

@@ -114,3 +114,13 @@ test("adds the native id when distinct names produce the same slug", () => {
   expect(refs.get("items:11")?.slug).toBe("a-b");
   expect(refs.get("items:12")?.slug).toBe("a-b-12");
 });
+
+test("a record that shares its name only with an excluded record loses its qualifier", () => {
+  const catacombs = [entity("scenes", 29, "Coalway catacombs"), entity("scenes", 37, "Coalway catacombs")];
+  expect(buildEntityReferences(catacombs).refs.get("scenes:37")).toMatchObject({ name: "Coalway Catacombs (2)", slug: "coalway-catacombs-2" });
+  const { refs, pages } = buildEntityReferences(catacombs, { excluded: new Set(["scenes:29"]) });
+  expect(refs.get("scenes:37")).toMatchObject({ name: "Coalway Catacombs", slug: "coalway-catacombs" });
+  // The excluded record keeps its formatted name for text, but it has no page and no link.
+  expect(refs.get("scenes:29")).toEqual({ key: "scenes:29", kind: "places", name: "Coalway Catacombs" });
+  expect([...pages.keys()]).toEqual(["scenes:37"]);
+});

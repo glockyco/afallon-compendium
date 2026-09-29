@@ -52,7 +52,7 @@ import type {
   RequirementGroup,
   RequirementRef,
 } from "@afallon/contracts/public";
-import { collectRefs, isEntityRef } from "@afallon/contracts/public";
+import { collectRefs, isEntityRef, isPublicPageKind } from "@afallon/contracts/public";
 import { markerCategories, shownCategories } from "./categories";
 import { chancePercent, choicesChance, enabledChance, levelUnion } from "./levels";
 import { shownNpcStats } from "./variants";
@@ -157,10 +157,15 @@ function optionalFactRef(resolve: ReferenceResolver, endpoint: CatalogEndpoint |
   return endpoint === null || endpoint === undefined || endpoint.entityKey === null ? undefined : resolve(endpoint);
 }
 
+// A record without a page, such as an excluded record or a class that no race offers, reads as text in a requirement.
+function requirementSpan(ref: Ref): RequirementRef["spans"][number] {
+  return isEntityRef(ref) && isPublicPageKind(ref.kind) && ref.slug === undefined ? { text: ref.name } : { ref };
+}
+
 function projectRequirement(requirement: CatalogRequirement, resolve: ReferenceResolver): RequirementRef {
   return {
     type: { value: requirement.type.value, name: plainText(requirement.type.name) }, rule: { value: requirement.rule.value, name: plainText(requirement.rule.name) }, label: plainText(requirement.label),
-    spans: requirement.spans.map((span) => "text" in span ? { text: withoutMarkup(span.text) } : { ref: resolve(span.endpoint) }),
+    spans: requirement.spans.map((span) => "text" in span ? { text: withoutMarkup(span.text) } : requirementSpan(resolve(span.endpoint))),
   };
 }
 

@@ -125,7 +125,7 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
   const map = { schemaVersion: "compendium.static-map.v3", ...identity, mapSpaceId: "map", part: 0, placements: [["p1", [0, 0], 0, "Duskfall Depths", ["boss"], ["npcs:286"], [], null, null, null]], regions: [] } as const;
   const imagery = { schemaVersion: "compendium.static-imagery.v2", ...identity, mapSpaceId: "map", defaultLayerId: "game", layers: [{ id: "game", mapSpaceId: "map", label: "Game", kind: "game-map", tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 1, 1], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${"d".repeat(64)}.webp`, sha256: "d".repeat(64), bytes: 1, width: 1, height: 1, state: "captured", schemaId: "image/webp" }] }] } as const;
   const root: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v5", ...identity, mode: "preview", complete: false,
+    schemaVersion: "compendium.static-root.v6", ...identity, mode: "preview", complete: false,
     release: { version: "0.16.2.1", dataDate: "2026-09-28", patchNotes: { title: "Afallon 0.16.2.1", url: "https://store.steampowered.com/news/app/2597810/view/1844115010501029", date: "2026-09-21" } },
     world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "map", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: "map", label: "Map", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, parts: [ref("compendium.static-map.v3", "5".repeat(64)) as never], optionalGeometry: [], imagery: ref("compendium.static-imagery.v2", "6".repeat(64)) as never }],
@@ -138,11 +138,13 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
     lists: { items: [ref("compendium.static-kind-list.v2", "7".repeat(64)) as never], npcs: [ref("compendium.static-kind-list.v2", "8".repeat(64)) as never] },
     search: [ref("compendium.static-search.v4", "9".repeat(64)) as never],
     coverage: ref("compendium.static-coverage.v2", "e".repeat(64)) as never,
+    exclusions: ref("compendium.static-exclusions.v1", "a".repeat(64)) as never,
   };
   Assert(StaticRootManifestSchema, root);
   Assert(StaticSearchIndexSchema, search); Assert(StaticKindListSchema, itemList);
   const values = new Map<string, StaticResource>([
     [root.search[0]!.path, search], [root.lists.items![0]!.path, itemList], [root.lists.npcs![0]!.path, npcList], [root.coverage.path, coverage],
+    [root.exclusions.path, { schemaVersion: "compendium.static-exclusions.v1", ...identity, exclusions: [{ key: "items:417", reason: "test-record" }] }],
     [itemReference.path, itemDocument], [npcReference.path, npcDocument as never], [root.maps[0]!.parts[0]!.path, map as never], [root.maps[0]!.imagery.path, imagery as never],
   ]);
   const rootEdges = staticResourceEdges(root).map((edge) => edge.path);
@@ -174,4 +176,19 @@ test("a v3 root reaches documents and artwork through graph edges and passes sem
   const questRoot = { ...root, kinds: [...root.kinds, questKind], lists: { ...root.lists, quests: [questListReference as never] } };
   withQuest.set(questListReference.path, { schemaVersion: "compendium.static-kind-list.v2", ...identity, kind: "quests", part: 0, rows: [{ ref: questDocument.document.ref, values: {}, facets: {} }] });
   expect(() => assertStaticPublicationSemantics(questRoot, withQuest)).toThrow("Document placement is not a published placement: missing");
+
+  // An excluded record has no page, no reference, and no marker.
+  const excluding = (key: string) => { const next = new Map(values); next.set(root.exclusions.path, { schemaVersion: "compendium.static-exclusions.v1", ...identity, exclusions: [{ key, reason: "test-record" }] }); return next; };
+  expect(() => assertStaticPublicationSemantics(root, excluding("npcs:286"))).toThrow("Placement p1 names an excluded record: npcs:286");
+  const unplacedMap = { ...map, placements: [["p1", [0, 0], 0, "Duskfall Depths", ["boss"], [], [], null, null, null]] } as const;
+  const withoutMarker = (key: string) => { const next = excluding(key); next.set(root.maps[0]!.parts[0]!.path, unplacedMap as never); return next; };
+  expect(() => assertStaticPublicationSemantics(root, withoutMarker("npcs:286"))).toThrow("Excluded record is published: npcs:286");
+  const referenced = withoutMarker("npcs:286");
+  referenced.delete(npcReference.path);
+  referenced.set(root.search[0]!.path, { ...search, entries: search.entries.filter((entry) => entry.ref.kind !== "npcs") });
+  referenced.set(root.lists.npcs![0]!.path, { ...npcList, rows: [] });
+  expect(() => assertStaticPublicationSemantics(root, referenced)).toThrow(`Reference to an excluded record npcs:286 in ${itemReference.path}`);
+  const duplicate = new Map(values);
+  duplicate.set(root.exclusions.path, { schemaVersion: "compendium.static-exclusions.v1", ...identity, exclusions: [{ key: "items:417", reason: "test-record" }, { key: "items:417", reason: "test-record" }] });
+  expect(() => assertStaticPublicationSemantics(root, duplicate)).toThrow("Duplicate publication exclusion: items:417");
 });

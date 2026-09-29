@@ -47,6 +47,7 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
       new Map([["world", []]]),
       new Map(),
       new Map(),
+      [],
     );
     const entries = generated.search.flatMap((part) => part.value.entries);
     expect(entries.find((entry) => entry.ref.key === "quests:3")).toMatchObject({ hasPlacements: false, level: { min: 18, max: 20 } });

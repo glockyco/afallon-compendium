@@ -7,7 +7,7 @@ import { Assert } from "typebox/value";
 import { ArtifactStore, beginArtifactRun, createArtifactLease, fingerprintStep, resolveArtifactRun, selectLatestSuccess, type ActiveArtifactLease } from "@afallon/artifacts";
 import { evaluateCatalogGate, queryCatalogMaps, type CatalogGateResult } from "@afallon/catalog";
 import { canonicalJson, schemaRegistry, type ArtifactRunManifest, type ContentIdentity } from "@afallon/contracts";
-import { PublicationPlanSchema, PublicationPresentationSchema, assertStaticResourceIdentity, type PublicationPlan } from "@afallon/contracts/public";
+import { PublicationPlanSchema, assertPublicationPresentation, assertStaticResourceIdentity, type PublicationPlan } from "@afallon/contracts/public";
 import { buildStaticPublication, type StaticPublicationBuildResult } from "./build";
 import { publicationRelease } from "./release";
 import { materializePublication, selectPublication, type SelectedPublication } from "./selection";
@@ -170,7 +170,7 @@ async function withPublicationSelection<T>(referencePath: string, publicationPat
 export async function publishFromPlan(store: ArtifactStore, plan: PublicationPlan, options: PublicationApplicationOptions): Promise<PublicationApplicationResult> {
   Assert(PublicationPlanSchema, plan);
   const inputs = { catalogManifest: plan.catalog.manifest, catalog: plan.catalog.object, presentation: plan.presentation, releaseNotes: plan.release.releaseNotes };
-  const schemas = ["compendium.publish-plan.v3", "compendium.publication-presentation.v1", "compendium.static-root.v5"].map((id) => {
+  const schemas = ["compendium.publish-plan.v3", "compendium.publication-presentation.v2", "compendium.static-root.v6"].map((id) => {
     const schema = schemaRegistry.require(id);
     return { id: schema.id, sha256: schema.sha256 };
   });
@@ -198,11 +198,8 @@ export async function publishFromPlan(store: ArtifactStore, plan: PublicationPla
       await store.verify(plan.catalog.object);
       await store.verify(plan.presentation);
       const presentation: unknown = JSON.parse(await readFile(store.objectPath(plan.presentation.sha256), "utf8"));
-      Assert(PublicationPresentationSchema, presentation);
+      assertPublicationPresentation(presentation);
       assertStaticResourceIdentity({ buildId: plan.buildId, catalogId: plan.catalog.catalogId }, presentation);
-      if (new Set(presentation.worldOffsets.map((offset) => offset.mapSpaceId)).size !== presentation.worldOffsets.length) throw new Error("Publication world offsets repeat a map identity.");
-      if (new Set(presentation.spatialBounds.map((bounds) => bounds.mapSpaceId)).size !== presentation.spatialBounds.length) throw new Error("Publication spatial bounds repeat a map identity.");
-      for (const bounds of presentation.spatialBounds) if (bounds.minX > bounds.maxX || bounds.minY > bounds.maxY) throw new Error(`Publication spatial bounds are reversed: ${bounds.mapSpaceId}.`);
       await store.verify(plan.release.releaseNotes);
       const release = publicationRelease(plan.release, JSON.parse(await readFile(store.objectPath(plan.release.releaseNotes.sha256), "utf8")));
       db = new Database(store.objectPath(plan.catalog.object.sha256), { readonly: true, strict: true });
@@ -210,7 +207,7 @@ export async function publishFromPlan(store: ArtifactStore, plan: PublicationPla
       const identity = queryCatalogMaps(db);
       assertStaticResourceIdentity({ buildId: plan.buildId, catalogId: plan.catalog.catalogId }, identity);
       gate = evaluateCatalogGate(db, { mode: plan.mode, expectedBuildId: plan.buildId, expectedCatalogId: plan.catalog.catalogId, referenceIntegrity: { verified: true, failures: [] }, spatialBounds: presentation.spatialBounds });
-      result = await buildStaticPublication(db, store, plan.mode, gate, release, presentation.worldOffsets, presentation.capturedMapSpaceIds, lease);
+      result = await buildStaticPublication(db, store, plan.mode, gate, release, presentation.worldOffsets, presentation.capturedMapSpaceIds, presentation.exclusions, lease);
       db.close();
       db = undefined;
       await store.verify(plan.catalog.object);

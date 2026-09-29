@@ -40,6 +40,13 @@ export function assertStaticPublicationSemantics(root: StaticRootManifest, value
   for (const value of values.values()) assertStaticResourceIdentity(root, value);
   const coverage = values.get(root.coverage.path);
   if (coverage?.schemaVersion !== "compendium.static-coverage.v2") throw new Error("Publication coverage does not match its root.");
+  const exclusions = values.get(root.exclusions.path);
+  if (exclusions?.schemaVersion !== "compendium.static-exclusions.v1") throw new Error("Publication exclusions do not match their root.");
+  const excluded = new Set<string>();
+  for (const exclusion of exclusions.exclusions) {
+    if (excluded.has(exclusion.key)) throw new Error(`Duplicate publication exclusion: ${exclusion.key}.`);
+    excluded.add(exclusion.key);
+  }
   const mapIds = new Set<string>();
   const placementIds = new Set<string>();
   for (const map of root.maps) {
@@ -55,6 +62,7 @@ export function assertStaticPublicationSemantics(root: StaticRootManifest, value
         if (placementIds.has(placement[0])) throw new Error(`Duplicate public placement: ${placement[0]}.`);
         placementIds.add(placement[0]);
         mapPlacementStates.set(placement[0], placement[8]);
+        for (const key of [...placement[5], ...placement[6]]) if (excluded.has(key)) throw new Error(`Placement ${placement[0]} names an excluded record: ${key}.`);
       }
       if (value.regions.some((region) => region.mapSpaceId !== map.mapSpaceId)) throw new Error(`Map region identity mismatch: ${reference.path}.`);
     }
@@ -77,13 +85,13 @@ export function assertStaticPublicationSemantics(root: StaticRootManifest, value
     if (!imagery.layers.some((layer) => layer.id === imagery.defaultLayerId && layer.kind === "game-map")) throw new Error(`Imagery default is not a game map: ${map.imagery.path}.`);
   }
   if (coverage.mapCount !== root.maps.length || coverage.placementCount !== placementIds.size) throw new Error("Publication coverage does not match its root.");
-  assertCompendiumSemantics(root, values, placementIds, coverage);
+  assertCompendiumSemantics(root, values, placementIds, coverage, excluded);
 }
 
 // The compendium half of the graph: every page names a document of its kind and slug, every
 // reference inside a document points at a published entity, and a paged kind's references carry
 // slugs while page-less kinds' references do not.
-function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap<string, StaticResource>, placementIds: ReadonlySet<string>, coverage: StaticCoverage): void {
+function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap<string, StaticResource>, placementIds: ReadonlySet<string>, coverage: StaticCoverage, excluded: ReadonlySet<string>): void {
   const kinds = new Map<string, PublicKindEntry>();
   for (const entry of root.kinds) {
     if (kinds.has(entry.kind)) throw new Error(`Duplicate registered kind: ${entry.kind}.`);
@@ -108,6 +116,7 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
     if (value?.schemaVersion !== "compendium.static-search.v4" || value.part !== part) throw new Error(`Search part identity mismatch: ${reference.path}.`);
     for (const entry of value.entries) {
       if (published.has(entry.ref.key)) throw new Error(`Duplicate search entry: ${entry.ref.key}.`);
+      if (excluded.has(entry.ref.key)) throw new Error(`Excluded record is published: ${entry.ref.key}.`);
       if (!kinds.get(entry.ref.kind)?.pages) { published.set(entry.ref.key, { kind: entry.ref.kind, slug: "" }); continue; }
       if (entry.ref.slug === undefined || !entry.document) throw new Error(`Page entry lacks its slug or document: ${entry.ref.key}.`);
       const slugKey = `${entry.ref.kind}/${entry.ref.slug}`;
@@ -120,6 +129,7 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
   }
   for (const [path, value] of values) if (isStaticDocument(value) && !published.has(value.document.ref.key)) throw new Error(`Published document is absent from the search corpus: ${path}.`);
   const checkRef = (ref: EntityRef, owner: string) => {
+    if (excluded.has(ref.key)) throw new Error(`Reference to an excluded record ${ref.key} in ${owner}.`);
     const entry = kinds.get(ref.kind);
     if (!entry) throw new Error(`Reference to an unregistered kind ${ref.kind} in ${owner}.`);
     if (entry.pages) {

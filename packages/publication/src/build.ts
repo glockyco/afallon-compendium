@@ -8,10 +8,13 @@ import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
 import { queryCatalogEntities, queryCatalogMaps, type CatalogGateResult } from "@afallon/catalog";
 import {
   StaticCoverageSchema,
+  StaticExclusionsSchema,
   StaticRootManifestSchema,
+  type PublicationExclusion,
   type PublicRelease,
   type PublicWorldOffset,
   type StaticCoverage,
+  type StaticExclusions,
   type StaticRootManifest,
 } from "@afallon/contracts/public";
 import type { PublishedPlacement } from "./documents";
@@ -49,6 +52,7 @@ export async function buildStaticPublication(
   release: PublicRelease,
   worldOffsets: readonly PublicWorldOffset[],
   capturedMapSpaceIds: readonly string[] = [],
+  exclusions: readonly PublicationExclusion[] = [],
   protection?: ObjectWriteProtection,
 ): Promise<StaticPublicationBuildResult> {
   if (!gate.accepted) throw new Error("Publication candidate failed its catalog gate.");
@@ -69,8 +73,10 @@ export async function buildStaticPublication(
   const publishedOffsets = worldOffsets.filter((offset) => publishedMapIds.has(offset.mapSpaceId)).sort((left, right) => left.mapSpaceId.localeCompare(right.mapSpaceId));
   if (publishedOffsets.length !== publishedMapIds.size || new Set(publishedOffsets.map((offset) => offset.mapSpaceId)).size !== publishedMapIds.size) throw new Error("Publication requires one reviewed world offset per published map.");
   const publishedExtents = new Map([...gameMapByMap].map(([mapSpaceId, layer]) => [mapSpaceId, layer.extent] as const));
-  // Map markers link creature pages, so the grouping of creature records into pages comes first.
-  const pageOf = pagesOfRecords(queryCatalogEntities(db).records, "npcs");
+  // Map markers link creature pages, so the grouping of creature records into pages comes first. An excluded record has
+  // no page, so it takes no part in the grouping.
+  const excluded = new Set(exclusions.map((exclusion) => exclusion.key));
+  const pageOf = pagesOfRecords(queryCatalogEntities(db).records.filter((entity) => !excluded.has(entity.entityKey)), "npcs");
   const mapShards = await generateMapShards(db, store, pageOf, publishedOffsets, protection, publishedMapIds, publishedExtents);
   const npcLevels = new Map(mapShards.flatMap((entry) => [...entry.npcLevels]));
   const imageryByMap = new Map(imagery.map((entry) => [entry.mapSpaceId, entry.resource]));
@@ -93,7 +99,7 @@ export async function buildStaticPublication(
     regionIdsByMapSpace.set(entry.summary.mapSpaceId, [...regionIds].sort());
   }
   const placementIdsByKey = new Map([...placementIdsByKeySets].map(([key, ids]) => [key, [...ids].sort()]));
-  const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, regionIdsByMapSpace, npcLevels, publishedExtents, protection);
+  const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, regionIdsByMapSpace, npcLevels, publishedExtents, exclusions, protection);
   const identity = queryCatalogMaps(db);
   assertCompleteTooltipCoverage(gate.complete, indexes.publicationIssues);
   const coverage: StaticCoverage = {
@@ -102,6 +108,13 @@ export async function buildStaticPublication(
   };
   Assert(StaticCoverageSchema, coverage);
   const coverageResource = await writeStaticJson(store, coverage.schemaVersion, coverage, protection);
+  // Staging parity reads the excluded keys and reasons. The evidence text stays in the presentation input.
+  const exclusionsValue: StaticExclusions = {
+    schemaVersion: "compendium.static-exclusions.v1", buildId: identity.buildId, catalogId: identity.catalogId,
+    exclusions: exclusions.map((exclusion) => ({ key: exclusion.key, reason: exclusion.reason })).sort((left, right) => left.key.localeCompare(right.key)),
+  };
+  Assert(StaticExclusionsSchema, exclusionsValue);
+  const exclusionsResource = await writeStaticJson(store, exclusionsValue.schemaVersion, exclusionsValue, protection);
   const offsetByMap = new Map(worldOffsets.map((offset) => [offset.mapSpaceId, offset]));
   const maps = mapShards.map((entry) => {
     const mapImagery = imageryByMap.get(entry.summary.mapSpaceId), offset = offsetByMap.get(entry.summary.mapSpaceId);
@@ -120,17 +133,17 @@ export async function buildStaticPublication(
     max: { x: Math.max(bounds.max.x, map.bounds.max.x), y: Math.max(bounds.max.y, map.bounds.max.y) },
   }), structuredClone(maps[0]!.bounds));
   const manifest: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v5", buildId: identity.buildId, catalogId: identity.catalogId, mode, complete: gate.complete, release,
+    schemaVersion: "compendium.static-root.v6", buildId: identity.buildId, catalogId: identity.catalogId, mode, complete: gate.complete, release,
     world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: publishedOffsets, unplacedMapSpaceIds: [...allMapIds].filter((mapSpaceId) => !publishedMapIds.has(mapSpaceId)).sort() },
     maps, kinds: [...PUBLIC_KIND_REGISTRY], lists: Object.fromEntries([...indexes.lists].map(([kind, resources]) => [kind, resources.map((resource) => resource.reference)])),
-    search: indexes.search.map((resource) => resource.reference), coverage: coverageResource.reference,
+    search: indexes.search.map((resource) => resource.reference), coverage: coverageResource.reference, exclusions: exclusionsResource.reference,
   };
   Assert(StaticRootManifestSchema, manifest);
   const rootResource = await writeStaticJson(store, manifest.schemaVersion, manifest, protection);
   const groups: Record<string, GeneratedStaticResource<unknown>[]> = {
     root: [rootResource], map: mapShards.flatMap((entry) => entry.resources), imageryMetadata: imagery.map((entry) => entry.resource),
     search: indexes.search, lists: [...indexes.lists.values()].flat(), documents: [...indexes.documents.values()],
-    optionalGeometry: mapShards.flatMap((entry) => entry.geometry), coverage: [coverageResource],
+    optionalGeometry: mapShards.flatMap((entry) => entry.geometry), coverage: [coverageResource], exclusions: [exclusionsResource],
   };
   // The map loads the root, its map parts, and imagery declarations before it is ready. Other groups load on demand.
   const essentialBytes = [...groups.root!, ...groups.map!, ...groups.imageryMetadata!].reduce((sum, resource) => sum + resource.identity.bytes, 0);

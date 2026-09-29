@@ -9,12 +9,34 @@ import type { PublicationPlan, PublicationPresentation } from "@afallon/contract
 import { publishFromPlan } from "./application";
 import { publicationFixture } from "./publication-fixture.test";
 
-async function shiftedPlan(store: ArtifactStore, plan: PublicationPlan): Promise<PublicationPlan> {
+async function withPresentation(store: ArtifactStore, plan: PublicationPlan, change: (presentation: PublicationPresentation) => void): Promise<PublicationPlan> {
   const presentation: PublicationPresentation = JSON.parse(await readFile(store.objectPath(plan.presentation.sha256), "utf8"));
-  presentation.worldOffsets[0]!.worldX = 100;
+  change(presentation);
   const object = await store.putBytes(new TextEncoder().encode(JSON.stringify(presentation)));
   return { ...plan, presentation: { sha256: object.sha256, bytes: object.bytes } };
 }
+
+const shiftedPlan = (store: ArtifactStore, plan: PublicationPlan) => withPresentation(store, plan, (presentation) => { presentation.worldOffsets[0]!.worldX = 100; });
+
+test("a candidate leaves out each excluded record, lists it, and passes the graph check", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "afallon-publish-exclusions-")));
+  try {
+    const { store, plan, options } = await publicationFixture(root, "build", false, true);
+    const values = async (candidate: Awaited<ReturnType<typeof publishFromPlan>>, schemaId: string) => await Promise.all(candidate.resources
+      .filter((resource) => resource.reference.schemaId === schemaId).map(async (resource) => JSON.parse(await readFile(store.objectPath(resource.identity.sha256), "utf8"))));
+    const searchKeys = async (candidate: Awaited<ReturnType<typeof publishFromPlan>>) => (await values(candidate, "compendium.static-search.v4"))
+      .flatMap((part: { entries: Array<{ ref: { key: string } }> }) => part.entries.map((entry) => entry.ref.key)).sort();
+    expect(await searchKeys(await publishFromPlan(store, plan, { ...options, select: false }))).toEqual(["items:1", "items:417"]);
+
+    const devRing = { key: "items:417", reason: "test-record" as const, evidence: "The name DEV RING marks a developer record." };
+    // The publisher verifies the graph of the candidate before it returns, so a returned candidate passed the check.
+    const excluding = await publishFromPlan(store, await withPresentation(store, plan, (presentation) => { presentation.exclusions = [devRing]; }), { ...options, select: false });
+    expect(await searchKeys(excluding)).toEqual(["items:1"]);
+    expect((await values(excluding, "compendium.static-exclusions.v1")).map((resource: { exclusions: unknown }) => resource.exclusions)).toEqual([[{ key: "items:417", reason: "test-record" }]]);
+    await expect(publishFromPlan(store, await withPresentation(store, plan, (presentation) => { presentation.exclusions = [{ ...devRing, key: "items:999" }]; }), { ...options, select: false }))
+      .rejects.toThrow("Exclusion items:999 (test-record) names a record that the catalog lacks.");
+  } finally { await rm(root, { recursive: true, force: true }); }
+}, 60_000);
 
 test("hands off unselected candidates, counts the map startup requests, and releases publication leases", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "afallon-publish-handoff-")));

@@ -79,9 +79,8 @@ export const load: PageServerLoad = async ({ parent }) => {
     // The level bars share one scale, from level 1 to the highest recorded level.
     levelScale: Math.max(1, ...ranged.map(({ max }) => max), world?.range?.max ?? 1),
     classes: classRows.map((row) => ({ ref: row.ref, talentTrees: count(row.values.talentTrees), abilities: count(row.values.abilities) })),
-    // A crafting skill has recipes and levels. The game also keeps a skill without levels whose recipes neither use nor
-    // make items. It uses those recipes to store flags, such as a claimed quest reward, so the hub does not show it.
-    craftingSkills: skillRows.flatMap((row) => { const recipes = count(row.values.recipes); return recipes && count(row.values.highestLevel) ? [{ ref: row.ref, recipes }] : []; }),
+    // A crafting skill has recipes.
+    craftingSkills: skillRows.flatMap((row) => { const recipes = count(row.values.recipes); return recipes ? [{ ref: row.ref, recipes }] : []; }),
     pageCounts: coverage.pages,
   };
 };

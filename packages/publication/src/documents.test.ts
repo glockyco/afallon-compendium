@@ -99,10 +99,11 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(item.facts).not.toHaveProperty("armorType");
   expect(item.facts).not.toHaveProperty("enchantment");
   expect(item.facts).not.toHaveProperty("buyPrice");
+  // Neither class is offered in this fixture, so neither has a page, and a requirement names each as text.
   expect(item.facts.equipmentRequirements).toEqual([
     { mode: "any", checkCount: true, requiredCount: 1, requirements: [
-      { type: { value: 0, name: "Class" }, rule: { value: 1, name: "Optional" }, label: "Shieldmaster", spans: [{ ref: { key: "classes:0", kind: "classes", name: "Shieldmaster" } }] },
-      { type: { value: 0, name: "Class" }, rule: { value: 1, name: "Optional" }, label: "Assassin", spans: [{ ref: { key: "classes:5", kind: "classes", name: "Assassin" } }] },
+      { type: { value: 0, name: "Class" }, rule: { value: 1, name: "Optional" }, label: "Shieldmaster", spans: [{ text: "Shieldmaster" }] },
+      { type: { value: 0, name: "Class" }, rule: { value: 1, name: "Optional" }, label: "Assassin", spans: [{ text: "Assassin" }] },
     ] },
     { mode: "all", checkCount: false, requirements: [{ type: { value: 13, name: "Level" }, rule: { value: 0, name: "Mandatory" }, label: "Level 27", spans: [{ text: "Level 27" }] }] },
   ]);
@@ -129,6 +130,25 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(place).not.toHaveProperty("locations");
   expect(place.space).toEqual({ mapSpaceId: "world", regionIds: ["region-1"] });
   expect(place.creatures).toMatchObject([{ counterpart: { key: "npcs:2" }, placementCount: 1 }]);
+});
+
+test("a requirement names an excluded recipe as text", () => {
+  const tavern: CatalogEntityRow = { entityKey: "recipes:40", kind: "recipes", nativeId: 40, name: "Oakenvale tavern level 2", description: null, iconAssetName: null, artwork: [] };
+  const withTavern = [...entities, tavern];
+  const tavernRequirement = requirement("Recipe", "Oakenvale tavern level 2", { spans: [{ endpoint: { entityKey: "recipes:40", label: "Oakenvale tavern level 2" } }] });
+  const gatedFacts: CatalogFacts = { ...facts, entities: withTavern, recipes: [{ entityKey: "recipes:40", skill: null, station: null, learnedByDefault: false, ranks: [] }],
+    items: [{ ...facts.items[0]!, useConditions: [{ mode: "all", checkCount: false, requiredCount: null, requirements: [tavernRequirement] }] }] };
+  const projectExcluding = (excluded: ReadonlySet<string>) => {
+    const references = buildEntityReferences(withTavern, { facts: gatedFacts, relations, excluded });
+    return projectPublicDocuments({ entities: withTavern, facts: gatedFacts, relations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map(), npcLevels: new Map(), placementIdsByKey: new Map() });
+  };
+  const spans = (documents: ReadonlyMap<string, PublicDocument>) => (documents.get("items:1") as PublicItem).facts.useConditions[0]?.requirements[0]?.spans;
+  const linked = projectExcluding(new Set());
+  expect(spans(linked)).toEqual([{ ref: { key: "recipes:40", kind: "recipes", name: "Oakenvale Tavern Level 2", slug: "oakenvale-tavern-level-2" } }]);
+  expect(linked.has("recipes:40")).toBe(true);
+  const excluded = projectExcluding(new Set(["recipes:40"]));
+  expect(spans(excluded)).toEqual([{ text: "Oakenvale Tavern Level 2" }]);
+  expect(excluded.has("recipes:40")).toBe(false);
 });
 
 test("place service groups use the published station types", () => {
