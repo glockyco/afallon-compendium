@@ -2,51 +2,65 @@
 
 See `proposal.md` for the motivation. `publish-crafting-and-gathering` captures item game actions as `ItemTooltip.GetRecipeRankUpID` reads them. It publishes Recipe RankUp actions only and keeps the other action types in the catalog. `correct-published-records` adds the reviewed exclusion list.
 
-The recovered types name more owners of game actions. `RPGDialogueTextNode`, `RPGEffect`, and `RPGStat` hold a `GameActionsTemplate`. `RPGGameScene` regions hold a `GameActionsList`. Other owners are unconfirmed. `world-sources.csx` already reads the actions of interactable objects: it turns a valid LootTable action into a container output and an Effect or Teleport action into a door (`world-sources.csx:561-600`). No collector reads dialogue.
+An item source investigation of build 25434619 found these facts. The evidence is in the ignored `research/item-sources/25434619/` and `research/ghidra/25434619/item-source-functions-*-20260929.json`.
 
-`GameActionType` has 29 values, from Ability to LootTable. In the accepted catalog, 145 of 210 loot tables have no captured loot binding, and 24 items appear only in those tables. Task 2.3 recounts them against every captured action reference. Quest rewards give experience, currency, and items, but never a loot table. The names of the unbound tables include the renown boxes, gold coin ranges, supply packs, resource veins, and fishing holes. `publish-crafting-and-gathering` binds the resource and fishing tables to resource ranks.
+- A HotRepl probe read the game actions of items, effects, abilities, stats, NPC phases, NPC stats, class stats, dialogue text nodes, and regions. Only item actions give items, loot tables, currencies, or recipes. Effect 210 rolls table 66 through its effect type, but nothing triggers the effect.
+- In the accepted catalog, 145 of 210 loot tables have no loot binding. Captured interactables and resource nodes name 76 of them, and the catalog already gives sources for all their items except Scroll. Item use actions name 25, prefab interactables name 24, and effect 210 names 1. No owner was found for 19 in the scanned sources.
+- `world-sources.csx` reads the actions of interactable objects, but not their visual effects. `InteractableObject.TriggerActions` reads the LootTable field only for Chest actions.
+- `VisualEffectsManager.TriggerVisualEffect` loads one `PrefabKeys` entry, chosen with `Random.Range(0, count)`, through `SoftAssets.Load` at the Resources path `RPGBSoft/<key>`. `Chest.FilterLootByDropChance` keeps a row when `Random.Range(0, 100)` is at most its chance. It then shuffles the rows and keeps `maxDrops` rows when `maxDrops` is above zero.
+- `ClothDrops.Roll` runs for Humanoid and Undead creatures. It drops cloth when `Random.Range(0, 100)` is at most 75 times the loot drop multipliers. The tier weight follows a level ramp from `LowWeight` to `HighWeight`, and the count is 1 to 3. The catalog has these sources, marks their eligibility as unknown, and the drop query omits them.
+- `DungeonTimerManager` gives a reward bag when all bosses die before the timer ends, and a bag with the token only when the timer ends. `DungeonFinderService` gives Adventurer's Supply Pack when a Random run completes. `HuntTanneryDirector` spawns a quest pickup when a listed creature dies while its quest task is open.
+- The accepted scan captured no placement in Challenge stone Lumberjack.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Read every owner of game actions that the game database holds, as the game reads it.
-- Publish only the action results whose meaning a native handler or a runtime check confirms.
+- Record every owner of game actions, and publish the grants of item owners.
+- Publish the item grants of visual effect chests, scene components, and runtime rules that native analysis or a use check confirms.
 - Give each remaining item without a source a recorded decision.
 
 **Non-Goals:**
-- No dialogue text, dialogue trees, or dialogue pages.
-- No effective chance for a loot roll.
+- No dialogue text, dialogue trees, dialogue pages, dialogue sources, or dialogue teachers.
+- No effective chance for a loot roll or a prefab choice.
 - No publication of an action type whose result stays unverified.
 
 ## Decisions
 
-### Read each owner the way the game reads it
+### Record every owner, and publish item grants only
 
-For items, `GetRecipeRankUpID` reads the actions of the template when the template flag is set and the template exists. The other owners may follow a different rule. A bounded native analysis of the action trigger of each owner type records the list that the game reads. The collectors then read the same list and record the owner identity, the template identity, and each action with its type, chance, node action, amount, and targets. A guessed rule could publish actions that the game never runs.
+The collectors record the actions of each owner type in the order that the game reads them. Each action keeps its owner, its template, its type, chance, node action, amount, and targets. Only item owners give sources in this build. The catalog reports a coverage issue when another owner type gives an item, a loot table, a currency, or a recipe. A later build then cannot add a grant that the publication misses without a report. A reader-facing dialogue source would have no rows in this build.
 
-### Capture dialogue at the level of its actions
+### Read the chests that visual effects spawn
 
-A dialogue collector records each text node that has actions, its dialogue, and the NPCs that start that dialogue. It records no dialogue text. A source row therefore names the NPC, which is the thing that a reader can find. A complete dialogue capture would add text, branching, and requirements that no page shows yet.
+A visual effect entry of an interactable object and a TriggerVisualEffect action of an item name a visual effect template. The scan resolves each prefab key of the template and reads the Chest components of the prefab. A prefab can also hold interactable objects whose Chest actions name loot tables, such as the emerald choices of the sacrificial altar. The scan loads the prefabs at the main menu with `Resources.Load`, as the research probe did. An offline read of the same chests agreed row for row. The catalog keeps the template, the number of prefab choices, each chest, and the costs and requirements of the object.
 
-### Bind loot tables to action owners in the catalog
+### Read the item grants of scene components and runtime rules
 
-A LootTable action creates a loot binding from the owner to its table. The binding context names the owner kind, such as an item or a dialogue node. Items in the table then gain a source. An item owner gives a "From items" source, and a dialogue owner gives a "From dialogue" source. Effect, region, and stat owners stay in the catalog and in coverage until a later change names their sources for readers. This is safer than a label for an owner kind that the reader cannot find.
+`DungeonTimerManager` keeps its boss loot tables, `maxLootItems`, its target times, and its token item. The catalog records the corruption level rule of the bag, and the publication shows the token and the table rows without an effective chance. `HuntTanneryDirector` keeps its creature and pickup pairs. A pickup row names its quest and task, because the pickup appears only while that task is open. `DungeonFinderSettings.SupplyPack` gives Adventurer's Supply Pack to a completed Random run.
+
+### Publish cloth drops with their verified eligibility
+
+The drop query keeps the supplemental cloth rows. A row names Humanoid and Undead creatures, the 75% base chance before the loot drop multipliers, the count 1 to 3, and the level ramp of the tier. It claims no effective chance.
+
+### Bind loot tables to item owners
+
+A LootTable action of an item creates a loot binding from the item to its table. The binding keeps the requirement groups of the action, such as the class and level band of each Adventurer's Supply Pack table. Items in the table gain a From items source.
 
 ### Publish verified action results only
 
-A bounded native analysis of the action handler records the result of each action type that items use. The expected types are LootTable, Item, Currency, NPC, Point, Faction, and Effect. Where a branch stays ambiguous, a use on a research character confirms the result. The publication then shows a Contents section for a loot table, an amount for currency, and a link for a companion or recipe. An unverified type stays a catalog coverage issue and does not appear as an effect. The Contents rows reuse the loot row presentation of the Dropped by section, with the recorded quantity and chance semantics.
+The recorded native analysis confirms the results of LootTable and TriggerVisualEffect actions. Use checks on a research character confirmed Adventurer's Supply Pack and Slime covered sack. The publication shows a Contents section for these results. An item without game actions shows no Contents section. The Ability and Effect actions of companion contracts stay coverage issues until an analysis or a use check confirms their result.
 
 ### Decide each remaining item without a source
 
-After the catalog candidate exists, the publication lists the items that still have no source. Each item gets one recorded decision. It joins the exclusion list of `correct-published-records` with evidence of its kind, or it keeps its page and its coverage row. The 10 records that `correct-published-records` left published get the same review. A missing source alone is not evidence for an exclusion.
+After the catalog candidate exists, the publication lists the items that still have no source. Each item gets one recorded decision. It joins the exclusion list of `correct-published-records` with evidence of its kind, or it keeps its page and its coverage row. A missing source alone is not evidence for an exclusion. An item that occurs only in loot tables without a known owner is "no owner found in the scanned sources", not unobtainable.
 
 ## Risks / Trade-offs
 
-- An owner type can read its actions by a rule other than the item rule. → Native analysis of each owner trigger comes before the collector change.
-- A dialogue node can require conditions that the publication does not show. → The source row names the NPC and keeps the captured availability rules when the catalog has them.
-- One loot table can have several owners. → Each owner keeps its own binding, and the item page lists each owner once.
+- A runtime prefab load can differ from the build files. → The scan compares the runtime rows with an offline read of the same prefab, and records a difference as a coverage issue.
+- One loot table or chest can have several owners. → Each owner keeps its own binding, and the item page lists each owner once.
+- A condition, such as an open quest task or an altar cost, changes what a reader can get. → Each row names its condition, and no row claims an effective chance.
 - New sources change coverage counts and document sizes. → The update report explains each changed count, and the graph checks the size budgets.
 
 ## Migration Plan
 
-Apply this change after `publish-crafting-and-gathering` and `correct-published-records` are accepted. Run a targeted scan with the new owners and the dialogue collector. Build a catalog candidate, and compare it with the accepted catalog, including the new loot bindings. Publish a candidate, stage it against the accepted publication, and check the affected pages at 1440 px and 390 px. Write an update report, and accept the catalog and publication together. The former publication stays as the rollback.
+Apply this change after `publish-crafting-and-gathering` and `correct-published-records` are accepted. Run a targeted scan with the owner actions, the visual effect chests, the scene components, and Challenge stone Lumberjack. Build a catalog candidate, and compare it with the accepted catalog. Publish a candidate, stage it against the accepted publication, and check the affected pages at 1440 px and 390 px. Write an update report, and accept the catalog and publication together. The former publication stays as the rollback.

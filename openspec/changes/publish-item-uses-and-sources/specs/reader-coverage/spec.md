@@ -5,7 +5,7 @@
 The reader-facing coverage page SHALL show the number of published pages per kind, maps, and map locations. It SHALL list affected page links for each nonempty gap: `itemWithoutSource`, `npcWithoutLocation`, `npcWithoutLevel`, `placeWithoutMap`, and `unresolvedReference`. A creature without a location SHALL not also count as a creature without a level. The map SHALL not load coverage to render markers.
 
 #### Scenario: An item has no published source
-- **WHEN** an item page has no drop, vendor, gather, container, interaction, quest, item, dialogue, recipe, or starting-gear source
+- **WHEN** an item page has no drop, vendor, gather, container, interaction, quest, item, dungeon reward, recipe, or starting-gear source
 - **THEN** its page appears under Items without a known source
 
 #### Scenario: Starting gear is a known source
@@ -16,6 +16,10 @@ The reader-facing coverage page SHALL show the number of published pages per kin
 - **WHEN** a creature page has locations and no confirmed level
 - **THEN** its page appears under Creatures without a level
 
-#### Scenario: A box is the only source
-- **WHEN** the only source of an item is the captured loot table of another item
+#### Scenario: Another item is the only source
+- **WHEN** the only source of an item is the captured loot table or visual effect chest of another item
+- **THEN** its page does not appear under Items without a known source
+
+#### Scenario: A cloth drop is the only source
+- **WHEN** the only source of an item is the supplemental cloth drop
 - **THEN** its page does not appear under Items without a known source

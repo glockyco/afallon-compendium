@@ -1,27 +1,28 @@
-## 1. Verify game rules before using them
+## 1. Record the verified game rules
 
-- [ ] 1.1 Find the action trigger of dialogue text nodes, effects, scene regions, and stats with bounded Ghidra analysis under `.agent/skills/native-analysis/SKILL.md`. Record which list each owner reads and when a template replaces it. Check other recovered types field by field, and add an owner only with a confirmed field. Verify the binary hash, the method ranges, the diagnostics, and each ambiguous branch.
-- [ ] 1.2 Record the result of the LootTable, Item, Currency, NPC, Point, Faction, and Effect actions in the action handler. Confirm an ambiguous branch with a use on a research character. Verify that each published action type has a recorded result.
-- [ ] 1.3 Count the actions of each owner type and action type with a read-only HotRepl probe. Record the counts with the build identity. Verify that the counts include the actions of templates.
+- [ ] 1.1 Record the native rules of `ItemPackLootBag`, `VisualEffectsManager` with `Chest`, `ClothDrops`, `DungeonTimerManager`, `DungeonFinderService`, `HuntTanneryDirector`, `EconomyUtilities.QuestItemDropAllowed`, and `InteractableObject.TriggerActions` from the research batches under `.agent/skills/native-analysis/SKILL.md`. Verify the binary hash, the method ranges, and the diagnostics of each batch.
+- [ ] 1.2 Record the action counts of each owner type and action type from a read-only HotRepl probe, with the build identity. Verify that the counts include the actions of templates, and that only item owners give items, loot tables, currencies, or recipes.
+- [ ] 1.3 Record the use checks of Adventurer's Supply Pack, Slime covered sack, and Epic renown reward on a research character. Verify that the character save is restored byte for byte.
 
 ## 2. Scan and catalog
 
-- [ ] 2.1 Read the actions of the owners from task 1.1 in the collectors. Add a dialogue collector that records each text node with actions, its dialogue, and its starting NPCs, without text. Verify fixtures for an inline list, a template list, and a node without an NPC.
-- [ ] 2.2 Keep the actions by owner in the catalog, and bind each LootTable target to its owner. Record unresolved owners and targets as coverage issues. Verify a fixture where an item and a dialogue node share one loot table.
-- [ ] 2.3 Run a targeted scan and build a catalog candidate. Compare it with the accepted catalog. Verify that every counted action from task 1.3 is present, and report the loot tables that still have no owner.
+- [ ] 2.1 Read the actions of every owner type in the collectors. Verify fixtures for an inline list, a template list, and a non-item owner with an Item action.
+- [ ] 2.2 Read the visual effects of interactable objects and item actions, and the Chest components and Chest actions of each prefab that a template can spawn. Verify fixtures for a grave, the sacrificial altar, and Slime covered sack against the offline chest read.
+- [ ] 2.3 Read the `DungeonTimerManager`, `QuestFieldInteraction`, and `HuntTanneryDirector` components and `DungeonFinderSettings`. Verify fixtures for a dungeon timer, a hunt pickup with its task, and the supply pack setting.
+- [ ] 2.4 Keep owner actions, item loot bindings with requirement groups, visual effect chests, and scene grants in the catalog. Report a grant of a non-item owner and each unresolved target as coverage issues. Verify a fixture where an item and an interactable object share one loot table.
+- [ ] 2.5 Keep the supplemental cloth rows in the drop query with the Humanoid and Undead rule. Verify a fixture that returns the Linen Cloth row with its tier ramp.
+- [ ] 2.6 Run a targeted scan that includes Challenge stone Lumberjack, and build a catalog candidate. Compare it with the accepted catalog. Verify that every counted action from task 1.2 is present, and report the loot tables that still have no owner.
 
 ## 3. Publication
 
-- [ ] 3.1 Project the verified use results of items: Contents rows, currency amounts, companions, and recipes. Verify fixtures for a renown box, a gold sack, a companion contract, and an unverified action type.
-- [ ] 3.2 Project From items and From dialogue sources, and count them in coverage and in item source kinds. Verify fixtures for both sources and for a loot table with two owners.
-- [ ] 3.3 Project dialogue recipe teachers with the first-match rule of the game. Verify fixtures for a dialogue teacher, a node with two Recipe actions, and a recipe without a teacher.
-- [ ] 3.4 List the items that still have no source, including the 20 records that `correct-published-records` left published and the Task board giver. Record one decision for each item: an exclusion entry with evidence of its kind, or a kept page. Verify each decision against a recorded read-only catalog query.
+- [ ] 3.1 Project the verified use results of items: loot table contents with their requirements, and visual effect chests. Verify fixtures for Adventurer's Supply Pack, Slime covered sack, Epic renown reward without contents, and an unverified action type.
+- [ ] 3.2 Project From items, Collected from rows for visual effect chests, Dungeon rewards, quest pickup rows, and cloth world loot rows. Count them in coverage and in item source kinds. Verify fixtures for each source and for a loot table with two owners.
+- [ ] 3.3 List the items that still have no source, including the 20 records that `correct-published-records` left published and the Task board giver. Record one decision for each item: an exclusion entry with evidence of its kind, or a kept page. Verify each decision against a recorded read-only catalog query.
 
 ## 4. Reader surfaces
 
-- [ ] 4.1 Show the Contents section and the use lines of the hero. Verify Epic renown reward, Slime covered sack, and Adventure 2 companion in the browser at 1440 px and 390 px.
-- [ ] 4.2 Show the From items and From dialogue sections, their How to get it lines, and their hover summary lines. Verify an item from a renown box and an item from dialogue in the browser at both widths.
-- [ ] 4.3 Show dialogue and other teachers on recipe pages. Verify a recipe with a dialogue teacher in the browser at both widths.
+- [ ] 4.1 Show the Contents section and the use lines of the hero. Verify Adventurer's Supply Pack, Slime covered sack, and Epic renown reward in the browser at 1440 px and 390 px.
+- [ ] 4.2 Show the new source sections, their How to get it lines, and their hover summary lines. Verify Druid staff, Human skull, Corruption Token, Boar Haunch, and Linen Cloth in the browser at both widths.
 
 ## 5. Stage and accept
 

@@ -11,14 +11,14 @@ The site publishes internal game records as real content. These are test items, 
 - The first list holds records with complete evidence:
   - Savers: the skill and its 13 recipes. The recipes use and make no items. All 407 Recipe requirements in the captured world conditions name four of them, and those requirements switch world objects and the Lysander companion.
   - 5 items with test or developer names: Teleport Test Area, Scythe Test, Staff Test, and two Dev Rings. Nothing drops, sells, crafts, or rewards them.
-  - 30 character appearance options in the Hair, Face, Facial hair, Brows, Tattoo, ear piercing, and nose piercing slots. Nothing drops, sells, crafts, or rewards them.
+  - 30 character appearance options in the Hair, Face, Facial hair, Brows, Tattoo, ear piercing, and nose piercing slots. Nothing drops, sells, crafts, or rewards them. The Character creation scene applies them through 30 `ArmorEquipTrigger` components, one for each option.
   - Two NPC records with no role, placement, quest, loot, or stock: SM_hc_Inn, a model name, and Iron Vein Icon.
   - Two scenes: Test Area, and The Void, which is the character creation scene.
 - Review candidates stay published until evidence decides them. Five scene records match no build scene, and their reachability is unresolved: Froststone Cliffs (published as "Unnamed Place"), Searing Plains, Stonefield Basin, Tutorial Catacombs, and Tutorial ICE cave. Effects target Searing Plains and Tutorial ICE cave. The two frost challenge stones in the overworld teleport to unmatched scene records. The Task board gives a quest but has no name or placement. Ten items have outlier stats or placeholder names but no test name: four Speed rings, Ring of Immortality, Skull Necklace, Armor Ring, Auto Attack Ring, Random, and Boss Tele. A load check and an in-game check decide the scenes; the item review waits for `publish-item-uses-and-sources`.
 - Excluded records take no part in name qualification. If both tutorial scenes leave, "Coalway Catacombs (Level 15–30)" and "Glacier Cave (Level 20–30)" lose their qualifiers, and their page addresses change without redirects.
 - Item pages show a "Starting gear of" How to get it line for each published class that starts with the item. The line links the Starting gear section of the class page. 28 items gain this source. 11 of them have no other known source.
 - The hub stops hiding skills without levels, because Savers leaves the publication.
-- Out of scope: 20 records with no known source and no test name stay published. These are the ten items above, Giant Mace, Giant Sword, Great Crystal Sword, Life Eater, four Starter armor pieces, Rune Shield, and Forest Demon Quest. `publish-item-uses-and-sources` reviews them after it captures more game actions.
+- Out of scope: 20 records with no known source and no test name stay published. These are the ten items above, Giant Mace, Giant Sword, Great Crystal Sword, Life Eater, four Starter armor pieces, Rune Shield, and Forest Demon Quest. An item source investigation of build 25434619 found no grant path for 18 of them in the scanned sources. Rune Shield is starting gear only of Berserker, which no race offers. Forest Demon Quest occurs only in a loot table without a known owner. `publish-item-uses-and-sources` records a decision for each of them.
 
 ## Capabilities
 

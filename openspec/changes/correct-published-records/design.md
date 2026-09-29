@@ -18,7 +18,7 @@ Read-only queries of the accepted catalog found the evidence in the proposal. Th
 - Show class starting gear as an item source.
 
 **Non-Goals:**
-- No exclusion of a record whose only evidence is a missing source. Item and dialogue game actions can still give such records.
+- No exclusion of a record whose only evidence is a missing source. The publication does not show every source. Prefab chests, scene components, and runtime rules give 13 items that the accepted publication shows without a source, and the catalog holds a cloth drop source for 4 more.
 - No change to the catalog, the scan, or map placements.
 - No redirects for the page addresses that lose a qualifier.
 
@@ -52,7 +52,7 @@ The root manifest could hold the list, but every page load would then carry it. 
 
 The scene catalog compares entry names with build scene paths only. It does not prove that the game loads a scene by its entry name. A bounded native analysis of the teleport scene load finds the record field that names the scene. A read-only HotRepl probe calls `Application.CanStreamedLevelBeLoaded` for the entry name of each of the 42 records.
 
-A scene record leaves the publication only when it cannot load, no region carries its name, it has no placement, and no captured effect or transition that a player can trigger leads to it. Froststone Cliffs, Searing Plains, Stonefield Basin, Tutorial Catacombs, and Tutorial ICE cave are the candidates. The trace follows the effects that target Searing Plains and Tutorial ICE cave to their owners. The two frost challenge stones in the overworld teleport to scene records without a scene file. An in-game check shows whether a player can use them. If they fail, the two scene records leave, and their connection rows disappear with them. The stone markers stay, because the objects exist in the world.
+A scene record leaves the publication only when it cannot load, no region carries its name, it has no placement, and no captured effect or transition that a player can trigger leads to it. Challenge stone Lumberjack is a build scene, but the accepted scan captured no placement in it. That gap is not evidence against the scene record. Froststone Cliffs, Searing Plains, Stonefield Basin, Tutorial Catacombs, and Tutorial ICE cave are the candidates. The trace follows the effects that target Searing Plains and Tutorial ICE cave to their owners. The two frost challenge stones in the overworld teleport to scene records without a scene file. An in-game check shows whether a player can use them. If they fail, the two scene records leave, and their connection rows disappear with them. The stone markers stay, because the objects exist in the world.
 
 Test Area needs only the scene catalog result and its name. The Void is the character creation scene. It has no placement and no transition, so it has no content for a place page.
 

@@ -2,7 +2,7 @@
 
 ### Requirement: An item page shows its tooltip and sources
 
-An item page SHALL show the item name in its title block, with a map action when the map can show the resources, containers, or objects that give the item. Its hero SHALL show the in-game tooltip with linked references beside the description, a How to get it list, a Used for list, the authored buy price, and the stack size. Each How to get it line SHALL name a source section, up to two counterparts in the default order of that section, and the number of other counterparts, and SHALL link to that section. A Sold by line SHALL also name the lowest price. World loot SHALL have its own line with the creature levels. Each Used for line SHALL name a use section with its row count and SHALL link to that section. Full-width sections SHALL follow in this order: Dropped by, Sold by, Found in containers, Gathered from, Collected from, From quests, From items, From dialogue, Crafted from, Contents, Used in recipes, Needed for quests. A Starting gear of line SHALL name the published classes that start with the item and SHALL link the Starting gear section of the first class page. The From items section SHALL show each item whose captured loot table gives the item. The From dialogue section SHALL show each NPC whose captured dialogue gives the item. A class without a page SHALL NOT appear as a source. The hover tooltip of an item link SHALL show a How to get it summary with only the source kinds that have rows. A missing source SHALL be stated as unknown, not invented.
+An item page SHALL show the item name in its title block, with a map action when the map can show the resources, containers, or objects that give the item. Its hero SHALL show the in-game tooltip with linked references beside the description, a How to get it list, a Used for list, the authored buy price, and the stack size. Each How to get it line SHALL name a source section, up to two counterparts in the default order of that section, and the number of other counterparts, and SHALL link to that section. A Sold by line SHALL also name the lowest price. World loot SHALL have its own line with the creature levels. Each Used for line SHALL name a use section with its row count and SHALL link to that section. Full-width sections SHALL follow in this order: Dropped by, Sold by, Found in containers, Gathered from, Collected from, From quests, From items, Dungeon rewards, Crafted from, Contents, Used in recipes, Needed for quests. A Starting gear of line SHALL name the published classes that start with the item and SHALL link the Starting gear section of the first class page. The From items section SHALL show each item whose captured loot table or visual effect chest gives the item, with the requirements of the action. The Collected from section SHALL include each world object whose visual effect spawns a chest that gives the item, with the cost of the object. The Dungeon rewards section SHALL show each dungeon whose timed reward bag or Dungeon Finder run gives the item, with its condition. A Dropped by row of a quest pickup SHALL name the quest task during which the pickup appears. A world loot row of a cloth drop SHALL name Humanoid and Undead creatures. A class without a page SHALL NOT appear as a source. The hover tooltip of an item link SHALL show a How to get it summary with only the source kinds that have rows. A missing source SHALL be stated as unknown, not invented.
 
 #### Scenario: Item has several sources
 - **WHEN** an item is dropped by seven creatures and sold by two vendors
@@ -27,32 +27,44 @@ An item page SHALL show the item name in its title block, with a map action when
 - **WHEN** only Berserker, which no race offers, starts with Rune Shield
 - **THEN** the page of Rune Shield shows no Starting gear of line
 
-#### Scenario: Item comes from a renown box
-- **WHEN** the captured loot table of Epic renown reward gives an item
-- **THEN** the page of that item shows a From items line and section that name Epic renown reward
+#### Scenario: Item comes from a supply pack
+- **WHEN** the captured Druid level 6–11 table of Adventurer's Supply Pack gives Druid staff
+- **THEN** the page of Druid staff shows a From items line and section that name Adventurer's Supply Pack
+- **AND** the row names the Druid class and the level band of the action
 
-#### Scenario: Item comes from dialogue
-- **WHEN** a captured dialogue node of an NPC gives an item through a game action
-- **THEN** the page of that item shows a From dialogue line and section that name the NPC
+#### Scenario: Item comes from a grave
+- **WHEN** the chest that a grave spawns gives Human skull
+- **THEN** the page of Human skull shows a Collected from line and section that name the graves and the recorded 30% row chance
+
+#### Scenario: Timed dungeon reward
+- **WHEN** the reward bag of a dungeon timer gives Corruption Token
+- **THEN** the page of Corruption Token shows a Dungeon rewards section with each dungeon and the corruption level rule
+
+#### Scenario: Quest pickup
+- **WHEN** an Infected boar dies while the task "Collect 6 Boar Haunches" is open
+- **THEN** the page of Boar Haunch shows a Dropped by row for Infected boar that names the quest Bait for a Beast
+
+#### Scenario: Cloth drop
+- **WHEN** Linen Cloth is a tier of the supplemental cloth drops
+- **THEN** its page shows a world loot row for Humanoid and Undead creatures with the 75% base chance, the count 1 to 3, and the level ramp of the tier
 
 ## ADDED Requirements
 
 ### Requirement: Item pages show what using an item gives
 
-An item page SHALL show each verified result of the captured game actions of the item. A loot table result SHALL appear in a Contents section with each item or currency, its recorded quantity, and its chance semantics. The Contents section SHALL NOT claim an effective chance when other rolls affect it. A currency result SHALL name its amount or range. A companion or recipe result SHALL link its page when the page exists. An action type without a verified result SHALL NOT appear as an effect, and it SHALL remain a coverage issue in the catalog.
+An item page SHALL show each verified result of the captured game actions of the item. A loot table result SHALL appear in a Contents section with each item or currency, its recorded quantity, its chance semantics, and the requirements of its action. A visual effect result SHALL list the chests that the effect can spawn, the number of prefab choices, and the rows of each chest. The Contents section SHALL NOT claim an effective chance. A companion or recipe result SHALL link its page when the page exists. An action type without a verified result SHALL NOT appear as an effect, and it SHALL remain a coverage issue in the catalog. An item without game actions SHALL NOT show a Contents section.
 
-#### Scenario: Renown box
-- **WHEN** a reader opens Epic renown reward, whose captured action names a loot table
-- **THEN** its Contents section lists the items of that loot table with their recorded quantities and chances
-- **AND** the hero names the Contents section as a use of the item
+#### Scenario: Supply pack
+- **WHEN** a reader opens Adventurer's Supply Pack, whose 25 captured actions name loot tables
+- **THEN** its Contents section lists each table with its class and level requirements, its items, and their recorded quantities and chances
 
-#### Scenario: Gold sack
-- **WHEN** a captured action of Slime covered sack gives gold coins
-- **THEN** its page names the recorded amount or range of gold coins
+#### Scenario: Sack
+- **WHEN** the captured TriggerVisualEffect action of Slime covered sack spawns the Loot purse chest
+- **THEN** its Contents section lists the chest rows, including gold 10–20 at 100%
 
-#### Scenario: Companion contract
-- **WHEN** a captured action of Adventure 2 companion gives a companion with a verified result
-- **THEN** its page names that companion and links its page when the page exists
+#### Scenario: Item without game actions
+- **WHEN** a reader opens Epic renown reward, which has no captured game actions
+- **THEN** its page shows no Contents section and names no result
 
 #### Scenario: Unverified action type
 - **WHEN** an item has a captured action whose result has no verified meaning
