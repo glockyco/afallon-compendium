@@ -2,7 +2,7 @@
 
 ### Requirement: Game action owners retain their actions
 
-The catalog SHALL retain the game actions of dialogue text nodes, effects, regions, stats, and NPC combat and AI data in the order that the game reads them. Each action SHALL keep its owner identity, type, chance, node action, amount, and target references. When an owner uses a game actions template, the catalog SHALL retain the actions of the template and the template identity. A loot table that a LootTable action names SHALL link to the owner of that action. An unresolved owner or target SHALL remain visible as a coverage issue.
+The catalog SHALL retain the game actions of dialogue text nodes, effects, scene regions, and stats in the order that the game reads them. Each action SHALL keep its owner identity, type, chance, node action, amount, and target references. When an owner uses a game actions template, the catalog SHALL retain the actions of the template and the template identity. A loot table that a LootTable action names SHALL link to the owner of that action. An unresolved owner or target SHALL remain visible as a coverage issue.
 
 #### Scenario: Dialogue node gives an item
 - **WHEN** a captured dialogue text node of an NPC has an Item or LootTable action

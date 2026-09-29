@@ -2,9 +2,9 @@
 
 See `proposal.md` for the motivation. `publish-crafting-and-gathering` captures item game actions as `ItemTooltip.GetRecipeRankUpID` reads them. It publishes Recipe RankUp actions only and keeps the other action types in the catalog. `correct-published-records` adds the reviewed exclusion list.
 
-The recovered types name more owners of game actions. `RPGDialogueTextNode`, `RPGEffect`, and `RPGStat` hold a `GameActionsTemplate`. `RPGGameScene` regions hold a `GameActionsList`. NPC combat and AI data also hold actions. `world-sources.csx` already reads the actions of interactable objects: it turns a LootTable action into a container output and an Effect or Teleport action into a door (`world-sources.csx:561-600`). No collector reads dialogue.
+The recovered types name more owners of game actions. `RPGDialogueTextNode`, `RPGEffect`, and `RPGStat` hold a `GameActionsTemplate`. `RPGGameScene` regions hold a `GameActionsList`. Other owners are unconfirmed. `world-sources.csx` already reads the actions of interactable objects: it turns a valid LootTable action into a container output and an Effect or Teleport action into a door (`world-sources.csx:561-600`). No collector reads dialogue.
 
-`GameActionType` has 29 values, from Ability to LootTable. In the accepted catalog, 145 of 210 loot tables have no binding, and 24 items appear only in those tables. Quest rewards give experience, currency, and items, but never a loot table. The names of the unbound tables include the renown boxes, gold coin ranges, supply packs, resource veins, and fishing holes. `publish-crafting-and-gathering` binds the resource and fishing tables to resource ranks.
+`GameActionType` has 29 values, from Ability to LootTable. In the accepted catalog, 145 of 210 loot tables have no captured loot binding, and 24 items appear only in those tables. Task 2.3 recounts them against every captured action reference. Quest rewards give experience, currency, and items, but never a loot table. The names of the unbound tables include the renown boxes, gold coin ranges, supply packs, resource veins, and fishing holes. `publish-crafting-and-gathering` binds the resource and fishing tables to resource ranks.
 
 ## Goals / Non-Goals
 
@@ -30,7 +30,7 @@ A dialogue collector records each text node that has actions, its dialogue, and 
 
 ### Bind loot tables to action owners in the catalog
 
-A LootTable action creates a loot binding from the owner to its table. The binding context names the owner kind, such as an item or a dialogue node. Items in the table then gain a source. An item owner gives a "From items" source, and a dialogue owner gives a "From dialogue" source. Effect, region, stat, and combat owners stay in the catalog and in coverage until a later change names their sources for readers. This is safer than a label for an owner kind that the reader cannot find.
+A LootTable action creates a loot binding from the owner to its table. The binding context names the owner kind, such as an item or a dialogue node. Items in the table then gain a source. An item owner gives a "From items" source, and a dialogue owner gives a "From dialogue" source. Effect, region, and stat owners stay in the catalog and in coverage until a later change names their sources for readers. This is safer than a label for an owner kind that the reader cannot find.
 
 ### Publish verified action results only
 

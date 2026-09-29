@@ -1,8 +1,8 @@
 ## ADDED Requirements
 
-### Requirement: Recipe pages name teachers beyond items
+### Requirement: Recipe pages name dialogue teachers
 
-A recipe page SHALL name each captured dialogue, object, effect, region, or stat whose Recipe RankUp action teaches the recipe. A dialogue teacher SHALL name its NPC and link the NPC page when the page exists. A recipe without a captured teacher SHALL NOT claim that nothing teaches it.
+A recipe page SHALL name each captured dialogue whose first Recipe RankUp action for the recipe teaches it, following the first-match rule of the game. Another owner kind SHALL appear as a teacher only after the publication has a readable identity for it. A dialogue teacher SHALL name its NPC and link the NPC page when the page exists. A recipe without a captured teacher SHALL NOT claim that nothing teaches it.
 
 #### Scenario: Dialogue teaches a recipe
 - **WHEN** a captured dialogue node of an NPC has a Recipe RankUp action for a recipe

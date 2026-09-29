@@ -26,13 +26,13 @@ Read-only queries of the accepted catalog found the evidence in the proposal. Th
 
 ### Keep the exclusion list in the presentation input
 
-The exclusion list is an editorial decision about publication, not a game fact. The catalog therefore keeps every record, so coverage, conditions, and later changes still see them. Each entry holds a catalog key, a reason code, and evidence text. The reason codes are `test-record`, `appearance-option`, `unplaced-record`, `unloadable-scene`, `character-creation-scene`, and `progress-flag`. The schema rejects an entry without evidence, an unknown reason code, and a duplicate key.
+The exclusion list is an editorial decision about publication, not a game fact. The catalog therefore keeps every record, so coverage, conditions, and later changes still see them. Each entry holds a catalog key, a reason code, and evidence text. The reason codes are `test-record`, `appearance-option`, `unplaced-record`, `unloadable-scene`, `character-creation-scene`, and `progress-flag`. A reason needs direct evidence, such as a test name. Outlier stats or a missing source are review evidence only, because source capture is incomplete. The schema rejects an entry without evidence, an unknown reason code, and a duplicate key.
 
 A catalog-side filter would remove the records from coverage and from the conditions that name them. A site-side filter would leave them in search, counts, and the published graph.
 
 ### Treat an excluded record like a class without a page
 
-An excluded record keeps a reference without a page, as an unoffered class does. Relation rows omit it, and a requirement phrase names it without a link. The graph check then rejects any document that still links it. The same selection removes the record from lists, search, and counts.
+Reference building keeps every record, so each excluded record still gets its formatted name. Projection then turns a reference to an excluded record into the existing unresolved text form before the graph check: a requirement phrase shows the name as text, and a relation row omits it. The graph check rejects a page-kind reference without a published page, so it catches any missed conversion. The same selection removes the record from lists, search, and counts.
 
 Excluded records leave name qualification before it starts. A published record that shared its name only with excluded records then takes the base name. Its slug follows the new name, and the old address gets no redirect under `entity-identity`.
 
@@ -52,13 +52,13 @@ The root manifest could hold the list, but every page load would then carry it. 
 
 The scene catalog compares entry names with build scene paths only. It does not prove that the game loads a scene by its entry name. A bounded native analysis of the teleport scene load finds the record field that names the scene. A read-only HotRepl probe calls `Application.CanStreamedLevelBeLoaded` for the entry name of each of the 42 records.
 
-A scene record leaves the publication only when it cannot load, no region carries its name, and it has no placement. Froststone Cliffs, Searing Plains, Stonefield Basin, Tutorial Catacombs, and Tutorial ICE cave are the candidates. The two frost challenge stones in the overworld teleport to scene records without a scene file. An in-game check shows whether a player can use them. If they fail, the two scene records leave, and their connection rows disappear with them. The stone markers stay, because the objects exist in the world.
+A scene record leaves the publication only when it cannot load, no region carries its name, it has no placement, and no captured effect or transition that a player can trigger leads to it. Froststone Cliffs, Searing Plains, Stonefield Basin, Tutorial Catacombs, and Tutorial ICE cave are the candidates. The trace follows the effects that target Searing Plains and Tutorial ICE cave to their owners. The two frost challenge stones in the overworld teleport to scene records without a scene file. An in-game check shows whether a player can use them. If they fail, the two scene records leave, and their connection rows disappear with them. The stone markers stay, because the objects exist in the world.
 
 Test Area needs only the scene catalog result and its name. The Void is the character creation scene. It has no placement and no transition, so it has no content for a place page.
 
 ### Derive starting gear from class facts
 
-The publication builds an item-to-class index from the starting items of each class that has a page. Each row keeps the class reference, the count, and the equipped flag. The item document schema gains a required `startingGearOf` array, and its version increases. Coverage and item source kinds count starting gear as a source. Starting gear of a class without a page does not count, because no player can choose that class.
+The publication builds an item-to-class index from the starting items of each class that has a page. Each row keeps the class reference. The item document schema gains a required `startingGearOf` array, and its version increases. The How to get it line links the `starting-gear` section of the class page, which already shows the count and the equipped state. Coverage and item source kinds count starting gear as a source. Starting gear of a class without a page does not count, because no player can choose that class.
 
 ### Remove the hub rule for skills without levels
 
