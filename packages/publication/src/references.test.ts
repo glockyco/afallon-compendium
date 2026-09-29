@@ -20,7 +20,7 @@ function itemFact(entityKey: string, armorType: string): CatalogItemFacts {
   return { entityKey, rarity: "COMMON", itemType: "ARMOR", armorSlot: "CHEST", weaponSlot: null, weaponType: null, armorType, attackSpeed: null,
     minDamage: null, maxDamage: null, stats: [], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: null,
     sellPrice: null, sellCurrency: null, buyPrice: null, buyCurrency: null, stackLimit: 1, questDropOnly: false, corruptionToken: false,
-    equipmentRequirements: [], useConditions: [], actionAbilities: [], useLines: [], conditionIds: [], gearSet: null };
+    equipmentRequirements: [], useConditions: [], actionAbilities: [], gameActions: [], useLines: [], conditionIds: [], gearSet: null };
 }
 
 const placement = (placementId: string, npcEntityKey: string, area: string) => ({ placementId, sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: null, area, roles: [{ role: "npc", npcEntityKey, scope: "authored" }], families: [], randomChoices: [] });

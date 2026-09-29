@@ -35,6 +35,12 @@ export interface CatalogStatValue { stat: CatalogEndpoint; amount: number; isPer
 export interface CatalogContextualAbilityReference { ability: CatalogEndpoint; rankIndex: number }
 export interface CatalogRandomStatRule { stat: CatalogEndpoint; min: number; max: number; isPercent: boolean; whole: boolean; chance: number | null }
 
+export interface CatalogItemGameAction {
+  template: { nativeId: number; name: string | null } | null;
+  type: string; chance: number; nodeAction: string; progressionType: string; teleportType: string; amount: number;
+  target: CatalogEndpoint | null;
+}
+
 export interface CatalogItemFacts {
   entityKey: string;
   rarity: string | null;
@@ -62,6 +68,7 @@ export interface CatalogItemFacts {
   equipmentRequirements: CatalogRequirementGroup[];
   useConditions: CatalogRequirementGroup[];
   actionAbilities: CatalogContextualAbilityReference[];
+  gameActions: CatalogItemGameAction[];
   useLines: TooltipLine[];
   conditionIds: string[];
   // The set this item belongs to, from the set's own member list. An item that no set names has

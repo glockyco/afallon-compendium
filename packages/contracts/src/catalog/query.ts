@@ -74,6 +74,13 @@ export interface NormalizedItemFact {
 export interface NormalizedItemStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
 export interface NormalizedItemRandomStat { entityKey: string; statIndex: number; stat: NormalizedReference; min: number; max: number; isPercent: boolean; whole: boolean; chance: number | null; provenance: ProvenanceReference[] }
 export interface NormalizedItemGemStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
+// One game action of an item, in the order that the game reads the list. `template` names the game actions template that
+// supplied the list, or is null when the list is the item's own.
+export interface NormalizedItemGameAction {
+  entityKey: string; actionIndex: number; template: { nativeId: number; name: string | null } | null;
+  type: string; chance: number; nodeAction: string; progressionType: string; teleportType: string; amount: number;
+  target: NormalizedReference | null; provenance: ProvenanceReference[];
+}
 export interface NormalizedItemSocket { entityKey: string; socketIndex: number; socketType: string | null; gemType: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedNpcAdventurer {
   class: NormalizedReference | null; race: NormalizedReference | null; preferredTree: NormalizedReference | null; keepPhaseAbilities: boolean; aiLogicTemplateKey: string | null;
@@ -341,6 +348,7 @@ export interface NormalizedDatabaseInput {
   itemRandomStats?: NormalizedItemRandomStat[];
   itemGemStats?: NormalizedItemGemStat[];
   itemSockets?: NormalizedItemSocket[];
+  itemGameActions?: NormalizedItemGameAction[];
   npcFacts?: NormalizedNpcFact[];
   npcStats?: NormalizedNpcStat[];
   npcAbilityPhases?: NormalizedNpcAbilityPhase[];

@@ -46,6 +46,7 @@ function admittedNpc(npcGameplay: unknown): AdmittedCatalog {
 
 const itemGameplay = (value: Record<string, unknown>) => ({
   actionAbilities: [],
+  gameActions: { useTemplateFlag: false, template: null, available: true, actions: [] },
   nativeUseTooltip: { generator: "ConsumableTooltip.Build(RPGItem, false)", includeHint: false, succeeded: true, text: null, error: null },
   ...value,
 });
@@ -100,6 +101,41 @@ test("keeps only equipment fields that apply to each item type", () => {
   expect(rows.itemFacts.map(({ itemType, armorSlot, armorType, weaponSlot, weaponType }) => ({ itemType, armorSlot, armorType, weaponSlot, weaponType }))).toEqual([
     { itemType: "WEAPON", armorSlot: null, armorType: null, weaponSlot: "One-Hand", weaponType: "One handed sword" },
     { itemType: "Trinket", armorSlot: "Trinket", armorType: "JEWELRY", weaponSlot: null, weaponType: null },
+  ]);
+});
+
+const targets = { abilityId: -1, bonusId: -1, recipeId: -1, resourceId: -1, effectId: -1, npcId: -1, factionId: -1, itemId: -1, currencyId: -1, pointId: -1, talentTreeId: -1, skillId: -1, weaponTemplateId: -1, questId: -1, dialogueId: -1, gameSceneId: -1, lootTableId: -1 };
+const gameAction = (sourceIndex: number, type: string, target: Record<string, number> = {}, teleportType = "Position") => ({
+  sourceIndex, type: { value: 0, name: type }, chance: 100, nodeAction: { value: 0, name: "RankUp" }, progressionType: { value: 0, name: "Unlock" }, teleportType: { value: 0, name: teleportType }, amount: 0, targets: { ...targets, ...target },
+});
+
+test("keeps each item game action in order with its resolved target, and reports targets that do not resolve", () => {
+  const items = [
+    // The item's own list: a Recipe RankUp action, a sound without a target, and a recipe that the catalog lacks.
+    { nativeId: 1, gameplay: itemGameplay({ gameActions: { useTemplateFlag: false, template: null, available: true, actions: [gameAction(0, "Recipe", { recipeId: 7 }), gameAction(1, "TriggerSound"), gameAction(2, "Recipe", { recipeId: 99 })] } }) },
+    // A template list: the game reads the template's actions, and each action keeps the template identity.
+    { nativeId: 2, gameplay: itemGameplay({ gameActions: { useTemplateFlag: true, template: { nativeId: 4, internalName: "Scroll actions", fileName: null }, available: true, actions: [gameAction(0, "Bonus", { bonusId: 5 }), gameAction(1, "Teleport", { gameSceneId: 12 }, "GameScene"), gameAction(2, "Dialogue", { dialogueId: 3 }), gameAction(3, "Recipe")] } }) },
+    // A scan from before the capture has no list.
+    { nativeId: 3, gameplay: { actionAbilities: [], nativeUseTooltip: itemGameplay({}).nativeUseTooltip } },
+  ];
+  const blockers: Blocker[] = [];
+  const entities = [entity("items", 1, "Recipe Molten loop"), entity("items", 2, "Scroll"), entity("items", 3, "Old item"), entity("recipes", 7, "Molten loop"), entity("scenes", 12, "Coalway")];
+  const rows = collectTypedFacts(admittedItems(items), entities, [] as NormalizedDatabaseInput["bindings"], [], blockers, new Map([["bonuses:5", "Swift"]]));
+
+  expect(rows.itemGameActions.map((row) => [row.entityKey, row.actionIndex, row.template?.name ?? null, row.type, row.nodeAction, row.target])).toEqual([
+    ["items:1", 0, null, "Recipe", "RankUp", { entityKey: "recipes:7", label: "Molten loop" }],
+    ["items:1", 1, null, "TriggerSound", "RankUp", null],
+    ["items:1", 2, null, "Recipe", "RankUp", { entityKey: null, label: "Recipe 99" }],
+    ["items:2", 0, "Scroll actions", "Bonus", "RankUp", { entityKey: "bonuses:5", label: "Swift" }],
+    ["items:2", 1, "Scroll actions", "Teleport", "RankUp", { entityKey: "scenes:12", label: "Coalway" }],
+    ["items:2", 2, "Scroll actions", "Dialogue", "RankUp", { entityKey: null, label: "Dialogue 3" }],
+    ["items:2", 3, "Scroll actions", "Recipe", "RankUp", null],
+  ]);
+  expect(blockers.map((row) => [row.kind, row.key])).toEqual([
+    ["missing-reference", "/items/0/gameplay/gameActions/actions/2/targets/recipeId:recipes:99"],
+    ["uncaptured-game-action-target", "items:2:2"],
+    ["unset-game-action-target", "items:2:3"],
+    ["uncaptured-item-game-actions", "items"],
   ]);
 });
 

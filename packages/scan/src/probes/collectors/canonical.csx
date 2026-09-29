@@ -172,6 +172,38 @@ if (items != null)
             }
         }
 
+        // ItemTooltip.GetRecipeRankUpID (build 25434619) reads the template's actions when UseGameActionsTemplate is set
+        // and the template exists. Otherwise it reads the item's own GameActions. The scan reads the same list.
+        var itemActionsTemplate = item.UseGameActionsTemplate ? item.GameActionsTemplate : null;
+        var itemGameActionList = itemActionsTemplate != null ? itemActionsTemplate.GameActions : item.GameActions;
+        var itemGameActions = new System.Collections.Generic.List<object>();
+        if (itemGameActionList != null)
+        {
+            for (var gameActionIndex = 0; gameActionIndex < itemGameActionList.Count; gameActionIndex++)
+            {
+                var gameAction = itemGameActionList[gameActionIndex];
+                if (gameAction == null) { itemGameActions.Add(new { sourceIndex = gameActionIndex, unavailable = "null GameAction record" }); continue; }
+                itemGameActions.Add(new
+                {
+                    sourceIndex = gameActionIndex,
+                    type = new { value = (int)gameAction.type, name = gameAction.type.ToString() },
+                    chance = gameAction.chance,
+                    nodeAction = new { value = (int)gameAction.NodeAction, name = gameAction.NodeAction.ToString() },
+                    progressionType = new { value = (int)gameAction.ProgressionType, name = gameAction.ProgressionType.ToString() },
+                    teleportType = new { value = (int)gameAction.TeleportType, name = gameAction.TeleportType.ToString() },
+                    amount = gameAction.Amount,
+                    targets = new
+                    {
+                        abilityId = gameAction.AbilityID, bonusId = gameAction.BonusID, recipeId = gameAction.RecipeID, resourceId = gameAction.ResourceID,
+                        effectId = gameAction.EffectID, npcId = gameAction.NPCID, factionId = gameAction.FactionID, itemId = gameAction.ItemID,
+                        currencyId = gameAction.CurrencyID, pointId = gameAction.PointID, talentTreeId = gameAction.TalentTreeID, skillId = gameAction.SkillID,
+                        weaponTemplateId = gameAction.WeaponTemplateID, questId = gameAction.QuestID, dialogueId = gameAction.DialogueID,
+                        gameSceneId = gameAction.GameSceneID, lootTableId = gameAction.LootTableID
+                    }
+                });
+            }
+        }
+
         canonicalItems.Add(new
         {
             sourceKey = itemPair.Key,
@@ -239,6 +271,13 @@ if (items != null)
                 sockets = itemSockets,
                 actionAbilitiesAvailable = itemActionAbilitiesAvailable,
                 actionAbilities = itemActionAbilities,
+                gameActions = new
+                {
+                    useTemplateFlag = item.UseGameActionsTemplate,
+                    template = itemActionsTemplate == null ? null : (object)new { nativeId = itemActionsTemplate.ID, internalName = itemActionsTemplate.entryName, fileName = itemActionsTemplate.entryFileName },
+                    available = itemGameActionList != null,
+                    actions = itemGameActions
+                },
                 nativeUseTooltip = new
                 {
                     generator = "ConsumableTooltip.Build(RPGItem, false)",

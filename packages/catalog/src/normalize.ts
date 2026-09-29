@@ -16,6 +16,7 @@ import { collectPlacementAreas } from "./areas";
 import { normalizeProgression } from "./progression";
 import { normalizeMechanicsRules } from "./mechanics";
 import { gatheringNodes, linkGatheringYields } from "./gathering";
+import { itemGameActions } from "./item-actions";
 
 // A place has a closed level range only when its maximum is a level. The game reads a zone scaling of 0 to 0 as no
 // range. A minimum below 1 becomes 1, and a maximum below the minimum becomes the minimum.
@@ -56,7 +57,7 @@ function mergeEvidence<T extends { provenance: ProvenanceReference[] }>(rows: re
 }
 
 type FactRows = {
-  itemFacts: NonNullable<NormalizedDatabaseInput["itemFacts"]>; itemStats: NonNullable<NormalizedDatabaseInput["itemStats"]>; itemRandomStats: NonNullable<NormalizedDatabaseInput["itemRandomStats"]>; itemGemStats: NonNullable<NormalizedDatabaseInput["itemGemStats"]>; itemSockets: NonNullable<NormalizedDatabaseInput["itemSockets"]>;
+  itemFacts: NonNullable<NormalizedDatabaseInput["itemFacts"]>; itemStats: NonNullable<NormalizedDatabaseInput["itemStats"]>; itemRandomStats: NonNullable<NormalizedDatabaseInput["itemRandomStats"]>; itemGemStats: NonNullable<NormalizedDatabaseInput["itemGemStats"]>; itemSockets: NonNullable<NormalizedDatabaseInput["itemSockets"]>; itemGameActions: NonNullable<NormalizedDatabaseInput["itemGameActions"]>;
   npcFacts: NonNullable<NormalizedDatabaseInput["npcFacts"]>; npcStats: NonNullable<NormalizedDatabaseInput["npcStats"]>; npcAbilityPhases: NonNullable<NormalizedDatabaseInput["npcAbilityPhases"]>; npcPhaseAbilities: NonNullable<NormalizedDatabaseInput["npcPhaseAbilities"]>; npcFactionRewards: NonNullable<NormalizedDatabaseInput["npcFactionRewards"]>;
   questFacts: NonNullable<NormalizedDatabaseInput["questFacts"]>; questObjectives: NonNullable<NormalizedDatabaseInput["questObjectives"]>; questRewards: NonNullable<NormalizedDatabaseInput["questRewards"]>;
   placeFacts: NonNullable<NormalizedDatabaseInput["placeFacts"]>; propertyFacts: NonNullable<NormalizedDatabaseInput["propertyFacts"]>; taskFacts: NonNullable<NormalizedDatabaseInput["taskFacts"]>; abilityFacts: NonNullable<NormalizedDatabaseInput["abilityFacts"]>;
@@ -65,13 +66,15 @@ type FactRows = {
   artworkAssets: NonNullable<NormalizedDatabaseInput["artworkAssets"]>; artworkBindings: NonNullable<NormalizedDatabaseInput["artworkBindings"]>;
 };
 
-export function collectTypedFacts(admitted: AdmittedCatalog, entities: NormalizedEntity[], bindings: NormalizedDatabaseInput["bindings"], conditions: NormalizedDatabaseInput["conditions"], blockers: Blocker[]): FactRows {
-  const rows: FactRows = { itemFacts: [], itemStats: [], itemRandomStats: [], itemGemStats: [], itemSockets: [], npcFacts: [], npcStats: [], npcAbilityPhases: [], npcPhaseAbilities: [], npcFactionRewards: [], questFacts: [], questObjectives: [], questRewards: [], placeFacts: [], propertyFacts: [], taskFacts: [], abilityFacts: [], recipeFacts: [], recipeRanks: [], recipeProducts: [], recipeMaterials: [], craftingStationFacts: [], gearSetFacts: [], gearSetMembers: [], gearSetTiers: [], gearSetTierStats: [], artworkAssets: [], artworkBindings: [] };
+export function collectTypedFacts(admitted: AdmittedCatalog, entities: NormalizedEntity[], bindings: NormalizedDatabaseInput["bindings"], conditions: NormalizedDatabaseInput["conditions"], blockers: Blocker[], progressionLabels: ReadonlyMap<string, string> = new Map()): FactRows {
+  const rows: FactRows = { itemFacts: [], itemStats: [], itemRandomStats: [], itemGemStats: [], itemSockets: [], itemGameActions: [], npcFacts: [], npcStats: [], npcAbilityPhases: [], npcPhaseAbilities: [], npcFactionRewards: [], questFacts: [], questObjectives: [], questRewards: [], placeFacts: [], propertyFacts: [], taskFacts: [], abilityFacts: [], recipeFacts: [], recipeRanks: [], recipeProducts: [], recipeMaterials: [], craftingStationFacts: [], gearSetFacts: [], gearSetMembers: [], gearSetTiers: [], gearSetTierStats: [], artworkAssets: [], artworkBindings: [] };
   const entityByKey = new Map(entities.map((row) => [row.entityKey, row]));
   const reference = (kind: string, nativeId: number | null | undefined, label: string, path: string, provenance: ProvenanceReference[]): NormalizedReference | null => {
     if (nativeId === undefined || nativeId === null) return null;
     if (nativeId < 0) return null;
-    const key = entityKey(kind, nativeId), target = entityByKey.get(key);
+    const key = entityKey(kind, nativeId), target = entityByKey.get(key), progressionLabel = progressionLabels.get(key);
+    // Bonuses and tree points are progression facts, not canonical entities.
+    if (!target && progressionLabel !== undefined) return { entityKey: key, label: progressionLabel };
     if (!target) { blockers.push({ kind: "missing-reference", key: `${path}:${key}`, detail: `Typed fact references missing ${key}.`, provenance }); return { entityKey: null, label }; }
     return { entityKey: key, label: target.name ?? label };
   };
@@ -97,6 +100,7 @@ export function collectTypedFacts(admitted: AdmittedCatalog, entities: Normalize
     return resolution;
   };
 
+  let itemsWithoutActions = 0;
   for (const [index, item] of admitted.canonical.value.items.entries()) {
     const path = `/items/${index}/gameplay`, provenance = [pointer(admitted.canonical.reference, `/items/${index}`)], decoded = decodeItemGameplay(item.gameplay, admitted.canonical.reference, path);
     issueRows(entityKey("items", item.nativeId), decoded.issues, admitted.canonical.reference);
@@ -117,8 +121,12 @@ export function collectTypedFacts(admitted: AdmittedCatalog, entities: Normalize
     for (const [statIndex, stat] of (value.stats ?? []).entries()) { const statRef = reference("stats", stat.statId, `Stat ${stat.statId}`, `${path}/stats/${statIndex}`, provenance); if (statRef) rows.itemStats.push({ entityKey: entityKey("items", item.nativeId), statIndex, stat: statRef, amount: stat.amount, isPercent: stat.isPercent || (statPercent.get(stat.statId) ?? false), provenance }); }
     for (const [statIndex, stat] of (value.randomStats ?? []).entries()) { const statRef = reference("stats", stat.statId, `Stat ${stat.statId}`, `${path}/randomStats/${statIndex}`, provenance); if (statRef) rows.itemRandomStats.push({ entityKey: entityKey("items", item.nativeId), statIndex, stat: statRef, min: stat.minValue, max: stat.maxValue, isPercent: stat.isPercent || (statPercent.get(stat.statId) ?? false), whole: stat.isInt ?? false, chance: stat.chance ?? null, provenance }); }
     for (const [statIndex, stat] of (value.gemData?.stats ?? []).entries()) { const statRef = reference("stats", stat.statId, `Stat ${stat.statId}`, `${path}/gemData/stats/${statIndex}`, provenance); if (statRef) rows.itemGemStats.push({ entityKey: entityKey("items", item.nativeId), statIndex, stat: statRef, amount: stat.amount, isPercent: stat.isPercent || (statPercent.get(stat.statId) ?? false), provenance }); }
+    if (value.gameActions === undefined) itemsWithoutActions += 1;
+    rows.itemGameActions.push(...itemGameActions(entityKey("items", item.nativeId), value.gameActions, path, provenance, reference, blockers));
     for (const [socketIndex, socket] of (value.sockets ?? []).entries()) rows.itemSockets.push({ entityKey: entityKey("items", item.nativeId), socketIndex, socketType: socket.socketType || null, gemType: socket.gemSocketType?.available === true ? socket.gemSocketType.name ?? null : null, provenance });
   }
+  // A canonical scan from before item game actions were captured cannot say what an item teaches.
+  if (itemsWithoutActions > 0) blockers.push({ kind: "uncaptured-item-game-actions", key: "items", detail: `${itemsWithoutActions} items have no captured game action list.`, provenance: [admitted.canonical.reference] });
 
   for (const [index, npc] of admitted.canonical.value.npcs.entries()) {
     const path = `/npcs/${index}/gameplay`, provenance = [pointer(admitted.canonical.reference, `/npcs/${index}`)], decoded = decodeNpcGameplay(npc.gameplay, admitted.canonical.reference, path), value = decoded.value;
@@ -397,7 +405,7 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
     sceneSpawns.push({ sceneNativeId: scene.nativeId, startPositionId, position: position.row.position });
   }
   const uniqueConditions = mergeEvidence(meaningfulConditions, (row) => row.conditionId, (row) => ({ ...row, sourceFieldPath: null, payload: conditionSemanticPayload(row.payload), provenance: [] }));
-  const factRows = collectTypedFacts(admitted, entities, bindings, uniqueConditions, blockers);
+  const factRows = collectTypedFacts(admitted, entities, bindings, uniqueConditions, blockers, new Map(progression.progressionFacts.map((row) => [row.entityKey, row.name ?? row.entityKey])));
   // The canonical property records carry only the income. Each for-sale sign reads the whole authored record, so the
   // signs supply the type, the currency, and the prices. A field that both sources carry must agree.
   const signs = signPropertyFacts(contexts), entityNames = new Map(entities.map((row) => [row.entityKey, row.name]));

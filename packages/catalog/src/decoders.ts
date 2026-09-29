@@ -43,6 +43,20 @@ const FlightNetworkSchema = Type.Union([
   }),
 ]);
 
+const gameActionTargets = Type.Object({
+  abilityId: integer, bonusId: integer, recipeId: integer, resourceId: integer, effectId: integer, npcId: integer, factionId: integer, itemId: integer, currencyId: integer,
+  pointId: integer, talentTreeId: integer, skillId: integer, weaponTemplateId: integer, questId: integer, dialogueId: integer, gameSceneId: integer, lootTableId: integer,
+});
+// The list that ItemTooltip.GetRecipeRankUpID reads: the template's actions when the flag is set and the template exists,
+// otherwise the item's own actions.
+const itemGameActions = Type.Object({
+  useTemplateFlag: boolean, template: Type.Union([Type.Object({ nativeId: integer, internalName: nullableText, fileName: nullableText }), Type.Null()]), available: boolean,
+  actions: Type.Array(Type.Union([
+    Type.Object({ sourceIndex: integer, unavailable: text }),
+    Type.Object({ sourceIndex: integer, type: valueEnum, chance: number, nodeAction: valueEnum, progressionType: valueEnum, teleportType: valueEnum, amount: integer, targets: gameActionTargets }),
+  ])),
+});
+
 export const ItemGameplaySchema = Type.Object({
   itemType: optional(availableEnum), armorSlot: optional(availableEnum), weaponType: optional(availableEnum), armorType: optional(availableEnum), weaponSlot: optional(availableEnum), rarity: optional(availableEnum),
   questDropOnly: optional(boolean), attackSpeed: optional(number), minDamage: optional(number), maxDamage: optional(number), autoAttackAbilityId: optional(integer),
@@ -50,7 +64,7 @@ export const ItemGameplaySchema = Type.Object({
   isCorruptionToken: optional(boolean), enchantmentId: optional(integer), randomStatsMax: optional(integer), stats: optional(Type.Array(stat)),
   randomStats: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), statId: integer, minValue: number, maxValue: number, isPercent: boolean, isInt: optional(boolean), chance: optional(number) }))), sockets: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), socketType: optional(text), gemSocketType: optional(availableEnum) }))),
   gemDataAvailable: optional(boolean), gemData: optional(Type.Object({ socketType: optional(text), gemSocketType: optional(availableEnum), statsAvailable: optional(boolean), stats: optional(Type.Array(stat)) })),
-  actionAbilities: Type.Array(contextualAbilityReference), nativeUseTooltip: itemNativeTooltip,
+  actionAbilities: Type.Array(contextualAbilityReference), gameActions: optional(itemGameActions), nativeUseTooltip: itemNativeTooltip,
   requirementsGroupCount: optional(integer), useRequirementsTemplate: optional(boolean), requirementsTemplateId: optional(Type.Union([integer, Type.Null()])),
 });
 export type ItemGameplay = Static<typeof ItemGameplaySchema>;
