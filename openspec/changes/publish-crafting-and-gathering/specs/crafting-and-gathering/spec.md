@@ -44,6 +44,19 @@ The crafting and gathering page SHALL explain verified weighted resource selecti
 - **THEN** the page does not name that slot as an active boost
 - **AND** it states that the remaining boosts are not confirmed
 
+### Requirement: Progress flags stay out of reader surfaces
+
+The publication SHALL NOT publish a record that the reviewed publication presentation excludes. It SHALL omit an excluded record from pages, lists, search, and counts. It SHALL render a reference to an excluded record as plain text without a link. Each exclusion SHALL name a reason and its evidence. Staging SHALL reject a candidate that removes a published record that no exclusion names.
+
+#### Scenario: Savers progress flags
+- **WHEN** the presentation excludes the Savers skill, its 13 recipes, and its crafting station
+- **THEN** the skill list, the recipe list, search, and the hub omit them
+- **AND** the catalog still retains their records and the conditions that name them
+
+#### Scenario: Unlisted removal
+- **WHEN** a candidate drops a published record that no exclusion names
+- **THEN** staging rejects the candidate
+
 ### Requirement: Reader wording stays independent of internal records
 
 The resource and mechanics pages SHALL use sentence case for headings, columns, and sentences. Category values and names SHALL use title case. They SHALL not show native record ids or enum words. Text SHALL use straight quotes.

@@ -26,6 +26,19 @@ The item list SHALL offer a Class filter for published classes. A selected class
 - **THEN** the unfiltered item list still includes that item
 - **AND** the class filter does not claim that the class can equip it
 
+### Requirement: Item list names the gear type
+
+The item list SHALL show a Gear column with the weapon type or armor type that the item facts record. It SHALL offer a Gear filter over those values. An item without a gear type SHALL show an empty Gear cell and SHALL stay in the unfiltered list. The Type column and the Type filter SHALL keep the broad item type.
+
+#### Scenario: Shield row
+- **WHEN** a reader opens the item list
+- **THEN** the Basic Shield row shows Weapon in the Type column and Shield in the Gear column
+
+#### Scenario: Item without a gear type
+- **WHEN** an item has no weapon type or armor type
+- **THEN** its Gear cell is empty
+- **AND** a selected Gear filter does not match it
+
 ### Requirement: Item stats support exact and range searches
 
 The item list SHALL offer a Stat filter and inclusive minimum and maximum amount filters for the selected stat. A match SHALL use captured item stat values with their flat or percentage unit. A fixed stat SHALL match its captured amount. A random stat SHALL match only when its captured possible range intersects the selected range. The result SHALL distinguish a possible random value from a fixed value. The site SHALL NOT substitute game values or imply that a possible value is guaranteed.

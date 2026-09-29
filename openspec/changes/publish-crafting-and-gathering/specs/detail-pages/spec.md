@@ -38,11 +38,27 @@ The publication SHALL publish a page for each skill. The title block of a skill 
 - **AND** it names auto-attack hits as a verified experience source without an Experience table
 
 #### Scenario: Skill without levels
-- **WHEN** the Savers skill has a highest level of zero
-- **THEN** its page has no Experience section
+- **WHEN** a published skill has a highest level of zero
+- **THEN** its hero shows no highest level and its page has no Experience section
 - **AND** it retains the Character progression link
 
 #### Scenario: Known call site without a verified skill mapping
 - **WHEN** a skill experience call site has no verified mapping to one skill
 - **THEN** the page does not assign that source to an unrelated skill
 - **AND** the mechanics document names the source as unresolved if it is relevant to crafting and gathering
+
+## ADDED Requirements
+
+### Requirement: Recipe items and recipes link each other
+
+A recipe item page SHALL name the recipe that the item teaches when a captured Recipe RankUp game action names that recipe. It SHALL show the product of the recipe with its tooltip. A recipe page SHALL name each published item that teaches it. A recipe without a known teaching item SHALL NOT claim that no item or other source teaches it.
+
+#### Scenario: Recipe item teaches a recipe
+- **WHEN** a reader opens a recipe item whose captured game action ranks up a recipe
+- **THEN** the page names that recipe and shows its product
+- **AND** the recipe page links back to the item
+
+#### Scenario: Recipe has no known teaching item
+- **WHEN** a recipe is not learned by default and no captured item action teaches it
+- **THEN** its page names no teaching item and makes no claim that nothing teaches it
+- **AND** the coverage page counts the recipe

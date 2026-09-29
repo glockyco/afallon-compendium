@@ -37,7 +37,7 @@ The publication SHALL publish a page for each skill. The title block of a skill 
 - **AND** the page links to Character progression
 
 #### Scenario: Skill without levels
-- **WHEN** the Savers skill has a highest level of zero
+- **WHEN** a published skill has a highest level of zero
 - **THEN** its page has no Experience section
 - **AND** the page still links to Character progression
 

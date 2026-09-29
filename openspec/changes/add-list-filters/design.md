@@ -49,6 +49,10 @@ The alternative is to infer quest types from `PublicQuest.rewards` and `rewardCh
 
 Register `class`, `stat`, `craftingMaterial`, and `rewardType` with the existing facet flow, with separate minimum and maximum for the selected stat. Restore and write them with the current `pushState`, `replaceState`, and `popstate` behavior. Keep `slot`, `q`, and `sort` untouched when another filter changes. Match facets with AND across kinds of filter and OR within a repeated facet, as the current list does. Show human labels, not raw enum spellings or keys. A plain list URL still shows every published row. A class link uses the same URL format as a manual selection. No old route or alias is needed.
 
+### Name the gear type in its own column
+
+The Type column shows the broad item type, so every weapon row reads Weapon. The game's item tooltip names the weapon type or armor type instead, such as Shield or One Handed Sword. A separate Gear column and filter carry that value from the published item facts. Replacing the value of the Type column would make the Type column and the Type filter disagree, and the hub's item groups link through the Type filter.
+
 ## Risks / Trade-offs
 
 - The tooltip could differ from the equip branch. → Native review precedes class projection. An unresolved branch needs a bounded read-only probe before publication.

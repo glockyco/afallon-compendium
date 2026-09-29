@@ -29,3 +29,15 @@ The catalog SHALL retain recipe rank unlock cost and base experience. It SHALL r
 #### Scenario: One boost entry is decoded
 - **WHEN** only one attunement entry has verified effect and node names
 - **THEN** the catalog retains that entry and leaves other entries unconfirmed
+
+### Requirement: Items retain their game actions
+
+The catalog SHALL retain the game actions of each item in the order that the game reads them. When an item sets its template flag and names a template, the catalog SHALL retain the template's actions and the template identity. Each action SHALL retain its type, chance, node action, amount, and target references. An unresolved target SHALL remain visible as a coverage issue.
+
+#### Scenario: Item teaches a recipe
+- **WHEN** an item's game actions include a Recipe action with the RankUp node action
+- **THEN** the catalog returns the recipe reference with the item
+
+#### Scenario: Item uses a template
+- **WHEN** an item sets its template flag and names a game actions template
+- **THEN** the catalog retains the template's actions instead of the item's own list
