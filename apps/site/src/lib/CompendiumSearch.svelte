@@ -23,9 +23,11 @@
   $: results = query.trim() ? rankCompendiumEntries(query, entries).slice(0, limit) : [];
   $: placeholder = searchPlaceholder(registry.filter((entry) => entry.searchable).map((entry) => entry.plural));
 
-  // A result names the entity's level and its place when the search corpus publishes them.
+  // A result names its kind first, because a recipe shares its name and icon with its product: 115 of 132 recipes do.
+  // The level and the place follow when the search corpus publishes them.
   function entryDetail(entry: PublicSearchEntry): string {
-    return [entry.level === undefined ? null : `Level ${levelText(entry.level)}`, entry.place].filter((part): part is string => Boolean(part)).join(' · ');
+    const kind = registry.find((candidate) => candidate.kind === entry.ref.kind)?.label;
+    return [kind, entry.level === undefined ? null : `Level ${levelText(entry.level)}`, entry.place].filter((part): part is string => Boolean(part)).join(' · ');
   }
 
   // The search corpus is large, and parsing it holds the main thread. It loads when a reader first focuses or types in
