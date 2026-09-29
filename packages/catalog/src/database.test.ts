@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { coverageIssueId, openNormalizedDatabase, populateNormalizedDatabase, recordCoverageIssue } from "./database";
 import { NORMALIZED_OUTPUT_SCHEMA_VERSION } from "@afallon/contracts/catalog";
-import { queryCatalogFacts, queryCatalogMap, queryCatalogRelations } from "./queries";
+import { queryCatalogFacts, queryCatalogMap, queryCatalogRelations, queryGatherRows } from "./queries";
 import type { NormalizedDatabaseInput } from "@afallon/contracts/catalog"
 import type { Blocker, SceneContext, SourceIdentityRow } from "./context";
 import { randomChoices } from "./world";
@@ -218,5 +218,51 @@ test("normalizes repeated random targets into persisted placement alternatives",
     ];
     expect(queryCatalogMap(db, "map").records!.placements.map((placement) => [placement.placementId, placement.randomChoices])).toEqual(expected);
     expect(queryCatalogRelations(db).records.placements.map((placement) => [placement.placementId, placement.randomChoices])).toEqual(expected);
+  } finally { db.close(); }
+});
+
+test("stores gathering nodes with their sources and yields, and keeps a node without a placement", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    const reference = { path: "world.json", sha256: "a".repeat(64) }, provenance = [reference], position = { x: 0, y: 0, z: 0 };
+    const identities = ["spawner", "pumpkin"].map((sourceId, index) => ({
+      sourceId, placementId: `${sourceId}-place`, componentInstanceId: index + 1, gameObjectInstanceId: index + 11, origin: "scene" as const,
+      sceneSourceSha256: "b".repeat(64), sourceSha256: String(index).repeat(64), serializedFile: "scene", gameObjectPathId: String(index + 101), componentPathId: String(index + 201),
+      loaderSourceId: null, typeName: "Source", assembly: "Game", position,
+    }));
+    const spawner = { respawnTime: 120, respawnJitter: 30, despawnDelay: 60, playerRange: 40, skillCap: 150, weightAtLowSkill: 70, weightAtHighSkill: 24, teaserWeight: 0 };
+    const node = (entityKey: string, name: string) => ({ entityKey, name, levelHint: null, variant: false, skill: { entityKey: "skills:7", label: "Mining" }, skillExperience: 15, characterExperience: 4, lootTable: null, conditionId: null, provenance });
+    const input: NormalizedDatabaseInput = {
+      buildId: "build", identityResults: [{
+        runId: "run", snapshotId: "run:scene", snapshotPrefix: "scene", snapshotSha256: reference.sha256, character: "Research", sceneHandle: 1,
+        result: { schemaVersion: "compendium.placement-identities.v1", buildId: "build", sceneNativeId: 1, scenePath: "scene", snapshotFrame: 1, identities, unresolved: [] },
+      }], entities: [{ entityKey: "items:1", buildId: "build", kind: "items", nativeId: 1, name: "Iron ore", internalName: null, description: null, sourceKey: 1, publicData: { localization: null, gameplay: null, icon: null }, provenance }],
+      scenes: [], mapSpaces: [{ id: "map", label: "Map" }], bindings: [],
+      // Only the spawner has a placement. The pumpkin source has an identity but no placement.
+      placements: [{ placementId: "spawner-place", buildId: "build", sceneNativeId: 1, scenePath: "scene", identity: null, mapSpaceId: "map", worldPosition: position, mapPosition: { x: 1, y: 2 }, sourceIds: ["spawner"], roles: [], shape: null, provenance }],
+      sources: identities.map((row) => ({ ...row, buildId: "build", componentType: row.typeName, families: [], provenance })),
+      roles: [], regions: [], conditions: [], spawnCandidates: [], sourceGates: [], randomChoices: [], placementAreas: [],
+      merchantTables: [], merchantBindings: [], merchantStock: [], lootTables: [], lootBindings: [], lootEntries: [], linkedNpcRules: [], questAssociations: [], transitions: [],
+      gatheringNodes: [node("gatheringNodes:iron-vein", "Iron vein"), node("gatheringNodes:pumpkin", "Pumpkin")],
+      gatheringNodeSources: [
+        { nodeKey: "gatheringNodes:iron-vein", sourceId: "spawner", sourceKind: "spawner-option", optionIndex: 0, cooldown: null, spawner, provenance },
+        { nodeKey: "gatheringNodes:pumpkin", sourceId: "pumpkin", sourceKind: "placed-object", optionIndex: null, cooldown: 60, spawner: null, provenance },
+      ],
+      resourceYields: [
+        { yieldId: "linked", sourceId: "spawner", itemID: 1, min: 1, max: 2, gatheringNodeKey: "gatheringNodes:iron-vein", provenance },
+        { yieldId: "unlinked", sourceId: "spawner", itemID: 1, min: 1, max: 1, gatheringNodeKey: null, provenance },
+      ],
+      itemSources: [], entityDetails: [], sourceDetails: [], patrolPaths: [], sceneSpawns: [], blockers: [], coverageOccurrences: [], exclusions: [], inputCoverage: null,
+      provenance: { plan: reference, profile: reference, sources: [reference] },
+    };
+    populateNormalizedDatabase(db, input, []);
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "catalog.v1", "{}", "e".repeat(64));
+    expect(queryCatalogFacts(db).records.gatheringNodes.map((row) => [row.entityKey, row.sources.map((source) => [source.sourceId, source.sourceKind, source.optionIndex, source.placementId, source.spawner?.skillCap ?? null, source.cooldown])])).toEqual([
+      ["gatheringNodes:iron-vein", [["spawner", "spawner-option", 0, "spawner-place", 150, null]]],
+      ["gatheringNodes:pumpkin", [["pumpkin", "placed-object", null, null, null, 60]]],
+    ]);
+    expect(queryGatherRows(db).records.map((row) => [row.sourceId, row.gatheringNode])).toEqual([
+      ["spawner", { entityKey: "gatheringNodes:iron-vein", label: "Iron vein" }], ["spawner", null],
+    ]);
   } finally { db.close(); }
 });

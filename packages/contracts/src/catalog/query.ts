@@ -1,5 +1,6 @@
 import type { NormalizedProgressionFact, NormalizedProgressionLink, NormalizedSpellbookNode, NormalizedTalentNode } from "./progression";
 import type { NormalizedMechanicsRule } from "./mechanics";
+import type { NormalizedGatheringNode, NormalizedGatheringNodeSource } from "./gathering";
 import { Type, type Static } from "typebox";
 import { Assert } from "typebox/value";
 import type { PlacementIdentityResult } from "../raw/placement";
@@ -367,6 +368,8 @@ export interface NormalizedDatabaseInput {
   talentNodes?: NormalizedTalentNode[];
   spellbookNodes?: NormalizedSpellbookNode[];
   mechanicsRules?: NormalizedMechanicsRule[];
+  gatheringNodes?: NormalizedGatheringNode[];
+  gatheringNodeSources?: NormalizedGatheringNodeSource[];
   artworkAssets?: NormalizedArtworkAsset[];
   artworkBindings?: NormalizedArtworkBinding[];
   identityResults: Array<{ runId: string; snapshotId: string; snapshotPrefix: string; snapshotSha256: string; character: string; sceneHandle: number; result: PlacementIdentityResult }>;

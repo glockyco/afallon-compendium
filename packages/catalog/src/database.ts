@@ -294,11 +294,22 @@ export function openNormalizedDatabase(path: string): Database {
         UNIQUE(build_id, source_id, resource_entity_key, rank),
         FOREIGN KEY(resource_entity_key) REFERENCES canonical_entities(entity_key)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS gathering_nodes (
+        entity_key TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, level_hint TEXT, variant INTEGER NOT NULL CHECK(variant IN (0, 1)),
+        skill_key TEXT, skill_label TEXT, skill_experience REAL, character_experience REAL, loot_table_key TEXT, loot_table_label TEXT,
+        condition_id TEXT, provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS gathering_node_sources (
+        node_source_key TEXT PRIMARY KEY NOT NULL, node_key TEXT NOT NULL REFERENCES gathering_nodes(entity_key), source_id TEXT NOT NULL REFERENCES source_identities(source_id),
+        source_kind TEXT NOT NULL CHECK(source_kind IN ('spawner-option', 'placed-object')), option_index INTEGER, cooldown REAL, spawner_json TEXT,
+        provenance_json TEXT NOT NULL
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS resource_yields (
         yield_id TEXT PRIMARY KEY NOT NULL,
         build_id TEXT NOT NULL REFERENCES normalized_builds(build_id),
         source_id TEXT REFERENCES source_identities(source_id),
         resource_entity_key TEXT,
+        gathering_node_key TEXT REFERENCES gathering_nodes(entity_key),
         item_entity_key TEXT,
         rank INTEGER,
         min_count INTEGER,
@@ -744,12 +755,14 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
       for (const linked of [key(row.authoredLinkedNpcId), key(row.resolvedLinkedNpcId), key(row.resolvedLootSpecNpcId)]) if (linked && !byEntity.has(linked)) throw new Error(`Linked NPC rule references missing NPC ${linked}.`);
       insertChecked(db, "linked_npc_rules", ["build_id", "npc_entity_key"], ["build_id", "npc_entity_key", "authored_linked_npc_entity_key", "resolved_linked_npc_entity_key", "resolved_loot_spec_npc_entity_key", "specialization_source", "payload_json"], [input.buildId, npc, key(row.authoredLinkedNpcId), key(row.resolvedLinkedNpcId), key(row.resolvedLootSpecNpcId), String(row.specializationSource ?? "none"), json(row)]);
     }
+    for (const row of input.gatheringNodes ?? []) insertChecked(db, "gathering_nodes", ["entity_key"], ["entity_key", "name", "level_hint", "variant", "skill_key", "skill_label", "skill_experience", "character_experience", "loot_table_key", "loot_table_label", "condition_id", "provenance_json"], [row.entityKey, row.name, row.levelHint, row.variant ? 1 : 0, row.skill?.entityKey ?? null, row.skill?.label ?? null, row.skillExperience, row.characterExperience, row.lootTable?.entityKey ?? null, row.lootTable?.label ?? null, row.conditionId, json(row.provenance)]);
+    for (const row of input.gatheringNodeSources ?? []) insertChecked(db, "gathering_node_sources", ["node_source_key"], ["node_source_key", "node_key", "source_id", "source_kind", "option_index", "cooldown", "spawner_json", "provenance_json"], [row.optionIndex === null ? row.sourceId : `${row.sourceId}|${row.optionIndex}`, row.nodeKey, row.sourceId, row.sourceKind, row.optionIndex, row.cooldown, row.spawner === null ? null : json(row.spawner), json(row.provenance)]);
     for (const row of input.resourceYields) {
       const sourceId = typeof row.sourceId === "string" && db.query("SELECT 1 AS present FROM source_identities WHERE source_id = ?").get(row.sourceId) ? row.sourceId : null;
       const resourceKey = typeof row.resourceID === "number" && byEntity.has(`resources:${row.resourceID}`) ? `resources:${row.resourceID}` : null;
       const rank = typeof row.rank === "number" ? row.rank : null;
       if (rank !== null) insertChecked(db, "resource_ranks", ["rank_id"], ["rank_id", "build_id", "source_id", "resource_entity_key", "rank", "payload_json"], [`${String(row.yieldId)}:rank`, input.buildId, sourceId, resourceKey, rank, json(row)]);
-      insertChecked(db, "resource_yields", ["yield_id"], ["yield_id", "build_id", "source_id", "resource_entity_key", "item_entity_key", "rank", "min_count", "max_count", "payload_json"], [String(row.yieldId), input.buildId, sourceId, resourceKey, typeof row.itemID === "number" && byEntity.has(`items:${row.itemID}`) ? `items:${row.itemID}` : null, rank, typeof row.min === "number" ? row.min : null, typeof row.max === "number" ? row.max : null, json(row)]);
+      insertChecked(db, "resource_yields", ["yield_id"], ["yield_id", "build_id", "source_id", "resource_entity_key", "gathering_node_key", "item_entity_key", "rank", "min_count", "max_count", "payload_json"], [String(row.yieldId), input.buildId, sourceId, resourceKey, typeof row.gatheringNodeKey === "string" ? row.gatheringNodeKey : null, typeof row.itemID === "number" && byEntity.has(`items:${row.itemID}`) ? `items:${row.itemID}` : null, rank, typeof row.min === "number" ? row.min : null, typeof row.max === "number" ? row.max : null, json(row)]);
     }
     for (const row of input.questAssociations) insertChecked(db, "quest_associations", ["association_id"], ["association_id", "build_id", "association_kind", "owner_entity_key", "quest_entity_key", "task_entity_key", "item_entity_key", "source_id", "payload_json"], [String(row.associationId), input.buildId, String(row.associationKind), typeof row.ownerNativeId === "number" && byEntity.has(`npcs:${row.ownerNativeId}`) ? `npcs:${row.ownerNativeId}` : null, typeof row.questID === "number" && byEntity.has(`quests:${row.questID}`) ? `quests:${row.questID}` : null, typeof row.taskID === "number" && byEntity.has(`tasks:${row.taskID}`) ? `tasks:${row.taskID}` : null, typeof row.itemID === "number" && byEntity.has(`items:${row.itemID}`) ? `items:${row.itemID}` : null, typeof row.sourceId === "string" && db.query("SELECT 1 AS present FROM source_identities WHERE source_id = ?").get(row.sourceId) ? row.sourceId : null, json(row)]);
     for (const row of input.transitions) insertChecked(db, "transitions", ["transition_id"], ["transition_id", "build_id", "source_id", "source_scene_native_id", "destination_scene_entity_key", "destination_map_space_id", "transition_kind", "payload_json"], [String(row.transitionId), input.buildId, typeof row.sourceId === "string" && db.query("SELECT 1 AS present FROM source_identities WHERE source_id = ?").get(row.sourceId) ? row.sourceId : null, typeof row.sourceSceneNativeId === "number" && db.query("SELECT 1 AS present FROM identity_scenes WHERE build_id = ? AND scene_native_id = ?").get(input.buildId, row.sourceSceneNativeId) ? row.sourceSceneNativeId : null, typeof row.destinationSceneNativeId === "number" && byEntity.has(`scenes:${row.destinationSceneNativeId}`) ? `scenes:${row.destinationSceneNativeId}` : null, typeof row.destinationMapSpaceId === "string" && db.query("SELECT 1 AS present FROM map_spaces WHERE build_id = ? AND map_space_id = ?").get(input.buildId, row.destinationMapSpaceId) ? row.destinationMapSpaceId : null, String(row.transitionKind), json(row)]);

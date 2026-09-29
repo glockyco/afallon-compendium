@@ -1,3 +1,4 @@
+import type { CatalogGatheringNode } from "./gathering";
 import type { CatalogProgression } from "./progression";
 import type { TooltipLine } from "./tooltip";
 
@@ -204,6 +205,7 @@ export interface CatalogFacts {
   recipes: CatalogRecipeFacts[];
   gearSets: CatalogGearSetFacts[];
   progression: CatalogProgression;
+  gatheringNodes: CatalogGatheringNode[];
 }
 
 export interface CatalogCondition { conditionId: string; semantics: string; scope: "equipment" | "use" | null; label: string; requirements: CatalogRequirementGroup[] }
@@ -297,6 +299,8 @@ export interface CatalogGatherRow {
   sourceId: string | null;
   sceneNativeId: number | null;
   resource: CatalogEndpoint | null;
+  // The gathering node of the yield's own spawner option, when the catalog links one.
+  gatheringNode: CatalogEndpoint | null;
   item: CatalogEndpoint;
   skill: CatalogEndpoint | null;
   rank: number | null;

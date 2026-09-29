@@ -51,7 +51,7 @@ const progressionFacts: CatalogProgressionFact[] = [
 const node = (tree: string, nodeIndex: number, nodeType: string, target: string, label: string, tier: number, row: number, conditionId: string | null = null) => ({ tree, nodeIndex, nodeType, target: ref(target, label), tier, row, conditionId });
 const lines = [{ spans: [{ text: "Hits", tone: null, italic: false }] }];
 const facts: CatalogFacts = {
-  entities, items: [], npcs: [], quests: [], tasks: [], places: [], properties: [], gearSets: [],
+  entities, items: [], npcs: [], quests: [], tasks: [], places: [], properties: [], gearSets: [], gatheringNodes: [],
   abilities: ["abilities:0", "abilities:1", "abilities:2"].map((entityKey) => ({ entityKey, ranks: [{ rankIndex: 0, lines }] })),
   recipes: [{ entityKey: "recipes:81", skill: ref("skills:0", "Alchemy"), station: null, learnedByDefault: true, ranks: [] }],
   progression: {

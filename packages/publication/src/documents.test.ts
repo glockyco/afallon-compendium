@@ -38,7 +38,7 @@ const equipmentRequirements = [
 
 const facts: CatalogFacts = {
   entities,
-  progression: { facts: [], links: [], talentNodes: [], spellbookNodes: [], learners: [], unlocks: [], appliers: [], offeredClasses: [], mechanicsRules: [] },
+  progression: { facts: [], links: [], talentNodes: [], spellbookNodes: [], learners: [], unlocks: [], appliers: [], offeredClasses: [], mechanicsRules: [] }, gatheringNodes: [],
   items: [{ entityKey: "items:1", rarity: "Rare", itemType: "WEAPON", armorSlot: "BELT", weaponSlot: "MAIN HAND", weaponType: "One handed sword", armorType: "CLOTH",
     attackSpeed: 1.8, minDamage: 75, maxDamage: 124, stats: [
       { stat: { entityKey: "stats:53", label: "Item power" }, amount: 99, isPercent: false },
@@ -65,8 +65,8 @@ const relations: CatalogRelations = {
     lootTableId: 4, entryIndex: 0, min: 1, max: 2, rawRate: 0.125, displayedChance: 12.5, tableRate: 100, tableMinimum: null, tableLimit: null, creatureLevel: null, conditionIds: [], placementIds: ["p1"] }],
   vendors: [],
   gathers: [
-    { producerLabel: "Iron node", sourceId: "source-1", sceneNativeId: 10, resource: null, item: { entityKey: "items:1", label: "Blade" }, skill: null, rank: null, min: 1, max: 2, rawRate: 25, conditionIds: [], placementIds: ["p1"] },
-    { producerLabel: "Iron node", sourceId: "source-2", sceneNativeId: 10, resource: null, item: { entityKey: "items:1", label: "Blade" }, skill: null, rank: null, min: 1, max: 2, rawRate: 25, conditionIds: [], placementIds: ["p2"] },
+    { producerLabel: "Iron node", sourceId: "source-1", sceneNativeId: 10, resource: null, gatheringNode: null, item: { entityKey: "items:1", label: "Blade" }, skill: null, rank: null, min: 1, max: 2, rawRate: 25, conditionIds: [], placementIds: ["p1"] },
+    { producerLabel: "Iron node", sourceId: "source-2", sceneNativeId: 10, resource: null, gatheringNode: null, item: { entityKey: "items:1", label: "Blade" }, skill: null, rank: null, min: 1, max: 2, rawRate: 25, conditionIds: [], placementIds: ["p2"] },
   ],
   containers: [
     { containerType: "Chest", sourceId: "container-1", place: { entityKey: "scenes:10", label: "Crypt" }, item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rawRate: null, availability: [], placementIds: ["p1"] },
