@@ -20,7 +20,7 @@ test("returns the same conditional vendor and boss drop rows from both endpoints
       "npcs:2", 0, 0, 0, 1, 0, 0, "[]",
       "npcs:3", 0, 1, 0, 0, 0, 0, "[]",
     );
-    db.query("INSERT INTO conditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("progression", "build", "merchant", "npcs:3", 0, "all", null, "/merchants/0", JSON.stringify({ sourceName: "Journeyman Trade", groups: [{ checkCount: true, requiredCount: 1, requirements: [{ requirementType: "skill", skillID: 4, amount1: 10 }] }] }), "[]");
+    db.query("INSERT INTO conditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("progression", "build", "merchant", "npcs:3", 0, "all", null, "/merchants/0", JSON.stringify({ sourceName: "Journeyman Trade", groups: [{ checkCount: true, requiredCount: 1, requirements: [{ requirementType: "Skill", skillID: 4, amount1: 10 }] }] }), "[]");
     db.query("INSERT INTO conditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("empty", "build", "quest", "quests:7", 0, "inline-requirements", null, "/quests/7", JSON.stringify({ nativeGroupCount: 0, groups: [] }), "[]");
     db.query("INSERT INTO merchant_tables VALUES (?, ?, ?, ?)").run("build", 7, "Stock", "{}");
     db.query("INSERT INTO merchant_bindings VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)").run("build", "npcs:3", 7, 0, "progression", "{}", "build", "npcs:2", 7, 1, null, "{}");
@@ -35,7 +35,7 @@ test("returns the same conditional vendor and boss drop rows from both endpoints
     const fromVendorItem = vendorRows.filter((row) => row.item.entityKey === "items:1");
     expect(fromVendor).toEqual(fromVendorItem);
     expect(fromVendor).toEqual([{ npc: { entityKey: "npcs:3", label: "Vendor" }, item: { entityKey: "items:1", label: "Sword" }, currency: null, cost: 25, merchantTableId: 7, stockIndex: 0, conditionIds: ["progression"], placementIds: [] }]);
-    expect(queryConditions(db).records).toMatchObject([{ conditionId: "progression", semantics: "all", scope: null, label: "Journeyman Trade", requirements: [{ mode: "all", checkCount: true, requiredCount: 1, requirements: [{ type: { name: "skill" }, label: "Trade 10", references: { skill: { entityKey: "skills:4", label: "Trade" } }, amounts: { primary: 10, secondary: 0 } }] }] }]);
+    expect(queryConditions(db).records).toMatchObject([{ conditionId: "progression", semantics: "all", scope: null, label: "Journeyman Trade", requirements: [{ mode: "all", checkCount: true, requiredCount: 1, requirements: [{ type: { name: "Skill" }, label: "Trade 10", references: { skill: { entityKey: "skills:4", label: "Trade" } }, amounts: { primary: 10, secondary: 0 } }] }] }]);
     expect(queryCatalogCoverage(db).records).toMatchObject({ occurrenceCount: 1, unresolvedIssues: [{ kind: "inactive-merchant-binding", subjectKey: "merchant:2:1", occurrenceCount: 1 }] });
 
     const dropRows = queryDropRows(db).records;
@@ -254,14 +254,17 @@ test("requirement spans link quest states and retain numeric comparisons", () =>
     db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "schema", "{}");
     const entity = db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "schema", "{}", "d".repeat(64));
-    for (const [kind, id, name] of [["quests", 8, "Wrath of the Matriarch"], ["stats", 1, "Power"]] as const) entity.run("build", kind, id, `${kind}:${id}`, name, null, null, null, "{}", "[]");
+    for (const [kind, id, name] of [["quests", 8, "Wrath of the Matriarch"], ["stats", 1, "Power"], ["items", 364, "Fish bait"], ["skills", 8, "Fishing"], ["items", 30, "Gold"], ["currencies", 0, "Gold Coin"]] as const) entity.run("build", kind, id, `${kind}:${id}`, name, null, null, null, "{}", "[]");
     const insert = db.query("INSERT INTO conditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     const group = (requirement: unknown) => JSON.stringify({ groups: [{ requirements: [requirement] }] });
     insert.run("a", "build", "entity", "quests:9", 0, "requirements", null, null, group({ requirementType: "Quest", questID: 8, questState: { value: 4, name: "turnedIn" } }), "[]");
     insert.run("b", "build", "entity", "quests:9", 1, "requirements", null, null, group({ requirementType: "Level", amount1: 16, value: { value: 2, name: "EqualOrAbove" } }), "[]");
     insert.run("c", "build", "entity", "quests:9", 2, "requirements", null, null, group({ requirementType: "Stat", statID: 1, amount1: 150, value: { value: 3, name: "EqualOrBelow" } }), "[]");
+    // Authored rows keep stale identifiers of other types; the game reads only the identifier of the requirement's type.
+    insert.run("d", "build", "entity", "quests:9", 3, "requirements", null, null, group({ requirementType: "Skill", skillID: 8, itemID: 364, amount1: 110, value: { value: 2, name: "EqualOrAbove" } }), "[]");
+    insert.run("e", "build", "entity", "quests:9", 4, "requirements", null, null, group({ requirementType: "Currency", currencyID: 0, itemID: 30, amount1: 1200, value: { value: 2, name: "EqualOrAbove" } }), "[]");
     const requirements = queryConditions(db).records.flatMap((condition) => condition.requirements.flatMap((group) => group.requirements));
-    expect(requirements.map(({ label }) => label)).toEqual(["Wrath of the Matriarch turned in", "Level 16 or higher", "Power 150 or lower"]);
+    expect(requirements.map(({ label }) => label)).toEqual(["Wrath of the Matriarch turned in", "Level 16 or higher", "Power 150 or lower", "Fishing 110 or higher", "Gold Coin 1200 or higher"]);
     expect(requirements[0]?.spans).toEqual([{ endpoint: { entityKey: "quests:8", label: "Wrath of the Matriarch" } }, { text: " turned in" }]);
     expect(requirements[2]?.spans).toEqual([{ endpoint: { entityKey: "stats:1", label: "Power" } }, { text: " 150 or lower" }]);
   } finally { db.close(); }

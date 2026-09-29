@@ -811,13 +811,23 @@ function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSp
   } else if (requirement.type.name === "Region") text(["Region", requirement.subtypes.region?.name].filter(Boolean).join(" "));
   else if (requirement.type.name === "CombatState") text(requirement.flags.first ? "In combat" : "Out of combat");
   else {
-    const target = Object.values(requirement.references).find((value) => value !== null);
+    // RequirementsManager.IsRequirementMet reads only the identifier field of the requirement's own type. An authored row
+    // can keep a stale identifier of another type, such as the Fish bait item on a Fishing skill requirement.
+    const field = REQUIREMENT_TYPE_REFERENCE[requirement.type.name];
+    const target = field === undefined ? null : requirement.references[field];
     if (target) spans.push({ endpoint: target });
     else text(Object.values(requirement.subtypes).find((value) => value !== null)?.name ?? requirement.type.name);
     if (amount !== 0) text(` ${numberPhrase}`);
   }
   return spans;
 }
+
+// The reference that each requirement type without its own wording reads.
+const REQUIREMENT_TYPE_REFERENCE: Readonly<Record<string, keyof CatalogRequirement["references"]>> = {
+  Recipe: "recipe", Resource: "resource", NPCKilled: "npc", Stat: "stat", Faction: "faction", FactionStance: "faction", Combo: "combo", Currency: "currency",
+  Point: "point", TalentTree: "talentTree", Skill: "skill", Spellbook: "spellbook", WeaponTemplate: "weaponTemplate", Enchantment: "enchantment",
+  GearSet: "gearSet", GameScene: "gameScene", DialogueNode: "dialogue",
+};
 
 function projectRequirement(refs: ReadonlyMap<string, CatalogEndpoint>, requirement: Record<string, unknown>): CatalogRequirement {
   const type = { value: typeof requirement.requirementTypeValue === "number" ? requirement.requirementTypeValue : -1, name: typeof requirement.requirementType === "string" ? requirement.requirementType : "Unknown" };
