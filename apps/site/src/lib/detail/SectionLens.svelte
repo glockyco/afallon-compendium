@@ -18,11 +18,12 @@
   $: active = sections.find((section) => section.id === activeId) ?? sections[0];
 
   // The active section is the lowest section whose heading has passed the upper quarter of the viewport. At the end of
-  // the page the last section is active, because a short last section never reaches that line. The lens only reads the
+  // a scrolled page the last section is active, because a short last section never reaches that line. The lens only reads the
   // scroll position; the links are plain fragment links.
   function select(): void {
     if (sections.length === 0) return;
-    if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
+    // Only a scrolled page can be at its end. Before the sections lay out, an unscrolled page can look short.
+    if (window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
       activeId = sections[sections.length - 1]!.id;
       return;
     }
