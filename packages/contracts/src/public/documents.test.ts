@@ -18,7 +18,7 @@ const unresolved: UnresolvedRef = { key: null, label: "Unknown item 9999" };
 const placement = { placementId: "p1", mapSpaceId: "map", label: "Duskfall Depths" };
 const requirement = (type: string, label: string, fields: Record<string, unknown> = {}) => ({ type: { value: 0, name: type }, rule: { value: 0, name: "Mandatory" }, label, spans: [{ text: label }], ...fields });
 const legacySchemaIds = {
-  items: "compendium.static-item.v3", npcs: "compendium.static-npc.v3", quests: "compendium.static-quest.v3", places: "compendium.static-place.v4",
+  items: "compendium.static-item.v4", npcs: "compendium.static-npc.v3", quests: "compendium.static-quest.v3", places: "compendium.static-place.v4",
   properties: "compendium.static-property.v2", abilities: "compendium.static-ability.v3", recipes: "compendium.static-recipe.v2",
 } as const;
 
@@ -70,7 +70,7 @@ const base = { description: null, art: {} };
 const located = { ...base, locations: [placement] };
 const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } = {
   items: { ...base, ref: item, facts: { rarity: "Common", itemType: "ARMOR", slot: "GLOVES", stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 7, isPercent: false }], randomStats: [{ stat: { key: "stats:0", kind: "stats", name: "Health" }, min: 10, max: 40, isPercent: false, whole: false, chance: 100 }], randomStatsMax: 0, sockets: [{ gemType: "Green Gem" }], sellPrice: { amount: 5, currency: gold }, stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
-    droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [] }], soldBy: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [] } satisfies PublicItem,
+    droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [] }], soldBy: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf: [] } satisfies PublicItem,
   npcs: { ...base, ref: boss, facts: { level: { min: 21, max: 21, scales: false }, roles: ["boss"], stats: [], immunities: [], lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE"] } }, variantFields: [], variants: [{ key: "npcs:286", anchor: "n286", label: "Duskfall Depths", facts: {} }],
     locations: [{ label: "Duskfall Depths", placements: [placement], availability: [], level: { min: 21, max: 21, scales: false }, variants: ["n286"], roles: ["boss"], quests: [] }], drops: [{ counterpart: item, min: 1, max: 1, requirements: [] }], sells: [], quests: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], usedInQuests: [], bossOf: [] } satisfies PublicNpc,
   quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, starts: [{ kind: "npc", npc: boss, areas: ["Duskfall Depths"] }], turnIns: [], objectives: [{ index: 0, text: "Kill 3 Branchweavers", completions: [], type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [] } satisfies PublicQuest,
@@ -100,9 +100,22 @@ test("every kind document validates and rejects unknown properties", () => {
   }
 });
 
+test("an item names each published class that starts with it", () => {
+  const classRef = (nativeId: number, name: string): EntityRef => ({ key: `classes:${nativeId}`, kind: "classes", name, slug: name.toLowerCase() });
+  const staff = { ...fixtures.items as PublicItem, startingGearOf: [{ class: classRef(1, "Wizard") }, { class: classRef(3, "Necromancer") }, { class: classRef(6, "Druid") }] };
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.items, staff);
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.items, { ...staff, startingGearOf: [] });
+  expect(collectRefs(staff.startingGearOf).map((ref) => ref.key)).toEqual(["classes:1", "classes:3", "classes:6"]);
+  const withoutField: Partial<PublicItem> = { ...staff };
+  delete withoutField.startingGearOf;
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.items, withoutField)).toThrow();
+  // A class without a page gives no row, so a row never holds an unresolved class.
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.items, { ...staff, startingGearOf: [{ class: unresolved }] })).toThrow();
+});
+
 test("a v3 root reaches documents and artwork through graph edges and passes semantics", () => {
   const ref = (schemaId: string, sha: string) => ({ path: `resources/${sha}.json`, sha256: sha, bytes: 10, schemaId });
-  const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: "compendium.static-item.v4", ...identity, kind: "items", document: fixtures.items as PublicItem };
+  const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: "compendium.static-item.v5", ...identity, kind: "items", document: fixtures.items as PublicItem };
   const npcDocument = { schemaVersion: "compendium.static-npc.v4", ...identity, kind: "npcs", document: fixtures.npcs as PublicNpc } as const;
   const itemReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.items, "1".repeat(64)), npcReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.npcs, "2".repeat(64));
   const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v4", ...identity, part: 0, entries: [{ ref: item, hasPlacements: false, sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, hasPlacements: true, sourceKinds: [], document: npcReference as never }] };

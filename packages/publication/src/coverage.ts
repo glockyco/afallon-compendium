@@ -5,7 +5,7 @@ const PAGE_KINDS: ReadonlySet<string> = new Set(PUBLIC_PAGE_KIND_VALUES);
 const isPageKind = (kind: string): kind is PublicPageKind => PAGE_KINDS.has(kind);
 
 const itemSources = (item: PublicItem) => item.droppedBy.length + item.soldBy.length + item.gatheredFrom.length + item.inContainers.length
-  + item.collectedFrom.length + item.rewardedBy.length + item.givenBy.length + item.craftedBy.length;
+  + item.collectedFrom.length + item.rewardedBy.length + item.givenBy.length + item.craftedBy.length + item.startingGearOf.length;
 
 // Each gap names the published pages that lack the fact. The coverage page lists them, so references carry no icon.
 const GAP_TESTS: ReadonlyArray<readonly [CoverageGap, (document: PublicDocument) => boolean]> = [

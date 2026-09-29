@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from '$app/paths';
   import type { PublicItem, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import ItemTooltip from '../../ItemTooltip.svelte';
@@ -9,7 +10,7 @@
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
   import Hero from '../Hero.svelte';
-  import { itemSourceLines, itemUseLines } from '../item-sources';
+  import { itemSourceLines, itemUseLines, lineHref } from '../item-sources';
   import { itemQuestSourceRows, itemQuestUseRows } from '../quest-rows';
   import ContainerSection from '../sections/ContainerSection.svelte';
   import DroppedBySection from '../sections/DroppedBySection.svelte';
@@ -43,7 +44,7 @@
     {#if document.description}<p class="c-prose">{document.description}</p>{/if}
     {#if sources.length}
       <FactList title="How to get it">
-        {#each sources as entry}<FactRow label={entry.label} href={`#${entry.id}`}><SummaryValue {entry} {registry} /></FactRow>{/each}
+        {#each sources as entry}<FactRow label={entry.label} href={lineHref(entry, registry, base)}><SummaryValue {entry} {registry} /></FactRow>{/each}
       </FactList>
     {:else}
       <FactList title="How to get it"><svelte:fragment slot="note"><MissingValue explanation="No source is published" />No way to get this item is known for this build.</svelte:fragment></FactList>

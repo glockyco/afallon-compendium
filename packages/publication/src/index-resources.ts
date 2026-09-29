@@ -73,7 +73,7 @@ function itemSourceKinds(document: PublicDocument): string[] {
   return [item.droppedBy.length > 0 ? "drop" : null, item.soldBy.length > 0 ? "vendor" : null,
     item.gatheredFrom.length > 0 ? "gather" : null, item.inContainers.length > 0 ? "container" : null,
     item.collectedFrom.length > 0 ? "interaction" : null, item.rewardedBy.length > 0 ? "quest" : null,
-    item.craftedBy.length > 0 ? "recipe" : null].filter((value): value is string => value !== null);
+    item.craftedBy.length > 0 ? "recipe" : null, item.startingGearOf.length > 0 ? "startingGear" : null].filter((value): value is string => value !== null);
 }
 
 // The weapon types of a class come from its entity gameplay, as the game names them: "One handed sword" reads "One

@@ -364,7 +364,24 @@ function pageBase(page: PublishedPage, input: DocumentProjectionInput) {
   return { ref: page.ref, description: entities.map((entity) => description(entity)).find((value) => value !== null) ?? null, art: art ?? {} };
 }
 
-function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>): PublicItem {
+/**
+ * The classes with a page that start with each item, in class native id order. A class that no race offers has no page,
+ * so no player can start with its gear.
+ */
+export function startingGearByItem(entities: readonly CatalogEntityRow[], facts: CatalogFacts, refs: ReadonlyMap<string, EntityRef>): ReadonlyMap<string, readonly EntityRef[]> {
+  const nativeIds = new Map(entities.map((entity) => [entity.entityKey, entity.nativeId]));
+  const classes = facts.progression.facts.flatMap((fact) => fact.kind === "classes" ? [fact] : [])
+    .sort((left, right) => (nativeIds.get(left.entityKey) ?? 0) - (nativeIds.get(right.entityKey) ?? 0));
+  const result = new Map<string, EntityRef[]>();
+  for (const fact of classes) {
+    const classRef = refs.get(fact.entityKey);
+    if (classRef?.kind !== "classes" || classRef.slug === undefined) continue;
+    for (const itemKey of new Set(fact.details.startItems.map((row) => row.item.entityKey))) pushIndex(result, itemKey, classRef);
+  }
+  return result;
+}
+
+function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, startingGear: ReadonlyMap<string, readonly EntityRef[]>): PublicItem {
   const fact = input.facts.items.find((candidate) => candidate.entityKey === entity.entityKey);
   const enchantment = optionalFactRef(input.resolve, fact?.enchantment);
   const sellCurrency = optionalFactRef(input.resolve, fact?.sellCurrency), buyCurrency = optionalFactRef(input.resolve, fact?.buyCurrency);
@@ -440,6 +457,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     craftedBy: recipeRows.filter((row) => row.role === "product").map((row) => ({ counterpart: input.resolve(row.recipe), count: Math.max(0, row.count) })),
     usedInRecipes: recipeRows.filter((row) => row.role === "material").map((row) => ({ counterpart: input.resolve(row.recipe), count: Math.max(0, row.count) })),
     usedInQuests: questRows.filter((row) => row.kind === "objective" && row.task !== null).map((row) => ({ counterpart: input.resolve(row.quest), objective: objectiveForRow(row, input, indexes, conditions) })),
+    startingGearOf: (startingGear.get(entity.entityKey) ?? []).map((classRef) => ({ class: classRef })),
   };
 }
 
@@ -993,13 +1011,14 @@ function projectGearSet(setKey: string, input: DocumentProjectionInput): GearSet
 /** One document for each published page, keyed by the page key. */
 export function projectPublicDocuments(input: DocumentProjectionInput): ReadonlyMap<string, PublicDocument> {
   const indexes = relationIndexes(input.entities, input.facts, input.relations), conditions = conditionsById(input.relations.conditions);
+  const startingGear = startingGearByItem(input.entities, input.facts, input.references.refs);
   const result = new Map<string, PublicDocument>();
   for (const [key, page] of input.references.pages) {
     if (!page.ref.slug) continue;
     const entity = page.members[0]!.entity, ref = page.ref;
     let document: PublicDocument;
     switch (page.kind) {
-      case "items": document = projectItem(entity, ref, input, indexes, conditions); break;
+      case "items": document = projectItem(entity, ref, input, indexes, conditions, startingGear); break;
       case "npcs": document = projectNpcPage(page, input, indexes, conditions); break;
       case "quests": document = projectQuest(entity, ref, input, indexes, conditions); break;
       case "places": document = projectPlace(entity, ref, input, indexes); break;

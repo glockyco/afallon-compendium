@@ -1,4 +1,4 @@
-import type { ContainerRow, DropRow, GatherRow, Price, PublicItem, Ref, VendorRow } from '@afallon/contracts/public';
+import type { ContainerRow, DropRow, EntityRef, GatherRow, Price, PublicItem, PublicKindEntry, Ref, VendorRow } from '@afallon/contracts/public';
 import { creatureLevelText, nameOf } from '../format';
 import { sortRows, type SortValue } from '../table';
 import { itemQuestSourceRows } from './quest-rows';
@@ -18,6 +18,8 @@ export interface SummaryLine {
   lowestPrice?: Price;
   /** A sentence that replaces the names, for world loot. */
   text?: string;
+  /** The section of another page that holds the rows behind the line, when the item page has no section for them. */
+  section?: EntityRef;
 }
 
 const NAMED = 2;
@@ -50,6 +52,20 @@ function worldLootLine(rows: readonly DropRow[]): SummaryLine | undefined {
   return { id: 'dropped-by', label: 'World loot', names: [], more: 0, text };
 }
 
+// The class page lists the count and the equipped state, so the line leads to the Starting gear section of a class.
+function startingGearLine(item: PublicItem): SummaryLine | undefined {
+  const classes = item.startingGearOf.map((row) => ({ ...row.class, variant: 'starting-gear' }));
+  const entry = line('starting-gear-of', 'Starting gear of', classes.map((ref) => ({ ref })));
+  return entry && { ...entry, section: classes[0] };
+}
+
+/** Where a line leads: its section on the item page, or the section of the other page that holds its rows. */
+export function lineHref(entry: SummaryLine, registry: readonly PublicKindEntry[], base: string): string | undefined {
+  if (!entry.section) return `#${entry.id}`;
+  const route = registry.find((kind) => kind.kind === entry.section!.kind)?.route;
+  return route && entry.section.slug ? `${base}/${route}/${entry.section.slug}/#${entry.section.variant ?? ''}` : undefined;
+}
+
 /** How to get an item, in the order of the sections below the hero. */
 export function itemSourceLines(item: PublicItem): SummaryLine[] {
   const creatureDrops = item.droppedBy.filter((row) => !row.creatureLevel);
@@ -63,6 +79,7 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
     line('collected-from', 'Collected from', byChance(item.collectedFrom).map(containerName)),
     line('from-quests', 'From quests', itemQuestSourceRows(item.rewardedBy, item.givenBy).map((row) => ({ ref: row.quest }))),
     line('crafted-from', 'Crafted from', item.craftedBy.map((row) => ({ ref: row.counterpart }))),
+    startingGearLine(item),
   ].filter((entry): entry is SummaryLine => entry !== undefined);
 }
 

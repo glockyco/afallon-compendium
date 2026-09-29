@@ -244,8 +244,8 @@ test("projects representative item use text, effective stats and contextual abil
   const mixedSchemaIds = new Map(schemaIds);
   mixedSchemaIds.set("items:101", "compendium.static-item.v1");
   const mixedSchemaIssues = auditPublicTooltipCoverage(tooltipFacts, relations, documents, mixedSchemaIds);
-  expect(mixedSchemaIssues).toContain("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v4.");
-  expect(() => assertCompleteTooltipCoverage(true, mixedSchemaIssues)).toThrow("Document items:101 uses schema compendium.static-item.v1; expected compendium.static-item.v4.");
+  expect(mixedSchemaIssues).toContain(`Document items:101 uses schema compendium.static-item.v1; expected ${STATIC_DOCUMENT_SCHEMA_IDS.items}.`);
+  expect(() => assertCompleteTooltipCoverage(true, mixedSchemaIssues)).toThrow(`Document items:101 uses schema compendium.static-item.v1; expected ${STATIC_DOCUMENT_SCHEMA_IDS.items}.`);
   expect(() => assertCompleteTooltipCoverage(false, mixedSchemaIssues)).not.toThrow();
 
   const changedUseText = new Map(documents);

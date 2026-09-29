@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type { CatalogEntityRow, CatalogFacts, CatalogProgressionFact, CatalogRelations, CatalogRequirement, CatalogRequirementSpan, ProgressionAbility, ProgressionClass, ProgressionSkill } from "@afallon/contracts/catalog";
-import type { PublicAbility, PublicClass, PublicSkill } from "@afallon/contracts/public";
+import type { PublicAbility, PublicClass, PublicItem, PublicSkill } from "@afallon/contracts/public";
+import { readerCoverage } from "./coverage";
 import { projectPublicDocuments } from "./documents";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
@@ -111,6 +112,18 @@ test("a class page shows its trees in order, talent ranks, requirements, and pro
   expect(breaker!.rows[2]!.requirements[0]?.requirements[0]?.spans[0]).toEqual({ ref: { key: "classes:0", kind: "classes", name: "Weighted Strikes", slug: "shieldmaster", variant: "talent-0-1" } });
   expect(shieldmaster.startingGear).toEqual([{ item: { key: "items:1", kind: "items", name: "Potion", slug: "potion" }, count: 2, equipped: false }]);
   expect(shieldmaster.experience.map((row) => row.experience)).toEqual([20, 40, 50]);
+});
+
+test("an item names the offered classes that start with it, and coverage counts them as a source", () => {
+  const uncrafted = { ...relations, recipes: [] };
+  const references = buildEntityReferences(entities, { facts, relations: uncrafted });
+  const documents = projectPublicDocuments({ entities, facts, relations: uncrafted, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map(), npcLevels: new Map(), placementIdsByKey: new Map(), classWeapons: new Map() });
+  const potion = documents.get("items:1") as PublicItem;
+  // Hunter also starts with the potion, but no race offers Hunter, so it has no page.
+  expect(potion.startingGearOf).toEqual([{ class: references.refs.get("classes:0")! }, { class: references.refs.get("classes:5")! }]);
+  const withoutSource = (document: PublicItem) => readerCoverage([document]).gaps.some((gap) => gap.gap === "itemWithoutSource");
+  expect(withoutSource(potion)).toBe(false);
+  expect(withoutSource({ ...potion, startingGearOf: [] })).toBe(true);
 });
 
 test("a talent shared by several trees resolves to the row of the class that owns the page", () => {

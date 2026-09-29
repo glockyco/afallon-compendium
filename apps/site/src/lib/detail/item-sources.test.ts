@@ -1,17 +1,17 @@
 import { expect, test } from 'bun:test';
-import type { DropRow, EntityRef, PublicItem, VendorRow } from '@afallon/contracts/public';
-import { itemSourceLines, summaryText } from './item-sources';
+import type { DropRow, EntityRef, PublicItem, PublicKindEntry, VendorRow } from '@afallon/contracts/public';
+import { itemSourceLines, lineHref, summaryText } from './item-sources';
 
 const npc = (id: number, name: string): EntityRef => ({ key: `npcs:${id}`, kind: 'npcs', name, slug: name.toLowerCase().replaceAll(' ', '-') });
 const gold: EntityRef = { key: 'currencies:0', kind: 'currencies', name: 'Gold Coin' };
 const drop = (counterpart: DropRow['counterpart'], chance: number, extra: Partial<DropRow> = {}): DropRow => ({ counterpart, chance, requirements: [], ...extra });
 const sale = (counterpart: EntityRef, amount: number): VendorRow => ({ counterpart, price: { amount, currency: gold }, requirements: [] });
 
-function item(droppedBy: DropRow[], soldBy: VendorRow[]): PublicItem {
+function item(droppedBy: DropRow[], soldBy: VendorRow[], startingGearOf: PublicItem['startingGearOf'] = []): PublicItem {
   return {
     ref: { key: 'items:1', kind: 'items', name: 'Iron Bar', slug: 'iron-bar' }, description: null, art: {},
     facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 20, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
-    droppedBy, soldBy, gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [],
+    droppedBy, soldBy, gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf,
   };
 }
 
@@ -27,4 +27,14 @@ test('source lines name distinct counterparts in the order of their sections and
     ['Sold by', 'General Goods and Wizard Merchant'],
   ]);
   expect(lines[2]!.lowestPrice?.amount).toBe(50);
+});
+
+test('a starting gear line names the classes and leads to the Starting gear section of the first class page', () => {
+  const heroClass = (id: number, name: string): EntityRef => ({ key: `classes:${id}`, kind: 'classes', name, slug: name.toLowerCase() });
+  const registry = [{ kind: 'classes', route: 'classes' }] as PublicKindEntry[];
+  const lines = itemSourceLines(item([], [], [heroClass(1, 'Wizard'), heroClass(3, 'Necromancer'), heroClass(6, 'Druid')].map((ref) => ({ class: ref }))));
+  expect(lines.map((entry) => [entry.label, summaryText(entry)])).toEqual([['Starting gear of', 'Wizard, Necromancer and 1 more']]);
+  expect(lines[0]!.names).toEqual([{ ref: { ...heroClass(1, 'Wizard'), variant: 'starting-gear' } }, { ref: { ...heroClass(3, 'Necromancer'), variant: 'starting-gear' } }]);
+  expect(lineHref(lines[0]!, registry, '/base')).toBe('/base/classes/wizard/#starting-gear');
+  expect(lineHref(itemSourceLines(item([drop(npc(1, 'Thornmaw'), 5)], []))[0]!, registry, '/base')).toBe('#dropped-by');
 });

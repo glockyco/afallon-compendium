@@ -36,8 +36,8 @@ export function intervalText(seconds: number): string {
   return `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
 }
 
-/** Item source kinds are native-style ids; an interactive object source reads as the object that gives the item. */
-const SOURCE_KIND_LABELS: Record<string, string> = { interaction: 'Object' };
+/** Item source kinds are native-style ids. An interactive object source reads as the object that gives the item. */
+const SOURCE_KIND_LABELS: Record<string, string> = { interaction: 'Object', startingGear: 'Starting gear' };
 
 export function sourceKindLabel(kind: string): string {
   return SOURCE_KIND_LABELS[kind] ?? categoryLabel(kind);

@@ -168,6 +168,10 @@ export type QuestLinkRow = Static<typeof QuestLinkRowSchema>;
 export const RecipeRowSchema = Type.Object({ counterpart: RefSchema, count }, { additionalProperties: false });
 export type RecipeRow = Static<typeof RecipeRowSchema>;
 
+// A published class that starts with the item. The class page shows the count and whether the item starts equipped.
+export const StartingGearOfRowSchema = Type.Object({ class: EntityRefSchema }, { additionalProperties: false });
+export type StartingGearOfRow = Static<typeof StartingGearOfRowSchema>;
+
 export const ContextualAbilityRefSchema = Type.Object({ ability: RefSchema, rankIndex: count }, { additionalProperties: false });
 export type ContextualAbilityRef = Static<typeof ContextualAbilityRefSchema>;
 export const AbilityPhaseSchema = Type.Object({ phaseIndex: count, name: optional(text), requirement: optional(text), abilities: Type.Array(ContextualAbilityRefSchema) }, { additionalProperties: false });
@@ -301,6 +305,7 @@ export const PublicItemSchema = Type.Object({
   droppedBy: Type.Array(DropRowSchema), soldBy: Type.Array(VendorRowSchema), gatheredFrom: Type.Array(GatherRowSchema),
   inContainers: Type.Array(ContainerRowSchema), collectedFrom: Type.Array(ContainerRowSchema), rewardedBy: Type.Array(QuestRewardRowSchema), givenBy: Type.Array(QuestGivenRowSchema),
   craftedBy: Type.Array(RecipeRowSchema), usedInRecipes: Type.Array(RecipeRowSchema), usedInQuests: Type.Array(QuestObjectiveRowSchema),
+  startingGearOf: Type.Array(StartingGearOfRowSchema),
 }, { additionalProperties: false });
 export type PublicItem = Static<typeof PublicItemSchema>;
 
@@ -503,7 +508,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v4", npcs: "compendium.static-npc.v4", quests: "compendium.static-quest.v4", places: "compendium.static-place.v5",
+  items: "compendium.static-item.v5", npcs: "compendium.static-npc.v4", quests: "compendium.static-quest.v4", places: "compendium.static-place.v5",
   properties: "compendium.static-property.v3", abilities: "compendium.static-ability.v4", recipes: "compendium.static-recipe.v3",
   classes: "compendium.static-class.v1", skills: "compendium.static-skill.v1",
 } as const satisfies Record<PublicPageKind, string>;
@@ -527,13 +532,13 @@ export const StaticRecipeDocumentSchema = staticDocument("recipes");
 export const StaticClassDocumentSchema = staticDocument("classes");
 export const StaticSkillDocumentSchema = staticDocument("skills");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v4": typeof StaticItemDocumentSchema; "compendium.static-npc.v4": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v5": typeof StaticItemDocumentSchema; "compendium.static-npc.v4": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v4": typeof StaticQuestDocumentSchema; "compendium.static-place.v5": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v3": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v4": typeof StaticAbilityDocumentSchema;
   "compendium.static-recipe.v3": typeof StaticRecipeDocumentSchema; "compendium.static-class.v1": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v1": typeof StaticSkillDocumentSchema;
 } = {
-  "compendium.static-item.v4": StaticItemDocumentSchema, "compendium.static-npc.v4": StaticNpcDocumentSchema,
+  "compendium.static-item.v5": StaticItemDocumentSchema, "compendium.static-npc.v4": StaticNpcDocumentSchema,
   "compendium.static-quest.v4": StaticQuestDocumentSchema, "compendium.static-place.v5": StaticPlaceDocumentSchema,
   "compendium.static-property.v3": StaticPropertyDocumentSchema, "compendium.static-ability.v4": StaticAbilityDocumentSchema,
   "compendium.static-recipe.v3": StaticRecipeDocumentSchema, "compendium.static-class.v1": StaticClassDocumentSchema,
@@ -543,7 +548,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema> | Static<typeof StaticRecipeDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v4"), resourceReference("compendium.static-npc.v4"), resourceReference("compendium.static-quest.v4"), resourceReference("compendium.static-place.v5"),
+  resourceReference("compendium.static-item.v5"), resourceReference("compendium.static-npc.v4"), resourceReference("compendium.static-quest.v4"), resourceReference("compendium.static-place.v5"),
   resourceReference("compendium.static-property.v3"), resourceReference("compendium.static-ability.v4"), resourceReference("compendium.static-recipe.v3"),
   resourceReference("compendium.static-class.v1"), resourceReference("compendium.static-skill.v1"),
 ]);
