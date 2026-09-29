@@ -38,12 +38,6 @@ The items collector in `canonical.csx` reads the same list in the same way. It r
 
 Dialogue nodes, interactable objects, effects, regions, and combat triggers can also hold Recipe actions. The scan does not read them for recipes. A recipe that is not learned by default and has no teaching item therefore keeps its page, and the coverage page counts it. The page does not claim that nothing teaches it.
 
-### Exclude progress flags through the reviewed presentation
-
-The Savers skill has no levels, and a character does not receive it automatically. Its 13 recipes use and make no items, and its crafting station has no placement. All 407 Recipe requirements in the captured world conditions name four of these recipes: Oakenvale tavern levels 1 to 3 and Summon Lysander Blazeborn. Their requirement templates switch world objects and the Lysander companion. The records store progress flags, not crafting.
-
-The publication presentation gains a reviewed exclusion list in version 2. Each entry names a catalog key, a reason, and its evidence. The publication omits an excluded record from pages, lists, search, and counts, and it renders a reference to the record as plain text. The catalog keeps the records, so coverage and conditions stay complete. Staging parity accepts the removal of a listed record and rejects any other removal. The decision to hide a record from readers thus stays out of the catalog, and each exclusion stays reviewable.
-
 ### Publish one mechanics document from captured facts
 
 Depend on the `mechanics` document kind and `/mechanics/<topic>` route introduced by `explain-character-progression`. Add `/mechanics/crafting-and-gathering` to its Mechanics group without introducing a second route system. Project a document containing rule evidence, representative captured spawner options, and current-build values. Follow the existing document graph and size budgets rather than shipping raw scans to the browser. The page explains that `SpawnRoll` selects a weighted option from `ComputeWeights`. The native analysis derives interpolation between low- and high-skill weights, a teaser floor, an attunement bonus, and a nonnegative floor (`local://progression-ux-findings.md:39-46`). It does not convert weights into independent chance percentages. Link the page from recipes and gathering skills.
@@ -61,7 +55,6 @@ Use the brief's verified auto-attack mapping for weapon skills and its verified 
 - Respawn fields and player range may not have the meanings implied by their names. → Verify their callers before describing behavior. Label unresolved values as recorded fields.
 - New resource pages may increase document and search sizes. → Check graph limits and keep spawner examples bounded to captured evidence.
 - Source-specific skill experience mapping may remain incomplete. → Distinguish demonstrated paths from unresolved paths on the mechanics page.
-- An exclusion can hide real content. → Each entry names its evidence, and staging parity rejects every unlisted removal.
 - Dialogue nodes, objects, and effects can teach recipes that the scan does not read. → The coverage page counts recipes without a known teaching source.
 
 ## Migration Plan
