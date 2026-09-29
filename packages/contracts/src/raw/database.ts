@@ -1,6 +1,7 @@
 import { Type, type Static } from "typebox";
 
 const integer = Type.Integer();
+const number = Type.Number();
 const text = Type.String();
 const nullableText = Type.Union([text, Type.Null()]);
 const rawObject = Type.Record(text, Type.Unknown());
@@ -90,10 +91,35 @@ export const SupportV1Schema = Type.Object({
 // A null record in a game table stays visible as an unavailable row with its field path.
 export const SupportUnavailableSchema = Type.Object({ sourceKey: integer, unavailable: text, sourceFieldPath: text });
 export type SupportUnavailable = Static<typeof SupportUnavailableSchema>;
-export const SupportSchema = Type.Object({
+const supportTables = Type.Record(text, Type.Array(Type.Union([SupportEntrySchema, SupportUnavailableSchema])));
+export const SupportV2Schema = Type.Object({
   schemaVersion: Type.Literal("compendium.support.v2"), language: text, requirementIssues: rawRows,
   sourceTotals: Type.Record(text, integer),
-  tables: Type.Record(text, Type.Array(Type.Union([SupportEntrySchema, SupportUnavailableSchema]))),
+  tables: supportTables,
+});
+// The typed values of the live `HeroicTierSettings.Get()` asset that the kill experience, Heroic Essence, creature
+// scaling, affix, and Heroic gear rules read. The object is `unavailable` when the game returns no settings asset.
+export const HeroicTierSettingsSchema = Type.Union([
+  Type.Object({
+    asset: text,
+    killExperienceMultiplier: number,
+    essenceTreePointId: integer, essenceBaseAmount: integer, essencePerAffix: integer,
+    essenceEliteMultiplier: number, essenceRareMultiplier: number, essenceBossMultiplier: number,
+    essenceHealthBaseline: number, essenceHealthFactorMin: number, essenceHealthFactorMax: number,
+    baseHealthMultiplier: number, baseDamageMultiplier: number,
+    gearScoreCoefficient: number, maxGearBonus: number,
+    affixChance: number, extraAffixChance: number, maxAffixes: integer, rareGuaranteedAffixes: integer,
+    affixLootDropMultiplier: number, heroicGearStatBonusPercent: number,
+  }),
+  Type.Object({ unavailable: text, sourceFieldPath: text }),
+]);
+export type HeroicTierSettings = Static<typeof HeroicTierSettingsSchema>;
+// v3 adds the live Heroic tier settings to the v2 support tables.
+export const SupportSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.support.v3"), language: text, requirementIssues: rawRows,
+  sourceTotals: Type.Record(text, integer),
+  tables: supportTables,
+  heroicTierSettings: HeroicTierSettingsSchema,
 });
 export type Support = Static<typeof SupportSchema>;
 

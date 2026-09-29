@@ -8,6 +8,7 @@ import {
   RelationshipsSchema,
   SupportSchema,
   SupportV1Schema,
+  SupportV2Schema,
 } from "./database";
 import { ArtworkSchema } from "./artwork";
 import { FactionRolesSchema } from "./faction-roles";
@@ -22,7 +23,8 @@ schemaRegistry.register("compendium.canonical.v4", CanonicalSchema);
 schemaRegistry.register("compendium.localization.v1", LocalizationSchema);
 schemaRegistry.register("compendium.quest-levels.v1", QuestLevelsSchema);
 schemaRegistry.register("compendium.support.v1", SupportV1Schema);
-schemaRegistry.register("compendium.support.v2", SupportSchema);
+schemaRegistry.register("compendium.support.v2", SupportV2Schema);
+schemaRegistry.register("compendium.support.v3", SupportSchema);
 schemaRegistry.register("compendium.artwork.v1", ArtworkSchema);
 schemaRegistry.register("compendium.relationships.v1", RelationshipsSchema);
 schemaRegistry.register("compendium.loot-rules.v1", LootRulesSchema);

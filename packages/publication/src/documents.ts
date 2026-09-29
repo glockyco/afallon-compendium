@@ -466,7 +466,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
   };
 }
 
-const EMPTY_NPC_FACTS: Omit<CatalogNpcFacts, "entityKey"> = { minLevel: null, maxLevel: null, scalesWithPlayer: false, npcType: null, creatureType: null, family: null, faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: false, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null, minExperience: null, maxExperience: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [], factionRewards: [], linkedNpc: null, lootSpecialization: null };
+const EMPTY_NPC_FACTS: Omit<CatalogNpcFacts, "entityKey"> = { minLevel: null, maxLevel: null, scalesWithPlayer: false, npcType: null, creatureType: null, family: null, faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: false, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null, minExperience: null, maxExperience: null, lowerLevelExperienceModifier: null, higherLevelExperienceModifier: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [], factionRewards: [], linkedNpc: null, lootSpecialization: null };
 
 function npcFact(key: string, indexes: RelationIndexes): CatalogNpcFacts {
   return indexes.npcFacts.get(key) ?? { entityKey: key, ...EMPTY_NPC_FACTS };

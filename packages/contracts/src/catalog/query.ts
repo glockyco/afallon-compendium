@@ -85,7 +85,7 @@ export interface NormalizedNpcFlightNetwork {
 export interface NormalizedNpcFact {
   entityKey: string; minLevel: number | null; maxLevel: number | null; scalesWithPlayer: boolean; npcType: string | null; creatureType: string | null; family: string | null;
   faction: NormalizedReference | null; species: NormalizedReference | null; isMerchant: boolean; isQuestGiver: boolean; isCombatEnabled: boolean; isAuctioneer: boolean; isBanker: boolean; isFlightMaster: boolean; minRespawn: number | null; maxRespawn: number | null;
-  minExperience: number | null; maxExperience: number | null; immuneToStun: boolean; immuneToSlow: boolean; aggroRange: number | null; linkedNpc: NormalizedReference | null;
+  minExperience: number | null; maxExperience: number | null; lowerLevelExperienceModifier: number | null; higherLevelExperienceModifier: number | null; immuneToStun: boolean; immuneToSlow: boolean; aggroRange: number | null; linkedNpc: NormalizedReference | null;
   hunterTamable: boolean; hunterBeastRole: string | null; equipmentAppearanceSelections: string | null; adventurer: NormalizedNpcAdventurer | null; flightNetwork: NormalizedNpcFlightNetwork | null;
   lootSpecialization: { armorType: string | null; weaponTypes: string[]; stat: NormalizedReference | null } | null; provenance: ProvenanceReference[];
 }

@@ -1,6 +1,6 @@
 import { Type, type Static, type TObject, type TProperties, type TSchema } from "typebox";
 import { decodeContract, schemaRegistry, type Support } from "@afallon/contracts";
-import { entityKey, type ArtifactReference, type NormalizedCondition, type NormalizedProgressionFact, type NormalizedProgressionLink, type NormalizedReference, type NormalizedSpellbookNode, type NormalizedTalentNode, type ProgressionAppliedEffect, type ProgressionCustomStat, type ProgressionDetails, type ProgressionEnum, type ProgressionStat } from "@afallon/contracts/catalog";
+import { entityKey, HEROIC_TIER_KEY, type ArtifactReference, type NormalizedCondition, type NormalizedProgressionFact, type NormalizedProgressionLink, type NormalizedReference, type NormalizedSpellbookNode, type NormalizedTalentNode, type ProgressionAppliedEffect, type ProgressionCustomStat, type ProgressionDetails, type ProgressionEnum, type ProgressionStat } from "@afallon/contracts/catalog";
 import { conditionFrom } from "./conditions";
 import { pointer, type Blocker } from "./context";
 
@@ -72,9 +72,9 @@ export interface ProgressionRows {
 }
 
 /**
- * Decodes the progression tables of `compendium.support.v2` evidence and resolves their references. `knownKeys` holds
- * the names of catalog entities by key. Bonuses, level templates, talent points, and spellbooks are not entities, so their
- * keys come from the support tables.
+ * Decodes the progression tables and the Heroic tier settings of `compendium.support.v3` evidence and resolves their
+ * references. `knownKeys` holds the names of catalog entities by key. Bonuses, level templates, talent points, and
+ * spellbooks are not entities, so their keys come from the support tables.
  */
 export function normalizeProgression(support: Support, reference: ArtifactReference, entityNames: ReadonlyMap<string, string | null>, blockers: Blocker[]): ProgressionRows {
   const out: ProgressionRows = { progressionFacts: [], progressionLinks: [], talentNodes: [], spellbookNodes: [], conditions: [] };
@@ -125,7 +125,7 @@ export function normalizeProgression(support: Support, reference: ArtifactRefere
     for (const [index, row] of (support.tables[kind] ?? []).entries()) {
       const path = `/tables/${kind}/${index}`;
       if ("unavailable" in row) continue;
-      if (row.gameplay === undefined) throw new Error(`Support ${kind} ${row.entry.nativeId} has no gameplay; the catalog needs compendium.support.v2 evidence.`);
+      if (row.gameplay === undefined) throw new Error(`Support ${kind} ${row.entry.nativeId} has no gameplay; the catalog needs compendium.support.v3 evidence.`);
       visit(entityKey(kind, row.entry.nativeId), row.gameplay, `${path}/gameplay`);
     }
   };
@@ -267,6 +267,12 @@ export function normalizeProgression(support: Support, reference: ArtifactRefere
       })),
     } }, path);
   });
+  const heroic = support.heroicTierSettings;
+  if ("unavailable" in heroic) blockers.push({ kind: "unavailable-progression-data", key: "support:/heroicTierSettings", detail: `${heroic.unavailable} at ${heroic.sourceFieldPath}.`, provenance: [pointer(reference, "/heroicTierSettings")] });
+  else {
+    const { asset, essenceTreePointId, ...values } = heroic;
+    fact({ entityKey: HEROIC_TIER_KEY, kind: "heroicTier", details: { asset, essenceTreePoint: ref("treePoints", essenceTreePointId, "/heroicTierSettings/essenceTreePointId"), ...values } }, "/heroicTierSettings");
+  }
   return out;
 
   // A node names the record of its type. The game reads only the id that matches the node type.

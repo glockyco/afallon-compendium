@@ -102,6 +102,9 @@ export interface CatalogNpcFacts {
   maxRespawn: number | null;
   minExperience: number | null;
   maxExperience: number | null;
+  // Percentages that `LevelingManager.GenerateMobEXP` adds when the creature's level is below or above the player's.
+  lowerLevelExperienceModifier: number | null;
+  higherLevelExperienceModifier: number | null;
   immuneToStun: boolean;
   immuneToSlow: boolean;
   aggroRange: number | null;

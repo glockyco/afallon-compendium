@@ -101,6 +101,21 @@ export interface ProgressionAbility {
   ranks: Array<{ rank: number; unlockCost: number; activationType: ProgressionEnum; castTime: number; channelTime: number; cooldown: number; usesGlobalCooldown: boolean; minRange: number; maxRange: number; targetType: ProgressionEnum; areaRadius: number; coneDegree: number; coneRange: number; projectileCount: number; maxUnitsHit: number; conditionId: string | null; effectsApplied: ProgressionAppliedEffect[]; casterEffectsApplied: ProgressionAppliedEffect[] }>;
 }
 
+// The live `HeroicTierSettings` asset. The catalog stores it as the single fact `HEROIC_TIER_KEY`.
+export const HEROIC_TIER_KEY = "heroicTier:settings";
+export interface ProgressionHeroicTier {
+  asset: string;
+  killExperienceMultiplier: number;
+  essenceTreePoint: NormalizedReference | null;
+  essenceBaseAmount: number; essencePerAffix: number;
+  essenceEliteMultiplier: number; essenceRareMultiplier: number; essenceBossMultiplier: number;
+  essenceHealthBaseline: number; essenceHealthFactorMin: number; essenceHealthFactorMax: number;
+  baseHealthMultiplier: number; baseDamageMultiplier: number;
+  gearScoreCoefficient: number; maxGearBonus: number;
+  affixChance: number; extraAffixChance: number; maxAffixes: number; rareGuaranteedAffixes: number;
+  affixLootDropMultiplier: number; heroicGearStatBonusPercent: number;
+}
+
 export type ProgressionDetails =
   | { kind: "classes"; details: ProgressionClass }
   | { kind: "skills"; details: ProgressionSkill }
@@ -114,7 +129,8 @@ export type ProgressionDetails =
   | { kind: "talentTrees"; details: ProgressionTalentTree }
   | { kind: "spellbooks"; details: ProgressionSpellbook }
   | { kind: "races"; details: ProgressionRace }
-  | { kind: "abilities"; details: ProgressionAbility };
+  | { kind: "abilities"; details: ProgressionAbility }
+  | { kind: "heroicTier"; details: ProgressionHeroicTier };
 export type ProgressionKind = ProgressionDetails["kind"];
 
 export type NormalizedProgressionFact = ProgressionDetails & { entityKey: string; name: string | null; provenance: ProvenanceReference[] };

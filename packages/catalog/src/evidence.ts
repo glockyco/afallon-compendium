@@ -16,7 +16,7 @@ const FAMILY_BY_SCHEMA: Readonly<Record<string, ScanCollectorFamily>> = {
   "compendium.npc-producers.v3": "producers", "compendium.world-sources.v8": "producers",
   "compendium.placement-snapshot.v1": "placements", "compendium.placement-identities.v1": "placements", "compendium.serialized-assets.v2": "placements", "compendium.scene-source-issues.v2": "placements",
   "compendium.faction-roles.v1": "roles", "compendium.placement-roles.v1": "roles",
-  "compendium.relationships.v1": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships", "compendium.support.v2": "relationships",
+  "compendium.relationships.v1": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships", "compendium.support.v2": "relationships", "compendium.support.v3": "relationships",
   "compendium.scene-catalog.v1": "spatial", "compendium.map-geometry.v3": "spatial", "compendium.navigation-geometry.v2": "spatial",
   "compendium.scan-coverage.v1": "coverage", "compendium.coverage.v2": "coverage",
 };

@@ -23,12 +23,20 @@ const emptyInput: NormalizedDatabaseInput = {
   buildId: "build", identityResults: [], entities: [], scenes: [], mapSpaces: [], bindings: [], placements: [], sources: [], roles: [], regions: [], conditions: [], spawnCandidates: [], sourceGates: [], randomChoices: [], placementAreas: [], merchantTables: [], merchantBindings: [], merchantStock: [], lootTables: [], lootBindings: [], lootEntries: [], linkedNpcRules: [], resourceYields: [], questAssociations: [], transitions: [], itemSources: [], entityDetails: [], sourceDetails: [], patrolPaths: [], sceneSpawns: [], blockers: [], coverageOccurrences: [], exclusions: [], inputCoverage: null, provenance: { plan: reference, profile: reference, sources: [] },
 };
 
-function support(tables: Support["tables"]): Support {
-  return { schemaVersion: "compendium.support.v2", language: "English", requirementIssues: [], sourceTotals: {}, tables };
+const heroicTierSettings = {
+  asset: "HeroicTierSettings", killExperienceMultiplier: 5, essenceTreePointId: 2, essenceBaseAmount: 3, essencePerAffix: 3,
+  essenceEliteMultiplier: 1.5, essenceRareMultiplier: 2, essenceBossMultiplier: 3, essenceHealthBaseline: 1, essenceHealthFactorMin: 0.25, essenceHealthFactorMax: 4,
+  baseHealthMultiplier: 3, baseDamageMultiplier: 2, gearScoreCoefficient: 0.0008, maxGearBonus: 1,
+  affixChance: 0.25, extraAffixChance: 0.08, maxAffixes: 4, rareGuaranteedAffixes: 1, affixLootDropMultiplier: 1.5, heroicGearStatBonusPercent: 50,
+};
+
+function support(tables: Support["tables"], heroic: Support["heroicTierSettings"] = heroicTierSettings): Support {
+  return { schemaVersion: "compendium.support.v3", language: "English", requirementIssues: [], sourceTotals: {}, tables, heroicTierSettings: heroic };
 }
 
 const fixture = support({
   classes: table([{ id: 0, name: "Shieldmaster", gameplay: classGameplay([0], [1]) }]),
+  treePoints: table([{ id: 2, name: "Heroic Essence", gameplay: { startAmount: 0, maxPoints: 0, gainRules: [] } }]),
   skills: table([{ id: 5, name: "Cooking", gameplay: { automaticallyAdded: true, maxLevel: 300, levelTemplateId: -1, talentTreeIds: [{ sourceIndex: 0, talentTreeId: 9 }], stats: [], customStats: [], useStatListTemplate: false, statListTemplate: null, startItems: [], actionAbilities: [] } }]),
   talentTrees: table([
     { id: 0, name: "Bastion Breaker", gameplay: { tiers: 9, treePointId: -1, nodes: [node(0, [0, "ability"], { abilityId: 1 }, 1, 4, levelRequirement), node(1, [0, "ability"], { abilityId: 404 }, 2, 1), node(2, [3, "bonus"], { bonusId: 7 }, 3, 2)] } },
@@ -91,4 +99,14 @@ test("a class counts as offered only when a race names its record", () => {
     db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "catalog.v1", "{}", "f".repeat(64));
     expect(queryCatalogFacts(db).records.progression.offeredClasses).toEqual(["classes:0"]);
   } finally { db.close(); }
+});
+
+test("Heroic settings keep their values, and a missing asset is a coverage issue instead of defaults", () => {
+  const rows = normalizeProgression(fixture, reference, entityNames, []);
+  const heroic = rows.progressionFacts.find((row) => row.kind === "heroicTier");
+  expect(heroic?.kind === "heroicTier" ? [heroic.details.killExperienceMultiplier, heroic.details.essenceTreePoint, heroic.details.gearScoreCoefficient] : null).toEqual([5, { entityKey: "treePoints:2", label: "Heroic Essence" }, 0.0008]);
+  const blockers: Blocker[] = [];
+  const missing = normalizeProgression(support(fixture.tables, { unavailable: "HeroicTierSettings.Get() returned null", sourceFieldPath: "HeroicTierSettings.Get()" }), reference, entityNames, blockers);
+  expect(missing.progressionFacts.some((row) => row.kind === "heroicTier")).toBe(false);
+  expect(blockers.filter((row) => row.kind === "unavailable-progression-data").map((row) => row.key)).toEqual(["support:/heroicTierSettings"]);
 });
