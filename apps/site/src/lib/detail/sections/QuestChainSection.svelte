@@ -31,6 +31,6 @@
   li { display: flex; min-width: 0; align-items: baseline; gap: .5rem; padding: .4rem .65rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-2); font-size: var(--c-text-body); }
   .number { display: inline-grid; width: 1.25rem; height: 1.25rem; flex: none; place-items: center; color: var(--c-text-dim); font-variant-numeric: tabular-nums; }
   .name, li > :global(:is(.tooltip-anchor, .entity-link, .entity-text)) { min-width: 0; margin: -4px; padding: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  strong { color: #f2e4bb; font-weight: 600; }
+  strong { color: var(--c-accent-strong); font-weight: 600; }
   li:has([aria-current]) { border-color: var(--c-accent); }
 </style>

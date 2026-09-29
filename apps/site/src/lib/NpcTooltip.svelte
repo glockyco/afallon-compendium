@@ -59,6 +59,6 @@
   ul { display: grid; gap: .28rem; margin: .35rem 0 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   li { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
   li span, .summary { color: var(--c-text-dim); }
-  .stats { color: #72c875; }
+  .stats { color: var(--c-positive); }
   .summary { margin: .55rem 0 0; font-size: var(--c-text-small); line-height: 1.4; }
 </style>

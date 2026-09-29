@@ -77,10 +77,10 @@
   .entity-text { color: var(--c-text); }
   /* The icon scales with the text. `middle` centers it on the lower-case letters, and the lift moves it to the
      center of the whole line of letters. */
-  img, .kind-icon { box-sizing: border-box; width: 1.45em; height: 1.45em; margin-right: .35em; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: #141514; object-fit: contain; vertical-align: middle; position: relative; top: -.12em; }
-  .kind-icon { display: inline-grid; place-items: center; border-color: #4a463c; background: var(--c-surface-2); color: #8d8778; }
+  img, .kind-icon { box-sizing: border-box; width: 1.45em; height: 1.45em; margin-right: .35em; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); object-fit: contain; vertical-align: middle; position: relative; top: -.12em; }
+  .kind-icon { display: inline-grid; place-items: center; border-color: var(--c-frame); background: var(--c-surface-2); color: var(--c-text-mute); }
   .kind-icon :global(svg) { width: .65em; height: .65em; }
   .entity-link[data-rarity], .entity-text[data-rarity] { color: var(--c-rarity); }
-  .entity-link[data-rarity]:hover { color: color-mix(in srgb, var(--c-rarity) 75%, #ffffff); }
+  .entity-link[data-rarity]:hover { color: color-mix(in srgb, var(--c-rarity) 75%, var(--c-text-strong)); }
   [data-rarity] img { border-color: color-mix(in srgb, var(--c-rarity) 60%, transparent); }
 </style>

@@ -18,7 +18,7 @@
 {:else}<MissingValue explanation="No location is published" />{/if}
 
 <style>
-  a { color: #d9bd79; text-underline-offset: .18em; }
+  a { color: var(--c-accent); text-underline-offset: .18em; }
   .location { display: block; }
   /* The numbered links carry no spaces between them, so the label and the numbers wrap as flex items. */
   span.location { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .4rem; }

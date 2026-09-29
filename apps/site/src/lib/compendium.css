@@ -5,19 +5,55 @@
    scoped styles unable to reach it. */
 
 :root {
+  /* The palette. Every color of the site's styles is one of these tokens or a transparent mix of one. */
+  /* Surfaces, from the deepest backdrop to raised panels. */
+  --c-surface-deep: #101111;
+  --c-surface-sunken: #141514;
   --c-surface-0: #171818;
   --c-surface-1: #202120;
   --c-surface-2: #252622;
   --c-surface-3: #2c2d2a;
-  --c-line: #393a38;
+  --c-accent-surface: #2a261e;
+  --c-danger-surface: #2b1f1f;
+  /* Lines and frames. A frame is the gold-tinted edge of an icon, a card, or a control. */
   --c-line-soft: #2e2f2c;
+  --c-line: #393a38;
+  --c-line-strong: #4c4d48;
+  --c-frame: #5b523d;
+  --c-frame-strong: #706548;
+  --c-frame-hover: #7d6e4a;
+  --c-accent-line: #bba779;
+  --c-warning-line: #b98751;
+  --c-danger-line: #864c45;
+  /* Text, from headings to muted notes. Muted text reaches 4.6:1 or more on every surface, above the WCAG AA minimum
+     of 4.5:1. */
+  --c-text-strong: #f3eee1;
   --c-text: #e9e4d9;
+  --c-text-soft: #c9c5bb;
   --c-text-dim: #aaa69d;
-  /* 4.6:1 or more on every surface, so muted text meets the WCAG AA contrast minimum of 4.5:1. */
   --c-text-mute: #96958c;
+  --c-on-accent: #1b1a16;
+  /* Accent gold and states. */
+  --c-accent-muted: #bca36e;
   --c-accent: #d5b978;
   --c-accent-strong: #e8d3a0;
   --c-currency: #e0b341;
+  --c-positive: #72c875;
+  --c-danger: #e5afa6;
+  /* The colors that the game's own tooltip text uses for its tones. */
+  --c-tone-info: #77b9e8;
+  --c-tone-effect: #d4b36d;
+  --c-tone-damage: #e28b75;
+  --c-tone-negative: #df7770;
+  --c-tone-control: #c394df;
+  /* Tints and shadows. */
+  --c-tint-stripe: #ffffff06;
+  --c-tint-hover: #ffffff0e;
+  --c-tint-line: #ffffff1f;
+  --c-shadow-soft: #0000002e;
+  --c-shadow: #0009;
+  --c-shadow-strong: #000c;
+  --c-scrim: rgb(0 0 0 / 58%);
   --c-radius: 8px;
   --c-radius-sm: 4px;
   --c-serif: Georgia, 'Times New Roman', serif;
@@ -54,7 +90,7 @@
   border: 1px solid var(--c-line);
   border-radius: var(--c-radius);
   background: var(--c-surface-1);
-  box-shadow: 0 1px 0 #0000002e;
+  box-shadow: 0 1px 0 var(--c-shadow-soft);
 }
 
 .c-card > header {
@@ -66,7 +102,7 @@
 
 .c-card > header h2 {
   margin: 0;
-  color: #f1ecdf;
+  color: var(--c-text-strong);
   font: 600 var(--c-text-lead)/1.25 var(--c-serif);
   letter-spacing: .01em;
 }
@@ -87,10 +123,10 @@
   align-items: center;
   gap: .3rem;
   padding: .16rem .5rem;
-  border: 1px solid #ffffff1f;
+  border: 1px solid var(--c-tint-line);
   border-radius: 999px;
   background: var(--c-surface-3);
-  color: #ddd8cd;
+  color: var(--c-text);
   font-size: var(--c-text-label);
   font-weight: 600;
   letter-spacing: .02em;
@@ -105,15 +141,15 @@
 }
 
 .c-badge[data-tone='accent'] {
-  border-color: #806d4a;
-  background: #2a261e;
+  border-color: var(--c-frame-hover);
+  background: var(--c-accent-surface);
   color: var(--c-accent-strong);
 }
 
 .c-badge[data-tone='boss'] {
-  border-color: #8a4f46;
-  background: #2e201d;
-  color: #e9a091;
+  border-color: var(--c-danger-line);
+  background: var(--c-danger-surface);
+  color: var(--c-danger);
 }
 
 /* Tables */
@@ -164,8 +200,8 @@
   background: var(--c-surface-1);
 }
 
-.c-table tbody tr:nth-child(even) { background: #ffffff06; }
-.c-table tbody tr:hover { background: #ffffff0d; }
+.c-table tbody tr:nth-child(even) { background: var(--c-tint-stripe); }
+.c-table tbody tr:hover { background: var(--c-tint-hover); }
 .c-table tbody td { border-top: 1px solid var(--c-line-soft); }
 .c-table .c-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .c-table th.c-num .c-sort { justify-content: flex-end; width: 100%; }
@@ -213,7 +249,7 @@
   align-items: center;
   gap: .4rem;
   padding: .4rem .75rem;
-  border: 1px solid #706548;
+  border: 1px solid var(--c-frame-strong);
   border-radius: var(--c-radius-sm);
   background: var(--c-surface-2);
   color: var(--c-accent-strong);
@@ -221,7 +257,7 @@
   text-decoration: none;
 }
 
-.c-action:hover { border-color: #bba779; background: var(--c-surface-3); }
+.c-action:hover { border-color: var(--c-accent-line); background: var(--c-surface-3); }
 
 :where(.c-card, .c-page) :focus-visible,
 .c-action:focus-visible,
@@ -232,16 +268,16 @@
 /* The entity as the game shows it: an item tooltip, an ability tooltip, or a purchase panel. */
 .c-game-frame {
   padding: .85rem;
-  border: 1px solid #74684e;
+  border: 1px solid var(--c-frame-strong);
   border-radius: var(--c-radius);
-  background: #1b1c1a;
-  box-shadow: 0 6px 20px #0006;
+  background: var(--c-surface-1);
+  box-shadow: 0 6px 20px var(--c-shadow);
 }
 
 /* Authored descriptions and quest text keep their line breaks. */
 .c-prose {
   margin: 0;
-  color: #c9c5bb;
+  color: var(--c-text-soft);
   font-size: var(--c-text-prose);
   line-height: 1.6;
   white-space: pre-line;

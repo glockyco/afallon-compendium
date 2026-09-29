@@ -114,7 +114,7 @@
 <style>
   .requirements { margin-bottom: .8rem; }
   .start-source:not(:first-child), .timing:not(:first-child) { padding-top: .9rem; margin-top: .9rem; border-top: 1px solid var(--c-line-soft); }
-  .start-source h3 { margin: 0 0 .6rem; color: #e7e0d0; font-size: var(--c-text-body); font-weight: 600; }
+  .start-source h3 { margin: 0 0 .6rem; color: var(--c-text); font-size: var(--c-text-body); font-weight: 600; }
   .refs { display: grid; gap: .25rem; }
   .completion-note { margin: .9rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-body); }
 </style>

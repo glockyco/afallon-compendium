@@ -81,9 +81,9 @@
 <style>
   .lines { display: grid; gap: .32rem; font-size: var(--c-text-body); }
   p { margin: 0; }
-  strong { color: #f1ecdf; font-weight: 650; }
+  strong { color: var(--c-text-strong); font-weight: 650; }
   .item-power { color: var(--c-currency); }
-  .good { color: #72c875; }
+  .good { color: var(--c-positive); }
   .dim { color: var(--c-text-dim); }
   .group { display: grid; gap: .2rem; }
   .plain { display: grid; gap: .2rem; margin: 0; padding: 0; list-style: none; }
@@ -93,7 +93,7 @@
      would reach into that tooltip, so the rule takes the row's direct child only. */
   .gear-set li:not(.current) > :global(:is(.tooltip-anchor, .entity-link, .entity-text, .entity-reference)) { opacity: .75; }
   .tiers { color: var(--c-text-dim); }
-  .requirements { color: #72c875; }
+  .requirements { color: var(--c-positive); }
   .requirements :global(.count) { color: inherit; }
   .sell-price { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-top: .35rem; border-top: 1px solid var(--c-line-soft); color: var(--c-text-dim); }
 </style>

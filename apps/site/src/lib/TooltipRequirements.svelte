@@ -16,6 +16,6 @@
 </div>
 
 <style>
-  .fulfilled { color: #72c875; }
+  .fulfilled { color: var(--c-positive); }
   .fulfilled :global(.count) { color: inherit; }
 </style>

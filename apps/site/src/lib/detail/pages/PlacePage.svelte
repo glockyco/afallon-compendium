@@ -54,5 +54,5 @@
 </article>
 
 <style>
-  .artwork { display: block; width: 100%; height: auto; border: 1px solid #74684e; border-radius: var(--c-radius); background: #141514; }
+  .artwork { display: block; width: 100%; height: auto; border: 1px solid var(--c-frame-strong); border-radius: var(--c-radius); background: var(--c-surface-sunken); }
 </style>

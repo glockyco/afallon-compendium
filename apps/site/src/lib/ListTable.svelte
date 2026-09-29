@@ -205,8 +205,8 @@
   .field { display: grid; flex: 1 1 8.5rem; gap: .3rem; margin: 0; padding: 0; border: 0; min-width: 0; }
   .wide { flex: 2 1 14rem; }
   .field > span, legend { padding: 0; color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
-  input, select { width: 100%; min-height: 2.35rem; padding: .4rem .55rem; border: 1px solid #4c4d48; border-radius: var(--c-radius-sm); background: #151616; color: var(--c-text); }
-  select { appearance: none; padding-right: 1.6rem; background-image: linear-gradient(45deg, transparent 50%, #9a968c 50%), linear-gradient(135deg, #9a968c 50%, transparent 50%); background-position: right 1rem center, right .65rem center; background-size: .35rem .35rem; background-repeat: no-repeat; }
+  input, select { width: 100%; min-height: 2.35rem; padding: .4rem .55rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); }
+  select { appearance: none; padding-right: 1.6rem; background-image: linear-gradient(45deg, transparent 50%, var(--c-text-mute) 50%), linear-gradient(135deg, var(--c-text-mute) 50%, transparent 50%); background-position: right 1rem center, right .65rem center; background-size: .35rem .35rem; background-repeat: no-repeat; }
   input:focus-visible, select:focus-visible, .clear:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .range { display: grid; grid-template-columns: 1fr auto 1fr; gap: .3rem; align-items: center; }
   .range legend { grid-column: 1 / -1; }
@@ -218,8 +218,8 @@
   .result-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .6rem; }
   .result-bar p { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-small); }
   .result-bar strong { color: var(--c-text); font-variant-numeric: tabular-nums; }
-  .clear { padding: .3rem .65rem; border: 1px solid #55564f; border-radius: var(--c-radius-sm); background: transparent; color: #c5c1b7; font-size: var(--c-text-small); }
-  .clear:hover { border-color: #bba779; color: var(--c-text); }
+  .clear { padding: .3rem .65rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: transparent; color: var(--c-text-soft); font-size: var(--c-text-small); }
+  .clear:hover { border-color: var(--c-accent-line); color: var(--c-text); }
 
   .list { padding: .35rem .5rem .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .empty { padding: 1.5rem .6rem; text-align: center; }

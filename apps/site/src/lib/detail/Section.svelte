@@ -23,8 +23,8 @@
 <style>
   .section { scroll-margin-top: 1rem; }
   header { display: grid; gap: .3rem; margin-bottom: .6rem; }
-  h2 { display: flex; align-items: center; gap: .55rem; margin: 0; color: #f1ecdf; font: 600 var(--c-text-title)/1.3 var(--c-serif); }
-  .icon { display: inline-grid; flex: none; width: 1.7rem; height: 1.7rem; place-items: center; border: 1px solid #5e5440; border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-accent); }
+  h2 { display: flex; align-items: center; gap: .55rem; margin: 0; color: var(--c-text-strong); font: 600 var(--c-text-title)/1.3 var(--c-serif); }
+  .icon { display: inline-grid; flex: none; width: 1.7rem; height: 1.7rem; place-items: center; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-accent); }
   .icon :global(svg) { width: .95rem; height: .95rem; }
   .count { color: var(--c-text-mute); font: 500 var(--c-text-small)/1 Inter, ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
   .line { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-body); line-height: 1.5; }

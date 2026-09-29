@@ -14,12 +14,12 @@
   .native-text { display: grid; gap: .22rem; }
   p { min-height: 1em; margin: 0; color: var(--c-text); line-height: 1.42; white-space: pre-wrap; }
   .italic { font-style: italic; }
-  [data-tone='positive'] { color: #72c875; }
-  [data-tone='info'] { color: #77b9e8; }
-  [data-tone='effect'] { color: #d4b36d; }
+  [data-tone='positive'] { color: var(--c-positive); }
+  [data-tone='info'] { color: var(--c-tone-info); }
+  [data-tone='effect'] { color: var(--c-tone-effect); }
   [data-tone='muted'] { color: var(--c-text-mute); }
-  [data-tone='damage'] { color: #e28b75; }
-  [data-tone='negative'] { color: #df7770; }
-  [data-tone='control'] { color: #c394df; }
+  [data-tone='damage'] { color: var(--c-tone-damage); }
+  [data-tone='negative'] { color: var(--c-tone-negative); }
+  [data-tone='control'] { color: var(--c-tone-control); }
   [data-tone='description'] { color: var(--c-text-dim); }
 </style>

@@ -102,8 +102,8 @@
   /* Cells align on the text baseline, so a name after an icon lines up with plain values in the same row. */
   th, td { padding: .5rem .6rem; text-align: left; vertical-align: baseline; }
   th { border-bottom: 1px solid var(--c-line); color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; vertical-align: bottom; }
-  tbody tr:nth-child(even) { background: #ffffff06; }
-  tbody tr:hover { background: #ffffff0d; }
+  tbody tr:nth-child(even) { background: var(--c-tint-stripe); }
+  tbody tr:hover { background: var(--c-tint-hover); }
   tbody td { border-top: 1px solid var(--c-line-soft); overflow-wrap: break-word; }
   tr[hidden] { display: none; }
   .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }

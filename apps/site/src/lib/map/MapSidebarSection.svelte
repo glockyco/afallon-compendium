@@ -70,8 +70,8 @@
 <style>
   .sidebar-section {
     margin: 0 0 .65rem;
-    border: 1px solid #393a38;
-    background: #1b1c1b;
+    border: 1px solid var(--c-line);
+    background: var(--c-surface-1);
   }
   .section-header {
     display: grid;
@@ -80,13 +80,13 @@
     gap: .4rem;
     min-height: 40px;
     padding: .25rem .45rem .25rem .5rem;
-    background: #252622;
+    background: var(--c-surface-2);
   }
   .toggle-all {
     width: 14px;
     height: 14px;
     margin: 0;
-    accent-color: #bca36e;
+    accent-color: var(--c-accent-muted);
   }
   .section-trigger {
     display: grid;
@@ -97,7 +97,7 @@
     padding: .25rem 0;
     border: 0;
     background: transparent;
-    color: #dedbd2;
+    color: var(--c-text);
     font-size: var(--c-text-label);
     font-weight: 700;
     letter-spacing: .075em;
@@ -106,7 +106,7 @@
   }
   .section-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .section-count {
-    color: #9a998f;
+    color: var(--c-text-mute);
     font-size: var(--c-text-label);
     font-variant-numeric: tabular-nums;
     letter-spacing: normal;
@@ -115,7 +115,7 @@
   .chevron {
     width: 14px;
     height: 14px;
-    color: #bca36e;
+    color: var(--c-accent-muted);
     fill: none;
     stroke: currentColor;
     stroke-width: 2;
@@ -131,7 +131,7 @@
     border-bottom: 0;
   }
   .section-trigger:focus-visible, .toggle-all:focus-visible {
-    outline: 2px solid #d5b978;
+    outline: 2px solid var(--c-accent);
     outline-offset: 2px;
   }
 </style>

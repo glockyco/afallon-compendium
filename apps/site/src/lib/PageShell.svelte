@@ -139,10 +139,10 @@
   details[open] > summary::after { margin-top: .15rem; transform: rotate(225deg); }
   summary:hover, details[open] > summary { border-color: var(--c-line); background: var(--c-surface-2); }
   summary.current { color: var(--c-accent); }
-  summary:focus-visible, .panel a:focus-visible { outline: 2px solid #d5b978; outline-offset: 2px; }
-  .panel { position: absolute; z-index: 1; top: calc(100% + .35rem); left: 0; min-width: 11rem; margin: 0; padding: .3rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-1); box-shadow: 0 10px 24px #0009; list-style: none; }
+  summary:focus-visible, .panel a:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  .panel { position: absolute; z-index: 1; top: calc(100% + .35rem); left: 0; min-width: 11rem; margin: 0; padding: .3rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-1); box-shadow: 0 10px 24px var(--c-shadow); list-style: none; }
   .panel a { display: block; padding: .45rem .6rem; border-radius: 2px; color: var(--c-text); font-size: var(--c-text-body); text-decoration: none; white-space: nowrap; }
-  .panel a:hover { background: #ffffff0f; color: var(--c-accent); }
+  .panel a:hover { background: var(--c-tint-hover); color: var(--c-accent); }
   .panel a[aria-current='page'] { color: var(--c-accent); font-weight: 600; }
   .bar-search { min-width: 0; flex: 1; max-width: 22rem; margin-left: auto; }
 

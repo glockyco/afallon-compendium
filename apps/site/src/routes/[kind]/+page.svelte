@@ -20,5 +20,5 @@
 
 <style>
   .head { margin-bottom: 1.25rem; }
-  h1 { margin: 0; color: #f6f2e7; font: 600 clamp(1.8rem, 4vw, 2.5rem)/1.15 var(--c-serif); }
+  h1 { margin: 0; color: var(--c-text-strong); font: 600 clamp(1.8rem, 4vw, 2.5rem)/1.15 var(--c-serif); }
 </style>

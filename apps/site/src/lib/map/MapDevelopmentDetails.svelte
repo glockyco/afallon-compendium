@@ -49,10 +49,10 @@
 </aside>
 
 <style>
-  .page-link { display: inline-block; margin-top: .4rem; color: #d9bd79; font-size: var(--c-text-small); text-underline-offset: 2px; }
-  .page-link:hover { color: #f0dcae; }
+  .page-link { display: inline-block; margin-top: .4rem; color: var(--c-accent); font-size: var(--c-text-small); text-underline-offset: 2px; }
+  .page-link:hover { color: var(--c-accent-strong); }
   .placement-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .3rem .8rem; margin: .8rem 0; font-size: var(--c-text-small); }
-  dt { color: #8f8c83; }
-  dd { margin: 0; color: #d8d3c7; overflow-wrap: anywhere; }
-  pre { max-height: 24rem; overflow: auto; color: #c8c4ba; font: .68rem/1.4 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+  dt { color: var(--c-text-mute); }
+  dd { margin: 0; color: var(--c-text); overflow-wrap: anywhere; }
+  pre { max-height: 24rem; overflow: auto; color: var(--c-text-soft); font: .68rem/1.4 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>

@@ -46,7 +46,7 @@
 <style>
   .title-block { display: grid; gap: .5rem; margin-bottom: 1.25rem; }
   .heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1.25rem; }
-  h1 { min-width: 0; margin: 0; color: #f6f2e7; font: 600 clamp(1.6rem, 3.5vw, 2.2rem)/1.15 var(--c-serif); overflow-wrap: break-word; }
+  h1 { min-width: 0; margin: 0; color: var(--c-text-strong); font: 600 clamp(1.6rem, 3.5vw, 2.2rem)/1.15 var(--c-serif); overflow-wrap: break-word; }
   .coloured { color: var(--c-rarity); }
   .map { flex: none; }
   .glyph { display: inline-grid; place-items: center; }
@@ -55,5 +55,5 @@
   .facts li { display: inline-flex; align-items: baseline; gap: .35rem; }
   .facts li + li::before { content: '·'; margin: 0 .55rem; color: var(--c-text-mute); }
   .label { color: var(--c-text-dim); }
-  .value { color: #ece7db; }
+  .value { color: var(--c-text-strong); }
 </style>
