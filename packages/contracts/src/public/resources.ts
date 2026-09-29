@@ -254,8 +254,9 @@ export type StaticGeometry = Static<typeof StaticGeometrySchema>;
 // The facts that readers expect and that some pages lack. `itemWithoutSource`: no known way to get the item.
 // `npcWithoutLocation`: no scanned spawner places the creature. `npcWithoutLevel`: the creature has a location but no
 // published level. `placeWithoutMap`: no reviewed game map shows the place. `unresolvedReference`: the page names
-// something that has no record.
-export const COVERAGE_GAP_VALUES = ["itemWithoutSource", "npcWithoutLocation", "npcWithoutLevel", "placeWithoutMap", "unresolvedReference"] as const;
+// something that has no record. `recipeWithoutTeacher`: the recipe is not learned by default, and no captured item action
+// teaches it; other sources can still teach it.
+export const COVERAGE_GAP_VALUES = ["itemWithoutSource", "npcWithoutLocation", "npcWithoutLevel", "placeWithoutMap", "unresolvedReference", "recipeWithoutTeacher"] as const;
 export type CoverageGap = typeof COVERAGE_GAP_VALUES[number];
 
 // What the publication covers, for readers: the pages of each kind, the maps and their locations, and for each gap
@@ -266,7 +267,7 @@ export const StaticCoverageSchema = Type.Object({
   pages: Type.Array(Type.Object({ kind: PublicPageKindSchema, count }, { additionalProperties: false })),
   mapCount: count, placementCount: count,
   gaps: Type.Array(Type.Object({
-    gap: Type.Union([Type.Literal("itemWithoutSource"), Type.Literal("npcWithoutLocation"), Type.Literal("npcWithoutLevel"), Type.Literal("placeWithoutMap"), Type.Literal("unresolvedReference")]),
+    gap: Type.Union([Type.Literal("itemWithoutSource"), Type.Literal("npcWithoutLocation"), Type.Literal("npcWithoutLevel"), Type.Literal("placeWithoutMap"), Type.Literal("unresolvedReference"), Type.Literal("recipeWithoutTeacher")]),
     pages: Type.Array(EntityRefSchema, { minItems: 1 }),
   }, { additionalProperties: false })),
 }, { additionalProperties: false });

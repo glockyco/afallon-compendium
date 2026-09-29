@@ -6,6 +6,7 @@ import type {
   CatalogEndpoint,
   CatalogEntityRow,
   CatalogFacts,
+  CatalogGatheringNode,
   CatalogNpcFacts,
   CatalogPlacementRow,
   CatalogQuestRow,
@@ -52,6 +53,8 @@ import type {
   RequirementGroup,
   RequirementRef,
 } from "@afallon/contracts/public";
+import { craftingRule, recipeRank, recipeTeachings, weaponSkillExperience, type CraftingRule } from "./crafting";
+import { placedNodeBySource, requiredLevel } from "./gathering";
 import { collectRefs, isEntityRef, isPublicPageKind } from "@afallon/contracts/public";
 import { markerCategories, shownCategories } from "./categories";
 import { chancePercent, choicesChance, enabledChance, levelUnion } from "./levels";
@@ -81,6 +84,14 @@ export interface DocumentProjectionInput {
 
 type RelationIndexes = {
   entities: Map<string, CatalogEntityRow>;
+  /** The recipe that each item teaches, and the items that teach each recipe. */
+  teachings: ReadonlyMap<string, string>;
+  teachersByRecipe: Map<string, string[]>;
+  /** The gathering node of each placed-object source, and each node by key. */
+  placedNodes: ReadonlyMap<string, string>;
+  nodes: ReadonlyMap<string, CatalogGatheringNode>;
+  /** The recorded crafting rule, when a recipe with a skill has ranks that need it. */
+  crafting: CraftingRule | null;
   npcFacts: Map<string, CatalogNpcFacts>;
   dropsByOwner: Map<string, CatalogRelations["drops"]>;
   dropsByItem: Map<string, CatalogRelations["drops"]>;
@@ -110,11 +121,14 @@ function pushIndex<T>(index: Map<string, T[]>, key: string | null, value: T): vo
 function relationIndexes(entities: readonly CatalogEntityRow[], facts: CatalogFacts, relations: CatalogRelations): RelationIndexes {
   const result: RelationIndexes = {
     entities: new Map(entities.map((entity) => [entity.entityKey, entity])), npcFacts: new Map(facts.npcs.map((fact) => [fact.entityKey, fact])),
+    teachings: recipeTeachings(facts), teachersByRecipe: new Map(), placedNodes: placedNodeBySource(facts.gatheringNodes),
+    nodes: new Map(facts.gatheringNodes.map((node) => [node.entityKey, node])), crafting: facts.recipes.some((recipe) => recipe.skill?.entityKey && recipe.ranks.length > 0) ? craftingRule(facts) : null,
     dropsByOwner: new Map(), dropsByItem: new Map(), vendorsByNpc: new Map(), vendorsByItem: new Map(),
     gathersByResource: new Map(), gathersByItem: new Map(), containersByItem: new Map(), interactionsByItem: new Map(), questsByQuest: new Map(),
     questsByCounterpart: new Map(), gatedSourcesBySubject: new Map(), recipesByRecipe: new Map(), recipesByItem: new Map(), placementsByNpc: new Map(), placementsByScene: new Map(),
     chainOrder: new Map(facts.quests.flatMap((quest) => quest.chainOrder === null ? [] : [[quest.entityKey, quest.chainOrder] as const])),
   };
+  for (const [item, recipe] of result.teachings) pushIndex(result.teachersByRecipe, recipe, item);
   for (const row of relations.drops) {
     pushIndex(result.dropsByOwner, row.owner.entityKey, row);
     pushIndex(result.dropsByItem, row.item.entityKey, row);
@@ -145,7 +159,7 @@ function relationIndexes(entities: readonly CatalogEntityRow[], facts: CatalogFa
   return result;
 }
 
-function conditionsById(conditions: readonly CatalogCondition[]): ReadonlyMap<string, CatalogCondition> {
+export function conditionsById(conditions: readonly CatalogCondition[]): ReadonlyMap<string, CatalogCondition> {
   return new Map(conditions.map((condition) => [condition.conditionId, condition]));
 }
 
@@ -173,7 +187,7 @@ function projectRequirementGroups(groups: readonly CatalogRequirementGroup[], re
   return groups.map((group) => ({ mode: group.mode, checkCount: group.checkCount, ...(group.requiredCount === null ? {} : { requiredCount: Math.max(0, group.requiredCount) }), requirements: group.requirements.map((requirement) => projectRequirement(requirement, resolve)) }));
 }
 
-function requirementsFor(conditionIds: readonly string[], conditions: ReadonlyMap<string, CatalogCondition>, resolve: ReferenceResolver): RequirementGroup[] {
+export function requirementsFor(conditionIds: readonly string[], conditions: ReadonlyMap<string, CatalogCondition>, resolve: ReferenceResolver): RequirementGroup[] {
   return conditionIds.flatMap((conditionId): RequirementGroup[] => {
     const condition = conditions.get(conditionId);
     if (!condition) throw new Error(`Missing catalog condition ${conditionId}.`);
@@ -398,12 +412,28 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     counterpart: input.resolve(row.npc), price: { amount: Math.max(0, row.cost), currency: endpointOrUnknown(input.resolve, row.currency, "Unknown currency") },
     requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
   })), input);
-  const gatheredFrom = groupPlacementCounts((indexes.gathersByItem.get(entity.entityKey) ?? []).map((row) => ({
-    ...(row.resource === null ? {} : { counterpart: input.resolve(row.resource) }), label: displayName(row.producerLabel) || "Resource",
-    ...(row.skill === null ? {} : { skill: input.resolve(row.skill) }), ...(optionalCount(row.rank) === undefined ? {} : { rank: optionalCount(row.rank) }),
+  // A yield of a gathering node links the node. A row of an object that a scene places belongs to the node of that
+  // object, so it reads as gathered, not collected.
+  const itemInteractions = indexes.interactionsByItem.get(entity.entityKey) ?? [];
+  const nodeRow = (node: CatalogGatheringNode, row: { min: number | null; max: number | null; rawRate: number | null; placementIds: readonly string[] }) => ({
+    counterpart: input.resolve({ entityKey: node.entityKey, label: node.name }), label: displayName(node.name),
+    ...(node.skill?.entityKey ? { skill: input.resolve(node.skill) } : {}),
     ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }), ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }),
     ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }), placements: publishedPlacements(row.placementIds, input.placements),
-  })));
+  });
+  const gatheredFrom = groupPlacementCounts([
+    ...(indexes.gathersByItem.get(entity.entityKey) ?? []).map((row) => {
+      const node = row.gatheringNode?.entityKey ? indexes.nodes.get(row.gatheringNode.entityKey) : undefined;
+      if (node) return nodeRow(node, row);
+      return {
+        ...(row.resource === null ? {} : { counterpart: input.resolve(row.resource) }), label: displayName(row.producerLabel) || "Resource",
+        ...(row.skill === null ? {} : { skill: input.resolve(row.skill) }), ...(optionalCount(row.rank) === undefined ? {} : { rank: optionalCount(row.rank) }),
+        ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }), ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }),
+        ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }), placements: publishedPlacements(row.placementIds, input.placements),
+      };
+    }),
+    ...itemInteractions.flatMap((row) => { const node = indexes.nodes.get(indexes.placedNodes.get(row.sourceId) ?? ""); return node ? [nodeRow(node, row)] : []; }),
+  ]);
   const inContainers = groupPlacementCounts((indexes.containersByItem.get(entity.entityKey) ?? []).map((row) => ({
     ...(row.place === null ? {} : { counterpart: input.resolve(row.place) }), label: displayName(row.containerType ?? "") || "Container",
     ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
@@ -411,7 +441,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     availability: projectAvailability(row.availability, conditions, input.resolve),
     placements: publishedPlacements(row.placementIds, input.placements),
   })));
-  const collectedFrom = groupPlacementCounts((indexes.interactionsByItem.get(entity.entityKey) ?? []).map((row) => ({
+  const collectedFrom = groupPlacementCounts(itemInteractions.filter((row) => !indexes.placedNodes.has(row.sourceId)).map((row) => ({
     ...(row.place === null ? {} : { counterpart: input.resolve(row.place) }), label: displayName(row.objectName ?? "") || "Object",
     ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
     ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }), ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }),
@@ -420,6 +450,9 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
   })));
   const questRows = indexes.questsByCounterpart.get(entity.entityKey) ?? [];
   const recipeRows = indexes.recipesByItem.get(entity.entityKey) ?? [];
+  const taughtRecipe = indexes.teachings.get(entity.entityKey);
+  const taughtProduct = taughtRecipe === undefined ? undefined : (indexes.recipesByRecipe.get(taughtRecipe) ?? []).find((row) => row.role === "product");
+  const teaches = taughtRecipe === undefined ? undefined : { recipe: input.resolve({ entityKey: taughtRecipe, label: taughtRecipe }), ...(taughtProduct ? { product: input.resolve(taughtProduct.item) } : {}) };
   // Native item records carry authored defaults for both equipment branches; only the active branch is public evidence.
   const isArmor = fact?.itemType === "ARMOR", isWeapon = fact?.itemType === "WEAPON";
   const itemPower = fact?.stats.find((row) => row.stat.entityKey === "stats:53")?.amount;
@@ -454,7 +487,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
       actionAbilities: (fact?.actionAbilities ?? []).map((ability) => ({ ability: input.resolve(ability.ability), rankIndex: Math.max(0, ability.rankIndex) })),
       useLines: fact?.useLines ?? [], equipmentRequirements: projectRequirementGroups(fact?.equipmentRequirements ?? [], input.resolve),
       ...(levelRequirement === undefined ? {} : { levelRequirement }), useConditions: projectRequirementGroups(fact?.useConditions ?? [], input.resolve),
-      ...(gearSet === undefined ? {} : { gearSet }),
+      ...(gearSet === undefined ? {} : { gearSet }), ...(teaches === undefined ? {} : { teaches }),
     },
     droppedBy, soldBy, gatheredFrom, inContainers, collectedFrom,
     rewardedBy: questRows.filter((row) => row.kind === "reward" || row.kind === "rewardChoice").map((row) => ({ counterpart: input.resolve(row.quest), count: Math.max(0, row.count ?? 1), choice: row.kind === "rewardChoice" })),
@@ -973,15 +1006,29 @@ function projectSkill(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
     const product = (indexes.recipesByRecipe.get(recipe.entityKey) ?? []).find((row) => row.role === "product"), station = optionalFactRef(input.resolve, recipe.station);
     return { recipe: input.resolve({ entityKey: recipe.entityKey, label: recipe.entityKey }), ...(product ? { product: input.resolve(product.item) } : {}), ...(station ? { station } : {}) };
   }).sort((a, b) => refName(a.recipe).localeCompare(refName(b.recipe)));
+  // The gathering nodes whose skill experience action names the skill, by required level.
+  const conditions = conditionsById(input.relations.conditions);
+  const nodes = input.facts.gatheringNodes.filter((node) => node.skill?.entityKey === entity.entityKey)
+    .map((node) => ({ node, level: requiredLevel(node, conditions) ?? 0, ref: input.resolve({ entityKey: node.entityKey, label: node.name }) }))
+    .sort((left, right) => left.level - right.level || refName(left.ref).localeCompare(refName(right.ref)))
+    .map(({ node, ref: nodeRef }) => ({ node: nodeRef, requirements: node.conditionId === null ? [] : requirementsFor([node.conditionId], conditions, input.resolve),
+      ...(optionalCount(node.skillExperience) === undefined ? {} : { experience: optionalCount(node.skillExperience) }) }));
+  const weapon = weaponSkillExperience(input.facts);
   return {
     ...baseDocument(entity, ref, input),
     facts: { ...(highest === null ? {} : { highestLevel: highest }), automatic: details?.automaticallyAdded ?? true },
-    recipes, ...(curve ? { curve } : {}),
+    recipes, ...(curve ? { curve } : {}), gatheringNodes: nodes,
+    experience: { ...(weapon.skills.has(entity.entityKey) ? { autoAttack: { perHit: weapon.perHit } } : {}), crafting: recipes.length > 0, gathering: nodes.length > 0 },
   };
 }
 
 function refName(ref: Ref): string {
   return isEntityRef(ref) ? ref.name : ref.label;
+}
+
+function skillHighestLevel(facts: CatalogFacts, skillKey: string): number | undefined {
+  const fact = facts.progression.facts.find((candidate) => candidate.entityKey === skillKey);
+  return fact?.kind === "skills" && fact.details.maxLevel > 0 ? fact.details.maxLevel : undefined;
 }
 
 function projectRecipe(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes): PublicRecipe {
@@ -990,11 +1037,17 @@ function projectRecipe(entity: CatalogEntityRow, ref: EntityRef, input: Document
   const product = rows.find((row) => row.role === "product");
   const firstRank = fact?.ranks[0];
   const station = optionalFactRef(input.resolve, fact?.station), skill = optionalFactRef(input.resolve, fact?.skill);
+  // A rank's gate and bands need the recipe's skill and its highest level, so a recipe without them shows no ranks.
+  const highest = fact?.skill?.entityKey ? skillHighestLevel(input.facts, fact.skill.entityKey) : undefined;
+  const ranks = highest === undefined || indexes.crafting === null ? [] : (fact?.ranks ?? []).map((rank) => recipeRank(rank, highest, indexes.crafting!));
+  const taughtBy = (indexes.teachersByRecipe.get(entity.entityKey) ?? []).map((item) => input.resolve({ entityKey: item, label: item }))
+    .filter(isEntityRef).sort((left, right) => left.name.localeCompare(right.name));
   return {
     ...baseDocument(entity, ref, input),
-    facts: { ...(station === undefined ? {} : { station }), ...(skill === undefined ? {} : { skill }), ...(firstRank ? { rank: Math.max(0, firstRank.rank) } : {}) },
+    facts: { ...(station === undefined ? {} : { station }), ...(skill === undefined ? {} : { skill }), ...(firstRank ? { rank: Math.max(0, firstRank.rank) } : {}), learnedByDefault: fact?.learnedByDefault ?? false },
     ...(product ? { product: { counterpart: input.resolve(product.item), count: Math.max(0, product.count) } } : {}),
     materials: rows.filter((row) => row.role === "material").map((row) => ({ counterpart: input.resolve(row.item), count: Math.max(0, row.count) })),
+    ranks, taughtBy,
   };
 }
 

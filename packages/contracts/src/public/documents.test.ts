@@ -4,7 +4,7 @@ import {
   ArtRefSchema, ConnectionRowSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, VendorRowSchema,
   PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
-  type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe, type PublicClass, type PublicSkill, type CharacterProgression, type HeroicTier, type MechanicsRule,
+  type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicRecipe, type PublicClass, type PublicSkill, type CharacterProgression, type HeroicTier, type MechanicsRule, type CraftingAndGathering, type PublicGatheringNode,
   type StaticRootManifest, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, StaticItemDocumentSchema, type StaticCoverage,
 } from "./index";
 import type { Static } from "typebox";
@@ -18,8 +18,8 @@ const unresolved: UnresolvedRef = { key: null, label: "Unknown item 9999" };
 const placement = { placementId: "p1", mapSpaceId: "map", label: "Duskfall Depths" };
 const requirement = (type: string, label: string, fields: Record<string, unknown> = {}) => ({ type: { value: 0, name: type }, rule: { value: 0, name: "Mandatory" }, label, spans: [{ text: label }], ...fields });
 const legacySchemaIds = {
-  items: "compendium.static-item.v4", npcs: "compendium.static-npc.v3", quests: "compendium.static-quest.v3", places: "compendium.static-place.v4",
-  properties: "compendium.static-property.v2", abilities: "compendium.static-ability.v3", recipes: "compendium.static-recipe.v2",
+  items: "compendium.static-item.v5", npcs: "compendium.static-npc.v3", quests: "compendium.static-quest.v3", places: "compendium.static-place.v4",
+  properties: "compendium.static-property.v2", abilities: "compendium.static-ability.v3", recipes: "compendium.static-recipe.v3", skills: "compendium.static-skill.v2",
 } as const;
 
 test("references are keyed and typed; name-only shapes are rejected", () => {
@@ -81,6 +81,21 @@ const heroicTier: HeroicTier = {
     baseHealthMultiplier: 3, baseDamageMultiplier: 2, gearScoreCoefficient: 0.0008, maxGearBonus: 1, affixChance: 0.25, extraAffixChance: 0.08, maxAffixes: 4, rareGuaranteedAffixes: 1, affixLootDropMultiplier: 1.5, heroicGearStatBonusPercent: 50 },
   rules: [{ ...rule, id: "heroic-kill-rounding-ties", section: "kill-experience", status: "unknown", phrase: "The tie rule is not known.", operands: {} }],
 };
+const mining: EntityRef = { key: "skills:7", kind: "skills", name: "Mining", slug: "mining" };
+const vein: EntityRef = { key: "gatheringNodes:small-iron-vein", kind: "gatheringNodes", name: "Small Iron Vein", slug: "small-iron-vein" };
+const spawnerTiming = { skill: mining, skillCap: 150, respawnSeconds: 120, jitterSeconds: 30, despawnSeconds: 60, playerRange: 40 };
+// A node that spawners and a scene both place, with a yield whose item has no record.
+const gatheringNode: PublicGatheringNode = {
+  ...base, ref: vein, facts: { skill: mining, requiredLevel: 1, skillExperience: 15, characterExperience: 4, requirements: [{ mode: "all", checkCount: false, requirements: [requirement("Skill", "Mining 1")] }], variant: false },
+  yields: [{ counterpart: item, min: 1, max: 2, chance: 100 }, { counterpart: unresolved, min: 1, max: 1, chance: 5 }],
+  spawners: [{ ...spawnerTiming, options: [{ node: vein, lowSkillWeight: 70, highSkillWeight: 24, teaserWeight: 0 }], spawners: 3, placements: [placement], unplaced: 2 }],
+  placed: [{ cooldownSeconds: 300, objects: 1, placements: [placement], unplaced: 0 }], rules: [{ ...rule, id: "placed-node-cooldown", section: "node-availability", phrase: "A placed node becomes ready after its cooldown.", operands: {} }],
+};
+const craftingAndGathering: CraftingAndGathering = {
+  ...base, ref: { key: "mechanics:crafting-and-gathering", kind: "mechanics", name: "Crafting and Gathering", slug: "crafting-and-gathering" }, topic: "crafting-and-gathering",
+  rules: [{ ...rule, id: "recipe-experience-bands", section: "crafting-experience", phrase: "Half experience from +{halfFromLevels} levels.", operands: { halfFromLevels: 20 } }],
+  spawnerExamples: [{ ...spawnerTiming, options: [{ node: vein, lowSkillWeight: 70, highSkillWeight: 24, teaserWeight: 0 }], spawners: 3 }],
+};
 const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } = {
   items: { ...base, ref: item, facts: { rarity: "Common", itemType: "ARMOR", slot: "GLOVES", stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 7, isPercent: false }], randomStats: [{ stat: { key: "stats:0", kind: "stats", name: "Health" }, min: 10, max: 40, isPercent: false, whole: false, chance: 100 }], randomStatsMax: 0, sockets: [{ gemType: "Green Gem" }], sellPrice: { amount: 5, currency: gold }, stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
     droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [] }], soldBy: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf: [] } satisfies PublicItem,
@@ -90,14 +105,18 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
   places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], quests: [], questObjectives: [], properties: [], connections: [], regions: [] } satisfies PublicPlace,
   properties: { ...located, ref: { key: "properties:1", kind: "properties", name: "Mill", slug: "mill" }, facts: { income: { amount: 60, currency: gold }, incomeInterval: 300 } } satisfies PublicProperty,
   abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, versions: [{ keys: ["abilities:194"], anchor: "n194", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Deals damage", tone: "damage", italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [boss], taughtBy: [] }] } satisfies PublicAbility,
-  recipes: { ...base, ref: { key: "recipes:81", kind: "recipes", name: "Aetherial Elixir", slug: "aetherial-elixir" }, facts: {}, product: { counterpart: item, count: 1 }, materials: [] } satisfies PublicRecipe,
+  // A rank with no base experience has no bands.
+  recipes: { ...base, ref: { key: "recipes:81", kind: "recipes", name: "Aetherial Elixir", slug: "aetherial-elixir" }, facts: { learnedByDefault: false }, product: { counterpart: item, count: 1 }, materials: [],
+    ranks: [{ rank: 1, requiredLevel: 1, baseExperience: 0, bands: [] }], taughtBy: [item] } satisfies PublicRecipe,
   classes: { ...base, ref: { key: "classes:0", kind: "classes", name: "Shieldmaster", slug: "shieldmaster" }, facts: { races: ["Dwarf"], weapons: ["Shield"], talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], highestLevel: 60 },
     trees: [{ anchor: "tree-18", name: "Aegis Mastery", points: "Talent Points", rows: [{ anchor: "talent-18-3", tier: 3, position: 2, name: "Aegis Discipline", ranks: 5,
       first: { rank: 1, stats: [{ stat: { key: "stats:125", kind: "stats", name: "Block Chance" }, amount: 2, isPercent: false }], text: [] }, last: { rank: 5, stats: [{ stat: { key: "stats:125", kind: "stats", name: "Block Chance" }, amount: 10, isPercent: false }], text: [] },
       requirements: [{ mode: "all", checkCount: false, requirements: [{ type: { value: 20, name: "Bonus" }, rule: { value: 0, name: "Mandatory" }, label: "Weighted Strikes rank 4 or higher", spans: [{ ref: { key: "classes:0", kind: "classes", name: "Weighted Strikes", slug: "shieldmaster", variant: "talent-18-1" } }, { text: " rank 4 or higher" }] }] }] }] }],
     startingGear: [{ item, count: 1, equipped: true }] } satisfies PublicClass,
-  skills: { ...base, ref: { key: "skills:0", kind: "skills", name: "Alchemy", slug: "alchemy" }, facts: { highestLevel: 300, automatic: true }, recipes: [{ recipe: { key: "recipes:81", kind: "recipes", name: "Aetherial Elixir", slug: "aetherial-elixir" }, product: item }] } satisfies PublicSkill,
+  skills: { ...base, ref: { key: "skills:0", kind: "skills", name: "Alchemy", slug: "alchemy" }, facts: { highestLevel: 300, automatic: true }, recipes: [{ recipe: { key: "recipes:81", kind: "recipes", name: "Aetherial Elixir", slug: "aetherial-elixir" }, product: item }],
+    gatheringNodes: [], experience: { crafting: true, gathering: false } } satisfies PublicSkill,
   mechanics: characterProgression,
+  gatheringNodes: gatheringNode,
 };
 
 test("every kind document validates and rejects unknown properties", () => {
@@ -114,12 +133,14 @@ test("every kind document validates and rejects unknown properties", () => {
   }
 });
 
-test("both mechanics topics validate, and a mechanics document of an unknown topic or kind does not", () => {
-  const schema = STATIC_DOCUMENT_SCHEMAS["compendium.static-mechanics.v1"];
-  for (const document of [characterProgression, heroicTier]) Assert(schema, { schemaVersion: "compendium.static-mechanics.v1", ...identity, kind: "mechanics", document });
+test("every mechanics topic validates, and a mechanics document of an unknown topic or kind does not", () => {
+  const schema = STATIC_DOCUMENT_SCHEMAS["compendium.static-mechanics.v2"];
+  for (const document of [characterProgression, heroicTier, craftingAndGathering]) Assert(schema, { schemaVersion: "compendium.static-mechanics.v2", ...identity, kind: "mechanics", document });
+  // A spawner example names no placements; the node pages list them.
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...craftingAndGathering, spawnerExamples: [{ ...craftingAndGathering.spawnerExamples[0], placements: [] }] })).toThrow();
   Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...heroicTier, settings: { unavailable: "The scan of this build recorded no Heroic tier settings." } });
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...heroicTier, topic: "corruption" })).toThrow();
-  expect(() => Assert(schema, { schemaVersion: "compendium.static-mechanics.v1", ...identity, kind: "guides", document: characterProgression })).toThrow();
+  expect(() => Assert(schema, { schemaVersion: "compendium.static-mechanics.v2", ...identity, kind: "guides", document: characterProgression })).toThrow();
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, rules: [{ ...rule, status: "inferred" }] })).toThrow();
 });
 
@@ -138,7 +159,7 @@ test("an item names each published class that starts with it", () => {
 
 test("a v3 root reaches documents and artwork through graph edges and passes semantics", () => {
   const ref = (schemaId: string, sha: string) => ({ path: `resources/${sha}.json`, sha256: sha, bytes: 10, schemaId });
-  const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: "compendium.static-item.v5", ...identity, kind: "items", document: fixtures.items as PublicItem };
+  const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: "compendium.static-item.v6", ...identity, kind: "items", document: fixtures.items as PublicItem };
   const npcDocument = { schemaVersion: "compendium.static-npc.v4", ...identity, kind: "npcs", document: fixtures.npcs as PublicNpc } as const;
   const itemReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.items, "1".repeat(64)), npcReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.npcs, "2".repeat(64));
   const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v4", ...identity, part: 0, entries: [{ ref: item, hasPlacements: false, sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, hasPlacements: true, sourceKinds: [], document: npcReference as never }] };

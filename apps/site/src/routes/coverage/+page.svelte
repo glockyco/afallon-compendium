@@ -31,6 +31,10 @@
       title: 'Pages with an unknown reference',
       text: 'These pages name something that has no record in the game data of this build. The name shows as plain text.',
     },
+    recipeWithoutTeacher: {
+      title: 'Recipes without a known teaching item',
+      text: 'These recipes are not learned by default, and no captured item action teaches them. A dialogue, object, quest, or other game action can still teach them, but the scans do not record those sources for recipes yet.',
+    },
   };
 
   $: coverage = data.coverage;

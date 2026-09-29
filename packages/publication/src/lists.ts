@@ -5,6 +5,7 @@ import type {
   PublicAbility,
   PublicClass,
   PublicDocument,
+  PublicGatheringNode,
   PublicItem,
   PublicKindEntry,
   PublicNpc,
@@ -94,6 +95,12 @@ function skillRow(document: PublicSkill): ListRow {
   return { ref: document.ref, values: { highestLevel: document.facts.highestLevel ?? null, recipes: document.recipes.length }, facets: {} };
 }
 
+function gatheringNodeRow(document: PublicGatheringNode): ListRow {
+  const skill = refName(document.facts.skill);
+  const locations = [...document.spawners, ...document.placed].reduce((sum, group) => sum + group.placements.length, 0);
+  return { ref: document.ref, values: { skill, requiredLevel: document.facts.requiredLevel ?? null, locations }, facets: { skill: facetValue(skill) } };
+}
+
 export function buildKindLists(
   identity: { buildId: string; catalogId: string },
   registry: readonly PublicKindEntry[],
@@ -113,6 +120,7 @@ export function buildKindLists(
       case "classes": if (!isClass(document)) continue; row = classRow(document); break;
       case "skills": if (!isSkill(document)) continue; row = skillRow(document); break;
       case "mechanics": row = { ref: document.ref, values: {}, facets: {} }; break;
+      case "gatheringNodes": row = gatheringNodeRow(document as PublicGatheringNode); break;
       default: continue;
     }
     const rows = rowsByKind.get(document.ref.kind) ?? [];

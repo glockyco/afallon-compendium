@@ -26,7 +26,8 @@ import {
 import { generateArtworkResources } from "./artwork";
 import { readerCoverage } from "./coverage";
 import { usableTeleports } from "./connections";
-import { projectPublicDocuments, startingGearByItem, type PublishedPlacement } from "./documents";
+import { conditionsById, projectPublicDocuments, requirementsFor, startingGearByItem, type PublishedPlacement } from "./documents";
+import { projectGatheringNodeDocuments } from "./gathering";
 import { projectMechanicsDocuments } from "./mechanics";
 import { assertExclusionEvidence, withoutExcludedRelations } from "./exclusions";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
@@ -131,7 +132,10 @@ export async function generateIndexResources(
   const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
     resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey,
     classWeapons: classWeapons(queryCatalogFullEntities(db).records) });
-  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), spawnedLevels, createReferenceResolver(refs))]);
+  const conditions = conditionsById(relations.records.conditions), resolve = createReferenceResolver(refs);
+  const nodeDocuments = projectGatheringNodeDocuments(facts.records, relations.records, { resolve, conditions, placements: publishedPlacements,
+    requirements: (conditionIds) => requirementsFor(conditionIds, conditions, resolve) });
+  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), spawnedLevels, resolve), ...nodeDocuments]);
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {

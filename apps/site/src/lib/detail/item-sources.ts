@@ -86,6 +86,7 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
 /** What an item is for. */
 export function itemUseLines(item: PublicItem): SummaryLine[] {
   return [
+    line('teaches', 'Teaches', item.facts.teaches ? [{ ref: item.facts.teaches.recipe }] : []),
     line('used-in-recipes', 'Used in recipes', item.usedInRecipes.map((row) => ({ ref: row.counterpart }))),
     line('needed-for-quests', 'Needed for quests', item.usedInQuests.map((row) => ({ ref: row.counterpart }))),
   ].filter((entry): entry is SummaryLine => entry !== undefined);

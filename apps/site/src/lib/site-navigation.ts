@@ -3,7 +3,7 @@ import type { PublicKindEntry } from '@afallon/contracts/public';
 export interface NavigationLink { label: string; href: string }
 export interface NavigationGroup { id: string; label: string; links: NavigationLink[] }
 
-// Top navigation groups in order. `map` is a route, not a page kind. Mechanics links to its two topics directly.
+// Top navigation groups in order. `map` is a route, not a page kind. Mechanics links to its topics directly.
 const GROUPS: ReadonlyArray<{ id: string; label: string; entries: readonly string[] }> = [
   { id: 'world', label: 'World', entries: ['map', 'places', 'npcs', 'quests', 'properties'] },
   { id: 'items', label: 'Items', entries: ['items', 'recipes'] },
@@ -25,6 +25,7 @@ export function navigationGroups(registry: readonly PublicKindEntry[], base: str
   const mechanicsLinks: NavigationLink[] = mechanics ? [
     { label: 'Character Progression', href: `${base}/${mechanics.route}/character-progression/` },
     { label: 'Heroic Tier', href: `${base}/${mechanics.route}/heroic-tier/` },
+    { label: 'Crafting and Gathering', href: `${base}/${mechanics.route}/crafting-and-gathering/` },
   ] : [];
   return GROUPS.map((group) => ({
     id: group.id,

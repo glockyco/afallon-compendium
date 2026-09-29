@@ -1,11 +1,13 @@
 import { HEROIC_TIER_KEY, type CatalogFacts, type CatalogMechanicsRule, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { CharacterProgression, EntityRef, PublicLevel, ExperienceSources, HeroicTier, MechanicsRule, PublicMechanics, TalentPoints } from "@afallon/contracts/public";
+import type { CharacterProgression, CraftingAndGathering, EntityRef, PublicLevel, ExperienceSources, HeroicTier, MechanicsRule, PublicMechanics, TalentPoints } from "@afallon/contracts/public";
 import type { ReferenceResolver } from "./documents";
+import { spawnerExamples } from "./gathering";
 import { displayName } from "./text";
 
 const TOPICS: Record<MechanicsTopic, { name: string; description: string }> = {
   "character-progression": { name: "Character Progression", description: "How a character gains experience, levels, and talent points in this build." },
   "heroic-tier": { name: "Heroic Tier", description: "How the Heroic tier changes kill experience, Heroic Essence, creatures, and gear in this build." },
+  "crafting-and-gathering": { name: "Crafting and Gathering", description: "How crafting and gathering give items and skill experience in this build." },
 };
 
 function topicRef(topic: MechanicsTopic): EntityRef {
@@ -98,6 +100,13 @@ function heroicTier(facts: CatalogFacts, resolve: ReferenceResolver): HeroicTier
   };
 }
 
+function craftingAndGathering(facts: CatalogFacts, resolve: ReferenceResolver): CraftingAndGathering {
+  return {
+    ref: topicRef("crafting-and-gathering"), description: TOPICS["crafting-and-gathering"].description, art: {}, topic: "crafting-and-gathering",
+    rules: rules(facts.progression.mechanicsRules, "crafting-and-gathering", resolve), spawnerExamples: spawnerExamples(facts.gatheringNodes, resolve, new Map()),
+  };
+}
+
 /**
  * The mechanics topic documents, keyed by their publication-owned keys. `published` holds the keys of records that have
  * references, and `spawned` the level range of each creature over its published spawners. A catalog built from a v2
@@ -105,6 +114,6 @@ function heroicTier(facts: CatalogFacts, resolve: ReferenceResolver): HeroicTier
  */
 export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver): ReadonlyMap<string, PublicMechanics> {
   if (facts.progression.mechanicsRules.length === 0) return new Map();
-  const documents: PublicMechanics[] = [characterProgression(facts, published, spawned, resolve), heroicTier(facts, resolve)];
+  const documents: PublicMechanics[] = [characterProgression(facts, published, spawned, resolve), heroicTier(facts, resolve), craftingAndGathering(facts, resolve)];
   return new Map(documents.map((document) => [document.ref.key, document]));
 }

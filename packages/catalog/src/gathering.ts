@@ -58,6 +58,11 @@ export interface GatheringNodeRows {
 export function gatheringNodes(contexts: readonly SceneContext[], labels: ReadonlyMap<string, string | null>, blockers: Blocker[]): GatheringNodeRows {
   type Candidate = { content: NodeContent; source: Omit<NormalizedGatheringNodeSource, "nodeKey">; lootTableId: number | null };
   const candidates: Candidate[] = [];
+  const entityRef = (kind: string, nativeId: number | null): NormalizedReference | null => {
+    if (nativeId === null || nativeId < 0) return null;
+    const key = entityKey(kind, nativeId);
+    return labels.has(key) ? { entityKey: key, label: labels.get(key) ?? key } : { entityKey: null, label: `${kind} ${nativeId}` };
+  };
   const gatheringSkills = new Set<number>();
   for (const context of contexts) for (const producer of context.world.resourceProducers) if ("options" in producer && producer.gatheringSkillID !== null) gatheringSkills.add(producer.gatheringSkillID);
   const seen = new Set<string>();
@@ -76,7 +81,7 @@ export function gatheringNodes(contexts: readonly SceneContext[], labels: Readon
         const contents = option.authoredInteractables.flatMap((object) => "unavailable" in object ? [] : [nodeContent(object)]).filter((row): row is NodeContent => row !== null);
         if (contents.length !== 1) { blockers.push({ kind: "unresolved-gathering-node", key, detail: `Spawner option has ${contents.length} objects that give loot or skill experience.`, provenance: [reference] }); continue; }
         candidates.push({ content: contents[0]!, lootTableId: contents[0]!.lootTableId, source: { sourceId: identity.sourceId, sourceKind: "spawner-option", optionIndex: option.optionIndex, cooldown: null,
-          spawner: { respawnTime: producer.respawnTime, respawnJitter: producer.respawnJitter, despawnDelay: producer.despawnDelay, playerRange: producer.playerRange, skillCap: producer.skillCap, weightAtLowSkill: option.weightAtLowSkill, weightAtHighSkill: option.weightAtHighSkill, teaserWeight: option.teaserWeight },
+          spawner: { skill: entityRef("skills", producer.gatheringSkillID), respawnTime: producer.respawnTime, respawnJitter: producer.respawnJitter, despawnDelay: producer.despawnDelay, playerRange: producer.playerRange, skillCap: producer.skillCap, weightAtLowSkill: option.weightAtLowSkill, weightAtHighSkill: option.weightAtHighSkill, teaserWeight: option.teaserWeight },
           provenance: [reference] } });
       }
     }
@@ -94,11 +99,6 @@ export function gatheringNodes(contexts: readonly SceneContext[], labels: Readon
   const byName = new Map<string, Candidate[]>();
   for (const candidate of candidates) byName.set(candidate.content.name, [...byName.get(candidate.content.name) ?? [], candidate]);
   const out: GatheringNodeRows = { gatheringNodes: [], gatheringNodeSources: [], conditions: [], nodeBySpawnerOutput: new Map() };
-  const reference = (kind: string, nativeId: number | null): NormalizedReference | null => {
-    if (nativeId === null || nativeId < 0) return null;
-    const key = entityKey(kind, nativeId);
-    return labels.has(key) ? { entityKey: key, label: labels.get(key) ?? key } : { entityKey: null, label: `${kind} ${nativeId}` };
-  };
   for (const [name, group] of [...byName].sort(([a], [b]) => a.localeCompare(b))) {
     const variants = new Map<string, Candidate[]>();
     for (const candidate of group) variants.set(signature(candidate.content), [...variants.get(signature(candidate.content)) ?? [], candidate]);
@@ -106,14 +106,14 @@ export function gatheringNodes(contexts: readonly SceneContext[], labels: Readon
     const usedKeys = new Set<string>();
     for (const members of variants.values()) {
       const content = members[0]!.content;
-      const table = reference("lootTables", content.lootTableId);
+      const table = entityRef("lootTables", content.lootTableId);
       // A variant key names its loot table; variants that share the table take the next free ordinal.
       const base = `gatheringNodes:${slug(name)}${variants.size > 1 ? `--${slug(table?.label ?? "variant")}` : ""}`;
       let nodeKey = base;
       for (let ordinal = 2; usedKeys.has(nodeKey); ordinal += 1) nodeKey = `${base}-${ordinal}`;
       usedKeys.add(nodeKey);
       const provenance = members.flatMap((row) => row.source.provenance);
-      const skill = reference("skills", content.skillId);
+      const skill = entityRef("skills", content.skillId);
       if (skill?.entityKey === null || table?.entityKey === null) blockers.push({ kind: "missing-reference", key: nodeKey, detail: `Gathering node ${name} names a missing skill or loot table.`, provenance });
       const condition = content.template === null ? null : conditionFrom("gathering-node", nodeKey, content.template, "requirements-template", null, provenance);
       if (condition) out.conditions.push(condition);

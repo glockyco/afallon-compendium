@@ -1,4 +1,4 @@
-import { PUBLIC_PAGE_KIND_VALUES, type CoverageGap, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicPageKind, type PublicPlace, type StaticCoverage } from "@afallon/contracts/public";
+import { PUBLIC_PAGE_KIND_VALUES, type CoverageGap, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicPageKind, type PublicPlace, type PublicRecipe, type StaticCoverage } from "@afallon/contracts/public";
 import { countUnresolvedReferences } from "./documents";
 
 const PAGE_KINDS: ReadonlySet<string> = new Set(PUBLIC_PAGE_KIND_VALUES);
@@ -14,6 +14,7 @@ const GAP_TESTS: ReadonlyArray<readonly [CoverageGap, (document: PublicDocument)
   ["npcWithoutLevel", (document) => document.ref.kind === "npcs" && (document as PublicNpc).locations.length > 0 && !(document as PublicNpc).facts.level],
   ["placeWithoutMap", (document) => document.ref.kind === "places" && (document as PublicPlace).space === null],
   ["unresolvedReference", (document) => countUnresolvedReferences(document) > 0],
+  ["recipeWithoutTeacher", (document) => document.ref.kind === "recipes" && !(document as PublicRecipe).facts.learnedByDefault && (document as PublicRecipe).taughtBy.length === 0],
 ];
 
 /** The pages of each kind and, for each gap, the pages that it affects. */

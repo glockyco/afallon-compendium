@@ -16,7 +16,7 @@ const quest = (nativeId: number, max: number | null) => ({ entityKey: `quests:${
 const facts = {
   npcs: [npc(1, 1, 30, false, 20, -20), npc(2, 5, 12, false, 20, -20), npc(3, 100, 100, true), npc(4, 1, 20, true), npc(5, 40, 40, false)],
   quests: [quest(1, 31), quest(2, null)],
-  progression: { facts: progressionFacts, offeredClasses: ["classes:0"], mechanicsRules: [rule] },
+  progression: { facts: progressionFacts, offeredClasses: ["classes:0"], mechanicsRules: [rule] }, gatheringNodes: [],
 } as unknown as CatalogFacts;
 // Placeholder 100–100 records spawn in their zone: npcs:3 at 15–30, npcs:4 without an upper bound.
 const spawned = new Map([["npcs:3", { min: 15, max: 30, scales: true }], ["npcs:4", { min: 5, scales: true }]]);

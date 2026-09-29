@@ -15,10 +15,10 @@
 
   const resourceName = (row: GatherRow) => row.counterpart ? nameOf(row.counterpart) : row.label;
   const columns: RelationColumn<GatherRow>[] = [
-    { id: 'name', label: 'Resource', value: resourceName, sort: resourceName },
+    { id: 'name', label: 'Gathering node', value: resourceName, sort: resourceName },
     { id: 'skill', label: 'Skill', value: (row) => row.skill ? nameOf(row.skill) : undefined, sort: (row) => row.skill ? nameOf(row.skill) : undefined },
     { id: 'rank', label: 'Rank', hint: 'The skill rank that gathering the resource needs.', numeric: true, value: (row) => row.rank, sort: (row) => row.rank },
-    { id: 'quantity', label: 'Quantity', hint: 'How many of the item one gathering gives.', numeric: true,
+    { id: 'quantity', label: 'Quantity', hint: 'How many of the item one gathering gives, before the gathering yield bonus.', numeric: true,
       value: (row) => rangeText(row.min, row.max) ?? undefined, sort: (row) => row.max ?? row.min, whenShared: omitWhenShared('1') },
     { id: 'chance', label: 'Chance', hint: 'The chance that one gathering gives the item.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
     { id: 'spots', label: 'Map spots', numeric: true, value: (row) => row.placementCount, sort: (row) => row.placementCount, whenShared: omitWhenShared(1) },

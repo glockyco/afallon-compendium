@@ -232,7 +232,7 @@ test("stores gathering nodes with their sources and yields, and keeps a node wit
       sceneSourceSha256: "b".repeat(64), sourceSha256: String(index).repeat(64), serializedFile: "scene", gameObjectPathId: String(index + 101), componentPathId: String(index + 201),
       loaderSourceId: null, typeName: "Source", assembly: "Game", position,
     }));
-    const spawner = { respawnTime: 120, respawnJitter: 30, despawnDelay: 60, playerRange: 40, skillCap: 150, weightAtLowSkill: 70, weightAtHighSkill: 24, teaserWeight: 0 };
+    const spawner = { skill: { entityKey: "skills:7", label: "Mining" }, respawnTime: 120, respawnJitter: 30, despawnDelay: 60, playerRange: 40, skillCap: 150, weightAtLowSkill: 70, weightAtHighSkill: 24, teaserWeight: 0 };
     const node = (entityKey: string, name: string) => ({ entityKey, name, levelHint: null, variant: false, skill: { entityKey: "skills:7", label: "Mining" }, skillExperience: 15, characterExperience: 4, lootTable: null, conditionId: null, provenance });
     const input: NormalizedDatabaseInput = {
       buildId: "build", identityResults: [{

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { CatalogEntityRow, CatalogFacts, CatalogProgressionFact, CatalogRelations, CatalogRequirement, CatalogRequirementSpan, ProgressionAbility, ProgressionClass, ProgressionSkill } from "@afallon/contracts/catalog";
+import type { CatalogEntityRow, CatalogFacts, CatalogProgressionFact, CatalogRelations, CatalogRequirement, CatalogRequirementSpan, ProgressionAbility, ProgressionClass, ProgressionSkill, CatalogMechanicsRule } from "@afallon/contracts/catalog";
 import type { PublicAbility, PublicClass, PublicItem, PublicSkill } from "@afallon/contracts/public";
 import { readerCoverage } from "./coverage";
 import { projectPublicDocuments } from "./documents";
@@ -50,6 +50,15 @@ const progressionFacts: CatalogProgressionFact[] = [
 ];
 const node = (tree: string, nodeIndex: number, nodeType: string, target: string, label: string, tier: number, row: number, conditionId: string | null = null) => ({ tree, nodeIndex, nodeType, target: ref(target, label), tier, row, conditionId });
 const lines = [{ spans: [{ text: "Hits", tone: null, italic: false }] }];
+// The recorded crafting rule and the weapon skill mapping, which recipe and skill pages read.
+const craftingRule = (ruleId: string, operands: Record<string, number>, links: Array<{ entityKey: string; label: string }> = []): CatalogMechanicsRule => ({
+  ruleId, topic: "crafting-and-gathering", section: "crafting", ordinal: 0, status: "verified", phrase: "Rule.", operands, links,
+  sources: [{ method: "CraftingDifficulty.GetScaledExperience", description: "Bounded decompilation", object: { sha256: "a".repeat(64), bytes: 1 } }],
+});
+const craftingRules: CatalogMechanicsRule[] = [
+  craftingRule("recipe-rank-gate", { minimumRequiredLevel: 1 }), craftingRule("recipe-experience-bands", { secondFullFromLevels: 10, halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 }),
+  craftingRule("recipe-experience-rounding", {}), craftingRule("weapon-skill-hit", { hitExperience: 2 }), craftingRule("weapon-skills", {}, [{ entityKey: "skills:11", label: "Axes" }]),
+];
 const facts: CatalogFacts = {
   entities, items: [], npcs: [], quests: [], tasks: [], places: [], properties: [], gearSets: [], gatheringNodes: [],
   abilities: ["abilities:0", "abilities:1", "abilities:2"].map((entityKey) => ({ entityKey, ranks: [{ rankIndex: 0, lines }] })),
@@ -75,7 +84,7 @@ const facts: CatalogFacts = {
       { ability: "abilities:1", owner: ref("classes:6", "Hunter"), via: "talentTree", source: ref("talentTrees:40", "Trailcraft"), level: null, tier: 1, row: 1 },
       { ability: "abilities:2", owner: ref("classes:0", "Shieldmaster"), via: "autoAttack", source: null, level: null, tier: null, row: null },
     ],
-    unlocks: [], appliers: [], offeredClasses: ["classes:0", "classes:5"], mechanicsRules: [],
+    unlocks: [], appliers: [], offeredClasses: ["classes:0", "classes:5"], mechanicsRules: craftingRules,
   },
 };
 const relations: CatalogRelations = {

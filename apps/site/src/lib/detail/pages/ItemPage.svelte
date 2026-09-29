@@ -15,6 +15,7 @@
   import ContainerSection from '../sections/ContainerSection.svelte';
   import DroppedBySection from '../sections/DroppedBySection.svelte';
   import GatherSection from '../sections/GatherSection.svelte';
+  import Section from '../Section.svelte';
   import QuestRowsSection from '../sections/QuestRowsSection.svelte';
   import RecipeRowsSection from '../sections/RecipeRowsSection.svelte';
   import VendorSection from '../sections/VendorSection.svelte';
@@ -24,6 +25,8 @@
 
   export let document: PublicItem;
   export let registry: PublicKindEntry[];
+  /** The product of the recipe that the item teaches, for its tooltip. */
+  export let product: PublicItem | undefined = undefined;
 
   $: facts = document.facts;
   $: tone = rarityTone(facts.rarity);
@@ -64,6 +67,18 @@
   </Hero>
 
   <Sections>
+    {#if facts.teaches}
+      <Section id="teaches" title="Teaches" icon="teach">
+        <p class="teaches">Using this item teaches the recipe <EntityLink ref={facts.teaches.recipe} {registry} />{#if facts.teaches.product}, which makes <EntityLink ref={facts.teaches.product} {registry} />{/if}.</p>
+        {#if product}
+          <div class="c-game-frame product">
+            <ItemTooltip document={product} {registry}>
+              <svelte:fragment slot="ref" let:ref let:rankIndex><EntityLink {ref} {rankIndex} {registry} /></svelte:fragment>
+            </ItemTooltip>
+          </div>
+        {/if}
+      </Section>
+    {/if}
     <DroppedBySection rows={document.droppedBy} {registry} />
     <VendorSection id="sold-by" title="Sold by" counterpartLabel="Vendor" rows={document.soldBy} sort={{ id: 'price', dir: 'asc' }} {registry} />
     <ContainerSection id="found-in-containers" title="Found in containers" counterpartLabel="Container" icon="container" noun="container" rows={document.inContainers} itemKey={document.ref.key} {registry} />
@@ -75,3 +90,8 @@
     <QuestRowsSection id="needed-for-quests" title="Needed for quests" roleLabel="Objective" rows={itemQuestUseRows(document.usedInQuests)} {registry} />
   </Sections>
 </article>
+
+<style>
+  .teaches { margin: 0 0 .8rem; line-height: 1.55; }
+  .product { max-width: 24rem; }
+</style>

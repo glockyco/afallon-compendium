@@ -5,6 +5,7 @@ import { baseName, groupEntities, nameKey, type EntityGroup } from "./grouping";
 import { PUBLIC_KIND_BY_KIND, publicKindForCatalogKind } from "./kind-registry";
 import { levelText } from "./levels";
 import { displayName, plainText } from "./text";
+import { gatheringNodeNames } from "./gathering";
 import { abilityVersions, npcVariantFields } from "./variants";
 
 export interface ReferenceBuildContext {
@@ -328,6 +329,14 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
       const memberName = group.kind === "npcs" && variantFields.length > 0 ? `${name} (${member.label})` : name;
       refs.push([member.entity.entityKey, { ...pageRef, name: memberName, ...(variant ? { variant } : {}), ...(icon ? { icon } : {}) }]);
     }
+  }
+  // A gathering node is a publication page without a game record of its own. Its catalog key names it.
+  const nodeSlugs = new Set<string>();
+  for (const [key, name] of gatheringNodeNames(context.facts?.gatheringNodes ?? [])) {
+    const slug = slugify(name);
+    if (nodeSlugs.has(slug)) throw new Error(`Two gatheringNodes pages share the slug ${slug}.`);
+    nodeSlugs.add(slug);
+    refs.push([key, { key, kind: "gatheringNodes", name, slug }]);
   }
   // An excluded record keeps its formatted name for text, like a class without a page, but gets no page and no slug.
   for (const entity of entities) {

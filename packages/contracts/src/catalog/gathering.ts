@@ -28,8 +28,9 @@ export interface GatheringNodeSource {
   optionIndex: number | null;
   // The object's own cooldown in seconds. A spawner removes a gathered vein, so the spawner timing applies there.
   cooldown: number | null;
+  // The spawner's gathering skill, whose level moves the option weights, and its timing and option weights.
   spawner: {
-    respawnTime: number; respawnJitter: number; despawnDelay: number; playerRange: number; skillCap: number;
+    skill: NormalizedReference | null; respawnTime: number; respawnJitter: number; despawnDelay: number; playerRange: number; skillCap: number;
     weightAtLowSkill: number; weightAtHighSkill: number; teaserWeight: number;
   } | null;
 }

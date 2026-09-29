@@ -7,8 +7,8 @@ const text = Type.String({ minLength: 1 });
 const sha256 = Type.String({ pattern: "^[0-9a-f]{64}$" });
 const ruleId = Type.String({ pattern: "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" });
 
-export const MECHANICS_TOPICS = ["character-progression", "heroic-tier"] as const;
-export const MechanicsTopicSchema = Type.Union([Type.Literal("character-progression"), Type.Literal("heroic-tier")]);
+export const MECHANICS_TOPICS = ["character-progression", "heroic-tier", "crafting-and-gathering"] as const;
+export const MechanicsTopicSchema = Type.Union([Type.Literal("character-progression"), Type.Literal("heroic-tier"), Type.Literal("crafting-and-gathering")]);
 export type MechanicsTopic = Static<typeof MechanicsTopicSchema>;
 
 // A reviewed record of the calculation rules that native evidence of one build proves. Each evidence object is a
