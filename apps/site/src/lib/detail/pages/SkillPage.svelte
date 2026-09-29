@@ -10,6 +10,7 @@
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
   import TitleBlock from '../TitleBlock.svelte';
+  import Sections from '../Sections.svelte';
 
   export let document: PublicSkill;
   export let registry: PublicKindEntry[];
@@ -36,7 +37,7 @@
     </FactList>
   </Hero>
 
-  <div class="c-sections">
+  <Sections>
     {#if document.recipes.length}
       <Section id="recipes" title="Recipes" icon="recipe" count={document.recipes.length}>
         <RelationTable columns={plan.columns} rows={document.recipes} label="Recipes">
@@ -49,5 +50,5 @@
       </Section>
     {/if}
     <ExperienceSection rows={document.experience} />
-  </div>
+  </Sections>
 </article>

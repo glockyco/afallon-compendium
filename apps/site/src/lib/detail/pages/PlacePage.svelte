@@ -13,6 +13,7 @@
   import PointsOfInterestSection from '../sections/PointsOfInterestSection.svelte';
   import QuestRowsSection from '../sections/QuestRowsSection.svelte';
   import TitleBlock, { type TitleFact } from '../TitleBlock.svelte';
+  import Sections from '../Sections.svelte';
 
   export let document: PublicPlace;
   export let registry: PublicKindEntry[];
@@ -41,7 +42,7 @@
     </Hero>
   {/if}
 
-  <div class="c-sections">
+  <Sections>
     <PlaceCreaturesSection id="bosses" title="Bosses" icon="boss" rows={inhabitants.bosses} {registry} />
     <PlaceCreaturesSection id="creatures" title="Creatures" icon="beast" rows={inhabitants.creatures} {registry} />
     <PlaceCreaturesSection id="npcs" title="NPCs" icon="people" rows={document.npcs} {registry} />
@@ -50,7 +51,7 @@
     <LinkSection id="properties" title="Properties" icon="property" refs={document.properties} {registry} />
     <ConnectionsSection connections={document.connections} {registry} />
     <LinkSection id="areas" title="Areas" icon="area" refs={document.regions} {registry} />
-  </div>
+  </Sections>
 </article>
 
 <style>

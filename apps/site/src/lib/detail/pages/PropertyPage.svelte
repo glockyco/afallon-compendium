@@ -8,6 +8,7 @@
   import Hero from '../Hero.svelte';
   import Section from '../Section.svelte';
   import TitleBlock, { type TitleFact } from '../TitleBlock.svelte';
+  import Sections from '../Sections.svelte';
 
   export let document: PublicProperty;
   export let registry: PublicKindEntry[];
@@ -29,11 +30,11 @@
     {/if}
   </Hero>
 
-  <div class="c-sections">
+  <Sections>
     {#if document.locations.length > 1}
       <Section id="where-to-buy" title="Where to buy" icon="sign" count={document.locations.length}>
         <LocationLinks placements={document.locations} />
       </Section>
     {/if}
-  </div>
+  </Sections>
 </article>

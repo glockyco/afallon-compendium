@@ -7,6 +7,7 @@
   import Hero from '../Hero.svelte';
   import RecipeRowsSection from '../sections/RecipeRowsSection.svelte';
   import TitleBlock, { type TitleFact } from '../TitleBlock.svelte';
+  import Sections from '../Sections.svelte';
 
   export let document: PublicRecipe;
   export let product: PublicItem | undefined;
@@ -38,7 +39,7 @@
     </Hero>
   {/if}
 
-  <div class="c-sections">
+  <Sections>
     <RecipeRowsSection id="materials" title="Materials" counterpartLabel="Material" quantityLabel="Quantity" rows={document.materials} {registry} />
-  </div>
+  </Sections>
 </article>

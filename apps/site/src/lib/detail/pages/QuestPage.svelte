@@ -9,6 +9,7 @@
   import QuestRewardsSection from '../sections/QuestRewardsSection.svelte';
   import QuestTextSection from '../sections/QuestTextSection.svelte';
   import QuestWorldChangesSection from '../sections/QuestWorldChangesSection.svelte';
+  import Sections from '../Sections.svelte';
 
   export let document: PublicQuest;
   export let registry: PublicKindEntry[];
@@ -27,7 +28,7 @@
 
 <article class="detail-page">
   <TitleBlock name={document.ref.name} facts={titleFacts} {registry} />
-  <div class="c-sections">
+  <Sections>
     <QuestChainSection quests={document.chainQuests} currentKey={document.ref.key} {registry} />
     <QuestStartSection {document} {registry} />
     <QuestObjectivesSection objectives={document.objectives} {registry} />
@@ -35,5 +36,5 @@
     <QuestTextSection {document} />
     <QuestWorldChangesSection changes={document.worldChanges} {registry} />
     <LinkSection id="unlocks" title="Unlocks" icon="unlock" refs={document.unlocks} {registry} />
-  </div>
+  </Sections>
 </article>

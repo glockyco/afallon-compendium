@@ -20,6 +20,7 @@
   import VendorSection from '../sections/VendorSection.svelte';
   import SummaryValue from '../SummaryValue.svelte';
   import TitleBlock from '../TitleBlock.svelte';
+  import Sections from '../Sections.svelte';
 
   export let document: PublicItem;
   export let registry: PublicKindEntry[];
@@ -62,7 +63,7 @@
     {/if}
   </Hero>
 
-  <div class="c-sections">
+  <Sections>
     <DroppedBySection rows={document.droppedBy} {registry} />
     <VendorSection id="sold-by" title="Sold by" counterpartLabel="Vendor" rows={document.soldBy} sort={{ id: 'price', dir: 'asc' }} {registry} />
     <ContainerSection id="found-in-containers" title="Found in containers" counterpartLabel="Container" icon="container" noun="container" rows={document.inContainers} itemKey={document.ref.key} {registry} />
@@ -72,5 +73,5 @@
     <RecipeRowsSection id="crafted-from" title="Crafted from" counterpartLabel="Recipe" quantityLabel="Makes" assumedQuantity={1} rows={document.craftedBy} {registry} />
     <RecipeRowsSection id="used-in-recipes" title="Used in recipes" counterpartLabel="Recipe" quantityLabel="Needs" rows={document.usedInRecipes} {registry} />
     <QuestRowsSection id="needed-for-quests" title="Needed for quests" roleLabel="Objective" rows={itemQuestUseRows(document.usedInQuests)} {registry} />
-  </div>
+  </Sections>
 </article>

@@ -16,6 +16,7 @@
   import VariantsSection from '../sections/VariantsSection.svelte';
   import VendorSection from '../sections/VendorSection.svelte';
   import TitleBlock, { type TitleFact } from '../TitleBlock.svelte';
+  import Sections from '../Sections.svelte';
 
   export let document: PublicNpc;
   export let registry: PublicKindEntry[];
@@ -77,14 +78,14 @@
     </Hero>
   {/if}
 
-  <div class="c-sections">
+  <Sections>
     <LocationsSection {document} {registry} {variantTable} />
     {#if variantTable}<VariantsSection {document} {registry} />{/if}
     <AbilitiesSection phases={document.abilityPhases} {registry} />
     <DropsSection rows={document.drops} variants={document.variants} {registry} />
     <VendorSection id="sells" title="Sells" counterpartLabel="Item" rows={document.sells} variants={document.variants} sort={{ id: 'name', dir: 'asc' }} {registry} />
     <QuestRowsSection id="quests" title="Quests" roleLabel="Role" rows={npcQuestRows(document.quests, document.usedInQuests)} {registry} />
-  </div>
+  </Sections>
 </article>
 
 <style>

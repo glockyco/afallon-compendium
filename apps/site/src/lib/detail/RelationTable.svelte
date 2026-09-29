@@ -3,6 +3,7 @@
   import Hint from '../Hint.svelte';
   import { sortRows, toggleSort, type SortState, type SortValue } from '../table';
   import { shownRowCount, type RelationColumn } from './relation-table';
+  import { detailNavigation } from './detail-navigation';
 
   /** The columns that `planColumns` keeps. The first column names the counterpart of the row. */
   export let columns: RelationColumn<Row>[];
@@ -35,11 +36,27 @@
     document.getElementById(id)?.scrollIntoView({ block: 'center' });
   }
 
+  // A tab set asks the tables of its panel to reveal an anchor before it scrolls, also for a repeated fragment link.
+  const navigation = detailNavigation();
+  async function revealAnchor(id: string): Promise<boolean> {
+    const index = sorted.findIndex((row) => rowAnchors(row).includes(id));
+    if (index < 0) return false;
+    if (index >= shown) {
+      expanded = true;
+      await tick();
+    }
+    return true;
+  }
+
   onMount(() => {
     void revealTarget();
     const onHashChange = () => void revealTarget();
     window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    const removeRevealer = navigation?.addRevealer(revealAnchor);
+    return () => {
+      window.removeEventListener('hashchange', onHashChange);
+      removeRevealer?.();
+    };
   });
 
   function ariaSort(column: RelationColumn<Row>): 'ascending' | 'descending' | 'none' | undefined {

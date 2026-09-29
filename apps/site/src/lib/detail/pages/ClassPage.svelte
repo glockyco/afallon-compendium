@@ -12,6 +12,7 @@
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
   import TitleBlock from '../TitleBlock.svelte';
+  import Sections from '../Sections.svelte';
 
   export let document: PublicClass;
   export let registry: PublicKindEntry[];
@@ -39,7 +40,7 @@
     </FactList>
   </Hero>
 
-  <div class="c-sections">
+  <Sections>
     {#each document.trees as tree (tree.anchor)}<TalentTreeSection {tree} {registry} />{/each}
     {#if document.startingGear.length}
       <Section id="starting-gear" title="Starting gear" icon="loot" count={document.startingGear.length}>
@@ -51,5 +52,5 @@
       </Section>
     {/if}
     <ExperienceSection rows={document.experience} />
-  </div>
+  </Sections>
 </article>

@@ -9,6 +9,7 @@
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
   import TitleBlock from '../TitleBlock.svelte';
+  import Sections from '../Sections.svelte';
 
   export let document: PublicAbility;
   export let registry: PublicKindEntry[];
@@ -24,10 +25,10 @@
     {#if main.useRequirements.length}<FactList><FactRow label="Requirements"><Requirements requirements={main.useRequirements} {registry} kindLabels={false} /></FactRow></FactList>{/if}
   </Hero>
 
-  <div class="c-sections">
+  <Sections>
     <AbilityVersionsSection versions={document.versions} {registry} />
     <LearnedBySection versions={document.versions} {registry} />
     <AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} />
     <AbilityReferencesSection versions={document.versions} relation="taughtBy" {registry} />
-  </div>
+  </Sections>
 </article>
