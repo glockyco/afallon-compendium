@@ -17,7 +17,6 @@
   let loading = false;
   let error = '';
   let page: StaticDocument | null = null;
-  let mapSpaceLabels: Readonly<Record<string, string>> = {};
 
   const floating = new FloatingController(() => { open = true; void load(); }, () => { open = false; });
 
@@ -28,9 +27,7 @@
     loading = true;
     error = '';
     try {
-      const [loadedPage, root] = await Promise.all([activeLoader.loadPageForRef(ref), activeLoader.loadRoot()]);
-      page = loadedPage;
-      mapSpaceLabels = Object.fromEntries(root.maps.map((map) => [map.mapSpaceId, map.label]));
+      page = await activeLoader.loadPageForRef(ref);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally {
@@ -54,15 +51,15 @@
 </script>
 
 {#if open}
-  <span {id} class="entity-tooltip" role="tooltip" use:position on:pointerenter={keepOpen} on:pointerleave={closeAfterIntent}>
+  <span {id} class="entity-tooltip" role="tooltip" use:position>
     {#if loading}<span class="tooltip-status">Loading details…</span>
     {:else if error}<span class="tooltip-status error">Details are unavailable.</span>
-    {:else if page}<TooltipPresenter {page} {registry} {mapSpaceLabels} {rankIndex} variant={ref.variant} />{/if}
+    {:else if page}<TooltipPresenter {page} {registry} {rankIndex} variant={ref.variant} />{/if}
   </span>
 {/if}
 
 <style>
-  .entity-tooltip { position: fixed; z-index: 40; top: 0; left: 0; visibility: hidden; width: min(28rem, calc(100vw - 2rem)); overflow: auto; padding: .85rem; border: 1px solid var(--c-frame-strong); border-radius: var(--c-radius); background: var(--c-surface-1); box-shadow: 0 10px 30px var(--c-shadow); color: var(--c-text); text-align: left; }
+  .entity-tooltip { position: fixed; z-index: 40; top: 0; left: 0; visibility: hidden; pointer-events: none; width: min(28rem, calc(100vw - 2rem)); overflow: auto; padding: .85rem; border: 1px solid var(--c-frame-strong); border-radius: var(--c-radius); background: var(--c-surface-1); box-shadow: 0 10px 30px var(--c-shadow); color: var(--c-text); text-align: left; }
   .tooltip-status { display: block; color: var(--c-text-soft); font-size: var(--c-text-small); }
   .tooltip-status.error { color: var(--c-danger); }
   @media (max-width: 640px) { .entity-tooltip { inset: auto 1rem 1rem !important; width: auto !important; max-height: 60vh !important; } }

@@ -313,8 +313,10 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
       usedSlugs.set(group.kind, used);
     }
     const iconOf = (entity: CatalogEntityRow) => context.artByEntity?.get(entity.entityKey)?.icon;
+    const portraitOf = (entity: CatalogEntityRow) => group.kind === "npcs" ? context.artByEntity?.get(entity.entityKey)?.portrait : undefined;
     const pageIcon = group.members.map(iconOf).find((icon) => icon !== undefined);
-    const pageRef: EntityRef = { key: group.key, kind: group.kind, name, ...(slug ? { slug } : {}), ...(pageIcon ? { icon: pageIcon } : {}) };
+    const pagePortrait = group.members.map(portraitOf).find((portrait) => portrait !== undefined);
+    const pageRef: EntityRef = { key: group.key, kind: group.kind, name, ...(slug ? { slug } : {}), ...(pageIcon ? { icon: pageIcon } : {}), ...(pagePortrait ? { portrait: pagePortrait } : {}) };
     const variantFields = group.kind === "npcs" ? npcVariantFields(group.members.map((member) => npcFacts.get(member.entityKey)).filter((fact): fact is CatalogNpcFacts => fact !== undefined), abilityVersion) : [];
     const members = group.members.length > 1
       ? variantMembers(group, recordLabels(group.members, group.kind === "npcs" ? npcLabelCandidates : [], (position) => `Variant ${position}`))
@@ -329,8 +331,9 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
         ? versions.length > 1 ? versions.find((version) => version.members.includes(member.entity))?.anchor : undefined
         : member.anchor;
       const icon = iconOf(member.entity) ?? pageIcon;
+      const portrait = portraitOf(member.entity) ?? pagePortrait;
       const memberName = group.kind === "npcs" && variantFields.length > 0 ? `${name} (${member.label})` : name;
-      refs.push([member.entity.entityKey, { ...pageRef, name: memberName, ...(variant ? { variant } : {}), ...(icon ? { icon } : {}) }]);
+      refs.push([member.entity.entityKey, { ...pageRef, name: memberName, ...(variant ? { variant } : {}), ...(icon ? { icon } : {}), ...(portrait ? { portrait } : {}) }]);
     }
   }
   // A gathering node is a publication page without a game record of its own. Its catalog key names it.

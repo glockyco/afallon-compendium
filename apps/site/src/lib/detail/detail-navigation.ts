@@ -78,7 +78,8 @@ function createDetailNavigation(): DetailNavigation {
       return () => revealers.delete(revealer);
     },
     async reveal(id) {
-      for (const revealer of revealers) if (await revealer(id)) return;
+      // A row can be inside a disclosure inside a tab: every owner must open before scrolling.
+      for (const revealer of revealers) await revealer(id);
     },
   };
 }

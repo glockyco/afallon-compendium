@@ -63,7 +63,7 @@ export function summarizePlacements(placements: readonly PublicPlacement[], fall
   };
 }
 
-export function buildSearchIndexes(data: PublicationData, entries: readonly PublicSearchEntry[]): SearchIndexes {
+export function buildSearchIndexes(data: PublicationData, entries: readonly PublicSearchEntry[], nodeSpots: ReadonlyMap<string, readonly string[]> = new Map()): SearchIndexes {
   const placementsById = new Map(data.placements.map((placement) => [placement.placementId, placement]));
   const placementsByEntryKey = new Map<string, PublicPlacement[]>();
   for (const placement of data.placements) {
@@ -72,6 +72,17 @@ export function buildSearchIndexes(data: PublicationData, entries: readonly Publ
       if (!known.some((candidate) => candidate.placementId === placement.placementId)) known.push(placement);
       placementsByEntryKey.set(key, known);
     }
+  }
+  // Gathering nodes are generated from spawners and scene objects, not native map entity roles.
+  // Their published spot identities still select the exact map placements, including mixed sources.
+  for (const [key, ids] of nodeSpots) {
+    const known = placementsByEntryKey.get(key) ?? [];
+    const seen = new Set(known.map((placement) => placement.placementId));
+    for (const id of ids) {
+      const placement = placementsById.get(id);
+      if (placement && !seen.has(id)) { known.push(placement); seen.add(id); }
+    }
+    placementsByEntryKey.set(key, known);
   }
   return {
     entriesByKey: new Map(entries.map((entry) => [entry.ref.key, entry])),

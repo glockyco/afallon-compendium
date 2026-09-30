@@ -1,52 +1,52 @@
 <script lang="ts">
-  import type { ContainerRow, PublicKindEntry } from '@afallon/contracts/public';
+  import type { AvailabilityRule, ContainerRow, PublicKindEntry } from '@afallon/contracts/public';
   import Availability from '../../Availability.svelte';
   import EntityLink from '../../EntityLink.svelte';
-  import MissingValue from '../../MissingValue.svelte';
-  import { formatNumber, nameOf, rangeText } from '../../format';
-  import { itemOnMap } from '../../map-links';
-  import { omitWhenShared, planColumns, type RelationColumn } from '../relation-table';
-  import RelationTable from '../RelationTable.svelte';
+  import { formatNumber, rangeText } from '../../format';
+  import { itemSourceOnMap } from '../../map-links';
   import Section from '../Section.svelte';
 
   export let id: string;
   export let title: string;
-  /** The heading of the first column: "Container" or "Object". */
-  export let counterpartLabel: string;
-  /** "container" for containers and "object" for objects that give the item. */
-  export let icon: 'container' | 'object';
-  /** The source in the words of a reader, such as "container" or "object". */
-  export let noun: string;
   export let rows: ContainerRow[];
-  /** The item of the page. A spot count opens the map with every spot of the item. */
+  export let sourceAvailabilities: AvailabilityRule[][];
   export let itemKey: string;
   export let registry: PublicKindEntry[];
-
-  const columns: RelationColumn<ContainerRow>[] = [
-    { id: 'name', label: counterpartLabel, value: (row) => row.label, sort: (row) => row.label },
-    { id: 'place', label: 'Place', value: (row) => row.counterpart ? nameOf(row.counterpart) : undefined, sort: (row) => row.counterpart ? nameOf(row.counterpart) : undefined },
-    { id: 'quantity', label: 'Quantity', hint: `How many of the item one ${noun} gives.`, numeric: true,
-      value: (row) => rangeText(row.min, row.max) ?? undefined, sort: (row) => row.max ?? row.min, whenShared: omitWhenShared('1') },
-    { id: 'chance', label: 'Chance', hint: `The chance that one ${noun} gives the item.`, numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
-    { id: 'conditions', label: 'Condition', hint: `The ${noun} gives the item only while these conditions hold.`,
-      value: (row) => row.availability.length ? JSON.stringify(row.availability) : undefined },
-    { id: 'spots', label: 'Map spots', numeric: true, value: (row) => row.placementCount, sort: (row) => row.placementCount, whenShared: omitWhenShared(1) },
-  ];
-
-  $: plan = planColumns(columns, rows);
+  let expanded = false;
+  $: ordered = [...rows].sort((a, b) => (b.chance ?? -1) - (a.chance ?? -1));
+  $: rowIndices = new Map(rows.map((row, index) => [row, index]));
 </script>
 
 {#if rows.length}
-  <Section {id} {title} {icon} count={rows.length}>
-    <RelationTable columns={plan.columns} {rows} label={title} sort={{ id: 'chance', dir: 'desc' }}>
-      <svelte:fragment slot="cell" let:row let:column>
-        {#if column === 'name'}{row.label}
-        {:else if column === 'place'}{#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{/if}
-        {:else if column === 'quantity'}{rangeText(row.min, row.max) ?? ''}
-        {:else if column === 'chance'}{#if row.chance === undefined}<MissingValue explanation="No chance is published for this build" />{:else}{formatNumber(row.chance)}%{/if}
-        {:else if column === 'conditions'}<Availability rules={row.availability} {registry} />
-        {:else if column === 'spots'}{#if row.placementCount > 0}<a class="c-link" href={itemOnMap(itemKey)}>{row.placementCount}</a>{:else}<MissingValue explanation="No spot is published" />{/if}{/if}
-      </svelte:fragment>
-    </RelationTable>
+  <Section {id} {title} count={rows.length}>
+    <div class="source-list">
+      {#each ordered as row, index}
+        {#if expanded || index < 8}
+          <div class="source-row">
+            <div class="source-main"><strong>{row.label}</strong><div class="source-sub">
+              {#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else if row.places[0]}{row.places[0].label}{/if}
+              {#if sourceAvailabilities[row.availabilityIndex]?.length}<Availability rules={sourceAvailabilities[row.availabilityIndex] ?? []} {registry} />{/if}
+            </div></div>
+            <div class="source-values">{#if row.min !== undefined}<span>×{rangeText(row.min, row.max)}</span>{/if}{#if row.chance !== undefined}<span>{formatNumber(row.chance)}%</span>{/if}</div>
+            {#if row.placementCount > 0}<a class="c-link spots" href={itemSourceOnMap(itemKey, id === 'collected-from' ? 'collectedFrom' : 'inContainers', rowIndices.get(row) ?? 0)}>{formatNumber(row.placementCount)} {row.placementCount === 1 ? 'spot' : 'spots'}</a>{/if}
+          </div>
+        {/if}
+      {/each}
+      {#if !expanded && rows.length > 8}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - 8} more</button>{/if}
+    </div>
   </Section>
 {/if}
+
+<style>
+  .source-list { border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); overflow: hidden; }
+  .source-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .5rem 1rem; min-width: 0; padding: .65rem .8rem; border-top: 1px solid var(--c-line-soft); }
+  .source-row:first-child { border-top: 0; }
+  .source-main { min-width: 0; }
+  strong { color: var(--c-text-strong); font-weight: 600; overflow-wrap: anywhere; }
+  .source-sub { display: flex; flex-wrap: wrap; gap: .25rem .6rem; margin-top: .2rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .source-sub :global(.availability li) { font-size: var(--c-text-small); }
+  .source-values { display: flex; gap: .7rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .spots { min-height: 1.5rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .show-more { margin: .5rem .8rem; }
+  @media (max-width: 640px) { .source-row { grid-template-columns: minmax(0, 1fr) auto; } .spots { grid-column: 2; } .source-values { grid-column: 2; grid-row: 1; justify-content: flex-end; } }
+</style>

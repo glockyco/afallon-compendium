@@ -91,7 +91,7 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
   const releaseNotes = await registerReleaseNotes(store, "Afallon 0.16.2"), otherNotes = await registerReleaseNotes(store, "Hotfix #19");
   const dataDate = options.dataDate ?? "2026-09-20";
   const publication: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v7",
+    schemaVersion: "compendium.static-root.v8",
     buildId: BUILD_ID,
     catalogId: CATALOG_ID,
     mode: "preview",
@@ -100,8 +100,8 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
     world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [],
     kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, list: true, searchable: true, columns: [], facets: [] }],
-    lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v3" }] },
-    search: [{ ...reference, schemaId: "compendium.static-search.v5" }],
+    lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v4" }] },
+    search: [{ ...reference, schemaId: "compendium.static-search.v6" }],
     coverage: reference,
     exclusions: { ...reference, schemaId: "compendium.static-exclusions.v1" },
   };
@@ -118,7 +118,7 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
     diagnosticRevision: "test",
     inputs: {},
   });
-  await publicationRun.addArtifact("publication.json", publicationObject, { mediaType: "application/json", schemaId: "compendium.static-root.v7" });
+  await publicationRun.addArtifact("publication.json", publicationObject, { mediaType: "application/json", schemaId: "compendium.static-root.v8" });
   await publicationRun.succeed();
   const publicationManifest = publicationRun.manifestIdentity;
   await publicationRun.release();

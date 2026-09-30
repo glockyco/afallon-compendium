@@ -31,7 +31,7 @@
 </script>
 
 {#if rows.length}
-  <Section id="dropped-by" title="Dropped by" icon="creature" count={rows.length} {line}>
+  <Section id="dropped-by" title="Dropped by" count={rows.length} {line}>
     <RelationTable columns={plan.columns} {rows} label="Dropped by" sort={{ id: 'chance', dir: 'desc' }}>
       <svelte:fragment slot="cell" let:row let:column>
         {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />

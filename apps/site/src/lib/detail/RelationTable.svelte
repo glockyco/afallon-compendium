@@ -1,9 +1,6 @@
 <script lang="ts" generics="Row">
   import { onMount, tick } from 'svelte';
-  import type { PublicKindEntry } from '@afallon/contracts/public';
-  import EntityLink from '../EntityLink.svelte';
-  import RulePhrase from './sections/RulePhrase.svelte';
-  import Hint from '../Hint.svelte';
+  import HowItWorks from './HowItWorks.svelte';
   import { sortRows, toggleSort, type SortState, type SortValue } from '../table';
   import { shownRowCount, type RelationColumn } from './relation-table';
   import { detailNavigation } from './detail-navigation';
@@ -17,7 +14,6 @@
   /** The first sort order. Without it, rows keep their published order until a reader sorts them. */
   export let sort: SortState | undefined = undefined;
   /** The anchors that a row holds, such as the variants of an NPC that stand at a location. */
-  export let registry: PublicKindEntry[] = [];
   export let rowAnchors: (row: Row) => readonly string[] = () => [];
 
   let expanded = false;
@@ -35,10 +31,10 @@
   async function revealTarget(): Promise<void> {
     const id = fragmentId(window.location.hash);
     const index = id ? sorted.findIndex((row) => rowAnchors(row).includes(id)) : -1;
-    if (index < shown) return;
+    if (index < 0 || index < shown) return;
     expanded = true;
     await tick();
-    document.getElementById(id)?.scrollIntoView({ block: 'center' });
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: 'center' }));
   }
 
   // A tab set asks the tables of its panel to reveal an anchor before it scrolls, also for a repeated fragment link.
@@ -72,6 +68,7 @@
 
   function sortBy(column: RelationColumn<Row>): void {
     sort = toggleSort(sort ?? { id: '', dir: 'asc' }, column.id, column.numeric === true);
+    void tick().then(revealTarget);
   }
 </script>
 
@@ -80,23 +77,15 @@
   <!-- svelte-ignore a11y_no_redundant_roles -->
   <table role="table" aria-label={label}>
     <!-- svelte-ignore a11y_no_redundant_roles -->
-    <thead role="rowgroup">
+    <thead role="rowgroup" class:single={!sortable}>
       <!-- svelte-ignore a11y_no_redundant_roles -->
       <tr role="row">
         {#each columns as column}
           <th scope="col" role="columnheader" class:num={column.numeric} aria-sort={ariaSort(column)}>
             {#if column.sort && sortable}
-              {#if column.hint || column.rules?.length}
-                <Hint text={column.hint} wrapsControl let:control>
-                  <svelte:fragment slot="explanation">{#if column.rules?.length}{#each column.rules as entry}<span class="rule-explanation"><RulePhrase rule={entry.rule} {registry} />{#if entry.guide} <EntityLink ref={entry.guide} {registry} />{/if}</span>{/each}{:else}{column.hint}{/if}</svelte:fragment>
-                  <button type="button" class="c-sort" aria-describedby={control.describedBy} on:focus={control.show} on:blur={control.close} on:keydown={control.keydown} on:click={() => { sortBy(column); control.show(); }}><span class="hint-term">{column.label}</span><span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
-                </Hint>
-              {:else}
-                <button type="button" class="c-sort" on:click={() => sortBy(column)}>{column.label}<span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
-              {/if}
-            {:else if column.rules?.length}<Hint><svelte:fragment slot="explanation">{#each column.rules as entry}<span class="rule-explanation"><RulePhrase rule={entry.rule} {registry} />{#if entry.guide} <EntityLink ref={entry.guide} {registry} />{/if}</span>{/each}</svelte:fragment>{column.label}</Hint>
-            {:else if column.hint}<Hint text={column.hint}>{column.label}</Hint>
+              <button type="button" class="c-sort" on:click={() => sortBy(column)}>{column.label}<span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
             {:else}{column.label}{/if}
+            {#each column.rules ?? [] as entry}<HowItWorks guide={entry.guide} stepId={entry.stepId} />{/each}
           </th>
         {/each}
       </tr>
@@ -107,7 +96,7 @@
         <!-- svelte-ignore a11y_no_redundant_roles -->
         <tr role="row" hidden={index >= shown}>
           {#each columns as column, columnIndex}
-            <td role="cell" class:num={column.numeric} class:name={columnIndex === 0}>
+            <td role="cell" class:num={column.numeric} class:name={columnIndex === 0} class:detail={columnIndex > 0 && (!column.numeric || columnIndex > 2)}>
               {#if columnIndex === 0}{#each rowAnchors(row) as anchor}<span class="anchor" id={anchor}></span>{/each}{/if}
               {#if columnIndex > 0}<span class="cell-label" aria-hidden="true">{column.label}</span>{/if}
               <span class="cell-value"><slot name="cell" {row} column={column.id} /></span>
@@ -117,18 +106,16 @@
       {/each}
     </tbody>
   </table>
-  {#if shown < sorted.length}<button type="button" class="c-action show-all" on:click={() => (expanded = true)}>Show all {sorted.length}</button>{/if}
+  {#if shown < sorted.length}<button type="button" class="c-action show-all" on:click={() => (expanded = true)}>Show {sorted.length - shown} more</button>{/if}
 </div>
 
 <style>
-  .relation-table { min-width: 0; }
-  .rule-explanation { display: block; }
-  .rule-explanation + .rule-explanation { margin-top: .45rem; }
+  .relation-table { min-width: 0; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); overflow: hidden; }
+  th :global(.how-it-works) { margin-left: .5rem; font-weight: 400; }
   table { width: 100%; border-collapse: collapse; font-size: var(--c-text-body); }
   /* Cells align on the text baseline, so a name after an icon lines up with plain values in the same row. */
-  th, td { padding: .5rem .6rem; text-align: left; vertical-align: baseline; }
-  th { border-bottom: 1px solid var(--c-line); color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; vertical-align: bottom; }
-  tbody tr:nth-child(even) { background: var(--c-tint-stripe); }
+  th, td { padding: .55rem .75rem; text-align: left; vertical-align: middle; }
+  th { border-bottom: 1px solid var(--c-line-soft); color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 600; white-space: normal; }
   tbody tr:hover { background: var(--c-tint-hover); }
   tbody td { border-top: 1px solid var(--c-line-soft); overflow-wrap: break-word; }
   tr[hidden] { display: none; }
@@ -138,22 +125,25 @@
   .cell-label { display: none; }
   .anchor { scroll-margin-top: 6rem; }
   tr:has(.anchor:target) td { background: color-mix(in srgb, var(--c-accent) 12%, transparent); }
-  .show-all { margin-top: .75rem; }
+  .show-all { margin: .5rem .75rem; min-height: 1.5rem; }
 
-  /* A phone shows each row as a block of labeled values. The header row stays as a line of sort controls and hints. */
+  /* Keep the name and up to two comparison values across; any other fields stay as labeled detail lines. */
   @media (max-width: 640px) {
     table, tbody, tr, td { display: block; }
-    thead tr { display: flex; flex-wrap: wrap; gap: .35rem 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--c-line); }
-    th { padding: 0; border: 0; }
-    tbody tr { padding: .55rem 0; border-top: 1px solid var(--c-line-soft); }
-    tbody tr:nth-child(even), tbody tr:hover { background: none; }
-    tbody td { display: grid; grid-template-columns: minmax(5.5rem, 35%) minmax(0, 1fr); align-items: baseline; gap: .75rem; padding: .12rem 0; border: 0; text-align: left; }
-    tbody td.name { display: block; padding-bottom: .3rem; font-weight: 600; }
-    /* A label without a value tells a reader nothing, so a stacked cell with no value leaves the block. */
+    thead { display: block; padding: .2rem .7rem; border-bottom: 1px solid var(--c-line-soft); }
+    thead tr { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem; }
+    thead.single { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+    tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 0 .6rem; padding: .45rem .7rem; border-top: 1px solid var(--c-line-soft); }
+    tbody tr:first-child { border-top: 0; }
+    tbody td { min-width: 0; padding: .1rem 0; border: 0; }
+    tbody td.name { font-weight: 600; }
+    tbody td.detail { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(5rem, 38%) minmax(0, 1fr); gap: .5rem; font-size: var(--c-text-small); }
     tbody td:not(.name):has(> .cell-value:empty) { display: none; }
-    td.num { text-align: left; white-space: normal; }
-    .cell-label { display: block; color: var(--c-text-mute); font-size: var(--c-text-small); }
+    td.num { white-space: nowrap; }
+    td.num:not(.detail) { text-align: right; }
+    .cell-label { display: none; }
+    td.detail .cell-label { display: block; color: var(--c-text-mute); }
     .cell-value { min-width: 0; }
-    td.num .cell-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    td.num .cell-value { font-variant-numeric: tabular-nums; }
   }
 </style>

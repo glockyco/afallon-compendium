@@ -19,7 +19,7 @@ export function normalizeMechanicsRules(rules: MechanicsRules, reference: Artifa
     const operands = Object.keys(rule.operands);
     const missing = [...named].filter((name) => !operands.includes(name)), unused = operands.filter((name) => !named.has(name));
     if (missing.length > 0 || unused.length > 0) throw new Error(`Mechanics rule ${rule.id} names operands [${missing.join(", ")}] without values and has values [${unused.join(", ")}] outside its phrase.`);
-    if (rule.topic === undefined && rule.placements.length === 0) throw new Error(`Mechanics rule ${rule.id} has no topic and no placement.`);
+    if (rule.topic === undefined) throw new Error(`Mechanics rule ${rule.id} needs a mechanics guide topic.`);
     const placed = new Set<string>();
     for (const placement of rule.placements) {
       if (placementTargetKind(placement.page, placement.target) === null) throw new Error(`Mechanics rule ${rule.id} places itself on target ${placement.target}, which ${placement.page} pages lack.`);

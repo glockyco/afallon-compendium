@@ -1,6 +1,7 @@
 import { placementTargetKind, type CatalogFacts, type CatalogMechanicsRule, type MechanicsTopic, type RulePlacement, type RulePlacementPage } from "@afallon/contracts/catalog";
 import type { EntityRef, MechanicsRule, PlacedRule } from "@afallon/contracts/public";
 import type { ReferenceResolver } from "./documents";
+import { guideStepFor } from "./guide-steps";
 
 export const MECHANICS_TOPIC_NAMES: Readonly<Record<MechanicsTopic, { name: string; description: string }>> = {
   "character-progression": { name: "Character Progression", description: "How a character gains experience, levels, and talent points in this build." },
@@ -48,10 +49,11 @@ function inScope(rule: CatalogMechanicsRule, placement: RulePlacement, context: 
 
 // The gathering yield bonus is the one placed rule whose values depend on the page: its chance at a skill level.
 function levelChances(rule: CatalogMechanicsRule, context: PlacementContext): PlacedRule["levelChances"] {
-  if (rule.ruleId !== "node-yield-bonus" || context.yieldLevels === undefined || context.yieldLevels.length === 0) return undefined;
+  if (rule.status !== "verified" || rule.ruleId !== "node-yield-bonus" || context.yieldLevels === undefined || context.yieldLevels.length === 0) return undefined;
   const perLevel = rule.operands.chancePerLevel;
-  if (perLevel === undefined || !Number.isFinite(perLevel)) throw new Error("The node-yield-bonus rule has no chancePerLevel operand.");
-  return context.yieldLevels.map((level) => ({ level, chance: Math.min(100, Math.round(level * perLevel * 1000) / 1000) }));
+  if (perLevel === undefined || !Number.isFinite(perLevel) || perLevel < 0) return undefined;
+  return context.yieldLevels.filter((level) => Number.isInteger(level) && level > 0)
+    .map((level) => ({ level, chance: Math.min(100, Math.round(level * perLevel * 1000) / 1000) }));
 }
 
 /** The rules that the rules record places on one page, in topic order and then in record order. */
@@ -61,9 +63,11 @@ export function placedRules(facts: CatalogFacts, page: RulePlacementPage, contex
     for (const placement of rule.placements) {
       if (placement.page !== page || !inScope(rule, placement, context)) continue;
       if (placementTargetKind(page, placement.target) === null) throw new Error(`Rule ${rule.ruleId} names target ${placement.target}, which ${page} pages lack.`);
-      const { sources: _sources, appearsOn: _appearsOn, ...projected } = projectRule(rule, resolve);
+      if (rule.topic === null) throw new Error(`Rule ${rule.ruleId} places itself without a mechanics guide topic.`);
+      const stepId = guideStepFor(rule.topic, rule.ruleId);
+      if (!stepId) throw new Error(`Rule ${rule.ruleId} has no step in guide ${rule.topic}.`);
       const chances = levelChances(rule, context);
-      result.push({ target: placement.target, rule: projected, ...(rule.topic === null ? {} : { guide: topicRef(rule.topic) }), ...(chances ? { levelChances: chances } : {}) });
+      result.push({ target: placement.target, guide: topicRef(rule.topic), stepId, ...(chances?.length ? { levelChances: chances } : {}) });
     }
   }
   return result;

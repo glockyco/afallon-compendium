@@ -28,7 +28,7 @@
   <div class="copy">
     {#if compact}<h3 class:coloured={Boolean(rarity)}>{name}</h3>{:else}<h1 class:coloured={Boolean(rarity)}>{name}</h1>{/if}
     {#if facts.length}
-      <ul class="facts">{#each facts as fact}<li>{#if fact.label}<span class="label">{fact.label}</span>{/if}{#if fact.href}<a class="value c-link" href={fact.href}>{fact.value}</a>{:else}<span class="value">{fact.value}</span>{/if}</li>{/each}</ul>
+      <ul class="facts" class:labelled={facts.some((fact) => fact.label)}>{#each facts as fact}<li>{#if fact.label}<span class="label">{fact.label}</span>{/if}{#if fact.href}<a class="value c-link" href={fact.href}>{fact.value}</a>{:else}<span class="value">{fact.value}</span>{/if}</li>{/each}</ul>
     {/if}
     {#if description}<p class="description">{description}</p>{/if}
     <slot />
@@ -51,16 +51,20 @@
   .facts { display: flex; flex-wrap: wrap; gap: .2rem 0; margin: .45rem 0 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   .facts li { display: inline-flex; align-items: baseline; gap: .35rem; }
   .facts li + li::before { content: '·'; margin: 0 .2rem; color: var(--c-text-mute); }
-  .label { color: var(--c-text-dim); }
+  .label { flex: none; color: var(--c-text-dim); white-space: nowrap; }
   .value { color: var(--c-text-strong); }
   .description { max-width: 62ch; margin: .6rem 0 0; color: var(--c-text-soft); font-size: var(--c-text-prose); line-height: 1.6; white-space: pre-line; }
 
   .compact { gap: .7rem; margin-bottom: .7rem; }
+  .compact:last-child { margin-bottom: 0; }
   .compact .art { height: 3rem; }
   .compact .art.icon, .compact .art.portrait { width: 3rem; }
   .compact .art.artwork { width: 5.3rem; }
   .compact .facts { margin-top: .3rem; font-size: var(--c-text-small); }
   .compact .facts li + li::before { margin: 0 .4rem; }
+  /* Labelled facts read as label–value rows; a dot between rows that wrap would start a line with a separator. */
+  .compact .facts.labelled { flex-direction: column; gap: .15rem; }
+  .compact .facts.labelled li + li::before { content: none; }
   .compact .description { margin-top: .45rem; font-size: var(--c-text-small); line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
 
   @media (max-width: 640px) {

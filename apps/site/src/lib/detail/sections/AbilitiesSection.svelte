@@ -5,29 +5,43 @@
 
   export let phases: AbilityPhase[];
   export let registry: PublicKindEntry[];
+  export let chips = false;
 
   $: used = phases.filter((phase) => phase.abilities.length > 0);
   $: total = used.reduce((sum, phase) => sum + phase.abilities.length, 0);
-  // Phases get names only when the NPC changes its abilities during a fight.
   $: grouped = used.length > 1 || used.some((phase) => phase.name || phase.requirement);
 </script>
 
+{#snippet abilities()}
+  <div class="phases">
+    {#each used as phase}
+      <div>
+        {#if grouped}<h3>{phase.name ?? `Phase ${phase.phaseIndex + 1}`}{#if phase.requirement}<span class="requirement">{phase.requirement}</span>{/if}</h3>{/if}
+        <ul class:chips>
+          {#each phase.abilities as reference}
+            <li>
+              <EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} />
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
 {#if total > 0}
-  <Section id="abilities" title="Abilities" icon="ability" count={total}>
-    <div class="phases">
-      {#each used as phase}
-        <div>
-          {#if grouped}<h3>{phase.name ?? `Phase ${phase.phaseIndex + 1}`}{#if phase.requirement}<span class="requirement">{phase.requirement}</span>{/if}</h3>{/if}
-          <ul>{#each phase.abilities as reference}<li><EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} /></li>{/each}</ul>
-        </div>
-      {/each}
-    </div>
-  </Section>
+  {#if chips}<div class="side-card"><h2>Abilities</h2>{@render abilities()}</div>
+  {:else}<Section id="abilities" title="Abilities" count={total}>{@render abilities()}</Section>{/if}
 {/if}
 
 <style>
+  .side-card { margin-top: 1rem; padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  h2 { margin: 0 0 .75rem; font-size: 1rem; }
   .phases { display: grid; gap: .9rem; }
-  h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; margin: 0 0 .45rem; color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-  .requirement { color: var(--c-text-mute); font-weight: 400; letter-spacing: normal; text-transform: none; }
-  ul { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); margin: 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
+  h3 { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 .45rem; color: var(--c-text-dim); font-size: var(--c-text-small); font-weight: 700; }
+  .requirement { color: var(--c-text-mute); font-weight: 400; }
+  ul { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); margin: 0; padding: 0; list-style: none; }
+  ul.chips { display: flex; flex-wrap: wrap; }
+  .chips li { display: inline-flex; align-items: center; max-width: 100%; min-height: 1.8rem; padding: .2rem .5rem; border: 1px solid var(--c-line-soft); border-radius: 1rem; overflow-wrap: anywhere; }
+  .chips :global(.entity-link img) { width: 1.5rem; height: 1.5rem; }
 </style>

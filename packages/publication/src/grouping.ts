@@ -26,6 +26,9 @@ export function nameKey(name: string): string {
  * tells several unnamed records of one kind apart, because a native id is not a name that a player sees.
  */
 export function baseName(entity: CatalogEntityRow, kind: PublicReferenceKind): string {
+  // Authored internal name "NPC Skeleton Attack" identifies this otherwise code-named ability.
+  if (kind === "abilities" && entity.entityKey === "abilities:9"
+    && entity.name === "SkeletonAttack1 NPC" && entity.internalName === "NPC Skeleton Attack") return "Skeleton Attack (NPC)";
   return displayName(entity.name ?? "") || displayName(`Unnamed ${PUBLIC_KIND_BY_KIND[kind].label}`);
 }
 

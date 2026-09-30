@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import { DEFAULT_MAP_STATE, readMapUrl, repairMapUrl, transitionMapState, writeMapUrl, type MapState } from "./map-state";
+import { DEFAULT_MAP_STATE, itemSourcePlacementIds, nodePlaceKey, nodePlacePlacementIds, readMapUrl, repairMapUrl, transitionMapState, writeMapUrl, type MapState } from "./map-state";
 
 const complete: MapState = {
   layerIds: ["game-coalway"], selectedPlacementId: "placement",
   query: "merchant", itemSourceQuery: "vendor", detailQuery: "stock", categories: ["merchant", "questGiver"],
   showZones: true, showConnections: true, showMovement: true, markerSize: 125,
-  itemKey: "items:1", entityKey: "npcs:2", placeKey: "places:3",
+  itemKey: "items:1", itemSource: "collectedFrom:0", entityKey: "npcs:2", nodePlace: null, placeKey: "places:3",
   view: { target: [12.5, -3, 0], zoom: 4 },
 };
 
@@ -60,30 +60,30 @@ test("ignores removed aliases and never mutates prior state", () => {
 
 test("item selection clears other detail searches and source selection preserves item context", () => {
   const item = transitionMapState(complete, { type: "select-item", itemKey: "items:3" });
-  expect(item).toEqual({ ...complete, itemKey: "items:3", entityKey: null, placeKey: null, selectedPlacementId: null,
+  expect(item).toEqual({ ...complete, itemKey: "items:3", itemSource: null, entityKey: null, placeKey: null, selectedPlacementId: null,
     query: "", itemSourceQuery: "", detailQuery: "" });
   const searched = transitionMapState(item, { type: "search", field: "itemSourceQuery", query: "merchant" });
   const source = transitionMapState(searched, { type: "select-placement", placementId: "source:3" });
   expect(source).toEqual({ ...searched, selectedPlacementId: "source:3" });
   expect(readMapUrl(writeMapUrl(new URL("https://map.test/"), source).search)).toEqual(source);
-  expect(transitionMapState(source, { type: "exit-item-context" })).toEqual({ ...source, itemKey: null, itemSourceQuery: "" });
+  expect(transitionMapState(source, { type: "exit-item-context" })).toEqual({ ...source, itemKey: null, itemSource: null, itemSourceQuery: "" });
 });
 
 test("entity selection and detail close clear related fields without changing filters, query, or camera", () => {
   const entity = transitionMapState(complete, { type: "select-entity", entityKey: "npcs:4" });
-  expect(entity).toEqual({ ...complete, entityKey: "npcs:4", itemKey: null, placeKey: null, selectedPlacementId: null,
+  expect(entity).toEqual({ ...complete, entityKey: "npcs:4", itemKey: null, itemSource: null, placeKey: null, selectedPlacementId: null,
     itemSourceQuery: "", detailQuery: "" });
   const searched = transitionMapState(entity, { type: "search", field: "detailQuery", query: "reward" });
   const location = transitionMapState(searched, { type: "select-placement", placementId: "place:4" });
   expect(location).toEqual({ ...searched, entityKey: null, selectedPlacementId: "place:4" });
   const closed = transitionMapState(location, { type: "close-details" });
-  expect(closed).toEqual({ ...location, selectedPlacementId: null, detailQuery: "" });
+  expect(closed).toEqual({ ...location, selectedPlacementId: null, itemSource: null, detailQuery: "" });
   expect(transitionMapState(closed, { type: "search", field: "detailQuery", query: "obsolete" })).toEqual(closed);
 });
 
 test("place selection is canonical and exclusive", () => {
   const place = transitionMapState(complete, { type: "select-place", placeKey: "places:9" });
-  expect(place).toEqual({ ...complete, placeKey: "places:9", itemKey: null, entityKey: null, selectedPlacementId: null,
+  expect(place).toEqual({ ...complete, placeKey: "places:9", itemKey: null, itemSource: null, entityKey: null, selectedPlacementId: null,
     query: "", itemSourceQuery: "", detailQuery: "", view: null });
   expect(readMapUrl(writeMapUrl(new URL("https://map.test/"), place).search)).toEqual(place);
 });
@@ -94,4 +94,32 @@ test("focused filter and query actions preserve unrelated navigation fields", ()
   const overlay = transitionMapState(filtered, { type: "set-overlay", field: "showMovement", visible: false });
   expect(overlay).toEqual({ ...filtered, showMovement: false });
   expect(transitionMapState(overlay, { type: "search", field: "query", query: "boss" })).toEqual({ ...overlay, query: "boss" });
+});
+
+test("item source addresses resolve distinct published rows, including repeated labels", () => {
+  const places = (ids: string[]) => [{ label: "Hills", mapSpaceId: "world", spotCount: ids.length, placementIds: ids }];
+  const item = { gatheredFrom: [], inContainers: [
+    { label: "Chest", places: places(["first", "shared"]) },
+    { label: "Chest", places: places(["second"]) },
+  ], collectedFrom: [{ label: "Chest", places: places(["third"]) }] };
+  expect([...itemSourcePlacementIds(item, "inContainers:0")]).toEqual(["first", "shared"]);
+  expect([...itemSourcePlacementIds(item, "inContainers:1")]).toEqual(["second"]);
+  expect([...itemSourcePlacementIds(item, "collectedFrom:0")]).toEqual(["third"]);
+  expect(itemSourcePlacementIds(item, "inContainers:100").size).toBe(0);
+  expect(readMapUrl("?item=items%3A1&item-source=collectedFrom%3A0").itemSource).toBe("collectedFrom:0");
+  expect(readMapUrl("?item-source=inContainers%3A0").itemSource).toBeNull();
+});
+
+test("node-place addresses keep areas on one map separate and select only that node's spots", () => {
+  const woods = { label: "Coalway Woods", mapSpaceId: "world-surface", placementIds: ["wood-1", "wood-2"] };
+  const swamp = { label: "Coalway Swamp", mapSpaceId: "world-surface", placementIds: ["swamp-1"] };
+  const cave = { label: "Cave", mapSpaceId: "coalway-cave", placementIds: ["cave-1"] };
+  const node = { places: [woods, swamp, cave] };
+  const state = readMapUrl(`?entity=gatheringNodes%3Asmall-iron-vein&node-place=${encodeURIComponent(nodePlaceKey(woods))}&categories=all`);
+  expect([...nodePlacePlacementIds(node, state.nodePlace!)]).toEqual(["wood-1", "wood-2"]);
+  expect([...nodePlacePlacementIds(node, nodePlaceKey(swamp))]).toEqual(["swamp-1"]);
+  expect([...nodePlacePlacementIds(node, nodePlaceKey(cave))]).toEqual(["cave-1"]);
+  expect(readMapUrl(writeMapUrl(new URL("https://map.test/"), state).search)).toEqual(state);
+  expect(readMapUrl(`?node-place=${encodeURIComponent(nodePlaceKey(woods))}`).nodePlace).toBeNull();
+  expect(transitionMapState(state, { type: "select-entity", entityKey: "npcs:1" }).nodePlace).toBeNull();
 });

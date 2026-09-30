@@ -5,17 +5,19 @@
   export let curve: LevelCurveData;
   /** The subject of the curve in labels: "Character" or a skill name. */
   export let subject = 'Character';
+  /** In the detail-page aside, fit the chart without making the page scroll sideways. */
+  export let compact = false;
   // A page shows at most one curve, so the subject names its ids the same way on the server and in the browser.
   $: uid = `curve-${subject.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
-  const width = 920;
-  const height = 320;
-  const left = 94;
-  const right = 28;
-  const top = 24;
-  const bottom = 52;
-  const plotWidth = width - left - right;
-  const plotHeight = height - top - bottom;
+  $: width = compact ? 320 : 920;
+  $: height = compact ? 180 : 320;
+  $: left = compact ? 55 : 94;
+  $: right = compact ? 12 : 28;
+  $: top = compact ? 12 : 24;
+  $: bottom = compact ? 30 : 52;
+  $: plotWidth = width - left - right;
+  $: plotHeight = height - top - bottom;
   const format = (value: number) => value.toLocaleString('en-US');
   let level: number;
 
@@ -47,7 +49,7 @@
 <p class="intro">Each point shows the experience needed to advance from that level to the next. The vertical axis uses a logarithmic scale.</p>
 <!-- The scrollable chart needs focus so keyboard readers can pan it without changing the selected level. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div class="chart-scroll" role="region" aria-label="Level curve chart; scroll horizontally to see all levels" tabindex="0">
+<div class="chart-scroll" class:compact role="region" aria-label={compact ? 'Level curve chart' : 'Level curve chart; scroll horizontally to see all levels'} tabindex="0">
   <svg viewBox={`0 0 ${width} ${height}`} role="img" preserveAspectRatio="xMidYMid meet" aria-labelledby={`${uid}-title ${uid}-description`}>
     <title id={`${uid}-title`}>Experience to next level by {subject.toLowerCase() === "character" ? "character" : subject} level</title>
     <desc id={`${uid}-description`}>A logarithmic chart of experience to the next level for each published level below the cap. Select a level below for exact values.</desc>
@@ -58,12 +60,17 @@
     <line class="axis" x1={left} x2={left} y1={top} y2={top + plotHeight} />
     <line class="axis" x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} />
     <polyline class="curve" points={points} />
+    <!-- The selected level of the slider; the cap has no next level, so it has no point on the curve. -->
+    {#if next > 0}
+      <line class="marker" x1={x(level)} x2={x(level)} y1={top} y2={top + plotHeight} />
+      <circle class="marker-point" cx={x(level)} cy={y(next)} r="5" />
+    {/if}
     {#each xTicks as tick}
       <line class="axis" x1={x(tick)} x2={x(tick)} y1={top + plotHeight} y2={top + plotHeight + 5} />
       <text class="tick" x={x(tick)} y={top + plotHeight + 22} text-anchor="middle">{format(tick)}</text>
     {/each}
-    <text class="axis-label" x={left + plotWidth / 2} y={height - 4} text-anchor="middle">Level</text>
-    <text class="axis-label" transform={`translate(18 ${top + plotHeight / 2}) rotate(-90)`} text-anchor="middle">Experience to next level (logarithmic)</text>
+    {#if !compact}<text class="axis-label" x={left + plotWidth / 2} y={height - 4} text-anchor="middle">Level</text>{/if}
+    {#if !compact}<text class="axis-label" transform={`translate(18 ${top + plotHeight / 2}) rotate(-90)`} text-anchor="middle">Experience to next level (logarithmic)</text>{/if}
   </svg>
 </div>
 <div class="selector">
@@ -84,11 +91,13 @@
   .intro, .note { margin: 0 0 .75rem; color: var(--c-text-dim); line-height: 1.5; }
   .chart-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
   svg { display: block; width: 100%; min-width: 36rem; height: auto; background: var(--c-surface-sunken); border-radius: var(--c-radius-sm); }
+  .chart-scroll.compact svg { min-width: 0; }
   .grid { stroke: var(--c-line); stroke-dasharray: 3 4; }
   .axis { stroke: var(--c-text-dim); }
   .curve { fill: none; stroke: var(--c-accent); stroke-width: 2.5; stroke-linejoin: round; }
-  .tick, .axis-label { fill: var(--c-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12px; }
-  .axis-label { font-size: 13px; }
+  .marker { stroke: var(--c-text-strong); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .marker-point { fill: var(--c-text-strong); stroke: var(--c-surface-sunken); stroke-width: 2; }
+  .tick, .axis-label { fill: var(--c-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: .875rem; }
   .selector { display: grid; gap: .6rem; margin-top: 1rem; }
   .selector label { color: var(--c-text-strong); font-weight: 600; }
   .controls { display: flex; align-items: center; gap: .75rem; }

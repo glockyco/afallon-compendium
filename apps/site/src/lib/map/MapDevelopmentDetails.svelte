@@ -37,7 +37,7 @@
   {#if staleSelection}<div class="stale-warning" role="alert"><p>{staleSelection}</p></div>{/if}
   {#if error}<div class="stale-warning" role="alert"><p>{error}</p><button type="button" class="inline-link" on:click={onRetry}>Retry details</button></div>{/if}
   {#if loading && !page}<p class="muted" role="status">Loading document…</p>{/if}
-  {#if page}<TooltipPresenter {page} {registry} {mapSpaceLabels} />{/if}
+  {#if page}<TooltipPresenter {page} {registry} />{/if}
   {#if placementFacts.length}
     <dl class="placement-facts">
       {#each placementFacts as fact (fact.label)}<dt>{fact.label}</dt><dd>{fact.value}</dd>{/each}
@@ -54,5 +54,5 @@
   .placement-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .3rem .8rem; margin: .8rem 0; font-size: var(--c-text-small); }
   dt { color: var(--c-text-mute); }
   dd { margin: 0; color: var(--c-text); overflow-wrap: anywhere; }
-  pre { max-height: 24rem; overflow: auto; color: var(--c-text-soft); font: .68rem/1.4 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+  pre { max-height: 24rem; overflow: auto; color: var(--c-text-soft); font: .875rem/1.5 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>

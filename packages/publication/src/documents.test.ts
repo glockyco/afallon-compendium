@@ -3,13 +3,14 @@ import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts
 import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
 import type { CatalogGatheringNode, CatalogMechanicsRule } from "@afallon/contracts/catalog";
 import { readerCoverage } from "./coverage";
-import { projectGatheringNodeDocuments } from "./gathering";
+import { projectGatheringNodeDocuments, spawnerGroups, spawnerShares } from "./gathering";
 import { conditionsById, projectPublicDocuments, projectQuestObjective, requirementsFor, type DocumentProjectionInput } from "./documents";
 import { assertCompleteTooltipCoverage, auditPublicTooltipCoverage } from "./tooltip-coverage";
 import { searchAliases } from "./index-resources";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
+import { placeSpots } from "./place-spots";
 
 const entities: CatalogEntityRow[] = [
   { entityKey: "items:1", kind: "items", nativeId: 1, name: "<color=red>Oathbreaker's Edge</color>", description: "<b>Sharp</b><br>Steel", iconAssetName: null, artwork: [] },
@@ -126,14 +127,61 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(itemValues).toEqual(npcValues);
   expect(itemValues).toMatchObject({ min: 1, max: 2, chance: 12.5 });
   expect(itemValues).not.toHaveProperty("placements");
-  expect(item.gatheredFrom).toEqual([{ label: "Iron Node", min: 1, max: 2, chance: 25, placementCount: 2 }]);
+  expect(item.sourceSpotCount).toBe(2);
+  expect(item.gatheredFrom).toEqual([{ label: "Iron Node", min: 1, max: 2, chance: 25, requirements: [], availability: [], placementCount: 2,
+    places: [{ label: "World", mapSpaceId: "world", spotCount: 2, placementIds: ["p1", "p2"] }] }]);
   expect(item.inContainers).toEqual([{ counterpart: { key: "scenes:10", kind: "places", name: "Crypt", slug: "crypt" },
-    label: "Chest", min: 1, max: 1, availability: [], placementCount: 2 }]);
+    label: "Chest", min: 1, max: 1, availabilityIndex: 0, placementCount: 2,
+    places: [{ label: "World", mapSpaceId: "world", spotCount: 2, placementIds: ["p1", "p2"] }] }]);
+  expect(item.sourceAvailabilities).toEqual([[]]);
   expect(item).not.toHaveProperty("locations");
-  expect(npc.locations).toEqual([{ label: "World", placements: [{ placementId: "p1", mapSpaceId: "world", label: "World" }], availability: [], variants: ["n2"], roles: ["boss"], quests: [] }]);
+  expect(npc.locations).toEqual([{ label: "World", placements: [{ placementId: "p1", mapSpaceId: "world", label: "World" }], spotCount: 1, availability: [], variants: ["n2"], roles: ["boss"], quests: [] }]);
   expect(place).not.toHaveProperty("locations");
   expect(place.space).toEqual({ mapSpaceId: "world", regionIds: ["region-1"] });
   expect(place.creatures).toMatchObject([{ counterpart: { key: "npcs:2" }, placementCount: 1 }]);
+});
+
+test("condition-bearing gathering sources keep separate map spots", () => {
+  const conditional = { ...relations, gathers: relations.gathers.map((row, index) =>
+    index === 0 ? row : { ...row, conditionIds: ["oathbreaker"] }) };
+  const published = new Map([
+    ["p1", { placementId: "p1", mapSpaceId: "world", label: "Crypt", categories: [] }],
+    ["p2", { placementId: "p2", mapSpaceId: "world", label: "Crypt", categories: [] }],
+  ]);
+  const { documents } = project(entities, facts, conditional, published);
+  const item = documents.get("items:1") as PublicItem;
+  expect(item.gatheredFrom).toHaveLength(2);
+  expect(item.gatheredFrom.map((row) => row.places[0]?.placementIds[0])).toEqual(["p1", "p2"]);
+  expect(item.gatheredFrom[0]?.requirements).toEqual([]);
+  expect(item.gatheredFrom[1]?.requirements[0]?.requirements[0]?.label).toBe("Shieldmaster");
+  expect(item.sourceSpotCount).toBe(2);
+});
+
+test("container rows share a condition without losing distinct source spots", () => {
+  const conditioned = { ...relations, containers: relations.containers.map((row, index) => ({
+    ...row, containerType: index === 0 ? "Chest" : "Cabinet",
+    availability: [{ effect: "requires" as const, conditionId: "oathbreaker", durationSeconds: null }],
+  })) };
+  const published = new Map([
+    ["p1", { placementId: "p1", mapSpaceId: "world", label: "Crypt", categories: [] }],
+    ["p2", { placementId: "p2", mapSpaceId: "world", label: "Crypt", categories: [] }],
+  ]);
+  const { documents } = project(entities, facts, conditioned, published);
+  const item = documents.get("items:1") as PublicItem;
+  expect(item.inContainers.map((row) => [row.label, row.places[0]?.placementIds[0]])).toEqual([["Chest", "p1"], ["Cabinet", "p2"]]);
+  expect(item.sourceAvailabilities).toHaveLength(1);
+  expect(item.inContainers.map((row) => item.sourceAvailabilities[row.availabilityIndex]?.[0]?.requirements[0]?.requirements[0]?.label)).toEqual(["Shieldmaster", "Shieldmaster"]);
+});
+
+test("equally named places on different map spaces do not share a spot group", () => {
+  const mapped = placeSpots([
+    { placementId: "west", mapSpaceId: "west-mine", label: "Abandoned Mine" },
+    { placementId: "east", mapSpaceId: "east-mine", label: "Abandoned Mine" },
+    { placementId: "west", mapSpaceId: "west-mine", label: "Abandoned Mine" },
+  ]);
+  expect(mapped.map((place) => [place.label, place.spotCount, place.mapSpaceId, place.placementIds[0]])).toEqual([
+    ["Abandoned Mine", 1, "east-mine", "east"], ["Abandoned Mine", 1, "west-mine", "west"],
+  ]);
 });
 
 test("a recipe without a product or skill stays text, and an excluded recipe is not published", () => {
@@ -430,9 +478,11 @@ test("projects quest starts, world effects, and related item, NPC, and place pag
     { sourceKind: "object", label: "Locked Altar", availability: [{ effect: "excludes" }, { effect: "requires" }], placements: [{ placementId: "p4" }] },
   ]);
   const item = documents.get("items:1") as PublicItem;
-  expect(item.inContainers).toMatchObject([{ availability: [{ effect: "requires" }], placementCount: 1 }]);
+  expect(item.inContainers).toMatchObject([{ placementCount: 1 }]);
   expect(item.collectedFrom).toMatchObject([{ label: "Egg Cluster", counterpart: { key: "scenes:10" }, min: 2, max: 3, chance: 30,
-    availability: [{ effect: "requires" }], placementCount: 1 }]);
+    placementCount: 1 }]);
+  expect(item.sourceAvailabilities[item.inContainers[0]!.availabilityIndex]).toMatchObject([{ effect: "requires" }]);
+  expect(item.sourceAvailabilities[item.collectedFrom[0]!.availabilityIndex]).toMatchObject([{ effect: "requires" }]);
   const npc = documents.get("npcs:2") as PublicNpc;
   expect(npc.locations).toMatchObject([{ label: "Raven Camp", availability: [{ effect: "excludes" }], placements: [{ placementId: "p1" }] }]);
   expect(npc.usedInQuests).toMatchObject([{ counterpart: { key: "quests:4" }, objective: { type: "killNpc", target: { key: "npcs:2" }, count: 2 } }]);
@@ -461,7 +511,7 @@ test("projects one creature page with random options, story entries, and rows th
     conditions: [...relations.conditions, { conditionId: "night", semantics: "world", scope: null, label: "Night", requirements: [{ mode: "all", checkCount: false, requiredCount: null, requirements: [requirement("Effect", "Night active is active")] }] }],
     gatedSources: [{ sourceId: "sleeping", family: "npcProducer", label: null, subjects: [{ entityKey: "npcs:225", label: "Fenric Doryn" }], placementIds: ["night"], availability: [{ effect: "requires", conditionId: "night", durationSeconds: null }] }],
   };
-  const placements = new Map(["day-a", "day-b", "night"].map((placementId) => [placementId, { placementId, mapSpaceId: "world", label: "Lake Thaldrin", categories: ["townsfolk" as const] }] as const));
+  const placements = new Map(["day-a", "day-b", "night"].map((placementId) => [placementId, { placementId, mapSpaceId: "world", label: placementId === "night" ? "Coalway Woods" : "Lake Thaldrin", categories: ["townsfolk" as const] }] as const));
   const level = { min: 15, max: 30, scales: true };
   const { documents } = project(scenarioEntities, scenarioFacts, scenarioRelations, placements, new Map([["world", []]]),
     new Map([["day-a", new Map([["npcs:206", level]])], ["day-b", new Map([["npcs:234", level]])], ["night", new Map([["npcs:225", level]])]]));
@@ -471,9 +521,13 @@ test("projects one creature page with random options, story entries, and rows th
   expect(npc.variantFields).toEqual([]);
   expect(npc.locations.map(({ placements: spots, variants, availability, alternative }) => ({ placements: spots.map((row) => row.placementId), variants, rules: availability.length, alternative })))
     .toEqual([
-      { placements: ["day-a", "day-b"], variants: ["n206", "n234"], rules: 0, alternative: { chance: 66.7, options: 2 } },
       { placements: ["night"], variants: ["n225"], rules: 1, alternative: undefined },
+      { placements: ["day-a", "day-b"], variants: ["n206", "n234"], rules: 0, alternative: { chance: 66.7, options: 2 } },
     ]);
+  expect(npc.places.map((place) => [place.label, place.spotCount, place.placementIds]))
+    .toEqual([["Lake Thaldrin", 2, ["day-a", "day-b"]], ["Coalway Woods", 1, ["night"]]]);
+  expect(npc.spotCount).toBe(3);
+  expect(npc.locations.find((location) => location.label === "Coalway Woods")?.availability).toHaveLength(1);
   expect(npc.facts.level).toEqual(level);
   expect(npc.drops.map((row) => [row.counterpart.key, row.variants])).toEqual([["items:1", undefined], ["items:7", ["n234"]]]);
   expect((documents.get("items:1") as PublicItem).droppedBy.map((row) => row.counterpart)).toContainEqual(expect.objectContaining({ key: "npcs:206", name: "Fenric Doryn", slug: "fenric-doryn" }));
@@ -542,10 +596,18 @@ test("recipe items teach one craft, and product pages show the full recipe", () 
     materials: [{ counterpart: expect.objectContaining({ key: "items:22" }), count: 2 }],
     taughtBy: [expect.objectContaining({ key: "items:20" })],
   });
-  expect(product.placedRules.map((rule) => rule.rule.id)).toEqual(["recipe-rank-gate"]);
-  expect(item.placedRules.map((rule) => rule.rule.id)).toEqual(["recipe-item-tooltip"]);
+  expect(product.placedRules).toEqual([{ target: "crafting", guide: expect.objectContaining({ key: "mechanics:crafting-and-gathering" }), stepId: "check-the-crafting-level" }]);
+  expect(item.placedRules).toEqual([{ target: "teaches", guide: expect.objectContaining({ key: "mechanics:crafting-and-gathering" }), stepId: "provide-materials-and-space" }]);
   expect((documents.get("items:22") as PublicItem).placedRules).toEqual([]);
   expect((documents.get("items:22") as PublicItem).usedInRecipes[0]?.counterpart).toMatchObject({ key: "items:21", variant: "crafting" });
+  const moreProduct = { ...craftRelations, recipes: craftRelations.recipes.map((row) =>
+    row.recipe.entityKey === "recipes:7" && row.role === "product" ? { ...row, count: 3 } : row) };
+  const material = project(craftEntities, craftFacts, moreProduct).documents.get("items:22") as PublicItem;
+  expect(material.usedInRecipes).toEqual([{
+    counterpart: expect.objectContaining({ key: "items:21", variant: "crafting" }), count: 2,
+    product: { counterpart: expect.objectContaining({ key: "items:21" }), count: 3 },
+    skill: expect.objectContaining({ key: "skills:0", name: "Alchemy" }), requiredLevel: 40,
+  }]);
   expect((documents.get("items:23") as PublicItem).crafting?.taughtBy).toEqual([]);
   expect(readerCoverage(documents.values(), craftFacts).gaps.find((gap) => gap.gap === "recipeWithoutTeacher")?.pages.map((page) => page.key)).toEqual(["items:24", "items:23"]);
   expect(searchAliases(product)).toEqual([]);
@@ -592,17 +654,20 @@ test("a node yield links the node from the item and the item from the node, and 
   const { refs, documents } = project(craftEntities, craftFacts, craftRelations, new Map([["p1", p1]]));
   const ore = documents.get("items:22") as PublicItem;
   expect(ore.gatheredFrom).toEqual([
-    { counterpart: expect.objectContaining({ key: vein.entityKey }), label: "Iron Vein", skill: expect.objectContaining({ key: "skills:7" }), min: 1, max: 2, chance: 100, placementCount: 1 },
-    { label: "Old Node", skill: expect.objectContaining({ key: "skills:7" }), min: 1, max: 2, chance: 100, placementCount: 0 },
+    { counterpart: expect.objectContaining({ key: vein.entityKey }), label: "Iron Vein", skill: expect.objectContaining({ key: "skills:7" }), min: 1, max: 2, chance: 100, requirements: [], availability: [], placementCount: 1, places: [{ label: "Crypt", mapSpaceId: "world", spotCount: 1, placementIds: ["p1"] }] },
+    { label: "Old Node", skill: expect.objectContaining({ key: "skills:7" }), min: 1, max: 2, chance: 100, requirements: [], availability: [], placementCount: 0, places: [] },
   ]);
   // The row of the object that a scene places merges into the node row instead of reading as collected.
   expect(ore.collectedFrom).toEqual([]);
   const resolve = createReferenceResolver(refs), conditions = conditionsById(craftRelations.conditions);
   const node = projectGatheringNodeDocuments(craftFacts, craftRelations, { resolve, conditions, placements: new Map([["p1", p1]]), requirements: (ids) => requirementsFor(ids, conditions, resolve) }).get(vein.entityKey)!;
   expect(node.yields).toEqual([{ counterpart: expect.objectContaining({ key: "items:22" }), min: 1, max: 2, chance: 100 }]);
-  expect([node.facts.requiredLevel, node.spawners.map((group) => [group.spawners, group.placements.length, group.unplaced, group.options.length]), node.placed]).toEqual([5, [[1, 1, 0, 1]], [{ cooldownSeconds: 300, objects: 1, placements: [], unplaced: 1 }]]);
+  expect([node.facts.requiredLevel, node.spawners.map((group) => [group.spawners, group.placementCount, group.unplaced, group.options.length]), node.placed]).toEqual([5, [[1, 1, 0, 1]], [{ cooldownSeconds: 300, objects: 1, placementCount: 0, unplaced: 1 }]]);
+  expect(node.places).toEqual([{ label: "Crypt", mapSpaceId: "world", spotCount: 1, placementIds: ["p1"] }]);
+  expect(node.spotCount).toBe(1);
+  expect(ore.sourceSpotCount).toBe(1);
   // Only the attunement that names this node applies to it.
-  expect(node.placedRules.map((rule) => rule.rule.id)).toEqual(["spawner-respawn", "placed-node-cooldown", "attunement-98"]);
+  expect(node.placedRules.map((rule) => rule.stepId)).toEqual(["wait-for-the-node", "wait-for-the-node", "pick-a-node"]);
 });
 
 test("placed rules select linked nodes and source scopes and compute yield chances", () => {
@@ -612,11 +677,11 @@ test("placed rules select linked nodes and source scopes and compute yield chanc
     sources: [{ ...vein.sources[1]!, nodeKey: "gatheringNodes:direct-vein", sourceId: "direct-object" }] };
   const scoped: CatalogFacts = { ...craftFacts, gatheringNodes: [vein, silver, direct],
     progression: { ...craftFacts.progression, mechanicsRules: [
-      ruleRow("silver-attunement", "attunement", {}, [{ entityKey: silver.entityKey, label: silver.name }],
+      ruleRow("attunement-642", "attunement", {}, [{ entityKey: silver.entityKey, label: silver.name }],
         [{ page: "gatheringNodes", target: "how-it-works", scope: "linked" }]),
-      ruleRow("spawned-selection", "node-selection", {}, [],
+      ruleRow("spawner-weighted-pick", "node-selection", {}, [],
         [{ page: "gatheringNodes", target: "how-it-works", scope: "spawned" }]),
-      ruleRow("placed-cooldown", "node-availability", {}, [],
+      ruleRow("placed-node-cooldown", "node-availability", {}, [],
         [{ page: "gatheringNodes", target: "how-it-works", scope: "placed" }]),
       ruleRow("node-yield-bonus", "node-rewards", { chancePerLevel: 0.1 }, [],
         [{ page: "gatheringNodes", target: "how-it-works", scope: "all" }]),
@@ -625,11 +690,79 @@ test("placed rules select linked nodes and source scopes and compute yield chanc
   const resolve = createReferenceResolver(references.refs), conditions = conditionsById(craftRelations.conditions);
   const nodes = projectGatheringNodeDocuments(scoped, craftRelations, { resolve, conditions, placements: new Map(),
     requirements: (ids) => requirementsFor(ids, conditions, resolve) });
-  expect(nodes.get(vein.entityKey)?.placedRules.map((row) => row.rule.id)).toEqual(["spawned-selection", "placed-cooldown", "node-yield-bonus"]);
-  expect(nodes.get(silver.entityKey)?.placedRules.map((row) => row.rule.id)).toEqual(["silver-attunement", "spawned-selection", "node-yield-bonus"]);
-  expect(nodes.get(direct.entityKey)?.placedRules.map((row) => row.rule.id)).toEqual(["placed-cooldown", "node-yield-bonus"]);
-  expect(nodes.get(silver.entityKey)?.placedRules.find((row) => row.rule.id === "node-yield-bonus")?.levelChances)
+  expect(nodes.get(vein.entityKey)?.placedRules.map((row) => row.stepId)).toEqual(["pick-a-node", "wait-for-the-node", "gather-the-items"]);
+  expect(nodes.get(silver.entityKey)?.placedRules.map((row) => row.stepId)).toEqual(["pick-a-node", "pick-a-node", "gather-the-items"]);
+  expect(nodes.get(direct.entityKey)?.placedRules.map((row) => row.stepId)).toEqual(["wait-for-the-node", "gather-the-items"]);
+  expect(nodes.get(silver.entityKey)?.placedRules.find((row) => row.stepId === "gather-the-items")?.levelChances)
     .toEqual([{ level: 1, chance: 0.1 }, { level: 300, chance: 30 }]);
-  expect(nodes.get(vein.entityKey)?.placedRules.find((row) => row.rule.id === "node-yield-bonus")?.levelChances)
+  expect(nodes.get(vein.entityKey)?.placedRules.find((row) => row.stepId === "gather-the-items")?.levelChances)
     .toEqual([{ level: 5, chance: 0.5 }, { level: 300, chance: 30 }]);
+});
+
+test("weighted spawner shares use effective endpoint weights per group without inventing an aggregate", () => {
+  const source = vein.sources[0]!;
+  const candidate = (optionIndex: number, nodeKey: string, low: number, high: number, minimum: number) => ({
+    ...source, nodeKey, optionIndex, spawner: { ...source.spawner!, weightAtLowSkill: low, weightAtHighSkill: high, teaserWeight: minimum },
+  });
+  const first = candidate(0, vein.entityKey, 70, 10, 20);
+  const second = candidate(1, "gatheringNodes:silver-vein", 30, 90, 0);
+  const shares = spawnerShares([first, second], 151);
+  expect(shares.get(0)?.map((share) => [share.skillLevel, share.percent])).toEqual([[1, 70], [151, 20 / 110 * 100]]);
+  expect(shares.get(1)?.map((share) => [share.skillLevel, share.percent])).toEqual([[1, 30], [151, 90 / 110 * 100]]);
+  expect(spawnerShares([first, candidate(2, vein.entityKey, 30, 90, 0)], 151).size).toBe(0);
+  expect(spawnerShares([candidate(0, vein.entityKey, 0, 0, 0)], 151).size).toBe(0);
+  const resolve = createReferenceResolver(buildEntityReferences(craftEntities, { facts: craftFacts, relations: craftRelations }).refs);
+  const other: CatalogGatheringNode = { ...vein, entityKey: "gatheringNodes:silver-vein", name: "Silver vein", sources: [{ ...second, sourceId: "spawner-1" }] };
+  const original: CatalogGatheringNode = { ...vein, sources: [first, ...vein.sources.slice(1)] };
+  const groups = [...spawnerGroups([original, other], resolve, new Map(), true).values()];
+  expect(groups).toHaveLength(1);
+  expect(groups[0]?.options[0]?.shares?.[1]?.percent).toBeCloseTo(20 / 110 * 100);
+  expect(groups[0]?.options[1]?.shares?.[1]?.percent).toBeCloseTo(90 / 110 * 100);
+  const alternative: CatalogGatheringNode = { ...vein, sources: [{ ...candidate(0, vein.entityKey, 1, 1, 0), sourceId: "spawner-2" }] };
+  const separate = [...spawnerGroups([original, other, alternative], resolve, new Map(), true).values()];
+  expect(separate).toHaveLength(2);
+  expect(separate.map((group) => group.options.map((option) => option.shares?.[0]?.percent))).toEqual([[70, 30], [100]]);
+});
+
+test("an inverted authored loot quantity cannot become a displayed range", () => {
+  const invalid: CatalogRelations = { ...relations, drops: [{ ...relations.drops[0]!, min: 15, max: 3 }] };
+  const { documents } = project(entities, facts, invalid);
+  const fromNpc = (documents.get("npcs:2") as PublicNpc).drops[0]!;
+  const fromItem = (documents.get("items:1") as PublicItem).droppedBy[0]!;
+  for (const row of [fromNpc, fromItem]) {
+    expect(row).not.toHaveProperty("min");
+    expect(row).not.toHaveProperty("max");
+    expect(row.chance).toBe(12.5);
+  }
+});
+
+test("a node with an unsupported yield operand has a guide link but no invented chance", () => {
+  const uncertain: CatalogFacts = { ...craftFacts, progression: { ...craftFacts.progression, mechanicsRules: [
+    ...craftFacts.progression.mechanicsRules,
+    { ...ruleRow("node-yield-bonus", "node-rewards", {}), status: "unknown", placements: [{ page: "gatheringNodes", target: "how-it-works", scope: "all" }] },
+  ] } };
+  const { refs } = project(craftEntities, uncertain, craftRelations);
+  const resolve = createReferenceResolver(refs), conditions = conditionsById(craftRelations.conditions);
+  const node = projectGatheringNodeDocuments(uncertain, craftRelations, { resolve, conditions, placements: new Map(),
+    requirements: (ids) => requirementsFor(ids, conditions, resolve) }).get(vein.entityKey)!;
+  expect(node.placedRules.find((row) => row.stepId === "gather-the-items")).toEqual({
+    target: "how-it-works", guide: expect.objectContaining({ key: "mechanics:crafting-and-gathering" }), stepId: "gather-the-items",
+  });
+});
+
+test("placed and spawned node spots count distinct identities across places", () => {
+  const extra = { placementId: "p2", mapSpaceId: "world", label: "Coalway Woods", categories: [] };
+  const multi: CatalogGatheringNode = { ...vein, sources: [
+    vein.sources[0]!,
+    { ...vein.sources[1]!, sourceId: "direct-a", placementId: "p1" },
+    { ...vein.sources[1]!, sourceId: "direct-b", placementId: "p2" },
+  ] };
+  const scenario: CatalogFacts = { ...craftFacts, gatheringNodes: [multi] };
+  const { refs } = project(craftEntities, scenario, craftRelations);
+  const resolve = createReferenceResolver(refs), conditions = conditionsById(craftRelations.conditions);
+  const node = projectGatheringNodeDocuments(scenario, craftRelations, { resolve, conditions, placements: new Map([["p1", p1], ["p2", extra]]),
+    requirements: (ids) => requirementsFor(ids, conditions, resolve) }).get(vein.entityKey)!;
+  expect(node.spotCount).toBe(2);
+  expect(node.places.map(({ label, spotCount, placementIds }) => [label, spotCount, placementIds]))
+    .toEqual([["Coalway Woods", 1, ["p2"]], ["Crypt", 1, ["p1"]]]);
 });

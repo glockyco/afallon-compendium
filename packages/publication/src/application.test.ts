@@ -24,7 +24,7 @@ test("a candidate leaves out each excluded record, lists it, and passes the grap
     const { store, plan, options } = await publicationFixture(root, "build", false, true);
     const values = async (candidate: Awaited<ReturnType<typeof publishFromPlan>>, schemaId: string) => await Promise.all(candidate.resources
       .filter((resource) => resource.reference.schemaId === schemaId).map(async (resource) => JSON.parse(await readFile(store.objectPath(resource.identity.sha256), "utf8"))));
-    const searchKeys = async (candidate: Awaited<ReturnType<typeof publishFromPlan>>) => (await values(candidate, "compendium.static-search.v5"))
+    const searchKeys = async (candidate: Awaited<ReturnType<typeof publishFromPlan>>) => (await values(candidate, "compendium.static-search.v6"))
       .flatMap((part: { entries: Array<{ ref: { key: string } }> }) => part.entries.map((entry) => entry.ref.key)).sort();
     expect(await searchKeys(await publishFromPlan(store, plan, { ...options, select: false }))).toEqual(["items:1", "items:417"]);
 

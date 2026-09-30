@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { DropRow, EntityRef, PublicItem, PublicKindEntry, VendorRow } from '@afallon/contracts/public';
-import { itemSourceLines, lineHref, summaryText } from './item-sources';
+import { craftExperienceSentence, itemSourceLines, lineHref, summaryText } from './item-sources';
 
 const npc = (id: number, name: string): EntityRef => ({ key: `npcs:${id}`, kind: 'npcs', name, slug: name.toLowerCase().replaceAll(' ', '-') });
 const gold: EntityRef = { key: 'currencies:0', kind: 'currencies', name: 'Gold Coin' };
@@ -9,43 +9,60 @@ const sale = (counterpart: EntityRef, amount: number): VendorRow => ({ counterpa
 
 function item(droppedBy: DropRow[], soldBy: VendorRow[], startingGearOf: PublicItem['startingGearOf'] = []): PublicItem {
   return {
-    ref: { key: 'items:1', kind: 'items', name: 'Iron Bar', slug: 'iron-bar' }, description: null, art: {},
+    ref: { key: 'items:1', kind: 'items', name: 'Iron Bar', slug: 'iron-bar' }, description: null, art: {}, sourceSpotCount: 0, sourceAvailabilities: [[]],
     facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 20, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
     droppedBy, soldBy, gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf, placedRules: [],
   };
 }
 
-test('source lines name distinct counterparts in the order of their sections and give world loot its own line', () => {
-  const thornmaw = npc(1, 'Thornmaw'), wraith = npc(2, 'Frost Wraith'), boar = npc(3, 'Boar');
+test('routes keep loot probabilities separate from guarantees and lowest vendor price', () => {
+  const thornmaw = npc(1, 'Thornmaw'), wraith = npc(2, 'Frost Wraith');
   const lines = itemSourceLines(item([
-    drop(boar, 5), drop(thornmaw, 15), drop(thornmaw, 10), drop(wraith, 12),
+    drop(thornmaw, 100), drop(wraith, 12),
     drop({ key: null, label: 'Any creature' }, 3, { creatureLevel: { min: 18, max: 26 } }),
   ], [sale(npc(4, 'Wizard Merchant'), 55), sale(npc(5, 'General Goods'), 50)]));
-  expect(lines.map((entry) => [entry.label, summaryText(entry)])).toEqual([
-    ['Dropped by', 'Thornmaw, Frost Wraith and 1 more'],
-    ['World loot', 'Creatures of level 18–26'],
-    ['Sold by', 'General Goods and Wizard Merchant'],
-  ]);
-  expect(lines[2]!.lowestPrice?.amount).toBe(50);
+  expect(lines.map((entry) => entry.label)).toEqual(['Loot', 'Buy']);
+  expect(lines[0]?.guaranteedYield).toBeUndefined();
+  expect(lines[0]?.detail).toContain('creatures of level 18–26');
+  expect(lines[1]?.lowestPrice?.amount).toBe(50);
 });
 
-test('a starting gear line names the classes and leads to the Starting gear section of the first class page', () => {
+test('known spot count ranks distinct place spots ahead of unplaced chance routes', () => {
+  const ore = item([drop(npc(1, 'Miner'), 90)], []);
+  ore.gatheredFrom = [{ label: 'Iron Vein', skill: { key: 'skills:1', kind: 'skills', name: 'Mining', slug: 'mining' }, chance: 40, requirements: [], availability: [], placementCount: 2,
+    places: [{ label: 'Hills', mapSpaceId: 'world', spotCount: 2, placementIds: ['a', 'b'] }] }];
+  ore.inContainers = [{ label: 'Chest', chance: 100, availabilityIndex: 0, placementCount: 1,
+    places: [{ label: 'Hills', mapSpaceId: 'world', spotCount: 1, placementIds: ['a'] }] }];
+  expect(itemSourceLines(ore).map((entry) => [entry.label, entry.spotCount])).toEqual([['Mine', 2], ['Search', 1], ['Loot', undefined]]);
+});
+
+test('starting gear only links published classes and no source remains unknown', () => {
   const heroClass = (id: number, name: string): EntityRef => ({ key: `classes:${id}`, kind: 'classes', name, slug: name.toLowerCase() });
   const registry = [{ kind: 'classes', route: 'classes' }] as PublicKindEntry[];
-  const lines = itemSourceLines(item([], [], [heroClass(1, 'Wizard'), heroClass(3, 'Necromancer'), heroClass(6, 'Druid')].map((ref) => ({ class: ref }))));
-  expect(lines.map((entry) => [entry.label, summaryText(entry)])).toEqual([['Starting gear of', 'Wizard, Necromancer and 1 more']]);
-  expect(lines[0]!.names).toEqual([{ ref: { ...heroClass(1, 'Wizard'), variant: 'starting-gear' } }, { ref: { ...heroClass(3, 'Necromancer'), variant: 'starting-gear' } }]);
+  expect(itemSourceLines(item([], []))).toEqual([]);
+  const lines = itemSourceLines(item([], [], [{ class: heroClass(1, 'Wizard') }, { class: { ...heroClass(2, 'Berserker'), slug: undefined } }]));
+  expect(lines.map((entry) => [entry.label, summaryText(entry)])).toEqual([['Starting gear', 'Wizard']]);
   expect(lineHref(lines[0]!, registry, '/base')).toBe('/base/classes/wizard/#starting-gear');
-  expect(lineHref(itemSourceLines(item([drop(npc(1, 'Thornmaw'), 5)], []))[0]!, registry, '/base')).toBe('#dropped-by');
 });
 
-test('a crafted item names its skill and gate in the source line and links its Crafting section', () => {
-  const crafted = item([], []);
-  crafted.crafting = {
-    recipe: { key: 'recipes:1', name: 'Iron Bar' }, skill: { key: 'skills:1', kind: 'skills', name: 'Smithing', slug: 'smithing' },
-    learnedByDefault: true, materials: [], ranks: [{ rank: 1, requiredLevel: 150, baseExperience: 42, bands: [] }], taughtBy: [],
-  };
+test('craft output outranks chance routes and links its own section', () => {
+  const crafted = item([drop(npc(1, 'Thornmaw'), 100)], []);
+  crafted.crafting = { recipe: { key: 'recipes:1', name: 'Ring of Bleed Damage' }, skill: { key: 'skills:1', kind: 'skills', name: 'Smithing', slug: 'smithing' },
+    learnedByDefault: false, materials: [], product: { counterpart: crafted.ref, count: 2 }, ranks: [{ rank: 1, requiredLevel: 150, baseExperience: 42, bands: [] }], taughtBy: [] };
   const lines = itemSourceLines(crafted);
-  expect(lines.map((entry) => [entry.label, summaryText(entry)])).toEqual([['Crafted', 'Smithing level 150']]);
+  expect(lines.map((entry) => entry.label)).toEqual(['Craft', 'Loot']);
+  expect(lines[0]?.guaranteedYield).toBe(2);
   expect(lineHref(lines[0]!, [], '')).toBe('#crafting');
+});
+
+test('published full bands merge into the short experience breakpoint sentence', () => {
+  const crafted = item([], []);
+  crafted.crafting = { recipe: { key: 'recipes:1', name: 'Runeweave Regalia' }, skill: { key: 'skills:1', kind: 'skills', name: 'Tailoring', slug: 'tailoring' },
+    learnedByDefault: false, materials: [], ranks: [{ rank: 1, requiredLevel: 150, baseExperience: 1200, bands: [
+      { band: 'firstFull', from: 150, to: 159, experience: 1200 },
+      { band: 'secondFull', from: 160, to: 169, experience: 1200 },
+      { band: 'half', from: 170, to: 184, experience: 600 },
+      { band: 'none', from: 185, experience: 0 },
+    ] }], taughtBy: [] };
+  expect(craftExperienceSentence(crafted.crafting)).toBe('Gives 1,200 Tailoring experience per craft until level 169, 600 until 184, and none from 185.');
 });

@@ -100,7 +100,7 @@ function skillRow(document: PublicSkill): ListRow {
 
 function gatheringNodeRow(document: PublicGatheringNode): ListRow {
   const skill = refName(document.facts.skill);
-  const locations = [...document.spawners, ...document.placed].reduce((sum, group) => sum + group.placements.length, 0);
+  const locations = [...document.spawners, ...document.placed].reduce((sum, group) => sum + group.placementCount, 0);
   return { ref: document.ref, values: { skill, requiredLevel: document.facts.requiredLevel ?? null, locations }, facets: { skill: facetValue(skill) } };
 }
 
@@ -153,7 +153,7 @@ export function buildKindLists(
     if (!entry.list) continue;
     const kind = entry.kind as PublicListKind;
     result.set(kind, partitionStaticRecords(rowsByKind.get(kind) ?? [], (rows, part): StaticKindList => ({
-      schemaVersion: "compendium.static-kind-list.v3", ...identity, kind, part, rows,
+      schemaVersion: "compendium.static-kind-list.v4", ...identity, kind, part, rows,
     })));
   }
   return result;

@@ -83,9 +83,9 @@
 
 <style>
   .hint { display: inline-flex; max-width: 100%; }
-  .term { padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: inherit; text-transform: inherit; cursor: help; }
+  .term { min-height: 1.5rem; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: inherit; cursor: help; }
   .term, .hint :global(.hint-term) { text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, currentcolor 60%, transparent); text-underline-offset: .22em; }
   .term:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
-  .hint-panel { position: fixed; z-index: 45; top: 0; left: 0; visibility: hidden; width: max-content; max-width: min(20rem, calc(100vw - 2rem)); overflow: auto; padding: .45rem .6rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-0); box-shadow: 0 8px 24px var(--c-shadow); color: var(--c-text-strong); font: .78rem/1.45 system-ui, sans-serif; letter-spacing: normal; text-align: left; text-transform: none; white-space: normal; }
+  .hint-panel { position: fixed; z-index: 45; top: 0; left: 0; visibility: hidden; width: max-content; max-width: min(20rem, calc(100vw - 2rem)); overflow: auto; padding: .45rem .6rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-0); box-shadow: 0 8px 24px var(--c-shadow); color: var(--c-text-strong); font: .875rem/1.5 system-ui, sans-serif; text-align: left; white-space: normal; }
   @media (max-width: 640px) { .hint-panel { inset: auto 1rem 1rem !important; width: auto !important; max-width: none !important; visibility: visible; } }
 </style>

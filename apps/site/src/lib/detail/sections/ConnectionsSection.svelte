@@ -1,44 +1,49 @@
 <script lang="ts">
   import type { ConnectionRow, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import LocationLinks from '../../LocationLinks.svelte';
-  import MissingValue from '../../MissingValue.svelte';
   import { nameOf } from '../../format';
+  import { spotOnMap } from '../../map-links';
   import { placeConnectionRows, type PlaceConnectionRow } from '../place-rows';
-  import { planColumns, type RelationColumn } from '../relation-table';
-  import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
 
   export let connections: ConnectionRow[];
   export let registry: PublicKindEntry[];
+  export let compact = false;
 
-  // Teleports out of the place come first, then teleports into it, then teleports inside it. In each direction, an
-  // unknown place follows the named places.
   const ORDER: Record<PlaceConnectionRow['direction'], number> = { to: 0, from: 1, within: 2 };
-  const placeText = (row: PlaceConnectionRow) => row.counterpart.key === null ? 'an unknown place' : nameOf(row.counterpart);
-  const teleportText = (row: PlaceConnectionRow) => row.direction === 'within' ? 'Within this place' : `${row.direction === 'to' ? 'To' : 'From'} ${placeText(row)}`;
-
-  const columns: RelationColumn<PlaceConnectionRow>[] = [
-    { id: 'teleport', label: 'Teleport', value: teleportText, sort: (row) => `${ORDER[row.direction]} ${row.counterpart.key === null ? 1 : 0} ${placeText(row)}` },
-    { id: 'start', label: 'Starts at', value: (row) => row.placements.length, sort: (row) => row.placements.length },
-  ];
-
-  $: rows = placeConnectionRows(connections);
-  $: plan = planColumns(columns, rows);
+  $: rows = placeConnectionRows(connections).sort((left, right) => ORDER[left.direction] - ORDER[right.direction] || nameOf(left.counterpart).localeCompare(nameOf(right.counterpart)));
 </script>
 
-{#if rows.length}
-  <Section id="connections" title="Connections" icon="route" count={rows.length}>
-    <RelationTable columns={plan.columns} {rows} label="Connections" sort={{ id: 'teleport', dir: 'asc' }}>
-      <svelte:fragment slot="cell" let:row let:column>
-        {#if column === 'teleport'}
-          {#if row.direction === 'within' || row.counterpart.key === null}{teleportText(row)}
-          {:else}{row.direction === 'to' ? 'To' : 'From'} <EntityLink ref={row.counterpart} {registry} />{/if}
-        {:else if column === 'start'}
-          {#if row.placements.length}<LocationLinks placements={row.placements} />
-          {:else}<MissingValue explanation="The map shows no spot where this teleport starts" />{/if}
+{#snippet connectionList()}
+  <ul class="connections">
+    {#each rows as row}
+      <li>
+        <div class="destination">
+          <span>{row.direction === 'within' ? 'Within' : row.direction === 'to' ? 'To' : 'From'}</span>
+          {#if row.direction === 'within'}this place
+          {:else}<EntityLink ref={row.counterpart} {registry} />{/if}
+          {#if row.placements.length}<span class="count">{row.placements.length} {row.placements.length === 1 ? 'spot' : 'spots'}</span>{/if}
+        </div>
+        {#if row.placements.length}
+          <div class="map-spots">{#each row.placements as placement, index}<a class="c-link" href={spotOnMap(placement.placementId)} aria-label={`${row.direction === 'from' ? 'From' : 'To'} ${nameOf(row.counterpart)}, source spot ${index + 1} on map`}>{row.placements.length === 1 ? 'Show source on map' : `Spot ${index + 1}`}</a>{/each}</div>
         {/if}
-      </svelte:fragment>
-    </RelationTable>
-  </Section>
+      </li>
+    {/each}
+  </ul>
+{/snippet}
+
+{#if rows.length}
+  {#if compact}<div class="side-card" id="connections"><h2>Connections</h2>{@render connectionList()}</div>
+  {:else}<Section id="connections" title="Connections" count={rows.length}>{@render connectionList()}</Section>{/if}
 {/if}
+
+<style>
+  .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  h2 { margin: 0 0 .75rem; font-size: 1rem; }
+  .connections { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
+  li + li { padding-top: .7rem; border-top: 1px solid var(--c-line-soft); }
+  .destination { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem; }
+  .destination > span:first-child, .count { color: var(--c-text-dim); }
+  .count { margin-left: auto; font-size: var(--c-text-small); }
+  .map-spots { display: flex; flex-wrap: wrap; gap: .25rem .65rem; margin-top: .25rem; font-size: var(--c-text-small); }
+</style>

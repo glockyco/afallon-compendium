@@ -16,6 +16,7 @@ export interface CatalogEntityRow {
   kind: string;
   nativeId: number;
   name: string | null;
+  internalName?: string | null;
   description: string | null;
   iconAssetName: string | null;
   artwork: CatalogArtworkBinding[];

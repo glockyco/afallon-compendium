@@ -10,7 +10,7 @@
 
   $: versionIndex = Math.max(0, document.versions.findIndex((candidate) => candidate.anchor === variant));
   $: version = document.versions[versionIndex]!;
-  $: selectedRanks = rankIndex === undefined ? version.ranks : version.ranks.filter((rank) => rank.rankIndex === rankIndex);
+  $: selectedRanks = [version.ranks.find((rank) => rank.rankIndex === rankIndex) ?? version.ranks[0]!];
   $: showLabels = version.ranks.length > 1;
 </script>
 
@@ -18,7 +18,6 @@
   <EntityHeader
     name={document.ref.name}
     art={version.icon ?? document.art.icon ?? document.ref.icon}
-    description={document.description}
     compact
   />
   {#if document.versions.length > 1}<p class="version">Version {versionIndex + 1} of {document.versions.length}</p>{/if}

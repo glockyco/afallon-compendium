@@ -216,7 +216,7 @@
   .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem 1.25rem; margin-bottom: 1.1rem; }
   h2 { margin: 0; color: var(--c-text-strong); font: 600 1.55rem/1.2 var(--c-serif); }
   .section-links { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; }
-  .section-link { color: var(--c-accent); font-size: var(--c-text-small); text-decoration: none; }
+  .section-link { display: inline-flex; align-items: center; min-height: 1.5rem; color: var(--c-accent); font-size: var(--c-text-small); text-decoration: none; }
   .section-link:hover { color: var(--c-accent-strong); text-decoration: underline; text-underline-offset: .18em; }
   .tile-name { color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.25 var(--c-serif); }
   .tile-meta { color: var(--c-text-mute); font-size: var(--c-text-small); font-variant-numeric: tabular-nums; }
@@ -235,7 +235,7 @@
   .dungeon-link:focus-visible { outline: none; }
   .dungeon-link::after { content: ''; position: absolute; inset: 0; z-index: 1; }
   .bosses { display: grid; grid-template-columns: minmax(0, 1fr); gap: .35rem; margin: 0 .9rem .95rem; }
-  .bosses a { position: relative; z-index: 2; display: flex; align-items: center; gap: .5rem; min-width: 0; color: var(--c-text-dim); font-size: var(--c-text-small); text-decoration: none; }
+  .bosses a { position: relative; z-index: 2; display: flex; align-items: center; gap: .5rem; min-width: 0; min-height: 1.5rem; color: var(--c-text-dim); font-size: var(--c-text-small); text-decoration: none; }
   .bosses a:hover { color: var(--c-accent-strong); }
   .bosses span { min-width: 0; line-height: 1.25; }
   .avatar { flex: none; width: 1.75rem; height: 1.75rem; border: 1px solid var(--c-frame); border-radius: 50%; background: var(--c-surface-deep); object-fit: cover; }
@@ -251,12 +251,12 @@
   .bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 1rem; }
   .band { padding: 1.05rem 1.1rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .band h3 { display: grid; gap: .2rem; margin: 0; }
-  .band-label { color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .band-label { color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; }
   .band-range { color: var(--c-accent-strong); font: 600 2.1rem/1 var(--c-serif); }
   .range-bar { position: relative; height: 4px; margin: .8rem 0 .85rem; border-radius: 2px; background: var(--c-surface-3); }
   .range-bar span { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: linear-gradient(90deg, var(--c-accent-muted), var(--c-accent-strong)); }
   .band li + li { border-top: 1px solid var(--c-line-soft); }
-  .band a { display: block; padding: .42rem 0; color: var(--c-text); font-size: var(--c-text-body); line-height: 1.3; text-decoration: none; }
+  .band a { display: block; min-height: 1.5rem; padding: .42rem 0; color: var(--c-text); font-size: var(--c-text-body); line-height: 1.3; text-decoration: none; }
   .band a:hover { color: var(--c-accent-strong); }
 
   .classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1rem; }
@@ -270,13 +270,13 @@
   .skill-art { flex: none; width: 2.75rem; height: 2.75rem; border: 1px solid var(--c-frame); border-radius: 10px; background: var(--c-surface-sunken); }
   .fallback { display: grid; place-items: center; color: var(--c-text-mute); }
   .fallback :global(svg) { width: 45%; height: 45%; }
-  .skill-copy { display: grid; gap: .1rem; min-width: 0; }
+  .skill-copy { display: grid; gap: .1rem; min-width: 0; overflow-wrap: anywhere; }
   .skill-copy .tile-name { font-size: var(--c-text-lead); }
   .recipe-links { margin-top: 1.1rem; }
-  .recipe-links h3 { margin: 0 0 .4rem; color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .recipe-links h3 { margin: 0 0 .4rem; color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; }
   .recipe-links ul { display: flex; flex-wrap: wrap; gap: .45rem 1rem; margin: 0; padding: 0; list-style: none; }
   .gathering { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; margin-top: 1.1rem; }
-  .gathering h3 { margin: 0; color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .gathering h3 { margin: 0; color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; }
   .gathering ul { display: flex; flex-wrap: wrap; gap: .45rem; }
   .gathering a { display: inline-flex; align-items: center; gap: .4rem; padding: .32rem .7rem .32rem .5rem; border: 1px solid var(--c-line); border-radius: 999px; background: var(--c-surface-1); color: var(--c-text); font-size: var(--c-text-small); text-decoration: none; }
   .gathering a:hover { border-color: var(--c-frame-strong); color: var(--c-accent-strong); }

@@ -38,18 +38,23 @@
   <TitleBlock name={document.ref.name} {registry} />
   <Hero><p class="c-prose">{document.overview}</p></Hero>
   <Sections>
-    <Section id="steps" title="Steps" icon="text">
+    <div class="guide-flow">
+    <Section id="steps" title="Steps">
       <ol class="steps">
         {#each document.steps as step}
-          <li><h3>{step.title}</h3><p>{step.text}</p><p class="step-links">{step.rules.length > 1 ? 'Rules' : 'Rule'} {#each step.rules as id, index}{#if index > 0}{', '}{/if}<a class="c-link" href={`#rule-${id}`}>{numbers.get(id)}</a>{/each}</p></li>
+          <li id={`step-${step.id}`}><h3>{step.title}</h3><p>{step.text}</p><p class="step-links">{step.rules.length > 1 ? 'Rules' : 'Rule'} {#each step.rules as id, index}{#if index > 0}{', '}{/if}<a class="c-link" href={`#rule-${id}`}>{numbers.get(id)}</a>{/each}</p></li>
         {/each}
       </ol>
     </Section>
-    <Section id="level-curve" title="Level curve" icon="talent" line={`Character level cap: ${format(document.curve.cap)}.`}>
+    <Section id="worked-example" title="Worked example">
+      {#if document.example}<p>A kill of <EntityLink ref={document.example.creature} {registry} /> at level {format(document.example.level)} gives {format(document.example.lowest)}–{format(document.example.highest)} base experience before modifiers.</p>{/if}
+    </Section>
+    </div>
+    <Section id="level-curve" title="Level curve" line={`Character level cap: ${format(document.curve.cap)}.`}>
       <LevelCurve curve={document.curve} />
       <p>The curve shows the experience needed for each next level.</p>
     </Section>
-    <Section id="experience-sources" title="Experience sources" icon="creature">
+    <Section id="experience-sources" title="Experience sources">
       <div class="prose">
         <p>{fixedText}</p>
         <p>{scalingText}</p>
@@ -60,7 +65,7 @@
         <p>These are the highest levels of these experience sources, not a limit on earning experience at higher character levels.</p>
       </div>
     </Section>
-    <Section id="talent-points" title="Talent points" icon="talent">
+    <Section id="talent-points" title="Talent points">
       {#each document.talentPoints as points}
         <div class="point-group">
           <h3>{points.name}</h3>
@@ -68,25 +73,24 @@
         </div>
       {/each}
     </Section>
-    <Section id="creature-level-modifiers" title="Creature level modifiers" icon="creature">
+    <Section id="creature-level-modifiers" title="Creature level modifiers">
       <p class="table-intro">The percentages modify kill experience when the creature is lower or higher level than the character. Equal levels receive neither modifier.</p>
       <div class="table-scroll"><table>
         <thead><tr><th scope="col">Creatures</th><th scope="col">Lower-level creature</th><th scope="col">Higher-level creature</th></tr></thead>
         <tbody>{#each document.sources.levelModifiers as row}<tr><td>{format(row.creatures)}</td><td>{row.lower > 0 ? '+' : ''}{format(row.lower)}%</td><td>{row.higher > 0 ? '+' : ''}{format(row.higher)}%</td></tr>{/each}</tbody>
       </table></div>
     </Section>
-    <Section id="worked-example" title="Worked example" icon="creature">
-      {#if document.example}
-        <p>A kill of <EntityLink ref={document.example.creature} {registry} /> at level {format(document.example.level)} gives {format(document.example.lowest)}–{format(document.example.highest)} base experience before modifiers.</p>
-      {/if}
-    </Section>
-    <Section id="rules-reference" title="Rules reference" icon="text">
+    <Section id="rules-reference" title="Rules reference">
       <MechanicsRules rules={document.rules} {registry} />
     </Section>
   </Sections>
 </article>
 
 <style>
+  .guide-flow { display: grid; min-width: 0; gap: 1rem; align-items: start; }
+  .guide-flow :global(.section) { min-width: 0; }
+  @media (min-width: 1024px) { .guide-flow { grid-template-columns: minmax(0, 1fr) minmax(16rem, .65fr); } }
+  .steps li { scroll-margin-top: 2rem; }
   .steps { display: grid; gap: 1rem; margin: 0; padding-left: 1.5rem; }
   .steps li { padding-left: .25rem; }
   .steps h3 { margin: 0 0 .2rem; }

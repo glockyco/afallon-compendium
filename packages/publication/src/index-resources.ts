@@ -191,7 +191,7 @@ export async function generateIndexResources(
     });
   }
   const search: GeneratedStaticResource<StaticSearchIndex>[] = [];
-  for (const value of partitionStaticRecords(entries, (partEntries, part): StaticSearchIndex => ({ schemaVersion: "compendium.static-search.v5", ...identity, part, entries: partEntries }))) {
+  for (const value of partitionStaticRecords(entries, (partEntries, part): StaticSearchIndex => ({ schemaVersion: "compendium.static-search.v6", ...identity, part, entries: partEntries }))) {
     Assert(StaticSearchIndexSchema, value);
     search.push(await writeStaticJson(store, value.schemaVersion, value, protection));
   }

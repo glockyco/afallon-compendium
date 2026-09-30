@@ -22,17 +22,17 @@ function fixture() {
     const ref = { key, kind: 'items' as const, name, slug: name };
     refs.set(key, ref);
     documents.set(key, register({
-      schemaVersion: 'compendium.static-item.v7', ...identity, kind: 'items',
+      schemaVersion: 'compendium.static-item.v9', ...identity, kind: 'items',
       document: {
-        ref, description: null, art: {},
+        ref, description: null, art: {}, sourceSpotCount: 1, sourceAvailabilities: [],
         facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
         droppedBy: [], soldBy: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf: [], placedRules: [],
       },
     }));
   }
-  const list = register({ schemaVersion: 'compendium.static-kind-list.v3', ...identity, kind: 'items', part: 0, rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
+  const list = register({ schemaVersion: 'compendium.static-kind-list.v4', ...identity, kind: 'items', part: 0, rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
   const search = register({
-    schemaVersion: 'compendium.static-search.v5', ...identity, part: 0,
+    schemaVersion: 'compendium.static-search.v6', ...identity, part: 0,
     entries: [...refs].map(([key, ref]) => ({ ref, hasPlacements: true, sourceKinds: ['vendor'], document: documents.get(key) })),
   });
   const parts = ['a', 'b'].map((name, part) => register({ schemaVersion: 'compendium.static-map.v3', ...identity, mapSpaceId: 'map', part, placements: [[`place:${name}`, [part * 10, 0], 0, name, ['merchant'], [], [`item:${name}`], null, null, null, null]], regions: [] }));
@@ -41,7 +41,7 @@ function fixture() {
   const exclusions = register({ schemaVersion: 'compendium.static-exclusions.v1', ...identity, exclusions: [] });
   const bounds = { min: { x: 0, y: 0 }, max: { x: 256, y: 256 } };
   const root: StaticRootManifest = {
-    schemaVersion: 'compendium.static-root.v7', ...identity, mode: 'preview', complete: false,
+    schemaVersion: 'compendium.static-root.v8', ...identity, mode: 'preview', complete: false,
     release: { version: '0.16.2.1', dataDate: '2026-09-28', patchNotes: { title: 'Afallon 0.16.2.1', url: 'https://store.steampowered.com/news/app/2597810/view/1844115010501029', date: '2026-09-21' } },
     world: { mapSpaceId: 'world', label: 'Afallon', bounds, offsets: [{ mapSpaceId: 'map', worldX: 0, worldY: 0, source: 'native', status: 'placed' }], unplacedMapSpaceIds: [] },
     maps: [{ mapSpaceId: 'map', label: 'Map', bounds, parts, optionalGeometry: [], imagery }],
@@ -100,7 +100,7 @@ test('search finds a craft by its recipe alias without requiring a recipe page',
 test('Recipes list rows resolve to item Crafting sections without recipe documents', async () => {
   const data = fixture();
   const ref = { key: 'item:a', kind: 'items' as const, name: 'Iron Bar recipe', slug: 'a', variant: 'crafting' };
-  const recipeList = data.register({ schemaVersion: 'compendium.static-kind-list.v3', ...data.identity, kind: 'recipes', part: 0, rows: [{ ref, values: {}, facets: {} }] });
+  const recipeList = data.register({ schemaVersion: 'compendium.static-kind-list.v4', ...data.identity, kind: 'recipes', part: 0, rows: [{ ref, values: {}, facets: {} }] });
   data.root.lists.recipes = [recipeList];
   data.root.kinds.push({ kind: 'recipes', label: 'Recipe', plural: 'Recipes', route: 'recipes', icon: 'recipe', pages: false, list: true, searchable: false, columns: [], facets: [] });
   data.bodies.set('publication.json', JSON.stringify(data.root));
@@ -190,6 +190,31 @@ test('essential multipart maps become usable while search is delayed, and naviga
   expect(controller.snapshot.staleSelection).not.toBe('');
   expect(controller.snapshot.indexes.placementsById.has('removed')).toBe(false);
   controller.dispose();
+});
+
+test('a gathering node map action selects every published spawner and placed spot', async () => {
+  const data = fixture();
+  const ref = { key: 'gatheringNodes:iron', kind: 'gatheringNodes' as const, name: 'Small Iron Vein', slug: 'small-iron-vein' };
+  const node = data.register({
+    schemaVersion: 'compendium.static-gathering-node.v4', ...data.identity, kind: 'gatheringNodes',
+    document: {
+      ref, description: null, art: {}, facts: { requirements: [], variant: false },
+      yields: [], spawners: [], placed: [], placedRules: [],
+      places: [{ label: 'Map', mapSpaceId: 'map', spotCount: 2, placementIds: ['place:a', 'place:b'] }],
+      spotCount: 2,
+    },
+  });
+  const search = JSON.parse(data.bodies.get(data.search.path)!);
+  search.entries.push({ ref, hasPlacements: true, sourceKinds: [], document: node });
+  data.root.search = [data.register(search)];
+  data.bodies.set('publication.json', JSON.stringify(data.root));
+  const { controller, until } = observe(data.loader);
+  try {
+    controller.start(readMapUrl(`?entity=${encodeURIComponent(ref.key)}`));
+    const selected = await until((snapshot) => snapshot.detail.status === 'loaded' && snapshot.documents.has(ref.key));
+    expect(selectionHighlightIds(null, ref.key, null, selected.indexes)).toEqual(['place:a', 'place:b']);
+    expect(selected.indexes.placementsByEntryKey.get(ref.key)?.length).toBe(2);
+  } finally { controller.dispose(); }
 });
 
 test('an obsolete failure cannot replace the new selection loading state, and current failures can retry', async () => {

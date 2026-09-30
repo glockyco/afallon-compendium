@@ -34,7 +34,7 @@
 
 ## 8. Class Pages
 
-- [ ] 8.1 Show playstyle and auto attack first, four available decisive stats, talent-point side facts, tabbed talent trees in authored order, and starting gear. Preserve talent row anchors, ranks, Character Progression link, and no Experience table. Verify Shieldmaster trees, Heroic Essence, hidden-tab deep links, and exclusion of unoffered Hunter.
+- [ ] 8.1 Show playstyle and auto attack first, four available decisive stats, talent-point side facts, starting gear, then tabbed talent trees in authored order. Preserve talent row anchors, ranks, Character Progression link, and no Experience table. Verify Shieldmaster trees, Heroic Essence, hidden-tab deep links, and exclusion of unoffered Hunter.
 
 ## 9. Ability Pages
 

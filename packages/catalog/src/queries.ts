@@ -379,10 +379,10 @@ export function queryCatalogEntities(db: Database): CatalogQueryResult<CatalogEn
   for (const row of db.query<{ entity_key: string; role: "icon" | "portrait" | "artwork"; asset_id: string; sha256: string; bytes: number; width: number; height: number; source_name: string }, []>(`
     SELECT b.entity_key, b.role, a.asset_id, a.sha256, a.bytes, a.width, a.height, a.source_name FROM artwork_bindings b JOIN artwork_assets a ON a.asset_id = b.asset_id ORDER BY b.entity_key, b.role, a.asset_id
   `).all()) { const values = artwork.get(row.entity_key) ?? []; values.push({ role: row.role, assetId: row.asset_id, sha256: row.sha256, bytes: row.bytes, width: row.width, height: row.height, sourceName: row.source_name }); artwork.set(row.entity_key, values); }
-  const records = db.query<{ entity_key: string; kind: string; native_id: number; name: string | null; description: string | null; details_json: string }, []>("SELECT entity_key, kind, native_id, name, description, details_json FROM canonical_entities ORDER BY kind, native_id, entity_key").all().map((row) => {
+  const records = db.query<{ entity_key: string; kind: string; native_id: number; name: string | null; internal_name: string | null; description: string | null; details_json: string }, []>("SELECT entity_key, kind, native_id, name, internal_name, description, details_json FROM canonical_entities ORDER BY kind, native_id, entity_key").all().map((row) => {
     const details = object(row.details_json), icon = details.icon !== null && typeof details.icon === "object" && !Array.isArray(details.icon) ? details.icon as Record<string, unknown> : null;
     const iconAssetName = icon === null ? null : typeof icon.name === "string" ? icon.name : typeof icon.textureName === "string" ? icon.textureName : null;
-    return { entityKey: row.entity_key, kind: row.kind, nativeId: row.native_id, name: row.name, description: row.description, iconAssetName, artwork: artwork.get(row.entity_key) ?? [] };
+    return { entityKey: row.entity_key, kind: row.kind, nativeId: row.native_id, name: row.name, internalName: row.internal_name, description: row.description, iconAssetName, artwork: artwork.get(row.entity_key) ?? [] };
   });
   return { ...identity(db), records };
 }

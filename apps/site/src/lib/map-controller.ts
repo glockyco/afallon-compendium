@@ -184,7 +184,9 @@ export class MapController {
         return extra ? { ...placement, ...extra } : placement;
       }),
     };
-    this.#snapshot = { ...this.#snapshot, publication, indexes: buildSearchIndexes(publication, this.#search?.entries ?? []) };
+    const nodeSpots = new Map([...this.#snapshot.documents.values()].flatMap((page) => page.kind === 'gatheringNodes'
+      ? [[page.document.ref.key, page.document.places.flatMap((place) => place.placementIds)] as const] : []));
+    this.#snapshot = { ...this.#snapshot, publication, indexes: buildSearchIndexes(publication, this.#search?.entries ?? [], nodeSpots) };
   }
 
   #selectionEffects(): void {
@@ -225,6 +227,7 @@ export class MapController {
           documents: new Map([...this.#snapshot.documents, ...pages.map((page) => [page.document.ref.key, page] as const)]),
           ...(generation === this.#selectionGeneration ? { detail: { status: 'loaded' as const } } : {}),
         };
+        this.#compose();
         this.#emit();
       } catch (error) {
         if (this.#disposed || generation !== this.#selectionGeneration) return;

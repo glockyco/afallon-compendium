@@ -28,6 +28,6 @@
 </svelte:head>
 
 <PageShell registry={data.registry} {crumbs} release={data.release}>
-  <DetailPage page={data.page} product={data.product} registry={data.registry} />
+  <DetailPage page={data.page} registry={data.registry} />
   <svelte:fragment slot="footer-extra"><a class="c-link" href={`${base}/data/${data.documentPath}`}>JSON</a></svelte:fragment>
 </PageShell>

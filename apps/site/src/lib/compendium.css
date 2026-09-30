@@ -1,8 +1,9 @@
-/* Tokens and chrome shared by every compendium surface: the pages, the entity tooltip, and the
-   map detail panel. Only custom properties and `c-` classes live here, so importing the file
-   next to the map cannot restyle the map. Table rules are global because a row is written by the
-   component that owns its data and passed through a slot, which leaves the shared wrapper's
-   scoped styles unable to reach it. */
+/* Shared palette, browser-relative type scale, and compendium surfaces. Component-specific
+   detail and map layout stays with its owner; the global table rules also style slotted rows. */
+
+html { font-size: 100%; }
+
+body { font-size: 1rem; line-height: 1.5; }
 
 :root {
   /* The palette. Every color of the site's styles is one of these tokens or a transparent mix of one. */
@@ -54,14 +55,14 @@
   --c-shadow: #0009;
   --c-shadow-strong: #000c;
   --c-scrim: rgb(0 0 0 / 58%);
-  --c-radius: 8px;
-  --c-radius-sm: 4px;
+  --c-radius: .5rem;
+  --c-radius-sm: .25rem;
   --c-serif: Georgia, 'Times New Roman', serif;
-  /* The type scale. Every text size below a page title is one of these steps. */
-  --c-text-label: .75rem;   /* 12 px: uppercase labels, table headings, badges, keys */
-  --c-text-small: .8125rem; /* 13 px: counts, captions, hints, breadcrumbs, the footer, map controls */
-  --c-text-body: .9375rem;  /* 15 px: tables, lists, facts, tooltips, navigation, buttons */
-  --c-text-prose: 1rem;     /* 16 px: authored descriptions and quest text */
+  /* Shared scale follows the reader's browser text preference. */
+  --c-text-label: .875rem;
+  --c-text-small: .875rem;
+  --c-text-body: 1rem;
+  --c-text-prose: 1rem;
   --c-text-lead: 1.0625rem; /* 17 px: tile and card names */
   --c-text-title: 1.25rem;  /* 20 px: section headings */
   --c-rarity-common: #b5b0a5;
@@ -79,6 +80,10 @@
 [data-rarity='gold'] { --c-rarity: var(--c-rarity-gold); }
 [data-rarity='epic'] { --c-rarity: var(--c-rarity-epic); }
 [data-rarity='legendary'] { --c-rarity: var(--c-rarity-legendary); }
+
+/* The browser shrinks `small` to 83 %, which falls below the .875rem floor of the type scale. `:where` keeps the rule at
+   zero specificity, so a component can still set its own size. */
+:where(small) { font-size: var(--c-text-small); }
 
 /* Cards */
 
@@ -129,7 +134,6 @@
   color: var(--c-text);
   font-size: var(--c-text-label);
   font-weight: 600;
-  letter-spacing: .02em;
   line-height: 1.5;
   white-space: nowrap;
 }
@@ -188,8 +192,6 @@
   color: var(--c-text-dim);
   font-size: var(--c-text-label);
   font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 

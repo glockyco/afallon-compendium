@@ -21,9 +21,9 @@ const progressionFacts: CatalogProgressionFact[] = [
   } },
 ];
 const topicRules: Record<NonNullable<CatalogMechanicsRule["topic"]>, string[]> = {
-  "character-progression": ["kill-base-roll", "kill-level-difference", "kill-heroic-multiplier", "kill-companion-split", "kill-game-modifiers", "experience-bonus-stat", "world-modifier-multiplier", "quest-reward-level-scale", "quest-action-amount", "surplus-experience-carries", "level-cap-stops-experience", "skill-award-sources", "skill-award-modifiers"],
+  "character-progression": ["kill-base-roll", "kill-level-difference", "kill-heroic-multiplier", "kill-companion-split", "kill-game-modifiers", "experience-bonus-stat", "world-modifier-multiplier", "quest-reward-level-scale", "quest-action-amount", "quest-reward-skip-flag", "quest-no-heroic-multiplier", "surplus-experience-carries", "level-cap-stops-experience", "skill-award-sources", "skill-award-modifiers", "talent-point-modifiers"],
   "heroic-tier": ["heroic-kill-experience", "affix-count-source", "essence-requires-points", "essence-rank-multiplier", "essence-health-factor", "essence-fraction-carry"],
-  "crafting-and-gathering": ["recipe-rank-gate", "recipe-craft-needs", "recipe-product-roll", "recipe-experience-bands", "recipe-experience-rounding", "recipe-experience-condition", "recipe-experience-modifiers", "spawner-weighted-pick", "spawner-weight-limits", "spawner-weights-relative", "spawner-player-range", "spawner-respawn", "placed-node-cooldown", "node-requirements", "node-loot-roll", "node-yield-bonus", "node-experience"],
+  "crafting-and-gathering": ["recipe-rank-gate", "recipe-craft-needs", "recipe-item-tooltip", "recipe-product-roll", "recipe-experience-bands", "recipe-experience-rounding", "recipe-experience-condition", "recipe-experience-modifiers", "spawner-weighted-pick", "spawner-weight-limits", "spawner-weights-relative", "spawner-check-interval", "spawner-player-range", "spawner-respawn", "placed-node-cooldown", "node-requirements", "node-loot-roll", "node-yield-bonus", "node-experience", "attunement-98", "attunement-642", "attunement-643", "attunement-644", "attunement-645", "attunement-646", "attunement-647", "weapon-skills", "weapon-skills-untrained", "crafting-skill-source", "enchanting-skill-source", "unmapped-skill-sources"],
 };
 const rules: CatalogMechanicsRule[] = Object.entries(topicRules).flatMap(([topic, ids]) => ids.map((ruleId, ordinal) => ({
   ruleId, topic: topic as CatalogMechanicsRule["topic"], section: topic, ordinal, status: "verified" as const,
@@ -33,7 +33,6 @@ const rules: CatalogMechanicsRule[] = Object.entries(topicRules).flatMap(([topic
     ...(ruleId === "node-yield-bonus" ? { chancePerLevel: 0.15 } : {}),
   }, links: [], sources: [{ method: "Game.Method", description: "Bounded decompilation", object: { sha256: "a".repeat(64), bytes: 1 } }], placements: ruleId === "kill-base-roll" ? [{ page: "npcs" as const, target: "experience" as const, scope: "all" as const }] : ruleId === "node-yield-bonus" ? [{ page: "gatheringNodes" as const, target: "how-it-works" as const, scope: "all" as const }] : [],
 })));
-rules.push({ ...rules[0]!, ruleId: "placed-only", topic: null, placements: [{ page: "npcs", target: "experience", scope: "all" }] });
 const npc = (nativeId: number, minLevel: number, maxLevel: number, scalesWithPlayer: boolean, lower = 0, higher = 0, minExperience = 4, maxExperience = 10) => ({ entityKey: `npcs:${nativeId}`, minLevel, maxLevel, scalesWithPlayer, minExperience, maxExperience, lowerLevelExperienceModifier: lower, higherLevelExperienceModifier: higher }) as CatalogNpcFacts;
 const quest = (nativeId: number, max: number | null) => ({ entityKey: `quests:${nativeId}`, experience: 50, levelRequirement: max === null ? null : max - 2, levelRange: max === null ? null : { min: 1, max } }) as CatalogQuestFacts;
 const entities = ([
@@ -108,8 +107,3 @@ test("a catalog without reviewed rules has no mechanics topics", () => {
   expect(projectMechanicsDocuments({ ...facts, progression: { ...facts.progression, mechanicsRules: [] } }, published, spawned, resolve, conditions).size).toBe(0);
 });
 
-test("a missing topic has no guide even when placed rules exist", () => {
-  const selected = rules.filter((rule) => rule.topic === "character-progression" || rule.topic === null);
-  const guides = projectMechanicsDocuments({ ...facts, progression: { ...facts.progression, mechanicsRules: selected } }, published, spawned, resolve, conditions);
-  expect([...guides.keys()]).toEqual(["mechanics:character-progression"]);
-});

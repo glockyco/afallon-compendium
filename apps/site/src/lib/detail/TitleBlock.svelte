@@ -15,6 +15,13 @@
   export let name: string;
   /** The rarity tone of an item, which colours its name as the game does. */
   export let rarity: string | undefined = undefined;
+  /** Published art URL, when the entity has an icon or portrait. */
+  export let imageUrl: string | undefined = undefined;
+  export let portrait = false;
+  /** A concise type line replaces a list of identity facts in redesigned pages. */
+  export let typeLine: string | undefined = undefined;
+  /** Optional linked type prefix; `typeLine` follows it as plain text. */
+  export let typeRef: Ref | undefined = undefined;
   /** What the entity is and where it belongs. The hero holds every other fact. */
   export let facts: TitleFact[] = [];
   /** The map address that shows the entity. Without it, the title block has no map action. */
@@ -25,35 +32,50 @@
 </script>
 
 <header class="title-block" data-rarity={rarity}>
-  <div class="heading">
-    <h1 class:coloured={Boolean(rarity)}>{name}</h1>
-    {#if mapHref}<a class="c-action map" href={mapHref}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>View on map</a>{/if}
+  <div class="heading" class:no-art={!imageUrl} class:without-action={!mapHref}>
+    {#if imageUrl}<div class="identity-art" class:portrait><img src={imageUrl} alt="" /></div>{/if}
+    <div class="identity">
+      <h1 class:coloured={Boolean(rarity)}>{name}</h1>
+      {#if typeLine || typeRef}<p class="type-line">{#if typeRef}<EntityLink ref={typeRef} {registry} />{/if}{#if typeLine}{typeRef ? ' ' : ''}{typeLine}{/if}</p>{/if}
+      {#if facts.length}
+        <ul class="facts">
+          {#each facts as fact}
+            <li>
+              {#if fact.label}<span class="label">{fact.label}</span>{/if}
+              {#if 'refs' in fact}
+                <span class="refs">{#each fact.refs as ref, index}{index > 0 ? ', ' : ''}<EntityLink {ref} {registry} />{/each}</span>
+              {:else}<span class="value">{fact.text}</span>{/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+    {#if mapHref}<a class="c-action map" href={mapHref}><span class="glyph" aria-hidden="true">{@html mapGlyph}</span>Show on map</a>{/if}
   </div>
-  {#if facts.length}
-    <ul class="facts">
-      {#each facts as fact}
-        <li>
-          {#if fact.label}<span class="label">{fact.label}</span>{/if}
-          {#if 'refs' in fact}
-            <span class="refs">{#each fact.refs as ref, index}{index > 0 ? ', ' : ''}<EntityLink {ref} {registry} />{/each}</span>
-          {:else}<span class="value">{fact.text}</span>{/if}
-        </li>
-      {/each}
-    </ul>
-  {/if}
+  <slot />
 </header>
 
 <style>
   .title-block { display: grid; gap: .5rem; margin-bottom: 1.25rem; }
-  .heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1.25rem; }
-  h1 { min-width: 0; margin: 0; color: var(--c-text-strong); font: 600 clamp(1.6rem, 3.5vw, 2.2rem)/1.15 var(--c-serif); overflow-wrap: break-word; }
+  :global(.detail-frame) .title-block { margin-bottom: 0; }
+  .heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1.1rem; align-items: center; }
+  .heading.no-art { grid-template-columns: minmax(0, 1fr) auto; }
+  .heading.no-art.without-action { grid-template-columns: minmax(0, 1fr); }
+  .identity { min-width: 0; }
+  .identity-art { width: 4.5rem; height: 4.5rem; padding: .375rem; border: 1px solid var(--c-rarity); border-radius: .625rem; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--c-rarity) 22%, transparent), var(--c-surface-1) 70%); }
+  .identity-art.portrait { width: 5.5rem; height: 5.5rem; padding: 0; overflow: hidden; border-color: var(--c-frame); }
+  .identity-art img { width: 100%; height: 100%; object-fit: contain; }
+  .identity-art.portrait img { object-fit: cover; }
+  h1 { min-width: 0; margin: 0; color: var(--c-text-strong); font: 700 clamp(1.7rem, 3.5vw, 2.25rem)/1.1 var(--c-serif); overflow-wrap: break-word; }
   .coloured { color: var(--c-rarity); }
+  .type-line { margin: .35rem 0 0; color: var(--c-text-dim); }
   .map { flex: none; }
   .glyph { display: inline-grid; place-items: center; }
   .glyph :global(svg) { width: .95rem; height: .95rem; }
-  .facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 0; margin: 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
+  .facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 0; margin: .35rem 0 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   .facts li { display: inline-flex; align-items: baseline; gap: .35rem; }
   .facts li + li::before { content: '·'; margin: 0 .55rem; color: var(--c-text-mute); }
   .label { color: var(--c-text-dim); }
   .value { color: var(--c-text-strong); }
+  @media (max-width: 640px) { .heading { grid-template-columns: auto minmax(0, 1fr); gap: .8rem; } .map { grid-column: 1 / -1; justify-self: start; } }
 </style>

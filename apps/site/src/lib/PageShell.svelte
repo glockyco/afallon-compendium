@@ -116,7 +116,7 @@
 
 <style>
   :global(*) { box-sizing: border-box; }
-  :global(body) { margin: 0; background: var(--c-surface-0); color: var(--c-text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  :global(body) { margin: 0; background: var(--c-surface-0); color: var(--c-text); font: 1rem/1.5 Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
   :global(button, input, select) { font: inherit; }
   :global(button, select) { cursor: pointer; }
   :global(a) { color: var(--c-accent); }
@@ -127,13 +127,13 @@
   .brand { display: inline-flex; align-items: center; gap: .55rem; color: var(--c-text); text-decoration: none; }
   .brand img { width: 32px; height: 32px; flex: none; object-fit: contain; }
   .brand-copy { display: grid; line-height: 1; }
-  .brand-copy strong { font-size: .85rem; letter-spacing: .02em; }
-  .brand-copy span { margin-top: .22rem; color: var(--c-accent); font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .brand-copy strong { font-size: 1rem; }
+  .brand-copy span { margin-top: .15rem; color: var(--c-accent); font-size: .875rem; font-weight: 600; }
   .brand:hover strong { color: var(--c-accent); }
 
   .groups { display: flex; flex-wrap: wrap; gap: .25rem; margin: 0; padding: 0; list-style: none; }
   .group { position: relative; }
-  summary { display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .6rem; border: 1px solid transparent; border-radius: var(--c-radius-sm); color: var(--c-text); font-size: var(--c-text-body); list-style: none; user-select: none; cursor: pointer; }
+  summary { display: inline-flex; align-items: center; gap: .4rem; min-height: 1.5rem; padding: .4rem .6rem; border: 1px solid transparent; border-radius: var(--c-radius-sm); color: var(--c-text); font-size: var(--c-text-body); list-style: none; user-select: none; cursor: pointer; }
   summary::-webkit-details-marker { display: none; }
   summary::after { content: ''; width: .38rem; height: .38rem; margin-top: -.2rem; border-right: 1.5px solid currentcolor; border-bottom: 1.5px solid currentcolor; transform: rotate(45deg); opacity: .7; }
   details[open] > summary::after { margin-top: .15rem; transform: rotate(225deg); }

@@ -66,7 +66,7 @@ test("names the referencing document and key when a referenced document is not p
       document: { ...item.document, facts: { ...item.document.facts, enchantment: { key: "items:404", kind: "items", name: "Missing item", slug: "missing-item" } } },
     });
 
-    const searchCandidates = generated.resources.filter((resource) => resource.reference.schemaId === "compendium.static-search.v5");
+    const searchCandidates = generated.resources.filter((resource) => resource.reference.schemaId === "compendium.static-search.v6");
     const badSearch = await Promise.all(searchCandidates.map(async (candidate) => {
       const search = JSON.parse(await readFile(store.objectPath(candidate.identity.sha256), "utf8")) as StaticSearchIndex;
       return await writeStaticJson<StaticSearchIndex>(store, search.schemaVersion, { ...search,

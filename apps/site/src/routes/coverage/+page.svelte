@@ -13,7 +13,7 @@
   const GAPS: Record<CoverageGap, { title: string; text: string }> = {
     itemWithoutSource: {
       title: 'Items without a known source',
-      text: 'The scanned game data names no creature, vendor, container, object, resource, quest, or recipe that gives these items. Class and race starting gear is one such case, because the scans do not record it.',
+      text: 'The scanned game data names no creature, vendor, container, object, resource, quest, recipe, or published starting gear that gives these items.',
     },
     npcWithoutLocation: {
       title: 'Creatures without a map location',
@@ -72,8 +72,9 @@
 </PageShell>
 
 <style>
-  .published { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: .45rem 1rem; margin: 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
+  .published { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); gap: .45rem 1rem; margin: 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   .text { margin: 0 0 .9rem; color: var(--c-text-dim); font-size: var(--c-text-body); line-height: 1.55; }
   .pages { columns: 16rem; column-gap: 1.5rem; margin: 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
-  .pages li { break-inside: avoid; padding: .15rem 0; }
+  .pages li { break-inside: avoid; padding: .15rem 0; min-height: 1.5rem; overflow-wrap: anywhere; }
+  .published a { display: inline-flex; align-items: center; min-height: 1.5rem; }
 </style>

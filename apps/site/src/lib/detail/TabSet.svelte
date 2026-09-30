@@ -30,8 +30,11 @@
       // The address is repaired while the page starts, before the router accepts `replaceState`. The browser call keeps
       // the router's history state, as the map does for its initial address.
       const next = withTab(url, selection.key, false);
+      handled = next;
       window.history.replaceState(window.history.state, '', next);
       location.set(next);
+      const anchor = fragmentId(next.hash);
+      if (tabOwningAnchor(tabs, anchor) !== undefined) await scrollTo(anchor);
       return;
     }
     if (url === handled) return;

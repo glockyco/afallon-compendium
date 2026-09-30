@@ -197,11 +197,11 @@ An ability page SHALL show the game tooltip once in the side column, choosing th
 
 ### Requirement: Class pages show how a class progresses
 
-Only classes offered by a published race SHALL have pages. A class strip SHALL show races, weapon types, highest level, and talent tree count when known. Its answer SHALL present playstyle and auto attack. Its side SHALL present talent point gains. Talent trees SHALL remain in authored order with the established tabbed List/Grid views and row anchors, followed by Starting gear. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
+Only classes offered by a published race SHALL have pages. A class strip SHALL show races, weapon types, highest level, and talent tree count when known. Its answer SHALL present playstyle and auto attack. Its side SHALL present talent point gains. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with the established tabbed List/Grid views and row anchors. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
 
 #### Scenario: Offered class
 - **WHEN** a reader opens Shieldmaster
-- **THEN** Bastion Breaker, Guardian, Templar, Aegis Mastery, Heroic Ascension, and Starting gear remain reachable in order
+- **THEN** Starting gear, then Bastion Breaker, Guardian, Templar, Aegis Mastery, and Heroic Ascension remain reachable in order
 - **AND** the page links Character Progression
 
 #### Scenario: Class that no race offers

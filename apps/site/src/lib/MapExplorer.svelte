@@ -9,7 +9,7 @@
   import { clientMapLoader } from './client-publication';
   import { MapController, type MapSnapshot } from './map-controller';
   import { emptySearchIndexes, getCategoryCounts, rankResults, selectionHighlightIds, summarizePlacements } from './map-search';
-  import { DEFAULT_MAP_STATE, readMapUrl, repairMapUrl, writeMapUrl } from './map-state';
+  import { DEFAULT_MAP_STATE, itemSourcePlacementIds, nodePlacePlacementIds, readMapUrl, repairMapUrl, writeMapUrl } from './map-state';
   import MapDevelopmentDetails from './map/MapDevelopmentDetails.svelte';
   import MapCanvasShell from './map/MapCanvasShell.svelte';
   import MapSearchResults from './map/MapSearchResults.svelte';
@@ -87,7 +87,9 @@
   $: categories = categoryIds.filter((id): id is MarkerId => MARKER_IDS.includes(id as MarkerId));
   $: selectedId = state.selectedPlacementId;
   $: itemKey = state.itemKey;
+  $: itemSource = state.itemSource;
   $: selectedEntityKey = state.entityKey;
+  $: nodePlace = state.nodePlace;
   $: placeKey = state.placeKey;
   $: query = state.query;
   $: showZones = state.showZones;
@@ -109,13 +111,16 @@
   $: mapSpaceLabels = Object.fromEntries((publication?.maps ?? []).map((map) => [map.mapSpaceId, map.label]));
   $: entriesByKey = searchIndexes.entriesByKey;
   $: itemPlacementIds = new Set((itemKey ? searchIndexes.placementsByEntryKey.get(itemKey) ?? [] : []).map((placement) => placement.placementId));
+  $: selectedNode = selectedEntityKey && entriesByKey.get(selectedEntityKey)?.ref.kind === 'gatheringNodes';
+  $: nodePlacementIds = new Set((selectedNode ? searchIndexes.placementsByEntryKey.get(selectedEntityKey!) ?? [] : []).map((placement) => placement.placementId));
+  $: nodePlaceIds = nodePlace && selectedPage?.kind === 'gatheringNodes' ? nodePlacePlacementIds(selectedPage.document, nodePlace) : null;
   $: corpusEntries = searchIndexes.searchEntries;
   $: placementSearchText = searchIndexes.placementSearchText;
   $: searchNeedle = query.trim().toLocaleLowerCase();
   $: matchingEntries = searchNeedle ? corpusEntries.filter((entry) => entry.text.includes(searchNeedle)).map((entry) => entry.entry) : [];
   $: queryPlacementIds = new Set(matchingEntries.flatMap((entry) => searchIndexes.placementsByEntryKey.get(entry.ref.key)?.map((placement) => placement.placementId) ?? []));
   // Placements that pass every filter except the category selection keep category counts stable.
-  $: candidatePlacements = allMapPlacements.filter((placement) => (!itemKey || (searchState.status === 'loaded' && !entriesByKey.has(itemKey)) || itemPlacementIds.has(placement.placementId)) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || queryPlacementIds.has(placement.placementId)));
+  $: candidatePlacements = allMapPlacements.filter((placement) => (!itemKey || (searchState.status === 'loaded' && !entriesByKey.has(itemKey)) || itemPlacementIds.has(placement.placementId)) && (!itemSource || sourcePlacementIds?.has(placement.placementId)) && (!selectedNode || nodePlacementIds.has(placement.placementId)) && (!nodePlace || nodePlaceIds?.has(placement.placementId)) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || queryPlacementIds.has(placement.placementId)));
   $: matchingPlacements = searchNeedle ? candidatePlacements : candidatePlacements.filter((placement) => categories.length === 0 || categories.some((category) => placement.categories.includes(category)));
   $: categoryCounts = getCategoryCounts(candidatePlacements);
   $: publishedCounts = getCategoryCounts(allMapPlacements);
@@ -136,12 +141,13 @@
   $: previewMarker = previewMarkerId ? markerFor(previewMarkerId) : null;
   $: selectedDocumentKey = itemKey ?? selectedEntityKey ?? placeKey ?? selectedPlacement?.entityKeys.find((key) => documents.has(key)) ?? selectedPlacement?.itemKeys.find((key) => documents.has(key)) ?? null;
   $: selectedPage = selectedDocumentKey ? documents.get(selectedDocumentKey) ?? null : null;
+  $: sourcePlacementIds = itemSource && selectedPage?.kind === 'items' ? itemSourcePlacementIds(selectedPage.document, itemSource) : null;
   $: selectedPlace = selectedPage?.kind === 'places' ? selectedPage.document : null;
   $: selectedRegionIds = selectedPlace?.space?.regionIds ?? [];
   $: resultPlacements = !searchNeedle && !mapUnavailable && viewportBounds ? viewportPlacements : matchingPlacements;
   $: rankedResults = rankResults(searchNeedle, resultPlacements);
   $: displayedResults = rankedResults.slice(0, RESULT_LIMIT);
-  $: highlightedPlacementIds = selectionHighlightIds(selectedPlacement, selectedEntityKey, itemKey, searchIndexes);
+  $: highlightedPlacementIds = itemSource ? [...(sourcePlacementIds ?? [])] : nodePlace ? [...(nodePlaceIds ?? [])] : selectionHighlightIds(selectedPlacement, selectedEntityKey, itemKey, searchIndexes);
   $: matchingPlacementIds = new Set(matchingPlacements.map((placement) => placement.placementId));
   $: extraSelection = selectedPlacement && !staleSelection && !matchingPlacementIds.has(selectedPlacement.placementId) ? selectedPlacement : null;
   $: extraRelatedPlacements = highlightedPlacementIds.filter((id) => !matchingPlacementIds.has(id) && id !== extraSelection?.placementId)
@@ -149,7 +155,7 @@
   $: adapterPlacements = extraSelection || extraRelatedPlacements.length
     ? [...matchingPlacements, ...(extraSelection ? [extraSelection] : []), ...extraRelatedPlacements] : matchingPlacements;
   $: hoveredPlacementIds = hoveredId ? [hoveredId] : [];
-  $: resultsPending = mapState.status !== 'loaded' || Boolean(searchNeedle && searchState.status !== 'loaded');
+  $: resultsPending = mapState.status !== 'loaded' || Boolean(searchNeedle && searchState.status !== 'loaded') || Boolean(itemSource && selectedPage?.kind !== 'items') || Boolean(selectedNode && selectedPage?.kind !== 'gatheringNodes');
   $: resultsError = searchState.status === 'error' ? searchState.message : '';
 
   function handleMapError(message: string): void {

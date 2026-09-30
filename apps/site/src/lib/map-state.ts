@@ -17,7 +17,9 @@ export interface MapState {
   readonly showMovement: boolean;
   readonly markerSize: number;
   readonly itemKey: string | null;
+  readonly itemSource: string | null;
   readonly entityKey: string | null;
+  readonly nodePlace: string | null;
   readonly placeKey: string | null;
   readonly view: MapView | null;
 }
@@ -51,7 +53,9 @@ export const DEFAULT_MAP_STATE: MapState = Object.freeze({
   showMovement: false,
   markerSize: MARKER_SIZE_RANGE.default,
   itemKey: null,
+  itemSource: null,
   entityKey: null,
+  nodePlace: null,
   placeKey: null,
   view: null,
 });
@@ -68,23 +72,23 @@ export function transitionMapState(state: MapState, action: MapAction): MapState
       next = { ...state, layerIds: action.layerIds };
       break;
     case "select-placement":
-      next = { ...state, selectedPlacementId: action.placementId, entityKey: null, placeKey: null,
+      next = { ...state, selectedPlacementId: action.placementId, entityKey: null, nodePlace: null, placeKey: null,
         itemSourceQuery: state.itemKey ? state.itemSourceQuery : "", detailQuery: state.itemKey ? "" : state.detailQuery };
       break;
     case "select-entity":
-      next = { ...state, entityKey: action.entityKey, selectedPlacementId: null, itemKey: null, placeKey: null, itemSourceQuery: "", detailQuery: "" };
+      next = { ...state, entityKey: action.entityKey, nodePlace: null, selectedPlacementId: null, itemKey: null, itemSource: null, placeKey: null, itemSourceQuery: "", detailQuery: "" };
       break;
     case "select-item":
-      next = { ...state, itemKey: action.itemKey, selectedPlacementId: null, entityKey: null, placeKey: null, query: "", itemSourceQuery: "", detailQuery: "" };
+      next = { ...state, itemKey: action.itemKey, itemSource: null, selectedPlacementId: null, entityKey: null, nodePlace: null, placeKey: null, query: "", itemSourceQuery: "", detailQuery: "" };
       break;
     case "select-place":
-      next = { ...state, placeKey: action.placeKey, selectedPlacementId: null, entityKey: null, itemKey: null, query: "", itemSourceQuery: "", detailQuery: "", view: null };
+      next = { ...state, placeKey: action.placeKey, selectedPlacementId: null, entityKey: null, nodePlace: null, itemKey: null, itemSource: null, query: "", itemSourceQuery: "", detailQuery: "", view: null };
       break;
     case "exit-item-context":
-      next = { ...state, itemKey: null, itemSourceQuery: "" };
+      next = { ...state, itemKey: null, itemSource: null, itemSourceQuery: "" };
       break;
     case "close-details":
-      next = { ...state, selectedPlacementId: null, entityKey: null, itemKey: null, placeKey: null, itemSourceQuery: "", detailQuery: "" };
+      next = { ...state, selectedPlacementId: null, entityKey: null, nodePlace: null, itemKey: null, itemSource: null, placeKey: null, itemSourceQuery: "", detailQuery: "" };
       break;
     case "search": {
       const active = action.field === "query" || (action.field === "itemSourceQuery"
@@ -136,7 +140,7 @@ function freezeState(state: MapState, previous?: MapState): MapState {
 
 const MAP_URL_KEYS = new Set([
   "layers", "selected", "q", "source-q", "detail-q", "categories", "zones", "connections", "movement", "marker-size",
-  "item", "entity", "place", "x", "y", "z", "zoom",
+  "item", "item-source", "entity", "node-place", "place", "x", "y", "z", "zoom",
 ]);
 
 function readMapParams(search: string): { params: URLSearchParams; repaired: boolean } {
@@ -184,7 +188,9 @@ export function readMapUrl(search: string): MapState {
     showMovement: params.get("movement") === "1",
     markerSize,
     itemKey: params.get("item"),
+    itemSource: params.get("item") ? params.get("item-source") : null,
     entityKey: params.get("entity"),
+    nodePlace: params.get("entity") ? params.get("node-place") : null,
     placeKey: params.get("place"),
     view,
   });
@@ -197,7 +203,7 @@ export function writeMapUrl(url: URL, state: MapState): URL {
     ["q", state.query.trim() || null], ["source-q", state.itemSourceQuery.trim() || null], ["detail-q", state.detailQuery.trim() || null],
     ["zones", state.showZones ? "1" : null], ["connections", state.showConnections ? "1" : null], ["movement", state.showMovement ? "1" : null],
     ["marker-size", state.markerSize === MARKER_SIZE_RANGE.default ? null : String(state.markerSize)],
-    ["item", state.itemKey], ["entity", state.entityKey], ["place", state.placeKey],
+    ["item", state.itemKey], ["item-source", state.itemKey ? state.itemSource : null], ["entity", state.entityKey], ["node-place", state.entityKey ? state.nodePlace : null], ["place", state.placeKey],
   ];
   for (const [key, value] of entries) if (value !== null) params.set(key, value);
   if (state.categories.length === 0) params.set("categories", "all");
@@ -207,4 +213,24 @@ export function writeMapUrl(url: URL, state: MapState): URL {
   }
   url.search = params.toString();
   return url;
+}
+
+/** Exact published spots of one item-source row; labels alone can name several distinct rows. */
+export function itemSourcePlacementIds(item: { gatheredFrom: readonly { places: readonly { placementIds: readonly string[] }[] }[]; inContainers: readonly { places: readonly { placementIds: readonly string[] }[] }[]; collectedFrom: readonly { places: readonly { placementIds: readonly string[] }[] }[] }, source: string): Set<string> {
+  const match = /^(gatheredFrom|inContainers|collectedFrom):([0-9]+)$/.exec(source);
+  if (!match) return new Set();
+  const index = Number(match[2]);
+  const row = match[1] === "gatheredFrom" ? item.gatheredFrom[index]
+    : match[1] === "inContainers" ? item.inContainers[index] : item.collectedFrom[index];
+  return new Set(row?.places.flatMap((place) => place.placementIds) ?? []);
+}
+
+/** Stable published place identity, including distinct areas sharing one map space. */
+export function nodePlaceKey(place: { mapSpaceId: string; label: string }): string {
+  return JSON.stringify([place.mapSpaceId, place.label]);
+}
+
+/** Spots of one gathering node in one published place, not every node in that place. */
+export function nodePlacePlacementIds(node: { places: readonly { mapSpaceId: string; label: string; placementIds: readonly string[] }[] }, placeKey: string): Set<string> {
+  return new Set(node.places.filter((place) => nodePlaceKey(place) === placeKey).flatMap((place) => place.placementIds));
 }

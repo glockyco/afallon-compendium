@@ -184,7 +184,7 @@ export const PublicReleaseSchema = Type.Object({
 export type PublicRelease = Static<typeof PublicReleaseSchema>;
 
 export const StaticRootManifestSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-root.v7"),
+  schemaVersion: Type.Literal("compendium.static-root.v8"),
   ...StaticResourceIdentityFields,
   mode: Type.Union([Type.Literal("preview"), Type.Literal("release")]),
   complete: Type.Boolean(),
@@ -192,8 +192,8 @@ export const StaticRootManifestSchema = Type.Object({
   world: PublicWorldSchema,
   maps: Type.Array(StaticMapSummarySchema),
   kinds: Type.Array(PublicKindEntrySchema, { minItems: 1 }),
-  lists: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z]*$" }), Type.Array(resourceReference("compendium.static-kind-list.v3"), { minItems: 1 })),
-  search: Type.Array(resourceReference("compendium.static-search.v5"), { minItems: 1 }),
+  lists: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z]*$" }), Type.Array(resourceReference("compendium.static-kind-list.v4"), { minItems: 1 })),
+  search: Type.Array(resourceReference("compendium.static-search.v6"), { minItems: 1 }),
   coverage: resourceReference("compendium.static-coverage.v3"),
   exclusions: resourceReference("compendium.static-exclusions.v1"),
 }, { additionalProperties: false });
@@ -376,11 +376,11 @@ schemaRegistry.register("compendium.publication-presentation.v2", PublicationPre
 
 // An explicit type that names each schema keeps the declaration small enough for the compiler to emit.
 export const STATIC_RESOURCE_SCHEMAS: typeof STATIC_COMPENDIUM_SCHEMAS & {
-  "compendium.static-root.v7": typeof StaticRootManifestSchema; "compendium.static-map.v3": typeof StaticMapShardSchema;
+  "compendium.static-root.v8": typeof StaticRootManifestSchema; "compendium.static-map.v3": typeof StaticMapShardSchema;
   "compendium.static-geometry.v1": typeof StaticGeometrySchema; "compendium.static-coverage.v3": typeof StaticCoverageSchema;
   "compendium.static-imagery.v2": typeof StaticImagerySchema; "compendium.static-exclusions.v1": typeof StaticExclusionsSchema;
 } = {
-  "compendium.static-root.v7": StaticRootManifestSchema,
+  "compendium.static-root.v8": StaticRootManifestSchema,
   "compendium.static-map.v3": StaticMapShardSchema,
   "compendium.static-geometry.v1": StaticGeometrySchema,
   "compendium.static-coverage.v3": StaticCoverageSchema,
@@ -397,9 +397,15 @@ export function staticResourceSchema(schemaId: string): TSchema {
 
 export function staticResourceEdges(value: StaticResource): StaticResourceReference[] {
   switch (value.schemaVersion) {
-    case "compendium.static-root.v7": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists).flat(), ...value.search, value.coverage, value.exclusions];
-    case "compendium.static-search.v5": return value.entries.flatMap((entry) => entry.document ? [entry.document] : []);
-    case "compendium.static-kind-list.v3": return value.rows.flatMap((row) => row.ref.icon ? [{ path: row.ref.icon.url, sha256: row.ref.icon.sha256, bytes: row.ref.icon.bytes, schemaId: "image/webp" }] : []);
+    case "compendium.static-root.v8": return [...value.maps.flatMap((map) => [...map.parts, ...map.optionalGeometry, map.imagery]), ...Object.values(value.lists).flat(), ...value.search, value.coverage, value.exclusions];
+    case "compendium.static-search.v6": return value.entries.flatMap((entry) => [
+      ...(entry.document ? [entry.document] : []),
+      ...[entry.ref.icon, entry.ref.portrait].filter((art) => art !== undefined)
+        .map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" })),
+    ]);
+    case "compendium.static-kind-list.v4": return value.rows.flatMap((row) => [row.ref.icon, row.ref.portrait]
+      .filter((art) => art !== undefined)
+      .map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" })));
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));
     case "compendium.static-map.v3":
     case "compendium.static-geometry.v1":

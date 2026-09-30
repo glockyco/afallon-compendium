@@ -2,12 +2,23 @@
   import { onMount } from 'svelte';
   import { followLocation, provideDetailNavigation } from './detail-navigation';
   import SectionLens from './SectionLens.svelte';
+  import { fragmentId } from './tab-state';
 
   // The sections below register themselves as they render. The section lens follows them and floats over the page, so
   // the section column keeps its full width at every screen size.
   const navigation = provideDetailNavigation();
   const sections = navigation.sections;
-  onMount(() => followLocation(navigation));
+  onMount(() => {
+    const stopFollowing = followLocation(navigation);
+    const onClick = (event: MouseEvent) => {
+      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      if (!(link instanceof HTMLAnchorElement) || link.origin !== window.location.origin || link.pathname !== window.location.pathname || !link.hash || link.hash !== window.location.hash) return;
+      const id = fragmentId(link.hash);
+      void navigation.reveal(id).then(() => requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: 'center' })));
+    };
+    document.addEventListener('click', onClick);
+    return () => { stopFollowing(); document.removeEventListener('click', onClick); };
+  });
 </script>
 
 <div class="c-sections"><slot /></div>

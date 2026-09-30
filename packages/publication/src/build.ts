@@ -133,7 +133,7 @@ export async function buildStaticPublication(
     max: { x: Math.max(bounds.max.x, map.bounds.max.x), y: Math.max(bounds.max.y, map.bounds.max.y) },
   }), structuredClone(maps[0]!.bounds));
   const manifest: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v7", buildId: identity.buildId, catalogId: identity.catalogId, mode, complete: gate.complete, release,
+    schemaVersion: "compendium.static-root.v8", buildId: identity.buildId, catalogId: identity.catalogId, mode, complete: gate.complete, release,
     world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: publishedOffsets, unplacedMapSpaceIds: [...allMapIds].filter((mapSpaceId) => !publishedMapIds.has(mapSpaceId)).sort() },
     maps, kinds: [...PUBLIC_KIND_REGISTRY], lists: Object.fromEntries([...indexes.lists].map(([kind, resources]) => [kind, resources.map((resource) => resource.reference)])),
     search: indexes.search.map((resource) => resource.reference), coverage: coverageResource.reference, exclusions: exclusionsResource.reference,

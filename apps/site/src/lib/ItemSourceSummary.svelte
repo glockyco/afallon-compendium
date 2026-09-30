@@ -17,7 +17,7 @@
 
 <style>
   .sources { display: grid; gap: .35rem; margin-top: .75rem; padding-top: .6rem; border-top: 1px solid var(--c-line-soft); font-size: var(--c-text-small); }
-  h4 { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  h4 { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; }
   dl { display: grid; gap: .25rem; margin: 0; }
   dl > div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: .5rem; }
   dt { color: var(--c-text-dim); }

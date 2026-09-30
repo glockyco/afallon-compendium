@@ -2,36 +2,28 @@
   import type { PublicKindEntry, PublicQuest } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber } from '../../format';
-  import FactList from '../FactList.svelte';
-  import FactRow from '../FactRow.svelte';
   import Section from '../Section.svelte';
 
   export let document: PublicQuest;
   export let registry: PublicKindEntry[];
 
-  $: facts = document.facts;
-  $: hasRewards = facts.experience !== undefined || document.rewards.length > 0 || document.rewardChoices.length > 0 || document.itemsGiven.length > 0;
+  $: hasRewards = document.rewards.length > 0 || document.rewardChoices.length > 0 || document.itemsGiven.length > 0;
 </script>
 
 {#if hasRewards}
-  <Section id="rewards" title="Rewards" icon="reward">
-    <FactList>
-      {#if facts.experience !== undefined}<FactRow label="Experience" rules={document.placedRules.filter((entry) => entry.target === 'experience')} {registry}>{formatNumber(facts.experience)}</FactRow>{/if}
-      {#if document.rewards.length}
-        <FactRow label="Rewards"><span class="entries">{#each document.rewards as reward}<span class="entry"><span class="quantity">{formatNumber(reward.count)} ×</span> <EntityLink ref={reward.counterpart} {registry} /></span>{/each}</span></FactRow>
-      {/if}
-      {#if document.rewardChoices.length}
-        <FactRow label="Choose one of"><span class="entries">{#each document.rewardChoices as reward}<span class="entry"><span class="quantity">{formatNumber(reward.count)} ×</span> <EntityLink ref={reward.counterpart} {registry} /></span>{/each}</span></FactRow>
-      {/if}
-      {#if document.itemsGiven.length}
-        <FactRow label="Given at the start"><span class="entries">{#each document.itemsGiven as item}<span class="entry"><span class="quantity">{formatNumber(item.count)} ×</span> <EntityLink ref={item.counterpart} {registry} /></span>{/each}</span></FactRow>
-      {/if}
-    </FactList>
+  <Section id="rewards" title="Rewards">
+    {#if document.rewards.length}<ul class="reward-list">{#each document.rewards as reward}<li><EntityLink ref={reward.counterpart} {registry} /><span class="quantity">{formatNumber(reward.count)} ×</span></li>{/each}</ul>{/if}
+    {#if document.rewardChoices.length}<div class="group"><h3>Choose one</h3><ul class="reward-list">{#each document.rewardChoices as reward}<li><EntityLink ref={reward.counterpart} {registry} /><span class="quantity">{formatNumber(reward.count)} ×</span></li>{/each}</ul></div>{/if}
+    {#if document.itemsGiven.length}<div class="group"><h3>Given at the start</h3><ul class="reward-list">{#each document.itemsGiven as item}<li><EntityLink ref={item.counterpart} {registry} /><span class="quantity">{formatNumber(item.count)} ×</span></li>{/each}</ul></div>{/if}
   </Section>
 {/if}
 
 <style>
-  .entries { display: grid; gap: .3rem; }
-  .entry { display: flex; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: .3rem; }
-  .quantity { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .group { margin-top: .9rem; }
+  h3 { margin: 0 0 .35rem; color: var(--c-text-dim); font-size: .875rem; font-weight: 600; }
+  .reward-list { margin: 0; padding: 0; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); list-style: none; }
+  li { display: flex; min-height: 2.75rem; align-items: center; justify-content: space-between; gap: .75rem; padding: .5rem .75rem; }
+  li + li { border-top: 1px solid var(--c-line-soft); }
+  li > :global(*) { min-width: 0; }
+  .quantity { flex: none; color: var(--c-text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 </style>

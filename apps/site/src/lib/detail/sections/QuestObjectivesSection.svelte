@@ -4,44 +4,38 @@
   import EntityLink from '../../EntityLink.svelte';
   import LocationLinks from '../../LocationLinks.svelte';
   import ObjectiveText from '../../ObjectiveText.svelte';
-  import { planColumns, type RelationColumn } from '../relation-table';
-  import RelationTable from '../RelationTable.svelte';
-  import Section from '../Section.svelte';
+  import { formatNumber } from '../../format';
+  import { entityOnMap } from '../../map-links';
 
   export let objectives: QuestObjective[];
   export let registry: PublicKindEntry[];
-
-  const columns: RelationColumn<QuestObjective>[] = [
-    { id: 'objective', label: 'Objective', value: (objective) => objective.text },
-    { id: 'count', label: 'Count', numeric: true, value: (objective) => 'count' in objective ? objective.count : undefined },
-    { id: 'completion', label: 'Completed at', value: (objective) => objective.completions.length ? JSON.stringify(objective.completions) : undefined },
-  ];
-  $: plan = planColumns(columns, objectives);
 </script>
 
 {#if objectives.length}
-  <Section id="objectives" title="Objectives" icon="objective" count={objectives.length}>
-    <RelationTable columns={plan.columns} rows={objectives} label="Quest objectives">
-      <svelte:fragment slot="cell" let:row let:column>
-        {#if column === 'objective'}
-          <ObjectiveText objective={row} />
-          {#if 'target' in row}<div class="target"><EntityLink ref={row.target} {registry} /></div>{/if}
-        {:else if column === 'count'}{#if 'count' in row}{row.count}{/if}
-        {:else if column === 'completion'}
-          {#each row.completions as completion}
-            <div class="completion">
-              <div>{completion.label ?? 'Interactive Object'}</div>
-              {#if completion.placements.length}<LocationLinks placements={completion.placements} />{/if}
-              {#if completion.availability.length}<Availability rules={completion.availability} {registry} />{/if}
-            </div>
-          {/each}
-        {/if}
-      </svelte:fragment>
-    </RelationTable>
-  </Section>
-{/if}
+  <ol class="objectives">
+    {#each objectives as objective, index}
+      <li>
+        <span class="number" aria-hidden="true">{index + 1}</span>
+        <div class="task"><p><ObjectiveText {objective} />{#if 'count' in objective}<strong class="count">{formatNumber(objective.count)} required</strong>{/if}</p>
+          {#if 'target' in objective}<p class="target">Target: <EntityLink ref={objective.target} {registry} />{#if objective.target.key !== null && objective.target.kind === 'npcs'} · <a class="c-link" href={entityOnMap(objective.target.key)}>Show on map</a>{/if}</p>{/if}
+          {#each objective.completions as completion}<div class="completion">
+            <p>{completion.label ?? 'Interactive object'}</p>
+            {#if completion.placements.length}<LocationLinks placements={completion.placements} />{/if}
+            {#if completion.availability.length}<Availability rules={completion.availability} {registry} />{/if}
+          </div>{/each}
+        </div>
+      </li>
+    {/each}
+  </ol>
+{:else}<p>No objectives are published for this quest.</p>{/if}
 
 <style>
-  .target { margin-top: .25rem; }
-  .completion + .completion { margin-top: .55rem; }
+  .objectives { display: grid; gap: .75rem; margin: 0; padding: 0; list-style: none; }
+  li { display: grid; grid-template-columns: 1.8rem minmax(0, 1fr); gap: .75rem; align-items: start; }
+  .number { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border: 1px solid var(--c-accent); border-radius: 50%; color: var(--c-accent-strong); font-variant-numeric: tabular-nums; }
+  .task { min-width: 0; padding: .1rem 0 .7rem; border-bottom: 1px solid var(--c-line-soft); }
+  li:last-child .task { border-bottom: 0; }
+  p { margin: 0; line-height: 1.5; }
+  .count { margin-left: .5rem; color: var(--c-text-dim); font-size: .875rem; font-weight: 600; white-space: nowrap; }
+  .target, .completion { margin-top: .35rem; color: var(--c-text-dim); font-size: .875rem; }
 </style>

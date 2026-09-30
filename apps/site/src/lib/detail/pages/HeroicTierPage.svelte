@@ -21,21 +21,35 @@
   <TitleBlock name={document.ref.name} {registry} />
   <Hero><p class="c-prose">{document.overview}</p></Hero>
   <Sections>
-    <Section id="steps" title="Steps" icon="text">
+    <div class="guide-flow">
+    <Section id="steps" title="Steps">
       <ol class="steps">
         {#each document.steps as step}
-          <li><h3>{step.title}</h3><p>{step.text}</p><p class="step-links">{step.rules.length > 1 ? 'Rules' : 'Rule'} {#each step.rules as id, index}{#if index > 0}{', '}{/if}<a class="c-link" href={`#rule-${id}`}>{numbers.get(id)}</a>{/each}</p></li>
+          <li id={`step-${step.id}`}><h3>{step.title}</h3><p>{step.text}</p><p class="step-links">{step.rules.length > 1 ? 'Rules' : 'Rule'} {#each step.rules as id, index}{#if index > 0}{', '}{/if}<a class="c-link" href={`#rule-${id}`}>{numbers.get(id)}</a>{/each}</p></li>
         {/each}
       </ol>
     </Section>
-    <Section id="kill-experience" title="Kill experience" icon="creature">
+    <Section id="worked-example" title="Worked example">
+      {#if document.example}
+        <p>Essence per kill at health factor 1, before the stored fraction. The example does not use a creature's health stat.</p>
+        <table class="essence">
+          <thead>
+            <tr><th scope="col" rowspan="2">Creature rank</th><th scope="colgroup" colspan={document.example.affixCounts.length} class="group">Affixes</th></tr>
+            <tr>{#each document.example.affixCounts as count}<th scope="col" class="count">{count}</th>{/each}</tr>
+          </thead>
+          <tbody>{#each document.example.rows as row}<tr><th scope="row">{row.rank === 'other' ? 'Other' : row.rank === 'elite' ? 'Elite' : row.rank === 'rare' ? 'Rare' : 'Boss'}</th>{#each row.essence as amount}<td>{format(amount)}</td>{/each}</tr>{/each}</tbody>
+        </table>
+      {/if}
+    </Section>
+    </div>
+    <Section id="kill-experience" title="Kill experience">
       {#if 'unavailable' in document.settings}
         <p>{document.settings.unavailable}</p>
       {:else}
         <p>Heroic creature kills multiply kill experience by {format(document.settings.killExperienceMultiplier)}. Quest experience does not use this multiplier.</p>
       {/if}
     </Section>
-    <Section id="essence" title="Heroic Essence" icon="talent">
+    <Section id="essence" title="Heroic Essence">
       {#if 'unavailable' in document.settings}
         <p>{document.settings.unavailable}</p>
       {:else}
@@ -50,7 +64,7 @@
         </FactList>
       {/if}
     </Section>
-    <Section id="settings" title="Settings" icon="text">
+    <Section id="settings" title="Settings">
       {#if 'unavailable' in document.settings}
         <p>{document.settings.unavailable}</p>
       {:else}
@@ -68,22 +82,17 @@
         </FactList>
       {/if}
     </Section>
-    <Section id="worked-example" title="Worked example" icon="talent">
-      {#if document.example}
-        <p>Essence per kill at health factor 1, before the stored fraction. The example does not use a creature's health stat.</p>
-        <div class="table-scroll"><table>
-          <thead><tr><th scope="col">Creature rank</th>{#each document.example.affixCounts as count}<th scope="col">{count} {count === 1 ? 'affix' : 'affixes'}</th>{/each}</tr></thead>
-          <tbody>{#each document.example.rows as row}<tr><th scope="row">{row.rank === 'other' ? 'Other' : row.rank === 'elite' ? 'Elite' : row.rank === 'rare' ? 'Rare' : 'Boss'}</th>{#each row.essence as amount}<td>{format(amount)}</td>{/each}</tr>{/each}</tbody>
-        </table></div>
-      {/if}
-    </Section>
-    <Section id="rules-reference" title="Rules reference" icon="text">
+    <Section id="rules-reference" title="Rules reference">
       <MechanicsRules rules={document.rules} {registry} />
     </Section>
   </Sections>
 </article>
 
 <style>
+  .guide-flow { display: grid; min-width: 0; gap: 1rem; align-items: start; }
+  .guide-flow :global(.section) { min-width: 0; }
+  @media (min-width: 1024px) { .guide-flow { grid-template-columns: minmax(0, 1fr) minmax(16rem, .75fr); } }
+  .steps li { scroll-margin-top: 2rem; }
   p { margin: 0 0 .8rem; line-height: 1.55; }
   p:last-child { margin-bottom: 0; }
   .steps { display: grid; gap: 1rem; margin: 0; padding-left: 1.5rem; }
@@ -91,9 +100,11 @@
   .steps h3 { margin: 0 0 .2rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
   .steps p { margin: 0; }
   .step-links { margin-top: .25rem !important; color: var(--c-text-dim); font-size: var(--c-text-small); overflow-wrap: anywhere; }
-  .table-scroll { max-width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
   th, td { padding: .55rem .7rem; border-bottom: 1px solid var(--c-line); white-space: nowrap; }
   th { color: var(--c-text-dim); font-weight: 600; }
-  td { text-align: right; }
+  thead th[rowspan] { vertical-align: bottom; }
+  .group { padding-bottom: .2rem; border-bottom-color: var(--c-line-soft); text-align: center; }
+  .count, td { text-align: right; }
+  @media (max-width: 640px) { th, td { padding-inline: .45rem; } }
 </style>

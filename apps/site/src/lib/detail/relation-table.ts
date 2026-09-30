@@ -83,10 +83,9 @@ export function uniquePlacements(groups: readonly (readonly PlacementRef[])[]): 
   return [...seen.values()];
 }
 
-/** How many rows a long table shows before a reader asks for all of them. */
-export const VISIBLE_ROWS = 15;
+/** The first rows of a relation stay visible before its full list opens. */
+export const VISIBLE_ROWS = 8;
 
-/** The number of rows to show: every row of a short or expanded table, otherwise the first rows. */
 export function shownRowCount(total: number, expanded: boolean): number {
   return expanded || total <= VISIBLE_ROWS ? total : VISIBLE_ROWS;
 }

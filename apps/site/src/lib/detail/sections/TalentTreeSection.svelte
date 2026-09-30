@@ -20,7 +20,7 @@
   $: plan = planColumns(columns, tree.rows);
 </script>
 
-<Section id={tree.anchor} title={tree.name} icon="talent" count={tree.rows.length} line={tree.points ? `Spends ${tree.points}.` : undefined}>
+<Section id={tree.anchor} title={tree.name} count={tree.rows.length} line={tree.points ? `Spends ${tree.points}.` : undefined}>
   <RelationTable columns={plan.columns} rows={tree.rows} label={tree.name} rowAnchors={(row) => [row.anchor]}>
     <svelte:fragment slot="cell" let:row let:column>
       {#if column === 'tier'}{row.tier}

@@ -114,7 +114,7 @@
   .menu { display: grid; grid-template-columns: auto auto minmax(0, 1fr); column-gap: .75rem; width: max-content; max-width: 100%; max-height: min(70vh, 32rem); overflow-y: auto; padding: .4rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius); background: color-mix(in oklab, var(--c-surface-2) 90%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 14px 38px rgb(0 0 0 / .5); }
   .row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; margin: 0; padding: .6rem .75rem; border: 0; border-radius: var(--c-radius-sm); background: none; color: var(--c-text); font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
   .row:hover { background: var(--c-tint-hover); }
-  .top { color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .top { color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; }
   .top .mark { color: var(--c-accent); }
   .top .label { grid-column: 3; }
   .rule { grid-column: 1 / -1; height: 1px; margin: .15rem .4rem; background: var(--c-line); }

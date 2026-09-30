@@ -6,14 +6,14 @@
   import { nameOf } from '../../format';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
-  import Section from '../Section.svelte';
+  import DetailsDisclosure from '../DetailsDisclosure.svelte';
 
   export let changes: QuestWorldChange[];
   export let registry: PublicKindEntry[];
 
   const kinds: Record<QuestWorldChange['sourceKind'], string> = {
     creature: 'Creature', object: 'Object', container: 'Container', resource: 'Resource',
-    craftingStation: 'Crafting Station', worldZone: 'World Quest Zone',
+    craftingStation: 'Crafting station', worldZone: 'World quest zone',
   };
   const columns: RelationColumn<QuestWorldChange>[] = [
     { id: 'source', label: 'Source', value: (change) => [change.label, ...change.subjects.map(nameOf)].filter(Boolean).join(', ') || kinds[change.sourceKind] },
@@ -25,7 +25,7 @@
 </script>
 
 {#if changes.length}
-  <Section id="world-changes" title="World changes" icon="world" count={changes.length}>
+  <DetailsDisclosure id="world-changes" title="World changes" summary={`${changes.length} changes`}>
     <RelationTable columns={plan.columns} rows={changes} label="Quest world changes">
       <svelte:fragment slot="cell" let:row let:column>
         {#if column === 'source'}
@@ -37,5 +37,5 @@
         {:else if column === 'spots'}<LocationLinks placements={row.placements} />{/if}
       </svelte:fragment>
     </RelationTable>
-  </Section>
+  </DetailsDisclosure>
 {/if}

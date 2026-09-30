@@ -1,46 +1,11 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogFacts, type CatalogMechanicsRule, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { CharacterProgression, CraftingAndGathering, EntityRef, ExperienceSources, GuideStep, HeroicTier, PublicLevel, PublicMechanics, TalentPoints } from "@afallon/contracts/public";
+import type { CharacterProgression, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, PublicLevel, PublicMechanics, TalentPoints } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import type { ReferenceResolver } from "./documents";
 import { requiredLevel, spawnerExamples } from "./gathering";
 import { MECHANICS_TOPIC_NAMES, placedRules, projectRule, topicRef } from "./placed-rules";
+import { GUIDES } from "./guide-steps";
 import { displayName } from "./text";
-
-const GUIDES: Record<MechanicsTopic, { overview: string; steps: GuideStep[] }> = {
-  "character-progression": {
-    overview: "Characters gain experience from creature kills and quests, and skills gain experience from their own sources. Experience above the next level carries over. The level curve shows the experience that each level needs.",
-    steps: [
-      { title: "Roll kill experience", text: "A kill starts from a random whole amount in the creature's experience range.", rules: ["kill-base-roll"] },
-      { title: "Adjust the kill", text: "The level difference, the Heroic multiplier, and the number of followers change the amount. Some game modifiers are not known.", rules: ["kill-level-difference", "kill-heroic-multiplier", "kill-companion-split", "kill-game-modifiers"] },
-      { title: "Scale quest experience", text: "A quest reward scales with the player level, and a quest step gives a fixed amount.", rules: ["quest-reward-level-scale", "quest-action-amount"] },
-      { title: "Apply experience bonuses", text: "The Experience Bonus total and the world modifier then change each character award.", rules: ["experience-bonus-stat", "world-modifier-multiplier"] },
-      { title: "Level up", text: "Experience above the next level carries over, and the level cap stops all gains.", rules: ["surplus-experience-carries", "level-cap-stops-experience"] },
-      { title: "Gain skill experience", text: "Hits, crafts, nodes, and other sources give skill experience, which stops at the skill's maximum level.", rules: ["skill-award-sources", "skill-award-modifiers"] },
-    ],
-  },
-  "heroic-tier": {
-    overview: "Heroic tier changes experience from creature kills and can award Heroic Essence. The recorded settings also describe Heroic creatures and gear.",
-    steps: [
-      { title: "Multiply kill experience", text: "A kill of a Heroic creature multiplies its kill experience. Quest experience does not change.", rules: ["heroic-kill-experience"] },
-      { title: "Start from the affixes", text: "Heroic Essence starts from a base amount plus an amount for each affix of the creature.", rules: ["essence-requires-points", "affix-count-source"] },
-      { title: "Apply rank and health", text: "Elite, Rare, and Boss creatures multiply the Essence, and the health factor scales it within its bounds.", rules: ["essence-rank-multiplier", "essence-health-factor"] },
-      { title: "Carry the fraction", text: "The character receives the whole part, and the fraction waits for the next kill.", rules: ["essence-fraction-carry"] },
-    ],
-  },
-  "crafting-and-gathering": {
-    overview: "A craft turns materials into products and gives experience to the recipe's skill. A gathering node gives items from its loot table and experience to its gathering skill.",
-    steps: [
-      { title: "Check the crafting level", text: "A craft starts only when the crafting skill reaches the required level of the recipe.", rules: ["recipe-rank-gate"] },
-      { title: "Provide materials and space", text: "A craft needs every material and enough empty bag slots for its products.", rules: ["recipe-craft-needs"] },
-      { title: "Roll each product", text: "Each product has its own chance to be made.", rules: ["recipe-product-roll"] },
-      { title: "Award crafting experience", text: "The skill level relative to the required level selects full, half, or no base experience.", rules: ["recipe-experience-bands", "recipe-experience-rounding", "recipe-experience-condition", "recipe-experience-modifiers"] },
-      { title: "Pick a node", text: "A spawner picks one node by weight, and the weights change with the gathering skill.", rules: ["spawner-weighted-pick", "spawner-weight-limits", "spawner-weights-relative"] },
-      { title: "Wait for the node", text: "A spawner rolls only near the player and rolls again after its respawn time.", rules: ["spawner-player-range", "spawner-respawn", "placed-node-cooldown", "node-requirements"] },
-      { title: "Gather the items", text: "Each item of the loot table rolls on its own, and the skill level can add one more item.", rules: ["node-loot-roll", "node-yield-bonus"] },
-      { title: "Award gathering experience", text: "A used node gives its skill experience and its character experience.", rules: ["node-experience"] },
-    ],
-  },
-};
 
 function guide(facts: CatalogFacts, topic: MechanicsTopic, resolve: ReferenceResolver) {
   const rules = facts.progression.mechanicsRules.filter((rule) => rule.topic === topic).sort((a, b) => a.ordinal - b.ordinal);
@@ -166,7 +131,7 @@ function craftingExample(facts: CatalogFacts, published: ReadonlySet<string>, co
   verifiedRule(facts, "node-yield-bonus");
   const levels = [...new Set([requiredLevel(node, conditions) ?? 1, nodeSkill.details.maxLevel])];
   const chances = placedRules(facts, "gatheringNodes", { entityKey: node.entityKey, sourceKinds: new Set(node.sources.map((source) => source.sourceKind)), yieldLevels: levels }, resolve)
-    .find((placed) => placed.rule.id === "node-yield-bonus")?.levelChances;
+    .find((placed) => placed.stepId === "gather-the-items" && placed.levelChances !== undefined)?.levelChances;
   if (!chances) throw new Error("The Small Iron Vein example has no placed node-yield-bonus rule.");
   return {
     craft: { product: { ...publishedRef(resolve, product.item.entityKey, product.item.label ?? "Runeweave Regalia"), variant: "crafting" }, skill: publishedRef(resolve, recipe.skill.entityKey, recipe.skill.label ?? "Skill"), rank },

@@ -3,6 +3,7 @@ import type { NodeYieldRow, PlacedNodeGroup, PlacementRef, PublicGatheringNode, 
 import type { ReferenceResolver } from "./documents";
 import { displayName } from "./text";
 import { placedRules } from "./placed-rules";
+import { placeSpots } from "./place-spots";
 
 type Resolve = ReferenceResolver;
 type Requirements = (conditionIds: readonly string[]) => PublicGatheringNode["facts"]["requirements"];
@@ -29,28 +30,47 @@ export function gatheringNodeNames(nodes: readonly CatalogGatheringNode[]): Read
 
 
 type SpawnerSource = CatalogGatheringNode["sources"][number] & { spawner: NonNullable<CatalogGatheringNode["sources"][number]["spawner"]> };
+type SpawnerWithPlacements = Omit<SpawnerGroup, "placementCount"> & { placements: PlacementRef[]; nodeKeys: Set<string> };
+type PlacedWithPlacements = Omit<PlacedNodeGroup, "placementCount"> & { placements: PlacementRef[] };
+/** Effective selection weights before attunement, which is not assumed for an unmodified character. */
+export function spawnerShares(options: readonly SpawnerSource[], skillCap: number): ReadonlyMap<number, { skillLevel: number; percent: number }[]> {
+  if (!Number.isInteger(skillCap) || skillCap < 1 || options.length === 0
+    || options.some((option, index) => option.optionIndex !== index || ![option.spawner.weightAtLowSkill, option.spawner.weightAtHighSkill, option.spawner.teaserWeight].every(Number.isFinite))) return new Map();
+  const result = new Map<number, { skillLevel: number; percent: number }[]>();
+  for (const level of new Set([1, skillCap])) {
+    const fraction = skillCap <= 1 ? 1 : (level - 1) / (skillCap - 1);
+    const weights = options.map(({ spawner }) => Math.max(0, spawner.teaserWeight, spawner.weightAtLowSkill + (spawner.weightAtHighSkill - spawner.weightAtLowSkill) * fraction));
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    if (!(total > 0)) return new Map();
+    options.forEach((option, index) => result.set(option.optionIndex!, [...result.get(option.optionIndex!) ?? [], { skillLevel: level, percent: weights[index]! / total * 100 }]));
+  }
+  return result;
+}
+
 
 /**
- * Spawners grouped by their skill, timing, and complete option list. Each group counts its spawners and lists the published
- * placement of each.
+ * Spawners grouped by their skill, timing, and complete option list. Locations stay internal until the per-place map
+ * spots are derived; the published group carries only the count.
  */
-export function spawnerGroups(nodes: readonly CatalogGatheringNode[], resolve: Resolve, placements: ReadonlyMap<string, PlacementRef>): ReadonlyMap<string, SpawnerGroup & { nodeKeys: ReadonlySet<string> }> {
+export function spawnerGroups(nodes: readonly CatalogGatheringNode[], resolve: Resolve, placements: ReadonlyMap<string, PlacementRef>, verifiedWeights = false): ReadonlyMap<string, SpawnerWithPlacements> {
   const bySpawner = new Map<string, Array<SpawnerSource & { nodeKey: string }>>();
   for (const node of nodes) for (const source of node.sources) {
     if (source.sourceKind !== "spawner-option" || source.spawner === null) continue;
     bySpawner.set(source.sourceId, [...bySpawner.get(source.sourceId) ?? [], { ...source, spawner: source.spawner, nodeKey: node.entityKey }]);
   }
-  const groups = new Map<string, SpawnerGroup & { nodeKeys: Set<string> }>();
+  const groups = new Map<string, SpawnerWithPlacements>();
   for (const options of bySpawner.values()) {
     options.sort((left, right) => (left.optionIndex ?? 0) - (right.optionIndex ?? 0));
     const first = options[0]!.spawner;
+    const shares = verifiedWeights ? spawnerShares(options, first.skillCap) : new Map<number, { skillLevel: number; percent: number }[]>();
     const facts = {
       ...(first.skill?.entityKey ? { skill: resolve(first.skill) } : {}), skillCap: Math.max(0, first.skillCap), respawnSeconds: first.respawnTime, jitterSeconds: first.respawnJitter,
       despawnSeconds: first.despawnDelay, playerRange: first.playerRange,
-      options: options.map((option) => ({ node: resolve({ entityKey: option.nodeKey, label: option.nodeKey }), lowSkillWeight: option.spawner.weightAtLowSkill, highSkillWeight: option.spawner.weightAtHighSkill, teaserWeight: option.spawner.teaserWeight })),
+      options: options.map((option) => ({ node: resolve({ entityKey: option.nodeKey, label: option.nodeKey }), lowSkillWeight: option.spawner.weightAtLowSkill, highSkillWeight: option.spawner.weightAtHighSkill, teaserWeight: option.spawner.teaserWeight,
+        ...(shares.has(option.optionIndex!) ? { shares: shares.get(option.optionIndex!) } : {}) })),
     };
     const key = JSON.stringify(facts);
-    const group = groups.get(key) ?? { ...facts, spawners: 0, placements: [], unplaced: 0, nodeKeys: new Set<string>() };
+    const group: SpawnerWithPlacements = groups.get(key) ?? { ...facts, spawners: 0, placements: [], unplaced: 0, nodeKeys: new Set<string>() };
     group.spawners += 1;
     const placement = options[0]!.placementId === null ? undefined : placements.get(options[0]!.placementId);
     if (placement) group.placements.push({ placementId: placement.placementId, mapSpaceId: placement.mapSpaceId, label: placement.label });
@@ -61,8 +81,8 @@ export function spawnerGroups(nodes: readonly CatalogGatheringNode[], resolve: R
   return groups;
 }
 
-function placedGroups(node: CatalogGatheringNode, placements: ReadonlyMap<string, PlacementRef>): PlacedNodeGroup[] {
-  const groups = new Map<number, PlacedNodeGroup>();
+function placedGroups(node: CatalogGatheringNode, placements: ReadonlyMap<string, PlacementRef>): PlacedWithPlacements[] {
+  const groups = new Map<number, PlacedWithPlacements>();
   for (const source of node.sources) {
     if (source.sourceKind !== "placed-object" || source.cooldown === null) continue;
     const group = groups.get(source.cooldown) ?? { cooldownSeconds: source.cooldown, objects: 0, placements: [], unplaced: 0 };
@@ -88,7 +108,9 @@ export function placedNodeBySource(nodes: readonly CatalogGatheringNode[]): Read
 export function projectGatheringNodeDocuments(facts: CatalogFacts, relations: CatalogRelations, input: {
   resolve: Resolve; requirements: Requirements; conditions: ReadonlyMap<string, CatalogCondition>; placements: ReadonlyMap<string, PlacementRef>;
 }): ReadonlyMap<string, PublicGatheringNode> {
-  const groups = [...spawnerGroups(facts.gatheringNodes, input.resolve, input.placements).values()];
+  const verifiedWeights = ["spawner-weighted-pick", "spawner-weight-limits", "spawner-weights-relative"].every((id) =>
+    facts.progression.mechanicsRules.some((rule) => rule.ruleId === id && rule.status === "verified"));
+  const groups = [...spawnerGroups(facts.gatheringNodes, input.resolve, input.placements, verifiedWeights).values()];
   const placedBySource = placedNodeBySource(facts.gatheringNodes);
   const yields = new Map<string, Map<string, NodeYieldRow>>();
   const addYield = (nodeKey: string, row: { item: CatalogEndpoint; min: number | null; max: number | null; rawRate: number | null }) => {
@@ -108,6 +130,9 @@ export function projectGatheringNodeDocuments(facts: CatalogFacts, relations: Ca
     const skill = node.skill?.entityKey ? facts.progression.facts.find((fact) => fact.kind === "skills" && fact.entityKey === node.skill!.entityKey) : undefined;
     const highest = skill?.kind === "skills" && skill.details.maxLevel > 0 ? skill.details.maxLevel : undefined;
     const yieldLevels = highest === undefined || highest === gate ? [gate] : [gate, highest];
+    const nodeSpawners = groups.filter((group) => group.nodeKeys.has(node.entityKey)).map(({ nodeKeys: _nodeKeys, ...group }) => group).sort((left, right) => right.spawners - left.spawners);
+    const placed = placedGroups(node, input.placements);
+    const places = placeSpots([...nodeSpawners, ...placed].flatMap((group) => group.placements));
     result.set(node.entityKey, {
       ref, description: null, art: {},
       facts: {
@@ -118,8 +143,9 @@ export function projectGatheringNodeDocuments(facts: CatalogFacts, relations: Ca
         requirements: node.conditionId === null ? [] : input.requirements([node.conditionId]), variant: node.variant,
       },
       yields: [...(yields.get(node.entityKey)?.values() ?? [])].sort((left, right) => refName(left.counterpart).localeCompare(refName(right.counterpart))),
-      spawners: groups.filter((group) => group.nodeKeys.has(node.entityKey)).map(({ nodeKeys: _nodeKeys, ...group }) => group).sort((left, right) => right.spawners - left.spawners),
-      placed: placedGroups(node, input.placements),
+      spawners: nodeSpawners.map(({ placements, ...group }) => ({ ...group, placementCount: placements.length })),
+      placed: placed.map(({ placements, ...group }) => ({ ...group, placementCount: placements.length })),
+      places, spotCount: places.reduce((sum, place) => sum + place.spotCount, 0),
       placedRules: placedRules(facts, "gatheringNodes", { entityKey: node.entityKey, sourceKinds: kinds, yieldLevels }, input.resolve),
     });
   }

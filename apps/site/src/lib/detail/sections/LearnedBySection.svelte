@@ -5,7 +5,6 @@
   import Requirements from '../../Requirements.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
-  import Section from '../Section.svelte';
 
   export let versions: AbilityVersion[];
   export let registry: PublicKindEntry[];
@@ -23,7 +22,7 @@
 </script>
 
 {#if rows.length}
-  <Section id="learned-by" title="Learned by" icon="teach" count={rows.length}>
+  <section id="learned-by" class="learners"><h3>Learned by <span>{rows.length}</span></h3>
     <RelationTable columns={plan.columns} {rows} label="Learned by">
       <svelte:fragment slot="cell" let:row let:column>
         {#if column === 'version'}Version {row.version}
@@ -33,5 +32,10 @@
         {:else if column === 'requirements'}<Requirements requirements={row.learner.requirements} {registry} />{/if}
       </svelte:fragment>
     </RelationTable>
-  </Section>
+  </section>
 {/if}
+
+<style>
+  h3 { margin: 0 0 .5rem; color: var(--c-text-strong); font-size: 1rem; font-weight: 700; }
+  h3 span { margin-left: .3rem; color: var(--c-text-dim); font-size: .875rem; font-weight: 500; }
+</style>

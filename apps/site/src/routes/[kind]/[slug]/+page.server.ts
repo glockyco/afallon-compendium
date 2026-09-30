@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { EntryGenerator, PageServerLoad } from './$types';
 import { serverMapLoader } from '$lib/server/publication';
-import { isPublicPageKind, type PublicItem } from '@afallon/contracts/public';
+import { isPublicPageKind } from '@afallon/contracts/public';
 
 export const entries: EntryGenerator = async () => {
   const loader = serverMapLoader();
@@ -19,12 +19,5 @@ export const load: PageServerLoad = async ({ params }) => {
   const entry = indexes.entries.find((candidate) => candidate.ref.kind === kind.kind && candidate.ref.slug === params.slug && candidate.document);
   if (!entry?.document) error(404, 'This compendium page is not published.');
   const page = await loader.loadDocument(kind.kind, params.slug);
-  // A teaching item shows its recipe's product tooltip when that item has a published page.
-  let product: PublicItem | undefined;
-  const productRef = page.kind === 'items' ? page.document.teaches?.product?.counterpart : undefined;
-  if (productRef && productRef.key !== null && productRef.kind === 'items' && productRef.slug) {
-    const productPage = await loader.loadDocument('items', productRef.slug);
-    if (productPage.kind === 'items') product = productPage.document;
-  }
-  return { kind, page, product, documentPath: entry.document.path };
+  return { kind, page, documentPath: entry.document.path };
 };
