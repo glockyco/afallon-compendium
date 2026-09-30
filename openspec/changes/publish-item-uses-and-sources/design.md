@@ -41,7 +41,7 @@ The sacrificial altar of the challenge stones Cemetary, logging camp, Pyromancer
 
 ### Read the item grants of scene components and runtime rules
 
-`DungeonTimerManager` keeps its boss loot tables, `maxLootItems`, its target times, and its token item. The catalog records the corruption level rule of the bag, and the publication shows the token and the table rows without an effective chance. `HuntTanneryDirector` keeps its creature and pickup pairs. A pickup row names its quest and task, because the pickup appears only while that task is open. `DungeonFinderSettings.SupplyPack` gives Adventurer's Supply Pack to a completed Random run.
+`DungeonTimerManager` keeps its boss loot tables, `maxLootItems`, its target times, and its token item. The rules record holds the corruption level rule of the bag, and the publication shows the token and the table rows without an effective chance. `HuntTanneryDirector` keeps its creature and pickup pairs. A pickup row names its quest and task, because the pickup appears only while that task is open. `DungeonFinderSettings.SupplyPack` gives Adventurer's Supply Pack to a completed Random run.
 
 ### Publish cloth drops with their verified eligibility
 
@@ -59,6 +59,20 @@ The recorded native analysis confirms the results of LootTable and TriggerVisual
 
 After the catalog candidate exists, the publication lists the items that still have no source. Each item gets one recorded decision. It joins the exclusion list of `correct-published-records` with evidence of its kind, or it keeps its page and its coverage row. A missing source alone is not evidence for an exclusion. An item that occurs only in loot tables without a known owner is "no owner found in the scanned sources", not unobtainable.
 
+### Place the item source rules on the item pages
+
+The native rules of this change go into a new rules record as reviewed rules without a topic. `restructure-page-model` defines rule placements, and each rule names the item page targets where a reader needs it. The contract adds the targets of this change: the Contents, From items, and Dungeon rewards sections, and the chance and condition columns of the source sections.
+
+| Rules | Placement |
+|---|---|
+| row filter of a chest, prefab choice of a visual effect | Contents and Collected from, chance column |
+| loot table roll of an item action, level filter, minimum drops | Contents, chance column |
+| dungeon bag level and loot, Dungeon Finder supply pack | Dungeon rewards, condition column |
+| quest pickup and quest drop rules | Dropped by, condition column |
+| cloth drop chance, tier ramp, and count | Dropped by, world loot row |
+
+Alternatives considered: a new mechanics topic with its own guide. Each of these rules concerns one kind of item row, and the rows already show the values. A guide would repeat the rows without a process for the reader to follow. A later change can add a topic when a process appears, for example the corruption guide of `publish-corrupted-gear`.
+
 ## Risks / Trade-offs
 
 - A runtime prefab load can differ from the build files. → The scan compares the runtime rows with an offline read of the same prefab, and records a difference as a coverage issue.
@@ -68,4 +82,4 @@ After the catalog candidate exists, the publication lists the items that still h
 
 ## Migration Plan
 
-Apply this change after `publish-crafting-and-gathering` and `correct-published-records` are accepted. Run a targeted scan with the owner actions, the visual effect chests, the scene components, and Challenge stone Lumberjack. Build a catalog candidate, and compare it with the accepted catalog. Publish a candidate, stage it against the accepted publication, and check the affected pages at 1440 px and 390 px. Write an update report, and accept the catalog and publication together. The former publication stays as the rollback.
+Apply this change after `publish-crafting-and-gathering`, `correct-published-records`, and `restructure-page-model` are accepted. Write the item source rules with their placements in a new rules record. Run a targeted scan with the owner actions, the visual effect chests, the scene components, and Challenge stone Lumberjack. Build a catalog candidate, and compare it with the accepted catalog. Publish a candidate, stage it against the accepted publication, and check the affected pages at 1440 px and 390 px. Write an update report, and accept the catalog and publication together. The former publication stays as the rollback.

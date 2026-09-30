@@ -31,7 +31,7 @@ None.
 
 ## Impact
 
-- Depends on `publish-crafting-and-gathering` for the capture of item game actions, and on `correct-published-records` for the exclusion list.
+- Depends on `publish-crafting-and-gathering` for the capture of item game actions, on `correct-published-records` for the exclusion list, and on `restructure-page-model` for rule placements and the Crafting section of item pages.
 - Scan: owner actions in `packages/scan/src/probes/collectors/canonical.csx`. Visual effects, chest prefabs, and scene components in `world-sources.csx` or a new collector.
 - Contracts and catalog: owner actions, loot table bindings, visual effect chests, and scene grants in `packages/contracts/src/catalog` and `packages/catalog/src`. The drop query in `packages/catalog/src/queries.ts` keeps the cloth rows.
 - Publication and site: item contents, item sources, and coverage in `packages/publication/src` and `apps/site/src`.
