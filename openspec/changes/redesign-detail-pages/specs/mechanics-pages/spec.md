@@ -26,3 +26,16 @@ Each mechanics page SHALL start with an overview of no more than three sentences
 - **WHEN** Heroic Essence rules and settings are verified
 - **THEN** the Heroic Tier guide shows Essence per kill by creature rank and affix count at the health baseline
 - **AND** this example names no creature
+
+### Requirement: Mechanics have published pages
+
+The publication SHALL provide a `mechanics` page kind with versioned documents for named topics. Each topic of the rules record SHALL have one guide document. The site SHALL route these documents under `/mechanics/<topic>`. The Guides column of the Browse menu SHALL link each published guide: Character Progression, Heroic Tier, and Crafting and Gathering. A missing topic SHALL return a not-found page. Each document SHALL use facts from the catalog and SHALL preserve its build identity. These pages SHALL use sentence case for headings and labels, title case for names and category values, and no internal record ids.
+
+#### Scenario: Published topic
+- **WHEN** a reader opens `/mechanics/character-progression`
+- **THEN** the page loads the Character Progression document of the accepted publication
+- **AND** the Guides column links to this page, `/mechanics/heroic-tier`, and `/mechanics/crafting-and-gathering`
+
+#### Scenario: Unknown topic
+- **WHEN** a reader opens `/mechanics/unknown-topic`
+- **THEN** the site shows its not-found page

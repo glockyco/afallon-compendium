@@ -10,7 +10,7 @@
   import type { PublicKindEntry, PublicRelease } from '@afallon/contracts/public';
   import CompendiumSearch from './CompendiumSearch.svelte';
   import { formatCalendarDate } from './format';
-  import { navigationGroups } from './site-navigation';
+  import { siteNavigation } from './site-navigation';
   import './compendium.css';
 
   export let registry: PublicKindEntry[] = [];
@@ -20,46 +20,43 @@
   /** False on a page that shows its own search, so the page has one search field. */
   export let search = true;
 
-  let navigation: HTMLElement;
-
-  $: groups = navigationGroups(registry, base);
+  $: navigationModel = siteNavigation(registry, base);
   // A reactive function, so the markup that calls it follows client-side navigation.
   $: current = (href: string) => $page.url.pathname.startsWith(href);
 
-  // Each group is a native disclosure, so the menu works without JavaScript. With JavaScript, one group opens at a
-  // time, and Escape, an outside click, focus that leaves the group, or a navigation closes it.
-  function closeGroups(except?: HTMLDetailsElement): void {
-    for (const details of navigation?.querySelectorAll('details[open]') ?? []) if (details !== except && details instanceof HTMLDetailsElement) details.open = false;
+  // Browse is a native disclosure, so the menu works without JavaScript. With JavaScript, Escape, an outside click, focus
+  // that leaves the menu, or a navigation closes it.
+  let browse: HTMLDetailsElement;
+
+  function closeBrowse(): void {
+    if (browse) browse.open = false;
   }
 
   function onKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Escape') return;
-    const open = navigation.querySelector('details[open]');
-    if (!(open instanceof HTMLDetailsElement)) return;
-    open.open = false;
-    open.querySelector('summary')?.focus();
+    if (event.key !== 'Escape' || !browse.open) return;
+    browse.open = false;
+    browse.querySelector('summary')?.focus();
   }
 
-  // Focus that moves to an element outside a group closes the group. Focus that moves to no element, as when Safari
-  // clicks a link without focusing it, leaves the group open for the click, and the pointer handler closes it.
+  // Focus that moves to an element outside the menu closes it. Focus that moves to no element, as when Safari clicks a
+  // link without focusing it, leaves the menu open for the click, and the pointer handler closes it.
   function onFocusout(event: FocusEvent): void {
-    const group = event.target instanceof Element ? event.target.closest('details') : null;
-    if (group instanceof HTMLDetailsElement && event.relatedTarget instanceof Node && !group.contains(event.relatedTarget)) group.open = false;
+    if (event.relatedTarget instanceof Node && !browse.contains(event.relatedTarget)) browse.open = false;
   }
 
   onMount(() => {
-    const onPointerDown = (event: PointerEvent) => { if (!(event.target instanceof Node) || !navigation.contains(event.target)) closeGroups(); };
+    const onPointerDown = (event: PointerEvent) => { if (!(event.target instanceof Node) || !browse.contains(event.target)) closeBrowse(); };
     document.addEventListener('pointerdown', onPointerDown);
-    navigation.addEventListener('keydown', onKeydown);
-    navigation.addEventListener('focusout', onFocusout);
+    browse.addEventListener('keydown', onKeydown);
+    browse.addEventListener('focusout', onFocusout);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
-      navigation.removeEventListener('keydown', onKeydown);
-      navigation.removeEventListener('focusout', onFocusout);
+      browse.removeEventListener('keydown', onKeydown);
+      browse.removeEventListener('focusout', onFocusout);
     };
   });
-  // The first load also counts as a navigation. It keeps a group that a reader opened before the page became interactive.
-  afterNavigate((navigated) => { if (navigated.type !== 'enter') closeGroups(); });
+  // The first load also counts as a navigation. It keeps a menu that a reader opened before the page became interactive.
+  afterNavigate((navigated) => { if (navigated.type !== 'enter') closeBrowse(); });
 </script>
 
 <div class="frame">
@@ -69,19 +66,21 @@
         <img src={`${base}/logo.png`} width="32" height="32" alt="" />
         <span class="brand-copy"><strong>Afallon</strong><span>Compendium</span></span>
       </a>
-      <nav class="site-nav" aria-label="Site" bind:this={navigation}>
-        <ul class="groups">
-          {#each groups as group (group.id)}
-            <li class="group">
-              <details name="site-navigation" on:toggle={(event) => { if (event.currentTarget.open) closeGroups(event.currentTarget); }}>
-                <summary class:current={group.links.some((link) => current(link.href))}>{group.label}</summary>
-                <ul class="panel">
-                  {#each group.links as link (link.href)}<li><a href={link.href} aria-current={current(link.href) ? 'page' : undefined}>{link.label}</a></li>{/each}
-                </ul>
-              </details>
-            </li>
-          {/each}
+      <nav class="site-nav" aria-label="Site">
+        <ul class="primary">
+          {#each navigationModel.primary as link (link.href)}<li><a href={link.href} aria-current={current(link.href) ? 'page' : undefined}>{link.label}</a></li>{/each}
         </ul>
+        <details class="browse" bind:this={browse}>
+          <summary class:current={navigationModel.sections.some((section) => section.links.some((link) => current(link.href))) && !navigationModel.primary.some((link) => current(link.href))}>Browse</summary>
+          <div class="panel">
+            {#each navigationModel.sections as section (section.id)}
+              <section aria-labelledby={`nav-${section.id}`}>
+                <h2 id={`nav-${section.id}`}>{section.label}</h2>
+                <ul>{#each section.links as link (link.href)}<li><a href={link.href} aria-current={current(link.href) ? 'page' : undefined}>{link.label}</a></li>{/each}</ul>
+              </section>
+            {/each}
+          </div>
+        </details>
       </nav>
       {#if search}<div class="bar-search"><CompendiumSearch {registry} /></div>{/if}
     </div>
@@ -131,17 +130,23 @@
   .brand-copy span { margin-top: .15rem; color: var(--c-accent); font-size: .875rem; font-weight: 600; }
   .brand:hover strong { color: var(--c-accent); }
 
-  .groups { display: flex; flex-wrap: wrap; gap: .25rem; margin: 0; padding: 0; list-style: none; }
-  .group { position: relative; }
-  summary { display: inline-flex; align-items: center; gap: .4rem; min-height: 1.5rem; padding: .4rem .6rem; border: 1px solid transparent; border-radius: var(--c-radius-sm); color: var(--c-text); font-size: var(--c-text-body); list-style: none; user-select: none; cursor: pointer; }
+  .site-nav { display: flex; align-items: center; gap: .25rem; }
+  .primary { display: flex; gap: .25rem; margin: 0; padding: 0; list-style: none; }
+  .primary a, summary { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.25rem; padding: .4rem .6rem; border: 1px solid transparent; border-radius: var(--c-radius-sm); color: var(--c-text); font-size: var(--c-text-body); text-decoration: none; }
+  .primary a:hover { background: var(--c-surface-2); color: var(--c-accent); }
+  .primary a[aria-current='page'], summary.current { color: var(--c-accent); }
+  summary { list-style: none; user-select: none; cursor: pointer; }
   summary::-webkit-details-marker { display: none; }
   summary::after { content: ''; width: .38rem; height: .38rem; margin-top: -.2rem; border-right: 1.5px solid currentcolor; border-bottom: 1.5px solid currentcolor; transform: rotate(45deg); opacity: .7; }
   details[open] > summary::after { margin-top: .15rem; transform: rotate(225deg); }
   summary:hover, details[open] > summary { border-color: var(--c-line); background: var(--c-surface-2); }
-  summary.current { color: var(--c-accent); }
-  summary:focus-visible, .panel a:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
-  .panel { position: absolute; z-index: 1; top: calc(100% + .35rem); left: 0; min-width: 11rem; margin: 0; padding: .3rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-1); box-shadow: 0 10px 24px var(--c-shadow); list-style: none; }
-  .panel a { display: block; padding: .45rem .6rem; border-radius: 2px; color: var(--c-text); font-size: var(--c-text-body); text-decoration: none; white-space: nowrap; }
+  summary:focus-visible, .site-nav a:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  /* One panel names every destination in labeled columns, so a reader scans all of them at once. It is placed against
+     the bar, not the button, and its columns wrap to the space there, so it never runs past the screen edge. */
+  .panel { position: absolute; z-index: 1; top: calc(100% - .25rem); left: 1.5rem; display: grid; width: min(52rem, calc(100% - 3rem)); grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1rem 1.5rem; padding: 1rem 1.1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); box-shadow: 0 10px 24px var(--c-shadow); }
+  .panel h2 { margin: 0 0 .35rem; padding: 0 .5rem; color: var(--c-text-dim); font-size: var(--c-text-small); font-weight: 600; }
+  .panel ul { margin: 0; padding: 0; list-style: none; }
+  .panel a { display: block; padding: .4rem .5rem; border-radius: 2px; color: var(--c-text); text-decoration: none; white-space: nowrap; }
   .panel a:hover { background: var(--c-tint-hover); color: var(--c-accent); }
   .panel a[aria-current='page'] { color: var(--c-accent); font-weight: 600; }
   .bar-search { min-width: 0; flex: 1; max-width: 22rem; margin-left: auto; }
@@ -158,11 +163,14 @@
     .bar-search { flex-basis: 100%; max-width: none; margin-left: 0; order: 3; }
   }
 
-  /* On a phone the open group spans the header, so a group at the right edge cannot push its menu past the screen. */
+  /* Below the width of six links, the bar holds the brand and Browse; the panel lists every destination. */
+  @media (max-width: 45rem) {
+    .primary { display: none; }
+  }
+
   @media (max-width: 640px) {
-    .group { position: static; }
-    .panel { left: 1rem; right: 1rem; top: auto; margin-top: .35rem; }
-    .panel a { padding: .6rem .7rem; white-space: normal; }
+    .panel { left: 1rem; width: calc(100% - 2rem); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panel a { padding: .55rem .5rem; white-space: normal; }
     .c-page { padding: 1.1rem 1rem 2.5rem; }
   }
 </style>
