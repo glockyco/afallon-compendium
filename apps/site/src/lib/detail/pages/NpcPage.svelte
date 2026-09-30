@@ -61,7 +61,7 @@
           {#if facts.species}<FactRow label="Species"><EntityLink ref={facts.species} {registry} /></FactRow>{/if}
           {#if creatureType}<FactRow label="Creature type">{creatureType}</FactRow>{/if}
           {#if combat && facts.respawn}<FactRow label="Respawn">{rangeText(facts.respawn.min, facts.respawn.max)} s</FactRow>{/if}
-          {#if combat && facts.experience}<FactRow label="Experience">{rangeText(facts.experience.min, facts.experience.max)}</FactRow>{/if}
+          {#if combat && facts.experience}<FactRow label="Experience" rules={document.placedRules.filter((entry) => entry.target === 'experience')} {registry}>{rangeText(facts.experience.min, facts.experience.max)}</FactRow>{/if}
           {#if combat && facts.aggroRange !== undefined}<FactRow label="Aggro range">{formatNumber(facts.aggroRange)} m</FactRow>{/if}
           {#if facts.immunities.length}<FactRow label="Immune to">{facts.immunities.map(categoryLabel).join(', ')}</FactRow>{/if}
           {#if loot}

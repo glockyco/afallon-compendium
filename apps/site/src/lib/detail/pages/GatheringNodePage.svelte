@@ -1,6 +1,6 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import type { MechanicsRule, NodeYieldRow, PublicGatheringNode, PublicKindEntry, SpawnerOption } from '@afallon/contracts/public';
+  import type { NodeYieldRow, PublicGatheringNode, PublicKindEntry, SpawnerOption } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import LocationLinks from '../../LocationLinks.svelte';
   import MissingValue from '../../MissingValue.svelte';
@@ -14,7 +14,7 @@
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
-  import MechanicsRules from '../sections/MechanicsRules.svelte';
+  import PlacedRules from '../sections/PlacedRules.svelte';
 
   export let document: PublicGatheringNode;
   export let registry: PublicKindEntry[];
@@ -28,11 +28,6 @@
     { id: 'chance', label: 'Chance', hint: 'The authored chance of the item\'s own roll.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
   ];
   $: yieldPlan = planColumns(yieldColumns, document.yields);
-  const ruleGroups = [
-    { section: 'node-selection', title: 'Selection' }, { section: 'node-availability', title: 'Availability' },
-    { section: 'node-rewards', title: 'Rewards' }, { section: 'attunement', title: 'Attunement' },
-  ];
-  const rulesFor = (rules: MechanicsRule[], section: string) => rules.filter((rule) => rule.section === section);
   const seconds = (value: number) => `${formatNumber(value)} ${value === 1 ? 'second' : 'seconds'}`;
   const isThisNode = (option: SpawnerOption) => option.node.key === document.ref.key;
 </script>
@@ -97,16 +92,11 @@
       {/each}
     </Section>
 
-    <Section id="rules" title="Rules" icon="text">
-      {#each ruleGroups as group}
-        {#if rulesFor(document.rules, group.section).length}
-          <div class="rule-group">
-            <h3>{group.title}</h3>
-            <MechanicsRules rules={rulesFor(document.rules, group.section)} {registry} />
-          </div>
-        {/if}
-      {/each}
-    </Section>
+    {#if document.placedRules.some((entry) => entry.target === 'how-it-works')}
+      <Section id="how-it-works" title="How it works" icon="text">
+        <PlacedRules rules={document.placedRules.filter((entry) => entry.target === 'how-it-works')} skill={facts.skill} {registry} />
+      </Section>
+    {/if}
   </Sections>
 </article>
 
@@ -114,7 +104,6 @@
   .note, .table-intro { margin: .75rem 0 0; line-height: 1.55; color: var(--c-text-dim); }
   .group + .group { margin-top: 1.4rem; }
   h3 { margin: 0 0 .5rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
-  .rule-group + .rule-group { margin-top: 1.1rem; }
   .unplaced { display: block; margin-top: .2rem; color: var(--c-text-dim); }
   .table-scroll { max-width: 100%; margin-top: .5rem; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }

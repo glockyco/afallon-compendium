@@ -1,7 +1,8 @@
-import type { CatalogCondition, CatalogEndpoint, CatalogFacts, CatalogGatheringNode, CatalogMechanicsRule, CatalogRelations } from "@afallon/contracts/catalog";
-import type { MechanicsRule, NodeYieldRow, PlacedNodeGroup, PlacementRef, PublicGatheringNode, Ref, SpawnerExample, SpawnerGroup } from "@afallon/contracts/public";
+import type { CatalogCondition, CatalogEndpoint, CatalogFacts, CatalogGatheringNode, CatalogRelations } from "@afallon/contracts/catalog";
+import type { NodeYieldRow, PlacedNodeGroup, PlacementRef, PublicGatheringNode, Ref, SpawnerExample, SpawnerGroup } from "@afallon/contracts/public";
 import type { ReferenceResolver } from "./documents";
 import { displayName } from "./text";
+import { placedRules } from "./placed-rules";
 
 type Resolve = ReferenceResolver;
 type Requirements = (conditionIds: readonly string[]) => PublicGatheringNode["facts"]["requirements"];
@@ -26,10 +27,6 @@ export function gatheringNodeNames(nodes: readonly CatalogGatheringNode[]): Read
   return result;
 }
 
-function projectRule(rule: CatalogMechanicsRule, resolve: Resolve): MechanicsRule {
-  return { id: rule.ruleId, section: rule.section, status: rule.status, phrase: rule.phrase, operands: rule.operands,
-    links: rule.links.map(resolve), sources: rule.sources.map((source) => ({ method: source.method, evidence: source.description })) };
-}
 
 type SpawnerSource = CatalogGatheringNode["sources"][number] & { spawner: NonNullable<CatalogGatheringNode["sources"][number]["spawner"]> };
 
@@ -83,7 +80,6 @@ export function placedNodeBySource(nodes: readonly CatalogGatheringNode[]): Read
   return new Map(nodes.flatMap((node) => node.sources.filter((source) => source.sourceKind === "placed-object").map((source) => [source.sourceId, node.entityKey] as const)));
 }
 
-const NODE_RULE_SECTIONS = new Set(["node-selection", "node-availability", "node-rewards"]);
 
 /**
  * The gathering node documents. A node's yields are the items of its loot table from its spawner options and its placed
@@ -103,19 +99,15 @@ export function projectGatheringNodeDocuments(facts: CatalogFacts, relations: Ca
   };
   for (const row of relations.gathers) if (row.gatheringNode?.entityKey) addYield(row.gatheringNode.entityKey, row);
   for (const row of relations.interactions) { const nodeKey = placedBySource.get(row.sourceId); if (nodeKey) addYield(nodeKey, row); }
-  const rules = facts.progression.mechanicsRules.filter((rule) => rule.topic === "crafting-and-gathering").sort((left, right) => left.ordinal - right.ordinal);
   const result = new Map<string, PublicGatheringNode>();
   for (const node of facts.gatheringNodes) {
     const ref = input.resolve({ entityKey: node.entityKey, label: node.name });
     if (ref.key === null || !("slug" in ref) || !ref.slug) throw new Error(`Gathering node ${node.entityKey} has no page reference.`);
     const kinds = new Set(node.sources.map((source) => source.sourceKind));
-    const applies = (rule: CatalogMechanicsRule) => {
-      if (rule.section === "attunement") return rule.links.some((link) => link.entityKey === node.entityKey);
-      if (!NODE_RULE_SECTIONS.has(rule.section)) return false;
-      if (rule.ruleId.startsWith("spawner-")) return kinds.has("spawner-option");
-      if (rule.ruleId === "placed-node-cooldown") return kinds.has("placed-object");
-      return true;
-    };
+    const gate = requiredLevel(node, input.conditions) ?? 1;
+    const skill = node.skill?.entityKey ? facts.progression.facts.find((fact) => fact.kind === "skills" && fact.entityKey === node.skill!.entityKey) : undefined;
+    const highest = skill?.kind === "skills" && skill.details.maxLevel > 0 ? skill.details.maxLevel : undefined;
+    const yieldLevels = highest === undefined || highest === gate ? [gate] : [gate, highest];
     result.set(node.entityKey, {
       ref, description: null, art: {},
       facts: {
@@ -127,7 +119,8 @@ export function projectGatheringNodeDocuments(facts: CatalogFacts, relations: Ca
       },
       yields: [...(yields.get(node.entityKey)?.values() ?? [])].sort((left, right) => refName(left.counterpart).localeCompare(refName(right.counterpart))),
       spawners: groups.filter((group) => group.nodeKeys.has(node.entityKey)).map(({ nodeKeys: _nodeKeys, ...group }) => group).sort((left, right) => right.spawners - left.spawners),
-      placed: placedGroups(node, input.placements), rules: rules.filter(applies).map((rule) => projectRule(rule, input.resolve)),
+      placed: placedGroups(node, input.placements),
+      placedRules: placedRules(facts, "gatheringNodes", { entityKey: node.entityKey, sourceKinds: kinds, yieldLevels }, input.resolve),
     });
   }
   return result;

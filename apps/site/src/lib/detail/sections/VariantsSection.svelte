@@ -45,7 +45,7 @@
   $: columns = [
     { id: 'variant', label: 'Variant', value: (variant) => variant.label },
     { id: 'level', label: 'Level', value: (variant) => variant.level ? levelText(variant.level) + (variant.level.scales ? '*' : '') : undefined, whenShared: omitAlways },
-    ...document.variantFields.map((field) => ({ id: field, label: FIELD_LABELS[field], value: (variant: NpcVariant) => fieldValue(variant, field) })),
+    ...document.variantFields.map((field) => ({ id: field, label: FIELD_LABELS[field], value: (variant: NpcVariant) => fieldValue(variant, field), ...(field === 'experience' ? { rules: document.placedRules.filter((entry) => entry.target === 'experience') } : {}) })),
   ] satisfies RelationColumn<NpcVariant>[];
   $: plan = planColumns(columns, variants);
   $: portraits = variants.some((variant) => variant.portrait);
@@ -53,7 +53,7 @@
 </script>
 
 <Section id="variants" title="Variants" icon="variants" count={variants.length} line="The game has several versions of this NPC. They share the name but differ in the facts below.">
-  <RelationTable columns={plan.columns} rows={variants} label="Variants" rowAnchors={(variant) => [variant.anchor]}>
+  <RelationTable columns={plan.columns} rows={variants} label="Variants" rowAnchors={(variant) => [variant.anchor]} {registry}>
     <svelte:fragment slot="cell" let:row let:column>
       {@const field = fieldOf(column)}
       {#if column === 'variant'}

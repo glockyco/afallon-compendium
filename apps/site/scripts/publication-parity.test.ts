@@ -36,7 +36,7 @@ function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummar
 
 // A publication with one map at its reviewed offset, its game-map layer, and one placement, whose search lists each
 // document.
-function view(documents: ReadonlyArray<{ ref: { kind: string; key: string; icon?: { url: string } } }>): PublicationView {
+function view(documents: ReadonlyArray<{ ref: { kind: string; key: string; icon?: { url: string } }; crafting?: unknown; teaches?: unknown; recipes?: unknown }>): PublicationView {
   const art = documents.flatMap((document) => document.ref.icon ? [document.ref.icon.url] : []);
   return {
     publication: {
@@ -67,6 +67,23 @@ test("counts records grouped into one page as published and names a lost record"
   const baseline = summarizePublication(view([fenric("npcs:206"), fenric("npcs:225")]));
   assertNonRegressivePublication(summarizePublication(view([{ ...fenric("npcs:206"), variants: [{ key: "npcs:206" }, { key: "npcs:225" }] }])), baseline);
   expect(() => assertNonRegressivePublication(summarizePublication(view([fenric("npcs:206")])), baseline)).toThrow("published entities: npcs:225");
+});
+
+test("parity preserves recipe keys in item crafts, teaches, and skill rows without recipe pages", () => {
+  const baseline = summarizePublication(view([{ ref: { kind: "recipes", key: "recipes:1" } },
+    { ref: { kind: "recipes", key: "recipes:2" } }, { ref: { kind: "recipes", key: "recipes:3" } }]));
+  const candidate = summarizePublication(view([
+    { ref: { kind: "items", key: "items:1" }, crafting: { recipe: { key: "recipes:1", name: "Regalia" } } },
+    { ref: { kind: "items", key: "items:2" }, teaches: { recipe: { key: "recipes:2", name: "Tonic" } } },
+    { ref: { kind: "skills", key: "skills:1" }, recipes: [{ recipe: { key: "recipes:3", name: "Demonic Bulwark Looted" }, anchor: "recipe-demonic-bulwark-looted" }] },
+  ]));
+  assertNonRegressivePublication(candidate, baseline);
+  const missing = summarizePublication(view([
+    { ref: { kind: "items", key: "items:1" }, crafting: { recipe: { key: "recipes:1", name: "Regalia" } } },
+    { ref: { kind: "items", key: "items:2" }, teaches: { recipe: { key: "recipes:2", name: "Tonic" } } },
+    { ref: { kind: "skills", key: "skills:1" }, recipes: [] },
+  ]));
+  expect(() => assertNonRegressivePublication(missing, baseline)).toThrow("published entities: recipes:3");
 });
 
 test("accepts additive publication coverage", () => {

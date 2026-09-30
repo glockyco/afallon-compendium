@@ -87,11 +87,11 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
   const catalogObject = await store.putBytes(bytes("catalog object"));
   const catalogManifest = { sha256: catalogManifestObject.sha256, bytes: catalogManifestObject.bytes };
   const sealedCatalog = { sha256: catalogObject.sha256, bytes: catalogObject.bytes };
-  const reference = { path: "resources/coverage.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v2" as const };
+  const reference = { path: "resources/coverage.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v3" as const };
   const releaseNotes = await registerReleaseNotes(store, "Afallon 0.16.2"), otherNotes = await registerReleaseNotes(store, "Hotfix #19");
   const dataDate = options.dataDate ?? "2026-09-20";
   const publication: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v6",
+    schemaVersion: "compendium.static-root.v7",
     buildId: BUILD_ID,
     catalogId: CATALOG_ID,
     mode: "preview",
@@ -99,9 +99,9 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
     release: { version: options.publishedVersion ?? "0.16.2", dataDate, patchNotes: { title: "Afallon 0.16.2", url: options.publishedArticle ?? "https://store.steampowered.com/news/app/2597810/view/1844115010498690", date: "2026-09-20" } },
     world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
     maps: [],
-    kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, searchable: true, columns: [], facets: [] }],
-    lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v2" }] },
-    search: [{ ...reference, schemaId: "compendium.static-search.v4" }],
+    kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, list: true, searchable: true, columns: [], facets: [] }],
+    lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v3" }] },
+    search: [{ ...reference, schemaId: "compendium.static-search.v5" }],
     coverage: reference,
     exclusions: { ...reference, schemaId: "compendium.static-exclusions.v1" },
   };
@@ -118,7 +118,7 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
     diagnosticRevision: "test",
     inputs: {},
   });
-  await publicationRun.addArtifact("publication.json", publicationObject, { mediaType: "application/json", schemaId: "compendium.static-root.v6" });
+  await publicationRun.addArtifact("publication.json", publicationObject, { mediaType: "application/json", schemaId: "compendium.static-root.v7" });
   await publicationRun.succeed();
   const publicationManifest = publicationRun.manifestIdentity;
   await publicationRun.release();

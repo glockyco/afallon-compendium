@@ -21,6 +21,7 @@ export const load: PageServerLoad = async ({ parent }) => {
   const loader = serverMapLoader();
   const published = new Set<string>(registry.filter((entry) => entry.pages).map((entry) => entry.kind));
   const [root, coverage] = await Promise.all([loader.loadRoot(), loader.loadCoverage()]);
+  const recipeRows = registry.some((entry) => entry.kind === 'recipes' && entry.list) ? (await loader.loadList('recipes')).rows : [];
 
   const placeRows = published.has('places') ? (await loader.loadList('places')).rows : [];
   const places = (await Promise.all(placeRows.flatMap((row) => row.ref.slug ? [loader.loadDocument('places', row.ref.slug)] : [])))
@@ -81,6 +82,8 @@ export const load: PageServerLoad = async ({ parent }) => {
     classes: classRows.map((row) => ({ ref: row.ref, talentTrees: count(row.values.talentTrees), abilities: count(row.values.abilities) })),
     // A crafting skill has recipes.
     craftingSkills: skillRows.flatMap((row) => { const recipes = count(row.values.recipes); return recipes ? [{ ref: row.ref, recipes }] : []; }),
+    recipeCount: recipeRows.length,
+    recipeRefs: recipeRows.slice(0, 3).map((row) => row.ref),
     pageCounts: coverage.pages,
   };
 };

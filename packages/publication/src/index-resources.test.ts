@@ -76,7 +76,7 @@ test("an NPC row counts its places in the column and offers each place in the fi
   const npc: PublicNpc = {
     ref: { key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }, description: null, art: {},
     facts: { level: { min: 5, max: 5, scales: false }, roles: ["enemy"], stats: [], immunities: [] }, variantFields: [], variants: [],
-    locations: [placement("Oakenvale"), placement("Coalway Woods")], drops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], usedInQuests: [], bossOf: [],
+    locations: [placement("Oakenvale"), placement("Coalway Woods")], drops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], usedInQuests: [], bossOf: [], placedRules: [],
   };
   const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "npcs")!;
   const row = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[npc.ref.key, npc]])).get("npcs")![0]!.rows[0]!;
@@ -94,7 +94,7 @@ test("quest rows expose the level range, chain, areas, and giver for every colum
       { kind: "worldZone", placements: [{ placementId: "p1", mapSpaceId: "world", label: "Coalway Woods" }], availability: [], pool: [] },
       { kind: "object", label: "Shrine", placements: [{ placementId: "p2", mapSpaceId: "world", label: "Cedar Ridge" }], availability: [] },
     ],
-    turnIns: [], objectives: [], itemsGiven: [], rewards: [], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [],
+    turnIns: [], objectives: [], itemsGiven: [], rewards: [], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [], placedRules: [],
   };
   const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "quests")!;
   const row = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[quest.ref.key, quest]])).get("quests")![0]!.rows[0]!;

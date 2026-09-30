@@ -9,8 +9,8 @@
   import PlaceTooltip from './PlaceTooltip.svelte';
   import PropertyTooltip from './PropertyTooltip.svelte';
   import QuestTooltip from './QuestTooltip.svelte';
-  import RecipeTooltip from './RecipeTooltip.svelte';
   import SkillTooltip from './SkillTooltip.svelte';
+  import CraftingSection from './detail/sections/CraftingSection.svelte';
 
   /** The published document with its kind, which selects the tooltip of that kind. */
   export let page: StaticDocument;
@@ -21,9 +21,8 @@
   export let variant: string | undefined = undefined;
 </script>
 
-{#if page.kind === 'items'}<ItemTooltip document={page.document} {registry} /><ItemSourceSummary document={page.document} />
+{#if page.kind === 'items'}<ItemTooltip document={page.document} {registry} />{#if variant === 'crafting' && page.document.crafting}<CraftingSection craft={page.document.crafting} itemName={page.document.ref.name} {registry} />{:else}<ItemSourceSummary document={page.document} />{/if}
 {:else if page.kind === 'abilities'}<AbilityTooltip document={page.document} {rankIndex} {variant} />
-{:else if page.kind === 'recipes'}<RecipeTooltip document={page.document} {registry} />
 {:else if page.kind === 'quests'}<QuestTooltip document={page.document} {registry} />
 {:else if page.kind === 'npcs'}<NpcTooltip document={page.document} {registry} {variant} />
 {:else if page.kind === 'places'}<PlaceTooltip document={page.document} {registry} {mapSpaceLabels} />

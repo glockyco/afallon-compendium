@@ -78,7 +78,7 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
     line('gathered-from', 'Gathered from', byChance(item.gatheredFrom).map(gatherName)),
     line('collected-from', 'Collected from', byChance(item.collectedFrom).map(containerName)),
     line('from-quests', 'From quests', itemQuestSourceRows(item.rewardedBy, item.givenBy).map((row) => ({ ref: row.quest }))),
-    line('crafted-from', 'Crafted from', item.craftedBy.map((row) => ({ ref: row.counterpart }))),
+    item.crafting ? { id: 'crafting', label: 'Crafted', names: [], more: 0, text: [item.crafting.skill ? nameOf(item.crafting.skill) : undefined, item.crafting.ranks[0] ? `level ${item.crafting.ranks[0].requiredLevel}` : undefined].filter(Boolean).join(' ') || item.crafting.recipe.name } : undefined,
     startingGearLine(item),
   ].filter((entry): entry is SummaryLine => entry !== undefined);
 }
@@ -86,7 +86,7 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
 /** What an item is for. */
 export function itemUseLines(item: PublicItem): SummaryLine[] {
   return [
-    line('teaches', 'Teaches', item.facts.teaches ? [{ ref: item.facts.teaches.recipe }] : []),
+    line('teaches', 'Teaches', item.teaches ? [{ text: item.teaches.recipe.name }] : []),
     line('used-in-recipes', 'Used in recipes', item.usedInRecipes.map((row) => ({ ref: row.counterpart }))),
     line('needed-for-quests', 'Needed for quests', item.usedInQuests.map((row) => ({ ref: row.counterpart }))),
   ].filter((entry): entry is SummaryLine => entry !== undefined);

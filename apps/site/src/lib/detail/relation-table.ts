@@ -1,4 +1,4 @@
-import type { PlacementRef } from '@afallon/contracts/public';
+import type { PlacedRule, PlacementRef } from '@afallon/contracts/public';
 import type { SortValue } from '../table';
 
 /** A value that decides whether a column shows: text, a number, or `undefined` when the row has no value. */
@@ -16,6 +16,7 @@ export interface RelationColumn<Row> {
   label: string;
   /** A short explanation of the game rule behind the values. */
   hint?: string;
+  rules?: PlacedRule[];
   numeric?: boolean;
   /** The sort key. A column without one does not sort. */
   sort?: (row: Row) => SortValue;

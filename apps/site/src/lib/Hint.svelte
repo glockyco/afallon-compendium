@@ -13,7 +13,7 @@
   import { FloatingController, placeBeside } from './floating';
 
   /** The explanation, in one or two short sentences. */
-  export let text: string;
+  export let text: string | undefined = undefined;
   /**
    * The slot holds its own focusable control, such as a sort button. The control attaches the `control` slot props, so
    * the hint follows it instead of adding a button of its own.
@@ -59,9 +59,17 @@
     if (event.pointerType !== 'touch') floating.showAfterIntent();
   }
 
+  function closeAfterFocusLeaves(): void {
+    queueMicrotask(() => {
+      const focused = document.activeElement;
+      if (focused && (anchor?.contains(focused) || panel?.contains(focused))) return;
+      floating.close();
+    });
+  }
+
   $: control = {
     show: () => floating.show(),
-    close: () => floating.close(),
+    close: closeAfterFocusLeaves,
     keydown: (event: KeyboardEvent) => floating.handleKeydown(event, open),
     describedBy: open ? id : undefined,
   } satisfies HintControl;
@@ -71,7 +79,7 @@
   {#if wrapsControl}<slot {control} />
   {:else}<button type="button" class="term" aria-label={label} aria-describedby={control.describedBy} on:focus={control.show} on:blur={control.close} on:click={control.show} on:keydown={control.keydown}><slot {control} /></button>{/if}
 </span>
-{#if open}<span {id} bind:this={panel} class="hint-panel" role="tooltip" use:position on:pointerenter={() => floating.keepOpen()} on:pointerleave={() => floating.closeAfterIntent()}>{text}</span>{/if}
+{#if open}<span {id} bind:this={panel} class="hint-panel" role="tooltip" use:position on:focusout={closeAfterFocusLeaves} on:pointerenter={() => floating.keepOpen()} on:pointerleave={() => floating.closeAfterIntent()}><slot name="explanation">{text}</slot></span>{/if}
 
 <style>
   .hint { display: inline-flex; max-width: 100%; }

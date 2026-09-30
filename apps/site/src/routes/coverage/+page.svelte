@@ -35,6 +35,10 @@
       title: 'Recipes without a known teaching item',
       text: 'These recipes are not learned by default, and no captured item action teaches them. A dialogue, object, quest, or other game action can still teach them, but the scans do not record those sources for recipes yet.',
     },
+    recipeWithoutProduct: {
+      title: 'Recipes without a product',
+      text: 'No published item is the product of these recipes. Their skill pages still show each recipe.',
+    },
   };
 
   $: coverage = data.coverage;

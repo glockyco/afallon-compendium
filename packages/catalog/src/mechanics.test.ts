@@ -6,9 +6,9 @@ import { normalizeMechanicsRules } from "./mechanics";
 const reference = { path: "objects/rules.json", sha256: "a".repeat(64) };
 const object = { sha256: "b".repeat(64), bytes: 10 };
 const rules = (rule: Partial<MechanicsRules["rules"][number]>): MechanicsRules => ({
-  schemaVersion: "compendium.mechanics-rules.v1", buildId: "build", binary: { file: "GameAssembly.dll", sha256: "c".repeat(64) },
+  schemaVersion: "compendium.mechanics-rules.v2", buildId: "build", binary: { file: "GameAssembly.dll", sha256: "c".repeat(64) },
   evidence: [{ id: "decompilation", description: "Bounded decompilation", object }],
-  rules: [{ id: "hit-award", topic: "character-progression", section: "skill-experience", status: "verified", phrase: "Each hit gives {hitExperience} experience.", operands: { hitExperience: 2 }, links: [], sources: [{ evidence: "decompilation", method: "SkillSystem.OnPlayerAutoAttackHit" }], ...rule }],
+  rules: [{ id: "hit-award", topic: "character-progression", section: "skill-experience", status: "verified", phrase: "Each hit gives {hitExperience} experience.", operands: { hitExperience: 2 }, links: [], sources: [{ evidence: "decompilation", method: "SkillSystem.OnPlayerAutoAttackHit" }], placements: [], ...rule }],
 });
 
 test("a rule keeps its operands and the evidence object of each cited method", () => {
@@ -26,4 +26,16 @@ test("a link to a missing record is a coverage issue and keeps its key as the la
   const [row] = normalizeMechanicsRules(rules({ links: ["stats:33", "stats:99"] }), reference, new Map([["stats:33", "Experience Bonus"]]), blockers);
   expect(row?.links).toEqual([{ entityKey: "stats:33", label: "Experience Bonus" }, { entityKey: null, label: "stats:99" }]);
   expect(blockers.map((blocker) => blocker.key)).toEqual(["mechanics:hit-award:stats:99"]);
+});
+
+test("a rule without a topic keeps its placements and has its own ordinals", () => {
+  const [row] = normalizeMechanicsRules(rules({ topic: undefined, placements: [{ page: "items", target: "crafting", scope: "all" }] }), reference, new Map(), []);
+  expect([row?.topic, row?.ordinal, row?.placements]).toEqual([null, 0, [{ page: "items", target: "crafting", scope: "all" }]]);
+});
+
+test("a rule without a topic and a placement, or with a placement that its page lacks, stops the build", () => {
+  expect(() => normalizeMechanicsRules(rules({ topic: undefined }), reference, new Map(), [])).toThrow("has no topic and no placement");
+  expect(() => normalizeMechanicsRules(rules({ placements: [{ page: "npcs", target: "crafting", scope: "all" }] }), reference, new Map(), [])).toThrow("which npcs pages lack");
+  expect(() => normalizeMechanicsRules(rules({ placements: [{ page: "items", target: "crafting", scope: "placed" }] }), reference, new Map(), [])).toThrow("scope placed");
+  expect(() => normalizeMechanicsRules(rules({ placements: [{ page: "gatheringNodes", target: "how-it-works", scope: "linked" }] }), reference, new Map(), [])).toThrow("linked scope without links");
 });

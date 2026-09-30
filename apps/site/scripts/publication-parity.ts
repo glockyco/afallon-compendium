@@ -29,6 +29,8 @@ export interface PublicationSummary {
   placementLocations: Map<string, { mapSpaceId: string; position: readonly [number, number]; categories: readonly string[] }>;
   boundsByMap: Map<string, Bounds>;
   listKinds: Set<string>;
+  /** Kinds whose current registry declares a list, including recipes without pages. */
+  declaredListKinds?: Set<string>;
   /** The kinds that have pages. A kind can lose its pages when its entities move onto other pages. */
   pageKinds: Set<string>;
   artworkAssets: Set<string>;
@@ -133,6 +135,8 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
     entityKeys.add(text(object(document.ref).key));
     for (const variant of array(document.variants)) entityKeys.add(text(object(variant).key));
     for (const version of array(document.versions)) for (const key of array(object(version).keys)) entityKeys.add(text(key));
+    for (const craft of [document.crafting, document.teaches]) entityKeys.add(text(object(object(craft).recipe).key));
+    for (const row of array(document.recipes)) entityKeys.add(text(object(object(row).recipe).key));
     // A gear set has no page. It is published in full on the page of each member item.
     entityKeys.add(text(object(object(document.facts).gearSet).key));
   }
@@ -144,7 +148,7 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
     increment(placementsByMap, placement.mapSpaceId);
     for (const category of placement.categories) increment(placementsByCategory, category);
   }
-  const tileLayers = new Map<string, PublicTileLayer>();
+  const tileLayers = new Map<string, ParityTileLayer>();
   for (const layer of layers) {
     const key = `${layer.mapSpaceId}:${layer.kind}:${layer.id}`;
     if (tileLayers.has(key)) throw new Error(`Publication repeats imagery layer ${key}.`);
@@ -175,7 +179,7 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
     placementIds,
     placementLocations: new Map(placements.map((placement) => [placement.placementId, { mapSpaceId: placement.mapSpaceId, position: placement.position, categories: placement.categories }])),
     boundsByMap: new Map(maps.map((map) => [text(map.mapSpaceId), { min: point(object(map.bounds).min), max: point(object(map.bounds).max) }])),
-    listKinds, pageKinds,
+    listKinds, declaredListKinds: new Set(array(root.kinds).map(object).filter((entry) => entry.list === true || entry.list === undefined && entry.pages === true).map((entry) => text(entry.kind))), pageKinds,
     artworkAssets: new Set([...graph.references.values()].filter((reference) => reference.schemaId === "image/webp" && reference.path.startsWith("art/")).map((reference) => reference.path)),
     artworkOwners,
     excludedKeys: new Set(array(resource(root.exclusions).exclusions).map((entry) => text(object(entry).key)).filter(Boolean)),
@@ -216,7 +220,7 @@ export function assertNonRegressivePublication(candidate: PublicationSummary, ba
   assertAtLeast(candidate.placementsByCategory, baseline.placementsByCategory, "per-category placement coverage");
   assertListedRemovals(candidate, baseline);
   assertContains(candidate.regionKeys, baseline.regionKeys, "map regions");
-  assertContains(candidate.listKinds, new Set([...baseline.listKinds].filter((kind) => candidate.pageKinds.has(kind))), "published lists");
+  assertContains(candidate.listKinds, new Set([...baseline.listKinds].filter((kind) => (candidate.declaredListKinds ?? candidate.pageKinds).has(kind))), "published lists");
   for (const [mapSpaceId, expected] of baseline.offsets) {
     const actual = candidate.offsets.get(mapSpaceId);
     if (!actual || actual.worldX !== expected.worldX || actual.worldY !== expected.worldY) throw new Error(`Publication changes the reviewed world offset for ${mapSpaceId}.`);

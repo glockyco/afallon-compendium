@@ -747,8 +747,8 @@ function queryProgression(db: Database): CatalogProgression {
   unlocks.sort((a, b) => a.target.localeCompare(b.target) || (a.owner?.label ?? "").localeCompare(b.owner?.label ?? "") || a.tier - b.tier || a.row - b.row);
   appliers.sort((a, b) => a.effect.localeCompare(b.effect) || a.source.label.localeCompare(b.source.label) || order(a.rank) - order(b.rank) || a.via.localeCompare(b.via));
   const offeredClasses = [...new Set(facts.flatMap((fact) => fact.kind === "races" ? fact.details.offeredClasses.flatMap((row) => row.entityKey === null ? [] : [row.entityKey]) : []))].sort();
-  const mechanicsRules = db.query<{ rule_id: string; topic: CatalogMechanicsRule["topic"]; section: string; ordinal: number; status: CatalogMechanicsRule["status"]; phrase: string; operands_json: string; links_json: string; sources_json: string }, []>("SELECT rule_id, topic, section, ordinal, status, phrase, operands_json, links_json, sources_json FROM mechanics_rules ORDER BY topic, ordinal").all()
-    .map((row): CatalogMechanicsRule => ({ ruleId: row.rule_id, topic: row.topic, section: row.section, ordinal: row.ordinal, status: row.status, phrase: row.phrase, operands: JSON.parse(row.operands_json), links: JSON.parse(row.links_json), sources: JSON.parse(row.sources_json) }));
+  const mechanicsRules = db.query<{ rule_id: string; topic: CatalogMechanicsRule["topic"]; section: string; ordinal: number; status: CatalogMechanicsRule["status"]; phrase: string; operands_json: string; links_json: string; sources_json: string; placements_json: string }, []>("SELECT rule_id, topic, section, ordinal, status, phrase, operands_json, links_json, sources_json, placements_json FROM mechanics_rules ORDER BY topic, ordinal").all()
+    .map((row): CatalogMechanicsRule => ({ ruleId: row.rule_id, topic: row.topic, section: row.section, ordinal: row.ordinal, status: row.status, phrase: row.phrase, operands: JSON.parse(row.operands_json), links: JSON.parse(row.links_json), sources: JSON.parse(row.sources_json), placements: JSON.parse(row.placements_json) }));
   return { facts, links, talentNodes, spellbookNodes, learners, unlocks, appliers, offeredClasses, mechanicsRules };
 }
 

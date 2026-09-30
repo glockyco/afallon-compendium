@@ -81,7 +81,7 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
   const report = validateUpdateReport(JSON.parse(new TextDecoder().decode(reportBytes)));
   await verifyReportEvidence(store, report);
   const publicationRun = await resolveArtifactRun(store, report.artifacts.publication.content, { buildId: report.current.buildId, operation: "publish" });
-  const publicationOutput = publicationRun.outputs.find(output => output.name === "publication.json" && output.schemaId === "compendium.static-root.v6");
+  const publicationOutput = publicationRun.outputs.find(output => output.name === "publication.json" && output.schemaId === "compendium.static-root.v7");
   if (!publicationOutput) throw new Error("Accepted update report does not reference a successful static publication run.");
   const rootValue: unknown = JSON.parse(await readFile(store.objectPath(publicationOutput.content.sha256), "utf8"));
   Assert(StaticRootManifestSchema, rootValue);
@@ -114,7 +114,7 @@ export async function acceptUpdate(options: AcceptUpdateOptions): Promise<Accept
   const candidateDirectory = join(publicationRoot, "publications", publicationOutput.content.sha256);
   const stat = await lstat(candidateDirectory);
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Candidate publication directory is unavailable.");
-  const selection = { root: { path: `resources/${publicationOutput.content.sha256}.json`, sha256: publicationOutput.content.sha256, bytes: publicationOutput.content.bytes, schemaId: "compendium.static-root.v6" as const }, directory: `publications/${publicationOutput.content.sha256}` };
+  const selection = { root: { path: `resources/${publicationOutput.content.sha256}.json`, sha256: publicationOutput.content.sha256, bytes: publicationOutput.content.bytes, schemaId: "compendium.static-root.v7" as const }, directory: `publications/${publicationOutput.content.sha256}` };
   const selectionBytes = new TextEncoder().encode(`${canonicalJson(selection)}\n`), selectionIdentity = identity(selectionBytes);
   const stageBackup = `${stageRoot}.rollback-${randomUUID()}`;
   let backedUp = false, selectionChanged = false, descriptorChanged = false;

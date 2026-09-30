@@ -23,12 +23,19 @@ function nameRank(needle: string, name: string): number {
   return text === needle ? 0 : text.startsWith(needle) ? 1 : text.includes(needle) ? 2 : 3;
 }
 
+function entryRank(needle: string, entry: PublicSearchEntry): number {
+  let rank = nameRank(needle, entry.ref.name);
+  for (const alias of entry.aliases ?? []) rank = Math.min(rank, nameRank(needle, alias));
+  return rank;
+}
+
+
 export function rankCompendiumEntries(query: string, entries: readonly PublicSearchEntry[]): PublicSearchEntry[] {
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return [];
   return entries
-    .filter((entry) => entry.ref.name.toLocaleLowerCase().includes(needle))
-    .sort((left, right) => nameRank(needle, left.ref.name) - nameRank(needle, right.ref.name) || left.ref.name.localeCompare(right.ref.name) || left.ref.key.localeCompare(right.ref.key));
+    .filter((entry) => entry.ref.name.toLocaleLowerCase().includes(needle) || (entry.aliases ?? []).some((alias) => alias.toLocaleLowerCase().includes(needle)))
+    .sort((left, right) => entryRank(needle, left) - entryRank(needle, right) || left.ref.name.localeCompare(right.ref.name) || left.ref.key.localeCompare(right.ref.key));
 }
 
 export function rankResults(needle: string, placements: readonly PublicPlacement[]): PublicPlacement[] {
@@ -68,7 +75,7 @@ export function buildSearchIndexes(data: PublicationData, entries: readonly Publ
   }
   return {
     entriesByKey: new Map(entries.map((entry) => [entry.ref.key, entry])),
-    searchEntries: entries.map((entry) => ({ entry, text: [entry.ref.name, entry.place ?? '', ...entry.sourceKinds, ...entry.sourceKinds.map(sourceKindLabel)].join(' ').toLocaleLowerCase() })),
+    searchEntries: entries.map((entry) => ({ entry, text: [entry.ref.name, ...(entry.aliases ?? []), entry.place ?? '', ...entry.sourceKinds, ...entry.sourceKinds.map(sourceKindLabel)].join(' ').toLocaleLowerCase() })),
     placementSearchText: new Map(data.placements.map((placement) => [placement.placementId, placement.searchText.toLocaleLowerCase()])),
     placementsById,
     placementsByEntryKey,

@@ -9,7 +9,7 @@ import type { RoleScope } from "./roles";
 import type { TooltipLine } from "./tooltip";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v7" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v8" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });

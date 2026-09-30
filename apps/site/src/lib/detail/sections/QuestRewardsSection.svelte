@@ -16,7 +16,7 @@
 {#if hasRewards}
   <Section id="rewards" title="Rewards" icon="reward">
     <FactList>
-      {#if facts.experience !== undefined}<FactRow label="Experience">{formatNumber(facts.experience)}</FactRow>{/if}
+      {#if facts.experience !== undefined}<FactRow label="Experience" rules={document.placedRules.filter((entry) => entry.target === 'experience')} {registry}>{formatNumber(facts.experience)}</FactRow>{/if}
       {#if document.rewards.length}
         <FactRow label="Rewards"><span class="entries">{#each document.rewards as reward}<span class="entry"><span class="quantity">{formatNumber(reward.count)} ×</span> <EntityLink ref={reward.counterpart} {registry} /></span>{/each}</span></FactRow>
       {/if}

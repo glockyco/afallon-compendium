@@ -16,6 +16,7 @@ import {
   type PublicNpc,
   type PublicPlace,
   type PublicQuest,
+  type PublicSkill,
   type PublicSearchEntry,
   type StaticDocument,
   type PublicationExclusion,
@@ -77,7 +78,15 @@ function itemSourceKinds(document: PublicDocument): string[] {
   return [item.droppedBy.length > 0 ? "drop" : null, item.soldBy.length > 0 ? "vendor" : null,
     item.gatheredFrom.length > 0 ? "gather" : null, item.inContainers.length > 0 ? "container" : null,
     item.collectedFrom.length > 0 ? "interaction" : null, item.rewardedBy.length > 0 ? "quest" : null,
-    item.craftedBy.length > 0 ? "recipe" : null, item.startingGearOf.length > 0 ? "startingGear" : null].filter((value): value is string => value !== null);
+    item.crafting ? "recipe" : null, item.startingGearOf.length > 0 ? "startingGear" : null].filter((value): value is string => value !== null);
+}
+/** Other names that find a craft through its product or its skill row. */
+export function searchAliases(document: PublicDocument): string[] {
+  if (document.ref.kind === "items") {
+    const name = (document as PublicItem).crafting?.recipe.name;
+    return name && name !== document.ref.name ? [name] : [];
+  }
+  return document.ref.kind === "skills" ? (document as PublicSkill).recipes.filter((row) => !row.product || row.product.key === null || !row.product.slug).map((row) => row.recipe.name) : [];
 }
 
 // The weapon types of a class come from its entity gameplay, as the game names them: "One handed sword" reads "One
@@ -130,12 +139,12 @@ export async function generateIndexResources(
     return [placementId, area ? { ...placement, label: area } : scene?.kind === "places" ? { ...placement, label: scene.name } : placement] as const;
   }));
   const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
-    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey,
+    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded,
     classWeapons: classWeapons(queryCatalogFullEntities(db).records) });
   const conditions = conditionsById(relations.records.conditions), resolve = createReferenceResolver(refs);
   const nodeDocuments = projectGatheringNodeDocuments(facts.records, relations.records, { resolve, conditions, placements: publishedPlacements,
     requirements: (conditionIds) => requirementsFor(conditionIds, conditions, resolve) });
-  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), spawnedLevels, resolve), ...nodeDocuments]);
+  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), spawnedLevels, resolve, conditions), ...nodeDocuments]);
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {
@@ -152,7 +161,7 @@ export async function generateIndexResources(
   const schemaIdByKey = new Map([...documents].map(([key, resource]) => [key, resource.reference.schemaId]));
   const publicationIssues = auditPublicTooltipCoverage(facts.records, relations.records, publicDocuments, schemaIdByKey);
 
-  const listValues = buildKindLists(identity, PUBLIC_KIND_REGISTRY, publicDocuments);
+  const listValues = buildKindLists(identity, PUBLIC_KIND_REGISTRY, publicDocuments, facts.records, relations.records, refs, excluded);
   const lists = new Map<string, GeneratedStaticResource<StaticKindList>[]>();
   for (const [kind, values] of listValues) {
     const resources: GeneratedStaticResource<StaticKindList>[] = [];
@@ -174,14 +183,15 @@ export async function generateIndexResources(
     const sceneKeys = new Set(placementIds.map((placementId) => catalogPlacements.get(placementId)?.sceneKey).filter((sceneKey): sceneKey is string => sceneKey !== undefined && refs.get(sceneKey)?.kind === "places"));
     const onlySceneKey = sceneKeys.size === 1 ? sceneKeys.values().next().value : undefined;
     const place = onlySceneKey === undefined ? (sceneKeys.size > 1 ? `${sceneKeys.size} places` : undefined) : refs.get(onlySceneKey)?.name;
-    entries.push({ ref: document.ref, ...(level === undefined ? {} : { level }), ...(place ? { place } : {}),
+    const aliases = searchAliases(document);
+    entries.push({ ref: document.ref, ...(aliases.length ? { aliases } : {}), ...(level === undefined ? {} : { level }), ...(place ? { place } : {}),
       hasPlacements: placementIds.length > 0,
       sourceKinds: listRowsByKey.get(key)?.facets.sourceKind ?? itemSourceKinds(document),
       document: resource.reference as PublicSearchEntry["document"],
     });
   }
   const search: GeneratedStaticResource<StaticSearchIndex>[] = [];
-  for (const value of partitionStaticRecords(entries, (partEntries, part): StaticSearchIndex => ({ schemaVersion: "compendium.static-search.v4", ...identity, part, entries: partEntries }))) {
+  for (const value of partitionStaticRecords(entries, (partEntries, part): StaticSearchIndex => ({ schemaVersion: "compendium.static-search.v5", ...identity, part, entries: partEntries }))) {
     Assert(StaticSearchIndexSchema, value);
     search.push(await writeStaticJson(store, value.schemaVersion, value, protection));
   }
@@ -192,5 +202,5 @@ export async function generateIndexResources(
     if (!asset) throw new Error(`Document artwork has no publication asset: ${path}.`);
     return asset;
   }).sort((left, right) => left.path.localeCompare(right.path));
-  return { refs, documents, lists, search, artwork: assets, coverage: readerCoverage(publicDocuments.values()), publicationIssues };
+  return { refs, documents, lists, search, artwork: assets, coverage: readerCoverage(publicDocuments.values(), facts.records), publicationIssues };
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { CharacterProgression, MechanicsRule, PublicKindEntry } from '@afallon/contracts/public';
+  import type { CharacterProgression, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { npcLevelText, rangeText } from '../../format';
   import Hero from '../Hero.svelte';
@@ -13,12 +13,6 @@
   export let registry: PublicKindEntry[];
 
   const format = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 4 });
-  const ruleSections = [
-    { id: 'all-experience', title: 'All experience' },
-    { id: 'kill-experience', title: 'Kill experience' },
-    { id: 'quest-experience', title: 'Quest experience' },
-    { id: 'skill-experience', title: 'Skill experience' },
-  ];
   $: sources = document.sources;
   $: fixedText = `${format(sources.fixedCreatures.count)} fixed-level creatures with experience have authored levels ${rangeText(sources.fixedCreatures.minLevel, sources.fixedCreatures.maxLevel)}.`;
   $: scalingText = [`${format(sources.scalingCreatures.count)} creatures with experience scale with the player. The zone range of each spawner limits their level.`,
@@ -26,9 +20,6 @@
   $: questText = [`${format(sources.quests.count)} quests with experience have a highest quest level of ${format(sources.quests.maxLevel)}.`,
     sources.quests.maxRequirement === undefined ? '' : `The highest level requirement is ${format(sources.quests.maxRequirement)}.`,
     sources.quests.withoutRange ? `${format(sources.quests.withoutRange)} have no level range.` : ''].filter(Boolean).join(' ');
-  function rulesFor(section: string): MechanicsRule[] {
-    return document.rules.filter((rule) => rule.section === section);
-  }
   function gainText(trigger: string): string {
     switch (trigger) {
       case 'characterLevelUp': return 'per character level-up';
@@ -39,15 +30,24 @@
       default: return 'per recorded event';
     }
   }
+  import { ruleNumbers } from '../rule-numbers';
+  $: numbers = ruleNumbers(document.rules);
 </script>
 
 <article class="detail-page">
   <TitleBlock name={document.ref.name} {registry} />
-  {#if document.description}<Hero><p class="c-prose">{document.description}</p></Hero>{/if}
+  <Hero><p class="c-prose">{document.overview}</p></Hero>
   <Sections>
+    <Section id="steps" title="Steps" icon="text">
+      <ol class="steps">
+        {#each document.steps as step}
+          <li><h3>{step.title}</h3><p>{step.text}</p><p class="step-links">{step.rules.length > 1 ? 'Rules' : 'Rule'} {#each step.rules as id, index}{#if index > 0}{', '}{/if}<a class="c-link" href={`#rule-${id}`}>{numbers.get(id)}</a>{/each}</p></li>
+        {/each}
+      </ol>
+    </Section>
     <Section id="level-curve" title="Level curve" icon="talent" line={`Character level cap: ${format(document.curve.cap)}.`}>
       <LevelCurve curve={document.curve} />
-      <MechanicsRules rules={rulesFor('level-curve')} {registry} />
+      <p>The curve shows the experience needed for each next level.</p>
     </Section>
     <Section id="experience-sources" title="Experience sources" icon="creature">
       <div class="prose">
@@ -60,11 +60,6 @@
         <p>These are the highest levels of these experience sources, not a limit on earning experience at higher character levels.</p>
       </div>
     </Section>
-    {#each ruleSections as group}
-      <Section id={group.id} title={group.title} icon="text">
-        <MechanicsRules rules={rulesFor(group.id)} {registry} />
-      </Section>
-    {/each}
     <Section id="talent-points" title="Talent points" icon="talent">
       {#each document.talentPoints as points}
         <div class="point-group">
@@ -72,7 +67,6 @@
           <p>{[`Starts with ${format(points.start)}.`, ...points.gains.map((gain) => `Gains ${format(gain.amount)} ${gainText(gain.trigger)}.`), `The recorded maximum is ${format(points.max)}. This is a limit, not the points that every character has earned.`].join(' ')}</p>
         </div>
       {/each}
-      <MechanicsRules rules={rulesFor('talent-points')} {registry} />
     </Section>
     <Section id="creature-level-modifiers" title="Creature level modifiers" icon="creature">
       <p class="table-intro">The percentages modify kill experience when the creature is lower or higher level than the character. Equal levels receive neither modifier.</p>
@@ -81,10 +75,23 @@
         <tbody>{#each document.sources.levelModifiers as row}<tr><td>{format(row.creatures)}</td><td>{row.lower > 0 ? '+' : ''}{format(row.lower)}%</td><td>{row.higher > 0 ? '+' : ''}{format(row.higher)}%</td></tr>{/each}</tbody>
       </table></div>
     </Section>
+    <Section id="worked-example" title="Worked example" icon="creature">
+      {#if document.example}
+        <p>A kill of <EntityLink ref={document.example.creature} {registry} /> at level {format(document.example.level)} gives {format(document.example.lowest)}–{format(document.example.highest)} base experience before modifiers.</p>
+      {/if}
+    </Section>
+    <Section id="rules-reference" title="Rules reference" icon="text">
+      <MechanicsRules rules={document.rules} {registry} />
+    </Section>
   </Sections>
 </article>
 
 <style>
+  .steps { display: grid; gap: 1rem; margin: 0; padding-left: 1.5rem; }
+  .steps li { padding-left: .25rem; }
+  .steps h3 { margin: 0 0 .2rem; }
+  .steps p { margin: 0; line-height: 1.55; }
+  .step-links { margin-top: .25rem !important; color: var(--c-text-dim); font-size: var(--c-text-small); overflow-wrap: anywhere; }
   .prose p, .point-group p, .table-intro { margin: 0 0 .75rem; line-height: 1.55; }
   .prose p:last-child, .point-group p:last-child { margin-bottom: 0; }
   .prose ul { margin: 0 0 .75rem; padding-left: 1.4rem; line-height: 1.6; }

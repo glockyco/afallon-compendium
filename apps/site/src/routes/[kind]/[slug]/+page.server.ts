@@ -19,10 +19,9 @@ export const load: PageServerLoad = async ({ params }) => {
   const entry = indexes.entries.find((candidate) => candidate.ref.kind === kind.kind && candidate.ref.slug === params.slug && candidate.document);
   if (!entry?.document) error(404, 'This compendium page is not published.');
   const page = await loader.loadDocument(kind.kind, params.slug);
-  // A recipe's hero shows the tooltip of the item that it makes, and an item that teaches a recipe shows the tooltip of
-  // that recipe's product, so the page carries that item's document.
+  // A teaching item shows its recipe's product tooltip when that item has a published page.
   let product: PublicItem | undefined;
-  const productRef = page.kind === 'recipes' ? page.document.product?.counterpart : page.kind === 'items' ? page.document.facts.teaches?.product : undefined;
+  const productRef = page.kind === 'items' ? page.document.teaches?.product?.counterpart : undefined;
   if (productRef && productRef.key !== null && productRef.kind === 'items' && productRef.slug) {
     const productPage = await loader.loadDocument('items', productRef.slug);
     if (productPage.kind === 'items') product = productPage.document;

@@ -39,7 +39,7 @@ export function assertStaticPublicationSemantics(root: StaticRootManifest, value
   if (root.maps.length === 0) throw new Error("Publication maps are empty.");
   for (const value of values.values()) assertStaticResourceIdentity(root, value);
   const coverage = values.get(root.coverage.path);
-  if (coverage?.schemaVersion !== "compendium.static-coverage.v2") throw new Error("Publication coverage does not match its root.");
+  if (coverage?.schemaVersion !== "compendium.static-coverage.v3") throw new Error("Publication coverage does not match its root.");
   const exclusions = values.get(root.exclusions.path);
   if (exclusions?.schemaVersion !== "compendium.static-exclusions.v1") throw new Error("Publication exclusions do not match their root.");
   const excluded = new Set<string>();
@@ -99,13 +99,13 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
   }
   for (const [kind, references] of Object.entries(root.lists)) {
     const entry = kinds.get(kind);
-    if (!entry?.pages) throw new Error(`List for a kind without pages: ${kind}.`);
+    if (!entry?.list) throw new Error(`List for a kind without a list: ${kind}.`);
     for (const [part, reference] of references.entries()) {
       const value = values.get(reference.path);
-      if (value?.schemaVersion !== "compendium.static-kind-list.v2" || value.kind !== kind || value.part !== part) throw new Error(`Kind list part identity mismatch: ${reference.path}.`);
+      if (value?.schemaVersion !== "compendium.static-kind-list.v3" || value.kind !== kind || value.part !== part) throw new Error(`Kind list part identity mismatch: ${reference.path}.`);
     }
   }
-  for (const entry of kinds.values()) if (entry.pages && !root.lists[entry.kind]) throw new Error(`Paged kind has no list: ${entry.kind}.`);
+  for (const entry of kinds.values()) if (entry.list && !root.lists[entry.kind]) throw new Error(`Listed kind has no list: ${entry.kind}.`);
   // The search corpus is the page index: a paged kind must be searchable so that every page has a
   // corpus entry carrying its slug and its document.
   for (const entry of kinds.values()) if (entry.pages && !entry.searchable) throw new Error(`Paged kind is not searchable: ${entry.kind}.`);
@@ -113,7 +113,7 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
   const slugs = new Set<string>();
   for (const [part, reference] of root.search.entries()) {
     const value = values.get(reference.path);
-    if (value?.schemaVersion !== "compendium.static-search.v4" || value.part !== part) throw new Error(`Search part identity mismatch: ${reference.path}.`);
+    if (value?.schemaVersion !== "compendium.static-search.v5" || value.part !== part) throw new Error(`Search part identity mismatch: ${reference.path}.`);
     for (const entry of value.entries) {
       if (published.has(entry.ref.key)) throw new Error(`Duplicate search entry: ${entry.ref.key}.`);
       if (excluded.has(entry.ref.key)) throw new Error(`Excluded record is published: ${entry.ref.key}.`);
@@ -143,7 +143,7 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
       for (const ref of collectRefs(value.document)) checkRef(ref, path);
       for (const placement of collectPlacementRefs(value.document)) if (!placementIds.has(placement.placementId)) throw new Error(`Document placement is not a published placement: ${placement.placementId} in ${path}.`);
       if (value.kind === "places" && value.document.space && !root.maps.some((map) => map.mapSpaceId === value.document.space!.mapSpaceId)) throw new Error(`Place references an unpublished map space: ${value.document.space.mapSpaceId} in ${path}.`);
-    } else if (value.schemaVersion === "compendium.static-kind-list.v2") {
+    } else if (value.schemaVersion === "compendium.static-kind-list.v3") {
       for (const row of value.rows) checkRef(row.ref, path);
     }
   }
@@ -154,7 +154,7 @@ function assertCompendiumSemantics(root: StaticRootManifest, values: ReadonlyMap
   for (const gap of coverage.gaps) for (const ref of gap.pages) checkRef(ref, root.coverage.path);
   for (const reference of root.search) {
     const value = values.get(reference.path);
-    if (value?.schemaVersion !== "compendium.static-search.v4") throw new Error(`Search part identity mismatch: ${reference.path}.`);
+    if (value?.schemaVersion !== "compendium.static-search.v5") throw new Error(`Search part identity mismatch: ${reference.path}.`);
     for (const entry of value.entries) {
       checkRef(entry.ref, reference.path);
       if (!kinds.get(entry.ref.kind)?.searchable) throw new Error(`Search entry for a kind that is not searchable: ${entry.ref.key}.`);

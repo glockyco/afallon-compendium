@@ -13,6 +13,7 @@
   import TitleBlock from '../TitleBlock.svelte';
   import Sections from '../Sections.svelte';
   import LevelCurve from '../sections/LevelCurve.svelte';
+  import PlacedRules from '../sections/PlacedRules.svelte';
 
   export let document: PublicSkill;
   export let registry: PublicKindEntry[];
@@ -20,9 +21,10 @@
   $: facts = document.facts;
   // Stations appear only in the recipe rows, because the catalog records no station entities.
   const columns: RelationColumn<SkillRecipeRow>[] = [
-    { id: 'recipe', label: 'Recipe', value: (row) => nameOf(row.recipe), sort: (row) => nameOf(row.recipe) },
+    { id: 'recipe', label: 'Recipe', value: (row) => row.recipe.name, sort: (row) => row.recipe.name },
     { id: 'product', label: 'Makes', value: (row) => row.product ? nameOf(row.product) : undefined, sort: (row) => row.product ? nameOf(row.product) : '' },
     { id: 'station', label: 'Station', value: (row) => row.station ? nameOf(row.station) : undefined, sort: (row) => row.station ? nameOf(row.station) : '' },
+    { id: 'required-level', label: 'Required level', numeric: true, value: (row) => row.requiredLevel, sort: (row) => row.requiredLevel },
   ];
   $: plan = planColumns(columns, document.recipes);
   const nodeColumns: RelationColumn<SkillGatheringNodeRow>[] = [
@@ -57,11 +59,12 @@
     {/if}
     {#if document.recipes.length}
       <Section id="recipes" title="Recipes" icon="recipe" count={document.recipes.length}>
-        <RelationTable columns={plan.columns} rows={document.recipes} label="Recipes">
+        <RelationTable columns={plan.columns} rows={document.recipes} label="Recipes" rowAnchors={(row) => [row.anchor]}>
           <svelte:fragment slot="cell" let:row let:column>
-            {#if column === 'recipe'}<EntityLink ref={row.recipe} {registry} />
+            {#if column === 'recipe'}{row.recipe.name}
             {:else if column === 'product' && row.product}<EntityLink ref={row.product} {registry} />
-            {:else if column === 'station' && row.station}<EntityLink ref={row.station} {registry} />{/if}
+            {:else if column === 'station' && row.station}<EntityLink ref={row.station} {registry} />
+            {:else if column === 'required-level' && row.requiredLevel !== undefined}{formatNumber(row.requiredLevel)}{/if}
           </svelte:fragment>
         </RelationTable>
       </Section>
@@ -77,14 +80,15 @@
         </RelationTable>
       </Section>
     {/if}
-    <Section id="experience" title="How to gain experience" icon="text">
+    <Section id="how-to-gain-experience" title="How to gain experience" icon="text">
       <ul class="sources">
         {#if experience.autoAttack}<li>Each auto-attack hit with a weapon of this type gives {formatNumber(experience.autoAttack.perHit)} experience while the skill is below its highest level.</li>{/if}
-        {#if experience.crafting}<li>A craft of one of its recipes gives base experience that depends on the skill level. Each recipe page shows its bands.</li>{/if}
+        {#if experience.crafting}<li>A craft of one of its recipes gives base experience that depends on the skill level. Each product's Crafting section shows its bands.</li>{/if}
         {#if experience.gathering}<li>Each use of one of its gathering nodes gives that node's skill experience, at every skill level.</li>{/if}
         {#if !hasSource}<li>This build has no verified way to give this skill experience.</li>{/if}
       </ul>
       <p class="note">Each award then passes through the skill experience rules of <a class="c-link" href={`${base}/mechanics/character-progression/`}>Character Progression</a>. <a class="c-link" href={`${base}/mechanics/crafting-and-gathering/`}>Crafting and Gathering</a> explains crafts and nodes.</p>
+      {#if document.placedRules.some((entry) => entry.target === 'how-to-gain-experience')}<PlacedRules rules={document.placedRules.filter((entry) => entry.target === 'how-to-gain-experience')} {registry} />{/if}
     </Section>
   </Sections>
 </article>

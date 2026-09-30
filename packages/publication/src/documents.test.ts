@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
 import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow } from "@afallon/contracts/catalog";
-import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest, type PublicRecipe, type PublicSkill } from "@afallon/contracts/public";
+import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
 import type { CatalogGatheringNode, CatalogMechanicsRule } from "@afallon/contracts/catalog";
 import { readerCoverage } from "./coverage";
 import { projectGatheringNodeDocuments } from "./gathering";
 import { conditionsById, projectPublicDocuments, projectQuestObjective, requirementsFor, type DocumentProjectionInput } from "./documents";
 import { assertCompleteTooltipCoverage, auditPublicTooltipCoverage } from "./tooltip-coverage";
+import { searchAliases } from "./index-resources";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
@@ -135,7 +136,7 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(place.creatures).toMatchObject([{ counterpart: { key: "npcs:2" }, placementCount: 1 }]);
 });
 
-test("a requirement names an excluded recipe as text", () => {
+test("a recipe without a product or skill stays text, and an excluded recipe is not published", () => {
   const tavern: CatalogEntityRow = { entityKey: "recipes:40", kind: "recipes", nativeId: 40, name: "Oakenvale tavern level 2", description: null, iconAssetName: null, artwork: [] };
   const withTavern = [...entities, tavern];
   const tavernRequirement = requirement("Recipe", "Oakenvale tavern level 2", { spans: [{ endpoint: { entityKey: "recipes:40", label: "Oakenvale tavern level 2" } }] });
@@ -147,8 +148,8 @@ test("a requirement names an excluded recipe as text", () => {
   };
   const spans = (documents: ReadonlyMap<string, PublicDocument>) => (documents.get("items:1") as PublicItem).facts.useConditions[0]?.requirements[0]?.spans;
   const linked = projectExcluding(new Set());
-  expect(spans(linked)).toEqual([{ ref: { key: "recipes:40", kind: "recipes", name: "Oakenvale Tavern Level 2", slug: "oakenvale-tavern-level-2" } }]);
-  expect(linked.has("recipes:40")).toBe(true);
+  expect(spans(linked)).toEqual([{ text: "Oakenvale Tavern Level 2" }]);
+  expect(linked.has("recipes:40")).toBe(false);
   const excluded = projectExcluding(new Set(["recipes:40"]));
   expect(spans(excluded)).toEqual([{ text: "Oakenvale Tavern Level 2" }]);
   expect(excluded.has("recipes:40")).toBe(false);
@@ -483,10 +484,12 @@ test("projects one creature page with random options, story entries, and rows th
 // both place. A second gather row has no node of its own.
 const craftEntity = (kind: string, nativeId: number, name: string): CatalogEntityRow => ({ entityKey: `${kind}:${nativeId}`, kind, nativeId, name, description: null, iconAssetName: null, artwork: [] });
 const craftEntities = [...entities, craftEntity("items", 20, "Recipe Molten Loop"), craftEntity("items", 21, "Molten Loop"), craftEntity("items", 22, "Iron Ore"),
+  craftEntity("items", 23, "Secret Stew"), craftEntity("items", 24, "Lost Tonic"),
   craftEntity("recipes", 7, "Molten Loop"), craftEntity("recipes", 8, "Secret Stew"), craftEntity("recipes", 9, "Lost Tonic"),
   craftEntity("skills", 0, "Alchemy"), craftEntity("skills", 7, "Mining"), craftEntity("skills", 11, "Axes")];
 const skillFact = (entityKey: string, name: string) => ({ entityKey, name, kind: "skills" as const, details: { automaticallyAdded: true, maxLevel: 300, levelTemplate: null, stats: [], customStats: [], statListTemplate: null, startItems: [], actionAbilities: [] } });
-const ruleRow = (ruleId: string, section: string, operands: Record<string, number>, links: Array<{ entityKey: string; label: string }> = []): CatalogMechanicsRule => ({ ruleId, topic: "crafting-and-gathering", section, ordinal: 0, status: "verified", phrase: "Rule.", operands, links,
+const ruleRow = (ruleId: string, section: string, operands: Record<string, number>, links: Array<{ entityKey: string; label: string }> = [], placements: CatalogMechanicsRule["placements"] = []): CatalogMechanicsRule => ({
+  ruleId, topic: "crafting-and-gathering", section, ordinal: 0, status: "verified", phrase: "Rule.", operands, links, placements,
   sources: [{ method: "Method", description: "Evidence", object: { sha256: "a".repeat(64), bytes: 1 } }] });
 const vein: CatalogGatheringNode = { entityKey: "gatheringNodes:iron-vein", name: "Iron vein", levelHint: "Mining 5", variant: false, skill: { entityKey: "skills:7", label: "Mining" }, skillExperience: 15, characterExperience: 4,
   lootTable: { entityKey: null, label: "Iron vein" }, conditionId: "vein-gate", sources: [
@@ -503,10 +506,14 @@ const craftFacts: CatalogFacts = { ...facts, entities: craftEntities,
     { entityKey: "recipes:9", skill: { entityKey: null, label: "Skill 99" }, station: null, learnedByDefault: false, ranks: [{ rank: 1, unlockCost: 5, experience: 3, craftTime: 1, products: [], materials: [] }] },
   ],
   progression: { ...facts.progression, facts: [skillFact("skills:0", "Alchemy"), skillFact("skills:7", "Mining"), skillFact("skills:11", "Axes")] as never, mechanicsRules: [
-    ruleRow("recipe-rank-gate", "crafting", { minimumRequiredLevel: 1 }), ruleRow("recipe-experience-bands", "crafting-experience", { secondFullFromLevels: 10, halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 }),
+    ruleRow("recipe-rank-gate", "crafting", { minimumRequiredLevel: 1 }, [], [{ page: "items", target: "crafting", scope: "all" }]),
+    ruleRow("recipe-experience-bands", "crafting-experience", { secondFullFromLevels: 10, halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 }),
     ruleRow("recipe-experience-rounding", "crafting-experience", {}), ruleRow("weapon-skill-hit", "skill-experience", { hitExperience: 2 }), ruleRow("weapon-skills", "skill-experience", {}, [{ entityKey: "skills:11", label: "Axes" }]),
-    ruleRow("spawner-respawn", "node-availability", { minimumRespawnSeconds: 5 }), ruleRow("placed-node-cooldown", "node-availability", {}),
-    ruleRow("attunement-98", "attunement", { boostWeight: 10 }, [{ entityKey: "gatheringNodes:iron-vein", label: "Iron vein" }]), ruleRow("attunement-642", "attunement", { boostWeight: 10 }, [{ entityKey: "gatheringNodes:silver-vein", label: "Silver vein" }]),
+    ruleRow("recipe-item-tooltip", "crafting", {}, [], [{ page: "items", target: "teaches", scope: "all" }]),
+    ruleRow("spawner-respawn", "node-availability", { minimumRespawnSeconds: 5 }, [], [{ page: "gatheringNodes", target: "how-it-works", scope: "spawned" }]),
+    ruleRow("placed-node-cooldown", "node-availability", {}, [], [{ page: "gatheringNodes", target: "how-it-works", scope: "placed" }]),
+    ruleRow("attunement-98", "attunement", { boostWeight: 10 }, [{ entityKey: "gatheringNodes:iron-vein", label: "Iron vein" }], [{ page: "gatheringNodes", target: "how-it-works", scope: "linked" }]),
+    ruleRow("attunement-642", "attunement", { boostWeight: 10 }, [{ entityKey: "gatheringNodes:silver-vein", label: "Silver vein" }], [{ page: "gatheringNodes", target: "how-it-works", scope: "linked" }]),
   ] },
   gatheringNodes: [vein] };
 const gate = requirement("Skill", "Mining 5", { type: { value: 26, name: "Skill" }, references: { ...emptyRequirementReferences, skill: { entityKey: "skills:7", label: "Mining" } }, amounts: { primary: 5, secondary: 0, float: 0, isPercent: false } });
@@ -515,29 +522,61 @@ const oreRow = (sourceId: string, node: boolean, placementIds: string[]) => ({ p
 const craftRelations: CatalogRelations = { ...relations,
   gathers: [oreRow("spawner-1", true, ["p1"]), oreRow("spawner-9", false, [])],
   interactions: [{ objectName: "Iron vein <color=red>Pickaxe</color>", sourceId: "object-1", place: null, item: { entityKey: "items:22", label: "Iron Ore" }, min: 1, max: 2, rawRate: 100, availability: [], placementIds: [] }],
-  recipes: [{ recipe: { entityKey: "recipes:7", label: "Molten Loop" }, item: { entityKey: "items:21", label: "Molten Loop" }, role: "product", rank: 1, count: 1 }] as never,
+  recipes: [
+    { recipe: { entityKey: "recipes:7", label: "Molten Loop" }, item: { entityKey: "items:21", label: "Molten Loop" }, role: "product", rank: 1, count: 1, chance: 100 },
+    { recipe: { entityKey: "recipes:7", label: "Molten Loop" }, item: { entityKey: "items:22", label: "Iron Ore" }, role: "material", rank: 1, count: 2, chance: 100 },
+    { recipe: { entityKey: "recipes:8", label: "Secret Stew" }, item: { entityKey: "items:23", label: "Secret Stew" }, role: "product", rank: 1, count: 1, chance: 100 },
+    { recipe: { entityKey: "recipes:9", label: "Lost Tonic" }, item: { entityKey: "items:24", label: "Lost Tonic" }, role: "product", rank: 1, count: 1, chance: 100 },
+  ],
   conditions: [...relations.conditions, { conditionId: "vein-gate", semantics: "requirements-template", scope: null, label: "Requirements", requirements: [{ mode: "all", checkCount: false, requiredCount: null, requirements: [gate] }] }] };
 const p1 = { placementId: "p1", mapSpaceId: "world", label: "Crypt", categories: [] };
 
-test("a recipe item teaches the recipe of its first Recipe rank-up action, and the recipe names the item", () => {
+test("recipe items teach one craft, and product pages show the full recipe", () => {
   const { documents } = project(craftEntities, craftFacts, craftRelations);
-  const item = documents.get("items:20") as PublicItem, taught = documents.get("recipes:7") as PublicRecipe, untaught = documents.get("recipes:8") as PublicRecipe;
-  expect(item.facts.teaches).toEqual({ recipe: expect.objectContaining({ key: "recipes:7", slug: "molten-loop" }), product: expect.objectContaining({ key: "items:21" }) });
-  expect(taught.taughtBy.map((ref) => "key" in ref ? ref.key : null)).toEqual(["items:20"]);
-  // The later action for recipes:8 is not the one that the item's tooltip reads, so recipes:8 has no teacher.
-  expect(untaught.taughtBy).toEqual([]);
-  expect(readerCoverage(documents.values()).gaps.find((gap) => gap.gap === "recipeWithoutTeacher")?.pages.map((page) => page.key)).toEqual(["recipes:9", "recipes:8"]);
+  const item = documents.get("items:20") as PublicItem, product = documents.get("items:21") as PublicItem;
+  expect(documents.has("recipes:7")).toBe(false);
+  expect(item.teaches).toEqual(product.crafting);
+  expect(product.crafting).toMatchObject({
+    recipe: { key: "recipes:7", name: "Molten Loop" },
+    product: { counterpart: expect.objectContaining({ key: "items:21" }), count: 1 },
+    materials: [{ counterpart: expect.objectContaining({ key: "items:22" }), count: 2 }],
+    taughtBy: [expect.objectContaining({ key: "items:20" })],
+  });
+  expect(product.placedRules.map((rule) => rule.rule.id)).toEqual(["recipe-rank-gate"]);
+  expect(item.placedRules.map((rule) => rule.rule.id)).toEqual(["recipe-item-tooltip"]);
+  expect((documents.get("items:22") as PublicItem).placedRules).toEqual([]);
+  expect((documents.get("items:22") as PublicItem).usedInRecipes[0]?.counterpart).toMatchObject({ key: "items:21", variant: "crafting" });
+  expect((documents.get("items:23") as PublicItem).crafting?.taughtBy).toEqual([]);
+  expect(readerCoverage(documents.values(), craftFacts).gaps.find((gap) => gap.gap === "recipeWithoutTeacher")?.pages.map((page) => page.key)).toEqual(["items:24", "items:23"]);
+  expect(searchAliases(product)).toEqual([]);
+  expect(searchAliases({ ...product, ref: { ...product.ref, name: "Bloodthrall Signet" },
+    crafting: { ...product.crafting!, recipe: { key: "recipes:7", name: "Ring of Bleed Damage" } } })).toEqual(["Ring of Bleed Damage"]);
 });
 
-test("recipe ranks show the gate and bands from the recorded rule, and only when the skill resolves", () => {
+test("recipe ranks show the recorded gate and bands only when the skill resolves", () => {
   const { documents } = project(craftEntities, craftFacts, craftRelations);
-  expect((documents.get("recipes:7") as PublicRecipe).ranks).toEqual([{ rank: 1, requiredLevel: 40, baseExperience: 7, bands: [
+  expect((documents.get("items:21") as PublicItem).crafting?.ranks).toEqual([{ rank: 1, requiredLevel: 40, baseExperience: 7, bands: [
     { band: "firstFull", from: 40, to: 49, experience: 7 }, { band: "secondFull", from: 50, to: 59, experience: 7 }, { band: "half", from: 60, to: 74, experience: 4 }, { band: "none", from: 75, experience: 0 },
   ] }]);
-  expect((documents.get("recipes:8") as PublicRecipe).ranks).toEqual([{ rank: 1, requiredLevel: 1, baseExperience: 0, bands: [] }]);
-  expect((documents.get("recipes:9") as PublicRecipe).ranks).toEqual([]);
-  // Without the recorded rule, a page does not fall back to built-in numbers.
+  expect((documents.get("items:23") as PublicItem).crafting?.ranks).toEqual([{ rank: 1, requiredLevel: 1, baseExperience: 0, bands: [] }]);
+  expect((documents.get("items:24") as PublicItem).crafting?.ranks).toEqual([]);
   expect(() => project(craftEntities, { ...craftFacts, progression: { ...craftFacts.progression, mechanicsRules: [] } }, craftRelations)).toThrow("recipe-rank-gate");
+});
+
+test("coverage links a productless recipe to its skill row", () => {
+  const productless = craftEntity("recipes", 10, "Demonic Bulwark Looted");
+  const scenarioEntities = [...craftEntities, productless], scenarioFacts: CatalogFacts = { ...craftFacts,
+    entities: scenarioEntities, recipes: [...craftFacts.recipes,
+      { entityKey: productless.entityKey, skill: { entityKey: "skills:0", label: "Alchemy" }, station: null, learnedByDefault: false, ranks: [] }] };
+  const { documents } = project(scenarioEntities, scenarioFacts, craftRelations);
+  const gaps = readerCoverage(documents.values(), scenarioFacts).gaps;
+  expect(gaps.find((gap) => gap.gap === "recipeWithoutProduct")?.pages).toContainEqual(
+    expect.objectContaining({ key: "skills:0", slug: "alchemy", variant: "recipe-demonic-bulwark-looted" }));
+  expect(gaps.find((gap) => gap.gap === "recipeWithoutTeacher")?.pages).toContainEqual(
+    expect.objectContaining({ key: "skills:0", slug: "alchemy", variant: "recipe-demonic-bulwark-looted" }));
+  expect((documents.get("skills:0") as PublicSkill).recipes).toContainEqual(
+    expect.objectContaining({ recipe: { key: productless.entityKey, name: "Demonic Bulwark Looted" }, anchor: "recipe-demonic-bulwark-looted" }));
+  expect(searchAliases(documents.get("skills:0") as PublicSkill)).toContain("Demonic Bulwark Looted");
 });
 
 test("skills list only their verified experience sources", () => {
@@ -563,5 +602,34 @@ test("a node yield links the node from the item and the item from the node, and 
   expect(node.yields).toEqual([{ counterpart: expect.objectContaining({ key: "items:22" }), min: 1, max: 2, chance: 100 }]);
   expect([node.facts.requiredLevel, node.spawners.map((group) => [group.spawners, group.placements.length, group.unplaced, group.options.length]), node.placed]).toEqual([5, [[1, 1, 0, 1]], [{ cooldownSeconds: 300, objects: 1, placements: [], unplaced: 1 }]]);
   // Only the attunement that names this node applies to it.
-  expect(node.rules.map((rule) => rule.id)).toEqual(["spawner-respawn", "placed-node-cooldown", "attunement-98"]);
+  expect(node.placedRules.map((rule) => rule.rule.id)).toEqual(["spawner-respawn", "placed-node-cooldown", "attunement-98"]);
+});
+
+test("placed rules select linked nodes and source scopes and compute yield chances", () => {
+  const silver: CatalogGatheringNode = { ...vein, entityKey: "gatheringNodes:silver-vein", name: "Silver vein", conditionId: null,
+    sources: [{ ...vein.sources[0]!, nodeKey: "gatheringNodes:silver-vein", sourceId: "silver-spawner" }] };
+  const direct: CatalogGatheringNode = { ...vein, entityKey: "gatheringNodes:direct-vein", name: "Direct vein", conditionId: null,
+    sources: [{ ...vein.sources[1]!, nodeKey: "gatheringNodes:direct-vein", sourceId: "direct-object" }] };
+  const scoped: CatalogFacts = { ...craftFacts, gatheringNodes: [vein, silver, direct],
+    progression: { ...craftFacts.progression, mechanicsRules: [
+      ruleRow("silver-attunement", "attunement", {}, [{ entityKey: silver.entityKey, label: silver.name }],
+        [{ page: "gatheringNodes", target: "how-it-works", scope: "linked" }]),
+      ruleRow("spawned-selection", "node-selection", {}, [],
+        [{ page: "gatheringNodes", target: "how-it-works", scope: "spawned" }]),
+      ruleRow("placed-cooldown", "node-availability", {}, [],
+        [{ page: "gatheringNodes", target: "how-it-works", scope: "placed" }]),
+      ruleRow("node-yield-bonus", "node-rewards", { chancePerLevel: 0.1 }, [],
+        [{ page: "gatheringNodes", target: "how-it-works", scope: "all" }]),
+    ] } };
+  const references = buildEntityReferences(craftEntities, { facts: scoped, relations: craftRelations });
+  const resolve = createReferenceResolver(references.refs), conditions = conditionsById(craftRelations.conditions);
+  const nodes = projectGatheringNodeDocuments(scoped, craftRelations, { resolve, conditions, placements: new Map(),
+    requirements: (ids) => requirementsFor(ids, conditions, resolve) });
+  expect(nodes.get(vein.entityKey)?.placedRules.map((row) => row.rule.id)).toEqual(["spawned-selection", "placed-cooldown", "node-yield-bonus"]);
+  expect(nodes.get(silver.entityKey)?.placedRules.map((row) => row.rule.id)).toEqual(["silver-attunement", "spawned-selection", "node-yield-bonus"]);
+  expect(nodes.get(direct.entityKey)?.placedRules.map((row) => row.rule.id)).toEqual(["placed-cooldown", "node-yield-bonus"]);
+  expect(nodes.get(silver.entityKey)?.placedRules.find((row) => row.rule.id === "node-yield-bonus")?.levelChances)
+    .toEqual([{ level: 1, chance: 0.1 }, { level: 300, chance: 30 }]);
+  expect(nodes.get(vein.entityKey)?.placedRules.find((row) => row.rule.id === "node-yield-bonus")?.levelChances)
+    .toEqual([{ level: 5, chance: 0.5 }, { level: 300, chance: 30 }]);
 });

@@ -1,5 +1,8 @@
 <script lang="ts" generics="Row">
   import { onMount, tick } from 'svelte';
+  import type { PublicKindEntry } from '@afallon/contracts/public';
+  import EntityLink from '../EntityLink.svelte';
+  import RulePhrase from './sections/RulePhrase.svelte';
   import Hint from '../Hint.svelte';
   import { sortRows, toggleSort, type SortState, type SortValue } from '../table';
   import { shownRowCount, type RelationColumn } from './relation-table';
@@ -14,6 +17,7 @@
   /** The first sort order. Without it, rows keep their published order until a reader sorts them. */
   export let sort: SortState | undefined = undefined;
   /** The anchors that a row holds, such as the variants of an NPC that stand at a location. */
+  export let registry: PublicKindEntry[] = [];
   export let rowAnchors: (row: Row) => readonly string[] = () => [];
 
   let expanded = false;
@@ -82,13 +86,15 @@
         {#each columns as column}
           <th scope="col" role="columnheader" class:num={column.numeric} aria-sort={ariaSort(column)}>
             {#if column.sort && sortable}
-              {#if column.hint}
+              {#if column.hint || column.rules?.length}
                 <Hint text={column.hint} wrapsControl let:control>
+                  <svelte:fragment slot="explanation">{#if column.rules?.length}{#each column.rules as entry}<span class="rule-explanation"><RulePhrase rule={entry.rule} {registry} />{#if entry.guide} <EntityLink ref={entry.guide} {registry} />{/if}</span>{/each}{:else}{column.hint}{/if}</svelte:fragment>
                   <button type="button" class="c-sort" aria-describedby={control.describedBy} on:focus={control.show} on:blur={control.close} on:keydown={control.keydown} on:click={() => { sortBy(column); control.show(); }}><span class="hint-term">{column.label}</span><span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
                 </Hint>
               {:else}
                 <button type="button" class="c-sort" on:click={() => sortBy(column)}>{column.label}<span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
               {/if}
+            {:else if column.rules?.length}<Hint><svelte:fragment slot="explanation">{#each column.rules as entry}<span class="rule-explanation"><RulePhrase rule={entry.rule} {registry} />{#if entry.guide} <EntityLink ref={entry.guide} {registry} />{/if}</span>{/each}</svelte:fragment>{column.label}</Hint>
             {:else if column.hint}<Hint text={column.hint}>{column.label}</Hint>
             {:else}{column.label}{/if}
           </th>
@@ -116,6 +122,8 @@
 
 <style>
   .relation-table { min-width: 0; }
+  .rule-explanation { display: block; }
+  .rule-explanation + .rule-explanation { margin-top: .45rem; }
   table { width: 100%; border-collapse: collapse; font-size: var(--c-text-body); }
   /* Cells align on the text baseline, so a name after an icon lines up with plain values in the same row. */
   th, td { padding: .5rem .6rem; text-align: left; vertical-align: baseline; }

@@ -170,7 +170,7 @@ async function withPublicationSelection<T>(referencePath: string, publicationPat
 export async function publishFromPlan(store: ArtifactStore, plan: PublicationPlan, options: PublicationApplicationOptions): Promise<PublicationApplicationResult> {
   Assert(PublicationPlanSchema, plan);
   const inputs = { catalogManifest: plan.catalog.manifest, catalog: plan.catalog.object, presentation: plan.presentation, releaseNotes: plan.release.releaseNotes };
-  const schemas = ["compendium.publish-plan.v3", "compendium.publication-presentation.v2", "compendium.static-root.v6"].map((id) => {
+  const schemas = ["compendium.publish-plan.v3", "compendium.publication-presentation.v2", "compendium.static-root.v7"].map((id) => {
     const schema = schemaRegistry.require(id);
     return { id: schema.id, sha256: schema.sha256 };
   });

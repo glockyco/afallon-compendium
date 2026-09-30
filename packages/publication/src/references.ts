@@ -71,6 +71,9 @@ function slugify(value: string): string {
   const slug = value.normalize("NFKD").replaceAll(/[\u0300-\u036f]/g, "").toLowerCase().replaceAll(/['’]/g, "").replaceAll(/[^a-z0-9]+/g, "-").replaceAll(/^-|-$/g, "");
   return slug || "entry";
 }
+export function recipeAnchor(name: string): string {
+  return `recipe-${slugify(name)}`;
+}
 
 // Native enum values such as QUEST_COMPANION read as category labels: "Quest Companion".
 function readableFact(value: string | null | undefined): string | undefined {
@@ -342,6 +345,23 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
   for (const entity of entities) {
     const kind = excluded.has(entity.entityKey) ? publicKindForCatalogKind(entity.kind) : null;
     if (kind !== null) refs.push([entity.entityKey, { key: entity.entityKey, kind, name: baseName(entity, kind) }]);
+  }
+  // Recipes have no pages: their links use the product's Crafting section or the skill's anchored row. A link keeps the
+  // recipe's own icon, because the game shows that icon for the recipe.
+  const refsByKey = new Map(refs);
+  const recipeFacts = new Map(context.facts?.recipes.map((recipe) => [recipe.entityKey, recipe]) ?? []);
+  const products = new Map(context.relations?.recipes.filter((row) => row.role === "product" && row.recipe.entityKey)
+    .map((row) => [row.recipe.entityKey!, row.item.entityKey] as const) ?? []);
+  for (const [index, [key, ref]] of refs.entries()) {
+    if (ref.kind !== "recipes" || excluded.has(key)) continue;
+    const productKey = products.get(key), product = productKey ? refsByKey.get(productKey) : undefined;
+    const skillKey = recipeFacts.get(key)?.skill?.entityKey, skill = skillKey ? refsByKey.get(skillKey) : undefined;
+    const target = product?.slug && product.kind === "items"
+      ? { key: product.key, kind: "items" as const, slug: product.slug, variant: "crafting" }
+      : skill?.slug && skill.kind === "skills"
+        ? { key: skill.key, kind: "skills" as const, slug: skill.slug, variant: recipeAnchor(ref.name) }
+        : null;
+    refs[index] = [key, target ? { ...target, name: ref.name, ...(ref.icon ? { icon: ref.icon } : {}) } : ref];
   }
   return { refs: new FrozenEntityRefMap(refs), pages };
 }

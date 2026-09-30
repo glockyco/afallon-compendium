@@ -11,7 +11,7 @@ function item(droppedBy: DropRow[], soldBy: VendorRow[], startingGearOf: PublicI
   return {
     ref: { key: 'items:1', kind: 'items', name: 'Iron Bar', slug: 'iron-bar' }, description: null, art: {},
     facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 20, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
-    droppedBy, soldBy, gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], craftedBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf,
+    droppedBy, soldBy, gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf, placedRules: [],
   };
 }
 
@@ -37,4 +37,15 @@ test('a starting gear line names the classes and leads to the Starting gear sect
   expect(lines[0]!.names).toEqual([{ ref: { ...heroClass(1, 'Wizard'), variant: 'starting-gear' } }, { ref: { ...heroClass(3, 'Necromancer'), variant: 'starting-gear' } }]);
   expect(lineHref(lines[0]!, registry, '/base')).toBe('/base/classes/wizard/#starting-gear');
   expect(lineHref(itemSourceLines(item([drop(npc(1, 'Thornmaw'), 5)], []))[0]!, registry, '/base')).toBe('#dropped-by');
+});
+
+test('a crafted item names its skill and gate in the source line and links its Crafting section', () => {
+  const crafted = item([], []);
+  crafted.crafting = {
+    recipe: { key: 'recipes:1', name: 'Iron Bar' }, skill: { key: 'skills:1', kind: 'skills', name: 'Smithing', slug: 'smithing' },
+    learnedByDefault: true, materials: [], ranks: [{ rank: 1, requiredLevel: 150, baseExperience: 42, bands: [] }], taughtBy: [],
+  };
+  const lines = itemSourceLines(crafted);
+  expect(lines.map((entry) => [entry.label, summaryText(entry)])).toEqual([['Crafted', 'Smithing level 150']]);
+  expect(lineHref(lines[0]!, [], '')).toBe('#crafting');
 });

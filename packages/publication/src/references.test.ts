@@ -124,3 +124,25 @@ test("a record that shares its name only with an excluded record loses its quali
   expect(refs.get("scenes:29")).toEqual({ key: "scenes:29", kind: "places", name: "Coalway Catacombs" });
   expect([...pages.keys()]).toEqual(["scenes:37"]);
 });
+
+test("recipes link the product Crafting section, a skill row, or plain text", () => {
+  const entities = [entity("recipes", 1, "Runeweave Regalia"), entity("items", 1, "Runeweave Regalia"),
+    entity("recipes", 2, "Ring of Bleed Damage"), entity("items", 2, "Bloodthrall Signet"),
+    entity("recipes", 3, "Demonic Bulwark Looted"), entity("skills", 1, "Smithing"), entity("recipes", 4, "Unmapped Craft")];
+  const facts: CatalogFacts = { ...emptyFacts, entities, recipes: [
+    { entityKey: "recipes:1", skill: null, station: null, learnedByDefault: true, ranks: [] },
+    { entityKey: "recipes:2", skill: null, station: null, learnedByDefault: false, ranks: [] },
+    { entityKey: "recipes:3", skill: { entityKey: "skills:1", label: "Smithing" }, station: null, learnedByDefault: false, ranks: [] },
+    { entityKey: "recipes:4", skill: null, station: null, learnedByDefault: false, ranks: [] },
+  ] };
+  const relations: CatalogRelations = { ...emptyRelations, recipes: [
+    { recipe: { entityKey: "recipes:1", label: "Runeweave Regalia" }, item: { entityKey: "items:1", label: "Runeweave Regalia" }, role: "product", count: 1, rank: 0, chance: 100 },
+    { recipe: { entityKey: "recipes:2", label: "Ring of Bleed Damage" }, item: { entityKey: "items:2", label: "Bloodthrall Signet" }, role: "product", count: 1, rank: 0, chance: 100 },
+  ] };
+  const { refs, pages } = buildEntityReferences(entities, { facts, relations });
+  expect(pages.has("recipes:1")).toBe(false);
+  expect(refs.get("recipes:1")).toEqual({ key: "items:1", kind: "items", name: "Runeweave Regalia", slug: "runeweave-regalia", variant: "crafting" });
+  expect(refs.get("recipes:2")).toEqual({ key: "items:2", kind: "items", name: "Ring of Bleed Damage", slug: "bloodthrall-signet", variant: "crafting" });
+  expect(refs.get("recipes:3")).toEqual({ key: "skills:1", kind: "skills", name: "Demonic Bulwark Looted", slug: "smithing", variant: "recipe-demonic-bulwark-looted" });
+  expect(refs.get("recipes:4")).toEqual({ key: "recipes:4", kind: "recipes", name: "Unmapped Craft" });
+});

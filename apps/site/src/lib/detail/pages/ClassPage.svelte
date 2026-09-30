@@ -35,7 +35,7 @@
       {#if facts.races.length}<FactRow label="Races">{facts.races.join(', ')}</FactRow>{/if}
       {#if facts.weapons.length}<FactRow label="Weapons">{facts.weapons.join(', ')}</FactRow>{/if}
       {#if facts.autoAttack}<FactRow label="Auto attack"><EntityLink ref={facts.autoAttack} {registry} /></FactRow>{/if}
-      {#each facts.talentPoints as points}<FactRow label={points.name}>{talentPointText(points)}</FactRow>{/each}
+      {#each facts.talentPoints as points}<FactRow label={points.name} rules={document.placedRules.filter((entry) => entry.target === 'talent-points')} {registry}>{talentPointText(points)}</FactRow>{/each}
       {#if facts.highestLevel !== undefined}<FactRow label="Highest level" href={`${base}/mechanics/character-progression/`}>{facts.highestLevel}</FactRow>{/if}
       <FactRow label="Related mechanics"><a class="c-link" href={`${base}/mechanics/character-progression/`}>Character Progression</a></FactRow>
     </FactList>

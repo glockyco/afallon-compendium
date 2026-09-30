@@ -11,10 +11,10 @@ import {
   type StaticRootManifest,
 } from "./index";
 
-const reference = { path: "resources/value.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v2" };
+const reference = { path: "resources/value.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v3" };
 const release = { version: "0.16.2.1", dataDate: "2026-09-28", patchNotes: { title: "Afallon 0.16.2.1", url: "https://store.steampowered.com/news/app/2597810/view/1844115010501029", date: "2026-09-21" } };
 const root: StaticRootManifest = {
-  schemaVersion: "compendium.static-root.v6",
+  schemaVersion: "compendium.static-root.v7",
   buildId: "build",
   catalogId: "b".repeat(64),
   mode: "preview",
@@ -22,14 +22,14 @@ const root: StaticRootManifest = {
   release,
   world: { mapSpaceId: "world", label: "Afallon", bounds: { min: { x: 0, y: 0 }, max: { x: 1, y: 1 } }, offsets: [{ mapSpaceId: "world", worldX: 0, worldY: 0, source: "native", status: "placed" }], unplacedMapSpaceIds: [] },
   maps: [],
-  kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, searchable: true, columns: [], facets: [] }],
-  lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v2" }] },
-  search: [{ ...reference, schemaId: "compendium.static-search.v4" }],
+  kinds: [{ kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, list: true, searchable: true, columns: [], facets: [] }],
+  lists: { items: [{ ...reference, schemaId: "compendium.static-kind-list.v3" }] },
+  search: [{ ...reference, schemaId: "compendium.static-search.v5" }],
   coverage: reference,
   exclusions: { ...reference, schemaId: "compendium.static-exclusions.v1" },
 };
 const coverage: StaticCoverage = {
-  schemaVersion: "compendium.static-coverage.v2",
+  schemaVersion: "compendium.static-coverage.v3",
   buildId: root.buildId,
   catalogId: root.catalogId,
   pages: [{ kind: "items", count: 1 }],

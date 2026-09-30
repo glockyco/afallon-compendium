@@ -2,7 +2,7 @@
 
 ### Requirement: Pages show the rules placed on them
 
-A page SHALL show each reviewed rule that the rules record places on its page kind, target, and scope. A rule placed on a fact or a column SHALL be the explanation of that label on hover, on focus, and on tap. Rules placed on a section SHALL appear in a How it works section at the end of the page, grouped by their guide section, with a link to the guide of each topic. A rule with the `linked` scope SHALL appear only on the pages of the entities that it links. When the publication computes the values of a placed rule for the page, the page SHALL show these values beside the rule. A page SHALL NOT show a rule that the record does not place on it. How it works SHALL NOT show the evidence entries of a rule, because the guide shows them.
+A page SHALL show each reviewed rule that the rules record places on its page kind, target, and scope. A rule placed on a fact or a column SHALL be the explanation of that label on hover, on focus, and on tap. Rules placed on a section SHALL appear in that section, grouped by their guide section, with one link to the guide of each topic. On a gathering node page, that section is How it works at the end of the page. A rule with the `linked` scope SHALL appear only on the pages of the entities that it links. When the publication computes the values of a placed rule for the page, the page SHALL show these values beside the rule. A page SHALL NOT show a rule that the record does not place on it. How it works SHALL NOT show the evidence entries of a rule, because the guide shows them.
 
 #### Scenario: Attunement rule of one node
 - **WHEN** the verified Silver Attunement rule links only Silver Vein and has the `linked` scope

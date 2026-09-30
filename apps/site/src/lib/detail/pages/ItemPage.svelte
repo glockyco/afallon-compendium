@@ -12,6 +12,7 @@
   import Hero from '../Hero.svelte';
   import { itemSourceLines, itemUseLines, lineHref } from '../item-sources';
   import { itemQuestSourceRows, itemQuestUseRows } from '../quest-rows';
+  import CraftingSection from '../sections/CraftingSection.svelte';
   import ContainerSection from '../sections/ContainerSection.svelte';
   import DroppedBySection from '../sections/DroppedBySection.svelte';
   import GatherSection from '../sections/GatherSection.svelte';
@@ -67,9 +68,9 @@
   </Hero>
 
   <Sections>
-    {#if facts.teaches}
+    {#if document.teaches}
       <Section id="teaches" title="Teaches" icon="teach">
-        <p class="teaches">Using this item teaches the recipe <EntityLink ref={facts.teaches.recipe} {registry} />{#if facts.teaches.product}, which makes <EntityLink ref={facts.teaches.product} {registry} />{/if}.</p>
+        <p class="teaches">Using this item teaches the recipe {document.teaches.recipe.name}.</p>
         {#if product}
           <div class="c-game-frame product">
             <ItemTooltip document={product} {registry}>
@@ -77,6 +78,7 @@
             </ItemTooltip>
           </div>
         {/if}
+        <CraftingSection craft={document.teaches} showProduct itemName={document.ref.name} pageKey={document.ref.key} rules={document.placedRules.filter((entry) => entry.target === 'teaches')} {registry} />
       </Section>
     {/if}
     <DroppedBySection rows={document.droppedBy} {registry} />
@@ -85,7 +87,7 @@
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
     <ContainerSection id="collected-from" title="Collected from" counterpartLabel="Object" icon="object" noun="object" rows={document.collectedFrom} itemKey={document.ref.key} {registry} />
     <QuestRowsSection id="from-quests" title="From quests" roleLabel="Given as" rows={itemQuestSourceRows(document.rewardedBy, document.givenBy)} {registry} />
-    <RecipeRowsSection id="crafted-from" title="Crafted from" counterpartLabel="Recipe" quantityLabel="Makes" assumedQuantity={1} rows={document.craftedBy} {registry} />
+    {#if document.crafting}<Section id="crafting" title="Crafting" icon="recipe"><CraftingSection craft={document.crafting} itemName={document.ref.name} pageKey={document.ref.key} rules={document.placedRules.filter((entry) => entry.target === 'crafting')} {registry} /></Section>{/if}
     <RecipeRowsSection id="used-in-recipes" title="Used in recipes" counterpartLabel="Recipe" quantityLabel="Needs" rows={document.usedInRecipes} {registry} />
     <QuestRowsSection id="needed-for-quests" title="Needed for quests" roleLabel="Objective" rows={itemQuestUseRows(document.usedInQuests)} {registry} />
   </Sections>

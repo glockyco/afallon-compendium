@@ -55,7 +55,7 @@ Alternatives considered:
 
 ### Placed rules explain facts, columns, and sections
 
-A rule placed on a fact or column becomes the explanation of that label on hover, focus, and tap. The detail-pages spec already requires this for columns whose values follow a game rule. A rule placed on a section appears in the How it works section at the end of the page. The rows of How it works are grouped by the guide section of each rule, and the section links the guide of each topic. Gathering node pages rename their Rules section to How it works.
+A rule placed on a fact or column becomes the explanation of that label on hover, focus, and tap. The detail-pages spec already requires this for columns whose values follow a game rule. A rule placed on a section appears in that section, such as the Crafting section of an item or the How it works section of a gathering node. The rules are grouped by the guide section of each rule, and each group links the guide of its topic once. Gathering node pages rename their Rules section to How it works.
 
 The publication computes page values for two rules in this change: the experience bands of a recipe, which it computes already, and the gathering yield bonus. The bonus appears at the node's required skill level, or at level 1 when the node has no level gate, and at the highest level of its skill. Other placed rules show their general phrase.
 

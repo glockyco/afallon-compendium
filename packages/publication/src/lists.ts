@@ -1,3 +1,5 @@
+import type { CatalogEndpoint, CatalogFacts, CatalogRelations } from "@afallon/contracts/catalog";
+import { resolveCatalogEndpoint } from "./references";
 import { levelText } from "./levels";
 import { partitionStaticRecords } from "./resources";
 import type {
@@ -9,12 +11,12 @@ import type {
   PublicItem,
   PublicKindEntry,
   PublicNpc,
-  PublicPageKind,
+  PublicListKind,
   PublicPlace,
   PublicProperty,
   PublicQuest,
-  PublicRecipe,
   PublicSkill,
+  EntityRef,
   Ref,
   StaticKindList,
 } from "@afallon/contracts/public";
@@ -78,9 +80,10 @@ function abilityRow(document: PublicAbility): ListRow {
   return { ref: document.ref, values: { usedBy: users.join(", ") || null }, facets: {} };
 }
 
-function recipeRow(document: PublicRecipe): ListRow {
-  const station = refName(document.facts.station), skill = refName(document.facts.skill);
-  return { ref: document.ref, values: { station, skill, product: refName(document.product?.counterpart) }, facets: { station: facetValue(station), skill: facetValue(skill) } };
+function recipeRow(ref: EntityRef, station: Ref | undefined, skill: Ref | undefined, product: Ref | undefined): ListRow {
+  const stationName = refName(station), skillName = refName(skill);
+  return { ref, values: { station: stationName, skill: skillName, product: refName(product) },
+    facets: { station: facetValue(stationName), skill: facetValue(skillName) } };
 }
 
 function isClass(document: PublicDocument): document is PublicClass { return document.ref.kind === "classes"; }
@@ -105,6 +108,10 @@ export function buildKindLists(
   identity: { buildId: string; catalogId: string },
   registry: readonly PublicKindEntry[],
   documents: ReadonlyMap<string, PublicDocument>,
+  facts?: CatalogFacts,
+  relations?: CatalogRelations,
+  refs?: ReadonlyMap<string, EntityRef>,
+  excluded?: ReadonlySet<string>,
 ): ReadonlyMap<string, StaticKindList[]> {
   const rowsByKind = new Map<string, ListRow[]>();
   for (const document of documents.values()) {
@@ -116,7 +123,7 @@ export function buildKindLists(
       case "places": row = placeRow(document as PublicPlace); break;
       case "properties": row = propertyRow(document as PublicProperty); break;
       case "abilities": row = abilityRow(document as PublicAbility); break;
-      case "recipes": row = recipeRow(document as PublicRecipe); break;
+      
       case "classes": if (!isClass(document)) continue; row = classRow(document); break;
       case "skills": if (!isSkill(document)) continue; row = skillRow(document); break;
       case "mechanics": row = { ref: document.ref, values: {}, facets: {} }; break;
@@ -127,12 +134,26 @@ export function buildKindLists(
     rows.push(row);
     rowsByKind.set(document.ref.kind, rows);
   }
+  if (facts && relations && refs) {
+    const products = new Map(relations.recipes.filter((row) => row.role === "product" && row.recipe.entityKey)
+      .map((row) => [row.recipe.entityKey!, row.item] as const));
+    for (const recipe of facts.recipes) {
+      if (excluded?.has(recipe.entityKey)) continue;
+      const ref = refs.get(recipe.entityKey);
+      if (!ref) continue;
+      const endpointRef = (endpoint: CatalogEndpoint | null) => endpoint ? resolveCatalogEndpoint(refs, endpoint) : undefined;
+      const row = recipeRow(ref, endpointRef(recipe.station), endpointRef(recipe.skill), endpointRef(products.get(recipe.entityKey) ?? null));
+      const rows = rowsByKind.get("recipes") ?? [];
+      rows.push(row);
+      rowsByKind.set("recipes", rows);
+    }
+  }
   const result = new Map<string, StaticKindList[]>();
   for (const entry of registry) {
-    if (!entry.pages) continue;
-    const kind = entry.kind as PublicPageKind;
+    if (!entry.list) continue;
+    const kind = entry.kind as PublicListKind;
     result.set(kind, partitionStaticRecords(rowsByKind.get(kind) ?? [], (rows, part): StaticKindList => ({
-      schemaVersion: "compendium.static-kind-list.v2", ...identity, kind, part, rows,
+      schemaVersion: "compendium.static-kind-list.v3", ...identity, kind, part, rows,
     })));
   }
   return result;

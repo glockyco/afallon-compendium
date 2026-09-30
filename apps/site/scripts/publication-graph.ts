@@ -32,7 +32,7 @@ export function verifyPublicationGraph(directory: string, selected?: StaticResou
   const sha256 = createHash('sha256').update(rootBytes).digest('hex');
   if (selected) {
     assertStaticResourceReference(selected);
-    if (selected.schemaId !== 'compendium.static-root.v6' || selected.sha256 !== sha256 || selected.bytes !== rootBytes.length) throw new Error('Selected publication root does not match its reference.');
+    if (selected.schemaId !== 'compendium.static-root.v7' || selected.sha256 !== sha256 || selected.bytes !== rootBytes.length) throw new Error('Selected publication root does not match its reference.');
   }
   const publication: unknown = JSON.parse(rootBytes.toString('utf8'));
   Assert(StaticRootManifestSchema, publication);

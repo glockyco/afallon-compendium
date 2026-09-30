@@ -103,7 +103,7 @@ export async function buildStaticPublication(
   const identity = queryCatalogMaps(db);
   assertCompleteTooltipCoverage(gate.complete, indexes.publicationIssues);
   const coverage: StaticCoverage = {
-    schemaVersion: "compendium.static-coverage.v2", buildId: identity.buildId, catalogId: identity.catalogId,
+    schemaVersion: "compendium.static-coverage.v3", buildId: identity.buildId, catalogId: identity.catalogId,
     ...indexes.coverage, mapCount: mapShards.length, placementCount: placements.size,
   };
   Assert(StaticCoverageSchema, coverage);
@@ -133,7 +133,7 @@ export async function buildStaticPublication(
     max: { x: Math.max(bounds.max.x, map.bounds.max.x), y: Math.max(bounds.max.y, map.bounds.max.y) },
   }), structuredClone(maps[0]!.bounds));
   const manifest: StaticRootManifest = {
-    schemaVersion: "compendium.static-root.v6", buildId: identity.buildId, catalogId: identity.catalogId, mode, complete: gate.complete, release,
+    schemaVersion: "compendium.static-root.v7", buildId: identity.buildId, catalogId: identity.catalogId, mode, complete: gate.complete, release,
     world: { mapSpaceId: "world", label: "Afallon", bounds: worldBounds, offsets: publishedOffsets, unplacedMapSpaceIds: [...allMapIds].filter((mapSpaceId) => !publishedMapIds.has(mapSpaceId)).sort() },
     maps, kinds: [...PUBLIC_KIND_REGISTRY], lists: Object.fromEntries([...indexes.lists].map(([kind, resources]) => [kind, resources.map((resource) => resource.reference)])),
     search: indexes.search.map((resource) => resource.reference), coverage: coverageResource.reference, exclusions: exclusionsResource.reference,

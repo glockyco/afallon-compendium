@@ -52,7 +52,7 @@ const node = (tree: string, nodeIndex: number, nodeType: string, target: string,
 const lines = [{ spans: [{ text: "Hits", tone: null, italic: false }] }];
 // The recorded crafting rule and the weapon skill mapping, which recipe and skill pages read.
 const craftingRule = (ruleId: string, operands: Record<string, number>, links: Array<{ entityKey: string; label: string }> = []): CatalogMechanicsRule => ({
-  ruleId, topic: "crafting-and-gathering", section: "crafting", ordinal: 0, status: "verified", phrase: "Rule.", operands, links,
+  ruleId, topic: "crafting-and-gathering", section: "crafting", ordinal: 0, status: "verified", phrase: "Rule.", operands, links, placements: [],
   sources: [{ method: "CraftingDifficulty.GetScaledExperience", description: "Bounded decompilation", object: { sha256: "a".repeat(64), bytes: 1 } }],
 });
 const craftingRules: CatalogMechanicsRule[] = [
@@ -143,7 +143,8 @@ test("a talent shared by several trees resolves to the row of the class that own
 test("skill pages show recipes, their highest level, and their level curve", () => {
   const { documents } = project();
   const alchemy = documents.get("skills:0") as PublicSkill, axes = documents.get("skills:3") as PublicSkill, savers = documents.get("skills:11") as PublicSkill;
-  expect(alchemy.recipes).toEqual([{ recipe: { key: "recipes:81", kind: "recipes", name: "Elixir", slug: "elixir" }, product: { key: "items:1", kind: "items", name: "Potion", slug: "potion" } }]);
+  expect(alchemy.recipes).toEqual([{ recipe: { key: "recipes:81", name: "Elixir" }, anchor: "recipe-elixir",
+    product: { key: "items:1", kind: "items", name: "Potion", slug: "potion", variant: "crafting" } }]);
   expect([alchemy.facts.highestLevel, axes.recipes.length, axes.facts.highestLevel]).toEqual([2, 0, 3]);
   expect(savers.facts).toEqual({ automatic: false });
   // Skill templates store level 0 in every row, so a row takes its level from its position. The curve ends at the highest level.
@@ -161,7 +162,10 @@ test("ability pages name the classes that learn them and their use requirements"
 });
 
 test("class and skill lists count trees, abilities, and recipes", () => {
-  const lists = buildKindLists({ buildId: "b", catalogId: "c" }, PUBLIC_KIND_REGISTRY, project().documents);
+  const { documents, refs } = project();
+  const lists = buildKindLists({ buildId: "b", catalogId: "c" }, PUBLIC_KIND_REGISTRY, documents, facts, relations, refs);
   expect(lists.get("classes")?.[0]?.rows.map((row) => [row.ref.name, row.values])).toEqual([["Shieldmaster", { talentTrees: 2, abilities: 2 }], ["Assassin", { talentTrees: 1, abilities: 0 }]]);
+  expect(lists.get("recipes")?.[0]?.rows).toEqual([{ ref: { key: "items:1", kind: "items", name: "Elixir", slug: "potion", variant: "crafting" },
+    values: { station: null, skill: "Alchemy", product: "Potion" }, facets: { station: [], skill: ["Alchemy"] } }]);
   expect(lists.get("skills")?.[0]?.rows.find((row) => row.ref.name === "Alchemy")?.values).toEqual({ highestLevel: 2, recipes: 1 });
 });
