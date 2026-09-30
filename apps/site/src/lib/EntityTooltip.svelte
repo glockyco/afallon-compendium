@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
   import type { EntityRef, PublicKindEntry, StaticDocument } from '@afallon/contracts/public';
   import { clientMapLoader } from './client-publication';
+  import type { VirtualElement } from '@floating-ui/dom';
   import { FloatingController, placeBeside } from './floating';
   import TooltipPresenter from './TooltipPresenter.svelte';
 
@@ -44,9 +45,24 @@
 
   onDestroy(() => floating.destroy());
 
+  // A layout can stretch the anchor across its row, as in a list of materials. The card goes beside the visible link
+  // content instead: the union of the icon and the name, which also ends at the ellipsis of a truncated name.
+  function linkContent(anchorElement: HTMLElement): VirtualElement {
+    return {
+      contextElement: anchorElement,
+      getBoundingClientRect() {
+        const parts = [...(anchorElement.querySelector('.entity-link')?.children ?? [])].map((part) => part.getBoundingClientRect()).filter((rect) => rect.width > 0);
+        if (!parts.length) return anchorElement.getBoundingClientRect();
+        const left = Math.min(...parts.map((rect) => rect.left)), right = Math.max(...parts.map((rect) => rect.right));
+        const top = Math.min(...parts.map((rect) => rect.top)), bottom = Math.max(...parts.map((rect) => rect.bottom));
+        return { x: left, y: top, left, top, right, bottom, width: right - left, height: bottom - top };
+      },
+    };
+  }
+
   function position(node: HTMLElement) {
     if (!anchor) return;
-    return { destroy: placeBeside(anchor, node) };
+    return { destroy: placeBeside(linkContent(anchor), node) };
   }
 </script>
 

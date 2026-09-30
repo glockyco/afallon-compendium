@@ -1,4 +1,4 @@
-import { autoUpdate, computePosition, flip, offset, shift, size } from '@floating-ui/dom';
+import { autoUpdate, computePosition, flip, offset, shift, size, type ReferenceElement } from '@floating-ui/dom';
 
 // Entity tooltips and explanation hints share one rule set: one floating panel at a time, a short intent delay before
 // a hover opens it, and a placement beside its anchor.
@@ -66,7 +66,7 @@ export class FloatingController {
  * its anchor. Only horizontal room decides the side, and a vertical shift keeps the panel inside the viewport. The
  * position follows scrolling, resizing, and content changes until the returned function stops it.
  */
-export function placeBeside(anchor: HTMLElement, panel: HTMLElement): () => void {
+export function placeBeside(anchor: ReferenceElement, panel: HTMLElement): () => void {
   let active = true;
   const stop = autoUpdate(anchor, panel, () => {
     // `size` writes a max height. Clearing it first lets `flip` measure the natural height, so a panel that grows when
