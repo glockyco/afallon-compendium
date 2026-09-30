@@ -7,39 +7,37 @@ Give readers linked gathering node facts and a clear explanation of the captured
 
 ### Requirement: Gathering nodes have reachable reference pages
 
-The publication SHALL make every gathering node reachable through a gathering node list, search, and links from related skills and item yields. The Crafting and Gathering guide SHALL link to the gathering node list. Each gathering node page SHALL show its name, gathering skill, skill gate and tool from its requirements template, skill experience, character experience, and linked yields. It SHALL show where the node appears, and it SHALL distinguish spawner options from objects that a scene places. Its How it works section SHALL show the rules that the rules record places on gathering node pages: the selection and availability rules of the kinds of source that the node has, its reward rules, and each verified attunement rule that links the node. The section SHALL show the gathering yield bonus at the node's required skill level, or at level 1 when the node has no level gate, and at the highest level of its skill. A yield SHALL show its recorded quantity and chance semantics without claiming an effective chance when other rolls affect it. A node without a known location SHALL remain on the list with a visible location gap. A missing link SHALL not cause the node to disappear.
+Every gathering node SHALL remain reachable from its list, search, skills, and item yields, and the Crafting and Gathering guide SHALL link the list. A node's title SHALL name its skill, gate, and tool; its strip SHALL show supported skill experience, character experience, respawn, and spot count. Its Gives answer SHALL list linked yields with conditional chance and one sentence with verified computed yield bonuses and a guide-step link. Its side SHALL show spawner share at the lowest and highest supported skill level without assuming an attunement. Where to find SHALL group distinct spots by place, show counts and proportional bars sorted by count, and offer a map action for all known spots. A closed final disclosure SHALL retain spawn odds, source distinctions, timers, and ranges. It SHALL not copy rule prose or suggest an authored weight is a drop chance. Missing placements SHALL remain explicitly unknown.
 
 #### Scenario: Node is spawned and placed
-- **WHEN** spawners place Small Iron Vein and a scene also places it directly
-- **THEN** its page shows both kinds of location with their own respawn rules
-- **AND** an item page links back to the node for each yield of its loot table
+- **WHEN** spawners and a scene directly place Small Iron Vein
+- **THEN** its places include both kinds of source with counts, and its closed details distinguish their respawn rules
+- **AND** each linked yield's item page can reach the node
 
 #### Scenario: Node has no known location
-- **WHEN** a gathering node has captured evidence but no known placement
-- **THEN** its page and list entry remain reachable and state that its location is unknown
+- **WHEN** a node has captured evidence but no known placement
+- **THEN** its page and list remain reachable and say its location is unknown
 
 #### Scenario: Yield source has no node record
-- **WHEN** a yield cannot be tied to one gathering node through its own spawner option or object
-- **THEN** the item retains its source label and any verified location
-- **AND** the publication does not assign the yield to an unrelated gathering node
+- **WHEN** a yield cannot be tied to a node through its own spawner option or scene object
+- **THEN** the item retains its verified source and does not link an unrelated node
 
 #### Scenario: Attunement names two nodes
-- **WHEN** the verified Prospecting attunement rule links Small Iron Vein and Large Iron Vein
-- **THEN** the How it works sections of both nodes show the rule
-- **AND** the page of Silver Vein does not show it
+- **WHEN** a verified Prospecting attunement names Small Iron Vein and Large Iron Vein
+- **THEN** their pages may show its verified computed effect and guide-step link, but Silver Vein does not
 
 ### Requirement: Crafting rules name their evidence and boundaries
 
-The Crafting section of a crafted item SHALL show the verified skill gate of its recipe, the full and half experience bands, and the level where experience stops, with the rules that the rules record places on that section. The published `/mechanics/crafting-and-gathering` guide SHALL explain the same rules as steps of a craft, and its disclosure SHALL show each rule with its evidence. Both SHALL distinguish a recipe's base experience from the amount after skill modifiers. They SHALL use recorded game values from the catalog and publication, not site constants. The guide SHALL link to the Crafting sections and skills that it names. Neither SHALL rank recipes or label one best.
+A crafted item's Crafting section SHALL show its verified skill gate, base experience, computed full and half experience breakpoints, and level where base experience stops, with a link to the applicable step of `/mechanics/crafting-and-gathering`. It SHALL NOT include the rule prose. The guide SHALL explain these rules as craft steps and retain each rule and its evidence in a closed disclosure. Both SHALL distinguish base experience from the award after modifiers and use captured values rather than site constants. Neither SHALL rank a recipe as best.
 
 #### Scenario: Recipe sits at the half-experience band
-- **WHEN** a recipe has a recorded experience amount and the skill is in the verified half-experience band
-- **THEN** the guide explains that the base amount is halved and rounded to the nearest whole number, with a half rounded to the even number, before skill modifiers
-- **AND** the Crafting section labels that amount as base experience, not a guaranteed award
+- **WHEN** a recipe has a recorded amount and the skill is in its verified half-experience band
+- **THEN** the guide explains nearest-integer ties-to-even rounding before modifiers
+- **AND** Crafting describes the computed band as base experience, not a guaranteed final award
 
 #### Scenario: Guide names a recipe
-- **WHEN** the guide uses Runeweave Regalia as its worked craft
-- **THEN** the example links to the Crafting section of Runeweave Regalia
+- **WHEN** the guide uses Runeweave Regalia as a worked craft
+- **THEN** it links that product's Crafting section
 
 ### Requirement: Spawner explanation separates selection and availability
 

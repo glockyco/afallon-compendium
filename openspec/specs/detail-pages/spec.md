@@ -8,84 +8,81 @@ Give every entity detail page one structure that answers a player's questions in
 
 ### Requirement: Detail pages share one structure
 
-Every entity detail page SHALL show the breadcrumb, the title block, an optional hero, and its sections. A page with at least four rendered sections SHALL also show the floating section navigation of the page-navigation spec. The title block, the hero, and each section SHALL use the full width of the page content column. A page SHALL NOT place two cards side by side.
+Every entity detail page SHALL show a breadcrumb, title block, answer, applicable side facts, and ordered relation sections. At widths of at least 1024 px the page SHALL use a main column and a 20rem side column beginning beside the answer, below the title block; the side column SHALL remain available while scrolling. At narrower widths the order SHALL be title, answer, side facts, relations. An applicable single stat strip beneath the title SHALL hold no more than five decisive facts. A page with at least four rendered sections SHALL offer section navigation. No fact SHALL repeat in adjacent title, strip, answer, and side content.
 
 #### Scenario: Item page on a wide screen
-- **WHEN** a reader opens an item page in a window that is 1440 px wide
-- **THEN** the title block, the hero, and each source section use the full width of the page content column
-- **AND** no two cards share a row
-- **AND** the section navigation appears if at least four sections render
+- **WHEN** a reader opens an item page at 1440 px
+- **THEN** its main column starts with the title and How to get it, while the side column holds one game tooltip and the description
+- **AND** relation sections follow the answer without side-by-side relation cards
 
 #### Scenario: Page with one short section
 - **WHEN** a page has one section with one row
-- **THEN** that section uses the full width of the page content column without a card beside it
-- **AND** the page has no section navigation
+- **THEN** it shows the section and no section navigation
 
 #### Scenario: Detail page on a phone
-- **WHEN** a class page with at least four sections opens at 390 px
-- **THEN** the section navigation floats over the page without placing cards side by side
+- **WHEN** a class page opens at 390 px
+- **THEN** its title and answer precede the side facts and relations without horizontal page scroll
 
 ### Requirement: The title block names the entity
 
-The title block SHALL show the entity name, one line of identity facts, and at most one "View on map" action. The title block SHALL NOT show artwork, a description, a fallback glyph, a badge, or a fact that the hero shows. The map action SHALL appear only when the map can show the entity: the spots of an NPC or a property, the area of a place, or the resources, containers, and objects that give an item. The action SHALL open the map with that selection.
+The title block SHALL show the entity icon or portrait when available, its name, one identity line, at most one map action, and an applicable stat strip. The map action SHALL appear only when the map can show a corresponding published selection: NPC spots, property signs, place area, gathering spots, or item sources. It SHALL open that selection. A kind whose game tooltip sits alongside the title SHALL omit the stat strip when the strip would repeat its facts.
 
 #### Scenario: Boss in one dungeon
 - **WHEN** a boss has published spots in one dungeon
-- **THEN** its title block shows its roles, its level, the dungeon, "Boss of" with a link to the dungeon, and "View on map"
-- **AND** its hero does not repeat the level or the dungeon
+- **THEN** its title identifies its role and place and offers a map action
+- **AND** its level appears once in the stat strip or identity line, not in both
 
 #### Scenario: Quest page
-- **WHEN** a reader opens a quest page
+- **WHEN** a quest has no location that the map can select
 - **THEN** its title block has no map action
 
 ### Requirement: The hero shows the entity as the game shows it
 
-A hero SHALL be one panel with a view area and a facts area. The view area SHALL show the entity as the game shows it: the item tooltip, the NPC portrait, the place artwork, the property purchase panel, the ability tooltip, or the icon of a class or a skill. The facts area SHALL show the description and the key facts of the kind. The description SHALL appear once in the hero. When the entity has no view, the facts area SHALL use the whole panel. When the entity has no view and no hero facts, the page SHALL NOT show a hero. Neither area SHALL stretch to the height of the other area. On screens narrower than 640 px, the facts area SHALL follow the view area.
+The primary answer SHALL be a distinct card in the main column. The game's item or ability tooltip SHALL appear once in the side column at wide widths and after the answer on narrow screens. A place's artwork and description SHALL be part of its answer. NPC portraits, class and skill icons SHALL identify their title or relation row; descriptions and secondary stats SHALL appear once in the answer or side facts. A missing image SHALL not create an empty image frame. No side panel SHALL stretch just to match another panel's height.
 
 #### Scenario: NPC without a portrait
 - **WHEN** an NPC has stats but no portrait
-- **THEN** its hero shows the stats across the whole panel
+- **THEN** its title uses a readable identity without a blank image and its available stats remain visible
 
 #### Scenario: Place with artwork
 - **WHEN** a place has artwork and a description
-- **THEN** its hero shows the artwork beside the description
+- **THEN** its answer presents both
 
 #### Scenario: Class with an icon
-- **WHEN** a reader opens the Shieldmaster page
-- **THEN** its hero shows the class icon beside the description
+- **WHEN** a reader opens Shieldmaster
+- **THEN** its icon identifies its title and its playstyle description occupies the answer
 
 ### Requirement: Sections share one heading and one panel
 
-Each section SHALL have a heading with an icon, a title, and an optional heading line. A section that holds rows SHALL also show its row count. One panel SHALL follow the heading and hold a table, a list of facts, a link grid, or prose. A section without content SHALL NOT appear. Each section SHALL have an anchor that other parts of the page can link.
+Each nonempty relation section SHALL have a serif heading, its row count when applicable, at most one Show all action, and a stable anchor. A heading SHALL NOT have a decorative icon tile. A panel SHALL enclose a group of rows, not an otherwise empty section. The first eight rows SHALL preview the relation in its specified sort order; a section with more rows SHALL offer Show N more to reveal all, while preserving row anchors and the full set of facts.
 
 #### Scenario: Empty relation
 - **WHEN** an NPC sells nothing
 - **THEN** its page has no Sells section
 
 #### Scenario: Link to a section
-- **WHEN** a reader selects the Dropped by line in an item hero
-- **THEN** the page scrolls to the Dropped by section
+- **WHEN** a reader selects an item acquisition route
+- **THEN** the page reaches its matching full source section
 
 ### Requirement: Relation tables show only useful columns
 
-A relation table SHALL show a column only when at least one row has a value for it. A column SHALL be omitted when all rows have the same value and that value is a default, such as a quantity of one, or appears elsewhere on the page, such as the NPC level in the title block. When all rows of a drops section have the same loot roll, the heading line SHALL state the loot roll once, and the table SHALL NOT show a loot roll column. The name column and the values that a reader compares, such as chance and price, SHALL remain.
+A relation row SHALL show an icon or portrait, linked name with level/place subline when known, and at most two right-aligned comparable values: a quantity or count and one context value such as chance or price. It SHALL omit a repeated default or a value already established in the heading, without hiding a differing condition. A shared loot roll SHALL appear once in the section heading. Text and number labels SHALL remain understandable without game-menu knowledge.
 
 #### Scenario: Vendor stock without unlock requirements
-- **WHEN** no item of a vendor has an unlock requirement
-- **THEN** the vendor's table has no unlock requirement column
+- **WHEN** no vendor item has an unlock requirement
+- **THEN** stock rows show no empty unlock field
 
 #### Scenario: One loot roll for all rows
-- **WHEN** all drop rows of an NPC come from a loot table that rolls on every kill and gives at most 3 items
-- **THEN** the table has no loot roll column
-- **AND** the heading line states that the loot table rolls on every kill and gives at most 3 items
+- **WHEN** all drop rows use a loot table that rolls on every kill for at most 3 items
+- **THEN** the heading states this rule once and rows show their item chance without a duplicate loot-roll value
 
 #### Scenario: Table with one row
 - **WHEN** an NPC sells one item
-- **THEN** the row shows the item and its price
+- **THEN** the row shows its item and price
 
 #### Scenario: One location
-- **WHEN** an NPC has one location, and the title block shows its level and roles
-- **THEN** the Where to find table has no level column and no role column
+- **WHEN** a creature has one location and its level and role are already shown above
+- **THEN** the location row does not repeat them without a differing location-specific value
 
 ### Requirement: Relation tables merge only equivalent rows
 
@@ -101,39 +98,36 @@ Rows that have the same counterpart and the same values, and differ only in the 
 
 ### Requirement: Long relation tables show their first rows
 
-A table with more than 15 rows SHALL show its first 15 rows in its current sort order and a control that shows all rows. When the address of the page names a row that the table hides, the table SHALL show all rows and scroll to that row.
+A relation with more than eight rows SHALL preview its first eight in its current sort order and offer Show N more, where N is the number of hidden rows. An address that names a hidden row SHALL reveal it and scroll to it; this SHALL also work inside a hidden tab or closed disclosure.
 
 #### Scenario: Long drop list
 - **WHEN** an NPC has 22 drop rows
-- **THEN** the table shows 15 rows and a "Show all 22" control
+- **THEN** the section shows eight rows and a Show 14 more control
 
 #### Scenario: Link to a hidden row
-- **WHEN** a reader opens a link to an NPC variant whose anchor is in row 20 of the Where to find table
-- **THEN** the table shows all rows and scrolls to row 20
+- **WHEN** a reader opens a link to a variant anchored in row 20
+- **THEN** the row is revealed and scrolled into view
 
 ### Requirement: Relation tables fit narrow screens
 
-On screens narrower than 640 px, a relation table SHALL show each row as a block of labeled values. Names SHALL wrap only between words. Numbers SHALL NOT wrap. The page SHALL NOT scroll sideways.
+At 390 px a relation SHALL remain legible with icon, wrapping name and subline, and nonwrapping values. Additional condition or map information SHALL remain accessible through expansion or a labeled detail line. The page SHALL NOT scroll sideways.
 
 #### Scenario: Item sources on a phone
-- **WHEN** a reader opens an item page in a window that is 390 px wide
-- **THEN** each container row shows its container, place, quantity, chance, and conditions as labeled lines
-- **AND** the page does not scroll sideways
+- **WHEN** an item has container sources with differing conditions
+- **THEN** each row or its expanded detail keeps the container, place, quantity, chance, and condition legible without sideways scrolling
 
 #### Scenario: Long place name
-- **WHEN** a table cell holds the name "Challenge Stone Logging Camp"
-- **THEN** the name wraps between words and never inside a word
+- **WHEN** a row names Challenge Stone Logging Camp
+- **THEN** its name wraps between words without clipping
 
 ### Requirement: Sections explain their own values
 
-A reader SHALL understand the values of each section without another page and without knowledge of game menus. Column labels SHALL use plain words. A column label whose values follow a game rule SHALL show a short explanation on hover, on focus, and on tap. The explanation SHALL use the placement rules of entity tooltips. The heading line SHALL hold at most one sentence, which explains the values or states the values that all rows share. A page SHALL NOT show an explanatory paragraph under a table.
+Sections SHALL label probabilities, quantities, and conditions in plain language sufficient to interpret the shown values without another page. A short computed sentence MAY explain an entity-specific value; rule prose SHALL instead live in the relevant guide step linked by a quiet How it works action. Labels and explanatory hints SHALL work on hover, focus, and tap, but SHALL NOT contain copied rule text or require a hover card to understand a fact.
 
 #### Scenario: NPC drops
-- **WHEN** an NPC page shows drops from a loot table that rolls on 5% of kills
-- **THEN** the Loot roll label explains that a kill rolls the loot table with this chance and that one roll gives this number of items
-- **AND** the Chance label explains that each item of a rolled table then rolls its own chance
-- **AND** the Loot roll label explains that a roll gives at least its minimum number of items, which does not make any one item certain
-- **AND** no paragraph appears under the table
+- **WHEN** an NPC's loot table rolls on 5% of kills
+- **THEN** its Drops heading identifies the table's roll chance, separately from each item's conditional chance
+- **AND** a guide link explains the rule without a rules paragraph beneath the rows
 
 ### Requirement: Reader text shows no record ids or internal words
 
@@ -153,203 +147,183 @@ Page text, table cells, and labels SHALL NOT show a native record id or an inter
 
 ### Requirement: Facts carry information
 
-A page SHALL NOT show a stat whose amount is zero. An NPC whose roles are all friendly services SHALL NOT show a respawn time, an experience range, or an aggro range. The friendly services are quest giver, merchant, townsfolk, banker, auctioneer, and flight point.
+A page SHALL NOT show a stat whose amount is zero. A creature whose roles are all friendly services SHALL NOT show respawn, kill experience, or aggro range as combat summary facts. The friendly services are quest giver, merchant, townsfolk, banker, auctioneer, and flight point.
 
 #### Scenario: Friendly merchant
 - **WHEN** a merchant has only the merchant role
-- **THEN** its hero shows no respawn time, experience range, or aggro range
+- **THEN** its answer and strip omit respawn, kill experience, and aggro range
 
 #### Scenario: Stat of zero
-- **WHEN** an NPC record gives a Health stat of 0
-- **THEN** its hero does not show Health
+- **WHEN** an NPC record gives Health of 0
+- **THEN** its page does not present Health as a key stat
 
 ### Requirement: NPC pages show who the NPC is, where it is, and what it gives
 
-Each fact below SHALL appear only when the publication has a value for it. An NPC page SHALL show its roles, its type, its level, its places, and the places that it is the boss of in the title block. Its hero SHALL show the portrait, the description, the stats, the immunities, the faction, the species, the creature type, the respawn time, the experience range, the aggro range, the favoured loot, the faction changes of a kill, and the linked NPC. Its sections SHALL follow this order: Where to find, Variants, Abilities, Drops, Sells, Quests. The Quests section SHALL show one row for each quest with each role of the NPC in that quest: gives, completes, or objective target. The Where to find table SHALL show a Variant column only when the page shows the Variants section.
+When available, a combat creature's strip SHALL show level, health, experience per kill, and respawn. Its answer SHALL show Drops sorted by chance, with the loot roll in the heading and a second loot table as a labeled group. The side SHALL hold combat stats, faction, aggro range, immunities, and abilities as chips, and preserve other secondary facts without repeating the answer. Its remaining sections SHALL follow: Where to find grouped by place with counts, Sells, Quests, Variants. Each quest SHALL name whether the creature gives, completes, or is an objective; differing variant and placement facts SHALL remain accessible. A friendly service NPC SHALL not gain fabricated combat facts.
 
 #### Scenario: Boss of one place
-- **WHEN** an NPC is the boss of one place
-- **THEN** its title block shows "Boss of" with a link to that place
-- **AND** the page has no "Boss of" section
+- **WHEN** an NPC is boss of one place
+- **THEN** its title links that place without a duplicate Boss of section
 
 #### Scenario: Quest target and quest giver
-- **WHEN** an NPC gives one quest and is the target of an objective in another quest
-- **THEN** its Quests section has one row for each quest with the role in that quest
+- **WHEN** an NPC gives one quest and is an objective in another
+- **THEN** its Quests section has one row per quest with the correct role
 
 ### Requirement: Quest pages follow the course of the quest
 
-Each fact below SHALL appear only when the publication has a value for it. A quest page SHALL show its quest level, its minimum level, its chain name and step, its world quest state, its repeatability, and its dungeon in the title block. A quest page SHALL NOT show a hero. Its sections SHALL follow this order: Quest chain, Start and turn-in, Objectives, Rewards, Quest text, World changes, Unlocks. The Quest chain section SHALL show the steps of the chain in order as links and mark the current step. The Start and turn-in section SHALL show the requirements to take the quest, one row for each character with its roles, areas, and map link, the world quest zones with their timing, and the start objects. The Rewards section SHALL show the experience, the rewards, the rewards to choose from, and the items given at the start. The Quest text section SHALL show the offer text, the objective text, and the completion text.
+A quest's strip SHALL show available quest level, experience, main reward, and chain step. Its answer SHALL show objectives as a numbered checklist with target and required count, and identify who starts and ends the quest with their places and map links when known. The side SHALL show requirements and a vertical chain stepper identifying the current step. Sections SHALL follow: Rewards, Unlocks. Offer, objective, and completion text and world changes SHALL remain available in closed blocks at the end. A quest without a chain SHALL omit the stepper; it SHALL retain available repeatability, world quest timing, minimum level, and dungeon context without inventing values.
 
 #### Scenario: Quest in a chain
-- **WHEN** a quest is step 5 of 5 in a chain
-- **THEN** the Quest chain section shows the five steps as links and marks step 5
+- **WHEN** a quest is step 5 of 5
+- **THEN** the side stepper links five steps and marks step 5 with a word as well as visual state
 
 #### Scenario: Quest outside a chain
 - **WHEN** a quest belongs to no chain
-- **THEN** the page has no Quest chain section
+- **THEN** it shows no chain stepper
 
 ### Requirement: Place pages list what a player finds there
 
-Each fact below SHALL appear only when the publication has a value for it. A place page SHALL show its place type, its level range, its parent place, and its Adventure Guide listing in the title block. Its hero SHALL show its artwork and description. Its sections SHALL follow this order: Bosses, Creatures, NPCs, Points of interest, Quests, Properties, Connections, Areas. Each creature SHALL appear in one section only. Points of interest SHALL list the map categories of the place that no creature or NPC row shows, with their spot counts. The Quests section SHALL show one row for each quest that starts in the place or has an objective in it, and SHALL name both roles when both apply. The Connections section SHALL show one row for each direction and connected place: a teleport to that place, a teleport from that place, or a teleport within the place. Each row SHALL show the map spots where its teleports start. A row whose teleports start at no map spot SHALL say that the map shows no start for it. The Connections section SHALL NOT list a dungeon entrance trigger, because it loads nothing. It SHALL NOT list a teleport whose start lies outside the game map of its place when a teleport in another place starts at the same world position and has the same destination.
+A place's strip SHALL show available type, level range, boss count, and creature count. Its answer SHALL contain artwork, description, and map action. The side SHALL show its parent place and connections. Its sections SHALL follow: Bosses with portraits, Creatures excluding bosses, NPCs and services, Gathering and objects with category counts, Quests, Areas; available properties and points of interest SHALL remain reachable in the appropriate section rather than disappear. Connections SHALL still merge identical destinations by direction and count distinct spots, and shall retain verified source positions. The place SHALL not infer a level range where none was published.
 
 #### Scenario: Dungeon with bosses
 - **WHEN** a dungeon has four bosses and two other creatures
-- **THEN** the Bosses section lists the four bosses
-- **AND** the Creatures section lists only the two other creatures
+- **THEN** Bosses shows four portrait rows and Creatures shows two other creatures
 
 #### Scenario: Several teleports to one place
 - **WHEN** a place has four teleports to Afallon
-- **THEN** its Connections section has one "To Afallon" row with four spots
+- **THEN** the side lists one To Afallon connection with four spots
 
 #### Scenario: Teleport into the place
 - **WHEN** a teleport in Afallon leads into Duskfall Depths
-- **THEN** the Connections section of Duskfall Depths has a "From Afallon" row with the spot of that teleport
+- **THEN** the destination page lists a From Afallon connection to its verified source spot
 
 #### Scenario: Leftover copy of a teleporter
-- **WHEN** Cave (Coalway Woods 1) holds a copy of the Duskfall Depths entrance teleporter outside the game map of the cave
-- **AND** Challenge Stone Blood holds a copy at the same world position on its game map
-- **THEN** neither the cave page nor the Duskfall Depths page lists the teleport of the cave
-- **AND** both the Challenge Stone Blood page and the Duskfall Depths page list the teleport of Challenge Stone Blood
+- **WHEN** Cave (Coalway Woods 1) has an off-map copy of a Duskfall Depths entrance also on Challenge Stone Blood's game map
+- **THEN** only the verified Challenge Stone Blood connection is shown on its source and destination pages
 
 #### Scenario: Teleport outside its map without a copy
-- **WHEN** the exit teleporter of Sanctum of the Veilpiercer starts outside the game map of the sanctum
-- **AND** no other place holds a teleporter at that position
-- **THEN** the sanctum page lists a "To Afallon" row
+- **WHEN** the Sanctum of the Veilpiercer exit begins outside its map without another verified copy
+- **THEN** the sanctum retains its To Afallon connection
 
 ### Requirement: Property pages show the purchase
 
-A property page SHALL show its property type and its place in the title block, with a map action that opens its for-sale signs. Its hero SHALL show the purchase panel with the picture, the price, the income with its interval, and the sale price, and SHALL name the areas of its for-sale signs. A Where to buy section SHALL appear only when the property has more than one for-sale sign.
+A property page SHALL show its type and place in the title and show price, income per payment, and sell price in a single strip when known. Its answer SHALL show where to buy it with the for-sale signs and a map action. Its side SHALL show the available purchase panel and picture once. It SHALL not claim an interval or currency without confirmed facts.
 
 #### Scenario: Property with one sign
 - **WHEN** a property has one for-sale sign
-- **THEN** its title block has a map action that opens the sign
-- **AND** its hero names the area of the sign
-- **AND** the page has no Where to buy section
+- **THEN** its answer identifies the sign's area and a map action opens it
 
 ### Requirement: Ability pages compare versions
 
-An ability page SHALL show in its hero the tooltip of the version with the most users. When versions have the same number of users, the hero SHALL show the first of them. The hero SHALL show the requirements to use the version that it shows: costs, such as "Costs 9 Mana", and conditions, such as "Ursine Aspect is active". The sections SHALL follow this order: Versions, Learned by, Used by, Taught by. When the ability has several versions, a Versions section SHALL show the text, the use requirements, and the number of users of each version in one table. The Learned by section SHALL list each published class that learns the ability. A Learned by row SHALL name the class and how the class learns the ability: as its auto attack, or through a talent tree node with its tree and tier. A talent tree row SHALL show the requirements of its node and SHALL link to the row of that node on the class page. The Learned by and Used by sections SHALL group their rows by version when the ability has several versions. The Taught by section SHALL list the items that teach the ability.
+An ability page SHALL show the game tooltip once in the side column, choosing the version with most users and the first in a tie. Its answer SHALL identify who learns it (published classes and talent nodes) and who uses it, with costs and activation requirements retained in the tooltip. When multiple versions exist, a Versions section SHALL compare their distinct text, use requirements, and users. Teaching items and all usable rank links SHALL remain available without repeating the tooltip.
 
 #### Scenario: Ability with five versions
 - **WHEN** an ability has five versions
-- **THEN** the Versions table has five rows
-- **AND** the Used by section groups its NPCs under each version
+- **THEN** Versions compares five and Used by groups users under the correct version
 
 #### Scenario: Ability from a talent tree
-- **WHEN** a reader opens the Maul page
-- **THEN** the Learned by section has one row that names Druid, Primal Feral, and tier 2
-- **AND** the row links to the Maul row on the Druid page
-- **AND** the hero shows "Ursine Aspect is active"
+- **WHEN** a reader opens Maul
+- **THEN** the answer links Druid's Primal Feral tier 2 talent and its tooltip identifies the Ursine Aspect condition
 
 #### Scenario: Ability of a class that no race offers
-- **WHEN** only the Hunter class learns Barbed Quarrel, and no race offers Hunter
-- **THEN** the Barbed Quarrel page has no Learned by section
-- **AND** its hero shows "Costs 9 Mana"
+- **WHEN** only an unpublished Hunter class learns Barbed Quarrel
+- **THEN** Learned by has no Hunter page link and the tooltip still shows Costs 9 Mana
 
 ### Requirement: Class pages show how a class progresses
 
-The publication SHALL publish a page for each class that at least one race offers. A class that no race offers SHALL NOT have a page. The title block of a class page SHALL show the kind and the races that offer the class. The hero SHALL show the class icon, the description, the weapon types that the class can use, its auto attack ability, the talent points that it gains, and its highest level. The sections SHALL follow this order: one section for each talent tree of the class in authored order, then Starting gear. The page SHALL link to Character Progression for character experience rules and the level curve. The page SHALL NOT show an Experience table. The heading line of a talent tree section SHALL name the talent points that the tree uses. A talent tree table SHALL show one row for each node, ordered by tier and then by position in the tier. A row SHALL show the tier, the talent, the effect of a passive talent at its first rank and at its last rank, and the requirements of the node. The row of an ability node SHALL link the ability. Each row SHALL have an anchor. The Starting gear section SHALL show each starting item with its count, and SHALL show whether the character starts with the item equipped.
+Only classes offered by a published race SHALL have pages. A class strip SHALL show races, weapon types, highest level, and talent tree count when known. Its answer SHALL present playstyle and auto attack. Its side SHALL present talent point gains. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with the established tabbed List/Grid views and row anchors. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
 
 #### Scenario: Offered class
-- **WHEN** a reader opens the Shieldmaster page
-- **THEN** its sections are Bastion Breaker, Guardian, Templar, Aegis Mastery, Heroic Ascension, and Starting gear, in this order
-- **AND** the page links to Character Progression instead of showing an Experience table
+- **WHEN** a reader opens Shieldmaster
+- **THEN** Starting gear, then Bastion Breaker, Guardian, Templar, Aegis Mastery, and Heroic Ascension remain reachable in order
+- **AND** the page links Character Progression
 
 #### Scenario: Class that no race offers
-- **WHEN** no race offers the Hunter class
-- **THEN** the publication has no Hunter page
-- **AND** a requirement that names Hunter shows the class name without a link
+- **WHEN** no race offers Hunter
+- **THEN** it has no page and an authored Hunter requirement remains readable without a broken link
 
 #### Scenario: Passive talent with five ranks
-- **WHEN** Aegis Discipline gives 2 Block chance at rank 1 and 10 Block chance at rank 5
-- **THEN** its row shows both effects with their ranks
+- **WHEN** Aegis Discipline gives 2 Block chance at rank 1 and 10 at rank 5
+- **THEN** its row shows both ranked effects
 
 #### Scenario: Talent tree with its own talent points
-- **WHEN** the Heroic Ascension tree of Shieldmaster uses Heroic Essence
-- **THEN** the heading line of the Heroic Ascension section names Heroic Essence
+- **WHEN** Heroic Ascension uses Heroic Essence
+- **THEN** its tree identifies that point type
 
 ### Requirement: Skill pages show recipes and levels
 
-The publication SHALL publish a page for each skill that the reviewed exclusion list does not name. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. Every skill page SHALL link to Character Progression for related experience rules. A skill page SHALL NOT show an Experience table. The sections SHALL follow this order when they have content: Levels, Recipes, Gathering nodes, How to gain experience. When the skill has a level template and a highest level above one, the Levels section SHALL show the skill's level curve with the chart and level control of Character Progression, from level 1 up to its highest level. The Recipes section SHALL show each recipe that uses the skill with its product, station, and required level. Each recipe row SHALL have an anchor. The product of a row SHALL link to the Crafting section of its item page. A recipe without a published product SHALL keep its row with its name as text. The Gathering nodes section SHALL link every gathering node that gives experience in the skill and SHALL keep nodes with unknown locations. The How to gain experience section SHALL show the rules that the rules record places on it, with links to specific recipes and nodes when possible. It SHALL distinguish verified experience rules from known call sites whose amounts or skill mappings remain unresolved. It SHALL not claim that the known call sites are exhaustive.
+Each non-excluded skill SHALL have a page. Its strip SHALL show available highest level, recipe count, gathering node count, and experience to highest level. The answer SHALL show each verified experience source—craft, gather, or auto-attack hits—with a linked example range; it SHALL not assign an unverified source. Its side SHALL retain the level curve chart and level control when a level template and highest level above one exist, and link to Character Progression. Its sections SHALL show Recipes grouped by required-level bands and Gathering nodes by gate. A recipe without a published product SHALL retain its anchored row; a skill with no levels SHALL omit a fictitious curve.
 
 #### Scenario: Crafting skill
-- **WHEN** a reader opens the Alchemy page
-- **THEN** the Recipes section shows its 22 recipes with their products, stations, and required levels
-- **AND** each product links to the Crafting section of its item page
-- **AND** the page links to Character Progression and explains its verified crafting source
+- **WHEN** a reader opens Alchemy
+- **THEN** its Recipes section retains all 22 published recipes with products, stations, and levels, linked to product Crafting anchors when available
 
 #### Scenario: Recipe without a product
-- **WHEN** the Smithing recipe Demonic Bulwark Looted has no published product
-- **THEN** the Recipes section of Smithing keeps its row with an anchor and without a product link
+- **WHEN** Demonic Bulwark Looted has no published product
+- **THEN** its skill page retains an anchored recipe row without a product link
 
 #### Scenario: Gathering skill
-- **WHEN** a reader opens the Mining page
-- **THEN** the Gathering nodes section links its veins with their skill gates and known yields
-- **AND** the How to gain experience section explains the verified experience of a gathered node
+- **WHEN** a reader opens Mining
+- **THEN** its nodes link with skill gates and yields, and gathering is labeled as a verified experience source
 
 #### Scenario: Weapon skill
-- **WHEN** a reader opens the Axes page
-- **THEN** the page has no Recipes section and no Experience table
-- **AND** a Levels section shows the Axes level curve up to its highest level
-- **AND** it names auto-attack hits as a verified experience source
+- **WHEN** a reader opens Axes
+- **THEN** its level curve and auto-attack experience source remain available without an Experience table
 
 #### Scenario: Skill without levels
 - **WHEN** a published skill has a highest level of zero
-- **THEN** its hero shows no highest level and its page has no Levels section
-- **AND** it retains the Character Progression link
+- **THEN** it has no level curve but retains its Character Progression link
 
 #### Scenario: Known call site without a verified skill mapping
-- **WHEN** a skill experience call site has no verified mapping to one skill
-- **THEN** the page does not assign that source to an unrelated skill
-- **AND** the Crafting and Gathering guide names the source as unresolved if it is relevant to crafting and gathering
+- **WHEN** an experience call site cannot be tied to a skill
+- **THEN** the skill page does not assign it to that skill
 
 ### Requirement: Existing long detail pages use section navigation
 
-Class, NPC, place, and item pages SHALL apply the section-list rule to their actual rendered sections. Conditional sections SHALL enter or leave the list with their content. Existing section IDs and row anchors SHALL remain the targets of links. A class page SHALL list its individual talent tree sections until another change gives them tabbed views. Its list SHALL adapt when a later change removes Experience.
+Class, creature, place, item, and other detail pages SHALL list only their rendered, navigable sections in page order. An answer or side stepper SHALL not be counted as a relation section unless it exposes a stable section anchor. Conditional sections SHALL enter and leave the list with their content; existing section IDs, recipe anchors, and row anchors SHALL remain valid. Talent tree links SHALL reveal the owning tab before scrolling.
 
 #### Scenario: Class talent sections
-- **WHEN** Shieldmaster shows its talent tree sections, Starting gear, and Experience
-- **THEN** the list names each rendered section in the same order as the page
-- **AND** selecting a tree name reaches that tree's existing section anchor
+- **WHEN** Shieldmaster shows its trees and Starting gear
+- **THEN** navigation names each reachable tree and Starting gear without listing a removed Experience section
 
 #### Scenario: NPC without stock
-- **WHEN** an NPC has no vendor stock but at least four other sections render
-- **THEN** the list contains no Sells link
-- **AND** it links to each rendered section, including Where to find
+- **WHEN** a creature has no vendor stock and at least four other sections
+- **THEN** navigation omits Sells and links the rendered sections
 
 #### Scenario: Place and item source sections
-- **WHEN** a place or item page has at least four rendered sections
-- **THEN** its list names only the sections that appear on that page
-- **AND** a link to a rendered section reaches its existing anchor
+- **WHEN** a place or item has four rendered sections
+- **THEN** navigation reaches only sections shown on that page
 
 ### Requirement: Recipe items and recipes link each other
 
-A recipe item page SHALL show a Teaches section when a captured Recipe RankUp game action names a recipe. The section SHALL show the crafting block of that recipe: the product with its tooltip, the station, the skill, the required level, the materials with their quantities, and the experience bands. The Crafting section of a product SHALL name each published item that teaches its recipe. A recipe without a known teaching item SHALL NOT claim that no item or other source teaches it.
+A recipe item with a captured Recipe RankUp action SHALL show Teaches as a recipe equation with linked product, materials, station, required skill and level, plus an entity-specific experience sentence and guide-step link when supported. It SHALL not duplicate the product's game tooltip. A product's Crafting section SHALL link each known teaching item. An unknown teacher SHALL not be described as nonexistent.
 
 #### Scenario: Recipe item teaches a recipe
-- **WHEN** a reader opens Recipe: Runeweave Regalia, whose captured game action ranks up the recipe Runeweave Regalia
-- **THEN** its Teaches section shows the product Runeweave Regalia with its tooltip, the Tailoring station, the required level 150, the materials, and the experience bands
-- **AND** the Crafting section of Runeweave Regalia links back to the recipe item
+- **WHEN** Recipe: Runeweave Regalia teaches Runeweave Regalia
+- **THEN** its Teaches equation links the product and shows its Tailoring station, level 150, and materials without a second product tooltip
+- **AND** the product's Crafting section links back to the recipe item
 
 #### Scenario: Recipe has no known teaching item
-- **WHEN** a recipe is not learned by default and no captured item action teaches it
-- **THEN** the Crafting section of its product names no teaching item and makes no claim that nothing teaches it
-- **AND** the coverage page counts the recipe
+- **WHEN** no captured item action teaches a recipe
+- **THEN** the product names no teaching item and makes no claim that none exists
+- **AND** coverage still records the missing teacher
 
 ### Requirement: Pages show the rules placed on them
 
-A page SHALL show each reviewed rule that the rules record places on its page kind, target, and scope. A rule placed on a fact or a column SHALL be the explanation of that label on hover, on focus, and on tap. Rules placed on a section SHALL appear in that section, grouped by their guide section, with one link to the guide of each topic. On a gathering node page, that section is How it works at the end of the page. A rule with the `linked` scope SHALL appear only on the pages of the entities that it links. When the publication computes the values of a placed rule for the page, the page SHALL show these values beside the rule. A page SHALL NOT show a rule that the record does not place on it. How it works SHALL NOT show the evidence entries of a rule, because the guide shows them.
+Reviewed rules SHALL remain available on their mechanics guide with their evidence in the guide's closed rule list. An entity page SHALL show only supported computed values relevant to its fact or section, in plain language, with a link to the corresponding guide step. It SHALL NOT reproduce rule prose in sections, label hints, or hover cards. A linked placement SHALL affect only entities named by that placement. Missing verified operands SHALL not produce a fabricated computed result.
 
 #### Scenario: Attunement rule of one node
-- **WHEN** the verified Silver Attunement rule links only Silver Vein and has the `linked` scope
-- **THEN** the How it works section of Silver Vein shows the rule
-- **AND** no other gathering node page shows it
+- **WHEN** a verified rule names Small Iron Vein but not Silver Vein
+- **THEN** only the named node may show its supported computed effect and guide-step link
+
+#### Scenario: Gathering probability endpoints
+- **WHEN** verified evidence supports a yield bonus at Mining level 1 and its highest level
+- **THEN** the node shows both computed values in a short sentence with a guide-step link, not the rule text
 
 #### Scenario: Rule explains a fact
-- **WHEN** a kill experience rule is placed on the experience range fact of NPC pages
-- **THEN** the experience range label of a creature page shows the rule on hover, on focus, and on tap
-- **AND** the creature page has no How it works row for that rule
+- **WHEN** a verified kill experience rule applies to a creature's experience fact
+- **THEN** that fact links its applicable guide step and shows a supported computed value without rule prose in the label or its hover card
 
 #### Scenario: Computed yield bonus
-- **WHEN** the gathering yield bonus rule is placed on gathering node pages, and Small Iron Vein has no Mining level gate
-- **THEN** its How it works section shows the bonus chance at Mining level 1 and at the highest Mining level
+- **WHEN** Small Iron Vein has no Mining gate and verified gathering yield bonus operands
+- **THEN** its Gives answer shows the bonus at Mining level 1 and at the highest Mining level, with a guide-step link rather than a How it works rules section
