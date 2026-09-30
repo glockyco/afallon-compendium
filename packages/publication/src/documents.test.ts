@@ -341,11 +341,11 @@ test("ability list sources prefer classes, summarize many creatures, and retain 
     ["unknown", { ...base, ref: { ...base.ref, key: "abilities:4", name: "Spider Stun", slug: "spider-stun" }, description: null, versions: [version] }],
   ]);
   const rows = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("abilities")![0]!.rows;
-  expect(rows.map((row) => [row.values.description, row.values.source, row.facets.sourceKind, row.facets.class])).toEqual([
-    ["Strikes from the shadows.", "Assassin · Shadowcraft", ["Class"], ["Assassin"]],
-    ["Strikes from the shadows.", "3 creatures", ["Creature"], []],
-    ["Strikes from the shadows.", "Brown Horse", ["Item"], []],
-    [null, "No Known Use", ["No Known Use"], []],
+  expect(rows.map((row) => [row.values.source, row.facets.sourceKind, row.facets.class])).toEqual([
+    ["Assassin · Shadowcraft", ["Class"], ["Assassin"]],
+    ["3 creatures", ["Creature"], []],
+    ["Brown Horse", ["Item"], []],
+    ["No Known Use", ["No Known Use"], []],
   ]);
 });
 

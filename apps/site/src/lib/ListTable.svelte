@@ -180,16 +180,11 @@
   {/each}
 </div>
 
-<div class="list" class:ability-list={kind.kind === 'abilities'}>
+<div class="list">
   <DataTable {columns} {sort} sticky flowWide onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
     {#each filteredRows as row (row.ref.key)}
       <tr>
-        <td data-label={kind.label}>
-          <div class:ability-name={kind.kind === 'abilities'}>
-            <EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} />
-            {#if kind.kind === 'abilities' && row.values.description}<span class="description" title={String(row.values.description)}>{row.values.description}</span>{/if}
-          </div>
-        </td>
+        <td data-label={kind.label}><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} /></td>
         {#each visibleColumns as column}
           <td data-label={column.label} class:c-num={column.numeric} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}>
             {#if row.values[column.id] === null || row.values[column.id] === undefined}
@@ -200,8 +195,6 @@
               <span class="badges">{#each cellValues(row, column.id) as role}<Badge label={fieldLabel(column.id, role)} tone={role === 'boss' ? 'boss' : 'neutral'} />{/each}</span>
             {:else if typeof row.values[column.id] === 'number'}
               <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>
-            {:else if kind.kind === 'abilities' && column.id === 'source'}
-              <span class="source-text" title={String(row.values.source)}>{row.values.source}</span>
             {:else}
               {cellValues(row, column.id).map((value) => fieldLabel(column.id, value)).join(', ')}
             {/if}
@@ -236,14 +229,6 @@
   .clear:hover { border-color: var(--c-accent-line); color: var(--c-text); }
 
   .list { padding: .35rem .5rem .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  .ability-list :global(table) { table-layout: fixed; }
-  .ability-list :global(th:first-child) { width: 58%; }
-  .ability-list :global(tbody tr:nth-child(even)) { background: transparent; }
-  .ability-list :global(tbody td) { vertical-align: top; padding-block: .7rem; overflow-wrap: anywhere; }
-  .ability-list :global(tbody td:first-child) { height: 3.8rem; }
-  .ability-name { min-width: 0; }
-  .description { display: block; min-width: 0; padding-left: 1.9em; margin-top: .15rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.35; }
-  .source-text { display: block; min-width: 0; overflow-wrap: anywhere; color: var(--c-text-soft); font-size: .9375rem; }
   .reveal { min-height: 1.75rem; padding: .25rem .6rem; border: 1px solid var(--c-accent-line); border-radius: var(--c-radius-sm); color: var(--c-accent-strong); background: var(--c-surface-2); cursor: pointer; font-size: var(--c-text-small); }
   .reveal:hover { color: var(--c-text-strong); }
   .empty { padding: 1.5rem .6rem; text-align: center; }
@@ -262,7 +247,6 @@
     .list :global(tbody td) { display: grid; grid-template-columns: minmax(5rem, .6fr) minmax(0, 1fr); gap: .6rem; padding: .3rem 0; border: 0; text-align: left; overflow-wrap: anywhere; }
     .list :global(tbody td::before) { content: attr(data-label); color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; }
     .list :global(tbody td:first-child) { grid-template-columns: 1fr; padding-bottom: .5rem; }
-    .ability-list :global(tbody td:first-child) { height: auto; }
     .list :global(tbody td:first-child::before) { display: none; }
     .list :global(tbody td.blank) { display: none; }
   }

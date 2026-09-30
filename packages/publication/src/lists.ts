@@ -87,7 +87,7 @@ function abilityRow(document: PublicAbility): ListRow {
   const items = [...new Set(document.versions.flatMap((version) => version.usedByItems).map((ref) => refName(ref)).filter((name): name is string => name !== null))].sort();
   const sourceKind = classes.length ? "Class" : creatures.length ? "Creature" : items.length ? "Item" : "No Known Use";
   const source = classes.length > 2 ? `${classes.length} classes` : classes.length ? classSources.join(", ") : creatures.length > 2 ? `${creatures.length} creatures` : creatures.length ? creatures.join(", ") : items.join(", ") || "No Known Use";
-  return { ref: document.ref, values: { description: document.description, source }, facets: { sourceKind: [sourceKind], class: classes } };
+  return { ref: document.ref, values: { source }, facets: { sourceKind: [sourceKind], class: classes } };
 }
 
 function recipeRow(ref: EntityRef, station: Ref | undefined, skill: Ref | undefined, product: Ref | undefined): ListRow {

@@ -66,11 +66,11 @@ Across home, lists, guides, detail pages, and hover cards, the root text size SH
 
 ### Requirement: Abilities list identifies what an ability does and where it comes from
 
-The Abilities list SHALL show each ability's published icon, name, and one-line clamped description when available, alongside a Source column. Source SHALL prefer a learning class and talent tree, otherwise show one or two creature names or a creature count, otherwise show item names, otherwise state No Known Use. Source and Class SHALL be filters. Abilities with No Known Use SHALL remain published and reachable on their detail pages but SHALL be hidden in default list results; the Source filter SHALL reveal them with their count visible. The list SHALL fit a 390 px viewport without horizontal page scrolling.
+The Abilities list SHALL show each ability's published icon and name alongside a Source column, one line per row, without descriptions. Source SHALL prefer a learning class and talent tree, otherwise show one or two creature names or a creature count, otherwise show item names, otherwise state No Known Use. Source and Class SHALL be filters. Abilities with No Known Use SHALL remain published and reachable on their detail pages but SHALL be hidden in default list results; the Source filter SHALL reveal them with their count visible. The list SHALL fit a 390 px viewport without horizontal page scrolling.
 
 #### Scenario: Learned ability
 - **WHEN** a reader opens the Abilities list and finds Ambush
-- **THEN** its row shows Assassin · Shadowcraft and its available description beneath its name
+- **THEN** its row shows Assassin · Shadowcraft
 
 #### Scenario: Creature and item abilities
 - **WHEN** a reader finds Basic Strike and Brown Horse Mount
