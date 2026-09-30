@@ -11,6 +11,11 @@
   export let rankIndex: number | undefined = undefined;
   /** An item link carries its rarity on the name and the icon ring, as the game does. */
   export let rarity: string | undefined = undefined;
+  /**
+   * Keeps the name on one line and ends a long name with an ellipsis. The link then fills the width of its container,
+   * and the hover card shows the full name; a link without a hover card names it in its title.
+   */
+  export let truncate = false;
 
   // A list page shows a thousand links, so a link mounts its preview only on focus, pointer intent, or tap.
   // A pointer leaving closes it even if the link retains focus; keyboard-only focus keeps it
@@ -102,14 +107,14 @@
 {#if resolved && linked && kind}
   {#if tooltip}
     <!-- The tooltip follows the anchor without a space, so punctuation after a link stays next to its name. -->
-    <span class="tooltip-anchor" role="group" bind:this={anchorElement}>
-      <a class="entity-link" data-rarity={rarity} {href} aria-describedby={tooltipId} bind:this={linkElement} on:pointerenter={onPointerEnter} on:pointermove={trackPointer} on:pointerdown={onPointerDown} on:pointerleave={onPointerLeave} on:focus={onFocus} on:blur={onBlur} on:click={onClick} on:keydown={(event) => tooltipController?.handleKeydown(event)}>{#if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
+    <span class="tooltip-anchor" class:truncate role="group" bind:this={anchorElement}>
+      <a class="entity-link" class:truncate data-rarity={rarity} {href} aria-describedby={tooltipId} bind:this={linkElement} on:pointerenter={onPointerEnter} on:pointermove={trackPointer} on:pointerdown={onPointerDown} on:pointerleave={onPointerLeave} on:focus={onFocus} on:blur={onBlur} on:click={onClick} on:keydown={(event) => tooltipController?.handleKeydown(event)}>{#if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
     </span>{#if tooltipId}<EntityTooltip bind:this={tooltipController} ref={resolved} {registry} {rankIndex} anchor={anchorElement} id={tooltipId} />{/if}
   {:else}
-    <a class="entity-link" data-rarity={rarity} {href}>{#if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
+    <a class="entity-link" class:truncate data-rarity={rarity} {href} title={truncate ? resolved.name : undefined}>{#if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
   {/if}
 {:else if resolved}
-  <span class="entity-text" data-rarity={rarity}>{#if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{/if}<span class="name">{resolved.name}</span></span>
+  <span class="entity-text" class:truncate data-rarity={rarity} title={truncate ? resolved.name : undefined}>{#if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{/if}<span class="name">{resolved.name}</span></span>
 {:else if ref.key === null}
   <span class="entity-text">{ref.label}</span>
 {/if}
@@ -134,4 +139,9 @@
   .entity-link[data-rarity], .entity-text[data-rarity] { color: var(--c-rarity); }
   .entity-link[data-rarity]:hover { color: color-mix(in srgb, var(--c-rarity) 75%, var(--c-text-strong)); }
   [data-rarity] img { border-color: color-mix(in srgb, var(--c-rarity) 60%, transparent); }
+  /* A truncated link is a one-line flex row: the icon keeps its size and the name shrinks to an ellipsis. */
+  .tooltip-anchor.truncate { display: block; min-width: 0; }
+  .truncate.entity-link, .truncate.entity-text { display: flex; align-items: center; min-width: 0; white-space: nowrap; }
+  .truncate img, .truncate .kind-icon { flex: none; top: 0; }
+  .truncate .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 </style>

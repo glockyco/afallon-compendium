@@ -21,7 +21,7 @@
         <div class="destination">
           <span>{row.direction === 'within' ? 'Within' : row.direction === 'to' ? 'To' : 'From'}</span>
           {#if row.direction === 'within'}this place
-          {:else}<EntityLink ref={row.counterpart} {registry} />{/if}
+          {:else}<EntityLink ref={row.counterpart} {registry} truncate />{/if}
           {#if row.placements.length}<span class="count">{row.placements.length} {row.placements.length === 1 ? 'spot' : 'spots'}</span>{/if}
         </div>
         {#if row.placements.length}
@@ -40,10 +40,12 @@
 <style>
   .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
   h2 { margin: 0 0 .75rem; font-size: 1rem; }
-  .connections { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
+  /* `minmax(0, 1fr)` lets a row be narrower than its one-line content, so a long name truncates instead of overflowing. */
+  .connections { display: grid; grid-template-columns: minmax(0, 1fr); gap: .7rem; margin: 0; padding: 0; list-style: none; }
   li + li { padding-top: .7rem; border-top: 1px solid var(--c-line-soft); }
-  .destination { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem; }
-  .destination > span:first-child, .count { color: var(--c-text-dim); }
-  .count { margin-left: auto; font-size: var(--c-text-small); }
+  /* One line per connection: the direction and count keep their width, and a long place name ends in an ellipsis. */
+  .destination { display: flex; align-items: center; gap: .35rem; min-width: 0; white-space: nowrap; }
+  .destination > span:first-child, .count { flex: none; color: var(--c-text-dim); }
+  .count { margin-left: auto; padding-left: .5rem; font-size: var(--c-text-small); }
   .map-spots { display: flex; flex-wrap: wrap; gap: .25rem .65rem; margin-top: .25rem; font-size: var(--c-text-small); }
 </style>

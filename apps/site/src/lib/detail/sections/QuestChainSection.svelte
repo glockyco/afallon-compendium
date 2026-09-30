@@ -18,7 +18,7 @@
       {#each quests as quest, index}
         <li class:current={quest.key === currentKey}>
           <span class="number">{index + 1}</span>
-          <span class="step-name">{#if quest.key === currentKey}<strong aria-current="step" title={quest.name}><span class="kind-icon" aria-hidden="true">{@html questGlyph ?? ''}</span><span class="current-name">{quest.name}</span></strong>{:else}<EntityLink ref={quest} {registry} />{/if}</span>
+          <span class="step-name">{#if quest.key === currentKey}<strong aria-current="step" title={quest.name}><span class="kind-icon" aria-hidden="true">{@html questGlyph ?? ''}</span><span class="current-name">{quest.name}</span></strong>{:else}<EntityLink ref={quest} {registry} truncate />{/if}</span>
         </li>
       {/each}
     </ol>
@@ -35,10 +35,6 @@
   .number { display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border: 1px solid var(--c-line); border-radius: 50%; background: var(--c-surface-2); font-variant-numeric: tabular-nums; }
   .current .number { border-color: var(--c-accent); color: var(--c-accent-strong); }
   .step-name { min-width: 0; }
-  .step-name :global(.tooltip-anchor) { display: block; min-width: 0; }
-  .step-name :global(.entity-link) { display: flex; align-items: center; min-width: 0; width: 100%; white-space: nowrap; }
-  .step-name :global(.entity-link .name) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .step-name :global(.entity-link img), .step-name :global(.entity-link .kind-icon) { flex: none; }
   strong { display: flex; align-items: center; min-width: 0; color: var(--c-accent-strong); font-weight: 600; }
   .current-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .kind-icon { box-sizing: border-box; display: inline-grid; place-items: center; flex: none; position: relative; top: -.12em; width: 1.45em; height: 1.45em; margin-right: .35em; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text-mute); }
