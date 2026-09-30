@@ -51,7 +51,7 @@
 
     {#if facts.useLines.length}<NativeText lines={facts.useLines} />{/if}
     {#if facts.actionAbilities.length}
-      <ul class="plain">{#each facts.actionAbilities as reference}<li>Use: <slot name="ref" ref={reference.ability} rankIndex={reference.rankIndex}><EntityReference ref={reference.ability} {registry} /></slot> <span class="dim">Rank {reference.rankIndex + 1}</span></li>{/each}</ul>
+      <ul class="plain">{#each facts.actionAbilities as reference}<li>Use: <slot name="ref" ref={reference.ability} rankIndex={reference.rankIndex}><EntityReference ref={reference.ability} {registry} /></slot>{#if reference.rankIndex !== undefined} <span class="dim">Rank {reference.rankIndex + 1}</span>{/if}</li>{/each}</ul>
     {/if}
 
     {#each facts.sockets as socket}<p class="dim">Empty {categoryLabel(socket.socketType ?? socket.gemType ?? 'socket')} socket</p>{/each}

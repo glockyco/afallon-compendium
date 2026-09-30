@@ -73,7 +73,11 @@ export function auditPublicTooltipCoverage(
     const published = document as PublicItem;
     if (!sameLines(item.useLines, published.facts.useLines)) issues.push(`Item ${item.entityKey} changed its native use-text block.`);
     for (const reference of published.facts.actionAbilities) {
-      if (reference.ability.key !== null && !referencedRanks(reference.ability)?.has(reference.rankIndex)) issues.push(`Item ${item.entityKey} references missing ability rank ${reference.ability.key}#${reference.rankIndex}.`);
+      if (reference.ability.key === null) continue;
+      const ranks = referencedRanks(reference.ability);
+      if (!ranks || (reference.rankIndex !== undefined && !ranks.has(reference.rankIndex))) {
+        issues.push(`Item ${item.entityKey} references missing ability${reference.rankIndex === undefined ? "" : " rank"} ${reference.ability.key}${reference.rankIndex === undefined ? "" : `#${reference.rankIndex}`}.`);
+      }
     }
   }
 

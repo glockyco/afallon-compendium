@@ -7,7 +7,7 @@
   import Section from '../Section.svelte';
 
   export let versions: AbilityVersion[];
-  export let relation: 'usedBy' | 'taughtBy';
+  export let relation: 'usedBy' | 'usedByItems' | 'taughtBy';
   export let registry: PublicKindEntry[];
   export let compact = false;
   export let showAllHref = '#used-by';
@@ -17,12 +17,12 @@
   $: groups = versions.map((version, index) => ({ refs: version[relation], index })).filter((group) => group.refs.length);
   $: refs = groups.flatMap((group) => group.refs);
   $: count = refs.length;
-  $: title = relation === 'usedBy' ? 'Used by' : 'Taught by';
-  $: id = relation === 'usedBy' ? 'used-by' : 'taught-by';
+  $: title = relation === 'usedBy' ? 'Used by' : relation === 'usedByItems' ? 'Used by items' : 'Taught by';
+  $: id = relation === 'usedBy' ? 'used-by' : relation === 'usedByItems' ? 'used-by-items' : 'taught-by';
 </script>
 
 {#if count}
-  {#if compact}<div id={versions.length > 1 ? 'used-by' : undefined} class="compact"><h3>{title} {count}{#if refs.every((ref) => ref.key !== null && ref.kind === 'npcs')}{' creatures'}{/if}</h3>
+  {#if compact}<div id={versions.length > 1 ? id : undefined} class="compact"><h3>{title} {count}{#if refs.every((ref) => ref.key !== null && ref.kind === 'npcs')}{' creatures'}{/if}</h3>
     <ul class="preview">{#each refs.slice(0, 8) as ref}<li><EntityLink {ref} {registry} /></li>{/each}</ul>
     {#if count > 8}<a class="c-link all" href={showAllHref} on:click={() => onShowAll?.()}>Show all {count}</a>{/if}
   </div>

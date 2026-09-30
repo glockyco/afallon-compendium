@@ -192,7 +192,7 @@ export const StaticRootManifestSchema = Type.Object({
   world: PublicWorldSchema,
   maps: Type.Array(StaticMapSummarySchema),
   kinds: Type.Array(PublicKindEntrySchema, { minItems: 1 }),
-  lists: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z]*$" }), Type.Array(resourceReference("compendium.static-kind-list.v4"), { minItems: 1 })),
+  lists: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z]*$" }), Type.Array(resourceReference("compendium.static-kind-list.v5"), { minItems: 1 })),
   search: Type.Array(resourceReference("compendium.static-search.v6"), { minItems: 1 }),
   coverage: resourceReference("compendium.static-coverage.v3"),
   exclusions: resourceReference("compendium.static-exclusions.v1"),
@@ -403,7 +403,7 @@ export function staticResourceEdges(value: StaticResource): StaticResourceRefere
       ...[entry.ref.icon, entry.ref.portrait].filter((art) => art !== undefined)
         .map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" })),
     ]);
-    case "compendium.static-kind-list.v4": return value.rows.flatMap((row) => [row.ref.icon, row.ref.portrait]
+    case "compendium.static-kind-list.v5": return value.rows.flatMap((row) => [row.ref.icon, row.ref.portrait]
       .filter((art) => art !== undefined)
       .map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" })));
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));

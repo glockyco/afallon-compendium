@@ -63,3 +63,25 @@ Across home, lists, guides, detail pages, and hover cards, the root text size SH
 #### Scenario: Contrast audit
 - **WHEN** rendered text is measured against each surface and state on which it appears
 - **THEN** every text pairing meets a contrast ratio of at least 4.5:1
+
+### Requirement: Abilities list identifies what an ability does and where it comes from
+
+The Abilities list SHALL show each ability's published icon, name, and one-line clamped description when available, alongside a Source column. Source SHALL prefer a learning class and talent tree, otherwise show one or two creature names or a creature count, otherwise show item names, otherwise state No Known Use. Source and Class SHALL be filters. Abilities with No Known Use SHALL remain published and reachable on their detail pages but SHALL be hidden in default list results; the Source filter SHALL reveal them with their count visible. The list SHALL fit a 390 px viewport without horizontal page scrolling.
+
+#### Scenario: Learned ability
+- **WHEN** a reader opens the Abilities list and finds Ambush
+- **THEN** its row shows Assassin · Shadowcraft and its available description beneath its name
+
+#### Scenario: Creature and item abilities
+- **WHEN** a reader finds Basic Strike and Brown Horse Mount
+- **THEN** Basic Strike reports the number of creature users rather than a long name list, and Brown Horse Mount names its item source
+- **AND** the Healing Potion ability page links the items that cast it under Used by items
+
+#### Scenario: Unattributed abilities
+- **WHEN** a reader opens the list without filters
+- **THEN** the count excludes abilities with No Known Use and offers a counted action to reveal them
+- **AND** selecting No Known Use in Source reveals those abilities without removing their detail pages
+
+#### Scenario: Filter by class
+- **WHEN** a reader selects Assassin in Class
+- **THEN** only abilities learned by Assassin remain, and resetting the filter restores the default list

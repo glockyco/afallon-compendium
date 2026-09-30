@@ -33,6 +33,9 @@
     facet.id,
     [...new Set(list.rows.flatMap((row) => row.facets[facet.id] ?? []))].sort((left, right) => compareFacetValues(facet.id, left, right)),
   ]));
+  $: hiddenOptions = kind.facets.flatMap((facet) => (facet.defaultHiddenValues ?? []).map((value) => ({
+    facet, value, count: list.rows.filter((row) => (row.facets[facet.id] ?? []).includes(value)).length,
+  }))).filter((option) => option.count > 0 && !(facetValues[option.facet.id] ?? []).length);
   $: numericColumns = visibleColumns.filter((column) => column.numeric);
   // A facet with one value in the whole list separates nothing, so the control leaves.
   $: visibleFacets = kind.facets.filter((facet) => (facetOptions[facet.id] ?? []).length > 1);
@@ -76,7 +79,8 @@
     if (needle && !row.ref.name.toLocaleLowerCase().includes(needle)) return false;
     for (const facet of kind.facets) {
       const selected = selectedFacets[facet.id] ?? [];
-      if (selected.length && !selected.some((value) => (row.facets[facet.id] ?? []).includes(value))) return false;
+      const values = row.facets[facet.id] ?? [];
+      if (selected.length ? !selected.some((value) => values.includes(value)) : (facet.defaultHiddenValues ?? []).some((value) => values.includes(value))) return false;
     }
     for (const column of numericColumns) {
       const value = row.values[column.id];
@@ -153,8 +157,8 @@
     <label class="field">
       <span>{facet.label}</span>
       <select value={(facetValues[facet.id] ?? [])[0] ?? ''} on:change={(event) => setFacet(facet.id, event.currentTarget.value)}>
-        <option value="">All</option>
-        {#each facetOptions[facet.id] ?? [] as option}<option value={option}>{fieldLabel(facet.id, option)}</option>{/each}
+        <option value="">{facet.defaultHiddenValues?.length ? `All except ${facet.defaultHiddenValues.join(', ')}` : 'All'}</option>
+        {#each facetOptions[facet.id] ?? [] as option}<option value={option}>{fieldLabel(facet.id, option)}{#if facet.defaultHiddenValues?.includes(option)} ({formatNumber(list.rows.filter((row) => (row.facets[facet.id] ?? []).includes(option)).length)}){/if}</option>{/each}
       </select>
     </label>
   {/each}
@@ -171,13 +175,21 @@
 <div class="result-bar">
   <p aria-live="polite"><strong>{formatNumber(filteredRows.length)}</strong> {filteredRows.length === 1 ? readerNoun(kind.label) : readerNoun(kind.plural)}{#if filteredRows.length !== list.rows.length}{' of '}{formatNumber(list.rows.length)}{/if}</p>
   {#if activeFilters}<button type="button" class="clear" on:click={clearFilters}>Clear filters</button>{/if}
+  {#each hiddenOptions as option}
+    <button type="button" class="reveal" on:click={() => setFacet(option.facet.id, option.value)}>Show {formatNumber(option.count)} hidden ({option.value})</button>
+  {/each}
 </div>
 
-<div class="list">
+<div class="list" class:ability-list={kind.kind === 'abilities'}>
   <DataTable {columns} {sort} sticky flowWide onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
     {#each filteredRows as row (row.ref.key)}
       <tr>
-        <td data-label={kind.label}><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} /></td>
+        <td data-label={kind.label}>
+          <div class:ability-name={kind.kind === 'abilities'}>
+            <EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} />
+            {#if kind.kind === 'abilities' && row.values.description}<span class="description" title={String(row.values.description)}>{row.values.description}</span>{/if}
+          </div>
+        </td>
         {#each visibleColumns as column}
           <td data-label={column.label} class:c-num={column.numeric} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}>
             {#if row.values[column.id] === null || row.values[column.id] === undefined}
@@ -188,6 +200,8 @@
               <span class="badges">{#each cellValues(row, column.id) as role}<Badge label={fieldLabel(column.id, role)} tone={role === 'boss' ? 'boss' : 'neutral'} />{/each}</span>
             {:else if typeof row.values[column.id] === 'number'}
               <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>
+            {:else if kind.kind === 'abilities' && column.id === 'source'}
+              <span class="source-text" title={String(row.values.source)}>{row.values.source}</span>
             {:else}
               {cellValues(row, column.id).map((value) => fieldLabel(column.id, value)).join(', ')}
             {/if}
@@ -222,6 +236,16 @@
   .clear:hover { border-color: var(--c-accent-line); color: var(--c-text); }
 
   .list { padding: .35rem .5rem .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  .ability-list :global(table) { table-layout: fixed; }
+  .ability-list :global(th:first-child) { width: 58%; }
+  .ability-list :global(tbody tr:nth-child(even)) { background: transparent; }
+  .ability-list :global(tbody td) { vertical-align: top; padding-block: .7rem; overflow-wrap: anywhere; }
+  .ability-list :global(tbody td:first-child) { height: 3.8rem; }
+  .ability-name { min-width: 0; }
+  .description { display: block; min-width: 0; padding-left: 1.9em; margin-top: .15rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.35; }
+  .source-text { display: block; min-width: 0; overflow-wrap: anywhere; color: var(--c-text-soft); font-size: .9375rem; }
+  .reveal { min-height: 1.75rem; padding: .25rem .6rem; border: 1px solid var(--c-accent-line); border-radius: var(--c-radius-sm); color: var(--c-accent-strong); background: var(--c-surface-2); cursor: pointer; font-size: var(--c-text-small); }
+  .reveal:hover { color: var(--c-text-strong); }
   .empty { padding: 1.5rem .6rem; text-align: center; }
   .badges { display: inline-flex; flex-wrap: wrap; gap: .3rem; }
 
@@ -238,6 +262,7 @@
     .list :global(tbody td) { display: grid; grid-template-columns: minmax(5rem, .6fr) minmax(0, 1fr); gap: .6rem; padding: .3rem 0; border: 0; text-align: left; overflow-wrap: anywhere; }
     .list :global(tbody td::before) { content: attr(data-label); color: var(--c-text-dim); font-size: var(--c-text-label); font-weight: 700; }
     .list :global(tbody td:first-child) { grid-template-columns: 1fr; padding-bottom: .5rem; }
+    .ability-list :global(tbody td:first-child) { height: auto; }
     .list :global(tbody td:first-child::before) { display: none; }
     .list :global(tbody td.blank) { display: none; }
   }

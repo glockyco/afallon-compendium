@@ -76,8 +76,18 @@ function propertyRow(document: PublicProperty): ListRow {
 }
 
 function abilityRow(document: PublicAbility): ListRow {
-  const users = [...new Set(document.versions.flatMap((version) => version.usedBy).map((ref) => refName(ref)).filter((value): value is string => value !== null))];
-  return { ref: document.ref, values: { usedBy: users.join(", ") || null }, facets: {} };
+  const learners = document.versions.flatMap((version) => version.learnedBy);
+  const classes = [...new Set(learners.map((learner) => refName(learner.class)).filter((name): name is string => name !== null))].sort();
+  // A class that grants its auto attack through a tree is still one source, not two comma-separated entries.
+  const classSources = classes.map((name) => {
+    const trees = [...new Set(learners.filter((learner) => refName(learner.class) === name).map((learner) => learner.tree).filter((tree): tree is string => Boolean(tree)))].sort();
+    return [name, ...trees].join(" · ");
+  });
+  const creatures = [...new Set(document.versions.flatMap((version) => version.usedBy).map((ref) => refName(ref)).filter((name): name is string => name !== null))].sort();
+  const items = [...new Set(document.versions.flatMap((version) => version.usedByItems).map((ref) => refName(ref)).filter((name): name is string => name !== null))].sort();
+  const sourceKind = classes.length ? "Class" : creatures.length ? "Creature" : items.length ? "Item" : "No Known Use";
+  const source = classes.length > 2 ? `${classes.length} classes` : classes.length ? classSources.join(", ") : creatures.length > 2 ? `${creatures.length} creatures` : creatures.length ? creatures.join(", ") : items.join(", ") || "No Known Use";
+  return { ref: document.ref, values: { description: document.description, source }, facets: { sourceKind: [sourceKind], class: classes } };
 }
 
 function recipeRow(ref: EntityRef, station: Ref | undefined, skill: Ref | undefined, product: Ref | undefined): ListRow {
@@ -153,7 +163,7 @@ export function buildKindLists(
     if (!entry.list) continue;
     const kind = entry.kind as PublicListKind;
     result.set(kind, partitionStaticRecords(rowsByKind.get(kind) ?? [], (rows, part): StaticKindList => ({
-      schemaVersion: "compendium.static-kind-list.v4", ...identity, kind, part, rows,
+      schemaVersion: "compendium.static-kind-list.v5", ...identity, kind, part, rows,
     })));
   }
   return result;

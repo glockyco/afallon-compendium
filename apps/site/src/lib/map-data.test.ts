@@ -22,7 +22,7 @@ function fixture() {
     const ref = { key, kind: 'items' as const, name, slug: name };
     refs.set(key, ref);
     documents.set(key, register({
-      schemaVersion: 'compendium.static-item.v9', ...identity, kind: 'items',
+      schemaVersion: 'compendium.static-item.v10', ...identity, kind: 'items',
       document: {
         ref, description: null, art: {}, sourceSpotCount: 1, sourceAvailabilities: [],
         facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
@@ -30,7 +30,7 @@ function fixture() {
       },
     }));
   }
-  const list = register({ schemaVersion: 'compendium.static-kind-list.v4', ...identity, kind: 'items', part: 0, rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
+  const list = register({ schemaVersion: 'compendium.static-kind-list.v5', ...identity, kind: 'items', part: 0, rows: [...refs.values()].map((ref) => ({ ref, values: {}, facets: {} })) });
   const search = register({
     schemaVersion: 'compendium.static-search.v6', ...identity, part: 0,
     entries: [...refs].map(([key, ref]) => ({ ref, hasPlacements: true, sourceKinds: ['vendor'], document: documents.get(key) })),
@@ -100,7 +100,7 @@ test('search finds a craft by its recipe alias without requiring a recipe page',
 test('Recipes list rows resolve to item Crafting sections without recipe documents', async () => {
   const data = fixture();
   const ref = { key: 'item:a', kind: 'items' as const, name: 'Iron Bar recipe', slug: 'a', variant: 'crafting' };
-  const recipeList = data.register({ schemaVersion: 'compendium.static-kind-list.v4', ...data.identity, kind: 'recipes', part: 0, rows: [{ ref, values: {}, facets: {} }] });
+  const recipeList = data.register({ schemaVersion: 'compendium.static-kind-list.v5', ...data.identity, kind: 'recipes', part: 0, rows: [{ ref, values: {}, facets: {} }] });
   data.root.lists.recipes = [recipeList];
   data.root.kinds.push({ kind: 'recipes', label: 'Recipe', plural: 'Recipes', route: 'recipes', icon: 'recipe', pages: false, list: true, searchable: false, columns: [], facets: [] });
   data.bodies.set('publication.json', JSON.stringify(data.root));

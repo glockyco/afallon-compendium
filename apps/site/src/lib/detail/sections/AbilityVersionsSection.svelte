@@ -18,7 +18,7 @@
     { id: 'text', label: 'Text', value: (row) => row.version.ranks.flatMap((rank) => rank.lines.flatMap((line) => line.spans.map((span) => span.text))).join(' ') },
     // The hero shows the requirements of the main version, so a column that every version shares leaves the table.
     { id: 'requirements', label: 'Requirements', value: (row) => row.version.useRequirements.flatMap((group) => group.requirements.map((requirement) => requirement.label)).join(', ') || undefined, whenShared: () => 'omit' },
-    { id: 'users', label: 'Users', value: (row) => row.version.usedBy.length || undefined },
+    { id: 'users', label: 'Users', value: (row) => row.version.usedBy.length + row.version.usedByItems.length || undefined },
   ];
 
   $: rows = versions.map((version, index) => ({ version, index }));
@@ -38,7 +38,15 @@
             {/each}
           </div>
         {:else if column === 'requirements'}<Requirements requirements={row.version.useRequirements} {registry} kindLabels={false} />
-        {:else if column === 'users'}{#if row.version.usedBy.length}<details class="users" open={showAllUsers}><summary>{row.version.usedBy.length} users</summary><LinkGrid refs={row.version.usedBy} {registry} /></details>{:else}0{/if}{/if}
+        {:else if column === 'users'}
+          {#if row.version.usedBy.length + row.version.usedByItems.length}
+            <details class="users" open={showAllUsers}>
+              <summary>{row.version.usedBy.length + row.version.usedByItems.length} users</summary>
+              {#if row.version.usedBy.length}<h3>Creatures</h3><LinkGrid refs={row.version.usedBy} {registry} />{/if}
+              {#if row.version.usedByItems.length}<h3>Items</h3><LinkGrid refs={row.version.usedByItems} {registry} />{/if}
+            </details>
+          {:else}0{/if}
+        {/if}
       </svelte:fragment>
     </RelationTable>
   </Section>

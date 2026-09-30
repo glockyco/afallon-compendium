@@ -1,7 +1,7 @@
 import type { PublicKindEntry, PublicReferenceKind } from "@afallon/contracts/public";
 
 const column = (id: string, label: string, numeric = false): PublicKindEntry["columns"][number] => ({ id, label, sortable: true, numeric });
-const facet = (id: string, label: string): PublicKindEntry["facets"][number] => ({ id, label });
+const facet = (id: string, label: string, defaultHiddenValues?: string[]): PublicKindEntry["facets"][number] => ({ id, label, ...(defaultHiddenValues ? { defaultHiddenValues } : {}) });
 
 export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
   { kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, list: true, searchable: true,
@@ -21,7 +21,7 @@ export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
   { kind: "properties", label: "Property", plural: "Properties", route: "properties", icon: "property", pages: true, list: true, searchable: true,
     columns: [column("type", "Type"), column("place", "Place"), column("price", "Price", true), column("income", "Income", true)], facets: [facet("type", "Type"), facet("place", "Place")] },
   { kind: "abilities", label: "Ability", plural: "Abilities", route: "abilities", icon: "ability", pages: true, list: true, searchable: true,
-    columns: [column("usedBy", "Used by")], facets: [] },
+    columns: [column("source", "Source")], facets: [facet("sourceKind", "Source", ["No Known Use"]), facet("class", "Class")] },
   { kind: "recipes", label: "Recipe", plural: "Recipes", route: "recipes", icon: "recipe", pages: false, list: true, searchable: false,
     columns: [column("station", "Station"), column("skill", "Skill"), column("product", "Product")],
     facets: [facet("station", "Station"), facet("skill", "Skill")] },

@@ -351,7 +351,8 @@ export const ItemFactsSchema = Type.Object({
   sockets: Type.Array(SocketRowSchema), gem: optional(GemSchema),
   enchantment: optional(RefSchema), sellPrice: optional(PriceSchema), buyPrice: optional(PriceSchema),
   stackLimit: count, questDropOnly: Type.Boolean(), corruptionToken: Type.Boolean(),
-  actionAbilities: Type.Array(ContextualAbilityRefSchema), useLines: Type.Array(NativeTextLineSchema),
+  // A direct item action has a known rank; a game action targets an ability without publishing a rank.
+  actionAbilities: Type.Array(Type.Object({ ability: RefSchema, rankIndex: optional(count) }, { additionalProperties: false })), useLines: Type.Array(NativeTextLineSchema),
   // `levelRequirement` is the threshold of the item's Level equipment requirement, which lists and search sort by.
   equipmentRequirements: requirements, levelRequirement: optional(count), useConditions: requirements, gearSet: optional(GearSetSchema),
 }, { additionalProperties: false });
@@ -499,7 +500,7 @@ export type LearnerRow = Static<typeof LearnerRowSchema>;
 // as "Ursine Aspect is active". The ability tooltip shows neither.
 export const AbilityVersionSchema = Type.Object({
   keys: Type.Array(text, { minItems: 1, uniqueItems: true }), anchor, icon: optional(ArtRefSchema),
-  ranks: Type.Array(AbilityRankSchema, { minItems: 1 }), useRequirements: requirements, learnedBy: Type.Array(LearnerRowSchema), usedBy: refs, taughtBy: refs,
+  ranks: Type.Array(AbilityRankSchema, { minItems: 1 }), useRequirements: requirements, learnedBy: Type.Array(LearnerRowSchema), usedBy: refs, usedByItems: refs, taughtBy: refs,
 }, { additionalProperties: false });
 export type AbilityVersion = Static<typeof AbilityVersionSchema>;
 
@@ -677,8 +678,8 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v9", npcs: "compendium.static-npc.v6", quests: "compendium.static-quest.v6", places: "compendium.static-place.v6",
-  properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v5",
+  items: "compendium.static-item.v10", npcs: "compendium.static-npc.v6", quests: "compendium.static-quest.v6", places: "compendium.static-place.v6",
+  properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v4", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
@@ -702,16 +703,16 @@ export const StaticSkillDocumentSchema = staticDocument("skills");
 export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v9": typeof StaticItemDocumentSchema; "compendium.static-npc.v6": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v10": typeof StaticItemDocumentSchema; "compendium.static-npc.v6": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v6": typeof StaticPlaceDocumentSchema;
-  "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v5": typeof StaticAbilityDocumentSchema;
+  "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v4": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v4": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
-  "compendium.static-item.v9": StaticItemDocumentSchema, "compendium.static-npc.v6": StaticNpcDocumentSchema,
+  "compendium.static-item.v10": StaticItemDocumentSchema, "compendium.static-npc.v6": StaticNpcDocumentSchema,
   "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v6": StaticPlaceDocumentSchema,
-  "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v5": StaticAbilityDocumentSchema,
+  "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v4": StaticClassDocumentSchema,
   "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v4": StaticMechanicsDocumentSchema,
   "compendium.static-gathering-node.v4": StaticGatheringNodeDocumentSchema,
@@ -720,8 +721,8 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v9"), resourceReference("compendium.static-npc.v6"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v6"),
-  resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v5"),
+  resourceReference("compendium.static-item.v10"), resourceReference("compendium.static-npc.v6"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v6"),
+  resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v4"),
   resourceReference("compendium.static-gathering-node.v4"),
 ]);
@@ -731,7 +732,7 @@ export type DocumentReference = Static<typeof documentReference>;
 // from the registry is not routed.
 export const ListColumnSchema = Type.Object({ id: text, label: text, sortable: Type.Boolean(), numeric: Type.Boolean() }, { additionalProperties: false });
 export type ListColumn = Static<typeof ListColumnSchema>;
-export const ListFacetSchema = Type.Object({ id: text, label: text }, { additionalProperties: false });
+export const ListFacetSchema = Type.Object({ id: text, label: text, defaultHiddenValues: optional(Type.Array(text, { minItems: 1, uniqueItems: true })) }, { additionalProperties: false });
 export type ListFacet = Static<typeof ListFacetSchema>;
 
 export const PublicKindEntrySchema = Type.Object({
@@ -750,7 +751,7 @@ export type ListRow = Static<typeof ListRowSchema>;
 // its reference, its icon, and its column and facet values, and a kind can hold thousands of rows.
 // The list page loads every part; the budget bounds each file, not the data.
 export const StaticKindListSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-kind-list.v4"), ...identity, kind: PublicListKindSchema, part: count, rows: Type.Array(ListRowSchema),
+  schemaVersion: Type.Literal("compendium.static-kind-list.v5"), ...identity, kind: PublicListKindSchema, part: count, rows: Type.Array(ListRowSchema),
 }, { additionalProperties: false });
 export type StaticKindList = Static<typeof StaticKindListSchema>;
 
@@ -777,10 +778,10 @@ export const StaticSearchIndexSchema = Type.Object({
 export type StaticSearchIndex = Static<typeof StaticSearchIndexSchema>;
 
 export const STATIC_COMPENDIUM_SCHEMAS: typeof STATIC_DOCUMENT_SCHEMAS & {
-  "compendium.static-kind-list.v4": typeof StaticKindListSchema; "compendium.static-search.v6": typeof StaticSearchIndexSchema;
+  "compendium.static-kind-list.v5": typeof StaticKindListSchema; "compendium.static-search.v6": typeof StaticSearchIndexSchema;
 } = {
   ...STATIC_DOCUMENT_SCHEMAS,
-  "compendium.static-kind-list.v4": StaticKindListSchema,
+  "compendium.static-kind-list.v5": StaticKindListSchema,
   "compendium.static-search.v6": StaticSearchIndexSchema,
 };
 export type StaticCompendiumResource = StaticDocument | StaticKindList | StaticSearchIndex;
@@ -868,13 +869,13 @@ schemaRegistry.register("compendium.public-craft.v1", CraftSchema);
 schemaRegistry.register("compendium.public-placed-rule.v2", PlacedRuleSchema);
 schemaRegistry.register("compendium.public-contextual-ability-ref.v1", ContextualAbilityRefSchema);
 schemaRegistry.register("compendium.public-ability-rank.v1", AbilityRankSchema);
-schemaRegistry.register("compendium.public-ability-version.v2", AbilityVersionSchema);
+schemaRegistry.register("compendium.public-ability-version.v3", AbilityVersionSchema);
 schemaRegistry.register("compendium.public-ability-phase.v2", AbilityPhaseSchema);
 schemaRegistry.register("compendium.public-faction-reward-row.v1", FactionRewardRowSchema);
 schemaRegistry.register("compendium.public-creature-row.v1", CreatureRowSchema);
 schemaRegistry.register("compendium.public-placement-group.v1", PlacementGroupSchema);
 schemaRegistry.register("compendium.public-connection-row.v2", ConnectionRowSchema);
-schemaRegistry.register("compendium.public-kind-entry.v2", PublicKindEntrySchema);
+schemaRegistry.register("compendium.public-kind-entry.v3", PublicKindEntrySchema);
 schemaRegistry.register("compendium.public-search-entry.v2", PublicSearchEntrySchema);
 // Schema ids are lower case with hyphens, so a camel-case kind becomes hyphenated. A public document schema
 // shares the version of its static document schema.

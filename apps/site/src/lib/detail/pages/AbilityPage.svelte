@@ -14,7 +14,7 @@
   export let document: PublicAbility;
   export let registry: PublicKindEntry[];
 
-  $: main = document.versions.reduce((chosen, version) => version.usedBy.length > chosen.usedBy.length ? version : chosen);
+  $: main = document.versions.reduce((chosen, version) => version.usedBy.length + version.usedByItems.length > chosen.usedBy.length + chosen.usedByItems.length ? version : chosen);
   $: icon = main.icon ?? document.art.icon ?? document.ref.icon;
   let showAllUsers = false;
 </script>
@@ -25,7 +25,8 @@
     <div slot="answer"><AnswerCard title="Who learns and uses it">
       <LearnedBySection versions={document.versions} {registry} />
       <AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} compact showAllHref={document.versions.length > 1 ? '#versions' : '#used-by'} onShowAll={() => (showAllUsers = true)} />
-      {#if !document.versions.some((version) => version.learnedBy.length || version.usedBy.length)}<p>No published learner or user is known.</p>{/if}
+      <AbilityReferencesSection versions={document.versions} relation="usedByItems" {registry} compact showAllHref={document.versions.length > 1 ? '#versions' : '#used-by-items'} onShowAll={() => (showAllUsers = true)} />
+      {#if !document.versions.some((version) => version.learnedBy.length || version.usedBy.length || version.usedByItems.length)}<p>No published learner or user is known.</p>{/if}
     </AnswerCard></div>
     <div slot="side" class="side-content">
       <div class="c-game-frame"><AbilityTooltip {document} variant={main.anchor} /></div>
@@ -34,7 +35,7 @@
     <Sections>
       <AbilityVersionsSection versions={document.versions} {registry} {showAllUsers} />
       {#if document.versions.length === 1 && document.versions[0]!.usedBy.length > 8}<AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} />{/if}
-      <AbilityReferencesSection versions={document.versions} relation="taughtBy" {registry} />
+      {#if document.versions.length === 1 && document.versions[0]!.usedByItems.length > 8}<AbilityReferencesSection versions={document.versions} relation="usedByItems" {registry} />{/if}
     </Sections>
   </DetailFrame>
 </article>

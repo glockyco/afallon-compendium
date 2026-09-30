@@ -271,9 +271,9 @@ test("projects representative item use text, effective stats and contextual abil
     ...facts,
     entities: [...entities, ...additions],
     items: [baseItem,
-      { ...baseItem, entityKey: "items:101", stats: [], equipmentRequirements: [], conditionIds: [], gearSet: null, useLines: line("Restores 120 health."), actionAbilities: [{ ability: { entityKey: "abilities:202", label: "Healing potion" }, rankIndex: 3 }] },
+      { ...baseItem, entityKey: "items:101", stats: [], equipmentRequirements: [], conditionIds: [], gearSet: null, useLines: line("Restores 120 health."), actionAbilities: [{ ability: { entityKey: "abilities:202", label: "Healing potion" }, rankIndex: 3 }], gameActions: [{ template: null, type: "Ability", chance: 100, nodeAction: "RankUp", progressionType: "Unlock", teleportType: "Position", amount: 0, target: { entityKey: "abilities:202", label: "Healing potion" } }] },
       { ...baseItem, entityKey: "items:102", stats: [], equipmentRequirements: [], conditionIds: [], gearSet: null, useLines: line("Increases weapon damage."), actionAbilities: [] },
-      { ...baseItem, entityKey: "items:103", stats: [{ stat: { entityKey: "stats:104", label: "Lifesteal" }, amount: 2, isPercent: true }], equipmentRequirements: [], conditionIds: [], gearSet: null, useLines: [], actionAbilities: [] },
+      { ...baseItem, entityKey: "items:103", stats: [{ stat: { entityKey: "stats:104", label: "Lifesteal" }, amount: 2, isPercent: true }], equipmentRequirements: [], conditionIds: [], gearSet: null, useLines: [], actionAbilities: [], gameActions: [{ template: null, type: "Ability", chance: 100, nodeAction: "RankUp", progressionType: "Unlock", teleportType: "Position", amount: 0, target: { entityKey: "abilities:201", label: "Cleave" } }] },
     ],
     npcs: [{ ...facts.npcs[0]!, abilityPhases: [{ phaseIndex: 0, name: "Opening", requirement: null, abilities: [{ ability: { entityKey: "abilities:201", label: "Cleave" }, rankIndex: 0 }] }] }],
     abilities: [
@@ -287,14 +287,16 @@ test("projects representative item use text, effective stats and contextual abil
   expect((documents.get("items:101") as PublicItem).facts).toMatchObject({
     useLines: line("Restores 120 health."), actionAbilities: [{ ability: { key: "abilities:202", name: "Healing Potion" }, rankIndex: 3 }],
   });
+  expect((documents.get("items:103") as PublicItem).facts.actionAbilities).toEqual([{ ability: { key: "abilities:201", kind: "abilities", name: "Cleave", slug: "cleave" } }]);
   expect((documents.get("items:102") as PublicItem).facts.useLines).toEqual(line("Increases weapon damage."));
   expect((documents.get("items:103") as PublicItem).facts.stats).toEqual([{ stat: { key: "stats:104", kind: "stats", name: "Lifesteal" }, amount: 2, isPercent: true }]);
   expect((documents.get("npcs:2") as PublicNpc).abilityPhases[0]?.abilities).toEqual([{ ability: { key: "abilities:201", kind: "abilities", name: "Cleave", slug: "cleave" }, rankIndex: 0 }]);
   const cleave = documents.get("abilities:201") as PublicAbility;
   const healingPotion = documents.get("abilities:202") as PublicAbility;
-  expect(cleave.versions).toEqual([{ keys: ["abilities:201"], anchor: "n201", ranks: [{ rankIndex: 0, lines: line("Cleave rank zero") }], useRequirements: [], learnedBy: [], usedBy: [{ key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }], taughtBy: [] }]);
+  expect(cleave.versions).toEqual([{ keys: ["abilities:201"], anchor: "n201", ranks: [{ rankIndex: 0, lines: line("Cleave rank zero") }], useRequirements: [], learnedBy: [], usedBy: [{ key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }], usedByItems: [{ key: "items:103", kind: "items", name: "Red Gem of Lifesteal", slug: "red-gem-of-lifesteal" }], taughtBy: [] }]);
   expect(healingPotion.versions[0]!.ranks.map((rank) => rank.rankIndex)).toEqual([0, 1, 2, 3]);
   expect(healingPotion.versions[0]!.usedBy).toEqual([]);
+  expect(healingPotion.versions[0]!.usedByItems).toEqual([{ key: "items:101", kind: "items", name: "Minor Health Potion", slug: "minor-health-potion" }]);
   expect(healingPotion.versions[0]!.taughtBy).toEqual([{ key: "items:101", kind: "items", name: "Minor Health Potion", slug: "minor-health-potion" }]);
 
   const schemaIds = new Map<string, string>([...documents].map(([key, document]) => [key, STATIC_DOCUMENT_SCHEMA_IDS[document.ref.kind as keyof typeof STATIC_DOCUMENT_SCHEMA_IDS]]));
@@ -324,6 +326,27 @@ test("projects representative item use text, effective stats and contextual abil
   const minorPotion = changedUseText.get("items:101") as PublicItem;
   changedUseText.set("items:101", { ...minorPotion, facts: { ...minorPotion.facts, useLines: [] } });
   expect(auditPublicTooltipCoverage(tooltipFacts, relations, changedUseText, schemaIds)).toContain("Item items:101 changed its native use-text block.");
+});
+
+test("ability list sources prefer classes, summarize many creatures, and retain item use and unknown rows", () => {
+  const classRef = { key: "classes:5", kind: "classes" as const, name: "Assassin", slug: "assassin" };
+  const npcRef = (name: string) => ({ key: `npcs:${name}`, kind: "npcs" as const, name, slug: name.toLowerCase() });
+  const itemRef = { key: "items:101", kind: "items" as const, name: "Brown Horse", slug: "brown-horse" };
+  const base = { ref: { key: "abilities:1", kind: "abilities" as const, name: "Ambush", slug: "ambush" }, art: {}, description: "Strikes from the shadows." };
+  const version = { keys: ["abilities:1"], anchor: "n1", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Hit", tone: null, italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [], usedByItems: [], taughtBy: [] } satisfies PublicAbility["versions"][number];
+  const documents = new Map<string, PublicDocument>([
+    ["class", { ...base, versions: [{ ...version, learnedBy: [{ class: classRef, via: "talentTree", tree: "Shadowcraft", requirements: [] }], usedBy: [npcRef("Goblin")], usedByItems: [itemRef] }] }],
+    ["creature", { ...base, ref: { ...base.ref, key: "abilities:2", name: "Basic Strike", slug: "basic-strike" }, versions: [{ ...version, usedBy: [npcRef("Goblin"), npcRef("Bandit"), npcRef("Spider")] }] }],
+    ["item", { ...base, ref: { ...base.ref, key: "abilities:3", name: "Brown Horse Mount", slug: "brown-horse-mount" }, versions: [{ ...version, usedByItems: [itemRef] }] }],
+    ["unknown", { ...base, ref: { ...base.ref, key: "abilities:4", name: "Spider Stun", slug: "spider-stun" }, description: null, versions: [version] }],
+  ]);
+  const rows = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("abilities")![0]!.rows;
+  expect(rows.map((row) => [row.values.description, row.values.source, row.facets.sourceKind, row.facets.class])).toEqual([
+    ["Strikes from the shadows.", "Assassin · Shadowcraft", ["Class"], ["Assassin"]],
+    ["Strikes from the shadows.", "3 creatures", ["Creature"], []],
+    ["Strikes from the shadows.", "Brown Horse", ["Item"], []],
+    [null, "No Known Use", ["No Known Use"], []],
+  ]);
 });
 
 test("shows a gear set in full on its member item and publishes no gear set page", () => {

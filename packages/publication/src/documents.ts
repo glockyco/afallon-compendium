@@ -409,6 +409,9 @@ export function startingGearByItem(entities: readonly CatalogEntityRow[], facts:
 
 function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, startingGear: ReadonlyMap<string, readonly EntityRef[]>): PublicItem {
   const fact = input.facts.items.find((candidate) => candidate.entityKey === entity.entityKey);
+  const directAbilities = fact?.actionAbilities ?? [];
+  const directlyReferenced = new Set(directAbilities.map((row) => row.ability.entityKey));
+  const gameAbilities = (fact?.gameActions ?? []).filter((action) => action.type === "Ability" && action.target?.entityKey && !directlyReferenced.has(action.target.entityKey));
   const enchantment = optionalFactRef(input.resolve, fact?.enchantment);
   const sellCurrency = optionalFactRef(input.resolve, fact?.sellCurrency), buyCurrency = optionalFactRef(input.resolve, fact?.buyCurrency);
   const gearSet = fact?.gearSet?.entityKey ? projectGearSet(fact.gearSet.entityKey, input) : undefined;
@@ -510,7 +513,10 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
       ...(fact?.sellPrice !== null && fact?.sellPrice !== undefined && fact.sellPrice >= 0 && sellCurrency ? { sellPrice: { amount: fact.sellPrice, currency: sellCurrency } } : {}),
       ...(fact?.buyPrice !== null && fact?.buyPrice !== undefined && fact.buyPrice >= 0 && buyCurrency ? { buyPrice: { amount: fact.buyPrice, currency: buyCurrency } } : {}),
       stackLimit: Math.max(0, fact?.stackLimit ?? 0), questDropOnly: fact?.questDropOnly ?? false, corruptionToken: fact?.corruptionToken ?? false,
-      actionAbilities: (fact?.actionAbilities ?? []).map((ability) => ({ ability: input.resolve(ability.ability), rankIndex: Math.max(0, ability.rankIndex) })),
+      actionAbilities: [
+        ...directAbilities.map((ability) => ({ ability: input.resolve(ability.ability), rankIndex: Math.max(0, ability.rankIndex) })),
+        ...gameAbilities.map((action) => ({ ability: input.resolve(action.target!) })),
+      ],
       useLines: fact?.useLines ?? [], equipmentRequirements: projectRequirementGroups(fact?.equipmentRequirements ?? [], input.resolve),
       ...(levelRequirement === undefined ? {} : { levelRequirement }), useConditions: projectRequirementGroups(fact?.useConditions ?? [], input.resolve),
       ...(gearSet === undefined ? {} : { gearSet }),
@@ -922,8 +928,8 @@ function projectProperty(entity: CatalogEntityRow, ref: EntityRef, input: Docume
   };
 }
 
-// An ability page shows one version for each set of records that share their rank texts, with the creatures that use
-// them and the items that teach them.
+// An ability page shows one version for each set of records that share their rank texts, with creatures that use
+// them, items that cast them, and items that teach them.
 function projectAbilityPage(page: PublishedPage, input: DocumentProjectionInput, conditions: ReadonlyMap<string, CatalogCondition>): PublicAbility {
   const progression = new Map(input.facts.progression.facts.map((fact) => [fact.entityKey, fact]));
   const factsByKey = new Map(input.facts.abilities.map((fact) => [fact.entityKey, fact]));
@@ -935,13 +941,16 @@ function projectAbilityPage(page: PublishedPage, input: DocumentProjectionInput,
     const fact = factsByKey.get(keys[0]!)!;
     const usedBy = mergeRefs(input.facts.npcs.filter((npc) => npc.abilityPhases.some((phase) => phase.abilities.some((ability) => ability.ability.entityKey !== null && keySet.has(ability.ability.entityKey))))
       .map((npc) => input.resolve({ entityKey: npc.entityKey, label: npc.entityKey })), input);
+    const usedByItems = mergeRefs(input.facts.items.filter((item) => item.actionAbilities.some((ability) => ability.ability.entityKey !== null && keySet.has(ability.ability.entityKey))
+      || item.gameActions.some((action) => action.type === "Ability" && action.target?.entityKey !== null && action.target?.entityKey !== undefined && keySet.has(action.target.entityKey)))
+      .map((item) => input.resolve({ entityKey: item.entityKey, label: item.entityKey })), input);
     const taughtBy = mergeRefs(input.facts.items.filter((item) => item.actionAbilities.some((ability) => ability.ability.entityKey !== null && keySet.has(ability.ability.entityKey)))
       .map((item) => input.resolve({ entityKey: item.entityKey, label: item.entityKey })), input);
     const icon = input.artByEntity.get(keys[0]!)?.icon;
     const mechanics = progression.get(keys[0]!);
     const useCondition = mechanics?.kind === "abilities" ? mechanics.details.ranks[0]?.conditionId ?? null : null;
     const useRequirements = useCondition === null ? [] : requirementsFor([useCondition], conditions, input.resolve);
-    return { keys, anchor: version.anchor, ...(icon && icon.sha256 !== base.art.icon?.sha256 ? { icon } : {}), ranks: fact.ranks.map((rank) => ({ rankIndex: Math.max(0, rank.rankIndex), lines: rank.lines })), useRequirements, learnedBy: learnersOf(keySet, input, conditions), usedBy, taughtBy };
+    return { keys, anchor: version.anchor, ...(icon && icon.sha256 !== base.art.icon?.sha256 ? { icon } : {}), ranks: fact.ranks.map((rank) => ({ rankIndex: Math.max(0, rank.rankIndex), lines: rank.lines })), useRequirements, learnedBy: learnersOf(keySet, input, conditions), usedBy, usedByItems, taughtBy };
   });
   return { ...base, versions };
 }

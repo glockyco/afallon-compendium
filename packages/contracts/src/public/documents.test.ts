@@ -116,7 +116,7 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
   quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, starts: [{ kind: "npc", npc: boss, areas: ["Duskfall Depths"] }], turnIns: [], objectives: [{ index: 0, text: "Kill 3 Branchweavers", completions: [], type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [], placedRules: [] } satisfies PublicQuest,
   places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], quests: [], questObjectives: [], properties: [], connections: [], regions: [] } satisfies PublicPlace,
   properties: { ...located, ref: { key: "properties:1", kind: "properties", name: "Mill", slug: "mill" }, facts: { income: { amount: 60, currency: gold }, incomeInterval: 300 } } satisfies PublicProperty,
-  abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, versions: [{ keys: ["abilities:194"], anchor: "n194", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Deals damage", tone: "damage", italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [boss], taughtBy: [] }] } satisfies PublicAbility,
+  abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, versions: [{ keys: ["abilities:194"], anchor: "n194", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Deals damage", tone: "damage", italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [boss], usedByItems: [], taughtBy: [] }] } satisfies PublicAbility,
   classes: { ...base, ref: { key: "classes:0", kind: "classes", name: "Shieldmaster", slug: "shieldmaster" }, facts: { races: ["Dwarf"], weapons: ["Shield"], talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], highestLevel: 60 },
     trees: [{ anchor: "tree-18", name: "Aegis Mastery", points: "Talent Points", rows: [{ anchor: "talent-18-3", tier: 3, position: 2, name: "Aegis Discipline", ranks: 5,
       first: { rank: 1, stats: [{ stat: { key: "stats:125", kind: "stats", name: "Block Chance" }, amount: 2, isPercent: false }], text: [] }, last: { rank: 5, stats: [{ stat: { key: "stats:125", kind: "stats", name: "Block Chance" }, amount: 10, isPercent: false }], text: [] },
@@ -181,8 +181,8 @@ test("a root reaches documents and artwork through graph edges and passes semant
   const npcDocument = { schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.npcs, ...identity, kind: "npcs", document: fixtures.npcs as PublicNpc } as const;
   const itemReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.items, "1".repeat(64)), npcReference = ref(STATIC_DOCUMENT_SCHEMA_IDS.npcs, "2".repeat(64));
   const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v6", ...identity, part: 0, entries: [{ ref: item, hasPlacements: false, sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, hasPlacements: true, sourceKinds: [], document: npcReference as never }] };
-  const itemList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v4", ...identity, kind: "items", part: 0, rows: [{ ref: item, values: { level: null, rarity: "Common" }, facets: { slot: ["GLOVES"] } }] };
-  const npcList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v4", ...identity, kind: "npcs", part: 0, rows: [{ ref: boss, values: { level: 21 }, facets: { role: ["boss"] } }] };
+  const itemList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v5", ...identity, kind: "items", part: 0, rows: [{ ref: item, values: { level: null, rarity: "Common" }, facets: { slot: ["GLOVES"] } }] };
+  const npcList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v5", ...identity, kind: "npcs", part: 0, rows: [{ ref: boss, values: { level: 21 }, facets: { role: ["boss"] } }] };
   const coverage: StaticCoverage = { schemaVersion: "compendium.static-coverage.v3", ...identity, pages: [{ kind: "items", count: 1 }, { kind: "npcs", count: 1 }], mapCount: 1, placementCount: 1, gaps: [] };
   const map = { schemaVersion: "compendium.static-map.v3", ...identity, mapSpaceId: "map", part: 0, placements: [["p1", [0, 0], 0, "Duskfall Depths", ["boss"], ["npcs:286"], [], null, null, null]], regions: [] } as const;
   const imagery = { schemaVersion: "compendium.static-imagery.v2", ...identity, mapSpaceId: "map", defaultLayerId: "game", layers: [{ id: "game", mapSpaceId: "map", label: "Game", kind: "game-map", tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 1, 1], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${"d".repeat(64)}.webp`, sha256: "d".repeat(64), bytes: 1, width: 1, height: 1, state: "captured", schemaId: "image/webp" }] }] } as const;
@@ -197,7 +197,7 @@ test("a root reaches documents and artwork through graph edges and passes semant
       { kind: "currencies", label: "Currency", plural: "Currencies", route: "currencies", icon: "currency", pages: false, list: false, searchable: false, columns: [], facets: [] },
       { kind: "stats", label: "Stat", plural: "Stats", route: "stats", icon: "stat", pages: false, list: false, searchable: false, columns: [], facets: [] },
     ],
-    lists: { items: [ref("compendium.static-kind-list.v4", "7".repeat(64)) as never], npcs: [ref("compendium.static-kind-list.v4", "8".repeat(64)) as never] },
+    lists: { items: [ref("compendium.static-kind-list.v5", "7".repeat(64)) as never], npcs: [ref("compendium.static-kind-list.v5", "8".repeat(64)) as never] },
     search: [ref("compendium.static-search.v6", "9".repeat(64)) as never],
     coverage: ref("compendium.static-coverage.v3", "e".repeat(64)) as never,
     exclusions: ref("compendium.static-exclusions.v1", "a".repeat(64)) as never,
@@ -218,13 +218,13 @@ test("a root reaches documents and artwork through graph edges and passes semant
   invalidSource.set(itemReference.path, { ...itemDocument, document: { ...(fixtures.items as PublicItem),
     inContainers: [{ label: "Chest", availabilityIndex: 1, placementCount: 0, places: [] }] } });
   expect(() => assertStaticPublicationSemantics(root, invalidSource)).toThrow(/unpublished availability group/);
-  const recipeListReference = ref("compendium.static-kind-list.v4", "0".repeat(64));
+  const recipeListReference = ref("compendium.static-kind-list.v5", "0".repeat(64));
   const withRecipes = { ...root,
     kinds: [...root.kinds, { kind: "recipes" as const, label: "Recipe", plural: "Recipes", route: "recipes", icon: "recipe",
       pages: false, list: true, searchable: false, columns: [], facets: [] }],
     lists: { ...root.lists, recipes: [recipeListReference as never] } };
   const recipeValues = new Map(values);
-  recipeValues.set(recipeListReference.path, { schemaVersion: "compendium.static-kind-list.v4", ...identity, kind: "recipes", part: 0,
+  recipeValues.set(recipeListReference.path, { schemaVersion: "compendium.static-kind-list.v5", ...identity, kind: "recipes", part: 0,
     rows: [{ ref: { ...item, name: "Aetherial Elixir", variant: "crafting" }, values: {}, facets: {} }] });
   assertStaticPublicationSemantics(withRecipes, recipeValues);
   expect(() => assertStaticPublicationSemantics(withRecipes, values)).toThrow();
@@ -248,9 +248,9 @@ test("a root reaches documents and artwork through graph edges and passes semant
   withQuest.set(root.lists.items![0]!.path, itemList);
   withQuest.set(root.lists.npcs![0]!.path, npcList);
   const questKind = { kind: "quests" as const, label: "Quest", plural: "Quests", route: "quests", icon: "quest", pages: true, list: true, searchable: true, columns: [], facets: [] };
-  const questListReference = ref("compendium.static-kind-list.v4", "0".repeat(64));
+  const questListReference = ref("compendium.static-kind-list.v5", "0".repeat(64));
   const questRoot = { ...root, kinds: [...root.kinds, questKind], lists: { ...root.lists, quests: [questListReference as never] } };
-  withQuest.set(questListReference.path, { schemaVersion: "compendium.static-kind-list.v4", ...identity, kind: "quests", part: 0, rows: [{ ref: questDocument.document.ref, values: {}, facets: {} }] });
+  withQuest.set(questListReference.path, { schemaVersion: "compendium.static-kind-list.v5", ...identity, kind: "quests", part: 0, rows: [{ ref: questDocument.document.ref, values: {}, facets: {} }] });
   expect(() => assertStaticPublicationSemantics(questRoot, withQuest)).toThrow("Document placement is not a published placement: missing");
 
   // An excluded record has no page, no reference, and no marker.
