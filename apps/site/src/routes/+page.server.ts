@@ -83,7 +83,6 @@ export const load: PageServerLoad = async ({ parent }) => {
     // A crafting skill has recipes.
     craftingSkills: skillRows.flatMap((row) => { const recipes = count(row.values.recipes); return recipes ? [{ ref: row.ref, recipes }] : []; }),
     recipeCount: recipeRows.length,
-    recipeRefs: recipeRows.slice(0, 3).map((row) => row.ref),
     pageCounts: coverage.pages,
   };
 };

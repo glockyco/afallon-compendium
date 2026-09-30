@@ -2,7 +2,6 @@
   import { base } from '$app/paths';
   import { MapPin } from 'lucide';
   import type { ArtRef, EntityRef } from '@afallon/contracts/public';
-  import EntityLink from '$lib/EntityLink.svelte';
   import CompendiumSearch from '$lib/CompendiumSearch.svelte';
   import { formatCalendarDate, formatNumber, rarityTone } from '$lib/format';
   import { iconNodeToSvg } from '$lib/icon-svg';
@@ -27,7 +26,8 @@
   $: pageHref = (ref: EntityRef) => { const route = routes.get(ref.kind); return route && ref.slug ? `${base}/${route}/${ref.slug}/${ref.variant ? `#${ref.variant}` : ''}` : undefined; };
   $: listHref = (kind: string) => { const route = data.registry.find((entry) => entry.kind === kind && entry.list)?.route; return route ? `${base}/${route}/` : undefined; };
   $: counts = new Map<string, number>([...data.pageCounts.map((entry) => [entry.kind, entry.count] as const), ['recipes', data.recipeCount] as const]);
-  $: browse = data.registry.filter((entry) => entry.list).map((entry) => ({ label: entry.plural, href: `${base}/${entry.route}/`, count: counts.get(entry.kind) ?? 0, glyph: kindGlyphSvg(entry.icon) }));
+  // Browse tiles are reference lists. Guides are not a reference list; the Guides column of the Browse menu links them.
+  $: browse = data.registry.filter((entry) => entry.list && entry.kind !== 'mechanics').map((entry) => ({ label: entry.plural, href: `${base}/${entry.route}/`, count: counts.get(entry.kind) ?? 0, glyph: kindGlyphSvg(entry.icon) }));
   // A tile without art shows the glyph of its kind in the same box, so the tiles stay aligned.
   $: kindGlyph = (kind: string) => kindGlyphSvg(data.registry.find((entry) => entry.kind === kind)?.icon) ?? '';
   // A level bar marks a range on one scale, from level 1 to the highest recorded level.
@@ -162,12 +162,6 @@
         {/each}
       </ul>
     {/if}
-    {#if data.recipeRefs.length}
-      <div class="recipe-links">
-        <h3>Recipes</h3>
-        <ul>{#each data.recipeRefs as ref (ref.key)}<li><EntityLink {ref} registry={data.registry} /></li>{/each}</ul>
-      </div>
-    {/if}
     <div class="gathering">
       <h3>Gathering on the map</h3>
       <ul>
@@ -180,7 +174,7 @@
     <div class="section-head"><h2 id="hub-browse">Browse the compendium</h2></div>
     <ul class="browse">
       {#each browse as entry (entry.href)}
-        <li><a href={entry.href}><span class="kind-glyph" aria-hidden="true">{@html entry.glyph ?? ''}</span><span class="browse-label">{entry.label}</span><span class="count">{formatNumber(entry.count)}</span></a></li>
+        <li><a href={entry.href}><span class="kind-glyph" aria-hidden="true">{@html entry.glyph ?? ''}</span><span class="browse-copy"><span class="browse-label">{entry.label}</span><span class="tile-meta">{formatNumber(entry.count)}</span></span></a></li>
       {/each}
     </ul>
   </section>
@@ -272,9 +266,6 @@
   .fallback :global(svg) { width: 45%; height: 45%; }
   .skill-copy { display: grid; gap: .1rem; min-width: 0; overflow-wrap: anywhere; }
   .skill-copy .tile-name { font-size: var(--c-text-lead); }
-  .recipe-links { margin-top: 1.1rem; }
-  .recipe-links h3 { margin: 0 0 .4rem; color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; }
-  .recipe-links ul { display: flex; flex-wrap: wrap; gap: .45rem 1rem; margin: 0; padding: 0; list-style: none; }
   .gathering { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; margin-top: 1.1rem; }
   .gathering h3 { margin: 0; color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; }
   .gathering ul { display: flex; flex-wrap: wrap; gap: .45rem; }
@@ -286,8 +277,9 @@
   .browse a:hover { border-color: var(--c-frame-strong); color: var(--c-accent-strong); }
   .kind-glyph { display: grid; flex: none; width: 2rem; height: 2rem; place-items: center; border-radius: 6px; background: var(--c-surface-2); color: var(--c-accent-muted); }
   .kind-glyph :global(svg) { width: 1.05rem; height: 1.05rem; }
-  .browse-label { flex: 1; font-size: var(--c-text-body); }
-  .count { color: var(--c-text-mute); font-size: var(--c-text-small); font-variant-numeric: tabular-nums; }
+  /* The count sits under the name, as on the skill tiles, so the name has the full width beside the icon. */
+  .browse-copy { display: grid; min-width: 0; }
+  .browse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--c-text-body); }
 
   @media (max-width: 1100px) { .dungeons { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
