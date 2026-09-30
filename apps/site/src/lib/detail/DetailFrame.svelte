@@ -13,7 +13,8 @@
   .detail-frame {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 20rem;
-    grid-template-areas: 'head side' 'answer side' 'rest side';
+    /* The side starts beside the answer, not the title, so the page's first answer and the side facts share a top edge. */
+    grid-template-areas: 'head .' 'answer side' 'rest side';
     gap: 1.75rem 2.5rem;
     align-items: start;
   }
