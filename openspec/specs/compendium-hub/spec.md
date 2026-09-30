@@ -18,8 +18,8 @@ The route `/` SHALL show compendium search at the top of its main content. It SH
 
 #### Scenario: Reader looks for crafting and gathering
 - **WHEN** a reader follows the crafting and gathering entry
-- **THEN** the entry leads to published recipes and skills and to map resource categories
-- **AND** it does not lead to an unpublished mechanics page
+- **THEN** the entry leads to the Recipes list, the skills, the Crafting and Gathering guide, and map resource categories
+- **AND** a recipe link on the hub leads to the Crafting section of its product
 
 ### Requirement: Level entry uses published place facts
 

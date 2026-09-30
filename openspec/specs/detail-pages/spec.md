@@ -40,7 +40,7 @@ The title block SHALL show the entity name, one line of identity facts, and at m
 
 ### Requirement: The hero shows the entity as the game shows it
 
-A hero SHALL be one panel with a view area and a facts area. The view area SHALL show the entity as the game shows it: the item tooltip, the NPC portrait, the place artwork, the property purchase panel, the ability tooltip, the tooltip of a recipe's product, or the icon of a class or a skill. The facts area SHALL show the description and the key facts of the kind. The description SHALL appear once in the hero. When the entity has no view, the facts area SHALL use the whole panel. When the entity has no view and no hero facts, the page SHALL NOT show a hero. Neither area SHALL stretch to the height of the other area. On screens narrower than 640 px, the facts area SHALL follow the view area.
+A hero SHALL be one panel with a view area and a facts area. The view area SHALL show the entity as the game shows it: the item tooltip, the NPC portrait, the place artwork, the property purchase panel, the ability tooltip, or the icon of a class or a skill. The facts area SHALL show the description and the key facts of the kind. The description SHALL appear once in the hero. When the entity has no view, the facts area SHALL use the whole panel. When the entity has no view and no hero facts, the page SHALL NOT show a hero. Neither area SHALL stretch to the height of the other area. On screens narrower than 640 px, the facts area SHALL follow the view area.
 
 #### Scenario: NPC without a portrait
 - **WHEN** an NPC has stats but no portrait
@@ -246,24 +246,6 @@ An ability page SHALL show in its hero the tooltip of the version with the most 
 - **THEN** the Barbed Quarrel page has no Learned by section
 - **AND** its hero shows "Costs 9 Mana"
 
-### Requirement: Recipe pages show the product and its materials
-
-A recipe page SHALL show its station, its skill, and a rank above zero in the title block. Its hero SHALL show the tooltip of the product and the product quantity when it is more than one. A Materials section SHALL show each material with its quantity. The page SHALL show each published rank's required skill level and base experience per craft. It SHALL show the skill levels where the rank gives full, half, or no base experience. The full band SHALL distinguish the game's first and second full-experience ranges. The page SHALL link to the crafting and gathering rules. It SHALL not call any recipe best or claim the base value is the final award after modifiers.
-
-#### Scenario: Recipe with rank zero
-- **WHEN** a recipe has rank 0
-- **THEN** its title block shows the station and the skill without a rank
-
-#### Scenario: Recipe reaches the next experience band
-- **WHEN** a recipe rank has a captured unlock cost and base experience
-- **THEN** its page shows the skill gate and each experience band from the verified rule
-- **AND** the page names the base experience separately from modifier-adjusted experience
-
-#### Scenario: Recipe rank has no resolved skill
-- **WHEN** the recipe's skill reference cannot be resolved
-- **THEN** its product and materials remain visible
-- **AND** its page does not invent a skill level or experience band
-
 ### Requirement: Class pages show how a class progresses
 
 The publication SHALL publish a page for each class that at least one race offers. A class that no race offers SHALL NOT have a page. The title block of a class page SHALL show the kind and the races that offer the class. The hero SHALL show the class icon, the description, the weapon types that the class can use, its auto attack ability, the talent points that it gains, and its highest level. The sections SHALL follow this order: one section for each talent tree of the class in authored order, then Starting gear. The page SHALL link to Character Progression for character experience rules and the level curve. The page SHALL NOT show an Experience table. The heading line of a talent tree section SHALL name the talent points that the tree uses. A talent tree table SHALL show one row for each node, ordered by tier and then by position in the tier. A row SHALL show the tier, the talent, the effect of a passive talent at its first rank and at its last rank, and the requirements of the node. The row of an ability node SHALL link the ability. Each row SHALL have an anchor. The Starting gear section SHALL show each starting item with its count, and SHALL show whether the character starts with the item equipped.
@@ -288,12 +270,17 @@ The publication SHALL publish a page for each class that at least one race offer
 
 ### Requirement: Skill pages show recipes and levels
 
-The publication SHALL publish a page for each skill that the reviewed exclusion list does not name. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. Every skill page SHALL link to Character Progression for related experience rules. A skill page SHALL NOT show an Experience table. The sections SHALL follow this order when they have content: Levels, Recipes, Gathering nodes, How to gain experience. When the skill has a level template and a highest level above one, the Levels section SHALL show the skill's level curve with the chart and level control of Character Progression, from level 1 up to its highest level. The Recipes section SHALL show each recipe that uses the skill with its product and station. The Gathering nodes section SHALL link every gathering node that gives experience in the skill and SHALL keep nodes with unknown locations. The How to gain experience section SHALL list each evidenced source relevant to the skill, with links to specific recipes and nodes when possible. It SHALL distinguish verified experience rules from known call sites whose amounts or skill mappings remain unresolved. It SHALL not claim that the known call sites are exhaustive.
+The publication SHALL publish a page for each skill that the reviewed exclusion list does not name. The title block of a skill page SHALL show the kind. The hero SHALL show the skill icon and its highest level. When a character does not receive the skill automatically, the hero SHALL state it. Every skill page SHALL link to Character Progression for related experience rules. A skill page SHALL NOT show an Experience table. The sections SHALL follow this order when they have content: Levels, Recipes, Gathering nodes, How to gain experience. When the skill has a level template and a highest level above one, the Levels section SHALL show the skill's level curve with the chart and level control of Character Progression, from level 1 up to its highest level. The Recipes section SHALL show each recipe that uses the skill with its product, station, and required level. Each recipe row SHALL have an anchor. The product of a row SHALL link to the Crafting section of its item page. A recipe without a published product SHALL keep its row with its name as text. The Gathering nodes section SHALL link every gathering node that gives experience in the skill and SHALL keep nodes with unknown locations. The How to gain experience section SHALL show the rules that the rules record places on it, with links to specific recipes and nodes when possible. It SHALL distinguish verified experience rules from known call sites whose amounts or skill mappings remain unresolved. It SHALL not claim that the known call sites are exhaustive.
 
 #### Scenario: Crafting skill
 - **WHEN** a reader opens the Alchemy page
-- **THEN** the Recipes section shows its 22 recipes with their products and stations
+- **THEN** the Recipes section shows its 22 recipes with their products, stations, and required levels
+- **AND** each product links to the Crafting section of its item page
 - **AND** the page links to Character Progression and explains its verified crafting source
+
+#### Scenario: Recipe without a product
+- **WHEN** the Smithing recipe Demonic Bulwark Looted has no published product
+- **THEN** the Recipes section of Smithing keeps its row with an anchor and without a product link
 
 #### Scenario: Gathering skill
 - **WHEN** a reader opens the Mining page
@@ -314,7 +301,7 @@ The publication SHALL publish a page for each skill that the reviewed exclusion 
 #### Scenario: Known call site without a verified skill mapping
 - **WHEN** a skill experience call site has no verified mapping to one skill
 - **THEN** the page does not assign that source to an unrelated skill
-- **AND** the mechanics document names the source as unresolved if it is relevant to crafting and gathering
+- **AND** the Crafting and Gathering guide names the source as unresolved if it is relevant to crafting and gathering
 
 ### Requirement: Existing long detail pages use section navigation
 
@@ -337,14 +324,32 @@ Class, NPC, place, and item pages SHALL apply the section-list rule to their act
 
 ### Requirement: Recipe items and recipes link each other
 
-A recipe item page SHALL name the recipe that the item teaches when a captured Recipe RankUp game action names that recipe. It SHALL show the product of the recipe with its tooltip. A recipe page SHALL name each published item that teaches it. A recipe without a known teaching item SHALL NOT claim that no item or other source teaches it.
+A recipe item page SHALL show a Teaches section when a captured Recipe RankUp game action names a recipe. The section SHALL show the crafting block of that recipe: the product with its tooltip, the station, the skill, the required level, the materials with their quantities, and the experience bands. The Crafting section of a product SHALL name each published item that teaches its recipe. A recipe without a known teaching item SHALL NOT claim that no item or other source teaches it.
 
 #### Scenario: Recipe item teaches a recipe
-- **WHEN** a reader opens a recipe item whose captured game action ranks up a recipe
-- **THEN** the page names that recipe and shows its product
-- **AND** the recipe page links back to the item
+- **WHEN** a reader opens Recipe: Runeweave Regalia, whose captured game action ranks up the recipe Runeweave Regalia
+- **THEN** its Teaches section shows the product Runeweave Regalia with its tooltip, the Tailoring station, the required level 150, the materials, and the experience bands
+- **AND** the Crafting section of Runeweave Regalia links back to the recipe item
 
 #### Scenario: Recipe has no known teaching item
 - **WHEN** a recipe is not learned by default and no captured item action teaches it
-- **THEN** its page names no teaching item and makes no claim that nothing teaches it
+- **THEN** the Crafting section of its product names no teaching item and makes no claim that nothing teaches it
 - **AND** the coverage page counts the recipe
+
+### Requirement: Pages show the rules placed on them
+
+A page SHALL show each reviewed rule that the rules record places on its page kind, target, and scope. A rule placed on a fact or a column SHALL be the explanation of that label on hover, on focus, and on tap. Rules placed on a section SHALL appear in that section, grouped by their guide section, with one link to the guide of each topic. On a gathering node page, that section is How it works at the end of the page. A rule with the `linked` scope SHALL appear only on the pages of the entities that it links. When the publication computes the values of a placed rule for the page, the page SHALL show these values beside the rule. A page SHALL NOT show a rule that the record does not place on it. How it works SHALL NOT show the evidence entries of a rule, because the guide shows them.
+
+#### Scenario: Attunement rule of one node
+- **WHEN** the verified Silver Attunement rule links only Silver Vein and has the `linked` scope
+- **THEN** the How it works section of Silver Vein shows the rule
+- **AND** no other gathering node page shows it
+
+#### Scenario: Rule explains a fact
+- **WHEN** a kill experience rule is placed on the experience range fact of NPC pages
+- **THEN** the experience range label of a creature page shows the rule on hover, on focus, and on tap
+- **AND** the creature page has no How it works row for that rule
+
+#### Scenario: Computed yield bonus
+- **WHEN** the gathering yield bonus rule is placed on gathering node pages, and Small Iron Vein has no Mining level gate
+- **THEN** its How it works section shows the bonus chance at Mining level 1 and at the highest Mining level
