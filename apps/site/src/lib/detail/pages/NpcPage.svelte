@@ -3,7 +3,7 @@
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { creatureTypeLabel, formatDuration, formatNumber, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, roleLabel, signedAmount } from '../../format';
+  import { creatureTypeLabel, formatDuration, formatNumber, killExperienceText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, roleLabel, signedAmount } from '../../format';
   import { entityOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
@@ -38,7 +38,7 @@
   $: stats = [
     ...(facts.level?.min ? [{ label: 'Level', value: npcLevelText(facts.level) }] : []),
     ...(combat && health ? [{ label: 'Health', value: formatNumber(health.amount) }] : []),
-    ...(combat && facts.experience && facts.experience.max > 0 ? [{ label: 'Experience', value: `${formatNumber(facts.experience.min)}${facts.experience.max !== facts.experience.min ? `–${formatNumber(facts.experience.max)}` : ''}`, note: 'Per kill' }] : []),
+    ...(combat && facts.experience && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? [{ label: 'Experience', value: killExperienceText(facts.experience, facts.level), note: 'Per kill' }] : []),
     ...(combat && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: facts.respawn.min === facts.respawn.max ? formatDuration(facts.respawn.min) : `${formatDuration(facts.respawn.min)}–${formatDuration(facts.respawn.max)}` }] : []),
   ] satisfies Stat[];
   $: loot = facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length || facts.lootSpecialization.stat) ? facts.lootSpecialization : undefined;

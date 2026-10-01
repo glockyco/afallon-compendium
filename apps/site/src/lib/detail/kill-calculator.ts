@@ -23,11 +23,17 @@ export function nearestCreatureLevel(level: PublicLevel, characterLevel: number,
 }
 
 /** Only known modifiers are applied. The world multiplier and other game modifiers are not estimated. */
-export function calculateKillAward(creature: Pick<Creature, 'minExperience' | 'maxExperience' | 'lowerModifier' | 'higherModifier'>, creatureLevel: number,
-  characterLevel: number, heroicMultiplier: number | undefined, followers: number, experienceBonus: number): { steps: AwardStep[]; award: ExperienceRange } {
+export function calculateKillAward(creature: Pick<Creature, 'minExperience' | 'maxExperience' | 'experiencePerLevel' | 'lowerModifier' | 'higherModifier'>,
+  creatureLevel: number, characterLevel: number, heroicMultiplier: number | undefined, followers: number, experienceBonus: number): { steps: AwardStep[]; award: ExperienceRange } {
   let low = creature.minExperience;
   let high = creature.maxExperience;
   const steps: AwardStep[] = [{ label: 'Base roll', low, high }];
+  if (creature.experiencePerLevel > 0) {
+    // GenerateMobEXP adds the creature's level times its experience per level before the game modifiers.
+    low += creatureLevel * creature.experiencePerLevel;
+    high += creatureLevel * creature.experiencePerLevel;
+    steps.push({ label: `Level ${creatureLevel} × ${creature.experiencePerLevel} per level`, low, high });
+  }
 
   const modifier = creatureLevel > characterLevel ? creature.higherModifier : creatureLevel < characterLevel ? creature.lowerModifier : 0;
   if (modifier !== 0) {

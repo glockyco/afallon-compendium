@@ -34,7 +34,7 @@ const rules: CatalogMechanicsRule[] = Object.entries(topicRules).flatMap(([topic
     ...(ruleId === "node-yield-bonus" ? { chancePerLevel: 0.15 } : {}),
   }, links: [], sources: [{ method: "Game.Method", description: "Bounded decompilation", object: { sha256: "a".repeat(64), bytes: 1 } }], placements: ruleId === "kill-base-roll" ? [{ page: "npcs" as const, target: "experience" as const, scope: "all" as const }] : ruleId === "node-yield-bonus" ? [{ page: "gatheringNodes" as const, target: "how-it-works" as const, scope: "all" as const }] : [],
 })));
-const npc = (nativeId: number, minLevel: number, maxLevel: number, scalesWithPlayer: boolean, lower = 0, higher = 0, minExperience = 4, maxExperience = 10) => ({ entityKey: `npcs:${nativeId}`, minLevel, maxLevel, scalesWithPlayer, minExperience, maxExperience, lowerLevelExperienceModifier: lower, higherLevelExperienceModifier: higher }) as CatalogNpcFacts;
+const npc = (nativeId: number, minLevel: number, maxLevel: number, scalesWithPlayer: boolean, lower = 0, higher = 0, minExperience = 4, maxExperience = 10) => ({ entityKey: `npcs:${nativeId}`, minLevel, maxLevel, scalesWithPlayer, minExperience, maxExperience, lowerLevelExperienceModifier: lower, higherLevelExperienceModifier: higher, experienceBonusPerLevel: 1 }) as CatalogNpcFacts;
 const quest = (nativeId: number, max: number | null) => ({ entityKey: `quests:${nativeId}`, experience: 50, levelRequirement: max === null ? null : max - 2, levelRange: max === null ? null : { min: 1, max } }) as CatalogQuestFacts;
 const entities = ([
   ["npcs:1", "Zombie"], ["npcs:2", "Wolf"], ["npcs:3", "Infected Grain"], ["npcs:4", "Neonate Vampire"], ["npcs:5", "Unpublished"],
@@ -110,7 +110,7 @@ test("the kill calculator offers each creature at each place where it spawns, wi
     { name: "Oakenvale", place: "scenes:oakenvale", creatures: [["npcs:6", aardvarkSpawn], ["npcs:3", grainSpawn], ["npcs:4", vampireSpawn], ["npcs:2", wolfSpawn], ["npcs:1", zombieSpawn]] },
   ]);
   expect(calculator.groups[0]!.creatures[0]).toEqual({ creature: expect.objectContaining({ key: "npcs:6" }), level: aardvarkSpawn,
-    minExperience: 5, maxExperience: 11, lowerModifier: 0, higherModifier: 0 });
+    minExperience: 5, maxExperience: 11, experiencePerLevel: 1, lowerModifier: 0, higherModifier: 0 });
   expect(progression.steps[0]?.rules).toEqual(["kill-base-roll"]);
   expect(progression.rules.find((rule) => rule.id === "kill-base-roll")?.appearsOn).toEqual(["NPC pages, Experience"]);
   expect(progression.rules.some((rule) => rule.id === "placed-only")).toBe(false);
@@ -147,7 +147,7 @@ test("unknown modifiers, invalid experience bounds, and a missing spawn keep a c
   expect([...offered].sort()).toEqual(["npcs:1", "npcs:3", "npcs:4", "npcs:6"]);
   expect(calculator.groups[0]!.creatures[0]).toEqual({
     creature: expect.objectContaining({ key: "npcs:6" }), level: aardvarkSpawn,
-    minExperience: 5, maxExperience: 11, lowerModifier: 17, higherModifier: -12,
+    minExperience: 5, maxExperience: 11, experiencePerLevel: 1, lowerModifier: 17, higherModifier: -12,
   });
 });
 

@@ -5,7 +5,7 @@ export const GUIDES: Record<MechanicsTopic, { overview: string; steps: GuideStep
   "character-progression": {
     overview: "Characters gain experience from creature kills and quests, and skills gain experience from their own sources. The level curve shows the experience that each level needs. Experience above the next level carries over, and each level-up gives talent points.",
     steps: [
-      { id: "roll-kill-experience", title: "Roll kill experience", text: "A kill starts from a random whole amount in the creature's experience range.", rules: ["kill-base-roll"] },
+      { id: "roll-kill-experience", title: "Roll kill experience", text: "A kill starts from a random whole amount in the creature's experience range, plus the creature's level times its experience per level.", rules: ["kill-base-roll"] },
       { id: "adjust-the-kill", title: "Adjust the kill", text: "The level difference, the Heroic multiplier, and the number of followers change the amount. Some game modifiers are not known.", rules: ["kill-level-difference", "kill-heroic-multiplier", "kill-companion-split", "kill-game-modifiers"] },
       { id: "scale-quest-experience", title: "Scale quest experience", text: "A quest reward scales with the player level, and a quest step gives a fixed amount. Some rewards skip the usual adjustment and Heroic multipliers do not apply.", rules: ["quest-reward-level-scale", "quest-action-amount", "quest-reward-skip-flag", "quest-no-heroic-multiplier"] },
       { id: "apply-experience-bonuses", title: "Apply experience bonuses", text: "The Experience Bonus total and the world modifier then change each character award.", rules: ["experience-bonus-stat", "world-modifier-multiplier"] },

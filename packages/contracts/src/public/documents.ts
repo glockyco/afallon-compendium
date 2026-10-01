@@ -409,16 +409,18 @@ export type PublicItem = Static<typeof PublicItemSchema>;
 export const LootSpecializationSchema = Type.Object({ armorType: optional(text), weaponTypes: Type.Array(text), stat: optional(RefSchema) }, { additionalProperties: false });
 export type LootSpecialization = Static<typeof LootSpecializationSchema>;
 
-// Facts that every variant of the page shares. `level` summarizes the levels of all locations. `experience` is the
-// lowest and highest whole amount that a kill rolls before modifiers. A fact that differs between variants is absent
-// here and appears in each variant.
+// Facts that every variant of the page shares. `level` summarizes the levels of all locations. A fact that differs
+// between variants is absent here and appears in each variant.
+// `experience` describes one kill before modifiers: a whole roll from `min` to `max`, plus `perLevel` for each level
+// of the killed creature.
+const killExperience = Type.Object({ min: count, max: count, perLevel: count }, { additionalProperties: false });
 export const NpcFactsSchema = Type.Object({
   level: optional(PublicLevelSchema),
   npcType: optional(text), creatureType: optional(text), family: optional(text),
   faction: optional(RefSchema), species: optional(RefSchema),
   roles: Type.Array(markerCategory, { uniqueItems: true }),
   respawn: optional(Type.Object({ min: number, max: number }, { additionalProperties: false })),
-  experience: optional(Type.Object({ min: count, max: count }, { additionalProperties: false })),
+  experience: optional(killExperience),
   stats: Type.Array(StatRowSchema), immunities: Type.Array(text, { uniqueItems: true }), aggroRange: optional(number),
   lootSpecialization: optional(LootSpecializationSchema),
 }, { additionalProperties: false });
@@ -435,7 +437,7 @@ const npcVariantField = Type.Union([
 export const NpcVariantFactsSchema = Type.Object({
   npcType: optional(text), creatureType: optional(text), family: optional(text), faction: optional(RefSchema), species: optional(RefSchema),
   respawn: optional(Type.Object({ min: number, max: number }, { additionalProperties: false })),
-  experience: optional(Type.Object({ min: count, max: count }, { additionalProperties: false })),
+  experience: optional(killExperience),
   stats: optional(Type.Array(StatRowSchema)), immunities: optional(Type.Array(text, { uniqueItems: true })), aggroRange: optional(number),
   lootSpecialization: optional(LootSpecializationSchema), abilityPhases: optional(Type.Array(AbilityPhaseSchema)),
   factionRewards: optional(Type.Array(FactionRewardRowSchema)), linkedNpc: optional(RefSchema),
@@ -654,12 +656,13 @@ export type GuideStep = Static<typeof GuideStepSchema>;
 const guide = { overview: text, steps: Type.Array(GuideStepSchema, { minItems: 1 }),
   seeAlso: optional(Type.Array(Type.Object({ lead: text, ref: EntityRefSchema }, { additionalProperties: false }))) };
 // Each entry is a published creature at one place where it spawns, with its levels there, the levels that its NPC page
-// shows. `minExperience` and `maxExperience` are the lowest and highest whole amounts that a kill rolls before modifiers.
+// shows. `minExperience` and `maxExperience` are the lowest and highest whole amounts that a kill rolls before modifiers,
+// and `experiencePerLevel` is the experience that each level of the creature adds to the roll.
 export const KillCalculatorSchema = Type.Object({
   groups: Type.Array(Type.Object({
     place: optional(EntityRefSchema), name: text,
     creatures: Type.Array(Type.Object({
-      creature: EntityRefSchema, level: PublicLevelSchema, minExperience: count, maxExperience: count,
+      creature: EntityRefSchema, level: PublicLevelSchema, minExperience: count, maxExperience: count, experiencePerLevel: count,
       lowerModifier: number, higherModifier: number,
     }, { additionalProperties: false }), { minItems: 1 }),
   }, { additionalProperties: false }), { minItems: 1 }),
@@ -758,7 +761,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v14", npcs: "compendium.static-npc.v6", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
+  items: "compendium.static-item.v14", npcs: "compendium.static-npc.v7", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v8", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
@@ -783,14 +786,14 @@ export const StaticSkillDocumentSchema = staticDocument("skills");
 export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v14": typeof StaticItemDocumentSchema; "compendium.static-npc.v6": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v14": typeof StaticItemDocumentSchema; "compendium.static-npc.v7": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v8": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v4": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v8": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
-  "compendium.static-item.v14": StaticItemDocumentSchema, "compendium.static-npc.v6": StaticNpcDocumentSchema,
+  "compendium.static-item.v14": StaticItemDocumentSchema, "compendium.static-npc.v7": StaticNpcDocumentSchema,
   "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v8": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v4": StaticClassDocumentSchema,
@@ -801,7 +804,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v14"), resourceReference("compendium.static-npc.v6"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
+  resourceReference("compendium.static-item.v14"), resourceReference("compendium.static-npc.v7"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v8"),
   resourceReference("compendium.static-gathering-node.v4"),

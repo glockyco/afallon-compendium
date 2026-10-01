@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { calculateKillAward, creatureLevels, killsToNextLevel, nearestCreatureLevel } from './kill-calculator';
 
 // The publication gives the possible rolls, so the maximum here is a roll that can happen.
-const creature = { minExperience: 100, maxExperience: 159, lowerModifier: -25, higherModifier: 15 };
+const creature = { minExperience: 100, maxExperience: 159, experiencePerLevel: 0, lowerModifier: -25, higherModifier: 15 };
 
 test('higher and lower creature branches truncate each percentage contribution before addition', () => {
   const sample = { ...creature, minExperience: 5, maxExperience: 11, higherModifier: 30, lowerModifier: -30 };
@@ -26,6 +26,16 @@ test('a creature level starts at the character level, limited to the levels of i
   expect([nearestCreatureLevel(fixed, 1, 60), nearestCreatureLevel(fixed, 6, 60), nearestCreatureLevel(fixed, 40, 60)]).toEqual([5, 6, 6]);
   expect([nearestCreatureLevel(scaling, 12, 60), nearestCreatureLevel(scaling, 20, 60), nearestCreatureLevel(scaling, 31, 60)]).toEqual([15, 20, 30]);
   expect(nearestCreatureLevel(open, 59, 60)).toBe(59);
+});
+
+test('the level bonus adds the creature level before the level step, as measured on Brinecrest', () => {
+  // Brinecrest rolls 70..119 with 1 experience per level. Measured kills at level 23 gave 107, 121, 127, 132, and 133,
+  // and with the character at level 22 they gave 70, 75, 92, 98, and 99.
+  const brinecrest = { minExperience: 70, maxExperience: 119, experiencePerLevel: 1, lowerModifier: 0, higherModifier: -30 };
+  const same = calculateKillAward(brinecrest, 23, 23, undefined, 0, 0);
+  expect(same.steps[1]).toEqual({ label: 'Level 23 × 1 per level', low: 93, high: 142 });
+  expect(same.award).toEqual({ low: 93, high: 142 });
+  expect(calculateKillAward(brinecrest, 23, 22, undefined, 0, 0).award).toEqual({ low: 66, high: 100 });
 });
 
 test('Heroic rounds half to even before followers split down and the positive bonus remains fractional', () => {

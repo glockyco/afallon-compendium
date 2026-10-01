@@ -77,7 +77,7 @@ const characterProgression: CharacterProgression = {
   talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], rules: [rule],
   overview: "Character experience determines levels.", steps: [{ id: "gain-experience", title: "Gain experience", text: "Each hit gives experience.", rules: ["weapon-skill-hit"] }],
   killCalculator: { groups: [{ place: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, name: "Duskfall Depths",
-    creatures: [{ creature: boss, level: { min: 15, max: 30, scales: true }, minExperience: 20, maxExperience: 41, lowerModifier: 15, higherModifier: -10 }] }],
+    creatures: [{ creature: boss, level: { min: 15, max: 30, scales: true }, minExperience: 20, maxExperience: 40, experiencePerLevel: 2, lowerModifier: 15, higherModifier: -10 }] }],
     defaultCreature: boss, heroicMultiplier: 5 },
 };
 const heroicTier: HeroicTier = {
@@ -176,9 +176,9 @@ test("every mechanics topic validates, and a mechanics document of an unknown to
   expect(STATIC_DOCUMENT_SCHEMA_IDS.mechanics).toBe("compendium.static-mechanics.v8");
   expect(() => Assert(schema, { schemaVersion: "compendium.static-mechanics.v7", ...identity, kind: "mechanics", document: characterProgression })).toThrow();
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, example: { creature: boss, level: 21, lowest: 20, highest: 40 } })).toThrow();
-  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, killCalculator: { ...characterProgression.killCalculator, groups: [{ name: "Barrowdeep", creatures: [{ creature: boss, level: { min: 21, max: 21, scales: false }, minExperience: -1, maxExperience: 20, lowerModifier: 0, higherModifier: 0 }] }] } })).toThrow();
-  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, killCalculator: { ...characterProgression.killCalculator, groups: [{ name: "Barrowdeep", creatures: [{ creature: boss, level: 21, minExperience: 7, maxExperience: 7, lowerModifier: 0, higherModifier: 0 }] }] } })).toThrow();
-  Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, killCalculator: { groups: [{ name: "Barrowdeep", creatures: [{ creature: boss, level: { min: 21, max: 22, scales: false }, minExperience: 7, maxExperience: 7, lowerModifier: 0, higherModifier: 0 }] }], defaultCreature: boss } });
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, killCalculator: { ...characterProgression.killCalculator, groups: [{ name: "Barrowdeep", creatures: [{ creature: boss, level: { min: 21, max: 21, scales: false }, minExperience: -1, maxExperience: 20, experiencePerLevel: 0, lowerModifier: 0, higherModifier: 0 }] }] } })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, killCalculator: { ...characterProgression.killCalculator, groups: [{ name: "Barrowdeep", creatures: [{ creature: boss, level: 21, minExperience: 7, maxExperience: 7, experiencePerLevel: 0, lowerModifier: 0, higherModifier: 0 }] }] } })).toThrow();
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, killCalculator: { groups: [{ name: "Barrowdeep", creatures: [{ creature: boss, level: { min: 21, max: 22, scales: false }, minExperience: 7, maxExperience: 7, experiencePerLevel: 0, lowerModifier: 0, higherModifier: 0 }] }], defaultCreature: boss } });
   // Mechanics examples describe weights and timing, not each spawner's map spots.
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...craftingAndGathering, spawnerExamples: [{ ...craftingAndGathering.spawnerExamples[0], placements: [] }] })).toThrow();
   Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...heroicTier, settings: { unavailable: "The scan of this build recorded no Heroic tier settings." } });

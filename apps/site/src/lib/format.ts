@@ -213,6 +213,18 @@ export function sentenceStart(text: string): string {
   return text.charAt(0).toLocaleUpperCase('en-US') + text.slice(1);
 }
 
+/**
+ * The experience of one kill before modifiers: the roll plus the level bonus at the creature's levels. "93–142" for a
+ * level 23 creature with 70–119 and 1 per level, "16+" without a highest level, and the parts when no level is known.
+ */
+export function killExperienceText(experience: { min: number; max: number; perLevel: number }, level: PublicLevel | undefined): string {
+  const roll = rangeText(experience.min, experience.max)!;
+  if (experience.perLevel === 0) return roll;
+  if (!level) return `${roll}, plus ${formatNumber(experience.perLevel)} per level`;
+  const low = experience.min + level.min * experience.perLevel;
+  return level.max === undefined ? `${formatNumber(low)}+` : rangeText(low, experience.max + level.max * experience.perLevel)!;
+}
+
 function isMarkerCategory(role: string): role is PublicMarkerCategory {
   return Object.hasOwn(PUBLIC_MARKER_CATEGORY_LABELS, role);
 }
