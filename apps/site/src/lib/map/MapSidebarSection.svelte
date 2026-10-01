@@ -100,9 +100,7 @@
     color: var(--c-text);
     font-size: var(--c-text-label);
     font-weight: 700;
-    letter-spacing: .075em;
     text-align: left;
-    text-transform: uppercase;
   }
   .section-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .section-count {

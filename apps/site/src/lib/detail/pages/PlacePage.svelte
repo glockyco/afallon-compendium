@@ -38,7 +38,7 @@
       {#if document.art.artwork}<img class="artwork" src={`${base}/data/${document.art.artwork.url}`} width={document.art.artwork.width} height={document.art.artwork.height} alt={`${document.ref.name} artwork`} />{/if}
       {#if document.description}<p class="description">{document.description}</p>{/if}
       {#if document.variantOf}<p class="description">A challenge version of <EntityLink ref={document.variantOf} {registry} />. It also contains copies of overworld content.</p>{/if}
-      {#if document.space}<a class="c-action" href={placeOnMap(document.ref.key, document.variantOf ? 'all' : undefined)}>Show On Map</a>{/if}
+      {#if document.space}<a class="c-action" href={placeOnMap(document.ref.key, document.variantOf ? 'all' : undefined)}>Show on map</a>{/if}
     </AnswerCard>
   </svelte:fragment>
   <svelte:fragment slot="side">
