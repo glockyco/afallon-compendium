@@ -272,13 +272,15 @@
   .gathering a { display: inline-flex; align-items: center; gap: .4rem; padding: .32rem .7rem .32rem .5rem; border: 1px solid var(--c-line); border-radius: 999px; background: var(--c-surface-1); color: var(--c-text); font-size: var(--c-text-small); text-decoration: none; }
   .gathering a:hover { border-color: var(--c-frame-strong); color: var(--c-accent-strong); }
 
-  .browse { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: .6rem; }
-  .browse a { display: flex; align-items: center; gap: .7rem; padding: .65rem .85rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; }
+  /* Browse is the index of every list, below the featured sections, so each link is one compact line. */
+  .browse { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: .4rem; }
+  .browse a { display: flex; align-items: center; gap: .55rem; min-height: 2.5rem; padding: .35rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; }
   .browse a:hover { border-color: var(--c-frame-strong); color: var(--c-accent-strong); }
   .kind-glyph { display: grid; flex: none; width: 2rem; height: 2rem; place-items: center; border-radius: 6px; background: var(--c-surface-2); color: var(--c-accent-muted); }
   .kind-glyph :global(svg) { width: 1.05rem; height: 1.05rem; }
-  /* The count sits under the name, as on the skill tiles, so the name has the full width beside the icon. */
-  .browse-copy { display: grid; min-width: 0; }
+  .browse .kind-glyph { width: auto; height: auto; background: none; }
+  /* The count sits at the end of the line, so the name keeps the space beside the icon. */
+  .browse-copy { display: flex; flex: 1; align-items: baseline; justify-content: space-between; gap: .5rem; min-width: 0; }
   .browse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--c-text-body); }
 
   @media (max-width: 1100px) { .dungeons { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
