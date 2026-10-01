@@ -115,6 +115,8 @@ export interface CatalogNpcFacts {
   // Percentages that `LevelingManager.GenerateMobEXP` adds when the creature's level is below or above the player's.
   lowerLevelExperienceModifier: number | null;
   higherLevelExperienceModifier: number | null;
+  // `LevelingManager.GenerateMobEXP` adds the creature's level times this amount to the kill roll.
+  experienceBonusPerLevel: number | null;
   immuneToStun: boolean;
   immuneToSlow: boolean;
   aggroRange: number | null;

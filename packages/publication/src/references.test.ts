@@ -12,7 +12,7 @@ const emptyRelations: CatalogRelations = { drops: [], vendors: [], gathers: [], 
 function npcFact(entityKey: string, health = 100): CatalogNpcFacts {
   return { entityKey, minLevel: 100, maxLevel: 100, scalesWithPlayer: false, npcType: null, creatureType: null, family: null,
     faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null,
-    minExperience: null, maxExperience: null, lowerLevelExperienceModifier: null, higherLevelExperienceModifier: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [{ stat: { entityKey: "stats:1", label: "Health" }, amount: health, isPercent: false }], abilityPhases: [],
+    minExperience: null, maxExperience: null, lowerLevelExperienceModifier: null, higherLevelExperienceModifier: null, experienceBonusPerLevel: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [{ stat: { entityKey: "stats:1", label: "Health" }, amount: health, isPercent: false }], abilityPhases: [],
     factionRewards: [], linkedNpc: null, lootSpecialization: null };
 }
 
