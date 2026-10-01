@@ -84,7 +84,7 @@ The Heroic Tier page SHALL show the captured Heroic kill experience multiplier a
 
 ### Requirement: Mechanics pages are guides
 
-Each mechanics page SHALL start with an overview of no more than three sentences. An ordered flow of titled steps SHALL follow the overview, each summarizing verified rules of its topic in plain language and providing a stable step anchor for entity-page links. Across Character Progression, Heroic Tier, Crafting and Gathering, and Corruption, steps SHALL occupy two columns on wide screens and stack in reading order on narrow screens. A worked example SHALL span the full width below all steps on wide screens and follow them on narrow screens. Character Progression SHALL show its level curve between the overview and the steps, because readers come to that page for the experience that each level needs. Key values and tables SHALL remain available. A final closed disclosure SHALL retain the full topic rule list, evidence, source boundaries, and unknowns. Example entities SHALL link their published page or section. An entity's How it works link SHALL target the applicable guide step, not the rule-list disclosure; the guide SHALL distinguish computed examples from universal game rules.
+Each mechanics page SHALL start with an overview of no more than three sentences. An ordered flow of titled steps SHALL follow the overview, each summarizing verified rules of its topic in plain language and providing a stable step anchor for entity-page links. Across Character Progression, Heroic Tier, Crafting and Gathering, and Corruption, steps SHALL occupy two columns on wide screens and stack in reading order on narrow screens. A worked example SHALL span the full width below all steps on wide screens and follow them on narrow screens. Character Progression SHALL show its level curve between the overview and the steps, because readers come to that page for the experience that each level needs. Key values and tables SHALL remain available. A final closed disclosure SHALL retain the full topic rule list, evidence, source boundaries, and unknowns. Example entities SHALL link their published page or section. An entity's How it works link SHALL target the applicable guide step, not the rule-list disclosure; the guide SHALL distinguish computed examples from universal game rules. A step SHALL NOT repeat the overview or a phrase of its rules. A rule phrase that links names SHALL lead into those names, and an unknown rule SHALL state its claim after the "Unknown:" label.
 
 #### Scenario: Entity links a craft step
 - **WHEN** a crafted item shows the level where its base experience falls to half
@@ -116,6 +116,14 @@ Each mechanics page SHALL start with an overview of no more than three sentences
 #### Scenario: Character Progression leads with its level curve
 - **WHEN** a reader opens `/mechanics/character-progression`
 - **THEN** the level curve follows the overview, and the steps follow the level curve
+
+#### Scenario: Rule links a stat
+- **WHEN** a Character Progression rule links Experience Bonus
+- **THEN** its phrase ends with words that lead into the linked name, such as "The total is your Experience Bonus"
+
+#### Scenario: Step and rule cover the same fact
+- **WHEN** a gathering step and its rule both concern node experience
+- **THEN** the step says what the step does, and only the rule states the amounts and conditions
 
 ### Requirement: Character Progression publishes selectable kill sources
 

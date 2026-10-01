@@ -39,6 +39,10 @@ A crafted item's Crafting section SHALL show its verified skill gate, base exper
 - **WHEN** the guide uses Runeweave Regalia as a worked craft
 - **THEN** it links that product's Crafting section
 
+#### Scenario: Worked craft shows its experience bands
+- **WHEN** the worked craft's rank gives full base experience until 20 levels above its required level
+- **THEN** its band table shows one Full row, then a Half row and a None row
+
 ### Requirement: Spawner explanation separates selection and availability
 
 The crafting and gathering page SHALL explain verified weighted node selection by gathering skill. It SHALL distinguish authored option weights from effective probabilities. It SHALL show recorded respawn time, jitter, player range, and boosting effects only with their verified meaning. If an effect or timing rule remains unresolved, the page SHALL label that part unknown rather than invent a rule. Spawner examples SHALL come from catalog evidence and retain their source references.
