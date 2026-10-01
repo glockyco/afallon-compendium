@@ -83,9 +83,10 @@ export function uniquePlacements(groups: readonly (readonly PlacementRef[])[]): 
   return [...seen.values()];
 }
 
-/** The first rows of a relation stay visible before its full list opens. */
-export const VISIBLE_ROWS = 8;
-
+/**
+ * The rows of a list before its full list opens. A list of up to ten rows shows them all. A longer list shows its first
+ * eight, so that a Show more control never hides fewer than three rows.
+ */
 export function shownRowCount(total: number, expanded: boolean): number {
-  return expanded || total <= VISIBLE_ROWS ? total : VISIBLE_ROWS;
+  return expanded || total <= 10 ? total : 8;
 }

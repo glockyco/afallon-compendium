@@ -52,9 +52,10 @@ test('merged rows count a shared map spot once', () => {
   expect(uniquePlacements([[spot('a'), spot('b')], [spot('b'), spot('c')]]).map((placement) => placement.placementId)).toEqual(['a', 'b', 'c']);
 });
 
-test('a long relation previews eight rows in its existing order and reveals every remaining row', () => {
+test('a list of up to ten rows shows them all, and a longer list hides at least three behind Show more', () => {
   expect(shownRowCount(1, false)).toBe(1);
-  expect(shownRowCount(8, false)).toBe(8);
+  expect([shownRowCount(9, false), shownRowCount(10, false)]).toEqual([9, 10]);
+  expect(shownRowCount(11, false)).toBe(8);
   expect(shownRowCount(22, false)).toBe(8);
   expect(shownRowCount(22, true)).toBe(22);
 });

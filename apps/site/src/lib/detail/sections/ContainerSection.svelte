@@ -4,6 +4,7 @@
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber, rangeText } from '../../format';
   import { itemSourceOnMap } from '../../map-links';
+  import { shownRowCount } from '../relation-table';
   import Section from '../Section.svelte';
 
   export let id: string;
@@ -15,13 +16,14 @@
   let expanded = false;
   $: ordered = [...rows].sort((a, b) => (b.chance ?? -1) - (a.chance ?? -1));
   $: rowIndices = new Map(rows.map((row, index) => [row, index]));
+  $: shown = shownRowCount(rows.length, expanded);
 </script>
 
 {#if rows.length}
   <Section {id} {title} count={rows.length}>
     <div class="source-list">
       {#each ordered as row, index}
-        {#if expanded || index < 8}
+        {#if index < shown}
           <div class="source-row">
             <div class="source-main"><strong>{row.label}</strong><div class="source-sub">
               {#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else if row.places[0]}{row.places[0].label}{/if}
@@ -32,7 +34,7 @@
           </div>
         {/if}
       {/each}
-      {#if !expanded && rows.length > 8}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - 8} more</button>{/if}
+      {#if shown < rows.length}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} more</button>{/if}
     </div>
   </Section>
 {/if}

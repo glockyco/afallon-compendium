@@ -5,7 +5,7 @@
   import NpcLevel from '../../NpcLevel.svelte';
   import { levelText, nameOf, roleLabel } from '../../format';
   import { entityOnMap, placeOnMap } from '../../map-links';
-  import { planColumns, type RelationColumn } from '../relation-table';
+  import { planColumns, shownRowCount, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
 
@@ -17,7 +17,7 @@
   export let placeKey: string | undefined = undefined;
   let expanded = false;
   $: orderedBosses = [...rows].sort((left, right) => nameOf(left.counterpart).localeCompare(nameOf(right.counterpart)));
-  $: shownBosses = !expanded && orderedBosses.length > 8 ? orderedBosses.slice(0, 8) : orderedBosses;
+  $: shownBosses = orderedBosses.slice(0, shownRowCount(orderedBosses.length, expanded));
 
   const columns: RelationColumn<CreatureRow>[] = [
     { id: 'name', label: 'Creature', value: (row) => nameOf(row.counterpart), sort: (row) => nameOf(row.counterpart) },

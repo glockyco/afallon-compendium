@@ -9,6 +9,7 @@
   import AbilityReferencesSection from '../sections/AbilityReferencesSection.svelte';
   import AbilityVersionsSection from '../sections/AbilityVersionsSection.svelte';
   import LearnedBySection from '../sections/LearnedBySection.svelte';
+  import { shownRowCount } from '../relation-table';
   import Sections from '../Sections.svelte';
 
   export let document: PublicAbility;
@@ -34,8 +35,8 @@
     </div>
     <Sections>
       <AbilityVersionsSection versions={document.versions} {registry} {showAllUsers} />
-      {#if document.versions.length === 1 && document.versions[0]!.usedBy.length > 8}<AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} />{/if}
-      {#if document.versions.length === 1 && document.versions[0]!.usedByItems.length > 8}<AbilityReferencesSection versions={document.versions} relation="usedByItems" {registry} />{/if}
+      {#if document.versions.length === 1 && shownRowCount(document.versions[0]!.usedBy.length, false) < document.versions[0]!.usedBy.length}<AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} />{/if}
+      {#if document.versions.length === 1 && shownRowCount(document.versions[0]!.usedByItems.length, false) < document.versions[0]!.usedByItems.length}<AbilityReferencesSection versions={document.versions} relation="usedByItems" {registry} />{/if}
     </Sections>
   </DetailFrame>
 </article>

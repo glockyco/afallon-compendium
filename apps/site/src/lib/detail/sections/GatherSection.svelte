@@ -5,6 +5,7 @@
   import Requirements from '../../Requirements.svelte';
   import { formatNumber, nameOf, rangeText } from '../../format';
   import { itemSourceOnMap } from '../../map-links';
+  import { shownRowCount } from '../relation-table';
   import Section from '../Section.svelte';
 
   export let rows: GatherRow[];
@@ -13,6 +14,7 @@
   let expanded = false;
   $: ordered = [...rows].sort((a, b) => (b.chance ?? -1) - (a.chance ?? -1));
   $: rowIndices = new Map(rows.map((row, index) => [row, index]));
+  $: shown = shownRowCount(rows.length, expanded);
   $: title = rows[0]?.skill && nameOf(rows[0].skill).toLowerCase() === 'mining' ? 'Mined from' : 'Gathered from';
 </script>
 
@@ -20,7 +22,7 @@
   <Section id="gathered-from" {title} count={rows.length}>
     <div class="source-list">
       {#each ordered as row, index}
-        {#if expanded || index < 8}
+        {#if index < shown}
           <div class="source-row">
             <div class="source-main">
               {#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else}<strong>{row.label}</strong>{/if}
@@ -36,7 +38,7 @@
           </div>
         {/if}
       {/each}
-      {#if !expanded && rows.length > 8}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - 8} more</button>{/if}
+      {#if shown < rows.length}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} more</button>{/if}
     </div>
   </Section>
 {/if}
