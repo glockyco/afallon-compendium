@@ -119,7 +119,7 @@ test("keeps each condition's requirements and combines one item's conditions onc
       { type: { name: "Class" }, rule: { name: "Optional" }, label: "Shieldmaster", references: { class: { entityKey: "classes:0", label: "Shieldmaster" } } },
       { type: { name: "Class" }, rule: { name: "Optional" }, label: "Assassin", references: { class: { entityKey: "classes:5", label: "Assassin" } } },
     ] };
-    const levelGroup = { mode: "all", checkCount: false, requiredCount: null, requirements: [{ type: { name: "Level" }, rule: { name: "Mandatory" }, label: "Level 27", amounts: { primary: 27, secondary: 0 } }] };
+    const levelGroup = { mode: "all", checkCount: false, requiredCount: null, requirements: [{ type: { name: "Level" }, rule: { name: "Mandatory" }, label: "level 27", amounts: { primary: 27, secondary: 0 } }] };
     expect(queryConditions(db).records).toMatchObject([
       { conditionId: "a-template", scope: "equipment", requirements: [classGroup] },
       { conditionId: "b-inline", scope: "equipment", requirements: [classGroup, levelGroup] },
@@ -264,7 +264,7 @@ test("requirement spans link quest states and retain numeric comparisons", () =>
     insert.run("d", "build", "entity", "quests:9", 3, "requirements", null, null, group({ requirementType: "Skill", skillID: 8, itemID: 364, amount1: 110, value: { value: 2, name: "EqualOrAbove" } }), "[]");
     insert.run("e", "build", "entity", "quests:9", 4, "requirements", null, null, group({ requirementType: "Currency", currencyID: 0, itemID: 30, amount1: 1200, value: { value: 2, name: "EqualOrAbove" } }), "[]");
     const requirements = queryConditions(db).records.flatMap((condition) => condition.requirements.flatMap((group) => group.requirements));
-    expect(requirements.map(({ label }) => label)).toEqual(["Wrath of the Matriarch turned in", "Level 16 or higher", "Power 150 or lower", "Fishing 110 or higher", "Gold Coin 1200 or higher"]);
+    expect(requirements.map(({ label }) => label)).toEqual(["Wrath of the Matriarch turned in", "level 16 or higher", "Power 150 or lower", "Fishing 110 or higher", "Gold Coin 1200 or higher"]);
     expect(requirements[0]?.spans).toEqual([{ endpoint: { entityKey: "quests:8", label: "Wrath of the Matriarch" } }, { text: " turned in" }]);
     expect(requirements[2]?.spans).toEqual([{ endpoint: { entityKey: "stats:1", label: "Power" } }, { text: " 150 or lower" }]);
   } finally { db.close(); }
@@ -328,7 +328,7 @@ test("progression requirements name talents, learned abilities, and costs", () =
   } finally { db.close(); }
 });
 
-test("consumed currency and item requirements read as costs, and kept items as ownership", () => {
+test("consumed requirements read as costs, phrases stay lowercase inside a sentence, and a condition starts with a capital", () => {
   const db = openNormalizedDatabase(":memory:");
   try {
     db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
@@ -341,6 +341,9 @@ test("consumed currency and item requirements read as costs, and kept items as o
     insert.run("b-bars", "build", "interaction", "sign", 1, "requirements-template", null, "/bars", group({ requirementType: "Item", itemID: 7, amount1: 20, ownership: named(0, "Owned"), consume: true }), "[]");
     insert.run("c-kept", "build", "interaction", "door", 0, "requirements-template", null, "/key", group({ requirementType: "Item", itemID: 7, amount1: 1, ownership: named(0, "Owned"), consume: false }), "[]");
     insert.run("d-held", "build", "interaction", "gate", 0, "requirements-template", null, "/gold", group({ requirementType: "Currency", currencyID: 0, amount1: 50, value: named(2, "EqualOrAbove"), consume: false }), "[]");
-    expect(queryConditions(db).records.map((condition) => condition.label)).toEqual(["Costs 100 Gold Coin", "Uses up 20 Iron Bar", "Has Iron Bar", "Gold Coin 50 or higher"]);
+    const conditions = queryConditions(db).records;
+    expect(conditions.flatMap((condition) => condition.requirements.flatMap((entry) => entry.requirements.map((requirement) => requirement.label))))
+      .toEqual(["costs 100 Gold Coin", "uses up 20 Iron Bar", "has Iron Bar", "Gold Coin 50 or higher"]);
+    expect(conditions.map((condition) => condition.label)).toEqual(["Costs 100 Gold Coin", "Uses up 20 Iron Bar", "Has Iron Bar", "Gold Coin 50 or higher"]);
   } finally { db.close(); }
 });

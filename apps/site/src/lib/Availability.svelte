@@ -15,13 +15,14 @@
   ) : rules;
 </script>
 
+<!-- The rules form one sentence: "Has Iron Key and not while in combat". Only its first word starts with a capital. -->
 {#if orderedRules.length}
   <ul class="availability">
-    {#each orderedRules as rule}
+    {#each orderedRules as rule, index}
       <li>
-        {#if rule.effect === 'excludes'}Not while{' '}
-        {:else if rule.effect === 'temporary'}For {#if rule.durationSeconds === undefined}<MissingValue explanation="The toggle's duration is not published" />{:else}{formatDuration(rule.durationSeconds)}{/if} after{' '}{/if}
-        <Requirements requirements={rule.requirements} {registry} />
+        {#if rule.effect === 'excludes'}{index ? 'not' : 'Not'} while{' '}
+        {:else if rule.effect === 'temporary'}{index ? 'for' : 'For'} {#if rule.durationSeconds === undefined}<MissingValue explanation="The toggle's duration is not published" />{:else}{formatDuration(rule.durationSeconds)}{/if} after{' '}{/if}
+        <Requirements requirements={rule.requirements} {registry} opensSentence={index === 0 && rule.effect === 'requires'} />
       </li>
     {/each}
   </ul>

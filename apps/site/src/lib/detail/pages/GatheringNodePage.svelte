@@ -4,7 +4,7 @@
   import EntityLink from '../../EntityLink.svelte';
   import MissingValue from '../../MissingValue.svelte';
   import Requirements from '../../Requirements.svelte';
-  import { formatNumber, nameOf, rangeText } from '../../format';
+  import { formatNumber, nameOf, rangeText, sentenceStart } from '../../format';
   import { nodeOnMap, nodePlaceOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
@@ -31,7 +31,7 @@
   $: skillName = document.facts.skill ? nameOf(document.facts.skill) : undefined;
   $: titleRequirements = document.facts.requirements.filter((group) => group.mode === 'all' && !group.checkCount).flatMap((group) => group.requirements)
     .filter((requirement) => !skillName || !requirement.label.toLocaleLowerCase().startsWith(`${skillName.toLocaleLowerCase()} `))
-    .map((requirement) => requirement.spans.map((span) => 'ref' in span ? nameOf(span.ref) : span.text).join(''));
+    .map((requirement) => sentenceStart(requirement.spans.map((span) => 'ref' in span ? nameOf(span.ref) : span.text).join('')));
   $: spots = document.places.reduce((sum, place) => sum + place.spotCount, 0);
   $: firstSpot = document.places.flatMap((place) => place.placementIds)[0];
   $: spawnerTotal = document.spawners.reduce((sum, group) => sum + group.spawners, 0);

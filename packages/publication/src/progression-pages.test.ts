@@ -93,7 +93,7 @@ const relations: CatalogRelations = {
   conditions: [
     condition("needs-strikes", "Bonus", [{ endpoint: ref("bonuses:288", "Weighted Strikes") }, { text: " rank 4 or higher" }]),
     condition("needs-might", "Bonus", [{ endpoint: ref("bonuses:103", "Heroic Might") }, { text: " learned" }]),
-    condition("cost", "StatCost", [{ text: "Costs 9 " }, { endpoint: ref("stats:121", "Mana") }]),
+    condition("cost", "StatCost", [{ text: "costs 9 " }, { endpoint: ref("stats:121", "Mana") }]),
   ],
 };
 
@@ -157,7 +157,7 @@ test("ability pages name the classes that learn them and their use requirements"
   const cleave = (documents.get("abilities:0") as PublicAbility).versions[0]!, quarrel = (documents.get("abilities:1") as PublicAbility).versions[0]!, auto = (documents.get("abilities:2") as PublicAbility).versions[0]!;
   expect(cleave.learnedBy).toEqual([{ class: { key: "classes:0", kind: "classes", name: "Shieldmaster", slug: "shieldmaster" }, via: "talentTree", tree: "Bastion Breaker", tier: 1, talent: { key: "classes:0", kind: "classes", name: "Shieldmaster", slug: "shieldmaster", variant: "talent-0-0" }, requirements: [] }]);
   expect(quarrel.learnedBy).toEqual([]);
-  expect(quarrel.useRequirements[0]?.requirements[0]?.label).toBe("Costs 9 Mana");
+  expect(quarrel.useRequirements[0]?.requirements[0]?.label).toBe("costs 9 Mana");
   expect(auto.learnedBy.map((row) => row.via)).toEqual(["autoAttack"]);
 });
 

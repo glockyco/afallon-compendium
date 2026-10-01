@@ -9,10 +9,11 @@
   export let registry: PublicKindEntry[];
   export let emptyExplanation: string | undefined = undefined;
   export let kindLabels = true;
+  export let opensSentence = true;
 </script>
 
 {#if requirements.length === 0}
   {#if emptyExplanation}<MissingValue explanation={emptyExplanation} />{/if}
 {:else}
-  <RequirementList {requirements} {kindLabels} let:ref><EntityLink {ref} {registry} /></RequirementList>
+  <RequirementList {requirements} {kindLabels} {opensSentence} let:ref><EntityLink {ref} {registry} /></RequirementList>
 {/if}

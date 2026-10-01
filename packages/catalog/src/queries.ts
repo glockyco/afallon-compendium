@@ -797,6 +797,9 @@ function requirementEndpoint(refs: ReadonlyMap<string, CatalogEndpoint>, require
   return typeof nativeId === "number" && nativeId >= 0 ? endpoint(refs, `${kind}:${nativeId}`, `${kind} ${nativeId}`) : null;
 }
 
+// A requirement reads as a phrase inside a sentence, because pages join requirements with "and" and "or": "has Iron
+// Key and level 16 or higher". Generated words are lowercase and names keep their case. The text that starts a
+// sentence capitalizes its first letter.
 function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSpan[] {
   const spans: CatalogRequirementSpan[] = [];
   const text = (value: string) => { if (value) spans.push({ text: value }); };
@@ -807,7 +810,7 @@ function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSp
     reference(requirement.references.quest, "Unresolved quest");
     const state: Record<string, string> = { onGoing: "in progress", completed: "completed", abandonned: "abandoned", failed: "failed", turnedIn: "turned in", Tracked: "tracked", TrackedOngoing: "in progress and tracked", TrackedCompleted: "completed and tracked" };
     if (requirement.questState) text(` ${state[requirement.questState.name] ?? requirement.questState.name}`);
-  } else if (requirement.type.name === "Level") text(`Level ${numberPhrase}`);
+  } else if (requirement.type.name === "Level") text(`level ${numberPhrase}`);
   else if (requirement.type.name === "Bonus" || requirement.type.name === "Ability") {
     // "Weighted Strikes rank 4 or higher", "Cleave learned". Rank 0 means any rank.
     reference(requirement.type.name === "Bonus" ? requirement.references.bonus : requirement.references.ability, requirement.type.name === "Bonus" ? "Unresolved talent" : "Unresolved ability");
@@ -816,7 +819,7 @@ function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSp
     else if (amount > 0) text(` rank ${amount}`);
     else text(" learned");
   } else if (requirement.type.name === "StatCost") {
-    text(`Costs ${amount}${requirement.amounts.isPercent ? "%" : ""} `);
+    text(`costs ${amount}${requirement.amounts.isPercent ? "%" : ""} `);
     reference(requirement.references.stat, "Unresolved stat");
   }
   else if (requirement.type.name === "Class") reference(requirement.references.class, "Unresolved class");
@@ -834,27 +837,27 @@ function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSp
     }
   }
   else if (requirement.type.name === "Item") {
-    // "Has Iron Key", "Does not have Iron Key", "One Handed Sword equipped". An item type is a category value, so
+    // "has Iron Key", "does not have Iron Key", "One Handed Sword equipped". An item type is a category value, so
     // AXE reads as "Axe" and "One handed sword" as "One Handed Sword". ProcessConsume removes Amount1 of the
-    // authored item when a consuming requirement passes: "Uses up 1 Fish Bait".
+    // authored item when a consuming requirement passes: "uses up 1 Fish Bait".
     const ownership = requirement.ownership?.name;
     const subtype = requirement.subtypes.weaponType ?? requirement.subtypes.weaponSlot ?? requirement.subtypes.armorType ?? requirement.subtypes.armorSlot ?? requirement.subtypes.itemType;
     if (requirement.flags.consume && ownership === "Owned" && !subtype && requirement.references.item) {
-      text(`Uses up ${amount} `);
+      text(`uses up ${amount} `);
       reference(requirement.references.item, "Unresolved item");
       return spans;
     }
-    if (ownership === "Owned") text("Has ");
-    else if (ownership === "NotOwned") text("Does not have ");
+    if (ownership === "Owned") text("has ");
+    else if (ownership === "NotOwned") text("does not have ");
     if (subtype) text(subtype.name ? categoryLabel(subtype.name) : "Unresolved item type"); else reference(requirement.references.item, "Unresolved item");
     if (ownership === "Equipped") text(" equipped");
     else if (ownership !== undefined && ownership !== "Owned" && ownership !== "NotOwned") text(` (${ownership})`);
   } else if (requirement.type.name === "Currency" && requirement.flags.consume) {
-    // ProcessConsume removes Amount1 of the currency whatever the comparison rule: "Costs 100 Gold Coin".
-    text(`Costs ${amount} `);
+    // ProcessConsume removes Amount1 of the currency whatever the comparison rule: "costs 100 Gold Coin".
+    text(`costs ${amount} `);
     reference(requirement.references.currency, "Unresolved currency");
-  } else if (requirement.type.name === "Region") text(["Region", requirement.subtypes.region?.name].filter(Boolean).join(" "));
-  else if (requirement.type.name === "CombatState") text(requirement.flags.first ? "In combat" : "Out of combat");
+  } else if (requirement.type.name === "Region") text(["region", requirement.subtypes.region?.name].filter(Boolean).join(" "));
+  else if (requirement.type.name === "CombatState") text(requirement.flags.first ? "in combat" : "out of combat");
   else {
     // RequirementsManager.IsRequirementMet reads only the identifier field of the requirement's own type. An authored row
     // can keep a stale identifier of another type, such as the Fish bait item on a Fishing skill requirement.
@@ -948,7 +951,9 @@ export function queryConditions(db: Database): CatalogQueryResult<CatalogConditi
     if (row.semantics === "inline-requirements" && payload !== null && typeof payload === "object" && "groups" in payload && Array.isArray(payload.groups) && payload.groups.length === 0) return [];
     const requirements = deduplicateRequirementGroups(conditionRequirements(refs, payload));
     const sourceName = payload !== null && typeof payload === "object" && "sourceName" in payload && typeof payload.sourceName === "string" && payload.sourceName.length > 0 ? payload.sourceName : null;
-    const label = requirements.flatMap((group) => group.requirements.map((requirement) => requirement.label).join(group.mode === "any" ? " or " : " and ")).join(", ");
+    const joined = requirements.flatMap((group) => group.requirements.map((requirement) => requirement.label).join(group.mode === "any" ? " or " : " and ")).join(", ");
+    // The joined phrases form one sentence, so only its first letter is capitalized.
+    const label = joined.charAt(0).toUpperCase() + joined.slice(1);
     return [{ conditionId: row.condition_id, semantics: row.semantics, scope: row.scope, label: (sourceName ?? label) || row.semantics, requirements }];
   });
   return { ...identity(db), records };

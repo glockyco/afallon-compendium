@@ -37,7 +37,7 @@
   $: sharedRequirements = sortedNodes.length ? nonGateRequirements(sortedNodes[0]!)
     .filter((requirement, index, requirements) => requirements.findIndex((candidate) => candidate.label === requirement.label) === index)
     .filter((requirement) => sortedNodes.every((row) => nonGateRequirements(row).some((candidate) => candidate.label === requirement.label))) : [];
-  $: sharedTool = sharedRequirements.length === 1 && sharedRequirements[0]!.label.startsWith('Has ')
+  $: sharedTool = sharedRequirements.length === 1 && /^has /i.test(sharedRequirements[0]!.label)
     ? sharedRequirements[0]!.spans.find((span) => 'ref' in span) : undefined;
   $: allVeins = sortedNodes.length > 0 && sortedNodes.every((row) => nameOf(row.node).endsWith(' Vein'));
   $: sharedToolArticle = sharedTool && 'ref' in sharedTool && /^[aeiou]/i.test(nameOf(sharedTool.ref)) ? 'an' : 'a';

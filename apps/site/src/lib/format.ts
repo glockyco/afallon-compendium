@@ -208,6 +208,11 @@ export function requirementCountLabel(group: RequirementGroup): string | null {
   return group.mode === 'any' && group.checkCount && (group.requiredCount ?? 1) > 1 ? `${group.requiredCount} of` : null;
 }
 
+/** Requirement phrases are lowercase so that they join into a sentence. Text that starts a sentence capitalizes them. */
+export function sentenceStart(text: string): string {
+  return text.charAt(0).toLocaleUpperCase('en-US') + text.slice(1);
+}
+
 function isMarkerCategory(role: string): role is PublicMarkerCategory {
   return Object.hasOwn(PUBLIC_MARKER_CATEGORY_LABELS, role);
 }
