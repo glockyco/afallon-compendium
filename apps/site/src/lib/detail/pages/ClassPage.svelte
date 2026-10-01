@@ -25,6 +25,9 @@
     ...(document.trees.length ? [{ label: 'Talent trees', value: String(document.trees.length) }] : []),
   ];
   $: tabs = document.trees.map((tree) => ({ key: tree.anchor, label: tree.name, anchors: [tree.anchor, ...tree.rows.map((row) => row.anchor)] }));
+  // Most trees of a class spend Talent Points. A tree that spends other points, such as Heroic Essence, says so.
+  $: pointCounts = document.trees.reduce((counts, tree) => counts.set(tree.points, (counts.get(tree.points) ?? 0) + 1), new Map<string | undefined, number>());
+  $: commonPoints = [...pointCounts].sort((a, b) => b[1] - a[1])[0]?.[0];
   const gearColumns: RelationColumn<StartingItemRow>[] = [
     { id: 'item', label: 'Item', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
     { id: 'count', label: 'Quantity', numeric: true, value: (row) => row.count, whenShared: (value) => value === 1 ? 'omit' : 'keep' },
@@ -58,7 +61,7 @@
       {#if document.trees.length}
         <Section id="talent-trees" title="Talent trees">
           <TabSet {tabs} label="Talent trees" idPrefix="class-trees" let:key>
-            {#each document.trees.filter((tree) => tree.anchor === key) as tree (tree.anchor)}<TalentTreeSection {tree} {registry} />{/each}
+            {#each document.trees.filter((tree) => tree.anchor === key) as tree (tree.anchor)}<TalentTreeSection {tree} points={tree.points !== commonPoints ? tree.points : undefined} {registry} />{/each}
           </TabSet>
         </Section>
       {/if}
