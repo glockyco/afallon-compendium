@@ -82,7 +82,8 @@
   .steps { display: grid; gap: 1rem; margin: 0; padding-left: 1.5rem; }
   .steps li { padding-left: .25rem; }
   .steps h3, h3 { margin: 0 0 .35rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
-  .steps p, p { margin: 0 0 .6rem; line-height: 1.55; }
+  /* Section text only: the overview paragraph keeps the shared prose style. */
+  :global(.c-sections) p { margin: 0 0 .6rem; line-height: 1.55; }
   .step-links { margin-top: .25rem !important; color: var(--c-text-dim); font-size: var(--c-text-small); overflow-wrap: anywhere; }
   .example + .example, .gather-title { margin-top: 1.2rem; }
   .table-intro { color: var(--c-text-dim); }

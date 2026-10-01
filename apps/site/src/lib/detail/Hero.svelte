@@ -14,14 +14,13 @@
 </section>
 
 <style>
-  .hero { display: grid; gap: 1.25rem; align-items: start; margin-bottom: 1.75rem; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  /* Line height adds leading above and below the text, so the box uses less vertical than horizontal padding to look even. */
+  .hero { display: grid; gap: 1.25rem; align-items: start; margin-bottom: 1.75rem; padding: .8rem 1.25rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .with-view { grid-template-columns: var(--view-width) minmax(0, 1fr); }
   [data-view='wide'] { --view-width: 24rem; }
   [data-view='narrow'] { --view-width: 12rem; }
   .view, .facts { min-width: 0; }
   .facts { display: grid; gap: 1rem; align-content: start; }
-  /* The grid gap spaces the facts, so a page style that gives paragraphs a bottom margin cannot add space below the last one. */
-  .facts > :global(*) { margin-block: 0; }
   @media (max-width: 760px) {
     .with-view { grid-template-columns: minmax(0, 1fr); }
     [data-view='narrow'] .view { max-width: 12rem; }

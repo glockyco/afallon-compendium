@@ -79,8 +79,9 @@
   .steps { display: grid; gap: 1rem; margin: 0; padding-left: 1.5rem; }
   .steps li { min-width: 0; padding-left: .25rem; scroll-margin-top: 2rem; }
   h3 { margin: 0 0 .35rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
-  p, li { line-height: 1.55; }
-  p { margin: 0 0 .65rem; }
+  /* Section text only: the overview paragraph keeps the shared prose style. */
+  :global(.c-sections) p, :global(.c-sections) li { line-height: 1.55; }
+  :global(.c-sections) p { margin: 0 0 .65rem; }
   .table-scroll { max-width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
   th, td { padding: .55rem .65rem; border-bottom: 1px solid var(--c-line); }

@@ -93,8 +93,9 @@
   .guide-flow :global(.section) { min-width: 0; }
   @media (min-width: 1024px) { .guide-flow { grid-template-columns: minmax(0, 1fr) minmax(16rem, .75fr); } }
   .steps li { scroll-margin-top: 2rem; }
-  p { margin: 0 0 .8rem; line-height: 1.55; }
-  p:last-child { margin-bottom: 0; }
+  /* Section text only: the overview paragraph keeps the shared prose style. */
+  :global(.c-sections) p { margin: 0 0 .8rem; line-height: 1.55; }
+  :global(.c-sections) p:last-child { margin-bottom: 0; }
   .steps { display: grid; gap: 1rem; margin: 0; padding-left: 1.5rem; }
   .steps li { padding-left: .25rem; }
   .steps h3 { margin: 0 0 .2rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
