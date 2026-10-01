@@ -3,7 +3,7 @@
   import Availability from '../../Availability.svelte';
   import EntityLink from '../../EntityLink.svelte';
   import LocationLinks from '../../LocationLinks.svelte';
-  import { nameOf } from '../../format';
+  import { formatNumber, nameOf } from '../../format';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import DetailsDisclosure from '../DetailsDisclosure.svelte';
@@ -24,7 +24,7 @@
   $: plan = planColumns(columns, changes);
 </script>
 
-<DetailsDisclosure id="world-changes" title="World changes" summary={`${changes.length} changes`}>
+<DetailsDisclosure id="world-changes" title="World changes" summary={`${formatNumber(changes.length)} ${changes.length === 1 ? 'change' : 'changes'}`}>
   <RelationTable columns={plan.columns} rows={changes} label="Quest world changes">
     <svelte:fragment slot="cell" let:row let:column>
       {#if column === 'source'}
