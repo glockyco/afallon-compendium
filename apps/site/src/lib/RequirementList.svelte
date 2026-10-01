@@ -14,7 +14,7 @@
       case 'Effect': return 'Effect:';
       case 'Quest': return 'Quest:';
       case 'Skill': return 'Skill:';
-      case 'Currency': return 'Currency:';
+      case 'Currency': return /^Costs\b/.test(requirement.label) ? '' : 'Currency:';
       case 'Time': return /^time\b/i.test(requirement.label) ? '' : 'Time:';
       default: return '';
     }

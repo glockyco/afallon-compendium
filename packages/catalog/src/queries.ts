@@ -835,14 +835,24 @@ function requirementSpans(requirement: CatalogRequirement): CatalogRequirementSp
   }
   else if (requirement.type.name === "Item") {
     // "Has Iron Key", "Does not have Iron Key", "One Handed Sword equipped". An item type is a category value, so
-    // AXE reads as "Axe" and "One handed sword" as "One Handed Sword".
+    // AXE reads as "Axe" and "One handed sword" as "One Handed Sword". ProcessConsume removes Amount1 of the
+    // authored item when a consuming requirement passes: "Uses up 1 Fish Bait".
     const ownership = requirement.ownership?.name;
+    const subtype = requirement.subtypes.weaponType ?? requirement.subtypes.weaponSlot ?? requirement.subtypes.armorType ?? requirement.subtypes.armorSlot ?? requirement.subtypes.itemType;
+    if (requirement.flags.consume && ownership === "Owned" && !subtype && requirement.references.item) {
+      text(`Uses up ${amount} `);
+      reference(requirement.references.item, "Unresolved item");
+      return spans;
+    }
     if (ownership === "Owned") text("Has ");
     else if (ownership === "NotOwned") text("Does not have ");
-    const subtype = requirement.subtypes.weaponType ?? requirement.subtypes.weaponSlot ?? requirement.subtypes.armorType ?? requirement.subtypes.armorSlot ?? requirement.subtypes.itemType;
     if (subtype) text(subtype.name ? categoryLabel(subtype.name) : "Unresolved item type"); else reference(requirement.references.item, "Unresolved item");
     if (ownership === "Equipped") text(" equipped");
     else if (ownership !== undefined && ownership !== "Owned" && ownership !== "NotOwned") text(` (${ownership})`);
+  } else if (requirement.type.name === "Currency" && requirement.flags.consume) {
+    // ProcessConsume removes Amount1 of the currency whatever the comparison rule: "Costs 100 Gold Coin".
+    text(`Costs ${amount} `);
+    reference(requirement.references.currency, "Unresolved currency");
   } else if (requirement.type.name === "Region") text(["Region", requirement.subtypes.region?.name].filter(Boolean).join(" "));
   else if (requirement.type.name === "CombatState") text(requirement.flags.first ? "In combat" : "Out of combat");
   else {

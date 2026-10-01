@@ -327,3 +327,20 @@ test("progression requirements name talents, learned abilities, and costs", () =
     expect(queryConditions(db).records.map((condition) => condition.label)).toEqual(["Weighted Strikes rank 4 or higher", "Cleave learned", "Costs 9 Mana"]);
   } finally { db.close(); }
 });
+
+test("consumed currency and item requirements read as costs, and kept items as ownership", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "catalog.v1", "{}", "e".repeat(64));
+    db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("build", "currencies", 0, "currencies:0", "Gold Coin", null, null, null, "{}", "[]", "build", "items", 7, "items:7", "Iron Bar", null, null, null, "{}", "[]");
+    const named = (value: number, name: string) => ({ value, name });
+    const group = (requirement: unknown) => JSON.stringify({ groups: [{ checkCount: false, requiredCount: 0, requirements: [{ conditionRule: "Mandatory", ...(requirement as object) }] }] });
+    const insert = db.query("INSERT INTO conditions(condition_id, build_id, owner_type, owner_key, ordinal, semantics, scope, source_field_path, payload_json, provenance_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    insert.run("a-gold", "build", "interaction", "sign", 0, "requirements-template", null, "/gold", group({ requirementType: "Currency", currencyID: 0, amount1: 100, value: named(2, "EqualOrAbove"), consume: true }), "[]");
+    insert.run("b-bars", "build", "interaction", "sign", 1, "requirements-template", null, "/bars", group({ requirementType: "Item", itemID: 7, amount1: 20, ownership: named(0, "Owned"), consume: true }), "[]");
+    insert.run("c-kept", "build", "interaction", "door", 0, "requirements-template", null, "/key", group({ requirementType: "Item", itemID: 7, amount1: 1, ownership: named(0, "Owned"), consume: false }), "[]");
+    insert.run("d-held", "build", "interaction", "gate", 0, "requirements-template", null, "/gold", group({ requirementType: "Currency", currencyID: 0, amount1: 50, value: named(2, "EqualOrAbove"), consume: false }), "[]");
+    expect(queryConditions(db).records.map((condition) => condition.label)).toEqual(["Costs 100 Gold Coin", "Uses up 20 Iron Bar", "Has Iron Bar", "Gold Coin 50 or higher"]);
+  } finally { db.close(); }
+});
