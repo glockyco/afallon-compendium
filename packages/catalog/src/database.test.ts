@@ -231,6 +231,39 @@ test("normalizes repeated random targets into persisted placement alternatives",
   } finally { db.close(); }
 });
 
+test("a random choice seen before and after RandomActivator.Start chooses among its resolved targets", () => {
+  const reference = { path: "world.json", sha256: "a".repeat(64) };
+  const paths = ["Root[0]/Activator[0]", "Root[0]/A[0]/Loot[0]", "Root[0]/B[0]/Loot[0]"];
+  const identities = paths.map((_path, index) => ({
+    sourceId: ["choice", "a", "b"][index]!, placementId: `${index}-place`, componentInstanceId: index + 1, gameObjectInstanceId: index + 11,
+    origin: "scene" as const, sceneSourceSha256: "b".repeat(64), sourceSha256: String(index).repeat(64), serializedFile: "scene",
+    gameObjectPathId: String(index + 101), componentPathId: String(index + 201), loaderSourceId: null, typeName: "Source", assembly: "Game",
+    position: { x: 0, y: 0, z: 0 }, identityIndex: index,
+  }));
+  const sourceByComponent = new Map<number, SourceIdentityRow>(identities.map((row) => [row.componentInstanceId, row]));
+  const source = (componentInstanceId: number, hierarchyPath: string) => ({ componentInstanceId, source: { hierarchyPath } });
+  const target = (hierarchyPath: string) => ({ sourceFieldPath: "gameObjects", name: hierarchyPath, source: { source: { hierarchyPath } }, activeSelf: true, activeInHierarchy: true });
+  const missing = { sourceFieldPath: "gameObjects", unavailable: "null target GameObject" };
+  const context = (snapshotId: string, targets: unknown[]) => ({
+    snapshotId, worldReference: reference, sourceByComponent,
+    world: {
+      interactions: [{ source: source(2, paths[1]!) }, { source: source(3, paths[2]!) }],
+      randomActivators: [{ source: source(1, paths[0]!), targetCount: targets.length, numberToEnable: 1, targets }],
+      resourceProducers: [], containers: [], questZones: [], transitions: [], mapZones: [], regions: [], mapIcons: [], conditionSources: [], unsupportedSources: [], services: [],
+    },
+    npc: { producers: [], adventurerProducers: [], adventurerPopulationManagers: [] },
+  }) as unknown as SceneContext;
+  const blockers: Blocker[] = [];
+  const choices = randomChoices([
+    context("run:before-start", [missing, missing, target("Root[0]/A[0]"), target("Root[0]/B[0]")]),
+    context("run:after-start", [target("Root[0]/A[0]"), target("Root[0]/B[0]")]),
+  ], blockers);
+  expect(blockers).toEqual([]);
+  expect(choices.map((choice) => [choice.choiceId, choice.entries.map((entry) => [entry.entryIndex, entry.sourceIds, entry.provenance.map((row) => row.pointer)])])).toEqual([
+    ["choice", [[0, ["a"], ["/randomActivators/0/targets/2", "/randomActivators/0/targets/0"]], [1, ["b"], ["/randomActivators/0/targets/3", "/randomActivators/0/targets/1"]]]],
+  ]);
+});
+
 test("stores gathering nodes with their sources and yields, and keeps a node without a placement", () => {
   const db = openNormalizedDatabase(":memory:");
   try {

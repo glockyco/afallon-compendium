@@ -190,17 +190,21 @@ export function randomChoices(contexts: readonly SceneContext[], blockers: Block
         blockers.push({ kind: "unplaced-random-activator", key: `${context.snapshotId}:${index}`, detail: "Random activator has no verified source identity.", provenance: [reference] });
         continue;
       }
+      // RandomActivator.Start removes the null entries of its list before it picks (build 25653798), so a scan sees them
+      // only while Start has not run. The collector reports a null entry as unavailable, and the choice is made among the
+      // other targets, each keeping its position in the authored list as provenance.
+      const targets = activator.targets.flatMap((target, rawIndex) => "unavailable" in target ? [] : [{ target, rawIndex }]);
       const choiceId = identity.sourceId, previous = choices.get(choiceId);
-      if (previous && (previous.numberToEnable !== activator.numberToEnable || previous.entries.length !== activator.targets.length)) throw new Error(`Conflicting repeated random choice ${choiceId}.`);
+      if (previous && (previous.numberToEnable !== activator.numberToEnable || previous.entries.length !== targets.length)) throw new Error(`Conflicting repeated random choice ${choiceId}.`);
       const choice = previous ?? { choiceId, numberToEnable: activator.numberToEnable, entries: [], provenance: [] };
       choice.provenance.push(reference);
-      for (const [entryIndex, target] of activator.targets.entries()) {
-        const provenance = pointer(reference, `/targets/${entryIndex}`);
-        const targetPath = "unavailable" in target ? null : target.source.source.hierarchyPath;
-        if (!("unavailable" in target) && !targetPath) blockers.push({ kind: "unresolved-random-target", key: `${choiceId}:${entryIndex}`, detail: "Random target has no hierarchy path.", provenance: [provenance] });
+      for (const [entryIndex, { target, rawIndex }] of targets.entries()) {
+        const provenance = pointer(reference, `/targets/${rawIndex}`);
+        const targetPath = target.source.source.hierarchyPath;
+        if (!targetPath) blockers.push({ kind: "unresolved-random-target", key: `${choiceId}:${entryIndex}`, detail: "Random target has no hierarchy path.", provenance: [provenance] });
         const entry = choice.entries[entryIndex];
         if (entry && entry.targetPath !== targetPath) throw new Error(`Conflicting repeated random target ${choiceId}:${entryIndex}.`);
-        const sourceIds = targetPath === null ? [] : sources.filter((source) => source.path === targetPath || source.path.startsWith(`${targetPath}/`)).map((source) => source.sourceId);
+        const sourceIds = !targetPath ? [] : sources.filter((source) => source.path === targetPath || source.path.startsWith(`${targetPath}/`)).map((source) => source.sourceId);
         if (entry) {
           entry.sourceIds = [...new Set([...entry.sourceIds, ...sourceIds])].sort();
           entry.provenance.push(provenance);
