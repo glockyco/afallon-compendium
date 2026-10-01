@@ -4,7 +4,7 @@ This file records game and data facts for the accepted Afallon build, Steam buil
 
 ## Build and installation
 
-- The selected local descriptor identifies build 25434619, catalog `6bc13a4c5803ee9cbe76eb9f691b924cc13e4a5ea96848849b50d0152b212c48`, and publication `2077a3a4e4ac45837bddc036a7702b7cb0c1318b7aa3e67f5e00ac5db67a48f3`. Its stage is `preview` and `coverageComplete` is false. Its rollback is publication `5f9bea82d01c6cbf6322030c7c9ee80146e903e3b88842573afd0f7d11ff3508`. This is a local selection, not proof of deployment. Evidence: ignored `artifacts/accepted-build.json` in the main checkout, accepted 2026-09-29.
+- The selected local descriptor identifies build 25434619, catalog `19fb1d66188061f6f04c378287fe6c47701fcff191c1b068a97fbef5d3bea974`, and publication `946fc9bb65144b0872ce8d8759931d476b677b615309a233101cada7605039d1`. Its stage is `preview` and `coverageComplete` is false. Its rollback is publication `e6ad42ed7532b319351edf9db2cc8280d1914622d53e95b22c43d64e76add88d`. This is a local selection, not proof of deployment. Evidence: ignored `artifacts/accepted-build.json` in the main checkout, accepted 2026-10-01.
 - The installation is an IL2CPP Windows build in the CrossOver `Steam` bottle. The installed `GameAssembly.dll` is the native binary used by the build-25434619 analysis output, with SHA-256 `f6e78dbdc9339eaca7a66116f222204bde341e5987fa8f333e7fdb92708ba5e1`. The research output is local and ignored, not a distributable game file. Evidence: `research/ghidra/25434619/npc-level-functions.json` in the main checkout, `local/level-targets.json` in that checkout, and `config.example.json`.
 
 ## Runtime access

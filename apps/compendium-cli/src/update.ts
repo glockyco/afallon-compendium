@@ -141,7 +141,8 @@ async function waitForClient(
       if (state.outcome.exitCode !== 0) throw new Error(`CrossOver could not start Steam: ${state.outcome.stderr.trim() || `exit ${state.outcome.exitCode}`}.`);
       return appended.endOffset;
     }
-    if (timing.now() >= deadline) throw new Error(`Steam did not become ready within ${timeouts.clientReadyMs} ms.`);
+    // An orphaned CrossOver session of the bottle makes a new client hang without writing a log line.
+    if (timing.now() >= deadline) throw new Error(`Steam did not log on within ${timeouts.clientReadyMs} ms. End every process of the Steam bottle, including old wine services, and run the update again.`);
   }
 }
 

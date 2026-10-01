@@ -61,16 +61,15 @@ Map-data readiness waits for every declared geometry part. Search loads independ
 
 ### Game updates
 
-A new game build is scanned, captured, catalogued, and published as a candidate before `accept-update` selects it. The scripts in [`tools/update/`](tools/update/) author the build-bound reviewed inputs from that build's evidence, in this order:
+A new game build is installed, compared, scanned, captured, catalogued, and published as a candidate before `accept-update` selects it. The full procedure, with its failure modes, is the [`game-update` skill](.agent/skills/game-update/SKILL.md). In short:
 
-1. `load-character.ts` loads the research character, and `quit-game.ts` quits the game at the end. `author-scan-arrivals.ts` gives each scene of the scan plans an observed doorway from the previous accepted catalog as its arrival.
-2. `author-map-profile.ts` and `verify-map-profile.ts` author and check the map-space profile from the scene scans.
-3. `sweep-map-zones.ts`, `author-game-map-plans.ts`, `extract-overworld-texture.py`, and `author-overworld-plan.ts` produce the game-map plans.
-4. `author-capture-plans.ts` re-authors the reviewed terrain plans, and `capture-plans.ts` captures each plan in its own sweep.
-5. `author-bootstrap-review.ts`, `author-catalog-plan.ts`, and `author-coverage-review.ts` produce the coverage review and the catalog plans.
-6. `compare-catalogs.ts` compares the new catalog with the previous one.
+1. `bun run compendium update` installs the build through Steam and records a receipt. `recover` and `tools/update/compare-declarations.ts` compare the game's declarations with the previous build.
+2. `scan` reads each scene. `author-scan-arrivals.ts` gives each scene an observed doorway from the accepted catalog as its arrival.
+3. `author-map-profile.ts`, `sweep-map-zones.ts`, `author-game-map-plans.ts`, `extract-overworld-texture.py`, `author-overworld-plan.ts`, `author-capture-plans.ts`, and `capture-plans.ts` produce the map spaces and imagery.
+4. `author-bootstrap-review.ts`, `author-catalog-plan.ts`, and `author-coverage-review.ts` produce the coverage review and the catalog plans. `compare-catalogs.ts` compares the new catalog with the accepted one.
+5. `publish`, `stage:production`, and a browser check produce the candidate. An update report and `accept-update` select it.
 
-Each script prints its usage when it is started without arguments. Scan plans set `streamedSources: "all"` on build-scene targets whose streamed sources should all load before collection.
+Each script in [`tools/update/`](tools/update/) prints its usage when it is started without arguments. Scan plans set `streamedSources: "all"` on build-scene targets whose streamed sources should all load before collection.
 
 Generated artifacts, local configuration, and extracted game assets are not committed.
 

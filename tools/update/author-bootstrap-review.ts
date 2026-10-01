@@ -1,5 +1,5 @@
 // Operator tool: writes the open coverage review that admits a build's scans for the first candidate catalog. The
-// complete review is generated from that catalog with generate-coverage-review.ts.
+// complete review is generated from that catalog with author-coverage-review.ts.
 // usage: bun tools/update/author-bootstrap-review.ts POLICY OUTPUT SCAN_MANIFEST...
 import { createHash } from "node:crypto";
 

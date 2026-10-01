@@ -23,7 +23,7 @@ Run this owned, read-only example from the main checkout, which holds the ignore
 bun -e '
 import { loadConfig } from "./apps/compendium-cli/src/config.ts";
 import { withRuntime } from "@afallon/runtime";
-const config = await loadConfig("local/config.json");
+const config = await loadConfig("local/config-capture-current.json"); // a configuration with every field of config.example.json
 const body = await Bun.file("tools/probes/native-methods.csx").text();
 const output = "research/ghidra/25434619/native-methods-new.json";
 if (await Bun.file(output).exists()) throw new Error("Choose a new output path.");

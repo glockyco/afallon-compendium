@@ -40,7 +40,7 @@ The first launch after an update can regenerate IL2CPP interop assemblies and ex
 
 ## Prepare the game state
 
-Select the configured research character through the main menu. Confirm that its loaded scene is usable before extraction. `AtlasSurvey` is the capture character in ignored `local/config-capture-current.json` in the main checkout. Read the configuration instead of assuming its current restoration scene.
+Select the configured research character through the main menu. Confirm that its loaded scene is usable before extraction. Read the character and the restoration scene from the configuration; they change between configurations.
 
 Do not use a character saved inside a challenge-stone instance for traversal. Such a save can remain behind the loading screen and prevent clean scene visits.
 
@@ -78,5 +78,7 @@ On cancellation or socket loss, wait for cleanup confirmation. The host deadline
 Call `UnityEngine.Application.Quit()` through the owned HotRepl connection. A disconnect during this call can prevent the repository runtime from confirming cleanup.
 
 Wait for the supervised game process to exit. Confirm that the configured port no longer listens before relaunch. If Steam launched a second Afallon process, identify its Windows process ID with `tasklist.exe`. Stop only that verified process with `taskkill.exe`. Do not use an unverified host PID.
+
+A game exit leaves a `UnityCrashHandler64.exe` process behind, and a Steam exit can leave the bottle's wine services running for weeks. Before an update or a relaunch after errors, list the processes whose open files are under `Bottles/Steam` (`lsof -p <pid>`) and end the leftovers. A stale session can make a new Steam client hang without a log line.
 
 The game can end without a clean receipt after a forced exit. Preserve the failed run evidence and inspect the configured output root's `.runtime/` receipts before another mutation. See [Runtime access](../../../EXPLORATION.md#runtime-access) and `packages/runtime/src/runtime.ts`.
