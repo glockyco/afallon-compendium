@@ -1,127 +1,138 @@
 <script lang="ts">
-  import type { CharacterProgression, EntityRef, PublicKindEntry } from '@afallon/contracts/public';
+  import type { CharacterProgression, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../EntityLink.svelte';
+  import { formatNumber, npcLevelText, signedAmount } from '../format';
   import LevelSlider from './LevelSlider.svelte';
-  import { calculateKillAward, killsToNextLevel } from './kill-calculator';
+  import { calculateKillAward, creatureLevels, killsToNextLevel, nearestCreatureLevel } from './kill-calculator';
 
   export let guide: CharacterProgression;
   export let registry: PublicKindEntry[];
-  export let playerLevel: number;
+  /** The page shares the character level with the level curve. */
+  export let characterLevel: number;
 
-  const identity = (ref: EntityRef): string => JSON.stringify([ref.key, ref.variant ?? '']);
-  let selectedKey = identity(guide.killCalculator.defaultCreature);
-  let selected = guide.killCalculator.groups.flatMap((group) => group.creatures).find((entry) => identity(entry.creature) === selectedKey)!;
+  // Each option is one creature at one place, because a creature can spawn at different levels in different places.
+  const options = guide.killCalculator.groups.flatMap((group, groupIndex) => group.creatures.map((entry, index) => ({ value: `${groupIndex}:${index}`, entry })));
+  const first = guide.killCalculator.defaultCreature;
+  let selected = options.find(({ entry }) => entry.creature.key === first.key && entry.creature.variant === first.variant)!.value;
+  let creatureLevel = 1;
   let heroic = false;
   let followers = 0;
   let experienceBonus = 0;
 
-  $: selected = guide.killCalculator.groups.flatMap((group) => group.creatures).find((entry) => identity(entry.creature) === selectedKey)!;
-  $: result = calculateKillAward(selected, playerLevel, heroic ? guide.killCalculator.heroicMultiplier : undefined, followers, experienceBonus);
-  $: toNext = guide.curve.rows.find((row) => row.level === playerLevel)?.toNext;
+  $: entry = options.find((option) => option.value === selected)!.entry;
+  $: levels = creatureLevels(entry.level, guide.curve.cap);
+  // Another creature or character level resets the creature level, so a creature that scales follows the character.
+  $: creatureLevel = nearestCreatureLevel(entry.level, characterLevel, guide.curve.cap);
+  $: result = calculateKillAward(entry, creatureLevel, characterLevel, heroic ? guide.killCalculator.heroicMultiplier : undefined, followers, experienceBonus);
+  $: toNext = guide.curve.rows.find((row) => row.level === characterLevel)?.toNext;
   $: kills = toNext === undefined ? null : killsToNextLevel(toNext, result.award);
 
-  function choose(key: string): void {
-    const creature = guide.killCalculator.groups.flatMap((group) => group.creatures).find((entry) => identity(entry.creature) === key);
-    if (!creature) return;
-    selectedKey = key;
-    playerLevel = creature.level;
-  }
   function navigate(event: KeyboardEvent): void {
     if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
     const select = event.currentTarget as HTMLSelectElement;
     const index = event.key === 'Home' ? 0 : event.key === 'End' ? select.options.length - 1
       : Math.max(0, Math.min(select.options.length - 1, select.selectedIndex + (event.key === 'ArrowDown' ? 1 : -1)));
     const option = select.options.item(index);
-    if (option) { event.preventDefault(); select.selectedIndex = index; choose(option.value); }
+    if (option) { event.preventDefault(); select.selectedIndex = index; selected = option.value; }
   }
-  const format = (value: number): string => Number(value.toPrecision(12)).toLocaleString('en-US', { maximumFractionDigits: 10 });
+  // The bonus stage keeps fractions, because the game converts the award to a whole number only after world modifiers.
+  const format = (value: number): string => Number(value.toPrecision(12)).toLocaleString('en-US', { maximumFractionDigits: 4 });
   const range = (low: number, high: number): string => low === high ? format(low) : `${format(low)}–${format(high)}`;
-  const signed = (value: number): string => `${value > 0 ? '+' : ''}${format(value)}%`;
+  const modifierText = (value: number): string => value === 0 ? 'No change' : signedAmount(value, true);
+  $: killCount = kills === null ? '' : kills.high === null ? `At least ${format(kills.low)}` : kills.low === kills.high ? format(kills.low) : `${format(kills.low)}–${format(kills.high)}`;
 </script>
 
 <div class="calculator">
-  <div class="controls">
-    <div class="picker">
-      <label for="kill-creature">Creature</label>
-      <select id="kill-creature" value={selectedKey} on:change={(event) => choose(event.currentTarget.value)} on:keydown={navigate}>
-        {#each guide.killCalculator.groups as group}
-          <optgroup label={group.name}>
-            {#each group.creatures as entry}<option value={identity(entry.creature)}>{entry.creature.name}</option>{/each}
-          </optgroup>
-        {/each}
-      </select>
-    </div>
-    <LevelSlider id="kill-player-level" label="Player level" min={1} max={guide.curve.cap} bind:level={playerLevel} />
-    <div class="extra-controls">
-      {#if guide.killCalculator.heroicMultiplier !== undefined}
-        <label class="heroic"><input type="checkbox" bind:checked={heroic} /> Heroic creature</label>
-      {/if}
-      <label class="numeric">Living followers <input type="number" min="0" max="10" step="1" value={followers} on:change={(event) => { const value = event.currentTarget.valueAsNumber; followers = Number.isFinite(value) ? Math.min(10, Math.max(0, Math.trunc(value))) : 0; event.currentTarget.value = String(followers); }} /></label>
-      <label class="numeric">Experience Bonus % <input type="number" min="0" step="any" value={experienceBonus} on:change={(event) => { const value = event.currentTarget.valueAsNumber; experienceBonus = Number.isFinite(value) ? Math.max(0, value) : 0; event.currentTarget.value = String(experienceBonus); }} /></label>
-    </div>
+  <div class="picker">
+    <label for="kill-creature">Creature</label>
+    <select id="kill-creature" bind:value={selected} on:keydown={navigate}>
+      {#each guide.killCalculator.groups as group, groupIndex}
+        <optgroup label={group.name}>
+          {#each group.creatures as option, index}<option value={`${groupIndex}:${index}`}>{option.creature.name}, level {npcLevelText({ ...option.level, scales: false })}</option>{/each}
+        </optgroup>
+      {/each}
+    </select>
   </div>
-  <div class="panels">
-    <div class="result-card" aria-live="polite" aria-atomic="true">
-      <h3>Experience per kill</h3>
-      <p class="award">{range(result.award.low, result.award.high)}</p>
-      {#if toNext !== undefined}
-        <p class="next">Kills to next level from 0 experience ({format(toNext)} needed):
-          {#if kills}{format(kills.low)}–{kills.high === null ? 'no finite maximum' : format(kills.high)}{:else}No finite number of kills{/if}
-        </p>
+  <dl class="facts">
+    <div><dt class="hidden-label">Creature page</dt><dd><EntityLink ref={entry.creature} {registry} /></dd></div>
+    <div><dt>Level</dt><dd>{npcLevelText(entry.level)}</dd></div>
+    <div><dt>Base roll</dt><dd>{range(entry.minExperience, entry.maxExperience === entry.minExperience ? entry.minExperience : entry.maxExperience - 1)}</dd></div>
+    <div><dt>Creature above the player</dt><dd>{modifierText(entry.higherModifier)}</dd></div>
+    <div><dt>Creature below the player</dt><dd>{modifierText(entry.lowerModifier)}</dd></div>
+  </dl>
+  <div class="body">
+    <div class="settings">
+      <LevelSlider id="kill-character-level" label="Character level" min={1} max={guide.curve.cap} bind:level={characterLevel} />
+      {#if levels.length > 1}
+        <label class="field">Creature level
+          <select bind:value={creatureLevel}>{#each levels as level}<option value={level}>{formatNumber(level)}</option>{/each}</select>
+        </label>
       {/if}
-      <table class="breakdown">
-        <caption>How the range changes</caption>
-        <thead><tr><th scope="col">Step</th><th scope="col">Running range</th></tr></thead>
+      <div class="numbers">
+        <label class="field">Living followers
+          <input type="number" min="0" max="10" step="1" value={followers} on:change={(event) => { const value = event.currentTarget.valueAsNumber; followers = Number.isFinite(value) ? Math.min(10, Math.max(0, Math.trunc(value))) : 0; event.currentTarget.value = String(followers); }} />
+        </label>
+        <label class="field">Experience Bonus
+          <span class="suffixed"><input type="number" min="0" step="any" value={experienceBonus} on:change={(event) => { const value = event.currentTarget.valueAsNumber; experienceBonus = Number.isFinite(value) ? Math.max(0, value) : 0; event.currentTarget.value = String(experienceBonus); }} /><span>%</span></span>
+        </label>
+      </div>
+      {#if guide.killCalculator.heroicMultiplier !== undefined}
+        <label class="check"><input type="checkbox" bind:checked={heroic} /> Heroic creature <span class="dim">×{format(guide.killCalculator.heroicMultiplier)} experience</span></label>
+      {/if}
+    </div>
+    <div class="result">
+      <h3>Experience per kill</h3>
+      <div aria-live="polite" aria-atomic="true">
+        <p class="award">{range(result.award.low, result.award.high)}</p>
+        <p class="kills">
+          {#if toNext === undefined}Level {formatNumber(characterLevel)} is the level cap. The character keeps no experience from kills.
+          {:else if kills === null}With these settings, a kill gives no experience.
+          {:else}{killCount} {kills.low === 1 && kills.high === 1 ? 'kill' : 'kills'} from level {formatNumber(characterLevel)} to level {formatNumber(characterLevel + 1)}, which needs {formatNumber(toNext)} experience.{/if}
+        </p>
+      </div>
+      <table class="steps">
+        <caption>How it adds up</caption>
+        <thead><tr><th scope="col">Step</th><th scope="col">Experience</th></tr></thead>
         <tbody>{#each result.steps as step}<tr><th scope="row">{step.label}</th><td>{range(step.low, step.high)}</td></tr>{/each}</tbody>
       </table>
-      {#if experienceBonus > 0}<p class="uncertainty">The game may round the final amount.</p>{/if}
-    </div>
-    <div class="creature-card">
-      <h3>Creature facts</h3>
-      <dl>
-        <div><dt>Creature</dt><dd><EntityLink ref={selected.creature} {registry} /></dd></div>
-        <div><dt>Level</dt><dd>{format(selected.level)}</dd></div>
-        <div><dt>Base roll</dt><dd>{range(selected.minExperience, selected.maxExperience === selected.minExperience ? selected.minExperience : selected.maxExperience - 1)}</dd></div>
-        <div><dt>Creature below the player</dt><dd>{signed(selected.lowerModifier)}</dd></div>
-        <div><dt>Creature above the player</dt><dd>{signed(selected.higherModifier)}</dd></div>
-      </dl>
+      <p class="note">World modifiers and some game modifiers are not included.{#if experienceBonus > 0} The game may round the final amount.{/if}</p>
     </div>
   </div>
-  <p class="exclusion">World modifiers and some game modifiers are not included.</p>
 </div>
 
 <style>
   .calculator { container: kill-calculator / inline-size; min-width: 0; }
-  .controls { display: grid; gap: 1rem; margin-bottom: 1.2rem; }
-  .picker { display: grid; gap: .35rem; min-width: 0; }
-  .picker label { color: var(--c-text-strong); font-weight: 600; }
-  select, .numeric input { box-sizing: border-box; min-height: 2.75rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; }
-  select { width: 100%; padding: .4rem .6rem; }
-  .extra-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
-  .heroic { display: flex; grid-column: 1 / -1; align-items: center; gap: .45rem; min-height: 2.75rem; }
-  .heroic input { width: 1.3rem; height: 1.3rem; accent-color: var(--c-accent); }
-  .numeric { display: grid; gap: .35rem; color: var(--c-text-strong); font-weight: 600; }
-  .numeric input { width: 7rem; padding: .35rem .5rem; font-weight: 400; }
-  .panels { display: grid; gap: 1rem; min-width: 0; }
-  .result-card, .creature-card { box-sizing: border-box; min-width: 0; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); }
-  h3 { margin: 0 0 .55rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
-  .award { margin: 0; color: var(--c-text-strong); font: 700 clamp(1.5rem, 3vw, 2rem)/1.2 var(--c-serif); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-  .next { margin: .75rem 0; line-height: 1.5; }
-  .breakdown { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .875rem; font-variant-numeric: tabular-nums; }
-  .breakdown caption { margin: .65rem 0 .35rem; text-align: left; color: var(--c-text-strong); font-size: 1rem; font-weight: 600; }
-  .breakdown :is(th, td) { padding: .45rem .25rem; border-bottom: 1px solid var(--c-line-soft); }
-  .breakdown th { text-align: left; font-weight: 500; overflow-wrap: anywhere; }
-  .breakdown thead th { color: var(--c-text-dim); font-weight: 600; }
-  .breakdown :is(th:last-child, td) { width: 8.5rem; text-align: right; }
-  .breakdown td { white-space: nowrap; }
-  .uncertainty, .exclusion { margin: .8rem 0 0; color: var(--c-text-dim); line-height: 1.5; }
-  dl { margin: 0; }
-  dl div { display: flex; justify-content: space-between; gap: 1rem; padding: .5rem 0; border-bottom: 1px solid var(--c-line-soft); }
-  dt { color: var(--c-text-dim); }
-  dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+  .picker { display: grid; gap: .35rem; max-width: 30rem; }
+  .picker label, .field, .check { color: var(--c-text-strong); font-weight: 600; }
+  select, input[type='number'] { box-sizing: border-box; min-height: 2.75rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; font-weight: 400; }
+  .picker select { width: 100%; padding: .4rem .6rem; }
+  .facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem 1.5rem; margin: .75rem 0 1.25rem; }
+  .facts div { display: flex; align-items: baseline; gap: .45rem; }
+  .facts dt { color: var(--c-text-dim); }
+  .facts dd { margin: 0; color: var(--c-text); font-variant-numeric: tabular-nums; }
+  .hidden-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .body { display: grid; gap: 1.25rem; min-width: 0; }
+  .settings { display: grid; align-content: start; gap: 1rem; min-width: 0; }
+  .field { display: grid; justify-items: start; gap: .35rem; }
+  /* The settings fields match the number box of the level slider above them. */
+  .field select, .numbers input { width: 6rem; min-height: 2.3rem; padding: .35rem .5rem; }
+  .numbers { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; }
+  .suffixed { display: inline-flex; align-items: center; gap: .45rem; color: var(--c-text); font-weight: 400; }
+  .check { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; min-height: 2.75rem; }
+  .check input { width: 1.3rem; height: 1.3rem; margin: 0; accent-color: var(--c-accent); }
+  .dim { color: var(--c-text-dim); font-weight: 400; }
+  .result { box-sizing: border-box; min-width: 0; padding: .8rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); }
+  h3 { margin: 0 0 .45rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
+  .award { margin: 0; color: var(--c-text-strong); font: 700 1.75rem/1.2 var(--c-serif); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .kills { margin: .35rem 0 0; line-height: 1.5; }
+  .steps { width: 100%; margin-top: .9rem; table-layout: fixed; border-collapse: collapse; font-size: .875rem; font-variant-numeric: tabular-nums; }
+  .steps caption { margin: 0 0 .45rem; text-align: left; color: var(--c-text-strong); font-size: 1rem; font-weight: 600; }
+  .steps th, .steps td { padding: .25rem .375rem; border-bottom: 1px solid var(--c-line-soft); }
+  .steps th { color: var(--c-text-dim); font-weight: 500; text-align: left; overflow-wrap: anywhere; }
+  .steps :is(td, thead th:last-child) { width: 7rem; text-align: right; white-space: nowrap; }
+  .steps td { color: var(--c-text); }
+  .note { margin: .75rem 0 0; color: var(--c-text-dim); font-size: .875rem; line-height: 1.5; }
   @container kill-calculator (min-width: 46rem) {
-    .controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; }
-    .extra-controls { display: flex; grid-column: 1 / -1; flex-wrap: wrap; align-items: end; gap: .75rem 1.2rem; }
-    .panels { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: start; }
+    .body { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1.5rem; }
   }
 </style>

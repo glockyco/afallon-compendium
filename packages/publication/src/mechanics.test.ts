@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { HEROIC_TIER_KEY, type CatalogFacts, type CatalogMechanicsRule, type CatalogNpcFacts, type CatalogProgressionFact, type CatalogQuestFacts } from "@afallon/contracts/catalog";
-import type { CharacterProgression, CraftingAndGathering, HeroicTier, NpcLocation, PublicDocument, PublicNpc, PublicPlace } from "@afallon/contracts/public";
+import type { CharacterProgression, CraftingAndGathering, HeroicTier, NpcLocation, PublicDocument, PublicLevel, PublicNpc, PublicPlace } from "@afallon/contracts/public";
 import { projectMechanicsDocuments } from "./mechanics";
 import { createReferenceResolver } from "./references";
 
@@ -49,13 +49,17 @@ const facts = {
   recipes: [{ entityKey: "recipes:1", skill: ref("skills:8", "Tailoring"), station: null, learnedByDefault: true, ranks: [{ rank: 1, unlockCost: 40, experience: 7, craftTime: 1, products: [{ item: ref("items:1", "Runeweave Regalia"), count: 1, chance: 100 }], materials: [] }] }],
   gatheringNodes: [{ entityKey: "gatheringNodes:small-iron-vein", name: "Small iron vein", levelHint: null, variant: false, skill: ref("skills:7", "Mining"), skillExperience: 3, characterExperience: null, lootTable: null, conditionId: null, sources: [] }],
 } as unknown as CatalogFacts;
-const spawned = new Map([["npcs:3", { min: 15, max: 30, scales: true }], ["npcs:4", { min: 5, scales: true }]]);
+// Spawners decide levels: Zombie's record does not scale but its spawner does, and Wolf's spawner rolls 6–12 although
+// its record says 5–12. Badger has no published spawn.
+const zombieSpawn = { min: 1, max: 10, scales: true }, wolfSpawn = { min: 6, max: 12, scales: false }, grainSpawn = { min: 15, max: 30, scales: true };
+const vampireSpawn = { min: 5, scales: true }, aardvarkSpawn = { min: 8, max: 8, scales: false }, secondAardvarkSpawn = { min: 11, max: 11, scales: false };
+const spawned = new Map<string, PublicLevel>([["npcs:1", zombieSpawn], ["npcs:2", wolfSpawn], ["npcs:3", grainSpawn], ["npcs:4", vampireSpawn], ["npcs:6", aardvarkSpawn], ["npcs:8", secondAardvarkSpawn]]);
 const published = new Set(["npcs:1", "npcs:2", "npcs:3", "npcs:4", "npcs:6", "npcs:7", "npcs:8", "quests:1", "quests:2", "items:1", "skills:7", "skills:8", "gatheringNodes:small-iron-vein"]);
 const resolve = createReferenceResolver(new Map(entities.map(({ entityKey, name }) => [entityKey, {
   key: entityKey, kind: entityKey.split(":")[0] === "gatheringNodes" ? "gatheringNodes" as const : entityKey.split(":")[0] === "recipes" ? "recipes" as const : entityKey.split(":")[0] as "items" | "npcs" | "skills", name, slug: name.toLowerCase().replaceAll(" ", "-"),
 }])));
-const location = (label: string, mapSpaceId: string, variant: string): NpcLocation => ({
-  label, placements: [{ placementId: `${variant}-${label}`, mapSpaceId, label }], spotCount: 1, availability: [], variants: [variant], roles: [], quests: [],
+const location = (label: string, mapSpaceId: string, variant: string, level?: PublicLevel): NpcLocation => ({
+  label, placements: [{ placementId: `${variant}-${label}`, mapSpaceId, label }], spotCount: 1, availability: [], variants: [variant], roles: [], quests: [], ...(level ? { level } : {}),
 });
 const npcPage = (id: number, locations: NpcLocation[] = []): PublicNpc => ({
   ref: { key: `npcs:${id}`, kind: "npcs", name: entities.find((row) => row.entityKey === `npcs:${id}`)!.name, slug: `npc-${id}` },
@@ -69,13 +73,13 @@ const place = (name: string, mapSpaceId: string): PublicPlace => ({
   bosses: [], creatures: [], npcs: [], services: [], resources: [], containers: [], quests: [], questObjectives: [], properties: [], connections: [], regions: [],
 });
 const entityDocuments = new Map<string, PublicDocument>([
-  ["npcs:1", npcPage(1, [location("Oakenvale", "oakenvale", "n1")])],
-  ["npcs:2", npcPage(2, [location("Oakenvale", "oakenvale", "n2")])],
-  ["npcs:3", npcPage(3, [location("Oakenvale", "oakenvale", "n3")])],
-  ["npcs:4", npcPage(4, [location("Oakenvale", "oakenvale", "n4")])],
-  ["npcs:6", npcPage(6, [location("Oakenvale", "oakenvale", "n6"), location("Coalway Woods", "coalway", "n6")])],
+  ["npcs:1", npcPage(1, [location("Oakenvale", "oakenvale", "n1", zombieSpawn)])],
+  ["npcs:2", npcPage(2, [location("Oakenvale", "oakenvale", "n2", wolfSpawn)])],
+  ["npcs:3", npcPage(3, [location("Oakenvale", "oakenvale", "n3", grainSpawn)])],
+  ["npcs:4", npcPage(4, [location("Oakenvale", "oakenvale", "n4", vampireSpawn)])],
+  ["npcs:6", npcPage(6, [location("Oakenvale", "oakenvale", "n6", aardvarkSpawn), location("Coalway Woods", "coalway", "n6", aardvarkSpawn)])],
   ["npcs:7", npcPage(7)],
-  ["npcs:8", npcPage(8, [location("Coalway Woods", "coalway", "n8")])],
+  ["npcs:8", npcPage(8, [location("Coalway Woods", "coalway", "n8", secondAardvarkSpawn)])],
   ["scenes:oakenvale", place("Oakenvale", "oakenvale")],
   ["scenes:coalway", place("Coalway Woods", "coalway")],
 ]);
@@ -91,30 +95,27 @@ test("the level curve and source ranges reflect published creature levels", () =
   expect(progression.sources.levelModifiers).toEqual([{ lower: 20, higher: -20, creatures: 2 }]);
 });
 
-test("the kill calculator projects published fixed-level creatures, each published location, and the authored roll bounds", () => {
+test("the kill calculator offers each creature at each place where it spawns, with its levels there", () => {
   const progression = documents().get("mechanics:character-progression") as CharacterProgression;
   const calculator = progression.killCalculator;
-  expect(calculator.defaultCreature).toEqual(expect.objectContaining({ key: "npcs:6", slug: "aardvark" }));
+  // Wolf is the first creature by name whose level modifiers change the range.
+  expect(calculator.defaultCreature).toEqual(expect.objectContaining({ key: "npcs:2", slug: "wolf" }));
   expect(calculator.heroicMultiplier).toBe(5);
   expect(calculator.groups.map(({ name, place, creatures }) => ({
-    name, place: place?.key, creatures: creatures.map(({ creature }) => creature.key),
+    name, place: place?.key, creatures: creatures.map(({ creature, level }) => [creature.key, level]),
   }))).toEqual([
-    { name: "Coalway Woods", place: "scenes:coalway", creatures: ["npcs:6", "npcs:8"] },
-    { name: "Oakenvale", place: "scenes:oakenvale", creatures: ["npcs:6"] },
-    { name: "Other", place: undefined, creatures: ["npcs:7"] },
+    { name: "Coalway Woods", place: "scenes:coalway", creatures: [["npcs:6", aardvarkSpawn], ["npcs:8", secondAardvarkSpawn]] },
+    { name: "Oakenvale", place: "scenes:oakenvale", creatures: [["npcs:6", aardvarkSpawn], ["npcs:3", grainSpawn], ["npcs:4", vampireSpawn], ["npcs:2", wolfSpawn], ["npcs:1", zombieSpawn]] },
   ]);
-  const aardvark = calculator.groups[0]!.creatures[0]!;
-  expect(aardvark).toEqual({ creature: expect.objectContaining({ key: "npcs:6" }), level: 8,
+  expect(calculator.groups[0]!.creatures[0]).toEqual({ creature: expect.objectContaining({ key: "npcs:6" }), level: aardvarkSpawn,
     minExperience: 5, maxExperience: 12, lowerModifier: 0, higherModifier: 0 });
-  expect(calculator.groups[2]!.creatures[0]).toEqual({ creature: expect.objectContaining({ key: "npcs:7" }), level: 9,
-    minExperience: 7, maxExperience: 7, lowerModifier: 0, higherModifier: 0 });
   expect(progression.steps[0]?.rules).toEqual(["kill-base-roll"]);
   expect(progression.rules.find((rule) => rule.id === "kill-base-roll")?.appearsOn).toEqual(["NPC pages, Experience"]);
   expect(progression.rules.some((rule) => rule.id === "placed-only")).toBe(false);
 });
 
-test("grouped NPC variants retain their page link and distinct place while the first record remains the default", () => {
-  const groupedPage = npcPage(6, [location("Oakenvale", "oakenvale", "n6"), location("Coalway Woods", "coalway", "n8")]);
+test("grouped NPC variants keep their page link and their own place", () => {
+  const groupedPage = npcPage(6, [location("Oakenvale", "oakenvale", "n6", aardvarkSpawn), location("Coalway Woods", "coalway", "n8", secondAardvarkSpawn)]);
   const groupedDocuments = new Map(entityDocuments);
   groupedDocuments.set("npcs:6", { ...groupedPage, variants: [
     ...groupedPage.variants, { key: "npcs:8", anchor: "n8", label: "NPC 8", facts: {} },
@@ -127,36 +128,42 @@ test("grouped NPC variants retain their page link and distinct place while the f
   };
   const calculator = (projectMechanicsDocuments(facts, published, spawned, groupedResolve, conditions, groupedDocuments)
     .get("mechanics:character-progression") as CharacterProgression).killCalculator;
-  expect(calculator.defaultCreature).toEqual(expect.objectContaining({ key: "npcs:6", variant: "n6" }));
-  expect(calculator.groups.map(({ name, creatures }) => [name, creatures.map(({ creature }) => [creature.key, creature.variant])])).toEqual([
-    ["Coalway Woods", [["npcs:6", "n8"]]],
-    ["Oakenvale", [["npcs:6", "n6"]]],
-    ["Other", [["npcs:7", undefined]]],
+  const variants = calculator.groups.map(({ name, creatures }) => [name, creatures.filter(({ creature }) => creature.key === "npcs:6").map(({ creature, level }) => [creature.variant, level])]);
+  expect(variants).toEqual([
+    ["Coalway Woods", [["n8", secondAardvarkSpawn]]],
+    ["Oakenvale", [["n6", aardvarkSpawn]]],
   ]);
 });
 
-test("unknown modifiers and invalid experience bounds do not become calculator choices", () => {
+test("unknown modifiers, invalid experience bounds, and a missing spawn keep a creature out of the calculator", () => {
   const source = { ...facts, npcs: facts.npcs.map((row) =>
     row.entityKey === "npcs:6" ? { ...row, lowerLevelExperienceModifier: 17, higherLevelExperienceModifier: -12 }
       : row.entityKey === "npcs:8" ? { ...row, higherLevelExperienceModifier: null }
-      : row.entityKey === "npcs:7" ? { ...row, minExperience: 8, maxExperience: 7 } : row) };
+      : row.entityKey === "npcs:2" ? { ...row, minExperience: 8, maxExperience: 7 } : row) };
   const calculator = (documents(source).get("mechanics:character-progression") as CharacterProgression).killCalculator;
-  expect(calculator.groups.flatMap((group) => group.creatures.map((row) => row.creature.key))).toEqual(["npcs:6", "npcs:6"]);
+  const offered = new Set(calculator.groups.flatMap((group) => group.creatures.map((row) => row.creature.key)));
+  expect([...offered].sort()).toEqual(["npcs:1", "npcs:3", "npcs:4", "npcs:6"]);
   expect(calculator.groups[0]!.creatures[0]).toEqual({
-    creature: expect.objectContaining({ key: "npcs:6" }), level: 8,
+    creature: expect.objectContaining({ key: "npcs:6" }), level: aardvarkSpawn,
     minExperience: 5, maxExperience: 12, lowerModifier: 17, higherModifier: -12,
   });
 });
 
-test("the calculator omits missing Heroic settings and preserves the first-by-name default among available creatures", () => {
-  const source = { ...facts, npcs: facts.npcs.filter((row) => row.entityKey !== "npcs:6" && row.entityKey !== "npcs:8"),
+test("places that share a name form one group, with every level at which a creature spawns there", () => {
+  const caveDocuments = new Map(entityDocuments);
+  caveDocuments.set("npcs:1", npcPage(1, [location("Cave", "cave-a", "n1", { min: 1, max: 5, scales: true }), location("Cave", "cave-b", "n1", { min: 1, max: 20, scales: true })]));
+  const calculator = (projectMechanicsDocuments(facts, published, spawned, resolve, conditions, caveDocuments)
+    .get("mechanics:character-progression") as CharacterProgression).killCalculator;
+  expect(calculator.groups.filter((group) => group.name === "Cave").map((group) => group.creatures.map(({ creature, level }) => [creature.key, level])))
+    .toEqual([[["npcs:1", { min: 1, max: 20, scales: true }]]]);
+});
+
+test("the calculator omits missing Heroic settings and defaults to the first creature by name with level modifiers", () => {
+  const source = { ...facts, npcs: facts.npcs.filter((row) => row.entityKey !== "npcs:2"),
     progression: { ...facts.progression, facts: progressionFacts.filter((row) => row.entityKey !== HEROIC_TIER_KEY) } };
   const calculator = (documents(source).get("mechanics:character-progression") as CharacterProgression).killCalculator;
-  expect(calculator.defaultCreature.key).toBe("npcs:7");
+  expect(calculator.defaultCreature.key).toBe("npcs:1");
   expect(calculator.heroicMultiplier).toBeUndefined();
-  expect(calculator.groups).toEqual([{ name: "Other", creatures: [{
-    creature: expect.objectContaining({ key: "npcs:7" }), level: 9, minExperience: 7, maxExperience: 7, lowerModifier: 0, higherModifier: 0,
-  }] }]);
 });
 
 test("Heroic guide computes Essence at health factor one for each rank and affix count", () => {

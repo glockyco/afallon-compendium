@@ -651,13 +651,13 @@ export const GuideStepSchema = Type.Object({ id: anchor, title: text, text, rule
 export type GuideStep = Static<typeof GuideStepSchema>;
 const guide = { overview: text, steps: Type.Array(GuideStepSchema, { minItems: 1 }),
   seeAlso: optional(Type.Array(Type.Object({ lead: text, ref: EntityRefSchema }, { additionalProperties: false }))) };
-// Fixed-level published creatures expose the authored base-roll bounds and level-difference modifiers.
-// The upper bound is exclusive when greater than the minimum; equal bounds give that exact amount.
+// Each entry is a published creature at one place where it spawns, with its levels there, the levels that its NPC page
+// shows. The upper experience bound is exclusive when greater than the minimum; equal bounds give that exact amount.
 export const KillCalculatorSchema = Type.Object({
   groups: Type.Array(Type.Object({
     place: optional(EntityRefSchema), name: text,
     creatures: Type.Array(Type.Object({
-      creature: EntityRefSchema, level: count, minExperience: count, maxExperience: count,
+      creature: EntityRefSchema, level: PublicLevelSchema, minExperience: count, maxExperience: count,
       lowerModifier: number, higherModifier: number,
     }, { additionalProperties: false }), { minItems: 1 }),
   }, { additionalProperties: false }), { minItems: 1 }),

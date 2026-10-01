@@ -15,7 +15,7 @@
   export let registry: PublicKindEntry[];
   let playerLevel = document.killCalculator.groups.flatMap((group) => group.creatures)
     .find((entry) => entry.creature.key === document.killCalculator.defaultCreature.key
-      && entry.creature.variant === document.killCalculator.defaultCreature.variant)!.level;
+      && entry.creature.variant === document.killCalculator.defaultCreature.variant)!.level.min;
 
   const format = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 4 });
   $: sources = document.sources;
@@ -45,7 +45,7 @@
   <Sections>
     <GuideSteps steps={document.steps} ruleNumbers={numbers} />
     <Section id="try-it-on-a-creature" title="Try it on a creature">
-      <KillCalculator guide={document} {registry} bind:playerLevel />
+      <KillCalculator guide={document} {registry} bind:characterLevel={playerLevel} />
     </Section>
     <Section id="level-curve" title="Level curve" line={`Character level cap: ${format(document.curve.cap)}.`}>
       <LevelCurve curve={document.curve} bind:level={playerLevel} />

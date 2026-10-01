@@ -12,3 +12,9 @@
 
 - [x] 3.1 Migrate every consumer and fixture from the obsolete one-creature example, remove unused schema and UI paths, and verify scoped publication and site checks for the updated Character Progression document.
 - [x] 3.2 Validate this OpenSpec change strictly and exercise a published candidate's calculator against real linked creature and place facts while confirming the curve, quest/skill guidance, Heroic Tier page, and navigation still work; retain only verified completion marks.
+
+## 4. Spawn Levels and Polish
+
+- [x] 4.1 Publish one entry for each creature at each place where it spawns, with the union of its published location levels there, and leave out creatures without a published spawn; verify with focused publication tests for a fixed range, a scaling zone range, a non-scaling record at a scaling spawner, and an unplaced record.
+- [x] 4.2 Add a creature level select of the levels at the selected place that resets to the character level, limited to those levels, on a new creature or character level, and keep the character level when the creature changes; verify the stage labels and the level comparison with focused calculator tests.
+- [x] 4.3 Lay out the picker with one facts line, then the settings beside one result box with the experience per kill, the kills to the next level, the stages, and the caveat; verify in the running site at 1440 px and 390 px, and replace `local/design/implemented/kill-calculator-{1440,390}.jpg`.

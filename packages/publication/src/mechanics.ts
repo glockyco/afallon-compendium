@@ -6,6 +6,7 @@ import { requiredLevel, spawnerExamples } from "./gathering";
 import type { CorruptionRewards } from "./corruption-rewards";
 import { MECHANICS_TOPIC_NAMES, placedRules, projectRule, topicRef } from "./placed-rules";
 import { GUIDES } from "./guide-steps";
+import { levelUnion } from "./levels";
 import { displayName } from "./text";
 
 function guide(facts: CatalogFacts, topic: MechanicsTopic, resolve: ReferenceResolver) {
@@ -57,37 +58,49 @@ function killCalculator(facts: CatalogFacts, published: ReadonlySet<string>, res
     }
   }
   const candidates = facts.npcs.filter((npc) => published.has(npc.entityKey) && npcPages.has(npc.entityKey)
-    && !npc.scalesWithPlayer && npc.minLevel !== null && npc.minLevel >= 0 && npc.minLevel === npc.maxLevel
     && npc.minExperience !== null && npc.minExperience >= 0 && npc.maxExperience !== null
     && npc.maxExperience > 0 && npc.maxExperience >= npc.minExperience
     && npc.lowerLevelExperienceModifier !== null && npc.higherLevelExperienceModifier !== null && names.has(npc.entityKey));
   candidates.sort((a, b) => names.get(a.entityKey)!.localeCompare(names.get(b.entityKey)!) || a.entityKey.localeCompare(b.entityKey));
-  if (!candidates[0]) throw new Error("No published fixed-level creature with experience exists for the kill calculator.");
-  // The default is the first creature by name whose level modifiers are not zero, so the level step changes the range.
-  const first = candidates.find((npc) => npc.lowerLevelExperienceModifier !== 0 || npc.higherLevelExperienceModifier !== 0) ?? candidates[0];
-  const groups = new Map<string, CharacterProgression["killCalculator"]["groups"][number]>();
-  let defaultCreature: EntityRef | undefined;
+  type Entry = Omit<CharacterProgression["killCalculator"]["groups"][number]["creatures"][number], "level"> & { levels: PublicLevel[] };
+  // A reader picks a place by its name. Several map spaces can carry one name, such as three caves named Cave, so the
+  // picker joins them and keeps one entry for each creature with every level at which it spawns there.
+  const groups = new Map<string, { place?: EntityRef; name: string; creatures: Map<string, Entry> }>();
+  const offered = new Map<string, EntityRef>();
+  const fixedSpawn = new Set<string>();
   for (const npc of candidates) {
     const page = npcPages.get(npc.entityKey)!;
     const creature = publishedNpcRef(resolve, npc.entityKey, names.get(npc.entityKey)!, page);
-    if (npc === first) defaultCreature = creature;
-    const row = { creature, level: npc.minLevel!, minExperience: npc.minExperience!, maxExperience: npc.maxExperience!,
-      lowerModifier: npc.lowerLevelExperienceModifier!, higherModifier: npc.higherLevelExperienceModifier! };
-    const locations = page.locations.filter((location) => !creature.variant || location.variants.includes(creature.variant));
-    const labels = new Map(locations.map((location) => [`${location.placements[0]!.mapSpaceId}\u0000${location.label}`, location.label]));
-    if (labels.size === 0) labels.set("Other", "Other");
-    for (const [key, name] of labels) {
-      const place = places.get(key);
-      const group = groups.get(key) ?? { ...(place ? { place } : {}), name, creatures: [] };
-      group.creatures.push(row);
-      groups.set(key, group);
+    const identity = JSON.stringify([creature.key, creature.variant ?? null]);
+    // A spawner can override the record's level or scale it into its zone range, so each place keeps the levels that
+    // the NPC page shows there. A creature without a published spawn has no known level and is not offered.
+    for (const location of page.locations) {
+      if (!location.level || (creature.variant && !location.variants.includes(creature.variant))) continue;
+      const group = groups.get(location.label) ?? { name: location.label, creatures: new Map<string, Entry>() };
+      const place = places.get(`${location.placements[0]!.mapSpaceId}\u0000${location.label}`);
+      if (place && !group.place) group.place = place;
+      const entry = group.creatures.get(identity) ?? { creature, levels: [], minExperience: npc.minExperience!, maxExperience: npc.maxExperience!,
+        lowerModifier: npc.lowerLevelExperienceModifier!, higherModifier: npc.higherLevelExperienceModifier! };
+      entry.levels.push(location.level);
+      group.creatures.set(identity, entry);
+      groups.set(location.label, group);
+      offered.set(npc.entityKey, creature);
+      if (!location.level.scales) fixedSpawn.add(npc.entityKey);
     }
   }
+  const choices = candidates.filter((npc) => offered.has(npc.entityKey));
+  if (!choices[0]) throw new Error("No published creature with experience and a published spawn exists for the kill calculator.");
+  // The default shows each stage: a fixed level that the character can pass, level modifiers, and more than one roll.
+  const modified = (npc: (typeof choices)[number]) => npc.lowerLevelExperienceModifier !== 0 || npc.higherLevelExperienceModifier !== 0;
+  const first = choices.find((npc) => fixedSpawn.has(npc.entityKey) && modified(npc) && npc.maxExperience! - npc.minExperience! > 1)
+    ?? choices.find(modified) ?? choices[0];
   const heroic = facts.progression.facts.find((fact) => fact.entityKey === HEROIC_TIER_KEY);
   return {
-    groups: [...groups.values()].sort((a, b) => (a.name === "Other" ? 1 : 0) - (b.name === "Other" ? 1 : 0)
-      || a.name.localeCompare(b.name) || (a.place?.key ?? "").localeCompare(b.place?.key ?? "")),
-    defaultCreature: defaultCreature!,
+    groups: [...groups.values()].sort((a, b) => a.name.localeCompare(b.name)).map(({ place, name, creatures }) => ({
+      ...(place ? { place } : {}), name,
+      creatures: [...creatures.values()].map(({ levels, ...entry }) => ({ ...entry, level: levelUnion(levels)! })),
+    })),
+    defaultCreature: offered.get(first.entityKey)!,
     ...(heroic?.kind === "heroicTier" ? { heroicMultiplier: heroic.details.killExperienceMultiplier } : {}),
   };
 }
