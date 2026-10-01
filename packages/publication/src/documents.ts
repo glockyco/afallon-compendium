@@ -535,6 +535,9 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
         return { item: input.resolve(target), min: Math.max(0, row.min), max: Math.max(0, row.max), chance: row.chance };
       }),
     }))) : []);
+  // A class that no race offers is not playable and has no page, so a band keeps only the offered classes, and a band
+  // whose class condition names none of them is one that no player can open.
+  const offeredClasses = new Set(input.facts.progression.offeredClasses);
   const usePacks = (fact?.gameActions ?? []).flatMap((action) => {
     if (action.type !== "LootTable" || !action.target?.entityKey) return [];
     const id = Number(action.target.entityKey.split(":")[1]);
@@ -543,8 +546,10 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     const checks = (action.requirements ?? []).flatMap((group) => group.checks);
     const minLevel = checks.find((check) => check.type === "Level" && check.comparison === "EqualOrAbove")?.level;
     const maxLevel = checks.find((check) => check.type === "Level" && check.comparison === "EqualOrBelow")?.level;
-    const classes = checks.filter((check) => check.type === "Class" && check.classId >= 0).map((check) =>
-      input.resolve({ entityKey: `classes:${check.classId}`, label: "Unknown class" }));
+    const classKeys = checks.filter((check) => check.type === "Class" && check.classId >= 0).map((check) => `classes:${check.classId}`);
+    const playable = classKeys.filter((key) => offeredClasses.has(key));
+    if (classKeys.length > 0 && playable.length === 0) return [];
+    const classes = playable.map((entityKey) => input.resolve({ entityKey, label: "Unknown class" }));
     return [{ classes,
       ...(minLevel === undefined ? {} : { minLevel }), ...(maxLevel === undefined ? {} : { maxLevel }),
       entries: table.entries.map((entry) => ({ item: input.resolve(entry.item), min: Math.max(0, entry.min), max: Math.max(0, entry.max) })),

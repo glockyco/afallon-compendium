@@ -965,7 +965,7 @@ test("adventurer-only kits have their own coverage group, while player sources r
   expect(gaps.find((gap) => gap.gap === "itemAdventurerOnly")?.pages.map((row) => row.key) ?? []).not.toContain(band.entityKey);
 });
 
-test("used bags publish independent chest rows and supply packs keep their gated table entries", () => {
+test("used bags publish independent chest rows and supply packs keep their gated tables for playable classes", () => {
   const bag: CatalogEntityRow = { ...entities[0]!, entityKey: "items:377", nativeId: 377, name: "Soaked Bag" };
   const gold: CatalogEntityRow = { ...entities[0]!, entityKey: "items:30", nativeId: 30, name: "Gold" };
   const coin: CatalogEntityRow = { ...entities[0]!, entityKey: "currencies:0", kind: "currencies", nativeId: 0, name: "Gold Coin" };
@@ -991,13 +991,20 @@ test("used bags publish independent chest rows and supply packs keep their gated
           { type: "Level", rule: "Mandatory", classId: -1, level: 1, levelMax: 0, comparison: "EqualOrAbove" },
           { type: "Level", rule: "Mandatory", classId: -1, level: 5, levelMax: 0, comparison: "EqualOrBelow" },
           { type: "Class", rule: "Optional", classId: 0, level: 0, levelMax: 0, comparison: "Equal" },
+          { type: "Class", rule: "Optional", classId: 4, level: 0, levelMax: 0, comparison: "Equal" },
+        ] }],
+      },
+      { ...action, type: "LootTable", target: { entityKey: "lootTables:147", label: "Supply Pack Plate lvl 1-5" },
+        requirements: [{ checkCount: false, requiredCount: 0, checks: [
+          { type: "Class", rule: "Optional", classId: 4, level: 0, levelMax: 0, comparison: "Equal" },
         ] }],
       },
     ] },
   ], itemLootTables: [{ id: 147, name: "Supply Pack Plate lvl 1-5", includeWorldLoot: true,
     worldLootShare: 50, bonusDropChance: 20, hasMinimumDrops: true, minDroppedItems: 1, limitDroppedItems: true,
     maxDroppedItems: 2, worldLootStats: [27], worldLootArmorType: { nativeId: -1, name: "PLATE" },
-    entries: [{ item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rate: 0 }] }] };
+    entries: [{ item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rate: 0 }] }],
+    progression: { ...facts.progression, offeredClasses: ["classes:0"] } };
   const projected = project(all, withUses, { ...relations, drops: [], gathers: [], containers: [] }).documents;
   const bagUse = (projected.get(bag.entityKey) as PublicItem).whenUsed;
   expect(bagUse.itemChanges).toEqual([{ action: "Remove", item: expect.objectContaining({ key: bag.entityKey }), count: 1 }]);
