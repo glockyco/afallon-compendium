@@ -488,9 +488,8 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
   }))).map(withAvailabilityIndex);
   const collectedFrom = groupPlacementCounts(itemInteractions.filter((row) => !indexes.placedNodes.has(row.sourceId)).map((row) => ({
     ...(row.place === null ? {} : { counterpart: input.resolve(row.place) }),
-    label: /^For sale (\d+) gold$/i.test(row.objectName ?? "")
-      ? `For Sale (Named ${Number(row.objectName!.match(/^For sale (\d+) gold$/i)![1]).toLocaleString("en-US")} Gold)`
-      : displayName(row.objectName ?? "") || "Object",
+    // The "For sale 2500 gold" signs are not property signs: a use costs Gold Coin and rolls a loot table.
+    label: /^For sale \d+ gold$/i.test(row.objectName ?? "") ? "For Sale Sign" : displayName(row.objectName ?? "") || "Object",
     ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
     ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }), ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }),
     availability: projectAvailability(row.availability, conditions, input.resolve),
