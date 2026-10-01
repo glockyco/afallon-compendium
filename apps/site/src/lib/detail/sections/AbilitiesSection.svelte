@@ -42,6 +42,6 @@
   .requirement { color: var(--c-text-mute); font-weight: 400; }
   ul { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); margin: 0; padding: 0; list-style: none; }
   ul.chips { display: flex; flex-wrap: wrap; }
-  .chips li { display: inline-flex; align-items: center; max-width: 100%; min-height: 1.8rem; padding: .2rem .5rem; border: 1px solid var(--c-line-soft); border-radius: 1rem; overflow-wrap: anywhere; }
+  .chips li { display: inline-flex; align-items: center; max-width: 100%; min-height: 1.8rem; padding: .2rem .5rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); overflow-wrap: anywhere; }
   .chips :global(.entity-link img) { width: 1.5rem; height: 1.5rem; }
 </style>
