@@ -598,6 +598,7 @@ function npcRecordFacts(fact: CatalogNpcFacts, input: DocumentProjectionInput): 
   const experience = killExperience(fact);
   return {
     ...(fact.npcType ? { npcType: plainText(fact.npcType) } : {}), ...(fact.creatureType ? { creatureType: plainText(fact.creatureType) } : {}),
+    tameable: fact.npcType === "MOB" && fact.creatureType === "BEAST" && fact.hunterTamable,
     ...(fact.family ? { family: plainText(fact.family) } : {}), ...(faction === undefined ? {} : { faction }), ...(species === undefined ? {} : { species }),
     ...(fact.minRespawn === null || fact.maxRespawn === null ? {} : { respawn: { min: fact.minRespawn, max: fact.maxRespawn } }),
     ...(experience === null ? {} : { experience }),
@@ -720,6 +721,7 @@ function projectNpcPage(page: PublishedPage, input: DocumentProjectionInput, ind
   const facts: NpcFacts = {
     ...(level ? { level } : {}),
     ...(has("npcType") && shared.npcType ? { npcType: shared.npcType } : {}), ...(has("creatureType") && shared.creatureType ? { creatureType: shared.creatureType } : {}),
+    ...(has("tameable") ? { tameable: shared.tameable } : {}),
     ...(has("family") && shared.family ? { family: shared.family } : {}), ...(has("faction") && shared.faction ? { faction: shared.faction } : {}),
     ...(has("species") && shared.species ? { species: shared.species } : {}), roles,
     ...(has("respawn") && shared.respawn ? { respawn: shared.respawn } : {}), ...(has("experience") && shared.experience ? { experience: shared.experience } : {}),
@@ -741,6 +743,9 @@ function projectNpcPage(page: PublishedPage, input: DocumentProjectionInput, ind
     .map((row) => ({ counterpart: input.resolve(row.quest), objective: objectiveForRow(row, input, indexes, conditions) }))).map((row) => [JSON.stringify(row), row])).values()];
   const memberKeys = new Set(page.members.map((member) => member.entity.entityKey));
   const bossOf = mergeRefs(input.facts.places.filter((place) => place.bosses.some((boss) => boss.entityKey !== null && memberKeys.has(boss.entityKey))).map((place) => input.resolve({ entityKey: place.entityKey, label: place.entityKey })), input);
+  const hunterEntity = records.some(({ fact }) => fact.npcType === "MOB" && fact.creatureType === "BEAST" && fact.hunterTamable)
+    ? input.entities.find((entity) => entity.kind === "classes" && entity.name === "Hunter") : undefined;
+  const hunter = hunterEntity && input.references.refs.get(hunterEntity.entityKey);
   const base = pageBase(page, input);
   const placedRuleKeys = new Set<string>();
   const npcPlacedRules = page.members.flatMap((member) => placedRules(input.facts, "npcs", { entityKey: member.entity.entityKey }, input.resolve))
@@ -764,7 +769,8 @@ function projectNpcPage(page: PublishedPage, input: DocumentProjectionInput, ind
     spotCount: new Set(locations.flatMap((location) => location.placements.map((spot) => spot.placementId))).size,
     drops, sells, quests,
     abilityPhases: has("abilityPhases") ? shared.abilityPhases : [], factionRewards: has("factionRewards") ? shared.factionRewards : [],
-    usedInQuests, bossOf, ...(has("linkedNpc") && shared.linkedNpc ? { linkedNpc: shared.linkedNpc } : {}),
+    usedInQuests, bossOf, ...(hunter && "slug" in hunter && hunter.slug ? { hunter } : {}),
+    ...(has("linkedNpc") && shared.linkedNpc ? { linkedNpc: shared.linkedNpc } : {}),
     placedRules: npcPlacedRules,
   };
 }

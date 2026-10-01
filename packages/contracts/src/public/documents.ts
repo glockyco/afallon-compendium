@@ -416,7 +416,7 @@ export type LootSpecialization = Static<typeof LootSpecializationSchema>;
 const killExperience = Type.Object({ min: count, max: count, perLevel: count }, { additionalProperties: false });
 export const NpcFactsSchema = Type.Object({
   level: optional(PublicLevelSchema),
-  npcType: optional(text), creatureType: optional(text), family: optional(text),
+  npcType: optional(text), creatureType: optional(text), tameable: optional(Type.Boolean()), family: optional(text),
   faction: optional(RefSchema), species: optional(RefSchema),
   roles: Type.Array(markerCategory, { uniqueItems: true }),
   respawn: optional(Type.Object({ min: number, max: number }, { additionalProperties: false })),
@@ -427,15 +427,15 @@ export const NpcFactsSchema = Type.Object({
 export type NpcFacts = Static<typeof NpcFactsSchema>;
 
 // The authored record facts that can differ between the variants of one page.
-export const NPC_VARIANT_FIELD_VALUES = ["npcType", "creatureType", "family", "faction", "species", "respawn", "experience", "stats", "immunities", "aggroRange", "lootSpecialization", "abilityPhases", "factionRewards", "linkedNpc"] as const;
+export const NPC_VARIANT_FIELD_VALUES = ["npcType", "creatureType", "tameable", "family", "faction", "species", "respawn", "experience", "stats", "immunities", "aggroRange", "lootSpecialization", "abilityPhases", "factionRewards", "linkedNpc"] as const;
 export type NpcVariantField = typeof NPC_VARIANT_FIELD_VALUES[number];
 const npcVariantField = Type.Union([
-  Type.Literal("npcType"), Type.Literal("creatureType"), Type.Literal("family"), Type.Literal("faction"), Type.Literal("species"), Type.Literal("respawn"), Type.Literal("experience"),
+  Type.Literal("npcType"), Type.Literal("creatureType"), Type.Literal("tameable"), Type.Literal("family"), Type.Literal("faction"), Type.Literal("species"), Type.Literal("respawn"), Type.Literal("experience"),
   Type.Literal("stats"), Type.Literal("immunities"), Type.Literal("aggroRange"), Type.Literal("lootSpecialization"), Type.Literal("abilityPhases"), Type.Literal("factionRewards"), Type.Literal("linkedNpc"),
 ]);
 
 export const NpcVariantFactsSchema = Type.Object({
-  npcType: optional(text), creatureType: optional(text), family: optional(text), faction: optional(RefSchema), species: optional(RefSchema),
+  npcType: optional(text), creatureType: optional(text), tameable: optional(Type.Boolean()), family: optional(text), faction: optional(RefSchema), species: optional(RefSchema),
   respawn: optional(Type.Object({ min: number, max: number }, { additionalProperties: false })),
   experience: optional(killExperience),
   stats: optional(Type.Array(StatRowSchema)), immunities: optional(Type.Array(text, { uniqueItems: true })), aggroRange: optional(number),
@@ -460,7 +460,7 @@ export const PublicNpcSchema = Type.Object({
   locations: Type.Array(NpcLocationSchema), places: Type.Array(PlaceSpotsSchema), spotCount: count,
   drops: Type.Array(NpcDropRowSchema), sells: Type.Array(NpcVendorRowSchema), quests: Type.Array(QuestLinkRowSchema),
   abilityPhases: Type.Array(AbilityPhaseSchema), factionRewards: Type.Array(FactionRewardRowSchema),
-  usedInQuests: Type.Array(QuestObjectiveRowSchema), bossOf: refs, linkedNpc: optional(RefSchema), placedRules: Type.Array(PlacedRuleSchema),
+  usedInQuests: Type.Array(QuestObjectiveRowSchema), bossOf: refs, hunter: optional(RefSchema), linkedNpc: optional(RefSchema), placedRules: Type.Array(PlacedRuleSchema),
 }, { additionalProperties: false });
 export type PublicNpc = Static<typeof PublicNpcSchema>;
 
@@ -761,7 +761,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v14", npcs: "compendium.static-npc.v7", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
+  items: "compendium.static-item.v14", npcs: "compendium.static-npc.v8", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v8", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
@@ -786,14 +786,14 @@ export const StaticSkillDocumentSchema = staticDocument("skills");
 export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v14": typeof StaticItemDocumentSchema; "compendium.static-npc.v7": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v14": typeof StaticItemDocumentSchema; "compendium.static-npc.v8": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v8": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v4": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v8": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
-  "compendium.static-item.v14": StaticItemDocumentSchema, "compendium.static-npc.v7": StaticNpcDocumentSchema,
+  "compendium.static-item.v14": StaticItemDocumentSchema, "compendium.static-npc.v8": StaticNpcDocumentSchema,
   "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v8": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v4": StaticClassDocumentSchema,
@@ -804,7 +804,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v14"), resourceReference("compendium.static-npc.v7"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
+  resourceReference("compendium.static-item.v14"), resourceReference("compendium.static-npc.v8"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v8"),
   resourceReference("compendium.static-gathering-node.v4"),

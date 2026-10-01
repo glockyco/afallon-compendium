@@ -13,7 +13,7 @@
   export let registry: PublicKindEntry[];
 
   const FIELD_LABELS: Record<NpcVariantField, string> = {
-    npcType: 'Type', creatureType: 'Creature type', family: 'Family', faction: 'Faction', species: 'Species', respawn: 'Respawn',
+    npcType: 'Type', creatureType: 'Creature type', tameable: 'Hunter pet', family: 'Family', faction: 'Faction', species: 'Species', respawn: 'Respawn',
     experience: 'Experience', stats: 'Stats', immunities: 'Immune to', aggroRange: 'Aggro range', lootSpecialization: 'Favoured loot',
     abilityPhases: 'Abilities', factionRewards: 'Faction changes', linkedNpc: 'Linked NPC',
   };
@@ -26,6 +26,7 @@
     switch (field) {
       case 'npcType': return facts.npcType ? npcTypeName(facts.npcType) : undefined;
       case 'creatureType': return creatureTypeLabel(facts.creatureType);
+      case 'tameable': return facts.tameable ? 'Can be tamed' : 'Cannot be tamed';
       case 'family': return facts.family ? categoryLabel(facts.family) : undefined;
       case 'faction': return facts.faction ? nameOf(facts.faction) : undefined;
       case 'species': return facts.species ? nameOf(facts.species) : undefined;

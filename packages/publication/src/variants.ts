@@ -33,7 +33,9 @@ const unordered = (rows: readonly unknown[]) => rows.map((row) => JSON.stringify
 // are the same ability for a player. Stats and faction rewards compare without their order.
 function fieldValues(fact: CatalogNpcFacts, abilityVersion: (key: string | null) => string | null): Record<NpcVariantField, unknown> {
   return {
-    npcType: plainText(fact.npcType ?? "") || null, creatureType: plainText(fact.creatureType ?? "") || null, family: plainText(fact.family ?? "") || null,
+    npcType: plainText(fact.npcType ?? "") || null, creatureType: plainText(fact.creatureType ?? "") || null,
+    tameable: fact.npcType === "MOB" && fact.creatureType === "BEAST" && fact.hunterTamable,
+    family: plainText(fact.family ?? "") || null,
     faction: endpointKey(fact.faction), species: endpointKey(fact.species),
     respawn: [fact.minRespawn, fact.maxRespawn], experience: [fact.minExperience, fact.maxExperience],
     stats: unordered(shownNpcStats(fact.stats).map((row) => [endpointKey(row.stat), row.amount, row.isPercent])),

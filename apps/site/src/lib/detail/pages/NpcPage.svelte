@@ -28,7 +28,10 @@
   $: variantTable = document.variants.length > 1 && (document.variantFields.length > 0 || document.drops.some((row) => row.variants));
   $: portrait = document.art.portrait;
   $: typeLine = [npcTypeLabel(facts.npcType), creatureTypeLabel(facts.creatureType), ...facts.roles.map(roleLabel)].filter((part, index, parts) => part && parts.indexOf(part) === index).join(' · ');
-  $: titleFacts = document.bossOf.length ? [{ label: 'Boss of', refs: document.bossOf }] satisfies TitleFact[] : [];
+  $: titleFacts = [
+    ...(document.bossOf.length ? [{ label: 'Boss of', refs: document.bossOf }] : []),
+    ...(facts.tameable ? [{ label: 'Hunter pet', text: 'Can be tamed' }] : []),
+  ] satisfies TitleFact[];
   $: health = facts.stats.find((stat) => nameOf(stat.stat).toLowerCase() === 'health' && stat.amount > 0);
   const combatOrder = ['Strength', 'Armor', 'Magic Armor', 'Movement Speed'];
   const combatRank = (name: string) => { const index = combatOrder.indexOf(name); return index < 0 ? combatOrder.length : index; };
@@ -41,7 +44,7 @@
     ...(combat && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: facts.respawn.min === facts.respawn.max ? formatDuration(facts.respawn.min) : `${formatDuration(facts.respawn.min)}–${formatDuration(facts.respawn.max)}` }] : []),
   ] satisfies Stat[];
   $: loot = facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length || facts.lootSpecialization.stat) ? facts.lootSpecialization : undefined;
-  $: moreFacts = Boolean(facts.faction || facts.species || facts.family || facts.aggroRange !== undefined && facts.aggroRange > 0 && combat || facts.immunities.length && combat || loot || document.factionRewards.length || document.linkedNpc);
+  $: moreFacts = Boolean(facts.tameable || facts.faction || facts.species || facts.family || facts.aggroRange !== undefined && facts.aggroRange > 0 && combat || facts.immunities.length && combat || loot || document.factionRewards.length || document.linkedNpc);
   $: experienceGuide = document.placedRules.find((rule) => rule.target === 'experience');
 </script>
 
@@ -67,6 +70,7 @@
           {#if facts.faction}<FactRow label="Faction"><EntityLink ref={facts.faction} {registry} /></FactRow>{/if}
           {#if facts.species}<FactRow label="Species"><EntityLink ref={facts.species} {registry} /></FactRow>{/if}
           {#if facts.family}<FactRow label="Family">{categoryLabel(facts.family)}</FactRow>{/if}
+          {#if facts.tameable}<FactRow label="Taming">{#if document.hunter}<EntityLink ref={document.hunter} {registry} />{:else}Hunter{/if} of its level or higher, without a pet, within 30 m. The pet starts at the creature’s level. The game can still refuse some targets.</FactRow>{/if}
           {#if combat && facts.aggroRange !== undefined && facts.aggroRange > 0}<FactRow label="Aggro range">{formatNumber(facts.aggroRange)} m</FactRow>{/if}
           {#if combat && facts.immunities.length}<FactRow label="Immune to">{facts.immunities.map(categoryLabel).join(', ')}</FactRow>{/if}
           {#if loot}<FactRow label="Gear drops favour">{[loot.armorType ? categoryLabel(loot.armorType) : '', ...loot.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if loot.stat}{loot.armorType || loot.weaponTypes.length ? ', ' : ''}<EntityLink ref={loot.stat} {registry} />{/if}</FactRow>{/if}

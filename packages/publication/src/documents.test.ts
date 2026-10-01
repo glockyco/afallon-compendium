@@ -640,6 +640,31 @@ test("projects quest starts, world effects, and related item, NPC, and place pag
   expect(place.questObjectives.map((ref) => ref.key)).toEqual(["quests:3", "quests:4", "quests:1"]);
 });
 
+test("Hunter tameability distinguishes flagged Elite variants and retains placement scaling", () => {
+  const candidates: CatalogEntityRow[] = [
+    { entityKey: "npcs:350", kind: "npcs", nativeId: 350, name: "Iceclaw Bear", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "npcs:351", kind: "npcs", nativeId: 351, name: "Iceclaw Bear", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "classes:6", kind: "classes", nativeId: 6, name: "Hunter", description: null, iconAssetName: null, artwork: [] },
+  ];
+  const scenarioEntities = [...entities, ...candidates];
+  const normal = { ...facts.npcs[0]!, entityKey: "npcs:350", npcType: "MOB", creatureType: "BEAST", hunterTamable: true };
+  const elite = { ...normal, entityKey: "npcs:351", npcType: "ELITE" };
+  const scenarioFacts: CatalogFacts = { ...facts, entities: scenarioEntities, npcs: [normal, elite] };
+  const spot = (placementId: string, npcEntityKey: string) => ({
+    placementId, sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: null, area: null,
+    roles: [{ role: "enemy" as const, npcEntityKey, scope: "authored" as const }], families: [], randomChoices: [],
+  });
+  const scenarioRelations: CatalogRelations = { ...relations, placements: [spot("bear", normal.entityKey), spot("elite", elite.entityKey)], drops: [] };
+  const placements = new Map(["bear", "elite"].map((placementId) => [placementId, { placementId, mapSpaceId: "world", label: "Coalway Woods", categories: ["enemy" as const] }] as const));
+  const levels = new Map([["bear", new Map([[normal.entityKey, { min: 15, max: 30, scales: true }]])], ["elite", new Map([[elite.entityKey, { min: 10, max: 10, scales: false }]])]]);
+  const { documents } = project(scenarioEntities, scenarioFacts, scenarioRelations, placements, new Map([["world", []]]), levels);
+  const bear = documents.get(normal.entityKey) as PublicNpc;
+  expect(bear.variantFields).toContain("tameable");
+  expect(bear.facts.tameable).toBeUndefined();
+  expect(bear.variants.map((variant) => [variant.key, variant.facts.tameable, variant.level?.scales]))
+    .toEqual([["npcs:350", true, true], ["npcs:351", false, false]]);
+});
+
 test("projects one creature page with random options, story entries, and rows that name the variants they apply to", () => {
   const scenarioEntities: CatalogEntityRow[] = [...entities,
     { entityKey: "npcs:206", kind: "npcs", nativeId: 206, name: "Fenric Doryn", description: null, iconAssetName: null, artwork: [] },
