@@ -8,6 +8,7 @@
   import { formatNumber, rarityTone } from '../../format';
   import { itemOnMap, spotOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
+  import DetailsDisclosure from '../DetailsDisclosure.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import LevelSlider from '../LevelSlider.svelte';
@@ -41,6 +42,12 @@
   $: materials = craft?.materials.map((row) => ({ item: row.counterpart, quantity: row.count })) ?? [];
   $: experience = craft ? craftExperienceSentence(craft) : undefined;
   $: craftGuide = document.placedRules.find((rule) => rule.target === 'crafting');
+  $: chestGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.stepId === 'open-a-chest');
+  $: packGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.stepId !== 'open-a-chest');
+  $: firstPack = document.whenUsed.packs[0];
+  $: sharedPackPicks = firstPack && document.whenUsed.packs.every((pack) =>
+    pack.minimumPicks === firstPack.minimumPicks && pack.maximumPicks === firstPack.maximumPicks
+    && pack.bonusChance === firstPack.bonusChance && pack.worldShare === firstPack.worldShare) ? firstPack : undefined;
   $: corruptionGuide = document.placedRules.find((rule) => rule.target === 'corruption');
   $: dungeonGuide = document.placedRules.find((rule) => rule.target === 'corruption' || rule.target === 'corruption-token');
   $: tokenGuide = document.placedRules.find((rule) => rule.target === 'corruption-token');
@@ -54,6 +61,15 @@
     { id: 'sold-by', label: 'Sold by', value: (row) => row.soldBy.map((seller) => 'name' in seller ? seller.name : seller.label).join(', ') },
   ];
   $: buyPlan = planColumns(buyColumns, document.buys);
+  const chestColumns: RelationColumn<PublicItem['whenUsed']['chests'][number]['rows'][number]>[] = [
+    { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
+    { id: 'quantity', label: 'Quantity', hint: 'How many of the item drop. Every amount in the range is equally likely.', numeric: true, value: (row) => `${row.min}–${row.max}`, sort: (row) => row.max },
+    { id: 'chance', label: 'Chance', hint: 'Each item rolls this chance on its own when the chest opens.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
+  ];
+  const packColumns: RelationColumn<PublicItem['whenUsed']['packs'][number]['entries'][number]>[] = [
+    { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
+    { id: 'quantity', label: 'Quantity', hint: 'How many of the item you get when the pack gives it.', numeric: true, value: (row) => `${row.min}–${row.max}`, sort: (row) => row.max },
+  ];
   const adventurerColumns: RelationColumn<PublicItem['adventurers'][number]>[] = [
     { id: 'relation', label: 'Adventurer gear', value: (row) => row.kind === 'kitUpgradeItem' ? ('name' in row.adventurer ? row.adventurer.name : row.adventurer.label) : row.kind },
   ];
@@ -134,30 +150,45 @@
     {/if}
     {#if document.whenUsed.chests.length || document.whenUsed.packs.length || document.whenUsed.itemChanges.length}
       <Section id="when-used" title="When used" count={document.whenUsed.chests.length + document.whenUsed.packs.length + document.whenUsed.itemChanges.length}>
-        <div class="use-effects">
+        <div class="c-stack">
           {#if document.whenUsed.chests.length}
-            <p>Each chest row is checked independently against its listed chance. A positive maximum drops value caps the surviving rows. Each amount is rolled uniformly from its minimum to its maximum, including both ends.</p>
-            {#each document.whenUsed.chests as chest}
-              <div class="use-group">
-                <h3>{chest.name}</h3>
-                <p>Spawned by {chest.effect} ({formatNumber(chest.chance)}% action chance).{#if chest.maxDrops > 0}{' '}At most {formatNumber(chest.maxDrops)} rows can drop.{/if}</p>
-                <ul>{#each chest.rows as row}<li><EntityLink ref={row.item} {registry} /> · {formatNumber(row.min)}{#if row.max !== row.min} to {formatNumber(row.max)}{/if} · {formatNumber(row.chance)}% chance</li>{/each}</ul>
-              </div>
-            {/each}
+            <div class="c-groups">
+              {#each document.whenUsed.chests as chest, index}
+                <div class="c-stack">
+                  {#if document.whenUsed.chests.length > 1}<h3>Chest {formatNumber(index + 1)}</h3>{/if}
+                  {#if chest.chance < 100 || chest.maxDrops > 0}
+                    <p>{#if chest.chance < 100}Using the item has a {formatNumber(chest.chance)}% chance to open this chest.{/if}{#if chest.maxDrops > 0}{' '}At most {formatNumber(chest.maxDrops)} {chest.maxDrops === 1 ? 'item drops' : 'items drop'}.{/if}</p>
+                  {/if}
+                  <RelationTable columns={chestColumns} rows={chest.rows} label="Chest contents" sort={{ id: 'chance', dir: 'desc' }}>
+                    <svelte:fragment slot="cell" let:row let:column>
+                      {#if column === 'item'}<EntityLink ref={row.item} {registry} />
+                      {:else if column === 'quantity'}{formatNumber(row.min)}{#if row.max !== row.min}–{formatNumber(row.max)}{/if}
+                      {:else}{formatNumber(row.chance)}%{/if}
+                    </svelte:fragment>
+                  </RelationTable>
+                </div>
+              {/each}
+            </div>
+            {#if chestGuide}<HowItWorks guide={chestGuide.guide} stepId={chestGuide.stepId} label="How bag contents work" />{/if}
           {/if}
-          {#each document.whenUsed.itemChanges as change}<p>{change.action === 'Remove' ? 'Removes' : 'Gives'} {formatNumber(change.count)} <EntityLink ref={change.item} {registry} /> when used.</p>{/each}
+          {#each document.whenUsed.itemChanges as change}
+            <p>Using it {change.action === 'Remove' ? 'consumes' : 'gives'} {formatNumber(change.count)} <EntityLink ref={change.item} {registry} />.</p>
+          {/each}
           {#if document.whenUsed.packs.length}
-            <p>Your class and level choose the eligible reward table. Each eligible table gives at least its listed minimum number of distinct picks, with a bonus pick at its listed chance and any listed maximum cap. When both the table and world pools contain items, each pick uses the world pool at the listed share. Otherwise it uses the available pool. Entries with equal zero rates have equal weight, not independent drop chances.</p>
-            <p>The world pool comes from eligible world loot tables, filtered by the reward table's armor and stat settings and your class. Items normally qualify when their level requirement is from four below to two above your level. The pack is consumed only after all loot is taken.</p>
-            <div class="pack-groups">
-              {#each document.whenUsed.packs as pack}
-                <details class="pack-group">
-                  <summary>{#each pack.classes as classRef, index}{#if index}, {/if}{'name' in classRef ? classRef.name : classRef.label}{/each}{#if pack.minLevel !== undefined}{' · Levels '}{formatNumber(pack.minLevel)}{#if pack.maxLevel !== undefined}{'–'}{formatNumber(pack.maxLevel)}{/if}{/if} · {pack.table}</summary>
-                  <div class="pack-content">
-                    <p>At least {formatNumber(pack.minimumPicks)} {pack.minimumPicks === 1 ? 'pick' : 'picks'} · {formatNumber(pack.bonusChance)}% bonus pick · {formatNumber(pack.worldShare)}% world share{#if pack.maximumPicks !== undefined} · At most {formatNumber(pack.maximumPicks)} picks{/if}{#if pack.armorType} · {pack.armorType} armor{/if}{#if pack.stats.length} · Stats: {#each pack.stats as stat, index}{#if index}, {/if}<EntityLink ref={stat} {registry} />{/each}{/if}</p>
-                    <ul>{#each pack.entries as entry}<li><EntityLink ref={entry.item} {registry} /> · {formatNumber(entry.min)}{#if entry.max !== entry.min}{' to '}{formatNumber(entry.max)}{/if}</li>{/each}</ul>
-                  </div>
-                </details>
+            {#if sharedPackPicks}<p>Opening it gives at least {formatNumber(sharedPackPicks.minimumPicks)} {sharedPackPicks.minimumPicks === 1 ? 'item' : 'items'}{#if sharedPackPicks.bonusChance > 0}, with a {formatNumber(sharedPackPicks.bonusChance)}% chance of one more{/if}{#if sharedPackPicks.maximumPicks !== undefined}, up to {formatNumber(sharedPackPicks.maximumPicks)}{/if}.{#if sharedPackPicks.worldShare > 0}{' '}Each item has a {formatNumber(sharedPackPicks.worldShare)}% chance to come from world loot that suits you instead of from the lists below.{/if}</p>{/if}
+            {#if packGuide}<HowItWorks guide={packGuide.guide} stepId={packGuide.stepId} label="How supply packs work" />{/if}
+            <div class="c-disclosures">
+              {#each document.whenUsed.packs as pack, index}
+                <DetailsDisclosure title={`${pack.classes.map((classRef) => 'name' in classRef ? classRef.name : classRef.label).join(', ') || 'All classes'} · ${pack.minLevel === undefined ? 'All levels' : `Levels ${formatNumber(pack.minLevel)}${pack.maxLevel === undefined ? ' and higher' : `–${formatNumber(pack.maxLevel)}`}`}`} id={`supply-pack-${index + 1}`}>
+                  {#if !sharedPackPicks}<p>Opening it gives at least {formatNumber(pack.minimumPicks)} {pack.minimumPicks === 1 ? 'item' : 'items'}{#if pack.bonusChance > 0}, with a {formatNumber(pack.bonusChance)}% chance of one more{/if}{#if pack.maximumPicks !== undefined}, up to {formatNumber(pack.maximumPicks)}{/if}.{#if pack.worldShare > 0}{' '}Each item has a {formatNumber(pack.worldShare)}% chance to come from world loot that suits you instead of from the lists below.{/if}</p>{/if}
+                  {#if pack.armorType || pack.stats.length}<p>World loot must suit {#if pack.armorType}{categoryLabel(pack.armorType)} armor{/if}{#if pack.stats.length}{pack.armorType ? ' and ' : ''}{#each pack.stats as stat, statIndex}{#if statIndex}{statIndex === pack.stats.length - 1 ? ' and ' : ', '}{/if}<EntityLink ref={stat} {registry} />{/each}{/if}.</p>{/if}
+                  <RelationTable columns={packColumns} rows={pack.entries} label="Items in this class and level band">
+                    <svelte:fragment slot="cell" let:row let:column>
+                      {#if column === 'item'}<EntityLink ref={row.item} {registry} />
+                      {:else}{formatNumber(row.min)}{#if row.max !== row.min}–{formatNumber(row.max)}{/if}{/if}
+                    </svelte:fragment>
+                  </RelationTable>
+                </DetailsDisclosure>
               {/each}
             </div>
           {/if}
@@ -216,13 +247,6 @@
 
 <style>
   .routes { display: grid; gap: 0; padding: 0; list-style: none; }
-  .use-effects, .use-group, .pack-content, .pack-groups { display: grid; gap: .65rem; }
-  .use-effects p, .pack-content p { line-height: 1.5; }
-  .use-group h3 { font-size: 1rem; }
-  .use-group ul, .pack-content ul { display: grid; gap: .35rem; padding-left: 1.3rem; }
-  .pack-group { border: 1px solid var(--c-line); border-radius: var(--c-radius); padding: .65rem .8rem; }
-  .pack-group summary { cursor: pointer; min-height: 1.5rem; font-weight: 650; }
-  .pack-content { padding-top: .7rem; }
   .route { display: grid; gap: .6rem; min-width: 0; padding: .9rem 0; border-top: 1px solid var(--c-line); scroll-margin-top: 1rem; }
   .route:first-child { border-top: 0; padding-top: 0; }
   .route:last-child { padding-bottom: 0; }

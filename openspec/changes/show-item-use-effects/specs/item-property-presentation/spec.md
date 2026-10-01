@@ -2,7 +2,7 @@
 
 ### Requirement: Item pages explain rewards from use actions
 
-An item page SHALL show a When used section when captured item actions spawn prefab chests or open loot tables. Each chest SHALL show its effect and contents, including item or currency, inclusive count range, row chance, and positive maximum-drop cap. The page SHALL distinguish an Item action that gains an item from one that removes it. Chest rows SHALL be described as independently checked against their drop chance, then capped and rolled uniformly for quantity.
+An item page SHALL show a When used section when captured item actions spawn prefab chests or open loot tables. Chest contents SHALL appear in a relation table sorted by row chance, with item or currency, inclusive quantity range, and chance per row clear on the page. Only the published action chance when below 100% and positive maximum-drop cap SHALL appear as short data sentences. The page SHALL distinguish an Item action that gains an item from one that consumes it in plain sentences. A placed When used rule SHALL link to the Loot Mechanics guide step for the chest roll rules, without repeating rule prose on the item page. No internal effect, prefab, chest, or loot table name SHALL be published.
 
 #### Scenario: A soaked bag spawns a chest
 - **WHEN** an item has a TriggerVisualEffect action whose effect template contains a chest prefab
@@ -11,7 +11,7 @@ An item page SHALL show a When used section when captured item actions spawn pre
 
 ### Requirement: Supply packs show eligible rewards and roll rules
 
-For each class and level band gated LootTable action of Adventurer's Supply Pack, When used SHALL list that table's authored entries. It SHALL explain that the pack gives at least one distinct pick, offers a bonus pick at the published chance, and chooses the world pool at the published share when both pools exist. It SHALL describe world candidates as eligible world-loot rows matching the table's armor and stat filters and the player's class, normally within four levels below to two above the player. It SHALL NOT enumerate a world pool at a fixed player level. It SHALL state that the source is consumed only after all loot is taken.
+For each class and level band gated LootTable action of Adventurer's Supply Pack, When used SHALL disclose that band's authored entries in a relation table. A short data sentence SHALL show the published minimum picks, bonus chance, maximum when present, and world share when present, with the world share described as picks from world loot suited to the character. The band's published armor and stat filters SHALL remain visible. The page SHALL NOT enumerate a world pool at a fixed player level. A placed When used rule SHALL link to the Loot Mechanics guide's pack roll, world eligibility, and lifecycle steps instead of repeating those mechanics as item-page prose.
 
 #### Scenario: A supply pack belongs to different classes
 - **WHEN** class and level requirements select distinct tables

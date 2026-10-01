@@ -1,5 +1,5 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, MechanicsRule, PlacementRef, PublicDocument, PublicLevel, PublicMechanics, PublicNpc, TalentPoints } from "@afallon/contracts/public";
+import type { ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, MechanicsRule, PlacementRef, PublicDocument, PublicLevel, PublicMechanics, PublicNpc, TalentPoints } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import type { ReferenceResolver } from "./documents";
 import { requiredLevel, spawnerExamples } from "./gathering";
@@ -331,6 +331,7 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
     ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve)] : []),
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),
+    ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_NAMES.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));
 }

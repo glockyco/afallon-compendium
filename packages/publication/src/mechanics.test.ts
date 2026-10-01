@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { HEROIC_TIER_KEY, type CatalogFacts, type CatalogMechanicsRule, type CatalogNpcFacts, type CatalogProgressionFact, type CatalogQuestFacts } from "@afallon/contracts/catalog";
-import type { CharacterProgression, CraftingAndGathering, HeroicTier, NpcLocation, PublicDocument, PublicLevel, PublicNpc, PublicPlace } from "@afallon/contracts/public";
+import type { CharacterProgression, CraftingAndGathering, HeroicTier, LootGuide, NpcLocation, PublicDocument, PublicLevel, PublicNpc, PublicPlace } from "@afallon/contracts/public";
 import { projectMechanicsDocuments } from "./mechanics";
 import { createReferenceResolver } from "./references";
 
@@ -25,6 +25,7 @@ const topicRules: Record<NonNullable<CatalogMechanicsRule["topic"]>, string[]> =
   "heroic-tier": ["heroic-kill-experience", "affix-count-source", "essence-requires-points", "essence-rank-multiplier", "essence-health-factor", "essence-fraction-carry"],
   "crafting-and-gathering": ["recipe-rank-gate", "recipe-craft-needs", "recipe-item-tooltip", "recipe-product-roll", "recipe-experience-bands", "recipe-experience-rounding", "recipe-experience-condition", "recipe-experience-modifiers", "spawner-weighted-pick", "spawner-weight-limits", "spawner-weights-relative", "spawner-check-interval", "spawner-player-range", "spawner-respawn", "placed-node-cooldown", "node-requirements", "node-loot-roll", "node-yield-bonus", "node-experience", "attunement-98", "attunement-642", "attunement-643", "attunement-644", "attunement-645", "attunement-646", "attunement-647", "weapon-skills", "weapon-skills-untrained", "crafting-skill-source", "enchanting-skill-source", "unmapped-skill-sources"],
   corruption: [],
+  loot: ["chest-row-rolls", "supply-pack-tables", "supply-pack-picks", "supply-pack-world-loot", "supply-pack-lifecycle"],
 };
 const rules: CatalogMechanicsRule[] = Object.entries(topicRules).flatMap(([topic, ids]) => ids.map((ruleId, ordinal) => ({
   ruleId, topic: topic as CatalogMechanicsRule["topic"], section: topic, ordinal, status: "verified" as const,
@@ -85,6 +86,15 @@ const entityDocuments = new Map<string, PublicDocument>([
 ]);
 const conditions = new Map();
 const documents = (source: CatalogFacts = facts) => projectMechanicsDocuments(source, published, spawned, resolve, conditions, entityDocuments);
+
+test("the Loot Mechanics page publishes its ordered guide steps and reviewed rules", () => {
+  const loot = documents().get("mechanics:loot") as LootGuide;
+  expect(loot.ref).toMatchObject({ name: "Loot", slug: "loot" });
+  expect(loot.steps.map((step) => step.id)).toEqual([
+    "open-a-chest", "choose-a-table", "pick-the-items", "draw-from-world-loot", "keep-the-pack",
+  ]);
+  expect(loot.rules.map((rule) => rule.id)).toEqual(topicRules.loot);
+});
 
 test("experience sources count creatures by the level at which their spawners place them", () => {
   const progression = documents().get("mechanics:character-progression") as CharacterProgression;

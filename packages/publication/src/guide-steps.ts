@@ -47,6 +47,16 @@ export const GUIDES: Record<MechanicsTopic, { overview: string; steps: GuideStep
       { id: "compare-corrupted-gear", title: "Compare corrupted gear", text: "Each corruption level increases equipment's base stats and weapon damage", rules: ["corruption-gear"] },
     ],
   },
+  loot: {
+    overview: "Some bags open a chest whose items each roll their own chance. A supply pack gives items from a loot table that your class and level decide, or from world loot that suits you.",
+    steps: [
+      { id: "open-a-chest", title: "Open a chest", text: "Each item in the chest rolls its own chance, and a chest with a limit gives at most that many items.", rules: ["chest-row-rolls"] },
+      { id: "choose-a-table", title: "Choose a table", text: "Your class and level decide which of the pack's loot tables you can get.", rules: ["supply-pack-tables"] },
+      { id: "pick-the-items", title: "Pick the items", text: "The pack gives its minimum number of items and can give one more at the table's bonus chance.", rules: ["supply-pack-picks"] },
+      { id: "draw-from-world-loot", title: "Draw from world loot", text: "Each item can come from world loot that suits you instead of from the table.", rules: ["supply-pack-world-loot"] },
+      { id: "keep-the-pack", title: "Keep the pack until it is empty", text: "The pack is used up only after you take all its loot.", rules: ["supply-pack-lifecycle"] },
+    ],
+  },
 };
 
 export function guideStepFor(topic: MechanicsTopic, ruleId: string): string | undefined {

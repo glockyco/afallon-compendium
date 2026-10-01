@@ -8,6 +8,7 @@
   import ClassPage from './pages/ClassPage.svelte';
   import HeroicTierPage from './pages/HeroicTierPage.svelte';
   import ItemPage from './pages/ItemPage.svelte';
+  import LootPage from './pages/LootPage.svelte';
   import NpcPage from './pages/NpcPage.svelte';
   import PlacePage from './pages/PlacePage.svelte';
   import PropertyPage from './pages/PropertyPage.svelte';
@@ -32,4 +33,5 @@
 {:else if page.kind === 'mechanics' && page.document.topic === 'heroic-tier'}<HeroicTierPage document={page.document} {registry} />
 {:else if page.kind === 'mechanics' && page.document.topic === 'crafting-and-gathering'}<CraftingAndGatheringPage document={page.document} {registry} />
 {:else if page.kind === 'mechanics' && page.document.topic === 'corruption'}<CorruptionPage document={page.document} {registry} {inlineItem} />
+{:else if page.kind === 'mechanics' && page.document.topic === 'loot'}<LootPage document={page.document} {registry} />
 {:else if page.kind === 'gatheringNodes'}<GatheringNodePage document={page.document} {registry} />{/if}

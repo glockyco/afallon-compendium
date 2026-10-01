@@ -1001,12 +1001,27 @@ test("used bags publish independent chest rows and supply packs keep their gated
   const projected = project(all, withUses, { ...relations, drops: [], gathers: [], containers: [] }).documents;
   const bagUse = (projected.get(bag.entityKey) as PublicItem).whenUsed;
   expect(bagUse.itemChanges).toEqual([{ action: "Remove", item: expect.objectContaining({ key: bag.entityKey }), count: 1 }]);
-  expect(bagUse.chests[0]).toMatchObject({ maxDrops: 2, rows: [
-    { item: { key: coin.entityKey }, min: 10, max: 20, chance: 100 },
-    { item: { key: "items:1" }, min: 1, max: 2, chance: 15 },
+  expect(bagUse.chests[0]).toEqual({ chance: 100, maxDrops: 2, rows: [
+    { item: expect.objectContaining({ key: coin.entityKey }), min: 10, max: 20, chance: 100 },
+    { item: expect.objectContaining({ key: "items:1" }), min: 1, max: 2, chance: 15 },
   ] });
-  expect((projected.get(pack.entityKey) as PublicItem).whenUsed.packs).toMatchObject([
-    { minLevel: 1, maxLevel: 5, bonusChance: 20, worldShare: 50, minimumPicks: 1, maximumPicks: 2,
-      classes: [{ key: "classes:0" }], entries: [{ item: { key: "items:1" } }] },
+  expect((projected.get(pack.entityKey) as PublicItem).whenUsed.packs).toEqual([
+    { classes: [expect.objectContaining({ key: "classes:0" })], minLevel: 1, maxLevel: 5,
+      entries: [{ item: expect.objectContaining({ key: "items:1" }), min: 1, max: 1 }],
+      bonusChance: 20, worldShare: 50, minimumPicks: 1, maximumPicks: 2,
+      armorType: "PLATE", stats: [expect.objectContaining({ key: "stats:27" })] },
   ]);
+});
+
+test("a linked When used rule appears on its item and not on unrelated items", () => {
+  const other: CatalogEntityRow = { ...entities[0]!, entityKey: "items:2", nativeId: 2, name: "Other item" };
+  const linked = ruleRow("chest-row-rolls", "chests", {}, [{ entityKey: "items:1", label: "Blade" }],
+    [{ page: "items", target: "when-used", scope: "linked" }]);
+  const withRule: CatalogFacts = { ...facts, entities: [...entities, other], items: [...facts.items, { ...facts.items[0]!, entityKey: other.entityKey }],
+    progression: { ...facts.progression, mechanicsRules: [{ ...linked, topic: "loot" }] } };
+  const { documents } = project([...entities, other], withRule, relations);
+  expect((documents.get("items:1") as PublicItem).placedRules).toContainEqual(expect.objectContaining({
+    target: "when-used", guide: expect.objectContaining({ key: "mechanics:loot" }), stepId: "open-a-chest",
+  }));
+  expect((documents.get(other.entityKey) as PublicItem).placedRules.some((rule) => rule.target === "when-used")).toBe(false);
 });

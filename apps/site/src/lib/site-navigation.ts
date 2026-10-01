@@ -30,6 +30,7 @@ export function siteNavigation(registry: readonly PublicKindEntry[], base: strin
     { label: 'Heroic Tier', href: `${base}/${mechanics.route}/heroic-tier/` },
     { label: 'Crafting and Gathering', href: `${base}/${mechanics.route}/crafting-and-gathering/` },
     { label: 'Corruption', href: `${base}/${mechanics.route}/corruption/` },
+    { label: 'Loot', href: `${base}/${mechanics.route}/loot/` },
   ] : [];
   const links = (id: string): NavigationLink[] => {
     if (id === 'map') return [{ label: 'Map', href: `${base}/map/` }];

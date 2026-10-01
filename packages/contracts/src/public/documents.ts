@@ -396,11 +396,11 @@ export const AdventurerItemRowSchema = Type.Union([
 ]);
 
 export const ItemUseChestSchema = Type.Object({
-  effect: text, prefab: text, name: text, maxDrops: count, chance: percent,
+  maxDrops: count, chance: percent,
   rows: Type.Array(Type.Object({ item: RefSchema, min: count, max: count, chance: percent })),
 }, { additionalProperties: false });
 export const ItemUsePackSchema = Type.Object({
-  table: text, classes: refs, minLevel: optional(count), maxLevel: optional(count),
+  classes: refs, minLevel: optional(count), maxLevel: optional(count),
   entries: Type.Array(Type.Object({ item: RefSchema, min: count, max: count })),
   bonusChance: percent, worldShare: percent, minimumPicks: count, maximumPicks: optional(count),
   armorType: optional(text), stats: Type.Array(RefSchema),
@@ -764,7 +764,11 @@ export const CorruptionGuideSchema = Type.Object({
   evidence: Type.Array(text), unknowns: Type.Array(text),
 }, { additionalProperties: false });
 export type CorruptionGuide = Static<typeof CorruptionGuideSchema>;
-export const PublicMechanicsSchema = Type.Union([CharacterProgressionSchema, HeroicTierSchema, CraftingAndGatheringSchema, CorruptionGuideSchema]);
+export const LootGuideSchema = Type.Object({
+  ...documentBase, topic: Type.Literal("loot"), rules: Type.Array(MechanicsRuleSchema), ...guide,
+}, { additionalProperties: false });
+export type LootGuide = Static<typeof LootGuideSchema>;
+export const PublicMechanicsSchema = Type.Union([CharacterProgressionSchema, HeroicTierSchema, CraftingAndGatheringSchema, CorruptionGuideSchema, LootGuideSchema]);
 export type PublicMechanics = Static<typeof PublicMechanicsSchema>;
 
 // The schema maps carry explicit types that name each schema, because the inferred types are too large

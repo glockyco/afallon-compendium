@@ -528,7 +528,6 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
   const damageLabel = isWeapon && fact ? weaponDamageLabel(fact) : undefined;
   const useChests = (fact?.gameActions ?? []).flatMap((action) => action.type === "TriggerVisualEffect" && action.visualEffect
     ? action.visualEffect.prefabs.flatMap((prefab) => prefab.chests.map((chest) => ({
-      effect: plainText(action.visualEffect!.name ?? "Visual effect"), prefab: plainText(prefab.key), name: plainText(chest.name),
       chance: action.chance, maxDrops: Math.max(0, chest.maxDrops),
       rows: chest.rows.map((row) => {
         const item = input.facts.items.find((candidate) => candidate.entityKey === `items:${row.itemId}`);
@@ -546,7 +545,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     const maxLevel = checks.find((check) => check.type === "Level" && check.comparison === "EqualOrBelow")?.level;
     const classes = checks.filter((check) => check.type === "Class" && check.classId >= 0).map((check) =>
       input.resolve({ entityKey: `classes:${check.classId}`, label: "Unknown class" }));
-    return [{ table: plainText(table.name), classes,
+    return [{ classes,
       ...(minLevel === undefined ? {} : { minLevel }), ...(maxLevel === undefined ? {} : { maxLevel }),
       entries: table.entries.map((entry) => ({ item: input.resolve(entry.item), min: Math.max(0, entry.min), max: Math.max(0, entry.max) })),
       bonusChance: table.bonusDropChance, worldShare: table.worldLootShare,

@@ -12,8 +12,8 @@ Canonical item actions currently capture the action type and target but not Alte
 
 - Read effect templates and their addressable prefab AssetPointers without instantiating or activating them. Preserve each chest and row, including currency, counts, and chance. An unavailable prefab is reported as unavailable, never an empty chest.
 - Preserve ordered action modes and class/level conditions. Resolve loot-table references against catalog tables and rows, not a hand-maintained item list.
-- Chest rows are independent chance checks, subject to a positive max-drops cap. Pack rows are weighted picks after eligibility checks. State the distinct roll rules separately.
-- Keep the source item consumed only when the pack's loot is taken, as the native lifecycle specifies.
+- Chest contents appear in a RelationTable sorted by row chance, with inclusive quantity and chance-per-row labels. Only the action chance and positive row cap stay as short data sentences on the item page. Pack class and level bands use disclosures with item tables and published pick counts, bonus chance, world share, and filters. Item actions become plain gain or consume sentences.
+- Native roll and lifecycle rule prose belongs to the Loot Mechanics guide. Each linked item's When used section links to its placed rule's guide step rather than repeating those rules.
 
 ## Risks / Trade-offs
 
