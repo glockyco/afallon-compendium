@@ -39,9 +39,6 @@
 
 <style>
   .details-disclosure { min-width: 0; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-sunken); scroll-margin-top: 6rem; }
-  /* Space from the content above; consecutive disclosures sit closer as one group. */
-  :global(* + .details-disclosure) { margin-top: 1.25rem; }
-  :global(.details-disclosure + .details-disclosure) { margin-top: .5rem; }
   summary { display: flex; flex-wrap: wrap; gap: .6rem; align-items: baseline; min-height: 2.75rem; padding: .8rem 1rem; cursor: pointer; color: var(--c-text-soft); font-weight: 600; list-style: none; }
   summary::-webkit-details-marker { display: none; }
   summary::before { content: '▸'; color: var(--c-text-mute); }

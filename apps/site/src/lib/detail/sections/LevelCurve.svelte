@@ -104,7 +104,7 @@
   .controls input[type='range'] { flex: 1; min-width: 0; accent-color: var(--c-accent); }
   .level-number { box-sizing: border-box; width: 5rem; padding: .35rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; }
   .note { margin: 0; }
-  .totals { display: grid; gap: .5rem; margin: .2rem 0 0; }
+  .totals { display: grid; gap: .5rem; margin: 0; }
   .totals div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .2rem 1rem; border-bottom: 1px solid var(--c-line-soft); padding-bottom: .5rem; }
   .totals dt { color: var(--c-text-dim); }
   .totals dd { margin: 0; color: var(--c-text-strong); font-variant-numeric: tabular-nums; }

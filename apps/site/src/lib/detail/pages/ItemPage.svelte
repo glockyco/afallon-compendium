@@ -24,6 +24,7 @@
   import QuestRowsSection from '../sections/QuestRowsSection.svelte';
   import VendorSection from '../sections/VendorSection.svelte';
   import Section from '../Section.svelte';
+  import Sections from '../Sections.svelte';
   import SummaryValue from '../SummaryValue.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
@@ -92,6 +93,7 @@
       {#if heartGuide}<p class="side-fact"><HowItWorks guide={heartGuide.guide} stepId={heartGuide.stepId} label="How the Heart is used" /></p>{/if}
     </svelte:fragment>
 
+    <Sections>
     {#if facts.corruption}
       <Section id="corruption" title="Corruption"><CorruptionPreview {facts} guide={corruptionGuide} /></Section>
     {/if}
@@ -138,6 +140,7 @@
     <ContainerSection id="collected-from" title="Found in objects" rows={document.collectedFrom} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
     <ContainerSection id="found-in-containers" title="Found in containers" rows={document.inContainers} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
     <QuestRowsSection id="from-quests" title="Quest rewards" roleLabel="Given as" rows={itemQuestSourceRows(document.rewardedBy, document.givenBy)} {registry} />
+    </Sections>
   </DetailFrame>
 </article>
 
@@ -162,5 +165,4 @@
   .used-quests { margin-top: .75rem; }
   .used-row, .used-quest { min-width: 0; padding: .55rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .used-quest { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .75rem; }
-  :global(.detail-frame .rest > .section + .section) { margin-top: 2rem; }
 </style>

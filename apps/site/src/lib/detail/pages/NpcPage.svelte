@@ -93,5 +93,5 @@
   .description { margin: 0 0 1rem; line-height: 1.5; color: var(--c-text-dim); }
   .side-card :global(.fact-list dl) { grid-template-columns: minmax(0, 1fr) auto; gap: .35rem .5rem; }
   .side-card :global(.fact-row dd) { text-align: right; }
-  .guide { margin: 1rem 0 0; }
+  .guide { margin: 0; }
 </style>

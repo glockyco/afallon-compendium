@@ -14,6 +14,7 @@
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
+  import Sections from '../Sections.svelte';
   import StatStrip from '../StatStrip.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
@@ -113,11 +114,15 @@
       {#if document.facts.variant}<p class="explanation">Another node shares this name but has different requirements, experience, or yields.</p>{/if}
     </div>
 
+    <Sections>
     <Section id="locations" title="Where to find" count={document.places.length}>
       {#if document.places.length}<PlacesList {places} {registry} />{:else}<p>No location of this node is published.</p>{/if}
       {#if document.spawners.some((group) => group.unplaced) || document.placed.some((group) => group.unplaced)}<p class="footnote">Some spawners or placed nodes have no published location.</p>{/if}
     </Section>
 
+    {#if document.spawners.length || document.placed.length}
+    <!-- The disclosures share one row of the sections grid, so they sit closer to each other than to the sections. -->
+    <div class="disclosures">
     {#if document.spawners.length}
       <DetailsDisclosure title="Spawn odds" id="spawn-odds" summary="Weights and chances by skill level">
         <p class="intro">Each spawner chooses among its options. Weights determine each option's chance. Some chances are unknown.</p>
@@ -130,7 +135,6 @@
         {/each}
       </DetailsDisclosure>
     {/if}
-    {#if document.spawners.length || document.placed.length}
       <DetailsDisclosure title="Timers and ranges" id="timers">
         {#each document.spawners as group, index}
           <h3>{document.spawners.length > 1 ? `Spawner group ${index + 1}` : 'Spawners'}</h3>
@@ -141,7 +145,9 @@
           <dl class="timer-facts"><div><dt>Objects</dt><dd>{formatNumber(group.objects)}</dd></div><div><dt>Ready again after</dt><dd>{duration(group.cooldownSeconds)}</dd></div></dl>
         {/each}
       </DetailsDisclosure>
+    </div>
     {/if}
+    </Sections>
   </DetailFrame>
 </article>
 
@@ -150,7 +156,8 @@
   .intro { margin: 0 0 1rem; }
   .bonus { margin: 1rem 0 0; line-height: 1.5; }
   .bonus strong { color: var(--c-text-strong); }
-  .side-facts { border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); padding: 1.1rem; background: var(--c-surface-1); }
+  .side-facts { border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); padding: 1rem; background: var(--c-surface-1); }
+  .disclosures { display: grid; gap: .5rem; }
   h2 { margin: 0 0 .75rem; color: var(--c-text-strong); font: 600 1.2rem/1.3 var(--c-serif); }
   h2:not(:first-child) { margin-top: 1.25rem; }
   h3 { margin: 1rem 0 .5rem; color: var(--c-text-strong); font: 600 1rem/1.4 var(--c-serif); }

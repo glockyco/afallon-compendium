@@ -151,7 +151,7 @@
   .routes li { display: grid; gap: .15rem; border-bottom: 1px solid var(--c-line-soft); padding: .3rem 0 .8rem; }
   .routes li:last-child { border-bottom: 0; padding-bottom: 0; }
   .routes strong { color: var(--c-text-strong); }
-  .side-facts { min-width: 0; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); padding: 1.1rem; background: var(--c-surface-1); }
+  .side-facts { min-width: 0; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); padding: 1rem; background: var(--c-surface-1); }
   h2 { margin: 0 0 .8rem; color: var(--c-text-strong); font: 600 1.2rem/1.3 var(--c-serif); }
   .progression { display: inline-block; margin-top: 1rem; min-height: 1.5rem; }
   .band + .band { margin-top: 1.5rem; }
