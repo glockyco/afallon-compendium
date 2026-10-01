@@ -47,7 +47,7 @@ Time the steps from the run manifests (`timestamps`) and, inside a scan, from th
 
 ## 5. Catalog
 
-1. `author-bootstrap-review.ts` writes the open review from the coverage policy. Register it, author the plan with `author-catalog-plan.ts` (`--canonical-scan` is the run of the artwork plan, `--canonical-target build-scene:44`), and run `bun run compendium catalog --store artifacts --plan <plan> --candidate`.
+1. Copy the accepted coverage policy to the new build id and register it (`--schema compendium.coverage-policy.v1`): the review references the policy object, and the catalog fails with ENOENT on that object when it is not registered. `author-bootstrap-review.ts` writes the open review from the policy. Register the review (`--schema compendium.coverage-review.v1`), author the plan with `author-catalog-plan.ts` (`--canonical-scan` is the run of the artwork plan, `--canonical-target build-scene:44`), and run `bun run compendium catalog --store artifacts --plan <plan> --candidate`.
 2. `author-coverage-review.ts` writes the complete review from that catalog. Register it and build the final catalog.
 3. The plan names the reviewed mechanics rules. Rules cite evidence of one build; review each rule against the new build and register a new rules record for it.
 4. `compare-catalogs.ts <accepted> <candidate>` lists what changed. Explain every removal before you publish.

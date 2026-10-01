@@ -5,7 +5,7 @@ import { schemaRegistry } from "../schema-registry";
 
 const text = Type.String({ minLength: 1 });
 
-// `mechanicsRules` is the registered `compendium.mechanics-rules.v1` record of the build's verified calculation rules.
+// `mechanicsRules` is the registered `compendium.mechanics-rules.v2` record of the build's verified calculation rules.
 export const CatalogPlanSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.catalog-plan.v2"),
   buildId: text,
