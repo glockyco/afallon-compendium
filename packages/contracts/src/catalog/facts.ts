@@ -42,6 +42,10 @@ export interface CatalogItemGameAction {
   target: CatalogEndpoint | null;
 }
 
+export interface CatalogAdventurerItem {
+  itemKey: string; kind: "kitUpgradeItem" | "equipmentBand" | "equipmentReward";
+  adventurer: CatalogEndpoint | null; minimumContentLevel: number | null; rewardChance: number | null;
+}
 export interface CatalogItemFacts {
   entityKey: string;
   rarity: string | null;
@@ -251,6 +255,7 @@ export interface CatalogFacts {
   gearSets: CatalogGearSetFacts[];
   progression: CatalogProgression;
   gatheringNodes: CatalogGatheringNode[];
+  adventurerItems: CatalogAdventurerItem[];
   corruption?: CatalogCorruptionFacts | null;
 }
 

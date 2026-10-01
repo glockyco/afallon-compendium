@@ -39,7 +39,7 @@ export function assertStaticPublicationSemantics(root: StaticRootManifest, value
   if (root.maps.length === 0) throw new Error("Publication maps are empty.");
   for (const value of values.values()) assertStaticResourceIdentity(root, value);
   const coverage = values.get(root.coverage.path);
-  if (coverage?.schemaVersion !== "compendium.static-coverage.v3") throw new Error("Publication coverage does not match its root.");
+  if (coverage?.schemaVersion !== "compendium.static-coverage.v4") throw new Error("Publication coverage does not match its root.");
   const exclusions = values.get(root.exclusions.path);
   if (exclusions?.schemaVersion !== "compendium.static-exclusions.v1") throw new Error("Publication exclusions do not match their root.");
   const excluded = new Set<string>();

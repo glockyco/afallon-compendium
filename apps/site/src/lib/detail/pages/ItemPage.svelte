@@ -95,6 +95,7 @@
               </li>
             {/each}
           </ul>
+        {:else if document.adventurers.length}<p>Only adventurers carry this item. <a class="c-link" href="#adventurers">See adventurer gear</a>.</p>
         {:else}<p>No known way to get this item.</p>{/if}
       </AnswerCard>
     </svelte:fragment>
@@ -146,6 +147,17 @@
         </div>{/if}
       </Section>
     {:else if !document.teaches && !document.buys.length}<Section id="used-for" title="Used for"><p>No known recipe or quest uses {document.ref.name}.</p></Section>{/if}
+    {#if document.adventurers.length}
+      <Section id="adventurers" title="Adventurers" count={document.adventurers.length}>
+        <ul class="adventurer-rows">
+          {#each document.adventurers as row}
+            <li>{#if row.kind === 'kitUpgradeItem'}Kit upgrade for <EntityLink ref={row.adventurer} {registry} />
+              {:else if row.kind === 'equipmentBand'}Carried by adventurers from content level {formatNumber(row.minimumContentLevel)}
+              {:else}Adventurer job reward with {formatNumber(row.chance)}% reward chance{/if}</li>
+          {/each}
+        </ul>
+      </Section>
+    {/if}
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
     {#if document.buys.length}
       <Section id="buys" title="Buys" count={document.buys.length}>
@@ -168,6 +180,7 @@
 </article>
 
 <style>
+  .adventurer-rows { display: grid; gap: .5rem; list-style: none; padding: 0; margin: 0; }
   .routes { display: grid; gap: 0; padding: 0; list-style: none; }
   .route { display: grid; gap: .6rem; min-width: 0; padding: .9rem 0; border-top: 1px solid var(--c-line); scroll-margin-top: 1rem; }
   .route:first-child { border-top: 0; padding-top: 0; }

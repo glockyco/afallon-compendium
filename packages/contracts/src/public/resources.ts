@@ -194,7 +194,7 @@ export const StaticRootManifestSchema = Type.Object({
   kinds: Type.Array(PublicKindEntrySchema, { minItems: 1 }),
   lists: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z]*$" }), Type.Array(resourceReference("compendium.static-kind-list.v5"), { minItems: 1 })),
   search: Type.Array(resourceReference("compendium.static-search.v6"), { minItems: 1 }),
-  coverage: resourceReference("compendium.static-coverage.v3"),
+  coverage: resourceReference("compendium.static-coverage.v4"),
   exclusions: resourceReference("compendium.static-exclusions.v1"),
 }, { additionalProperties: false });
 export type StaticRootManifest = Static<typeof StaticRootManifestSchema>;
@@ -257,18 +257,18 @@ export type StaticGeometry = Static<typeof StaticGeometrySchema>;
 // something that has no record. `recipeWithoutTeacher`: the recipe is not learned by default, and no captured item action
 // teaches it; other sources can still teach it. `recipeWithoutProduct`: the recipe makes no published item. A recipe gap
 // links the Crafting section of the product, or the recipe row of the skill page.
-export const COVERAGE_GAP_VALUES = ["itemWithoutSource", "npcWithoutLocation", "npcWithoutLevel", "placeWithoutMap", "unresolvedReference", "recipeWithoutTeacher", "recipeWithoutProduct"] as const;
+export const COVERAGE_GAP_VALUES = ["itemWithoutSource", "itemAdventurerOnly", "npcWithoutLocation", "npcWithoutLevel", "placeWithoutMap", "unresolvedReference", "recipeWithoutTeacher", "recipeWithoutProduct"] as const;
 export type CoverageGap = typeof COVERAGE_GAP_VALUES[number];
 
 // What the publication covers, for readers: the pages of each kind, the maps and their locations, and for each gap
 // the pages that it affects. Page references carry no icon, because the coverage page lists names only.
 export const StaticCoverageSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-coverage.v3"),
+  schemaVersion: Type.Literal("compendium.static-coverage.v4"),
   ...StaticResourceIdentityFields,
   pages: Type.Array(Type.Object({ kind: PublicPageKindSchema, count }, { additionalProperties: false })),
   mapCount: count, placementCount: count,
   gaps: Type.Array(Type.Object({
-    gap: Type.Union([Type.Literal("itemWithoutSource"), Type.Literal("npcWithoutLocation"), Type.Literal("npcWithoutLevel"), Type.Literal("placeWithoutMap"), Type.Literal("unresolvedReference"), Type.Literal("recipeWithoutTeacher"), Type.Literal("recipeWithoutProduct")]),
+    gap: Type.Union([Type.Literal("itemWithoutSource"), Type.Literal("itemAdventurerOnly"), Type.Literal("npcWithoutLocation"), Type.Literal("npcWithoutLevel"), Type.Literal("placeWithoutMap"), Type.Literal("unresolvedReference"), Type.Literal("recipeWithoutTeacher"), Type.Literal("recipeWithoutProduct")]),
     pages: Type.Array(EntityRefSchema, { minItems: 1 }),
   }, { additionalProperties: false })),
 }, { additionalProperties: false });
@@ -379,13 +379,13 @@ schemaRegistry.register("compendium.publication-presentation.v2", PublicationPre
 // An explicit type that names each schema keeps the declaration small enough for the compiler to emit.
 export const STATIC_RESOURCE_SCHEMAS: typeof STATIC_COMPENDIUM_SCHEMAS & {
   "compendium.static-root.v8": typeof StaticRootManifestSchema; "compendium.static-map.v3": typeof StaticMapShardSchema;
-  "compendium.static-geometry.v1": typeof StaticGeometrySchema; "compendium.static-coverage.v3": typeof StaticCoverageSchema;
+  "compendium.static-geometry.v1": typeof StaticGeometrySchema; "compendium.static-coverage.v4": typeof StaticCoverageSchema;
   "compendium.static-imagery.v2": typeof StaticImagerySchema; "compendium.static-exclusions.v1": typeof StaticExclusionsSchema;
 } = {
   "compendium.static-root.v8": StaticRootManifestSchema,
   "compendium.static-map.v3": StaticMapShardSchema,
   "compendium.static-geometry.v1": StaticGeometrySchema,
-  "compendium.static-coverage.v3": StaticCoverageSchema,
+  "compendium.static-coverage.v4": StaticCoverageSchema,
   "compendium.static-imagery.v2": StaticImagerySchema,
   "compendium.static-exclusions.v1": StaticExclusionsSchema,
   ...STATIC_COMPENDIUM_SCHEMAS,
@@ -411,7 +411,7 @@ export function staticResourceEdges(value: StaticResource): StaticResourceRefere
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));
     case "compendium.static-map.v3":
     case "compendium.static-geometry.v1":
-    case "compendium.static-coverage.v3":
+    case "compendium.static-coverage.v4":
     case "compendium.static-exclusions.v1": return [];
     default:
       if (isStaticDocument(value)) return artEdges(value.document).map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" }));

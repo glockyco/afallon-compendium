@@ -10,7 +10,8 @@ const itemSources = (item: PublicItem) => item.droppedBy.length + item.soldBy.le
 
 // Each gap names the published pages that lack the fact. The coverage page lists them, so references carry no icon.
 const GAP_TESTS: ReadonlyArray<readonly [CoverageGap, (document: PublicDocument) => boolean]> = [
-  ["itemWithoutSource", (document) => document.ref.kind === "items" && itemSources(document as PublicItem) === 0],
+  ["itemWithoutSource", (document) => document.ref.kind === "items" && itemSources(document as PublicItem) === 0 && (document as PublicItem).adventurers.length === 0],
+  ["itemAdventurerOnly", (document) => document.ref.kind === "items" && itemSources(document as PublicItem) === 0 && (document as PublicItem).adventurers.length > 0],
   ["npcWithoutLocation", (document) => document.ref.kind === "npcs" && (document as PublicNpc).locations.length === 0],
   ["npcWithoutLevel", (document) => document.ref.kind === "npcs" && (document as PublicNpc).locations.length > 0 && !(document as PublicNpc).facts.level],
   ["placeWithoutMap", (document) => document.ref.kind === "places" && (document as PublicPlace).space === null],

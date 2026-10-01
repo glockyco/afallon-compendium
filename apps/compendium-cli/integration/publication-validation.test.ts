@@ -100,7 +100,7 @@ test("rejects rehashed semantic corruption at both readers without replacing sel
       {
         name: "coverage", error: "coverage does not match its root",
         mutate: (_publication, resources) => {
-          for (const resource of resources.values()) if (resource.schemaVersion === "compendium.static-coverage.v3") resource.placementCount += 1;
+          for (const resource of resources.values()) if (resource.schemaVersion === "compendium.static-coverage.v4") resource.placementCount += 1;
         },
       },
     ];
@@ -126,7 +126,7 @@ test("rejects rehashed semantic corruption at both readers without replacing sel
       for (const resource of resources.values()) {
         if (resource.schemaVersion === "compendium.static-map.v3") resource.placements = [];
         if (resource.schemaVersion === "compendium.static-geometry.v1") resource.placements = [];
-        if (resource.schemaVersion === "compendium.static-coverage.v3") resource.placementCount = 0;
+        if (resource.schemaVersion === "compendium.static-coverage.v4") resource.placementCount = 0;
       }
     });
     const regressiveDirectory = join(handoffRoot, "regressive");

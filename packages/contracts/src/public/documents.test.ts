@@ -110,7 +110,7 @@ const craftingAndGathering: CraftingAndGathering = {
 };
 const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } = {
   items: { ...base, ref: item, facts: { rarity: "Common", itemType: "ARMOR", slot: "GLOVES", stats: [{ stat: { key: "stats:20", kind: "stats", name: "Armor" }, amount: 7, isPercent: false }], randomStats: [{ stat: { key: "stats:0", kind: "stats", name: "Health" }, min: 10, max: 40, isPercent: false, whole: false, chance: 100 }], randomStatsMax: 0, sockets: [{ gemType: "Green Gem" }], sellPrice: { amount: 5, currency: gold }, stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
-    sourceSpotCount: 0, sourceAvailabilities: [], droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [] }], soldBy: [], buys: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf: [], placedRules: [] } satisfies PublicItem,
+    sourceSpotCount: 0, sourceAvailabilities: [], droppedBy: [{ counterpart: boss, min: 1, max: 1, requirements: [] }], soldBy: [], buys: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf: [], placedRules: [], adventurers: [] } satisfies PublicItem,
   npcs: { ...base, ref: boss, facts: { level: { min: 21, max: 21, scales: false }, roles: ["boss"], stats: [], immunities: [], lootSpecialization: { armorType: "PLATE", weaponTypes: ["AXE"] } }, variantFields: [], variants: [{ key: "npcs:286", anchor: "n286", label: "Duskfall Depths", facts: {} }],
     locations: [{ label: "Duskfall Depths", placements: [placement], spotCount: 1, availability: [], level: { min: 21, max: 21, scales: false }, variants: ["n286"], roles: ["boss"], quests: [] }],
     places: [{ label: "Duskfall Depths", mapSpaceId: "duskfall", placementIds: ["p1"], spotCount: 1 }], spotCount: 1,
@@ -157,7 +157,7 @@ test("Heart stone routes, place answers, and guide cross-links keep their own st
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.places, { ...fixtures.places,
     challengeStoneStart: { heart: item, stoneName: use.stoneName, regionName: use.regionName, spot: { ...placement, mapSpaceId: null }, count: 1 } })).toThrow();
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, seeAlso: [{ lead: "See", ref: { key: null, label: "Unknown" } }] })).toThrow();
-  expect(STATIC_DOCUMENT_SCHEMA_IDS.items).toBe("compendium.static-item.v14");
+  expect(STATIC_DOCUMENT_SCHEMA_IDS.items).toBe("compendium.static-item.v15");
   expect(STATIC_DOCUMENT_SCHEMA_IDS.places).toBe("compendium.static-place.v8");
 });
 
@@ -208,7 +208,7 @@ test("a root reaches documents and artwork through graph edges and passes semant
   const search: StaticSearchIndex = { schemaVersion: "compendium.static-search.v6", ...identity, part: 0, entries: [{ ref: item, hasPlacements: false, sourceKinds: ["npc-loot"], document: itemReference as never }, { ref: boss, level: 21, hasPlacements: true, sourceKinds: [], document: npcReference as never }] };
   const itemList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v5", ...identity, kind: "items", part: 0, rows: [{ ref: item, values: { level: null, rarity: "Common" }, facets: { slot: ["GLOVES"] } }] };
   const npcList: StaticKindList = { schemaVersion: "compendium.static-kind-list.v5", ...identity, kind: "npcs", part: 0, rows: [{ ref: boss, values: { level: 21 }, facets: { role: ["boss"] } }] };
-  const coverage: StaticCoverage = { schemaVersion: "compendium.static-coverage.v3", ...identity, pages: [{ kind: "items", count: 1 }, { kind: "npcs", count: 1 }], mapCount: 1, placementCount: 1, gaps: [] };
+  const coverage: StaticCoverage = { schemaVersion: "compendium.static-coverage.v4", ...identity, pages: [{ kind: "items", count: 1 }, { kind: "npcs", count: 1 }], mapCount: 1, placementCount: 1, gaps: [] };
   const map = { schemaVersion: "compendium.static-map.v3", ...identity, mapSpaceId: "map", part: 0, placements: [["p1", [0, 0], 0, "Duskfall Depths", ["boss"], ["npcs:286"], [], null, null, null]], regions: [] } as const;
   const imagery = { schemaVersion: "compendium.static-imagery.v2", ...identity, mapSpaceId: "map", defaultLayerId: "game", layers: [{ id: "game", mapSpaceId: "map", label: "Game", kind: "game-map", tileSize: 256, minZoom: 0, maxZoom: 0, extent: [0, 0, 1, 1], tiles: [{ z: 0, x: 0, y: 0, url: `assets/${"d".repeat(64)}.webp`, sha256: "d".repeat(64), bytes: 1, width: 1, height: 1, state: "captured", schemaId: "image/webp" }] }] } as const;
   const root: StaticRootManifest = {
@@ -224,7 +224,7 @@ test("a root reaches documents and artwork through graph edges and passes semant
     ],
     lists: { items: [ref("compendium.static-kind-list.v5", "7".repeat(64)) as never], npcs: [ref("compendium.static-kind-list.v5", "8".repeat(64)) as never] },
     search: [ref("compendium.static-search.v6", "9".repeat(64)) as never],
-    coverage: ref("compendium.static-coverage.v3", "e".repeat(64)) as never,
+    coverage: ref("compendium.static-coverage.v4", "e".repeat(64)) as never,
     exclusions: ref("compendium.static-exclusions.v1", "a".repeat(64)) as never,
   };
   Assert(StaticRootManifestSchema, root);

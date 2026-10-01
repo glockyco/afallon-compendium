@@ -44,7 +44,7 @@ const equipmentRequirements = [
 
 const facts: CatalogFacts = {
   entities,
-  progression: { facts: [], links: [], talentNodes: [], spellbookNodes: [], learners: [], unlocks: [], appliers: [], offeredClasses: [], mechanicsRules: [] }, gatheringNodes: [],
+  progression: { facts: [], links: [], talentNodes: [], spellbookNodes: [], learners: [], unlocks: [], appliers: [], offeredClasses: [], mechanicsRules: [] }, gatheringNodes: [], adventurerItems: [],
   items: [{ entityKey: "items:1", rarity: "Rare", itemType: "WEAPON", armorSlot: "BELT", weaponSlot: "MAIN HAND", weaponType: "One handed sword", armorType: "CLOTH",
     attackSpeed: 1.8, minDamage: 75, maxDamage: 124, stats: [
       { stat: { entityKey: "stats:53", label: "Item power" }, amount: 99, isPercent: false },
@@ -939,4 +939,27 @@ test("placed and spawned node spots count distinct identities across places", ()
   expect(node.spotCount).toBe(2);
   expect(node.places.map(({ label, spotCount, placementIds }) => [label, spotCount, placementIds]))
     .toEqual([["Coalway Woods", 1, ["p2"]], ["Crypt", 1, ["p1"]]]);
+});
+test("adventurer-only kits have their own coverage group, while player sources remain independent", () => {
+  const kit: CatalogEntityRow = { ...entities[0]!, entityKey: "items:901", nativeId: 901, name: "Guardian's tank kit" };
+  const band: CatalogEntityRow = { ...entities[0]!, entityKey: "items:902", nativeId: 902, name: "Adventurer's cloak" };
+  const all = [...entities, kit, band];
+  const withGear: CatalogFacts = { ...facts, entities: all, items: [...facts.items,
+    { ...facts.items[0]!, entityKey: kit.entityKey }, { ...facts.items[0]!, entityKey: band.entityKey }],
+    adventurerItems: [
+      { itemKey: kit.entityKey, kind: "kitUpgradeItem", adventurer: { entityKey: "npcs:2", label: "Guardian" }, minimumContentLevel: null, rewardChance: null },
+      { itemKey: band.entityKey, kind: "equipmentBand", adventurer: null, minimumContentLevel: 9, rewardChance: null },
+      { itemKey: band.entityKey, kind: "equipmentReward", adventurer: null, minimumContentLevel: null, rewardChance: 0.4 },
+    ] };
+  const vendor = { npc: { entityKey: "npcs:2", label: "Guardian" }, item: { entityKey: band.entityKey, label: band.name! },
+    currency: null, cost: 15, merchantTableId: 4, stockIndex: 0, conditionIds: [], placementIds: [] };
+  const projected = project(all, withGear, { ...relations, vendors: [vendor] }).documents;
+  const kitPage = projected.get(kit.entityKey) as PublicItem, bandPage = projected.get(band.entityKey) as PublicItem;
+  expect(kitPage.adventurers).toEqual([{ kind: "kitUpgradeItem", adventurer: expect.objectContaining({ key: "npcs:2" }) }]);
+  expect(bandPage.adventurers).toEqual([{ kind: "equipmentBand", minimumContentLevel: 9 }, { kind: "equipmentReward", chance: 40 }]);
+  expect(bandPage.soldBy).toHaveLength(1);
+  const gaps = readerCoverage(projected.values()).gaps;
+  expect(gaps.find((gap) => gap.gap === "itemAdventurerOnly")?.pages.map((row) => row.key)).toContain(kit.entityKey);
+  expect(gaps.find((gap) => gap.gap === "itemWithoutSource")?.pages.map((row) => row.key) ?? []).not.toContain(kit.entityKey);
+  expect(gaps.find((gap) => gap.gap === "itemAdventurerOnly")?.pages.map((row) => row.key) ?? []).not.toContain(band.entityKey);
 });

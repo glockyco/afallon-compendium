@@ -87,7 +87,7 @@ async function fixture(options: FixtureOptions = {}): Promise<Fixture> {
   const catalogObject = await store.putBytes(bytes("catalog object"));
   const catalogManifest = { sha256: catalogManifestObject.sha256, bytes: catalogManifestObject.bytes };
   const sealedCatalog = { sha256: catalogObject.sha256, bytes: catalogObject.bytes };
-  const reference = { path: "resources/coverage.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v3" as const };
+  const reference = { path: "resources/coverage.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v4" as const };
   const releaseNotes = await registerReleaseNotes(store, "Afallon 0.16.2"), otherNotes = await registerReleaseNotes(store, "Hotfix #19");
   const dataDate = options.dataDate ?? "2026-09-20";
   const publication: StaticRootManifest = {

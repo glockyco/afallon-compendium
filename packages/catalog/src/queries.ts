@@ -436,9 +436,20 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
   for (const row of db.query<{ entity_key: string; rank: number; item_entity_key: string | null; item_label: string; count: number }, []>("SELECT entity_key, rank, item_entity_key, item_label, count FROM recipe_materials ORDER BY entity_key, rank, material_index").all()) { const key = `${row.entity_key}:${row.rank}`, values = materials.get(key) ?? []; values.push({ item: endpoint(refs, row.item_entity_key, row.item_label), count: row.count }); materials.set(key, values); }
   for (const row of db.query<{ entity_key: string; rank: number; unlock_cost: number; experience: number; craft_time: number }, []>("SELECT entity_key, rank, unlock_cost, experience, craft_time FROM recipe_ranks ORDER BY entity_key, rank").all()) { const values = ranks.get(row.entity_key) ?? []; values.push({ rank: row.rank, unlockCost: row.unlock_cost, experience: row.experience, craftTime: row.craft_time, products: products.get(`${row.entity_key}:${row.rank}`) ?? [], materials: materials.get(`${row.entity_key}:${row.rank}`) ?? [] }); ranks.set(row.entity_key, values); }
   const recipes = db.query<{ entity_key: string; skill_entity_key: string | null; skill_label: string | null; station_entity_key: string | null; station_label: string | null; learned_by_default: number }, []>("SELECT entity_key, skill_entity_key, skill_label, station_entity_key, station_label, learned_by_default FROM recipe_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, skill: row.skill_entity_key === null && row.skill_label === null ? null : endpoint(refs, row.skill_entity_key, row.skill_label), station: row.station_entity_key === null && row.station_label === null ? null : endpoint(refs, row.station_entity_key, row.station_label), learnedByDefault: row.learned_by_default === 1, ranks: ranks.get(row.entity_key) ?? [] }));
+  const adventurerItems = db.query<{ item_entity_key: string; kind: "kitUpgradeItem" | "equipmentBand" | "equipmentReward"; npc_entity_key: string | null; minimum_content_level: number | null; equipment_reward_chance: number | null }, []>(`
+    SELECT l.item_entity_key, l.kind, l.npc_entity_key, l.minimum_content_level, s.equipment_reward_chance
+    FROM adventurer_world_links l JOIN adventurer_world_settings s ON s.build_id = l.build_id
+    WHERE l.item_entity_key IS NOT NULL AND l.kind IN ('kitUpgradeItem', 'equipmentBand', 'equipmentReward')
+    ORDER BY l.position, l.item_position
+  `).all().map((row) => ({
+    itemKey: row.item_entity_key, kind: row.kind,
+    adventurer: row.npc_entity_key === null ? null : endpoint(refs, row.npc_entity_key, row.npc_entity_key),
+    minimumContentLevel: row.minimum_content_level,
+    rewardChance: row.kind === "equipmentReward" ? row.equipment_reward_chance : null,
+  }));
   const corruptionRow = db.query<{ facts_json: string }, []>("SELECT facts_json FROM corruption_facts").get();
   const corruption = corruptionRow === null ? null : parse(corruptionRow.facts_json) as CatalogCorruptionFacts;
-  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), corruption } };
+  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), adventurerItems, corruption } };
 }
 
 // Gathering nodes with each source and the placement of that source, when the source has one.

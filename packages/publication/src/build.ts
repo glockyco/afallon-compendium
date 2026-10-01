@@ -105,7 +105,7 @@ export async function buildStaticPublication(
   const identity = queryCatalogMaps(db);
   assertCompleteTooltipCoverage(gate.complete, indexes.publicationIssues);
   const coverage: StaticCoverage = {
-    schemaVersion: "compendium.static-coverage.v3", buildId: identity.buildId, catalogId: identity.catalogId,
+    schemaVersion: "compendium.static-coverage.v4", buildId: identity.buildId, catalogId: identity.catalogId,
     ...indexes.coverage, mapCount: mapShards.length, placementCount: placements.size,
   };
   Assert(StaticCoverageSchema, coverage);

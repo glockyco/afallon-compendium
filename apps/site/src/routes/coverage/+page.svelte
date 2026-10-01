@@ -15,6 +15,10 @@
       title: 'Items without a known source',
       text: 'The scanned game data names no creature, vendor, container, object, resource, quest, recipe, or published starting gear that gives these items.',
     },
+    itemAdventurerOnly: {
+      title: 'Items carried only by adventurers',
+      text: 'Adventurers carry these items, but no known player source gives them.',
+    },
     npcWithoutLocation: {
       title: 'Creatures without a map location',
       text: 'No scanned spawner places these creatures in a scanned scene, so their pages show no location.',

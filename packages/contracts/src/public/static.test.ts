@@ -11,7 +11,7 @@ import {
   type StaticRootManifest,
 } from "./index";
 
-const reference = { path: "resources/value.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v3" };
+const reference = { path: "resources/value.json", sha256: "a".repeat(64), bytes: 10, schemaId: "compendium.static-coverage.v4" };
 const release = { version: "0.16.2.1", dataDate: "2026-09-28", patchNotes: { title: "Afallon 0.16.2.1", url: "https://store.steampowered.com/news/app/2597810/view/1844115010501029", date: "2026-09-21" } };
 const root: StaticRootManifest = {
   schemaVersion: "compendium.static-root.v8",
@@ -29,7 +29,7 @@ const root: StaticRootManifest = {
   exclusions: { ...reference, schemaId: "compendium.static-exclusions.v1" },
 };
 const coverage: StaticCoverage = {
-  schemaVersion: "compendium.static-coverage.v3",
+  schemaVersion: "compendium.static-coverage.v4",
   buildId: root.buildId,
   catalogId: root.catalogId,
   pages: [{ kind: "items", count: 1 }],

@@ -582,6 +582,11 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     }),
     usedInQuests: questRows.filter((row) => row.kind === "objective" && row.task !== null).map((row) => ({ counterpart: input.resolve(row.quest), objective: objectiveForRow(row, input, indexes, conditions) })),
     startingGearOf: (startingGear.get(entity.entityKey) ?? []).map((classRef) => ({ class: classRef })),
+    adventurers: (input.facts.adventurerItems ?? []).filter((row) => row.itemKey === entity.entityKey).flatMap<PublicItem["adventurers"][number]>((row) => {
+      if (row.kind === "kitUpgradeItem") return row.adventurer ? [{ kind: row.kind, adventurer: input.resolve(row.adventurer) }] : [];
+      if (row.kind === "equipmentBand") return row.minimumContentLevel !== null ? [{ kind: row.kind, minimumContentLevel: row.minimumContentLevel }] : [];
+      return row.rewardChance !== null ? [{ kind: row.kind, chance: chancePercent(row.rewardChance) }] : [];
+    }),
   };
 }
 

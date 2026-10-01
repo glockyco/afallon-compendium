@@ -26,7 +26,7 @@ test("rejects broken v3 edges and damaged reuse without replacing the selected p
     const selectedBytes = await readFile(join(publicationRoot, "selected.json"), "utf8");
     await selectPublication(store, publicationRoot, generated.root, generated.resources, generated.assets, gate);
 
-    const coverageCandidate = generated.resources.find((resource) => resource.reference.schemaId === "compendium.static-coverage.v3")!;
+    const coverageCandidate = generated.resources.find((resource) => resource.reference.schemaId === "compendium.static-coverage.v4")!;
     await expect(selectPublication(store, publicationRoot, generated.root, generated.resources.filter((resource) => resource !== coverageCandidate), generated.assets, gate)).rejects.toThrow("missing");
     await expect(selectPublication(store, publicationRoot, { reference: { ...generated.root.reference, sha256: "f".repeat(64) }, identity: generated.root.identity }, generated.resources, generated.assets, gate)).rejects.toThrow("reference");
     await expect(selectPublication(store, publicationRoot, generated.root, generated.resources, generated.assets, { ...gate, accepted: false })).rejects.toThrow("catalog gate");
