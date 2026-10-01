@@ -56,7 +56,7 @@
   <dl class="facts">
     <div><dt class="hidden-label">Creature page</dt><dd><EntityLink ref={entry.creature} {registry} /></dd></div>
     <div><dt>Level</dt><dd>{npcLevelText(entry.level)}</dd></div>
-    <div><dt>Base roll</dt><dd>{range(entry.minExperience, entry.maxExperience === entry.minExperience ? entry.minExperience : entry.maxExperience - 1)}</dd></div>
+    <div><dt>Base roll</dt><dd>{range(entry.minExperience, entry.maxExperience)}</dd></div>
     <div><dt>Creature above the player</dt><dd>{modifierText(entry.higherModifier)}</dd></div>
     <div><dt>Creature below the player</dt><dd>{modifierText(entry.lowerModifier)}</dd></div>
   </dl>

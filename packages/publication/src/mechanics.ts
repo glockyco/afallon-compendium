@@ -6,6 +6,7 @@ import { requiredLevel, spawnerExamples } from "./gathering";
 import type { CorruptionRewards } from "./corruption-rewards";
 import { MECHANICS_TOPIC_NAMES, placedRules, projectRule, topicRef } from "./placed-rules";
 import { GUIDES } from "./guide-steps";
+import { killRoll } from "./experience";
 import { levelUnion } from "./levels";
 import { displayName } from "./text";
 
@@ -57,9 +58,9 @@ function killCalculator(facts: CatalogFacts, published: ReadonlySet<string>, res
       places.set(`${document.space.mapSpaceId}\u0000${document.ref.name}`, document.ref);
     }
   }
-  const candidates = facts.npcs.filter((npc) => published.has(npc.entityKey) && npcPages.has(npc.entityKey)
-    && npc.minExperience !== null && npc.minExperience >= 0 && npc.maxExperience !== null
-    && npc.maxExperience > 0 && npc.maxExperience >= npc.minExperience
+  // A creature joins the calculator when a kill can give experience and both level modifiers are known.
+  const rolls = new Map(facts.npcs.flatMap((npc) => { const roll = killRoll(npc.minExperience, npc.maxExperience); return roll && roll.max > 0 ? [[npc.entityKey, roll] as const] : []; }));
+  const candidates = facts.npcs.filter((npc) => published.has(npc.entityKey) && npcPages.has(npc.entityKey) && rolls.has(npc.entityKey)
     && npc.lowerLevelExperienceModifier !== null && npc.higherLevelExperienceModifier !== null && names.has(npc.entityKey));
   candidates.sort((a, b) => names.get(a.entityKey)!.localeCompare(names.get(b.entityKey)!) || a.entityKey.localeCompare(b.entityKey));
   type Entry = Omit<CharacterProgression["killCalculator"]["groups"][number]["creatures"][number], "level"> & { levels: PublicLevel[] };
@@ -79,7 +80,8 @@ function killCalculator(facts: CatalogFacts, published: ReadonlySet<string>, res
       const group = groups.get(location.label) ?? { name: location.label, creatures: new Map<string, Entry>() };
       const place = places.get(`${location.placements[0]!.mapSpaceId}\u0000${location.label}`);
       if (place && !group.place) group.place = place;
-      const entry = group.creatures.get(identity) ?? { creature, levels: [], minExperience: npc.minExperience!, maxExperience: npc.maxExperience!,
+      const roll = rolls.get(npc.entityKey)!;
+      const entry = group.creatures.get(identity) ?? { creature, levels: [], minExperience: roll.min, maxExperience: roll.max,
         lowerModifier: npc.lowerLevelExperienceModifier!, higherModifier: npc.higherLevelExperienceModifier! };
       entry.levels.push(location.level);
       group.creatures.set(identity, entry);
@@ -92,7 +94,7 @@ function killCalculator(facts: CatalogFacts, published: ReadonlySet<string>, res
   if (!choices[0]) throw new Error("No published creature with experience and a published spawn exists for the kill calculator.");
   // The default shows each stage: a fixed level that the character can pass, level modifiers, and more than one roll.
   const modified = (npc: (typeof choices)[number]) => npc.lowerLevelExperienceModifier !== 0 || npc.higherLevelExperienceModifier !== 0;
-  const first = choices.find((npc) => fixedSpawn.has(npc.entityKey) && modified(npc) && npc.maxExperience! - npc.minExperience! > 1)
+  const first = choices.find((npc) => fixedSpawn.has(npc.entityKey) && modified(npc) && rolls.get(npc.entityKey)!.max > rolls.get(npc.entityKey)!.min)
     ?? choices.find(modified) ?? choices[0];
   const heroic = facts.progression.facts.find((fact) => fact.entityKey === HEROIC_TIER_KEY);
   return {
@@ -108,7 +110,7 @@ function killCalculator(facts: CatalogFacts, published: ReadonlySet<string>, res
 function experienceSources(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver): ExperienceSources {
   // The spawner decides the level: it rolls a fixed range or scales the player's level into its zone range. The record
   // level and the record's scaling flag apply only where the spawner does not override them.
-  const creatures = facts.npcs.filter((npc) => published.has(npc.entityKey) && (npc.maxExperience ?? 0) > 0 && spawned.has(npc.entityKey));
+  const creatures = facts.npcs.filter((npc) => published.has(npc.entityKey) && (killRoll(npc.minExperience, npc.maxExperience)?.max ?? 0) > 0 && spawned.has(npc.entityKey));
   const fixed = creatures.filter((npc) => !spawned.get(npc.entityKey)!.scales), scaling = creatures.filter((npc) => spawned.get(npc.entityKey)!.scales);
   if (fixed.length === 0) throw new Error("No published creature with experience spawns at a fixed level.");
   const fixedMax = Math.max(...fixed.map((npc) => spawned.get(npc.entityKey)!.max ?? spawned.get(npc.entityKey)!.min));

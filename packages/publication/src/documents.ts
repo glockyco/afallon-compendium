@@ -58,6 +58,7 @@ import { craftingRule, recipeRank, recipeTeachings, weaponSkillExperience, type 
 import { placedNodeBySource, requiredLevel } from "./gathering";
 import { collectRefs, isEntityRef, isPublicPageKind } from "@afallon/contracts/public";
 import { markerCategories, shownCategories } from "./categories";
+import { killRoll } from "./experience";
 import { chancePercent, choicesChance, enabledChance, levelUnion } from "./levels";
 import { shownNpcStats } from "./variants";
 import { displayName, plainText, withoutMarkup } from "./text";
@@ -594,12 +595,12 @@ function npcFact(key: string, indexes: RelationIndexes): CatalogNpcFacts {
 function npcRecordFacts(fact: CatalogNpcFacts, input: DocumentProjectionInput): Required<Pick<NpcVariantFacts, "stats" | "immunities" | "abilityPhases" | "factionRewards">> & NpcVariantFacts {
   const faction = optionalFactRef(input.resolve, fact.faction), species = optionalFactRef(input.resolve, fact.species);
   const linkedNpc = optionalFactRef(input.resolve, fact.linkedNpc), lootStat = optionalFactRef(input.resolve, fact.lootSpecialization?.stat);
-  const minExperience = optionalCount(fact.minExperience), maxExperience = optionalCount(fact.maxExperience);
+  const experience = killRoll(fact.minExperience, fact.maxExperience);
   return {
     ...(fact.npcType ? { npcType: plainText(fact.npcType) } : {}), ...(fact.creatureType ? { creatureType: plainText(fact.creatureType) } : {}),
     ...(fact.family ? { family: plainText(fact.family) } : {}), ...(faction === undefined ? {} : { faction }), ...(species === undefined ? {} : { species }),
     ...(fact.minRespawn === null || fact.maxRespawn === null ? {} : { respawn: { min: fact.minRespawn, max: fact.maxRespawn } }),
-    ...(minExperience === undefined || maxExperience === undefined ? {} : { experience: { min: minExperience, max: maxExperience } }),
+    ...(experience === null ? {} : { experience }),
     stats: shownNpcStats(fact.stats).map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
     immunities: [fact.immuneToStun ? "stun" : null, fact.immuneToSlow ? "slow" : null].filter((value): value is string => value !== null),
     ...(fact.aggroRange === null ? {} : { aggroRange: fact.aggroRange }),

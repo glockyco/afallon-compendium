@@ -26,7 +26,7 @@ export function nearestCreatureLevel(level: PublicLevel, characterLevel: number,
 export function calculateKillAward(creature: Pick<Creature, 'minExperience' | 'maxExperience' | 'lowerModifier' | 'higherModifier'>, creatureLevel: number,
   characterLevel: number, heroicMultiplier: number | undefined, followers: number, experienceBonus: number): { steps: AwardStep[]; award: ExperienceRange } {
   let low = creature.minExperience;
-  let high = creature.maxExperience === low ? low : creature.maxExperience - 1;
+  let high = creature.maxExperience;
   const steps: AwardStep[] = [{ label: 'Base roll', low, high }];
 
   const modifier = creatureLevel > characterLevel ? creature.higherModifier : creatureLevel < characterLevel ? creature.lowerModifier : 0;

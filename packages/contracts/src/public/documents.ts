@@ -409,8 +409,9 @@ export type PublicItem = Static<typeof PublicItemSchema>;
 export const LootSpecializationSchema = Type.Object({ armorType: optional(text), weaponTypes: Type.Array(text), stat: optional(RefSchema) }, { additionalProperties: false });
 export type LootSpecialization = Static<typeof LootSpecializationSchema>;
 
-// Facts that every variant of the page shares. `level` summarizes the levels of all locations. A fact that differs
-// between variants is absent here and appears in each variant.
+// Facts that every variant of the page shares. `level` summarizes the levels of all locations. `experience` is the
+// lowest and highest whole amount that a kill rolls before modifiers. A fact that differs between variants is absent
+// here and appears in each variant.
 export const NpcFactsSchema = Type.Object({
   level: optional(PublicLevelSchema),
   npcType: optional(text), creatureType: optional(text), family: optional(text),
@@ -653,7 +654,7 @@ export type GuideStep = Static<typeof GuideStepSchema>;
 const guide = { overview: text, steps: Type.Array(GuideStepSchema, { minItems: 1 }),
   seeAlso: optional(Type.Array(Type.Object({ lead: text, ref: EntityRefSchema }, { additionalProperties: false }))) };
 // Each entry is a published creature at one place where it spawns, with its levels there, the levels that its NPC page
-// shows. The upper experience bound is exclusive when greater than the minimum; equal bounds give that exact amount.
+// shows. `minExperience` and `maxExperience` are the lowest and highest whole amounts that a kill rolls before modifiers.
 export const KillCalculatorSchema = Type.Object({
   groups: Type.Array(Type.Object({
     place: optional(EntityRefSchema), name: text,

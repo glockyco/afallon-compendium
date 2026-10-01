@@ -110,7 +110,7 @@ test("the kill calculator offers each creature at each place where it spawns, wi
     { name: "Oakenvale", place: "scenes:oakenvale", creatures: [["npcs:6", aardvarkSpawn], ["npcs:3", grainSpawn], ["npcs:4", vampireSpawn], ["npcs:2", wolfSpawn], ["npcs:1", zombieSpawn]] },
   ]);
   expect(calculator.groups[0]!.creatures[0]).toEqual({ creature: expect.objectContaining({ key: "npcs:6" }), level: aardvarkSpawn,
-    minExperience: 5, maxExperience: 12, lowerModifier: 0, higherModifier: 0 });
+    minExperience: 5, maxExperience: 11, lowerModifier: 0, higherModifier: 0 });
   expect(progression.steps[0]?.rules).toEqual(["kill-base-roll"]);
   expect(progression.rules.find((rule) => rule.id === "kill-base-roll")?.appearsOn).toEqual(["NPC pages, Experience"]);
   expect(progression.rules.some((rule) => rule.id === "placed-only")).toBe(false);
@@ -147,7 +147,7 @@ test("unknown modifiers, invalid experience bounds, and a missing spawn keep a c
   expect([...offered].sort()).toEqual(["npcs:1", "npcs:3", "npcs:4", "npcs:6"]);
   expect(calculator.groups[0]!.creatures[0]).toEqual({
     creature: expect.objectContaining({ key: "npcs:6" }), level: aardvarkSpawn,
-    minExperience: 5, maxExperience: 12, lowerModifier: 17, higherModifier: -12,
+    minExperience: 5, maxExperience: 11, lowerModifier: 17, higherModifier: -12,
   });
 });
 
