@@ -24,6 +24,7 @@
     'quest-experience': 'Quest experience', 'skill-experience': 'Skill experience', 'talent-points': 'Talent points',
     essence: 'Heroic Essence', settings: 'Settings', crafting: 'Crafting', 'crafting-experience': 'Crafting experience',
     'node-selection': 'Node selection', 'node-availability': 'Node availability', 'node-rewards': 'Node rewards', attunement: 'Attunement',
+    chests: 'Chests', 'supply-packs': 'Supply packs',
   };
   $: sections = [...new Set(rules.map((rule) => rule.section))];
   $: numbers = ruleNumbers(rules);
