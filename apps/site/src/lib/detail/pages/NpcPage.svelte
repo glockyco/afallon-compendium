@@ -93,6 +93,8 @@
 <style>
   .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .description { color: var(--c-text-dim); }
-  .side-card :global(.fact-list dl) { grid-template-columns: minmax(0, 1fr) auto; gap: .35rem .5rem; }
+  /* Labels keep their own width and values take the rest, right-aligned, so a long value wraps instead of squeezing
+     its label to nothing. */
+  .side-card :global(.fact-list dl) { grid-template-columns: max-content minmax(0, 1fr); gap: .35rem .75rem; }
   .side-card :global(.fact-row dd) { text-align: right; }
 </style>
