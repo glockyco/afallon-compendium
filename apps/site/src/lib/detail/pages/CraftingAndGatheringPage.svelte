@@ -6,6 +6,7 @@
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
   import Hero from '../Hero.svelte';
+  import GuideSteps from '../GuideSteps.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
@@ -31,14 +32,7 @@
     </FactList>
   </Hero>
   <Sections>
-    <div class="guide-flow">
-    <Section id="steps" title="Steps">
-      <ol class="steps">
-        {#each document.steps as step}
-          <li id={`step-${step.id}`}><h3>{step.title}</h3><p>{step.text}</p><p class="step-links">{step.rules.length > 1 ? 'Rules' : 'Rule'} {#each step.rules as id, index}{#if index > 0}{', '}{/if}<a class="c-link" href={`#rule-${id}`}>{numbers.get(id)}</a>{/each}</p></li>
-        {/each}
-      </ol>
-    </Section>
+    <GuideSteps steps={document.steps} ruleNumbers={numbers} />
     <Section id="worked-example" title="Worked example">
       <h3>Craft Runeweave Regalia</h3>
       <p><EntityLink ref={document.example.craft.product} {registry} /> needs <EntityLink ref={document.example.craft.skill} {registry} /> level {formatNumber(document.example.craft.rank.requiredLevel)}. The recipe rank gives {formatNumber(document.example.craft.rank.baseExperience)} base experience before skill modifiers.</p>
@@ -55,7 +49,6 @@
         <tbody>{#each document.example.gather.levelChances as row}<tr><td>{formatNumber(row.level)}</td><td>{percent.format(row.chance)}%</td></tr>{/each}</tbody>
       </table></div>
     </Section>
-    </div>
     <Section id="spawner-examples" title="Spawner examples">
       {#each document.spawnerExamples as example}
         <div class="example">
@@ -75,16 +68,9 @@
 </article>
 
 <style>
-  .guide-flow { display: grid; min-width: 0; gap: 1rem; align-items: start; }
-  .guide-flow :global(.section) { min-width: 0; }
-  @media (min-width: 1024px) { .guide-flow { grid-template-columns: minmax(0, 1fr) minmax(16rem, .8fr); } }
-  .steps li { scroll-margin-top: 2rem; }
-  .steps { display: grid; gap: 1rem; margin: 0; padding-left: 1.5rem; }
-  .steps li { padding-left: .25rem; }
-  .steps h3, h3 { margin: 0 0 .35rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
+  h3 { margin: 0 0 .35rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
   /* Section text only: the overview paragraph keeps the shared prose style. */
   :global(.c-sections) p { margin: 0 0 .6rem; line-height: 1.55; }
-  .step-links { margin-top: .25rem !important; color: var(--c-text-dim); font-size: var(--c-text-small); overflow-wrap: anywhere; }
   .example + .example, .gather-title { margin-top: 1.2rem; }
   .table-intro { color: var(--c-text-dim); }
   .table-scroll { max-width: 100%; overflow-x: auto; margin: .4rem 0 1rem; }

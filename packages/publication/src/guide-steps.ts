@@ -38,14 +38,13 @@ export const GUIDES: Record<MechanicsTopic, { overview: string; steps: GuideStep
     ],
   },
   corruption: {
-    overview: "Corruption makes timed dungeons harder and can strengthen equipment found there. Use a Corruption Token at an altar to add levels and affixes. The Heart of Corruption is a different item.",
+    overview: "Corruption makes timed dungeons harder and can strengthen equipment found there. Use a Corruption Token at an altar to add levels and affixes.",
     steps: [
       { id: "use-the-altar", title: "Use an altar", text: "Each timed dungeon has an Altar of Corruption.", rules: ["corruption-altar"] },
       { id: "read-the-token", title: "Read the token", text: "A saved token's tooltip shows its altar value, enemy bonuses, and affixes.", rules: ["corruption-token"] },
       { id: "face-corrupted-creatures", title: "Fight corrupted enemies", text: "At each corruption level, enemies gain", rules: ["corruption-creatures"] },
       { id: "finish-the-timer", title: "Beat the timer", text: "Defeat all bosses before the timer ends.", rules: ["corruption-timer"] },
       { id: "compare-corrupted-gear", title: "Compare corrupted gear", text: "Each corruption level increases equipment's base stats and weapon damage", rules: ["corruption-gear"] },
-      { id: "distinguish-the-heart", title: "Use the Heart of Corruption", text: "The Heart of Corruption is separate from a Corruption Token.", rules: ["corruption-heart"] },
     ],
   },
 };

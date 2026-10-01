@@ -25,11 +25,12 @@ import {
   type StaticSearchIndex,
 } from "@afallon/contracts/public";
 import { generateArtworkResources } from "./artwork";
+import { corruptionRewards } from "./corruption-rewards";
 import { readerCoverage } from "./coverage";
 import { usableTeleports } from "./connections";
 import { conditionsById, projectPublicDocuments, requirementsFor, startingGearByItem, type PublishedPlacement } from "./documents";
 import { projectGatheringNodeDocuments } from "./gathering";
-import { projectMechanicsDocuments } from "./mechanics";
+import { projectChallengeStoneUses, projectMechanicsDocuments } from "./mechanics";
 import { assertExclusionEvidence, withoutExcludedRelations } from "./exclusions";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
@@ -101,6 +102,29 @@ function classWeapons(details: readonly { entityKey: string; kind: string; publi
   }
   return result;
 }
+/** Publish both ends of a Heart stone route without treating its host scene as a destination. */
+export function attachChallengeStonePages(documents: Map<string, PublicDocument>, heartKey: string | null,
+  uses: PublicItem["challengeStoneUses"]): void {
+  if (!heartKey || !uses) return;
+  const heart = documents.get(heartKey);
+  if (!heart || heart.ref.kind !== "items") throw new Error(`Heart has no published item page: ${heartKey}.`);
+  documents.set(heartKey, { ...heart, challengeStoneUses: uses });
+  for (const use of uses) {
+    if (!use.spot || !use.stoneName || !use.regionName) continue;
+    for (const destination of use.destinations) {
+      const place = documents.get(destination.key);
+      if (!place || place.ref.kind !== "places") throw new Error(`Challenge destination has no published place page: ${destination.key}.`);
+      const placeDoc = place as PublicPlace;
+      const start: NonNullable<PublicPlace["challengeStoneStart"]> = {
+        heart: heart.ref, stoneName: use.stoneName, regionName: use.regionName, spot: use.spot, count: use.count,
+      };
+      if (placeDoc.challengeStoneStart && (placeDoc.challengeStoneStart.spot.placementId !== use.spot.placementId
+        || placeDoc.challengeStoneStart.count !== use.count)) throw new Error(`Challenge destination has conflicting stone routes: ${destination.key}.`);
+      documents.set(destination.key, { ...placeDoc, challengeStoneStart: start });
+    }
+  }
+}
+
 
 export async function generateIndexResources(
   db: Database,
@@ -130,6 +154,7 @@ export async function generateIndexResources(
   const references = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, excluded,
     npcLevels: spawnedLevels });
   const refs = references.refs;
+  const publishedKeys = new Set(refs.keys());
   // Each exclusion must still hold in this catalog, so the check reads the relations before exclusion.
   const spawnCandidates = querySpawnCandidateNpcs(db);
   assertSameIdentity(entities, spawnCandidates, "Spawn candidate");
@@ -140,9 +165,6 @@ export async function generateIndexResources(
     const area = displayName(catalogPlacement?.area ?? "");
     return [placementId, area ? { ...placement, label: area } : scene?.kind === "places" ? { ...placement, label: scene.name } : placement] as const;
   }));
-  const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
-    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants,
-    classWeapons: classWeapons(queryCatalogFullEntities(db).records) });
   const conditions = conditionsById(relations.records.conditions), resolve = createReferenceResolver(refs);
   const nodeDocuments = projectGatheringNodeDocuments(facts.records, relations.records, { resolve, conditions, placements: publishedPlacements,
     requirements: (conditionIds) => requirementsFor(conditionIds, conditions, resolve) });
@@ -153,7 +175,17 @@ export async function generateIndexResources(
     tables.add(binding.loot_table_id);
     bossDropTables.set(binding.owner_entity_key, tables);
   }
-  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), spawnedLevels, resolve, conditions, catalogRelations.records.transitions, publishedPlacements, stoneRoutes, bossDropTables), ...nodeDocuments]);
+  const rewards = facts.records.corruption
+    ? corruptionRewards(facts.records.corruption, facts.records,
+      db.query("SELECT loot_table_id AS lootTableId, item_entity_key AS itemKey FROM loot_entries")
+        .all() as Array<{ lootTableId: number; itemKey: string }>, bossDropTables, publishedKeys, resolve)
+    : undefined;
+  const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
+    resolve, artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants,
+    classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards });
+  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, bossDropTables, rewards), ...nodeDocuments]);
+  attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null,
+    projectChallengeStoneUses(facts.records, publishedKeys, resolve, catalogRelations.records.transitions, publishedPlacements, stoneRoutes));
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {

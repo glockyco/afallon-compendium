@@ -17,6 +17,7 @@
   /** The published document with its kind, which selects the page of that kind. */
   export let page: StaticDocument;
   export let registry: PublicKindEntry[];
+  export let inlineItem: Extract<StaticDocument, { kind: 'items' }>['document'] | undefined = undefined;
 </script>
 
 {#if page.kind === 'items'}<ItemPage document={page.document} {registry} />
@@ -30,5 +31,5 @@
 {:else if page.kind === 'mechanics' && page.document.topic === 'character-progression'}<CharacterProgressionPage document={page.document} {registry} />
 {:else if page.kind === 'mechanics' && page.document.topic === 'heroic-tier'}<HeroicTierPage document={page.document} {registry} />
 {:else if page.kind === 'mechanics' && page.document.topic === 'crafting-and-gathering'}<CraftingAndGatheringPage document={page.document} {registry} />
-{:else if page.kind === 'mechanics' && page.document.topic === 'corruption'}<CorruptionPage document={page.document} {registry} />
+{:else if page.kind === 'mechanics' && page.document.topic === 'corruption'}<CorruptionPage document={page.document} {registry} {inlineItem} />
 {:else if page.kind === 'gatheringNodes'}<GatheringNodePage document={page.document} {registry} />{/if}

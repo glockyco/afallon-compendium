@@ -73,7 +73,7 @@ test("character guide uses the first published fixed-level creature and the uppe
   expect(progression.rules.find((rule) => rule.id === "kill-base-roll")?.appearsOn).toEqual(["NPC pages, Experience"]);
   expect(progression.rules.some((rule) => rule.id === "placed-only")).toBe(false);
   const onlyEqual = { ...facts, npcs: facts.npcs.filter((row) => row.entityKey !== "npcs:6" && row.entityKey !== "npcs:8") };
-  expect(projectMechanicsDocuments(onlyEqual, published, spawned, resolve, conditions).get("mechanics:character-progression")?.example).toEqual({ creature: expect.objectContaining({ key: "npcs:7" }), level: 9, lowest: 7, highest: 7 });
+  expect((projectMechanicsDocuments(onlyEqual, published, spawned, resolve, conditions).get("mechanics:character-progression") as CharacterProgression).example).toEqual({ creature: expect.objectContaining({ key: "npcs:7" }), level: 9, lowest: 7, highest: 7 });
 });
 
 test("Heroic guide computes Essence at health factor one for each rank and affix count", () => {

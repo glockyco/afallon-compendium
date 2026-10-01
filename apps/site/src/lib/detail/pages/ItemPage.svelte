@@ -6,7 +6,7 @@
   import ObjectiveText from '../../ObjectiveText.svelte';
   import Price from '../../Price.svelte';
   import { formatNumber, rarityTone } from '../../format';
-  import { itemOnMap } from '../../map-links';
+  import { itemOnMap, spotOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import HowItWorks from '../HowItWorks.svelte';
@@ -41,8 +41,8 @@
   $: experience = craft ? craftExperienceSentence(craft) : undefined;
   $: craftGuide = document.placedRules.find((rule) => rule.target === 'crafting');
   $: corruptionGuide = document.placedRules.find((rule) => rule.target === 'corruption');
+  $: dungeonGuide = document.placedRules.find((rule) => rule.target === 'corruption' || rule.target === 'corruption-token');
   $: tokenGuide = document.placedRules.find((rule) => rule.target === 'corruption-token');
-  $: heartGuide = document.placedRules.find((rule) => rule.target === 'corruption-heart');
   $: questUses = itemQuestUseRows(document.usedInQuests);
   $: onlyDrop = document.droppedBy.length === 1 ? document.droppedBy[0] : undefined;
   $: singleDropInAnswer = Boolean(onlyDrop?.creatureLevel && !onlyDrop.requirements.length && (onlyDrop.min ?? 1) === 1 && (onlyDrop.max ?? 1) === 1 && onlyDrop.chance !== undefined);
@@ -75,6 +75,18 @@
                   {#if craft.taughtBy.length}<p>Learn the recipe from {#each craft.taughtBy as teacher, index}{index > 0 ? ', ' : ''}<EntityLink ref={teacher} {registry} />{/each}.</p>{:else if craft.learnedByDefault}<p>Learned by default.</p>{/if}
                   {#if experience}<p>{experience} <span class="qualification">Base experience before skill modifiers.</span></p>{/if}
                   {#if craftGuide}<HowItWorks guide={craftGuide.guide} stepId={craftGuide.stepId} label="How crafting experience works" />{/if}
+                {:else if entry.id === 'dungeon-rewards' && facts.dungeonRewards}
+                  {#if facts.dungeonRewards.every((reward) => reward.guaranteed)}
+                    <p>Every timed dungeon run ends with a reward bag that holds one Corruption Token.</p>
+                  {:else}
+                    <p>This item has a chance to appear in a timed dungeon reward bag from these bosses:</p>
+                  {/if}
+                  <ul class="dungeon-list">
+                    {#each facts.dungeonRewards as reward}
+                      <li><EntityLink ref={reward.place} {registry} />{#if !reward.guaranteed && reward.bosses.length}{' · '}{#each reward.bosses as boss, index}{index ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}{/if}</li>
+                    {/each}
+                  </ul>
+                  {#if dungeonGuide}<HowItWorks guide={dungeonGuide.guide} stepId="finish-the-timer" label="How dungeon rewards work" />{/if}
                 {:else}
                   <p>{#if entry.id === 'dropped-by' && singleDropInAnswer && entry.text}{entry.text}{:else}<SummaryValue {entry} {registry} />{/if}{#if entry.detail}{' · '}{entry.detail}{/if}{#if entry.guaranteedYield}{' · '}{formatNumber(entry.guaranteedYield)} guaranteed{/if}</p>
                   {#if entry.id !== 'dropped-by' || !singleDropInAnswer}{#if entry.id !== 'starting-gear-of'}<a class="c-link route-more" href={lineHref(entry, registry, base)}>See full {entry.label.toLowerCase()} sources</a>{/if}{/if}
@@ -92,13 +104,13 @@
         <div id="corruption" class="corruption-control">
           <LevelSlider id="corruption-level" label="Corruption level" min={0} max={facts.corruption.maxLevel} bind:level={corruptionLevel} readout={(level) => level === 0 ? 'None' : `+${level}`} valueText={(level) => level === 0 ? 'None' : `+${level}`} />
           {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} stepId={corruptionGuide.stepId} label="How corruption works" />{/if}
-          {#if corruptionLevel > 0 && (facts.randomStats.length || facts.randomStatsMax > 0 || facts.sockets.length || facts.gem)}<p>Random stats and gems do not change.</p>{/if}
+          {#if facts.dungeonRewards?.length}<p>Can appear with corruption in the reward bags from {#each facts.dungeonRewards as source, index}{index ? (index === facts.dungeonRewards.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={source.place} {registry} />{/each}.</p>{/if}
+          {#if corruptionLevel > 0 && facts.randomStats.length}<p>Random stats keep their rolled values.</p>{/if}
         </div>
       {/if}
       {#if document.description}<p class="description">{document.description}</p>{/if}
       {#if facts.buyPrice}<p class="side-fact">Buy price <Price price={facts.buyPrice} showName /></p>{/if}
       {#if facts.stackLimit > 1}<p class="side-fact">Stack size {formatNumber(facts.stackLimit)}</p>{/if}
-      {#if heartGuide}<p class="side-fact"><HowItWorks guide={heartGuide.guide} stepId={heartGuide.stepId} label="How the Heart is used" /></p>{/if}
     </svelte:fragment>
 
     <Sections>
@@ -117,8 +129,8 @@
     {#if document.teaches}
       <Section id="teaches" title="Teaches"><CraftingSection craft={document.teaches} pageKey={document.ref.key} rules={document.placedRules.filter((entry) => entry.target === 'teaches')} {registry} /></Section>
     {/if}
-    {#if document.usedInRecipes.length || questUses.length}
-      <Section id="used-for" title="Used for" count={document.usedInRecipes.length + questUses.length}>
+    {#if document.usedInRecipes.length || questUses.length || document.challengeStoneUses?.length}
+      <Section id="used-for" title="Used for" count={document.usedInRecipes.length + questUses.length + (document.challengeStoneUses?.length ?? 0)}>
         {#if document.usedInRecipes.length}<div id="used-in-recipes" class="used-recipes">
           {#each document.usedInRecipes as row, index}
             {#if showAllRecipes || index < 8}<div class="used-row"><RecipeEquation materials={[{ item: document.ref, quantity: row.count }]} product={row.counterpart} yieldCount={row.product?.count ?? 1} skill={row.skill} requiredLevel={row.requiredLevel} {registry} /></div>{/if}
@@ -126,6 +138,13 @@
           {#if !showAllRecipes && document.usedInRecipes.length > 8}<button class="c-action" type="button" on:click={() => (showAllRecipes = true)}>Show {document.usedInRecipes.length - 8} more</button>{/if}
         </div>{/if}
         {#if questUses.length}<div id="needed-for-quests" class="used-quests">{#each questUses as row}<div class="used-quest"><EntityLink ref={row.quest} {registry} />{#if row.count && row.count > 1}<span>×{row.count}</span>{/if}{#each row.objectives as objective}<span><ObjectiveText {objective} /></span>{/each}</div>{/each}</div>{/if}
+        {#if document.challengeStoneUses?.length}<div class="used-stones">
+          {#each document.challengeStoneUses as row}
+            <div class="used-quest">
+              <span>{row.count} {document.ref.name} {row.count === 1 ? 'is' : 'are'} used at{' '}{#if row.spot}<a class="c-link" href={spotOnMap(row.spot.placementId)}>{row.stoneName ?? 'Challenge Stone'}{#if row.regionName}{' '}in {row.regionName}{/if}</a>{:else}{row.stoneName ?? 'Challenge Stone'}{#if row.regionName}{' '}in {row.regionName}{/if}{/if}{' '}to start{' '}{#each row.destinations as destination, index}{#if index}{', '}{/if}<EntityLink ref={destination} {registry} />{/each}{#each row.unlinkedDestinations ?? [] as destination, index}{#if index || row.destinations.length}{', '}{/if}{destination}{/each}.</span>
+            </div>
+          {/each}
+        </div>{/if}
       </Section>
     {:else if !document.teaches && !document.buys.length}<Section id="used-for" title="Used for"><p>No known recipe or quest uses {document.ref.name}.</p></Section>{/if}
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
@@ -162,14 +181,15 @@
   .route-count, .qualification { color: var(--c-text-dim); font-size: var(--c-text-small); }
   .route-more { justify-self: start; font-size: var(--c-text-small); min-height: 1.5rem; }
   .route p, .description, .side-fact { margin: 0; line-height: 1.5; }
+  .dungeon-list { display: grid; gap: .35rem; margin: 0; padding-left: 1.25rem; min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
   .corruption-control { display: grid; gap: .6rem; margin-top: 1rem; scroll-margin-top: 1rem; }
   .corruption-control p { margin: 0; color: var(--c-text-dim); line-height: 1.5; }
   .description { margin-top: 1rem; color: var(--c-text-dim); }
   .side-fact { display: flex; justify-content: space-between; gap: .75rem; margin-top: .75rem; }
   .token-effects { display: grid; gap: .7rem; }
   .token-effects p { margin: 0; line-height: 1.5; }
-  .used-recipes, .used-quests { display: grid; gap: .5rem; scroll-margin-top: 1rem; }
-  .used-quests { margin-top: .75rem; }
+  .used-recipes, .used-quests, .used-stones { display: grid; gap: .5rem; scroll-margin-top: 1rem; }
+  .used-quests, .used-stones { margin-top: .75rem; }
   .used-row, .used-quest { min-width: 0; padding: .55rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .used-quest { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .75rem; }
 </style>

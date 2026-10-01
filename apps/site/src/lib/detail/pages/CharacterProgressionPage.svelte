@@ -3,6 +3,7 @@
   import EntityLink from '../../EntityLink.svelte';
   import { npcLevelText, rangeText } from '../../format';
   import Hero from '../Hero.svelte';
+  import GuideSteps from '../GuideSteps.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
@@ -38,18 +39,10 @@
   <TitleBlock name={document.ref.name} {registry} />
   <Hero><p class="c-prose">{document.overview}</p></Hero>
   <Sections>
-    <div class="guide-flow">
-    <Section id="steps" title="Steps">
-      <ol class="steps">
-        {#each document.steps as step}
-          <li id={`step-${step.id}`}><h3>{step.title}</h3><p>{step.text}</p><p class="step-links">{step.rules.length > 1 ? 'Rules' : 'Rule'} {#each step.rules as id, index}{#if index > 0}{', '}{/if}<a class="c-link" href={`#rule-${id}`}>{numbers.get(id)}</a>{/each}</p></li>
-        {/each}
-      </ol>
-    </Section>
+    <GuideSteps steps={document.steps} ruleNumbers={numbers} />
     <Section id="worked-example" title="Worked example">
       {#if document.example}<p>A kill of <EntityLink ref={document.example.creature} {registry} /> at level {format(document.example.level)} gives {format(document.example.lowest)}–{format(document.example.highest)} base experience before modifiers.</p>{/if}
     </Section>
-    </div>
     <Section id="level-curve" title="Level curve" line={`Character level cap: ${format(document.curve.cap)}.`}>
       <LevelCurve curve={document.curve} />
       <p>The curve shows the experience needed for each next level.</p>
@@ -87,15 +80,6 @@
 </article>
 
 <style>
-  .guide-flow { display: grid; min-width: 0; gap: 1rem; align-items: start; }
-  .guide-flow :global(.section) { min-width: 0; }
-  @media (min-width: 1024px) { .guide-flow { grid-template-columns: minmax(0, 1fr) minmax(16rem, .65fr); } }
-  .steps li { scroll-margin-top: 2rem; }
-  .steps { display: grid; gap: 1rem; margin: 0; padding-left: 1.5rem; }
-  .steps li { padding-left: .25rem; }
-  .steps h3 { margin: 0 0 .2rem; }
-  .steps p { margin: 0; line-height: 1.55; }
-  .step-links { margin-top: .25rem !important; color: var(--c-text-dim); font-size: var(--c-text-small); overflow-wrap: anywhere; }
   .prose p, .point-group p, .table-intro { margin: 0 0 .75rem; line-height: 1.55; }
   .prose p:last-child, .point-group p:last-child { margin-bottom: 0; }
   .prose ul { margin: 0 0 .75rem; padding-left: 1.4rem; line-height: 1.6; }

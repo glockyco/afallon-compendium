@@ -4,7 +4,7 @@
   import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber, levelText } from '../../format';
-  import { placeOnMap } from '../../map-links';
+  import { placeOnMap, spotOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import { placeCreatureRows } from '../place-rows';
@@ -38,6 +38,7 @@
       {#if document.art.artwork}<img class="artwork" src={`${base}/data/${document.art.artwork.url}`} width={document.art.artwork.width} height={document.art.artwork.height} alt={`${document.ref.name} artwork`} />{/if}
       {#if document.description}<p class="description">{document.description}</p>{/if}
       {#if document.variantOf}<p class="description">A challenge version of <EntityLink ref={document.variantOf} {registry} />. It also contains copies of overworld content.</p>{/if}
+      {#if document.challengeStoneStart}<p class="description">Start it at <a class="c-link" href={spotOnMap(document.challengeStoneStart.spot.placementId)}>a challenge stone in {document.challengeStoneStart.regionName}</a> with {document.challengeStoneStart.count} <EntityLink ref={document.challengeStoneStart.heart} {registry} />.</p>{/if}
       {#if document.space}<a class="c-action" href={placeOnMap(document.ref.key, document.variantOf ? 'all' : undefined)}>Show on map</a>{/if}
     </AnswerCard>
   </svelte:fragment>

@@ -1,6 +1,7 @@
 import { expect, jest, test } from 'bun:test';
-import type { PublicSearchEntry, StaticResourceReference, StaticRootManifest } from '@afallon/contracts/public';
+import type { PublicSearchEntry, StaticDocument, StaticResourceReference, StaticRootManifest } from '@afallon/contracts/public';
 import { MapDataLoader, type MapFetch } from './map-data';
+import { _loadGuideInlineItem } from '../routes/[kind]/[slug]/+page.server';
 import { MapController, type MapSnapshot } from './map-controller';
 import { readMapUrl, type MapState, type MapView } from './map-state';
 import { rankCompendiumEntries, selectionHighlightIds } from './map-search';
@@ -22,7 +23,7 @@ function fixture() {
     const ref = { key, kind: 'items' as const, name, slug: name };
     refs.set(key, ref);
     documents.set(key, register({
-      schemaVersion: 'compendium.static-item.v12', ...identity, kind: 'items',
+      schemaVersion: 'compendium.static-item.v14', ...identity, kind: 'items',
       document: {
         ref, description: null, art: {}, sourceSpotCount: 1, sourceAvailabilities: [],
         facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
@@ -107,6 +108,16 @@ test('Recipes list rows resolve to item Crafting sections without recipe documen
   const list = await data.loader.loadList('recipes');
   expect(list.rows[0]?.ref).toEqual(ref);
   expect((await data.loader.loadPageForRef(ref)).document.ref.key).toBe('item:a');
+});
+
+test('corruption guide preloads the item page named by its published default reference', async () => {
+  const data = fixture();
+  const ref = { key: 'item:b', kind: 'items' as const, name: 'b', slug: 'b' };
+  const guide = { kind: 'mechanics', document: { topic: 'corruption', tryIt: { defaultItem: ref } } } as StaticDocument;
+  const item = await _loadGuideInlineItem(guide, data.loader);
+  expect(item?.ref).toEqual(ref);
+  expect(data.counts.get(data.documents.get(ref.key)!.path)).toBe(1);
+  expect(data.counts.get(data.documents.get('item:a')!.path)).toBeUndefined();
 });
 
 test('loads all geometry before first render and retries a failed geometry resource with the map', async () => {

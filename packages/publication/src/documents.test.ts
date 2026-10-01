@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import type { CatalogEntityRow, CatalogFacts, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow } from "@afallon/contracts/catalog";
 import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
 import type { CatalogGatheringNode, CatalogMechanicsRule } from "@afallon/contracts/catalog";
+import { corruptionRewards, type CorruptionRewards } from "./corruption-rewards";
 import { readerCoverage } from "./coverage";
 import { projectGatheringNodeDocuments, spawnerGroups, spawnerShares } from "./gathering";
 import { conditionsById, projectPublicDocuments, projectQuestObjective, requirementsFor, type DocumentProjectionInput } from "./documents";
@@ -82,9 +83,9 @@ const relations: CatalogRelations = {
   conditions: [{ conditionId: "oathbreaker", semantics: "equipment", scope: "equipment", label: "Requirements", requirements: equipmentRequirements }], gatedSources: [],
 };
 
-function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map(), placementIdsByKey: DocumentProjectionInput["placementIdsByKey"] = new Map(), placeVariants: NonNullable<DocumentProjectionInput["placeVariants"]> = new Map()) {
+function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map(), placementIdsByKey: DocumentProjectionInput["placementIdsByKey"] = new Map(), placeVariants: NonNullable<DocumentProjectionInput["placeVariants"]> = new Map(), rewards?: CorruptionRewards) {
   const references = buildEntityReferences(projectEntities, { facts: projectFacts, relations: projectRelations });
-  const documents = projectPublicDocuments({ entities: projectEntities, facts: projectFacts, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants });
+  const documents = projectPublicDocuments({ entities: projectEntities, facts: projectFacts, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants, corruptionRewards: rewards });
   return { refs: references.refs, documents };
 }
 
@@ -96,24 +97,49 @@ test("only eligible gear publishes captured corruption settings and the guide-st
     gearStatBonuses: [{ stat: { entityKey: "stats:53", label: "Item power" }, amountPerLevel: 5, isPercent: false, sourceFieldPath: "GameDatabase.CombatSettings.CorruptionGearStatBonuses[0]" }],
     mobStatBonuses: [{ stat: { entityKey: "stats:27", label: "Strength" }, amountPerLevel: 10, isPercent: true, sourceFieldPath: "GameDatabase.CombatSettings.CorruptionStatBonuses[0]" }],
     affixesPerToken: 3, affixes: [], token: { entityKey: "items:6", label: "Corruption Token" },
-    heart: null, dungeons: [], heartRequirements: [], provenance: [source],
+    heart: null, dungeons: [{ scene: { entityKey: "scenes:10", label: "Crypt" }, totalSeconds: null, firstRemainingSeconds: null, secondRemainingSeconds: null, maxLootItems: null,
+      bosses: [{ entityKey: "npcs:2", label: "Guardian" }], lootTables: [{ entityKey: "lootTables:4", label: "Guardian" }], token: { entityKey: "items:6", label: "Corruption Token" }, provenance: [] }], heartRequirements: [], provenance: [source],
   };
-  const sourceEntities = [...entities, consumable];
+  const trinket: CatalogEntityRow = { entityKey: "items:7", kind: "items", nativeId: 7, name: "Tide Charm", description: null, iconAssetName: null, artwork: [] };
+  const ordinary: CatalogEntityRow = { entityKey: "items:8", kind: "items", nativeId: 8, name: "Plain Gloves", description: null, iconAssetName: null, artwork: [] };
+  const sourceEntities = [...entities, consumable, trinket, ordinary];
   const sourceFacts: CatalogFacts = { ...facts, entities: sourceEntities, corruption: captured,
-    items: [...facts.items, { ...facts.items[0]!, entityKey: consumable.entityKey, itemType: "CONSUMABLE", corruptionToken: true }] };
-  const gear = project(sourceEntities, sourceFacts, relations).documents.get("items:1") as PublicItem;
-  const token = project(sourceEntities, sourceFacts, relations).documents.get(consumable.entityKey) as PublicItem;
+    items: [...facts.items, { ...facts.items[0]!, entityKey: consumable.entityKey, itemType: "CONSUMABLE", corruptionToken: true },
+      { ...facts.items[0]!, entityKey: trinket.entityKey, itemType: "Trinket", armorSlot: "Trinket", armorType: "JEWELRY" },
+      { ...facts.items[0]!, entityKey: ordinary.entityKey, itemType: "ARMOR", armorSlot: "GLOVES" }] };
+  const references = buildEntityReferences(sourceEntities, { facts: sourceFacts, relations });
+  const rewards = corruptionRewards(captured, sourceFacts, [{ lootTableId: 4, itemKey: "items:1" }, { lootTableId: 4, itemKey: "items:6" }, { lootTableId: 4, itemKey: "items:7" }],
+    new Map([["npcs:2", new Set([4])]]), new Set(references.refs.keys()), createReferenceResolver(references.refs));
+  const projected = project(sourceEntities, sourceFacts, relations, undefined, undefined, undefined, undefined, undefined, rewards).documents;
+  const gear = projected.get("items:1") as PublicItem;
+  const token = projected.get(consumable.entityKey) as PublicItem;
+  const trinketPage = projected.get(trinket.entityKey) as PublicItem;
+  const ordinaryPage = projected.get(ordinary.entityKey) as PublicItem;
   expect(gear.facts.corruption).toEqual({ maxLevel: 30, allStatsPercentPerLevel: 5,
     statBonuses: [{ stat: { key: "stats:53", kind: "stats", name: "Item Power" }, amountPerLevel: 5, isPercent: false }] });
+  expect(gear.facts.dungeonRewards).toEqual([{ place: expect.objectContaining({ key: "scenes:10" }), bosses: [expect.objectContaining({ key: "npcs:2" })], guaranteed: false }]);
   expect(gear.facts.stats[0]?.amount).toBe(42);
   expect(gear.facts.itemPower).toBe(99);
   expect(gear.placedRules).toContainEqual({ target: "corruption", guide: expect.objectContaining({ key: "mechanics:corruption" }), stepId: "compare-corrupted-gear" });
   expect(token.facts.corruption).toBeUndefined();
+  expect(token.facts.dungeonRewards).toEqual([{ place: expect.objectContaining({ key: "scenes:10" }), bosses: [expect.objectContaining({ key: "npcs:2" })], guaranteed: true }]);
+  expect(trinketPage.facts).toMatchObject({ itemType: "Trinket", slot: "Trinket", armorType: "JEWELRY", corruption: gear.facts.corruption,
+    dungeonRewards: gear.facts.dungeonRewards });
+  expect(ordinaryPage.facts.corruption).toBeUndefined();
+  expect(ordinaryPage.facts.dungeonRewards).toBeUndefined();
   expect(token.facts.tokenInfo).toEqual({ mobStatBonuses: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amountPerLevel: 10, isPercent: true }], affixesPerToken: 3 });
   expect(token.placedRules).toContainEqual({ target: "corruption-token", guide: expect.objectContaining({ key: "mechanics:corruption" }), stepId: "read-the-token" });
   expect(token.placedRules.some((entry) => entry.target === "corruption")).toBe(false);
-  const unavailable = project(entities, { ...facts, corruption: { ...captured, gearStatBonuses: null } }, relations).documents.get("items:1") as PublicItem;
+  const heart: CatalogEntityRow = { entityKey: "items:162", kind: "items", nativeId: 162, name: "Heart of Corruption", description: null, iconAssetName: null, artwork: [] };
+  const withHeart = [...sourceEntities, heart];
+  const heartPage = project(withHeart, { ...sourceFacts, entities: withHeart,
+    corruption: { ...captured, heart: { entityKey: heart.entityKey, label: heart.name } },
+    items: [...sourceFacts.items, { ...facts.items[0]!, entityKey: heart.entityKey, itemType: "CONSUMABLE" }] },
+  relations).documents.get(heart.entityKey) as PublicItem;
+  expect(heartPage.placedRules.some((rule) => rule.target === "corruption-heart")).toBe(false);
+  const unavailable = project(sourceEntities, { ...sourceFacts, corruption: { ...captured, gearStatBonuses: null } }, relations, undefined, undefined, undefined, undefined, undefined, rewards).documents.get("items:1") as PublicItem;
   expect(unavailable.facts.corruption).toBeUndefined();
+  expect(unavailable.facts.dungeonRewards).toEqual(gear.facts.dungeonRewards);
 });
 
 test("currency purchases merge identical prices across merchants but preserve different costs", () => {

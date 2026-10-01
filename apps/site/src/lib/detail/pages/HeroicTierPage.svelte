@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { HeroicTier, PublicKindEntry } from '@afallon/contracts/public';
   import Hero from '../Hero.svelte';
+  import GuideSteps from '../GuideSteps.svelte';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
   import Section from '../Section.svelte';
@@ -21,14 +22,7 @@
   <TitleBlock name={document.ref.name} {registry} />
   <Hero><p class="c-prose">{document.overview}</p></Hero>
   <Sections>
-    <div class="guide-flow">
-    <Section id="steps" title="Steps">
-      <ol class="steps">
-        {#each document.steps as step}
-          <li id={`step-${step.id}`}><h3>{step.title}</h3><p>{step.text}</p><p class="step-links">{step.rules.length > 1 ? 'Rules' : 'Rule'} {#each step.rules as id, index}{#if index > 0}{', '}{/if}<a class="c-link" href={`#rule-${id}`}>{numbers.get(id)}</a>{/each}</p></li>
-        {/each}
-      </ol>
-    </Section>
+    <GuideSteps steps={document.steps} ruleNumbers={numbers} />
     <Section id="worked-example" title="Worked example">
       {#if document.example}
         <p>Essence per kill at health factor 1, before the stored fraction. The example does not use a creature's health stat.</p>
@@ -41,7 +35,6 @@
         </table>
       {/if}
     </Section>
-    </div>
     <Section id="kill-experience" title="Kill experience">
       {#if 'unavailable' in document.settings}
         <p>{document.settings.unavailable}</p>
@@ -89,18 +82,9 @@
 </article>
 
 <style>
-  .guide-flow { display: grid; min-width: 0; gap: 1rem; align-items: start; }
-  .guide-flow :global(.section) { min-width: 0; }
-  @media (min-width: 1024px) { .guide-flow { grid-template-columns: minmax(0, 1fr) minmax(16rem, .75fr); } }
-  .steps li { scroll-margin-top: 2rem; }
   /* Section text only: the overview paragraph keeps the shared prose style. */
   :global(.c-sections) p { margin: 0 0 .8rem; line-height: 1.55; }
   :global(.c-sections) p:last-child { margin-bottom: 0; }
-  .steps { display: grid; gap: 1rem; margin: 0; padding-left: 1.5rem; }
-  .steps li { padding-left: .25rem; }
-  .steps h3 { margin: 0 0 .2rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
-  .steps p { margin: 0; }
-  .step-links { margin-top: .25rem !important; color: var(--c-text-dim); font-size: var(--c-text-small); overflow-wrap: anywhere; }
   table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
   th, td { padding: .55rem .7rem; border-bottom: 1px solid var(--c-line); white-space: nowrap; }
   th { color: var(--c-text-dim); font-weight: 600; }

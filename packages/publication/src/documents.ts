@@ -64,6 +64,7 @@ import { displayName, plainText, withoutMarkup } from "./text";
 import { recipeAnchor, type EntityReferences, type PublishedPage } from "./references";
 import { placedRules, topicRef } from "./placed-rules";
 import { placeSpots } from "./place-spots";
+import { isCorruptibleEquipment, type CorruptionRewards } from "./corruption-rewards";
 import type { PlaceVariant } from "./place-variants";
 
 export type ReferenceResolver = (endpoint: CatalogEndpoint) => Ref;
@@ -86,6 +87,7 @@ export interface DocumentProjectionInput {
   excluded?: ReadonlySet<string>;
   /** The weapon types that each class can use, as the game names them. */
   classWeapons?: ReadonlyMap<string, readonly string[]>;
+  corruptionRewards?: CorruptionRewards;
 }
 
 type RelationIndexes = {
@@ -501,9 +503,11 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
   const crafting = productRecipe?.recipe.entityKey ? projectCraft(productRecipe.recipe.entityKey, input, indexes) : undefined;
   const teaches = taughtRecipe === undefined ? undefined : projectCraft(taughtRecipe, input, indexes);
   // Native item records carry authored defaults for both equipment branches; only the active branch is public evidence.
-  const isArmor = fact?.itemType === "ARMOR", isWeapon = fact?.itemType === "WEAPON";
+  const isArmor = fact?.itemType === "ARMOR" || (fact?.itemType === "Trinket" && fact.armorSlot === "Trinket");
+  const isWeapon = fact?.itemType === "WEAPON";
   const settings = input.facts.corruption;
-  const corruption = (isArmor || isWeapon) && !fact?.corruptionToken
+  const dungeonRewards = input.corruptionRewards?.byItem.get(entity.entityKey);
+  const corruption = dungeonRewards?.some((reward) => !reward.guaranteed) && isCorruptibleEquipment(fact)
     && settings?.maxLevel != null && settings.maxLevel > 0
     && settings.gearAllStatsPercentPerLevel != null && settings.gearStatBonuses != null
     ? { maxLevel: settings.maxLevel, allStatsPercentPerLevel: settings.gearAllStatsPercentPerLevel,
@@ -514,7 +518,6 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     ? { ...(settings.mobStatBonuses === null ? {} : { mobStatBonuses: settings.mobStatBonuses.map((row) => ({
       stat: input.resolve(row.stat), amountPerLevel: row.amountPerLevel, isPercent: row.isPercent })) }),
       ...(settings.affixesPerToken === null ? {} : { affixesPerToken: settings.affixesPerToken }) } : undefined;
-  const isHeart = settings?.heart?.entityKey === entity.entityKey;
   const itemPower = fact?.stats.find((row) => row.stat.entityKey === "stats:53")?.amount;
   const damagePerSecond = isWeapon && fact?.minDamage !== null && fact?.minDamage !== undefined
     && fact.maxDamage !== null && fact.maxDamage !== undefined && fact.attackSpeed !== null && fact.attackSpeed !== undefined && fact.attackSpeed > 0
@@ -531,7 +534,8 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
       ...(isWeapon && optionalCount(fact?.minDamage ?? null) !== undefined ? { minDamage: optionalCount(fact?.minDamage ?? null) } : {}),
       ...(isWeapon && optionalCount(fact?.maxDamage ?? null) !== undefined ? { maxDamage: optionalCount(fact?.maxDamage ?? null) } : {}),
       ...(itemPower === undefined ? {} : { itemPower }), ...(damagePerSecond === undefined ? {} : { damagePerSecond }),
-      ...(corruption === undefined ? {} : { corruption }), ...(tokenInfo === undefined ? {} : { tokenInfo }),
+      ...(corruption === undefined ? {} : { corruption }), ...(dungeonRewards?.length ? { dungeonRewards } : {}),
+      ...(tokenInfo === undefined ? {} : { tokenInfo }),
       stats: (fact?.stats ?? []).filter((row) => row.stat.entityKey !== "stats:53")
         .map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
       randomStats: (fact?.randomStats ?? []).map((row) => ({ stat: input.resolve(row.stat), min: row.min, max: row.max, isPercent: row.isPercent, whole: row.whole,
@@ -563,8 +567,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
       .filter((rule) => rule.target !== "crafting" || crafting !== undefined)
       .filter((rule) => rule.target !== "teaches" || teaches !== undefined)
       .concat(corruption ? [{ target: "corruption", guide: topicRef("corruption"), stepId: "compare-corrupted-gear" }] : [])
-      .concat(tokenInfo ? [{ target: "corruption-token", guide: topicRef("corruption"), stepId: "read-the-token" }] : [])
-      .concat(isHeart ? [{ target: "corruption-heart", guide: topicRef("corruption"), stepId: "distinguish-the-heart" }] : []),
+      .concat(tokenInfo ? [{ target: "corruption-token", guide: topicRef("corruption"), stepId: "read-the-token" }] : []),
     usedInRecipes: recipeRows.filter((row) => row.role === "material").map((row) => {
       const recipeKey = row.recipe.entityKey;
       const craft = recipeKey === null ? undefined : projectCraft(recipeKey, input, indexes);

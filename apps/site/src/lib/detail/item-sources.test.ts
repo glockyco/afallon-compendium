@@ -55,6 +55,24 @@ test('craft output outranks chance routes and links its own section', () => {
   expect(lineHref(lines[0]!, [], '')).toBe('#crafting');
 });
 
+test('timed dungeon reward distinguishes a guaranteed token from chance gear', () => {
+  const places = Array.from({ length: 5 }, (_, index): EntityRef => ({
+    key: `scenes:${index}`, kind: 'places', name: `Dungeon ${index}`, slug: `dungeon-${index}`,
+  }));
+  const token = item([], []);
+  token.ref = { ...token.ref, name: 'Corruption Token' };
+  token.facts.dungeonRewards = places.map((place) => ({ place, bosses: [npc(1, 'Guardian')], guaranteed: true }));
+  const [tokenRoute] = itemSourceLines(token);
+  expect(tokenRoute?.label).toBe('Dungeon reward');
+  expect(tokenRoute?.guaranteedYield).toBe(1);
+  expect(summaryText(tokenRoute!)).toBe('Every timed dungeon run ends with a reward bag that holds one Corruption Token.');
+  const gear = item([], []);
+  gear.facts.dungeonRewards = [{ place: places[0]!, bosses: [npc(1, 'Guardian')], guaranteed: false }];
+  const [gearRoute] = itemSourceLines(gear);
+  expect(gearRoute?.guaranteedYield).toBeUndefined();
+  expect(gearRoute?.detail).toBe('Chance from boss reward bags');
+});
+
 test('published full bands merge into the short experience breakpoint sentence', () => {
   const crafted = item([], []);
   crafted.crafting = { recipe: { key: 'recipes:1', name: 'Runeweave Regalia' }, skill: { key: 'skills:1', kind: 'skills', name: 'Tailoring', slug: 'tailoring' },

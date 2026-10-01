@@ -142,6 +142,23 @@ test("every kind document validates and rejects unknown properties", () => {
   }
 });
 
+test("Heart stone routes, place answers, and guide cross-links keep their own strict schemas", () => {
+  const place = (fixtures.places as PublicPlace).ref;
+  const use = { stoneName: "Challenge Stone Poison", regionName: "Coalway Swamp", spot: placement,
+    destinations: [place], unlinkedDestinations: ["Challenge Stone Frost"], count: 1 };
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.items, { ...fixtures.items, challengeStoneUses: [use] });
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.places, { ...fixtures.places,
+    challengeStoneStart: { heart: item, stoneName: use.stoneName, regionName: use.regionName, spot: placement, count: 1 } });
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, seeAlso: [{ lead: "See", ref: item }] });
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.items, { ...fixtures.items, challengeStoneUses: [{ ...use, count: -1 }] })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.items, { ...fixtures.items, challengeStoneUses: [{ ...use, place }] })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.places, { ...fixtures.places,
+    challengeStoneStart: { heart: item, stoneName: use.stoneName, regionName: use.regionName, spot: { ...placement, mapSpaceId: null }, count: 1 } })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, seeAlso: [{ lead: "See", ref: { key: null, label: "Unknown" } }] })).toThrow();
+  expect(STATIC_DOCUMENT_SCHEMA_IDS.items).toBe("compendium.static-item.v14");
+  expect(STATIC_DOCUMENT_SCHEMA_IDS.places).toBe("compendium.static-place.v8");
+});
+
 test("node source groups publish counts without repeating placements needed only by map places", () => {
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.gatheringNodes, {
     ...gatheringNode, spawners: [{ ...gatheringNode.spawners[0], placements: [placement] }],

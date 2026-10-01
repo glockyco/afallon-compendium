@@ -72,7 +72,16 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
   const search = (objects?.spotCount ?? 0) >= (containers?.spotCount ?? 0) ? objects ?? containers : containers;
   const world = worldLootLine(item.droppedBy);
   const loot = line('dropped-by', 'Loot', byChance(creatureDrops).map((row) => ({ ref: row.counterpart })));
+  const dungeonRewards = item.facts.dungeonRewards;
+  const dungeon = dungeonRewards?.length
+    ? line('dungeon-rewards', 'Dungeon reward', dungeonRewards.map((row) => ({ ref: row.place })), {
+      ...(dungeonRewards.every((row) => row.guaranteed) ? {
+        guaranteedYield: 1, text: `Every timed dungeon run ends with a reward bag that holds one ${item.ref.name}.`,
+      } : { detail: 'Chance from boss reward bags' }),
+    })
+    : undefined;
   const routes: (SummaryLine | undefined)[] = [
+    dungeon,
     item.crafting && { id: 'crafting', label: 'Craft', names: [], more: 0, guaranteedYield: item.crafting.product?.count,
       text: [item.crafting.skill ? nameOf(item.crafting.skill) : undefined, item.crafting.ranks[0] ? `level ${item.crafting.ranks[0].requiredLevel}` : undefined, item.crafting.station ? `at ${nameOf(item.crafting.station)} station` : undefined].filter(Boolean).join(' ') || item.crafting.recipe.name },
     line('gathered-from', firstGather?.skill && nameOf(firstGather.skill).toLowerCase() === 'mining' ? 'Mine' : 'Gather', byChance(item.gatheredFrom).map(gatherName), { spotCount: spotTotal(item.gatheredFrom), detail: firstGather?.chance !== undefined ? `${firstGather.chance}% chance per gathering` : undefined }),

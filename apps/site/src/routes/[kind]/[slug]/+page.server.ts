@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { EntryGenerator, PageServerLoad } from './$types';
 import { serverMapLoader } from '$lib/server/publication';
-import { isPublicPageKind } from '@afallon/contracts/public';
+import { isPublicPageKind, type StaticDocument } from '@afallon/contracts/public';
 
 export const entries: EntryGenerator = async () => {
   const loader = serverMapLoader();
@@ -11,6 +11,22 @@ export const entries: EntryGenerator = async () => {
     .map((entry) => ({ kind: routeByKind.get(entry.ref.kind)!, slug: entry.ref.slug! }));
 };
 
+type InlineItem = Extract<StaticDocument, { kind: 'items' }>['document'];
+
+/** Resolve the item's published page using the reference carried by the guide, not its URL. */
+export async function _loadGuideInlineItem(
+  page: StaticDocument,
+  loader: Pick<ReturnType<typeof serverMapLoader>, 'loadPageForRef'>,
+): Promise<InlineItem | undefined> {
+  if (page.kind !== 'mechanics' || page.document.topic !== 'corruption') return undefined;
+  const ref = page.document.tryIt.defaultItem;
+  const item = await loader.loadPageForRef(ref);
+  if (item.kind !== 'items' || item.document.ref.key !== ref.key) {
+    throw new Error(`Corruption guide item ${ref.key} does not resolve to its published item page.`);
+  }
+  return item.document;
+}
+
 export const load: PageServerLoad = async ({ params }) => {
   const loader = serverMapLoader();
   const [registry, indexes] = await Promise.all([loader.loadRegistry(), loader.loadIndexes()]);
@@ -19,5 +35,6 @@ export const load: PageServerLoad = async ({ params }) => {
   const entry = indexes.entries.find((candidate) => candidate.ref.kind === kind.kind && candidate.ref.slug === params.slug && candidate.document);
   if (!entry?.document) error(404, 'This compendium page is not published.');
   const page = await loader.loadDocument(kind.kind, params.slug);
-  return { kind, page, documentPath: entry.document.path };
+  const inlineItem = await _loadGuideInlineItem(page, loader);
+  return { kind, page, inlineItem, documentPath: entry.document.path };
 };
