@@ -108,7 +108,7 @@ export function relationRows(value: Relationships, canonical: Canonical, nativeL
       });
     }
   }
-  for (const [index, tier] of value.clothDrops.tiers.entries()) if (valid("items", tier.itemID, `/clothDrops/tiers/${index}`)) addSourceIndex(itemIndex, tier.itemID, "world-loot", `cloth:${tier.tierIndex}`, [], [], { sourceLabel: "Supplemental cloth loot", tier, rawRate: value.clothDrops.dropChance, min: value.clothDrops.minimumCount, max: value.clothDrops.maximumCount, locationScope: "NPC eligibility for this supplemental source is not established.", provenance: [pointer(reference, `/clothDrops/tiers/${index}`), pointer(reference, "/clothDrops")] });
+  for (const [index, tier] of value.clothDrops.tiers.entries()) if (valid("items", tier.itemID, `/clothDrops/tiers/${index}`)) addSourceIndex(itemIndex, tier.itemID, "world-loot", `cloth:${tier.tierIndex}`, [], [], { sourceLabel: "Supplemental cloth loot", tier, rawRate: value.clothDrops.dropChance, min: value.clothDrops.minimumCount, max: value.clothDrops.maximumCount, provenance: [pointer(reference, `/clothDrops/tiers/${index}`), pointer(reference, "/clothDrops")] });
   const questOwners = new Map<number, Set<number>>();
   for (const [index, row] of value.npcQuestBindings.entries()) {
     const path = `/npcQuestBindings/${index}`;

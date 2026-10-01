@@ -1,7 +1,7 @@
 import type { PublicDocument } from "@afallon/contracts/public";
 import { projectAbilityPage } from "./abilities";
 import { projectClass, startingGearByItem } from "./classes";
-import { projectItem } from "./items";
+import { fromItemsByItem, projectItem } from "./items";
 import { projectNpcPage } from "./npcs";
 import { projectPlace } from "./places";
 import { conditionsById, type DocumentProjectionInput, relationIndexes } from "./projection";
@@ -12,14 +12,14 @@ import { projectSkill } from "./skills";
 /** One document for each published page, keyed by the page key. */
 export function projectPublicDocuments(input: DocumentProjectionInput): ReadonlyMap<string, PublicDocument> {
   const indexes = relationIndexes(input.entities, input.facts, input.relations), conditions = conditionsById(input.relations.conditions);
-  const startingGear = startingGearByItem(input.entities, input.facts, input.references.refs);
+  const startingGear = startingGearByItem(input.entities, input.facts, input.references.refs), fromItems = fromItemsByItem(input);
   const result = new Map<string, PublicDocument>();
   for (const [key, page] of input.references.pages) {
     if (!page.ref.slug) continue;
     const entity = page.members[0]!.entity, ref = page.ref;
     let document: PublicDocument;
     switch (page.kind) {
-      case "items": document = projectItem(entity, ref, input, indexes, conditions, startingGear); break;
+      case "items": document = projectItem(entity, ref, input, indexes, conditions, startingGear, fromItems); break;
       case "npcs": document = projectNpcPage(page, input, indexes, conditions); break;
       case "quests": document = projectQuest(entity, ref, input, indexes, conditions); break;
       case "places": document = projectPlace(entity, ref, input, indexes); break;

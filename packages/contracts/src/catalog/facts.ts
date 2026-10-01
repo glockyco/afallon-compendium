@@ -47,6 +47,14 @@ export interface CatalogAdventurerItem {
   itemKey: string; kind: "kitUpgradeItem" | "equipmentBand" | "equipmentReward";
   adventurer: CatalogEndpoint | null; minimumContentLevel: number | null; rewardChance: number | null;
 }
+// The supplemental cloth drops of the game's dropped loot. A kill of a creature of one of `creatureTypes` rolls
+// `dropChance` (a percentage before the loot drop multipliers) for `minCount` to `maxCount` pieces of one tier. The
+// creature's level picks the tier by weight: a tier's weight is `teaserWeight` below `startLevel`, and moves evenly from
+// `lowWeight` at `startLevel` to `highWeight` at `rampEnd`.
+export interface CatalogClothDrops {
+  creatureTypes: string[]; dropChance: number; minCount: number; maxCount: number;
+  tiers: Array<{ item: CatalogEndpoint; startLevel: number; rampEnd: number; lowWeight: number; highWeight: number; teaserWeight: number }>;
+}
 export interface CatalogItemLootTable {
   id: number; name: string; includeWorldLoot: boolean; worldLootShare: number; bonusDropChance: number;
   hasMinimumDrops: boolean; minDroppedItems: number; limitDroppedItems: boolean; maxDroppedItems: number;
@@ -268,6 +276,7 @@ export interface CatalogFacts {
   adventurerItems: CatalogAdventurerItem[];
   itemLootTables: CatalogItemLootTable[];
   corruption?: CatalogCorruptionFacts | null;
+  clothDrops?: CatalogClothDrops | null;
 }
 
 export interface CatalogCondition { conditionId: string; semantics: string; scope: "equipment" | "use" | null; label: string; requirements: CatalogRequirementGroup[] }

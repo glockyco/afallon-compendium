@@ -133,7 +133,7 @@ test("an item names the offered classes that start with it, and coverage counts 
   expect(potion.startingGearOf).toEqual([{ class: references.refs.get("classes:0")! }, { class: references.refs.get("classes:5")! }]);
   const withoutSource = (document: PublicItem) => readerCoverage([document]).gaps.some((gap) => gap.gap === "itemWithoutSource");
   expect(withoutSource(potion)).toBe(false);
-  expect(withoutSource({ ...potion, startingGearOf: [] })).toBe(true);
+  expect(withoutSource({ ...potion, startingGearOf: [], fromItems: [] })).toBe(true);
 });
 
 test("a talent shared by several trees resolves to the row of the class that owns the page", () => {

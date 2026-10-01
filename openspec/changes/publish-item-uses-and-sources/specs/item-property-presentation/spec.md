@@ -61,4 +61,4 @@ An item page SHALL show its name and applicable map action in the title, and its
 
 #### Scenario: Cloth drop
 - **WHEN** Linen Cloth is a tier of the supplemental cloth drops
-- **THEN** its page shows a world loot row for the eligible creatures with the base chance, the count, and the level ramp of the tier
+- **THEN** its page shows a Cloth loot section for Humanoid and Undead creatures with the roll chance, the count, and the chance per kill for each range of creature levels

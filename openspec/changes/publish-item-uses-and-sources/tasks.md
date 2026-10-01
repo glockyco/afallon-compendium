@@ -10,7 +10,7 @@
 - [ ] 2.2 Read the visual effects of interactable objects, and the Chest components and Chest actions of each prefab that their templates can spawn. Verify fixtures for a grave, the sacrificial altar, and Slime covered sack against the offline chest read.
 - [ ] 2.3 Read the `QuestFieldInteraction` and `HuntTanneryDirector` components and `DungeonFinderSettings`. The corruption collector already reads `DungeonTimerManager`. Verify fixtures for a hunt pickup with its task and the supply pack setting.
 - [ ] 2.4 Keep owner actions, visual effect chests of world objects, and scene grants in the catalog. Report a grant through the game actions of a non-item owner and each unresolved target as coverage issues. Verify a fixture where an item and an interactable object share one loot table.
-- [ ] 2.5 Mark the supplemental cloth rows with the verified creature rule, and keep them in the drop query. Verify a fixture that returns the Linen Cloth row with its tier ramp.
+- [x] 2.5 Keep the supplemental cloth drops in the catalog facts with the verified creature rule. Verify a fixture that gives a cloth its chance per kill by creature level.
 - [ ] 2.6 Run a targeted scan that includes Challenge stone Lumberjack, and build a catalog candidate. Compare it with the accepted catalog. Verify that every counted action from task 1.2 is present. Report the loot tables and the game action templates that still have no owner.
 
 ## 3. Publication

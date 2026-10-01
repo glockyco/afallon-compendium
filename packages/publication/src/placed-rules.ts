@@ -8,7 +8,7 @@ export const MECHANICS_TOPIC_NAMES: Readonly<Record<MechanicsTopic, { name: stri
   "heroic-tier": { name: "Heroic Tier", description: "How the Heroic tier changes kill experience, Heroic Essence, creatures, and gear." },
   "crafting-and-gathering": { name: "Crafting and Gathering", description: "How crafting and gathering give items and skill experience." },
   corruption: { name: "Corruption", description: "How Corruption Tokens, timed dungeons, and corrupted equipment work." },
-  loot: { name: "Loot", description: "How bags, chests, and supply packs choose their items." },
+  loot: { name: "Loot", description: "How bags, chests, supply packs, and cloth drops choose their items." },
 };
 
 export function topicRef(topic: MechanicsTopic): EntityRef {
@@ -20,7 +20,7 @@ const PAGE_NAMES: Readonly<Record<RulePlacementPage, string>> = {
   items: "Item pages", gatheringNodes: "Gathering node pages", skills: "Skill pages", npcs: "NPC pages", quests: "Quest pages", classes: "Class pages",
 };
 const TARGET_NAMES: Readonly<Record<string, string>> = {
-  crafting: "Crafting", teaches: "Teaches", corruption: "Corruption", "when-used": "When used", "how-it-works": "How it works", "how-to-gain-experience": "How to gain experience", experience: "Experience", "talent-points": "Talent points",
+  crafting: "Crafting", teaches: "Teaches", corruption: "Corruption", "when-used": "When used", "cloth-loot": "Cloth loot", "how-it-works": "How it works", "how-to-gain-experience": "How to gain experience", experience: "Experience", "talent-points": "Talent points",
 };
 
 /** The pages and sections where the rules record places a rule, as reader text. */

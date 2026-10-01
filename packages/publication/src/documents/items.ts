@@ -1,5 +1,5 @@
-import type { CatalogAvailabilityRule, CatalogCondition, CatalogEntityRow, CatalogGatheringNode } from "@afallon/contracts/catalog";
-import { type AvailabilityRule, type Craft, type EntityRef, type GearSet, isEntityRef, type PublicItem, type Ref } from "@afallon/contracts/public";
+import type { CatalogAvailabilityRule, CatalogClothDrops, CatalogCondition, CatalogEntityRow, CatalogGatheringNode, CatalogItemFacts } from "@afallon/contracts/catalog";
+import { type AvailabilityRule, type ClothDrop, type Craft, type EntityRef, type FromItemRow, type GearSet, isEntityRef, type ItemUse, type PublicItem, type Ref } from "@afallon/contracts/public";
 import { isCorruptibleEquipment } from "../corruption-rewards";
 import { recipeRank } from "../crafting";
 import { requiredLevel } from "../gathering";
@@ -11,8 +11,118 @@ import { lootFields } from "./loot";
 import { baseDocument, type DocumentProjectionInput, endpointOrUnknown, groupPlacementCounts, mergeCounterpartRows, optionalChance, optionalCount, optionalFactRef, projectAvailability, projectRequirementGroups, publishedPlacements, refName, type RelationIndexes, requirementsFor, skillHighestLevel } from "./projection";
 import { objectiveForRow } from "./quests";
 
-export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, startingGear: ReadonlyMap<string, readonly EntityRef[]>): PublicItem {
+/**
+ * What using an item gives: the chests that its visual effects spawn, the loot table bands of a supply pack, and the
+ * items that it gains or removes.
+ */
+function projectItemUse(fact: CatalogItemFacts | undefined, input: DocumentProjectionInput): ItemUse {
+  const chests = (fact?.gameActions ?? []).flatMap((action) => action.type === "TriggerVisualEffect" && action.visualEffect
+    ? action.visualEffect.prefabs.flatMap((prefab) => prefab.chests.map((chest) => ({
+      chance: action.chance, maxDrops: Math.max(0, chest.maxDrops),
+      rows: chest.rows.map((row) => {
+        const item = input.facts.items.find((candidate) => candidate.entityKey === `items:${row.itemId}`);
+        const target = item?.itemType === "CURRENCY" && item.currency ? item.currency : { entityKey: `items:${row.itemId}`, label: "Unknown item" };
+        return { item: input.resolve(target), min: Math.max(0, row.min), max: Math.max(0, row.max), chance: row.chance };
+      }),
+    }))) : []);
+  // A class that no race offers is not playable and has no page, so a band keeps only the offered classes, and a band
+  // whose class condition names none of them is one that no player can open.
+  const offeredClasses = new Set(input.facts.progression.offeredClasses);
+  const packs = (fact?.gameActions ?? []).flatMap((action) => {
+    if (action.type !== "LootTable" || !action.target?.entityKey) return [];
+    const id = Number(action.target.entityKey.split(":")[1]);
+    const table = input.facts.itemLootTables?.find((candidate) => candidate.id === id);
+    if (!table) return [];
+    const checks = (action.requirements ?? []).flatMap((group) => group.checks);
+    const minLevel = checks.find((check) => check.type === "Level" && check.comparison === "EqualOrAbove")?.level;
+    const maxLevel = checks.find((check) => check.type === "Level" && check.comparison === "EqualOrBelow")?.level;
+    const classKeys = checks.filter((check) => check.type === "Class" && check.classId >= 0).map((check) => `classes:${check.classId}`);
+    const playable = classKeys.filter((key) => offeredClasses.has(key));
+    if (classKeys.length > 0 && playable.length === 0) return [];
+    const classes = playable.map((entityKey) => input.resolve({ entityKey, label: "Unknown class" }));
+    return [{ classes,
+      ...(minLevel === undefined ? {} : { minLevel }), ...(maxLevel === undefined ? {} : { maxLevel }),
+      entries: table.entries.map((entry) => ({ item: input.resolve(entry.item), min: Math.max(0, entry.min), max: Math.max(0, entry.max) })),
+      bonusChance: table.bonusDropChance, worldShare: table.worldLootShare,
+      minimumPicks: table.hasMinimumDrops ? Math.max(1, table.minDroppedItems) : 1,
+      ...(table.limitDroppedItems && table.maxDroppedItems > 0 ? { maximumPicks: table.maxDroppedItems } : {}),
+      ...(table.worldLootArmorType?.name ? { armorType: plainText(table.worldLootArmorType.name) } : {}),
+      stats: (table.worldLootStats ?? []).map((stat) => input.resolve({ entityKey: `stats:${stat}`, label: `Stat ${stat}` })),
+    }];
+  });
+  const itemChanges = (fact?.gameActions ?? []).flatMap<ItemUse["itemChanges"][number]>((action) => {
+    const mode = action.alterAction;
+    return action.type === "Item" && (mode === "Gain" || mode === "Remove") && action.target
+      ? [{ action: mode, item: input.resolve(action.target), count: Math.max(0, action.amount) }] : [];
+  });
+  return { chests, packs, itemChanges };
+}
+
+/**
+ * The From items rows of each item: the supply pack bands and the use chests of published items that give it. The rows
+ * come from the same projection as the When used section of the source item, so both pages agree.
+ */
+export function fromItemsByItem(input: DocumentProjectionInput): ReadonlyMap<string, FromItemRow[]> {
+  const result = new Map<string, FromItemRow[]>();
+  const add = (item: Ref, row: FromItemRow) => {
+    if (!isEntityRef(item) || item.kind !== "items") return;
+    const rows = result.get(item.key) ?? [];
+    rows.push(row);
+    result.set(item.key, rows);
+  };
+  for (const fact of input.facts.items) {
+    if (!fact.gameActions.some((action) => action.type === "LootTable" || action.type === "TriggerVisualEffect")) continue;
+    const source = input.resolve({ entityKey: fact.entityKey, label: fact.entityKey });
+    if (!isEntityRef(source) || !source.slug) continue;
+    const use = projectItemUse(fact, input);
+    for (const pack of use.packs) for (const entry of pack.entries) add(entry.item, {
+      kind: "pack", source, classes: pack.classes,
+      ...(pack.minLevel === undefined ? {} : { minLevel: pack.minLevel }), ...(pack.maxLevel === undefined ? {} : { maxLevel: pack.maxLevel }),
+      min: entry.min, max: entry.max,
+    });
+    for (const chest of use.chests) for (const row of chest.rows) add(row.item, { kind: "chest", source, min: row.min, max: row.max, chance: row.chance });
+  }
+  return result;
+}
+
+// A cloth tier's weight at a creature level, as ClothDrops.Roll computes it: the teaser weight below the start level,
+// then an even move from the low weight at the start level to the high weight at the ramp end.
+function clothWeight(tier: CatalogClothDrops["tiers"][number], level: number): number {
+  if (level < tier.startLevel) return tier.teaserWeight;
+  const progress = Math.min(1, Math.max(0, (level - tier.startLevel) / Math.max(tier.rampEnd - tier.startLevel, 1)));
+  return tier.lowWeight + (tier.highWeight - tier.lowWeight) * progress;
+}
+
+/**
+ * The cloth drops that give this item, with the chance per kill over each range of creature levels between two levels
+ * where a tier's weight starts or stops a change. Inside a range every weight is linear in the level, so the chance moves
+ * one way from its first to its last level. No weight changes from the last such level on, so the last range is open.
+ */
+function projectClothDrop(itemKey: string, input: DocumentProjectionInput): ClothDrop | undefined {
+  const cloth = input.facts.clothDrops;
+  if (!cloth?.tiers.some((tier) => tier.item.entityKey === itemKey)) return undefined;
+  const chanceAt = (level: number) => {
+    let total = 0, own = 0;
+    for (const tier of cloth.tiers) {
+      const weight = clothWeight(tier, level);
+      total += weight;
+      if (tier.item.entityKey === itemKey) own += weight;
+    }
+    return total > 0 ? Math.round(cloth.dropChance * own / total * 10) / 10 : 0;
+  };
+  const starts = [...new Set([1, ...cloth.tiers.flatMap((tier) => [Math.ceil(tier.startLevel), Math.ceil(tier.rampEnd)])])].filter((level) => level >= 1).sort((a, b) => a - b);
+  const levels = starts.map((minLevel, index): ClothDrop["levels"][number] => {
+    const next = starts[index + 1], startChance = chanceAt(minLevel);
+    if (next === undefined) return { minLevel, startChance };
+    const maxLevel = next - 1, endChance = chanceAt(maxLevel);
+    return { minLevel, maxLevel, startChance, ...(endChance === startChance ? {} : { endChance }) };
+  });
+  return { creatureTypes: cloth.creatureTypes.map((type) => plainText(type)), chance: cloth.dropChance, min: cloth.minCount, max: cloth.maxCount, levels };
+}
+
+export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, startingGear: ReadonlyMap<string, readonly EntityRef[]>, fromItems: ReadonlyMap<string, readonly FromItemRow[]>): PublicItem {
   const fact = input.facts.items.find((candidate) => candidate.entityKey === entity.entityKey);
+  const clothDrop = projectClothDrop(entity.entityKey, input);
   const directAbilities = fact?.actionAbilities ?? [];
   const directlyReferenced = new Set(directAbilities.map((row) => row.ability.entityKey));
   const gameAbilities = (fact?.gameActions ?? []).filter((action) => action.type === "Ability" && action.target?.entityKey && !directlyReferenced.has(action.target.entityKey));
@@ -122,45 +232,6 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   const level = fact?.equipmentRequirements.flatMap((group) => group.requirements).find((requirement) => requirement.type.name === "Level")?.amounts.primary;
   const levelRequirement = level !== undefined && Number.isInteger(level) && level > 0 ? level : undefined;
   const damageLabel = isWeapon && fact ? weaponDamageLabel(fact) : undefined;
-  const useChests = (fact?.gameActions ?? []).flatMap((action) => action.type === "TriggerVisualEffect" && action.visualEffect
-    ? action.visualEffect.prefabs.flatMap((prefab) => prefab.chests.map((chest) => ({
-      chance: action.chance, maxDrops: Math.max(0, chest.maxDrops),
-      rows: chest.rows.map((row) => {
-        const item = input.facts.items.find((candidate) => candidate.entityKey === `items:${row.itemId}`);
-        const target = item?.itemType === "CURRENCY" && item.currency ? item.currency : { entityKey: `items:${row.itemId}`, label: "Unknown item" };
-        return { item: input.resolve(target), min: Math.max(0, row.min), max: Math.max(0, row.max), chance: row.chance };
-      }),
-    }))) : []);
-  // A class that no race offers is not playable and has no page, so a band keeps only the offered classes, and a band
-  // whose class condition names none of them is one that no player can open.
-  const offeredClasses = new Set(input.facts.progression.offeredClasses);
-  const usePacks = (fact?.gameActions ?? []).flatMap((action) => {
-    if (action.type !== "LootTable" || !action.target?.entityKey) return [];
-    const id = Number(action.target.entityKey.split(":")[1]);
-    const table = input.facts.itemLootTables?.find((candidate) => candidate.id === id);
-    if (!table) return [];
-    const checks = (action.requirements ?? []).flatMap((group) => group.checks);
-    const minLevel = checks.find((check) => check.type === "Level" && check.comparison === "EqualOrAbove")?.level;
-    const maxLevel = checks.find((check) => check.type === "Level" && check.comparison === "EqualOrBelow")?.level;
-    const classKeys = checks.filter((check) => check.type === "Class" && check.classId >= 0).map((check) => `classes:${check.classId}`);
-    const playable = classKeys.filter((key) => offeredClasses.has(key));
-    if (classKeys.length > 0 && playable.length === 0) return [];
-    const classes = playable.map((entityKey) => input.resolve({ entityKey, label: "Unknown class" }));
-    return [{ classes,
-      ...(minLevel === undefined ? {} : { minLevel }), ...(maxLevel === undefined ? {} : { maxLevel }),
-      entries: table.entries.map((entry) => ({ item: input.resolve(entry.item), min: Math.max(0, entry.min), max: Math.max(0, entry.max) })),
-      bonusChance: table.bonusDropChance, worldShare: table.worldLootShare,
-      minimumPicks: table.hasMinimumDrops ? Math.max(1, table.minDroppedItems) : 1,
-      ...(table.limitDroppedItems && table.maxDroppedItems > 0 ? { maximumPicks: table.maxDroppedItems } : {}),
-      ...(table.worldLootArmorType?.name ? { armorType: plainText(table.worldLootArmorType.name) } : {}),
-      stats: (table.worldLootStats ?? []).map((stat) => input.resolve({ entityKey: `stats:${stat}`, label: `Stat ${stat}` })),
-    }];
-  });
-  const itemChanges = (fact?.gameActions ?? []).flatMap<PublicItem["whenUsed"]["itemChanges"][number]>((action) => {
-    const mode = action.alterAction;
-    return action.type === "Item" && (mode === "Gain" || mode === "Remove") && action.target
-      ? [{ action: mode, item: input.resolve(action.target), count: Math.max(0, action.amount) }] : [];
-  });
   return {
     ...baseDocument(entity, ref, input),
     facts: {
@@ -220,12 +291,14 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     }),
     usedInQuests: questRows.filter((row) => row.kind === "objective" && row.task !== null).map((row) => ({ counterpart: input.resolve(row.quest), objective: objectiveForRow(row, input, indexes, conditions) })),
     startingGearOf: (startingGear.get(entity.entityKey) ?? []).map((classRef) => ({ class: classRef })),
+    fromItems: [...fromItems.get(entity.entityKey) ?? []],
+    ...(clothDrop ? { clothDrop } : {}),
     adventurers: (input.facts.adventurerItems ?? []).filter((row) => row.itemKey === entity.entityKey).flatMap<PublicItem["adventurers"][number]>((row) => {
       if (row.kind === "kitUpgradeItem") return row.adventurer ? [{ kind: row.kind, adventurer: input.resolve(row.adventurer) }] : [];
       if (row.kind === "equipmentBand") return row.minimumContentLevel !== null ? [{ kind: row.kind, minimumContentLevel: row.minimumContentLevel }] : [];
       return row.rewardChance !== null ? [{ kind: row.kind, chance: chancePercent(row.rewardChance) }] : [];
     }),
-    whenUsed: { chests: useChests, packs: usePacks, itemChanges },
+    whenUsed: projectItemUse(fact, input),
   };
 }
 

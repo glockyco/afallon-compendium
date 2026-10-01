@@ -1020,6 +1020,19 @@ test("used bags publish independent chest rows and supply packs keep their gated
       bonusChance: 20, worldShare: 50, minimumPicks: 1, maximumPicks: 2,
       armorType: "PLATE", stats: [expect.objectContaining({ key: "stats:27" })] },
   ]);
+  // The item of a chest row and of a playable band names the item that gives it. The currency row and the band of an
+  // unplayable class give no row.
+  const blade = projected.get("items:1") as PublicItem;
+  expect(blade.fromItems).toEqual([
+    { kind: "chest", source: expect.objectContaining({ key: bag.entityKey }), min: 1, max: 2, chance: 15 },
+    { kind: "pack", source: expect.objectContaining({ key: pack.entityKey }), classes: [expect.objectContaining({ key: "classes:0" })], minLevel: 1, maxLevel: 5, min: 1, max: 1 },
+  ]);
+  // Coverage counts a From items row and a dungeon reward as a known source.
+  const withoutSource = (document: PublicItem) => readerCoverage([document]).gaps.some((gap) => gap.gap === "itemWithoutSource");
+  const { crafting: _crafting, ...rest } = blade;
+  const bare: PublicItem = { ...rest, droppedBy: [], soldBy: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], startingGearOf: [] };
+  const reward = { ...bare, fromItems: [], facts: { ...bare.facts, dungeonRewards: [{ place: blade.ref, bosses: [], guaranteed: true }] } };
+  expect([withoutSource(bare), withoutSource({ ...bare, fromItems: [] }), withoutSource(reward)]).toEqual([false, true, false]);
 });
 
 test("a linked When used rule appears on its item and not on unrelated items", () => {
@@ -1033,4 +1046,25 @@ test("a linked When used rule appears on its item and not on unrelated items", (
     target: "when-used", guide: expect.objectContaining({ key: "mechanics:loot" }), stepId: "open-a-chest",
   }));
   expect((documents.get(other.entityKey) as PublicItem).placedRules.some((rule) => rule.target === "when-used")).toBe(false);
+});
+
+test("a cloth item gives its chance per kill by creature level and counts as sourced", () => {
+  const other: CatalogEntityRow = { ...entities[0]!, entityKey: "items:2", nativeId: 2, name: "Other cloth" };
+  const tier = (key: string, startLevel: number, rampEnd: number, lowWeight: number, highWeight: number, teaserWeight: number) =>
+    ({ item: { entityKey: key, label: key }, startLevel, rampEnd, lowWeight, highWeight, teaserWeight });
+  // Blade weighs 3 at level 1 and moves to 1 at level 3. Other cloth weighs 1 below level 2, then moves from 1 to 4 by level 5.
+  const clothFacts: CatalogFacts = { ...facts, entities: [...entities, other], items: [...facts.items, { ...facts.items[0]!, entityKey: other.entityKey }],
+    clothDrops: { creatureTypes: ["HUMANOID", "UNDEAD"], dropChance: 80, minCount: 1, maxCount: 3, tiers: [tier("items:1", 1, 3, 3, 1, 3), tier(other.entityKey, 2, 5, 1, 4, 1)] } };
+  const { documents } = project([...entities, other], clothFacts, relations);
+  const blade = documents.get("items:1") as PublicItem;
+  // Blade's share: 3 of 4 at level 1, 2 of 3 at level 2, 1 of 3 at level 3, 1 of 4 at level 4, and 1 of 5 from level 5.
+  // A range ends before the next level where a weight starts or stops a change, and the last range has no upper level.
+  expect(blade.clothDrop).toEqual({ creatureTypes: ["HUMANOID", "UNDEAD"], chance: 80, min: 1, max: 3, levels: [
+    { minLevel: 1, maxLevel: 1, startChance: 60 }, { minLevel: 2, maxLevel: 2, startChance: 53.3 },
+    { minLevel: 3, maxLevel: 4, startChance: 26.7, endChance: 20 }, { minLevel: 5, startChance: 16 },
+  ] });
+  expect((documents.get(other.entityKey) as PublicItem).clothDrop?.levels.at(-1)).toEqual({ minLevel: 5, startChance: 64 });
+  const bare: PublicItem = { ...blade, droppedBy: [], soldBy: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], startingGearOf: [], fromItems: [] };
+  delete bare.crafting;
+  expect(readerCoverage([bare]).gaps.some((gap) => gap.gap === "itemWithoutSource")).toBe(false);
 });

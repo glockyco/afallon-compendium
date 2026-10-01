@@ -48,13 +48,14 @@ export const GUIDES: Record<MechanicsTopic, { overview: string; steps: GuideStep
     ],
   },
   loot: {
-    overview: "A bag opens a chest of loot. A supply pack gives items from the loot table for your class and level.",
+    overview: "A bag opens a chest of loot. A supply pack gives items from the loot table for your class and level. Some creatures also drop cloth.",
     steps: [
       { id: "open-a-chest", title: "Loot the chest", text: "Each item in the chest rolls its own chance.", rules: ["chest-row-rolls"] },
       { id: "choose-a-table", title: "Get your table", text: "The pack uses the loot table for your class and level.", rules: ["supply-pack-tables"] },
       { id: "pick-the-items", title: "Roll the items", text: "The table sets how many items you get, and its bonus chance can add one more. No item comes twice.", rules: ["supply-pack-picks"] },
       { id: "draw-from-world-loot", title: "Swap in world loot", text: "Each item can come from world loot for your level and class instead.", rules: ["supply-pack-world-loot"] },
       { id: "keep-the-pack", title: "Empty the pack", text: "The pack is gone once you take everything in it.", rules: ["supply-pack-lifecycle"] },
+      { id: "collect-cloth", title: "Collect cloth", text: "A kill can add cloth to the loot.", rules: ["cloth-drop-chance", "cloth-tier-weights"] },
     ],
   },
 };

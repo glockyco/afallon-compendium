@@ -1,4 +1,4 @@
-import type { ContainerRow, Craft, DropRow, EntityRef, GatherRow, Price, PublicItem, PublicKindEntry, Ref, VendorRow } from '@afallon/contracts/public';
+import { categoryLabel, type ContainerRow, type Craft, type DropRow, type EntityRef, type FromItemRow, type GatherRow, type Price, type PublicItem, type PublicKindEntry, type Ref, type VendorRow } from '@afallon/contracts/public';
 import { creatureLevelText, dropsPerKillText, formatNumber, nameOf } from '../format';
 import { sortRows, type SortValue } from '../table';
 import { itemQuestSourceRows } from './quest-rows';
@@ -17,6 +17,8 @@ export interface SummaryLine {
   guaranteedYield?: number;
   spotCount?: number;
   detail?: string;
+  /** The text of the link to the full source section, when "See full <label> sources" reads badly. */
+  linkText?: string;
 }
 
 const NAMED = 2;
@@ -54,6 +56,36 @@ function startingGearLine(item: PublicItem): SummaryLine | undefined {
   return entry && { ...entry, section: classes[0] };
 }
 
+/** The classes and the levels of a supply pack band: "Druid · Levels 6–11". */
+export function packBandText(band: { classes: readonly Ref[]; minLevel?: number; maxLevel?: number }): string {
+  const classes = band.classes.map(nameOf).join(', ') || 'All classes';
+  const levels = band.minLevel === undefined ? 'All levels' : `Levels ${formatNumber(band.minLevel)}${band.maxLevel === undefined ? ' and higher' : `–${formatNumber(band.maxLevel)}`}`;
+  return `${classes} · ${levels}`;
+}
+
+/** "Humanoid or Undead creatures", with the best chance per kill and the first creature level that has it. */
+function clothLootLine(item: PublicItem): SummaryLine | undefined {
+  const cloth = item.clothDrop;
+  if (!cloth) return undefined;
+  const points = cloth.levels.flatMap((row) => row.maxLevel === undefined
+    ? [{ levels: levelRangeText(row.minLevel, undefined), chance: row.startChance }]
+    : [{ levels: levelRangeText(row.minLevel, row.minLevel), chance: row.startChance }, { levels: levelRangeText(row.maxLevel, row.maxLevel), chance: row.endChance ?? row.startChance }]);
+  const best = points.reduce((top, point) => point.chance > top.chance ? point : top);
+  return { id: 'cloth-loot', label: 'Cloth loot', names: [], more: 0, text: `${cloth.creatureTypes.map(categoryLabel).join(' or ')} creatures`,
+    detail: `Up to ${formatNumber(best.chance)}% chance per kill, at creature ${best.levels.toLowerCase()}` };
+}
+
+/** "Level 8", "Levels 8–14", or "Levels 40 and higher". */
+export function levelRangeText(minLevel: number, maxLevel: number | undefined): string {
+  if (maxLevel === undefined) return `Levels ${formatNumber(minLevel)} and higher`;
+  return minLevel === maxLevel ? `Level ${formatNumber(minLevel)}` : `Levels ${formatNumber(minLevel)}–${formatNumber(maxLevel)}`;
+}
+
+function fromItemsDetail(row: FromItemRow | undefined): string | undefined {
+  if (!row) return undefined;
+  return row.kind === 'chest' ? `${formatNumber(row.chance)}% item chance` : packBandText(row);
+}
+
 export function lineHref(entry: SummaryLine, registry: readonly PublicKindEntry[], base: string): string | undefined {
   if (!entry.section) return `#${entry.id}`;
   const route = registry.find((kind) => kind.kind === entry.section!.kind)?.route;
@@ -89,6 +121,8 @@ export function itemSourceLines(item: PublicItem): SummaryLine[] {
     search,
     line('sold-by', 'Buy', vendors.map((row) => ({ ref: row.counterpart })), { lowestPrice: lowestPrice(vendors) }),
     line('from-quests', 'Quest reward', quests.map((row) => ({ ref: row.quest })), { guaranteedYield: Math.max(0, ...item.givenBy.map((row) => row.count), ...item.rewardedBy.filter((row) => !row.choice).map((row) => row.count)) || undefined }),
+    clothLootLine(item),
+    line('from-items', 'Open', item.fromItems.map((row) => ({ ref: row.source })), { detail: fromItemsDetail(item.fromItems[0]), linkText: 'See all items that give it' }),
     startingGearLine(item),
   ];
   return routes.filter((entry): entry is SummaryLine => entry !== undefined)

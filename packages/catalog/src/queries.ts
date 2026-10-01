@@ -1,9 +1,10 @@
 import type { Database } from "bun:sqlite";
 import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogAbilityFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogInteractionRow, CatalogGatedSourceRow, CatalogAvailabilityRule, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementSpan, CatalogRequirementGroup, CatalogRequirementNamedValue, CatalogRequirementEntry, CatalogRequirementTime, CatalogRelations } from "@afallon/contracts/catalog";
-import type { CatalogCorruptionFacts } from "@afallon/contracts/catalog";
+import type { CatalogClothDrops, CatalogCorruptionFacts } from "@afallon/contracts/catalog";
 import type { CatalogGatheringNode, CatalogMechanicsRule, CatalogProgression, CatalogProgressionApplier, CatalogProgressionFact, CatalogProgressionLearner, CatalogProgressionUnlock, CatalogRandomChoice, NormalizedReference, ProgressionDetails } from "@afallon/contracts/catalog";
 import { categoryLabel } from "@afallon/contracts/public";
 import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
+import { CREATURE_TYPES } from "./decoders";
 import { containerTypeFromHierarchyPath } from "./world";
 
 export interface CatalogQueryIdentity {
@@ -459,7 +460,20 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
   });
   const corruptionRow = db.query<{ facts_json: string }, []>("SELECT facts_json FROM corruption_facts").get();
   const corruption = corruptionRow === null ? null : parse(corruptionRow.facts_json) as CatalogCorruptionFacts;
-  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), adventurerItems, itemLootTables, corruption } };
+  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), adventurerItems, itemLootTables, corruption, clothDrops: queryClothDrops(db, refs) } };
+}
+
+// ClothDrops.Roll gives cloth only for a creature whose creature type (+0xF8) has the value 2 or 3.
+const CLOTH_CREATURE_TYPES = [CREATURE_TYPES[2], CREATURE_TYPES[3]];
+
+// The supplemental cloth drops from the cloth sources of the item index. Every tier carries the same roll settings.
+function queryClothDrops(db: Database, refs: ReadonlyMap<string, CatalogEndpoint>): CatalogClothDrops | null {
+  const rows = db.query<{ item_entity_key: string; context_json: string }, []>("SELECT item_entity_key, context_json FROM item_sources WHERE source_kind = 'world-loot' AND source_key LIKE 'cloth:%'").all()
+    .map((row) => ({ item: endpoint(refs, row.item_entity_key, row.item_entity_key), context: JSON.parse(row.context_json) as { tier: { tierIndex: number; startLevel: number; rampEnd: number; lowWeight: number; highWeight: number; teaserWeight: number }; rawRate: number; min: number; max: number } }))
+    .sort((a, b) => a.context.tier.tierIndex - b.context.tier.tierIndex);
+  const first = rows[0]?.context;
+  if (!first) return null;
+  return { creatureTypes: CLOTH_CREATURE_TYPES, dropChance: first.rawRate, minCount: first.min, maxCount: first.max, tiers: rows.map(({ item, context: { tier } }) => ({ item, startLevel: tier.startLevel, rampEnd: tier.rampEnd, lowWeight: tier.lowWeight, highWeight: tier.highWeight, teaserWeight: tier.teaserWeight })) };
 }
 
 // Gathering nodes with each source and the placement of that source, when the source has one.

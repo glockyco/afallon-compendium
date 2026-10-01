@@ -408,6 +408,23 @@ export const ItemUseSchema = Type.Object({
   chests: Type.Array(ItemUseChestSchema), packs: Type.Array(ItemUsePackSchema),
   itemChanges: Type.Array(Type.Object({ action: Type.Union([Type.Literal("Gain"), Type.Literal("Remove")]), item: RefSchema, count })),
 }, { additionalProperties: false });
+export type ItemUse = Static<typeof ItemUseSchema>;
+// An item that the use of another item gives: an entry of a supply pack band, with the classes and the levels of the
+// band, or a row of a chest that the use spawns, with the recorded row chance. Neither claims an effective chance.
+export const FromItemRowSchema = Type.Union([
+  Type.Object({ kind: Type.Literal("pack"), source: EntityRefSchema, classes: refs, minLevel: optional(count), maxLevel: optional(count), min: count, max: count }, { additionalProperties: false }),
+  Type.Object({ kind: Type.Literal("chest"), source: EntityRefSchema, min: count, max: count, chance: percent }, { additionalProperties: false }),
+]);
+export type FromItemRow = Static<typeof FromItemRowSchema>;
+// The supplemental cloth drops that give this cloth: the creature types that roll for cloth on a kill, the roll chance
+// and the count of one drop, and the chance that one kill gives this cloth over ranges of the creature's level. Inside a
+// range the chance moves one way from `startChance` at `minLevel` to `endChance` at `maxLevel`; `endChance` is absent
+// when both are equal. The last range has no `maxLevel`. All chances come before the loot drop multipliers.
+export const ClothDropSchema = Type.Object({
+  creatureTypes: Type.Array(text, { minItems: 1, uniqueItems: true }), chance: percent, min: count, max: count,
+  levels: Type.Array(Type.Object({ minLevel: count, maxLevel: optional(count), startChance: percent, endChance: optional(percent) }, { additionalProperties: false }), { minItems: 1 }),
+}, { additionalProperties: false });
+export type ClothDrop = Static<typeof ClothDropSchema>;
 
 export const PublicItemSchema = Type.Object({
   ...documentBase, facts: ItemFactsSchema, sourceSpotCount: count, sourceAvailabilities: Type.Array(availability),
@@ -417,7 +434,7 @@ export const PublicItemSchema = Type.Object({
   // which the game's item tooltip reads. A row of `usedInRecipes` links the product's Crafting section and carries the
   // matching product quantity, skill, and verified first-rank gate for the material's recipe equation.
   crafting: optional(CraftSchema), teaches: optional(CraftSchema), usedInRecipes: Type.Array(UsedInRecipeRowSchema), usedInQuests: Type.Array(QuestObjectiveRowSchema),
-  startingGearOf: Type.Array(StartingGearOfRowSchema), placedRules: Type.Array(PlacedRuleSchema),
+  startingGearOf: Type.Array(StartingGearOfRowSchema), fromItems: Type.Array(FromItemRowSchema), clothDrop: optional(ClothDropSchema), placedRules: Type.Array(PlacedRuleSchema),
   adventurers: Type.Array(AdventurerItemRowSchema),
   whenUsed: ItemUseSchema,
   challengeStoneUses: optional(Type.Array(ChallengeStoneUseSchema)),
@@ -796,7 +813,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v16", npcs: "compendium.static-npc.v8", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
+  items: "compendium.static-item.v17", npcs: "compendium.static-npc.v8", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v5", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v9", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
@@ -821,14 +838,14 @@ export const StaticSkillDocumentSchema = staticDocument("skills");
 export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v16": typeof StaticItemDocumentSchema; "compendium.static-npc.v8": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v17": typeof StaticItemDocumentSchema; "compendium.static-npc.v8": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v8": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v5": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v9": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
-  "compendium.static-item.v16": StaticItemDocumentSchema, "compendium.static-npc.v8": StaticNpcDocumentSchema,
+  "compendium.static-item.v17": StaticItemDocumentSchema, "compendium.static-npc.v8": StaticNpcDocumentSchema,
   "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v8": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v5": StaticClassDocumentSchema,
@@ -839,7 +856,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v16"), resourceReference("compendium.static-npc.v8"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
+  resourceReference("compendium.static-item.v17"), resourceReference("compendium.static-npc.v8"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v5"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v9"),
   resourceReference("compendium.static-gathering-node.v4"),

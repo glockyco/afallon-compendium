@@ -14,7 +14,7 @@
   import LevelSlider from '../LevelSlider.svelte';
   import MaterialsList from '../MaterialsList.svelte';
   import RecipeEquation from '../RecipeEquation.svelte';
-  import { craftExperienceSentence, itemSourceLines, lineHref } from '../item-sources';
+  import { craftExperienceSentence, itemSourceLines, levelRangeText, lineHref, packBandText } from '../item-sources';
   import { planColumns, shownRowCount, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import { itemQuestSourceRows, itemQuestUseRows } from '../quest-rows';
@@ -70,6 +70,18 @@
     { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
     { id: 'quantity', label: 'Quantity', hint: 'How many of the item you get when the pack gives it.', numeric: true, value: (row) => `${row.min}–${row.max}`, sort: (row) => row.max },
   ];
+  const fromItemColumns: RelationColumn<PublicItem['fromItems'][number]>[] = [
+    { id: 'source', label: 'Item', value: (row) => row.source.name, sort: (row) => row.source.name },
+    { id: 'quantity', label: 'Quantity', numeric: true, value: (row) => `${row.min}–${row.max}`, sort: (row) => row.max },
+    { id: 'chance', label: 'Chance', hint: 'The chest rolls this chance for the item on its own.', numeric: true, value: (row) => row.kind === 'chest' ? row.chance : undefined, sort: (row) => row.kind === 'chest' ? row.chance : undefined },
+    { id: 'band', label: 'Who can open it', value: (row) => row.kind === 'pack' ? packBandText(row) : undefined },
+  ];
+  $: fromItemPlan = planColumns(fromItemColumns, document.fromItems);
+  $: clothGuide = document.placedRules.find((rule) => rule.target === 'cloth-loot');
+  const clothColumns: RelationColumn<NonNullable<PublicItem['clothDrop']>['levels'][number]>[] = [
+    { id: 'level', label: 'Creature level', value: (row) => levelRangeText(row.minLevel, row.maxLevel), sort: (row) => row.minLevel },
+    { id: 'chance', label: 'Chance per kill', hint: 'The chance that one kill drops this cloth. Inside a range of levels, it moves steadily from the first value to the second.', numeric: true, value: (row) => row.startChance, sort: (row) => row.startChance },
+  ];
   const adventurerColumns: RelationColumn<PublicItem['adventurers'][number]>[] = [
     { id: 'relation', label: 'Adventurer gear', value: (row) => row.kind === 'kitUpgradeItem' ? ('name' in row.adventurer ? row.adventurer.name : row.adventurer.label) : row.kind },
   ];
@@ -109,7 +121,7 @@
                   {#if dungeonGuide}<HowItWorks guide={dungeonGuide.guide} stepId="finish-the-timer" label="How dungeon rewards work" />{/if}
                 {:else}
                   <p>{#if entry.id === 'dropped-by' && singleDropInAnswer && entry.text}{entry.text}{:else}<SummaryValue {entry} {registry} />{/if}{#if entry.detail}{' · '}{entry.detail}{/if}{#if entry.guaranteedYield}{' · '}{formatNumber(entry.guaranteedYield)} guaranteed{/if}</p>
-                  {#if entry.id !== 'dropped-by' || !singleDropInAnswer}{#if entry.id !== 'starting-gear-of'}<a class="c-link route-more" href={lineHref(entry, registry, base)}>See full {entry.label.toLowerCase()} sources</a>{/if}{/if}
+                  {#if entry.id !== 'dropped-by' || !singleDropInAnswer}{#if entry.id !== 'starting-gear-of'}<a class="c-link route-more" href={lineHref(entry, registry, base)}>{entry.linkText ?? `See full ${entry.label.toLowerCase()} sources`}</a>{/if}{/if}
                 {/if}
               </li>
             {/each}
@@ -179,7 +191,7 @@
             {#if packGuide}<HowItWorks guide={packGuide.guide} stepId={packGuide.stepId} label="How supply packs work" />{/if}
             <div class="c-disclosures">
               {#each document.whenUsed.packs as pack, index}
-                <DetailsDisclosure title={`${pack.classes.map((classRef) => 'name' in classRef ? classRef.name : classRef.label).join(', ') || 'All classes'} · ${pack.minLevel === undefined ? 'All levels' : `Levels ${formatNumber(pack.minLevel)}${pack.maxLevel === undefined ? ' and higher' : `–${formatNumber(pack.maxLevel)}`}`}`} id={`supply-pack-${index + 1}`}>
+                <DetailsDisclosure title={packBandText(pack)} id={`supply-pack-${index + 1}`}>
                   {#if !sharedPackPicks}<p>Gives {formatNumber(pack.minimumPicks)} {pack.minimumPicks === 1 ? 'item' : 'items'}{#if pack.bonusChance > 0}, with a {formatNumber(pack.bonusChance)}% chance of one more{/if}{#if pack.maximumPicks !== undefined && pack.maximumPicks < pack.minimumPicks + 1} (at most {formatNumber(pack.maximumPicks)}){/if}.{#if pack.worldShare > 0}{' '}Each item has a {formatNumber(pack.worldShare)}% chance to be world loot for your class and level instead.{/if}</p>{/if}
                   {#if pack.armorType || pack.stats.length}<p>World loot: {#if pack.armorType}{categoryLabel(pack.armorType)} armor{/if}{#if pack.stats.length}{pack.armorType ? ', ' : ''}{#each pack.stats as stat, statIndex}{#if statIndex}, {/if}<EntityLink ref={stat} {registry} />{/each}{/if}</p>{/if}
                   <RelationTable columns={packColumns} rows={pack.entries} label="Items in this class and level band">
@@ -237,10 +249,36 @@
       </Section>
     {/if}
     {#if document.droppedBy.length && !singleDropInAnswer}<DroppedBySection rows={document.droppedBy} {registry} />{/if}
+    {#if document.clothDrop}
+      <Section id="cloth-loot" title="Cloth loot">
+        <div class="c-stack">
+          <p>Killing a {document.clothDrop.creatureTypes.map(categoryLabel).join(' or ')} creature has a {formatNumber(document.clothDrop.chance)}% chance to drop {formatNumber(document.clothDrop.min)}–{formatNumber(document.clothDrop.max)} cloth. The creature's level decides which cloth it is.</p>
+          {#if clothGuide}<HowItWorks guide={clothGuide.guide} stepId={clothGuide.stepId} label="How cloth loot works" />{/if}
+          <RelationTable columns={clothColumns} rows={document.clothDrop.levels} label="Chance per kill by creature level">
+            <svelte:fragment slot="cell" let:row let:column>
+              {#if column === 'level'}{levelRangeText(row.minLevel, row.maxLevel)}
+              {:else}{formatNumber(row.startChance)}%{#if row.endChance !== undefined}{' to '}{formatNumber(row.endChance)}%{/if}{/if}
+            </svelte:fragment>
+          </RelationTable>
+        </div>
+      </Section>
+    {/if}
     <VendorSection id="sold-by" title="Sold by" counterpartLabel="Vendor" rows={document.soldBy} sort={{ id: 'price', dir: 'asc' }} {registry} />
     <ContainerSection id="collected-from" title="Found in objects" rows={document.collectedFrom} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
     <ContainerSection id="found-in-containers" title="Found in containers" rows={document.inContainers} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
     <QuestRowsSection id="from-quests" title="Quest rewards" roleLabel="Given as" rows={itemQuestSourceRows(document.rewardedBy, document.givenBy)} {registry} />
+    {#if document.fromItems.length}
+      <Section id="from-items" title="From items" count={document.fromItems.length}>
+        <RelationTable columns={fromItemPlan.columns} rows={document.fromItems} label="From items">
+          <svelte:fragment slot="cell" let:row let:column>
+            {#if column === 'source'}<EntityLink ref={row.source} {registry} />
+            {:else if column === 'band'}{#if row.kind === 'pack'}{packBandText(row)}{/if}
+            {:else if column === 'quantity'}{row.min === row.max ? formatNumber(row.min) : `${formatNumber(row.min)}–${formatNumber(row.max)}`}
+            {:else if column === 'chance'}{#if row.kind === 'chest'}{formatNumber(row.chance)}%{/if}{/if}
+          </svelte:fragment>
+        </RelationTable>
+      </Section>
+    {/if}
     </Sections>
   </DetailFrame>
 </article>

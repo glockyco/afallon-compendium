@@ -7,7 +7,7 @@ An item source investigation of build 25434619 found these facts. The evidence i
 - A HotRepl probe read the game actions of items, effects, abilities, stats, NPC phases, NPC stats, class stats, dialogue text nodes, and regions. Among these owners, only items give items, loot tables, currencies, or recipes through game actions. Effect 210 rolls table 66 through its effect type, but no trigger of the effect was found in the scanned sources.
 - `world-sources.csx` reads the actions of interactable objects, but not their visual effects. `InteractableObject.TriggerActions` reads the LootTable field only for Chest actions. It runs the template and the inline list of a `GameActions` action through `GameActionsManager.TriggerGameActions`, and the scan records both.
 - Of the 140 game action templates that the probe loaded, 18 have Item or Recipe actions. Their Recipe actions gain the Savers recipes, and their Item actions remove items. Captured interactable objects run one of them. No owner of the other 17 was found in the scanned sources.
-- `ClothDrops.Roll` runs for Humanoid and Undead creatures. It drops cloth when `Random.Range(0, 100)` is at most 75 times the loot drop multipliers. The tier weight follows a level ramp from `LowWeight` to `HighWeight`, and the count is 1 to 3. The 0.16.3 catalog holds the five tiers and marks their creature rule as unknown.
+- `ClothDrops.Roll` runs for Humanoid and Undead creatures. It drops cloth when `Random.Range(0, 100)` is at most 75 times the loot drop multipliers. The creature's level picks the tier by weight. A tier's weight follows a level ramp from `LowWeight` to `HighWeight`, and the count is 1 to 3. The 0.16.3 catalog holds the five tiers and marks their creature rule as unknown.
 - `DungeonTimerManager` gives a reward bag when all bosses die before the timer ends, and a bag with the token only when the timer ends. `DungeonFinderService` gives Adventurer's Supply Pack when a Random run completes. `HuntTanneryDirector` spawns a quest pickup when a listed creature dies while its quest task is open.
 - The accepted scan captured no placement in Challenge stone Lumberjack.
 
@@ -45,7 +45,7 @@ The corruption collector keeps the boss loot tables, `maxLootItems`, the target 
 
 ### Publish cloth drops with their verified creature rule
 
-The catalog marks the supplemental cloth tiers with the creature types that native analysis confirms, and the drop query keeps them. A world loot row names the creature types, the base chance before the loot drop multipliers, the count, and the level ramp of the tier. It claims no effective chance.
+`EconomyUtilities.GenerateDroppedLoot` calls `ClothDrops.Roll` for every dropped loot of a creature, with the creature's level and the loot drop multipliers of the creature. The catalog names the creature types that the roll accepts and keeps the roll chance, the count, and the tier weights. The page of each cloth shows a Cloth loot section with the creature types, the roll chance, the count, and the chance per kill for each range of creature levels. Both chances come before the loot drop multipliers. The weights stop changing at the last start level or ramp end, so the last range is open. The Loot guide holds the rules, and the section links to them.
 
 ### Decide each remaining item without a source
 
@@ -53,7 +53,7 @@ After the catalog candidate exists, the publication lists the items that still h
 
 ### Place the item source rules in the Loot guide
 
-The native rules of this change go into the rules record in the Loot topic, in sections for world objects, dungeon rewards, quest pickups, and cloth drops. Each rule names the item page targets where a reader needs it: the From items, Collected from, Dungeon rewards, and Dropped by sections.
+The native rules of this change go into the rules record in the Loot topic, in sections for world objects, dungeon rewards, quest pickups, and cloth drops. Each rule names the item page targets where a reader needs it: the From items, Collected from, Dungeon rewards, Dropped by, and Cloth loot sections.
 
 ## Risks / Trade-offs
 

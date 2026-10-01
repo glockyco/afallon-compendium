@@ -25,7 +25,7 @@ const topicRules: Record<NonNullable<CatalogMechanicsRule["topic"]>, string[]> =
   "heroic-tier": ["heroic-kill-experience", "affix-count-source", "essence-requires-points", "essence-rank-multiplier", "essence-health-factor", "essence-fraction-carry"],
   "crafting-and-gathering": ["recipe-rank-gate", "recipe-craft-needs", "recipe-item-tooltip", "recipe-product-roll", "recipe-experience-bands", "recipe-experience-rounding", "recipe-experience-condition", "recipe-experience-modifiers", "spawner-weighted-pick", "spawner-weight-limits", "spawner-weights-relative", "spawner-check-interval", "spawner-player-range", "spawner-respawn", "placed-node-cooldown", "node-requirements", "node-loot-roll", "node-yield-bonus", "node-experience", "attunement-98", "attunement-642", "attunement-643", "attunement-644", "attunement-645", "attunement-646", "attunement-647", "weapon-skills", "weapon-skills-untrained", "crafting-skill-source", "enchanting-skill-source", "unmapped-skill-sources"],
   corruption: [],
-  loot: ["chest-row-rolls", "supply-pack-tables", "supply-pack-picks", "supply-pack-world-loot", "supply-pack-lifecycle"],
+  loot: ["chest-row-rolls", "supply-pack-tables", "supply-pack-picks", "supply-pack-world-loot", "supply-pack-lifecycle", "cloth-drop-chance", "cloth-tier-weights"],
 };
 const rules: CatalogMechanicsRule[] = Object.entries(topicRules).flatMap(([topic, ids]) => ids.map((ruleId, ordinal) => ({
   ruleId, topic: topic as CatalogMechanicsRule["topic"], section: topic, ordinal, status: "verified" as const,
@@ -91,7 +91,7 @@ test("the Loot Mechanics page publishes its ordered guide steps and reviewed rul
   const loot = documents().get("mechanics:loot") as LootGuide;
   expect(loot.ref).toMatchObject({ name: "Loot", slug: "loot" });
   expect(loot.steps.map((step) => step.id)).toEqual([
-    "open-a-chest", "choose-a-table", "pick-the-items", "draw-from-world-loot", "keep-the-pack",
+    "open-a-chest", "choose-a-table", "pick-the-items", "draw-from-world-loot", "keep-the-pack", "collect-cloth",
   ]);
   expect(loot.rules.map((rule) => rule.id)).toEqual(topicRules.loot);
 });
