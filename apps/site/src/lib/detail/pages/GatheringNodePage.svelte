@@ -53,6 +53,13 @@
     ? `${formatNumber(seconds / 60)} ${seconds === 60 ? 'minute' : 'minutes'}`
     : `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
   const isThisNode = (option: SpawnerOption) => option.node.key === document.ref.key;
+  // One row per spawner group that can choose this node. A group without a supported share keeps its row, so the table
+  // does not hide spawners; its chance cells stay empty.
+  $: shareRows = document.spawners.flatMap((group) => group.options.filter(isThisNode).map((option) => ({
+    spawners: group.spawners, options: group.options.length, shares: new Map((option.shares ?? []).map((share) => [share.skillLevel, share.percent])),
+  })));
+  $: shareLevels = [...new Set(shareRows.flatMap((row) => [...row.shares.keys()]))].sort((left, right) => left - right);
+  $: missingShare = shareRows.some((row) => row.shares.size === 0);
 </script>
 
 <article class="detail-page">
@@ -91,21 +98,17 @@
         <dl class="spawn-facts">
           {#if spawnerTotal}<div><dt>Spawners</dt><dd>{formatNumber(spawnerTotal)}</dd></div>{/if}
           {#if placedTotal}<div><dt>Placed by scenes</dt><dd>{formatNumber(placedTotal)}</dd></div>{/if}
-          {#each document.spawners as group, index}
-            {#each group.options.filter(isThisNode) as option}
-              {#each option.shares ?? [] as share}
-                <div><dt>Share at level {formatNumber(share.skillLevel)}{document.spawners.length > 1 ? `, group ${index + 1}` : ''}</dt><dd>{formatNumber(share.percent)}%</dd></div>
-              {/each}
-            {/each}
-          {/each}
         </dl>
-        {#each document.spawners as group, index}
-          {#each group.options.filter(isThisNode) as option}
-            {#if option.shares?.length}
-              <p class="explanation">Chance that {document.spawners.length > 1 ? `group ${index + 1}, containing ${formatNumber(group.spawners)} spawners,` : 'one of these spawners'} chooses this node among {formatNumber(group.options.length)} options, without attunement.</p>
-            {:else}<p class="explanation">A supported selection share is not available for {document.spawners.length > 1 ? `group ${index + 1}` : 'these spawners'}.</p>{/if}
-          {/each}
-        {/each}
+        {#if shareLevels.length}
+          <table class="shares">
+            <caption>Chance that a spawner chooses this node</caption>
+            <thead><tr><th scope="col">Spawners</th><th scope="col">Options</th>{#each shareLevels as level}<th scope="col">Level {formatNumber(level)}</th>{/each}</tr></thead>
+            <tbody>{#each shareRows as row}<tr><td>{formatNumber(row.spawners)}</td><td>{formatNumber(row.options)}</td>{#each shareLevels as level}<td>{#if row.shares.has(level)}{formatNumber(row.shares.get(level) ?? 0)}%{/if}</td>{/each}</tr>{/each}</tbody>
+          </table>
+          <p class="explanation">Each spawner picks one of its group's options. The chance depends on the {skillName ?? 'gathering'} level and does not include attunement.{#if missingShare} An empty cell has no supported value.{/if}</p>
+        {:else if spawnerTotal}
+          <p class="explanation">A supported chance to choose this node is not available for these spawners.</p>
+        {/if}
       {/if}
       {#if document.facts.variant}<p class="explanation">Another node shares this name but has different requirements, experience, or yields.</p>{/if}
     </div>
@@ -162,5 +165,11 @@
   th, td { padding: .5rem .7rem; border-bottom: 1px solid var(--c-line-soft); }
   th { color: var(--c-text-dim); font-weight: 600; }
   td:not(:first-child), th:not(:first-child) { text-align: right; white-space: nowrap; }
+  /* The side column is narrow, so the share table uses tighter cells and right-aligns every number. */
+  .shares { margin-top: .75rem; font-size: var(--c-text-small); }
+  .shares caption { margin-bottom: .35rem; color: var(--c-text-strong); font-weight: 600; text-align: left; }
+  .shares th, .shares td { padding: .4rem .35rem; text-align: right; }
+  .shares th:first-child, .shares td:first-child { padding-left: 0; }
+  .shares th:last-child, .shares td:last-child { padding-right: 0; }
   tr.current td { color: var(--c-text-strong); font-weight: 600; }
 </style>
