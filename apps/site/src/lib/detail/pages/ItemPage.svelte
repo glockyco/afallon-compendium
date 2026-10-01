@@ -175,13 +175,13 @@
             <p>Using it {change.action === 'Remove' ? 'consumes' : 'gives'} {formatNumber(change.count)} <EntityLink ref={change.item} {registry} />.</p>
           {/each}
           {#if document.whenUsed.packs.length}
-            {#if sharedPackPicks}<p>Opening it gives at least {formatNumber(sharedPackPicks.minimumPicks)} {sharedPackPicks.minimumPicks === 1 ? 'item' : 'items'}{#if sharedPackPicks.bonusChance > 0}, with a {formatNumber(sharedPackPicks.bonusChance)}% chance of one more{/if}{#if sharedPackPicks.maximumPicks !== undefined}, up to {formatNumber(sharedPackPicks.maximumPicks)}{/if}.{#if sharedPackPicks.worldShare > 0}{' '}Each item has a {formatNumber(sharedPackPicks.worldShare)}% chance to come from world loot that suits you instead of from the lists below.{/if}</p>{/if}
+            {#if sharedPackPicks}<p>Gives {formatNumber(sharedPackPicks.minimumPicks)} {sharedPackPicks.minimumPicks === 1 ? 'item' : 'items'}{#if sharedPackPicks.bonusChance > 0}, with a {formatNumber(sharedPackPicks.bonusChance)}% chance of one more{/if}{#if sharedPackPicks.maximumPicks !== undefined && sharedPackPicks.maximumPicks < sharedPackPicks.minimumPicks + 1} (at most {formatNumber(sharedPackPicks.maximumPicks)}){/if}.{#if sharedPackPicks.worldShare > 0}{' '}Each item has a {formatNumber(sharedPackPicks.worldShare)}% chance to be world loot for your class and level instead.{/if}</p>{/if}
             {#if packGuide}<HowItWorks guide={packGuide.guide} stepId={packGuide.stepId} label="How supply packs work" />{/if}
             <div class="c-disclosures">
               {#each document.whenUsed.packs as pack, index}
                 <DetailsDisclosure title={`${pack.classes.map((classRef) => 'name' in classRef ? classRef.name : classRef.label).join(', ') || 'All classes'} · ${pack.minLevel === undefined ? 'All levels' : `Levels ${formatNumber(pack.minLevel)}${pack.maxLevel === undefined ? ' and higher' : `–${formatNumber(pack.maxLevel)}`}`}`} id={`supply-pack-${index + 1}`}>
-                  {#if !sharedPackPicks}<p>Opening it gives at least {formatNumber(pack.minimumPicks)} {pack.minimumPicks === 1 ? 'item' : 'items'}{#if pack.bonusChance > 0}, with a {formatNumber(pack.bonusChance)}% chance of one more{/if}{#if pack.maximumPicks !== undefined}, up to {formatNumber(pack.maximumPicks)}{/if}.{#if pack.worldShare > 0}{' '}Each item has a {formatNumber(pack.worldShare)}% chance to come from world loot that suits you instead of from the lists below.{/if}</p>{/if}
-                  {#if pack.armorType || pack.stats.length}<p>World loot must suit {#if pack.armorType}{categoryLabel(pack.armorType)} armor{/if}{#if pack.stats.length}{pack.armorType ? ' and ' : ''}{#each pack.stats as stat, statIndex}{#if statIndex}{statIndex === pack.stats.length - 1 ? ' and ' : ', '}{/if}<EntityLink ref={stat} {registry} />{/each}{/if}.</p>{/if}
+                  {#if !sharedPackPicks}<p>Gives {formatNumber(pack.minimumPicks)} {pack.minimumPicks === 1 ? 'item' : 'items'}{#if pack.bonusChance > 0}, with a {formatNumber(pack.bonusChance)}% chance of one more{/if}{#if pack.maximumPicks !== undefined && pack.maximumPicks < pack.minimumPicks + 1} (at most {formatNumber(pack.maximumPicks)}){/if}.{#if pack.worldShare > 0}{' '}Each item has a {formatNumber(pack.worldShare)}% chance to be world loot for your class and level instead.{/if}</p>{/if}
+                  {#if pack.armorType || pack.stats.length}<p>World loot: {#if pack.armorType}{categoryLabel(pack.armorType)} armor{/if}{#if pack.stats.length}{pack.armorType ? ', ' : ''}{#each pack.stats as stat, statIndex}{#if statIndex}, {/if}<EntityLink ref={stat} {registry} />{/each}{/if}</p>{/if}
                   <RelationTable columns={packColumns} rows={pack.entries} label="Items in this class and level band">
                     <svelte:fragment slot="cell" let:row let:column>
                       {#if column === 'item'}<EntityLink ref={row.item} {registry} />
@@ -218,8 +218,8 @@
         <RelationTable columns={adventurerColumns} rows={document.adventurers} label="Adventurer gear">
           <svelte:fragment slot="cell" let:row>
             {#if row.kind === 'kitUpgradeItem'}Gear upgrade for <EntityLink ref={row.adventurer} {registry} />
-            {:else if row.kind === 'equipmentBand'}Adventurers of level {formatNumber(row.minimumContentLevel)} or higher can carry it
-            {:else}After each finished job, an adventurer has a {formatNumber(row.chance)}% chance to receive one gear upgrade from a reward list that includes this item. The item goes to the adventurer, not the player.{/if}
+            {:else if row.kind === 'equipmentBand'}Carried by adventurers of level {formatNumber(row.minimumContentLevel)} or higher
+            {:else}Adventurer job reward: each finished job has a {formatNumber(row.chance)}% chance to give the adventurer one upgrade from the reward list{/if}
           </svelte:fragment>
         </RelationTable>
       </Section>

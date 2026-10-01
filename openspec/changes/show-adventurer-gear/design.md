@@ -17,7 +17,7 @@ Item pages derive their How to get it routes from player sources, and coverage c
 ## Decisions
 
 - **Adventurer relations are not sources.** They live in their own item-page section and coverage group. An item with a player source keeps its routes; the section is extra context.
-- **Wording.** How to get it says "Only adventurers carry this item." with a link to the section. The Adventurers relation table says "Gear upgrade for Agra Emberhide" for stronger gear that adventurer wears, "Adventurers of level N or higher can carry it" for a band, and explains that after each finished job an adventurer has a P% chance to receive one gear upgrade from a reward list that includes this item. The item goes to the adventurer, not the player, and P% is not this item's individual chance.
+- **Wording.** How to get it says "Only adventurers carry this item." with a link to the section. The Adventurers relation table says "Gear upgrade for Agra Emberhide", "Carried by adventurers of level N or higher" (the adventurer's own level), and "Adventurer job reward: each finished job has a P% chance to give the adventurer one upgrade from the reward list".
 - **Coverage key.** A new `itemAdventurerOnly` group sits beside `itemWithoutSource`.
 
 ## Risks / Trade-offs

@@ -5,7 +5,7 @@ Hunter players need to know which creatures they can tame, without mistaking a f
 ## What Changes
 
 - Publish a tameability fact from the creature's Beast type, its tamable flag, and its normal mob rank, and keep differences between the variants of a page.
-- Say in the creature's identity facts that a Hunter can tame it, and state the known conditions: a Hunter of its level or higher, without a pet, within 30 m. Say that the pet starts at the creature's level and that the game can still refuse some targets.
+- Say in the creature's identity facts that a Hunter can tame it, and list the known conditions: a Hunter of its level or higher, with no pet, within 30 m.
 - Link the Hunter class page when that page is published.
 - **BREAKING** Bump the static NPC document schema identifier once for the new fact.
 

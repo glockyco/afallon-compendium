@@ -70,7 +70,7 @@
           {#if facts.faction}<FactRow label="Faction"><EntityLink ref={facts.faction} {registry} /></FactRow>{/if}
           {#if facts.species}<FactRow label="Species"><EntityLink ref={facts.species} {registry} /></FactRow>{/if}
           {#if facts.family}<FactRow label="Family">{categoryLabel(facts.family)}</FactRow>{/if}
-          {#if facts.tameable}<FactRow label="Taming">{#if document.hunter}<EntityLink ref={document.hunter} {registry} />{:else}Hunter{/if} of its level or higher, without a pet, within 30 m. The pet starts at the creature’s level. The game can still refuse some targets.</FactRow>{/if}
+          {#if facts.tameable}<FactRow label="Taming">{#if document.hunter}<EntityLink ref={document.hunter} {registry} />{:else}Hunter{/if} of its level or higher, with no pet, within 30 m</FactRow>{/if}
           {#if combat && facts.aggroRange !== undefined && facts.aggroRange > 0}<FactRow label="Aggro range">{formatNumber(facts.aggroRange)} m</FactRow>{/if}
           {#if combat && facts.immunities.length}<FactRow label="Immune to">{facts.immunities.map(categoryLabel).join(', ')}</FactRow>{/if}
           {#if loot}<FactRow label="Gear drops favour">{[loot.armorType ? categoryLabel(loot.armorType) : '', ...loot.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if loot.stat}{loot.armorType || loot.weaponTypes.length ? ', ' : ''}<EntityLink ref={loot.stat} {registry} />{/if}</FactRow>{/if}

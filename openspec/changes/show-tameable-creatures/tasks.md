@@ -6,7 +6,7 @@
 ## 2. Publication and page
 
 - [x] 2.1 Publish the eligibility fact for each NPC record and shared page only when variants agree. Verify mixed variants retain their distinct eligibility in a targeted publication test.
-- [ ] 2.2 Show tameability in the title facts and a Taming fact: a Hunter of the creature's level or higher, without a pet, within 30 m, and the pet starts at the creature's level. Link Hunter only when its page is published. Verify on the 0.16.3 candidate site at 1440 and 390 px.
+- [ ] 2.2 Show tameability in the title facts and a Taming fact: a Hunter of the creature's level or higher, with no pet, within 30 m. Link Hunter only when its page is published. Verify on the 0.16.3 candidate site at 1440 and 390 px.
 
 ## 3. Validation
 

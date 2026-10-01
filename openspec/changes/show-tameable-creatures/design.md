@@ -12,9 +12,9 @@ The canonical collector records the numeric NPC rank, the creature type and Hunt
 
 - Eligibility is `npcType === "MOB"`, `creatureType === "BEAST"`, and `hunterTamable === true`. A false fact means that the catalog does not support the label, not that every runtime state was examined.
 - The tameability boolean is a record-level variant fact and takes part in variant comparison. Shared page facts carry it only when all variants agree. The static NPC document id moves from v7 to v8, and literal references migrate.
-- The title facts say "Can be tamed". A Taming fact states the conditions in one place: a Hunter of the creature's level or higher, without a pet, within 30 m. It says that the pet starts at the creature's level and that the game can still refuse some targets. The level condition refers to the creature's own level, so the page's level line, which already says when a level scales with the player, gives the number. The variants table says "Can be tamed" or "Cannot be tamed".
+- The title facts say "Can be tamed". A Taming fact lists the known conditions: a Hunter of the creature's level or higher, with no pet, within 30 m. These are requirements, so the fact does not claim that they are enough, and the unresolved target check needs no extra sentence. The level condition refers to the creature's own level, and the page's level line already says when that level scales with the player. The variants table says "Can be tamed" or "Cannot be tamed".
 - The Hunter page is found through the published registry by class name and linked only when present.
 
 ## Risks / Trade-offs
 
-The unresolved target check can reject a creature that the page marks as tameable. The caveat sentence tells the reader so.
+The unresolved target check can reject a creature that the page marks as tameable. The fact lists requirements, not a guarantee.
