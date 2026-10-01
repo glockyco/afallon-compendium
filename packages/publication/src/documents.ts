@@ -102,6 +102,7 @@ type RelationIndexes = {
   dropsByItem: Map<string, CatalogRelations["drops"]>;
   vendorsByNpc: Map<string, CatalogRelations["vendors"]>;
   vendorsByItem: Map<string, CatalogRelations["vendors"]>;
+  vendorsByCurrency: Map<string, CatalogRelations["vendors"]>;
   gathersByResource: Map<string, CatalogRelations["gathers"]>;
   gathersByItem: Map<string, CatalogRelations["gathers"]>;
   containersByItem: Map<string, CatalogRelations["containers"]>;
@@ -129,7 +130,7 @@ function relationIndexes(entities: readonly CatalogEntityRow[], facts: CatalogFa
     npcFacts: new Map(facts.npcs.map((fact) => [fact.entityKey, fact])),
     teachings: recipeTeachings(facts), teachersByRecipe: new Map(), placedNodes: placedNodeBySource(facts.gatheringNodes),
     nodes: new Map(facts.gatheringNodes.map((node) => [node.entityKey, node])), crafting: facts.recipes.some((recipe) => recipe.skill?.entityKey && recipe.ranks.length > 0) ? craftingRule(facts) : null,
-    dropsByOwner: new Map(), dropsByItem: new Map(), vendorsByNpc: new Map(), vendorsByItem: new Map(),
+    dropsByOwner: new Map(), dropsByItem: new Map(), vendorsByNpc: new Map(), vendorsByItem: new Map(), vendorsByCurrency: new Map(),
     gathersByResource: new Map(), gathersByItem: new Map(), containersByItem: new Map(), interactionsByItem: new Map(), questsByQuest: new Map(),
     questsByCounterpart: new Map(), gatedSourcesBySubject: new Map(), recipesByRecipe: new Map(), recipesByItem: new Map(), placementsByNpc: new Map(), placementsByScene: new Map(),
     chainOrder: new Map(facts.quests.flatMap((quest) => quest.chainOrder === null ? [] : [[quest.entityKey, quest.chainOrder] as const])),
@@ -142,6 +143,7 @@ function relationIndexes(entities: readonly CatalogEntityRow[], facts: CatalogFa
   for (const row of relations.vendors) {
     pushIndex(result.vendorsByNpc, row.npc.entityKey, row);
     pushIndex(result.vendorsByItem, row.item.entityKey, row);
+    pushIndex(result.vendorsByCurrency, row.currency?.entityKey ?? null, row);
   }
   for (const row of relations.gathers) {
     pushIndex(result.gathersByResource, row.resource?.entityKey ?? null, row);
@@ -414,6 +416,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
   const gameAbilities = (fact?.gameActions ?? []).filter((action) => action.type === "Ability" && action.target?.entityKey && !directlyReferenced.has(action.target.entityKey));
   const enchantment = optionalFactRef(input.resolve, fact?.enchantment);
   const sellCurrency = optionalFactRef(input.resolve, fact?.sellCurrency), buyCurrency = optionalFactRef(input.resolve, fact?.buyCurrency);
+  const currency = optionalFactRef(input.resolve, fact?.currency);
   const gearSet = fact?.gearSet?.entityKey ? projectGearSet(fact.gearSet.entityKey, input) : undefined;
   const droppedBy = mergeCounterpartRows((indexes.dropsByItem.get(entity.entityKey) ?? []).map((row) => ({
     counterpart: input.resolve(row.owner), ...lootFields(row, conditions, input),
@@ -422,6 +425,19 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     counterpart: input.resolve(row.npc), price: { amount: Math.max(0, row.cost), currency: endpointOrUnknown(input.resolve, row.currency, "Unknown currency") },
     requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
   })), input);
+  const refName = (value: Ref) => isEntityRef(value) ? value.name : value.label;
+  const offers = new Map<string, { item: Ref; price: { amount: number; currency: NonNullable<typeof currency> }; sellers: Map<string, Ref> }>();
+  if (currency && fact?.currency?.entityKey) for (const row of indexes.vendorsByCurrency.get(fact.currency.entityKey) ?? []) {
+    const item = input.resolve(row.item), seller = input.resolve(row.npc);
+    const itemKey = row.item.entityKey ?? row.item.label, sellerKey = row.npc.entityKey ?? row.npc.label;
+    const amount = Math.max(0, row.cost), key = `${itemKey}:${amount}`;
+    const offer = offers.get(key) ?? { item: isEntityRef(item) ? item : { ...item, label: displayName(item.label) }, price: { amount, currency }, sellers: new Map() };
+    offer.sellers.set(sellerKey, isEntityRef(seller) ? seller : { ...seller, label: displayName(seller.label) });
+    offers.set(key, offer);
+  }
+  const buys = [...offers.values()].map(({ item, price, sellers }) => ({
+    item, price, soldBy: [...sellers.values()].sort((a, b) => refName(a).localeCompare(refName(b))),
+  })).sort((a, b) => refName(a.item).localeCompare(refName(b.item)) || a.price.amount - b.price.amount);
   // A yield of a gathering node links the node. A row of an object that a scene places belongs to the node of that
   // object, so it reads as gathered, not collected.
   const itemInteractions = indexes.interactionsByItem.get(entity.entityKey) ?? [];
@@ -512,6 +528,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
       ...(enchantment === undefined ? {} : { enchantment }),
       ...(fact?.sellPrice !== null && fact?.sellPrice !== undefined && fact.sellPrice >= 0 && sellCurrency ? { sellPrice: { amount: fact.sellPrice, currency: sellCurrency } } : {}),
       ...(fact?.buyPrice !== null && fact?.buyPrice !== undefined && fact.buyPrice >= 0 && buyCurrency ? { buyPrice: { amount: fact.buyPrice, currency: buyCurrency } } : {}),
+      ...(currency === undefined ? {} : { currency }),
       stackLimit: Math.max(0, fact?.stackLimit ?? 0), questDropOnly: fact?.questDropOnly ?? false, corruptionToken: fact?.corruptionToken ?? false,
       actionAbilities: [
         ...directAbilities.map((ability) => ({ ability: input.resolve(ability.ability), rankIndex: Math.max(0, ability.rankIndex) })),
@@ -523,7 +540,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     },
     ...(crafting ? { crafting } : {}), ...(teaches ? { teaches } : {}),
     sourceSpotCount: new Set([...gatheredFrom, ...inContainers, ...collectedFrom].flatMap((row) => row.places.flatMap((place) => place.placementIds))).size,
-    droppedBy, soldBy, gatheredFrom, sourceAvailabilities, inContainers, collectedFrom,
+    droppedBy, soldBy, buys, gatheredFrom, sourceAvailabilities, inContainers, collectedFrom,
     rewardedBy: questRows.filter((row) => row.kind === "reward" || row.kind === "rewardChoice").map((row) => ({ counterpart: input.resolve(row.quest), count: Math.max(0, row.count ?? 1), choice: row.kind === "rewardChoice" })),
     givenBy: questRows.filter((row) => row.kind === "itemGiven").map((row) => ({ counterpart: input.resolve(row.quest), count: Math.max(0, row.count ?? 1) })),
     placedRules: placedRules(input.facts, "items", { entityKey: entity.entityKey }, input.resolve)

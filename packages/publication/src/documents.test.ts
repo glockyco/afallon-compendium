@@ -49,7 +49,7 @@ const facts: CatalogFacts = {
       { stat: { entityKey: "stats:53", label: "Item power" }, amount: 99, isPercent: false },
       { stat: { entityKey: "stats:27", label: "Strength" }, amount: 42, isPercent: false },
     ], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: { entityKey: null, label: "Enchantment -1" }, sellPrice: null,
-    sellCurrency: null, buyPrice: 0, buyCurrency: { entityKey: null, label: "Currency -1" }, stackLimit: 1, questDropOnly: false, corruptionToken: false,
+    sellCurrency: null, buyPrice: 0, buyCurrency: { entityKey: null, label: "Currency -1" }, currency: null, stackLimit: 1, questDropOnly: false, corruptionToken: false,
     equipmentRequirements, useConditions: [], actionAbilities: [], gameActions: [], useLines: [{ spans: [{ text: "Use: Test", tone: "positive", italic: false }] }], conditionIds: ["oathbreaker"], gearSet: { entityKey: "gearSets:17", label: "Adept Leather" } }],
   npcs: [{ entityKey: "npcs:2", minLevel: 5, maxLevel: 5, scalesWithPlayer: false, npcType: "Enemy", creatureType: null, family: null,
     faction: null, species: { entityKey: null, label: "Species -1" }, isMerchant: false, isQuestGiver: false, isCombatEnabled: true, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null,
@@ -87,6 +87,38 @@ function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts
   const documents = projectPublicDocuments({ entities: projectEntities, facts: projectFacts, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey });
   return { refs: references.refs, documents };
 }
+
+test("currency purchases merge identical prices across merchants but preserve different costs", () => {
+  const currency = { entityKey: "currencies:1", label: "Corrupted Emerald" };
+  const product = { entityKey: "items:7", label: "Robe of the Arcanist" };
+  const currencyEntities: CatalogEntityRow[] = [
+    ...entities,
+    { entityKey: "items:7", kind: "items", nativeId: 7, name: "Robe of the Arcanist", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "npcs:8", kind: "npcs", nativeId: 8, name: "Cloth Merchant", description: null, iconAssetName: null, artwork: [] },
+    { entityKey: "currencies:1", kind: "currencies", nativeId: 1, name: "Corrupted Emerald", description: null, iconAssetName: null, artwork: [] },
+  ];
+  const offer = (npc: number, cost: number, stockIndex: number): CatalogRelations["vendors"][number] => ({
+    npc: { entityKey: `npcs:${npc}`, label: npc === 8 ? "Cloth Merchant" : "Guardian" }, item: product,
+    currency, cost, merchantTableId: 4, stockIndex, conditionIds: [], placementIds: [],
+  });
+  const { documents } = project(currencyEntities, { ...facts, entities: currencyEntities, items: [
+    { ...facts.items[0]!, currency },
+    { ...facts.items[0]!, entityKey: "items:7", currency: null },
+  ] }, { ...relations, vendors: [
+    offer(2, 20, 0), offer(8, 20, 0), offer(8, 20, 0), offer(8, 25, 1),
+    { ...offer(2, 100, 2), item: { entityKey: "items:86", label: "Ogre mercenary contract" } },
+  ] });
+  const item = documents.get("items:1") as PublicItem;
+  const currencyRef = item.facts.currency;
+  if (!currencyRef) throw new Error("The currency item has no currency.");
+  expect(currencyRef).toMatchObject({ key: "currencies:1" });
+  expect(item.buys.filter((row) => row.item.key !== null).map((row) => [row.item.key, row.price.amount, row.price.currency.key, row.soldBy.map((seller) => seller.key)])).toEqual([
+    ["items:7", 20, "currencies:1", ["npcs:8", "npcs:2"]],
+    ["items:7", 25, "currencies:1", ["npcs:8"]],
+  ]);
+  expect(item.buys).toContainEqual({ item: { key: null, label: "Ogre Mercenary Contract" }, price: { amount: 100, currency: currencyRef }, soldBy: [expect.objectContaining({ key: "npcs:2" })] });
+  expect((documents.get("items:7") as PublicItem).buys).toEqual([]);
+});
 
 test("projects one symmetric boss drop row and strips native rich text", () => {
   const { documents } = project(entities, facts, relations, new Map([

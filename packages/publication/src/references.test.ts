@@ -19,7 +19,7 @@ function npcFact(entityKey: string, health = 100): CatalogNpcFacts {
 function itemFact(entityKey: string, armorType: string): CatalogItemFacts {
   return { entityKey, rarity: "COMMON", itemType: "ARMOR", armorSlot: "CHEST", weaponSlot: null, weaponType: null, armorType, attackSpeed: null,
     minDamage: null, maxDamage: null, stats: [], randomStatsMax: 0, randomStats: [], sockets: [], gem: null, enchantment: null,
-    sellPrice: null, sellCurrency: null, buyPrice: null, buyCurrency: null, stackLimit: 1, questDropOnly: false, corruptionToken: false,
+    sellPrice: null, sellCurrency: null, buyPrice: null, buyCurrency: null, currency: null, stackLimit: 1, questDropOnly: false, corruptionToken: false,
     equipmentRequirements: [], useConditions: [], actionAbilities: [], gameActions: [], useLines: [], conditionIds: [], gearSet: null };
 }
 

@@ -154,7 +154,7 @@ export async function generateIndexResources(
     const value = { schemaVersion, ...identity, kind, document } as StaticDocument;
     Assert(STATIC_DOCUMENT_SCHEMAS[schemaVersion], value);
     const resource = await writeStaticJson<StaticDocument>(store, schemaVersion, value, protection);
-    if (resource.identity.bytes > PUBLICATION_DOCUMENT_BUDGET) throw new Error(`Publication document exceeds its byte budget: ${key}.`);
+    if (resource.identity.bytes > PUBLICATION_DOCUMENT_BUDGET) throw new Error(`Publication document ${key} is ${resource.identity.bytes} bytes, exceeding its ${PUBLICATION_DOCUMENT_BUDGET}-byte budget.`);
     documents.set(key, resource);
   }
 

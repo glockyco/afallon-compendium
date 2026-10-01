@@ -63,6 +63,7 @@ export interface CatalogItemFacts {
   sellCurrency: CatalogEndpoint | null;
   buyPrice: number | null;
   buyCurrency: CatalogEndpoint | null;
+  currency: CatalogEndpoint | null;
   stackLimit: number;
   questDropOnly: boolean;
   corruptionToken: boolean;

@@ -13,6 +13,8 @@
   import MaterialsList from '../MaterialsList.svelte';
   import RecipeEquation from '../RecipeEquation.svelte';
   import { craftExperienceSentence, itemSourceLines, lineHref } from '../item-sources';
+  import { planColumns, type RelationColumn } from '../relation-table';
+  import RelationTable from '../RelationTable.svelte';
   import { itemQuestSourceRows, itemQuestUseRows } from '../quest-rows';
   import CraftingSection from '../sections/CraftingSection.svelte';
   import ContainerSection from '../sections/ContainerSection.svelte';
@@ -39,6 +41,12 @@
   $: onlyDrop = document.droppedBy.length === 1 ? document.droppedBy[0] : undefined;
   $: singleDropInAnswer = Boolean(onlyDrop?.creatureLevel && !onlyDrop.requirements.length && (onlyDrop.min ?? 1) === 1 && (onlyDrop.max ?? 1) === 1 && onlyDrop.chance !== undefined);
   $: onMap = document.sourceSpotCount > 0;
+  const buyColumns: RelationColumn<PublicItem['buys'][number]>[] = [
+    { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
+    { id: 'cost', label: 'Cost', value: (row) => row.price.amount, sort: (row) => row.price.amount },
+    { id: 'sold-by', label: 'Sold by', value: (row) => row.soldBy.map((seller) => 'name' in seller ? seller.name : seller.label).join(', ') },
+  ];
+  $: buyPlan = planColumns(buyColumns, document.buys);
   $: typeLine = [facts.rarity, facts.armorType ?? facts.weaponType ?? facts.itemType, facts.slot].filter((entry): entry is string => Boolean(entry)).map(categoryLabel).join(' · ');
 </script>
 
@@ -92,8 +100,19 @@
         </div>{/if}
         {#if questUses.length}<div id="needed-for-quests" class="used-quests">{#each questUses as row}<div class="used-quest"><EntityLink ref={row.quest} {registry} />{#if row.count && row.count > 1}<span>×{row.count}</span>{/if}{#each row.objectives as objective}<span><ObjectiveText {objective} /></span>{/each}</div>{/each}</div>{/if}
       </Section>
-    {:else if !document.teaches}<Section id="used-for" title="Used for"><p>Nothing in this build uses {document.ref.name} as a material or quest item.</p></Section>{/if}
+    {:else if !document.teaches && !document.buys.length}<Section id="used-for" title="Used for"><p>Nothing in this build uses {document.ref.name} as a material or quest item.</p></Section>{/if}
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
+    {#if document.buys.length}
+      <Section id="buys" title="Buys" count={document.buys.length}>
+        <RelationTable columns={buyPlan.columns} rows={document.buys} label="Buys">
+          <svelte:fragment slot="cell" let:row let:column>
+            {#if column === 'item'}<EntityLink ref={row.item} {registry} />
+            {:else if column === 'cost'}<Price price={row.price} showName />
+            {:else}{#each row.soldBy as seller, index}{#if index}, {/if}<EntityLink ref={seller} {registry} />{/each}{/if}
+          </svelte:fragment>
+        </RelationTable>
+      </Section>
+    {/if}
     {#if document.droppedBy.length && !singleDropInAnswer}<DroppedBySection rows={document.droppedBy} {registry} />{/if}
     <VendorSection id="sold-by" title="Sold by" counterpartLabel="Vendor" rows={document.soldBy} sort={{ id: 'price', dir: 'asc' }} {registry} />
     <ContainerSection id="collected-from" title="Found in objects" rows={document.collectedFrom} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />

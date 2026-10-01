@@ -12,7 +12,7 @@ import { collectPlacementRefs, collectRefs, isStaticDocument, isStaticDocumentSc
 export const PUBLICATION_ROOT_BUDGET = 65_536;
 export const PUBLICATION_PART_BUDGET = 524_288;
 export const PUBLICATION_ESSENTIAL_BUDGET = 3_300_000;
-export const PUBLICATION_DOCUMENT_BUDGET = 262_144;
+export const PUBLICATION_DOCUMENT_BUDGET = 1_048_576;
 
 export interface VerifiedPublicationGraph {
   publication: StaticRootManifest;

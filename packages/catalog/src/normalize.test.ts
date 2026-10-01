@@ -104,6 +104,26 @@ test("keeps only equipment fields that apply to each item type", () => {
   ]);
 });
 
+test("resolves authored item currency conversion and leaves ordinary items without one", () => {
+  const items = [
+    { nativeId: 163, gameplay: itemGameplay({ convertToCurrencyId: 1 }) },
+    { nativeId: 30, gameplay: itemGameplay({ convertToCurrencyId: 0 }) },
+    { nativeId: 44, gameplay: itemGameplay({}) },
+  ];
+  const entities = [
+    entity("items", 163, "Corrupted emerald"), entity("items", 30, "Gold"), entity("items", 44, "Plain item"),
+    entity("currencies", 1, "Corrupted Emerald"), entity("currencies", 0, "Gold Coin"),
+  ];
+  const blockers: Blocker[] = [];
+  const rows = collectTypedFacts(admittedItems(items), entities, [] as NormalizedDatabaseInput["bindings"], [], blockers);
+  expect(blockers).toEqual([]);
+  expect(rows.itemFacts.map((row) => [row.entityKey, row.currency])).toEqual([
+    ["items:163", { entityKey: "currencies:1", label: "Corrupted Emerald" }],
+    ["items:30", { entityKey: "currencies:0", label: "Gold Coin" }],
+    ["items:44", null],
+  ]);
+});
+
 const targets = { abilityId: -1, bonusId: -1, recipeId: -1, resourceId: -1, effectId: -1, npcId: -1, factionId: -1, itemId: -1, currencyId: -1, pointId: -1, talentTreeId: -1, skillId: -1, weaponTemplateId: -1, questId: -1, dialogueId: -1, gameSceneId: -1, lootTableId: -1 };
 const gameAction = (sourceIndex: number, type: string, target: Record<string, number> = {}, teleportType = "Position") => ({
   sourceIndex, type: { value: 0, name: type }, chance: 100, nodeAction: { value: 0, name: "RankUp" }, progressionType: { value: 0, name: "Unlock" }, teleportType: { value: 0, name: teleportType }, amount: 0, targets: { ...targets, ...target },
