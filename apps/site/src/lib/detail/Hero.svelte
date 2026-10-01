@@ -20,6 +20,8 @@
   [data-view='narrow'] { --view-width: 12rem; }
   .view, .facts { min-width: 0; }
   .facts { display: grid; gap: 1rem; align-content: start; }
+  /* The grid gap spaces the facts, so a page style that gives paragraphs a bottom margin cannot add space below the last one. */
+  .facts > :global(*) { margin-block: 0; }
   @media (max-width: 760px) {
     .with-view { grid-template-columns: minmax(0, 1fr); }
     [data-view='narrow'] .view { max-width: 12rem; }
