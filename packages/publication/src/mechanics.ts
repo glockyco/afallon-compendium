@@ -184,7 +184,8 @@ function corruptionExample(facts: CatalogFacts, settings: CatalogCorruptionFacts
 
 function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, resolve: ReferenceResolver,
   transitions: readonly CatalogTransitionRow[] = [], placements: ReadonlyMap<string, PlacementRef> = new Map(),
-  stoneRoutes: readonly { sourceId: string; placementId: string; stoneName: string; regionName: string; transitionIds: string[] }[] = []): CorruptionGuide {
+  stoneRoutes: readonly { sourceId: string; placementId: string; stoneName: string; regionName: string; transitionIds: string[] }[] = [],
+  bossDropTables: ReadonlyMap<string, ReadonlySet<number>> = new Map()): CorruptionGuide {
   const settings = facts.corruption;
   if (!settings) throw new Error("Cannot publish a Corruption guide without captured corruption facts.");
   const token = corruptionRef(settings.token, published, resolve);
@@ -213,10 +214,11 @@ function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, re
         if (!ref) throw new Error(`Corruption dungeon ${row.scene.label} has an unpublished boss ${boss.label}.`);
         return ref;
       }) }),
-      ...(row.lootTables === null ? {} : { lootTables: row.lootTables.map((table) => {
-        if (!table.label) throw new Error(`Corruption dungeon ${row.scene.label} has an unnamed loot table.`);
-        return displayName(table.label);
-      }) }),
+      ...(row.lootTables === null || row.bosses === null ? {} : {
+        rewardsFromBossDrops: row.lootTables.length > 0 && row.bosses.length > 0
+          && row.lootTables.every((table) => Number(table.entityKey?.split(":")[1]) >= 0
+            && row.bosses!.some((boss) => boss.entityKey && bossDropTables.get(boss.entityKey)?.has(Number(table.entityKey?.split(":")[1])))),
+      }),
     };
   });
   const example = corruptionExample(facts, settings, published, resolve);
@@ -264,13 +266,14 @@ function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, re
 /** Project reviewed guides and the guide derived from captured Corruption facts. */
 export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver, conditions: ReadonlyMap<string, CatalogCondition>,
   transitions: readonly CatalogTransitionRow[] = [], placements: ReadonlyMap<string, PlacementRef> = new Map(),
-  stoneRoutes: readonly { sourceId: string; placementId: string; stoneName: string; regionName: string; transitionIds: string[] }[] = []): ReadonlyMap<string, PublicMechanics> {
+  stoneRoutes: readonly { sourceId: string; placementId: string; stoneName: string; regionName: string; transitionIds: string[] }[] = [],
+  bossDropTables: ReadonlyMap<string, ReadonlySet<number>> = new Map()): ReadonlyMap<string, PublicMechanics> {
   const topics = new Set(facts.progression.mechanicsRules.flatMap((rule) => rule.topic === null ? [] : [rule.topic]));
   const documents: PublicMechanics[] = [
     ...(topics.has("character-progression") ? [characterProgression(facts, published, spawned, resolve)] : []),
     ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve)] : []),
-    ...(facts.corruption ? [corruptionGuide(facts, published, resolve, transitions, placements, stoneRoutes)] : []),
+    ...(facts.corruption ? [corruptionGuide(facts, published, resolve, transitions, placements, stoneRoutes, bossDropTables)] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));
 }

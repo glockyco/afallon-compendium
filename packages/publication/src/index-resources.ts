@@ -147,7 +147,13 @@ export async function generateIndexResources(
   const nodeDocuments = projectGatheringNodeDocuments(facts.records, relations.records, { resolve, conditions, placements: publishedPlacements,
     requirements: (conditionIds) => requirementsFor(conditionIds, conditions, resolve) });
   const stoneRoutes = queryChallengeStoneRoutes(db, facts.records.corruption?.heartRequirements?.map((row) => row.sourceId) ?? []);
-  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), spawnedLevels, resolve, conditions, catalogRelations.records.transitions, publishedPlacements, stoneRoutes), ...nodeDocuments]);
+  const bossDropTables = new Map<string, Set<number>>();
+  for (const binding of db.query("SELECT owner_entity_key, loot_table_id FROM loot_bindings WHERE context = 'npc'").all() as Array<{ owner_entity_key: string; loot_table_id: number }>) {
+    const tables = bossDropTables.get(binding.owner_entity_key) ?? new Set<number>();
+    tables.add(binding.loot_table_id);
+    bossDropTables.set(binding.owner_entity_key, tables);
+  }
+  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), spawnedLevels, resolve, conditions, catalogRelations.records.transitions, publishedPlacements, stoneRoutes, bossDropTables), ...nodeDocuments]);
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {

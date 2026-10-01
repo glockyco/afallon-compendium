@@ -52,7 +52,8 @@ const transitions = [
 const guide = (source: CatalogFacts = facts, routes: readonly { sourceId: string; placementId: string; stoneName: string; regionName: string; transitionIds: string[] }[] =
   [{ sourceId: "stone", placementId: stoneSpot.placementId, stoneName: "Challenge Stone Poison", regionName: "Coalway Swamp", transitionIds: ["stone-transition", "stone-corrupted-transition"] }]) =>
   projectMechanicsDocuments(source, published, new Map(), createReferenceResolver(refs), new Map(),
-    transitions, new Map([[stoneSpot.placementId, stoneSpot]]), routes).get("mechanics:corruption") as CorruptionGuide;
+    transitions, new Map([[stoneSpot.placementId, stoneSpot]]), routes,
+    new Map([["npcs:360", new Set([139])], ["npcs:364", new Set([137])]])).get("mechanics:corruption") as CorruptionGuide;
 
 test("corruption guide projects authored item and time-remaining thresholds from captured facts", () => {
   const document = guide();
@@ -60,7 +61,8 @@ test("corruption guide projects authored item and time-remaining thresholds from
   expect(document.example).toMatchObject({ item: { slug: "novice-plate-chest" }, level: 1, baseStat: 2, calculatedStat: 2.1, basePower: 15, calculatedPower: 20 });
   expect(document.dungeons.map((row) => [row.totalSeconds, row.firstRemainingSeconds, row.secondRemainingSeconds, row.maxLootItems])).toEqual(times);
   expect(document.dungeons[3]?.bosses?.map((boss) => boss.name)).toEqual(["Fangbloom", "Sporelord Thalvun"]);
-  expect(document.dungeons[3]?.lootTables).toEqual(["Sporelord", "Fangbloom"]);
+  expect(document.dungeons[3]?.rewardsFromBossDrops).toBe(true);
+  expect(document.dungeons[3]).not.toHaveProperty("lootTables");
   expect(document.token?.key).toBe("items:564");
   expect(document.heart?.key).toBe("items:162");
   expect(document.heartRequirements).toEqual([{ stoneName: "Challenge Stone Poison", regionName: "Coalway Swamp",
@@ -71,6 +73,12 @@ test("corruption guide projects authored item and time-remaining thresholds from
     { name: "Spiteful", description: "Ghosts appear.", available: false }]);
   expect(document.steps.find((step) => step.id === "compare-corrupted-gear")?.rules).toEqual(["corruption-gear"]);
   expect(document.rules.find((row) => row.id === "corruption-gear")?.sources.length).toBeGreaterThan(0);
+});
+
+test("reward attribution requires every table to belong to a listed boss", () => {
+  const changed = guide({ ...facts, corruption: { ...corruption, dungeons: corruption.dungeons.map((row, index) =>
+    index === 3 ? { ...row, lootTables: [...row.lootTables!, endpoint("lootTables:999", "Other")] } : row) } });
+  expect(changed.dungeons[3]?.rewardsFromBossDrops).toBe(false);
 });
 test("a stone without a discovered child teleport does not inherit its host scene as its destination", () => {
   expect(guide(facts, []).heartRequirements).toEqual([{ place: expect.objectContaining({ name: "Duskfall Depths" }), count: 1, destinations: [] }]);

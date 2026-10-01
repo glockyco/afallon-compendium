@@ -61,10 +61,12 @@
         <div class="table-scroll"><table class="timer-table"><thead><tr><th scope="col">Dungeon</th><th scope="col">Timer</th><th scope="col">First threshold</th><th scope="col">Second threshold</th><th scope="col">Maximum loot items</th></tr></thead>
           <tbody>{#each document.dungeons as dungeon}<tr><th scope="row"><EntityLink ref={dungeon.place} {registry} /></th><td data-label="Timer">{dungeon.totalSeconds === undefined ? 'Unavailable' : `${format(dungeon.totalSeconds)} s`}</td><td data-label="First threshold">{dungeon.firstRemainingSeconds === undefined ? 'Unavailable' : `${format(dungeon.firstRemainingSeconds)} s left`}</td><td data-label="Second threshold">{dungeon.secondRemainingSeconds === undefined ? 'Unavailable' : `${format(dungeon.secondRemainingSeconds)} s left`}</td><td data-label="Maximum loot items">{dungeon.maxLootItems === undefined ? 'Unavailable' : format(dungeon.maxLootItems)}</td></tr>{/each}</tbody>
         </table></div>
-        <details class="dungeon-associations"><summary>Bosses and reward pools</summary>
+        <details class="dungeon-associations"><summary>Bosses</summary>
+          {#if document.dungeons.every((dungeon) => dungeon.rewardsFromBossDrops)}
+            <p>Defeating all bosses in time fills the reward bag. Its extra loot comes from the same tables as each boss's own drops, which the boss pages list with chances.</p>
+          {/if}
           <ul>{#each document.dungeons as dungeon}<li><strong><EntityLink ref={dungeon.place} {registry} /></strong>:
-            {#if dungeon.bosses?.length}<span> Bosses: {#each dungeon.bosses as boss, index}{index ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}.</span>{/if}
-            {#if dungeon.lootTables?.length}<span> Reward pools: {dungeon.lootTables.join(', ')}.</span>{/if}
+            {#if dungeon.bosses?.length}{#each dungeon.bosses as boss, index}{index ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}.{:else} Bosses unavailable.{/if}
           </li>{/each}</ul>
         </details>
       </Section>

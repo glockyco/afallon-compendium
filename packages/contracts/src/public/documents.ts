@@ -696,7 +696,7 @@ export const CorruptionGuideSchema = Type.Object({
   dungeons: Type.Array(Type.Object({
     place: EntityRefSchema, totalSeconds: optional(count), firstRemainingSeconds: optional(count),
     secondRemainingSeconds: optional(count), maxLootItems: optional(count),
-    bosses: optional(Type.Array(EntityRefSchema)), lootTables: optional(Type.Array(text)),
+    bosses: optional(Type.Array(EntityRefSchema)), rewardsFromBossDrops: optional(Type.Boolean()),
   }, { additionalProperties: false })),
   token: optional(EntityRefSchema), heart: optional(EntityRefSchema),
   heartRequirements: optional(Type.Array(Type.Object({
@@ -731,7 +731,7 @@ export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DO
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
   items: "compendium.static-item.v12", npcs: "compendium.static-npc.v6", quests: "compendium.static-quest.v6", places: "compendium.static-place.v7",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
-  classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v5", gatheringNodes: "compendium.static-gathering-node.v4",
+  classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v6", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -758,14 +758,14 @@ export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v7": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v4": typeof StaticClassDocumentSchema;
-  "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v5": typeof StaticMechanicsDocumentSchema;
+  "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v6": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
   "compendium.static-item.v12": StaticItemDocumentSchema, "compendium.static-npc.v6": StaticNpcDocumentSchema,
   "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v7": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v4": StaticClassDocumentSchema,
-  "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v5": StaticMechanicsDocumentSchema,
+  "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v6": StaticMechanicsDocumentSchema,
   "compendium.static-gathering-node.v4": StaticGatheringNodeDocumentSchema,
 };
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
@@ -774,7 +774,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
 export const documentReference = Type.Union([
   resourceReference("compendium.static-item.v12"), resourceReference("compendium.static-npc.v6"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v7"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
-  resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v5"),
+  resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v6"),
   resourceReference("compendium.static-gathering-node.v4"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;

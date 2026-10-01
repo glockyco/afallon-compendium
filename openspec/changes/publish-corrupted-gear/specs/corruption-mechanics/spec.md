@@ -28,11 +28,20 @@ The publication SHALL provide a `mechanics` guide at `/mechanics/corruption`, wi
 
 ### Requirement: Corruption facts follow the accepted build
 
-The catalog SHALL preserve the captured maximum dungeon start level, per-level gear settings and bonuses, mob-stat settings, affix token count and availability, and five timed dungeons' authored total timers, remaining-time thresholds, boss loot associations and maximum loot-item counts, with provenance and unavailable states. It SHALL distinguish token item facts from the Heart's challenge-stone requirement and crafting-material relation. The guide and item calculations SHALL use published build facts rather than site constants; absent inputs SHALL NOT produce invented values.
+The catalog SHALL preserve the captured maximum dungeon start level, per-level gear settings and bonuses, mob-stat settings, affix token count and availability, and five timed dungeons' authored total timers, remaining-time thresholds, boss references, reward-table references and maximum loot-item counts, with provenance and unavailable states. The published guide SHALL show the bosses without exposing internal loot-table names. For each dungeon it SHALL report whether every reward table belongs to one of its bosses' drop tables, using that build's loot bindings. Only when this holds for every dungeon SHALL the guide explain that the reward bag's extra loot comes from the bosses' own drop tables. It SHALL distinguish token item facts from the Heart's challenge-stone requirement and crafting-material relation. The guide and item calculations SHALL use published build facts rather than site constants; absent inputs SHALL NOT produce invented values.
 
 #### Scenario: Timer facts have remaining-time semantics
 - **WHEN** the accepted build records Duskfall Depths at 800 seconds total with 500/300 seconds remaining thresholds and three maximum loot items; Felheart Crucible at 300 with 160/100 and three; Tidefallen Grotto at 860 with 500/300 and three; The Underglow at 860 with 500/300 and two; and Barrowdeep at 860 with 500/300 and three
 - **THEN** the guide presents the thresholds as time remaining, not elapsed time, with the build's corresponding maximum loot counts
+
+#### Scenario: Reward tables match boss drops
+- **WHEN** every reward table for each timed dungeon belongs to a listed boss's drop tables
+- **THEN** the guide links the dungeon's bosses and explains that the reward bag's extra loot comes from the same tables as their drops
+- **AND** the guide does not show internal loot-table names
+
+#### Scenario: Reward tables do not match boss drops
+- **WHEN** a dungeon has a reward table not bound to any of its listed bosses
+- **THEN** the guide does not claim the reward bag's extra loot comes from the bosses' drops
 
 #### Scenario: Settings differ between builds
 - **WHEN** a future accepted build has different captured bonus settings
