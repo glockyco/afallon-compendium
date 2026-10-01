@@ -50,8 +50,7 @@
 </div>
 
 <style>
-  .starters { display: grid; gap: .85rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--c-line-soft); }
-  h3 { margin: 0 0 .25rem; color: var(--c-text-dim); font-size: .875rem; font-weight: 600; }
-  p { margin: .2rem 0; line-height: 1.5; }
+  .starters { display: grid; gap: .85rem; padding-top: var(--c-space-block); border-top: 1px solid var(--c-line-soft); }
+  h3 { margin-bottom: .25rem; color: var(--c-text-dim); font-size: .875rem; font-weight: 600; }
   .source + .source { margin-top: .65rem; }
 </style>

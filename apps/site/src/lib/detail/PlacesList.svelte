@@ -56,7 +56,7 @@
 {#if shown < sorted.length}<button class="c-action show-more" type="button" on:click={() => (expanded = true)}>Show {sorted.length - shown} more</button>{/if}
 
 <style>
-  .places { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.5rem; margin: 0; padding: 0; list-style: none; }
+  .places { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.5rem; padding: 0; list-style: none; }
   li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .2rem .75rem; align-items: center; min-width: 0; padding: .5rem 0; border-bottom: 1px solid var(--c-line-soft); scroll-margin-top: 6rem; }
   li[hidden] { display: none; }
   .name { min-width: 0; overflow-wrap: break-word; }
@@ -66,6 +66,5 @@
   .spots { color: var(--c-text-dim); font-size: var(--c-text-small); font-variant-numeric: tabular-nums; text-align: right; }
   .bar { grid-column: 1 / -1; height: .1875rem; border-radius: .125rem; background: var(--c-line-soft); }
   .bar span { display: block; height: 100%; border-radius: inherit; background: var(--c-accent-muted); }
-  .show-more { margin-top: .75rem; }
   @media (max-width: 1023px) { .places { grid-template-columns: minmax(0, 1fr); } }
 </style>

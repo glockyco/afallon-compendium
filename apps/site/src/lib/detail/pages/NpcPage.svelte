@@ -9,7 +9,6 @@
   import DetailFrame from '../DetailFrame.svelte';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
-  import HowItWorks from '../HowItWorks.svelte';
   import { npcQuestRows } from '../quest-rows';
   import AbilitiesSection from '../sections/AbilitiesSection.svelte';
   import DropsSection from '../sections/DropsSection.svelte';
@@ -38,7 +37,7 @@
   $: stats = [
     ...(facts.level?.min ? [{ label: 'Level', value: npcLevelText(facts.level) }] : []),
     ...(combat && health ? [{ label: 'Health', value: formatNumber(health.amount) }] : []),
-    ...(combat && facts.experience && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? [{ label: 'Experience', value: killExperienceText(facts.experience, facts.level), note: 'Per kill' }] : []),
+    ...(combat && facts.experience && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? [{ label: 'Experience', value: killExperienceText(facts.experience, facts.level), note: 'Per kill', ...(experienceGuide ? { guide: experienceGuide } : {}) }] : []),
     ...(combat && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: facts.respawn.min === facts.respawn.max ? formatDuration(facts.respawn.min) : `${formatDuration(facts.respawn.min)}–${formatDuration(facts.respawn.max)}` }] : []),
   ] satisfies Stat[];
   $: loot = facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length || facts.lootSpecialization.stat) ? facts.lootSpecialization : undefined;
@@ -81,7 +80,6 @@
 
   <Sections>
     <LocationsSection {document} {registry} {variantTable} />
-    {#if experienceGuide}<p class="guide"><HowItWorks guide={experienceGuide.guide} stepId={experienceGuide.stepId} label="How kill experience works" /></p>{/if}
     <VendorSection id="sells" title="Sells" counterpartLabel="Item" rows={document.sells} variants={document.variants} sort={{ id: 'name', dir: 'asc' }} {registry} />
     <QuestRowsSection id="quests" title="Quests" roleLabel="Role" rows={npcQuestRows(document.quests, document.usedInQuests)} {registry} />
     {#if variantTable}<VariantsSection {document} {registry} />{/if}
@@ -90,8 +88,7 @@
 
 <style>
   .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  .description { margin: 0 0 1rem; line-height: 1.5; color: var(--c-text-dim); }
+  .description { color: var(--c-text-dim); }
   .side-card :global(.fact-list dl) { grid-template-columns: minmax(0, 1fr) auto; gap: .35rem .5rem; }
   .side-card :global(.fact-row dd) { text-align: right; }
-  .guide { margin: 0; }
 </style>

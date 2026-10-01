@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import '../compendium.css';
   import { detailNavigation } from './detail-navigation';
   import { fragmentId } from './tab-state';
   export let title: string;
@@ -34,7 +35,7 @@
 
 <details bind:this={element} {id} class="details-disclosure">
   <summary>{title}{#if summary}<span class="summary-note">{summary}</span>{/if}</summary>
-  <div class="content"><slot /></div>
+  <div class="content c-stack"><slot /></div>
 </details>
 
 <style>

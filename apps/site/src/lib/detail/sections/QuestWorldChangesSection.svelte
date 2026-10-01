@@ -24,18 +24,16 @@
   $: plan = planColumns(columns, changes);
 </script>
 
-{#if changes.length}
-  <DetailsDisclosure id="world-changes" title="World changes" summary={`${changes.length} changes`}>
-    <RelationTable columns={plan.columns} rows={changes} label="Quest world changes">
-      <svelte:fragment slot="cell" let:row let:column>
-        {#if column === 'source'}
-          {#if row.label}<div>{row.label}</div>{/if}
-          {#each row.subjects as subject}<div><EntityLink ref={subject} {registry} /></div>{/each}
-          {#if !row.label && !row.subjects.length}{kinds[row.sourceKind]}{/if}
-        {:else if column === 'kind'}{kinds[row.sourceKind]}
-        {:else if column === 'condition'}<Availability rules={row.availability} {registry} />
-        {:else if column === 'spots'}<LocationLinks placements={row.placements} />{/if}
-      </svelte:fragment>
-    </RelationTable>
-  </DetailsDisclosure>
-{/if}
+<DetailsDisclosure id="world-changes" title="World changes" summary={`${changes.length} changes`}>
+  <RelationTable columns={plan.columns} rows={changes} label="Quest world changes">
+    <svelte:fragment slot="cell" let:row let:column>
+      {#if column === 'source'}
+        {#if row.label}<div>{row.label}</div>{/if}
+        {#each row.subjects as subject}<div><EntityLink ref={subject} {registry} /></div>{/each}
+        {#if !row.label && !row.subjects.length}{kinds[row.sourceKind]}{/if}
+      {:else if column === 'kind'}{kinds[row.sourceKind]}
+      {:else if column === 'condition'}<Availability rules={row.availability} {registry} />
+      {:else if column === 'spots'}<LocationLinks placements={row.placements} />{/if}
+    </svelte:fragment>
+  </RelationTable>
+</DetailsDisclosure>

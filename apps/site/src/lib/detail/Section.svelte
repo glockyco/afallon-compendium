@@ -29,15 +29,15 @@
     </div>
     {#if line}<p class="line">{line}</p>{/if}
   </header>
-  <div class="panel"><slot /></div>
+  <div class="panel c-stack"><slot /></div>
 </section>
 
 <style>
   .section { scroll-margin-top: 1rem; }
-  header { display: grid; gap: .3rem; margin-bottom: .75rem; }
+  header { display: grid; gap: .3rem; margin-bottom: var(--c-space-block); }
   .heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem; }
-  h2 { display: flex; align-items: baseline; gap: .6rem; margin: 0; color: var(--c-text-strong); font: 700 var(--c-text-title)/1.3 var(--c-serif); }
+  h2 { display: flex; align-items: baseline; gap: .6rem; color: var(--c-text-strong); font: 700 var(--c-text-title)/1.3 var(--c-serif); }
   .count { color: var(--c-text-mute); font: 500 var(--c-text-small)/1 ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
-  .line { margin: 0; color: var(--c-text-dim); font-size: var(--c-text-body); line-height: 1.5; }
+  .line { color: var(--c-text-dim); font-size: var(--c-text-body); line-height: 1.5; }
   .panel { min-width: 0; }
 </style>

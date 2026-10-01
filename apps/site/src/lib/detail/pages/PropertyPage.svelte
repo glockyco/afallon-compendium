@@ -28,7 +28,7 @@
   <svelte:fragment slot="head"><TitleBlock name={document.ref.name} typeLine={facts.propertyType} facts={titleFacts} {registry}><StatStrip {stats} /></TitleBlock></svelte:fragment>
   <svelte:fragment slot="answer">
     <AnswerCard title="Where to buy" id="where-to-buy">
-      {#if document.description}<p class="description">{document.description}</p>{/if}
+      {#if document.description}<p>{document.description}</p>{/if}
       {#if document.locations.length}
         <p>{document.locations.length === 1 ? 'One for-sale sign marks this property.' : `${document.locations.length} for-sale signs mark this property.`}</p>
         <ul class="signs">{#each document.locations as sign, index}
@@ -43,7 +43,6 @@
 
 <style>
   .purchase-panel { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  .description { margin: 0 0 1rem; line-height: 1.5; }
-  .signs { display: grid; gap: .5rem; margin: 1rem 0; padding: 0; list-style: none; }
+  .signs { display: grid; gap: .5rem; padding: 0; list-style: none; }
   .signs li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .35rem 1rem; padding: .75rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
 </style>

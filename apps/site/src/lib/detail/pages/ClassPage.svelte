@@ -56,23 +56,24 @@
         </Section>
       {/if}
       {#if document.trees.length}
-        <div class="trees"><h2>Talent trees</h2>
+        <Section id="talent-trees" title="Talent trees">
           <TabSet {tabs} label="Talent trees" idPrefix="class-trees" let:key>
             {#each document.trees.filter((tree) => tree.anchor === key) as tree (tree.anchor)}<TalentTreeSection {tree} {registry} />{/each}
           </TabSet>
-        </div>
+        </Section>
       {/if}
     </Sections>
   </DetailFrame>
 </article>
 
 <style>
-  .description { margin: 0 0 1rem; line-height: 1.5; white-space: pre-line; }
+  .description { white-space: pre-line; }
   .side-facts { display: grid; gap: 1rem; padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  h2 { margin: 0 0 .75rem; color: var(--c-text-strong); font: 700 1.2rem/1.3 var(--c-serif); }
-  .trees > h2 { font-size: 1.4rem; }
-  .side-facts p { margin: .45rem 0; color: var(--c-text-dim); }
+  h2 { margin-bottom: .75rem; color: var(--c-text-strong); font: 700 1.2rem/1.3 var(--c-serif); }
+  .side-facts p { color: var(--c-text-dim); }
+  .side-facts p + p { margin-top: .45rem; }
+  .side-facts > a { width: fit-content; }
   .side-facts strong { color: var(--c-text-strong); }
-  .weapons { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+  .weapons { display: flex; flex-wrap: wrap; gap: .4rem; padding: 0; list-style: none; }
   .weapons li { padding: .25rem .5rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); color: var(--c-text-dim); font-size: .875rem; }
 </style>

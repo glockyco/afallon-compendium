@@ -101,26 +101,28 @@
       </AnswerCard>
     </div>
 
-    <div slot="side" class="side-facts">
+    <div slot="side" class="side-facts c-stack">
       {#if document.curve && document.facts.highestLevel !== undefined && document.facts.highestLevel > 1}
-        <div id="levels"><h2>Level curve</h2><LevelCurve curve={document.curve} subject={document.ref.name} compact /></div>
+        <div id="levels" class="c-stack"><h2>Level curve</h2><LevelCurve curve={document.curve} subject={document.ref.name} compact /></div>
       {/if}
       <a class="c-link progression" href={`${base}/mechanics/character-progression/`}>Character Progression</a>
     </div>
 
     {#if document.recipes.length}
       <Section id="recipes" title="Recipes" count={document.recipes.length}>
-        {#each recipeBands as band}
-          <div class="band"><h3>{band.label} <span>{formatNumber(band.rows.length)}</span></h3>
-            <RelationTable columns={recipePlan.columns} rows={band.rows} label={`Recipes: ${band.label}`} rowAnchors={(row) => [row.anchor]}>
-              <svelte:fragment slot="cell" let:row let:column>
-                {#if column === 'recipe'}{#if row.product}<EntityLink ref={row.product} {registry} />{:else}{row.recipe.name}{/if}
-                {:else if column === 'level' && row.requiredLevel !== undefined}{formatNumber(row.requiredLevel)}
-                {:else if column === 'station' && row.station}<EntityLink ref={row.station} {registry} />{/if}
-              </svelte:fragment>
-            </RelationTable>
-          </div>
-        {/each}
+        <div class="c-groups">
+          {#each recipeBands as band}
+            <div class="c-stack"><h3>{band.label} <span>{formatNumber(band.rows.length)}</span></h3>
+              <RelationTable columns={recipePlan.columns} rows={band.rows} label={`Recipes: ${band.label}`} rowAnchors={(row) => [row.anchor]}>
+                <svelte:fragment slot="cell" let:row let:column>
+                  {#if column === 'recipe'}{#if row.product}<EntityLink ref={row.product} {registry} />{:else}{row.recipe.name}{/if}
+                  {:else if column === 'level' && row.requiredLevel !== undefined}{formatNumber(row.requiredLevel)}
+                  {:else if column === 'station' && row.station}<EntityLink ref={row.station} {registry} />{/if}
+                </svelte:fragment>
+              </RelationTable>
+            </div>
+          {/each}
+        </div>
       </Section>
     {/if}
 
@@ -144,17 +146,15 @@
 </article>
 
 <style>
-  .description { margin: 0 0 1rem; color: var(--c-text-dim); line-height: 1.5; }
-  .guide { margin: .9rem 0 0; }
-  .common-requirements { margin: 0 0 .85rem; color: var(--c-text-dim); line-height: 1.5; }
-  .routes { display: grid; gap: .75rem; list-style: none; margin: 0; padding: 0; }
+  .description { color: var(--c-text-dim); line-height: 1.5; }
+  .common-requirements { color: var(--c-text-dim); line-height: 1.5; }
+  .routes { display: grid; gap: .75rem; list-style: none; padding: 0; }
   .routes li { display: grid; gap: .15rem; border-bottom: 1px solid var(--c-line-soft); padding: .3rem 0 .8rem; }
   .routes li:last-child { border-bottom: 0; padding-bottom: 0; }
   .routes strong { color: var(--c-text-strong); }
   .side-facts { min-width: 0; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); padding: 1rem; background: var(--c-surface-1); }
-  h2 { margin: 0 0 .8rem; color: var(--c-text-strong); font: 600 1.2rem/1.3 var(--c-serif); }
-  .progression { display: inline-block; margin-top: 1rem; min-height: 1.5rem; }
-  .band + .band { margin-top: 1.5rem; }
-  h3 { display: flex; align-items: baseline; gap: .5rem; margin: 0 0 .65rem; color: var(--c-text-strong); font: 600 1.1rem/1.3 var(--c-serif); }
+  h2 { color: var(--c-text-strong); font: 600 1.2rem/1.3 var(--c-serif); }
+  .progression { display: inline-block; width: fit-content; min-height: 1.5rem; }
+  h3 { display: flex; align-items: baseline; gap: .5rem; color: var(--c-text-strong); font: 600 1.1rem/1.3 var(--c-serif); }
   h3 span { color: var(--c-text-dim); font: 400 .875rem/1.5 var(--c-sans); }
 </style>

@@ -121,29 +121,38 @@
     </Section>
 
     {#if document.spawners.length || document.placed.length}
-    <!-- The disclosures share one row of the sections grid, so they sit closer to each other than to the sections. -->
-    <div class="disclosures">
+    <div class="c-disclosures">
     {#if document.spawners.length}
       <DetailsDisclosure title="Spawn odds" id="spawn-odds" summary="Weights and chances by skill level">
         <p class="intro">Each spawner chooses among its options. Weights determine each option's chance. Some chances are unknown.</p>
-        {#each document.spawners as group, index}
-          <h3>{group.skill ? nameOf(group.skill) : 'Spawner'}{document.spawners.length > 1 ? ` · Group ${index + 1}` : ''} · {formatNumber(group.spawners)} {group.spawners === 1 ? 'spawner' : 'spawners'}</h3>
-          <div class="table-scroll"><table>
-            <thead><tr><th scope="col">Node</th><th scope="col">Weight at level 1</th><th scope="col">Weight at level {formatNumber(group.skillCap)}</th><th scope="col">Minimum weight</th></tr></thead>
-            <tbody>{#each group.options as option}<tr class:current={isThisNode(option)}><td>{#if isThisNode(option)}{nameOf(option.node)}{:else}<EntityLink ref={option.node} {registry} />{/if}</td><td>{formatNumber(option.lowSkillWeight)}</td><td>{formatNumber(option.highSkillWeight)}</td><td>{formatNumber(option.teaserWeight)}</td></tr>{/each}</tbody>
-          </table></div>
-        {/each}
+        <div class="c-groups">
+          {#each document.spawners as group, index}
+            <div class="c-stack">
+              <h3>{group.skill ? nameOf(group.skill) : 'Spawner'}{document.spawners.length > 1 ? ` · Group ${index + 1}` : ''} · {formatNumber(group.spawners)} {group.spawners === 1 ? 'spawner' : 'spawners'}</h3>
+              <div class="table-scroll"><table>
+                <thead><tr><th scope="col">Node</th><th scope="col">Weight at level 1</th><th scope="col">Weight at level {formatNumber(group.skillCap)}</th><th scope="col">Minimum weight</th></tr></thead>
+                <tbody>{#each group.options as option}<tr class:current={isThisNode(option)}><td>{#if isThisNode(option)}{nameOf(option.node)}{:else}<EntityLink ref={option.node} {registry} />{/if}</td><td>{formatNumber(option.lowSkillWeight)}</td><td>{formatNumber(option.highSkillWeight)}</td><td>{formatNumber(option.teaserWeight)}</td></tr>{/each}</tbody>
+              </table></div>
+            </div>
+          {/each}
+        </div>
       </DetailsDisclosure>
     {/if}
       <DetailsDisclosure title="Timers and ranges" id="timers">
-        {#each document.spawners as group, index}
-          <h3>{document.spawners.length > 1 ? `Spawner group ${index + 1}` : 'Spawners'}</h3>
-          <dl class="timer-facts"><div><dt>Respawn</dt><dd>{duration(group.respawnSeconds)}, plus or minus up to {duration(group.jitterSeconds)}</dd></div><div><dt>Removed after use</dt><dd>{duration(group.despawnSeconds)}</dd></div><div><dt>Player range</dt><dd>{formatNumber(group.playerRange)}</dd></div></dl>
-        {/each}
-        {#each document.placed as group, index}
-          <h3>{document.placed.length > 1 ? `Placed node group ${index + 1}` : 'Placed nodes'}</h3>
-          <dl class="timer-facts"><div><dt>Objects</dt><dd>{formatNumber(group.objects)}</dd></div><div><dt>Ready again after</dt><dd>{duration(group.cooldownSeconds)}</dd></div></dl>
-        {/each}
+        <div class="c-groups">
+          {#each document.spawners as group, index}
+            <div class="c-stack">
+              <h3>{document.spawners.length > 1 ? `Spawner group ${index + 1}` : 'Spawners'}</h3>
+              <dl class="timer-facts"><div><dt>Respawn</dt><dd>{duration(group.respawnSeconds)}, plus or minus up to {duration(group.jitterSeconds)}</dd></div><div><dt>Removed after use</dt><dd>{duration(group.despawnSeconds)}</dd></div><div><dt>Player range</dt><dd>{formatNumber(group.playerRange)}</dd></div></dl>
+            </div>
+          {/each}
+          {#each document.placed as group, index}
+            <div class="c-stack">
+              <h3>{document.placed.length > 1 ? `Placed node group ${index + 1}` : 'Placed nodes'}</h3>
+              <dl class="timer-facts"><div><dt>Objects</dt><dd>{formatNumber(group.objects)}</dd></div><div><dt>Ready again after</dt><dd>{duration(group.cooldownSeconds)}</dd></div></dl>
+            </div>
+          {/each}
+        </div>
       </DetailsDisclosure>
     </div>
     {/if}
@@ -153,20 +162,16 @@
 
 <style>
   .intro, .footnote, .explanation { color: var(--c-text-dim); line-height: 1.5; }
-  .intro { margin: 0 0 1rem; }
-  .bonus { margin: 1rem 0 0; line-height: 1.5; }
+  .bonus { line-height: 1.5; }
   .bonus strong { color: var(--c-text-strong); }
   .side-facts { border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); padding: 1rem; background: var(--c-surface-1); }
-  .disclosures { display: grid; gap: .5rem; }
-  h2 { margin: 0 0 .75rem; color: var(--c-text-strong); font: 600 1.2rem/1.3 var(--c-serif); }
+  h2 { margin-bottom: .75rem; color: var(--c-text-strong); font: 600 1.2rem/1.3 var(--c-serif); }
   h2:not(:first-child) { margin-top: 1.25rem; }
-  h3 { margin: 1rem 0 .5rem; color: var(--c-text-strong); font: 600 1rem/1.4 var(--c-serif); }
-  .side-facts > .explanation { margin: .75rem 0 0; }
-  .spawn-facts, .timer-facts { margin: 0; }
+  h3 { color: var(--c-text-strong); font: 600 1rem/1.4 var(--c-serif); }
+  .side-facts > * + .explanation { margin-top: .75rem; }
   .spawn-facts div, .timer-facts div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .2rem .6rem; padding: .35rem 0; }
   .spawn-facts dt, .timer-facts dt { color: var(--c-text-dim); }
-  .spawn-facts dd, .timer-facts dd { margin: 0; color: var(--c-text-strong); font-variant-numeric: tabular-nums; }
-  .footnote { margin: .75rem 0 0; }
+  .spawn-facts dd, .timer-facts dd { color: var(--c-text-strong); font-variant-numeric: tabular-nums; }
   .table-scroll { max-width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
   th, td { padding: .5rem .7rem; border-bottom: 1px solid var(--c-line-soft); }

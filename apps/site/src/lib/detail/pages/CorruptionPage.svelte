@@ -23,8 +23,10 @@
 
 <article class="detail-page">
   <TitleBlock name={document.ref.name} {registry} />
-  <Hero><p class="c-prose">{document.overview}</p></Hero>
-  {#each document.seeAlso ?? [] as entry}<p class="see-also">{entry.lead} <EntityLink ref={entry.ref} {registry} />.</p>{/each}
+  <Hero>
+    <p class="c-prose">{document.overview}</p>
+    {#each document.seeAlso ?? [] as entry}<p class="see-also">{entry.lead} <EntityLink ref={entry.ref} {registry} />.</p>{/each}
+  </Hero>
   <Sections>
     <GuideSteps steps={document.steps} ruleNumbers={numbers}>
       <svelte:fragment slot="content" let:step>
@@ -75,10 +77,9 @@
 </article>
 
 <style>
-  .see-also { margin: -.9rem 0 1.75rem; color: var(--c-text-dim); }
+  .see-also { color: var(--c-text-dim); }
   /* Section text only: the overview paragraph keeps the shared prose style. */
   :global(.c-sections) p, :global(.c-sections) li { line-height: 1.55; }
-  :global(.c-sections) p { margin: 0 0 .65rem; }
   .table-scroll { max-width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
   th, td { padding: .55rem .65rem; border-bottom: 1px solid var(--c-line); }
@@ -87,8 +88,9 @@
   .affix-details ul { padding-left: 1.3rem; }
   .affix-details li + li { margin-top: .35rem; }
   details { line-height: 1.55; }
+  /* A disclosure is not a layout container, so its summary and content keep their space with margins. */
+  details[open] > * + * { margin-top: .65rem; }
   summary { cursor: pointer; min-height: 24px; }
-  .dungeon-associations { margin-top: 1rem; }
   .dungeon-associations li + li { margin-top: .65rem; }
   @media (max-width: 640px) {
     .timer-table, .timer-table tbody, .timer-table tr, .timer-table th, .timer-table td { display: block; width: 100%; }

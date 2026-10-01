@@ -86,13 +86,11 @@
 </Section>
 
 <style>
-  .empty, .unknown { margin: .75rem 0 0; color: var(--c-text-dim); }
-  details { margin-top: 1rem; }
+  .empty, .unknown { color: var(--c-text-dim); }
   summary { min-height: 1.5rem; color: var(--c-accent); cursor: pointer; }
   .placements { display: grid; gap: .75rem; margin-top: .75rem; }
-  .placement { position: relative; padding: .9rem 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  h3 { margin: 0 0 .4rem; font-size: 1rem; }
-  p { margin: .3rem 0; }
-  .spots { display: flex; flex-wrap: wrap; gap: .3rem .8rem; margin-top: .5rem; }
+  .placement { position: relative; display: grid; gap: .35rem; padding: .9rem 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  h3 { font-size: 1rem; }
+  .spots { display: flex; flex-wrap: wrap; gap: .3rem .8rem; }
   .anchor { position: absolute; scroll-margin-top: 6rem; }
 </style>

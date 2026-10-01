@@ -58,8 +58,8 @@
 </DetailFrame>
 
 <style>
-  .artwork { display: block; width: 100%; height: auto; margin-bottom: 1rem; border: 1px solid var(--c-frame-strong); border-radius: var(--c-radius); background: var(--c-surface-sunken); }
-  .description { margin: 0 0 1rem; line-height: 1.5; white-space: pre-line; }
-  .side-card { margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  h2 { margin: 0 0 .5rem; font-size: 1rem; }
+  .artwork { display: block; width: 100%; height: auto; border: 1px solid var(--c-frame-strong); border-radius: var(--c-radius); background: var(--c-surface-sunken); }
+  .description { white-space: pre-line; }
+  .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  h2 { margin-bottom: .5rem; font-size: 1rem; }
 </style>

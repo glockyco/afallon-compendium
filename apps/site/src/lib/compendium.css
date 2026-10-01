@@ -58,6 +58,10 @@ body { font-size: 1rem; line-height: 1.5; }
   --c-scrim: rgb(0 0 0 / 58%);
   --c-radius: .5rem;
   --c-radius-sm: .25rem;
+  /* Vertical rhythm. A container sets the space between its children with `gap`, and the children have no outer
+     margins, so a block that is absent leaves no space behind. */
+  --c-space-block: .75rem;    /* 12 px: between the blocks of a section, card, or disclosure, and below a heading */
+  --c-space-section: 1.75rem; /* 28 px: between the sections of a page */
   --c-serif: Georgia, 'Times New Roman', serif;
   /* Shared scale follows the reader's browser text preference. */
   --c-text-label: .875rem;
@@ -85,6 +89,10 @@ body { font-size: 1rem; line-height: 1.5; }
 /* The browser shrinks `small` to 83 %, which falls below the .875rem floor of the type scale. `:where` keeps the rule at
    zero specificity, so a component can still set its own size. */
 :where(small) { font-size: var(--c-text-small); }
+
+/* The browser's default margins on text blocks would add to the gap of their container. `:where` keeps the rule at zero
+   specificity, so a component can still set a margin inside its own layout. */
+:where(p, ul, ol, dl, dd, h1, h2, h3, h4, h5, h6, figure, blockquote) { margin: 0; }
 
 /* Cards */
 
@@ -119,8 +127,14 @@ body { font-size: 1rem; line-height: 1.5; }
   font-variant-numeric: tabular-nums;
 }
 
-.c-stack { display: grid; gap: 1rem; }
+/* Blocks one below the other: the paragraphs, lists, tables, and groups of a section, card, or disclosure. */
+.c-stack { display: grid; gap: var(--c-space-block); }
 .c-stack > * { min-width: 0; }
+
+/* Headed groups inside one section or disclosure. Each group is a `.c-stack`, and the groups sit further apart than the
+   blocks of one group. */
+.c-groups { display: grid; gap: 1.5rem; }
+.c-groups > * { min-width: 0; }
 
 /* Badges */
 
@@ -247,8 +261,10 @@ body { font-size: 1rem; line-height: 1.5; }
    the whole line of letters. */
 .c-price img { position: relative; top: -.12em; width: 1.15em; height: 1.15em; margin-right: .3em; object-fit: contain; vertical-align: middle; }
 
+/* `fit-content` keeps an action as wide as its text in a stack, which would otherwise stretch it to the full width. */
 .c-action {
   display: inline-flex;
+  width: fit-content;
   align-items: center;
   gap: .4rem;
   padding: .4rem .75rem;
@@ -287,8 +303,12 @@ body { font-size: 1rem; line-height: 1.5; }
 }
 
 /* The sections of a detail page, one below the other at the full width of the page column. */
-.c-sections { display: grid; gap: 1.75rem; }
+.c-sections { display: grid; gap: var(--c-space-section); }
 .c-sections > * { min-width: 0; }
+
+/* Disclosures that follow one another form one group in the sections, closer to each other than to the sections. */
+.c-disclosures { display: grid; gap: .5rem; }
+.c-disclosures > * { min-width: 0; }
 
 @media (max-width: 640px) {
   .c-card { padding: .85rem; }

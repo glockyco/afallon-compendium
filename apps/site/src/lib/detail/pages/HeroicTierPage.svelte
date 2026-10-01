@@ -83,8 +83,7 @@
 
 <style>
   /* Section text only: the overview paragraph keeps the shared prose style. */
-  :global(.c-sections) p { margin: 0 0 .8rem; line-height: 1.55; }
-  :global(.c-sections) p:last-child { margin-bottom: 0; }
+  :global(.c-sections) p { line-height: 1.55; }
   table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
   th, td { padding: .55rem .7rem; border-bottom: 1px solid var(--c-line); white-space: nowrap; }
   th { color: var(--c-text-dim); font-weight: 600; }

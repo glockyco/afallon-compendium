@@ -18,14 +18,15 @@
     /* A side taller than the main column puts its extra height into the last row. With equal rows, the grid spread it
        over the answer row too and opened a gap between the answer and the sections. */
     grid-template-rows: auto auto 1fr;
-    gap: 1.75rem 2.5rem;
+    gap: var(--c-space-section) 2.5rem;
     align-items: start;
   }
   .head { grid-area: head; }
   .answer { grid-area: answer; }
   /* The side scrolls when it is taller than the window. The scroll box clips anything outside it, so a small padding
      keeps focus outlines of the content at its edges visible. The negative margin keeps the content aligned. */
-  .side { grid-area: side; position: sticky; top: 1.25rem; max-height: calc(100vh - 2.5rem); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; margin: -.3rem; padding: .3rem; }
+  /* The side is a column of cards and short headed groups, one below the other. */
+  .side { grid-area: side; display: grid; align-content: start; gap: 1rem; position: sticky; top: 1.25rem; max-height: calc(100vh - 2.5rem); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; margin: -.3rem; padding: .3rem; }
   .rest { grid-area: rest; }
   .detail-frame > * { min-width: 0; }
   @media (max-width: 1023px) {

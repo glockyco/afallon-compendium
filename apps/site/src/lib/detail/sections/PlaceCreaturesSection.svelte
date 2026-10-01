@@ -70,8 +70,6 @@
   .boss-card :global(.entity-link .kind-icon) { width: 3.5rem; height: 3.5rem; margin: 0; }
   .boss-card p { margin: .55rem 0 .4rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
   .boss-card > a { font-size: var(--c-text-small); }
-  .more { margin-top: .75rem; }
-  .services { margin-top: 1rem; }
-  .services ul { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+  .services ul { display: grid; gap: .5rem; padding: 0; list-style: none; }
   .services li { display: flex; justify-content: space-between; gap: 1rem; padding: .5rem .75rem; border-bottom: 1px solid var(--c-line-soft); }
 </style>

@@ -117,14 +117,12 @@
     <Sections>
     {#if facts.tokenInfo}
       <Section id="token-effect" title="Corruption token effects">
-        <div class="token-effects">
-          <p>A token without a saved value has no affixes. A saved token's tooltip begins: “Use at a Corruption Altar to increase dungeon corruption by +N.” N is the token's saved value. It is separate from a gear level.</p>
-          {#if facts.tokenInfo.mobStatBonuses?.length}
-            <p><strong>NPC stat bonuses:</strong> {facts.tokenInfo.mobStatBonuses.map((bonus) => `+${formatNumber(bonus.amountPerLevel)}${bonus.isPercent ? '%' : ''} × N ${bonus.stat.key === null ? bonus.stat.label : bonus.stat.name}`).join(', ')}.</p>
-          {/if}
-          <p><strong>Dungeon affixes:</strong> The saved token lists its affix names and descriptions.{#if facts.tokenInfo.affixesPerToken !== undefined}{' '}A new token can roll up to {facts.tokenInfo.affixesPerToken} distinct eligible affixes.{/if}</p>
-          {#if tokenGuide}<HowItWorks guide={tokenGuide.guide} stepId={tokenGuide.stepId} label="How tokens work" />{/if}
-        </div>
+        <p>A token without a saved value has no affixes. A saved token's tooltip begins: “Use at a Corruption Altar to increase dungeon corruption by +N.” N is the token's saved value. It is separate from a gear level.</p>
+        {#if facts.tokenInfo.mobStatBonuses?.length}
+          <p><strong>NPC stat bonuses:</strong> {facts.tokenInfo.mobStatBonuses.map((bonus) => `+${formatNumber(bonus.amountPerLevel)}${bonus.isPercent ? '%' : ''} × N ${bonus.stat.key === null ? bonus.stat.label : bonus.stat.name}`).join(', ')}.</p>
+        {/if}
+        <p><strong>Dungeon affixes:</strong> The saved token lists its affix names and descriptions.{#if facts.tokenInfo.affixesPerToken !== undefined}{' '}A new token can roll up to {facts.tokenInfo.affixesPerToken} distinct eligible affixes.{/if}</p>
+        {#if tokenGuide}<HowItWorks guide={tokenGuide.guide} stepId={tokenGuide.stepId} label="How tokens work" />{/if}
       </Section>
     {/if}
     {#if document.teaches}
@@ -170,7 +168,7 @@
 </article>
 
 <style>
-  .routes { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+  .routes { display: grid; gap: 0; padding: 0; list-style: none; }
   .route { display: grid; gap: .6rem; min-width: 0; padding: .9rem 0; border-top: 1px solid var(--c-line); scroll-margin-top: 1rem; }
   .route:first-child { border-top: 0; padding-top: 0; }
   .route:last-child { padding-bottom: 0; }
@@ -181,16 +179,13 @@
   .recipe-name { color: var(--c-text-dim); }
   .route-count, .qualification { color: var(--c-text-dim); font-size: var(--c-text-small); }
   .route-more { justify-self: start; font-size: var(--c-text-small); min-height: 1.5rem; }
-  .route p, .description, .side-fact { margin: 0; line-height: 1.5; }
-  .dungeon-list { display: grid; gap: .35rem; margin: 0; padding-left: 1.25rem; min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
-  .corruption-control { display: grid; gap: .6rem; margin-top: 1rem; scroll-margin-top: 1rem; }
-  .corruption-control p { margin: 0; color: var(--c-text-dim); line-height: 1.5; }
-  .description { margin-top: 1rem; color: var(--c-text-dim); }
-  .side-fact { display: flex; justify-content: space-between; gap: .75rem; margin-top: .75rem; }
-  .token-effects { display: grid; gap: .7rem; }
-  .token-effects p { margin: 0; line-height: 1.5; }
+  .route p, .description, .side-fact { line-height: 1.5; }
+  .dungeon-list { display: grid; gap: .35rem; padding-left: 1.25rem; min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
+  .corruption-control { display: grid; gap: .6rem; scroll-margin-top: 1rem; }
+  .corruption-control p { color: var(--c-text-dim); line-height: 1.5; }
+  .description { color: var(--c-text-dim); }
+  .side-fact { display: flex; justify-content: space-between; gap: .75rem; }
   .used-recipes, .used-quests, .used-stones { display: grid; gap: .5rem; scroll-margin-top: 1rem; }
-  .used-quests, .used-stones { margin-top: .75rem; }
   .used-row, .used-quest { min-width: 0; padding: .55rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .used-quest { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .75rem; }
 </style>

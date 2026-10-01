@@ -35,12 +35,12 @@
 {/if}
 
 <style>
-  .side-card { margin-top: 1rem; padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  h2 { margin: 0 0 .75rem; font-size: 1rem; }
+  .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  h2 { margin-bottom: .75rem; font-size: 1rem; }
   .phases { display: grid; gap: .9rem; }
-  h3 { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 .45rem; color: var(--c-text-dim); font-size: var(--c-text-small); font-weight: 700; }
+  h3 { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .45rem; color: var(--c-text-dim); font-size: var(--c-text-small); font-weight: 700; }
   .requirement { color: var(--c-text-mute); font-weight: 400; }
-  ul { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); margin: 0; padding: 0; list-style: none; }
+  ul { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); padding: 0; list-style: none; }
   ul.chips { display: flex; flex-wrap: wrap; }
   .chips li { display: inline-flex; align-items: center; max-width: 100%; min-height: 1.8rem; padding: .2rem .5rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); overflow-wrap: anywhere; }
   .chips :global(.entity-link img) { width: 1.5rem; height: 1.5rem; }

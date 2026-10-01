@@ -33,10 +33,10 @@
 
 <style>
   .groups { display: grid; gap: 1rem; }
-  h3 { margin: 0 0 .5rem; color: var(--c-text-strong); font-size: 1rem; font-weight: 700; }
+  h3 { margin-bottom: .5rem; color: var(--c-text-strong); font-size: 1rem; font-weight: 700; }
   h3 span { margin-left: .25rem; color: var(--c-text-mute); font-size: .875rem; font-weight: 500; }
-  .compact { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--c-line-soft); }
-  .preview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem .8rem; margin: 0; padding: 0; list-style: none; }
+  .compact { padding-top: var(--c-space-block); border-top: 1px solid var(--c-line-soft); }
+  .preview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem .8rem; padding: 0; list-style: none; }
   .preview li { min-width: 0; }
   .all { display: inline-flex; align-items: center; min-height: 1.75rem; margin-top: .6rem; }
   @media (max-width: 640px) { .preview { grid-template-columns: minmax(0, 1fr); } }

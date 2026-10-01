@@ -21,6 +21,7 @@
   export let registry: PublicKindEntry[];
 
   $: facts = document.facts;
+  $: hasQuestText = Boolean(document.description || facts.objectiveText || facts.completedDescription);
   $: step = document.chainQuests.findIndex((quest) => quest.key === document.ref.key);
   $: stats = [
     ...(facts.levelRange ? [{ label: 'Quest level', value: levelText(facts.levelRange) }] : []),
@@ -44,23 +45,26 @@
         <QuestStartSection {document} {registry} />
       </AnswerCard>
     </div>
-    <div slot="side" class="side-content">
+    <svelte:fragment slot="side">
       <QuestChainSection quests={document.chainQuests} currentKey={document.ref.key} chainName={facts.chain?.name} {registry} />
       {#if facts.requirements.length}<section><h2>Requirements</h2><Requirements requirements={facts.requirements} {registry} /></section>{/if}
       {#if sideFacts.length}<FactsGrid facts={sideFacts} />{/if}
       {#if facts.worldQuest}<section class="timing"><h2>World quest timing</h2><p>Active for {intervalText(facts.worldQuest.availableSeconds)}. Returns {intervalText(facts.worldQuest.cooldownAfterCompletionSeconds)} after completion or {intervalText(facts.worldQuest.cooldownAfterExpirySeconds)} after expiry, with up to {intervalText(facts.worldQuest.cooldownJitterSeconds)} extra wait. First appears after a random wait of up to {intervalText(facts.worldQuest.initialRollSeconds)}.</p></section>{/if}
-    </div>
+    </svelte:fragment>
     <Sections>
       <QuestRewardsSection {document} {registry} />
       {#if document.unlocks.length}<Section id="unlocks" title="Unlocks" count={document.unlocks.length}><LinkGrid refs={document.unlocks} {registry} /></Section>{/if}
-      <QuestTextSection {document} />
-      <QuestWorldChangesSection changes={document.worldChanges} {registry} />
+      {#if hasQuestText || document.worldChanges.length}
+        <div class="c-disclosures">
+          {#if hasQuestText}<QuestTextSection {document} />{/if}
+          {#if document.worldChanges.length}<QuestWorldChangesSection changes={document.worldChanges} {registry} />{/if}
+        </div>
+      {/if}
     </Sections>
   </DetailFrame>
 </article>
 
 <style>
-  .side-content { display: grid; gap: 1.25rem; }
-  h2 { margin: 0 0 .5rem; color: var(--c-text-strong); font: 700 1.2rem/1.3 var(--c-serif); }
-  .timing p { margin: 0; color: var(--c-text-dim); line-height: 1.5; }
+  h2 { margin-bottom: .5rem; color: var(--c-text-strong); font: 700 1.2rem/1.3 var(--c-serif); }
+  .timing p { color: var(--c-text-dim); line-height: 1.5; }
 </style>

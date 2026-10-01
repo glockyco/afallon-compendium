@@ -15,7 +15,8 @@
   .fact-row { display: contents; }
   dt { color: var(--c-text-dim); }
   dt a { text-decoration-color: color-mix(in srgb, currentcolor 45%, transparent); }
-  dd { min-width: 0; margin: 0; color: var(--c-text); overflow-wrap: break-word; }
+  dd { min-width: 0; color: var(--c-text); overflow-wrap: break-word; }
   .guide { display: block; margin-top: .2rem; }
-  @media (max-width: 640px) { dd { margin-bottom: .45rem; } }
+  /* On a narrow screen each label sits above its value, and a margin separates one pair from the next. */
+  @media (max-width: 640px) { .fact-row:not(:last-child) dd { margin-bottom: .45rem; } }
 </style>

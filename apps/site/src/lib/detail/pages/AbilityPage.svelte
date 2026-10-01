@@ -29,10 +29,10 @@
       <AbilityReferencesSection versions={document.versions} relation="usedByItems" {registry} compact showAllHref={document.versions.length > 1 ? '#versions' : '#used-by-items'} onShowAll={() => (showAllUsers = true)} />
       {#if !document.versions.some((version) => version.learnedBy.length || version.usedBy.length || version.usedByItems.length)}<p>No published learner or user is known.</p>{/if}
     </AnswerCard></div>
-    <div slot="side" class="side-content">
+    <svelte:fragment slot="side">
       <div class="c-game-frame"><AbilityTooltip {document} variant={main.anchor} /></div>
       {#if main.useRequirements.length}<section><h2>Use requirements</h2><Requirements requirements={main.useRequirements} {registry} kindLabels={false} /></section>{/if}
-    </div>
+    </svelte:fragment>
     <Sections>
       <AbilityVersionsSection versions={document.versions} {registry} {showAllUsers} />
       {#if document.versions.length === 1 && shownRowCount(document.versions[0]!.usedBy.length, false) < document.versions[0]!.usedBy.length}<AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} />{/if}
@@ -42,6 +42,5 @@
 </article>
 
 <style>
-  .side-content { display: grid; gap: 1rem; }
-  h2 { margin: 0 0 .5rem; color: var(--c-text-strong); font: 700 1.2rem/1.3 var(--c-serif); }
+  h2 { margin-bottom: .5rem; color: var(--c-text-strong); font: 700 1.2rem/1.3 var(--c-serif); }
 </style>

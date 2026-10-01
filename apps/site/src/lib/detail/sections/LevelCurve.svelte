@@ -82,7 +82,7 @@
 </div>
 
 <style>
-  .intro, .note { margin: 0 0 .75rem; color: var(--c-text-dim); line-height: 1.5; }
+  .intro, .note { color: var(--c-text-dim); line-height: 1.5; }
   .chart-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
   svg { display: block; width: 100%; min-width: 36rem; height: auto; background: var(--c-surface-sunken); border-radius: var(--c-radius-sm); }
   .chart-scroll.compact svg { min-width: 0; }
@@ -92,10 +92,9 @@
   .marker { stroke: var(--c-text-strong); stroke-width: 1.5; stroke-dasharray: 4 3; }
   .marker-point { fill: var(--c-text-strong); stroke: var(--c-surface-sunken); stroke-width: 2; }
   .tick, .axis-label { fill: var(--c-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: .875rem; }
-  .selector { display: grid; gap: .6rem; margin-top: 1rem; }
-  .note { margin: 0; }
-  .totals { display: grid; gap: .5rem; margin: 0; }
+  .selector { display: grid; gap: .6rem; }
+  .totals { display: grid; gap: .5rem; }
   .totals div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .2rem 1rem; border-bottom: 1px solid var(--c-line-soft); padding-bottom: .5rem; }
   .totals dt { color: var(--c-text-dim); }
-  .totals dd { margin: 0; color: var(--c-text-strong); font-variant-numeric: tabular-nums; }
+  .totals dd { color: var(--c-text-strong); font-variant-numeric: tabular-nums; }
 </style>

@@ -56,12 +56,14 @@
     </Section>
     <GuideSteps steps={document.steps} ruleNumbers={numbers} />
     <Section id="talent-points" title="Talent points">
-      {#each document.talentPoints as points}
-        <div class="point-group">
-          {#if document.talentPoints.length > 1}<h3>{points.name}</h3>{/if}
-          <p>{pointText(points, document.talentPoints.length === 1)}</p>
-        </div>
-      {/each}
+      <div class="c-groups">
+        {#each document.talentPoints as points}
+          <div class="point-group c-stack">
+            {#if document.talentPoints.length > 1}<h3>{points.name}</h3>{/if}
+            <p>{pointText(points, document.talentPoints.length === 1)}</p>
+          </div>
+        {/each}
+      </div>
     </Section>
     <Section id="experience-sources" title="Experience sources">
       <FactList>
@@ -71,11 +73,9 @@
         {#if sources.quests.maxRequirement !== undefined}<FactRow label="Highest quest level requirement">{formatNumber(sources.quests.maxRequirement)}</FactRow>{/if}
       </FactList>
       {#if sources.scalingCreatures.aboveFixed.length}
-        <div class="above-fixed">
-          <DetailsDisclosure id="above-fixed-level" title={`Creatures that can spawn above level ${formatNumber(sources.fixedCreatures.maxLevel)}`} summary={`${formatNumber(sources.scalingCreatures.aboveFixed.length)} creatures that scale with the player`}>
-            <ul>{#each sources.scalingCreatures.aboveFixed as entry}<li><EntityLink ref={entry.creature} {registry} /> <span class="level">Level {npcLevelText({ ...entry.level, scales: false })}</span></li>{/each}</ul>
-          </DetailsDisclosure>
-        </div>
+        <DetailsDisclosure id="above-fixed-level" title={`Creatures that can spawn above level ${formatNumber(sources.fixedCreatures.maxLevel)}`} summary={`${formatNumber(sources.scalingCreatures.aboveFixed.length)} creatures that scale with the player`}>
+          <ul>{#each sources.scalingCreatures.aboveFixed as entry}<li><EntityLink ref={entry.creature} {registry} /> <span class="level">Level {npcLevelText({ ...entry.level, scales: false })}</span></li>{/each}</ul>
+        </DetailsDisclosure>
       {/if}
       <p class="note">These are the highest levels of these sources. Characters still gain experience at higher levels.</p>
     </Section>
@@ -99,15 +99,11 @@
 </article>
 
 <style>
-  .point-group p, .table-intro { margin: 0 0 .75rem; line-height: 1.55; }
-  .point-group p:last-child { margin-bottom: 0; }
-  .point-group + .point-group { margin-top: .9rem; }
-  /* The facts, the disclosure, and the note are separate blocks, so each starts a block apart from the one above. */
-  .above-fixed, .note { margin: 1rem 0 0; }
+  .point-group p, .table-intro { line-height: 1.55; }
   .note { color: var(--c-text-dim); line-height: 1.55; }
-  ul { margin: 0; padding-left: 1.4rem; line-height: 1.8; }
+  ul { padding-left: 1.4rem; line-height: 1.8; }
   .level { color: var(--c-text-dim); }
-  h3 { margin: 0 0 .35rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
+  h3 { color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
   .table-scroll { max-width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
   th, td { padding: .55rem .7rem; border-bottom: 1px solid var(--c-line); }
