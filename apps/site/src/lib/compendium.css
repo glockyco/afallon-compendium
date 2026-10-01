@@ -6,6 +6,7 @@ html { font-size: 100%; }
 body { font-size: 1rem; line-height: 1.5; }
 
 :root {
+  color-scheme: dark;
   /* The palette. Every color of the site's styles is one of these tokens or a transparent mix of one. */
   /* Surfaces, from the deepest backdrop to raised panels. */
   --c-surface-deep: #101111;
