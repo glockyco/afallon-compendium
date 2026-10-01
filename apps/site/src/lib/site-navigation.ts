@@ -12,7 +12,7 @@ const SECTIONS: ReadonlyArray<{ id: string; label: string; entries: readonly str
   { id: 'world', label: 'World', entries: ['map', 'places', 'npcs', 'quests', 'properties'] },
   { id: 'items', label: 'Items', entries: ['items', 'recipes', 'gatheringNodes'] },
   { id: 'character', label: 'Character', entries: ['classes', 'skills', 'abilities'] },
-  { id: 'guides', label: 'Guides', entries: ['mechanics'] },
+  { id: 'mechanics', label: 'Mechanics', entries: ['mechanics'] },
 ];
 
 /**
@@ -23,9 +23,9 @@ export function siteNavigation(registry: readonly PublicKindEntry[], base: strin
   const byKind = new Map<string, PublicKindEntry>(registry.filter((entry) => entry.pages || entry.list).map((entry) => [entry.kind, entry]));
   const named = new Set(SECTIONS.flatMap((section) => section.entries));
   const link = (entry: PublicKindEntry): NavigationLink => ({ label: entry.plural, href: `${base}/${entry.route}/` });
-  // The registry names kinds, not individual guide documents. These are the published mechanics topics.
+  // The registry names kinds, not individual mechanics documents. These are the published mechanics topics.
   const mechanics = byKind.get('mechanics');
-  const guides: NavigationLink[] = mechanics ? [
+  const topics: NavigationLink[] = mechanics ? [
     { label: 'Character Progression', href: `${base}/${mechanics.route}/character-progression/` },
     { label: 'Heroic Tier', href: `${base}/${mechanics.route}/heroic-tier/` },
     { label: 'Crafting and Gathering', href: `${base}/${mechanics.route}/crafting-and-gathering/` },
@@ -33,7 +33,7 @@ export function siteNavigation(registry: readonly PublicKindEntry[], base: strin
   ] : [];
   const links = (id: string): NavigationLink[] => {
     if (id === 'map') return [{ label: 'Map', href: `${base}/map/` }];
-    if (id === 'mechanics') return guides;
+    if (id === 'mechanics') return topics;
     const entry = byKind.get(id);
     return entry ? [link(entry)] : [];
   };
