@@ -130,7 +130,7 @@ A reference to a talent of a published class SHALL link to the class page and to
 - **THEN** the requirement links to the Weighted Strikes row on the Shieldmaster page
 
 #### Scenario: Talent of a class without a page
-- **WHEN** a reference names a talent of the Hunter class, and no race offers Hunter
+- **WHEN** a reference names a talent of a class that no race offers
 - **THEN** the reference shows the talent name without a link
 
 ### Requirement: Reviewed exclusions keep internal records unpublished

@@ -249,8 +249,8 @@ A passive talent rank SHALL show its changes to pets after its own changes. A ch
 - **AND** the page links Character Progression
 
 #### Scenario: Class that no race offers
-- **WHEN** no race offers Hunter
-- **THEN** it has no page and an authored Hunter requirement remains readable without a broken link
+- **WHEN** no race offers a class
+- **THEN** the class has no page and an authored requirement that names the class remains readable without a broken link
 
 #### Scenario: Passive talent with five ranks
 - **WHEN** Aegis Discipline gives 2 Block chance at rank 1 and 10 at rank 5
