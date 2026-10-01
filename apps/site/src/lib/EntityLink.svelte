@@ -132,7 +132,10 @@
   /* The icon scales with the text. `middle` centers it on the lower-case letters, and the lift moves it to the
      center of the whole line of letters. */
   img, .kind-icon { box-sizing: border-box; width: 1.45em; height: 1.45em; margin-right: .35em; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); object-fit: contain; vertical-align: middle; position: relative; top: -.12em; }
-  :global(.relation-table) img, :global(.relation-table) .kind-icon { width: 2rem; height: 2rem; }
+  /* Tables show pictures at 2rem. A kind glyph has no picture, so it keeps the text size and centers in the same 2rem
+     slot: names still line up when a column mixes pictures and glyphs. */
+  :global(.relation-table) img { width: 2rem; height: 2rem; }
+  :global(.relation-table) .kind-icon { margin-left: calc((2rem - 1.45em) / 2); margin-right: calc((2rem - 1.45em) / 2 + .35em); }
   :global(.relation-table) .entity-link img[src], :global(.relation-table) .entity-text img[src] { object-fit: cover; }
   .kind-icon { display: inline-grid; place-items: center; border-color: var(--c-frame); background: var(--c-surface-2); color: var(--c-text-mute); }
   .kind-icon :global(svg) { width: .65em; height: .65em; }
