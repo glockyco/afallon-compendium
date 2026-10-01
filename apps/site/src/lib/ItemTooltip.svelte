@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PublicItem, PublicKindEntry, Ref } from '@afallon/contracts/public';
   import { categoryLabel } from '@afallon/contracts/public';
+  import { corruptionDisplay, tooltipStat } from './detail/corruption';
   import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
   import EntityReference from './EntityReference.svelte';
   import NativeText from './NativeText.svelte';
@@ -12,13 +13,15 @@
   // A hover tooltip names them with EntityReference, because a link opens a tooltip of its own.
   export let document: PublicItem;
   export let registry: PublicKindEntry[];
+  export let corruptionLevel = 0;
 
   $: facts = document.facts;
   // The game adds the damage block only for a weapon whose maximum damage is above zero, and the block names the attack
   // speed only when it is above zero (`ItemTooltip.Show` and `ItemTooltip.WeaponDamageBlock`, build 25434619). A shield
   // has zero damage and zero attack speed, so its tooltip shows neither line.
-  $: showsDamage = (facts.maxDamage ?? 0) > 0;
-  $: damage = showsDamage ? rangeText(facts.minDamage, facts.maxDamage) : null;
+  $: calculated = corruptionLevel > 0 ? corruptionDisplay(facts, corruptionLevel) : undefined;
+  $: showsDamage = (calculated?.maxDamage ?? facts.maxDamage ?? 0) > 0;
+  $: damage = showsDamage ? rangeText(calculated?.minDamage ?? facts.minDamage, calculated?.maxDamage ?? facts.maxDamage) : null;
   $: attackSpeed = showsDamage && facts.attackSpeed !== undefined && facts.attackSpeed > 0 ? facts.attackSpeed : undefined;
   $: gearType = facts.weaponType ?? facts.armorType;
   $: slot = facts.weaponType && facts.weaponSlot ? facts.weaponSlot : facts.slot;
@@ -35,13 +38,14 @@
   <EntityHeader name={document.ref.name} art={document.art.icon ?? document.ref.icon} rarity={rarityTone(facts.rarity)} facts={headerFacts} compact />
 
   <div class="lines">
-    {#if facts.itemPower !== undefined}<p class="item-power">Item power <strong>{formatNumber(facts.itemPower)}</strong></p>{/if}
+    {#if facts.itemPower !== undefined}<p class="item-power">Item power <strong>{formatNumber(calculated?.itemPower ?? facts.itemPower)}</strong></p>{/if}
     {#if damage}
-      <p><strong>{damage}</strong> Damage{#if facts.damagePerSecond !== undefined}{' '}<span class="dim">({facts.damagePerSecond.toFixed(1)} damage per second)</span>{/if}</p>
+      <p><strong>{damage}</strong> Damage{#if facts.damagePerSecond !== undefined}{' '}<span class="dim">({(calculated?.damagePerSecond ?? facts.damagePerSecond).toFixed(1)} damage per second)</span>{/if}</p>
     {/if}
     {#if attackSpeed !== undefined}<p><strong>{formatNumber(attackSpeed)}</strong> Attack speed</p>{/if}
+    {#if calculated}<p class="good">Corruption +{corruptionLevel}</p>{/if}
 
-    {#each facts.stats as stat}<p class="good">{signedAmount(stat.amount, stat.isPercent)} {statName(stat)}</p>{/each}
+    {#each calculated?.stats ?? facts.stats as stat}<p class="good">{calculated ? `${stat.amount < 0 ? '-' : '+'}${tooltipStat(Math.abs(stat.amount))}${stat.isPercent ? '%' : ''}` : signedAmount(stat.amount, stat.isPercent)} {statName(stat)}</p>{/each}
     {#if facts.randomStats.length}
       <div class="group">
         <p class="dim">{facts.randomStatsMax > 0 ? `Up to ${facts.randomStatsMax} random stats` : 'Random stats'}</p>

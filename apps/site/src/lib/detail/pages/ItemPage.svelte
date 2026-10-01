@@ -8,9 +8,9 @@
   import { formatNumber, rarityTone } from '../../format';
   import { itemOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
-  import CorruptionPreview from '../CorruptionPreview.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import LevelSlider from '../LevelSlider.svelte';
   import MaterialsList from '../MaterialsList.svelte';
   import RecipeEquation from '../RecipeEquation.svelte';
   import { craftExperienceSentence, itemSourceLines, lineHref } from '../item-sources';
@@ -32,6 +32,7 @@
   export let registry: PublicKindEntry[];
 
   let showAllRecipes = false;
+  let corruptionLevel = 0;
   $: facts = document.facts;
   $: tone = rarityTone(facts.rarity);
   $: sources = itemSourceLines(document);
@@ -86,7 +87,14 @@
     </svelte:fragment>
 
     <svelte:fragment slot="side">
-      <div class="c-game-frame"><ItemTooltip {document} {registry}><svelte:fragment slot="ref" let:ref let:rankIndex><EntityLink {ref} {rankIndex} {registry} /></svelte:fragment></ItemTooltip></div>
+      <div class="c-game-frame"><ItemTooltip {document} {registry} {corruptionLevel}><svelte:fragment slot="ref" let:ref let:rankIndex><EntityLink {ref} {rankIndex} {registry} /></svelte:fragment></ItemTooltip></div>
+      {#if facts.corruption}
+        <div id="corruption" class="corruption-control">
+          <LevelSlider id="corruption-level" label="Corruption level" min={0} max={facts.corruption.maxLevel} bind:level={corruptionLevel} readout={(level) => level === 0 ? 'None' : `+${level}`} valueText={(level) => level === 0 ? 'None' : `+${level}`} />
+          {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} stepId={corruptionGuide.stepId} label="How corruption works" />{/if}
+          {#if corruptionLevel > 0 && (facts.randomStats.length || facts.randomStatsMax > 0 || facts.sockets.length || facts.gem)}<p>Random stats and gems do not change.</p>{/if}
+        </div>
+      {/if}
       {#if document.description}<p class="description">{document.description}</p>{/if}
       {#if facts.buyPrice}<p class="side-fact">Buy price <Price price={facts.buyPrice} showName /></p>{/if}
       {#if facts.stackLimit > 1}<p class="side-fact">Stack size {formatNumber(facts.stackLimit)}</p>{/if}
@@ -94,9 +102,6 @@
     </svelte:fragment>
 
     <Sections>
-    {#if facts.corruption}
-      <Section id="corruption" title="Corruption"><CorruptionPreview {facts} guide={corruptionGuide} /></Section>
-    {/if}
     {#if facts.tokenInfo}
       <Section id="token-effect" title="Corruption token effects">
         <div class="token-effects">
@@ -157,6 +162,8 @@
   .route-count, .qualification { color: var(--c-text-dim); font-size: var(--c-text-small); }
   .route-more { justify-self: start; font-size: var(--c-text-small); min-height: 1.5rem; }
   .route p, .description, .side-fact { margin: 0; line-height: 1.5; }
+  .corruption-control { display: grid; gap: .6rem; margin-top: 1rem; scroll-margin-top: 1rem; }
+  .corruption-control p { margin: 0; color: var(--c-text-dim); line-height: 1.5; }
   .description { margin-top: 1rem; color: var(--c-text-dim); }
   .side-fact { display: flex; justify-content: space-between; gap: .75rem; margin-top: .75rem; }
   .token-effects { display: grid; gap: .7rem; }

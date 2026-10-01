@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { LevelCurve as LevelCurveData } from '@afallon/contracts/public';
   import { cumulativeExperience } from '../level-curve';
+  import LevelSlider from '../LevelSlider.svelte';
 
   export let curve: LevelCurveData;
   /** The subject of the curve in labels: "Character" or a skill name. */
@@ -41,9 +42,6 @@
   function y(value: number): number {
     return top + (logMax - Math.log10(value)) / Math.max(1, logMax - logMin) * plotHeight;
   }
-  function select(value: number): void {
-    if (Number.isFinite(value)) level = Math.min(curve.cap, Math.max(1, Math.trunc(value)));
-  }
 </script>
 
 <p class="intro">Each point shows the experience needed to advance from that level to the next. The vertical axis uses a logarithmic scale.</p>
@@ -74,11 +72,7 @@
   </svg>
 </div>
 <div class="selector">
-  <label for={`${uid}-level`}>{subject} level: {format(level)}</label>
-  <div class="controls">
-    <input id={`${uid}-level`} type="range" min="1" max={curve.cap} step="1" value={level} on:input={(event) => select(event.currentTarget.valueAsNumber)} />
-    <input class="level-number" type="number" min="1" max={curve.cap} step="1" value={level} aria-label={`${subject} level number`} on:change={(event) => { select(event.currentTarget.valueAsNumber); event.currentTarget.value = String(level); }} />
-  </div>
+  <LevelSlider id={`${uid}-level`} label={`${subject} level`} min={1} max={curve.cap} bind:level readout={format} />
   <p class="note">These totals show a fresh start. They do not include saved progress.</p>
   <dl class="totals">
     <div><dt>Experience to next level</dt><dd>{format(next)}</dd></div>
@@ -99,10 +93,6 @@
   .marker-point { fill: var(--c-text-strong); stroke: var(--c-surface-sunken); stroke-width: 2; }
   .tick, .axis-label { fill: var(--c-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: .875rem; }
   .selector { display: grid; gap: .6rem; margin-top: 1rem; }
-  .selector label { color: var(--c-text-strong); font-weight: 600; }
-  .controls { display: flex; align-items: center; gap: .75rem; }
-  .controls input[type='range'] { flex: 1; min-width: 0; accent-color: var(--c-accent); }
-  .level-number { box-sizing: border-box; width: 5rem; padding: .35rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); font: inherit; }
   .note { margin: 0; }
   .totals { display: grid; gap: .5rem; margin: 0; }
   .totals div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .2rem 1rem; border-bottom: 1px solid var(--c-line-soft); padding-bottom: .5rem; }
