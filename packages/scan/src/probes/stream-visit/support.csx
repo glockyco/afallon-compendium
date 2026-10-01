@@ -46,13 +46,16 @@ var getLoading = new System.Func<Il2Cpp.AddressableLoader, bool>(loader => (bool
 var getHandle = new System.Func<Il2Cpp.AddressableLoader, bool>(loader => (bool)handleProperty.GetValue(loader));
 var getHold = new System.Func<Il2Cpp.AddressableLoader, float>(loader => (float)holdProperty.GetValue(loader));
 var setHold = new System.Action<Il2Cpp.AddressableLoader, float>((loader, value) => holdProperty.SetValue(loader, value));
-// Requests a visit-owned load: hold the loader, then start its native preload.
+// Requests a visit-owned load: hold the loader, then start its native preload. The game can release a
+// requested load, so a visit requests each source at most maxRequestsPerSource times.
+const int maxRequestsPerSource = 3;
 var requestLoad = new System.Action<System.Collections.Generic.Dictionary<string, object>, float>((row, holdSeconds) =>
 {
     var target = row["loader"] as Il2Cpp.AddressableLoader;
     row["holdChanged"] = true;
     target.HoldLoaded(holdSeconds);
     row["preloadRequested"] = true;
+    row["requestCount"] = (int)row["requestCount"] + 1;
     preloadMethod.Invoke(target, null);
 });
 // ChunkHider deactivates the content of terrain chunks far from the player, so whether a distant

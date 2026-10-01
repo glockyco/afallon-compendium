@@ -136,6 +136,7 @@ if (action == "start")
         row["releaseRequested"] = false;
         row["ownedRoot"] = null;
         row["preloadRequested"] = false;
+        row["requestCount"] = 0;
         row["holdChanged"] = false;
         rows.Add(row);
     }

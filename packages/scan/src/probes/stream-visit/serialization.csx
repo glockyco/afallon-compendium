@@ -78,16 +78,13 @@ if (action == "poll")
             throw new System.InvalidOperationException("A stream visit loader disappeared during preload.");
         if (getAsset(target) == null && !getLoading(target) && !getHandle(target))
         {
-            // In 0.16.3 a loader releases its instance when the game deactivates it, even while a hold lasts
-            // (AddressableLoader.OnDisable, build 25653798). ChunkHider shows a held chunk again, so a released
-            // loader that is inactive is requested again once it is active. An active loader that stopped
-            // without an instance failed to load.
-            if (!target.gameObject.activeInHierarchy)
-            {
-                row["preloadRequested"] = false;
-                continue;
-            }
-            throw new System.InvalidOperationException("A requested streamed asset stopped without producing an instance: " + (string)row["assetGuid"] + " (loader " + target.gameObject.name + ", enabled " + target.enabled + ").");
+            // In 0.16.3 a loader releases its instance or its load in flight when the game deactivates it, even
+            // while a hold lasts (AddressableLoader.OnDisable, build 25653798). ChunkHider can deactivate and show a
+            // held chunk again between two polls, so a released request goes back to the preload batch, which
+            // requests it again once the loader is active. A source that the game keeps releasing fails the visit.
+            if ((int)row["requestCount"] >= maxRequestsPerSource)
+                throw new System.InvalidOperationException("A requested streamed asset stopped without producing an instance after " + (int)row["requestCount"] + " requests: " + (string)row["assetGuid"] + " (loader " + target.gameObject.name + ", active " + target.gameObject.activeInHierarchy + ", enabled " + target.enabled + ").");
+            row["preloadRequested"] = false;
         }
     }
     stateRequestPreloadBatch();
