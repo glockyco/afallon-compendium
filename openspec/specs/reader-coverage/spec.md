@@ -39,7 +39,7 @@ The reader-facing coverage page SHALL show the number of published pages per kin
 
 ### Requirement: The publication graph verifies coverage
 
-The coverage resource SHALL use `compendium.static-coverage.v2`. The graph SHALL check that its map and placement counts match the root. It SHALL check that page counts match published documents and each gap reference points to a published page. Operator gate counts and publication issues SHALL remain in publish command output rather than reader coverage.
+The coverage resource SHALL use the registered static coverage schema. The graph SHALL check that its map and placement counts match the root. It SHALL check that page counts match published documents and each gap reference points to a published page. Operator gate counts and publication issues SHALL remain in publish command output rather than reader coverage.
 
 #### Scenario: A gap names an unpublished page
 - **WHEN** a coverage gap references a page absent from the publication
