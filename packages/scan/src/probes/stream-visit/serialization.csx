@@ -1,16 +1,15 @@
 
     // Nothing above mutates loader state. Register restoration before the first HoldLoaded call.
     // A loaded source only needs its hold. The others load in bounded batches, and a source under
-    // a hidden chunk joins a batch once its chunk hold has activated it.
+    // a hidden chunk joins a batch once its chunk hold has activated it. Every source of the visit
+    // holds its chunk shown: in build 25653798 ChunkHider.HideChunk deactivates a chunk root, and
+    // AddressableLoader.OnDisable then releases the instance even while its hold lasts.
     foreach (var row in rows)
     {
         if ((string)row["skippedReason"] != null || (bool)row["gameOwned"]) continue;
         var target = row["loader"] as Il2Cpp.AddressableLoader;
-        if ((bool)row["chunkHidden"])
-        {
-            row["chunkHold"] = Il2Cpp.ChunkHider.HoldPosition(target.transform.position);
-            continue;
-        }
+        row["chunkHold"] = Il2Cpp.ChunkHider.HoldPosition(target.transform.position);
+        if ((bool)row["chunkHidden"]) continue;
         if (!(bool)row["initiallyLoaded"]) continue;
         row["holdChanged"] = true;
         target.HoldLoaded(holdSecondsFloat);
@@ -78,7 +77,14 @@ if (action == "poll")
         if (target == null || target.gameObject == null)
             throw new System.InvalidOperationException("A stream visit loader disappeared during preload.");
         if (getAsset(target) == null && !getLoading(target) && !getHandle(target))
-            throw new System.InvalidOperationException("A requested streamed asset stopped without producing an instance: " + (string)row["assetGuid"] + ".");
+        {
+            // In 0.16.3 a loader releases its instance when its GameObject is disabled, even while a hold lasts
+            // (AddressableLoader.OnDisable, build 25653798). Name the inactive ancestor so the cause is visible.
+            string inactive = null;
+            for (var node = target.transform; node != null && inactive == null; node = node.parent)
+                if (!node.gameObject.activeSelf) inactive = node.gameObject.name;
+            throw new System.InvalidOperationException("A requested streamed asset stopped without producing an instance: " + (string)row["assetGuid"] + " (loader " + target.gameObject.name + ", active " + target.gameObject.activeInHierarchy + ", enabled " + target.enabled + ", inactive ancestor " + (inactive ?? "none") + ").");
+        }
     }
     stateRequestPreloadBatch();
 

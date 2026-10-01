@@ -19,7 +19,7 @@
             var target = row["loader"] as Il2Cpp.AddressableLoader;
             if (target == null || target.gameObject == null)
                 throw new System.InvalidOperationException("A stream visit loader disappeared before preload.");
-            if (row["chunkHold"] != null)
+            if ((bool)row["chunkHidden"])
             {
                 if (!target.gameObject.activeInHierarchy) continue;
                 // The shown chunk put the loader within the player's load distance, and the game
