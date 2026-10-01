@@ -9,5 +9,5 @@
 
 ## 3. Proof
 
-- [ ] 3.1 Check a tank kit item, an equipment band item with a player source, and the coverage page in the browser at 1440 and 390 px.
-- [ ] 3.2 Run the repository checks and `openspec validate show-adventurer-gear --strict`.
+- [x] 3.1 Check a tank kit item, an equipment band item with a player source, and the coverage page in the browser at 1440 and 390 px. Checked Ironbark Helm (only adventurers, Agra Emberhide), Windscar Warbow (band and job reward rows, player routes kept), and the coverage group.
+- [x] 3.2 Run the repository checks and `openspec validate show-adventurer-gear --strict`.
