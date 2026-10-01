@@ -4,10 +4,10 @@ import type { ReferenceResolver } from "./documents";
 import { guideStepFor } from "./guide-steps";
 
 export const MECHANICS_TOPIC_NAMES: Readonly<Record<MechanicsTopic, { name: string; description: string }>> = {
-  "character-progression": { name: "Character Progression", description: "How a character gains experience, levels, and talent points in this build." },
-  "heroic-tier": { name: "Heroic Tier", description: "How the Heroic tier changes kill experience, Heroic Essence, creatures, and gear in this build." },
-  "crafting-and-gathering": { name: "Crafting and Gathering", description: "How crafting and gathering give items and skill experience in this build." },
-  corruption: { name: "Corruption", description: "How Corruption Tokens, timed dungeons, and corrupted equipment work in this build." },
+  "character-progression": { name: "Character Progression", description: "How a character gains experience, levels, and talent points." },
+  "heroic-tier": { name: "Heroic Tier", description: "How the Heroic tier changes kill experience, Heroic Essence, creatures, and gear." },
+  "crafting-and-gathering": { name: "Crafting and Gathering", description: "How crafting and gathering give items and skill experience." },
+  corruption: { name: "Corruption", description: "How Corruption Tokens, timed dungeons, and corrupted equipment work." },
 };
 
 export function topicRef(topic: MechanicsTopic): EntityRef {
@@ -28,7 +28,7 @@ export function appearsOn(rule: CatalogMechanicsRule): string[] {
 }
 
 export function projectRule(rule: CatalogMechanicsRule, resolve: ReferenceResolver): MechanicsRule {
-  return { id: rule.ruleId, section: rule.section, status: rule.status, phrase: rule.phrase, operands: rule.operands, links: rule.links.map(resolve),
+  return { id: rule.ruleId, section: rule.section, status: rule.status, phrase: rule.phrase.replace("authored experience", "base experience").replace("was not verified", "is unknown"), operands: rule.operands, links: rule.links.map(resolve),
     sources: rule.sources.map((source) => ({ method: source.method, evidence: source.description })), appearsOn: appearsOn(rule) };
 }
 

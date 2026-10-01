@@ -16,7 +16,7 @@ An item page SHALL show the item name in its title block, with a map action when
 
 #### Scenario: No source is published
 - **WHEN** no source relation is published for an item
-- **THEN** its hero says that no way to get the item is known for this build
+- **THEN** its hero says "No known way to get this item."
 
 #### Scenario: Starting gear of three classes
 - **WHEN** Wizard, Necromancer, and Druid start with Novice Staff

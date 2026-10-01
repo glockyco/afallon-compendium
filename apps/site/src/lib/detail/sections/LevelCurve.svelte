@@ -79,7 +79,7 @@
     <input id={`${uid}-level`} type="range" min="1" max={curve.cap} step="1" value={level} on:input={(event) => select(event.currentTarget.valueAsNumber)} />
     <input class="level-number" type="number" min="1" max={curve.cap} step="1" value={level} aria-label={`${subject} level number`} on:change={(event) => { select(event.currentTarget.valueAsNumber); event.currentTarget.value = String(level); }} />
   </div>
-  <p class="note">These are totals from the level template for a fresh start, not saved progress.</p>
+  <p class="note">These totals show a fresh start. They do not include saved progress.</p>
   <dl class="totals">
     <div><dt>Experience to next level</dt><dd>{format(next)}</dd></div>
     <div><dt>Experience earned before level {format(level)}</dt><dd>{format(earned)}</dd></div>

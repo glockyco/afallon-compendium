@@ -30,7 +30,7 @@
 </script>
 
 <details id="all-rules" class="rules-disclosure" bind:this={disclosure}>
-  <summary>All rules and evidence</summary>
+  <summary>All rules and sources</summary>
   {#each sections as section}
     <div class="rule-group">
       <h3>{titles[section] ?? section.replaceAll('-', ' ')}</h3>
@@ -39,9 +39,9 @@
           <p><span class="number">{numbers.get(rule.id)}.</span> {#if rule.status === 'unknown'}<strong class="unknown">Unknown: </strong>{/if}<RulePhrase {rule} {registry} /></p>
           <div class="evidence">
             {#each rule.sources as source}
-              <p><strong>{source.method}</strong>: {source.evidence}</p>
+              <p><strong>{source.method}.</strong> {source.evidence}</p>
             {/each}
-            {#if rule.appearsOn.length}<p>Also on: {rule.appearsOn.join('; ')}</p>{/if}
+            {#if rule.appearsOn.length}<p>Also on {rule.appearsOn.join(', ')}</p>{/if}
           </div>
         </div>
       {/each}

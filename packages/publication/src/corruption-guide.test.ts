@@ -105,7 +105,7 @@ test("unavailable build inputs cannot create numeric guide claims or an item exa
   expect(unavailable.example).toBeUndefined();
   expect(unavailable.affixes).toBeUndefined();
   expect(unavailable.heartRequirements).toBeUndefined();
-  expect(unavailable.unknowns).toContain("The challenge-stone requirement scan was unavailable for this build.");
+  expect(unavailable.unknowns).toContain("Challenge-stone requirements are unavailable.");
   expect(unavailable.dungeons[0]).toEqual({ place: expect.objectContaining({ name: "Duskfall Depths" }) });
 });
 

@@ -80,7 +80,7 @@
               </li>
             {/each}
           </ul>
-        {:else}<p>No way to get this item is known for this build.</p>{/if}
+        {:else}<p>No known way to get this item.</p>{/if}
       </AnswerCard>
     </svelte:fragment>
 
@@ -98,7 +98,7 @@
     {#if facts.tokenInfo}
       <Section id="token-effect" title="Corruption token effects">
         <div class="token-effects">
-          <p>A token template has no saved value or affixes. A saved token's tooltip begins: “Use at a Corruption Altar to increase dungeon corruption by +N.” N is that token's own saved value, not a gear level.</p>
+          <p>A token without a saved value has no affixes. A saved token's tooltip begins: “Use at a Corruption Altar to increase dungeon corruption by +N.” N is the token's saved value. It is separate from a gear level.</p>
           {#if facts.tokenInfo.mobStatBonuses?.length}
             <p><strong>NPC stat bonuses:</strong> {facts.tokenInfo.mobStatBonuses.map((bonus) => `+${formatNumber(bonus.amountPerLevel)}${bonus.isPercent ? '%' : ''} × N ${bonus.stat.key === null ? bonus.stat.label : bonus.stat.name}`).join(', ')}.</p>
           {/if}
@@ -120,7 +120,7 @@
         </div>{/if}
         {#if questUses.length}<div id="needed-for-quests" class="used-quests">{#each questUses as row}<div class="used-quest"><EntityLink ref={row.quest} {registry} />{#if row.count && row.count > 1}<span>×{row.count}</span>{/if}{#each row.objectives as objective}<span><ObjectiveText {objective} /></span>{/each}</div>{/each}</div>{/if}
       </Section>
-    {:else if !document.teaches && !document.buys.length}<Section id="used-for" title="Used for"><p>Nothing in this build uses {document.ref.name} as a material or quest item.</p></Section>{/if}
+    {:else if !document.teaches && !document.buys.length}<Section id="used-for" title="Used for"><p>No known recipe or quest uses {document.ref.name}.</p></Section>{/if}
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
     {#if document.buys.length}
       <Section id="buys" title="Buys" count={document.buys.length}>

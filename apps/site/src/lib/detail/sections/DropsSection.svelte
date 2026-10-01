@@ -34,8 +34,8 @@
           <RelationTable columns={planColumns(columns, group).columns} rows={group} label={groups.length > 1 ? `Loot table ${index + 1}` : 'Drops'} sort={{ id: 'chance', dir: 'desc' }}>
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />
-              {:else if column === 'quantity'}{#if row.min !== undefined || row.max !== undefined}{rangeText(row.min, row.max)}{:else}Unknown <MissingValue explanation={nameOf(row.counterpart) === 'Gold' ? 'The authored quantity range is invalid' : 'No quantity is published for this drop'} />{/if}
-              {:else if column === 'chance'}{#if row.chance === undefined}<MissingValue explanation="No item chance is published for this build" />{:else}{formatNumber(row.chance)}%{/if}
+              {:else if column === 'quantity'}{#if row.min !== undefined || row.max !== undefined}{rangeText(row.min, row.max)}{:else}Unknown <MissingValue explanation={nameOf(row.counterpart) === 'Gold' ? 'The quantity range is invalid' : 'Drop quantity unknown'} />{/if}
+              {:else if column === 'chance'}{#if row.chance === undefined}<MissingValue explanation="Item drop chance unknown" />{:else}{formatNumber(row.chance)}%{/if}
               {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />
               {:else if column === 'variant'}{#if row.variants}<VariantLinks anchors={row.variants} {variants} />{:else}All{/if}{/if}
             </svelte:fragment>

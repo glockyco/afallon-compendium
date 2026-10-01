@@ -95,7 +95,7 @@
           {#if document.experience.autoAttack}
             <li><strong>Auto-attack hits</strong><span>Each hit with this weapon type awards {formatNumber(document.experience.autoAttack.perHit)} skill experience below the highest level.</span></li>
           {/if}
-          {#if !document.experience.crafting && !document.experience.gathering && !document.experience.autoAttack}<li>No verified experience source is published for this skill.</li>{/if}
+          {#if !document.experience.crafting && !document.experience.gathering && !document.experience.autoAttack}<li>No known experience source is listed for this skill.</li>{/if}
         </ul>
         {#if levelingGuide}<p class="guide"><HowItWorks guide={levelingGuide.guide} stepId={levelingGuide.stepId} /></p>{/if}
       </AnswerCard>

@@ -14,7 +14,7 @@
 
   const format = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 4 });
   $: sources = document.sources;
-  $: fixedText = `${format(sources.fixedCreatures.count)} fixed-level creatures with experience have authored levels ${rangeText(sources.fixedCreatures.minLevel, sources.fixedCreatures.maxLevel)}.`;
+  $: fixedText = `${format(sources.fixedCreatures.count)} fixed-level creatures with experience have levels ${rangeText(sources.fixedCreatures.minLevel, sources.fixedCreatures.maxLevel)}.`;
   $: scalingText = [`${format(sources.scalingCreatures.count)} creatures with experience scale with the player. The zone range of each spawner limits their level.`,
     sources.scalingCreatures.aboveFixed.length ? `These scaling creatures can spawn above level ${format(sources.fixedCreatures.maxLevel)}:` : ''].filter(Boolean).join(' ');
   $: questText = [`${format(sources.quests.count)} quests with experience have a highest quest level of ${format(sources.quests.maxLevel)}.`,

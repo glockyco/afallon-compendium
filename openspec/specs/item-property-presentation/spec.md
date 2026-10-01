@@ -30,7 +30,7 @@ An item page SHALL show its name and applicable map action in the title, and its
 
 #### Scenario: No source is published
 - **WHEN** no source relation is published for an item
-- **THEN** How to get it says no way to get this item is known for this build
+- **THEN** How to get it says "No known way to get this item."
 
 #### Scenario: Starting gear of three classes
 - **WHEN** Wizard, Necromancer, and Druid start with Novice Staff

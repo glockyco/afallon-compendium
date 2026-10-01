@@ -37,7 +37,7 @@
         {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />
         {:else if column === 'level'}{#if row.creatureLevel}{creatureLevelText(row.creatureLevel)}{/if}
         {:else if column === 'quantity'}{rangeText(row.min, row.max) ?? ''}
-        {:else if column === 'chance'}{#if row.chance === undefined}<MissingValue explanation="No chance is published for this build" />{:else}{formatNumber(row.chance)}%{/if}
+        {:else if column === 'chance'}{#if row.chance === undefined}<MissingValue explanation="Drop chance unknown" />{:else}{formatNumber(row.chance)}%{/if}
         {:else if column === 'perKill'}{dropsPerKillText(row)}
         {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />{/if}
       </svelte:fragment>

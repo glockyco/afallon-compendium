@@ -12,7 +12,7 @@
   <h4>How to get it</h4>
   {#if lines.length}
     <dl>{#each lines as line}<div><dt>{line.label}</dt><dd>{summaryText(line)}</dd></div>{/each}</dl>
-  {:else}<p>No way to get this item is known for this build.</p>{/if}
+  {:else}<p>No known way to get this item.</p>{/if}
 </section>
 
 <style>

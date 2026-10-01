@@ -105,9 +105,9 @@
             <thead><tr><th scope="col">Spawners</th><th scope="col">Options</th>{#each shareLevels as level}<th scope="col">Level {formatNumber(level)}</th>{/each}</tr></thead>
             <tbody>{#each shareRows as row}<tr><td>{formatNumber(row.spawners)}</td><td>{formatNumber(row.options)}</td>{#each shareLevels as level}<td>{#if row.shares.has(level)}{formatNumber(row.shares.get(level) ?? 0)}%{/if}</td>{/each}</tr>{/each}</tbody>
           </table>
-          <p class="explanation">Each spawner picks one of its group's options. The chance depends on the {skillName ?? 'gathering'} level and does not include attunement.{#if missingShare} An empty cell has no supported value.{/if}</p>
+          <p class="explanation">Each spawner picks one of its group's options. The chance depends on the {skillName ?? 'gathering'} level and does not include attunement.{#if missingShare} An empty cell means the chance is unknown.{/if}</p>
         {:else if spawnerTotal}
-          <p class="explanation">A supported chance to choose this node is not available for these spawners.</p>
+          <p class="explanation">The chance of choosing this node is unknown for these spawners.</p>
         {/if}
       {/if}
       {#if document.facts.variant}<p class="explanation">Another node shares this name but has different requirements, experience, or yields.</p>{/if}
@@ -119,8 +119,8 @@
     </Section>
 
     {#if document.spawners.length}
-      <DetailsDisclosure title="Spawn odds" id="spawn-odds" summary="Weights and supported shares by skill level">
-        <p class="intro">Each spawner chooses among its options. A weight is not a chance; shares appear only when verified.</p>
+      <DetailsDisclosure title="Spawn odds" id="spawn-odds" summary="Weights and chances by skill level">
+        <p class="intro">Each spawner chooses among its options. Weights determine each option's chance. Some chances are unknown.</p>
         {#each document.spawners as group, index}
           <h3>{group.skill ? nameOf(group.skill) : 'Spawner'}{document.spawners.length > 1 ? ` · Group ${index + 1}` : ''} · {formatNumber(group.spawners)} {group.spawners === 1 ? 'spawner' : 'spawners'}</h3>
           <div class="table-scroll"><table>

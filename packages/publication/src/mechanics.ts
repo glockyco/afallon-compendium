@@ -104,7 +104,7 @@ function essenceExample(settings: Exclude<HeroicTier["settings"], { unavailable:
 function heroicTier(facts: CatalogFacts, resolve: ReferenceResolver): HeroicTier {
   const fact = facts.progression.facts.find((candidate) => candidate.entityKey === HEROIC_TIER_KEY);
   let settings: HeroicTier["settings"];
-  if (fact?.kind !== "heroicTier") settings = { unavailable: "The scan of this build recorded no Heroic tier settings." };
+  if (fact?.kind !== "heroicTier") settings = { unavailable: "Heroic tier settings are unavailable." };
   else {
     const { asset: _asset, essenceTreePoint, ...values } = fact.details;
     settings = { ...values, ...(essenceTreePoint?.label ? { essencePoints: displayName(essenceTreePoint.label) } : {}) };
@@ -155,12 +155,12 @@ function corruptionRef(endpoint: CatalogEndpoint | null, published: ReadonlySet<
 
 // Native and live evidence establish the behavior; values come only from this build's captured catalog facts.
 const CORRUPTION_RULES = [
-  { id: "corruption-altar", section: "altar", phrase: "An unused altar adds one level, or consumes a valid saved token for its value. The start level is capped by the captured combat setting.", method: "CorruptionAltarPanel.ClickConfirm; DungeonCorruptionManager.IncreaseCorruption", evidence: "Build-matched native altar and level-cap bodies." },
-  { id: "corruption-token", section: "tokens", phrase: "Saved token value and affixes appear in its tooltip; a new token rolls distinct eligible affixes.", method: "ItemTooltip.Show; CorruptionAffixes.RollForToken", evidence: "Build-matched native token and affix bodies; controlled live token tooltip." },
-  { id: "corruption-creatures", section: "creatures", phrase: "Captured per-stat creature bonuses apply by dungeon level; affix effects are separate.", method: "DungeonCorruptionManager.ApplyCorruptionBonus", evidence: "Build-matched native creature bonus body and captured combat settings." },
-  { id: "corruption-gear", section: "gear", phrase: "Eligible non-token reward equipment saves a positive dungeon level. Authored template stats and the combat weapon component scale; random rolls and gems do not. No full mitigated hit was measured.", method: "DungeonTimerManager.SpawnRewardLootBag; ItemTooltip.Show; CombatCalculations.AddWeaponBonus", evidence: "Build-matched reward path and controlled live equipment, tooltip, weapon-component, random-roll and gem experiments." },
-  { id: "corruption-timer", section: "timer", phrase: "Completion token value depends on the start level and seconds remaining at each authored threshold; timeout reduces it and omits ordinary loot.", method: "DungeonTimerManager.CompleteChallenge; SpawnRewardLootBag", evidence: "Build-matched native completion and reward bodies, with captured authored dungeon timers." },
-  { id: "corruption-heart", section: "heart", phrase: "The Heart is separate from a token and is a consumed requirement at the recorded challenge stones, as well as a crafting material.", method: "Authored challenge-stone item requirements and crafting recipes", evidence: "Captured challenge-stone requirements and distinct authored item records." },
+  { id: "corruption-altar", section: "altar", phrase: "An unused altar adds one level, or consumes a valid saved token for its value. The start level is capped by the combat setting.", method: "Altar and dungeon corruption rules", evidence: "The altar and level-cap rules come from the game code." },
+  { id: "corruption-token", section: "tokens", phrase: "Saved token value and affixes appear in its tooltip. A new token rolls distinct eligible affixes.", method: "Token tooltip and affix rules", evidence: "The token and affix rules come from the game code and a token tooltip in the game." },
+  { id: "corruption-creatures", section: "creatures", phrase: "Creature stat bonuses apply by dungeon level. Affix effects are separate.", method: "Creature bonuses", evidence: "The bonus rule comes from the game code and its combat settings." },
+  { id: "corruption-gear", section: "gear", phrase: "Eligible reward equipment other than tokens saves a positive dungeon level. Base item stats and the combat weapon component scale. Random rolls and gems do not change. Final hit damage is unknown.", method: "Reward equipment and combat", evidence: "The reward and combat rules come from the game code. In-game checks cover equipment, tooltips, the weapon component, random rolls and gems." },
+  { id: "corruption-timer", section: "timer", phrase: "Completion token value depends on the start level and seconds remaining at each dungeon threshold. Timeout reduces it and omits ordinary loot.", method: "Dungeon timer and rewards", evidence: "Completion and reward rules come from the game code and the dungeon timers." },
+  { id: "corruption-heart", section: "heart", phrase: "The Heart is a separate item consumed at the listed challenge stones. It is also a crafting material.", method: "Challenge stones and recipes", evidence: "Challenge-stone requirements and recipes list the Heart as a separate item." },
 ] as const;
 
 
@@ -252,12 +252,12 @@ function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, re
         ...(publishedSpot ? { spot: { placementId: publishedSpot.placementId, mapSpaceId: publishedSpot.mapSpaceId, label: publishedSpot.label } } : {}) };
     }) }),
     ...(example ? { example } : {}),
-    evidence: ["Altar, reward, timer, affix and gear rules were checked against this build's native bodies. Combat settings and dungeon timers were captured from the loaded game and authored scene assets.",
-      "The gear label, token description, equipped-stat changes, weapon component and unchanged fixed random rolls and gems were observed in controlled live game experiments."],
-    unknowns: ["A complete mitigated weapon hit was not measured; the observed weapon component is not final hit damage.",
-      "The meaning of keystone terminology and any further Heart effect on token rewards, dungeon levels or timers remain unverified.",
-      ...(settings.heartRequirements === null ? ["The challenge-stone requirement scan was unavailable for this build."] : []),
-      ...(!token || !heart ? ["A distinct published token or Heart item was unavailable in this build's scan."] : [])],
+    evidence: ["Altar, reward, timer, affix and gear rules come from the game's code. Combat settings and dungeon timers come from the game and its scene assets.",
+      "In-game checks showed the gear label, token description, equipped-stat changes and weapon component. Fixed random rolls and gems did not change."],
+    unknowns: ["The weapon component does not tell us the final damage of a hit after mitigation.",
+      "The meaning of keystone terminology and any further Heart effect on token rewards, dungeon levels or timers are unknown.",
+      ...(settings.heartRequirements === null ? ["Challenge-stone requirements are unavailable."] : []),
+      ...(!token || !heart ? ["A separate token or Heart item page is unavailable."] : [])],
   };
 }
 
