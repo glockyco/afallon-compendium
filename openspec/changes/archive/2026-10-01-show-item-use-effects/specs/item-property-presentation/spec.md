@@ -11,9 +11,13 @@ An item page SHALL show a When used section when captured item actions spawn pre
 
 ### Requirement: Supply packs show eligible rewards and roll rules
 
-For each class and level band gated LootTable action of Adventurer's Supply Pack, When used SHALL disclose that band's authored entries in a relation table. A short data sentence SHALL show the published minimum picks, bonus chance, maximum when present, and world share when present, with the world share described as picks from world loot suited to the character. The band's published armor and stat filters SHALL remain visible. The page SHALL NOT enumerate a world pool at a fixed player level. A placed When used rule SHALL link to the Loot Mechanics guide's pack roll, world eligibility, and lifecycle steps instead of repeating those mechanics as item-page prose.
+For each class and level band gated LootTable action of Adventurer's Supply Pack, When used SHALL disclose that band's authored entries in a relation table. A band SHALL name only the classes that a race offers, and a band whose class condition names no such class SHALL be left out, because no player can open it. A short data sentence SHALL show the published minimum picks, the bonus chance, the maximum when it lowers the total, and the world share when present, with the world share described as the chance that an item is world loot for the character's class and level. The band's published armor and stat filters SHALL remain visible. The page SHALL NOT enumerate a world pool at a fixed player level. A placed When used rule SHALL link to the Loot Mechanics guide's pack roll, world eligibility, and lifecycle steps instead of repeating those mechanics as item-page prose.
 
 #### Scenario: A supply pack belongs to different classes
 - **WHEN** class and level requirements select distinct tables
 - **THEN** the page lists each class/level band with only the entries of its selected table
-- **AND** it does not suggest the pack grants all 25 tables at once
+- **AND** it does not suggest that the pack grants every table at once
+
+#### Scenario: A band names an unplayable class
+- **WHEN** a band's class condition names a class that no race offers, alone or beside a playable class
+- **THEN** the band names only the playable class, and a band with no playable class is not shown

@@ -116,3 +116,55 @@ Each published item that a timed dungeon reward bag can grant SHALL have a typed
 - **WHEN** a reader opens an eligible reward equipment page
 - **THEN** its acquisition route lists the timed dungeons and the bosses whose reward tables contain that item as a chance, without claiming a guaranteed drop
 - **AND** the corruption control keeps its linked reward-bag dungeon context
+
+### Requirement: Weapon tooltips show the game's damage line
+
+A weapon tooltip SHALL show the 0.16.3 game's damage line, with a rounded range, resolved damage school or physical label, and melee or ranged mode. A positive attack speed SHALL appear beneath it as `Speed 0.00`, followed by damage per second calculated from the rounded endpoints and displayed to one decimal. Explicit attack mode, damage type, and physical label SHALL take precedence over inferred values. Auto mode SHALL derive the mode from the weapon slot and type, and damage without an explicit type SHALL use the game's physical or elemental school rules. An unresolved or invalid mode SHALL use the plain `{minimum} - {maximum} Damage` line. A nonweapon or a weapon without positive maximum damage SHALL show no damage block.
+
+#### Scenario: A one-handed sword
+- **WHEN** a sword deals 13 to 22 physical damage with the Slashing label in melee
+- **THEN** its tooltip reads "13 - 22 Slashing Damage (Melee)" with its speed and damage per second below
+
+#### Scenario: A fire staff
+- **WHEN** a staff deals 42 to 70 Fire damage at range
+- **THEN** its tooltip reads "42 - 70 Fire Damage (Ranged)"
+
+#### Scenario: A bow
+- **WHEN** a bow occupies the Ranged slot
+- **THEN** its tooltip names the Ranged slot and shows its damage line as ranged
+
+### Requirement: Item pages show the gear that adventurers carry
+
+An item page SHALL list each adventurer world setting that hands out the item in an Adventurers relation table: "Gear upgrade for" and the linked adventurer for a kit upgrade, "Carried by adventurers of level N or higher" for an equipment band, where N is compared with the adventurer's own level, and "Adventurer job reward" with the published chance that each finished job gives the adventurer one upgrade from the reward list. When the item has no player source, How to get it SHALL say that only adventurers carry the item and SHALL link the Adventurers section, instead of saying that no way to get the item is known.
+
+#### Scenario: A tank kit piece
+- **WHEN** the kit upgrade of Agra Emberhide holds an item that no creature, vendor, quest, recipe, container, or class start gives
+- **THEN** How to get it says only adventurers carry the item
+- **AND** the Adventurers section links Agra Emberhide as the adventurer that wears the stronger gear
+
+#### Scenario: An item that players can also get
+- **WHEN** an item is in an adventurer equipment band and a vendor sells it
+- **THEN** How to get it shows the vendor route
+- **AND** the Adventurers section still lists the equipment band and its content level
+
+### Requirement: Item pages explain rewards from use actions
+
+An item page SHALL show a When used section when captured item actions spawn prefab chests or open loot tables. Chest contents SHALL appear in a relation table sorted by row chance, with item or currency, inclusive quantity range, and chance per row clear on the page. Only the published action chance when below 100% and positive maximum-drop cap SHALL appear as short data sentences. The page SHALL distinguish an Item action that gains an item from one that consumes it in plain sentences. A placed When used rule SHALL link to the Loot Mechanics guide step for the chest roll rules, without repeating rule prose on the item page. No internal effect, prefab, chest, or loot table name SHALL be published.
+
+#### Scenario: A soaked bag spawns a chest
+- **WHEN** an item has a TriggerVisualEffect action whose effect template contains a chest prefab
+- **THEN** its When used section lists every chest row including currency rows and the maximum-drop cap
+- **AND** its own Item action is described by the captured AlterAction, not inferred from its item ID
+
+### Requirement: Supply packs show eligible rewards and roll rules
+
+For each class and level band gated LootTable action of Adventurer's Supply Pack, When used SHALL disclose that band's authored entries in a relation table. A band SHALL name only the classes that a race offers, and a band whose class condition names no such class SHALL be left out, because no player can open it. A short data sentence SHALL show the published minimum picks, the bonus chance, the maximum when it lowers the total, and the world share when present, with the world share described as the chance that an item is world loot for the character's class and level. The band's published armor and stat filters SHALL remain visible. The page SHALL NOT enumerate a world pool at a fixed player level. A placed When used rule SHALL link to the Loot Mechanics guide's pack roll, world eligibility, and lifecycle steps instead of repeating those mechanics as item-page prose.
+
+#### Scenario: A supply pack belongs to different classes
+- **WHEN** class and level requirements select distinct tables
+- **THEN** the page lists each class/level band with only the entries of its selected table
+- **AND** it does not suggest that the pack grants every table at once
+
+#### Scenario: A band names an unplayable class
+- **WHEN** a band's class condition names a class that no race offers, alone or beside a playable class
+- **THEN** the band names only the playable class, and a band with no playable class is not shown
