@@ -3,7 +3,7 @@ import type { GuideStep } from "@afallon/contracts/public";
 
 export const GUIDES: Record<MechanicsTopic, { overview: string; steps: GuideStep[] }> = {
   "character-progression": {
-    overview: "Characters gain experience from creature kills and quests, and skills gain experience from their own sources. Experience above the next level carries over. The level curve shows the experience that each level needs.",
+    overview: "Characters gain experience from creature kills and quests, and skills gain experience from their own sources. The level curve shows the experience that each level needs. Experience above the next level carries over, and each level-up gives talent points.",
     steps: [
       { id: "roll-kill-experience", title: "Roll kill experience", text: "A kill starts from a random whole amount in the creature's experience range.", rules: ["kill-base-roll"] },
       { id: "adjust-the-kill", title: "Adjust the kill", text: "The level difference, the Heroic multiplier, and the number of followers change the amount. Some game modifiers are not known.", rules: ["kill-level-difference", "kill-heroic-multiplier", "kill-companion-split", "kill-game-modifiers"] },

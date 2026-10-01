@@ -86,11 +86,13 @@ const entityDocuments = new Map<string, PublicDocument>([
 const conditions = new Map();
 const documents = (source: CatalogFacts = facts) => projectMechanicsDocuments(source, published, spawned, resolve, conditions, entityDocuments);
 
-test("the level curve and source ranges reflect published creature levels", () => {
+test("experience sources count creatures by the level at which their spawners place them", () => {
   const progression = documents().get("mechanics:character-progression") as CharacterProgression;
   expect([progression.curve.cap, progression.curve.rows]).toEqual([3, [{ level: 1, toNext: 20 }, { level: 2, toNext: 40 }]]);
-  expect(progression.sources.fixedCreatures).toEqual({ count: 5, minLevel: 1, maxLevel: 30 });
-  expect([progression.sources.scalingCreatures.count, progression.sources.scalingCreatures.aboveFixed.map((row) => [row.creature.key, row.level])]).toEqual([2, [["npcs:4", { min: 5, scales: true }]]]);
+  // Wolf counts with its spawn range, Zombie as a scaling creature, and the unplaced Badger not at all.
+  expect(progression.sources.fixedCreatures).toEqual({ count: 3, minLevel: 6, maxLevel: 12 });
+  expect([progression.sources.scalingCreatures.count, progression.sources.scalingCreatures.aboveFixed.map((row) => [row.creature.key, row.level])])
+    .toEqual([3, [["npcs:3", grainSpawn], ["npcs:4", vampireSpawn]]]);
   expect(progression.sources.quests).toEqual({ count: 2, maxLevel: 31, maxRequirement: 29, withoutRange: 1 });
   expect(progression.sources.levelModifiers).toEqual([{ lower: 20, higher: -20, creatures: 2 }]);
 });

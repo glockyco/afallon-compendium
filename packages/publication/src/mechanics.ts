@@ -106,10 +106,12 @@ function killCalculator(facts: CatalogFacts, published: ReadonlySet<string>, res
 }
 
 function experienceSources(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver): ExperienceSources {
-  const creatures = facts.npcs.filter((npc) => published.has(npc.entityKey) && (npc.maxExperience ?? 0) > 0 && npc.minLevel !== null && npc.maxLevel !== null);
-  const fixed = creatures.filter((npc) => !npc.scalesWithPlayer), scaling = creatures.filter((npc) => npc.scalesWithPlayer);
-  if (fixed.length === 0) throw new Error("No published fixed-level creature gives experience.");
-  const fixedMax = Math.max(...fixed.map((npc) => npc.maxLevel!));
+  // The spawner decides the level: it rolls a fixed range or scales the player's level into its zone range. The record
+  // level and the record's scaling flag apply only where the spawner does not override them.
+  const creatures = facts.npcs.filter((npc) => published.has(npc.entityKey) && (npc.maxExperience ?? 0) > 0 && spawned.has(npc.entityKey));
+  const fixed = creatures.filter((npc) => !spawned.get(npc.entityKey)!.scales), scaling = creatures.filter((npc) => spawned.get(npc.entityKey)!.scales);
+  if (fixed.length === 0) throw new Error("No published creature with experience spawns at a fixed level.");
+  const fixedMax = Math.max(...fixed.map((npc) => spawned.get(npc.entityKey)!.max ?? spawned.get(npc.entityKey)!.min));
   const quests = facts.quests.filter((quest) => published.has(quest.entityKey) && (quest.experience ?? 0) > 0);
   const ranged = quests.flatMap((quest) => quest.levelRange ? [quest.levelRange.max] : []);
   const requirements = quests.flatMap((quest) => quest.levelRequirement === null ? [] : [quest.levelRequirement]);
@@ -122,11 +124,10 @@ function experienceSources(facts: CatalogFacts, published: ReadonlySet<string>, 
     modifiers.set(key, row);
   }
   return {
-    fixedCreatures: { count: fixed.length, minLevel: Math.max(0, Math.min(...fixed.map((npc) => npc.minLevel!))), maxLevel: fixedMax },
+    fixedCreatures: { count: fixed.length, minLevel: Math.min(...fixed.map((npc) => spawned.get(npc.entityKey)!.min)), maxLevel: fixedMax },
     scalingCreatures: {
       count: scaling.length,
-      // A scaling creature gets its level from its spawner's zone, not its authored range.
-      aboveFixed: scaling.flatMap((npc) => { const level = spawned.get(npc.entityKey); return level && (level.max === undefined || level.max > fixedMax) ? [{ npc, level }] : []; })
+      aboveFixed: scaling.flatMap((npc) => { const level = spawned.get(npc.entityKey)!; return level.max === undefined || level.max > fixedMax ? [{ npc, level }] : []; })
         .sort((a, b) => a.npc.entityKey.localeCompare(b.npc.entityKey)).map(({ npc, level }) => ({ creature: resolve({ entityKey: npc.entityKey, label: npc.entityKey }), level })),
     },
     quests: { count: quests.length, maxLevel: Math.max(0, ...ranged), ...(requirements.length ? { maxRequirement: Math.max(...requirements) } : {}), withoutRange: quests.length - ranged.length },

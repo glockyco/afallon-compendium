@@ -1,81 +1,96 @@
 <script lang="ts">
-  import type { CharacterProgression, PublicKindEntry } from '@afallon/contracts/public';
+  import type { CharacterProgression, PublicKindEntry, TalentPoints } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import KillCalculator from '../KillCalculator.svelte';
-  import { npcLevelText, rangeText } from '../../format';
-  import Hero from '../Hero.svelte';
+  import { formatNumber, npcLevelText, rangeText, signedAmount } from '../../format';
+  import DetailsDisclosure from '../DetailsDisclosure.svelte';
+  import FactList from '../FactList.svelte';
+  import FactRow from '../FactRow.svelte';
   import GuideSteps from '../GuideSteps.svelte';
+  import Hero from '../Hero.svelte';
+  import KillCalculator from '../KillCalculator.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
+  import { ruleNumbers } from '../rule-numbers';
   import LevelCurve from '../sections/LevelCurve.svelte';
   import MechanicsRules from '../sections/MechanicsRules.svelte';
 
   export let document: CharacterProgression;
   export let registry: PublicKindEntry[];
-  let playerLevel = document.killCalculator.groups.flatMap((group) => group.creatures)
-    .find((entry) => entry.creature.key === document.killCalculator.defaultCreature.key
-      && entry.creature.variant === document.killCalculator.defaultCreature.variant)!.level.min;
 
-  const format = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 4 });
-  $: sources = document.sources;
-  $: fixedText = `${format(sources.fixedCreatures.count)} fixed-level creatures with experience have levels ${rangeText(sources.fixedCreatures.minLevel, sources.fixedCreatures.maxLevel)}.`;
-  $: scalingText = [`${format(sources.scalingCreatures.count)} creatures with experience scale with the player. The zone range of each spawner limits their level.`,
-    sources.scalingCreatures.aboveFixed.length ? `These scaling creatures can spawn above level ${format(sources.fixedCreatures.maxLevel)}:` : ''].filter(Boolean).join(' ');
-  $: questText = [`${format(sources.quests.count)} quests with experience have a highest quest level of ${format(sources.quests.maxLevel)}.`,
-    sources.quests.maxRequirement === undefined ? '' : `The highest level requirement is ${format(sources.quests.maxRequirement)}.`,
-    sources.quests.withoutRange ? `${format(sources.quests.withoutRange)} have no level range.` : ''].filter(Boolean).join(' ');
-  function gainText(trigger: string): string {
-    switch (trigger) {
-      case 'characterLevelUp': return 'per character level-up';
-      case 'skillLevelUp': return 'per skill level-up';
-      case 'npcKilled': return 'per creature killed';
-      case 'itemGained': return 'per item gained';
-      case 'weaponTemplateLevelUp': return 'per weapon-template level-up';
-      default: return 'per recorded event';
-    }
-  }
-  import { ruleNumbers } from '../rule-numbers';
+  // Readers come for the level curve first. The calculator applies the level difference table, so it follows that table.
+  // The curve and the calculator share the character level, which starts at the lowest level of the default creature.
+  const calculator = document.killCalculator;
+  let characterLevel = calculator.groups.flatMap((group) => group.creatures)
+    .find((entry) => entry.creature.key === calculator.defaultCreature.key && entry.creature.variant === calculator.defaultCreature.variant)!.level.min;
+
   $: numbers = ruleNumbers(document.rules);
+  $: sources = document.sources;
+  $: cap = document.curve.cap;
+  // The level modifier rows count the same creatures as the sources, so the rest have no modifier.
+  $: withoutModifier = sources.fixedCreatures.count + sources.scalingCreatures.count - sources.levelModifiers.reduce((sum, row) => sum + row.creatures, 0);
+  const modifierText = (value: number) => value === 0 ? 'No change' : signedAmount(value, true);
+
+  function pointText(points: TalentPoints, single: boolean): string {
+    const name = single ? points.name.toLocaleLowerCase('en-US') : points.name;
+    const noun = (count: number) => count === 1 ? name.replace(/s$/i, '') : name;
+    const perLevel = points.gains.reduce((sum, gain) => sum + gain.amount, 0);
+    const total = points.start + perLevel * (cap - 1);
+    // Without game modifiers, a character at the cap has its start amount and one gain for each level below the cap.
+    return [
+      `A character starts with ${formatNumber(points.start)} ${noun(points.start)} and gains ${formatNumber(perLevel)} at each level-up.`,
+      total <= points.max
+        ? `That makes ${formatNumber(total)} at level ${formatNumber(cap)}, below the limit of ${formatNumber(points.max)}.`
+        : `The limit of ${formatNumber(points.max)} stops the gains before level ${formatNumber(cap)}.`,
+      'Game modifiers can change the gain and the limit.',
+    ].join(' ');
+  }
 </script>
 
 <article class="detail-page">
   <TitleBlock name={document.ref.name} {registry} />
   <Hero><p class="c-prose">{document.overview}</p></Hero>
   <Sections>
+    <Section id="level-curve" title="Level curve" line={`Character level cap: ${formatNumber(cap)}.`}>
+      <LevelCurve curve={document.curve} bind:level={characterLevel} />
+    </Section>
     <GuideSteps steps={document.steps} ruleNumbers={numbers} />
-    <Section id="try-it-on-a-creature" title="Try it on a creature">
-      <KillCalculator guide={document} {registry} bind:characterLevel={playerLevel} />
-    </Section>
-    <Section id="level-curve" title="Level curve" line={`Character level cap: ${format(document.curve.cap)}.`}>
-      <LevelCurve curve={document.curve} bind:level={playerLevel} />
-      <p>The curve shows the experience needed for each next level.</p>
-    </Section>
-    <Section id="experience-sources" title="Experience sources">
-      <div class="prose">
-        <p>{fixedText}</p>
-        <p>{scalingText}</p>
-        {#if document.sources.scalingCreatures.aboveFixed.length}
-          <ul>{#each document.sources.scalingCreatures.aboveFixed as entry}<li><EntityLink ref={entry.creature} {registry} />: {npcLevelText(entry.level)}</li>{/each}</ul>
-        {/if}
-        <p>{questText}</p>
-        <p>These are the highest levels of these experience sources, not a limit on earning experience at higher character levels.</p>
-      </div>
-    </Section>
     <Section id="talent-points" title="Talent points">
       {#each document.talentPoints as points}
         <div class="point-group">
-          <h3>{points.name}</h3>
-          <p>{[`Starts with ${format(points.start)}.`, ...points.gains.map((gain) => `Gains ${format(gain.amount)} ${gainText(gain.trigger)}.`), `The recorded maximum is ${format(points.max)}. This is a limit, not the points that every character has earned.`].join(' ')}</p>
+          {#if document.talentPoints.length > 1}<h3>{points.name}</h3>{/if}
+          <p>{pointText(points, document.talentPoints.length === 1)}</p>
         </div>
       {/each}
     </Section>
-    <Section id="creature-level-modifiers" title="Creature level modifiers">
-      <p class="table-intro">The percentages modify kill experience when the creature is lower or higher level than the character. Equal levels receive neither modifier.</p>
+    <Section id="experience-sources" title="Experience sources">
+      <FactList>
+        <FactRow label="Creatures at a fixed level">{formatNumber(sources.fixedCreatures.count)}, levels {rangeText(sources.fixedCreatures.minLevel, sources.fixedCreatures.maxLevel)}</FactRow>
+        <FactRow label="Creatures that scale with the player">{formatNumber(sources.scalingCreatures.count)}, each within the level range of its zone</FactRow>
+        <FactRow label="Quests with experience">{formatNumber(sources.quests.count)}, quest levels up to {formatNumber(sources.quests.maxLevel)}{#if sources.quests.withoutRange}, and {formatNumber(sources.quests.withoutRange)} without a level range{/if}</FactRow>
+        {#if sources.quests.maxRequirement !== undefined}<FactRow label="Highest quest level requirement">{formatNumber(sources.quests.maxRequirement)}</FactRow>{/if}
+      </FactList>
+      {#if sources.scalingCreatures.aboveFixed.length}
+        <div class="above-fixed">
+          <DetailsDisclosure id="above-fixed-level" title={`Creatures that can spawn above level ${formatNumber(sources.fixedCreatures.maxLevel)}`} summary={`${formatNumber(sources.scalingCreatures.aboveFixed.length)} creatures that scale with the player`}>
+            <ul>{#each sources.scalingCreatures.aboveFixed as entry}<li><EntityLink ref={entry.creature} {registry} /> <span class="level">Level {npcLevelText({ ...entry.level, scales: false })}</span></li>{/each}</ul>
+          </DetailsDisclosure>
+        </div>
+      {/if}
+      <p class="note">These are the highest levels of these sources. Characters still gain experience at higher levels.</p>
+    </Section>
+    <Section id="level-difference" title="Level difference">
+      <p class="table-intro">Kill experience changes when the creature's level differs from the player's level. Equal levels change nothing.</p>
       <div class="table-scroll"><table>
-        <thead><tr><th scope="col">Creatures</th><th scope="col">Lower-level creature</th><th scope="col">Higher-level creature</th></tr></thead>
-        <tbody>{#each document.sources.levelModifiers as row}<tr><td>{format(row.creatures)}</td><td>{row.lower > 0 ? '+' : ''}{format(row.lower)}%</td><td>{row.higher > 0 ? '+' : ''}{format(row.higher)}%</td></tr>{/each}</tbody>
+        <thead><tr><th scope="col">Creatures</th><th scope="col">Creature above the player</th><th scope="col">Creature below the player</th></tr></thead>
+        <tbody>
+          {#each sources.levelModifiers as row}<tr><td>{formatNumber(row.creatures)}</td><td>{modifierText(row.higher)}</td><td>{modifierText(row.lower)}</td></tr>{/each}
+          {#if withoutModifier > 0}<tr><td>{formatNumber(withoutModifier)}</td><td>No change</td><td>No change</td></tr>{/if}
+        </tbody>
       </table></div>
+    </Section>
+    <Section id="try-it-on-a-creature" title="Try it on a creature">
+      <KillCalculator guide={document} {registry} bind:characterLevel />
     </Section>
     <Section id="rules-reference" title="Rules reference">
       <MechanicsRules rules={document.rules} {registry} />
@@ -84,10 +99,14 @@
 </article>
 
 <style>
-  .prose p, .point-group p, .table-intro { margin: 0 0 .75rem; line-height: 1.55; }
-  .prose p:last-child, .point-group p:last-child { margin-bottom: 0; }
-  .prose ul { margin: 0 0 .75rem; padding-left: 1.4rem; line-height: 1.6; }
+  .point-group p, .table-intro { margin: 0 0 .75rem; line-height: 1.55; }
+  .point-group p:last-child { margin-bottom: 0; }
   .point-group + .point-group { margin-top: .9rem; }
+  /* The facts, the disclosure, and the note are separate blocks, so each starts a block apart from the one above. */
+  .above-fixed, .note { margin: 1rem 0 0; }
+  .note { color: var(--c-text-dim); line-height: 1.55; }
+  ul { margin: 0; padding-left: 1.4rem; line-height: 1.8; }
+  .level { color: var(--c-text-dim); }
   h3 { margin: 0 0 .35rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
   .table-scroll { max-width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }

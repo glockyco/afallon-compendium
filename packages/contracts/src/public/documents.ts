@@ -635,9 +635,10 @@ export const PublicGatheringNodeSchema = Type.Object({
 export type PublicGatheringNode = Static<typeof PublicGatheringNodeSchema>;
 
 const levelSpan = Type.Object({ count, minLevel: count, maxLevel: count }, { additionalProperties: false });
-// The levels of the records that give character experience. A fixed-level creature keeps its authored range. A scaling
-// creature takes its level from the player within the zone range of its spawner, so `aboveFixed` lists the scaling
-// creatures whose spawned level can exceed the highest fixed level, with that spawned level.
+// The creatures that give character experience, counted by the level at which they spawn: the union of the levels of
+// their published placements. A creature whose spawners roll a level is a fixed-level creature. A creature whose
+// spawner scales the player's level into a zone range is a scaling creature, and `aboveFixed` lists the scaling
+// creatures whose spawned level can exceed the highest fixed level. A creature without a published spawn is not counted.
 export const ExperienceSourcesSchema = Type.Object({
   fixedCreatures: levelSpan,
   scalingCreatures: Type.Object({ count, aboveFixed: Type.Array(Type.Object({ creature: RefSchema, level: PublicLevelSchema }, { additionalProperties: false })) }, { additionalProperties: false }),
