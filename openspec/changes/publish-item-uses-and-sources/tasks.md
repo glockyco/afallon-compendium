@@ -1,28 +1,27 @@
 ## 1. Record the verified game rules
 
-- [ ] 1.1 Record the native rules of `ItemPackLootBag`, `VisualEffectsManager` with `Chest`, `ClothDrops`, `DungeonTimerManager`, `DungeonFinderService`, `HuntTanneryDirector`, `EconomyUtilities.QuestItemDropAllowed`, and `InteractableObject.TriggerActions` from the research batches under `.agent/skills/native-analysis/SKILL.md`. Write them in a new rules record as rules without a topic, with the placements of the design, and add the item page targets of this change to the placement contract. Verify the binary hash, the method ranges against the unwind table, and the diagnostics of each batch, and verify that catalog creation accepts the record.
-- [ ] 1.2 Record the action counts of each owner type and action type from a read-only HotRepl probe, with the build identity. Verify that the counts include the actions of templates. Verify that among the probed owners, only items give items, loot tables, currencies, or recipes. List the 18 templates with Item or Recipe actions and their owners in the probe and the accepted catalog.
-- [ ] 1.3 Record the use checks of Adventurer's Supply Pack, Slime covered sack, and Epic renown reward on a research character. Verify that the character save is restored byte for byte.
+- [ ] 1.1 Record the native rules of `ClothDrops`, the rewards of `DungeonTimerManager`, the completion rewards of `DungeonFinderService`, `HuntTanneryDirector`, `EconomyUtilities.QuestItemDropAllowed`, and the visual effect path of `InteractableObject.TriggerActions` from build 25653798 under `.agent/skills/native-analysis/SKILL.md`. Write them into a new rules record with the placements of the design. The item use rules of `ItemPackLootBag` and `VisualEffectsManager` with `Chest` are already the Loot rules. Verify the binary hash, the method ranges against the unwind table, the diagnostics of each batch, and that catalog creation accepts the record.
+- [ ] 1.2 Record the game action counts of each owner type from a read-only HotRepl probe of build 25653798, with the build identity. Verify that the counts include the actions of templates, and that among the probed owners only items give items, loot tables, currencies, or recipes. List the templates with Item or Recipe actions and their owners in the probe and the accepted catalog.
+- [ ] 1.3 Record the use checks of Adventurer's Supply Pack, Slime covered sack, and Epic renown reward on a research character of build 25653798. Verify that the character save is restored byte for byte.
 
 ## 2. Scan and catalog
 
 - [ ] 2.1 Read the actions of every owner type in the collectors. Verify fixtures for an inline list, a template list, and a non-item owner with an Item action.
-- [ ] 2.2 Read the visual effects of interactable objects and item actions, and the Chest components and Chest actions of each prefab that a template can spawn. Verify fixtures for a grave, the sacrificial altar, and Slime covered sack against the offline chest read.
-- [ ] 2.3 Read the `DungeonTimerManager`, `QuestFieldInteraction`, and `HuntTanneryDirector` components and `DungeonFinderSettings`. Verify fixtures for a dungeon timer, a hunt pickup with its task, and the supply pack setting.
-- [ ] 2.4 Keep owner actions, item loot bindings with requirement groups, visual effect chests, and scene grants in the catalog. Include the game actions of interactable objects. Report a grant through the game actions of a non-item owner and each unresolved target as coverage issues. Verify a fixture where an item and an interactable object share one loot table.
-- [ ] 2.5 Keep the supplemental cloth rows in the drop query with the Humanoid and Undead rule. Verify a fixture that returns the Linen Cloth row with its tier ramp.
+- [ ] 2.2 Read the visual effects of interactable objects, and the Chest components and Chest actions of each prefab that their templates can spawn. Verify fixtures for a grave, the sacrificial altar, and Slime covered sack against the offline chest read.
+- [ ] 2.3 Read the `QuestFieldInteraction` and `HuntTanneryDirector` components and `DungeonFinderSettings`. The corruption collector already reads `DungeonTimerManager`. Verify fixtures for a hunt pickup with its task and the supply pack setting.
+- [ ] 2.4 Keep owner actions, visual effect chests of world objects, and scene grants in the catalog. Report a grant through the game actions of a non-item owner and each unresolved target as coverage issues. Verify a fixture where an item and an interactable object share one loot table.
+- [ ] 2.5 Mark the supplemental cloth rows with the verified creature rule, and keep them in the drop query. Verify a fixture that returns the Linen Cloth row with its tier ramp.
 - [ ] 2.6 Run a targeted scan that includes Challenge stone Lumberjack, and build a catalog candidate. Compare it with the accepted catalog. Verify that every counted action from task 1.2 is present. Report the loot tables and the game action templates that still have no owner.
 
 ## 3. Publication
 
-- [ ] 3.1 Project the verified use results of items: loot table contents with their requirements, and visual effect chests. Verify fixtures for Adventurer's Supply Pack, Slime covered sack, Epic renown reward without contents, and an unverified action type.
-- [ ] 3.2 Project From items, Collected from rows for visual effect chests, Dungeon rewards, quest pickup rows, and cloth world loot rows. Count them in coverage and in item source kinds. Verify fixtures for each source and for a loot table with two owners. Verify a fixture for an altar sacrifice with its cost and its number of prefabs.
-- [ ] 3.3 List the items that still have no source, including the 20 records that `correct-published-records` left published and the Task board giver. Record one decision for each item: an exclusion entry with evidence of its kind, or a kept page. Verify each decision against a recorded read-only catalog query.
+- [x] 3.1 Project the verified use results of items. `show-item-use-effects` publishes the When used section with the supply pack bands and the chests of visual effects, so this change adds no Contents section.
+- [ ] 3.2 Project From items rows for the items of supply pack bands and use chests, Collected from rows for visual effect chests of world objects, Dungeon rewards for the Corruption Token, quest pickup rows, and cloth world loot rows. Count every source kind, including dungeon rewards, in coverage. Verify fixtures for each source, for a loot table with two owners, and for an altar sacrifice with its cost and its number of prefabs.
+- [ ] 3.3 List the items that still have no source, including the Task board giver. Record one decision for each item: an exclusion entry with evidence of its kind, or a kept page. Verify each decision against a recorded read-only catalog query.
 
 ## 4. Reader surfaces
 
-- [ ] 4.1 Show the Contents section and the use lines of the hero. Verify Adventurer's Supply Pack, Slime covered sack, and Epic renown reward in the browser at 1440 px and 390 px.
-- [ ] 4.2 Show the new source sections, their How to get it lines, and their hover summary lines. Verify Druid staff, Human skull, Frost Shard Necklace, Corruption Token, Boar Haunch, and Linen Cloth in the browser at both widths.
+- [ ] 4.1 Show the new source sections, their How to get it lines, and their hover summary lines. Verify Druid Staff, Poison Sword, Human skull, Frost Shard Necklace, Corruption Token, Boar Haunch, and Linen Cloth in the browser at 1440 px and 390 px.
 
 ## 5. Stage and accept
 
