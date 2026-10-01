@@ -30,6 +30,10 @@ export function openNormalizedDatabase(path: string): Database {
         settings_json TEXT NOT NULL,
         assembler_fingerprint TEXT NOT NULL CHECK(length(assembler_fingerprint) = 64)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS corruption_facts (
+        build_id TEXT PRIMARY KEY NOT NULL REFERENCES normalized_builds(build_id),
+        facts_json TEXT NOT NULL CHECK(json_valid(facts_json))
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS source_manifests (
         source_key TEXT PRIMARY KEY NOT NULL,
         kind TEXT NOT NULL,
@@ -641,6 +645,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
   db.transaction(() => {
     for (const identity of input.identityResults) recordPlacementIdentities(db, { runId: identity.runId, snapshotId: identity.snapshotId, snapshotPrefix: identity.snapshotPrefix, snapshotSha256: identity.snapshotSha256, character: identity.character, sceneHandle: identity.sceneHandle }, identity.result);
     insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, NORMALIZED_OUTPUT_SCHEMA_VERSION, json(input.provenance)]);
+    if (input.corruption) insertChecked(db, "corruption_facts", ["build_id"], ["build_id", "facts_json"], [input.buildId, json(input.corruption)]);
     for (const source of sourceFiles) addSourceManifest(db, input.buildId, source.key, source.kind, source.ref.path, source.ref.sha256);
 
     const sceneRows = new Map<number, { nativeId: number; path: string; name: string | null }>();

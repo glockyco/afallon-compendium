@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { Assert, AssertError } from "typebox/value";
 import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
-import { queryCatalogEntities, queryCatalogFacts, queryCatalogFullEntities, queryCatalogRelations, querySpawnCandidateNpcs } from "@afallon/catalog";
+import { queryCatalogEntities, queryCatalogFacts, queryCatalogFullEntities, queryCatalogRelations, queryChallengeStoneRoutes, querySpawnCandidateNpcs } from "@afallon/catalog";
 import {
   PUBLICATION_DOCUMENT_BUDGET,
   STATIC_DOCUMENT_SCHEMA_IDS,
@@ -146,7 +146,8 @@ export async function generateIndexResources(
   const conditions = conditionsById(relations.records.conditions), resolve = createReferenceResolver(refs);
   const nodeDocuments = projectGatheringNodeDocuments(facts.records, relations.records, { resolve, conditions, placements: publishedPlacements,
     requirements: (conditionIds) => requirementsFor(conditionIds, conditions, resolve) });
-  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), spawnedLevels, resolve, conditions), ...nodeDocuments]);
+  const stoneRoutes = queryChallengeStoneRoutes(db, facts.records.corruption?.heartRequirements?.map((row) => row.sourceId) ?? []);
+  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, new Set(refs.keys()), spawnedLevels, resolve, conditions, catalogRelations.records.transitions, publishedPlacements, stoneRoutes), ...nodeDocuments]);
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {

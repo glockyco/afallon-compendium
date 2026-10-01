@@ -9,7 +9,7 @@ import type { RoleScope } from "./roles";
 import type { TooltipLine } from "./tooltip";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v9" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v10" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });
@@ -316,6 +316,28 @@ export interface CatalogCoverageState {
   unresolved: { unplacedSources: number; unresolvedIssues: number; missingReferences: number };
 }
 
+export interface NormalizedCorruptionFacts {
+  maxLevel: number | null;
+  gearAllStatsPercentPerLevel: number | null;
+  gearStatBonuses: Array<{ stat: NormalizedReference; amountPerLevel: number; isPercent: boolean; sourceFieldPath: string }> | null;
+  mobStatBonuses: Array<{ stat: NormalizedReference; amountPerLevel: number; isPercent: boolean; sourceFieldPath: string }> | null;
+  affixesPerToken: number | null;
+  affixes: Array<{ id: number; name: string; description: string; available: boolean }> | null;
+  token: NormalizedReference | null;
+  heart: NormalizedReference | null;
+  dungeons: Array<{
+    scene: NormalizedReference; totalSeconds: number | null;
+    firstRemainingSeconds: number | null; secondRemainingSeconds: number | null;
+    maxLootItems: number | null;
+    bosses: NormalizedReference[] | null;
+    lootTables: NormalizedReference[] | null;
+    token: NormalizedReference | null;
+    provenance: ProvenanceReference[];
+  }>;
+  heartRequirements: Array<{ sourceId: string; place: NormalizedReference | null; count: number; consume: boolean; sourceFieldPath: string; provenance: ProvenanceReference[] }> | null;
+  provenance: ProvenanceReference[];
+}
+
 export interface NormalizedOutput {
   schemaVersion: typeof NORMALIZED_OUTPUT_SCHEMA_VERSION;
   buildId: string;
@@ -377,6 +399,7 @@ export interface NormalizedDatabaseInput {
   spellbookNodes?: NormalizedSpellbookNode[];
   mechanicsRules?: NormalizedMechanicsRule[];
   gatheringNodes?: NormalizedGatheringNode[];
+  corruption?: NormalizedCorruptionFacts | null;
   gatheringNodeSources?: NormalizedGatheringNodeSource[];
   artworkAssets?: NormalizedArtworkAsset[];
   artworkBindings?: NormalizedArtworkBinding[];

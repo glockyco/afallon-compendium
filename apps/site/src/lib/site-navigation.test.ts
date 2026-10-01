@@ -19,7 +19,7 @@ test('Recipes and gathering nodes sit with Items, and guides link each published
   const { sections } = siteNavigation([kind('items', 'Items'), kind('recipes', 'Recipes', false, true), kind('gatheringNodes', 'Gathering Nodes'), kind('mechanics', 'Mechanics')], '/base');
   expect(sections.find((section) => section.id === 'items')?.links.map((link) => link.href)).toEqual(['/base/items/', '/base/recipes/', '/base/gatheringNodes/']);
   expect(sections.find((section) => section.id === 'guides')?.links.map((link) => link.href)).toEqual([
-    '/base/mechanics/character-progression/', '/base/mechanics/heroic-tier/', '/base/mechanics/crafting-and-gathering/',
+    '/base/mechanics/character-progression/', '/base/mechanics/heroic-tier/', '/base/mechanics/crafting-and-gathering/', '/base/mechanics/corruption/',
   ]);
   expect(sections.some((section) => section.id === 'other')).toBe(false);
 });

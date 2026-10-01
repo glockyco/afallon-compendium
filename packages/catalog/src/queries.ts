@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
 import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogAbilityFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogInteractionRow, CatalogGatedSourceRow, CatalogAvailabilityRule, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementSpan, CatalogRequirementGroup, CatalogRequirementNamedValue, CatalogRequirementEntry, CatalogRequirementTime, CatalogRelations } from "@afallon/contracts/catalog";
+import type { CatalogCorruptionFacts } from "@afallon/contracts/catalog";
 import type { CatalogGatheringNode, CatalogMechanicsRule, CatalogProgression, CatalogProgressionApplier, CatalogProgressionFact, CatalogProgressionLearner, CatalogProgressionUnlock, CatalogRandomChoice, NormalizedReference, ProgressionDetails } from "@afallon/contracts/catalog";
 import { categoryLabel } from "@afallon/contracts/public";
 import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
@@ -435,7 +436,9 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
   for (const row of db.query<{ entity_key: string; rank: number; item_entity_key: string | null; item_label: string; count: number }, []>("SELECT entity_key, rank, item_entity_key, item_label, count FROM recipe_materials ORDER BY entity_key, rank, material_index").all()) { const key = `${row.entity_key}:${row.rank}`, values = materials.get(key) ?? []; values.push({ item: endpoint(refs, row.item_entity_key, row.item_label), count: row.count }); materials.set(key, values); }
   for (const row of db.query<{ entity_key: string; rank: number; unlock_cost: number; experience: number; craft_time: number }, []>("SELECT entity_key, rank, unlock_cost, experience, craft_time FROM recipe_ranks ORDER BY entity_key, rank").all()) { const values = ranks.get(row.entity_key) ?? []; values.push({ rank: row.rank, unlockCost: row.unlock_cost, experience: row.experience, craftTime: row.craft_time, products: products.get(`${row.entity_key}:${row.rank}`) ?? [], materials: materials.get(`${row.entity_key}:${row.rank}`) ?? [] }); ranks.set(row.entity_key, values); }
   const recipes = db.query<{ entity_key: string; skill_entity_key: string | null; skill_label: string | null; station_entity_key: string | null; station_label: string | null; learned_by_default: number }, []>("SELECT entity_key, skill_entity_key, skill_label, station_entity_key, station_label, learned_by_default FROM recipe_facts ORDER BY entity_key").all().map((row) => ({ entityKey: row.entity_key, skill: row.skill_entity_key === null && row.skill_label === null ? null : endpoint(refs, row.skill_entity_key, row.skill_label), station: row.station_entity_key === null && row.station_label === null ? null : endpoint(refs, row.station_entity_key, row.station_label), learnedByDefault: row.learned_by_default === 1, ranks: ranks.get(row.entity_key) ?? [] }));
-  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db) } };
+  const corruptionRow = db.query<{ facts_json: string }, []>("SELECT facts_json FROM corruption_facts").get();
+  const corruption = corruptionRow === null ? null : parse(corruptionRow.facts_json) as CatalogCorruptionFacts;
+  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), corruption } };
 }
 
 // Gathering nodes with each source and the placement of that source, when the source has one.
@@ -678,6 +681,38 @@ export function queryTransitions(db: Database): CatalogQueryResult<CatalogTransi
     },
   }));
   return { ...identity(db), records };
+}
+/** A Heart-gated stone owns its inactive and active bowl actions, not copied generic game-action teleports. */
+export function queryChallengeStoneRoutes(db: Database, parentSourceIds: readonly string[]): Array<{ sourceId: string; placementId: string; stoneName: string; regionName: string; transitionIds: string[] }> {
+  if (parentSourceIds.length === 0) return [];
+  const parent = db.query<{ placement_id: string; path: string | null }, [string]>(`
+    SELECT DISTINCT s.placement_id, json_extract(d.data_json, '$.source.source.hierarchyPath') AS path
+    FROM source_identities s JOIN source_details d ON d.source_id = s.source_id
+    WHERE s.source_id = ? AND d.family = 'interactableObject'`);
+  const children = db.query<{ transition_id: string; path: string | null; destination_name: string | null }, []>(`
+    SELECT DISTINCT t.transition_id, json_extract(d.data_json, '$.source.source.hierarchyPath') AS path, e.name AS destination_name
+    FROM transitions t JOIN source_details d ON d.source_id = t.source_id
+    LEFT JOIN canonical_entities e ON e.entity_key = t.destination_scene_entity_key
+    WHERE d.family = 'interactableObject' AND t.transition_kind = 'effect-teleport'`).all();
+  const sceneFamily = (name: string) => name.toLowerCase().replace(/ corrupted$/, "");
+  const title = (name: string) => name.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  return parentSourceIds.map((sourceId) => {
+    const parents = parent.all(sourceId);
+    if (parents.length !== 1 || !parents[0]?.path) throw new Error(`Challenge stone ${sourceId} lacks a unique placed source hierarchy.`);
+    const { placement_id: placementId, path } = parents[0];
+    const segments = path.split("/");
+    const stone = segments[segments.length - 1]?.replace(/\[\d+\]$/, "");
+    const region = segments.find((segment) => /^Coalway (woods|swamp)\[\d+\]$/i.test(segment))?.replace(/\[\d+\]$/, "");
+    if (!stone || !region) throw new Error(`Challenge stone ${sourceId} lacks an authored name or Coalway region.`);
+    const placedChildren = children.filter((child): child is { transition_id: string; path: string; destination_name: string } =>
+      child.path !== null && child.path.startsWith(`${path}/`) && child.destination_name !== null);
+    const inactive = placedChildren.filter((child) => child.path.includes("/AltarBowl inactive["));
+    const normalScenes = new Set(inactive.map((child) => sceneFamily(child.destination_name)));
+    const active = placedChildren.filter((child) => child.path.includes("/AltarBowl active[")
+      && normalScenes.has(sceneFamily(child.destination_name)));
+    return { sourceId, placementId, stoneName: title(stone), regionName: title(region),
+      transitionIds: [...inactive, ...active].map((child) => child.transition_id) };
+  });
 }
 
 function requirementNamedValue(value: unknown): CatalogRequirementNamedValue | null {

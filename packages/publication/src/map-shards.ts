@@ -69,6 +69,17 @@ function readableName(value: unknown): string | null {
   const name = typeof value === "string" ? displayName(value) : "";
   return /\p{L}/u.test(name) ? name : null;
 }
+// Heart-gated parent stones have no placement role; the named teleport is on a child interactable.
+function heartChallengeStoneName(placement: CatalogMapPlacement): string | null {
+  for (const { family, data } of placement.sourceDetails) {
+    if (family !== "interactableObject" || data.interactableName !== "Sacrifice Heart of corruption") continue;
+    const hierarchyPath = record(record(data.source)?.source)?.hierarchyPath;
+    if (typeof hierarchyPath !== "string") continue;
+    const match = hierarchyPath.match(/\/(Challenge stone [^/[]+)\[\d+\]$/i);
+    if (match?.[1]) return displayName(match[1]);
+  }
+  return null;
+}
 function sourceName(placement: CatalogMapPlacement): string | null {
   for (const { data } of placement.sourceDetails) {
     const name = [data.interactableName, data.chestName, record(data.station)?.name, record(data.property)?.name].map(readableName).find((value) => value !== null);
@@ -357,12 +368,14 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
       const entityKeys = [...new Set([...recordKeys.map((key) => pageOf.get(key)?.key ?? key), ...propertiesSold(placement)])].sort();
       const serviceData = recordKeys.map((key) => record(gameplayByEntity.get(key)));
       const foundCategories = new Set(markerCategories(placement.roles, serviceData.map(creatureServices)));
+      const stoneName = heartChallengeStoneName(placement);
+      if (stoneName) foundCategories.add("interactiveObject");
       if (foundCategories.delete("craftingStation")) foundCategories.add(craftingStationCategory(placement, craftingStationNames));
       const placementCategories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => foundCategories.has(category));
       if (placementCategories.length === 0) return [];
       const serviceLabel = serviceData.map(flightPointLabel).find((value): value is string => value !== null);
       const pageNames = [...new Set(recordKeys.map((key) => pageOf.get(key)?.name).filter((name): name is string => Boolean(name)))];
-      const label = serviceLabel || readableName(placement.label) || pageNames.join(" / ") || sourceName(placement) || placementCategories.map((category) => CATEGORY_LABELS[category]).join(" / ");
+      const label = stoneName || serviceLabel || readableName(placement.label) || pageNames.join(" / ") || sourceName(placement) || placementCategories.map((category) => CATEGORY_LABELS[category]).join(" / ");
       const levels = npcLevelsAt(placement, gameplayByEntity);
       if (levels.size > 0) npcLevels.set(placement.placementId, levels);
       const level = placementLevel(placement, levels);

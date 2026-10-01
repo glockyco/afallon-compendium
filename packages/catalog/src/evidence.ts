@@ -11,7 +11,7 @@ import { coverageInventorySubjects, coverageTargetSubjects } from "./coverage-ac
 import type { SceneContext, SourceRecord } from "./context";
 
 const FAMILY_BY_SCHEMA: Readonly<Record<string, ScanCollectorFamily>> = {
-  "compendium.canonical.v4": "canonical", "compendium.localization.v1": "canonical", "compendium.quest-levels.v1": "canonical", "compendium.artwork.v1": "canonical",
+  "compendium.canonical.v4": "canonical", "compendium.localization.v1": "canonical", "compendium.quest-levels.v1": "canonical", "compendium.corruption-capture.v1": "canonical", "compendium.artwork.v1": "canonical",
   "compendium.world-inventory.v2": "inventory", "compendium.addressable-locations.v1": "inventory",
   "compendium.npc-producers.v3": "producers", "compendium.world-sources.v8": "producers",
   "compendium.placement-snapshot.v1": "placements", "compendium.placement-identities.v1": "placements", "compendium.serialized-assets.v2": "placements", "compendium.scene-source-issues.v2": "placements",

@@ -8,6 +8,7 @@
   import { formatNumber, rarityTone } from '../../format';
   import { itemOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
+  import CorruptionPreview from '../CorruptionPreview.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import MaterialsList from '../MaterialsList.svelte';
@@ -37,6 +38,9 @@
   $: materials = craft?.materials.map((row) => ({ item: row.counterpart, quantity: row.count })) ?? [];
   $: experience = craft ? craftExperienceSentence(craft) : undefined;
   $: craftGuide = document.placedRules.find((rule) => rule.target === 'crafting');
+  $: corruptionGuide = document.placedRules.find((rule) => rule.target === 'corruption');
+  $: tokenGuide = document.placedRules.find((rule) => rule.target === 'corruption-token');
+  $: heartGuide = document.placedRules.find((rule) => rule.target === 'corruption-heart');
   $: questUses = itemQuestUseRows(document.usedInQuests);
   $: onlyDrop = document.droppedBy.length === 1 ? document.droppedBy[0] : undefined;
   $: singleDropInAnswer = Boolean(onlyDrop?.creatureLevel && !onlyDrop.requirements.length && (onlyDrop.min ?? 1) === 1 && (onlyDrop.max ?? 1) === 1 && onlyDrop.chance !== undefined);
@@ -85,8 +89,24 @@
       {#if document.description}<p class="description">{document.description}</p>{/if}
       {#if facts.buyPrice}<p class="side-fact">Buy price <Price price={facts.buyPrice} showName /></p>{/if}
       {#if facts.stackLimit > 1}<p class="side-fact">Stack size {formatNumber(facts.stackLimit)}</p>{/if}
+      {#if heartGuide}<p class="side-fact"><HowItWorks guide={heartGuide.guide} stepId={heartGuide.stepId} label="How the Heart is used" /></p>{/if}
     </svelte:fragment>
 
+    {#if facts.corruption}
+      <Section id="corruption" title="Corruption"><CorruptionPreview {facts} guide={corruptionGuide} /></Section>
+    {/if}
+    {#if facts.tokenInfo}
+      <Section id="token-effect" title="Corruption token effects">
+        <div class="token-effects">
+          <p>A token template has no saved value or affixes. A saved token's tooltip begins: “Use at a Corruption Altar to increase dungeon corruption by +N.” N is that token's own saved value, not a gear level.</p>
+          {#if facts.tokenInfo.mobStatBonuses?.length}
+            <p><strong>NPC stat bonuses:</strong> {facts.tokenInfo.mobStatBonuses.map((bonus) => `+${formatNumber(bonus.amountPerLevel)}${bonus.isPercent ? '%' : ''} × N ${bonus.stat.key === null ? bonus.stat.label : bonus.stat.name}`).join(', ')}.</p>
+          {/if}
+          <p><strong>Dungeon affixes:</strong> The saved token lists its affix names and descriptions.{#if facts.tokenInfo.affixesPerToken !== undefined}{' '}A new token can roll up to {facts.tokenInfo.affixesPerToken} distinct eligible affixes.{/if}</p>
+          {#if tokenGuide}<HowItWorks guide={tokenGuide.guide} stepId={tokenGuide.stepId} label="How tokens work" />{/if}
+        </div>
+      </Section>
+    {/if}
     {#if document.teaches}
       <Section id="teaches" title="Teaches"><CraftingSection craft={document.teaches} pageKey={document.ref.key} rules={document.placedRules.filter((entry) => entry.target === 'teaches')} {registry} /></Section>
     {/if}
@@ -136,6 +156,8 @@
   .route p, .description, .side-fact { margin: 0; line-height: 1.5; }
   .description { margin-top: 1rem; color: var(--c-text-dim); }
   .side-fact { display: flex; justify-content: space-between; gap: .75rem; margin-top: .75rem; }
+  .token-effects { display: grid; gap: .7rem; }
+  .token-effects p { margin: 0; line-height: 1.5; }
   .used-recipes, .used-quests { display: grid; gap: .5rem; scroll-margin-top: 1rem; }
   .used-quests { margin-top: .75rem; }
   .used-row, .used-quest { min-width: 0; padding: .55rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }

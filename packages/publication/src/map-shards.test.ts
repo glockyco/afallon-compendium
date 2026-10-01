@@ -12,6 +12,7 @@ interface CraftingPlacementFixture {
   roles?: readonly string[];
   details?: readonly Record<string, unknown>[];
   label?: string | null;
+  family?: string;
 }
 
 async function publishCraftingPlacements(stations: readonly { id: number; name: string }[], placements: readonly CraftingPlacementFixture[]): Promise<PublicEssentialPlacement[]> {
@@ -31,7 +32,7 @@ async function publishCraftingPlacements(stations: readonly { id: number; name: 
       const sourceIds = Array.from({ length: sourceCount }, (_, detailIndex) => `${placement.id}-source-${detailIndex}`);
       for (const [detailIndex, sourceId] of sourceIds.entries()) db.query("INSERT INTO source_identities VALUES (?, ?, ?, ?, ?, ?, ?)").run(sourceId, placement.id, "build", 1, `${component}-${detailIndex}`, "CraftingStation", "Assembly-CSharp");
       for (const role of placement.roles ?? ["craftingService"]) db.query("INSERT INTO placement_roles VALUES (?, ?, ?, ?, ?, ?)").run(placement.id, sourceIds[0]!, role, null, "authored", "{}");
-      for (const [detailIndex, data] of (placement.details ?? []).entries()) db.query("INSERT INTO source_details VALUES (?, ?, ?, ?, ?)").run(`${placement.id}-detail-${detailIndex}`, sourceIds[detailIndex]!, placement.id, "craftingStation", JSON.stringify(data));
+      for (const [detailIndex, data] of (placement.details ?? []).entries()) db.query("INSERT INTO source_details VALUES (?, ?, ?, ?, ?)").run(`${placement.id}-detail-${detailIndex}`, sourceIds[detailIndex]!, placement.id, placement.family ?? "craftingStation", JSON.stringify(data));
     }
     const generated = await generateMapShards(db, new ArtifactStore(join(root, "objects")), new Map());
     return generated[0]!.resources.flatMap((part) => part.value.placements);
@@ -40,6 +41,18 @@ async function publishCraftingPlacements(stations: readonly { id: number; name: 
     await rm(root, { recursive: true, force: true });
   }
 }
+
+test("publishes only Heart-gated challenge-stone parents as exact map spots", async () => {
+  const parent = (hierarchyPath: string, interactableName = "Sacrifice Heart of corruption") =>
+    ({ id: hierarchyPath, family: "interactableObject", label: null, roles: [],
+      details: [{ interactableName, source: { source: { hierarchyPath } } }] });
+  const placements = await publishCraftingPlacements([], [
+    parent("World[0]/Challenge stones[1]/Challenge stone pyromancer[2]"),
+    parent("World[0]/Duskfall depths entrance[2]"),
+    parent("World[0]/Challenge stones[1]/Challenge stone decoy[3]", "Inspect stone"),
+  ]);
+  expect(placements.map((placement) => [placement[3], placement[4]])).toEqual([["Challenge Stone Pyromancer", ["interactiveObject"]]]);
+});
 
 test("keeps map records isolated and stable across equivalent compilations", async () => {
   const root = await mkdtemp(join(tmpdir(), "afallon-map-shards-"));

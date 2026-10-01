@@ -12,6 +12,7 @@ import {
 } from "./database";
 import { ArtworkSchema } from "./artwork";
 import { FactionRolesSchema } from "./faction-roles";
+import { CorruptionCaptureSchema } from "./corruption";
 import { NpcProducersSchema } from "./npc-producers";
 import { AddressableGraphSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, SceneSourceIssuesSchema, SerializedAssetIndexSchema } from "./placement";
 import { RuntimeScanStateSchema, ScanCollectorDispositionSchema, ScanCoverageSchema, ScanEvidenceArtifactSchema, ScanPlanSchema, ScanPlanningEvidenceSchema, ScanSourceEvidenceSchema, ScanTargetEnvelopeSchema, ScanTargetSchema, SceneVisitSchema, StreamCleanupSchema, StreamVisitSchema, TraversalPlanSchema } from "./traversal";
@@ -22,6 +23,7 @@ schemaRegistry.register("compendium.observation-context.v1", ObservationContextS
 schemaRegistry.register("compendium.canonical.v4", CanonicalSchema);
 schemaRegistry.register("compendium.localization.v1", LocalizationSchema);
 schemaRegistry.register("compendium.quest-levels.v1", QuestLevelsSchema);
+schemaRegistry.register("compendium.corruption-capture.v1", CorruptionCaptureSchema);
 schemaRegistry.register("compendium.support.v1", SupportV1Schema);
 schemaRegistry.register("compendium.support.v2", SupportV2Schema);
 schemaRegistry.register("compendium.support.v3", SupportSchema);
@@ -53,6 +55,7 @@ schemaRegistry.register("compendium.world-sources.v8", WorldSourcesSchema);
 
 export * from "./artwork";
 export * from "./database";
+export * from "./corruption";
 export * from "./faction-roles";
 export * from "./npc-producers";
 export * from "./placement";

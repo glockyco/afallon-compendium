@@ -202,6 +202,37 @@ export interface CatalogGearSetFacts {
   tiers: Array<{ equipped: number; stats: CatalogStatValue[] }>;
 }
 
+export interface CatalogCorruptionBonus {
+  stat: CatalogEndpoint;
+  amountPerLevel: number;
+  isPercent: boolean;
+  sourceFieldPath: string;
+}
+
+export interface CatalogCorruptionFacts {
+  maxLevel: number | null;
+  gearAllStatsPercentPerLevel: number | null;
+  gearStatBonuses: CatalogCorruptionBonus[] | null;
+  mobStatBonuses: CatalogCorruptionBonus[] | null;
+  affixesPerToken: number | null;
+  affixes: Array<{ id: number; name: string; description: string; available: boolean }> | null;
+  token: CatalogEndpoint | null;
+  heart: CatalogEndpoint | null;
+  dungeons: Array<{
+    scene: CatalogEndpoint;
+    totalSeconds: number | null;
+    firstRemainingSeconds: number | null;
+    secondRemainingSeconds: number | null;
+    maxLootItems: number | null;
+    bosses: CatalogEndpoint[] | null;
+    lootTables: CatalogEndpoint[] | null;
+    token: CatalogEndpoint | null;
+    provenance: Array<{ path: string; sha256: string; pointer?: string }>;
+  }>;
+  heartRequirements: Array<{ sourceId: string; place: CatalogEndpoint | null; count: number; consume: boolean; sourceFieldPath: string; provenance: Array<{ path: string; sha256: string; pointer?: string }> }> | null;
+  provenance: Array<{ path: string; sha256: string; pointer?: string }>;
+}
+
 export interface CatalogFacts {
   entities: CatalogEntityRow[];
   items: CatalogItemFacts[];
@@ -215,6 +246,7 @@ export interface CatalogFacts {
   gearSets: CatalogGearSetFacts[];
   progression: CatalogProgression;
   gatheringNodes: CatalogGatheringNode[];
+  corruption?: CatalogCorruptionFacts | null;
 }
 
 export interface CatalogCondition { conditionId: string; semantics: string; scope: "equipment" | "use" | null; label: string; requirements: CatalogRequirementGroup[] }

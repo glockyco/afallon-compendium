@@ -3,6 +3,7 @@
   import AbilityPage from './pages/AbilityPage.svelte';
   import CharacterProgressionPage from './pages/CharacterProgressionPage.svelte';
   import CraftingAndGatheringPage from './pages/CraftingAndGatheringPage.svelte';
+  import CorruptionPage from './pages/CorruptionPage.svelte';
   import GatheringNodePage from './pages/GatheringNodePage.svelte';
   import ClassPage from './pages/ClassPage.svelte';
   import HeroicTierPage from './pages/HeroicTierPage.svelte';
@@ -29,4 +30,5 @@
 {:else if page.kind === 'mechanics' && page.document.topic === 'character-progression'}<CharacterProgressionPage document={page.document} {registry} />
 {:else if page.kind === 'mechanics' && page.document.topic === 'heroic-tier'}<HeroicTierPage document={page.document} {registry} />
 {:else if page.kind === 'mechanics' && page.document.topic === 'crafting-and-gathering'}<CraftingAndGatheringPage document={page.document} {registry} />
+{:else if page.kind === 'mechanics' && page.document.topic === 'corruption'}<CorruptionPage document={page.document} {registry} />
 {:else if page.kind === 'gatheringNodes'}<GatheringNodePage document={page.document} {registry} />{/if}

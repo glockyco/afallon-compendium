@@ -339,6 +339,21 @@ export const PlacedRuleSchema = Type.Object({
 }, { additionalProperties: false });
 export type PlacedRule = Static<typeof PlacedRuleSchema>;
 
+// Captured build settings travel with eligible gear so the page never substitutes site constants.
+// A preview uses template stats only; saved rolls, socketed gems and Heroic bonuses are separate.
+export const CorruptionPreviewSchema = Type.Object({
+  maxLevel: Type.Integer({ minimum: 1 }), allStatsPercentPerLevel: number,
+  statBonuses: Type.Array(Type.Object({ stat: RefSchema, amountPerLevel: number, isPercent: Type.Boolean() }, { additionalProperties: false })),
+}, { additionalProperties: false });
+export type CorruptionPreview = Static<typeof CorruptionPreviewSchema>;
+// A template token has no saved value or affixes. These settings explain what its saved tooltip
+// describes without pretending that the template is a particular rolled token.
+export const CorruptionTokenInfoSchema = Type.Object({
+  mobStatBonuses: optional(Type.Array(Type.Object({ stat: RefSchema, amountPerLevel: number, isPercent: Type.Boolean() }, { additionalProperties: false }))),
+  affixesPerToken: optional(count),
+}, { additionalProperties: false });
+
+
 export const ItemFactsSchema = Type.Object({
   rarity: optional(text), itemType: optional(text), slot: optional(text), weaponType: optional(text), armorType: optional(text), weaponSlot: optional(text),
   attackSpeed: optional(number), minDamage: optional(count), maxDamage: optional(count),
@@ -347,6 +362,7 @@ export const ItemFactsSchema = Type.Object({
   // 1.80, which is the mean damage over the attack speed. Both are published so a page, a list
   // column, and a sort agree on one value.
   itemPower: optional(number), damagePerSecond: optional(number),
+  corruption: optional(CorruptionPreviewSchema), tokenInfo: optional(CorruptionTokenInfoSchema),
   stats: Type.Array(StatRowSchema), randomStats: Type.Array(RandomStatRowSchema), randomStatsMax: count,
   sockets: Type.Array(SocketRowSchema), gem: optional(GemSchema),
   enchantment: optional(RefSchema), sellPrice: optional(PriceSchema), buyPrice: optional(PriceSchema), currency: optional(RefSchema),
@@ -664,7 +680,38 @@ export const CraftingAndGatheringSchema = Type.Object({
   spawnerExamples: Type.Array(SpawnerExampleSchema), example: CraftingExampleSchema,
 }, { additionalProperties: false });
 export type CraftingAndGathering = Static<typeof CraftingAndGatheringSchema>;
-export const PublicMechanicsSchema = Type.Union([CharacterProgressionSchema, HeroicTierSchema, CraftingAndGatheringSchema]);
+// Build-specific settings stay alongside the guide, not embedded as numeric constants in site copy.
+const CorruptionBonusSchema = Type.Object({ stat: text, amountPerLevel: number, isPercent: Type.Boolean() }, { additionalProperties: false });
+export const CorruptionGuideSchema = Type.Object({
+  ...documentBase, topic: Type.Literal("corruption"), rules: Type.Array(MechanicsRuleSchema), ...guide,
+  maxLevel: optional(count), gearAllStatsPercentPerLevel: optional(number),
+  nativeRules: Type.Object({
+    altarWithoutTokenIncrement: count, completionFirstBonus: count, completionSecondBonus: count,
+    completionOtherwiseBonus: count, timeoutDecrease: count, timeoutMinimum: count,
+  }, { additionalProperties: false }),
+  gearStatBonuses: optional(Type.Array(CorruptionBonusSchema)), mobStatBonuses: optional(Type.Array(CorruptionBonusSchema)),
+  affixesPerToken: optional(count), affixes: optional(Type.Array(Type.Object({
+    name: text, description: text, available: Type.Boolean(),
+  }, { additionalProperties: false }))),
+  dungeons: Type.Array(Type.Object({
+    place: EntityRefSchema, totalSeconds: optional(count), firstRemainingSeconds: optional(count),
+    secondRemainingSeconds: optional(count), maxLootItems: optional(count),
+    bosses: optional(Type.Array(EntityRefSchema)), lootTables: optional(Type.Array(text)),
+  }, { additionalProperties: false })),
+  token: optional(EntityRefSchema), heart: optional(EntityRefSchema),
+  heartRequirements: optional(Type.Array(Type.Object({
+    stoneName: optional(text), regionName: optional(text), place: optional(EntityRefSchema),
+    destinations: Type.Array(EntityRefSchema), unlinkedDestinations: optional(Type.Array(text)),
+    spot: optional(PlacementRefSchema), count: count,
+  }, { additionalProperties: false }))),
+  example: optional(Type.Object({
+    item: EntityRefSchema, level: count, stat: text, baseStat: number, calculatedStat: number,
+    basePower: optional(number), calculatedPower: optional(number),
+  }, { additionalProperties: false })),
+  evidence: Type.Array(text), unknowns: Type.Array(text),
+}, { additionalProperties: false });
+export type CorruptionGuide = Static<typeof CorruptionGuideSchema>;
+export const PublicMechanicsSchema = Type.Union([CharacterProgressionSchema, HeroicTierSchema, CraftingAndGatheringSchema, CorruptionGuideSchema]);
 export type PublicMechanics = Static<typeof PublicMechanicsSchema>;
 
 // The schema maps carry explicit types that name each schema, because the inferred types are too large
@@ -682,9 +729,9 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v11", npcs: "compendium.static-npc.v6", quests: "compendium.static-quest.v6", places: "compendium.static-place.v7",
+  items: "compendium.static-item.v12", npcs: "compendium.static-npc.v6", quests: "compendium.static-quest.v6", places: "compendium.static-place.v7",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
-  classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v4", gatheringNodes: "compendium.static-gathering-node.v4",
+  classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v5", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -707,27 +754,27 @@ export const StaticSkillDocumentSchema = staticDocument("skills");
 export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v11": typeof StaticItemDocumentSchema; "compendium.static-npc.v6": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v12": typeof StaticItemDocumentSchema; "compendium.static-npc.v6": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v7": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v4": typeof StaticClassDocumentSchema;
-  "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v4": typeof StaticMechanicsDocumentSchema;
+  "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v5": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
-  "compendium.static-item.v11": StaticItemDocumentSchema, "compendium.static-npc.v6": StaticNpcDocumentSchema,
+  "compendium.static-item.v12": StaticItemDocumentSchema, "compendium.static-npc.v6": StaticNpcDocumentSchema,
   "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v7": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v4": StaticClassDocumentSchema,
-  "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v4": StaticMechanicsDocumentSchema,
+  "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v5": StaticMechanicsDocumentSchema,
   "compendium.static-gathering-node.v4": StaticGatheringNodeDocumentSchema,
 };
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v11"), resourceReference("compendium.static-npc.v6"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v7"),
+  resourceReference("compendium.static-item.v12"), resourceReference("compendium.static-npc.v6"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v7"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
-  resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v4"),
+  resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v5"),
   resourceReference("compendium.static-gathering-node.v4"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;

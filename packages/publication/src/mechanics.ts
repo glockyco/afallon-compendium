@@ -1,5 +1,5 @@
-import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogFacts, type CatalogMechanicsRule, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { CharacterProgression, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, PublicLevel, PublicMechanics, TalentPoints } from "@afallon/contracts/public";
+import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
+import type { CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, MechanicsRule, PlacementRef, PublicLevel, PublicMechanics, TalentPoints } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import type { ReferenceResolver } from "./documents";
 import { requiredLevel, spawnerExamples } from "./gathering";
@@ -147,13 +147,130 @@ function craftingAndGathering(facts: CatalogFacts, published: ReadonlySet<string
   };
 }
 
-/** Project the published guide for each topic of the reviewed rules record. */
-export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver, conditions: ReadonlyMap<string, CatalogCondition>): ReadonlyMap<string, PublicMechanics> {
+function corruptionRef(endpoint: CatalogEndpoint | null, published: ReadonlySet<string>, resolve: ReferenceResolver): EntityRef | undefined {
+  if (!endpoint?.entityKey || !published.has(endpoint.entityKey)) return undefined;
+  const ref = resolve({ entityKey: endpoint.entityKey, label: endpoint.label ?? endpoint.entityKey });
+  return ref.key === endpoint.entityKey && ref.slug ? ref : undefined;
+}
+
+// Native and live evidence establish the behavior; values come only from this build's captured catalog facts.
+const CORRUPTION_RULES = [
+  { id: "corruption-altar", section: "altar", phrase: "An unused altar adds one level, or consumes a valid saved token for its value. The start level is capped by the captured combat setting.", method: "CorruptionAltarPanel.ClickConfirm; DungeonCorruptionManager.IncreaseCorruption", evidence: "Build-matched native altar and level-cap bodies." },
+  { id: "corruption-token", section: "tokens", phrase: "Saved token value and affixes appear in its tooltip; a new token rolls distinct eligible affixes.", method: "ItemTooltip.Show; CorruptionAffixes.RollForToken", evidence: "Build-matched native token and affix bodies; controlled live token tooltip." },
+  { id: "corruption-creatures", section: "creatures", phrase: "Captured per-stat creature bonuses apply by dungeon level; affix effects are separate.", method: "DungeonCorruptionManager.ApplyCorruptionBonus", evidence: "Build-matched native creature bonus body and captured combat settings." },
+  { id: "corruption-gear", section: "gear", phrase: "Eligible non-token reward equipment saves a positive dungeon level. Authored template stats and the combat weapon component scale; random rolls and gems do not. No full mitigated hit was measured.", method: "DungeonTimerManager.SpawnRewardLootBag; ItemTooltip.Show; CombatCalculations.AddWeaponBonus", evidence: "Build-matched reward path and controlled live equipment, tooltip, weapon-component, random-roll and gem experiments." },
+  { id: "corruption-timer", section: "timer", phrase: "Completion token value depends on the start level and seconds remaining at each authored threshold; timeout reduces it and omits ordinary loot.", method: "DungeonTimerManager.CompleteChallenge; SpawnRewardLootBag", evidence: "Build-matched native completion and reward bodies, with captured authored dungeon timers." },
+  { id: "corruption-heart", section: "heart", phrase: "The Heart is separate from a token and is a consumed requirement at the recorded challenge stones, as well as a crafting material.", method: "Authored challenge-stone item requirements and crafting recipes", evidence: "Captured challenge-stone requirements and distinct authored item records." },
+] as const;
+
+
+function corruptionExample(facts: CatalogFacts, settings: CatalogCorruptionFacts, published: ReadonlySet<string>, resolve: ReferenceResolver): CorruptionGuide["example"] {
+  if (settings.maxLevel === null || settings.maxLevel < 1 || settings.gearAllStatsPercentPerLevel === null || settings.gearStatBonuses === null) return undefined;
+  const entity = facts.entities.find((row) => row.kind === "items" && displayName(row.name ?? "") === "Novice Plate Chest");
+  const item = entity && facts.items.find((row) => row.entityKey === entity.entityKey);
+  if (!entity || !item || !published.has(entity.entityKey)) throw new Error("The authored Novice Plate Chest example has no published item.");
+  const stat = item.stats.find((row) => displayName(row.stat.label ?? "") === "Stamina" && !row.isPercent);
+  if (!stat) throw new Error("The authored Novice Plate Chest example has no Stamina template stat.");
+  const power = item.stats.find((row) => displayName(row.stat.label ?? "") === "Item Power" && !row.isPercent);
+  const calculated = (base: number, statKey: string | null) => base + base * settings.gearAllStatsPercentPerLevel! / 100
+    + settings.gearStatBonuses!.filter((bonus) => statKey !== null && bonus.stat.entityKey === statKey)
+      .reduce((sum, bonus) => sum + bonus.amountPerLevel * (bonus.isPercent ? base / 100 : 1), 0);
+  return {
+    item: publishedRef(resolve, entity.entityKey, entity.name ?? "Novice Plate Chest"), level: 1,
+    stat: "Stamina", baseStat: stat.amount, calculatedStat: calculated(stat.amount, stat.stat.entityKey),
+    ...(power ? { basePower: power.amount, calculatedPower: Math.trunc(calculated(power.amount, power.stat.entityKey)) } : {}),
+  };
+}
+
+function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, resolve: ReferenceResolver,
+  transitions: readonly CatalogTransitionRow[] = [], placements: ReadonlyMap<string, PlacementRef> = new Map(),
+  stoneRoutes: readonly { sourceId: string; placementId: string; stoneName: string; regionName: string; transitionIds: string[] }[] = []): CorruptionGuide {
+  const settings = facts.corruption;
+  if (!settings) throw new Error("Cannot publish a Corruption guide without captured corruption facts.");
+  const token = corruptionRef(settings.token, published, resolve);
+  const heart = corruptionRef(settings.heart, published, resolve);
+  if ((settings.token && !token) || (settings.heart && !heart) || (token && heart && token.key === heart.key)) {
+    throw new Error("The Corruption Token and Heart must resolve to distinct published item pages.");
+  }
+  const bonuses = (rows: CatalogCorruptionFacts["gearStatBonuses"]): CorruptionGuide["gearStatBonuses"] => {
+    if (rows === null) return undefined;
+    return rows.map((row) => {
+      if (!row.stat.label) throw new Error("Corruption stat bonus lacks a readable stat name.");
+      return { stat: displayName(row.stat.label), amountPerLevel: row.amountPerLevel, isPercent: row.isPercent };
+    });
+  };
+  const dungeons = settings.dungeons.map((row) => {
+    const place = corruptionRef(row.scene, published, resolve);
+    if (!place) throw new Error(`Corruption dungeon ${row.scene.label ?? row.scene.entityKey} has no published place page.`);
+    return {
+      place,
+      ...(row.totalSeconds === null ? {} : { totalSeconds: row.totalSeconds }),
+      ...(row.firstRemainingSeconds === null ? {} : { firstRemainingSeconds: row.firstRemainingSeconds }),
+      ...(row.secondRemainingSeconds === null ? {} : { secondRemainingSeconds: row.secondRemainingSeconds }),
+      ...(row.maxLootItems === null ? {} : { maxLootItems: row.maxLootItems }),
+      ...(row.bosses === null ? {} : { bosses: row.bosses.map((boss) => {
+        const ref = corruptionRef(boss, published, resolve);
+        if (!ref) throw new Error(`Corruption dungeon ${row.scene.label} has an unpublished boss ${boss.label}.`);
+        return ref;
+      }) }),
+      ...(row.lootTables === null ? {} : { lootTables: row.lootTables.map((table) => {
+        if (!table.label) throw new Error(`Corruption dungeon ${row.scene.label} has an unnamed loot table.`);
+        return displayName(table.label);
+      }) }),
+    };
+  });
+  const example = corruptionExample(facts, settings, published, resolve);
+  return {
+    ref: topicRef("corruption"), description: MECHANICS_TOPIC_NAMES.corruption.description, art: {}, topic: "corruption",
+    nativeRules: { altarWithoutTokenIncrement: 1, completionFirstBonus: 2, completionSecondBonus: 1,
+      completionOtherwiseBonus: 0, timeoutDecrease: 1, timeoutMinimum: 1 },
+    ...GUIDES.corruption, rules: CORRUPTION_RULES.map(({ id, section, phrase, method, evidence }): MechanicsRule => ({
+      id, section, phrase, status: "verified", operands: {}, links: [], sources: [{ method, evidence }],
+      appearsOn: id === "corruption-gear" ? ["Item pages, Corruption"] : [],
+    })), ...(token ? { token } : {}), ...(heart ? { heart } : {}),
+    ...(settings.maxLevel === null ? {} : { maxLevel: settings.maxLevel }),
+    ...(settings.gearAllStatsPercentPerLevel === null ? {} : { gearAllStatsPercentPerLevel: settings.gearAllStatsPercentPerLevel }),
+    ...(settings.gearStatBonuses === null ? {} : { gearStatBonuses: bonuses(settings.gearStatBonuses) }),
+    ...(settings.mobStatBonuses === null ? {} : { mobStatBonuses: bonuses(settings.mobStatBonuses) }),
+    ...(settings.affixesPerToken === null ? {} : { affixesPerToken: settings.affixesPerToken }),
+    ...(settings.affixes === null ? {} : { affixes: settings.affixes.map(({ name, description, available }) => ({ name, description, available })) }),
+    // A stone's host scene is not its destination. Only its child interactables' teleports can name it.
+    dungeons, ...(settings.heartRequirements === null ? {} : { heartRequirements: settings.heartRequirements.filter((row) => row.consume).map((row) => {
+      const stone = stoneRoutes.find((candidate) => candidate.sourceId === row.sourceId);
+      const publishedSpot = stone ? placements.get(stone.placementId) : undefined;
+      const destinations = [...new Set(transitions.filter((transition) => stone?.transitionIds.includes(transition.transitionId))
+        .flatMap((transition) => transition.destinationSceneKey === null ? [] : [transition.destinationSceneKey]))];
+      const namedDestinations = destinations.map((key) => ({
+        place: corruptionRef({ entityKey: key, label: key }, published, resolve),
+        name: facts.entities.find((entity) => entity.entityKey === key)?.name,
+      }));
+      const unlinkedDestinations = namedDestinations.flatMap(({ place, name }) => !place && name ? [displayName(name)] : []);
+      return { count: row.count, ...(stone ? { stoneName: stone.stoneName, regionName: stone.regionName } : {}),
+        ...(row.place && corruptionRef(row.place, published, resolve) ? { place: corruptionRef(row.place, published, resolve)! } : {}),
+        destinations: namedDestinations.flatMap(({ place }) => place ?? []),
+        ...(unlinkedDestinations.length ? { unlinkedDestinations } : {}),
+        ...(publishedSpot ? { spot: { placementId: publishedSpot.placementId, mapSpaceId: publishedSpot.mapSpaceId, label: publishedSpot.label } } : {}) };
+    }) }),
+    ...(example ? { example } : {}),
+    evidence: ["Altar, reward, timer, affix and gear rules were checked against this build's native bodies. Combat settings and dungeon timers were captured from the loaded game and authored scene assets.",
+      "The gear label, token description, equipped-stat changes, weapon component and unchanged fixed random rolls and gems were observed in controlled live game experiments."],
+    unknowns: ["A complete mitigated weapon hit was not measured; the observed weapon component is not final hit damage.",
+      "The meaning of keystone terminology and any further Heart effect on token rewards, dungeon levels or timers remain unverified.",
+      ...(settings.heartRequirements === null ? ["The challenge-stone requirement scan was unavailable for this build."] : []),
+      ...(!token || !heart ? ["A distinct published token or Heart item was unavailable in this build's scan."] : [])],
+  };
+}
+
+/** Project reviewed guides and the guide derived from captured Corruption facts. */
+export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver, conditions: ReadonlyMap<string, CatalogCondition>,
+  transitions: readonly CatalogTransitionRow[] = [], placements: ReadonlyMap<string, PlacementRef> = new Map(),
+  stoneRoutes: readonly { sourceId: string; placementId: string; stoneName: string; regionName: string; transitionIds: string[] }[] = []): ReadonlyMap<string, PublicMechanics> {
   const topics = new Set(facts.progression.mechanicsRules.flatMap((rule) => rule.topic === null ? [] : [rule.topic]));
   const documents: PublicMechanics[] = [
     ...(topics.has("character-progression") ? [characterProgression(facts, published, spawned, resolve)] : []),
     ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve)] : []),
+    ...(facts.corruption ? [corruptionGuide(facts, published, resolve, transitions, placements, stoneRoutes)] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));
 }

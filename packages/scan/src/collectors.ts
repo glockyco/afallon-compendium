@@ -4,6 +4,7 @@ import { Assert } from "typebox/value";
 import {
   AddressableGraphSchema,
   ArtworkSchema,
+  CorruptionCaptureSchema,
   CanonicalSchema,
   FactionRolesSchema,
   LocalizationSchema,
@@ -47,6 +48,7 @@ import canonicalSource from "./probes/collectors/canonical.csx" with { type: "te
 import artworkSource from "./probes/collectors/artwork.csx" with { type: "text" };
 import localizationSource from "./probes/collectors/localization.csx" with { type: "text" };
 import quest_levelsSource from "./probes/collectors/quest-levels.csx" with { type: "text" };
+import corruptionSource from "./probes/collectors/corruption.csx" with { type: "text" };
 import { createWorldInventoryBundle } from "./inventory-probe";
 import addressable_locationsSource from "./probes/collectors/addressable-locations.csx" with { type: "text" };
 import npc_producersSource from "./probes/collectors/npc-producers.csx" with { type: "text" };
@@ -66,6 +68,7 @@ const COLLECTOR_SOURCES: Record<string, string> = {
   "localization": localizationSource,
   "quest-levels": quest_levelsSource,
   "addressable-locations": addressable_locationsSource,
+  "corruption": corruptionSource,
   "npc-producers": npc_producersSource,
   "world-sources": world_sourcesSource,
   "placement-snapshot": placement_snapshotSource,
@@ -104,6 +107,7 @@ const DEFINITIONS: readonly CollectorDefinition[] = [
   { family: "canonical", name: "canonical", schema: CanonicalSchema, modules: ["canonical"] },
   { family: "canonical", name: "localization", schema: LocalizationSchema, modules: ["localization"] },
   { family: "canonical", name: "quest-levels", schema: QuestLevelsSchema, modules: ["quest-levels"] },
+  { family: "canonical", name: "corruption", schema: CorruptionCaptureSchema, modules: ["corruption"] },
   { family: "inventory", name: "addressable-locations", schema: AddressableGraphSchema, modules: ["addressable-locations"] },
   { family: "producers", name: "npc-producers", schema: NpcProducersSchema, modules: ["conditions", "npc-producers"] },
   { family: "producers", name: "world-sources", schema: WorldSourcesSchema, modules: ["conditions", "world-sources"] },

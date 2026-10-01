@@ -88,6 +88,34 @@ function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts
   return { refs: references.refs, documents };
 }
 
+test("only eligible gear publishes captured corruption settings and the guide-step placement", () => {
+  const consumable: CatalogEntityRow = { entityKey: "items:6", kind: "items", nativeId: 6, name: "Corruption Token", description: null, iconAssetName: null, artwork: [] };
+  const source = { path: "targets/0/corruption.json", sha256: "a".repeat(64) };
+  const captured: NonNullable<CatalogFacts["corruption"]> = {
+    maxLevel: 30, gearAllStatsPercentPerLevel: 5,
+    gearStatBonuses: [{ stat: { entityKey: "stats:53", label: "Item power" }, amountPerLevel: 5, isPercent: false, sourceFieldPath: "GameDatabase.CombatSettings.CorruptionGearStatBonuses[0]" }],
+    mobStatBonuses: [{ stat: { entityKey: "stats:27", label: "Strength" }, amountPerLevel: 10, isPercent: true, sourceFieldPath: "GameDatabase.CombatSettings.CorruptionStatBonuses[0]" }],
+    affixesPerToken: 3, affixes: [], token: { entityKey: "items:6", label: "Corruption Token" },
+    heart: null, dungeons: [], heartRequirements: [], provenance: [source],
+  };
+  const sourceEntities = [...entities, consumable];
+  const sourceFacts: CatalogFacts = { ...facts, entities: sourceEntities, corruption: captured,
+    items: [...facts.items, { ...facts.items[0]!, entityKey: consumable.entityKey, itemType: "CONSUMABLE", corruptionToken: true }] };
+  const gear = project(sourceEntities, sourceFacts, relations).documents.get("items:1") as PublicItem;
+  const token = project(sourceEntities, sourceFacts, relations).documents.get(consumable.entityKey) as PublicItem;
+  expect(gear.facts.corruption).toEqual({ maxLevel: 30, allStatsPercentPerLevel: 5,
+    statBonuses: [{ stat: { key: "stats:53", kind: "stats", name: "Item Power" }, amountPerLevel: 5, isPercent: false }] });
+  expect(gear.facts.stats[0]?.amount).toBe(42);
+  expect(gear.facts.itemPower).toBe(99);
+  expect(gear.placedRules).toContainEqual({ target: "corruption", guide: expect.objectContaining({ key: "mechanics:corruption" }), stepId: "compare-corrupted-gear" });
+  expect(token.facts.corruption).toBeUndefined();
+  expect(token.facts.tokenInfo).toEqual({ mobStatBonuses: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amountPerLevel: 10, isPercent: true }], affixesPerToken: 3 });
+  expect(token.placedRules).toContainEqual({ target: "corruption-token", guide: expect.objectContaining({ key: "mechanics:corruption" }), stepId: "read-the-token" });
+  expect(token.placedRules.some((entry) => entry.target === "corruption")).toBe(false);
+  const unavailable = project(entities, { ...facts, corruption: { ...captured, gearStatBonuses: null } }, relations).documents.get("items:1") as PublicItem;
+  expect(unavailable.facts.corruption).toBeUndefined();
+});
+
 test("currency purchases merge identical prices across merchants but preserve different costs", () => {
   const currency = { entityKey: "currencies:1", label: "Corrupted Emerald" };
   const product = { entityKey: "items:7", label: "Robe of the Arcanist" };
