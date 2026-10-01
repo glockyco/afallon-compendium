@@ -98,11 +98,19 @@ Rows that have the same counterpart and the same values, and differ only in the 
 
 ### Requirement: Long relation tables show their first rows
 
-A relation with more than eight rows SHALL preview its first eight in its current sort order and offer Show N more, where N is the number of hidden rows. An address that names a hidden row SHALL reveal it and scroll to it; this SHALL also work inside a hidden tab or closed disclosure.
+A relation with up to ten rows SHALL show every row. A relation with more than ten rows SHALL preview its first eight in its current sort order and offer Show N more, where N is the number of hidden rows. A list on a detail page that hides rows behind Show more or Show all SHALL follow the same rule. An address that names a hidden row SHALL reveal it and scroll to it; this SHALL also work inside a hidden tab or closed disclosure.
 
 #### Scenario: Long drop list
 - **WHEN** an NPC has 22 drop rows
 - **THEN** the section shows eight rows and a Show 14 more control
+
+#### Scenario: Short list
+- **WHEN** an item is used in nine recipes
+- **THEN** its Used for section shows all nine recipes and no Show more control
+
+#### Scenario: Smallest hidden part
+- **WHEN** a relation has eleven rows
+- **THEN** the section shows eight rows and a Show 3 more control
 
 #### Scenario: Link to a hidden row
 - **WHEN** a reader opens a link to a variant anchored in row 20
@@ -327,3 +335,31 @@ Reviewed rules SHALL remain available on their mechanics guide with their eviden
 #### Scenario: Computed yield bonus
 - **WHEN** Small Iron Vein has no Mining gate and verified gathering yield bonus operands
 - **THEN** its Gives answer shows the bonus at Mining level 1 and at the highest Mining level, with a guide-step link rather than a How it works rules section
+
+### Requirement: Currency Purchases on Item Detail Pages
+
+Item detail pages SHALL show a Buys relation section for an item with a spendable currency conversion and purchasable merchant stock, with linked products, costs, and linked sellers. Non-currency item pages SHALL omit the section.
+
+#### Scenario: Spendable Item
+- **WHEN** a reader opens the Corrupted Emerald page
+- **THEN** the page displays the products available for its currency with their costs and sellers
+
+#### Scenario: Ordinary Item
+- **WHEN** a reader opens an item without a currency conversion
+- **THEN** the page omits Buys
+
+### Requirement: Creature experience per kill includes the level bonus
+
+A combat creature's experience per kill SHALL be the whole roll from its authored minimum experience through its authored maximum minus one, or the minimum when both are equal, plus the creature's level times its experience per level. The page and its variant table SHALL show this amount at the lowest and highest level at which the creature spawns. When the creature can spawn without a highest level, the page SHALL show the lowest amount with a plus sign. When no spawn level is published, the page SHALL show the roll and the experience per level. When the experience per level is unknown, the page SHALL NOT show experience per kill.
+
+#### Scenario: Fixed level
+- **WHEN** Brinecrest spawns at level 23, rolls 70 through 119, and has 1 experience per level
+- **THEN** its page shows 93–142 experience per kill
+
+#### Scenario: Scaling level
+- **WHEN** Bat spawns near the player's level within 15–30, rolls 1, and has 1 experience per level
+- **THEN** its page shows 16–31 experience per kill
+
+#### Scenario: No published spawn
+- **WHEN** a creature has no published spawn, rolls 70 through 119, and has 1 experience per level
+- **THEN** its page shows 70–119, plus 1 per level
