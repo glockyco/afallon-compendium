@@ -1,29 +1,28 @@
 ## Why
 
-Item pages show only an item's template stats. The accepted catalog records one Corruption Token but no corruption settings or corrupted item variants (`item_facts`, accepted catalog 6bc13a4c). Players ask how Corruption+ works, while the gear bonus and the origin of its level need separate evidence (progression UX findings, lines 63-71 and 92-96).
+Item pages show template stats but cannot compare a calculated corrupted template with its base values. The accepted build 25434619 catalog `05538f40` and publication `e6ad42ed` have no published corruption settings or guide. Build-matched native analysis and live in-game tooltip, equipment and combat-component experiments now establish the corruption level display, scaling, and token description. A full mitigated hit was not measured.
 
 ## What Changes
 
-- Capture the build's corruption cap and gear bonus settings. Trace how a dropped item receives its corruption level before describing where levels come from.
-- Show a corruption-level selector and calculated stats on eligible item pages. Keep the unmodified template visible and distinguish calculated values from a specific rolled item. Link to the corruption mechanics page.
-- Publish `/mechanics/corruption` as a document of the `mechanics` page kind introduced by `explain-character-progression`. Explain verified Corruption+ rules, and distinguish unresolved keystone, timer, heart, and token behavior from verified facts.
-- Keep every reachable item in the existing list and detail pages. Do not rank gear or add dungeon guides.
+- Capture build-specific corruption settings, eligible reward rules, token/affix behavior, the five timed dungeons' authored thresholds and loot counts, and their provenance. Distinguish Heart of Corruption, a challenge-stone requirement and crafting material, from a Corruption Token.
+- Offer a corruption-level selector only for eligible equippable item templates, in a closed or secondary section. Show calculated values beside base values with game-tooltip-matching formatting and rounding, explicitly not a specific rolled item, and link the relevant guide step. Keep the in-game tooltip and acquisition answer intact.
+- Publish `/mechanics/corruption` as a guide under the existing `mechanics` page kind. State verified Corruption+ rules, worked examples, source boundaries, and unresolved behavior without inventing gameplay facts.
+- Keep every reachable item in existing list and detail pages. Do not rank gear or add dungeon routes.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `corruption-mechanics`: A published Corruption+ reference page based on captured settings and verified rules.
+- `corruption-mechanics`: A build-specific Corruption+ guide grounded in captured rules and authored facts.
 
 ### Modified Capabilities
 
-- `item-property-presentation`: Item pages present calculated gear stats by corruption level without hiding the base item.
+- `item-property-presentation`: Eligible item pages compare calculated corruption-level values with unchanged base template values.
 
 ## Impact
 
-- Read-only research: build-matched Ghidra methods and, if needed, a bounded HotRepl probe of settings and item generation.
-- Scan and contracts: corruption settings in support evidence and catalog fact contracts.
-- Catalog and publication: settings normalization, item projections, and a versioned mechanics document.
-- Site: an item-page selector and the `/mechanics/corruption` page using the Mechanics navigation group.
-- Publication cycle: one compared catalog candidate, one staged publication candidate, browser checks, and joint acceptance.
-- Dependencies: `build-compendium-hub` owns navigation, and `explain-character-progression` owns the mechanics page kind and route. This change extends those interfaces without replacing them.
+- Research: build-matched native, read-only runtime, and controlled live in-game evidence in `local/corruption/native-findings-20261001.md`, `runtime-findings-20261001.md`, and `live-findings-20261001.md`; the full mitigated-hit outcome remains outside the measured weapon component.
+- Scan, catalog, and publication: build-specific settings, dungeon and token facts, calculated item projections, and a versioned mechanics guide.
+- Site: secondary item comparison and `/mechanics/corruption`, linked from the Browse panel's Guides column and applicable entity guide-step links.
+- Publication cycle: compare against accepted catalog `05538f40` and publication `e6ad42ed`, stage candidates, browser-check, and accept catalog and publication together.
+- Existing contracts: `mechanics-pages` owns the guide kind, step anchors and rule placements; `reference-layout` owns Browse navigation; `item-property-presentation` and `detail-pages` own item layout and progressive disclosure. The earlier `explain-character-progression` and `add-page-navigation` changes are archived, not active dependencies.
