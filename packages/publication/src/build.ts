@@ -24,6 +24,7 @@ import { generateIndexResources } from "./index-resources";
 import { assertCompleteTooltipCoverage } from "./tooltip-coverage";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { generateMapShards } from "./map-shards";
+import { catalogPlaceVariants } from "./place-variants";
 import { writeStaticJson, type GeneratedStaticResource } from "./resources";
 import { verifyPublicationGraph, type PublicationCandidateAsset, type PublicationCandidateResource } from "./selection";
 
@@ -77,7 +78,8 @@ export async function buildStaticPublication(
   // no page, so it takes no part in the grouping.
   const excluded = new Set(exclusions.map((exclusion) => exclusion.key));
   const pageOf = pagesOfRecords(queryCatalogEntities(db).records.filter((entity) => !excluded.has(entity.entityKey)), "npcs");
-  const mapShards = await generateMapShards(db, store, pageOf, publishedOffsets, protection, publishedMapIds, publishedExtents);
+  const variants = catalogPlaceVariants(db, publishedMapIds);
+  const mapShards = await generateMapShards(db, store, pageOf, publishedOffsets, protection, publishedMapIds, publishedExtents, variants.copiedPlacementIds);
   const npcLevels = new Map(mapShards.flatMap((entry) => [...entry.npcLevels]));
   const imageryByMap = new Map(imagery.map((entry) => [entry.mapSpaceId, entry.resource]));
   const placements = new Map<string, PublishedPlacement>();
@@ -99,7 +101,7 @@ export async function buildStaticPublication(
     regionIdsByMapSpace.set(entry.summary.mapSpaceId, [...regionIds].sort());
   }
   const placementIdsByKey = new Map([...placementIdsByKeySets].map(([key, ids]) => [key, [...ids].sort()]));
-  const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, regionIdsByMapSpace, npcLevels, publishedExtents, exclusions, protection);
+  const indexes = await generateIndexResources(db, store, placements, placementIdsByKey, regionIdsByMapSpace, npcLevels, publishedExtents, exclusions, protection, variants.byScene);
   const identity = queryCatalogMaps(db);
   assertCompleteTooltipCoverage(gate.complete, indexes.publicationIssues);
   const coverage: StaticCoverage = {
@@ -108,10 +110,12 @@ export async function buildStaticPublication(
   };
   Assert(StaticCoverageSchema, coverage);
   const coverageResource = await writeStaticJson(store, coverage.schemaVersion, coverage, protection);
-  // Staging parity reads the excluded keys and reasons. The evidence text stays in the presentation input.
+  // Staging parity reads reviewed entity exclusions and derived placement copies; the site loads neither.
   const exclusionsValue: StaticExclusions = {
     schemaVersion: "compendium.static-exclusions.v1", buildId: identity.buildId, catalogId: identity.catalogId,
     exclusions: exclusions.map((exclusion) => ({ key: exclusion.key, reason: exclusion.reason })).sort((left, right) => left.key.localeCompare(right.key)),
+    placementCopies: [...variants.copyHostByPlacement].sort(([left], [right]) => left.localeCompare(right))
+      .map(([placementId, hostPlacementId]) => ({ placementId, hostPlacementId })),
   };
   Assert(StaticExclusionsSchema, exclusionsValue);
   const exclusionsResource = await writeStaticJson(store, exclusionsValue.schemaVersion, exclusionsValue, protection);

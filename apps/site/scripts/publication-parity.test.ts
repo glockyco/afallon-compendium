@@ -29,6 +29,7 @@ function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummar
     artworkAssets: new Set([`art/${"a".repeat(64)}.webp`]),
     artworkOwners: new Map([[`art/${"a".repeat(64)}.webp`, new Set(["items:1"])]]),
     excludedKeys: new Set(),
+    placementCopies: new Map(),
     placementCount: 25,
     ...overrides,
   };
@@ -119,6 +120,25 @@ test("same-build corrections only remove placements outside exact game-map bound
   const folded = summary({ placementIds: new Set(["dungeon"]), placementLocations: new Map([["dungeon", { mapSpaceId: "world", position: [3, 2] as const, categories: ["dungeonEntrance", "travelPoint"] }]]) });
   assertCorrectedPublicationParity(folded, travelBaseline);
   expect(() => assertCorrectedPublicationParity({ ...folded, placementLocations: new Map([["dungeon", { mapSpaceId: "world", position: [3, 2] as const, categories: ["travelPoint"] }]]) }, travelBaseline)).toThrow("in-bounds placements");
+});
+
+test("same-build placement copies require a surviving equivalent host marker", () => {
+  const original = summary({
+    placementIds: new Set(["copy", "host"]),
+    placementLocations: new Map([
+      ["copy", { mapSpaceId: "world", position: [2, 2], categories: ["merchant"], entityKeys: ["npcs:1"], itemKeys: [] }],
+      ["host", { mapSpaceId: "world", position: [2.01, 2], categories: ["merchant"], entityKeys: ["npcs:1"], itemKeys: [] }],
+    ]),
+  });
+  const corrected = summary({
+    placementIds: new Set(["host"]),
+    placementLocations: new Map([["host", original.placementLocations.get("host")!]]),
+    placementCopies: new Map([["copy", "host"]]),
+  });
+  assertCorrectedPublicationParity(corrected, original);
+  expect(() => assertCorrectedPublicationParity({ ...corrected, placementCopies: new Map() }, original)).toThrow("in-bounds placements");
+  expect(() => assertCorrectedPublicationParity({ ...corrected, placementLocations: new Map([["host", { ...original.placementLocations.get("host")!, entityKeys: ["npcs:2"] }]]) }, original)).toThrow("in-bounds placements");
+  expect(() => assertCorrectedPublicationParity({ ...corrected, placementLocations: new Map([["host", { ...original.placementLocations.get("host")!, position: [2.1, 2] }]]) }, original)).toThrow("in-bounds placements");
 });
 
 test("same-build corrections may move reviewed maps and shift placements only within the tolerance", () => {

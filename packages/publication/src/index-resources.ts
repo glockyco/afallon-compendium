@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { Assert } from "typebox/value";
+import { Assert, AssertError } from "typebox/value";
 import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
 import { queryCatalogEntities, queryCatalogFacts, queryCatalogFullEntities, queryCatalogRelations, querySpawnCandidateNpcs } from "@afallon/catalog";
 import {
@@ -38,6 +38,7 @@ import { partitionStaticRecords, writeStaticJson, type GeneratedStaticResource }
 import type { PublicationCandidateAsset } from "./selection";
 import type { MapExtent } from "./map-shards";
 import { levelUnion } from "./levels";
+import type { PlaceVariant } from "./place-variants";
 import { displayName } from "./text";
 import { categoryLabel } from "@afallon/contracts/public";
 import { auditPublicTooltipCoverage } from "./tooltip-coverage";
@@ -111,6 +112,7 @@ export async function generateIndexResources(
   mapExtents: ReadonlyMap<string, MapExtent>,
   exclusions: readonly PublicationExclusion[],
   protection?: ObjectWriteProtection,
+  placeVariants: ReadonlyMap<string, PlaceVariant> = new Map(),
 ): Promise<GeneratedIndexResources> {
   const entities = queryCatalogEntities(db), facts = queryCatalogFacts(db), catalogRelations = queryCatalogRelations(db);
   assertSameIdentity(entities, facts, "Fact");
@@ -139,7 +141,7 @@ export async function generateIndexResources(
     return [placementId, area ? { ...placement, label: area } : scene?.kind === "places" ? { ...placement, label: scene.name } : placement] as const;
   }));
   const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
-    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded,
+    resolve: createReferenceResolver(refs), artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants,
     classWeapons: classWeapons(queryCatalogFullEntities(db).records) });
   const conditions = conditionsById(relations.records.conditions), resolve = createReferenceResolver(refs);
   const nodeDocuments = projectGatheringNodeDocuments(facts.records, relations.records, { resolve, conditions, placements: publishedPlacements,
@@ -152,7 +154,12 @@ export async function generateIndexResources(
     const kind = document.ref.kind as keyof typeof STATIC_DOCUMENT_SCHEMA_IDS;
     const schemaVersion = STATIC_DOCUMENT_SCHEMA_IDS[kind];
     const value = { schemaVersion, ...identity, kind, document } as StaticDocument;
-    Assert(STATIC_DOCUMENT_SCHEMAS[schemaVersion], value);
+    try {
+      Assert(STATIC_DOCUMENT_SCHEMAS[schemaVersion], value);
+    } catch (error) {
+      if (error instanceof AssertError) throw new Error(`Invalid publication document ${key}: ${JSON.stringify([...error.cause.errors].slice(0, 5))}`, { cause: error });
+      throw error;
+    }
     const resource = await writeStaticJson<StaticDocument>(store, schemaVersion, value, protection);
     if (resource.identity.bytes > PUBLICATION_DOCUMENT_BUDGET) throw new Error(`Publication document ${key} is ${resource.identity.bytes} bytes, exceeding its ${PUBLICATION_DOCUMENT_BUDGET}-byte budget.`);
     documents.set(key, resource);

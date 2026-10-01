@@ -282,12 +282,14 @@ const exclusionReason = Type.Union([
 ]);
 export type ExclusionReason = Static<typeof exclusionReason>;
 
-// The records that the publication leaves out, with their reasons. Staging parity reads it to accept their removal from
-// a baseline. The site does not load it.
+// The records that the publication leaves out, with their reasons. Derived placement copies also record
+// their matching host object, so staging can distinguish intentional deduplication from missing map content.
+// The site does not load this audit resource.
 export const StaticExclusionsSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.static-exclusions.v1"),
   ...StaticResourceIdentityFields,
   exclusions: Type.Array(Type.Object({ key: text, reason: exclusionReason }, { additionalProperties: false })),
+  placementCopies: Type.Optional(Type.Array(Type.Object({ placementId: text, hostPlacementId: text }, { additionalProperties: false }))),
 }, { additionalProperties: false });
 export type StaticExclusions = Static<typeof StaticExclusionsSchema>;
 

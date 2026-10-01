@@ -64,6 +64,7 @@ import { displayName, plainText, withoutMarkup } from "./text";
 import { recipeAnchor, type EntityReferences, type PublishedPage } from "./references";
 import { placedRules } from "./placed-rules";
 import { placeSpots } from "./place-spots";
+import type { PlaceVariant } from "./place-variants";
 
 export type ReferenceResolver = (endpoint: CatalogEndpoint) => Ref;
 export type PublishedPlacement = PlacementRef & { categories: readonly PublicMarkerCategory[] };
@@ -81,6 +82,7 @@ export interface DocumentProjectionInput {
   npcLevels: ReadonlyMap<string, ReadonlyMap<string, PublicLevel>>;
   /** The published placements that the map links to each entity key, such as the for-sale signs of a property. */
   placementIdsByKey: ReadonlyMap<string, readonly string[]>;
+  placeVariants?: ReadonlyMap<string, PlaceVariant>;
   excluded?: ReadonlySet<string>;
   /** The weapon types that each class can use, as the game names them. */
   classWeapons?: ReadonlyMap<string, readonly string[]>;
@@ -848,9 +850,9 @@ const HOSTILE_CATEGORIES: ReadonlySet<PublicMarkerCategory> = new Set<PublicMark
 
 // The creatures of a place, one row per page. A row with enemy, boss, or neutral placements is a creature, and other
 // rows are characters.
-function creaturesForPlace(entityKey: string, input: DocumentProjectionInput, indexes: RelationIndexes, hostile: boolean): CreatureRow[] {
+function creaturesForPlace(placements: readonly CatalogPlacementRow[], input: DocumentProjectionInput, indexes: RelationIndexes, hostile: boolean): CreatureRow[] {
   const byPage = new Map<string, { refs: Ref[]; placementIds: Set<string>; levels: PublicLevel[]; roles: Set<PublicMarkerCategory> }>();
-  for (const placement of indexes.placementsByScene.get(entityKey) ?? []) {
+  for (const placement of placements) {
     if (!input.placements.has(placement.placementId)) continue;
     for (const npcKey of new Set(placement.roles.map((role) => role.npcEntityKey))) {
       if (npcKey === null) continue;
@@ -877,11 +879,13 @@ function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
   const fact = input.facts.places.find((candidate) => candidate.entityKey === entity.entityKey);
   const mapSpaceId = fact?.mapSpaceIds.find((candidate) => input.regionIdsByMapSpace.has(candidate)) ?? null;
   const placeType = fact?.placeType ?? (entity.kind === "regions" ? "region" : "zone");
-  const placePlacements = indexes.placementsByScene.get(entity.entityKey) ?? [];
+  const variant = input.placeVariants?.get(entity.entityKey);
+  const placePlacements = (indexes.placementsByScene.get(entity.entityKey) ?? []).filter((placement) => !variant?.copiedPlacementIds.has(placement.placementId));
   const serviceCategories = { merchant: true, auctioneer: true, banker: true, questGiver: true, flightPoint: true, townsfolk: true,
     craftingStation: true, alchemyStation: true, cookingStation: true, smithingStation: true, furnace: true, tailoringStation: true,
     travelPoint: true, neutral: true } as const;
-  const resourceCategories = { oreVein: true, herb: true, mushroom: true, fishingSpot: true } as const;
+  const resourceCategories: Record<string, true> = { oreVein: true, herb: true, mushroom: true, fishingSpot: true };
+  if (variant) resourceCategories.interactiveObject = true;
   const containerCategories = { container: true } as const;
   const here = new Set(placePlacements.filter((placement) => input.placements.has(placement.placementId)).map((placement) => placement.placementId));
   const placedHere = (ids: readonly string[]) => ids.some((id) => here.has(id));
@@ -897,6 +901,7 @@ function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
   const connections = input.relations.transitions.flatMap((row): ConnectionRow[] => {
     const startsHere = row.sourceSceneKey === entity.entityKey, endsHere = row.destinationSceneKey === entity.entityKey;
     if (!startsHere && !endsHere) return [];
+    if (variant && !placedHere(row.placementIds)) return [];
     const direction = startsHere && endsHere ? "within" : startsHere ? "to" : "from";
     const counterpartKey = direction === "from" ? row.sourceSceneKey : row.destinationSceneKey;
     return [{ counterpart: endpointOrUnknown(input.resolve, counterpartKey === null ? null : { entityKey: counterpartKey, label: counterpartKey }, "Unknown place"), direction, placements: publishedPlacements(row.placementIds, input.placements) }];
@@ -904,12 +909,13 @@ function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentP
   return {
     ...baseDocument(entity, ref, input, fact?.guideDescription),
     facts: { placeType, ...(fact?.levelRange ? { levelRange: fact.levelRange } : {}), guideIncluded: fact?.guideIncluded ?? false },
-    space: mapSpaceId === null ? null : { mapSpaceId, regionIds: [...(input.regionIdsByMapSpace.get(mapSpaceId) ?? [])] },
-    bosses: mergeRefs((fact?.bosses ?? []).map(input.resolve), input), creatures: creaturesForPlace(entity.entityKey, input, indexes, true), npcs: creaturesForPlace(entity.entityKey, input, indexes, false),
+    space: mapSpaceId === null ? null : { mapSpaceId, regionIds: variant ? [] : [...(input.regionIdsByMapSpace.get(mapSpaceId) ?? [])], ...(variant ? { placementIds: [...here].sort() } : {}) },
+    ...(variant ? { variantOf: input.resolve({ entityKey: variant.hostKey, label: variant.hostKey }) } : {}),
+    bosses: mergeRefs((fact?.bosses ?? []).filter((boss) => !variant || npcPlacedHere(boss.entityKey)).map((boss) => input.resolve(boss)), input), creatures: creaturesForPlace(placePlacements, input, indexes, true), npcs: creaturesForPlace(placePlacements, input, indexes, false),
     services: placementGroups(placePlacements, serviceCategories, input), resources: placementGroups(placePlacements, resourceCategories, input), containers: placementGroups(placePlacements, containerCategories, input),
     quests: questRefs(startsHere), questObjectives: questRefs(objectiveHere),
     properties: input.facts.properties.filter((property) => propertySceneKey(property.entityKey, input) === entity.entityKey).map((property) => input.resolve({ entityKey: property.entityKey, label: property.entityKey })),
-    connections, regions: input.facts.places.filter((candidate) => candidate.placeType === "region" && candidate.parentSceneKey === entity.entityKey).map((candidate) => input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey })),
+    connections, regions: variant ? [] : input.facts.places.filter((candidate) => candidate.placeType === "region" && candidate.parentSceneKey === entity.entityKey).map((candidate) => input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey })),
     ...(fact?.parentSceneKey ? { parent: input.resolve({ entityKey: fact.parentSceneKey, label: fact.parentSceneKey }) } : {}),
   };
 }

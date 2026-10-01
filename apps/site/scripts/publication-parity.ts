@@ -14,6 +14,7 @@ export interface ParityTileLayer {
   extent: readonly [number, number, number, number];
   tiles: ReadonlyArray<{ z: number; x: number; y: number; sha256: string }>;
 }
+type PublishedPlacementLocation = { mapSpaceId: string; position: readonly [number, number]; categories: readonly string[]; entityKeys?: readonly string[]; itemKeys?: readonly string[] };
 
 export interface PublicationSummary {
   mapIds: Set<string>;
@@ -26,7 +27,7 @@ export interface PublicationSummary {
   itemKeys: Set<string>;
   regionKeys: Set<string>;
   placementIds: Set<string>;
-  placementLocations: Map<string, { mapSpaceId: string; position: readonly [number, number]; categories: readonly string[] }>;
+  placementLocations: Map<string, PublishedPlacementLocation>;
   boundsByMap: Map<string, Bounds>;
   listKinds: Set<string>;
   /** Kinds whose current registry declares a list, including recipes without pages. */
@@ -38,6 +39,8 @@ export interface PublicationSummary {
   artworkOwners: Map<string, Set<string>>;
   /** The keys that the reviewed exclusion list of this publication names. A baseline without the list has none. */
   excludedKeys: Set<string>;
+  /** Derived copies omitted from the map and the host object that proves each one. */
+  placementCopies: Map<string, string>;
   placementCount: number;
 }
 
@@ -101,16 +104,16 @@ function artUrls(value: unknown, into: string[] = []): string[] {
 export function summarizePublication(graph: PublicationView): PublicationSummary {
   const root = object(graph.publication), resource = (reference: unknown) => object(graph.resources.get(text(object(reference).path)));
   const maps = array(root.maps).map(object);
-  const placements: Array<{ placementId: string; mapSpaceId: string; position: readonly [number, number]; categories: readonly string[] }> = [];
+  const placements: Array<{ placementId: string; mapSpaceId: string; position: readonly [number, number]; categories: readonly string[]; entityKeys: readonly string[]; itemKeys: readonly string[] }> = [];
   const regions: Json[] = [], layers: ParityTileLayer[] = [], searchKeys: string[] = [], itemKeys: string[] = [], entityKeys = new Set<string>(), listKinds = new Set<string>(), pageKinds = new Set<string>();
   for (const map of maps) {
     const mapSpaceId = text(map.mapSpaceId);
     for (const part of array(map.parts)) {
       const shard = resource(part);
       for (const tuple of array(shard.placements)) {
-        const [placementId, position, , , categories] = array(tuple);
+        const [placementId, position, , , categories, entityKeys, itemKeys] = array(tuple);
         const [x = Number.NaN, y = Number.NaN] = array(position).map(number);
-        placements.push({ placementId: text(placementId), mapSpaceId, position: [x, y], categories: array(categories).map(text) });
+        placements.push({ placementId: text(placementId), mapSpaceId, position: [x, y], categories: array(categories).map(text), entityKeys: array(entityKeys).map(text), itemKeys: array(itemKeys).map(text) });
       }
       regions.push(...array(shard.regions).map(object));
     }
@@ -177,12 +180,16 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
     entityKeys, itemKeys: uniqueSet(itemKeys, "searchable item"),
     regionKeys: uniqueSet(regionKeys, "map region"),
     placementIds,
-    placementLocations: new Map(placements.map((placement) => [placement.placementId, { mapSpaceId: placement.mapSpaceId, position: placement.position, categories: placement.categories }])),
+    placementLocations: new Map(placements.map((placement) => [placement.placementId, { mapSpaceId: placement.mapSpaceId, position: placement.position, categories: placement.categories, entityKeys: placement.entityKeys, itemKeys: placement.itemKeys }])),
     boundsByMap: new Map(maps.map((map) => [text(map.mapSpaceId), { min: point(object(map.bounds).min), max: point(object(map.bounds).max) }])),
     listKinds, declaredListKinds: new Set(array(root.kinds).map(object).filter((entry) => entry.list === true || entry.list === undefined && entry.pages === true).map((entry) => text(entry.kind))), pageKinds,
     artworkAssets: new Set([...graph.references.values()].filter((reference) => reference.schemaId === "image/webp" && reference.path.startsWith("art/")).map((reference) => reference.path)),
     artworkOwners,
     excludedKeys: new Set(array(resource(root.exclusions).exclusions).map((entry) => text(object(entry).key)).filter(Boolean)),
+    placementCopies: new Map(array(resource(root.exclusions).placementCopies).map((entry) => {
+      const copy = object(entry);
+      return [text(copy.placementId), text(copy.hostPlacementId)] as const;
+    })),
     placementCount: placements.length,
   };
 }
@@ -265,6 +272,9 @@ const PLACEMENT_CORRECTION_TOLERANCE = 2;
 export function assertCorrectedPublicationParity(candidate: PublicationSummary, baseline: PublicationSummary): void {
   const missingMaps = [...baseline.mapIds].filter((mapSpaceId) => !candidate.mapIds.has(mapSpaceId));
   if (missingMaps.length > 0) throw new Error(`Publication correction removes map spaces: ${missingMaps.join(", ")}.`);
+  if ([...candidate.placementCopies].some(([id, hostId]) => !id || !hostId || id === hostId || candidate.placementIds.has(id))) {
+    throw new Error("Publication correction declares a copy without a distinct, omitted host placement.");
+  }
   for (const [mapSpaceId, bounds] of candidate.boundsByMap) {
     const offset = candidate.offsets.get(mapSpaceId);
     const gameMaps = [...candidate.tileLayers.values()].filter((layer) => layer.mapSpaceId === mapSpaceId && layer.kind === "game-map");
@@ -298,6 +308,18 @@ export function assertCorrectedPublicationParity(candidate: PublicationSummary, 
       placement.position[1] - baselineOffset.worldY + candidateOffset.worldY,
     ] as const;
     if (!within(bounds, translatedPosition)) return false;
+    const hostId = candidate.placementCopies.get(id);
+    if (hostId) {
+      const sameMarker = (replacement: PublishedPlacementLocation) =>
+        replacement.mapSpaceId === placement.mapSpaceId
+        && Math.abs(replacement.position[0] - translatedPosition[0]) < 0.05
+        && Math.abs(replacement.position[1] - translatedPosition[1]) < 0.05
+        && JSON.stringify(replacement.categories) === JSON.stringify(placement.categories)
+        && JSON.stringify(replacement.entityKeys ?? []) === JSON.stringify(placement.entityKeys ?? [])
+        && JSON.stringify(replacement.itemKeys ?? []) === JSON.stringify(placement.itemKeys ?? []);
+      const host = candidate.placementLocations.get(hostId);
+      if (host ? sameMarker(host) : [...candidate.placementLocations.values()].some(sameMarker)) return false;
+    }
     const foldedIntoDungeon = placement.categories.length === 1 && placement.categories[0] === "travelPoint" && [...candidate.placementLocations.values()].some((replacement) => replacement.mapSpaceId === placement.mapSpaceId && replacement.categories.includes("dungeonEntrance") && replacement.categories.includes("travelPoint") && Math.hypot(replacement.position[0] - translatedPosition[0], replacement.position[1] - translatedPosition[1]) <= 6);
     return !foldedIntoDungeon;
   });

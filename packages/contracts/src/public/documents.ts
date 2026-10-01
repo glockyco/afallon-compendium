@@ -455,9 +455,8 @@ export type PublicQuest = Static<typeof PublicQuestSchema>;
 export const PLACE_TYPE_VALUES = ["dungeon", "zone", "region", "interior"] as const;
 
 // Where a place is on the world map: the map space it occupies, and the region areas that bound
-// it. The map root already publishes each map space's label and bounds and each shard publishes
-// its region polygons, so a place references them instead of repeating geometry.
-export const PlaceSpaceSchema = Type.Object({ mapSpaceId: text, regionIds: Type.Array(text, { uniqueItems: true }) }, { additionalProperties: false });
+// it. Variants share their host's map space but select only their own unique markers.
+export const PlaceSpaceSchema = Type.Object({ mapSpaceId: text, regionIds: Type.Array(text, { uniqueItems: true }), placementIds: optional(Type.Array(text, { uniqueItems: true })) }, { additionalProperties: false });
 export type PlaceSpace = Static<typeof PlaceSpaceSchema>;
 
 export const PlaceFactsSchema = Type.Object({
@@ -468,7 +467,7 @@ export type PlaceFacts = Static<typeof PlaceFactsSchema>;
 
 // `quests` start in the place; `questObjectives` have an objective target or a completion object in it.
 export const PublicPlaceSchema = Type.Object({
-  ...documentBase, facts: PlaceFactsSchema, space: Type.Union([PlaceSpaceSchema, Type.Null()]),
+  ...documentBase, facts: PlaceFactsSchema, space: Type.Union([PlaceSpaceSchema, Type.Null()]), variantOf: optional(RefSchema),
   bosses: refs, creatures: Type.Array(CreatureRowSchema), npcs: Type.Array(CreatureRowSchema),
   services: Type.Array(PlacementGroupSchema), resources: Type.Array(PlacementGroupSchema), containers: Type.Array(PlacementGroupSchema),
   quests: refs, questObjectives: refs, properties: refs, connections: Type.Array(ConnectionRowSchema), regions: refs, parent: optional(RefSchema),
@@ -683,7 +682,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v11", npcs: "compendium.static-npc.v6", quests: "compendium.static-quest.v6", places: "compendium.static-place.v6",
+  items: "compendium.static-item.v11", npcs: "compendium.static-npc.v6", quests: "compendium.static-quest.v6", places: "compendium.static-place.v7",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v4", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
@@ -709,14 +708,14 @@ export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-item.v11": typeof StaticItemDocumentSchema; "compendium.static-npc.v6": typeof StaticNpcDocumentSchema;
-  "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v6": typeof StaticPlaceDocumentSchema;
+  "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v7": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v4": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v4": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
   "compendium.static-item.v11": StaticItemDocumentSchema, "compendium.static-npc.v6": StaticNpcDocumentSchema,
-  "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v6": StaticPlaceDocumentSchema,
+  "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v7": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v4": StaticClassDocumentSchema,
   "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v4": StaticMechanicsDocumentSchema,
@@ -726,7 +725,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v11"), resourceReference("compendium.static-npc.v6"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v6"),
+  resourceReference("compendium.static-item.v11"), resourceReference("compendium.static-npc.v6"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v7"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v4"),
   resourceReference("compendium.static-gathering-node.v4"),

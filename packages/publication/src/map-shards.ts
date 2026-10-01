@@ -335,7 +335,7 @@ export function outsideExtent(position: readonly [number, number], extent: MapEx
   return position[0] < extent[0] || position[1] < extent[1] || position[0] >= extent[2] || position[1] >= extent[3];
 }
 
-export async function generateMapShards(db: Database, store: ArtifactStore, pageOf: PageOfRecord, worldOffsets: readonly PublicWorldOffset[] = [], protection?: ObjectWriteProtection, publishedMapSpaceIds?: ReadonlySet<string>, publishedExtents?: ReadonlyMap<string, MapExtent>): Promise<GeneratedMapShard[]> {
+export async function generateMapShards(db: Database, store: ArtifactStore, pageOf: PageOfRecord, worldOffsets: readonly PublicWorldOffset[] = [], protection?: ObjectWriteProtection, publishedMapSpaceIds?: ReadonlySet<string>, publishedExtents?: ReadonlyMap<string, MapExtent>, copiedPlacementIds: ReadonlySet<string> = new Set()): Promise<GeneratedMapShard[]> {
   const offsets = new Map(worldOffsets.map((offset) => [offset.mapSpaceId, { worldX: offset.worldX, worldY: offset.worldY }]));
   const maps = queryCatalogMaps(db);
   const spatial = queryCatalogSpatialContext(db).records;
@@ -351,7 +351,7 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
     const offset = offsets.get(map.mapSpaceId) ?? { worldX: 0, worldY: 0 };
     const extent = publishedExtents?.get(map.mapSpaceId);
     const npcLevels = new Map<string, ReadonlyMap<string, PublicLevel>>();
-    const unfoldedPlacements: ProjectedPlacement[] = foldMapIcons(queried.records.placements).flatMap((placement) => {
+    const unfoldedPlacements: ProjectedPlacement[] = foldMapIcons(queried.records.placements.filter((placement) => !copiedPlacementIds.has(placement.placementId))).flatMap((placement) => {
       if (extent && outsideExtent(placement.position, extent)) return [];
       const recordKeys = [...new Set(placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [role.npcEntityKey]))].sort();
       const entityKeys = [...new Set([...recordKeys.map((key) => pageOf.get(key)?.key ?? key), ...propertiesSold(placement)])].sort();

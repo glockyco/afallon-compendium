@@ -119,8 +119,9 @@
   $: searchNeedle = query.trim().toLocaleLowerCase();
   $: matchingEntries = searchNeedle ? corpusEntries.filter((entry) => entry.text.includes(searchNeedle)).map((entry) => entry.entry) : [];
   $: queryPlacementIds = new Set(matchingEntries.flatMap((entry) => searchIndexes.placementsByEntryKey.get(entry.ref.key)?.map((placement) => placement.placementId) ?? []));
+  $: variantPlacementIds = selectedPlace?.space?.placementIds ? new Set(selectedPlace.space.placementIds) : null;
   // Placements that pass every filter except the category selection keep category counts stable.
-  $: candidatePlacements = allMapPlacements.filter((placement) => (!itemKey || (searchState.status === 'loaded' && !entriesByKey.has(itemKey)) || itemPlacementIds.has(placement.placementId)) && (!itemSource || sourcePlacementIds?.has(placement.placementId)) && (!selectedNode || nodePlacementIds.has(placement.placementId)) && (!nodePlace || nodePlaceIds?.has(placement.placementId)) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || queryPlacementIds.has(placement.placementId)));
+  $: candidatePlacements = allMapPlacements.filter((placement) => (!variantPlacementIds || variantPlacementIds.has(placement.placementId)) && (!itemKey || (searchState.status === 'loaded' && !entriesByKey.has(itemKey)) || itemPlacementIds.has(placement.placementId)) && (!itemSource || sourcePlacementIds?.has(placement.placementId)) && (!selectedNode || nodePlacementIds.has(placement.placementId)) && (!nodePlace || nodePlaceIds?.has(placement.placementId)) && (!searchNeedle || placementSearchText.get(placement.placementId)?.includes(searchNeedle) || queryPlacementIds.has(placement.placementId)));
   $: matchingPlacements = searchNeedle ? candidatePlacements : candidatePlacements.filter((placement) => categories.length === 0 || categories.some((category) => placement.categories.includes(category)));
   $: categoryCounts = getCategoryCounts(candidatePlacements);
   $: publishedCounts = getCategoryCounts(allMapPlacements);
@@ -242,7 +243,8 @@
   $: if (!placeKey) fittedPlaceKey = null;
   $: if (adapterReady && mapReady && selectedPlace?.space && placeKey && state.view === null && fittedPlaceKey !== placeKey) {
     fittedPlaceKey = placeKey;
-    fitMapSpace(selectedPlace.space.mapSpaceId);
+    if (variantPlacementIds && variantPlacementIds.size) fitPlacementIds(variantPlacementIds, selectedPlace.space.mapSpaceId);
+    else fitMapSpace(selectedPlace.space.mapSpaceId);
   }
 
   function acceptSnapshot(next: MapSnapshot): void {
@@ -284,6 +286,23 @@
     const y = (bounds.min.y + bounds.max.y) / 2;
     const scale = Math.min((canvas?.clientWidth || 640) / Math.max(bounds.max.x - bounds.min.x, 1), (canvas?.clientHeight || 480) / Math.max(bounds.max.y - bounds.min.y, 1));
     return { target: [x, y, 0], zoom: Math.log2(scale * 0.9) };
+  }
+
+  function fitPlacementIds(ids: ReadonlySet<string>, mapSpaceId: string): void {
+    if (!publication || !adapter || !mapReady) return;
+    const delta = effectiveMapDelta(publication, mapSpaceId, effectiveOffsets);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, found = false;
+    for (const placement of publication.placements) {
+      if (!ids.has(placement.placementId)) continue;
+      found = true;
+      const x = placement.position[0] + delta.worldX, y = placement.position[1] + delta.worldY;
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+    if (!found) return;
+    const padding = 25;
+    setMapView(centerBounds({ min: { x: minX - padding, y: minY - padding },
+      max: { x: maxX + padding, y: maxY + padding } }));
   }
 
   function fitMapSpace(mapSpaceId: string): void {

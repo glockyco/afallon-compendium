@@ -82,9 +82,9 @@ const relations: CatalogRelations = {
   conditions: [{ conditionId: "oathbreaker", semantics: "equipment", scope: "equipment", label: "Requirements", requirements: equipmentRequirements }], gatedSources: [],
 };
 
-function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map(), placementIdsByKey: DocumentProjectionInput["placementIdsByKey"] = new Map()) {
+function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map(), placementIdsByKey: DocumentProjectionInput["placementIdsByKey"] = new Map(), placeVariants: NonNullable<DocumentProjectionInput["placeVariants"]> = new Map()) {
   const references = buildEntityReferences(projectEntities, { facts: projectFacts, relations: projectRelations });
-  const documents = projectPublicDocuments({ entities: projectEntities, facts: projectFacts, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey });
+  const documents = projectPublicDocuments({ entities: projectEntities, facts: projectFacts, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants });
   return { refs: references.refs, documents };
 }
 
@@ -286,6 +286,46 @@ test("a place lists each teleport with its direction and the spots where it star
   const rows = (key: string) => (documents.get(key) as PublicPlace).connections.map((row) => [row.direction, row.counterpart.key, row.placements.map((placement) => placement.placementId)]);
   expect(rows("scenes:10")).toEqual([["from", "scenes:47", ["door"]], ["to", "scenes:47", ["exit"]], ["within", "scenes:10", []]]);
   expect(rows("scenes:47")).toEqual([["to", "scenes:10", ["door"]], ["from", "scenes:10", ["exit"]]]);
+});
+
+test("variant places keep unique objects and quests without inheriting copied host content", () => {
+  const host: CatalogEntityRow = { entityKey: "scenes:47", kind: "scenes", nativeId: 47, name: "Afallon", description: null, iconAssetName: null, artwork: [] };
+  const uniqueQuest: CatalogEntityRow = { entityKey: "quests:4", kind: "quests", nativeId: 4, name: "Challenge", description: null, iconAssetName: null, artwork: [] };
+  const allEntities = [...entities, host, uniqueQuest];
+  const allFacts: CatalogFacts = { ...facts, entities: allEntities, places: [...facts.places, { ...facts.places[0]!, entityKey: host.entityKey }],
+    quests: [...facts.quests, { ...facts.quests[0]!, entityKey: uniqueQuest.entityKey }] };
+  const spot = (placementId: string, sceneNativeId: number, roles: CatalogRelations["placements"][number]["roles"]) =>
+    ({ placementId, sceneNativeId, sceneKey: `scenes:${sceneNativeId}`, mapSpaceId: "world", label: null, area: null, roles, families: [], randomChoices: [] });
+  const copiedNpc = [{ role: "merchant", npcEntityKey: "npcs:2", scope: "authored" }];
+  const quest = (associationId: string, questKey: string, placementId: string): CatalogQuestRow => ({
+    associationId, quest: { entityKey: questKey, label: questKey }, kind: "objectStart", index: 0, counterpart: null,
+    task: null, count: null, rewardType: null, sourceId: null, label: null, availability: [], completions: [], worldOffer: null, placementIds: [placementId],
+  });
+  const placed: CatalogRelations = { ...relations, placements: [
+    spot("host-copy", 47, copiedNpc), spot("variant-copy", 10, copiedNpc), spot("challenge-chest", 10, []), spot("challenge-object", 10, []),
+  ], quests: [quest("copied", "quests:3", "variant-copy"), quest("unique", "quests:4", "challenge-chest")],
+    transitions: [
+      { ...relations.transitions[0]!, placementIds: ["variant-copy"] },
+      { ...relations.transitions[0]!, transitionId: "challenge-exit", placementIds: ["challenge-chest"] },
+    ] };
+  const published = new Map([
+    ["host-copy", { placementId: "host-copy", mapSpaceId: "world", label: "World", categories: ["merchant" as const] }],
+    ["challenge-chest", { placementId: "challenge-chest", mapSpaceId: "world", label: "World", categories: ["container" as const] }],
+    ["challenge-object", { placementId: "challenge-object", mapSpaceId: "world", label: "World", categories: ["interactiveObject" as const] }],
+  ]);
+  const variants = new Map([["scenes:10", { hostKey: "scenes:47", copiedPlacementIds: new Set(["variant-copy"]) }]]);
+  const { documents } = project(allEntities, allFacts, placed, published, new Map([["world", ["entire-world"]]]), new Map(), new Map(), variants);
+  const challenge = documents.get("scenes:10") as PublicPlace, overworld = documents.get("scenes:47") as PublicPlace;
+  expect(challenge.variantOf).toMatchObject({ key: "scenes:47" });
+  expect(challenge.space).toEqual({ mapSpaceId: "world", regionIds: [], placementIds: ["challenge-chest", "challenge-object"] });
+  expect(challenge.npcs).toEqual([]);
+  expect(challenge.services).toEqual([]);
+  expect(challenge.containers).toEqual([{ category: "container", placementCount: 1 }]);
+  expect(challenge.resources).toEqual([{ category: "interactiveObject", placementCount: 1 }]);
+  expect(challenge.quests.map((ref) => ref.key)).toEqual(["quests:4"]);
+  expect(challenge.connections.map((row) => row.placements.map((placement) => placement.placementId))).toEqual([["challenge-chest"]]);
+  expect(overworld.npcs.map((row) => row.counterpart.key)).toEqual(["npcs:2"]);
+  expect(overworld.space?.regionIds).toEqual(["entire-world"]);
 });
 
 test("projects representative item use text, effective stats and contextual ability ranks", () => {
