@@ -53,6 +53,9 @@ export interface CatalogItemFacts {
   attackSpeed: number | null;
   minDamage: number | null;
   maxDamage: number | null;
+  weaponDamageType?: string | null;
+  attackMode?: string | null;
+  physicalLabel?: string | null;
   stats: CatalogStatValue[];
   randomStatsMax: number;
   randomStats: CatalogRandomStatRule[];

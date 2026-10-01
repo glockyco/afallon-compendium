@@ -243,6 +243,9 @@ if (items != null)
                 attackSpeed = item.AttackSpeed,
                 minDamage = item.minDamage,
                 maxDamage = item.maxDamage,
+                weaponDamageType = item.weaponDamageType == null ? (object)new { available = false } : new { available = true, nativeId = item.weaponDamageType.ID, name = item.weaponDamageType.entryDisplayName ?? item.weaponDamageType.entryName },
+                attackMode = item.attackMode.ToString(),
+                physicalLabel = item.physicalLabel.ToString(),
                 autoAttackAbilityId = item.autoAttackAbilityID,
                 sellPrice = item.sellPrice,
                 convertToCurrencyId = item.convertToCurrency,
@@ -849,6 +852,12 @@ if (lootTables != null)
                 lootEntries.Add(new { sourceIndex = entryIndex, itemId = entry.itemID, min = entry.min, max = entry.max, dropRate = entry.dropRate });
             }
         }
+        System.Collections.Generic.List<int> worldLootStats = null;
+        if (lootTable.WorldLootStats != null)
+        {
+            worldLootStats = new System.Collections.Generic.List<int>();
+            foreach (var statId in lootTable.WorldLootStats) worldLootStats.Add(statId);
+        }
 
         canonicalLootTables.Add(new
         {
@@ -868,6 +877,11 @@ if (lootTables != null)
                 hasMinimumDrops = lootTable.HasMinimumDrops,
                 minDroppedItems = lootTable.minDroppedItems,
                 levelBandGear = lootTable.LevelBandGear,
+                includeWorldLoot = lootTable.IncludeWorldLoot,
+                worldLootShare = lootTable.WorldLootShare,
+                bonusDropChance = lootTable.BonusDropChance,
+                worldLootStats = worldLootStats,
+                worldLootArmorType = lootTable.WorldLootArmorType == null ? (object)new { available = false } : new { available = true, nativeId = lootTable.WorldLootArmorType.ID, name = lootTable.WorldLootArmorType.entryDisplayName ?? lootTable.WorldLootArmorType.entryName },
                 requirementsAvailable = lootTable.Requirements != null,
                 requirementsGroupCount = lootTable.Requirements == null ? -1 : lootTable.Requirements.Count,
                 useRequirementsTemplate = lootTable.UseRequirementsTemplate,
@@ -1120,7 +1134,7 @@ if (worldPositions != null)
 
 return new
 {
-    schemaVersion = "compendium.canonical.v4",
+    schemaVersion = "compendium.canonical.v5",
     databaseAvailable = databaseAvailable,
     databaseError = databaseError,
     localization = new

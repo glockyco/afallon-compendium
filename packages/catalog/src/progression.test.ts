@@ -31,7 +31,7 @@ const heroicTierSettings = {
 };
 
 function support(tables: Support["tables"], heroic: Support["heroicTierSettings"] = heroicTierSettings): Support {
-  return { schemaVersion: "compendium.support.v3", language: "English", requirementIssues: [], sourceTotals: {}, tables, heroicTierSettings: heroic };
+  return { schemaVersion: "compendium.support.v4", language: "English", requirementIssues: [], sourceTotals: {}, tables, heroicTierSettings: heroic };
 }
 
 const fixture = support({
@@ -43,10 +43,10 @@ const fixture = support({
     { id: 9, name: "Cooking Mastery", gameplay: { tiers: 3, treePointId: -1, nodes: [node(0, [1, "recipe"], { recipeId: 12 }, 2, 3)] } },
   ]),
   spellbooks: table([{ id: 1, name: "Warrior", gameplay: { sourceType: named(0, "_class"), nodes: [{ sourceIndex: 0, nodeType: named(0, "ability"), abilityId: 2, bonusId: -1, unlockLevel: 10 }] } }]),
-  bonuses: table([{ id: 7, name: "Thick Skin", gameplay: { learnedByDefault: false, ranks: [{ rankIndex: 0, unlockCost: 1, isEmpty: false, emptyTooltip: null, requirements: noRequirements, statEffects: [{ sourceIndex: 0, statId: 3, amount: 5, isPercent: true }], petStatEffects: [] }] } }]),
+  bonuses: table([{ id: 7, name: "Thick Skin", gameplay: { learnedByDefault: false, ranks: [{ rankIndex: 0, unlockCost: 1, isEmpty: false, emptyTooltip: null, requirements: noRequirements, statEffects: [{ sourceIndex: 0, statId: 3, amount: 5, isPercent: true }], petStatEffects: [{ sourceIndex: 0, targetType: named(3, "HunterBeast"), npcId: -1, speciesId: -1, statId: 3, amount: 4, isPercent: false }] }] } }]),
   effects: table([{ id: 30, name: "Stun", gameplay: {
     effectType: named(5, "Stun"), effectTag: null, isState: true, isBuffOnSelf: false, stackLimit: 1, allowMultiple: false, allowMixedCaster: false, pulses: 0, duration: 3, endless: false, canBeManuallyRemoved: false, isPersistent: false,
-    ranks: [{ rankIndex: 0, mainDamageType: named(99, "99"), customDamageType: null, customHealingType: null, damage: 0, alteredStatId: -1, flatCalculation: false, cannotCrit: false, skillModifier: 0, skillModifierId: -1, weaponDamageModifier: 0, useWeapon1Damage: false, useWeapon2Damage: false, lifesteal: 0, maxHealthModifier: 0, missingHealthModifier: 0, delay: 0, requiredEffectId: -1, requiredEffectDamageModifier: 0, damageStatId: -1, damageStatModifier: 0, teleportType: named(0, "gameScene"), gameSceneId: -1, lootTableId: -1, petNpcId: -1, petDuration: 0, petSpawnCount: 0, knockbackDistance: 0, motionDistance: 0, dispelType: named(0, "Effect"), dispelEffectType: named(0, "Stat"), dispelEffectTag: null, dispelEffectId: -1, tauntFlatThreat: 0, resurrectHealthPercent: 0, statEffects: [], nestedEffects: [] }],
+    ranks: [{ rankIndex: 0, mainDamageType: named(99, "99"), customDamageType: null, customHealingType: null, damage: 0, alteredStatId: -1, flatCalculation: false, cannotCrit: false, skillModifier: 0, skillModifierId: -1, weaponDamageModifier: 0, useWeapon1Damage: false, useWeapon2Damage: false, useRangedWeaponDamage: true, lifesteal: 0, maxHealthModifier: 0, missingHealthModifier: 0, delay: 0, requiredEffectId: -1, requiredEffectDamageModifier: 0, damageStatId: -1, damageStatModifier: 0, teleportType: named(0, "gameScene"), gameSceneId: -1, lootTableId: -1, petNpcId: -1, petDuration: 0, petSpawnCount: 0, knockbackDistance: 0, motionDistance: 0, dispelType: named(0, "Effect"), dispelEffectType: named(0, "Stat"), dispelEffectTag: null, dispelEffectId: -1, tauntFlatThreat: 0, resurrectHealthPercent: 0, statEffects: [], nestedEffects: [] }],
   } }]),
 });
 const entityNames = new Map<string, string | null>([["abilities:1", "Shield Slam"], ["abilities:2", "Strike"], ["recipes:12", "Stew"], ["stats:3", "Armor"], ["classes:0", "Shieldmaster"], ["skills:5", "Cooking"], ["talentTrees:0", "Bastion Breaker"], ["talentTrees:9", "Cooking Mastery"], ["effects:30", "Stun"]]);
@@ -56,8 +56,10 @@ test("decodes effects, bonus ranks, and node requirements", () => {
   const rows = normalizeProgression(fixture, reference, entityNames, blockers);
   const effect = rows.progressionFacts.find((row) => row.entityKey === "effects:30");
   expect(effect?.kind === "effects" ? [effect.details.effectType.name, effect.details.duration] : null).toEqual(["Stun", 3]);
+  expect(effect?.kind === "effects" ? effect.details.ranks[0]?.useRangedWeaponDamage : null).toBe(true);
   const bonus = rows.progressionFacts.find((row) => row.entityKey === "bonuses:7");
   expect(bonus?.kind === "bonuses" ? bonus.details.ranks[0]?.statEffects : null).toEqual([{ stat: { entityKey: "stats:3", label: "Armor" }, amount: 5, isPercent: true }]);
+  expect(bonus?.kind === "bonuses" ? bonus.details.ranks[0]?.petStatEffects : null).toEqual([{ targetType: named(3, "HunterBeast"), npc: null, speciesId: null, stat: { entityKey: "stats:3", label: "Armor" }, amount: 4, isPercent: false }]);
   const guarded = rows.talentNodes.find((row) => row.treeKey === "talentTrees:0" && row.nodeIndex === 0);
   expect(rows.conditions.map((row) => [row.ownerType, row.ownerKey, row.conditionId])).toEqual([["talentTreeNode", "talentTrees:0:0", guarded?.conditionId ?? ""]]);
   // A native enum value without a name keeps its number and becomes a coverage issue.
@@ -79,6 +81,10 @@ test("reports a missing ability and derives no learner from it", () => {
       ["abilities:2", "Shieldmaster", "spellbook", "Warrior", 10, null, null],
     ]);
     expect(progression.unlocks).toEqual([{ target: "recipes:12", owner: { entityKey: "skills:5", label: "Cooking" }, tree: { entityKey: "talentTrees:9", label: "Cooking Mastery" }, tier: 2, row: 3 }]);
+    const beastBonus = progression.facts.find((row) => row.entityKey === "bonuses:7");
+    expect(beastBonus?.kind === "bonuses" ? beastBonus.details.ranks[0]?.petStatEffects[0]?.targetType : null).toEqual(named(3, "HunterBeast"));
+    const rangedEffect = progression.facts.find((row) => row.entityKey === "effects:30");
+    expect(rangedEffect?.kind === "effects" ? rangedEffect.details.ranks[0]?.useRangedWeaponDamage : null).toBe(true);
   } finally { db.close(); }
 });
 

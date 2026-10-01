@@ -11,12 +11,12 @@ import { coverageInventorySubjects, coverageTargetSubjects } from "./coverage-ac
 import type { SceneContext, SourceRecord } from "./context";
 
 const FAMILY_BY_SCHEMA: Readonly<Record<string, ScanCollectorFamily>> = {
-  "compendium.canonical.v4": "canonical", "compendium.localization.v1": "canonical", "compendium.quest-levels.v1": "canonical", "compendium.corruption-capture.v1": "canonical", "compendium.artwork.v1": "canonical",
+  "compendium.canonical.v4": "canonical", "compendium.canonical.v5": "canonical", "compendium.localization.v1": "canonical", "compendium.quest-levels.v1": "canonical", "compendium.corruption-capture.v1": "canonical", "compendium.artwork.v1": "canonical",
   "compendium.world-inventory.v2": "inventory", "compendium.addressable-locations.v1": "inventory",
   "compendium.npc-producers.v3": "producers", "compendium.world-sources.v8": "producers",
   "compendium.placement-snapshot.v1": "placements", "compendium.placement-identities.v1": "placements", "compendium.serialized-assets.v2": "placements", "compendium.scene-source-issues.v2": "placements",
   "compendium.faction-roles.v1": "roles", "compendium.placement-roles.v1": "roles",
-  "compendium.relationships.v1": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships", "compendium.support.v2": "relationships", "compendium.support.v3": "relationships",
+  "compendium.relationships.v1": "relationships", "compendium.relationships.v2": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships", "compendium.support.v2": "relationships", "compendium.support.v3": "relationships", "compendium.support.v4": "relationships",
   "compendium.scene-catalog.v1": "spatial", "compendium.map-geometry.v3": "spatial", "compendium.navigation-geometry.v2": "spatial",
   "compendium.scan-coverage.v1": "coverage", "compendium.coverage.v2": "coverage",
 };
@@ -260,7 +260,7 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
       if (artifacts.length !== 1) throw new Error(`Target ${target.envelope.targetIdentity} requires one role input ${schemaId}.`);
       return evidenceReference(artifacts[0]!.content);
     };
-    const roleEvidenceReferences: SceneContext["roleEvidenceReferences"] = { canonical: roleArtifact("compendium.canonical.v4"), relationships: roleArtifact("compendium.relationships.v1"), "npc-producers": npc.reference, "world-sources": world.reference, "faction-roles": roleArtifact("compendium.faction-roles.v1") };
+    const roleEvidenceReferences: SceneContext["roleEvidenceReferences"] = { canonical: roleArtifact("compendium.canonical.v5"), relationships: roleArtifact("compendium.relationships.v2"), "npc-producers": npc.reference, "world-sources": world.reference, "faction-roles": roleArtifact("compendium.faction-roles.v1") };
     contexts.push({ roleEvidenceReferences, role: roles.value, identities: identities.value, npc: npc.value, world: world.value, mapGeometry: geometry.value, mapGeometryReference: geometry.reference, sceneNativeId: scene.gameSceneNativeId, scenePath: scene.scene.path, sourceByComponent, sourceById, roleReference: roles.reference, identityReference: identities.reference, npcReference: npc.reference, worldReference: world.reference, snapshotReference: snapshot.reference, snapshotRunId: target.envelope.sourceRunId, snapshotPrefix: target.envelope.targetIdentity, snapshotId: identitySnapshotId(target.envelope.sourceRunId, target.envelope.targetIdentity), identityResult: identities.value, sceneHandle: scene.scene.handle, character: scene.character });
   }
   for (const item of evidence) {

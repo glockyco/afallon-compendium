@@ -59,7 +59,7 @@ const itemGameActions = Type.Object({
 
 export const ItemGameplaySchema = Type.Object({
   itemType: optional(availableEnum), armorSlot: optional(availableEnum), weaponType: optional(availableEnum), armorType: optional(availableEnum), weaponSlot: optional(availableEnum), rarity: optional(availableEnum),
-  questDropOnly: optional(boolean), attackSpeed: optional(number), minDamage: optional(number), maxDamage: optional(number), autoAttackAbilityId: optional(integer),
+  questDropOnly: optional(boolean), attackSpeed: optional(number), minDamage: optional(number), maxDamage: optional(number), weaponDamageType: optional(availableEnum), attackMode: optional(text), physicalLabel: optional(text), autoAttackAbilityId: optional(integer),
   sellPrice: optional(number), convertToCurrencyId: optional(integer), sellCurrencyId: optional(integer), buyPrice: optional(number), buyCurrencyId: optional(integer), stackLimit: optional(integer),
   isCorruptionToken: optional(boolean), enchantmentId: optional(integer), randomStatsMax: optional(integer), stats: optional(Type.Array(stat)),
   randomStats: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), statId: integer, minValue: number, maxValue: number, isPercent: boolean, isInt: optional(boolean), chance: optional(number) }))), sockets: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), socketType: optional(text), gemSocketType: optional(availableEnum) }))),
@@ -220,6 +220,7 @@ export function decodeItemGameplay(value: unknown, reference: ArtifactReference,
   availableEnumName(decoded.rarity, `${path}/rarity`, issues);
   const equipmentFields = itemType === "WEAPON" ? ["weaponType", "weaponSlot"] as const : itemType === "ARMOR" || itemType === "Trinket" ? ["armorSlot", "armorType"] as const : [];
   for (const field of equipmentFields) availableEnumName(decoded[field], `${path}/${field}`, issues);
+  if (itemType === "WEAPON" && decoded.weaponDamageType?.available) availableEnumName(decoded.weaponDamageType, `${path}/weaponDamageType`, issues);
   decoded.sockets?.forEach((row, index) => availableEnumName(row.gemSocketType, `${path}/sockets/${index}/gemSocketType`, issues));
   return { value: decoded, issues };
 }
@@ -277,7 +278,7 @@ const RequirementGroupSchema = Type.Object({ nativeRequirementCount: integer, ch
 export const RequirementTemplateSchema = Type.Union([Type.Null(), Type.Object({ nativeId: integer, sourceName: Type.Union([text, Type.Null()]), groups: Type.Array(Type.Union([RequirementGroupSchema, Type.Null()])) })]);
 export const RelationshipExtrasSchema = Type.Object({ sourceFieldPath: optional(text), dropRateSemantics: optional(text), rewardSource: optional(text), rewardIndex: optional(integer), itemIndex: optional(integer), count: optional(number), useRequirementsTemplate: optional(boolean) });
 
-schemaRegistry.register("compendium.catalog-item-gameplay.v1", ItemGameplaySchema);
+schemaRegistry.register("compendium.catalog-item-gameplay.v2", ItemGameplaySchema);
 schemaRegistry.register("compendium.catalog-npc-gameplay.v1", NpcGameplaySchema);
 schemaRegistry.register("compendium.catalog-quest-gameplay.v1", QuestGameplaySchema);
 schemaRegistry.register("compendium.catalog-quest-localization.v1", QuestLocalizationSchema);
@@ -289,7 +290,7 @@ schemaRegistry.register("compendium.catalog-recipe-gameplay.v1", RecipeGameplayS
 schemaRegistry.register("compendium.catalog-crafting-station-gameplay.v1", CraftingStationGameplaySchema);
 schemaRegistry.register("compendium.catalog-gear-set-gameplay.v1", GearSetGameplaySchema);
 schemaRegistry.register("compendium.catalog-ability-gameplay.v1", AbilityGameplaySchema);
-schemaRegistry.register("compendium.catalog-supported-gameplay.v1", SupportedGameplaySchema);
+schemaRegistry.register("compendium.catalog-supported-gameplay.v2", SupportedGameplaySchema);
 schemaRegistry.register("compendium.catalog-requirement-template.v1", RequirementTemplateSchema);
 schemaRegistry.register("compendium.catalog-relationship-extras.v1", RelationshipExtrasSchema);
 

@@ -1,14 +1,17 @@
 import { schemaRegistry } from "../schema-registry";
 import {
   CanonicalSchema,
+  CanonicalV4Schema,
   LocalizationSchema,
   LootRulesSchema,
   ObservationContextSchema,
   QuestLevelsSchema,
   RelationshipsSchema,
+  RelationshipsV1Schema,
   SupportSchema,
   SupportV1Schema,
   SupportV2Schema,
+  SupportV3Schema,
 } from "./database";
 import { ArtworkSchema } from "./artwork";
 import { FactionRolesSchema } from "./faction-roles";
@@ -20,15 +23,18 @@ import { WorldInventorySchema } from "./world-inventory";
 import { WorldSourcesSchema } from "./world-sources";
 
 schemaRegistry.register("compendium.observation-context.v1", ObservationContextSchema);
-schemaRegistry.register("compendium.canonical.v4", CanonicalSchema);
+schemaRegistry.register("compendium.canonical.v4", CanonicalV4Schema);
+schemaRegistry.register("compendium.canonical.v5", CanonicalSchema);
 schemaRegistry.register("compendium.localization.v1", LocalizationSchema);
 schemaRegistry.register("compendium.quest-levels.v1", QuestLevelsSchema);
 schemaRegistry.register("compendium.corruption-capture.v1", CorruptionCaptureSchema);
 schemaRegistry.register("compendium.support.v1", SupportV1Schema);
 schemaRegistry.register("compendium.support.v2", SupportV2Schema);
-schemaRegistry.register("compendium.support.v3", SupportSchema);
+schemaRegistry.register("compendium.support.v3", SupportV3Schema);
+schemaRegistry.register("compendium.support.v4", SupportSchema);
 schemaRegistry.register("compendium.artwork.v1", ArtworkSchema);
-schemaRegistry.register("compendium.relationships.v1", RelationshipsSchema);
+schemaRegistry.register("compendium.relationships.v1", RelationshipsV1Schema);
+schemaRegistry.register("compendium.relationships.v2", RelationshipsSchema);
 schemaRegistry.register("compendium.loot-rules.v1", LootRulesSchema);
 schemaRegistry.register("compendium.faction-roles.v1", FactionRolesSchema);
 schemaRegistry.register("compendium.npc-producers.v3", NpcProducersSchema);

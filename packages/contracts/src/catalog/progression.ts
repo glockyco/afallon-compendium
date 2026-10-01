@@ -45,7 +45,7 @@ export interface ProgressionEffectRank {
   rank: number;
   damageType: ProgressionEnum; customDamageType: string | null; customHealingType: string | null;
   damage: number; alteredStat: NormalizedReference | null; flatCalculation: boolean; cannotCrit: boolean;
-  skillModifier: number; skillModifierStat: NormalizedReference | null; weaponDamageModifier: number; useWeapon1Damage: boolean; useWeapon2Damage: boolean;
+  skillModifier: number; skillModifierStat: NormalizedReference | null; weaponDamageModifier: number; useWeapon1Damage: boolean; useWeapon2Damage: boolean; useRangedWeaponDamage: boolean;
   lifesteal: number; maxHealthModifier: number; missingHealthModifier: number; delay: number;
   requiredEffect: NormalizedReference | null; requiredEffectDamageModifier: number; damageStat: NormalizedReference | null; damageStatModifier: number;
   teleportType: ProgressionEnum; teleportScene: NormalizedReference | null; lootTable: NormalizedReference | null;

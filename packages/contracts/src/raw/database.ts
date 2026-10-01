@@ -31,7 +31,7 @@ export const canonicalKinds = ["items", "npcs", "quests", "lootTables", "scenes"
 const counts = Type.Object({ items: integer, npcs: integer, quests: integer, lootTables: integer, scenes: integer, resources: integer, stats: integer, regions: integer, properties: integer, worldPositions: integer });
 const guideCoverage = Type.Object({ regionsObserved: integer, regionsExported: integer, regionsOmittedReason: text });
 export const CanonicalSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.canonical.v4"),
+  schemaVersion: Type.Literal("compendium.canonical.v5"),
   databaseAvailable: Type.Literal(true),
   localization: Type.Object({ apiAvailable: Type.Literal(true), language: text, loadedEntryCount: integer }),
   sourceTotals: counts, exportedTotals: counts,
@@ -41,6 +41,7 @@ export const CanonicalSchema = Type.Object({
   regions: Type.Array(canonicalEntry), properties: Type.Array(canonicalEntry),
   worldPositions: Type.Array(canonicalWorldPosition),
 });
+export const CanonicalV4Schema = Type.Object({ ...CanonicalSchema.properties, schemaVersion: Type.Literal("compendium.canonical.v4") });
 export type Canonical = Static<typeof CanonicalSchema>;
 
 export function validateCanonicalIdentityAndCounts(canonical: Canonical): Record<string, Set<number>> {
@@ -114,9 +115,13 @@ export const HeroicTierSettingsSchema = Type.Union([
   Type.Object({ unavailable: text, sourceFieldPath: text }),
 ]);
 export type HeroicTierSettings = Static<typeof HeroicTierSettingsSchema>;
-// v3 adds the live Heroic tier settings to the v2 support tables.
-export const SupportSchema = Type.Object({
+// Earlier support artifacts remain registered for historical scan admission.
+export const SupportV3Schema = Type.Object({
   schemaVersion: Type.Literal("compendium.support.v3"), language: text, requirementIssues: rawRows,
+  sourceTotals: Type.Record(text, integer), tables: supportTables, heroicTierSettings: HeroicTierSettingsSchema,
+});
+export const SupportSchema = Type.Object({
+  schemaVersion: Type.Literal("compendium.support.v4"), language: text, requirementIssues: rawRows,
   sourceTotals: Type.Record(text, integer),
   tables: supportTables,
   heroicTierSettings: HeroicTierSettingsSchema,
@@ -125,18 +130,27 @@ export type Support = Static<typeof SupportSchema>;
 
 const requirementGroup = Type.Object({ nativeRequirementCount: integer, requirements: rawRows });
 const template = Type.Union([Type.Null(), Type.Object({ nativeId: integer, sourceName: text, groups: Type.Array(requirementGroup) })]);
+export const AdventurerWorldSettingsSchema = Type.Object({
+  asset: text, instanceCount: Type.Literal(1),
+  roster: Type.Array(integer),
+  arrivals: Type.Array(Type.Object({ npcId: integer, startingLevel: integer, joinAfterHours: integer })),
+  equipmentBands: Type.Array(Type.Object({ itemId: integer, minimumContentLevel: integer })),
+  equipmentRewardChance: number, equipmentRewards: Type.Array(integer),
+  kitUpgrades: Type.Array(Type.Object({ id: text, npcId: integer, itemIds: Type.Array(integer) })),
+});
 export const RelationshipsSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.relationships.v1"),
+  schemaVersion: Type.Literal("compendium.relationships.v2"),
   merchantBindings: Type.Array(Type.Object({ ownerNativeId: integer, merchantTableID: integer, bindingIndex: integer, requirementsTemplate: template })),
   merchantTables: Type.Array(definition), currencies: Type.Array(definition), resources: rawRows,
   merchantStock: Type.Array(Type.Object({ merchantTableID: integer, stockIndex: integer, itemID: integer, currencyID: integer, cost: integer, costSemantics: text })),
   npcLootBindings: Type.Array(Type.Object({ ownerNativeId: integer, lootTableID: integer, bindingIndex: integer, dropRate: Type.Number() })),
   worldLootBindings: Type.Array(Type.Object({ lootTableID: integer, bindingIndex: integer, dropRate: Type.Number(), minimumNPCLevel: integer, maximumNPCLevel: integer, requirementsTemplate: template })),
   worldLootSettings: Type.Object({ minimumNPCRank: integer, maximumItemsPerNPC: integer, sourceBindingCount: integer }),
+  adventurerWorldSettings: AdventurerWorldSettingsSchema,
   // Scans before the property income collector lack the property settings.
   propertySettings: Type.Optional(Type.Object({ incomeInterval: Type.Number() })),
   clothDrops: Type.Object({ dropChance: Type.Number(), minimumCount: integer, maximumCount: integer, tiers: Type.Array(Type.Object({ tierIndex: integer, itemID: integer, startLevel: Type.Number(), rampEnd: Type.Number(), lowWeight: Type.Number(), highWeight: Type.Number(), teaserWeight: Type.Number() })) }),
-  lootTables: Type.Array(Type.Object({ nativeId: integer, levelBandGear: Type.Boolean(), limitDroppedItems: Type.Boolean(), maxDroppedItems: integer, hasMinimumDrops: Type.Boolean(), minDroppedItems: integer, inlineRequirements: Type.Union([Type.Null(), Type.Object({ nativeGroupCount: integer, groups: Type.Array(requirementGroup) })]), requirementsTemplate: template })),
+  lootTables: Type.Array(Type.Object({ nativeId: integer, levelBandGear: Type.Boolean(), limitDroppedItems: Type.Boolean(), maxDroppedItems: integer, hasMinimumDrops: Type.Boolean(), minDroppedItems: integer, includeWorldLoot: Type.Boolean(), worldLootShare: number, bonusDropChance: number, worldLootStats: Type.Union([Type.Null(), Type.Array(integer)]), worldLootArmorType: Type.Union([Type.Null(), Type.Object({ nativeId: integer, name: nullableText })]), inlineRequirements: Type.Union([Type.Null(), Type.Object({ nativeGroupCount: integer, groups: Type.Array(requirementGroup) })]), requirementsTemplate: template })),
   lootEntries: Type.Array(Type.Object({ lootTableID: integer, entryIndex: integer, itemID: integer, min: integer, max: integer, dropRate: Type.Number() })),
   npcQuestBindings: Type.Array(Type.Object({ ownerNativeId: integer, questID: integer, association: text, associationIndex: integer })),
   quests: Type.Array(definition), tasks: Type.Array(definition),
@@ -152,6 +166,12 @@ export const RelationshipsSchema = Type.Object({
   reconciliation: rawObject,
 });
 export type Relationships = Static<typeof RelationshipsSchema>;
+const { adventurerWorldSettings: _adventurerWorldSettings, lootTables: _newLootTables, ...legacyRelationships } = RelationshipsSchema.properties;
+export const RelationshipsV1Schema = Type.Object({
+  ...legacyRelationships,
+  schemaVersion: Type.Literal("compendium.relationships.v1"),
+  lootTables: Type.Array(Type.Object({ nativeId: integer, levelBandGear: Type.Boolean(), limitDroppedItems: Type.Boolean(), maxDroppedItems: integer, hasMinimumDrops: Type.Boolean(), minDroppedItems: integer, inlineRequirements: Type.Union([Type.Null(), Type.Object({ nativeGroupCount: integer, groups: Type.Array(requirementGroup) })]), requirementsTemplate: template })),
+});
 
 const intervals = Type.Array(Type.Object({ minimum: integer, maximum: integer, reachesDomainBoundary: Type.Boolean() }));
 export const LootRulesSchema = Type.Object({

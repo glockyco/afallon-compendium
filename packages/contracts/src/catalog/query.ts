@@ -9,7 +9,7 @@ import type { RoleScope } from "./roles";
 import type { TooltipLine } from "./tooltip";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v10" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v11" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });
@@ -67,9 +67,13 @@ export interface NormalizedContextualAbilityReference { ability: NormalizedRefer
 export interface NormalizedAbilityRank { rankIndex: number; lines: TooltipLine[]; provenance: ProvenanceReference[] }
 export interface NormalizedItemFact {
   entityKey: string; rarity: string | null; itemType: string | null; armorSlot: string | null; weaponSlot: string | null; weaponType: string | null; armorType: string | null;
-  attackSpeed: number | null; minDamage: number | null; maxDamage: number | null; randomStatsMax: number; gemType: string | null; enchantment: NormalizedReference | null;
+  attackSpeed: number | null; minDamage: number | null; maxDamage: number | null; weaponDamageType?: string | null; attackMode?: string | null; physicalLabel?: string | null; randomStatsMax: number; gemType: string | null; enchantment: NormalizedReference | null;
   sellPrice: number | null; sellCurrency: NormalizedReference | null; buyPrice: number | null; buyCurrency: NormalizedReference | null; currency: NormalizedReference | null; stackLimit: number; questDropOnly: boolean; corruptionToken: boolean;
   levelRequirement: number | null; actionAbilities: NormalizedContextualAbilityReference[]; useLines: TooltipLine[]; conditionIds: string[]; provenance: ProvenanceReference[];
+}
+export interface NormalizedAdventurerWorld {
+  asset: string; equipmentRewardChance: number; provenance: ProvenanceReference[];
+  links: Array<{ kind: "roster" | "arrival" | "equipmentBand" | "equipmentReward" | "kitUpgrade" | "kitUpgradeItem"; position: number; itemPosition: number; kitId: string | null; npc: NormalizedReference | null; item: NormalizedReference | null; startingLevel: number | null; joinAfterHours: number | null; minimumContentLevel: number | null; provenance: ProvenanceReference[] }>;
 }
 export interface NormalizedItemStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
 export interface NormalizedItemRandomStat { entityKey: string; statIndex: number; stat: NormalizedReference; min: number; max: number; isPercent: boolean; whole: boolean; chance: number | null; provenance: ProvenanceReference[] }
@@ -366,6 +370,7 @@ export interface NormalizedDatabaseInput {
   derivations?: CatalogDerivation[];
   imagery?: CatalogImageryRow[];
   itemFacts?: NormalizedItemFact[];
+  adventurerWorld?: NormalizedAdventurerWorld;
   itemStats?: NormalizedItemStat[];
   itemRandomStats?: NormalizedItemRandomStat[];
   itemGemStats?: NormalizedItemGemStat[];

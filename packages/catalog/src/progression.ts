@@ -30,7 +30,7 @@ const EffectSchema = Type.Object({
   effectType: valueEnum, effectTag: record, isState: boolean, isBuffOnSelf: boolean, stackLimit: integer, allowMultiple: boolean, allowMixedCaster: boolean, pulses: integer, duration: number, endless: boolean, canBeManuallyRemoved: boolean, isPersistent: boolean,
   ranks: list(Type.Object({
     rankIndex: integer, mainDamageType: valueEnum, customDamageType: record, customHealingType: record, damage: integer, alteredStatId: integer, flatCalculation: boolean, cannotCrit: boolean,
-    skillModifier: number, skillModifierId: integer, weaponDamageModifier: number, useWeapon1Damage: boolean, useWeapon2Damage: boolean, lifesteal: number, maxHealthModifier: number, missingHealthModifier: number, delay: number,
+    skillModifier: number, skillModifierId: integer, weaponDamageModifier: number, useWeapon1Damage: boolean, useWeapon2Damage: boolean, useRangedWeaponDamage: boolean, lifesteal: number, maxHealthModifier: number, missingHealthModifier: number, delay: number,
     requiredEffectId: integer, requiredEffectDamageModifier: number, damageStatId: integer, damageStatModifier: number, teleportType: valueEnum, gameSceneId: integer, lootTableId: integer,
     petNpcId: integer, petDuration: number, petSpawnCount: integer, knockbackDistance: number, motionDistance: number,
     dispelType: valueEnum, dispelEffectType: valueEnum, dispelEffectTag: record, dispelEffectId: integer, tauntFlatThreat: integer, resurrectHealthPercent: number,
@@ -59,7 +59,7 @@ const AbilitySchema = Type.Object({
   rankMechanics: list(Type.Object({ rankIndex: integer, unlockCost: integer, activationType: valueEnum, castTime: number, channelTime: number, cooldown: number, usesGlobalCooldown: boolean, minRange: number, maxRange: number, targetType: valueEnum, areaRadius: number, coneDegree: number, coneRange: number, projectileCount: integer, maxUnitsHit: integer, effectsApplied: applied, casterEffectsApplied: applied, requirements: requirementGroups })),
 }, { additionalProperties: true });
 
-for (const [name, schema] of [["class", ClassSchema], ["skill", SkillSchema], ["level-template", LevelSchema], ["effect", EffectSchema], ["enchantment", EnchantmentSchema], ["stat", StatSchema], ["faction", FactionSchema], ["tree-point", TreePointSchema], ["bonus", BonusSchema], ["talent-tree", TalentTreeSchema], ["spellbook", SpellbookSchema], ["race", RaceSchema], ["ability", AbilitySchema]] as const) schemaRegistry.register(`compendium.catalog-${name}-progression.v1`, schema);
+for (const [name, schema] of [["class", ClassSchema], ["skill", SkillSchema], ["level-template", LevelSchema], ["effect", EffectSchema], ["enchantment", EnchantmentSchema], ["stat", StatSchema], ["faction", FactionSchema], ["tree-point", TreePointSchema], ["bonus", BonusSchema], ["talent-tree", TalentTreeSchema], ["spellbook", SpellbookSchema], ["race", RaceSchema], ["ability", AbilitySchema]] as const) schemaRegistry.register(`compendium.catalog-${name}-progression.v${name === "effect" ? 2 : 1}`, schema);
 
 type Rows<T> = Static<typeof unavailableList> | Array<T | Static<typeof unavailableRow>>;
 
@@ -72,7 +72,7 @@ export interface ProgressionRows {
 }
 
 /**
- * Decodes the progression tables and the Heroic tier settings of `compendium.support.v3` evidence and resolves their
+ * Decodes the progression tables and Heroic tier settings of `compendium.support.v4` evidence and resolves their
  * references. `knownKeys` holds the names of catalog entities by key. Bonuses, level templates, talent points, and
  * spellbooks are not entities, so their keys come from the support tables.
  */
@@ -125,7 +125,7 @@ export function normalizeProgression(support: Support, reference: ArtifactRefere
     for (const [index, row] of (support.tables[kind] ?? []).entries()) {
       const path = `/tables/${kind}/${index}`;
       if ("unavailable" in row) continue;
-      if (row.gameplay === undefined) throw new Error(`Support ${kind} ${row.entry.nativeId} has no gameplay; the catalog needs compendium.support.v3 evidence.`);
+      if (row.gameplay === undefined) throw new Error(`Support ${kind} ${row.entry.nativeId} has no gameplay; the catalog needs compendium.support.v4 evidence.`);
       visit(entityKey(kind, row.entry.nativeId), row.gameplay, `${path}/gameplay`);
     }
   };
@@ -172,7 +172,7 @@ export function normalizeProgression(support: Support, reference: ArtifactRefere
       ranks: rows(value.ranks, `${path}/ranks`).map(({ row, path: rankPath }) => ({
         rank: row.rankIndex, damageType: named(row.mainDamageType, `${rankPath}/mainDamageType`), customDamageType: recordName(row.customDamageType), customHealingType: recordName(row.customHealingType),
         damage: row.damage, alteredStat: ref("stats", row.alteredStatId, `${rankPath}/alteredStatId`), flatCalculation: row.flatCalculation, cannotCrit: row.cannotCrit,
-        skillModifier: row.skillModifier, skillModifierStat: ref("stats", row.skillModifierId, `${rankPath}/skillModifierId`), weaponDamageModifier: row.weaponDamageModifier, useWeapon1Damage: row.useWeapon1Damage, useWeapon2Damage: row.useWeapon2Damage,
+        skillModifier: row.skillModifier, skillModifierStat: ref("stats", row.skillModifierId, `${rankPath}/skillModifierId`), weaponDamageModifier: row.weaponDamageModifier, useWeapon1Damage: row.useWeapon1Damage, useWeapon2Damage: row.useWeapon2Damage, useRangedWeaponDamage: row.useRangedWeaponDamage,
         lifesteal: row.lifesteal, maxHealthModifier: row.maxHealthModifier, missingHealthModifier: row.missingHealthModifier, delay: row.delay,
         requiredEffect: ref("effects", row.requiredEffectId, `${rankPath}/requiredEffectId`), requiredEffectDamageModifier: row.requiredEffectDamageModifier, damageStat: ref("stats", row.damageStatId, `${rankPath}/damageStatId`), damageStatModifier: row.damageStatModifier,
         teleportType: named(row.teleportType, `${rankPath}/teleportType`), teleportScene: ref("scenes", row.gameSceneId, `${rankPath}/gameSceneId`), lootTable: ref("lootTables", row.lootTableId, `${rankPath}/lootTableId`),

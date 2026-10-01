@@ -584,6 +584,12 @@ if (lootTables != null)
             appendRequirementSet(lootTable.RequirementsTemplate.Requirements, "lootTableTemplate", templateSourcePath + ".Requirements", lootTableID, -1, "lootTable:" + lootTableID.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
+        System.Collections.Generic.List<int> worldLootStatIds = null;
+        if (lootTable.WorldLootStats != null)
+        {
+            worldLootStatIds = new System.Collections.Generic.List<int>();
+            foreach (var statId in lootTable.WorldLootStats) worldLootStatIds.Add(statId);
+        }
         lootTablesOutput.Add(new
         {
             nativeId = lootTableID,
@@ -598,6 +604,11 @@ if (lootTables != null)
             hasMinimumDrops = lootTable.HasMinimumDrops,
             minDroppedItems = lootTable.minDroppedItems,
             levelBandGear = lootTable.LevelBandGear,
+            includeWorldLoot = lootTable.IncludeWorldLoot,
+            worldLootShare = lootTable.WorldLootShare,
+            bonusDropChance = lootTable.BonusDropChance,
+            worldLootStats = worldLootStatIds,
+            worldLootArmorType = lootTable.WorldLootArmorType == null ? null : (object)new { nativeId = lootTable.WorldLootArmorType.ID, name = getEntryName(lootTable.WorldLootArmorType) },
             useRequirementsTemplate = lootTable.UseRequirementsTemplate,
             nativeEntryCount = entryCount,
             lootItems = projectedEntries,
@@ -1340,9 +1351,55 @@ if (resources != null)
     }
 }
 
+var adventurerAssets = UnityEngine.Resources.LoadAll<Il2CppBLINK.RPGBuilder.AI.AdventurerWorldSettings>("");
+var adventurerAssetCount = adventurerAssets == null ? 0 : adventurerAssets.Length;
+if (adventurerAssetCount != 1) throw new System.InvalidOperationException("Expected exactly one AdventurerWorldSettings asset from Resources.LoadAll; found " + adventurerAssetCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".");
+var adventurerAsset = adventurerAssets[0];
+var adventurerRoster = new System.Collections.Generic.List<int>();
+if (adventurerAsset.Roster == null) throw new System.InvalidOperationException("AdventurerWorldSettings.Roster is null.");
+foreach (var npc in adventurerAsset.Roster)
+{
+    if (npc == null) throw new System.InvalidOperationException("AdventurerWorldSettings.Roster contains a null NPC.");
+    adventurerRoster.Add(npc.ID);
+}
+var adventurerArrivals = new System.Collections.Generic.List<object>();
+if (adventurerAsset.Arrivals == null) throw new System.InvalidOperationException("AdventurerWorldSettings.Arrivals is null.");
+foreach (var arrival in adventurerAsset.Arrivals)
+{
+    if (arrival == null || arrival.NPC == null) throw new System.InvalidOperationException("AdventurerWorldSettings.Arrivals contains a null arrival or NPC.");
+    adventurerArrivals.Add(new { npcId = arrival.NPC.ID, startingLevel = arrival.StartingLevel, joinAfterHours = arrival.JoinAfterHours });
+}
+var adventurerEquipmentBands = new System.Collections.Generic.List<object>();
+if (adventurerAsset.EquipmentBands == null) throw new System.InvalidOperationException("AdventurerWorldSettings.EquipmentBands is null.");
+foreach (var band in adventurerAsset.EquipmentBands)
+{
+    if (band == null || band.Item == null) throw new System.InvalidOperationException("AdventurerWorldSettings.EquipmentBands contains a null band or item.");
+    adventurerEquipmentBands.Add(new { itemId = band.Item.ID, minimumContentLevel = band.MinimumContentLevel });
+}
+var adventurerEquipmentRewards = new System.Collections.Generic.List<int>();
+if (adventurerAsset.EquipmentRewards == null) throw new System.InvalidOperationException("AdventurerWorldSettings.EquipmentRewards is null.");
+foreach (var item in adventurerAsset.EquipmentRewards)
+{
+    if (item == null) throw new System.InvalidOperationException("AdventurerWorldSettings.EquipmentRewards contains a null item.");
+    adventurerEquipmentRewards.Add(item.ID);
+}
+var adventurerKitUpgrades = new System.Collections.Generic.List<object>();
+if (adventurerAsset.KitUpgrades == null) throw new System.InvalidOperationException("AdventurerWorldSettings.KitUpgrades is null.");
+foreach (var kit in adventurerAsset.KitUpgrades)
+{
+    if (kit == null || kit.NPC == null || kit.Items == null) throw new System.InvalidOperationException("AdventurerWorldSettings.KitUpgrades contains a null kit, NPC, or item list.");
+    var kitItemIds = new System.Collections.Generic.List<int>();
+    foreach (var item in kit.Items)
+    {
+        if (item == null) throw new System.InvalidOperationException("AdventurerWorldSettings.KitUpgrades contains a null item.");
+        kitItemIds.Add(item.ID);
+    }
+    adventurerKitUpgrades.Add(new { id = kit.ID, npcId = kit.NPC.ID, itemIds = kitItemIds });
+}
+var adventurerWorldSettings = new { asset = adventurerAsset.name, instanceCount = adventurerAssetCount, roster = adventurerRoster, arrivals = adventurerArrivals, equipmentBands = adventurerEquipmentBands, equipmentRewardChance = adventurerAsset.EquipmentRewardChance, equipmentRewards = adventurerEquipmentRewards, kitUpgrades = adventurerKitUpgrades };
 return new
 {
-    schemaVersion = "compendium.relationships.v1",
+    schemaVersion = "compendium.relationships.v2",
     runtime = new
     {
         game = UnityEngine.Application.productName,
@@ -1372,6 +1429,7 @@ return new
     npcLootBindings = npcLootBindings,
     worldLootBindings = worldLootBindings,
     worldLootSettings = worldLootSettings,
+    adventurerWorldSettings = adventurerWorldSettings,
     propertySettings = propertySettings,
     clothDrops = clothDrops,
     lootTables = lootTablesOutput,

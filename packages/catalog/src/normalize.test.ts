@@ -7,6 +7,7 @@ import type { Blocker } from "./context";
 import { questMinimumLevel } from "./decoders";
 
 const reference = { path: "objects/support.json", sha256: "a".repeat(64) };
+const emptyAdventurerWorld = { asset: "AdventurerWorld", instanceCount: 1, roster: [], arrivals: [], equipmentBands: [], equipmentRewardChance: 0, equipmentRewards: [], kitUpgrades: [] };
 
 function entity(kind: string, nativeId: number, name: string): NormalizedEntity {
   return { entityKey: `${kind}:${nativeId}`, buildId: "build", kind, nativeId, name, internalName: null, description: null, sourceKey: nativeId, publicData: { localization: null, gameplay: null, icon: null }, provenance: [reference] };
@@ -17,7 +18,7 @@ function entity(kind: string, nativeId: number, name: string): NormalizedEntity 
 function admitted(gearSetGameplay: unknown): AdmittedCatalog {
   return {
     canonical: { value: { items: [], npcs: [], quests: [], scenes: [], regions: [], properties: [], stats: [{ nativeId: 126, gameplay: { isPercentStat: true } }] }, reference },
-    relationships: { value: { tasks: [] }, reference },
+    relationships: { value: { tasks: [], adventurerWorldSettings: emptyAdventurerWorld }, reference },
     lootRules: { value: { itemLevels: [] }, reference },
     support: { value: { tables: { gearSets: [{ sourceKey: 17, entry: { nativeId: 17, name: "Adept Leather", internalName: "Adept Leather" }, gameplay: gearSetGameplay }] } }, reference },
     artwork: { value: { records: [] }, reference },
@@ -27,7 +28,7 @@ function admitted(gearSetGameplay: unknown): AdmittedCatalog {
 function admittedNpc(npcGameplay: unknown): AdmittedCatalog {
   return {
     canonical: { value: { items: [], npcs: [{ nativeId: 399, gameplay: npcGameplay }], quests: [], scenes: [], regions: [], properties: [], stats: [] }, reference },
-    relationships: { value: { tasks: [] }, reference },
+    relationships: { value: { tasks: [], adventurerWorldSettings: emptyAdventurerWorld }, reference },
     lootRules: { value: { itemLevels: [] }, reference },
     support: { value: { tables: {} }, reference },
     artwork: { value: { records: [] }, reference },
@@ -54,7 +55,7 @@ const itemGameplay = (value: Record<string, unknown>) => ({
 function admittedItems(items: Array<{ nativeId: number; gameplay: unknown }>, stats: Array<{ nativeId: number; gameplay: { isPercentStat: boolean } }> = []): AdmittedCatalog {
   return {
     canonical: { value: { items, npcs: [], quests: [], scenes: [], regions: [], properties: [], stats }, reference },
-    relationships: { value: { tasks: [] }, reference },
+    relationships: { value: { tasks: [], adventurerWorldSettings: emptyAdventurerWorld }, reference },
     lootRules: { value: { itemLevels: [] }, reference },
     support: { value: { tables: {} }, reference },
     artwork: { value: { records: [] }, reference },
@@ -91,19 +92,43 @@ test("resolves every gear set member and tier stat to its entity", () => {
 test("keeps only equipment fields that apply to each item type", () => {
   const available = (name: string) => ({ available: true, name });
   const items = [
-    { nativeId: 1175, gameplay: itemGameplay({ itemType: available("WEAPON"), rarity: available("Rare"), armorSlot: available("BELT"), armorType: available("CLOTH"), weaponSlot: available("One-Hand"), weaponType: available("One handed sword") }) },
-    { nativeId: 1177, gameplay: itemGameplay({ itemType: available("Trinket"), rarity: available("Rare"), armorSlot: available("Trinket"), armorType: available("JEWELRY"), weaponSlot: { available: false }, weaponType: { available: false } }) },
+    { nativeId: 1175, gameplay: itemGameplay({ itemType: available("WEAPON"), rarity: available("Rare"), armorSlot: available("BELT"), armorType: available("CLOTH"), weaponSlot: available("Ranged"), weaponType: available("Crossbow"), weaponDamageType: { available: true, nativeId: 7, name: "Fire" }, attackMode: "Ranged", physicalLabel: "Piercing" }) },
+    { nativeId: 1177, gameplay: itemGameplay({ itemType: available("Trinket"), rarity: available("Rare"), armorSlot: available("Trinket"), armorType: available("JEWELRY"), weaponSlot: { available: false }, weaponType: { available: false }, weaponDamageType: { available: false }, attackMode: "Melee", physicalLabel: "Bludgeoning" }) },
   ];
   const blockers: Blocker[] = [];
   const rows = collectTypedFacts(admittedItems(items), [entity("items", 1175, "Fenfoot's Hivecleaver"), entity("items", 1177, "Knotted Rootguard")], [] as NormalizedDatabaseInput["bindings"], [], blockers);
 
   expect(blockers).toEqual([]);
-  expect(rows.itemFacts.map(({ itemType, armorSlot, armorType, weaponSlot, weaponType }) => ({ itemType, armorSlot, armorType, weaponSlot, weaponType }))).toEqual([
-    { itemType: "WEAPON", armorSlot: null, armorType: null, weaponSlot: "One-Hand", weaponType: "One handed sword" },
-    { itemType: "Trinket", armorSlot: "Trinket", armorType: "JEWELRY", weaponSlot: null, weaponType: null },
+  expect(rows.itemFacts.map(({ itemType, armorSlot, armorType, weaponSlot, weaponType, weaponDamageType, attackMode, physicalLabel }) => ({ itemType, armorSlot, armorType, weaponSlot, weaponType, weaponDamageType, attackMode, physicalLabel }))).toEqual([
+    { itemType: "WEAPON", armorSlot: null, armorType: null, weaponSlot: "Ranged", weaponType: "Crossbow", weaponDamageType: "Fire", attackMode: "Ranged", physicalLabel: "Piercing" },
+    { itemType: "Trinket", armorSlot: "Trinket", armorType: "JEWELRY", weaponSlot: null, weaponType: null, weaponDamageType: null, attackMode: null, physicalLabel: null },
   ]);
 });
 
+test("resolves adventurer arrivals, equipment, and kit upgrades by their authored positions", () => {
+  const evidence = admittedItems([]);
+  evidence.relationships.value.adventurerWorldSettings = {
+    asset: "AdventurerWorld", instanceCount: 1, roster: [3],
+    arrivals: [{ npcId: 3, startingLevel: 7, joinAfterHours: 12 }],
+    equipmentBands: [{ itemId: 1, minimumContentLevel: 9 }],
+    equipmentRewardChance: 0.25, equipmentRewards: [2],
+    kitUpgrades: [{ id: "tank", npcId: 3, itemIds: [1, 2] }],
+  };
+  const blockers: Blocker[] = [];
+  const rows = collectTypedFacts(evidence, [entity("npcs", 3, "Shieldmaster"), entity("items", 1, "Helm"), entity("items", 2, "Shield")], [], [], blockers);
+  expect(blockers).toEqual([]);
+  expect(rows.adventurerWorld.links.map(({ kind, position, itemPosition, kitId, npc, item, startingLevel, joinAfterHours, minimumContentLevel }) => ({
+    kind, position, itemPosition, kitId, npc: npc?.entityKey, item: item?.entityKey, startingLevel, joinAfterHours, minimumContentLevel,
+  }))).toEqual([
+    { kind: "roster", position: 0, itemPosition: 0, kitId: null, npc: "npcs:3", item: undefined, startingLevel: null, joinAfterHours: null, minimumContentLevel: null },
+    { kind: "arrival", position: 0, itemPosition: 0, kitId: null, npc: "npcs:3", item: undefined, startingLevel: 7, joinAfterHours: 12, minimumContentLevel: null },
+    { kind: "equipmentBand", position: 0, itemPosition: 0, kitId: null, npc: undefined, item: "items:1", startingLevel: null, joinAfterHours: null, minimumContentLevel: 9 },
+    { kind: "equipmentReward", position: 0, itemPosition: 0, kitId: null, npc: undefined, item: "items:2", startingLevel: null, joinAfterHours: null, minimumContentLevel: null },
+    { kind: "kitUpgrade", position: 0, itemPosition: 0, kitId: "tank", npc: "npcs:3", item: undefined, startingLevel: null, joinAfterHours: null, minimumContentLevel: null },
+    { kind: "kitUpgradeItem", position: 0, itemPosition: 0, kitId: "tank", npc: "npcs:3", item: "items:1", startingLevel: null, joinAfterHours: null, minimumContentLevel: null },
+    { kind: "kitUpgradeItem", position: 0, itemPosition: 1, kitId: "tank", npc: "npcs:3", item: "items:2", startingLevel: null, joinAfterHours: null, minimumContentLevel: null },
+  ]);
+});
 test("resolves authored item currency conversion and leaves ordinary items without one", () => {
   const items = [
     { nativeId: 163, gameplay: itemGameplay({ convertToCurrencyId: 1 }) },
