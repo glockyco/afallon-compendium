@@ -8,7 +8,7 @@ const inventory: ScanTargetIndex = {
 };
 
 const requested: ScanPlan = {
-  schemaVersion: "compendium.scan-plan.v1",
+  schemaVersion: "compendium.scan-plan.v2",
   targetTimeoutMs: 30_000,
   targets: [
     { kind: "current-scene" },
@@ -28,4 +28,9 @@ test("structural rejection requires no runtime inventory", () => {
   expect(() => validateScanPlanStructure({ ...requested, targets: [{ kind: "future-target" }] })).toThrow();
   expect(() => validateScanPlanStructure({ ...requested, targets: [{ kind: "current-scene" }, { kind: "current-scene" }] })).toThrow();
   expect(validateScanPlanStructure(requested).targets).toEqual(requested.targets);
+});
+
+test("the artwork target must be one of the plan's targets", () => {
+  expect(validateScanPlanStructure({ ...requested, artworkTarget: "build-scene:7" }).artworkTarget).toBe("build-scene:7");
+  expect(() => validateScanPlanStructure({ ...requested, artworkTarget: "build-scene:3" })).toThrow("none of its targets");
 });

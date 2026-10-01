@@ -32,20 +32,22 @@ The comparison tells you which collectors and decoders can break. Fix those befo
 
 ## 3. Scan
 
-1. Copy the accepted build's scan plans (`local/scan-<build>-shard-*.json` and the dungeon and stream plans) to new names. Run `tools/update/author-scan-arrivals.ts <accepted catalog.sqlite> <plans...>`; it rewrites the given plans in place.
-2. `tools/update/load-character.ts <config>` loads the research character. Run `bun run compendium scan --config <config> --plan <plan> --candidate` for each plan, one at a time. Read each outcome; a failed target is not a gap to skip.
+1. Copy the accepted build's scan plans (`local/scan-<build>-shard-*.json` and the dungeon and stream plans) to new names. Plans use `compendium.scan-plan.v2`. Add one plan with the canonical scene alone (`build-scene:44`) and `"artworkTarget": "build-scene:44"`; the catalog reads canonical facts and artwork only from that target. The shard plans name no artwork target. Run `tools/update/author-scan-arrivals.ts <accepted catalog.sqlite> <plans...>`; it rewrites the given plans in place.
+2. `tools/update/load-character.ts <config>` loads the research character. Run `bun run compendium scan --config <config> --plan <plan> --candidate` for each plan, one at a time. Read each outcome; a failed target is not a gap to skip. A scene target takes about a minute; the artwork target takes about two more.
 3. `tools/update/check-scan-arrivals.ts` checks the arrivals that the scans used. `tools/update/quit-game.ts <config>` ends the game.
 4. New scenes need new plan targets. Compare the scene list of the new scans with the accepted catalog.
+
+Time the steps from the run manifests (`timestamps`) and, inside a scan, from the write times of the `targets/NNN/*.context.json` objects. A step that grows with each target of a run points to a cost that scales with the run's size.
 
 ## 4. Map spaces and imagery
 
 1. `author-map-profile.ts` and `verify-map-profile.ts` author and check the map-space profile. Register it.
 2. `sweep-map-zones.ts`, `author-game-map-plans.ts`, then `bun run compendium game-map` produce the game maps. `extract-overworld-texture.py` needs `UnityPy` (`uv run --with UnityPy`); `author-overworld-plan.ts` uses its image.
-3. `author-capture-plans.ts` re-authors the reviewed terrain plans, `capture-plans.ts` captures each plan in its own sweep, and `bun run compendium pyramid` builds the tiles. Captures take hours; run them in the background and record each run.
+3. `author-capture-plans.ts` re-authors the reviewed terrain plans, `capture-plans.ts` captures each plan in its own sweep, and `bun run compendium pyramid` builds the tiles. The twelve world-surface plans of build 25434619 captured in about 10 minutes; run them in the background and record each run.
 
 ## 5. Catalog
 
-1. `author-bootstrap-review.ts` writes the open review from the coverage policy. Register it, author the plan with `author-catalog-plan.ts`, and run `bun run compendium catalog --store artifacts --plan <plan> --candidate`.
+1. `author-bootstrap-review.ts` writes the open review from the coverage policy. Register it, author the plan with `author-catalog-plan.ts` (`--canonical-scan` is the run of the artwork plan, `--canonical-target build-scene:44`), and run `bun run compendium catalog --store artifacts --plan <plan> --candidate`.
 2. `author-coverage-review.ts` writes the complete review from that catalog. Register it and build the final catalog.
 3. The plan names the reviewed mechanics rules. Rules cite evidence of one build; review each rule against the new build and register a new rules record for it.
 4. `compare-catalogs.ts <accepted> <candidate>` lists what changed. Explain every removal before you publish.

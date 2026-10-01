@@ -120,9 +120,11 @@ const DEFINITIONS: readonly CollectorDefinition[] = [
   { family: "spatial", name: "navigation-geometry", schema: NavigationGeometrySchema, modules: ["navigation-geometry"] },
 ];
 
-// Artwork reads the database, not the scene, and takes thousands of frames. It runs after the world inventory, so
-// the scene evidence does not depend on how long the artwork takes. An object that a CountdownDestroyer removes
-// a fixed time after the scene starts stays in the scene evidence unless that time ends before the scene is read.
+// Artwork reads the database, not the scene, and takes about two minutes. It is the same for every target, and the
+// catalog reads it only from its canonical target, so only the plan's artwork target collects it. It runs after the
+// world inventory, so the scene evidence does not depend on how long the artwork takes. An object that a
+// CountdownDestroyer removes a fixed time after the scene starts stays in the scene evidence unless that time ends
+// before the scene is read.
 const ARTWORK: CollectorDefinition = { family: "canonical", name: "artwork", schema: ArtworkSchema, modules: ["artwork"], timeoutMs: 600_000 };
 
 function collectorBundle(definition: CollectorDefinition): Promise<ScanCollectorBundle> {
@@ -154,11 +156,11 @@ export class ScanCollectorSuite {
     private readonly bundles: readonly ScanCollectorBundle[],
   ) {}
 
-  async collect(target: ScanTarget, outputDirectory: string, register: ScanEvidenceRegistrar, expected?: ObservationContext["started"]): Promise<readonly CollectedScanEvidence[]> {
+  async collect(target: ScanTarget, outputDirectory: string, register: ScanEvidenceRegistrar, options: { readonly artwork: boolean; readonly expected?: ObservationContext["started"] }): Promise<readonly CollectedScanEvidence[]> {
     const applicable = new Set(collectorApplicability(target).filter(row => row.status === "collect").map(row => row.family));
     const results: CollectedScanEvidence[] = [];
     const byName = new Map<string, CollectedScanEvidence>();
-    let boundary = expected;
+    let boundary = options.expected;
     const derive = async (family: ScanCollectorFamily, name: string, schema: TSchema, value: unknown, observationContext: ObservationContext | null, context: ContentIdentity | null, inputs: readonly ContentIdentity[], identities: readonly string[] = []): Promise<CollectedScanEvidence> => {
       Assert(schema, value);
       const file = resolve(outputDirectory, `${name}.json`);
@@ -172,7 +174,7 @@ export class ScanCollectorSuite {
     };
     try {
       for (const collector of this.bundles) {
-        if (!applicable.has(collector.family)) continue;
+        if (!applicable.has(collector.family) || (collector.name === "artwork" && !options.artwork)) continue;
         const outputFile = resolve(outputDirectory, `${collector.name}.json`);
         const result = await this.runtime.runProbe(collector.bundle, outputFile, { parameters: { researchCharacter: this.config.character }, captureContext: true, ...(collector.timeoutMs === undefined ? {} : { timeoutMs: collector.timeoutMs }) });
         const content = await register(outputFile, `${collector.name}.json`, collector.bundle.schemaIdentity.id, []);

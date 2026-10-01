@@ -236,22 +236,21 @@ export function collectTypedFacts(admitted: AdmittedCatalog, entities: Normalize
     }
   }
 
-  if (admitted.artwork) {
-    const assets = new Map<string, NonNullable<NormalizedDatabaseInput["artworkAssets"]>[number]>(), bindingsByRole = new Map<string, string>();
-    for (const [index, record] of admitted.artwork.value.records.entries()) {
-      const provenance = [pointer(admitted.artwork.reference, `/records/${index}`)], key = entityKey(record.family, record.nativeId);
-      if (record.status !== "extracted" || record.image === null) { blockers.push({ kind: "artwork-unavailable", key: `${key}:${record.role}`, detail: record.reason ?? `Artwork status is ${record.status}.`, provenance }); continue; }
-      if (!entityByKey.has(key)) { blockers.push({ kind: "missing-reference", key: `artwork:${key}:${record.role}`, detail: `Artwork references missing ${key}.`, provenance }); continue; }
-      const previous = assets.get(record.image.sha256), asset = { assetId: record.image.sha256, sha256: record.image.sha256, bytes: record.image.bytes, width: record.image.width, height: record.image.height, sourceName: record.sourceName, provenance };
-      if (previous && (previous.bytes !== asset.bytes || previous.width !== asset.width || previous.height !== asset.height)) throw new Error(`Artwork asset ${asset.sha256} has conflicting metadata.`);
-      if (previous) { previous.provenance.push(...provenance); if (asset.sourceName.localeCompare(previous.sourceName) < 0) previous.sourceName = asset.sourceName; }
-      else assets.set(asset.sha256, asset);
-      const roleKey = `${key}:${record.role}`, bound = bindingsByRole.get(roleKey); if (bound && bound !== asset.assetId) throw new Error(`Artwork binding ${roleKey} names multiple assets.`); bindingsByRole.set(roleKey, asset.assetId);
-      rows.artworkBindings.push({ entityKey: key, role: record.role, assetId: asset.assetId, provenance });
-    }
-    rows.artworkAssets.push(...[...assets.values()].sort((a, b) => a.assetId.localeCompare(b.assetId)));
-    rows.artworkBindings = mergeEvidence(rows.artworkBindings, (row) => `${row.entityKey}:${row.role}`);
+  // Artwork bindings of the canonical target.
+  const assets = new Map<string, NonNullable<NormalizedDatabaseInput["artworkAssets"]>[number]>(), bindingsByRole = new Map<string, string>();
+  for (const [index, record] of admitted.artwork.value.records.entries()) {
+    const provenance = [pointer(admitted.artwork.reference, `/records/${index}`)], key = entityKey(record.family, record.nativeId);
+    if (record.status !== "extracted" || record.image === null) { blockers.push({ kind: "artwork-unavailable", key: `${key}:${record.role}`, detail: record.reason ?? `Artwork status is ${record.status}.`, provenance }); continue; }
+    if (!entityByKey.has(key)) { blockers.push({ kind: "missing-reference", key: `artwork:${key}:${record.role}`, detail: `Artwork references missing ${key}.`, provenance }); continue; }
+    const previous = assets.get(record.image.sha256), asset = { assetId: record.image.sha256, sha256: record.image.sha256, bytes: record.image.bytes, width: record.image.width, height: record.image.height, sourceName: record.sourceName, provenance };
+    if (previous && (previous.bytes !== asset.bytes || previous.width !== asset.width || previous.height !== asset.height)) throw new Error(`Artwork asset ${asset.sha256} has conflicting metadata.`);
+    if (previous) { previous.provenance.push(...provenance); if (asset.sourceName.localeCompare(previous.sourceName) < 0) previous.sourceName = asset.sourceName; }
+    else assets.set(asset.sha256, asset);
+    const roleKey = `${key}:${record.role}`, bound = bindingsByRole.get(roleKey); if (bound && bound !== asset.assetId) throw new Error(`Artwork binding ${roleKey} names multiple assets.`); bindingsByRole.set(roleKey, asset.assetId);
+    rows.artworkBindings.push({ entityKey: key, role: record.role, assetId: asset.assetId, provenance });
   }
+  rows.artworkAssets.push(...[...assets.values()].sort((a, b) => a.assetId.localeCompare(b.assetId)));
+  rows.artworkBindings = mergeEvidence(rows.artworkBindings, (row) => `${row.entityKey}:${row.role}`);
   return rows;
 }
 

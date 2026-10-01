@@ -71,7 +71,7 @@ export interface AdmittedCatalog {
   relationships: AdmittedObject<Static<typeof RelationshipsSchema>>;
   lootRules: AdmittedObject<Static<typeof LootRulesSchema>>;
   support: AdmittedObject<Static<typeof SupportSchema>>;
-  artwork: AdmittedObject<Static<typeof ArtworkSchema>> | null;
+  artwork: AdmittedObject<Static<typeof ArtworkSchema>>;
   localization: AdmittedObject<Static<typeof LocalizationSchema>>;
   // The game's quest level ranges; scans made before the collector existed have none.
   questLevels: AdmittedObject<Static<typeof QuestLevelsSchema>> | null;
@@ -205,18 +205,17 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
     return { value, reference: evidenceReference(artifact.content), content: artifact.content };
   };
   const canonical = await load(canonicalTarget, "canonical", CanonicalSchema);
-  const artwork = await loadOptional(canonicalTarget, "canonical", ArtworkSchema);
-  if (artwork) {
-    const outputs = new Map(canonicalTarget.run.outputs.map((row) => [`${row.content.sha256}:${row.content.bytes}`, row]));
-    const verified = new Set<string>();
-    for (const record of artwork.value.records) if (record.image) {
-      const key = `${record.image.sha256}:${record.image.bytes}`, output = outputs.get(key);
-      if (!output || !output.name.endsWith(`/${record.image.file}`)) throw new Error(`Artwork ${record.family}:${record.nativeId}:${record.role} references image bytes not admitted by its scan run.`);
-      if (verified.has(key)) continue;
-      await store.verify(output.content);
-      register("artwork-asset", output.content, null, canonicalTarget.envelope.sourceRunId, canonicalTarget.envelope.targetIdentity);
-      verified.add(key);
-    }
+  // Only the scan plan's artwork target collects artwork, so the canonical target must be that target.
+  const artwork = await load(canonicalTarget, "canonical", ArtworkSchema);
+  const artworkOutputs = new Map(canonicalTarget.run.outputs.map((row) => [`${row.content.sha256}:${row.content.bytes}`, row]));
+  const verifiedArtwork = new Set<string>();
+  for (const record of artwork.value.records) if (record.image) {
+    const key = `${record.image.sha256}:${record.image.bytes}`, output = artworkOutputs.get(key);
+    if (!output || !output.name.endsWith(`/${record.image.file}`)) throw new Error(`Artwork ${record.family}:${record.nativeId}:${record.role} references image bytes not admitted by its scan run.`);
+    if (verifiedArtwork.has(key)) continue;
+    await store.verify(output.content);
+    register("artwork-asset", output.content, null, canonicalTarget.envelope.sourceRunId, canonicalTarget.envelope.targetIdentity);
+    verifiedArtwork.add(key);
   }
   const relationships = await load(canonicalTarget, "relationships", RelationshipsSchema);
   const lootRules = await load(canonicalTarget, "relationships", LootRulesSchema);

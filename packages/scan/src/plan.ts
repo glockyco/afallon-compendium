@@ -63,7 +63,7 @@ export function validateScanPlanStructure(value: unknown): ScanPlan {
   try {
     Assert(ScanPlanSchema, value);
   } catch (error) {
-    throw new Error("Scan plan does not match compendium.scan-plan.v1.", { cause: error });
+    throw new Error("Scan plan does not match compendium.scan-plan.v2.", { cause: error });
   }
   const identities = new Set<string>();
   for (const [index, target] of value.targets.entries()) {
@@ -71,6 +71,7 @@ export function validateScanPlanStructure(value: unknown): ScanPlan {
     if (identities.has(identity)) throw new Error(`Scan plan repeats target ${identity} at index ${index}.`);
     identities.add(identity);
   }
+  if (value.artworkTarget !== undefined && !identities.has(value.artworkTarget)) throw new Error(`Scan plan names artwork target ${value.artworkTarget}, which is none of its targets.`);
   return structuredClone(value);
 }
 

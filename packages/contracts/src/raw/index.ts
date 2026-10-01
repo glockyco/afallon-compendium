@@ -39,7 +39,7 @@ schemaRegistry.register("compendium.placement-snapshot.v1", PlacementSnapshotSch
 schemaRegistry.register("compendium.placement-identities.v1", PlacementIdentityResultSchema);
 schemaRegistry.register("compendium.traversal-plan.v1", TraversalPlanSchema);
 schemaRegistry.register("compendium.scan-target.v1", ScanTargetSchema);
-schemaRegistry.register("compendium.scan-plan.v1", ScanPlanSchema);
+schemaRegistry.register("compendium.scan-plan.v2", ScanPlanSchema);
 schemaRegistry.register("compendium.scan-planning-evidence.v1", ScanPlanningEvidenceSchema);
 schemaRegistry.register("compendium.scan-collector-disposition.v1", ScanCollectorDispositionSchema);
 schemaRegistry.register("compendium.scan-coverage.v1", ScanCoverageSchema);

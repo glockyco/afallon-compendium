@@ -52,9 +52,12 @@ export type ScanStreamedSourceTarget = Static<typeof ScanStreamedSourceTargetSch
 export const ScanTargetSchema = Type.Union([ScanCurrentSceneTargetSchema, ScanBuildSceneTargetSchema, ScanStreamedSourceTargetSchema]);
 export type ScanTarget = Static<typeof ScanTargetSchema>;
 export const ScanPlanSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.scan-plan.v1"),
+  schemaVersion: Type.Literal("compendium.scan-plan.v2"),
   targetTimeoutMs: Type.Integer({ minimum: 1000, maximum: 900000 }),
   targets: Type.Array(ScanTargetSchema, { minItems: 1, maxItems: 256 }),
+  // The target identity, such as `build-scene:44`, that collects the build's database artwork. Artwork is the same for
+  // every target, and the catalog reads it only from its canonical target. Absent: no target collects artwork.
+  artworkTarget: Type.Optional(text),
 }, { additionalProperties: false });
 export type ScanPlan = Static<typeof ScanPlanSchema>;
 const contentIdentity = Type.Object({ sha256: Type.String({ pattern: "^[a-f0-9]{64}$" }), bytes: count }, { additionalProperties: false });

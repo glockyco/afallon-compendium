@@ -20,7 +20,7 @@ function admitted(gearSetGameplay: unknown): AdmittedCatalog {
     relationships: { value: { tasks: [] }, reference },
     lootRules: { value: { itemLevels: [] }, reference },
     support: { value: { tables: { gearSets: [{ sourceKey: 17, entry: { nativeId: 17, name: "Adept Leather", internalName: "Adept Leather" }, gameplay: gearSetGameplay }] } }, reference },
-    artwork: null,
+    artwork: { value: { records: [] }, reference },
   } as unknown as AdmittedCatalog;
 }
 
@@ -30,7 +30,7 @@ function admittedNpc(npcGameplay: unknown): AdmittedCatalog {
     relationships: { value: { tasks: [] }, reference },
     lootRules: { value: { itemLevels: [] }, reference },
     support: { value: { tables: {} }, reference },
-    artwork: null,
+    artwork: { value: { records: [] }, reference },
     sceneCatalog: { value: {
       schemaVersion: "compendium.scene-catalog.v1", buildId: "build",
       scenes: [{ sourceKey: 47, nativeId: 47, entryName: "Coalway outdoors", displayName: "Coalway outdoors", sourceFieldPath: "scenes[47]", state: "matched", buildMatches: [{ buildIndex: 0, path: "Assets/SCENES/Coalway outdoors.unity" }] }],
@@ -57,7 +57,7 @@ function admittedItems(items: Array<{ nativeId: number; gameplay: unknown }>, st
     relationships: { value: { tasks: [] }, reference },
     lootRules: { value: { itemLevels: [] }, reference },
     support: { value: { tables: {} }, reference },
-    artwork: null,
+    artwork: { value: { records: [] }, reference },
   } as unknown as AdmittedCatalog;
 }
 

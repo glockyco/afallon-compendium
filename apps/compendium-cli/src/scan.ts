@@ -105,7 +105,7 @@ export async function runScanCommand(runtime: Runtime, input: ScanCommandInput):
       const prefix = `targets/${String(targetIndex).padStart(3, "0")}`;
       const collect = async (directory: string, started: RuntimeScanState) => (await suite.collect(target, directory,
         (file, name, schemaId, inputs) => register(file, `${prefix}/${name}`, schemaId, inputs, schemaId === null ? "application/octet-stream" : "application/json"),
-        target.kind === "current-scene" ? { researchCharacter: started.character, frame: started.frame, scene: started.scene, gameSceneNativeId: started.gameSceneNativeId } : undefined,
+        { artwork: targetIdentity(target) === plan.artworkTarget, ...(target.kind === "current-scene" ? { expected: { researchCharacter: started.character, frame: started.frame, scene: started.scene, gameSceneNativeId: started.gameSceneNativeId } } : {}) },
       )).map(item => item.artifact);
       const envelope: ScanTargetEnvelope = stopped
         ? await scanner.notAttempted(target, targetIndex, null, "A prior target did not succeed. No further traversal was attempted.")
