@@ -5,11 +5,13 @@ import {
   type AbilityPhase,
   type GearSet,
   type PublicAbility,
+  type PublicClass,
   type PublicDocument,
   type PublicItem,
   type PublicNpc,
   type Ref,
 } from "@afallon/contracts/public";
+import { talentAnchor } from "./documents/classes";
 
 function hasNativeText(lines: readonly TooltipLine[]): boolean {
   return lines.some((line) => line.spans.some((span) => span.text.length > 0));
@@ -85,6 +87,24 @@ export function auditPublicTooltipCoverage(
     const npc = document as PublicNpc;
     checkPhases(npc.ref.key, npc.abilityPhases);
     for (const variant of npc.variants) checkPhases(variant.key, variant.facts.abilityPhases ?? []);
+  }
+
+  // A talent rank shows every stat change that the game's talent tooltip shows: its own changes and its pet changes whose
+  // stat exists. A rank that shows no effect is reported too, because a change that the catalog does not read leaves the
+  // rank empty.
+  const bonusByAnchor = new Map(facts.progression.talentNodes.flatMap((node) => node.target?.entityKey?.startsWith("bonuses:") ? [[talentAnchor(node.tree, node.nodeIndex), node.target.entityKey] as const] : []));
+  const bonusRanks = new Map(facts.progression.facts.flatMap((fact) => fact.kind === "bonuses" ? [[fact.entityKey, fact.details.ranks] as const] : []));
+  for (const document of documents.values()) if (document.ref.kind === "classes") {
+    for (const tree of (document as PublicClass).trees) for (const row of tree.rows) {
+      const bonusKey = bonusByAnchor.get(row.anchor), ranks = bonusKey === undefined ? [] : bonusRanks.get(bonusKey) ?? [];
+      for (const [published, source] of [[row.first, ranks[0]], [row.last, ranks.length > 1 ? ranks.at(-1) : undefined]] as const) {
+        if (!published || !source) continue;
+        const shown = published.stats.length + published.petStats.reduce((sum, group) => sum + group.stats.length, 0);
+        const expected = source.statEffects.length + source.petStatEffects.filter((change) => change.stat.entityKey !== null).length;
+        if (shown < expected) issues.push(`Talent ${bonusKey} rank ${published.rank} on ${document.ref.key} shows ${shown} of its ${expected} stat changes.`);
+        else if (shown === 0 && published.text.length === 0) issues.push(`Talent ${bonusKey} rank ${published.rank} on ${document.ref.key} shows no effect.`);
+      }
+    }
   }
 
   const itemConditionIds = new Set(facts.items.flatMap((item) => item.conditionIds));

@@ -73,10 +73,11 @@ export interface ProgressionRows {
 
 /**
  * Decodes the progression tables and Heroic tier settings of `compendium.support.v4` evidence and resolves their
- * references. `knownKeys` holds the names of catalog entities by key. Bonuses, level templates, talent points, and
- * spellbooks are not entities, so their keys come from the support tables.
+ * references. `entityNames` holds the names of catalog entities by key. Bonuses, level templates, talent points, and
+ * spellbooks are not entities, so their keys come from the support tables. `statPercent` tells, by stat id, whether a
+ * stat is a percentage.
  */
-export function normalizeProgression(support: Support, reference: ArtifactReference, entityNames: ReadonlyMap<string, string | null>, blockers: Blocker[]): ProgressionRows {
+export function normalizeProgression(support: Support, reference: ArtifactReference, entityNames: ReadonlyMap<string, string | null>, statPercent: ReadonlyMap<number, boolean>, blockers: Blocker[]): ProgressionRows {
   const out: ProgressionRows = { progressionFacts: [], progressionLinks: [], talentNodes: [], spellbookNodes: [], conditions: [] };
   // A display name can be empty, as for the level templates. Facts then have no name, and references read the internal
   // name, so that no reference has an empty label.
@@ -108,6 +109,9 @@ export function normalizeProgression(support: Support, reference: ArtifactRefere
     });
   }
   const stats = (value: Static<typeof stat>, path: string): ProgressionStat[] => rows(value, path).map(({ row, path: rowPath }) => ({ stat: required("stats", row.statId, `${rowPath}/statId`), amount: row.amount, isPercent: row.isPercent }));
+  // The game's talent tooltip shows a talent's change as a percentage when the change or its stat is a percentage
+  // (`AbilityTooltip.GenerateBonusTooltip`). Item stats follow the same rule.
+  const talentStat = (row: { statId: number; amount: number; isPercent: boolean }, path: string): ProgressionStat => ({ stat: required("stats", row.statId, `${path}/statId`), amount: row.amount, isPercent: row.isPercent || (statPercent.get(row.statId) ?? false) });
   const customStats = (value: Static<typeof customStat>, path: string): ProgressionCustomStat[] => rows(value, path).map(({ row, path: rowPath }) => ({ stat: required("stats", row.statId, `${rowPath}/statId`), minValue: row.overrideMinValue ? row.minValue : null, maxValue: row.overrideMaxValue ? row.maxValue : null, startPercentage: row.overrideStartPercentage ? row.startPercentage : null, addedValue: row.addedValue, valuePerLevel: row.valuePerLevel, isPercent: row.isPercent, chance: row.chance }));
   const effects = (value: Static<typeof applied>, path: string): ProgressionAppliedEffect[] => rows(value, path).map(({ row, path: rowPath }) => ({ effect: required("effects", row.effectId, `${rowPath}/effectId`), chance: row.chance, rank: row.effectRank, target: named(row.target, `${rowPath}/target`), delay: row.delay }));
   const recordName = (value: Static<typeof record>) => value === null ? null : value.name;
@@ -229,8 +233,8 @@ export function normalizeProgression(support: Support, reference: ArtifactRefere
       ranks: rows(value.ranks, `${path}/ranks`).map(({ row, path: rankPath }) => ({
         rank: row.rankIndex, unlockCost: row.unlockCost, isEmpty: row.isEmpty, emptyTooltip: row.isEmpty ? row.emptyTooltip : null,
         conditionId: condition("bonusRank", `${key}:${row.rankIndex}`, row.requirements, `${rankPath}/requirements`),
-        statEffects: stats(row.statEffects, `${rankPath}/statEffects`),
-        petStatEffects: rows(row.petStatEffects, `${rankPath}/petStatEffects`).map(({ row: pet, path: petPath }) => ({ stat: required("stats", pet.statId, `${petPath}/statId`), amount: pet.amount, isPercent: pet.isPercent, targetType: named(pet.targetType, `${petPath}/targetType`), npc: ref("npcs", pet.npcId, `${petPath}/npcId`), speciesId: pet.speciesId < 0 ? null : pet.speciesId })),
+        statEffects: rows(row.statEffects, `${rankPath}/statEffects`).map(({ row: change, path: changePath }) => talentStat(change, changePath)),
+        petStatEffects: rows(row.petStatEffects, `${rankPath}/petStatEffects`).map(({ row: pet, path: petPath }) => ({ ...talentStat(pet, petPath), targetType: named(pet.targetType, `${petPath}/targetType`), npc: ref("npcs", pet.npcId, `${petPath}/npcId`), speciesId: pet.speciesId < 0 ? null : pet.speciesId })),
       })),
     } }, path);
   });

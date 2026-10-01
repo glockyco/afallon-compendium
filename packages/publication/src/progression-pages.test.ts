@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
-import type { CatalogEntityRow, CatalogFacts, CatalogProgressionFact, CatalogRelations, CatalogRequirement, CatalogRequirementSpan, ProgressionAbility, ProgressionClass, ProgressionSkill, CatalogMechanicsRule } from "@afallon/contracts/catalog";
+import type { CatalogEntityRow, CatalogFacts, CatalogProgressionFact, CatalogRelations, CatalogRequirement, CatalogRequirementSpan, ProgressionAbility, ProgressionBonusRank, ProgressionClass, ProgressionPetStat, ProgressionSkill, CatalogMechanicsRule } from "@afallon/contracts/catalog";
 import type { PublicAbility, PublicClass, PublicItem, PublicSkill } from "@afallon/contracts/public";
 import { readerCoverage } from "./coverage";
 import { projectPublicDocuments } from "./documents";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";
 import { buildKindLists } from "./lists";
 import { buildEntityReferences, createReferenceResolver } from "./references";
+import { auditPublicTooltipCoverage } from "./tooltip-coverage";
 
 const entity = (kind: string, nativeId: number, name: string): CatalogEntityRow => ({ entityKey: `${kind}:${nativeId}`, kind, nativeId, name, description: null, iconAssetName: null, artwork: [] });
 const entities = [
@@ -138,6 +139,32 @@ test("an item names the offered classes that start with it, and coverage counts 
 test("a talent shared by several trees resolves to the row of the class that owns the page", () => {
   const assassin = project().documents.get("classes:5") as PublicClass;
   expect(assassin.trees[0]!.rows[1]!.requirements[0]?.requirements[0]?.spans[0]).toEqual({ ref: { key: "classes:5", kind: "classes", name: "Heroic Might", slug: "assassin", variant: "talent-27-0" } });
+});
+
+test("a talent rank groups its pet changes by the pets, and the audit reports changes that it cannot show", () => {
+  const beast = named(3, "HunterBeast"), specific = named(1, "SpecificNPC");
+  const change = (stat: string, amount: number, targetType: { value: number; name: string }, npc: { entityKey: string; label: string } | null = null): ProgressionPetStat => ({ stat: ref(stat, stat), amount, isPercent: true, targetType, npc, speciesId: null });
+  const rank = (petStatEffects: ProgressionPetStat[]): ProgressionBonusRank => ({ rank: 0, unlockCost: 1, isEmpty: false, emptyTooltip: null, conditionId: null, statEffects: [], petStatEffects });
+  const withTalents = (ranks: ProgressionBonusRank[]): CatalogFacts => ({ ...facts, progression: { ...facts.progression,
+    facts: [...progressionFacts, ...ranks.map((details, index): CatalogProgressionFact => ({ entityKey: `bonuses:${600 + index}`, name: `Talent ${index}`, kind: "bonuses", details: { learnedByDefault: false, ranks: [details] } }))],
+    talentNodes: [...facts.progression.talentNodes, ...ranks.map((_, index) => node("talentTrees:27", 2 + index, "bonus", `bonuses:${600 + index}`, `Talent ${index}`, 3 + index, 1))] } });
+  const publish = (current: CatalogFacts) => {
+    const references = buildEntityReferences(entities, { facts: current, relations });
+    const documents = projectPublicDocuments({ entities, facts: current, relations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map(), npcLevels: new Map(), placementIdsByKey: new Map(), classWeapons: new Map() });
+    return { documents, talentIssues: auditPublicTooltipCoverage(current, relations, documents).filter((issue) => issue.startsWith("Talent ")) };
+  };
+
+  const shown = publish(withTalents([rank([change("stats:36", 2, beast), change("stats:27", 3, beast), change("stats:3", 2, specific, ref("npcs:178", "Skeleton Warrior")), change("stats:3", 1, specific)])]));
+  const groups = (shown.documents.get("classes:5") as PublicClass).trees[0]!.rows.find((row) => row.name === "Talent 0")!.first!.petStats;
+  // A summon change whose NPC is missing names every summon, as the game does.
+  expect(groups.map((group) => [group.pets.kind, group.stats.map((row) => row.amount)])).toEqual([["beast", [2, 3]], ["npc", [2]], ["summons", [1]]]);
+  // The fixture has no page for the NPC, so its reference names it without a link.
+  expect(groups[1]?.pets.kind === "npc" ? groups[1].pets.npc : null).toEqual({ key: null, label: "Skeleton Warrior" });
+  expect(shown.talentIssues).toEqual([]);
+
+  const species = change("stats:3", 1, named(2, "Species"));
+  const hidden = publish(withTalents([rank([change("stats:36", 2, beast), species]), rank([])]));
+  expect(hidden.talentIssues).toEqual(["Talent bonuses:600 rank 1 on classes:5 shows 1 of its 2 stat changes.", "Talent bonuses:601 rank 1 on classes:5 shows no effect."]);
 });
 
 test("skill pages show recipes, their highest level, and their level curve", () => {

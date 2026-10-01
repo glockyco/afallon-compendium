@@ -1,5 +1,5 @@
-import type { CatalogCondition, CatalogEndpoint, CatalogEntityRow, CatalogFacts } from "@afallon/contracts/catalog";
-import { type EntityRef, isEntityRef, type LearnerRow, type PublicClass, type Ref, type TalentPoints, type TalentRank, type TalentTree } from "@afallon/contracts/public";
+import type { CatalogCondition, CatalogEndpoint, CatalogEntityRow, CatalogFacts, ProgressionBonusRank, ProgressionPetStat, ProgressionStat } from "@afallon/contracts/catalog";
+import { type EntityRef, isEntityRef, type LearnerRow, type PublicClass, type Ref, type TalentPets, type TalentPoints, type TalentRank, type TalentTree } from "@afallon/contracts/public";
 import { placedRules } from "../placed-rules";
 import { displayName, withoutMarkup } from "../text";
 import { baseDocument, type DocumentProjectionInput, optionalFactRef, pushIndex, type ReferenceResolver, requirementsFor } from "./projection";
@@ -22,7 +22,7 @@ export function startingGearByItem(entities: readonly CatalogEntityRow[], facts:
 }
 
 // A talent tree row has the anchor `talent-<tree id>-<node index>`, so a requirement or an ability page can link it.
-function talentAnchor(treeKey: string, nodeIndex: number): string {
+export function talentAnchor(treeKey: string, nodeIndex: number): string {
   return `talent-${treeKey.slice(treeKey.indexOf(":") + 1)}-${nodeIndex}`;
 }
 
@@ -70,9 +70,35 @@ export function learnersOf(abilityKeys: ReadonlySet<string>, input: DocumentProj
   return rows;
 }
 
-function talentRank(rank: { rank: number; statEffects: readonly { stat: CatalogEndpoint; amount: number; isPercent: boolean }[]; emptyTooltip: string | null }, input: DocumentProjectionInput): TalentRank {
+// The pets that a pet stat change names, as the game's talent tooltip does. The game names every summon when the NPC of
+// the change is missing. The catalog keeps no species names, so a species change is not published, and the tooltip
+// coverage audit reports its rank.
+function talentPets(change: ProgressionPetStat, input: DocumentProjectionInput): TalentPets | undefined {
+  switch (change.targetType.name) {
+    case "HunterBeast": return { kind: "beast" };
+    case "SpecificNPC": return change.npc?.entityKey ? { kind: "npc", npc: input.resolve(change.npc) } : { kind: "summons" };
+    case "AllPets": return { kind: "summons" };
+    default: return undefined;
+  }
+}
+
+function talentRank(rank: ProgressionBonusRank, input: DocumentProjectionInput): TalentRank {
   const text = rank.statEffects.length === 0 && rank.emptyTooltip ? withoutMarkup(rank.emptyTooltip).trim() : "";
-  return { rank: Math.max(0, rank.rank) + 1, stats: rank.statEffects.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })), text: text ? [{ spans: [{ text, tone: null, italic: false }] }] : [] };
+  const stat = (change: ProgressionStat) => ({ stat: input.resolve(change.stat), amount: change.amount, isPercent: change.isPercent });
+  // The changes to the same pets share one group, in the order of their first change. The game skips a pet change whose
+  // stat is missing.
+  const petStats = new Map<string, TalentRank["petStats"][number]>();
+  for (const change of rank.petStatEffects) {
+    const pets = change.stat.entityKey === null ? undefined : talentPets(change, input);
+    if (pets === undefined) continue;
+    const key = pets.kind === "npc" ? `npc:${change.npc?.entityKey}` : pets.kind, group = petStats.get(key);
+    if (group) group.stats.push(stat(change));
+    else petStats.set(key, { pets, stats: [stat(change)] });
+  }
+  return {
+    rank: Math.max(0, rank.rank) + 1, stats: rank.statEffects.map(stat), petStats: [...petStats.values()],
+    text: text ? [{ spans: [{ text, tone: null, italic: false }] }] : [],
+  };
 }
 
 // The level cap of a level template: the game stops experience at the template's `levels` value.

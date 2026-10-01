@@ -571,9 +571,20 @@ export type AbilityVersion = Static<typeof AbilityVersionSchema>;
 export const PublicAbilitySchema = Type.Object({ ...documentBase, versions: Type.Array(AbilityVersionSchema, { minItems: 1 }) }, { additionalProperties: false });
 export type PublicAbility = Static<typeof PublicAbilitySchema>;
 
-// One rank of a passive talent: the stats that it changes, and the tooltip text that the game authored for a rank that
-// changes no stat.
-export const TalentRankSchema = Type.Object({ rank: count, stats: Type.Array(StatRowSchema), text: Type.Array(NativeTextLineSchema) }, { additionalProperties: false });
+// The pets whose stats a talent rank changes: the Hunter's beast, every summon, or the summons of one NPC.
+export const TalentPetsSchema = Type.Union([
+  Type.Object({ kind: Type.Literal("beast") }, { additionalProperties: false }),
+  Type.Object({ kind: Type.Literal("summons") }, { additionalProperties: false }),
+  Type.Object({ kind: Type.Literal("npc"), npc: RefSchema }, { additionalProperties: false }),
+]);
+export type TalentPets = Static<typeof TalentPetsSchema>;
+// One rank of a passive talent: the stats that it changes, the stats that it changes for each set of pets, and the
+// tooltip text that the game authored for a rank that changes no stat.
+export const TalentRankSchema = Type.Object({
+  rank: count, stats: Type.Array(StatRowSchema),
+  petStats: Type.Array(Type.Object({ pets: TalentPetsSchema, stats: Type.Array(StatRowSchema, { minItems: 1 }) }, { additionalProperties: false })),
+  text: Type.Array(NativeTextLineSchema),
+}, { additionalProperties: false });
 export type TalentRank = Static<typeof TalentRankSchema>;
 // One node of a talent tree. An ability node links its ability. A passive talent shows its first rank and its last rank.
 export const TalentRowSchema = Type.Object({
@@ -788,7 +799,7 @@ export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DO
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
   items: "compendium.static-item.v15", npcs: "compendium.static-npc.v8", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
-  classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v8", gatheringNodes: "compendium.static-gathering-node.v4",
+  classes: "compendium.static-class.v5", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v8", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -814,14 +825,14 @@ export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-item.v15": typeof StaticItemDocumentSchema; "compendium.static-npc.v8": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v8": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
-  "compendium.static-class.v4": typeof StaticClassDocumentSchema;
+  "compendium.static-class.v5": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v8": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
   "compendium.static-item.v15": StaticItemDocumentSchema, "compendium.static-npc.v8": StaticNpcDocumentSchema,
   "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v8": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
-  "compendium.static-class.v4": StaticClassDocumentSchema,
+  "compendium.static-class.v5": StaticClassDocumentSchema,
   "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v8": StaticMechanicsDocumentSchema,
   "compendium.static-gathering-node.v4": StaticGatheringNodeDocumentSchema,
 };
@@ -831,7 +842,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
 export const documentReference = Type.Union([
   resourceReference("compendium.static-item.v15"), resourceReference("compendium.static-npc.v8"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
-  resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v8"),
+  resourceReference("compendium.static-class.v5"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v8"),
   resourceReference("compendium.static-gathering-node.v4"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;

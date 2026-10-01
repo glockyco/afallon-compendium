@@ -49,11 +49,12 @@ const fixture = support({
     ranks: [{ rankIndex: 0, mainDamageType: named(99, "99"), customDamageType: null, customHealingType: null, damage: 0, alteredStatId: -1, flatCalculation: false, cannotCrit: false, skillModifier: 0, skillModifierId: -1, weaponDamageModifier: 0, useWeapon1Damage: false, useWeapon2Damage: false, useRangedWeaponDamage: true, lifesteal: 0, maxHealthModifier: 0, missingHealthModifier: 0, delay: 0, requiredEffectId: -1, requiredEffectDamageModifier: 0, damageStatId: -1, damageStatModifier: 0, teleportType: named(0, "gameScene"), gameSceneId: -1, lootTableId: -1, petNpcId: -1, petDuration: 0, petSpawnCount: 0, knockbackDistance: 0, motionDistance: 0, dispelType: named(0, "Effect"), dispelEffectType: named(0, "Stat"), dispelEffectTag: null, dispelEffectId: -1, tauntFlatThreat: 0, resurrectHealthPercent: 0, statEffects: [], nestedEffects: [] }],
   } }]),
 });
+const noPercentStats = new Map<number, boolean>();
 const entityNames = new Map<string, string | null>([["abilities:1", "Shield Slam"], ["abilities:2", "Strike"], ["recipes:12", "Stew"], ["stats:3", "Armor"], ["classes:0", "Shieldmaster"], ["skills:5", "Cooking"], ["talentTrees:0", "Bastion Breaker"], ["talentTrees:9", "Cooking Mastery"], ["effects:30", "Stun"]]);
 
 test("decodes effects, bonus ranks, and node requirements", () => {
   const blockers: Blocker[] = [];
-  const rows = normalizeProgression(fixture, reference, entityNames, blockers);
+  const rows = normalizeProgression(fixture, reference, entityNames, noPercentStats, blockers);
   const effect = rows.progressionFacts.find((row) => row.entityKey === "effects:30");
   expect(effect?.kind === "effects" ? [effect.details.effectType.name, effect.details.duration] : null).toEqual(["Stun", 3]);
   expect(effect?.kind === "effects" ? effect.details.ranks[0]?.useRangedWeaponDamage : null).toBe(true);
@@ -66,9 +67,21 @@ test("decodes effects, bonus ranks, and node requirements", () => {
   expect(blockers.filter((row) => row.kind === "unsupported-enum").map((row) => row.detail)).toEqual(["Unsupported enum value 99 (99)."]);
 });
 
+test("a talent change is a percentage when the change or its stat is a percentage", () => {
+  const change = (statId: number, isPercent: boolean) => ({ sourceIndex: 0, statId, amount: 2, isPercent });
+  const rank = { rankIndex: 0, unlockCost: 1, isEmpty: false, emptyTooltip: null, requirements: noRequirements, statEffects: [change(3, false), change(4, false), change(4, true)],
+    petStatEffects: [{ ...change(3, false), targetType: named(3, "HunterBeast"), npcId: -1, speciesId: -1 }, { ...change(4, false), targetType: named(3, "HunterBeast"), npcId: -1, speciesId: -1 }] };
+  const tables = { ...fixture.tables, bonuses: table([{ id: 7, name: "Bonded Fury", gameplay: { learnedByDefault: false, ranks: [rank] } }]) };
+  const rows = normalizeProgression(support(tables), reference, new Map([...entityNames, ["stats:4", "Strength"]]), new Map([[3, true], [4, false]]), []);
+  const bonus = rows.progressionFacts.find((row) => row.entityKey === "bonuses:7");
+  const ranks = bonus?.kind === "bonuses" ? bonus.details.ranks : [];
+  expect(ranks[0]?.statEffects.map((row) => row.isPercent)).toEqual([true, false, true]);
+  expect(ranks[0]?.petStatEffects.map((row) => row.isPercent)).toEqual([true, false]);
+});
+
 test("reports a missing ability and derives no learner from it", () => {
   const blockers: Blocker[] = [];
-  const rows = normalizeProgression(fixture, reference, entityNames, blockers);
+  const rows = normalizeProgression(fixture, reference, entityNames, noPercentStats, blockers);
   expect(blockers.filter((row) => row.kind === "missing-reference").map((row) => row.key)).toEqual(["/tables/talentTrees/0/gameplay/nodes/1/abilityId:abilities:404"]);
   const db = openNormalizedDatabase(":memory:");
   try {
@@ -90,14 +103,14 @@ test("reports a missing ability and derives no learner from it", () => {
 
 test("an unavailable record adds no fact", () => {
   const withNull = support({ ...fixture.tables, bonuses: [...(fixture.tables.bonuses ?? []), { sourceKey: 8, unavailable: "null record", sourceFieldPath: "GameDatabase.Bonuses[8]" }] });
-  const rows = normalizeProgression(withNull, reference, entityNames, []);
+  const rows = normalizeProgression(withNull, reference, entityNames, noPercentStats, []);
   expect(rows.progressionFacts.filter((row) => row.kind === "bonuses").map((row) => row.entityKey)).toEqual(["bonuses:7"]);
 });
 
 test("a class counts as offered only when a race names its record", () => {
   const withRace = support({ ...fixture.tables, races: table([{ id: 1, name: "Dwarf", gameplay: { availableClasses: [{ sourceIndex: 0, classId: 0 }, { sourceIndex: 1, classId: 99 }] } }]) });
   const blockers: Blocker[] = [];
-  const rows = normalizeProgression(withRace, reference, new Map([...entityNames, ["races:1", "Dwarf"]]), blockers);
+  const rows = normalizeProgression(withRace, reference, new Map([...entityNames, ["races:1", "Dwarf"]]), noPercentStats, blockers);
   expect(blockers.filter((row) => row.kind === "missing-reference" && row.key.includes("classes:99"))).toHaveLength(1);
   const db = openNormalizedDatabase(":memory:");
   try {
@@ -108,11 +121,11 @@ test("a class counts as offered only when a race names its record", () => {
 });
 
 test("Heroic settings keep their values, and a missing asset is a coverage issue instead of defaults", () => {
-  const rows = normalizeProgression(fixture, reference, entityNames, []);
+  const rows = normalizeProgression(fixture, reference, entityNames, noPercentStats, []);
   const heroic = rows.progressionFacts.find((row) => row.kind === "heroicTier");
   expect(heroic?.kind === "heroicTier" ? [heroic.details.killExperienceMultiplier, heroic.details.essenceTreePoint, heroic.details.gearScoreCoefficient] : null).toEqual([5, { entityKey: "treePoints:2", label: "Heroic Essence" }, 0.0008]);
   const blockers: Blocker[] = [];
-  const missing = normalizeProgression(support(fixture.tables, { unavailable: "HeroicTierSettings.Get() returned null", sourceFieldPath: "HeroicTierSettings.Get()" }), reference, entityNames, blockers);
+  const missing = normalizeProgression(support(fixture.tables, { unavailable: "HeroicTierSettings.Get() returned null", sourceFieldPath: "HeroicTierSettings.Get()" }), reference, entityNames, noPercentStats, blockers);
   expect(missing.progressionFacts.some((row) => row.kind === "heroicTier")).toBe(false);
   expect(blockers.filter((row) => row.kind === "unavailable-progression-data").map((row) => row.key)).toEqual(["support:/heroicTierSettings"]);
 });

@@ -87,10 +87,11 @@ export interface ProgressionTreePoint {
   gainRules: Array<{ trigger: ProgressionEnum; amount: number; class: NormalizedReference | null; skill: NormalizedReference | null; item: NormalizedReference | null; itemCount: number; npc: NormalizedReference | null; weaponTemplateId: number | null }>;
 }
 
-export interface ProgressionBonus {
-  learnedByDefault: boolean;
-  ranks: Array<{ rank: number; unlockCost: number; isEmpty: boolean; emptyTooltip: string | null; conditionId: string | null; statEffects: ProgressionStat[]; petStatEffects: Array<ProgressionStat & { targetType: ProgressionEnum; npc: NormalizedReference | null; speciesId: number | null }> }>;
-}
+// A talent's stat changes. `isPercent` is true when the change or its stat is a percentage, which is how the game's
+// talent tooltip shows the change. Other progression stat rows keep their authored flag.
+export interface ProgressionPetStat extends ProgressionStat { targetType: ProgressionEnum; npc: NormalizedReference | null; speciesId: number | null }
+export interface ProgressionBonusRank { rank: number; unlockCost: number; isEmpty: boolean; emptyTooltip: string | null; conditionId: string | null; statEffects: ProgressionStat[]; petStatEffects: ProgressionPetStat[] }
+export interface ProgressionBonus { learnedByDefault: boolean; ranks: ProgressionBonusRank[] }
 
 export interface ProgressionTalentTree { tiers: number; treePoint: NormalizedReference | null }
 export interface ProgressionSpellbook { sourceType: ProgressionEnum }

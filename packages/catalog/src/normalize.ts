@@ -318,7 +318,8 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
     const linked = (nativeId: number | null, field: string): number | null => { if (nativeId === null || nativeId < 0) return null; if (knownEntities.has(entityKey("npcs", nativeId))) return nativeId; blockers.push({ kind: "missing-reference", key: `linked-npc:${row.npcId}:${field}:${nativeId}`, detail: `Linked NPC rule references missing NPC ${nativeId}.`, provenance }); return null; };
     return [{ ...row, authoredLinkedNpcId: linked(row.authoredLinkedNpcId, "authored") ?? -1, resolvedLinkedNpcId: linked(row.resolvedLinkedNpcId, "resolved"), resolvedLootSpecNpcId: linked(row.resolvedLootSpecNpcId, "loot-specialization") }];
   });
-  const progression = normalizeProgression(admitted.support.value, admitted.support.reference, new Map(entities.map((row) => [row.entityKey, row.name])), blockers);
+  const statPercent = new Map(canonical.value.stats.map((stat) => [stat.nativeId, stat.gameplay.isPercentStat === true]));
+  const progression = normalizeProgression(admitted.support.value, admitted.support.reference, new Map(entities.map((row) => [row.entityKey, row.name])), statPercent, blockers);
   const gathering = gatheringNodes(contexts, new Map(entities.map((row) => [row.entityKey, row.name])), blockers);
   const mechanicsRules = normalizeMechanicsRules(admitted.mechanicsRules.document, admitted.mechanicsRules.reference, new Map([...entities.map((row) => [row.entityKey, row.name] as const), ...progression.progressionFacts.map((row) => [row.entityKey, row.name] as const), ...gathering.gatheringNodes.map((row) => [row.entityKey, row.name] as const)]), blockers);
   const conditions = [...spawn.conditions, ...collectWorldConditions(contexts, blockers), ...relations.conditions, ...progression.conditions, ...gathering.conditions];

@@ -29,7 +29,7 @@
       {#if column === 'tier'}{row.tier}
       {:else if column === 'talent'}{#if row.ability}<EntityLink ref={row.ability} {registry} />{:else}{row.name}{/if}
       {:else if column === 'ranks'}{row.ranks}
-      {:else if column === 'effect'}<TalentEffect {row} />
+      {:else if column === 'effect'}<TalentEffect {row} {registry} />
       {:else if column === 'requirements'}<Requirements requirements={row.requirements} {registry} />{/if}
     </svelte:fragment>
   </RelationTable>
