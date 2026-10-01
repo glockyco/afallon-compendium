@@ -1,5 +1,5 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, MechanicsRule, PlacementRef, PublicLevel, PublicMechanics, TalentPoints } from "@afallon/contracts/public";
+import type { ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, MechanicsRule, PlacementRef, PublicDocument, PublicLevel, PublicMechanics, PublicNpc, TalentPoints } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import type { ReferenceResolver } from "./documents";
 import { requiredLevel, spawnerExamples } from "./gathering";
@@ -34,15 +34,62 @@ function publishedRef(resolve: ReferenceResolver, key: string, label: string): E
   return ref;
 }
 
-function killExample(facts: CatalogFacts, published: ReadonlySet<string>, resolve: ReferenceResolver): CharacterProgression["example"] {
+function publishedNpcRef(resolve: ReferenceResolver, key: string, label: string, page: PublicNpc): EntityRef {
+  const ref = resolve({ entityKey: key, label });
+  if (ref.key !== page.ref.key || ref.kind !== "npcs" || !ref.slug
+    || (page.variants.length > 1 && !page.variants.some((variant) => variant.key === key && variant.anchor === ref.variant))) {
+    throw new Error(`The kill calculator creature ${label} (${key}) has no published NPC variant.`);
+  }
+  return ref;
+}
+
+function killCalculator(facts: CatalogFacts, published: ReadonlySet<string>, resolve: ReferenceResolver,
+  entityDocuments: ReadonlyMap<string, PublicDocument>): CharacterProgression["killCalculator"] {
   verifiedRule(facts, "kill-base-roll");
   const names = new Map(facts.entities.map((entity) => [entity.entityKey, displayName(entity.name ?? "")]));
-  const candidates = facts.npcs.filter((npc) => published.has(npc.entityKey) && !npc.scalesWithPlayer && npc.minLevel !== null && npc.minLevel === npc.maxLevel
-    && npc.minExperience !== null && npc.maxExperience !== null && npc.maxExperience > 0 && names.has(npc.entityKey));
+  const npcPages = new Map<string, PublicNpc>();
+  const places = new Map<string, EntityRef>();
+  for (const document of entityDocuments.values()) {
+    if (document.ref.kind === "npcs" && "variantFields" in document) {
+      for (const variant of document.variants) npcPages.set(variant.key, document);
+    } else if (document.ref.kind === "places" && "space" in document && document.space) {
+      places.set(`${document.space.mapSpaceId}\u0000${document.ref.name}`, document.ref);
+    }
+  }
+  const candidates = facts.npcs.filter((npc) => published.has(npc.entityKey) && npcPages.has(npc.entityKey)
+    && !npc.scalesWithPlayer && npc.minLevel !== null && npc.minLevel >= 0 && npc.minLevel === npc.maxLevel
+    && npc.minExperience !== null && npc.minExperience >= 0 && npc.maxExperience !== null
+    && npc.maxExperience > 0 && npc.maxExperience >= npc.minExperience
+    && npc.lowerLevelExperienceModifier !== null && npc.higherLevelExperienceModifier !== null && names.has(npc.entityKey));
   candidates.sort((a, b) => names.get(a.entityKey)!.localeCompare(names.get(b.entityKey)!) || a.entityKey.localeCompare(b.entityKey));
-  const npc = candidates[0];
-  if (!npc) throw new Error("No published fixed-level creature with experience exists for the kill example.");
-  return { creature: publishedRef(resolve, npc.entityKey, names.get(npc.entityKey)!), level: npc.minLevel!, lowest: npc.minExperience!, highest: Math.max(npc.minExperience!, npc.maxExperience! - 1) };
+  if (!candidates[0]) throw new Error("No published fixed-level creature with experience exists for the kill calculator.");
+  // The default is the first creature by name whose level modifiers are not zero, so the level step changes the range.
+  const first = candidates.find((npc) => npc.lowerLevelExperienceModifier !== 0 || npc.higherLevelExperienceModifier !== 0) ?? candidates[0];
+  const groups = new Map<string, CharacterProgression["killCalculator"]["groups"][number]>();
+  let defaultCreature: EntityRef | undefined;
+  for (const npc of candidates) {
+    const page = npcPages.get(npc.entityKey)!;
+    const creature = publishedNpcRef(resolve, npc.entityKey, names.get(npc.entityKey)!, page);
+    if (npc === first) defaultCreature = creature;
+    const row = { creature, level: npc.minLevel!, minExperience: npc.minExperience!, maxExperience: npc.maxExperience!,
+      lowerModifier: npc.lowerLevelExperienceModifier!, higherModifier: npc.higherLevelExperienceModifier! };
+    const locations = page.locations.filter((location) => !creature.variant || location.variants.includes(creature.variant));
+    const labels = new Map(locations.map((location) => [`${location.placements[0]!.mapSpaceId}\u0000${location.label}`, location.label]));
+    if (labels.size === 0) labels.set("Other", "Other");
+    for (const [key, name] of labels) {
+      const place = places.get(key);
+      const group = groups.get(key) ?? { ...(place ? { place } : {}), name, creatures: [] };
+      group.creatures.push(row);
+      groups.set(key, group);
+    }
+  }
+  const heroic = facts.progression.facts.find((fact) => fact.entityKey === HEROIC_TIER_KEY);
+  return {
+    groups: [...groups.values()].sort((a, b) => (a.name === "Other" ? 1 : 0) - (b.name === "Other" ? 1 : 0)
+      || a.name.localeCompare(b.name) || (a.place?.key ?? "").localeCompare(b.place?.key ?? "")),
+    defaultCreature: defaultCreature!,
+    ...(heroic?.kind === "heroicTier" ? { heroicMultiplier: heroic.details.killExperienceMultiplier } : {}),
+  };
 }
 
 function experienceSources(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver): ExperienceSources {
@@ -82,7 +129,8 @@ function levelUpTalentPoints(facts: CatalogFacts): TalentPoints[] {
   });
 }
 
-function characterProgression(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver): CharacterProgression {
+function characterProgression(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver,
+  entityDocuments: ReadonlyMap<string, PublicDocument>): CharacterProgression {
   const template = characterTemplate(facts), cap = template.details.levels;
   const rows = template.details.rows.slice(0, Math.max(0, cap - 1)).map((row, index) => ({ level: index + 1, toNext: Math.max(0, row.experienceRequired) }));
   if (rows.length === 0 || rows.length !== cap - 1) throw new Error(`The class level template has ${template.details.rows.length} rows for its cap ${cap}.`);
@@ -90,7 +138,7 @@ function characterProgression(facts: CatalogFacts, published: ReadonlySet<string
     ref: topicRef("character-progression"), description: MECHANICS_TOPIC_NAMES["character-progression"].description, art: {}, topic: "character-progression",
     curve: { template: displayName(template.name ?? "") || "Character levels", cap, rows },
     sources: experienceSources(facts, published, spawned, resolve), talentPoints: levelUpTalentPoints(facts),
-    ...guide(facts, "character-progression", resolve), example: killExample(facts, published, resolve),
+    ...guide(facts, "character-progression", resolve), killCalculator: killCalculator(facts, published, resolve, entityDocuments),
   };
 }
 
@@ -259,10 +307,11 @@ function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, re
 
 /** Project reviewed guides and the guide derived from captured Corruption facts. */
 export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver, conditions: ReadonlyMap<string, CatalogCondition>,
-  bossDropTables: ReadonlyMap<string, ReadonlySet<number>> = new Map(), rewards?: CorruptionRewards): ReadonlyMap<string, PublicMechanics> {
+  entityDocuments: ReadonlyMap<string, PublicDocument>, bossDropTables: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
+  rewards?: CorruptionRewards): ReadonlyMap<string, PublicMechanics> {
   const topics = new Set(facts.progression.mechanicsRules.flatMap((rule) => rule.topic === null ? [] : [rule.topic]));
   const documents: PublicMechanics[] = [
-    ...(topics.has("character-progression") ? [characterProgression(facts, published, spawned, resolve)] : []),
+    ...(topics.has("character-progression") ? [characterProgression(facts, published, spawned, resolve, entityDocuments)] : []),
     ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve)] : []),
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),

@@ -651,12 +651,22 @@ export const GuideStepSchema = Type.Object({ id: anchor, title: text, text, rule
 export type GuideStep = Static<typeof GuideStepSchema>;
 const guide = { overview: text, steps: Type.Array(GuideStepSchema, { minItems: 1 }),
   seeAlso: optional(Type.Array(Type.Object({ lead: text, ref: EntityRefSchema }, { additionalProperties: false }))) };
-// A kill of a fixed-level creature at its own level without modifiers: the base roll from `lowest` to `highest`.
-export const KillExampleSchema = Type.Object({ creature: EntityRefSchema, level: count, lowest: count, highest: count }, { additionalProperties: false });
-export type KillExample = Static<typeof KillExampleSchema>;
+// Fixed-level published creatures expose the authored base-roll bounds and level-difference modifiers.
+// The upper bound is exclusive when greater than the minimum; equal bounds give that exact amount.
+export const KillCalculatorSchema = Type.Object({
+  groups: Type.Array(Type.Object({
+    place: optional(EntityRefSchema), name: text,
+    creatures: Type.Array(Type.Object({
+      creature: EntityRefSchema, level: count, minExperience: count, maxExperience: count,
+      lowerModifier: number, higherModifier: number,
+    }, { additionalProperties: false }), { minItems: 1 }),
+  }, { additionalProperties: false }), { minItems: 1 }),
+  defaultCreature: EntityRefSchema, heroicMultiplier: optional(number),
+}, { additionalProperties: false });
+export type KillCalculator = Static<typeof KillCalculatorSchema>;
 export const CharacterProgressionSchema = Type.Object({
   ...documentBase, topic: Type.Literal("character-progression"), curve: LevelCurveSchema, sources: ExperienceSourcesSchema,
-  talentPoints: Type.Array(TalentPointsSchema), rules: Type.Array(MechanicsRuleSchema), ...guide, example: optional(KillExampleSchema),
+  talentPoints: Type.Array(TalentPointsSchema), rules: Type.Array(MechanicsRuleSchema), ...guide, killCalculator: KillCalculatorSchema,
 }, { additionalProperties: false });
 export type CharacterProgression = Static<typeof CharacterProgressionSchema>;
 // The captured values of the build's Heroic tier settings, or the reason that the scan has none.
@@ -748,7 +758,7 @@ export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DO
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
   items: "compendium.static-item.v14", npcs: "compendium.static-npc.v6", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
-  classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v7", gatheringNodes: "compendium.static-gathering-node.v4",
+  classes: "compendium.static-class.v4", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v8", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -775,14 +785,14 @@ export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v8": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v4": typeof StaticClassDocumentSchema;
-  "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v7": typeof StaticMechanicsDocumentSchema;
+  "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v8": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
   "compendium.static-item.v14": StaticItemDocumentSchema, "compendium.static-npc.v6": StaticNpcDocumentSchema,
   "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v8": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v4": StaticClassDocumentSchema,
-  "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v7": StaticMechanicsDocumentSchema,
+  "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v8": StaticMechanicsDocumentSchema,
   "compendium.static-gathering-node.v4": StaticGatheringNodeDocumentSchema,
 };
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
@@ -791,7 +801,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
 export const documentReference = Type.Union([
   resourceReference("compendium.static-item.v14"), resourceReference("compendium.static-npc.v6"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
-  resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v7"),
+  resourceReference("compendium.static-class.v4"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v8"),
   resourceReference("compendium.static-gathering-node.v4"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;

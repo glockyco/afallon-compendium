@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { HEROIC_TIER_KEY, type CatalogFacts, type CatalogMechanicsRule, type CatalogNpcFacts, type CatalogProgressionFact, type CatalogQuestFacts } from "@afallon/contracts/catalog";
-import type { CharacterProgression, CraftingAndGathering, HeroicTier } from "@afallon/contracts/public";
+import type { CharacterProgression, CraftingAndGathering, HeroicTier, NpcLocation, PublicDocument, PublicNpc, PublicPlace } from "@afallon/contracts/public";
 import { projectMechanicsDocuments } from "./mechanics";
 import { createReferenceResolver } from "./references";
 
@@ -54,8 +54,33 @@ const published = new Set(["npcs:1", "npcs:2", "npcs:3", "npcs:4", "npcs:6", "np
 const resolve = createReferenceResolver(new Map(entities.map(({ entityKey, name }) => [entityKey, {
   key: entityKey, kind: entityKey.split(":")[0] === "gatheringNodes" ? "gatheringNodes" as const : entityKey.split(":")[0] === "recipes" ? "recipes" as const : entityKey.split(":")[0] as "items" | "npcs" | "skills", name, slug: name.toLowerCase().replaceAll(" ", "-"),
 }])));
+const location = (label: string, mapSpaceId: string, variant: string): NpcLocation => ({
+  label, placements: [{ placementId: `${variant}-${label}`, mapSpaceId, label }], spotCount: 1, availability: [], variants: [variant], roles: [], quests: [],
+});
+const npcPage = (id: number, locations: NpcLocation[] = []): PublicNpc => ({
+  ref: { key: `npcs:${id}`, kind: "npcs", name: entities.find((row) => row.entityKey === `npcs:${id}`)!.name, slug: `npc-${id}` },
+  description: null, art: {}, facts: { roles: [], stats: [], immunities: [] }, variantFields: [],
+  variants: [{ key: `npcs:${id}`, anchor: `n${id}`, label: `NPC ${id}`, facts: {} }],
+  locations, places: [], spotCount: locations.length, drops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], usedInQuests: [], bossOf: [], placedRules: [],
+});
+const place = (name: string, mapSpaceId: string): PublicPlace => ({
+  ref: { key: `scenes:${mapSpaceId}`, kind: "places", name, slug: mapSpaceId }, description: null, art: {},
+  facts: { placeType: "zone", guideIncluded: true }, space: { mapSpaceId, regionIds: [] },
+  bosses: [], creatures: [], npcs: [], services: [], resources: [], containers: [], quests: [], questObjectives: [], properties: [], connections: [], regions: [],
+});
+const entityDocuments = new Map<string, PublicDocument>([
+  ["npcs:1", npcPage(1, [location("Oakenvale", "oakenvale", "n1")])],
+  ["npcs:2", npcPage(2, [location("Oakenvale", "oakenvale", "n2")])],
+  ["npcs:3", npcPage(3, [location("Oakenvale", "oakenvale", "n3")])],
+  ["npcs:4", npcPage(4, [location("Oakenvale", "oakenvale", "n4")])],
+  ["npcs:6", npcPage(6, [location("Oakenvale", "oakenvale", "n6"), location("Coalway Woods", "coalway", "n6")])],
+  ["npcs:7", npcPage(7)],
+  ["npcs:8", npcPage(8, [location("Coalway Woods", "coalway", "n8")])],
+  ["scenes:oakenvale", place("Oakenvale", "oakenvale")],
+  ["scenes:coalway", place("Coalway Woods", "coalway")],
+]);
 const conditions = new Map();
-const documents = () => projectMechanicsDocuments(facts, published, spawned, resolve, conditions);
+const documents = (source: CatalogFacts = facts) => projectMechanicsDocuments(source, published, spawned, resolve, conditions, entityDocuments);
 
 test("the level curve and source ranges reflect published creature levels", () => {
   const progression = documents().get("mechanics:character-progression") as CharacterProgression;
@@ -66,14 +91,72 @@ test("the level curve and source ranges reflect published creature levels", () =
   expect(progression.sources.levelModifiers).toEqual([{ lower: 20, higher: -20, creatures: 2 }]);
 });
 
-test("character guide uses the first published fixed-level creature and the upper-exclusive base roll", () => {
+test("the kill calculator projects published fixed-level creatures, each published location, and the authored roll bounds", () => {
   const progression = documents().get("mechanics:character-progression") as CharacterProgression;
-  expect(progression.example).toEqual({ creature: expect.objectContaining({ key: "npcs:6", slug: "aardvark" }), level: 8, lowest: 5, highest: 11 });
+  const calculator = progression.killCalculator;
+  expect(calculator.defaultCreature).toEqual(expect.objectContaining({ key: "npcs:6", slug: "aardvark" }));
+  expect(calculator.heroicMultiplier).toBe(5);
+  expect(calculator.groups.map(({ name, place, creatures }) => ({
+    name, place: place?.key, creatures: creatures.map(({ creature }) => creature.key),
+  }))).toEqual([
+    { name: "Coalway Woods", place: "scenes:coalway", creatures: ["npcs:6", "npcs:8"] },
+    { name: "Oakenvale", place: "scenes:oakenvale", creatures: ["npcs:6"] },
+    { name: "Other", place: undefined, creatures: ["npcs:7"] },
+  ]);
+  const aardvark = calculator.groups[0]!.creatures[0]!;
+  expect(aardvark).toEqual({ creature: expect.objectContaining({ key: "npcs:6" }), level: 8,
+    minExperience: 5, maxExperience: 12, lowerModifier: 0, higherModifier: 0 });
+  expect(calculator.groups[2]!.creatures[0]).toEqual({ creature: expect.objectContaining({ key: "npcs:7" }), level: 9,
+    minExperience: 7, maxExperience: 7, lowerModifier: 0, higherModifier: 0 });
   expect(progression.steps[0]?.rules).toEqual(["kill-base-roll"]);
   expect(progression.rules.find((rule) => rule.id === "kill-base-roll")?.appearsOn).toEqual(["NPC pages, Experience"]);
   expect(progression.rules.some((rule) => rule.id === "placed-only")).toBe(false);
-  const onlyEqual = { ...facts, npcs: facts.npcs.filter((row) => row.entityKey !== "npcs:6" && row.entityKey !== "npcs:8") };
-  expect((projectMechanicsDocuments(onlyEqual, published, spawned, resolve, conditions).get("mechanics:character-progression") as CharacterProgression).example).toEqual({ creature: expect.objectContaining({ key: "npcs:7" }), level: 9, lowest: 7, highest: 7 });
+});
+
+test("grouped NPC variants retain their page link and distinct place while the first record remains the default", () => {
+  const groupedPage = npcPage(6, [location("Oakenvale", "oakenvale", "n6"), location("Coalway Woods", "coalway", "n8")]);
+  const groupedDocuments = new Map(entityDocuments);
+  groupedDocuments.set("npcs:6", { ...groupedPage, variants: [
+    ...groupedPage.variants, { key: "npcs:8", anchor: "n8", label: "NPC 8", facts: {} },
+  ] });
+  groupedDocuments.delete("npcs:8");
+  const groupedResolve: typeof resolve = (endpoint) => {
+    const result = resolve(endpoint);
+    if (result.key === null || (endpoint.entityKey !== "npcs:6" && endpoint.entityKey !== "npcs:8")) return result;
+    return { ...result, key: "npcs:6", kind: "npcs", variant: endpoint.entityKey === "npcs:6" ? "n6" : "n8" };
+  };
+  const calculator = (projectMechanicsDocuments(facts, published, spawned, groupedResolve, conditions, groupedDocuments)
+    .get("mechanics:character-progression") as CharacterProgression).killCalculator;
+  expect(calculator.defaultCreature).toEqual(expect.objectContaining({ key: "npcs:6", variant: "n6" }));
+  expect(calculator.groups.map(({ name, creatures }) => [name, creatures.map(({ creature }) => [creature.key, creature.variant])])).toEqual([
+    ["Coalway Woods", [["npcs:6", "n8"]]],
+    ["Oakenvale", [["npcs:6", "n6"]]],
+    ["Other", [["npcs:7", undefined]]],
+  ]);
+});
+
+test("unknown modifiers and invalid experience bounds do not become calculator choices", () => {
+  const source = { ...facts, npcs: facts.npcs.map((row) =>
+    row.entityKey === "npcs:6" ? { ...row, lowerLevelExperienceModifier: 17, higherLevelExperienceModifier: -12 }
+      : row.entityKey === "npcs:8" ? { ...row, higherLevelExperienceModifier: null }
+      : row.entityKey === "npcs:7" ? { ...row, minExperience: 8, maxExperience: 7 } : row) };
+  const calculator = (documents(source).get("mechanics:character-progression") as CharacterProgression).killCalculator;
+  expect(calculator.groups.flatMap((group) => group.creatures.map((row) => row.creature.key))).toEqual(["npcs:6", "npcs:6"]);
+  expect(calculator.groups[0]!.creatures[0]).toEqual({
+    creature: expect.objectContaining({ key: "npcs:6" }), level: 8,
+    minExperience: 5, maxExperience: 12, lowerModifier: 17, higherModifier: -12,
+  });
+});
+
+test("the calculator omits missing Heroic settings and preserves the first-by-name default among available creatures", () => {
+  const source = { ...facts, npcs: facts.npcs.filter((row) => row.entityKey !== "npcs:6" && row.entityKey !== "npcs:8"),
+    progression: { ...facts.progression, facts: progressionFacts.filter((row) => row.entityKey !== HEROIC_TIER_KEY) } };
+  const calculator = (documents(source).get("mechanics:character-progression") as CharacterProgression).killCalculator;
+  expect(calculator.defaultCreature.key).toBe("npcs:7");
+  expect(calculator.heroicMultiplier).toBeUndefined();
+  expect(calculator.groups).toEqual([{ name: "Other", creatures: [{
+    creature: expect.objectContaining({ key: "npcs:7" }), level: 9, minExperience: 7, maxExperience: 7, lowerModifier: 0, higherModifier: 0,
+  }] }]);
 });
 
 test("Heroic guide computes Essence at health factor one for each rank and affix count", () => {
@@ -83,7 +166,7 @@ test("Heroic guide computes Essence at health factor one for each rank and affix
     { rank: "rare", essence: [6, 10, 14] }, { rank: "boss", essence: [9, 15, 21] },
   ] });
   const unavailable = { ...facts, progression: { ...facts.progression, facts: progressionFacts.filter((row) => row.entityKey !== HEROIC_TIER_KEY) } };
-  expect((projectMechanicsDocuments(unavailable, published, spawned, resolve, conditions).get("mechanics:heroic-tier") as HeroicTier).example).toBeUndefined();
+  expect((documents(unavailable).get("mechanics:heroic-tier") as HeroicTier).example).toBeUndefined();
 });
 
 test("craft and gather guide computes the named product bands and node yield bonus", () => {
@@ -95,16 +178,16 @@ test("craft and gather guide computes the named product bands and node yield bon
     ],
   } });
   expect(guide.example.gather).toEqual({ node: expect.objectContaining({ key: "gatheringNodes:small-iron-vein" }), skill: expect.objectContaining({ key: "skills:7" }), levelChances: [{ level: 1, chance: 0.15 }, { level: 100, chance: 15 }] });
-  expect(() => projectMechanicsDocuments({ ...facts, recipes: [] }, published, spawned, resolve, conditions)).toThrow("Runeweave Regalia");
-  expect(() => projectMechanicsDocuments({ ...facts, gatheringNodes: [] }, published, spawned, resolve, conditions)).toThrow("Small Iron Vein");
+  expect(() => documents({ ...facts, recipes: [] })).toThrow("Runeweave Regalia");
+  expect(() => documents({ ...facts, gatheringNodes: [] })).toThrow("Small Iron Vein");
 });
 
 test("a guide step naming a rule outside its topic stops publication", () => {
   const without = rules.filter((rule) => rule.ruleId !== "kill-base-roll");
-  expect(() => projectMechanicsDocuments({ ...facts, progression: { ...facts.progression, mechanicsRules: without } }, published, spawned, resolve, conditions)).toThrow("Guide character-progression step Roll kill experience names missing rule kill-base-roll");
+  expect(() => projectMechanicsDocuments({ ...facts, progression: { ...facts.progression, mechanicsRules: without } }, published, spawned, resolve, conditions, entityDocuments)).toThrow("Guide character-progression step Roll kill experience names missing rule kill-base-roll");
 });
 
 test("a catalog without reviewed rules has no mechanics topics", () => {
-  expect(projectMechanicsDocuments({ ...facts, progression: { ...facts.progression, mechanicsRules: [] } }, published, spawned, resolve, conditions).size).toBe(0);
+  expect(projectMechanicsDocuments({ ...facts, progression: { ...facts.progression, mechanicsRules: [] } }, published, spawned, resolve, conditions, entityDocuments).size).toBe(0);
 });
 

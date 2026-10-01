@@ -4,6 +4,7 @@
   import LevelSlider from '../LevelSlider.svelte';
 
   export let curve: LevelCurveData;
+  export let level = 1;
   /** The subject of the curve in labels: "Character" or a skill name. */
   export let subject = 'Character';
   /** In the detail-page aside, fit the chart without making the page scroll sideways. */
@@ -20,7 +21,6 @@
   $: plotWidth = width - left - right;
   $: plotHeight = height - top - bottom;
   const format = (value: number) => value.toLocaleString('en-US');
-  let level: number;
 
   $: cumulative = cumulativeExperience(curve);
   $: total = cumulative[curve.cap] ?? 0;

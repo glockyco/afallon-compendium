@@ -183,7 +183,7 @@ export async function generateIndexResources(
   const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
     resolve, artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants,
     classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards });
-  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, bossDropTables, rewards), ...nodeDocuments]);
+  const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards), ...nodeDocuments]);
   attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null,
     projectChallengeStoneUses(facts.records, publishedKeys, resolve, catalogRelations.records.transitions, publishedPlacements, stoneRoutes));
 

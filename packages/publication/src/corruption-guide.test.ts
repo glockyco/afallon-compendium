@@ -71,7 +71,7 @@ const uses = (source: CatalogFacts = facts, routes = [route], teleports = transi
     new Map([[stoneSpot.placementId, stoneSpot]]), routes);
 const guide = (source: CatalogFacts = facts) =>
   projectMechanicsDocuments(source, published, new Map(), createReferenceResolver(refs), new Map(),
-    bossTables, rewards(source)).get("mechanics:corruption") as CorruptionGuide;
+    new Map(), bossTables, rewards(source)).get("mechanics:corruption") as CorruptionGuide;
 
 test("corruption guide projects authored item and time-remaining thresholds from captured facts", () => {
   const document = guide();

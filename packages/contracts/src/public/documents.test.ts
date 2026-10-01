@@ -76,7 +76,9 @@ const characterProgression: CharacterProgression = {
   sources: { fixedCreatures: { count: 185, minLevel: 1, maxLevel: 30 }, scalingCreatures: { count: 31, aboveFixed: [{ creature: boss, level: { min: 1, scales: true } }] }, quests: { count: 136, maxLevel: 31, maxRequirement: 24, withoutRange: 4 }, levelModifiers: [{ lower: 0, higher: -30, creatures: 59 }] },
   talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], rules: [rule],
   overview: "Character experience determines levels.", steps: [{ id: "gain-experience", title: "Gain experience", text: "Each hit gives experience.", rules: ["weapon-skill-hit"] }],
-  example: { creature: boss, level: 21, lowest: 20, highest: 40 },
+  killCalculator: { groups: [{ place: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, name: "Duskfall Depths",
+    creatures: [{ creature: boss, level: 21, minExperience: 20, maxExperience: 41, lowerModifier: 15, higherModifier: -10 }] }],
+    defaultCreature: boss, heroicMultiplier: 5 },
 };
 const heroicTier: HeroicTier = {
   ...base, ref: { key: "mechanics:heroic-tier", kind: "mechanics", name: "Heroic Tier", slug: "heroic-tier" }, topic: "heroic-tier",
@@ -171,6 +173,11 @@ test("node source groups publish counts without repeating placements needed only
 test("every mechanics topic validates, and a mechanics document of an unknown topic or kind does not", () => {
   const schema = STATIC_DOCUMENT_SCHEMAS[STATIC_DOCUMENT_SCHEMA_IDS.mechanics];
   for (const document of [characterProgression, heroicTier, craftingAndGathering]) Assert(schema, { schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.mechanics, ...identity, kind: "mechanics", document });
+  expect(STATIC_DOCUMENT_SCHEMA_IDS.mechanics).toBe("compendium.static-mechanics.v8");
+  expect(() => Assert(schema, { schemaVersion: "compendium.static-mechanics.v7", ...identity, kind: "mechanics", document: characterProgression })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, example: { creature: boss, level: 21, lowest: 20, highest: 40 } })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, killCalculator: { ...characterProgression.killCalculator, groups: [{ name: "Other", creatures: [{ creature: boss, level: 21, minExperience: -1, maxExperience: 20, lowerModifier: 0, higherModifier: 0 }] }] } })).toThrow();
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, killCalculator: { groups: [{ name: "Other", creatures: [{ creature: boss, level: 21, minExperience: 7, maxExperience: 7, lowerModifier: 0, higherModifier: 0 }] }], defaultCreature: boss } });
   // Mechanics examples describe weights and timing, not each spawner's map spots.
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...craftingAndGathering, spawnerExamples: [{ ...craftingAndGathering.spawnerExamples[0], placements: [] }] })).toThrow();
   Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...heroicTier, settings: { unavailable: "The scan of this build recorded no Heroic tier settings." } });

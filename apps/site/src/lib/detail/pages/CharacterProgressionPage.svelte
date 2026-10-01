@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { CharacterProgression, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
+  import KillCalculator from '../KillCalculator.svelte';
   import { npcLevelText, rangeText } from '../../format';
   import Hero from '../Hero.svelte';
   import GuideSteps from '../GuideSteps.svelte';
@@ -12,6 +13,9 @@
 
   export let document: CharacterProgression;
   export let registry: PublicKindEntry[];
+  let playerLevel = document.killCalculator.groups.flatMap((group) => group.creatures)
+    .find((entry) => entry.creature.key === document.killCalculator.defaultCreature.key
+      && entry.creature.variant === document.killCalculator.defaultCreature.variant)!.level;
 
   const format = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 4 });
   $: sources = document.sources;
@@ -40,11 +44,11 @@
   <Hero><p class="c-prose">{document.overview}</p></Hero>
   <Sections>
     <GuideSteps steps={document.steps} ruleNumbers={numbers} />
-    <Section id="worked-example" title="Worked example">
-      {#if document.example}<p>A kill of <EntityLink ref={document.example.creature} {registry} /> at level {format(document.example.level)} gives {format(document.example.lowest)}–{format(document.example.highest)} base experience before modifiers.</p>{/if}
+    <Section id="try-it-on-a-creature" title="Try it on a creature">
+      <KillCalculator guide={document} {registry} bind:playerLevel />
     </Section>
     <Section id="level-curve" title="Level curve" line={`Character level cap: ${format(document.curve.cap)}.`}>
-      <LevelCurve curve={document.curve} />
+      <LevelCurve curve={document.curve} bind:level={playerLevel} />
       <p>The curve shows the experience needed for each next level.</p>
     </Section>
     <Section id="experience-sources" title="Experience sources">
