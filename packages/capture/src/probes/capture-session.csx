@@ -239,6 +239,7 @@ if (captureAction == "start")
     state["renderTexture"] = null;
     state["captureTexture"] = null;
     state["activatedRoots"] = new System.Collections.Generic.List<UnityEngine.GameObject>();
+    state["chunkHolds"] = new System.Collections.Generic.List<Il2CppSystem.IDisposable>();
     System.AppDomain.CurrentDomain.SetData(sessionKey, state);
     System.AppDomain.CurrentDomain.SetData(captureActiveKeyName, sessionKey);
 
@@ -280,6 +281,16 @@ if (captureAction == "start")
             }
             activatedRoots.Clear();
         }
+        // The chunk holds end after the roots are hidden again, so ChunkHider hides far chunks by its own rule.
+        var chunkHolds = state["chunkHolds"] as System.Collections.Generic.List<Il2CppSystem.IDisposable>;
+        if (chunkHolds != null)
+        {
+            foreach (var chunkHold in chunkHolds)
+            {
+                try { if (chunkHold != null) chunkHold.Dispose(); } catch (System.Exception error) { cleanupErrors.Add("Chunk hold release failed: " + formatError(error)); }
+            }
+            chunkHolds.Clear();
+        }
         var remaining = 0;
         try { if (cameraGo != null) remaining++; } catch (System.Exception) { remaining++; }
         try { if (lightGo != null) remaining++; } catch (System.Exception) { remaining++; }
@@ -316,6 +327,24 @@ if (captureAction == "start")
     {
         state["cleanupAction"] = cleanupSession;
         unregisterRuntimeCleanup = registerRuntimeCleanup(cleanupSession);
+        // ChunkHider hides terrain chunks far from the player and shows a chunk again in steps of a
+        // few milliseconds per frame. If the session switched such a chunk on itself, ChunkHider still
+        // records it as hidden, and a later hold (such as the stream visit's) shows it in steps and
+        // changes the frame after its baseline. So the session holds the centre of every chunk of the
+        // scene and shows it at once with the game's own ShowChunksAround. The holds end at restoration.
+        var sessionChunkHolds = state["chunkHolds"] as System.Collections.Generic.List<Il2CppSystem.IDisposable>;
+        foreach (var chunkHider in UnityEngine.Object.FindObjectsOfType<Il2Cpp.ChunkHider>(true))
+        {
+            if (chunkHider == null || chunkHider.chunks == null) continue;
+            foreach (var chunk in chunkHider.chunks)
+            {
+                if (chunk == null || chunk.gameObject.scene.handle != currentScene.handle) continue;
+                var chunkSize = chunk.terrainData == null ? UnityEngine.Vector3.zero : chunk.terrainData.size;
+                var chunkCentre = chunk.transform.position + new UnityEngine.Vector3(chunkSize.x / 2f, 0f, chunkSize.z / 2f);
+                sessionChunkHolds.Add(Il2Cpp.ChunkHider.HoldPosition(chunkCentre));
+                chunkHider.ShowChunksAround(chunkCentre);
+            }
+        }
         // The game shows a terrain's objects only while the player stands near it: an ObjectHider
         // root is inactive elsewhere, and its object loaders sit over neighbouring terrain too. A
         // map render has no player position, so every hider root of the scene is active for the
