@@ -1,6 +1,6 @@
 import type { CatalogCorruptionFacts, CatalogEndpoint, CatalogFacts } from "@afallon/contracts/catalog";
 import { isEntityRef, type DungeonReward, type CorruptionGuide, type EntityRef } from "@afallon/contracts/public";
-import type { ReferenceResolver } from "./documents";
+import type { ReferenceResolver } from "./documents/projection";
 
 export interface RewardEntry { lootTableId: number; itemKey: string }
 export interface CorruptionRewards {

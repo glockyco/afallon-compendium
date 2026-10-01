@@ -1,6 +1,6 @@
 import type { CatalogCondition, CatalogEndpoint, CatalogFacts, CatalogGatheringNode, CatalogRelations } from "@afallon/contracts/catalog";
 import type { NodeYieldRow, PlacedNodeGroup, PlacementRef, PublicGatheringNode, Ref, SpawnerExample, SpawnerGroup } from "@afallon/contracts/public";
-import type { ReferenceResolver } from "./documents";
+import type { ReferenceResolver } from "./documents/projection";
 import { displayName } from "./text";
 import { placedRules } from "./placed-rules";
 import { placeSpots } from "./place-spots";

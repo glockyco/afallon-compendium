@@ -5,7 +5,9 @@ import type { CatalogGatheringNode, CatalogMechanicsRule } from "@afallon/contra
 import { corruptionRewards, type CorruptionRewards } from "./corruption-rewards";
 import { readerCoverage } from "./coverage";
 import { projectGatheringNodeDocuments, spawnerGroups, spawnerShares } from "./gathering";
-import { conditionsById, projectPublicDocuments, projectQuestObjective, requirementsFor, type DocumentProjectionInput } from "./documents";
+import { projectPublicDocuments } from "./documents";
+import { conditionsById, type DocumentProjectionInput, requirementsFor } from "./documents/projection";
+import { projectQuestObjective } from "./documents/quests";
 import { assertCompleteTooltipCoverage, auditPublicTooltipCoverage } from "./tooltip-coverage";
 import { searchAliases } from "./index-resources";
 import { PUBLIC_KIND_REGISTRY } from "./kind-registry";

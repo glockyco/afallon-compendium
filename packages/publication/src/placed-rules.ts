@@ -1,6 +1,6 @@
 import { placementTargetKind, type CatalogFacts, type CatalogMechanicsRule, type MechanicsTopic, type RulePlacement, type RulePlacementPage } from "@afallon/contracts/catalog";
 import type { EntityRef, MechanicsRule, PlacedRule } from "@afallon/contracts/public";
-import type { ReferenceResolver } from "./documents";
+import type { ReferenceResolver } from "./documents/projection";
 import { guideStepFor } from "./guide-steps";
 
 export const MECHANICS_TOPIC_NAMES: Readonly<Record<MechanicsTopic, { name: string; description: string }>> = {

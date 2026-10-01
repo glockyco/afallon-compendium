@@ -17,7 +17,7 @@ import {
   type StaticExclusions,
   type StaticRootManifest,
 } from "@afallon/contracts/public";
-import type { PublishedPlacement } from "./documents";
+import type { PublishedPlacement } from "./documents/projection";
 import { pagesOfRecords } from "./grouping";
 import { generateImageryResources } from "./imagery";
 import { generateIndexResources } from "./index-resources";
