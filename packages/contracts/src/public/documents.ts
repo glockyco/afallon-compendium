@@ -397,6 +397,21 @@ export const AdventurerItemRowSchema = Type.Union([
   Type.Object({ kind: Type.Literal("equipmentReward"), chance: percent }, { additionalProperties: false }),
 ]);
 
+export const ItemUseChestSchema = Type.Object({
+  effect: text, prefab: text, name: text, maxDrops: count, chance: percent,
+  rows: Type.Array(Type.Object({ item: RefSchema, min: count, max: count, chance: percent })),
+}, { additionalProperties: false });
+export const ItemUsePackSchema = Type.Object({
+  table: text, classes: refs, minLevel: optional(count), maxLevel: optional(count),
+  entries: Type.Array(Type.Object({ item: RefSchema, min: count, max: count })),
+  bonusChance: percent, worldShare: percent, minimumPicks: count, maximumPicks: optional(count),
+  armorType: optional(text), stats: Type.Array(RefSchema),
+}, { additionalProperties: false });
+export const ItemUseSchema = Type.Object({
+  chests: Type.Array(ItemUseChestSchema), packs: Type.Array(ItemUsePackSchema),
+  itemChanges: Type.Array(Type.Object({ action: Type.Union([Type.Literal("Gain"), Type.Literal("Remove")]), item: RefSchema, count })),
+}, { additionalProperties: false });
+
 export const PublicItemSchema = Type.Object({
   ...documentBase, facts: ItemFactsSchema, sourceSpotCount: count, sourceAvailabilities: Type.Array(availability),
   droppedBy: Type.Array(DropRowSchema), soldBy: Type.Array(VendorRowSchema), buys: Type.Array(CurrencyPurchaseRowSchema), gatheredFrom: Type.Array(GatherRowSchema),
@@ -407,6 +422,7 @@ export const PublicItemSchema = Type.Object({
   crafting: optional(CraftSchema), teaches: optional(CraftSchema), usedInRecipes: Type.Array(UsedInRecipeRowSchema), usedInQuests: Type.Array(QuestObjectiveRowSchema),
   startingGearOf: Type.Array(StartingGearOfRowSchema), placedRules: Type.Array(PlacedRuleSchema),
   adventurers: Type.Array(AdventurerItemRowSchema),
+  whenUsed: ItemUseSchema,
   challengeStoneUses: optional(Type.Array(ChallengeStoneUseSchema)),
 }, { additionalProperties: false });
 export type PublicItem = Static<typeof PublicItemSchema>;

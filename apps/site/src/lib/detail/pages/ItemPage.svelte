@@ -129,6 +129,38 @@
     {#if document.teaches}
       <Section id="teaches" title="Teaches"><CraftingSection craft={document.teaches} pageKey={document.ref.key} rules={document.placedRules.filter((entry) => entry.target === 'teaches')} {registry} /></Section>
     {/if}
+    {#if document.whenUsed.chests.length || document.whenUsed.packs.length || document.whenUsed.itemChanges.length}
+      <Section id="when-used" title="When used" count={document.whenUsed.chests.length + document.whenUsed.packs.length + document.whenUsed.itemChanges.length}>
+        <div class="use-effects">
+          {#if document.whenUsed.chests.length}
+            <p>Each chest row is checked independently against its listed chance. A positive maximum drops value caps the surviving rows. Each amount is rolled uniformly from its minimum to its maximum, including both ends.</p>
+            {#each document.whenUsed.chests as chest}
+              <div class="use-group">
+                <h3>{chest.name}</h3>
+                <p>Spawned by {chest.effect} ({formatNumber(chest.chance)}% action chance).{#if chest.maxDrops > 0}{' '}At most {formatNumber(chest.maxDrops)} rows can drop.{/if}</p>
+                <ul>{#each chest.rows as row}<li><EntityLink ref={row.item} {registry} /> · {formatNumber(row.min)}{#if row.max !== row.min} to {formatNumber(row.max)}{/if} · {formatNumber(row.chance)}% chance</li>{/each}</ul>
+              </div>
+            {/each}
+          {/if}
+          {#each document.whenUsed.itemChanges as change}<p>{change.action === 'Remove' ? 'Removes' : 'Gives'} {formatNumber(change.count)} <EntityLink ref={change.item} {registry} /> when used.</p>{/each}
+          {#if document.whenUsed.packs.length}
+            <p>Your class and level choose the eligible reward table. Each eligible table gives at least its listed minimum number of distinct picks, with a bonus pick at its listed chance and any listed maximum cap. When both the table and world pools contain items, each pick uses the world pool at the listed share. Otherwise it uses the available pool. Entries with equal zero rates have equal weight, not independent drop chances.</p>
+            <p>The world pool comes from eligible world loot tables, filtered by the reward table's armor and stat settings and your class. Items normally qualify when their level requirement is from four below to two above your level. The pack is consumed only after all loot is taken.</p>
+            <div class="pack-groups">
+              {#each document.whenUsed.packs as pack}
+                <details class="pack-group">
+                  <summary>{#each pack.classes as classRef, index}{#if index}, {/if}{'name' in classRef ? classRef.name : classRef.label}{/each}{#if pack.minLevel !== undefined}{' · Levels '}{formatNumber(pack.minLevel)}{#if pack.maxLevel !== undefined}{'–'}{formatNumber(pack.maxLevel)}{/if}{/if} · {pack.table}</summary>
+                  <div class="pack-content">
+                    <p>At least {formatNumber(pack.minimumPicks)} {pack.minimumPicks === 1 ? 'pick' : 'picks'} · {formatNumber(pack.bonusChance)}% bonus pick · {formatNumber(pack.worldShare)}% world share{#if pack.maximumPicks !== undefined} · At most {formatNumber(pack.maximumPicks)} picks{/if}{#if pack.armorType} · {pack.armorType} armor{/if}{#if pack.stats.length} · Stats: {#each pack.stats as stat, index}{#if index}, {/if}<EntityLink ref={stat} {registry} />{/each}{/if}</p>
+                    <ul>{#each pack.entries as entry}<li><EntityLink ref={entry.item} {registry} /> · {formatNumber(entry.min)}{#if entry.max !== entry.min}{' to '}{formatNumber(entry.max)}{/if}</li>{/each}</ul>
+                  </div>
+                </details>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </Section>
+    {/if}
     {#if document.usedInRecipes.length || questUses.length || document.challengeStoneUses?.length}
       <Section id="used-for" title="Used for" count={document.usedInRecipes.length + questUses.length + (document.challengeStoneUses?.length ?? 0)}>
         {#if document.usedInRecipes.length}<div id="used-in-recipes" class="used-recipes">
@@ -180,8 +212,15 @@
 </article>
 
 <style>
-  .adventurer-rows { display: grid; gap: .5rem; list-style: none; padding: 0; margin: 0; }
   .routes { display: grid; gap: 0; padding: 0; list-style: none; }
+  .adventurer-rows { display: grid; gap: .5rem; list-style: none; padding: 0; margin: 0; }
+  .use-effects, .use-group, .pack-content, .pack-groups { display: grid; gap: .65rem; }
+  .use-effects p, .pack-content p { line-height: 1.5; }
+  .use-group h3 { font-size: 1rem; }
+  .use-group ul, .pack-content ul { display: grid; gap: .35rem; padding-left: 1.3rem; }
+  .pack-group { border: 1px solid var(--c-line); border-radius: var(--c-radius); padding: .65rem .8rem; }
+  .pack-group summary { cursor: pointer; min-height: 1.5rem; font-weight: 650; }
+  .pack-content { padding-top: .7rem; }
   .route { display: grid; gap: .6rem; min-width: 0; padding: .9rem 0; border-top: 1px solid var(--c-line); scroll-margin-top: 1rem; }
   .route:first-child { border-top: 0; padding-top: 0; }
   .route:last-child { padding-bottom: 0; }

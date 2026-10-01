@@ -49,11 +49,25 @@ const gameActionTargets = Type.Object({
 });
 // The list that ItemTooltip.GetRecipeRankUpID reads: the template's actions when the flag is set and the template exists,
 // otherwise the item's own actions.
+const visualEffect = Type.Union([Type.Null(), Type.Object({
+  name: nullableText,
+  prefabs: Type.Array(Type.Object({
+    key: text, loaded: boolean, prefabAvailable: boolean,
+    chests: Type.Array(Type.Object({ name: text, maxDrops: integer, rows: Type.Array(Type.Object({
+      sourceIndex: integer, itemId: integer, min: integer, max: integer, chance: number,
+    })) })),
+  })),
+})]);
+const actionRequirements = Type.Array(Type.Object({
+  checkCount: boolean, requiredCount: integer, checks: Type.Array(Type.Object({
+    type: text, rule: text, classId: integer, level: number, levelMax: number, comparison: text,
+  })),
+}));
 const itemGameActions = Type.Object({
   useTemplateFlag: boolean, template: Type.Union([Type.Object({ nativeId: integer, internalName: nullableText, fileName: nullableText }), Type.Null()]), available: boolean,
   actions: Type.Array(Type.Union([
     Type.Object({ sourceIndex: integer, unavailable: text }),
-    Type.Object({ sourceIndex: integer, type: valueEnum, chance: number, nodeAction: valueEnum, progressionType: valueEnum, teleportType: valueEnum, amount: integer, targets: gameActionTargets }),
+    Type.Object({ sourceIndex: integer, type: valueEnum, chance: number, alterAction: optional(text), requirements: optional(actionRequirements), visualEffect: optional(visualEffect), nodeAction: valueEnum, progressionType: valueEnum, teleportType: valueEnum, amount: integer, targets: gameActionTargets }),
   ])),
 });
 
@@ -278,7 +292,7 @@ const RequirementGroupSchema = Type.Object({ nativeRequirementCount: integer, ch
 export const RequirementTemplateSchema = Type.Union([Type.Null(), Type.Object({ nativeId: integer, sourceName: Type.Union([text, Type.Null()]), groups: Type.Array(Type.Union([RequirementGroupSchema, Type.Null()])) })]);
 export const RelationshipExtrasSchema = Type.Object({ sourceFieldPath: optional(text), dropRateSemantics: optional(text), rewardSource: optional(text), rewardIndex: optional(integer), itemIndex: optional(integer), count: optional(number), useRequirementsTemplate: optional(boolean) });
 
-schemaRegistry.register("compendium.catalog-item-gameplay.v2", ItemGameplaySchema);
+schemaRegistry.register("compendium.catalog-item-gameplay.v3", ItemGameplaySchema);
 schemaRegistry.register("compendium.catalog-npc-gameplay.v1", NpcGameplaySchema);
 schemaRegistry.register("compendium.catalog-quest-gameplay.v1", QuestGameplaySchema);
 schemaRegistry.register("compendium.catalog-quest-localization.v1", QuestLocalizationSchema);

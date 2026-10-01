@@ -44,7 +44,7 @@ const equipmentRequirements = [
 
 const facts: CatalogFacts = {
   entities,
-  progression: { facts: [], links: [], talentNodes: [], spellbookNodes: [], learners: [], unlocks: [], appliers: [], offeredClasses: [], mechanicsRules: [] }, gatheringNodes: [], adventurerItems: [],
+  progression: { facts: [], links: [], talentNodes: [], spellbookNodes: [], learners: [], unlocks: [], appliers: [], offeredClasses: [], mechanicsRules: [] }, gatheringNodes: [], adventurerItems: [], itemLootTables: [],
   items: [{ entityKey: "items:1", rarity: "Rare", itemType: "WEAPON", armorSlot: "BELT", weaponSlot: "MAIN HAND", weaponType: "One handed sword", armorType: "CLOTH",
     attackSpeed: 1.8, minDamage: 75, maxDamage: 124, stats: [
       { stat: { entityKey: "stats:53", label: "Item power" }, amount: 99, isPercent: false },
@@ -940,6 +940,7 @@ test("placed and spawned node spots count distinct identities across places", ()
   expect(node.places.map(({ label, spotCount, placementIds }) => [label, spotCount, placementIds]))
     .toEqual([["Coalway Woods", 1, ["p2"]], ["Crypt", 1, ["p1"]]]);
 });
+
 test("adventurer-only kits have their own coverage group, while player sources remain independent", () => {
   const kit: CatalogEntityRow = { ...entities[0]!, entityKey: "items:901", nativeId: 901, name: "Guardian's tank kit" };
   const band: CatalogEntityRow = { ...entities[0]!, entityKey: "items:902", nativeId: 902, name: "Adventurer's cloak" };
@@ -962,4 +963,50 @@ test("adventurer-only kits have their own coverage group, while player sources r
   expect(gaps.find((gap) => gap.gap === "itemAdventurerOnly")?.pages.map((row) => row.key)).toContain(kit.entityKey);
   expect(gaps.find((gap) => gap.gap === "itemWithoutSource")?.pages.map((row) => row.key) ?? []).not.toContain(kit.entityKey);
   expect(gaps.find((gap) => gap.gap === "itemAdventurerOnly")?.pages.map((row) => row.key) ?? []).not.toContain(band.entityKey);
+});
+
+test("used bags publish independent chest rows and supply packs keep their gated table entries", () => {
+  const bag: CatalogEntityRow = { ...entities[0]!, entityKey: "items:377", nativeId: 377, name: "Soaked Bag" };
+  const gold: CatalogEntityRow = { ...entities[0]!, entityKey: "items:30", nativeId: 30, name: "Gold" };
+  const coin: CatalogEntityRow = { ...entities[0]!, entityKey: "currencies:0", kind: "currencies", nativeId: 0, name: "Gold Coin" };
+  const pack: CatalogEntityRow = { ...entities[0]!, entityKey: "items:418", nativeId: 418, name: "Adventurer's Supply Pack" };
+  const all = [...entities, bag, gold, coin, pack];
+  const action = { template: null, chance: 100, nodeAction: "RankUp", progressionType: "Unlock", teleportType: "Position", amount: 1, target: null };
+  const withUses: CatalogFacts = { ...facts, entities: all, items: [...facts.items,
+    { ...facts.items[0]!, entityKey: gold.entityKey, itemType: "CURRENCY", currency: { entityKey: coin.entityKey, label: coin.name! } },
+    { ...facts.items[0]!, entityKey: bag.entityKey, itemType: "CONSUMABLE", gameActions: [
+      { ...action, type: "Item", alterAction: "Remove", target: { entityKey: bag.entityKey, label: bag.name! } },
+      { ...action, type: "TriggerVisualEffect", visualEffect: { name: "Soaked bag loot", prefabs: [
+        { key: "VFX/Soaked bag loot_VISUAL_EFFECT_0", loaded: true, prefabAvailable: true, chests: [
+          { name: "Loot soaked bag", maxDrops: 2, rows: [
+            { sourceIndex: 0, itemId: 30, min: 10, max: 20, chance: 100 },
+            { sourceIndex: 1, itemId: 1, min: 1, max: 2, chance: 15 },
+          ] },
+        ] },
+      ] } },
+    ] },
+    { ...facts.items[0]!, entityKey: pack.entityKey, itemType: "CONSUMABLE", gameActions: [
+      { ...action, type: "LootTable", target: { entityKey: "lootTables:147", label: "Supply Pack Plate lvl 1-5" },
+        requirements: [{ checkCount: false, requiredCount: 0, checks: [
+          { type: "Level", rule: "Mandatory", classId: -1, level: 1, levelMax: 0, comparison: "EqualOrAbove" },
+          { type: "Level", rule: "Mandatory", classId: -1, level: 5, levelMax: 0, comparison: "EqualOrBelow" },
+          { type: "Class", rule: "Optional", classId: 0, level: 0, levelMax: 0, comparison: "Equal" },
+        ] }],
+      },
+    ] },
+  ], itemLootTables: [{ id: 147, name: "Supply Pack Plate lvl 1-5", includeWorldLoot: true,
+    worldLootShare: 50, bonusDropChance: 20, hasMinimumDrops: true, minDroppedItems: 1, limitDroppedItems: true,
+    maxDroppedItems: 2, worldLootStats: [27], worldLootArmorType: { nativeId: -1, name: "PLATE" },
+    entries: [{ item: { entityKey: "items:1", label: "Blade" }, min: 1, max: 1, rate: 0 }] }] };
+  const projected = project(all, withUses, { ...relations, drops: [], gathers: [], containers: [] }).documents;
+  const bagUse = (projected.get(bag.entityKey) as PublicItem).whenUsed;
+  expect(bagUse.itemChanges).toEqual([{ action: "Remove", item: expect.objectContaining({ key: bag.entityKey }), count: 1 }]);
+  expect(bagUse.chests[0]).toMatchObject({ maxDrops: 2, rows: [
+    { item: { key: coin.entityKey }, min: 10, max: 20, chance: 100 },
+    { item: { key: "items:1" }, min: 1, max: 2, chance: 15 },
+  ] });
+  expect((projected.get(pack.entityKey) as PublicItem).whenUsed.packs).toMatchObject([
+    { minLevel: 1, maxLevel: 5, bonusChance: 20, worldShare: 50, minimumPicks: 1, maximumPicks: 2,
+      classes: [{ key: "classes:0" }], entries: [{ item: { key: "items:1" } }] },
+  ]);
 });

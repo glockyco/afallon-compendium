@@ -39,13 +39,23 @@ export interface CatalogRandomStatRule { stat: CatalogEndpoint; min: number; max
 export interface CatalogItemGameAction {
   template: { nativeId: number; name: string | null } | null;
   type: string; chance: number; nodeAction: string; progressionType: string; teleportType: string; amount: number;
+  alterAction?: string | null; requirements?: Array<{ checkCount: boolean; requiredCount: number; checks: Array<{ type: string; rule: string; classId: number; level: number; levelMax: number; comparison: string }> }>;
+  visualEffect?: { name: string | null; prefabs: Array<{ key: string; loaded: boolean; prefabAvailable: boolean; chests: Array<{ name: string; maxDrops: number; rows: Array<{ sourceIndex: number; itemId: number; min: number; max: number; chance: number }> }> }> } | null;
   target: CatalogEndpoint | null;
 }
-
 export interface CatalogAdventurerItem {
   itemKey: string; kind: "kitUpgradeItem" | "equipmentBand" | "equipmentReward";
   adventurer: CatalogEndpoint | null; minimumContentLevel: number | null; rewardChance: number | null;
 }
+export interface CatalogItemLootTable {
+  id: number; name: string; includeWorldLoot: boolean; worldLootShare: number; bonusDropChance: number;
+  hasMinimumDrops: boolean; minDroppedItems: number; limitDroppedItems: boolean; maxDroppedItems: number;
+  worldLootStats: number[] | null; worldLootArmorType: { nativeId: number; name: string | null } | null;
+  entries: Array<{ item: CatalogEndpoint; min: number; max: number; rate: number | null }>;
+}
+
+
+
 export interface CatalogItemFacts {
   entityKey: string;
   rarity: string | null;
@@ -256,6 +266,7 @@ export interface CatalogFacts {
   progression: CatalogProgression;
   gatheringNodes: CatalogGatheringNode[];
   adventurerItems: CatalogAdventurerItem[];
+  itemLootTables: CatalogItemLootTable[];
   corruption?: CatalogCorruptionFacts | null;
 }
 

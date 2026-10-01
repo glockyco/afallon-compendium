@@ -172,8 +172,7 @@ if (items != null)
             }
         }
 
-        // ItemTooltip.GetRecipeRankUpID (build 25434619) reads the template's actions when UseGameActionsTemplate is set
-        // and the template exists. Otherwise it reads the item's own GameActions. The scan reads the same list.
+        // The item reads its template actions when enabled and available, otherwise its own actions.
         var itemActionsTemplate = item.UseGameActionsTemplate ? item.GameActionsTemplate : null;
         var itemGameActionList = itemActionsTemplate != null ? itemActionsTemplate.GameActions : item.GameActions;
         var itemGameActions = new System.Collections.Generic.List<object>();
@@ -183,11 +182,56 @@ if (items != null)
             {
                 var gameAction = itemGameActionList[gameActionIndex];
                 if (gameAction == null) { itemGameActions.Add(new { sourceIndex = gameActionIndex, unavailable = "null GameAction record" }); continue; }
+                var effectTemplate = gameAction.VisualEffectEntry == null ? null : gameAction.VisualEffectEntry.Template;
+                var effectPrefabs = new System.Collections.Generic.List<object>();
+                if (gameAction.type.ToString() == "TriggerVisualEffect" && effectTemplate != null && effectTemplate.PrefabKeys != null)
+                {
+                    for (var prefabIndex = 0; prefabIndex < effectTemplate.PrefabKeys.Count; prefabIndex++)
+                    {
+                        var key = effectTemplate.PrefabKeys[prefabIndex];
+                        var loaded = UnityEngine.Resources.Load("RPGBSoft/" + key);
+                        var pointer = loaded == null ? null : loaded.TryCast<Il2Cpp.AssetPointer>();
+                        var asset = pointer == null ? null : pointer.Asset;
+                        var prefab = asset == null ? null : asset.TryCast<UnityEngine.GameObject>();
+                        var chests = new System.Collections.Generic.List<object>();
+                        if (prefab != null)
+                        {
+                            foreach (var chest in prefab.GetComponentsInChildren<Il2CppBLINK.RPGBuilder.World.Chest>(true))
+                            {
+                                var loot = new System.Collections.Generic.List<object>();
+                                for (var lootIndex = 0; chest.lootInstances != null && lootIndex < chest.lootInstances.Count; lootIndex++)
+                                {
+                                    var row = chest.lootInstances[lootIndex];
+                                    if (row == null) continue;
+                                    loot.Add(new { sourceIndex = lootIndex, itemId = row.item == null ? -1 : row.item.ID, min = row.minCount, max = row.maxCount, chance = row.dropChance });
+                                }
+                                chests.Add(new { name = chest.gameObject.name, maxDrops = chest.maxDrops, rows = loot });
+                            }
+                        }
+                        effectPrefabs.Add(new { key, loaded = loaded != null, prefabAvailable = prefab != null, chests });
+                    }
+                }
+                var actionRequirements = new System.Collections.Generic.List<object>();
+                for (var groupIndex = 0; gameAction.Requirements != null && groupIndex < gameAction.Requirements.Count; groupIndex++)
+                {
+                    var group = gameAction.Requirements[groupIndex];
+                    if (group == null) continue;
+                    var checks = new System.Collections.Generic.List<object>();
+                    for (var checkIndex = 0; group.Requirements != null && checkIndex < group.Requirements.Count; checkIndex++)
+                    {
+                        var check = group.Requirements[checkIndex];
+                        if (check != null) checks.Add(new { type = check.type.ToString(), rule = check.condition.ToString(), classId = check.ClassID, level = check.Amount1, levelMax = check.Amount2, comparison = check.Value.ToString() });
+                    }
+                    actionRequirements.Add(new { checkCount = group.checkCount, requiredCount = group.requiredCount, checks });
+                }
                 itemGameActions.Add(new
                 {
                     sourceIndex = gameActionIndex,
                     type = new { value = (int)gameAction.type, name = gameAction.type.ToString() },
                     chance = gameAction.chance,
+                    alterAction = gameAction.AlterAction.ToString(),
+                    requirements = actionRequirements,
+                    visualEffect = effectTemplate == null ? null : (object)new { name = effectTemplate.entryName, prefabs = effectPrefabs },
                     nodeAction = new { value = (int)gameAction.NodeAction, name = gameAction.NodeAction.ToString() },
                     progressionType = new { value = (int)gameAction.ProgressionType, name = gameAction.ProgressionType.ToString() },
                     teleportType = new { value = (int)gameAction.TeleportType, name = gameAction.TeleportType.ToString() },

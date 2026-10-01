@@ -38,6 +38,9 @@ export function itemGameActions(entityKey: string, gameActions: ItemGameplay["ga
   return gameActions.actions.flatMap((action) => {
     const actionPath = `${path}/gameActions/actions/${action.sourceIndex}`;
     if ("unavailable" in action) { blockers.push({ kind: "unavailable-game-action", key: `${entityKey}:${action.sourceIndex}`, detail: action.unavailable, provenance }); return []; }
+    if (action.alterAction === undefined || action.requirements === undefined || action.visualEffect === undefined) {
+      throw new Error(`Item ${entityKey} action ${action.sourceIndex} lacks the 0.16.3 action mode, requirements, or visual effect capture.`);
+    }
     const type = action.type.name, teleport = type === "Teleport";
     const spec = teleport ? (action.teleportType.name === "GameScene" ? { field: "gameSceneId" as const, kind: "scenes", label: "Scene" } : null) : TARGETS[type] ?? null;
     if (spec === null && !teleport && !UNTARGETED.has(type)) blockers.push({ kind: "unsupported-game-action", key: `${entityKey}:${action.sourceIndex}`, detail: `Game action type ${type} has no known target rule.`, provenance });
@@ -48,6 +51,6 @@ export function itemGameActions(entityKey: string, gameActions: ItemGameplay["ga
       else if (spec.kind === null) { target = { entityKey: null, label: `${spec.label} ${nativeId}` }; blockers.push({ kind: "uncaptured-game-action-target", key: `${entityKey}:${action.sourceIndex}`, detail: `The scan does not capture ${spec.label.toLowerCase()} records.`, provenance }); }
       else target = resolve(spec.kind, nativeId, `${spec.label} ${nativeId}`, `${actionPath}/targets/${spec.field}`, provenance);
     }
-    return [{ entityKey, actionIndex: action.sourceIndex, template, type, chance: action.chance, nodeAction: action.nodeAction.name, progressionType: action.progressionType.name, teleportType: action.teleportType.name, amount: action.amount, target, provenance }];
+    return [{ entityKey, actionIndex: action.sourceIndex, template, type, chance: action.chance, nodeAction: action.nodeAction.name, progressionType: action.progressionType.name, teleportType: action.teleportType.name, amount: action.amount, alterAction: action.alterAction, requirements: action.requirements, visualEffect: action.visualEffect, target, provenance }];
   });
 }

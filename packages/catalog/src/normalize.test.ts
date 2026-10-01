@@ -151,7 +151,7 @@ test("resolves authored item currency conversion and leaves ordinary items witho
 
 const targets = { abilityId: -1, bonusId: -1, recipeId: -1, resourceId: -1, effectId: -1, npcId: -1, factionId: -1, itemId: -1, currencyId: -1, pointId: -1, talentTreeId: -1, skillId: -1, weaponTemplateId: -1, questId: -1, dialogueId: -1, gameSceneId: -1, lootTableId: -1 };
 const gameAction = (sourceIndex: number, type: string, target: Record<string, number> = {}, teleportType = "Position") => ({
-  sourceIndex, type: { value: 0, name: type }, chance: 100, nodeAction: { value: 0, name: "RankUp" }, progressionType: { value: 0, name: "Unlock" }, teleportType: { value: 0, name: teleportType }, amount: 0, targets: { ...targets, ...target },
+  sourceIndex, type: { value: 0, name: type }, chance: 100, alterAction: "Gain", requirements: [], visualEffect: null, nodeAction: { value: 0, name: "RankUp" }, progressionType: { value: 0, name: "Unlock" }, teleportType: { value: 0, name: teleportType }, amount: 0, targets: { ...targets, ...target },
 });
 
 test("keeps each item game action in order with its resolved target, and reports targets that do not resolve", () => {

@@ -9,7 +9,7 @@ import type { RoleScope } from "./roles";
 import type { TooltipLine } from "./tooltip";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v11" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v12" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });
@@ -83,6 +83,8 @@ export interface NormalizedItemGemStat { entityKey: string; statIndex: number; s
 export interface NormalizedItemGameAction {
   entityKey: string; actionIndex: number; template: { nativeId: number; name: string | null } | null;
   type: string; chance: number; nodeAction: string; progressionType: string; teleportType: string; amount: number;
+  alterAction: string | null; requirements: Array<{ checkCount: boolean; requiredCount: number; checks: Array<{ type: string; rule: string; classId: number; level: number; levelMax: number; comparison: string }> }>;
+  visualEffect: { name: string | null; prefabs: Array<{ key: string; loaded: boolean; prefabAvailable: boolean; chests: Array<{ name: string; maxDrops: number; rows: Array<{ sourceIndex: number; itemId: number; min: number; max: number; chance: number }> }> }> } | null;
   target: NormalizedReference | null; provenance: ProvenanceReference[];
 }
 export interface NormalizedItemSocket { entityKey: string; socketIndex: number; socketType: string | null; gemType: string | null; provenance: ProvenanceReference[] }

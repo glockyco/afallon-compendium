@@ -524,6 +524,41 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
     ? ((fact.minDamage + fact.maxDamage) / 2) / fact.attackSpeed : undefined;
   const level = fact?.equipmentRequirements.flatMap((group) => group.requirements).find((requirement) => requirement.type.name === "Level")?.amounts.primary;
   const levelRequirement = level !== undefined && Number.isInteger(level) && level > 0 ? level : undefined;
+  const useChests = (fact?.gameActions ?? []).flatMap((action) => action.type === "TriggerVisualEffect" && action.visualEffect
+    ? action.visualEffect.prefabs.flatMap((prefab) => prefab.chests.map((chest) => ({
+      effect: plainText(action.visualEffect!.name ?? "Visual effect"), prefab: plainText(prefab.key), name: plainText(chest.name),
+      chance: action.chance, maxDrops: Math.max(0, chest.maxDrops),
+      rows: chest.rows.map((row) => {
+        const item = input.facts.items.find((candidate) => candidate.entityKey === `items:${row.itemId}`);
+        const target = item?.itemType === "CURRENCY" && item.currency ? item.currency : { entityKey: `items:${row.itemId}`, label: "Unknown item" };
+        return { item: input.resolve(target), min: Math.max(0, row.min), max: Math.max(0, row.max), chance: row.chance };
+      }),
+    }))) : []);
+  const usePacks = (fact?.gameActions ?? []).flatMap((action) => {
+    if (action.type !== "LootTable" || !action.target?.entityKey) return [];
+    const id = Number(action.target.entityKey.split(":")[1]);
+    const table = input.facts.itemLootTables?.find((candidate) => candidate.id === id);
+    if (!table) return [];
+    const checks = (action.requirements ?? []).flatMap((group) => group.checks);
+    const minLevel = checks.find((check) => check.type === "Level" && check.comparison === "EqualOrAbove")?.level;
+    const maxLevel = checks.find((check) => check.type === "Level" && check.comparison === "EqualOrBelow")?.level;
+    const classes = checks.filter((check) => check.type === "Class" && check.classId >= 0).map((check) =>
+      input.resolve({ entityKey: `classes:${check.classId}`, label: "Unknown class" }));
+    return [{ table: plainText(table.name), classes,
+      ...(minLevel === undefined ? {} : { minLevel }), ...(maxLevel === undefined ? {} : { maxLevel }),
+      entries: table.entries.map((entry) => ({ item: input.resolve(entry.item), min: Math.max(0, entry.min), max: Math.max(0, entry.max) })),
+      bonusChance: table.bonusDropChance, worldShare: table.worldLootShare,
+      minimumPicks: table.hasMinimumDrops ? Math.max(1, table.minDroppedItems) : 1,
+      ...(table.limitDroppedItems && table.maxDroppedItems > 0 ? { maximumPicks: table.maxDroppedItems } : {}),
+      ...(table.worldLootArmorType?.name ? { armorType: plainText(table.worldLootArmorType.name) } : {}),
+      stats: (table.worldLootStats ?? []).map((stat) => input.resolve({ entityKey: `stats:${stat}`, label: `Stat ${stat}` })),
+    }];
+  });
+  const itemChanges = (fact?.gameActions ?? []).flatMap<PublicItem["whenUsed"]["itemChanges"][number]>((action) => {
+    const mode = action.alterAction;
+    return action.type === "Item" && (mode === "Gain" || mode === "Remove") && action.target
+      ? [{ action: mode, item: input.resolve(action.target), count: Math.max(0, action.amount) }] : [];
+  });
   return {
     ...baseDocument(entity, ref, input),
     facts: {
@@ -587,6 +622,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
       if (row.kind === "equipmentBand") return row.minimumContentLevel !== null ? [{ kind: row.kind, minimumContentLevel: row.minimumContentLevel }] : [];
       return row.rewardChance !== null ? [{ kind: row.kind, chance: chancePercent(row.rewardChance) }] : [];
     }),
+    whenUsed: { chests: useChests, packs: usePacks, itemChanges },
   };
 }
 
