@@ -24,7 +24,7 @@
 ## 5. Catalog and publication
 
 - [ ] 5.1 Assemble the bootstrap catalog, author and register the coverage review, and assemble the final catalog. Compare it with the accepted catalog and explain every removal.
-- [ ] 5.2 Publish the 0.16.3 weapon line in item documents and show it in the item tooltip.
+- [x] 5.2 Publish the 0.16.3 weapon line in item documents and show it in the item tooltip.
 - [ ] 5.3 Register the presentation, publish the candidate, and stage it against the accepted publication.
 
 ## 6. Verification

@@ -2,7 +2,7 @@
 
 ### Requirement: Weapon tooltips show the game's damage line
 
-An item tooltip of a weapon SHALL show its damage line as the 0.16.3 game writes it: the damage range, the damage label, and whether the weapon is melee or ranged, followed by its attack speed and damage per second. The damage label SHALL be the weapon's physical label for physical damage and its damage type otherwise, as the game chooses it. A weapon without a published damage type, attack mode, or label SHALL omit the part it lacks rather than guess it.
+A weapon tooltip SHALL show the 0.16.3 game's damage line, with a rounded range, resolved damage school or physical label, and melee or ranged mode. A positive attack speed SHALL appear beneath it as `Speed 0.00`, followed by damage per second calculated from the rounded endpoints and displayed to one decimal. Explicit attack mode, damage type, and physical label SHALL take precedence over inferred values. Auto mode SHALL derive the mode from the weapon slot and type, and damage without an explicit type SHALL use the game's physical or elemental school rules. An unresolved or invalid mode SHALL use the plain `{minimum} - {maximum} Damage` line. A nonweapon or a weapon without positive maximum damage SHALL show no damage block.
 
 #### Scenario: A one-handed sword
 - **WHEN** a sword deals 13 to 22 physical damage with the Slashing label in melee

@@ -16,13 +16,13 @@
   export let corruptionLevel = 0;
 
   $: facts = document.facts;
-  // The game adds the damage block only for a weapon whose maximum damage is above zero, and the block names the attack
-  // speed only when it is above zero (`ItemTooltip.Show` and `ItemTooltip.WeaponDamageBlock`, build 25434619). A shield
-  // has zero damage and zero attack speed, so its tooltip shows neither line.
+  // The weapon line is the damage range followed by the published label, which the 0.16.3 attack profile resolves.
+  // A corruption preview changes only the range.
   $: calculated = corruptionLevel > 0 ? corruptionDisplay(facts, corruptionLevel) : undefined;
-  $: showsDamage = (calculated?.maxDamage ?? facts.maxDamage ?? 0) > 0;
-  $: damage = showsDamage ? rangeText(calculated?.minDamage ?? facts.minDamage, calculated?.maxDamage ?? facts.maxDamage) : null;
-  $: attackSpeed = showsDamage && facts.attackSpeed !== undefined && facts.attackSpeed > 0 ? facts.attackSpeed : undefined;
+  $: minDamage = calculated?.minDamage ?? facts.minDamage;
+  $: maxDamage = calculated?.maxDamage ?? facts.maxDamage;
+  $: damage = facts.weaponDamageLabel && minDamage !== undefined && maxDamage !== undefined ? `${minDamage} - ${maxDamage} ${facts.weaponDamageLabel}` : undefined;
+  $: attackSpeed = damage && facts.attackSpeed !== undefined && facts.attackSpeed > 0 ? facts.attackSpeed : undefined;
   $: gearType = facts.weaponType ?? facts.armorType;
   $: slot = facts.weaponType && facts.weaponSlot ? facts.weaponSlot : facts.slot;
   $: headerFacts = [
@@ -39,10 +39,11 @@
 
   <div class="lines">
     {#if facts.itemPower !== undefined}<p class="item-power">Item power <strong>{formatNumber(calculated?.itemPower ?? facts.itemPower)}</strong></p>{/if}
-    {#if damage}
-      <p><strong>{damage}</strong> Damage{#if facts.damagePerSecond !== undefined}{' '}<span class="dim">({(calculated?.damagePerSecond ?? facts.damagePerSecond).toFixed(1)} damage per second)</span>{/if}</p>
+    {#if damage}<p><strong>{damage}</strong></p>{/if}
+    {#if attackSpeed !== undefined}
+      <p>Speed {attackSpeed.toFixed(2)}</p>
+      {#if facts.damagePerSecond !== undefined}<p class="dim">({(calculated?.damagePerSecond ?? facts.damagePerSecond).toFixed(1)} damage per second)</p>{/if}
     {/if}
-    {#if attackSpeed !== undefined}<p><strong>{formatNumber(attackSpeed)}</strong> Attack speed</p>{/if}
     {#if calculated}<p class="good">Corruption +{corruptionLevel}</p>{/if}
 
     {#each calculated?.stats ?? facts.stats as stat}<p class="good">{calculated ? `${stat.amount < 0 ? '-' : '+'}${tooltipStat(Math.abs(stat.amount))}${stat.isPercent ? '%' : ''}` : signedAmount(stat.amount, stat.isPercent)} {statName(stat)}</p>{/each}

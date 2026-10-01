@@ -361,11 +361,9 @@ export const CorruptionTokenInfoSchema = Type.Object({
 
 export const ItemFactsSchema = Type.Object({
   rarity: optional(text), itemType: optional(text), slot: optional(text), weaponType: optional(text), armorType: optional(text), weaponSlot: optional(text),
-  attackSpeed: optional(number), minDamage: optional(count), maxDamage: optional(count),
-  // The game's own tooltip leads with item power and shows damage per second beside the damage
-  // range: Oathbreaker's Edge reads "Item Power 99" and "(55.3 damage per second)" for 75-124 at
-  // 1.80, which is the mean damage over the attack speed. Both are published so a page, a list
-  // column, and a sort agree on one value.
+  attackSpeed: optional(number), minDamage: optional(count), maxDamage: optional(count), weaponDamageLabel: optional(text),
+  // The game's weapon line is the damage range followed by this label ("8 - 13 Slashing Damage (Melee)"), with the
+  // speed and the damage per second below it. A corruption preview changes only the range.
   itemPower: optional(number), damagePerSecond: optional(number),
   corruption: optional(CorruptionPreviewSchema), dungeonRewards: optional(Type.Array(DungeonRewardSchema, { minItems: 1 })), tokenInfo: optional(CorruptionTokenInfoSchema),
   stats: Type.Array(StatRowSchema), randomStats: Type.Array(RandomStatRowSchema), randomStatsMax: count,

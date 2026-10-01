@@ -67,6 +67,7 @@ import { placedRules, topicRef } from "./placed-rules";
 import { placeSpots } from "./place-spots";
 import { isCorruptibleEquipment, type CorruptionRewards } from "./corruption-rewards";
 import type { PlaceVariant } from "./place-variants";
+import { roundWeaponDamage, weaponDamageLabel } from "./weapon-display";
 
 export type ReferenceResolver = (endpoint: CatalogEndpoint) => Ref;
 export type PublishedPlacement = PlacementRef & { categories: readonly PublicMarkerCategory[] };
@@ -521,9 +522,10 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
   const itemPower = fact?.stats.find((row) => row.stat.entityKey === "stats:53")?.amount;
   const damagePerSecond = isWeapon && fact?.minDamage !== null && fact?.minDamage !== undefined
     && fact.maxDamage !== null && fact.maxDamage !== undefined && fact.attackSpeed !== null && fact.attackSpeed !== undefined && fact.attackSpeed > 0
-    ? ((fact.minDamage + fact.maxDamage) / 2) / fact.attackSpeed : undefined;
+    ? (roundWeaponDamage(fact.minDamage) + roundWeaponDamage(fact.maxDamage)) / 2 / fact.attackSpeed : undefined;
   const level = fact?.equipmentRequirements.flatMap((group) => group.requirements).find((requirement) => requirement.type.name === "Level")?.amounts.primary;
   const levelRequirement = level !== undefined && Number.isInteger(level) && level > 0 ? level : undefined;
+  const damageLabel = isWeapon && fact ? weaponDamageLabel(fact) : undefined;
   const useChests = (fact?.gameActions ?? []).flatMap((action) => action.type === "TriggerVisualEffect" && action.visualEffect
     ? action.visualEffect.prefabs.flatMap((prefab) => prefab.chests.map((chest) => ({
       effect: plainText(action.visualEffect!.name ?? "Visual effect"), prefab: plainText(prefab.key), name: plainText(chest.name),
@@ -568,6 +570,7 @@ function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentPr
       ...(isWeapon && fact?.attackSpeed !== null && fact?.attackSpeed !== undefined ? { attackSpeed: fact.attackSpeed } : {}),
       ...(isWeapon && optionalCount(fact?.minDamage ?? null) !== undefined ? { minDamage: optionalCount(fact?.minDamage ?? null) } : {}),
       ...(isWeapon && optionalCount(fact?.maxDamage ?? null) !== undefined ? { maxDamage: optionalCount(fact?.maxDamage ?? null) } : {}),
+      ...(damageLabel === undefined ? {} : { weaponDamageLabel: damageLabel }),
       ...(itemPower === undefined ? {} : { itemPower }), ...(damagePerSecond === undefined ? {} : { damagePerSecond }),
       ...(corruption === undefined ? {} : { corruption }), ...(dungeonRewards?.length ? { dungeonRewards } : {}),
       ...(tokenInfo === undefined ? {} : { tokenInfo }),
