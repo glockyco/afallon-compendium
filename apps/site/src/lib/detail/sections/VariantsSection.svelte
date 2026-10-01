@@ -4,7 +4,7 @@
   import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import NpcLevel from '../../NpcLevel.svelte';
-  import { creatureTypeLabel, formatNumber, killExperienceText, levelText, nameOf, npcTypeName, rangeText } from '../../format';
+  import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, levelText, nameOf, npcTypeName } from '../../format';
   import { omitAlways, planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
@@ -30,7 +30,7 @@
       case 'family': return facts.family ? categoryLabel(facts.family) : undefined;
       case 'faction': return facts.faction ? nameOf(facts.faction) : undefined;
       case 'species': return facts.species ? nameOf(facts.species) : undefined;
-      case 'respawn': return facts.respawn ? `${rangeText(facts.respawn.min, facts.respawn.max)} s` : undefined;
+      case 'respawn': return facts.respawn ? durationRangeText(facts.respawn.min, facts.respawn.max) : undefined;
       case 'experience': return facts.experience ? killExperienceText(facts.experience, variant.level) : undefined;
       case 'stats': return facts.stats?.map((stat) => `${nameOf(stat.stat)} ${statText(stat.amount, stat.isPercent)}`).join(', ') || undefined;
       case 'immunities': return facts.immunities?.map(categoryLabel).join(', ') || undefined;
