@@ -103,14 +103,16 @@ button, select { cursor: pointer; }
   .results-header h2, .details-header h2 { margin: 0; color: var(--c-text-strong); font-size: var(--c-text-lead); letter-spacing: .02em; text-transform: none; }
   .results-header p { margin: .25rem 0 0; color: var(--c-text-mute); font-size: var(--c-text-small); }
   .results-header .result-limit { color: var(--c-accent); }
-  .result-list { list-style: none; margin: .7rem 0 0; padding: 0; display: grid; gap: .3rem; }
-  .result-list button { display: grid; grid-template-columns: 22px minmax(0,1fr); align-items: center; gap: .6rem; width: 100%; padding: .6rem .55rem; border: 1px solid var(--c-line); background: var(--c-surface-1); color: var(--c-text); text-align: left; }
+  .result-list { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .15rem; }
+  .result-list button { display: grid; grid-template-columns: 22px minmax(0,1fr); align-items: center; gap: .5rem; width: 100%; padding: .3rem .5rem; border: 1px solid var(--c-line); background: var(--c-surface-1); color: var(--c-text); text-align: left; }
   .result-list button:hover, .result-list button.selected-result { border-color: var(--c-accent-line); background: var(--c-surface-2); }
   .marker-badge { display: inline-grid; flex: none; place-items: center; width: 22px; height: 22px; border: 1px solid var(--c-shadow); border-radius: 50%; color: white; }
   .marker-badge svg { width: 13px; height: 13px; filter: drop-shadow(0 0 1px var(--c-shadow-strong)); }
-  .result-copy strong, .result-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .result-copy strong { font-size: var(--c-text-body); font-weight: 600; }
-  .result-copy small { margin-top: .15rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  /* One line per result, at the sizes of the category list: the name, then its categories in dim text. */
+  .result-copy { display: flex; align-items: baseline; gap: .6rem; min-width: 0; }
+  .result-copy strong, .result-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .result-copy strong { flex: 0 1 auto; font-size: var(--c-text-body); font-weight: 400; }
+  .result-copy small { flex: 0 10 auto; color: var(--c-text-dim); font-size: var(--c-text-small); }
   .empty { color: var(--c-text-mute); font-size: var(--c-text-small); }
   .eyebrow { color: var(--c-accent-muted); font-size: var(--c-text-label); font-weight: 700; }
   .details-header { padding-bottom: .9rem; border-bottom: 1px solid var(--c-line); }
@@ -174,6 +176,6 @@ button, select { cursor: pointer; }
     .control-panel.collapsed .panel-toggle { width: 44px; height: 44px; background: var(--c-surface-2); box-shadow: 0 3px 12px var(--c-shadow); }
     .control-panel.collapsed .panel-rail { display: none; }
     .results { padding: .75rem; }
-    .result-list button { min-height: 48px; }
+    .result-list button { min-height: 2.5rem; }
     .state-card { margin: 2rem .8rem; padding: 1.2rem; }
   }
