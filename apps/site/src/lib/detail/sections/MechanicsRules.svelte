@@ -37,7 +37,7 @@
       <h3>{titles[section] ?? section.replaceAll('-', ' ')}</h3>
       {#each rules.filter((rule) => rule.section === section) as rule (rule.id)}
         <div class="rule" id={`rule-${rule.id}`}>
-          <p><span class="number">{numbers.get(rule.id)}.</span> {#if rule.status === 'unknown'}<strong class="unknown">Unknown: </strong>{/if}<RulePhrase {rule} {registry} /></p>
+          <p><span class="number">{numbers.get(rule.id)}.</span> {#if rule.status === 'unknown'}<strong class="unknown">Unknown:</strong>{' '}{/if}<RulePhrase {rule} {registry} /></p>
           <div class="evidence">
             {#each rule.sources as source}
               <p><strong>{source.method}.</strong> {source.evidence}</p>

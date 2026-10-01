@@ -44,7 +44,7 @@
       {#if facts.autoAttack}<p>Auto attack: <EntityLink ref={facts.autoAttack} {registry} /></p>{/if}
     </AnswerCard></div>
     <div slot="side" class="side-facts">
-      {#if facts.talentPoints.length}<section><h2>Talent points</h2>{#each facts.talentPoints as points}<p>{#if points.name.toLocaleLowerCase() !== 'talent points'}<strong>{points.name}: </strong>{/if}{talentPointText(points)}</p>{/each}</section>{/if}
+      {#if facts.talentPoints.length}<section><h2>Talent points</h2>{#each facts.talentPoints as points}<p>{#if points.name.toLocaleLowerCase() !== 'talent points'}<strong>{points.name}:</strong>{' '}{/if}{talentPointText(points)}</p>{/each}</section>{/if}
       {#if facts.weapons.length}<section><h2>Weapons</h2><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul></section>{/if}
       <a class="c-link" href={`${base}/mechanics/character-progression/`}>Character Progression</a>
     </div>
