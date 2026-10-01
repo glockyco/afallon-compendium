@@ -10,7 +10,9 @@
 
 <!-- The underline sits on the label only: a parent underline also draws under the "?" mark and cannot be removed there. -->
 <style>
-  .how-it-works { display: inline-flex; gap: .4rem; align-items: center; min-height: 1.5rem; color: var(--c-accent); font-size: var(--c-text-small); text-decoration: none; }
+  /* `fit-content` keeps the link as wide as its text inside a grid or a column flexbox, which would otherwise stretch it
+     and its focus outline to the full width. */
+  .how-it-works { display: inline-flex; gap: .4rem; align-items: center; width: fit-content; min-height: 1.5rem; color: var(--c-accent); font-size: var(--c-text-small); text-decoration: none; }
   .label { text-decoration: underline; text-underline-offset: .2em; }
   .how-it-works:hover, .how-it-works:focus-visible { color: var(--c-accent-strong); }
   .how-it-works:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; border-radius: .2rem; }
