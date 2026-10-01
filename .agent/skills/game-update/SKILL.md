@@ -56,7 +56,7 @@ Time the steps from the run manifests (`timestamps`) and, inside a scan, from th
 
 1. Register the reviewed presentation (world offsets, bounds, exclusions) for the new build. Its `catalogId` must match the catalog, or publish fails with "Static resource catalog mismatch".
 2. `bun run compendium publish --store artifacts --output <root> --plan <plan> --candidate`, then write `<root>/selected.json` for the new publication.
-3. `bun run stage:production <root> <accepted publication directory> --verified-update`. Check the dev site in a browser at 1440 and 390 px: map, search, each entity kind, relations, artwork, coverage, and every risk area of the notes.
+3. `bun run stage:production <root> <accepted publication directory> --verified-update` in every checkout whose development server is used, including the main checkout: staging writes into the `apps/site` of the checkout that runs it. Check the dev site in a browser at 1440 and 390 px: map, search, each entity kind, relations, artwork, coverage, and every risk area of the notes.
 
 ## 7. Accept
 

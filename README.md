@@ -40,6 +40,8 @@ SITE_STAGE=production bun run dev
 
 Direct site builds also require `SITE_STAGE=production`. Without it the site has no staged resource graph and page prerendering fails.
 
+Staging writes into the `apps/site` of the checkout that runs it, so every checkout, including a worktree, needs its own stage. After a public schema changes, stage a publication built from the current commit. An older stage makes the development server report that a resource does not match its schema.
+
 Staging verifies the candidate against a baseline publication root, which the second argument or `PUBLICATION_BASELINE_ROOT` supplies. Both roots pass the same graph verification, so the baseline is a real publication rather than a retained aggregate file.
 
 ## Data pipeline

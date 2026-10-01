@@ -242,9 +242,13 @@ export class MapDataLoader {
     }
     const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
     if (!Check(schema, value)) {
-      // A resource that passes its hash but not its schema comes from a publication that this client cannot read.
+      // A resource that passes its hash but not its schema comes from a publication that this client cannot read. A
+      // schema identity mismatch means that the staged publication was built for another version of the site.
       const [first] = Errors(schema, value);
-      throw new Error(`Map resource does not match its schema: ${path}${first ? ` at ${first.instancePath || "/"}: ${first.message}` : ""}.`);
+      const stale = first !== undefined && /\/schema(?:Version|Id)$/.test(first.instancePath)
+        ? " The staged publication was built for another version of the site. Stage a publication built from this commit with apps/site/scripts/stage-publication.ts."
+        : "";
+      throw new Error(`Map resource does not match its schema: ${path}${first ? ` at ${first.instancePath || "/"}: ${first.message}` : ""}.${stale}`);
     }
     return value;
   }
