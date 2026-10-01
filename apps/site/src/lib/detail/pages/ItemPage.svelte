@@ -54,6 +54,9 @@
     { id: 'sold-by', label: 'Sold by', value: (row) => row.soldBy.map((seller) => 'name' in seller ? seller.name : seller.label).join(', ') },
   ];
   $: buyPlan = planColumns(buyColumns, document.buys);
+  const adventurerColumns: RelationColumn<PublicItem['adventurers'][number]>[] = [
+    { id: 'relation', label: 'Adventurer gear', value: (row) => row.kind === 'kitUpgradeItem' ? ('name' in row.adventurer ? row.adventurer.name : row.adventurer.label) : row.kind },
+  ];
   $: typeLine = [facts.rarity, facts.armorType ?? facts.weaponType ?? facts.itemType, facts.slot].filter((entry): entry is string => Boolean(entry)).map(categoryLabel).join(' · ');
 </script>
 
@@ -181,13 +184,13 @@
     {:else if !document.teaches && !document.buys.length}<Section id="used-for" title="Used for"><p>No known recipe or quest uses {document.ref.name}.</p></Section>{/if}
     {#if document.adventurers.length}
       <Section id="adventurers" title="Adventurers" count={document.adventurers.length}>
-        <ul class="adventurer-rows">
-          {#each document.adventurers as row}
-            <li>{#if row.kind === 'kitUpgradeItem'}Kit upgrade for <EntityLink ref={row.adventurer} {registry} />
-              {:else if row.kind === 'equipmentBand'}Carried by adventurers from content level {formatNumber(row.minimumContentLevel)}
-              {:else}Adventurer job reward with {formatNumber(row.chance)}% reward chance{/if}</li>
-          {/each}
-        </ul>
+        <RelationTable columns={adventurerColumns} rows={document.adventurers} label="Adventurer gear">
+          <svelte:fragment slot="cell" let:row>
+            {#if row.kind === 'kitUpgradeItem'}Gear upgrade for <EntityLink ref={row.adventurer} {registry} />
+            {:else if row.kind === 'equipmentBand'}Adventurers of level {formatNumber(row.minimumContentLevel)} or higher can carry it
+            {:else}After each finished job, an adventurer has a {formatNumber(row.chance)}% chance to receive one gear upgrade from a reward list that includes this item. The item goes to the adventurer, not the player.{/if}
+          </svelte:fragment>
+        </RelationTable>
       </Section>
     {/if}
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
@@ -213,7 +216,6 @@
 
 <style>
   .routes { display: grid; gap: 0; padding: 0; list-style: none; }
-  .adventurer-rows { display: grid; gap: .5rem; list-style: none; padding: 0; margin: 0; }
   .use-effects, .use-group, .pack-content, .pack-groups { display: grid; gap: .65rem; }
   .use-effects p, .pack-content p { line-height: 1.5; }
   .use-group h3 { font-size: 1rem; }
