@@ -13,7 +13,7 @@ An update turns a new Steam build into an accepted catalog and publication. Each
 - Start from a clean state: no unaccepted candidate and no open data change. An update compares against the accepted build in `artifacts/accepted-build.json`.
 - Read the release notes first. Save the Steam news item as JSON: `curl -s 'https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=2597810&count=5&maxlength=0&format=json'`, then select the item by title. Name the risk areas that the notes give. The update report must classify each of them, and only them.
 - Use a new file name for every authored input. Never overwrite an input, a report, or research evidence.
-- Use a configuration with every field of `config.example.json`. `local/config.json` can be stale; check before use.
+- Use a configuration with every field of `config.example.json`. `local/config.json` can be stale; check before use. Its `mapSpaceProfile` names one build's profile: scans ignore it, but captures fail with "The spatial profile belongs to another game build" until a copy of the configuration names the new build's profile (step 4).
 
 ## 1. Install the build
 
