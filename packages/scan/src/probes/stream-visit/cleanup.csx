@@ -19,17 +19,16 @@
             var target = row["loader"] as Il2Cpp.AddressableLoader;
             if (target == null || target.gameObject == null)
                 throw new System.InvalidOperationException("A stream visit loader disappeared before preload.");
-            if ((bool)row["chunkHidden"])
+            // A loader under a hidden chunk, or one that the game deactivated after the visit asked for it, waits
+            // until its held chunk is shown again.
+            if (!target.gameObject.activeInHierarchy) continue;
+            // The shown chunk put the loader within the player's load distance, and the game started it. A
+            // scene visit waits for such a load. An explicit visit must own its loads.
+            if (getAsset(target) != null || getLoading(target) || getHandle(target))
             {
-                if (!target.gameObject.activeInHierarchy) continue;
-                // The shown chunk put the loader within the player's load distance, and the game
-                // started it. A scene visit waits for such a load. An explicit visit must own its loads.
-                if (getAsset(target) != null || getLoading(target) || getHandle(target))
-                {
-                    if (!sceneMode) throw new System.InvalidOperationException("A loader under a held chunk started its automatic load, so the visit does not own it.");
-                    row["gameOwned"] = true;
-                    continue;
-                }
+                if (!sceneMode) throw new System.InvalidOperationException("A loader under a held chunk started its automatic load, so the visit does not own it.");
+                row["gameOwned"] = true;
+                continue;
             }
             requestLoad(row, holdSecondsFloat);
             inFlight++;

@@ -292,7 +292,9 @@ function assertStreamRows(
   for (const source of baseline.required) {
     const row = rows.get(source.instanceId);
     if (row === undefined) throw new Error(`Stream visit omitted required source ${source.instanceId}.`);
-    if (row.assetGuid !== source.assetGuid || row.skippedReason !== null || !row.activeInHierarchy || !row.enabled) {
+    // A required source starts active. Later the game can deactivate it for a moment (ChunkHider shows a held
+    // chunk again, build 25653798), and the visit loads it again, so a poll waits for it rather than failing.
+    if (row.assetGuid !== source.assetGuid || row.skippedReason !== null || (initialRows === undefined && !row.activeInHierarchy) || !row.enabled) {
       throw new Error(`Stream visit returned inconsistent metadata for source ${source.instanceId}.`);
     }
     if (initialRows !== undefined) {
@@ -645,7 +647,7 @@ export async function withCaptureGeometry<T>(
           const currentSource = current.sources.find(candidate => candidate.instanceId === source.instanceId);
           return currentSource !== undefined && isSourceReady(currentSource);
         });
-        const streamReady = streamKey === undefined || (streamRows !== undefined && [...streamRows.values()].every(row => row.loaded && !row.loading && row.hasHandle && row.rootInstanceId !== null));
+        const streamReady = streamKey === undefined || (streamRows !== undefined && [...streamRows.values()].every(row => row.activeInHierarchy && row.loaded && !row.loading && row.hasHandle && row.rootInstanceId !== null));
         if (stableCount >= plan.readiness.stableFrames && current.scene.ready && blockingIssues(current).length === 0 && sourceReady && streamReady && streamAgrees) {
           latestGeometry = current;
           break;
