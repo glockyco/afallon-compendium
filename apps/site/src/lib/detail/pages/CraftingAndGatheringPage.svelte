@@ -16,7 +16,7 @@
   export let registry: PublicKindEntry[];
 
   $: nodes = registry.find((entry) => entry.kind === 'gatheringNodes' && entry.pages);
-  const bandNames: Record<string, string> = { firstFull: 'First full', secondFull: 'Second full', half: 'Half', none: 'None' };
+  const bandNames: Record<string, string> = { full: 'Full', half: 'Half', none: 'None' };
   import { ruleNumbers } from '../rule-numbers';
   $: numbers = ruleNumbers(document.rules);
   const percent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });

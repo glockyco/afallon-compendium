@@ -250,11 +250,11 @@ export function projectChallengeStoneUses(facts: CatalogFacts, published: Readon
 
 // Native and live evidence establish the behavior; values come only from this build's captured catalog facts.
 const CORRUPTION_RULES = [
-  { id: "corruption-altar", section: "altar", phrase: "An unused altar adds one level, or consumes a valid saved token for its value. The start level is capped by the combat setting.", method: "Altar and dungeon corruption rules", evidence: "The altar and level-cap rules come from the game code." },
-  { id: "corruption-token", section: "tokens", phrase: "Saved token value and affixes appear in its tooltip. A new token rolls distinct eligible affixes.", method: "Token tooltip and affix rules", evidence: "The token and affix rules come from the game code and a token tooltip in the game." },
-  { id: "corruption-creatures", section: "creatures", phrase: "Creature stat bonuses apply by dungeon level. Affix effects are separate.", method: "Creature bonuses", evidence: "The bonus rule comes from the game code and its combat settings." },
-  { id: "corruption-gear", section: "gear", phrase: "Eligible reward equipment other than tokens saves a positive dungeon level. Base item stats and the combat weapon component scale. Random rolls and gems do not change. Final hit damage is unknown.", method: "Reward equipment and combat", evidence: "The reward and combat rules come from the game code. In-game checks cover equipment, tooltips, the weapon component, random rolls and gems." },
-  { id: "corruption-timer", section: "timer", phrase: "Completion token value depends on the start level and seconds remaining at each dungeon threshold. Timeout reduces it and omits ordinary loot.", method: "Dungeon timer and rewards", evidence: "Completion and reward rules come from the game code and the dungeon timers." },
+  { id: "corruption-altar", section: "altar", phrase: "Only an altar that you have not used yet adds levels or takes a token.", method: "Altar and dungeon corruption rules", evidence: "The altar and level-cap rules come from the game code." },
+  { id: "corruption-token", section: "tokens", phrase: "The affixes of a new token are all different.", method: "Token tooltip and affix rules", evidence: "The token and affix rules come from the game code and a token tooltip in the game." },
+  { id: "corruption-creatures", section: "creatures", phrase: "Each corruption level adds the enemy stat bonuses once more.", method: "Creature bonuses", evidence: "The bonus rule comes from the game code and its combat settings." },
+  { id: "corruption-gear", section: "gear", phrase: "An item keeps the corruption level only when the level is above zero. The level raises the weapon's own damage, and the damage of a full hit is unknown.", method: "Reward equipment and combat", evidence: "The reward and combat rules come from the game code. In-game checks cover equipment, tooltips, the weapon component, random rolls and gems." },
+  { id: "corruption-timer", section: "timer", phrase: "The reward token starts at the dungeon's start level. Its bonus depends on the time left at each of the dungeon's thresholds.", method: "Dungeon timer and rewards", evidence: "Completion and reward rules come from the game code and the dungeon timers." },
 ] as const;
 
 

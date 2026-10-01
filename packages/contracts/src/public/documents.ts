@@ -297,11 +297,10 @@ export type GearSetTier = Static<typeof GearSetTierSchema>;
 export const GearSetSchema = Type.Object({ key: text, name: text, members: refs, tiers: Type.Array(GearSetTierSchema) }, { additionalProperties: false });
 export type GearSet = Static<typeof GearSetSchema>;
 
-// The skill levels where a craft gives base experience, from the verified crafting rule. `firstFull` and `secondFull` are
-// the game's two full-experience bands. `to` is absent when the band reaches the skill's highest level. `experience` is
-// the base amount before skill modifiers.
+// The skill levels where a craft gives base experience, from the verified crafting rule: full, half, or none. `to` is
+// absent when the band reaches the skill's highest level. `experience` is the base amount before skill modifiers.
 export const RecipeExperienceBandSchema = Type.Object({
-  band: Type.Union([Type.Literal("firstFull"), Type.Literal("secondFull"), Type.Literal("half"), Type.Literal("none")]),
+  band: Type.Union([Type.Literal("full"), Type.Literal("half"), Type.Literal("none")]),
   from: count, to: optional(count), experience: count,
 }, { additionalProperties: false });
 export type RecipeExperienceBand = Static<typeof RecipeExperienceBandSchema>;
@@ -797,9 +796,9 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v15", npcs: "compendium.static-npc.v8", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
+  items: "compendium.static-item.v16", npcs: "compendium.static-npc.v8", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
-  classes: "compendium.static-class.v5", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v8", gatheringNodes: "compendium.static-gathering-node.v4",
+  classes: "compendium.static-class.v5", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v9", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -822,27 +821,27 @@ export const StaticSkillDocumentSchema = staticDocument("skills");
 export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v15": typeof StaticItemDocumentSchema; "compendium.static-npc.v8": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v16": typeof StaticItemDocumentSchema; "compendium.static-npc.v8": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v8": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v5": typeof StaticClassDocumentSchema;
-  "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v8": typeof StaticMechanicsDocumentSchema;
+  "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v9": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
-  "compendium.static-item.v15": StaticItemDocumentSchema, "compendium.static-npc.v8": StaticNpcDocumentSchema,
+  "compendium.static-item.v16": StaticItemDocumentSchema, "compendium.static-npc.v8": StaticNpcDocumentSchema,
   "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v8": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v5": StaticClassDocumentSchema,
-  "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v8": StaticMechanicsDocumentSchema,
+  "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v9": StaticMechanicsDocumentSchema,
   "compendium.static-gathering-node.v4": StaticGatheringNodeDocumentSchema,
 };
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v15"), resourceReference("compendium.static-npc.v8"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
+  resourceReference("compendium.static-item.v16"), resourceReference("compendium.static-npc.v8"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
-  resourceReference("compendium.static-class.v5"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v8"),
+  resourceReference("compendium.static-class.v5"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v9"),
   resourceReference("compendium.static-gathering-node.v4"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;

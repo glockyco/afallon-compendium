@@ -31,7 +31,7 @@ const rules: CatalogMechanicsRule[] = Object.entries(topicRules).flatMap(([topic
   ruleId, topic: topic as CatalogMechanicsRule["topic"], section: topic, ordinal, status: "verified" as const,
   phrase: "A recorded rule applies.", operands: {
     ...(ruleId === "recipe-rank-gate" ? { minimumRequiredLevel: 1 } : {}),
-    ...(ruleId === "recipe-experience-bands" ? { secondFullFromLevels: 10, halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 } : {}),
+    ...(ruleId === "recipe-experience-bands" ? { halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 } : {}),
     ...(ruleId === "node-yield-bonus" ? { chancePerLevel: 0.15 } : {}),
   }, links: [], sources: [{ method: "Game.Method", description: "Bounded decompilation", object: { sha256: "a".repeat(64), bytes: 1 } }], placements: ruleId === "kill-base-roll" ? [{ page: "npcs" as const, target: "experience" as const, scope: "all" as const }] : ruleId === "node-yield-bonus" ? [{ page: "gatheringNodes" as const, target: "how-it-works" as const, scope: "all" as const }] : [],
 })));
@@ -192,7 +192,7 @@ test("craft and gather guide computes the named product bands and node yield bon
   const guide = documents().get("mechanics:crafting-and-gathering") as CraftingAndGathering;
   expect(guide.example.craft).toEqual({ product: expect.objectContaining({ key: "items:1", variant: "crafting" }), skill: expect.objectContaining({ key: "skills:8" }), rank: {
     rank: 1, requiredLevel: 40, baseExperience: 7, bands: [
-      { band: "firstFull", from: 40, to: 49, experience: 7 }, { band: "secondFull", from: 50, to: 59, experience: 7 },
+      { band: "full", from: 40, to: 59, experience: 7 },
       { band: "half", from: 60, to: 74, experience: 4 }, { band: "none", from: 75, experience: 0 },
     ],
   } });

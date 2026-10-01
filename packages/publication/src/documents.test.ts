@@ -737,7 +737,7 @@ const craftFacts: CatalogFacts = { ...facts, entities: craftEntities,
   ],
   progression: { ...facts.progression, facts: [skillFact("skills:0", "Alchemy"), skillFact("skills:7", "Mining"), skillFact("skills:11", "Axes")] as never, mechanicsRules: [
     ruleRow("recipe-rank-gate", "crafting", { minimumRequiredLevel: 1 }, [], [{ page: "items", target: "crafting", scope: "all" }]),
-    ruleRow("recipe-experience-bands", "crafting-experience", { secondFullFromLevels: 10, halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 }),
+    ruleRow("recipe-experience-bands", "crafting-experience", { halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 }),
     ruleRow("recipe-experience-rounding", "crafting-experience", {}), ruleRow("weapon-skill-hit", "skill-experience", { hitExperience: 2 }), ruleRow("weapon-skills", "skill-experience", {}, [{ entityKey: "skills:11", label: "Axes" }]),
     ruleRow("recipe-item-tooltip", "crafting", {}, [], [{ page: "items", target: "teaches", scope: "all" }]),
     ruleRow("spawner-respawn", "node-availability", { minimumRespawnSeconds: 5 }, [], [{ page: "gatheringNodes", target: "how-it-works", scope: "spawned" }]),
@@ -794,7 +794,7 @@ test("recipe items teach one craft, and product pages show the full recipe", () 
 test("recipe ranks show the recorded gate and bands only when the skill resolves", () => {
   const { documents } = project(craftEntities, craftFacts, craftRelations);
   expect((documents.get("items:21") as PublicItem).crafting?.ranks).toEqual([{ rank: 1, requiredLevel: 40, baseExperience: 7, bands: [
-    { band: "firstFull", from: 40, to: 49, experience: 7 }, { band: "secondFull", from: 50, to: 59, experience: 7 }, { band: "half", from: 60, to: 74, experience: 4 }, { band: "none", from: 75, experience: 0 },
+    { band: "full", from: 40, to: 59, experience: 7 }, { band: "half", from: 60, to: 74, experience: 4 }, { band: "none", from: 75, experience: 0 },
   ] }]);
   expect((documents.get("items:23") as PublicItem).crafting?.ranks).toEqual([{ rank: 1, requiredLevel: 1, baseExperience: 0, bands: [] }]);
   expect((documents.get("items:24") as PublicItem).crafting?.ranks).toEqual([]);

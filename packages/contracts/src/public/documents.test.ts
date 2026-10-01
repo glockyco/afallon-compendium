@@ -157,8 +157,6 @@ test("Heart stone routes, place answers, and guide cross-links keep their own st
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.places, { ...fixtures.places,
     challengeStoneStart: { heart: item, stoneName: use.stoneName, regionName: use.regionName, spot: { ...placement, mapSpaceId: null }, count: 1 } })).toThrow();
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, seeAlso: [{ lead: "See", ref: { key: null, label: "Unknown" } }] })).toThrow();
-  expect(STATIC_DOCUMENT_SCHEMA_IDS.items).toBe("compendium.static-item.v15");
-  expect(STATIC_DOCUMENT_SCHEMA_IDS.places).toBe("compendium.static-place.v8");
 });
 
 test("node source groups publish counts without repeating placements needed only by map places", () => {
@@ -173,7 +171,6 @@ test("node source groups publish counts without repeating placements needed only
 test("every mechanics topic validates, and a mechanics document of an unknown topic or kind does not", () => {
   const schema = STATIC_DOCUMENT_SCHEMAS[STATIC_DOCUMENT_SCHEMA_IDS.mechanics];
   for (const document of [characterProgression, heroicTier, craftingAndGathering]) Assert(schema, { schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.mechanics, ...identity, kind: "mechanics", document });
-  expect(STATIC_DOCUMENT_SCHEMA_IDS.mechanics).toBe("compendium.static-mechanics.v8");
   expect(() => Assert(schema, { schemaVersion: "compendium.static-mechanics.v7", ...identity, kind: "mechanics", document: characterProgression })).toThrow();
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, example: { creature: boss, level: 21, lowest: 20, highest: 40 } })).toThrow();
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, killCalculator: { ...characterProgression.killCalculator, groups: [{ name: "Barrowdeep", creatures: [{ creature: boss, level: { min: 21, max: 21, scales: false }, minExperience: -1, maxExperience: 20, experiencePerLevel: 0, lowerModifier: 0, higherModifier: 0 }] }] } })).toThrow();

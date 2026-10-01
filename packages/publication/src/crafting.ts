@@ -16,14 +16,14 @@ function operand(rule: CatalogMechanicsRule, name: string): number {
 }
 
 /** The crafting gate and experience bands, relative to a rank's required level. */
-export interface CraftingRule { minimumRequiredLevel: number; secondFullFromLevels: number; halfFromLevels: number; noneFromLevels: number; halfMultiplier: number }
+export interface CraftingRule { minimumRequiredLevel: number; halfFromLevels: number; noneFromLevels: number; halfMultiplier: number }
 
 export function craftingRule(facts: CatalogFacts): CraftingRule {
   const gate = verifiedRule(facts, "recipe-rank-gate"), bands = verifiedRule(facts, "recipe-experience-bands");
   verifiedRule(facts, "recipe-experience-rounding");
   return {
-    minimumRequiredLevel: operand(gate, "minimumRequiredLevel"), secondFullFromLevels: operand(bands, "secondFullFromLevels"),
-    halfFromLevels: operand(bands, "halfFromLevels"), noneFromLevels: operand(bands, "noneFromLevels"), halfMultiplier: operand(bands, "halfMultiplier"),
+    minimumRequiredLevel: operand(gate, "minimumRequiredLevel"), halfFromLevels: operand(bands, "halfFromLevels"),
+    noneFromLevels: operand(bands, "noneFromLevels"), halfMultiplier: operand(bands, "halfMultiplier"),
   };
 }
 
@@ -43,8 +43,7 @@ export function recipeRank(rank: { rank: number; unlockCost: number; experience:
   if (!Number.isInteger(rank.experience) || rank.experience < 0) throw new Error(`Recipe rank ${rank.rank} has base experience ${rank.experience}.`);
   const requiredLevel = Math.max(Math.trunc(rank.unlockCost), rule.minimumRequiredLevel), base = rank.experience;
   const segments: Array<{ band: RecipeExperienceBand["band"]; from: number; to: number; experience: number }> = [
-    { band: "firstFull", from: requiredLevel, to: requiredLevel + rule.secondFullFromLevels - 1, experience: base },
-    { band: "secondFull", from: requiredLevel + rule.secondFullFromLevels, to: requiredLevel + rule.halfFromLevels - 1, experience: base },
+    { band: "full", from: requiredLevel, to: requiredLevel + rule.halfFromLevels - 1, experience: base },
     { band: "half", from: requiredLevel + rule.halfFromLevels, to: requiredLevel + rule.noneFromLevels - 1, experience: roundHalfEven(base * rule.halfMultiplier) },
     { band: "none", from: requiredLevel + rule.noneFromLevels, to: highestLevel, experience: 0 },
   ];

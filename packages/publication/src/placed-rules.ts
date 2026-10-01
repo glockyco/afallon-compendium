@@ -29,7 +29,7 @@ export function appearsOn(rule: CatalogMechanicsRule): string[] {
 }
 
 export function projectRule(rule: CatalogMechanicsRule, resolve: ReferenceResolver): MechanicsRule {
-  return { id: rule.ruleId, section: rule.section, status: rule.status, phrase: rule.phrase.replace("authored experience", "base experience").replace("was not verified", "is unknown"), operands: rule.operands, links: rule.links.map(resolve),
+  return { id: rule.ruleId, section: rule.section, status: rule.status, phrase: rule.phrase, operands: rule.operands, links: rule.links.map(resolve),
     sources: rule.sources.map((source) => ({ method: source.method, evidence: source.description })), appearsOn: appearsOn(rule) };
 }
 

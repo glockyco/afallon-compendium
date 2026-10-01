@@ -57,7 +57,7 @@ const craftingRule = (ruleId: string, operands: Record<string, number>, links: A
   sources: [{ method: "CraftingDifficulty.GetScaledExperience", description: "Bounded decompilation", object: { sha256: "a".repeat(64), bytes: 1 } }],
 });
 const craftingRules: CatalogMechanicsRule[] = [
-  craftingRule("recipe-rank-gate", { minimumRequiredLevel: 1 }), craftingRule("recipe-experience-bands", { secondFullFromLevels: 10, halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 }),
+  craftingRule("recipe-rank-gate", { minimumRequiredLevel: 1 }), craftingRule("recipe-experience-bands", { halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 }),
   craftingRule("recipe-experience-rounding", {}), craftingRule("weapon-skill-hit", { hitExperience: 2 }), craftingRule("weapon-skills", {}, [{ entityKey: "skills:11", label: "Axes" }]),
 ];
 const facts: CatalogFacts = {

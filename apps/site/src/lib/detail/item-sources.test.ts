@@ -73,12 +73,11 @@ test('timed dungeon reward distinguishes a guaranteed token from chance gear', (
   expect(gearRoute?.detail).toBe('Chance from boss reward bags');
 });
 
-test('published full bands merge into the short experience breakpoint sentence', () => {
+test('a craft names its base experience until each breakpoint', () => {
   const crafted = item([], []);
   crafted.crafting = { recipe: { key: 'recipes:1', name: 'Runeweave Regalia' }, skill: { key: 'skills:1', kind: 'skills', name: 'Tailoring', slug: 'tailoring' },
     learnedByDefault: false, materials: [], ranks: [{ rank: 1, requiredLevel: 150, baseExperience: 1200, bands: [
-      { band: 'firstFull', from: 150, to: 159, experience: 1200 },
-      { band: 'secondFull', from: 160, to: 169, experience: 1200 },
+      { band: 'full', from: 150, to: 169, experience: 1200 },
       { band: 'half', from: 170, to: 184, experience: 600 },
       { band: 'none', from: 185, experience: 0 },
     ] }], taughtBy: [] };
