@@ -57,7 +57,7 @@
               <p>The reward bag's extra loot comes from the same tables as the bosses' own drops, so each boss page lists its chances.</p>
             {/if}
             <ul>{#each document.dungeons as dungeon}<li><strong><EntityLink ref={dungeon.place} {registry} /></strong>:
-              {#if dungeon.bosses?.length}{#each dungeon.bosses as boss, index}{index ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}.{:else} Bosses unavailable.{/if}
+              {#if dungeon.bosses?.length}{#each dungeon.bosses as boss, index}{index ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}.{:else}{' '}Bosses unavailable.{/if}
             </li>{/each}</ul>
           </details>
         {/if}

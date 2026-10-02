@@ -96,7 +96,7 @@
         <thead><tr><th scope="col">Step</th><th scope="col">Experience</th></tr></thead>
         <tbody>{#each result.steps as step}<tr><th scope="row">{step.label}</th><td>{range(step.low, step.high)}</td></tr>{/each}</tbody>
       </table>
-      <p class="note">This leaves out world modifiers and some other game modifiers.{#if experienceBonus > 0} The game may round the final amount.{/if}</p>
+      <p class="note">This leaves out world modifiers and some other game modifiers.{#if experienceBonus > 0}{' '}The game may round the final amount.{/if}</p>
     </div>
   </div>
 </div>

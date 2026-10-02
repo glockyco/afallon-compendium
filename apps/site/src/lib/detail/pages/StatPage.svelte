@@ -47,7 +47,7 @@
       {#if document.bonuses.length}
         <ul class="bonuses">
           {#each document.bonuses as bonus}
-            <li><strong>{bonus.type}</strong>{#if bonus.damageType} · {bonus.damageType}{/if}
+            <li><strong>{bonus.type}</strong>{#if bonus.damageType}{' '}· {bonus.damageType}{/if}
               {#if bonus.stat}<span>Applies To <EntityLink ref={bonus.stat} {registry} /></span>{/if}
               {#if bonus.resistanceStat}<span>Recorded Resistance <EntityLink ref={bonus.resistanceStat} {registry} /></span>{/if}
               {#if bonus.penetrationStat}<span>Recorded Penetration <EntityLink ref={bonus.penetrationStat} {registry} /></span>{/if}
@@ -84,7 +84,7 @@
           {#each document.sources.talents.slice(0, 6) as row}<li><EntityLink ref={row.talent} {registry} /> <span class="context">in <EntityLink ref={row.class} {registry} /></span></li>{/each}
         </ul>{#if document.sources.talents.length > 6}<details><summary>Show {formatNumber(document.sources.talents.length - 6)} More</summary><ul class="source-list extra">{#each document.sources.talents.slice(6) as row}<li><EntityLink ref={row.talent} {registry} /> <span class="context">in <EntityLink ref={row.class} {registry} /></span></li>{/each}</ul></details>{/if}</div>{/if}
         {#if document.sources.classes.length}<div class="source-group"><h3>Class Stats <span>{formatNumber(document.sources.classes.length)}</span></h3><ul class="source-list">
-          {#each document.sources.classes as row}<li><EntityLink ref={row.class} {registry} /> <span class="context">{#if row.starting !== 0}{row.starting > 0 ? '+' : ''}{formatNumber(row.starting)} Starting{/if}{#if row.starting !== 0 && row.growth !== 0}, {/if}{#if row.growth !== 0}{row.growth > 0 ? '+' : ''}{formatNumber(row.growth)} Per Level{/if}</span></li>{/each}
+          {#each document.sources.classes as row}<li><EntityLink ref={row.class} {registry} /> <span class="context">{#if row.starting !== 0}{row.starting > 0 ? '+' : ''}{formatNumber(row.starting)} Starting{/if}{#if row.starting !== 0 && row.growth !== 0},{' '}{/if}{#if row.growth !== 0}{row.growth > 0 ? '+' : ''}{formatNumber(row.growth)} Per Level{/if}</span></li>{/each}
         </ul></div>{/if}
       </Section>
     </Sections>

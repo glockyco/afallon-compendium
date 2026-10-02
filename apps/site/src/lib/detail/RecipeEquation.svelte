@@ -17,7 +17,7 @@
   {#if product}<span class="arrow" aria-label="Makes">→</span><div class="product"><EntityLink ref={product} {registry} />{#if yieldCount > 1}<span>×{yieldCount}</span>{/if}</div>{/if}
 </div>
 {#if skill || requiredLevel !== undefined || station}
-  <p class="recipe-meta">{#if skill}<EntityLink ref={skill} {registry} />{/if}{#if requiredLevel !== undefined}{#if skill}{' '}{/if}Level {requiredLevel}{/if}{#if station} · {station}{/if}</p>
+  <p class="recipe-meta">{#if skill}<EntityLink ref={skill} {registry} />{/if}{#if requiredLevel !== undefined}{#if skill}{' '}{/if}Level {requiredLevel}{/if}{#if station}{' '}· {station}{/if}</p>
 {/if}
 
 <style>
