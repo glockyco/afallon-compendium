@@ -9,11 +9,13 @@
   export let rules: MechanicsRule[] = section.rules;
   /** One sentence beside the heading that states a value that the whole section shares. */
   export let line: string | undefined = undefined;
+  /** The heading level, 3 when the section sits inside a titled part of its page. */
+  export let level: 2 | 3 = 2;
   $: verified = rules.filter((rule) => rule.status === 'verified');
   $: unknown = rules.filter((rule) => rule.status === 'unknown');
 </script>
 
-<Section id={section.id} title={section.title} {line}>
+<Section id={section.id} title={section.title} {line} {level}>
   <p class="lead">{section.lead}<slot name="lead" /></p>
   <slot name="top" />
   {#each verified as rule (rule.id)}<p class="rule"><RulePhrase {rule} {registry} /></p>{/each}

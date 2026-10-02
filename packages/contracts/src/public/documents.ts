@@ -22,7 +22,7 @@ const PAGE_DOCUMENTS = {
   abilities: { schema: () => PublicAbilitySchema, schemaId: "compendium.static-ability.v6" },
   classes: { schema: () => PublicClassSchema, schemaId: "compendium.static-class.v8" },
   skills: { schema: () => PublicSkillSchema, schemaId: "compendium.static-skill.v6" },
-  mechanics: { schema: () => PublicMechanicsSchema, schemaId: "compendium.static-mechanics.v17" },
+  mechanics: { schema: () => PublicMechanicsSchema, schemaId: "compendium.static-mechanics.v18" },
   gatheringNodes: { schema: () => PublicGatheringNodeSchema, schemaId: "compendium.static-gathering-node.v6" },
   gearSets: { schema: () => PublicGearSetSchema, schemaId: "compendium.static-gear-set.v1" },
   currencies: { schema: () => PublicCurrencySchema, schemaId: "compendium.static-currency.v1" },
@@ -916,8 +916,13 @@ export const EnchantingItemRowSchema = Type.Object({
   item: EntityRefSchema, fits: Type.Array(text), stats: Type.Array(StatRowSchema),
   crafting: optional(RefSchema), vendors: refs, drops: refs,
 }, { additionalProperties: false });
+// Where each activity starts: the crafting skills with their recipe count and the stations that make their recipes, and
+// the gathering skills with their node count.
+export const CraftingSkillRowSchema = Type.Object({ skill: EntityRefSchema, recipes: count, stations: Type.Array(EntityRefSchema) }, { additionalProperties: false });
+export const GatheringSkillRowSchema = Type.Object({ skill: EntityRefSchema, nodes: count }, { additionalProperties: false });
 export const CraftingAndGatheringSchema = Type.Object({
   ...documentBase, topic: Type.Literal("crafting-and-gathering"), ...guide,
+  craftingSkills: Type.Array(CraftingSkillRowSchema), gatheringSkills: Type.Array(GatheringSkillRowSchema),
   enchantingItems: Type.Array(EnchantingItemRowSchema),
   spawnerExamples: Type.Array(SpawnerExampleSchema), attunements: Type.Array(AttunementSchema), example: CraftingExampleSchema,
 }, { additionalProperties: false });

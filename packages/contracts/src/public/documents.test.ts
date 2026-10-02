@@ -101,6 +101,7 @@ const gatheringNode: PublicGatheringNode = {
 };
 const craftingAndGathering: CraftingAndGathering = {
   ...base, ref: { key: "mechanics:crafting-and-gathering", kind: "mechanics", name: "Crafting and Gathering", slug: "crafting-and-gathering" }, topic: "crafting-and-gathering",
+  craftingSkills: [], gatheringSkills: [{ skill: { key: "skills:2", kind: "skills", name: "Mining", slug: "mining" }, nodes: 1 }],
   enchantingItems: [],
   spawnerExamples: [{ ...spawnerTiming, options: [{ node: vein, lowSkillWeight: 70, highSkillWeight: 24, teaserWeight: 0 }], spawners: 3, oddsVerified: true }], attunements: [{ item, effect: "Silver Attunement", boost: 10, nodes: [vein], minutes: 15 }],
   overview: "Crafting makes items.", sections: [{ id: "crafting-experience", title: "Crafting experience", lead: "A rank sets its base experience.", rules: [{ ...rule, id: "recipe-experience-bands", phrase: "Half experience from +{halfFromLevels} levels.", operands: { halfFromLevels: 20 } }] }],

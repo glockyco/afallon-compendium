@@ -1,5 +1,5 @@
 import { HEROIC_TIER_KEY, MECHANICS_TOPIC_DETAILS, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { AdventurerGear, AdventurerRosterRow, AdventurersGuide, CombatGuide, FactionsGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicFaction, PublicItem, PublicLevel, PublicMechanics, PublicNpc, PublicQuest, Ref, TalentPoints, TravelGuide, WorldQuestsGuide } from "@afallon/contracts/public";
+import { isEntityRef, type AdventurerGear, type AdventurerRosterRow, type AdventurersGuide, type CombatGuide, type FactionsGuide, type ChallengeStoneUse, type CharacterProgression, type CorruptionGuide, type CraftingAndGathering, type EntityRef, type ExperienceSources, type HeroicTier, type LootGuide, type PlacementRef, type PublicDocument, type PublicFaction, type PublicItem, type PublicLevel, type PublicMechanics, type PublicNpc, type PublicQuest, type PublicSkill, type Ref, type TalentPoints, type TravelGuide, type WorldQuestsGuide } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
 import { flightNetworks } from "./flight-network";
@@ -266,9 +266,18 @@ function craftingAndGathering(facts: CatalogFacts, published: ReadonlySet<string
       ...(item.crafting?.skill ? { crafting: item.crafting.skill } : {}),
       vendors: item.soldBy.map((row) => row.counterpart), drops: item.droppedBy.map((row) => row.counterpart) }];
   }).sort((a, b) => a.item.name.localeCompare(b.item.name));
+  // A skill page lists its recipes and its gathering nodes, so the published skill pages name where each activity starts.
+  const skills = [...entityDocuments.values()].flatMap((document) => document.ref.kind === "skills" ? [document as PublicSkill] : [])
+    .sort((a, b) => a.ref.name.localeCompare(b.ref.name));
+  const craftingSkills = skills.filter((skill) => skill.recipes.length).map((skill) => ({
+    skill: skill.ref, recipes: skill.recipes.length,
+    stations: [...new Map(skill.recipes.flatMap((row) => row.station && isEntityRef(row.station) ? [[row.station.key, row.station] as const] : [])).values()],
+  }));
+  const gatheringSkills = skills.filter((skill) => skill.gatheringNodes.length).map((skill) => ({ skill: skill.ref, nodes: skill.gatheringNodes.length }));
   return {
     ref: topicRef("crafting-and-gathering"), description: MECHANICS_TOPIC_DETAILS["crafting-and-gathering"].description, art: {}, topic: "crafting-and-gathering",
-    ...guide(facts, "crafting-and-gathering", resolve), spawnerExamples: spawnerExamples(facts.gatheringNodes, resolve, new Map(), verifiedOdds(facts)), attunements: attunements(facts, resolve),
+    ...guide(facts, "crafting-and-gathering", resolve), craftingSkills, gatheringSkills,
+    spawnerExamples: spawnerExamples(facts.gatheringNodes, resolve, new Map(), verifiedOdds(facts)), attunements: attunements(facts, resolve),
     enchantingItems, example: craftingExample(facts, published, conditions, resolve),
   };
 }

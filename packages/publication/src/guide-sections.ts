@@ -34,7 +34,7 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
   "crafting-and-gathering": {
     overview: "Crafting turns materials into new items, and gathering collects items from nodes in the world. Both train skills.",
     sections: [
-      { id: "crafting", title: "Crafting", lead: "A recipe can have several ranks, each with its own materials and products." },
+      { id: "crafting", title: "Recipes", lead: "A recipe can have several ranks, each with its own materials and products." },
       { id: "enchanting", title: "Enchanting", lead: "Apply an enchanting item to matching gear to add its stats." },
       { id: "crafting-experience", title: "Crafting experience", lead: "Crafting is how you level up a crafting skill." },
       { id: "node-selection", title: "Node selection", lead: "Many gathering nodes appear at spawners, which can produce a different node each time. The tables show the most common spawners for each gathering skill." },
