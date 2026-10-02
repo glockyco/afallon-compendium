@@ -62,3 +62,13 @@ export function wedgePath(angle: number, width: number, inner: number, outer: nu
   // Game angles turn counterclockwise, which is clockwise in drawing coordinates, so the outer arc sweeps with flag 0.
   return `M ${at(inner, start)} L ${at(outer, start)} A ${outer} ${outer} 0 ${large} 0 ${at(outer, end)} L ${at(inner, end)} A ${inner} ${inner} 0 ${large} 1 ${at(inner, start)} Z`;
 }
+
+/** A talent and every talent that it needs, directly or through other talents, by the web's lines from requirement to talent. */
+export function requirementChain(edges: ReadonlyArray<{ from: string; to: string }>, talent: string): Set<string> {
+  const chain = new Set([talent]), pending = [talent];
+  while (pending.length) {
+    const next = pending.pop()!;
+    for (const edge of edges) if (edge.to === next && !chain.has(edge.from)) { chain.add(edge.from); pending.push(edge.from); }
+  }
+  return chain;
+}

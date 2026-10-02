@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { fitView, LABEL_PX, labelArc, panBy, zoomAt } from './talent-web-view';
+import { fitView, LABEL_PX, labelArc, panBy, requirementChain, zoomAt } from './talent-web-view';
 
 test('the fitted view leaves a line of text around the circle inside the box', () => {
   for (const [width, height] of [[740, 740], [358, 358], [900, 600]] as const) {
@@ -32,4 +32,11 @@ test('zooming keeps the point under the pointer in place and stays within the zo
 
 test('dragging moves the drawing with the pointer', () => {
   expect(panBy({ cx: 0, cy: 0, zoom: 0.5 }, 100, -50)).toEqual({ cx: -200, cy: 100, zoom: 0.5 });
+});
+
+test("a talent's requirement chain reaches back through every talent it needs and no sibling branch", () => {
+  // root > a > b > selected, root > side, and selected > after. A line back into the chain does not loop forever.
+  const edges = [['root', 'a'], ['a', 'b'], ['b', 'selected'], ['root', 'side'], ['selected', 'after'], ['after', 'a']].map(([from, to]) => ({ from: from!, to: to! }));
+  expect([...requirementChain(edges, 'selected')].sort()).toEqual(['a', 'after', 'b', 'root', 'selected']);
+  expect([...requirementChain(edges, 'side')].sort()).toEqual(['root', 'side']);
 });

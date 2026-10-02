@@ -9,7 +9,7 @@
   import TalentEffect from '../../TalentEffect.svelte';
   import { detailNavigation } from '../detail-navigation';
   import { fragmentId, withTab } from '../tab-state';
-  import { drawPoint, fitView, LABEL_PX, labelArc, panBy, viewBox, wedgePath, zoomAt, type WebView } from '../talent-web-view';
+  import { drawPoint, fitView, LABEL_PX, labelArc, panBy, requirementChain, viewBox, wedgePath, zoomAt, type WebView } from '../talent-web-view';
 
   /** A class's talents as the game's talent screen lays them out, with the trees whose rows the nodes show. */
   export let web: TalentWeb;
@@ -30,9 +30,11 @@
   $: anchor = $location ? fragmentId($location.hash) : '';
   $: selected = talents.get(anchor);
   $: markedTree = treesByAnchor.get(anchor)?.anchor ?? selected?.tree.anchor;
-  $: requires = new Set(web.edges.filter((edge) => edge.to === anchor).map((edge) => edge.from));
+  // A selected talent lights up every talent that it needs, back to its tree's first tier, and the talents that it unlocks.
+  $: chain = selected ? requirementChain(web.edges, anchor) : new Set<string>();
   $: unlocks = web.edges.filter((edge) => edge.from === anchor).flatMap((edge) => talents.get(edge.to) ?? []);
-  $: related = new Set([anchor, ...requires, ...unlocks.map((entry) => entry.row.anchor)]);
+  $: related = new Set([...chain, ...unlocks.map((entry) => entry.row.anchor)]);
+  $: lit = (edge: { from: string; to: string }) => chain.has(edge.to) && chain.has(edge.from) || edge.from === anchor;
   // The list view of this page with the same talent, keeping the reader's other choices in the address.
   const listAddress = (url: URL, talent: string) => { const next = withTab(url, 'view', 'list', false); next.hash = talent; return `${next.search}${next.hash}`; };
   const iconOf = (row: TalentRow): ArtRef | undefined => (row.ability && 'icon' in row.ability ? row.ability.icon : undefined) ?? row.icon;
@@ -179,7 +181,7 @@
           {#if tree}<a href={`#${wedge.tree}`} class="tree-name"><text id={wedge.tree} style:font-size={`${LABEL_PX / view.zoom}px`} class:marked={markedTree === wedge.tree}><textPath href={`#talent-web-label-${wedge.tree}`} startOffset="50%">{tree.name}</textPath></text></a>{/if}
         {/each}
         {#each web.edges as edge (`${edge.from}>${edge.to}`)}
-          <polyline class="edge" class:related={selected && (edge.from === anchor || edge.to === anchor)} class:dim={selected && edge.from !== anchor && edge.to !== anchor} points={edge.points.map(([x, y]) => drawPoint(x, y).join(',')).join(' ')} />
+          <polyline class="edge" class:related={selected && lit(edge)} class:dim={selected && !lit(edge)} points={edge.points.map(([x, y]) => drawPoint(x, y).join(',')).join(' ')} />
         {/each}
         {#each web.nodes as node (node.talent)}
           {@const entry = talents.get(node.talent)}
