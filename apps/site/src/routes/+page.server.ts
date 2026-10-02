@@ -5,7 +5,8 @@ import type { ArtRef, EntityRef } from '@afallon/contracts/public';
 
 export interface HubWorld { ref: EntityRef; range: { min: number; max: number } | null; artwork: ArtRef | null }
 export interface HubDungeon { ref: EntityRef; min: number; max: number; artwork: ArtRef | null; bosses: Array<{ ref: EntityRef; portrait: ArtRef | null }> }
-export interface HubBand { min: number; max: number; places: EntityRef[] }
+/** A place outside the dungeons, with the counts that say what a reader finds there. */
+export interface HubPlace { ref: EntityRef; min: number; max: number; artwork: ArtRef | null; creatures: number; quests: number }
 export interface HubGuide { ref: EntityRef; description: string | null }
 export interface HubItemGroup { type: string; label: string; count: number; icon: ArtRef | null; rarity: string | null }
 
@@ -46,14 +47,12 @@ export const load: PageServerLoad = async ({ parent }) => {
     bosses: await Promise.all(place.bosses.flatMap((boss) => boss.key === null ? [] : [boss]).map(async (boss) => ({ ref: boss, portrait: await portrait(boss) }))),
   })));
 
-  // Zones with the same recorded range form one band, in the order of their ranges.
-  const bands: HubBand[] = [];
-  for (const { place, min, max } of ranged) {
-    if (place.facts.placeType === 'dungeon') continue;
-    const band = bands.find((candidate) => candidate.min === min && candidate.max === max);
-    if (band) band.places.push(place.ref);
-    else bands.push({ min, max, places: [place.ref] });
-  }
+  // Every other place with a level range, in the order of its range, with its creatures and the quests that start or
+  // have objectives there.
+  const placeTiles: HubPlace[] = ranged.filter(({ place }) => place.facts.placeType !== 'dungeon').map(({ place, min, max }) => ({
+    ref: place.ref, min, max, artwork: place.art.artwork ?? null, creatures: place.creatures.length,
+    quests: new Set([...place.quests, ...place.questObjectives].flatMap((quest) => quest.key === null ? [] : [quest.key])).size,
+  }));
 
   const classRows = published.has('classes') ? (await loader.loadList('classes')).rows : [];
   const skillRows = published.has('skills') ? (await loader.loadList('skills')).rows : [];
@@ -85,7 +84,7 @@ export const load: PageServerLoad = async ({ parent }) => {
     guides,
     world,
     dungeons,
-    bands,
+    placeTiles,
     // The level bars share one scale, from level 1 to the highest recorded level.
     levelScale: Math.max(1, ...ranged.map(({ max }) => max), world?.range?.max ?? 1),
     classes: classRows.map((row) => ({ ref: row.ref, talentTrees: count(row.values.talentTrees), abilities: count(row.values.abilities) })),

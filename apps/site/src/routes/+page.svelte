@@ -8,6 +8,8 @@
   import { kindGlyphSvg } from '$lib/kind-icon';
   import { markerRegistry, type MarkerId } from '$lib/map/marker-registry';
   import PageShell from '$lib/PageShell.svelte';
+  import { shownRowCount } from '$lib/detail/relation-table';
+  import { CHARACTER_LEVEL, clearReaderLevel, readerLevels, setReaderLevel } from '$lib/reader-levels';
   import type { PageData } from './$types';
   export let data: PageData;
 
@@ -30,8 +32,26 @@
   $: browse = data.registry.filter((entry) => entry.list && entry.kind !== 'mechanics').map((entry) => ({ label: entry.plural, href: `${base}/${entry.route}/`, count: counts.get(entry.kind) ?? 0, glyph: kindGlyphSvg(entry.icon) }));
   // A tile without art shows the glyph of its kind in the same box, so the tiles stay aligned.
   $: kindGlyph = (kind: string) => kindGlyphSvg(data.registry.find((entry) => entry.kind === kind)?.icon) ?? '';
-  // A level bar marks a range on one scale, from level 1 to the highest recorded level.
-  $: barPercent = (level: number) => ((level - 1) / Math.max(1, data.levelScale - 1)) * 100;
+  // The places follow their level ranges. With the reader's character level, which the mechanics calculators share, the
+  // places whose range holds it come first and carry a mark. The sort is stable, so each group keeps the range order.
+  type HubPlace = (typeof data.placeTiles)[number];
+  let showAllPlaces = false;
+  $: yourLevel = $readerLevels[CHARACTER_LEVEL];
+  $: fits = (place: HubPlace) => yourLevel !== undefined && place.min <= yourLevel && yourLevel <= place.max;
+  // A place with creatures or quests comes before one that records neither, within the same group.
+  $: orderedPlaces = [...data.placeTiles].sort((left, right) => Number(!fits(left)) - Number(!fits(right))
+    || Number(!(left.creatures || left.quests)) - Number(!(right.creatures || right.quests)));
+  $: shownPlaces = orderedPlaces.slice(0, shownRowCount(orderedPlaces.length, showAllPlaces));
+  const placeContents = (place: HubPlace) => [
+    place.creatures ? countText(place.creatures, 'creature', 'creatures') : '', place.quests ? countText(place.quests, 'quest', 'quests') : '',
+  ].filter(Boolean).join(' · ');
+  // The places follow each keystroke. An empty field forgets the level, and a value outside the levels is ignored.
+  function chooseLevel(event: Event): void {
+    const text = (event.currentTarget as HTMLInputElement).value.trim();
+    if (text === '') { clearReaderLevel(CHARACTER_LEVEL); return; }
+    const value = Number(text);
+    if (Number.isInteger(value) && value >= 1 && value <= data.levelScale) setReaderLevel(CHARACTER_LEVEL, value);
+  }
 </script>
 
 <svelte:head>
@@ -105,23 +125,29 @@
     </section>
   {/if}
 
-  {#if data.bands.length}
-    <section class="section" aria-labelledby="hub-zones">
+  {#if data.placeTiles.length}
+    <section class="section" aria-labelledby="hub-places">
       <div class="section-head">
-        <h2 id="hub-zones">Zones by level range</h2>
-        {#if listHref('places')}<a class="section-link" href={listHref('places')}>All {countText(counts.get('places') ?? 0, 'place', 'places')}</a>{/if}
+        <h2 id="hub-places">Places by level</h2>
+        <div class="section-links">
+          <label class="your-level">Your level <input type="number" inputmode="numeric" min="1" max={data.levelScale} value={yourLevel ?? ''} placeholder="Any" on:input={chooseLevel} /></label>
+          {#if listHref('places')}<a class="section-link" href={listHref('places')}>All {countText(counts.get('places') ?? 0, 'place', 'places')}</a>{/if}
+        </div>
       </div>
-      <div class="bands">
-        {#each data.bands as band (`${band.min}-${band.max}`)}
-          <div class="band">
-            <h3><span class="band-label">Levels</span><span class="band-range">{band.min}–{band.max}</span></h3>
-            <div class="range-bar" aria-hidden="true"><span style:left={`${barPercent(band.min)}%`} style:right={`${100 - barPercent(band.max)}%`}></span></div>
-            <ul>
-              {#each band.places as place (place.key)}<li><a href={pageHref(place)}>{place.name}</a></li>{/each}
-            </ul>
-          </div>
+      <ul class="places">
+        {#each shownPlaces as place (place.ref.key)}
+          <li class="place">
+            <div class="place-art">
+              {#if place.artwork}<img src={artUrl(place.artwork)} width={place.artwork.width} height={place.artwork.height} alt="" loading="lazy" decoding="async" />{/if}
+              <span class="levels">Levels {place.min}–{place.max}</span>
+              {#if fits(place)}<span class="fits">Your level</span>{/if}
+            </div>
+            <h3><a class="place-link" href={pageHref(place.ref)}>{place.ref.name}</a></h3>
+            {#if placeContents(place)}<p class="place-meta">{placeContents(place)}</p>{/if}
+          </li>
         {/each}
-      </div>
+      </ul>
+      {#if shownPlaces.length < orderedPlaces.length}<button type="button" class="c-action show-more" on:click={() => (showAllPlaces = true)}>Show {orderedPlaces.length - shownPlaces.length} more</button>{/if}
     </section>
   {/if}
 
@@ -256,16 +282,25 @@
   .item-group img, .item-art { flex: none; width: 3.25rem; height: 3.25rem; border: 1px solid var(--c-frame); border-radius: 10px; background: var(--c-surface-sunken); box-shadow: 0 6px 16px var(--c-shadow); }
   .item-group img[data-rarity] { border-color: color-mix(in srgb, var(--c-rarity) 70%, transparent); }
   .item-group .tile-name { font-size: var(--c-text-lead); }
-  .bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 1rem; }
-  .band { padding: 1.05rem 1.1rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  .band h3 { display: grid; gap: .2rem; margin: 0; }
-  .band-label { color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 700; }
-  .band-range { color: var(--c-accent-strong); font: 600 2.1rem/1 var(--c-serif); }
-  .range-bar { position: relative; height: 4px; margin: .8rem 0 .85rem; border-radius: 2px; background: var(--c-surface-3); }
-  .range-bar span { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: linear-gradient(90deg, var(--c-accent-muted), var(--c-accent-strong)); }
-  .band li + li { border-top: 1px solid var(--c-line-soft); }
-  .band a { display: block; min-height: 1.5rem; padding: .42rem 0; color: var(--c-text); font-size: var(--c-text-body); line-height: 1.3; text-decoration: none; }
-  .band a:hover { color: var(--c-accent-strong); }
+  /* Place tiles share the look of the dungeon tiles: artwork with its level range, then the name and what is there. */
+  .places { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+  .place { position: relative; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); transition: border-color .15s ease; }
+  .place:hover { border-color: var(--c-frame-hover); }
+  .place:has(.place-link:focus-visible) { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  .place-art { position: relative; aspect-ratio: 16 / 9; background: var(--c-surface-deep); }
+  .place-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .place-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, var(--c-surface-1) 0%, transparent 32%); }
+  .fits { position: absolute; z-index: 1; top: .6rem; right: .6rem; padding: .22rem .55rem; border-radius: 999px; background: var(--c-accent); color: var(--c-surface-deep); font-size: var(--c-text-label); font-weight: 700; }
+  .place h3 { margin: .6rem .9rem .2rem; font: 600 var(--c-text-lead)/1.25 var(--c-serif); }
+  .place-link { color: var(--c-text-strong); text-decoration: none; }
+  .place-link:focus-visible { outline: none; }
+  .place-link::after { content: ''; position: absolute; inset: 0; z-index: 1; }
+  .place-meta { margin: 0 .9rem .9rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .place h3:last-child { margin-bottom: .9rem; }
+  .show-more { margin-top: 1rem; }
+  .your-level { display: inline-flex; align-items: center; gap: .5rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .your-level input { width: 4.25rem; min-height: 2rem; padding: .25rem .5rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-0); color: var(--c-text-strong); font-variant-numeric: tabular-nums; }
+  .your-level input:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
 
   .classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1rem; }
   .class-tile { display: grid; justify-items: center; gap: .3rem; height: 100%; padding: 1.4rem .8rem 1.15rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: radial-gradient(120% 90% at 50% 0%, var(--c-surface-3) 0%, var(--c-surface-1) 60%); color: var(--c-text); text-align: center; text-decoration: none; transition: border-color .15s ease; }
@@ -303,23 +338,24 @@
   .browse-copy { display: flex; flex: 1; align-items: baseline; justify-content: space-between; gap: .5rem; min-width: 0; }
   .browse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--c-text-body); }
 
-  @media (max-width: 1100px) { .dungeons { grid-template-columns: repeat(3, minmax(0, 1fr)); } .guides { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 1100px) { .dungeons, .places { grid-template-columns: repeat(3, minmax(0, 1fr)); } .guides { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
   @media (max-width: 760px) {
     .hero { min-height: 0; }
     .hero::before { background: linear-gradient(0deg, var(--c-surface-0) 0%, color-mix(in srgb, var(--c-surface-deep) 80%, transparent) 45%, color-mix(in srgb, var(--c-surface-deep) 40%, transparent) 100%); }
     .hero-inner { padding: 8rem 1rem 2rem; }
     h1 { font-size: 2.4rem; }
-    .dungeons { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+    .dungeons, .places { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
     .section { margin-top: 2.5rem; }
   }
 
-  /* On a phone, bands stack so place names stay on one line, and classes become rows with the icon beside the name. */
+  /* On a phone, classes become rows with the icon beside the name. */
   @media (max-width: 640px) {
     .hero-caption { top: .85rem; right: 1rem; bottom: auto; }
     .dungeon h3 { margin-inline: .7rem; font-size: var(--c-text-prose); }
     .bosses { margin-inline: .7rem; }
-    .bands { grid-template-columns: minmax(0, 1fr); }
+    .place h3 { margin-inline: .7rem; font-size: var(--c-text-prose); }
+    .place-meta { margin-inline: .7rem; }
     .item-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
     .item-group { flex-direction: column; gap: .55rem; padding: .9rem .6rem .8rem; text-align: center; }
     .item-group img, .item-art { width: 3rem; height: 3rem; }
@@ -331,6 +367,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .dungeon, .class-tile, .item-group, .guide-tile { transition: none; }
+    .dungeon, .place, .class-tile, .item-group, .guide-tile { transition: none; }
   }
 </style>

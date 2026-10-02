@@ -39,3 +39,8 @@ if (browser) {
 export function setReaderLevel(id: string, level: number): void {
   readerLevels.update((levels) => ({ ...levels, [id]: level }));
 }
+
+/** Forgets the saved level of a reader value, so pages fall back to their own starting level. */
+export function clearReaderLevel(id: string): void {
+  readerLevels.update((levels) => Object.fromEntries(Object.entries(levels).filter(([key]) => key !== id)));
+}
