@@ -7,6 +7,7 @@
   import FactionTooltip from './FactionTooltip.svelte';
   import GatheringNodeTooltip from './GatheringNodeTooltip.svelte';
   import GearSetTooltip from './GearSetTooltip.svelte';
+  import GuideTooltip from './GuideTooltip.svelte';
   import ItemTooltip from './ItemTooltip.svelte';
   import NpcTooltip from './NpcTooltip.svelte';
   import PlaceTooltip from './PlaceTooltip.svelte';
@@ -44,6 +45,7 @@
 {:else if page.kind === 'classes'}<ClassTooltip document={page.document} {variant} />
 {:else if page.kind === 'skills'}<SkillTooltip document={page.document} />
 {:else if page.kind === 'gatheringNodes'}<GatheringNodeTooltip document={page.document} />
+{:else if page.kind === 'mechanics'}<GuideTooltip document={page.document} />
 {:else if page.kind === 'gearSets'}<GearSetTooltip document={page.document} />
 {:else if page.kind === 'currencies'}<CurrencyTooltip document={page.document} />
 {:else if page.kind === 'craftingStations'}<CraftingStationTooltip document={page.document} />
