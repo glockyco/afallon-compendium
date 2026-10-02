@@ -66,9 +66,9 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     overview: "Adventurers appear in the world, take jobs while they are away, and can join your party through the Friends panel or the Dungeon Finder.",
     sections: [
       { id: "meeting-and-inviting", title: "Meeting and inviting", lead: "Find adventurers in the Friends panel, then invite them from your saved friends." },
+      { id: "dungeon-finder-parties", title: "Dungeon Finder parties", lead: "The Dungeon Finder looks for adventurers who can complete your party." },
       { id: "jobs-and-progress", title: "Jobs and progress", lead: "Adventurers work on their own progress while they are away." },
       { id: "gear-upgrades", title: "Gear upgrades", lead: "Adventurers improve their own equipment from a shared list of reward gear, and some also from a gear kit of their own." },
-      { id: "dungeon-finder-parties", title: "Dungeon Finder parties", lead: "The Dungeon Finder looks for adventurers who can complete your party." },
     ],
   },
 };

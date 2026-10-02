@@ -126,11 +126,11 @@ test("Adventurers guide places job and party rules in their sections and binds j
     progression: { ...facts.progression, mechanicsRules: [...facts.progression.mechanicsRules, ...adventurerRules] } };
   const guide = documents(source).get("mechanics:adventurers") as AdventurersGuide;
   expect(guide.sections.map((section) => [section.id, section.rules.map((rule) => rule.id)])).toEqual([
-    ["meeting-and-inviting", []], ["jobs-and-progress", ["adventurer-job-duration"]],
-    ["gear-upgrades", ["adventurer-gear-chance"]], ["dungeon-finder-parties", ["adventurer-finder-roles"]],
+    ["meeting-and-inviting", []], ["dungeon-finder-parties", ["adventurer-finder-roles"]],
+    ["jobs-and-progress", ["adventurer-job-duration"]], ["gear-upgrades", ["adventurer-gear-chance"]],
   ]);
-  expect(guide.sections[1]?.rules[0]?.operands).toEqual({ minimumJobSeconds: 180, maximumJobSeconds: 360 });
-  expect(guide.sections[2]?.rules[0]?.operands).toEqual({ equipmentRewardPercent: 40 });
+  expect(guide.sections[2]?.rules[0]?.operands).toEqual({ minimumJobSeconds: 180, maximumJobSeconds: 360 });
+  expect(guide.sections[3]?.rules[0]?.operands).toEqual({ equipmentRewardPercent: 40 });
   expect(() => documents({ ...source, adventurerWorld: { ...source.adventurerWorld!, minimumJobSeconds: 120 } })).toThrow("disagrees with published minimumJobSeconds");
 });
 
