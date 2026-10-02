@@ -47,7 +47,8 @@
     ...(facts.level?.min ? [{ label: 'Level', value: npcLevelText(facts.level) }] : []),
     ...(combat && health ? [{ label: 'Health', value: formatNumber(health.amount) }] : []),
     ...(combat && facts.experience && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? [{ label: 'Experience', value: killExperienceText(facts.experience, facts.level), note: 'Per kill', ...(experienceGuide ? { guide: experienceGuide } : {}) }] : []),
-    ...(combat && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: durationRangeText(facts.respawn.min, facts.respawn.max) }] : []),
+    // A world adventurer that dies returns through its scene's spawn pool, not after its NPC record's respawn time.
+    ...(combat && !document.adventurerGear && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: durationRangeText(facts.respawn.min, facts.respawn.max) }] : []),
   ] satisfies Stat[];
   // An adventurer's gear preference: the armor type and weapon types it takes, and the stat it values most in gear.
   $: preference = facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length || facts.lootSpecialization.stat) ? facts.lootSpecialization : undefined;
@@ -58,7 +59,7 @@
   // Kill experience at the reader's character level: the creature spawns at the level nearest to the reader's within its
   // range, and the level difference changes the roll. Followers, Heroic, and bonuses are left to the kill calculator.
   let characterLevel = 1;
-  $: kill = combat && facts.experience?.levelDifference && facts.experience.levelCap && facts.level ? facts.experience : undefined;
+  $: kill = combat && facts.experience?.levelDifference && facts.experience.levelCap && facts.level && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? facts.experience : undefined;
   $: creatureLevel = kill && facts.level ? nearestCreatureLevel(facts.level, characterLevel, kill.levelCap!) : undefined;
   $: award = kill && creatureLevel !== undefined ? calculateKillAward({ minExperience: kill.min, maxExperience: kill.max, experiencePerLevel: kill.perLevel,
     higherModifier: kill.levelDifference!.higher, lowerModifier: kill.levelDifference!.lower }, creatureLevel, characterLevel, undefined, 0, 0).award : undefined;
