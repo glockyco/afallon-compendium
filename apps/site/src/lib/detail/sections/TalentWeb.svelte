@@ -37,8 +37,11 @@
   const listAddress = (url: URL, talent: string) => { const next = withTab(url, 'view', 'list', false); next.hash = talent; return `${next.search}${next.hash}`; };
   const iconOf = (row: TalentRow): ArtRef | undefined => (row.ability && 'icon' in row.ability ? row.ability.icon : undefined) ?? row.icon;
 
-  let width = 0;
-  let height = 0;
+  // The server renders the web at this size, so the page holds every tree and talent anchor before scripts run. The
+  // browser then measures the box and fits the web to it.
+  const SERVER_BOX = 720;
+  let width = SERVER_BOX;
+  let height = SERVER_BOX;
   let view: WebView | undefined;
   // The view follows the fit through resizes until the reader moves or zooms the web.
   let following = true;
