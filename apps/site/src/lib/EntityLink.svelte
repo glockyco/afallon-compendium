@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { base } from '$app/paths';
+  import { page } from '$app/stores';
   import type { EntityRef, PublicKindEntry, Ref } from '@afallon/contracts/public';
   import EntityTooltip from './EntityTooltip.svelte';
   import { kindGlyphSvg } from './kind-icon';
@@ -99,7 +100,9 @@
   $: resolved = ref.key !== null ? ref : null;
   $: kind = resolved ? registry.find((entry) => entry.kind === resolved?.kind) : undefined;
   $: linked = Boolean(resolved?.slug && kind?.pages);
-  $: href = resolved && kind ? `${base}/${kind.route}/${resolved.slug}/${resolved.variant ? `#${resolved.variant}` : ''}` : '';
+  // A link to a part of the page that the reader is on is a fragment link, so it keeps the reader's tabs and views.
+  $: pagePath = resolved && kind ? `${base}/${kind.route}/${resolved.slug}/` : '';
+  $: href = !pagePath ? '' : resolved?.variant ? `${pagePath === $page.url.pathname ? '' : pagePath}#${resolved.variant}` : pagePath;
   $: glyph = kindGlyphSvg(kind?.icon);
   $: art = resolved?.kind === 'npcs' && resolved.portrait ? resolved.portrait : resolved?.icon;
 </script>
