@@ -1,5 +1,6 @@
 import type { CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogRelations } from "@afallon/contracts/catalog";
 import type { EntityRef, PublicationExclusion } from "@afallon/contracts/public";
+import { phaseAbilities } from "./adventurers";
 
 export interface ExclusionEvidenceInput {
   entities: readonly CatalogEntityRow[];
@@ -40,6 +41,17 @@ export function withoutExcludedRelations(relations: CatalogRelations, excluded: 
 function contradiction(entity: CatalogEntityRow, input: ExclusionEvidenceInput, reason: PublicationExclusion["reason"]): string | null {
   const key = entity.entityKey, relations = input.relations;
   switch (entity.kind) {
+    case "abilities": {
+      if (entity.description?.trim()) return "the ability has a description";
+      const ability = input.facts.abilities.find((row) => row.entityKey === key);
+      if (ability?.ranks.some((rank) => rank.lines.some((line) => line.spans.some((span) => span.tone !== "muted" && span.text.trim())))) return "the ability describes an effect";
+      if (input.facts.progression.learners.some((learner) => learner.ability === key)) return "the ability has a learner";
+      if (input.facts.npcs.some((npc) => phaseAbilities(npc).some((phase) => phase.abilities.some((entry) => entry.ability.entityKey === key)))) return "a creature uses the ability";
+      if (input.facts.items.some((item) => item.actionAbilities.some((entry) => entry.ability.entityKey === key)
+        || item.gameActions.some((action) => action.type === "Ability" && action.target?.entityKey === key))) return "an item uses the ability";
+      if (input.facts.progression.appliers.some((applier) => applier.source.entityKey === key)) return "the ability applies an effect";
+      return null;
+    }
     case "items": {
       const sources = relations.drops.some((row) => keyOf(row.item) === key) || relations.vendors.some((row) => keyOf(row.item) === key)
         || relations.gathers.some((row) => keyOf(row.item) === key) || relations.containers.some((row) => keyOf(row.item) === key)

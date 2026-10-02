@@ -48,6 +48,7 @@
   // The view follows the fit through resizes until the reader moves or zooms the web.
   let following = true;
   $: fitted = width && height ? fitView(outer, width, height) : undefined;
+  let focusedTree = web.wedges[0]?.tree;
   $: if (fitted && (following || !view)) view = fitted;
   let glideFrame = 0;
   const move = (next: WebView) => { cancelAnimationFrame(glideFrame); following = false; view = next; };
@@ -122,6 +123,20 @@
     const x = (point[0] - view.cx) * view.zoom + width / 2, y = (point[1] - view.cy) * view.zoom + height / 2;
     if (x < margin || x > width - margin || y < margin || y > height - margin) glide({ cx: point[0], cy: point[1], zoom: view.zoom });
   }
+  // Start on one readable arm instead of shrinking every talent to a few pixels.
+  function focusTree(id: string): void {
+    if (!fitted) return;
+    let x = 0, y = 0, count = 0;
+    for (const node of web.nodes) {
+      if (talents.get(node.talent)?.tree.anchor !== id) continue;
+      const point = drawPoint(node.x, node.y);
+      x += point[0]; y += point[1]; count++;
+    }
+    const fallback = targetPoint(id);
+    if (!count && !fallback) return;
+    focusedTree = id;
+    move({ cx: count ? x / count : fallback![0], cy: count ? y / count : fallback![1], zoom: Math.max(.28, fitted.zoom) });
+  }
 
   // Links to a talent or a tree of the web select it without the browser's jump to the target. A link inside the web
   // selects in place: the page stays put, and the web only moves to a talent outside its view. A link from elsewhere on
@@ -153,6 +168,7 @@
   }
 
   onMount(() => {
+    if (focusedTree && !anchor) focusTree(focusedTree);
     document.addEventListener('click', followLink, true);
     const removeRevealer = navigation?.addRevealer(async (id) => {
       if (!targetPoint(id)) return false;
@@ -164,6 +180,13 @@
 </script>
 
 <div class="talent-web" bind:this={root}>
+  <nav class="tree-navigator" aria-label="Focus a talent tree">
+    <span>Focus a tree</span>
+    {#each web.wedges as wedge (wedge.tree)}
+      {@const tree = treesByAnchor.get(wedge.tree)}
+      {#if tree}<button type="button" class:active={focusedTree === wedge.tree} aria-pressed={focusedTree === wedge.tree} on:click={() => focusTree(wedge.tree)}>{tree.name}</button>{/if}
+    {/each}
+  </nav>
   <div class="canvas" data-anchor-frame bind:clientWidth={width} bind:clientHeight={height}>
     {#if view}
       <!-- The pointer handlers only move and zoom the web. Keyboard readers select talents through their links and zoom with
@@ -226,6 +249,10 @@
 
 <style>
   .talent-web { display: grid; gap: 1rem; }
+  .tree-navigator { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+  .tree-navigator span { margin-right: .35rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .tree-navigator button { min-height: 2rem; padding: .3rem .65rem; border: 1px solid var(--c-frame); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text-strong); font: inherit; cursor: pointer; }
+  .tree-navigator button.active, .tree-navigator button:hover { border-color: var(--c-accent); color: var(--c-accent-strong); }
   .canvas { position: relative; aspect-ratio: 1; max-height: min(78vh, 760px); border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-sunken); overflow: hidden; }
   svg { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; }
   svg:active { cursor: grabbing; }

@@ -2,6 +2,7 @@
   import { base } from '$app/paths';
   import type { AbilityVersion, PublicKindEntry } from '@afallon/contracts/public';
   import NativeText from '../../NativeText.svelte';
+  import AppliedEffects from './AppliedEffects.svelte';
   import LinkGrid from '../LinkGrid.svelte';
   import Requirements from '../../Requirements.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
@@ -37,6 +38,7 @@
               <div>{#if row.version.ranks.length > 1}<h3>Rank {rank.rankIndex + 1}</h3>{/if}<NativeText lines={rank.lines} /></div>
             {/each}
           </div>
+          <AppliedEffects rows={row.version.appliedEffects} {registry} />
         {:else if column === 'requirements'}<Requirements requirements={row.version.useRequirements} {registry} kindLabels={false} />
         {:else if column === 'users'}
           {#if row.version.usedBy.length + row.version.usedByItems.length}

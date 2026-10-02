@@ -12,6 +12,7 @@ import {
   type Ref,
 } from "@afallon/contracts/public";
 import { talentAnchor } from "./documents/classes";
+const noExclusions: ReadonlySet<string> = new Set();
 
 function hasNativeText(lines: readonly TooltipLine[]): boolean {
   return lines.some((line) => line.spans.some((span) => span.text.length > 0));
@@ -30,6 +31,7 @@ export function auditPublicTooltipCoverage(
   relations: CatalogRelations,
   documents: ReadonlyMap<string, PublicDocument>,
   schemaIdByKey?: ReadonlyMap<string, string>,
+  excluded: ReadonlySet<string> = noExclusions,
 ): string[] {
   const issues: string[] = [];
   const versionByRecord = new Map<string, AbilityVersion>();
@@ -52,6 +54,7 @@ export function auditPublicTooltipCoverage(
   };
 
   for (const ability of facts.abilities) {
+    if (excluded.has(ability.entityKey)) continue;
     const version = versionByRecord.get(ability.entityKey);
     if (!version) {
       issues.push(`Ability ${ability.entityKey} has no public document.`);

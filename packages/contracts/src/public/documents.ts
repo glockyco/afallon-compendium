@@ -19,7 +19,7 @@ const PAGE_DOCUMENTS = {
   quests: { schema: () => PublicQuestSchema, schemaId: "compendium.static-quest.v7" },
   places: { schema: () => PublicPlaceSchema, schemaId: "compendium.static-place.v11" },
   properties: { schema: () => PublicPropertySchema, schemaId: "compendium.static-property.v4" },
-  abilities: { schema: () => PublicAbilitySchema, schemaId: "compendium.static-ability.v6" },
+  abilities: { schema: () => PublicAbilitySchema, schemaId: "compendium.static-ability.v7" },
   classes: { schema: () => PublicClassSchema, schemaId: "compendium.static-class.v8" },
   skills: { schema: () => PublicSkillSchema, schemaId: "compendium.static-skill.v6" },
   mechanics: { schema: () => PublicMechanicsSchema, schemaId: "compendium.static-mechanics.v18" },
@@ -712,9 +712,16 @@ export type LearnerRow = Static<typeof LearnerRowSchema>;
 
 // `useRequirements` are what a character needs to use the version: costs, such as "Costs 9 Mana", and conditions, such
 // as "Ursine Aspect is active". The ability tooltip shows neither.
+export const AbilityAppliedEffectSchema = Type.Object({
+  effect: EntityRefSchema, rank: optional(count), chance: optional(number), target: optional(text),
+  durationSeconds: optional(number), endless: optional(Type.Boolean()),
+}, { additionalProperties: false });
+export type AbilityAppliedEffect = Static<typeof AbilityAppliedEffectSchema>;
+
 export const AbilityVersionSchema = Type.Object({
   keys: Type.Array(text, { minItems: 1, uniqueItems: true }), anchor, icon: optional(ArtRefSchema),
   ranks: Type.Array(AbilityRankSchema, { minItems: 1 }), useRequirements: requirements, learnedBy: Type.Array(LearnerRowSchema), usedBy: refs, usedByItems: refs, taughtBy: refs,
+  appliedEffects: Type.Array(AbilityAppliedEffectSchema),
 }, { additionalProperties: false });
 export type AbilityVersion = Static<typeof AbilityVersionSchema>;
 
@@ -1306,7 +1313,7 @@ schemaRegistry.register("compendium.public-craft.v1", CraftSchema);
 schemaRegistry.register("compendium.public-placed-rule.v3", PlacedRuleSchema);
 schemaRegistry.register("compendium.public-contextual-ability-ref.v1", ContextualAbilityRefSchema);
 schemaRegistry.register("compendium.public-ability-rank.v1", AbilityRankSchema);
-schemaRegistry.register("compendium.public-ability-version.v3", AbilityVersionSchema);
+schemaRegistry.register("compendium.public-ability-version.v4", AbilityVersionSchema);
 schemaRegistry.register("compendium.public-ability-phase.v2", AbilityPhaseSchema);
 schemaRegistry.register("compendium.public-faction-reward-row.v1", FactionRewardRowSchema);
 schemaRegistry.register("compendium.public-creature-row.v1", CreatureRowSchema);

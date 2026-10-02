@@ -1,4 +1,4 @@
-import type { CatalogCondition, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogProgressionFact, CatalogRelations, ProgressionEffect, ProgressionEffectRank } from "@afallon/contracts/catalog";
+import type { CatalogCondition, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogProgressionApplier, CatalogProgressionFact, CatalogRelations, ProgressionEffect, ProgressionEffectRank } from "@afallon/contracts/catalog";
 import type { PublicEffect, Ref } from "@afallon/contracts/public";
 import type { PublishedPage } from "../references";
 import { displayName, plainText } from "../text";
@@ -56,6 +56,40 @@ function abilityApplies(abilityKey: string | null, rankIndex: number | undefined
   return fact.details.ranks.some((rank) => (rankIndex === undefined || rank.rank === rankIndex)
     && (rank.effectsApplied.some((entry) => entry.effect.entityKey === effectKey)
       || rank.casterEffectsApplied.some((entry) => entry.effect.entityKey === effectKey)));
+}
+/** The same ability-rank application target shown on an effect page and on its source ability page. */
+export function appliedAbilityTargets(applier: CatalogProgressionApplier, facts: CatalogFacts): readonly (string | undefined)[] {
+  const abilityKey = applier.source.entityKey;
+  const fact = abilityKey ? abilityFacts(facts).get(abilityKey) : undefined;
+  if (fact?.kind !== "abilities") return [];
+  const targets = applier.rank === null ? [] : fact.details.ranks.filter((rank) => rank.rank === applier.rank).flatMap((rank) =>
+    (applier.via === "casterAbility" ? rank.casterEffectsApplied : rank.effectsApplied)
+      .filter((entry) => entry.effect.entityKey === applier.effect).map((entry) => readable(entry.target.name)));
+  return targets.length ? [...new Set(targets)] : [undefined];
+}
+export interface AppliedAbilityEffect { effectKey: string; rank?: number; chance?: number; target?: string }
+const appliedAbilityCache = new WeakMap<CatalogFacts, Map<string, AppliedAbilityEffect[]>>();
+
+/** Effects that a particular ability record applies, optionally restricted to the rank used by an item or creature. */
+export function appliedEffectsByAbility(facts: CatalogFacts, abilityKey: string | null, rankIndex?: number): readonly AppliedAbilityEffect[] {
+  if (!abilityKey) return [];
+  let byAbility = appliedAbilityCache.get(facts);
+  if (!byAbility) {
+    byAbility = new Map();
+    for (const applier of facts.progression.appliers) {
+      const key = applier.source.entityKey;
+      if (!key || (applier.via !== "ability" && applier.via !== "casterAbility") || abilityFacts(facts).get(key)?.kind !== "abilities") continue;
+      const rows = byAbility.get(key) ?? [];
+      for (const target of appliedAbilityTargets(applier, facts)) rows.push({
+        effectKey: applier.effect, ...(applier.rank !== null ? { rank: applier.rank } : {}),
+        ...(applier.chance < 100 ? { chance: applier.chance } : {}), ...(target ? { target } : {}),
+      });
+      byAbility.set(key, rows);
+    }
+    appliedAbilityCache.set(facts, byAbility);
+  }
+  const rows = byAbility.get(abilityKey) ?? [];
+  return rankIndex === undefined ? rows : rows.filter((row) => row.rank === undefined || row.rank === rankIndex);
 }
 
 /** Unnamed catalog records retain their authored type and native identity, never an invented proper name. */
@@ -170,9 +204,7 @@ function applicationSources(key: string, input: EffectInput): EffectSource[] {
   for (const applier of facts.progression.appliers) {
     if (applier.effect !== key) continue;
     const fact = applier.source.entityKey ? abilities.get(applier.source.entityKey) ?? facts.progression.facts.find((candidate) => candidate.entityKey === applier.source.entityKey) : undefined;
-    const targets = fact?.kind === "abilities" && applier.rank !== null
-      ? fact.details.ranks.filter((rank) => rank.rank === applier.rank).flatMap((rank) =>
-        (applier.via === "casterAbility" ? rank.casterEffectsApplied : rank.effectsApplied).filter((entry) => entry.effect.entityKey === key).map((entry) => readable(entry.target.name)))
+    const targets = fact?.kind === "abilities" ? appliedAbilityTargets(applier, facts)
       : fact?.kind === "stats" ? fact.details.onHitEffects.filter((hit) => hit.effect.entityKey === key).map((hit) => readable(hit.target.name)) : [];
     for (const target of targets.length ? new Set(targets) : [undefined]) rows.push({
       source: ref(applier.source, input), via: applier.via === "casterAbility" ? "Caster Ability" : applier.via === "statOnHit" ? "Stat On Hit" : applier.via === "effect" ? "Effect" : "Ability",

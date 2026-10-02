@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { CatalogEntityRow, CatalogFacts, CatalogNpcFacts, CatalogProgressionFact, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow } from "@afallon/contracts/catalog";
+import type { CatalogEntityRow, CatalogFacts, CatalogNpcFacts, CatalogProgressionFact, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow, ProgressionAppliedEffect } from "@afallon/contracts/catalog";
 import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type EntityRef, type GearSetTier, type PublicDocument, type PublicGearSet, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
 import type { CatalogGatheringNode, CatalogMechanicsRule } from "@afallon/contracts/catalog";
 import { corruptionRewards, type CorruptionRewards } from "./corruption-rewards";
@@ -556,7 +556,7 @@ test("projects representative item use text, effective stats and contextual abil
   expect((documents.get("npcs:2") as PublicNpc).abilityPhases[0]?.abilities).toEqual([{ ability: { key: "abilities:201", kind: "abilities", name: "Cleave", slug: "cleave" }, rankIndex: 0 }]);
   const cleave = documents.get("abilities:201") as PublicAbility;
   const healingPotion = documents.get("abilities:202") as PublicAbility;
-  expect(cleave.versions).toEqual([{ keys: ["abilities:201"], anchor: "n201", ranks: [{ rankIndex: 0, lines: line("Cleave rank zero") }], useRequirements: [], learnedBy: [], usedBy: [{ key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }], usedByItems: [{ key: "items:103", kind: "items", name: "Red Gem of Lifesteal", slug: "red-gem-of-lifesteal" }], taughtBy: [] }]);
+  expect(cleave.versions).toEqual([{ keys: ["abilities:201"], anchor: "n201", ranks: [{ rankIndex: 0, lines: line("Cleave rank zero") }], useRequirements: [], learnedBy: [], usedBy: [{ key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }], usedByItems: [{ key: "items:103", kind: "items", name: "Red Gem of Lifesteal", slug: "red-gem-of-lifesteal" }], taughtBy: [], appliedEffects: [] }]);
   expect(healingPotion.versions[0]!.ranks.map((rank) => rank.rankIndex)).toEqual([0, 1, 2, 3]);
   expect(healingPotion.versions[0]!.usedBy).toEqual([]);
   expect(healingPotion.versions[0]!.usedByItems).toEqual([{ key: "items:101", kind: "items", name: "Minor Health Potion", slug: "minor-health-potion" }]);
@@ -591,12 +591,54 @@ test("projects representative item use text, effective stats and contextual abil
   expect(auditPublicTooltipCoverage(tooltipFacts, relations, changedUseText, schemaIds)).toContain("Item items:101 changed its native use-text block.");
 });
 
+test("ability outcome links every applied effect with the same rank and target as the effect backlink", () => {
+  const ability: CatalogEntityRow = { ...entities[0]!, kind: "abilities", entityKey: "abilities:292", nativeId: 292, name: "Beacon of Dawn" };
+  const hot: CatalogEntityRow = { ...entities[0]!, kind: "effects", entityKey: "effects:310", nativeId: 310, name: "Beacon of Dawn Hot" };
+  const glow: CatalogEntityRow = { ...entities[0]!, kind: "effects", entityKey: "effects:311", nativeId: 311, name: "Beacon of Dawn Glow" };
+  const source = { entityKey: ability.entityKey, label: ability.name! };
+  const effect = (row: CatalogEntityRow, duration: number): CatalogProgressionFact => ({ kind: "effects", entityKey: row.entityKey, name: row.name, details: {
+    effectType: { name: "HealOverTime", value: 1 }, tag: null, isState: false, isBuffOnSelf: false,
+    duration, endless: false, pulses: 1, stackLimit: 1, allowMultiple: false, allowMixedCaster: false,
+    isPersistent: false, canBeManuallyRemoved: false, ranks: [],
+  } });
+  const rows = [
+    { source, effect: hot.entityKey, via: "ability" as const, rank: 0, chance: 100 },
+    { source, effect: glow.entityKey, via: "ability" as const, rank: 1, chance: 35 },
+  ];
+  const application = (row: CatalogEntityRow, target: string) => ({
+    effect: { entityKey: row.entityKey, label: row.name! }, target: { name: target, value: 0 }, chance: 100, rank: 0, delay: 0,
+  });
+  const abilityRank = (rank: number, effectsApplied: ProgressionAppliedEffect[]) => ({
+    rank, unlockCost: 0, activationType: { name: "Instant", value: 0 }, castTime: 0, channelTime: 0, cooldown: 0,
+    usesGlobalCooldown: false, minRange: 0, maxRange: 20, targetType: { name: "Target", value: 0 },
+    areaRadius: 0, coneDegree: 0, coneRange: 0, projectileCount: 0, maxUnitsHit: 1,
+    conditionId: null, effectsApplied, casterEffectsApplied: [],
+  });
+  const abilityFact: CatalogProgressionFact = { kind: "abilities", entityKey: ability.entityKey, name: ability.name, details: {
+    abilityType: { name: "Spell", value: 0 }, learnedByDefault: false, requiresRangedWeapon: false,
+    ranks: [abilityRank(0, [application(hot, "Target")]), abilityRank(1, [application(glow, "Caster")])],
+  } };
+  const catalog: CatalogFacts = { ...facts, entities: [...entities, ability, hot, glow],
+    abilities: [{ entityKey: ability.entityKey, ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Heals an ally", tone: "positive", italic: false }] }] }] }],
+    progression: { ...facts.progression, facts: [abilityFact, effect(hot, 10), effect(glow, 15)], appliers: rows } };
+  const { documents } = project(catalog.entities, catalog, relations);
+  const shown = (documents.get(ability.entityKey) as PublicAbility).versions[0]!.appliedEffects;
+  expect(shown.map((row) => [row.effect.name, row.rank, row.chance, row.target, row.durationSeconds])).toEqual([
+    ["Beacon of Dawn Hot", 0, undefined, "Target", 10],
+    ["Beacon of Dawn Glow", 1, 35, "Caster", 15],
+  ]);
+  for (const row of shown) {
+    const backlink = (documents.get(row.effect.key) as Extract<PublicDocument, { appliedBy: unknown }>).appliedBy.find((entry) => entry.source.key === ability.entityKey);
+    expect(backlink).toMatchObject({ rank: row.rank, target: row.target, ...(row.chance === undefined ? {} : { chance: row.chance }) });
+  }
+});
+
 test("ability list sources prefer classes, summarize many creatures, and retain item use and unknown rows", () => {
   const classRef = { key: "classes:5", kind: "classes" as const, name: "Assassin", slug: "assassin" };
   const npcRef = (name: string) => ({ key: `npcs:${name}`, kind: "npcs" as const, name, slug: name.toLowerCase() });
   const itemRef = { key: "items:101", kind: "items" as const, name: "Brown Horse", slug: "brown-horse" };
   const base = { ref: { key: "abilities:1", kind: "abilities" as const, name: "Ambush", slug: "ambush" }, art: {}, description: "Strikes from the shadows." };
-  const version = { keys: ["abilities:1"], anchor: "n1", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Hit", tone: null, italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [], usedByItems: [], taughtBy: [] } satisfies PublicAbility["versions"][number];
+  const version = { keys: ["abilities:1"], anchor: "n1", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Hit", tone: null, italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [], usedByItems: [], taughtBy: [], appliedEffects: [] } satisfies PublicAbility["versions"][number];
   const documents = new Map<string, PublicDocument>([
     ["class", { ...base, versions: [{ ...version, learnedBy: [{ class: classRef, via: "talentTree", tree: "Shadowcraft", requirements: [] }], usedBy: [npcRef("Goblin")], usedByItems: [itemRef] }] }],
     ["creature", { ...base, ref: { ...base.ref, key: "abilities:2", name: "Basic Strike", slug: "basic-strike" }, versions: [{ ...version, usedBy: [npcRef("Goblin"), npcRef("Bandit"), npcRef("Spider")] }] }],

@@ -278,7 +278,7 @@ export async function generateIndexResources(
   }
 
   const schemaIdByKey = new Map([...documents].map(([key, resource]) => [key, resource.reference.schemaId]));
-  const publicationIssues = auditPublicTooltipCoverage(facts.records, relations.records, publicDocuments, schemaIdByKey);
+  const publicationIssues = auditPublicTooltipCoverage(facts.records, relations.records, publicDocuments, schemaIdByKey, excluded);
 
   const listValues = buildKindLists(identity, PUBLIC_KIND_REGISTRY, publicDocuments, facts.records, refs, excluded, queryQuestRewardTypes(db).records);
   const lists = new Map<string, GeneratedStaticResource<StaticKindList>[]>();

@@ -6,12 +6,13 @@
   import { formatNumber, nameOf } from '../../format';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
+  import DetailsDisclosure from '../DetailsDisclosure.svelte';
+  import FactsCard from '../FactsCard.svelte';
   import { cumulativeExperience } from '../level-curve';
   import HowItWorks from '../HowItWorks.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
-  import StatStrip from '../StatStrip.svelte';
   import TitleBlock from '../TitleBlock.svelte';
   import LevelCurve from '../sections/LevelCurve.svelte';
 
@@ -59,7 +60,9 @@
     { id: 'level', label: 'Required level', numeric: true, value: (row) => gateLevel(row), sort: (row) => gateLevel(row) ?? 0 },
     { id: 'experience', label: 'Experience per use', numeric: true, value: (row) => row.experience, sort: (row) => row.experience },
   ];
-  $: recipePlan = planColumns(recipeColumns, document.recipes);
+  $: sharedStation = document.recipes.length ? document.recipes.find((row) => row.station)?.station : undefined;
+  $: stationShared = !!sharedStation && document.recipes.every((row) => !row.station || row.station.key === sharedStation.key);
+  $: recipePlan = planColumns(recipeColumns.filter((column) => column.id !== 'station' || !stationShared), document.recipes);
   $: nodePlan = planColumns(nodeColumns, document.gatheringNodes);
   $: total = document.curve ? cumulativeExperience(document.curve)[document.curve.cap] : undefined;
   $: stats = [
@@ -68,6 +71,12 @@
     ...(document.gatheringNodes.length ? [{ label: 'Gathering nodes', value: formatNumber(document.gatheringNodes.length), href: '#gathering-nodes' }] : []),
     ...(total !== undefined ? [{ label: 'Experience to highest level', value: formatNumber(total), href: '#levels' }] : []),
   ];
+  const weaponCategory: Record<string, string> = {
+    'One-Handed Swords': 'One handed sword', 'Two-Handed Swords': 'Two handed sword',
+    Axes: 'AXE', 'Two-Handed Axes': 'Two-Handed Axe', Bows: 'BOW', Staves: 'STAFF',
+    'Fist Weapons': 'Fist weapon', Crossbows: 'CROSSBOW', 'Two-Handed Maces': 'Two-Handed Mace',
+  };
+  $: weaponHref = weaponCategory[document.ref.name] ? `${base}/items/?weapon=${encodeURIComponent(weaponCategory[document.ref.name]!)}` : `${base}/items/?itemType=WEAPON`;
   $: firstRecipe = sortedRecipes.find((row) => row.requiredLevel !== undefined) ?? sortedRecipes[0];
   $: lastRecipe = sortedRecipes.findLast((row) => row.requiredLevel !== undefined);
   $: firstNode = sortedNodes[0];
@@ -79,7 +88,7 @@
 <article class="detail-page">
   <DetailFrame>
     <div slot="head">
-      <TitleBlock name={document.ref.name} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} typeLine="Skill" {registry}><StatStrip {stats} /></TitleBlock>
+      <TitleBlock name={document.ref.name} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} typeLine="Skill" {registry} />
     </div>
 
     <div slot="answer">
@@ -94,6 +103,7 @@
           {/if}
           {#if document.experience.autoAttack}
             <li><strong>Auto-attack hits</strong><span>Each hit with this weapon type awards {formatNumber(document.experience.autoAttack.perHit)} skill experience below the highest level.</span></li>
+            <li><strong>Weapons that use this skill</strong><span><a class="c-link" href={weaponHref}>Browse {document.ref.name.toLocaleLowerCase()} weapons</a> to find gear for those auto-attack hits.</span></li>
           {/if}
           {#if !document.experience.crafting && !document.experience.gathering && !document.experience.autoAttack}<li>No known experience source is listed for this skill.</li>{/if}
         </ul>
@@ -101,21 +111,23 @@
       </AnswerCard>
     </div>
 
-    <div slot="side" class="side-facts c-stack">
+    <div slot="side" class="side-content">
+      <FactsCard facts={stats} title="At a glance"><a slot="after" class="c-link progression" href={`${base}/mechanics/character-progression/`}>Character progression</a></FactsCard>
       {#if document.curve && document.facts.highestLevel !== undefined && document.facts.highestLevel > 1}
-        <div id="levels" class="c-stack"><h2>Level curve</h2><LevelCurve curve={document.curve} subject={document.ref.name} compact /></div>
+        <DetailsDisclosure title="Level curve" id="levels" summary="Experience and level breakpoints">
+          <LevelCurve curve={document.curve} subject={document.ref.name} compact />
+        </DetailsDisclosure>
       {/if}
-      <a class="c-link progression" href={`${base}/mechanics/character-progression/`}>Character Progression</a>
     </div>
 
     {#if document.recipes.length}
-      <Section id="recipes" title="Recipes" count={document.recipes.length}>
+      <Section id="recipes" title="Recipes" count={document.recipes.length} line={stationShared ? document.recipes.some((row) => !row.station) ? `Recipes use ${nameOf(sharedStation!)} unless a row says station not listed.` : `Recipes use ${nameOf(sharedStation!)}.` : undefined}>
         <div class="c-groups">
           {#each recipeBands as band}
             <div class="c-stack"><h3>{band.label} <span>{formatNumber(band.rows.length)}</span></h3>
               <RelationTable columns={recipePlan.columns} rows={band.rows} label={`Recipes: ${band.label}`} rowAnchors={(row) => [row.anchor]}>
                 <svelte:fragment slot="cell" let:row let:column>
-                  {#if column === 'recipe'}{#if row.product}<EntityLink ref={row.product} {registry} />{:else}{row.recipe.name}{/if}
+                  {#if column === 'recipe'}{#if row.product}<EntityLink ref={row.product} {registry} />{:else}{row.recipe.name}{/if}{#if stationShared && !row.station}<small class="exception">Station not listed</small>{/if}
                   {:else if column === 'level' && row.requiredLevel !== undefined}{formatNumber(row.requiredLevel)}
                   {:else if column === 'station' && row.station}<EntityLink ref={row.station} {registry} />{/if}
                 </svelte:fragment>
@@ -152,9 +164,9 @@
   .routes li { display: grid; gap: .15rem; border-bottom: 1px solid var(--c-line-soft); padding: .3rem 0 .8rem; }
   .routes li:last-child { border-bottom: 0; padding-bottom: 0; }
   .routes strong { color: var(--c-text-strong); }
-  .side-facts { min-width: 0; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); padding: 1rem; background: var(--c-surface-1); }
-  h2 { color: var(--c-text-strong); font: 600 1.2rem/1.3 var(--c-serif); }
+  .side-content { display: grid; align-content: start; gap: 1rem; min-width: 0; }
   .progression { display: inline-block; width: fit-content; min-height: 1.5rem; }
+  .exception { display: block; color: var(--c-text-mute); }
   h3 { display: flex; align-items: baseline; gap: .5rem; color: var(--c-text-strong); font: 600 1.1rem/1.3 var(--c-serif); }
   h3 span { color: var(--c-text-dim); font: 400 .875rem/1.5 var(--c-sans); }
 </style>

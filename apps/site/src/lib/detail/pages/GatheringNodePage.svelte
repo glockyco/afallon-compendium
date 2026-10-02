@@ -4,12 +4,13 @@
   import EntityLink from '../../EntityLink.svelte';
   import MissingValue from '../../MissingValue.svelte';
   import Requirements from '../../Requirements.svelte';
-  import { formatNumber, nameOf, rangeText, sentenceStart } from '../../format';
+  import { formatNumber, nameOf, rangeText } from '../../format';
   import { nodeOnMap, entityPlaceOnMap } from '../../map-links';
   import { skillLevelId } from '../../reader-levels';
   import AnswerCard from '../AnswerCard.svelte';
   import AttunementToggles from '../AttunementToggles.svelte';
   import DetailFrame from '../DetailFrame.svelte';
+  import FactsCard from '../FactsCard.svelte';
   import DetailsDisclosure from '../DetailsDisclosure.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import { attunementBoosts, interpolateChance } from '../gathering-odds';
@@ -18,9 +19,9 @@
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
+  import SideCard from '../SideCard.svelte';
   import Sections from '../Sections.svelte';
   import SpawnerOdds from '../SpawnerOdds.svelte';
-  import StatStrip from '../StatStrip.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
   export let document: PublicGatheringNode;
@@ -37,9 +38,8 @@
   $: attunementGuide = document.placedRules.find((rule) => rule.section === 'attunement');
   $: timerGuide = document.placedRules.find((rule) => rule.section === 'node-availability');
   $: skillName = document.facts.skill ? nameOf(document.facts.skill) : undefined;
-  $: titleRequirements = document.facts.requirements.filter((group) => group.mode === 'all' && !group.checkCount).flatMap((group) => group.requirements)
-    .filter((requirement) => !skillName || !requirement.label.toLocaleLowerCase().startsWith(`${skillName.toLocaleLowerCase()} `))
-    .map((requirement) => sentenceStart(requirement.spans.map((span) => 'ref' in span ? nameOf(span.ref) : span.text).join('')));
+  $: additionalRequirements = document.facts.requirements.some((group) => group.mode !== 'all' || group.checkCount || group.requirements.some((requirement) =>
+    !skillName || !requirement.label.toLocaleLowerCase().startsWith(`${skillName.toLocaleLowerCase()} `)));
   $: spots = document.places.reduce((sum, place) => sum + place.spotCount, 0);
   $: firstSpot = document.places.flatMap((place) => place.placementIds)[0];
   $: spawnerTotal = document.spawners.reduce((sum, group) => sum + group.spawners, 0);
@@ -50,6 +50,7 @@
     ...(document.facts.characterExperience ? [{ label: 'Character experience', value: formatNumber(document.facts.characterExperience), note: 'Per use' }] : []),
     ...(respawnValues.length ? [{ label: 'Respawn', value: respawnValues.length === 1 ? duration(respawnValues[0]!) : 'Varies', href: '#timers' }] : []),
     ...(spots ? [{ label: 'Spots', value: formatNumber(spots), href: '#locations' }] : []),
+    ...(!spawnerTotal && placedTotal && placedTotal !== spots ? [{ label: 'Placed nodes', value: formatNumber(placedTotal) }] : []),
   ];
   $: places = document.places.map((place) => ({
     place: { key: null, label: place.label } as const,
@@ -58,9 +59,15 @@
   }));
 
   const bonusPercent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 });
-  const duration = (seconds: number) => seconds >= 60 && seconds % 60 === 0
-    ? `${formatNumber(seconds / 60)} ${seconds === 60 ? 'minute' : 'minutes'}`
-    : `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
+  const duration = (seconds: number) => {
+    if (seconds < 60) return `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
+    const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds % 3600 / 60), remainder = seconds % 60;
+    return [
+      hours && `${formatNumber(hours)} ${hours === 1 ? 'hour' : 'hours'}`,
+      minutes && `${formatNumber(minutes)} ${minutes === 1 ? 'minute' : 'minutes'}`,
+      remainder && `${formatNumber(remainder)} ${remainder === 1 ? 'second' : 'seconds'}`,
+    ].filter(Boolean).join(' ');
+  };
   // The reader's skill level and attunements decide the odds. The side card shows this node's chance in each spawner
   // group, and Spawn odds shows every option of those groups at the same level.
   let level = 1;
@@ -80,9 +87,7 @@
 <article class="detail-page">
   <DetailFrame>
     <div slot="head">
-      <TitleBlock name={document.ref.name} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} typeRef={document.facts.skill} typeLine={[document.facts.skill ? 'node' : 'Gathering node', document.facts.requiredLevel === undefined ? undefined : `Requires level ${formatNumber(document.facts.requiredLevel)}`, ...titleRequirements].filter(Boolean).join(' · ')} mapHref={firstSpot ? nodeOnMap(document.ref.key) : undefined} {registry}>
-        <StatStrip {stats} />
-      </TitleBlock>
+      <TitleBlock name={document.ref.name} imageUrl={document.art.icon ?? document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} typeRef={document.facts.skill} typeLine={[document.facts.skill ? 'node' : 'Gathering node', document.facts.requiredLevel === undefined ? undefined : `Requires level ${formatNumber(document.facts.requiredLevel)}`].filter(Boolean).join(' · ')} mapHref={firstSpot ? nodeOnMap(document.ref.key) : undefined} {registry} />
     </div>
 
     <div slot="answer">
@@ -103,16 +108,15 @@
       </AnswerCard>
     </div>
 
-    <div slot="side" class="side-facts">
-      {#if document.facts.requirements.length}
-        <h2>To gather</h2>
+    <div slot="side" class="side-content">
+      <FactsCard facts={stats} title="At a glance" />
+      {#if additionalRequirements}<SideCard title="To gather">
         <Requirements requirements={document.facts.requirements} {registry} kindLabels={false} />
-      {/if}
-      {#if spawnerTotal || placedTotal}
-        <h2>Spawns</h2>
+      </SideCard>{/if}
+      {#if spawnerTotal}<SideCard title="Spawns">
         <dl class="spawn-facts">
           {#if spawnerTotal}<div><dt>Spawners</dt><dd>{formatNumber(spawnerTotal)}</dd></div>{/if}
-          {#if placedTotal}<div><dt>Placed in the world</dt><dd>{formatNumber(placedTotal)}</dd></div>{/if}
+          {#if placedTotal}<div><dt>Placed nodes</dt><dd>{formatNumber(placedTotal)}</dd></div>{/if}
         </dl>
         {#if oddsGroups.length}
           <div class="odds">
@@ -126,7 +130,7 @@
         {:else if spawnerTotal}
           <p class="explanation">The chance of choosing this node is unknown for these spawners.</p>
         {/if}
-      {/if}
+      </SideCard>{/if}
       {#if document.facts.variant}<p class="explanation">Another node shares this name but has different requirements, experience, or yields.</p>{/if}
     </div>
 
@@ -182,11 +186,8 @@
   .bonus { line-height: 1.5; }
   .guides { display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; }
   .bonus strong { color: var(--c-text-strong); }
-  .side-facts { border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); padding: 1rem; background: var(--c-surface-1); }
-  h2 { margin-bottom: .75rem; color: var(--c-text-strong); font: 600 1.2rem/1.3 var(--c-serif); }
-  h2:not(:first-child) { margin-top: 1.25rem; }
+  .side-content { display: grid; align-content: start; gap: 1rem; min-width: 0; }
   h3 { color: var(--c-text-strong); font: 600 1rem/1.4 var(--c-serif); }
-  .side-facts > * + .explanation { margin-top: .75rem; }
   .spawn-facts div, .timer-facts div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .2rem .6rem; padding: .35rem 0; }
   .spawn-facts dt, .timer-facts dt { color: var(--c-text-dim); }
   .spawn-facts dd, .timer-facts dd { color: var(--c-text-strong); font-variant-numeric: tabular-nums; }
