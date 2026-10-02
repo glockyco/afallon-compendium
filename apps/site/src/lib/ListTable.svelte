@@ -140,7 +140,7 @@
   // labels each one. Any other column shows its one published value.
   function cellValues(row: ListRow, id: string): string[] {
     const values = row.facets[id];
-    return values && values.length > 0 && id !== 'gear' ? values : [String(row.values[id])];
+    return values && values.length > 0 ? values : [String(row.values[id])];
   }
 
   function openSheet(): void {

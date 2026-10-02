@@ -32,6 +32,16 @@ function facetValue(value: string | null | undefined): string[] {
   return value ? [value] : [];
 }
 
+/**
+ * What an item is, from its most specific facts: the weapon type, the slot of jewelry, the armor type with its slot, or
+ * the item type. A weapon type already names its hands, so the slot is left out.
+ */
+function itemTypeLabel(facts: PublicItem["facts"]): string | null {
+  if (facts.weaponType) return categoryLabel(facts.weaponType);
+  if (facts.armorType && facts.slot) return facts.armorType === "JEWELRY" ? categoryLabel(facts.slot) : `${categoryLabel(facts.armorType)} ${categoryLabel(facts.slot)}`;
+  return facts.itemType ? categoryLabel(facts.itemType) : null;
+}
+
 function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow {
   const facts = document.facts;
   const slot = facts.slot ?? facts.weaponSlot;
@@ -48,8 +58,7 @@ function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow
   return {
     ref: document.ref,
     // `rarity` colours the name.
-    values: { rarity: facts.rarity ?? null, itemType: facts.itemType ?? null, gear, slot: slot ?? null,
-      itemPower: facts.itemPower ?? null, levelRequirement: facts.levelRequirement ?? null },
+    values: { rarity: facts.rarity ?? null, type: itemTypeLabel(facts), itemPower: facts.itemPower ?? null, levelRequirement: facts.levelRequirement ?? null },
     facets: { class: usableBy, gear: facetValue(gear), slot: facetValue(slot), itemType: facetValue(facts.itemType), rarity: facetValue(facts.rarity),
       material: [String(document.usedInRecipes.length > 0)] },
     ...(stats.length ? { stats } : {}),

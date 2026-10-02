@@ -26,11 +26,13 @@
   $: addable = stats.filter((option) => !state.stats.some((filter) => filter.key === option.key));
 </script>
 
+<!-- Every group is a disclosure. Its summary names the group, counts its active filters, and shows a chevron that turns
+     when the group opens or closes, as the map sidebar does. -->
 <div class="panel">
   {#each groups as group (group.facet.id)}
     {@const selected = state.facets[group.facet.id] ?? []}
     <details class="group" open>
-      <summary>{group.facet.label}{#if selected.length}<span class="picked">{formatNumber(selected.length)}</span>{/if}</summary>
+      <summary><span class="title">{group.facet.label}</span>{#if selected.length}<span class="picked">{formatNumber(selected.length)}</span>{/if}<svg class="chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m3.5 6 4.5 4.5L12.5 6" /></svg></summary>
       {#if group.options.length > LONG_GROUP}
         <input class="narrow" type="search" placeholder={`Find ${readerNoun(group.facet.label)}`} aria-label={`Find ${readerNoun(group.facet.label)} values`}
           value={searches[group.facet.id] ?? ''} on:input={(event) => (searches = { ...searches, [group.facet.id]: event.currentTarget.value })} />
@@ -52,8 +54,8 @@
   {/each}
 
   {#each ranges as range (range.id)}
-    <fieldset class="group range">
-      <legend>{range.label}</legend>
+    <details class="group" open>
+      <summary><span class="title">{range.label}</span>{#if state.minimums[range.id] || state.maximums[range.id]}<span class="picked">1</span>{/if}<svg class="chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m3.5 6 4.5 4.5L12.5 6" /></svg></summary>
       <div class="bounds">
         <input type="number" inputmode="numeric" placeholder="Min" aria-label={`Lowest ${readerNoun(range.label)}`}
           value={state.minimums[range.id] ?? ''} on:change={(event) => onRange('min', range.id, event.currentTarget.value)} />
@@ -61,12 +63,12 @@
         <input type="number" inputmode="numeric" placeholder="Max" aria-label={`Highest ${readerNoun(range.label)}`}
           value={state.maximums[range.id] ?? ''} on:change={(event) => onRange('max', range.id, event.currentTarget.value)} />
       </div>
-    </fieldset>
+    </details>
   {/each}
 
   {#if stats.length}
-    <fieldset class="group stats">
-      <legend>Stats</legend>
+    <details class="group" open>
+      <summary><span class="title">Stats</span>{#if state.stats.length}<span class="picked">{formatNumber(state.stats.length)}</span>{/if}<svg class="chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m3.5 6 4.5 4.5L12.5 6" /></svg></summary>
       {#each state.stats as filter, index (filter.key)}
         <div class="stat">
           <span class="stat-name">{statLabel(filter.key)}</span>
@@ -86,17 +88,20 @@
           {#each addable as option (option.key)}<option value={option.key}>{statLabel(option.key)} ({formatNumber(option.count)})</option>{/each}
         </select>
       {/if}
-    </fieldset>
+    </details>
   {/if}
 </div>
 
 <style>
   .panel { display: grid; gap: .25rem; }
-  .group { margin: 0; padding: .7rem 0; border: 0; border-top: 1px solid var(--c-line); min-width: 0; }
+  .group { margin: 0; padding: .7rem 0; border-top: 1px solid var(--c-line); min-width: 0; }
   .group:first-child { border-top: 0; padding-top: 0; }
-  summary, legend { padding: 0; color: var(--c-text); font-size: var(--c-text-label); font-weight: 700; cursor: pointer; }
-  legend { cursor: default; }
-  summary { display: flex; align-items: center; gap: .4rem; min-height: 1.75rem; }
+  summary { display: flex; align-items: center; gap: .4rem; min-height: 1.75rem; padding: 0; color: var(--c-text); font-size: var(--c-text-label); font-weight: 700; list-style: none; cursor: pointer; }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover { color: var(--c-text-strong); }
+  .chevron { flex: none; width: 14px; height: 14px; margin-left: auto; color: var(--c-accent-muted); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
+  summary:hover .chevron { color: var(--c-accent); }
+  details[open] > summary .chevron { transform: rotate(180deg); }
   .picked { min-width: 1.25rem; padding: 0 .35rem; border-radius: 999px; background: var(--c-accent-line); color: var(--c-surface-1); font-size: .75rem; text-align: center; }
   .options { display: grid; gap: .1rem; margin: .35rem 0 0; padding: 0; list-style: none; }
   /* A long group scrolls inside a bounded height, so it does not push every later group off the screen. */

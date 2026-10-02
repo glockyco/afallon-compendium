@@ -108,7 +108,7 @@ test("quest rows expose the level range, chain, areas, and giver for every colum
     chain: ["Pilgrimage"], repeatable: ["true"], rewardType: ["Experience", "item"] });
 });
 
-test("item rows name the classes that can use them, their gear type, crafting use, and stats", () => {
+test("item rows name the classes that can use them, what they are, their crafting use, and stats", () => {
   const ref = (key: string, name: string) => ({ key, kind: key.split(":")[0] as "items", name, slug: name.toLowerCase().replaceAll(" ", "-") });
   const stat = (key: string, name: string) => ({ key, kind: "stats" as const, name });
   const item = (key: string, name: string, facts: Partial<PublicItem["facts"]>, usedInRecipes: PublicItem["usedInRecipes"] = []) => ({
@@ -121,13 +121,15 @@ test("item rows name the classes that can use them, their gear type, crafting us
     ["items:2", item("items:2", "Oak Staff", { itemType: "WEAPON", weaponType: "STAFF", randomStats: [{ stat: stat("stats:0", "Health"), min: 10, max: 40, isPercent: false, whole: true }] })],
     ["items:3", item("items:3", "Cloth Hood", { armorType: "CLOTH", slot: "HEAD", stats: [{ stat: stat("stats:7", "Lifesteal"), amount: 2, isPercent: true }] })],
     ["items:4", item("items:4", "Copper Ore", { itemType: "MATERIAL" }, [{ counterpart: ref("items:5", "Copper Bar"), count: 2 } as never])],
+    ["items:7", item("items:7", "Silver Ring", { armorType: "JEWELRY", slot: "Ring" })],
     ["classes:0", shieldmaster], ["classes:1", arcanist],
   ]);
   const rows = new Map(buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")![0]!.rows.map((row) => [row.ref.name, row]));
   expect(rows.get("Buckler")!.facets.class).toEqual(["Shieldmaster"]);
   expect(rows.get("Oak Staff")!.facets.class).toEqual(["Arcanist"]);
   expect(rows.get("Cloth Hood")!.facets.class).toEqual(["Arcanist", "Shieldmaster"]);
-  expect(rows.get("Buckler")!.values.gear).toBe("Shield");
+  // A weapon type names its hands, jewelry is named by its slot, and other armor by its armor type and slot.
+  expect(["Buckler", "Cloth Hood", "Silver Ring", "Copper Ore"].map((name) => rows.get(name)!.values.type)).toEqual(["Shield", "Cloth Head", "Ring", "Material"]);
   expect(rows.get("Cloth Hood")!.facets.gear).toEqual(["CLOTH"]);
   expect(rows.get("Copper Ore")!.facets.gear).toEqual([]);
   expect(rows.get("Copper Ore")!.facets.material).toEqual(["true"]);

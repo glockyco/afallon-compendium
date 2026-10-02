@@ -5,8 +5,9 @@ const facet = (id: string, label: string, defaultHiddenValues?: string[]): Publi
 
 export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
   { kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, list: true, searchable: true,
-    // The name colour shows the rarity, so rarity is a filter and not a column.
-    columns: [column("itemType", "Type"), column("gear", "Gear"), column("slot", "Slot"), column("itemPower", "Item power", true), column("levelRequirement", "Level", true)],
+    // The name colour shows the rarity, so rarity is a filter and not a column. One Type column names what an item is,
+    // and the gear, slot, and type filters keep each of those facts.
+    columns: [column("type", "Type"), column("itemPower", "Item power", true), column("levelRequirement", "Level", true)],
     facets: [facet("class", "Usable by"), facet("gear", "Gear"), facet("slot", "Slot"), facet("itemType", "Type"), facet("rarity", "Rarity"), facet("material", "Used in crafting")] },
   { kind: "npcs", label: "NPC", plural: "NPCs", route: "npcs", icon: "npc", pages: true, list: true, searchable: true,
     columns: [column("level", "Level", true), column("role", "Role"), column("place", "Place"), column("faction", "Faction")],
