@@ -16,4 +16,4 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Publish, check Eldeth Goldvein, the roster tabs, and the NPC list filters at 1440 and 390 px, and accept the update
+- [x] 4.1 Publish, check Eldeth Goldvein, the roster tabs, and the NPC list filters at 1440 and 390 px, and accept the update

@@ -167,7 +167,7 @@ A page SHALL NOT show a stat whose amount is zero. A creature whose roles are al
 
 ### Requirement: NPC pages show who the NPC is, where it is, and what it gives
 
-When available, a combat creature's strip SHALL show level, health, experience per kill, and respawn. Its answer SHALL show Drops sorted by chance, with the loot roll in the heading and a second loot table as a labeled group. An adventurer without drops SHALL instead answer with its Gear: the published chance that a finished job takes an upgrade from the reward gear list, a link to that list, and the items and types of its own gear kit when it has one. A combat creature without drops SHALL say that no drops are published for it by name. A friendly NPC without drops SHALL have no answer card. Text that applies to every NPC SHALL call it an NPC or name it, and SHALL reserve "creature" for NPCs that you fight. An adventurer's gear preference SHALL be named as the gear that it prefers, with its armor type, weapon types, and favoured stat, and SHALL NOT be described as what its kills drop. The side SHALL hold combat stats, faction, aggro range, immunities, and abilities as chips, and preserve other secondary facts without repeating the answer. When the published kill experience has its level difference and the character level cap, the side SHALL show the experience per kill at the reader's remembered character level, with its level control, the creature level at that character level, and a link to the kill calculator. Its remaining sections SHALL follow: Where to find grouped by place with counts, Sells, Quests, Variants. Each quest SHALL name whether the creature gives, completes, or is an objective; differing variant and placement facts SHALL remain accessible. A friendly service NPC SHALL not gain fabricated combat facts. An adventurer page SHALL show no respawn time, because a world adventurer returns through its scene's spawn pool and not after its record's respawn time, and SHALL show kill experience only when a kill gives experience.
+When available, a combat creature's strip SHALL show level, health, experience per kill, and respawn. Its answer SHALL show Drops sorted by chance, with the loot roll in the heading and a second loot table as a labeled group. An adventurer without drops SHALL instead answer with its Gear: the published chance that a finished job takes an upgrade from the reward gear list, a link to that list, and the items and types of its own gear kit when it has one. A combat creature without drops SHALL say that no drops are published for it by name. A friendly NPC without drops SHALL have no answer card. Text that applies to every NPC SHALL call it an NPC or name it, and SHALL reserve "creature" for NPCs that you fight. An adventurer's gear preference SHALL be named as the gear that it prefers, with its armor type, weapon types, and favoured stat, and SHALL NOT be described as what its kills drop. The side SHALL hold combat stats, faction, aggro range, immunities, and abilities as chips, and preserve other secondary facts without repeating the answer. When the published kill experience has its level difference and the character level cap, the side SHALL show the experience per kill at the reader's remembered character level, with its level control, the creature level at that character level, and a link to the kill calculator. Its remaining sections SHALL follow: Where to find grouped by place with counts, Sells, Quests, Variants. Each quest SHALL name whether the creature gives, completes, or is an objective; differing variant and placement facts SHALL remain accessible. A friendly service NPC SHALL not gain fabricated combat facts. An adventurer page SHALL show no respawn time, because a world adventurer returns through its scene's spawn pool and not after its record's respawn time, and SHALL show kill experience only when a kill gives experience. An adventurer of the world roster SHALL show an Adventurer card in its side with its class, race, party role, preferred talent tree linked to that tree on its class page, the abilities that it learns first, its starting level, and when it joins, and SHALL link the roster of the Adventurers guide. An adventurer without a role of its own SHALL read Damage by default. An NPC that fights with the abilities of its class instead of the phase abilities of its record SHALL show no phase abilities, and ability pages SHALL NOT name it among the NPCs that use an ability.
 
 #### Scenario: Boss of one place
 - **WHEN** an NPC is boss of one place
@@ -196,6 +196,14 @@ When available, a combat creature's strip SHALL show level, health, experience p
 #### Scenario: Adventurer without a respawn time
 - **WHEN** a reader opens Eldeth Goldvein, whose NPC record says 1 to 2 minutes
 - **THEN** the page shows no respawn time and no experience per kill
+
+#### Scenario: Adventurer facts
+- **WHEN** a reader opens Eldeth Goldvein
+- **THEN** the Adventurer card names Druid, Dwarf, Tank, Primal Feral linked to that tree on the Druid page, the abilities she learns first starting with Bear Form, her starting level, and when she joins
+
+#### Scenario: Class abilities instead of phase abilities
+- **WHEN** a reader opens Eldeth Goldvein
+- **THEN** the page lists no Bleeding Strike, Brutal Slice, or Toxic Fang, and the Bleeding Strike page does not name Eldeth among its users
 
 ### Requirement: Quest pages follow the course of the quest
 
@@ -235,7 +243,7 @@ An ability page SHALL show the game tooltip once in the side column, choosing th
 
 ### Requirement: Class pages show how a class progresses
 
-Only classes offered by a published race SHALL have pages. A class strip SHALL show races, weapon types, highest level, and talent tree count when known. Its answer SHALL present playstyle and auto attack. Its side SHALL stay in view beside the trees and SHALL present how the class gains talent points, each talent tree with the points that learning every rank of every node takes and a link to its tab, the weapon types, and the gear link. A tree whose points differ from the most common points of the class SHALL name them with its cost. Where a guide explains how those points are earned, such as Heroic Essence in the Heroic Tier guide, the tree and the side SHALL link that guide section. A rank costs its own unlock cost, and the first rank of an ability that the class knows from the start SHALL cost nothing. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with the established tabbed List/Grid views and row anchors. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
+Only classes offered by a published race SHALL have pages. A class strip SHALL show races, weapon types, highest level, and talent tree count when known. Its answer SHALL present playstyle and auto attack. Its side SHALL stay in view beside the trees and SHALL present how the class gains talent points, each talent tree with the points that learning every rank of every node takes and a link to its tab, the weapon types, and the gear link. A tree whose points differ from the most common points of the class SHALL name them with its cost. Where a guide explains how those points are earned, such as Heroic Essence in the Heroic Tier guide, the tree and the side SHALL link that guide section. A rank costs its own unlock cost, and the first rank of an ability that the class knows from the start SHALL cost nothing. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with row anchors. The talent trees SHALL have two views, switchable with tabs: Web, the default, which lays out every tree of the class as the game's talent screen does, with the game's positions and requirement lines, and List, which shows each tree as a table in its own tab. Both views SHALL render every tree and talent anchor, so a link to a talent or a tree selects it in the reader's current view. Every talent SHALL show its icon. The web SHALL let a reader move it, zoom it, and select a talent to see its ranks, effect, requirements, and the talents that it unlocks. Selecting a talent SHALL highlight every talent that it needs, back to the first tier of its tree, with the lines between them, and the talents that it unlocks. Selecting a talent in the web SHALL move neither the page nor the web, except that the web SHALL glide to a selected talent outside its view at the same zoom. A link to a talent or a tree from elsewhere on the page SHALL scroll the page only as far as needed to show the whole web. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
 
 A passive talent rank SHALL show its changes to pets after its own changes. A change to pets SHALL name the pets as the game does: "Your beast" for the Hunter's beast, the NPC whose summons change, or "Summons" for every pet. The changes to the same pets SHALL share one line.
 
@@ -273,6 +281,22 @@ A passive talent rank SHALL show its changes to pets after its own changes. A ch
 - **THEN** the side still shows each tree with the Talent Points that learning it in full takes
 - **AND** Heroic Ascension shows its cost in Heroic Essence
 - **AND** Heroic Essence links the Essence section of the Heroic Tier guide
+
+#### Scenario: Web as in the game
+- **WHEN** a reader opens Shieldmaster
+- **THEN** the Web view shows its five trees as wedges around the centre, each talent at the position that the game's talent screen gives it, with lines from each talent to the talents that require it
+
+#### Scenario: Link to a talent keeps the view
+- **WHEN** a reader in the List view follows the requirement link to Weighted Strikes
+- **THEN** the List view stays open and shows Weighted Strikes, and the same link from the Web view selects Weighted Strikes in the web
+
+#### Scenario: Selecting does not move the page
+- **WHEN** a reader scrolls the web to the middle of the window and selects Cleaving Might, then follows its Unlocks link to Momentum of War
+- **THEN** the page and the web stay where they are, both talents being in view, and the card under the web describes each talent in turn
+
+#### Scenario: Requirement chain
+- **WHEN** a reader selects Hemorrhage Expert in the Assassin web
+- **THEN** Opened Veins and Bleeding Strike, which it needs in turn, light up with their lines, as does Bloodsoaked, which it unlocks
 
 ### Requirement: Skill pages show recipes and levels
 

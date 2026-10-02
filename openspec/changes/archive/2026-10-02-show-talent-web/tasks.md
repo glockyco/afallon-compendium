@@ -11,4 +11,4 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Publish, check Shieldmaster and Druid at 1440 and 390 px, follow talent links in both views, and accept the update
+- [x] 3.1 Publish, check Shieldmaster and Druid at 1440 and 390 px, follow talent links in both views, and accept the update
