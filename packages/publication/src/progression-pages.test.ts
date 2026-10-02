@@ -190,9 +190,9 @@ test("ability pages name the classes that learn them and their use requirements"
 
 test("class and skill lists count trees, abilities, and recipes", () => {
   const { documents, refs } = project();
-  const lists = buildKindLists({ buildId: "b", catalogId: "c" }, PUBLIC_KIND_REGISTRY, documents, facts, relations, refs);
+  const lists = buildKindLists({ buildId: "b", catalogId: "c" }, PUBLIC_KIND_REGISTRY, documents, facts, refs);
   expect(lists.get("classes")?.[0]?.rows.map((row) => [row.ref.name, row.values])).toEqual([["Shieldmaster", { talentTrees: 2, abilities: 2 }], ["Assassin", { talentTrees: 1, abilities: 0 }]]);
   expect(lists.get("recipes")?.[0]?.rows).toEqual([{ ref: { key: "items:1", kind: "items", name: "Elixir", slug: "potion", variant: "crafting" },
-    values: { station: null, skill: "Alchemy", product: "Potion" }, facets: { station: [], skill: ["Alchemy"] } }]);
+    values: { station: null, skill: "Alchemy" }, facets: { station: [], skill: ["Alchemy"] } }]);
   expect(lists.get("skills")?.[0]?.rows.find((row) => row.ref.name === "Alchemy")?.values).toEqual({ highestLevel: 2, recipes: 1 });
 });

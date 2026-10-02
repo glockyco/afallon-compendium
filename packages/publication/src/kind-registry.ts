@@ -24,7 +24,8 @@ export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
   { kind: "abilities", label: "Ability", plural: "Abilities", route: "abilities", icon: "ability", pages: true, list: true, searchable: true,
     columns: [column("source", "Source")], facets: [facet("sourceKind", "Source", ["No Known Use"]), facet("class", "Class")] },
   { kind: "recipes", label: "Recipe", plural: "Recipes", route: "recipes", icon: "recipe", pages: false, list: true, searchable: false,
-    columns: [column("station", "Station"), column("skill", "Skill"), column("product", "Product")],
+    // A recipe row links its product, so the product needs no column of its own.
+    columns: [column("station", "Station"), column("skill", "Skill")],
     facets: [facet("station", "Station"), facet("skill", "Skill")] },
   // Only the classes that a race offers have pages. The references of the other classes read as text.
   { kind: "classes", label: "Class", plural: "Classes", route: "classes", icon: "class", pages: true, list: true, searchable: true,

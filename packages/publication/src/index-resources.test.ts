@@ -99,7 +99,7 @@ test("quest rows expose the level range, chain, areas, and giver for every colum
     turnIns: [], objectives: [], itemsGiven: [], rewards: [], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [], placedRules: [],
   };
   const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "quests")!;
-  const row = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[quest.ref.key, quest]]), undefined, undefined, undefined, undefined,
+  const row = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[quest.ref.key, quest]]), undefined, undefined, undefined,
     new Map([[quest.ref.key, ["Experience", "item"]]])).get("quests")![0]!.rows[0]!;
   expect(row.values).toEqual({ levelRange: "15–30", chain: "Pilgrimage", area: "Cedar Ridge, Coalway Woods", giver: "Guardian" });
   expect(Object.keys(row.values).sort()).toEqual(registry.columns.map((column) => column.id).sort());

@@ -212,7 +212,7 @@ export async function generateIndexResources(
   const schemaIdByKey = new Map([...documents].map(([key, resource]) => [key, resource.reference.schemaId]));
   const publicationIssues = auditPublicTooltipCoverage(facts.records, relations.records, publicDocuments, schemaIdByKey);
 
-  const listValues = buildKindLists(identity, PUBLIC_KIND_REGISTRY, publicDocuments, facts.records, relations.records, refs, excluded, queryQuestRewardTypes(db).records);
+  const listValues = buildKindLists(identity, PUBLIC_KIND_REGISTRY, publicDocuments, facts.records, refs, excluded, queryQuestRewardTypes(db).records);
   const lists = new Map<string, GeneratedStaticResource<StaticKindList>[]>();
   for (const [kind, values] of listValues) {
     const resources: GeneratedStaticResource<StaticKindList>[] = [];

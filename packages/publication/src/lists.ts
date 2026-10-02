@@ -1,4 +1,4 @@
-import type { CatalogEndpoint, CatalogFacts, CatalogRelations } from "@afallon/contracts/catalog";
+import type { CatalogEndpoint, CatalogFacts } from "@afallon/contracts/catalog";
 import { categoryLabel } from "@afallon/contracts/public";
 import { resolveCatalogEndpoint } from "./references";
 import { levelText } from "./levels";
@@ -113,9 +113,9 @@ function abilityRow(document: PublicAbility): ListRow {
   return { ref: document.ref, values: { source }, facets: { sourceKind: [sourceKind], class: classes } };
 }
 
-function recipeRow(ref: EntityRef, station: Ref | undefined, skill: Ref | undefined, product: Ref | undefined): ListRow {
+function recipeRow(ref: EntityRef, station: Ref | undefined, skill: Ref | undefined): ListRow {
   const stationName = refName(station), skillName = refName(skill);
-  return { ref, values: { station: stationName, skill: skillName, product: refName(product) },
+  return { ref, values: { station: stationName, skill: skillName },
     facets: { station: facetValue(stationName), skill: facetValue(skillName) } };
 }
 
@@ -142,7 +142,6 @@ export function buildKindLists(
   registry: readonly PublicKindEntry[],
   documents: ReadonlyMap<string, PublicDocument>,
   facts?: CatalogFacts,
-  relations?: CatalogRelations,
   refs?: ReadonlyMap<string, EntityRef>,
   excluded?: ReadonlySet<string>,
   questRewardTypes: ReadonlyMap<string, readonly string[]> = new Map(),
@@ -168,15 +167,13 @@ export function buildKindLists(
     rows.push(row);
     rowsByKind.set(document.ref.kind, rows);
   }
-  if (facts && relations && refs) {
-    const products = new Map(relations.recipes.filter((row) => row.role === "product" && row.recipe.entityKey)
-      .map((row) => [row.recipe.entityKey!, row.item] as const));
+  if (facts && refs) {
     for (const recipe of facts.recipes) {
       if (excluded?.has(recipe.entityKey)) continue;
       const ref = refs.get(recipe.entityKey);
       if (!ref) continue;
       const endpointRef = (endpoint: CatalogEndpoint | null) => endpoint ? resolveCatalogEndpoint(refs, endpoint) : undefined;
-      const row = recipeRow(ref, endpointRef(recipe.station), endpointRef(recipe.skill), endpointRef(products.get(recipe.entityKey) ?? null));
+      const row = recipeRow(ref, endpointRef(recipe.station), endpointRef(recipe.skill));
       const rows = rowsByKind.get("recipes") ?? [];
       rows.push(row);
       rowsByKind.set("recipes", rows);
