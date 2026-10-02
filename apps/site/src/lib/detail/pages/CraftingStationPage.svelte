@@ -20,11 +20,13 @@
 
   $: icon = document.art.icon ?? document.ref.icon;
   $: spots = document.places.reduce((sum, place) => sum + place.spotCount, 0);
-  $: sideFacts = [
-    ...(document.recipes.length ? [{ label: 'Recipes', value: formatNumber(document.recipes.length), href: '#recipes' }] : []),
-    ...(spots ? [{ label: 'Map spots', value: formatNumber(spots), href: '#where-to-find' }] : []),
-    ...(document.places.length ? [{ label: 'Areas', value: formatNumber(document.places.length), href: '#where-to-find' }] : []),
-  ];
+  $: recipeLevels = document.recipes.map((row) => row.requiredLevel).filter((level): level is number => level !== undefined && level > 0);
+  $: sideFacts = recipeLevels.length ? [{
+    label: 'Recipe levels',
+    value: Math.min(...recipeLevels) === Math.max(...recipeLevels)
+      ? formatNumber(recipeLevels[0]!) : `${formatNumber(Math.min(...recipeLevels))}–${formatNumber(Math.max(...recipeLevels))}`,
+    href: '#recipes',
+  }] : [];
   $: places = document.places.map((place) => ({
     place: { key: null, label: place.label } as const, spotCount: place.spotCount, nameHref: entityPlaceOnMap(document.ref.key, place),
   }));
@@ -39,7 +41,7 @@
 </script>
 
 <article class="detail-page">
-  <DetailFrame>
+  <DetailFrame side={Boolean(document.skills.length && recipeLevels.length)}>
     <div slot="head">
       <TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} typeLine="Crafting station"
         mapHref={spots ? entityOnMap(document.ref.key) : undefined} {registry} />

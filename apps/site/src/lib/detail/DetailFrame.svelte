@@ -2,13 +2,15 @@
   import '../compendium.css';
   /** Whether the page has an answer card. Without one, the side starts beside the sections. */
   export let answer = true;
+  /** Suppress the side when a page has no distinct facts to place there. */
+  export let side = true;
 </script>
 
 <!-- A page without side content gives its main column the full width instead of an empty column beside it. -->
-<div class="detail-frame" class:no-answer={!answer} class:no-side={!$$slots.side}>
+<div class="detail-frame" class:no-answer={!answer} class:no-side={!side || !$$slots.side}>
   <div class="head"><slot name="head" /></div>
   {#if answer}<div class="answer"><slot name="answer" /></div>{/if}
-  {#if $$slots.side}<aside class="side" aria-label="Additional details"><slot name="side" /></aside>{/if}
+  {#if side && $$slots.side}<aside class="side" aria-label="Additional details"><slot name="side" /></aside>{/if}
   <div class="rest"><slot /></div>
 </div>
 

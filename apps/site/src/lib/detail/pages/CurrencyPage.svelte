@@ -5,11 +5,10 @@
   import { formatNumber, nameOf } from '../../format';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
-  import FactRow from '../FactRow.svelte';
-  import FactsCard from '../FactsCard.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
+  import SideCard from '../SideCard.svelte';
   import Sections from '../Sections.svelte';
   import PurchasesSection from '../sections/PurchasesSection.svelte';
   import ItemSourceRoutes from '../sections/ItemSourceRoutes.svelte';
@@ -22,11 +21,6 @@
 
   $: icon = document.art.icon ?? document.ref.icon;
   $: sharedSellers = sharedPurchaseSellers(document.purchases);
-  $: sideFacts = [
-    ...(document.purchases.length ? [{ label: 'Items to buy', value: formatNumber(document.purchases.length), href: '#buys' }] : []),
-    ...(document.properties.length ? [{ label: 'Properties', value: formatNumber(document.properties.length), href: '#properties' }] : []),
-    ...(document.rewards.length ? [{ label: 'Rewarding quests', value: formatNumber(document.rewards.length), href: '#quest-rewards' }] : []),
-  ];
   $: largest = document.rewards.length ? Math.max(...document.rewards.map((row) => row.amount)) : undefined;
   $: smallest = document.rewards.length ? Math.min(...document.rewards.map((row) => row.amount)) : undefined;
   const propertyColumns: RelationColumn<CurrencyPropertyRow>[] = [
@@ -42,7 +36,7 @@
 </script>
 
 <article class="detail-page">
-  <DetailFrame>
+  <DetailFrame side={sharedSellers.length > 0}>
     <div slot="head">
       <TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} typeLine="Currency" {registry} />
     </div>
@@ -64,17 +58,11 @@
     </div>
 
     <svelte:fragment slot="side">
-      <FactsCard facts={sideFacts} title="At a glance">
-        {#if document.item}<FactRow label="In your bags"><EntityLink ref={document.item} {registry} /></FactRow>{/if}
-        <svelte:fragment slot="after">
-          {#if sharedSellers.length}
-            <div class="merchant-list">
-              <strong>Merchants</strong>
-              {#each sharedSellers as seller}<EntityLink ref={seller} {registry} />{/each}
-            </div>
-          {/if}
-        </svelte:fragment>
-      </FactsCard>
+      <SideCard title="Merchants">
+        <div class="merchant-list">
+          {#each sharedSellers as seller}<EntityLink ref={seller} {registry} />{/each}
+        </div>
+      </SideCard>
     </svelte:fragment>
     <Sections>
       {#if document.purchases.length}<PurchasesSection id="buys" title="What it buys" rows={document.purchases} subjectCurrency={document.ref} sellersInSide={Boolean(sharedSellers.length)} {registry} />{/if}
@@ -106,6 +94,5 @@
 
 <style>
   .description { color: var(--c-text-dim); line-height: 1.5; }
-  .merchant-list { display: grid; gap: .3rem; padding-top: .65rem; border-top: 1px solid var(--c-line-soft); }
-  .merchant-list strong { color: var(--c-text-dim); font-weight: 400; }
+  .merchant-list { display: grid; gap: .4rem; }
 </style>

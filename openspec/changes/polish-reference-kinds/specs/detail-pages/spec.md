@@ -2,7 +2,7 @@
 
 ### Requirement: Small reference kinds lead with an answer
 
-Currency, faction, gear set, crafting station, and race pages SHALL each have a single-line identity, a useful primary answer, and meaningful side facts. They SHALL NOT show a full-width strip of one or two counts, reserve a desktop column without content, repeat a fact across adjacent panels, or expose default zero values as a feature. Their relation rows SHALL retain genuinely different values while sharing invariant information outside the rows.
+Currency, faction, gear set, crafting station, and race pages SHALL each have a single-line identity and a useful primary answer. They SHALL show a side card only for distinct facts that add information; otherwise their main content SHALL use the full width. They SHALL NOT show a full-width strip of one or two counts, reserve a desktop column without content, repeat a fact across adjacent panels, or expose default zero values as a feature. Their relation rows SHALL retain genuinely different values while sharing invariant information outside the rows.
 
 #### Scenario: Currency acquisition
 - **WHEN** a reader opens Gold Coin or Corrupted Emerald

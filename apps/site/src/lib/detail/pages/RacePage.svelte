@@ -2,9 +2,7 @@
   import { base } from '$app/paths';
   import type { PublicKindEntry, PublicRace } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { formatNumber } from '../../format';
   import AnswerCard from '../AnswerCard.svelte';
-  import FactsCard from '../FactsCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import Sections from '../Sections.svelte';
   import LinkSection from '../sections/LinkSection.svelte';
@@ -14,10 +12,6 @@
   export let registry: PublicKindEntry[];
 
   $: icon = document.art.icon ?? document.ref.icon;
-  $: sideFacts = [
-    ...(document.classes.length ? [{ label: 'Classes', value: formatNumber(document.classes.length), href: '#about' }] : []),
-    ...(document.adventurers.length ? [{ label: 'Adventurers', value: formatNumber(document.adventurers.length), href: '#adventurers' }] : []),
-  ];
 </script>
 
 <article class="detail-page">
@@ -34,9 +28,6 @@
       </AnswerCard>
     </div>
 
-    <svelte:fragment slot="side">
-      <FactsCard facts={sideFacts} title="At a glance" />
-    </svelte:fragment>
     <Sections>
       {#if document.adventurers.length}<LinkSection id="adventurers" title="Adventurers" refs={document.adventurers} {registry} line="The adventurers of this race." />{/if}
     </Sections>

@@ -5,7 +5,6 @@
   import { alignmentLabel, formatNumber, nameOf } from '../../format';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
-  import FactsCard from '../FactsCard.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
@@ -20,11 +19,6 @@
   $: membersHref = npcRoute && document.members ? `${base}/${npcRoute}/?faction=${encodeURIComponent(document.ref.name)}` : undefined;
   $: standing = document.newCharacter;
   $: icon = document.art.icon ?? document.ref.icon;
-  $: sideFacts = [
-    ...(document.members ? [{ label: 'NPCs', value: formatNumber(document.members), href: membersHref }] : []),
-    ...(document.stances.length ? [{ label: 'Stances', value: formatNumber(document.stances.length), href: '#standing' }] : []),
-    ...(document.relations.length ? [{ label: 'Other factions', value: formatNumber(document.relations.length), href: '#relations' }] : []),
-  ];
   $: sharedStancePoints = document.stances.length && document.stances.every((row) => row.points === document.stances[0]!.points) ? document.stances[0]!.points : undefined;
   $: allStartingPointsZero = document.relations.every((row) => row.startingPoints === 0);
   const stanceColumns: RelationColumn<FactionStance>[] = [
@@ -51,12 +45,11 @@
       <AnswerCard title="Your standing" id="standing">
         {#if document.description}<p class="description">{document.description}</p>{/if}
         {#if standing}
-          <p>A new character starts {standing.stance}{#if standing.points}, with {formatNumber(standing.points)} points toward the next stance{/if}. At this stance, {standing.alignment === 'ally' ? 'members are allies' : standing.alignment === 'enemy' ? 'members are enemies' : 'members are neutral'}.</p>
-        {#if document.ref.name === 'Humans'}<p>Every playable race belongs to this faction.</p>{/if}
+          <p>A new character starts {standing.stance}, where members are {standing.alignment === 'ally' ? 'allies' : standing.alignment === 'enemy' ? 'enemies' : 'neutral'}{standing.points ? `, with ${formatNumber(standing.points)} points toward the next stance` : ''}. {sharedStancePoints !== undefined ? `Each stance takes ${formatNumber(sharedStancePoints)} points, and a full stance moves you to the next one.` : 'A full stance moves you to the next one.'}</p>
+        {:else}
+          <p>{sharedStancePoints !== undefined ? `Each stance takes ${formatNumber(sharedStancePoints)} points, and a full stance moves you to the next one.` : 'A full stance moves you to the next one.'}</p>
         {/if}
-        {#if sharedStancePoints !== undefined}<p>Each stance takes {formatNumber(sharedStancePoints)} points to fill.</p>{/if}
-        <p>Filling a stance moves you to the next one.</p>
-        <p>No known way to earn faction points is available.</p>
+        <p>Nothing in the game is known to change your standing.{#if membersHref}{' '}<a class="c-link" href={membersHref}>Browse this faction's NPCs</a>.{/if}</p>
         <RelationTable columns={stancePlan.columns} rows={document.stances} label="Stances">
           <svelte:fragment slot="cell" let:row let:column>
             {#if column === 'stance'}{row.name}
@@ -68,9 +61,6 @@
       </AnswerCard>
     </div>
 
-    <svelte:fragment slot="side">
-      <FactsCard facts={sideFacts} title="At a glance" />
-    </svelte:fragment>
     <Sections>
       {#if document.relations.length}
         <Section id="relations" title="Stance toward each faction" count={document.relations.length} line={allStartingPointsZero ? `How ${document.ref.name} starts toward each faction, with no points toward the next stance.` : `How ${document.ref.name} starts toward each faction.`}>
