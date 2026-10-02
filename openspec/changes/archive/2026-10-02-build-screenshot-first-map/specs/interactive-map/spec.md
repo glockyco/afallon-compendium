@@ -13,7 +13,7 @@ Overlapping categories SHALL NOT create duplicate physical markers. Dense views 
 #### Scenario: A vendor also gives quests
 - **WHEN** a reader enables both the merchant and quest-giver categories
 - **THEN** that NPC has one physical marker carrying both
-- **AND** selection exposes both its stock and its quests
+- **AND** the published NPC page remains the source for stock and quest details
 
 #### Scenario: A reader hides one role of an overlapping marker
 - **WHEN** a placement's highest-precedence category is disabled while another category remains enabled
@@ -47,7 +47,7 @@ Render order SHALL be semantic, from terrain and areas, through paths and ranges
 
 #### Scenario: A category is added
 - **WHEN** a new category is registered with its icon and color
-- **THEN** the map, the result list, the filters, and the legend all present it from that entry
+- **THEN** the map, result list, and category controls use that entry's icon and color
 - **AND** no consumer carries its own icon or color mapping
 
 #### Scenario: A registered category has no layer
@@ -59,25 +59,9 @@ Render order SHALL be semantic, from terrain and areas, through paths and ranges
 - **THEN** their glyphs distinguish them
 - **AND** the result list and details state the category in words
 
-### Requirement: Level ranges are visible and filterable
+### Requirement: Published maps share one world
 
-The map SHALL show the level range of a map or its associated `RegionTemplate` record the way the game does, next to its name. It SHALL provide a level filter over creature levels. Level data SHALL come from the extracted native sources: `RegionTemplate` level ranges, scene dungeon ranges, scene scaling ranges, and producer scaling overrides.
-
-A creature whose level is unknown SHALL remain visible under a filter rather than silently disappear.
-
-#### Scenario: A reader opens a map
-- **WHEN** the map or its associated `RegionTemplate` record carries a level range
-- **THEN** the interface shows that range with the name
-- **AND** the wording matches the game's own presentation
-
-#### Scenario: A reader narrows the level filter
-- **WHEN** creatures fall outside the selected range
-- **THEN** their markers hide and the counts update
-- **AND** a creature with no known level still appears
-
-### Requirement: One world map holds every place
-
-The map SHALL present one navigable world map. Scenes that the game already covers with a shared map texture SHALL occupy one map without manual composition. Maps the game does not position relative to each other, such as caves and dungeons, SHALL be placed on the world map by reviewed manual placement.
+The map SHALL place published game-map spaces in one navigable world. Scenes that share a verified game map texture SHALL share a rendered map. Caves and dungeons without native world offsets SHALL use reviewed placements rather than guessed source-scene coordinates.
 
 Placement SHALL be translation only at a shared world scale. The map SHALL NOT rescale or rotate a map to improve the layout. A reviewed placement file SHALL own the offsets. A development-only authoring mode MAY allow dragging a map with its markers and exporting those offsets for review. Production SHALL NOT include authoring controls. A placement override SHALL move a map and its markers together.
 
@@ -100,7 +84,7 @@ Each placed map SHALL show its player-facing name above its bounds. The label SH
 #### Scenario: A reader inspects a placed map
 - **WHEN** the reader views the map at its working zoom
 - **THEN** the map's name appears above its bounds
-- **AND** the label does not obscure the captured terrain
+- **AND** the label does not obscure the game-provided imagery
 
 #### Scenario: A map has no reviewed placement
 - **WHEN** the world map is built
@@ -115,7 +99,7 @@ Each placed map SHALL show its player-facing name above its bounds. The label SH
 
 ### Requirement: Travel connections are drawn on the world map
 
-Where a travel point has a resolved destination, the map SHALL draw the connection on the world map: the travel marker, a line from it to its destination, and a mark at the destination. One toggle SHALL control that group.
+Where a travel point has a resolved destination, the map SHALL draw a line from its marker to that destination and a mark at the destination. The connection toggle SHALL show all resolved lines and destination marks. A selected or hovered travel point MAY still show its own connection when that toggle is off. The travel marker follows its category visibility, not the connection toggle.
 
 Connections SHALL span maps, so a dungeon entrance links to the arrival point within that zone's map. A travel point whose destination is unresolved SHALL keep its marker without a line, and SHALL NOT be drawn to a guessed position. A destination that is disabled or otherwise inactive SHALL remain visible and visibly distinguished rather than hidden. Selection and hover SHALL strengthen the applicable line while preserving that disabled distinction.
 
@@ -126,7 +110,7 @@ The authoring mode SHALL render connections while a reviewer positions maps, bec
 #### Scenario: A reader inspects an entrance
 - **WHEN** the entrance has a resolved destination
 - **THEN** the map draws the marker, the connection line, and the destination mark
-- **AND** one toggle hides or shows all three
+- **AND** the connection toggle controls the full set of lines and destination marks, not category markers
 
 #### Scenario: A destination is unresolved
 - **WHEN** no verified destination position exists

@@ -2,7 +2,7 @@
 
 ### Requirement: Native game-map registration
 
-Where the game ships a `MapZone` texture, publication SHALL carry that texture as a calibrated layer registered through the game's world-to-map conversion. Shared textures SHALL preserve the game's zone association. Unavailable optional terrain capture SHALL NOT replace a verified game map.
+Where the game ships a `MapZone` texture, publication SHALL carry that texture as a calibrated layer registered through the game's world-to-map conversion. Shared textures SHALL preserve the game's zone association.
 
 #### Scenario: A zone ships its own map
 - **WHEN** a scene carries a `MapZone` with a texture
@@ -13,17 +13,9 @@ Where the game ships a `MapZone` texture, publication SHALL carry that texture a
 - **WHEN** a scene's `MapZone` names a texture the game also shows for another zone
 - **THEN** the publication carries it as the game shows it and records the shared texture name
 
-#### Scenario: A map has both image sources
-- **WHEN** a reader opens the map without a saved layer choice
-- **THEN** the map displays the calibrated game-provided map
-- **AND** captured terrain remains available only where a capture was published and selected
-- **AND** changing layers preserves the shared world location
-
-
 ### Requirement: Each map is one horizontal plane
 
 Every published map SHALL have one image plane per layer with no floor-specific image selection. Captured terrain covers the overworld, not interior floors. Vertically stacked placements SHALL keep distinct identities on the same horizontal plane. The public placement contract does not yet expose world height.
-
 
 #### Scenario: Two placements project onto the same point
 - **WHEN** a placement on an upper level shares its horizontal position with one below
@@ -65,7 +57,7 @@ The publication SHALL retain explicit positions for available and missing captur
 
 ### Requirement: Images and markers share explicit registration
 
-Every image layer SHALL identify its map, world bounds, orientation, resolution, and coordinate transform. Calibration SHALL use known landmarks and round-trip checks. An illustration that distorts physical distances SHALL expose that limitation rather than claim exact registration.
+Every calibrated image layer SHALL identify its map, world bounds, orientation, resolution, and coordinate transform. Calibration SHALL use known landmarks and round-trip checks. Unregistered illustrations SHALL NOT claim precise marker registration.
 
 #### Scenario: A native projection contradicts the image extent
 - **WHEN** the native center or corner controls differ from the declared raster mapping by more than one quarter pixel
@@ -75,10 +67,6 @@ Every image layer SHALL identify its map, world bounds, orientation, resolution,
 - **WHEN** a reader switches between calibrated image layers
 - **THEN** the same selected world location remains selected
 - **AND** marker positions use that layer's verified registration
-
-#### Scenario: An illustration lacks valid registration
-- **WHEN** the illustration cannot support accurate markers
-- **THEN** the interface offers it as a labeled orientation reference without claiming marker precision
 
 ### Requirement: Capture waits for relevant geometry
 

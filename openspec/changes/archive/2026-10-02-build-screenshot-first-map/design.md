@@ -105,7 +105,7 @@ Duskfall Depths is a multi-level dungeon, and the game ships one texture for it,
 
 The map contract has no floors. Maps are single-plane. World height stays an ordinary placement field. Overlapping markers are acceptable because the game overlaps them too.
 
-Player-facing categories come from the game's own enums, not from extraction families: `CursorType` gives merchant, quest giver, interactive object, crafting station, and enemy entity; `NameplateUnitType` gives enemy, neutral, and ally; nameplate sprites distinguish available, ongoing, and completed quests. Level ranges come from `RegionTemplate.LevelRangeMin/Max`, `RPGGameScene.DungeonLevelMin/Max` and `ZoneScalingMin/Max`, `NPCSpawner` scaling overrides, and `QuestLevelRange`. `MinimapDisplay` renders them beside a name, as in `Coalway swamp (lvl.1-20)`.
+Player-facing categories use the game's interaction and nameplate vocabulary. Native `RegionTemplate`, scene, producer, and quest records carry level ranges, but the current map sidebar has no level-range filter and map labels do not consistently show those ranges. Place and creature pages retain available level facts.
 
 The site presents dungeons and regions as place pages, bosses as NPC pages, and properties as property pages. It does not have a separate Adventure Guide surface. The pages draw on the extracted scene, region, NPC, and property facts where available.
 
@@ -223,11 +223,11 @@ The map controller owns accepted URL state. Svelte renders its snapshot, control
 
 Leaflet was a reasonable raster-only alternative, but deck.gl fits dense markers and areas while retaining the user's established stack. Do not create a generic renderer interface for an unneeded second renderer. Verify full-data performance, texture memory, and narrow-screen interaction before adding more machinery.
 
-Development selection has a side panel with searchable facts and conditions. Production selection keeps the full map width and links to compendium pages for entity detail. The dev panel is not a public detail interface.
+Development selection has a side panel with searchable facts and conditions. Production selection keeps the full map width and has no direct detail or entity-page action. Readers browse compendium pages separately.
 
-Development details include a location's coordinates and published data for inspection. Production links entities to their compendium pages rather than showing that panel. Unestablished facts stay absent from player-facing pages. Search starts from place labels, entity names and descriptions, item names, source names, and source kinds. Item documents provide detailed conditions and quantities when loaded. The compact map index does not copy full source text.
+Development details include a location's coordinates and published data for inspection. Production does not show that panel. Unestablished facts stay absent from player-facing pages. Search starts from place labels, entity names and descriptions, item names, source names, and source kinds. Item documents provide detailed conditions and quantities when loaded. The compact map index does not copy full source text.
 
-There is one world map, so there is no map selector, no floor selector, and no layer selector unless a map actually has an alternative layer. The sidebar carries game-vocabulary category sections and a level filter, following the sibling maps.
+There is one world map, with no map selector or floor selector. A layer selector appears where a map has alternative imagery. The sidebar has player-facing category controls and counts, but it does not provide a level-range filter.
 
 Interiors are not captured. Each interior ships the game's own map, so a screenshot pyramid of the same rooms added capture time, artifact bytes, and a second calibration without adding anything a player recognises; 280 interior capture runs were deleted with the code paths that planned them. Capture plans name the world surface only.
 
