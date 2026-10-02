@@ -11,4 +11,4 @@
 ## 3. Verification
 
 - [x] 3.1 Check list tables at 1440, 1100, 960, 760, and 390 px without sideways scroll
-- [ ] 3.2 Publish, check the recipe list without a Product column, and accept the update
+- [x] 3.2 Publish, check the recipe list without a Product column, and accept the update

@@ -15,4 +15,4 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Rebuild the catalog, publish, check the guide and item pages in the browser, and accept the update
+- [x] 4.1 Rebuild the catalog, publish, check the guide and item pages in the browser, and accept the update
