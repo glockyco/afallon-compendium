@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { HEROIC_TIER_KEY } from "@afallon/contracts/catalog";
 import type { CatalogEntityRow, CatalogFacts, CatalogProgressionFact, CatalogRelations, CatalogRequirement, CatalogRequirementSpan, ProgressionAbility, ProgressionBonusRank, ProgressionClass, ProgressionPetStat, ProgressionSkill, CatalogMechanicsRule } from "@afallon/contracts/catalog";
 import type { PublicAbility, PublicClass, PublicItem, PublicSkill } from "@afallon/contracts/public";
 import { readerCoverage } from "./coverage";
@@ -146,6 +147,19 @@ test("a tree costs the sum of its rank costs, and the first rank of an ability t
   const documents = projectPublicDocuments({ entities, facts: source, relations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map(), npcLevels: new Map(), placementIdsByKey: new Map(), classWeapons: new Map() });
   // Weighted Strikes costs 1 to 5 for its five ranks, Heroic Resolve 1, and Cleave only its second rank.
   expect((documents.get("classes:0") as PublicClass).trees.map((tree) => tree.cost)).toEqual([15 + 1 + 4, 1]);
+});
+
+test("only a tree that spends Heroic Essence links the Heroic Tier guide's Essence section", () => {
+  const essence = ref("treePoints:2", "Heroic Essence");
+  const heroic = { entityKey: HEROIC_TIER_KEY, name: "Heroic Tier", kind: "heroicTier", details: { essenceTreePoint: essence } } as unknown as CatalogProgressionFact;
+  const withEssence = progressionFacts.map((fact) => fact.entityKey === "talentTrees:23" && fact.kind === "talentTrees" ? { ...fact, details: { ...fact.details, treePoint: essence } } : fact);
+  const heroicRule = { ...craftingRules[0]!, ruleId: "heroic-kill-experience", topic: "heroic-tier" as const, section: "kill-experience" };
+  const source = { ...facts, progression: { ...facts.progression, facts: [...withEssence, heroic], mechanicsRules: [...craftingRules, heroicRule] } };
+  const references = buildEntityReferences(entities, { facts: source, relations });
+  const documents = projectPublicDocuments({ entities, facts: source, relations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map(), npcLevels: new Map(), placementIdsByKey: new Map(), classWeapons: new Map() });
+  const [breaker, ascension] = (documents.get("classes:0") as PublicClass).trees;
+  expect(breaker?.pointsGuide).toBeUndefined();
+  expect(ascension?.pointsGuide).toEqual({ target: "tree-points", guide: expect.objectContaining({ key: "mechanics:heroic-tier" }), section: "essence" });
 });
 
 test("a talent shared by several trees resolves to the row of the class that owns the page", () => {

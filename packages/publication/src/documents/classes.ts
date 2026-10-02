@@ -1,6 +1,6 @@
-import type { CatalogCondition, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogProgressionFact, ProgressionBonusRank, ProgressionPetStat, ProgressionStat } from "@afallon/contracts/catalog";
+import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogEndpoint, type CatalogEntityRow, type CatalogFacts, type CatalogProgressionFact, type ProgressionBonusRank, type ProgressionPetStat, type ProgressionStat } from "@afallon/contracts/catalog";
 import { type EntityRef, isEntityRef, type LearnerRow, type PublicClass, type Ref, type TalentPets, type TalentPoints, type TalentRank, type TalentTree } from "@afallon/contracts/public";
-import { placedRules } from "../placed-rules";
+import { placedRules, topicRef } from "../placed-rules";
 import { displayName, withoutMarkup } from "../text";
 import { baseDocument, type DocumentProjectionInput, optionalFactRef, pushIndex, type ReferenceResolver, requirementsFor } from "./projection";
 
@@ -120,11 +120,15 @@ export function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: Do
   const progression = input.facts.progression, facts = new Map(progression.facts.map((fact) => [fact.entityKey, fact]));
   const fact = facts.get(entity.entityKey), details = fact?.kind === "classes" ? fact.details : undefined;
   const { trees, anchors } = classTalents(entity.entityKey, input), resolve = talentResolver(ref, anchors, input);
+  // The Heroic Tier guide explains how kills give Heroic Essence, the points of the Heroic trees.
+  const heroic = facts.get(HEROIC_TIER_KEY);
+  const essencePoint = heroic?.kind === "heroicTier" && progression.mechanicsRules.some((rule) => rule.topic === "heroic-tier") ? heroic.details.essenceTreePoint?.entityKey ?? undefined : undefined;
   const projectedTrees: TalentTree[] = trees.map((link) => {
     const treeKey = link.target.entityKey!, tree = facts.get(treeKey), points = tree?.kind === "talentTrees" ? tree.details.treePoint : null;
     const nodes = progression.talentNodes.filter((node) => node.tree === treeKey && node.target?.entityKey).sort((a, b) => a.tier - b.tier || a.row - b.row || a.nodeIndex - b.nodeIndex);
     return {
       anchor: `tree-${treeKey.slice(treeKey.indexOf(":") + 1)}`, name: displayName(link.target.label), ...(points?.label ? { points: displayName(points.label) } : {}),
+      ...(points?.entityKey && points.entityKey === essencePoint ? { pointsGuide: { target: "tree-points", guide: topicRef("heroic-tier"), section: "essence" } } : {}),
       cost: nodes.reduce((sum, node) => sum + nodeCost(facts.get(node.target!.entityKey!)), 0),
       rows: nodes.map((node) => {
         const target = node.target!, bonus = node.nodeType === "bonus" ? facts.get(target.entityKey!) : undefined;

@@ -2,7 +2,7 @@
 
 ### Requirement: Class pages show how a class progresses
 
-Only classes offered by a published race SHALL have pages. A class strip SHALL show races, weapon types, highest level, and talent tree count when known. Its answer SHALL present playstyle and auto attack. Its side SHALL stay in view beside the trees and SHALL present how the class gains talent points, each talent tree with the points that learning every rank of every node takes and a link to its tab, the weapon types, and the gear link. A tree whose points differ from the most common points of the class SHALL name them with its cost. A rank costs its own unlock cost, and the first rank of an ability that the class knows from the start SHALL cost nothing. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with the established tabbed List/Grid views and row anchors. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
+Only classes offered by a published race SHALL have pages. A class strip SHALL show races, weapon types, highest level, and talent tree count when known. Its answer SHALL present playstyle and auto attack. Its side SHALL stay in view beside the trees and SHALL present how the class gains talent points, each talent tree with the points that learning every rank of every node takes and a link to its tab, the weapon types, and the gear link. A tree whose points differ from the most common points of the class SHALL name them with its cost. Where a guide explains how those points are earned, such as Heroic Essence in the Heroic Tier guide, the tree and the side SHALL link that guide section. A rank costs its own unlock cost, and the first rank of an ability that the class knows from the start SHALL cost nothing. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with the established tabbed List/Grid views and row anchors. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
 
 A passive talent rank SHALL show its changes to pets after its own changes. A change to pets SHALL name the pets as the game does: "Your beast" for the Hunter's beast, the NPC whose summons change, or "Summons" for every pet. The changes to the same pets SHALL share one line.
 
@@ -39,6 +39,7 @@ A passive talent rank SHALL show its changes to pets after its own changes. A ch
 - **WHEN** a reader scrolls through the talent trees of Shieldmaster
 - **THEN** the side still shows each tree with the Talent Points that learning it in full takes
 - **AND** Heroic Ascension shows its cost in Heroic Essence
+- **AND** Heroic Essence links the Essence section of the Heroic Tier guide
 
 ### Requirement: Class pages link to the gear they can use
 

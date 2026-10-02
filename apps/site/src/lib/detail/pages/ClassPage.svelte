@@ -54,7 +54,7 @@
         <h2>Talent points</h2>
         {#each facts.talentPoints as points}<p>{#if points.name !== commonPoints}<strong>{points.name}:</strong>{' '}{/if}{talentPointText(points)}</p>{/each}
         <h3>Points to learn every rank</h3>
-        <ul class="tree-costs">{#each document.trees as tree (tree.anchor)}<li><a class="c-link" href={`#${tree.anchor}`}>{tree.name}</a><span>{formatNumber(tree.cost)}{#if tree.points && tree.points !== commonPoints}<small>{tree.points}</small>{/if}</span></li>{/each}</ul>
+        <ul class="tree-costs">{#each document.trees as tree (tree.anchor)}<li><a class="c-link" href={`#${tree.anchor}`}>{tree.name}</a><span>{formatNumber(tree.cost)}{#if tree.points && tree.points !== commonPoints}<small>{#if tree.pointsGuide}<a class="c-link" href={`${base}/mechanics/${tree.pointsGuide.guide.slug}/#${tree.pointsGuide.section}`}>{tree.points}</a>{:else}{tree.points}{/if}</small>{/if}</span></li>{/each}</ul>
         {#if talentGuide}<HowItWorks guide={talentGuide.guide} section={talentGuide.section} label="How talent points work" />{/if}
       </section>{/if}
       {#if facts.weapons.length}<section><h2>Gear</h2><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul><a class="c-link gear" href={gearHref}>Weapons and armor for {document.ref.name}</a></section>{/if}
@@ -72,7 +72,7 @@
       {#if document.trees.length}
         <Section id="talent-trees" title="Talent trees">
           <TabSet {tabs} label="Talent trees" idPrefix="class-trees" let:key>
-            {#each document.trees.filter((tree) => tree.anchor === key) as tree (tree.anchor)}<TalentTreeSection {tree} points={tree.points !== commonPoints ? tree.points : undefined} {registry} />{/each}
+            {#each document.trees.filter((tree) => tree.anchor === key) as tree (tree.anchor)}<TalentTreeSection {tree} points={tree.points !== commonPoints ? tree.points : undefined} pointsGuide={tree.pointsGuide} {registry} />{/each}
           </TabSet>
         </Section>
       {/if}

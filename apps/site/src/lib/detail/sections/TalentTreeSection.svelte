@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { PublicKindEntry, TalentRow, TalentTree } from '@afallon/contracts/public';
+  import { base } from '$app/paths';
+  import type { PlacedRule, PublicKindEntry, TalentRow, TalentTree } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import Requirements from '../../Requirements.svelte';
   import TalentEffect from '../../TalentEffect.svelte';
@@ -9,6 +10,8 @@
   export let tree: TalentTree;
   /** The points that the tree spends, given only when they differ from the points of the other trees of the class. */
   export let points: string | undefined = undefined;
+  /** The guide section that explains how you earn those points. */
+  export let pointsGuide: PlacedRule | undefined = undefined;
   export let registry: PublicKindEntry[];
 
   const columns: RelationColumn<TalentRow>[] = [
@@ -23,7 +26,7 @@
 
 <!-- The tab names the tree, so the panel has no heading of its own. It keeps the tree anchor for links. -->
 <div id={tree.anchor} class="c-stack">
-  {#if points}<p class="points">Talents in this tree cost {points}.</p>{/if}
+  {#if points}<p class="points">Talents in this tree cost {#if pointsGuide}<a class="c-link" href={`${base}/mechanics/${pointsGuide.guide.slug}/#${pointsGuide.section}`}>{points}</a>{:else}{points}{/if}.</p>{/if}
   <RelationTable columns={plan.columns} rows={tree.rows} label={tree.name} rowAnchors={(row) => [row.anchor]}>
     <svelte:fragment slot="cell" let:row let:column>
       {#if column === 'tier'}{row.tier}

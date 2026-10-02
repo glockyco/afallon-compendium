@@ -664,9 +664,10 @@ export const TalentRowSchema = Type.Object({
   first: optional(TalentRankSchema), last: optional(TalentRankSchema), requirements,
 }, { additionalProperties: false });
 export type TalentRow = Static<typeof TalentRowSchema>;
-// `points` names the talent points that the tree spends, and `cost` is how many of them learning every rank of every
-// node takes. Each rank costs its own amount, and a rank that the class knows from the start costs nothing.
-export const TalentTreeSchema = Type.Object({ anchor, name: text, points: optional(text), cost: count, rows: Type.Array(TalentRowSchema) }, { additionalProperties: false });
+// `points` names the talent points that the tree spends, and `pointsGuide` is the guide section that explains how you
+// earn them when a guide does. `cost` is how many of them learning every rank of every node takes. Each rank costs its
+// own amount, and a rank that the class knows from the start costs nothing.
+export const TalentTreeSchema = Type.Object({ anchor, name: text, points: optional(text), pointsGuide: optional(PlacedRuleSchema), cost: count, rows: Type.Array(TalentRowSchema) }, { additionalProperties: false });
 export type TalentTree = Static<typeof TalentTreeSchema>;
 export const TalentPointsSchema = Type.Object({
   name: text, start: count, max: count,

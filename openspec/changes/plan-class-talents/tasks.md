@@ -6,6 +6,7 @@
 
 - [x] 2.1 Show talent point gains, tree costs with tab links, weapon types, and the gear link in the class side card
 - [x] 2.2 Limit the gear link to the Weapon and Armor item types
+- [x] 2.3 Link a tree's points to the guide section that explains them, Heroic Essence to the Heroic Tier guide
 
 ## 3. Verification
 
