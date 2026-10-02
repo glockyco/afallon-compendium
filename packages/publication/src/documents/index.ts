@@ -1,4 +1,5 @@
 import type { PublicDocument } from "@afallon/contracts/public";
+import { adventurerRoster } from "../adventurers";
 import { projectAbilityPage } from "./abilities";
 import { projectClass, startingGearByItem } from "./classes";
 import { fromItemsByItem, projectItem } from "./items";
@@ -13,6 +14,7 @@ import { projectSkill } from "./skills";
 export function projectPublicDocuments(input: DocumentProjectionInput): ReadonlyMap<string, PublicDocument> {
   const indexes = relationIndexes(input.entities, input.facts, input.relations), conditions = conditionsById(input.relations.conditions);
   const startingGear = startingGearByItem(input.entities, input.facts, input.references.refs), fromItems = fromItemsByItem(input);
+  const adventurers = adventurerRoster(input.facts, input.resolve);
   const result = new Map<string, PublicDocument>();
   for (const [key, page] of input.references.pages) {
     if (!page.ref.slug) continue;
@@ -20,7 +22,7 @@ export function projectPublicDocuments(input: DocumentProjectionInput): Readonly
     let document: PublicDocument;
     switch (page.kind) {
       case "items": document = projectItem(entity, ref, input, indexes, conditions, startingGear, fromItems); break;
-      case "npcs": document = projectNpcPage(page, input, indexes, conditions); break;
+      case "npcs": document = projectNpcPage(page, input, indexes, conditions, adventurers); break;
       case "quests": document = projectQuest(entity, ref, input, indexes, conditions); break;
       case "places": document = projectPlace(entity, ref, input, indexes, conditions); break;
       case "properties": document = projectProperty(entity, ref, input); break;

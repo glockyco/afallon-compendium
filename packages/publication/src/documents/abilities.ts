@@ -1,5 +1,6 @@
 import type { CatalogCondition } from "@afallon/contracts/catalog";
 import type { PublicAbility } from "@afallon/contracts/public";
+import { phaseAbilities } from "../adventurers";
 import type { PublishedPage } from "../references";
 import { learnersOf } from "./classes";
 import { type DocumentProjectionInput, mergeRefs, pageBase, requirementsFor } from "./projection";
@@ -15,7 +16,7 @@ export function projectAbilityPage(page: PublishedPage, input: DocumentProjectio
   const versions = page.versions.map((version) => {
     const keys = version.members.map((member) => member.entityKey), keySet = new Set(keys);
     const fact = factsByKey.get(keys[0]!)!;
-    const usedBy = mergeRefs(input.facts.npcs.filter((npc) => npc.abilityPhases.some((phase) => phase.abilities.some((ability) => ability.ability.entityKey !== null && keySet.has(ability.ability.entityKey))))
+    const usedBy = mergeRefs(input.facts.npcs.filter((npc) => phaseAbilities(npc).some((phase) => phase.abilities.some((ability) => ability.ability.entityKey !== null && keySet.has(ability.ability.entityKey))))
       .map((npc) => input.resolve({ entityKey: npc.entityKey, label: npc.entityKey })), input);
     const usedByItems = mergeRefs(input.facts.items.filter((item) => item.actionAbilities.some((ability) => ability.ability.entityKey !== null && keySet.has(ability.ability.entityKey))
       || item.gameActions.some((action) => action.type === "Ability" && action.target?.entityKey !== null && action.target?.entityKey !== undefined && keySet.has(action.target.entityKey)))

@@ -35,6 +35,11 @@ export function durationRangeText(min: number, max: number): string {
   return max !== 0 && min % 60 === 0 && max % 60 === 0 ? `${rangeText(min / 60, max / 60)} min` : `${rangeText(min, max)} s`;
 }
 
+/** When an adventurer joins the world: at the start of a character, or after hours of play on it. */
+export function joinText(hours: number): string {
+  return hours === 0 ? 'At the start' : `After ${formatNumber(hours)} ${hours === 1 ? 'hour' : 'hours'} of play`;
+}
+
 /** A game-time interval in words: "5 minutes", "90 seconds". */
 export function intervalText(seconds: number): string {
   if (seconds % 60 === 0) return `${formatNumber(seconds / 60)} ${seconds === 60 ? 'minute' : 'minutes'}`;

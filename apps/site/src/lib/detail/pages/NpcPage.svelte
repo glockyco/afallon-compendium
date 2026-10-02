@@ -3,7 +3,7 @@
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, rangeText, roleLabel, signedAmount } from '../../format';
+  import { creatureTypeLabel, durationRangeText, formatNumber, joinText, killExperienceText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, rangeText, roleLabel, signedAmount } from '../../format';
   import { entityOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
@@ -64,6 +64,9 @@
   $: award = kill && creatureLevel !== undefined ? calculateKillAward({ minExperience: kill.min, maxExperience: kill.max, experiencePerLevel: kill.perLevel,
     higherModifier: kill.levelDifference!.higher, lowerModifier: kill.levelDifference!.lower }, creatureLevel, characterLevel, undefined, 0, 0).award : undefined;
   $: gear = document.adventurerGear;
+  // An adventurer of the world roster: what the game sets up for it, with the guide's roster.
+  $: adventurer = document.adventurer;
+  $: rosterGuide = document.placedRules.find((rule) => rule.target === 'adventurer');
   // The answer card says what you get from this NPC: its drops, an adventurer's gear, or for an NPC you fight that it
   // drops nothing. A friendly NPC without drops has no answer card, and its sections say what it offers.
   $: answer = document.drops.length ? 'drops' : gear ? 'gear' : combat ? 'drops' : undefined;
@@ -103,6 +106,20 @@
 
   <svelte:fragment slot="side">
     {#if document.description}<p class="description">{document.description}</p>{/if}
+    {#if adventurer}
+      <div class="side-card adventurer">
+        <FactList title="Adventurer">
+          <FactRow label="Class"><EntityLink ref={adventurer.class} {registry} /></FactRow>
+          {#if adventurer.race}<FactRow label="Race"><EntityLink ref={adventurer.race} {registry} /></FactRow>{/if}
+          <FactRow label="Party role">{adventurer.role}{adventurer.defaultRole ? ' by default' : ''}</FactRow>
+          {#if adventurer.preferredTree}<FactRow label="Preferred tree"><EntityLink ref={adventurer.preferredTree} {registry} tooltip={false} /></FactRow>{/if}
+          {#if adventurer.priorityAbilities.length}<FactRow label="Learns first">{#each adventurer.priorityAbilities as ability, index}{index ? ', ' : ''}<EntityLink ref={ability} {registry} />{/each}</FactRow>{/if}
+          <FactRow label="Starting level">{formatNumber(adventurer.startingLevel)}</FactRow>
+          <FactRow label="Joins">{joinText(adventurer.joinAfterHours)}</FactRow>
+        </FactList>
+        {#if rosterGuide}<HowItWorks guide={rosterGuide.guide} section={rosterGuide.section} label="How adventurers join and level" />{/if}
+      </div>
+    {/if}
     {#if combat && combatStats.length || moreFacts}
       <div class="side-card">
         <FactList title={combat ? 'Combat' : 'About'}>
@@ -142,6 +159,7 @@
 <style>
   .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .kill { display: grid; gap: .75rem; }
+  .adventurer { display: grid; gap: .75rem; }
   .kill h2 { color: var(--c-text-strong); font: 600 1.05rem/1.3 var(--c-serif); }
   .kill p { line-height: 1.5; }
   .kill a { width: fit-content; font-size: var(--c-text-small); }

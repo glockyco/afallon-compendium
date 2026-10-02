@@ -11,7 +11,8 @@ export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
     facets: [facet("class", "Usable by"), facet("weapon", "Weapon"), facet("armor", "Armor"), facet("slot", "Slot"), facet("itemType", "Type"), facet("rarity", "Rarity"), facet("material", "Used in crafting")] },
   { kind: "npcs", label: "NPC", plural: "NPCs", route: "npcs", icon: "npc", pages: true, list: true, searchable: true,
     columns: [column("level", "Level", true), column("role", "Role"), column("place", "Place"), column("faction", "Faction")],
-    facets: [facet("role", "Role"), facet("places", "Place"), facet("faction", "Faction")] },
+    // Class and Party Role filter the adventurers of the world roster.
+    facets: [facet("role", "Role"), facet("places", "Place"), facet("faction", "Faction"), facet("class", "Class"), facet("partyRole", "Party role")] },
   { kind: "quests", label: "Quest", plural: "Quests", route: "quests", icon: "quest", pages: true, list: true, searchable: true,
     columns: [column("levelRange", "Quest level"), column("chain", "Chain"),
       column("area", "Area"), column("giver", "Giver")],

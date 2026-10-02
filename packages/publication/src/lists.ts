@@ -62,7 +62,8 @@ function npcRow(document: PublicNpc): ListRow {
   const faction = refName(document.facts.faction);
   return { ref: document.ref, values: { level, role: document.facts.roles.join(", ") || null, place, faction },
     // The column names one place or counts them. The filter offers each place, so an NPC in several places matches each.
-    facets: { role: document.facts.roles, places: [...places].sort(), faction: facetValue(faction) } };
+    facets: { role: document.facts.roles, places: [...places].sort(), faction: facetValue(faction),
+      class: facetValue(document.adventurer ? refName(document.adventurer.class) : null), partyRole: document.adventurer ? [document.adventurer.role] : [] } };
 }
 
 function questRow(document: PublicQuest, rewardTypes: readonly string[]): ListRow {

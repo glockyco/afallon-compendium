@@ -1,6 +1,7 @@
 import type { CatalogAvailabilityRule, CatalogCondition, CatalogNpcFacts, CatalogPlacementRow } from "@afallon/contracts/catalog";
-import { type AvailabilityRule, collectRefs, type NpcFacts, type NpcLocation, type NpcVariantFacts, type NpcVariantField, type PlacementRef, type PublicLevel, type PublicMarkerCategory, type PublicNpc, type QuestLinkRow } from "@afallon/contracts/public";
+import { type AvailabilityRule, collectRefs, type NpcFacts, type NpcLocation, type NpcVariantFacts, type NpcVariantField, type PlacementRef, type PublicLevel, type PublicMarkerCategory, type PublicNpc, type QuestLinkRow, type NpcAdventurer, type PlacedRule } from "@afallon/contracts/public";
 import { markerCategories, shownCategories } from "../categories";
+import { phaseAbilities } from "../adventurers";
 import { characterLevelCap, killExperience } from "../experience";
 import { chancePercent, choicesChance, enabledChance, levelUnion } from "../levels";
 import { placeSpots } from "../place-spots";
@@ -50,7 +51,7 @@ function npcRecordFacts(fact: CatalogNpcFacts, input: DocumentProjectionInput): 
       weaponTypes: fact.lootSpecialization.weaponTypes.map(plainText),
       ...(lootStat === undefined ? {} : { stat: lootStat }),
     } }),
-    abilityPhases: fact.abilityPhases.map((phase) => ({ phaseIndex: Math.max(0, phase.phaseIndex), ...(phase.name ? { name: plainText(phase.name) } : {}), ...(phase.requirement ? { requirement: plainText(phase.requirement) } : {}), abilities: phase.abilities.map((ability) => ({ ability: input.resolve(ability.ability), rankIndex: Math.max(0, ability.rankIndex) })) })),
+    abilityPhases: phaseAbilities(fact).map((phase) => ({ phaseIndex: Math.max(0, phase.phaseIndex), ...(phase.name ? { name: plainText(phase.name) } : {}), ...(phase.requirement ? { requirement: plainText(phase.requirement) } : {}), abilities: phase.abilities.map((ability) => ({ ability: input.resolve(ability.ability), rankIndex: Math.max(0, ability.rankIndex) })) })),
     factionRewards: fact.factionRewards.map((reward) => ({ counterpart: input.resolve(reward.faction), amount: reward.amount })),
     ...(linkedNpc === undefined ? {} : { linkedNpc }),
   };
@@ -141,7 +142,7 @@ function attributedRows<T>(rowsByVariant: ReadonlyArray<{ anchor: string; rows: 
   return [...merged.values()].map(({ row, anchors }) => anchors.length === holders ? row as T & { variants?: string[] } : { ...row, variants: anchors });
 }
 
-export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>): PublicNpc {
+export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, adventurers: ReadonlyMap<string, NpcAdventurer>): PublicNpc {
   const variantFields = [...page.variantFields];
   const records = page.members.map((member) => ({ member, fact: npcFact(member.entity.entityKey, indexes) }));
   const recordFacts = records.map(({ fact }) => npcRecordFacts(fact, input));
@@ -205,6 +206,12 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
       const type = itemTypeLabel(itemKind(input.facts.items.find((item) => item.entityKey === key)));
       return { item: input.resolve({ entityKey: key, label: key }), ...(type ? { type } : {}) };
     });
+  // An adventurer on the world roster shows its class, role, preferred tree, and arrival, with the guide's roster.
+  const adventurerFacts = page.members.map((member) => adventurers.get(member.entity.entityKey)).find((facts) => facts !== undefined);
+  const adventurerRules: PlacedRule[] = [
+    ...(adventurerFacts ? [{ target: "adventurer", guide: topicRef("adventurers"), section: "roster" }] : []),
+    ...(adventurer ? [{ target: "adventurer-gear", guide: topicRef("adventurers"), section: "gear-upgrades" }] : []),
+  ];
   return {
     ...base, facts, variantFields,
     variants: records.map(({ member }, index) => {
@@ -221,7 +228,8 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
     abilityPhases: has("abilityPhases") ? shared.abilityPhases : [], factionRewards: has("factionRewards") ? shared.factionRewards : [],
     usedInQuests, bossOf, ...(hunter && "slug" in hunter && hunter.slug ? { hunter } : {}),
     ...(has("linkedNpc") && shared.linkedNpc ? { linkedNpc: shared.linkedNpc } : {}),
-    placedRules: adventurer ? [...npcPlacedRules, { target: "adventurer-gear", guide: topicRef("adventurers"), section: "gear-upgrades" }] : npcPlacedRules,
+    placedRules: [...npcPlacedRules, ...adventurerRules],
     ...(adventurer ? { adventurerGear: { rewardChance: chancePercent(world.equipmentRewardChance), kit } } : {}),
+    ...(adventurerFacts ? { adventurer: adventurerFacts } : {}),
   };
 }

@@ -23,6 +23,11 @@ export function startingGearByItem(entities: readonly CatalogEntityRow[], facts:
 }
 
 // A talent tree row has the anchor `talent-<tree id>-<node index>`, so a requirement or an ability page can link it.
+/** The anchor of a talent tree on its class page. */
+export function treeAnchor(treeKey: string): string {
+  return `tree-${treeKey.slice(treeKey.indexOf(":") + 1)}`;
+}
+
 export function talentAnchor(treeKey: string, nodeIndex: number): string {
   return `talent-${treeKey.slice(treeKey.indexOf(":") + 1)}-${nodeIndex}`;
 }
@@ -128,7 +133,7 @@ export function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: Do
     const treeKey = link.target.entityKey!, tree = facts.get(treeKey), points = tree?.kind === "talentTrees" ? tree.details.treePoint : null;
     const nodes = progression.talentNodes.filter((node) => node.tree === treeKey && node.target?.entityKey).sort((a, b) => a.tier - b.tier || a.row - b.row || a.nodeIndex - b.nodeIndex);
     return {
-      anchor: `tree-${treeKey.slice(treeKey.indexOf(":") + 1)}`, name: displayName(link.target.label), ...(points?.label ? { points: displayName(points.label) } : {}),
+      anchor: treeAnchor(treeKey), name: displayName(link.target.label), ...(points?.label ? { points: displayName(points.label) } : {}),
       ...(points?.entityKey && points.entityKey === essencePoint ? { pointsGuide: { target: "tree-points", guide: topicRef("heroic-tier"), section: "essence" } } : {}),
       cost: nodes.reduce((sum, node) => sum + nodeCost(facts.get(node.target!.entityKey!)), 0),
       rows: nodes.map((node) => {
@@ -147,7 +152,6 @@ export function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: Do
   });
   // The web lays the trees out as the game's talent screen does (talent-web.ts). It shows only talents with a row.
   const rowAnchors = new Set(projectedTrees.flatMap((tree) => tree.rows.map((row) => row.anchor)));
-  const treeAnchor = (treeKey: string) => `tree-${treeKey.slice(treeKey.indexOf(":") + 1)}`;
   const layout = talentWebLayout(talentWebInputs(entity.entityKey, input.facts, conditions));
   const web: TalentWeb | undefined = layout.wedges.length === 0 ? undefined : {
     wedges: layout.wedges.map((wedge) => ({ tree: treeAnchor(wedge.treeKey), angle: wedge.angle, width: wedge.width })),
