@@ -6,4 +6,5 @@
 
 ## 2. Release
 
-- [ ] 2.1 Publish, check the item list filters at 1440 and 390 px, and accept the publication.
+- [x] 2.1 Publish, check the item list filters at 1440 and 390 px, and accept the publication.
+  - Result: accepted publication `84404f45` with catalog `51f119e8` (update report `local/update-report-25653798-split-gear.json` in the main checkout). Weapon lists 10 types and Armor 4; no list scrolls sideways at 1440, 1100, or 390 px.
