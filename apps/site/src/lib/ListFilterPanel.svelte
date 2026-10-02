@@ -15,6 +15,15 @@
   export let onAddStat: (key: string) => void;
   export let onStatBound: (index: number, bound: 'min' | 'max', value: string) => void;
   export let onRemoveStat: (index: number) => void;
+  /** The groups that start open; undefined opens every group. `stats` names the Stats group. */
+  export let openGroups: readonly string[] | undefined = undefined;
+
+  // A group is open when the reader opened it, or, until the reader opens or closes it, when it is a default group or
+  // has an active filter, so a shared link shows its own filters.
+  let chosen: Record<string, boolean> = {};
+  $: isOpen = (key: string, active: boolean) => chosen[key] ?? (openGroups === undefined || openGroups.includes(key) || active);
+  // The toggle event also follows an opening by an active filter, so a group stays open after its filter is cleared.
+  const toggled = (key: string, event: Event) => { chosen = { ...chosen, [key]: (event.currentTarget as HTMLDetailsElement).open }; };
 
   // A group with many values gets a field that narrows the values it shows. It does not filter the list.
   const LONG_GROUP = 10;
@@ -31,7 +40,7 @@
 <div class="panel">
   {#each groups as group (group.facet.id)}
     {@const selected = state.facets[group.facet.id] ?? []}
-    <details class="group" open>
+    <details class="group" open={isOpen(group.facet.id, selected.length > 0)} on:toggle={(event) => toggled(group.facet.id, event)}>
       <summary><span class="title">{group.facet.label}</span>{#if selected.length}<span class="picked">{formatNumber(selected.length)}</span>{/if}<svg class="chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m3.5 6 4.5 4.5L12.5 6" /></svg></summary>
       {#if group.options.length > LONG_GROUP}
         <input class="narrow" type="search" placeholder={`Find ${readerNoun(group.facet.label)}`} aria-label={`Find ${readerNoun(group.facet.label)} values`}
@@ -54,7 +63,7 @@
   {/each}
 
   {#each ranges as range (range.id)}
-    <details class="group" open>
+    <details class="group" open={isOpen(range.id, Boolean(state.minimums[range.id] || state.maximums[range.id]))} on:toggle={(event) => toggled(range.id, event)}>
       <summary><span class="title">{range.label}</span>{#if state.minimums[range.id] || state.maximums[range.id]}<span class="picked">1</span>{/if}<svg class="chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m3.5 6 4.5 4.5L12.5 6" /></svg></summary>
       <div class="bounds">
         <input type="number" inputmode="numeric" placeholder="Min" aria-label={`Lowest ${readerNoun(range.label)}`}
@@ -67,7 +76,7 @@
   {/each}
 
   {#if stats.length}
-    <details class="group" open>
+    <details class="group" open={isOpen('stats', state.stats.length > 0)} on:toggle={(event) => toggled('stats', event)}>
       <summary><span class="title">Stats</span>{#if state.stats.length}<span class="picked">{formatNumber(state.stats.length)}</span>{/if}<svg class="chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m3.5 6 4.5 4.5L12.5 6" /></svg></summary>
       {#each state.stats as filter, index (filter.key)}
         <div class="stat">

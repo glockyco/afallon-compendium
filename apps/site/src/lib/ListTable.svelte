@@ -21,6 +21,8 @@
   const PRICE_FIELDS: Record<string, true> = { sellPrice: true, buyPrice: true, price: true, income: true };
   // A type names a category in a few words. It stays on one line, and the name beside it wraps instead.
   const LABEL_FIELDS: Record<string, true> = { type: true, placeType: true };
+  // The groups that most readers use start open; every other group starts closed. Lists without an entry open all groups.
+  const OPEN_GROUPS: Record<string, readonly string[]> = { items: ['slot', 'rarity', 'levelRequirement', 'stats'] };
   const STAT_COLUMN = 'stat:';
   // The result bar stays at the top of the screen, and the table header sticks just below it.
   let barHeight = 0;
@@ -155,7 +157,7 @@
 <div class="layout" class:with-panel={hasPanel}>
   {#if hasPanel}
     <aside class="sidebar" aria-label="Filters">
-      <ListFilterPanel instance="side" {groups} {ranges} {stats} state={filters} onFacet={setFacet} onRange={setRange} onAddStat={addStat} onStatBound={setStatBound} onRemoveStat={removeStat} />
+      <ListFilterPanel instance="side" openGroups={OPEN_GROUPS[kind.kind]} {groups} {ranges} {stats} state={filters} onFacet={setFacet} onRange={setRange} onAddStat={addStat} onStatBound={setStatBound} onRemoveStat={removeStat} />
     </aside>
   {/if}
 
@@ -218,7 +220,7 @@
       <button type="button" class="close" aria-label="Close filters" on:click={() => sheet.close()}>×</button>
     </header>
     <div class="sheet-body">
-      <ListFilterPanel instance="sheet" {groups} {ranges} {stats} state={filters} onFacet={setFacet} onRange={setRange} onAddStat={addStat} onStatBound={setStatBound} onRemoveStat={removeStat} />
+      <ListFilterPanel instance="sheet" openGroups={OPEN_GROUPS[kind.kind]} {groups} {ranges} {stats} state={filters} onFacet={setFacet} onRange={setRange} onAddStat={addStat} onStatBound={setStatBound} onRemoveStat={removeStat} />
     </div>
     <footer class="sheet-foot">
       <button type="button" class="clear" on:click={clearFilters} disabled={!activeCount}>Clear all</button>
