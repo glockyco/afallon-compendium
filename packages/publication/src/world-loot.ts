@@ -6,8 +6,11 @@
 
 /** `IsPrimaryStat` (RVA 0x5410a0) treats stats 27, 28, and 135 as main stats. */
 const MAIN_STATS: ReadonlySet<number> = new Set([27, 28, 135]);
-/** `IsAccessoryItem` (RVA 0x53f500) exempts trinkets and items in these armor slots from the band's armor type. */
-const ACCESSORY_SLOTS: ReadonlySet<string> = new Set(["NECK", "RING"]);
+/**
+ * `IsAccessoryItem` (RVA 0x53f500) exempts trinkets and items in these armor slots from the band's armor type. The game
+ * answered for every world loot item of build 25653798: rings, necks, capes, and trinkets are accessories.
+ */
+const ACCESSORY_SLOTS: ReadonlySet<string> = new Set(["NECK", "RING", "CAPE"]);
 /** `IsPackWorldLootLevelAllowed` (RVA 0x540ff0): a requirement may be this far below or above the character's level. */
 const LEVELS_BELOW = 4, LEVELS_ABOVE = 2;
 
@@ -29,13 +32,19 @@ export interface WorldLootLevels { key: string; levels: Array<{ min: number; max
 
 const upper = (value: string | null) => value?.toUpperCase() ?? null;
 
-/** Whether the band can give the item to a class with these weapon types, before the level checks. */
+/**
+ * Whether the band can give the item to a class with these weapon types, before the level checks
+ * (`IsItemSuitedForPack`, RVA 0x5404e0). Equipment that passes its weapon or armor check must also pass the main stat
+ * check. Items that cannot be equipped pass.
+ */
 export function suitsBand(item: WorldLootItem, band: WorldLootBand, classWeapons: ReadonlySet<string>): boolean {
   const type = upper(item.itemType);
-  if (type === "WEAPON") return item.weaponType !== null && classWeapons.has(upper(item.weaponType)!);
-  if (type !== "ARMOR" && type !== "TRINKET") return true;
-  const accessory = type === "TRINKET" || ACCESSORY_SLOTS.has(upper(item.armorSlot) ?? "");
-  if (!accessory && upper(item.armorType) !== upper(band.armorType)) return false;
+  if (type === "WEAPON") {
+    if (item.weaponType === null || !classWeapons.has(upper(item.weaponType)!)) return false;
+  } else if (type === "ARMOR" || type === "TRINKET") {
+    const accessory = type === "TRINKET" || ACCESSORY_SLOTS.has(upper(item.armorSlot) ?? "");
+    if (!accessory && band.armorType !== null && upper(item.armorType) !== upper(band.armorType)) return false;
+  } else return true;
   const main = item.stats.filter((stat) => MAIN_STATS.has(stat));
   return band.stats.length === 0 || main.length === 0 || main.some((stat) => band.stats.includes(stat));
 }

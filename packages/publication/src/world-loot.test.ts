@@ -12,15 +12,18 @@ const items = new Map([
   item("staff", { itemType: "WEAPON", weaponType: "Staff", armorType: null, armorSlot: null }),
   item("axe", { itemType: "WEAPON", weaponType: "Axe", armorType: null, armorSlot: null }),
   item("gem", { itemType: "GEM", armorType: null, armorSlot: null, levelRequirement: 0 }),
+  item("cloak", { armorType: "CLOTH", armorSlot: "CAPE" }),
+  item("intellect axe", { itemType: "WEAPON", weaponType: "Axe", armorType: null, armorSlot: null, stats: [135] }),
   item("quest plate", { questOnly: true }),
 ].map((row) => [row.key, row]));
 const open: WorldLootTable = { minimumLevel: 0, maximumLevel: 0, hasRequirements: false, itemKeys: [...items.keys()] };
 const band = { minLevel: 6, maxLevel: 11, armorType: "PLATE", stats: [27] };
 const keys = (rows: ReturnType<typeof bandWorldLoot>) => rows.map((row) => row.key).sort();
 
-test("a band gives usable weapons, its armor type, wanted main stats, and accessories", () => {
-  expect(keys(bandWorldLoot(band, [open], items, new Set(["AXE"])))).toEqual(["axe", "gem", "plate"].sort());
-  expect(keys(bandWorldLoot({ ...band, stats: [27, 135] }, [open], items, new Set(["STAFF"])))).toEqual(["gem", "intellect plate", "plate", "ring", "staff"].sort());
+test("a band gives usable weapons, its armor type, accessories, and gear with a wanted main stat", () => {
+  expect(keys(bandWorldLoot(band, [open], items, new Set(["AXE"])))).toEqual(["axe", "cloak", "gem", "plate"].sort());
+  expect(keys(bandWorldLoot({ ...band, stats: [27, 135] }, [open], items, new Set(["STAFF", "AXE"]))))
+    .toEqual(["axe", "cloak", "gem", "intellect axe", "intellect plate", "plate", "ring", "staff"].sort());
 });
 
 test("an item appears from two levels below its requirement to four levels above it", () => {
