@@ -35,11 +35,35 @@ export function npcFlights(facts: CatalogFacts, entityKeys: ReadonlySet<string>,
     const network = networks.find((entry) => entry.id === flight.networkId && entry.scene === plainText(flight.sceneName));
     const stop = network?.stops.find((entry) => entry.id === flight.stopId);
     if (!network || !stop) continue;
-    result.push({ stop, routes: network.routes.flatMap((route) => {
-      const destinationId = route.from === stop.id ? route.to : route.bidirectional && route.to === stop.id ? route.from : null;
-      const destination = network.stops.find((entry) => entry.id === destinationId);
-      return destination ? [{ destination, fare: route.fare, ...(route.currency ? { currency: route.currency } : {}) }] : [];
-    }).sort((a, b) => a.destination.name.localeCompare(b.destination.name)) });
+    const outgoing = new Map<string, Array<{ to: string; fare: number; currency: FlightNetwork["routes"][number]["currency"] }>>();
+    for (const route of network.routes) {
+      const forward = outgoing.get(route.from) ?? [];
+      forward.push({ to: route.to, fare: route.fare, currency: route.currency });
+      outgoing.set(route.from, forward);
+      if (route.bidirectional) {
+        const reverse = outgoing.get(route.to) ?? [];
+        reverse.push({ to: route.from, fare: route.fare, currency: route.currency });
+        outgoing.set(route.to, reverse);
+      }
+    }
+    const visited = new Set([stop.id]), queue = [stop.id];
+    for (let index = 0; index < queue.length; index++) {
+      for (const edge of outgoing.get(queue[index]!) ?? []) {
+        if (visited.has(edge.to)) continue;
+        visited.add(edge.to);
+        queue.push(edge.to);
+      }
+    }
+    const direct = new Map((outgoing.get(stop.id) ?? []).map((edge) => [edge.to, edge]));
+    const allFaresZero = queue.every((origin) => (outgoing.get(origin) ?? []).every((edge) => edge.fare === 0));
+    result.push({ stop, destinations: network.stops.filter((destination) => destination.id !== stop.id && visited.has(destination.id))
+      .map((destination) => {
+        const edge = direct.get(destination.id);
+        const currency = edge?.currency ?? (allFaresZero ? network.routes[0]?.currency : undefined);
+        return { destination, direct: edge !== undefined,
+          ...(edge || allFaresZero ? { fare: edge?.fare ?? 0 } : {}),
+          ...(currency ? { currency } : {}) };
+      }).sort((a, b) => a.destination.name.localeCompare(b.destination.name)) });
   }
   return result;
 }

@@ -27,7 +27,11 @@ test("flight networks keep scenes distinct and only offer routes in their author
   expect(networks.map((entry) => entry.scene)).toEqual(["Overworld", "Test Area"]);
   expect(networks[0]!.stops[0]!.master).toMatchObject({ key: "npcs:1", variant: "stop-1" });
   expect(networks[1]!.stops[0]!.master).toMatchObject({ key: "npcs:4" });
-  expect(npcFlights(facts, new Set(["npcs:1"]), networks)[0]!.routes.map((route) => [route.destination.id, route.fare])).toEqual([["second", 2]]);
-  expect(npcFlights(facts, new Set(["npcs:2"]), networks)[0]!.routes.map((route) => route.destination.id)).toEqual(["third"]);
-  expect(npcFlights(facts, new Set(["npcs:3"]), networks)[0]!.routes.map((route) => route.destination.id)).toEqual(["second"]);
+  expect(npcFlights(facts, new Set(["npcs:1"]), networks)[0]!.destinations.map((row) => [row.destination.id, row.direct, row.fare])).toEqual([
+    ["second", true, 2], ["third", false, undefined],
+  ]);
+  expect(npcFlights(facts, new Set(["npcs:2"]), networks)[0]!.destinations.map((row) => row.destination.id)).toEqual(["third"]);
+  expect(npcFlights(facts, new Set(["npcs:3"]), networks)[0]!.destinations.map((row) => [row.destination.id, row.fare])).toEqual([["second", 3]]);
+  const zeroFareFacts = { ...facts, npcs: facts.npcs.map((npc) => ({ ...npc, flightNetwork: npc.flightNetwork && { ...npc.flightNetwork, routes: npc.flightNetwork.routes.map((route) => ({ ...route, fare: 0 })) } })) };
+  expect(npcFlights(zeroFareFacts, new Set(["npcs:1"]), flightNetworks(zeroFareFacts, resolve))[0]!.destinations.map((row) => row.fare)).toEqual([0, 0]);
 });

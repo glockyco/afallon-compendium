@@ -7,7 +7,7 @@ Flight master records already carry authored stops and routes, but neither their
 ## What Changes
 
 - Publish each captured flight network once, with stop references to the flight masters and authored direct connections, directions, and fares.
-- Show direct departures on flight master pages and connect them to a Travel mechanics guide with native-evidenced rules.
+- Show all reachable destinations on flight master pages and connect them to a Travel mechanics guide with native-evidenced rules.
 - Preserve named NPC variant links for flight masters that share a page.
 
 ## Scope

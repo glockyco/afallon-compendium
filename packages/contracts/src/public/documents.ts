@@ -557,8 +557,8 @@ export const FlightNetworkSchema = Type.Object({
 }, { additionalProperties: false });
 export type FlightNetwork = Static<typeof FlightNetworkSchema>;
 export const NpcFlightsSchema = Type.Object({
-  stop: FlightStopSchema, routes: Type.Array(Type.Object({
-    destination: FlightStopSchema, fare: count, currency: optional(RefSchema),
+  stop: FlightStopSchema, destinations: Type.Array(Type.Object({
+    destination: FlightStopSchema, direct: Type.Boolean(), fare: optional(count), currency: optional(RefSchema),
   }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type NpcFlights = Static<typeof NpcFlightsSchema>;

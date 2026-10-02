@@ -10,6 +10,9 @@
   <div class="network c-stack">
     <h3>{categoryLabel(network.scene)}</h3>
     {#if allKnown}<p class="initial-note">All stops are known at the start.</p>{/if}
+    {#if network.routes.length > 0 && network.routes.every((route) => route.fare === 0 && !route.currency)}
+      <p class="initial-note">Every recorded route has a fare of 0. No currency is recorded for this network.</p>
+    {/if}
     <div class="stops">
       {#each network.stops as stop (stop.id)}
         <div class="stop"><FlightStopLink {stop} />{#if stop.knownInitially && !allKnown}<span class="initial">Known at the start</span>{/if}</div>

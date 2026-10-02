@@ -5,7 +5,7 @@
 
 ## 2. Reader experience
 
-- [x] 2.1 Render direct flights on NPC pages and the complete Travel guide across desktop and mobile.
+- [x] 2.1 Render reachable destinations on NPC pages and the complete Travel guide across desktop and mobile.
 - [x] 2.2 Add behavior regression coverage, validate the change, and run scoped checks.
 
 ## 3. End-to-end proof
