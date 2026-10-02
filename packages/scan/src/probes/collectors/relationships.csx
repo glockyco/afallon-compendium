@@ -1353,7 +1353,14 @@ if (resources != null)
 
 var adventurerAssets = UnityEngine.Resources.LoadAll<Il2CppBLINK.RPGBuilder.AI.AdventurerWorldSettings>("");
 var adventurerAssetCount = adventurerAssets == null ? 0 : adventurerAssets.Length;
-if (adventurerAssetCount != 1) throw new System.InvalidOperationException("Expected exactly one AdventurerWorldSettings asset from Resources.LoadAll; found " + adventurerAssetCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".");
+var adventurerPath = "Resources.LoadAll<AdventurerWorldSettings>(\"\")[0]";
+object adventurerWorldSettings;
+if (adventurerAssetCount != 1 || adventurerAssets[0] == null)
+{
+    adventurerWorldSettings = new { unavailable = adventurerAssetCount == 1 ? "AdventurerWorldSettings asset reference is null." : "Expected exactly one AdventurerWorldSettings asset; found " + adventurerAssetCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".", sourceFieldPath = adventurerPath, assetCount = adventurerAssetCount };
+}
+else
+{
 var adventurerAsset = adventurerAssets[0];
 var adventurerRoster = new System.Collections.Generic.List<int>();
 if (adventurerAsset.Roster == null) throw new System.InvalidOperationException("AdventurerWorldSettings.Roster is null.");
@@ -1396,10 +1403,31 @@ foreach (var kit in adventurerAsset.KitUpgrades)
     }
     adventurerKitUpgrades.Add(new { id = kit.ID, npcId = kit.NPC.ID, itemIds = kitItemIds });
 }
-var adventurerWorldSettings = new { asset = adventurerAsset.name, instanceCount = adventurerAssetCount, roster = adventurerRoster, arrivals = adventurerArrivals, equipmentBands = adventurerEquipmentBands, equipmentRewardChance = adventurerAsset.EquipmentRewardChance, equipmentRewards = adventurerEquipmentRewards, kitUpgrades = adventurerKitUpgrades };
+object jobRegionNames;
+if (adventurerAsset.JobRegionNames == null)
+{
+    jobRegionNames = new { unavailable = "AdventurerWorldSettings.JobRegionNames is null.", sourceFieldPath = adventurerPath + ".JobRegionNames" };
+}
+else
+{
+    var regions = new System.Collections.Generic.List<object>();
+    string missingRegionPath = null;
+    for (var index = 0; index < adventurerAsset.JobRegionNames.Length; index++)
+    {
+        var name = (string)adventurerAsset.JobRegionNames[index];
+        if (name == null) { missingRegionPath = adventurerPath + ".JobRegionNames[" + index + "]"; break; }
+        regions.Add(new { name, sourceFieldPath = adventurerPath + ".JobRegionNames[" + index + "]" });
+    }
+    jobRegionNames = missingRegionPath == null ? (object)regions : new { unavailable = "AdventurerWorldSettings.JobRegionNames contains a null region.", sourceFieldPath = missingRegionPath };
+}
+adventurerWorldSettings = new { asset = adventurerAsset.name, instanceCount = adventurerAssetCount, roster = adventurerRoster, arrivals = adventurerArrivals, equipmentBands = adventurerEquipmentBands, equipmentRewardChance = adventurerAsset.EquipmentRewardChance, equipmentRewards = adventurerEquipmentRewards, kitUpgrades = adventurerKitUpgrades,
+    jobRegionNames, maximumPresent = adventurerAsset.MaximumPresent, minimumJobSeconds = adventurerAsset.MinimumJobSeconds, maximumJobSeconds = adventurerAsset.MaximumJobSeconds,
+    experienceBarPerJob = adventurerAsset.ExperienceBarPerJob, goldPerLevelPerJob = adventurerAsset.GoldPerLevelPerJob,
+    sourceFieldPaths = new { maximumPresent = adventurerPath + ".MaximumPresent", minimumJobSeconds = adventurerPath + ".MinimumJobSeconds", maximumJobSeconds = adventurerPath + ".MaximumJobSeconds", experienceBarPerJob = adventurerPath + ".ExperienceBarPerJob", goldPerLevelPerJob = adventurerPath + ".GoldPerLevelPerJob", equipmentRewardChance = adventurerPath + ".EquipmentRewardChance" } };
+}
 return new
 {
-    schemaVersion = "compendium.relationships.v2",
+    schemaVersion = "compendium.relationships.v3",
     runtime = new
     {
         game = UnityEngine.Application.productName,

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { Canonical } from "@afallon/contracts";
 import type { NormalizedDatabaseInput, NormalizedEntity } from "@afallon/contracts/catalog";
-import { collectQuestPickups, collectTypedFacts, collectRaceStarts } from "./normalize";
+import { collectQuestPickups, collectTypedFacts, collectRaceStarts, collectAdventurerInviteEffects } from "./normalize";
 import { classifyItemCondition } from "./conditions";
 import type { AdmittedCatalog } from "./evidence";
 import type { Blocker, SceneContext } from "./context";
@@ -54,7 +54,17 @@ test("placed and hunt-creature pickups link matching get-item tasks and keep eve
 });
 
 const reference = { path: "objects/support.json", sha256: "a".repeat(64) };
-const emptyAdventurerWorld = { asset: "AdventurerWorld", instanceCount: 1, roster: [], arrivals: [], equipmentBands: [], equipmentRewardChance: 0, equipmentRewards: [], kitUpgrades: [] };
+const adventurerPaths = {
+  maximumPresent: "AdventurerWorldSettings.MaximumPresent",
+  minimumJobSeconds: "AdventurerWorldSettings.MinimumJobSeconds",
+  maximumJobSeconds: "AdventurerWorldSettings.MaximumJobSeconds",
+  experienceBarPerJob: "AdventurerWorldSettings.ExperienceBarPerJob",
+  goldPerLevelPerJob: "AdventurerWorldSettings.GoldPerLevelPerJob",
+  equipmentRewardChance: "AdventurerWorldSettings.EquipmentRewardChance",
+};
+const emptyAdventurerWorld = { asset: "AdventurerWorld", instanceCount: 1 as const, roster: [], arrivals: [], equipmentBands: [], equipmentRewardChance: 0, equipmentRewards: [], kitUpgrades: [],
+  jobRegionNames: [], maximumPresent: 12, minimumJobSeconds: 120, maximumJobSeconds: 360,
+  experienceBarPerJob: 0.05, goldPerLevelPerJob: 2, sourceFieldPaths: adventurerPaths };
 
 function entity(kind: string, nativeId: number, name: string): NormalizedEntity {
   return { entityKey: `${kind}:${nativeId}`, buildId: "build", kind, nativeId, name, internalName: null, description: null, sourceKey: nativeId, publicData: { localization: null, gameplay: null, icon: null }, provenance: [reference] };
@@ -155,7 +165,7 @@ test("keeps only equipment fields that apply to each item type", () => {
 test("resolves adventurer arrivals, equipment, and kit upgrades by their authored positions", () => {
   const evidence = admittedItems([]);
   evidence.relationships.value.adventurerWorldSettings = {
-    asset: "AdventurerWorld", instanceCount: 1, roster: [3],
+    ...emptyAdventurerWorld, roster: [3],
     arrivals: [{ npcId: 3, startingLevel: 7, joinAfterHours: 12 }],
     equipmentBands: [{ itemId: 1, minimumContentLevel: 9 }],
     equipmentRewardChance: 0.25, equipmentRewards: [2],
@@ -164,7 +174,8 @@ test("resolves adventurer arrivals, equipment, and kit upgrades by their authore
   const blockers: Blocker[] = [];
   const rows = collectTypedFacts(evidence, [entity("npcs", 3, "Shieldmaster"), entity("items", 1, "Helm"), entity("items", 2, "Shield")], [], [], blockers);
   expect(blockers).toEqual([]);
-  expect(rows.adventurerWorld.links.map(({ kind, position, itemPosition, kitId, npc, item, startingLevel, joinAfterHours, minimumContentLevel }) => ({
+  expect(rows.adventurerWorld).toMatchObject({ maximumPresent: 12, minimumJobSeconds: 120, maximumJobSeconds: 360, experienceBarPerJob: 0.05, goldPerLevelPerJob: 2, sourceFieldPaths: adventurerPaths });
+  expect(rows.adventurerWorld!.links.map(({ kind, position, itemPosition, kitId, npc, item, startingLevel, joinAfterHours, minimumContentLevel }) => ({
     kind, position, itemPosition, kitId, npc: npc?.entityKey, item: item?.entityKey, startingLevel, joinAfterHours, minimumContentLevel,
   }))).toEqual([
     { kind: "roster", position: 0, itemPosition: 0, kitId: null, npc: "npcs:3", item: undefined, startingLevel: null, joinAfterHours: null, minimumContentLevel: null },
@@ -175,6 +186,54 @@ test("resolves adventurer arrivals, equipment, and kit upgrades by their authore
     { kind: "kitUpgradeItem", position: 0, itemPosition: 0, kitId: "tank", npc: "npcs:3", item: "items:1", startingLevel: null, joinAfterHours: null, minimumContentLevel: null },
     { kind: "kitUpgradeItem", position: 0, itemPosition: 1, kitId: "tank", npc: "npcs:3", item: "items:2", startingLevel: null, joinAfterHours: null, minimumContentLevel: null },
   ]);
+});
+
+test("a missing world settings asset records an issue without publishing job durations", () => {
+  const evidence = admittedItems([]);
+  evidence.relationships.value.adventurerWorldSettings = { unavailable: "No settings asset.", sourceFieldPath: "Resources.LoadAll<AdventurerWorldSettings>(\"\")[0]", assetCount: 0 };
+  const blockers: Blocker[] = [];
+  const rows = collectTypedFacts(evidence, [], [], [], blockers);
+  expect(rows.adventurerWorld).toBeUndefined();
+  expect(blockers.map(({ kind, key }) => [kind, key])).toEqual([["unavailable-adventurer-world-settings", "adventurer-world"]]);
+});
+
+test("an unreadable region name stays unknown while other job settings remain captured", () => {
+  const evidence = admittedItems([]);
+  evidence.relationships.value.adventurerWorldSettings = { ...emptyAdventurerWorld,
+    jobRegionNames: { unavailable: "One region name is null.", sourceFieldPath: "AdventurerWorldSettings.JobRegionNames[1]" } };
+  const blockers: Blocker[] = [];
+  const rows = collectTypedFacts(evidence, [], [], [], blockers);
+  expect(rows.adventurerWorld?.jobRegionNames).toBeNull();
+  expect(rows.adventurerWorld?.minimumJobSeconds).toBe(120);
+  expect(blockers.map(({ kind, key, provenance }) => [kind, key, provenance[0]?.pointer])).toEqual([
+    ["unavailable-adventurer-job-regions", "adventurer-world:jobRegionNames", "/adventurerWorldSettings/jobRegionNames"],
+  ]);
+});
+
+test("an invite's pet target follows its captured first rank, with missing ranks reported", () => {
+  const world = {
+    ...emptyAdventurerWorld, provenance: [reference],
+    links: [{ kind: "roster" as const, position: 0, itemPosition: 0, kitId: null, npc: { entityKey: "npcs:3", label: "Guardian" }, item: null, startingLevel: null, joinAfterHours: null, minimumContentLevel: null, provenance: [reference] }],
+  };
+  const petEffect = {
+    nativeId: 21, sourceFieldPath: "GameDatabase.GetEffects()[21]",
+    effectType: { value: 14, name: "Pet", sourceFieldPath: "GameDatabase.GetEffects()[21].effectType" },
+    duration: 45, endless: false, sourceFieldPaths: { duration: "GameDatabase.GetEffects()[21].duration", endless: "GameDatabase.GetEffects()[21].endless" },
+    firstRank: { petNpcId: 3, petDuration: 0, petSpawnCount: 1, sourceFieldPath: "GameDatabase.GetEffects()[21].ranks[0]",
+      sourceFieldPaths: { petNpcId: "GameDatabase.GetEffects()[21].ranks[0].petNPCDataID", petDuration: "GameDatabase.GetEffects()[21].ranks[0].petDuration", petSpawnCount: "GameDatabase.GetEffects()[21].ranks[0].petSPawnCount" } },
+  };
+  const canonical = { npcs: [{ sourceKey: 3, nativeId: 3, gameplay: { inviteEffectId: 21 } }], petEffects: [petEffect] } as unknown as Canonical;
+  const effects = [{ entityKey: "effects:21", kind: "effects", details: { effectType: { value: 14, name: "Pet" }, duration: 45, endless: false,
+    ranks: [{ pet: { entityKey: "npcs:3", label: "Guardian" }, petDuration: 0, petSpawnCount: 1 }] }, provenance: [reference] }] as unknown as NonNullable<NormalizedDatabaseInput["progressionFacts"]>;
+  const blockers: Blocker[] = [];
+  const rows = collectAdventurerInviteEffects(world, canonical, effects, reference, blockers);
+  expect(rows.map((row) => [row.adventurerKey, row.effectKey, row.inviteEffectSourceFieldPath, row.firstRank?.petNpcId, row.firstRank?.sourceFieldPaths.petNpcId])).toEqual([
+    ["npcs:3", "effects:21", "GameDatabase.GetNPCs()[3].InviteEffectID", 3, "GameDatabase.GetEffects()[21].ranks[0].petNPCDataID"],
+  ]);
+  expect(blockers).toEqual([]);
+  const withoutRank = { ...canonical, petEffects: [{ ...petEffect, firstRank: { unavailable: "No first rank.", sourceFieldPath: "GameDatabase.GetEffects()[21].ranks[0]" } }] } as Canonical;
+  expect(collectAdventurerInviteEffects(world, withoutRank, effects, reference, blockers)[0]?.firstRank).toBeNull();
+  expect(blockers.map(({ kind, key }) => [kind, key])).toEqual([["unavailable-adventurer-invite-rank", "npcs:3"]]);
 });
 test("resolves authored item currency conversion and leaves ordinary items without one", () => {
   const items = [

@@ -3,12 +3,14 @@ import {
   CanonicalSchema,
   CanonicalV4Schema,
   CanonicalV5Schema,
+  CanonicalV6Schema,
   LocalizationSchema,
   LootRulesSchema,
   ObservationContextSchema,
   QuestLevelsSchema,
   RelationshipsSchema,
   RelationshipsV1Schema,
+  RelationshipsV2Schema,
   SupportSchema,
   SupportV1Schema,
   SupportV2Schema,
@@ -16,7 +18,7 @@ import {
 } from "./database";
 import { ArtworkSchema } from "./artwork";
 import { FactionRolesSchema } from "./faction-roles";
-import { CorruptionCaptureSchema, CorruptionCaptureV1Schema } from "./corruption";
+import { CorruptionCaptureSchema, CorruptionCaptureV1Schema, CorruptionCaptureV2Schema } from "./corruption";
 import { NpcProducersSchema } from "./npc-producers";
 import { AddressableGraphSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, SceneSourceIssuesSchema, SerializedAssetIndexSchema } from "./placement";
 import { RuntimeScanStateSchema, ScanCollectorDispositionSchema, ScanCoverageSchema, ScanEvidenceArtifactSchema, ScanPlanSchema, ScanPlanningEvidenceSchema, ScanSourceEvidenceSchema, ScanTargetEnvelopeSchema, ScanTargetSchema, SceneVisitSchema, StreamCleanupSchema, StreamVisitSchema, TraversalPlanSchema } from "./traversal";
@@ -26,18 +28,21 @@ import { WorldSourcesSchema, WorldSourcesV8Schema, WorldSourcesV9Schema, WorldSo
 schemaRegistry.register("compendium.observation-context.v1", ObservationContextSchema);
 schemaRegistry.register("compendium.canonical.v4", CanonicalV4Schema);
 schemaRegistry.register("compendium.canonical.v5", CanonicalV5Schema);
-schemaRegistry.register("compendium.canonical.v6", CanonicalSchema);
+schemaRegistry.register("compendium.canonical.v6", CanonicalV6Schema);
+schemaRegistry.register("compendium.canonical.v7", CanonicalSchema);
 schemaRegistry.register("compendium.localization.v1", LocalizationSchema);
 schemaRegistry.register("compendium.quest-levels.v1", QuestLevelsSchema);
 schemaRegistry.register("compendium.corruption-capture.v1", CorruptionCaptureV1Schema);
-schemaRegistry.register("compendium.corruption-capture.v2", CorruptionCaptureSchema);
+schemaRegistry.register("compendium.corruption-capture.v2", CorruptionCaptureV2Schema);
+schemaRegistry.register("compendium.corruption-capture.v3", CorruptionCaptureSchema);
 schemaRegistry.register("compendium.support.v1", SupportV1Schema);
 schemaRegistry.register("compendium.support.v2", SupportV2Schema);
 schemaRegistry.register("compendium.support.v3", SupportV3Schema);
 schemaRegistry.register("compendium.support.v4", SupportSchema);
 schemaRegistry.register("compendium.artwork.v1", ArtworkSchema);
 schemaRegistry.register("compendium.relationships.v1", RelationshipsV1Schema);
-schemaRegistry.register("compendium.relationships.v2", RelationshipsSchema);
+schemaRegistry.register("compendium.relationships.v2", RelationshipsV2Schema);
+schemaRegistry.register("compendium.relationships.v3", RelationshipsSchema);
 schemaRegistry.register("compendium.loot-rules.v1", LootRulesSchema);
 schemaRegistry.register("compendium.faction-roles.v1", FactionRolesSchema);
 schemaRegistry.register("compendium.npc-producers.v3", NpcProducersSchema);

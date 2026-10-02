@@ -1,4 +1,4 @@
-import { CoverageLedgerSchema, ScanCoverageSchema, ScanTargetEnvelopeSchema, decodeContract, type Canonical } from "@afallon/contracts";
+import { CoverageLedgerSchema, ScanCoverageSchema, ScanTargetEnvelopeSchema, decodeContract, type Canonical, type CorruptionCapture } from "@afallon/contracts";
 import { compileMapSpaces } from "@afallon/contracts/spatial";
 import { entityKey, publicEntityDetails, stableJson, type ArtifactReference, type NormalizedDatabaseInput, type NormalizedEntity, type ItemSource, type NormalizedSceneSpawn, type NormalizedRaceStart, type ProvenanceReference, type CatalogDerivation, type CatalogEndpoint, type NormalizedReference } from "@afallon/contracts/catalog";
 import { collectPlacements, collectRegions, attachShapes } from "./placements";
@@ -72,6 +72,73 @@ export function collectRaceStarts(
   return raceStarts;
 }
 
+/** Resolve each roster member's authored invite to the captured effect and its first pet rank. */
+export function collectAdventurerInviteEffects(
+  world: NormalizedDatabaseInput["adventurerWorld"],
+  canonical: Canonical,
+  progressionFacts: NonNullable<NormalizedDatabaseInput["progressionFacts"]>,
+  reference: ArtifactReference,
+  blockers: Blocker[],
+): NonNullable<NormalizedDatabaseInput["adventurerInviteEffects"]> {
+  if (!world) return [];
+  const npcs = new Map(canonical.npcs.map((npc, index) => [npc.nativeId, { npc, index }]));
+  const effects = new Map(canonical.petEffects.map((effect, index) => [effect.nativeId, { effect, index }]));
+  const facts = new Map(progressionFacts.filter((fact) => fact.kind === "effects").map((fact) => [fact.entityKey, fact]));
+  const rows: NonNullable<NormalizedDatabaseInput["adventurerInviteEffects"]> = [];
+  for (const link of world.links) {
+    if (link.kind !== "roster" || link.npc?.entityKey === null || link.npc === null) continue;
+    const adventurerKey = link.npc.entityKey;
+    const npcId = Number(adventurerKey.slice("npcs:".length));
+    const npcEntry = npcs.get(npcId);
+    if (!npcEntry) {
+      blockers.push({ kind: "missing-reference", key: `adventurer-invite:${adventurerKey}:npc`, detail: `Roster member ${adventurerKey} lacks a captured NPC record.`, provenance: link.provenance });
+      continue;
+    }
+    const inviteEffectId = npcEntry.npc.gameplay.inviteEffectId;
+    const npcPointer = pointer(reference, `/npcs/${npcEntry.index}/gameplay/inviteEffectId`);
+    if (typeof inviteEffectId !== "number" || !Number.isSafeInteger(inviteEffectId) || inviteEffectId < 0) {
+      blockers.push({ kind: "unavailable-adventurer-invite", key: adventurerKey, detail: `Roster member ${adventurerKey} has no captured invite effect ID.`, provenance: [npcPointer] });
+      continue;
+    }
+    const effectKey = entityKey("effects", inviteEffectId);
+    const entry = effects.get(inviteEffectId);
+    if (!entry || "unavailable" in entry.effect) {
+      blockers.push({ kind: "missing-reference", key: `adventurer-invite:${adventurerKey}:${effectKey}`, detail: `Invite effect ${effectKey} has no captured pet facts.`, provenance: [npcPointer, ...(entry ? [pointer(reference, `/petEffects/${entry.index}`)] : [])] });
+      continue;
+    }
+    const fact = facts.get(effectKey);
+    if (!fact || fact.kind !== "effects") {
+      blockers.push({ kind: "missing-reference", key: `adventurer-invite:${adventurerKey}:${effectKey}:progression`, detail: `Invite effect ${effectKey} has no normalized effect fact.`, provenance: [npcPointer, pointer(reference, `/petEffects/${entry.index}`)] });
+      continue;
+    }
+    const { effect } = entry;
+    if (fact.details.effectType.value !== effect.effectType.value || fact.details.duration !== effect.duration || fact.details.endless !== effect.endless)
+      throw new Error(`Conflicting captured effect facts for ${effectKey}.`);
+    const effectPointer = pointer(reference, `/petEffects/${entry.index}`);
+    if (effect.effectType.value !== 14) blockers.push({ kind: "unsupported-adventurer-invite", key: adventurerKey, detail: `Invite effect ${effectKey} has type ${effect.effectType.name}, not Pet.`, provenance: [npcPointer, effectPointer] });
+    let firstRank: (typeof rows)[number]["firstRank"] = null;
+    if ("unavailable" in effect.firstRank) {
+      blockers.push({ kind: "unavailable-adventurer-invite-rank", key: adventurerKey, detail: `${effect.firstRank.unavailable} at ${effect.firstRank.sourceFieldPath}.`, provenance: [pointer(reference, `/petEffects/${entry.index}/firstRank`)] });
+    } else {
+      const rank = effect.firstRank;
+      firstRank = { petNpcId: rank.petNpcId, petDuration: rank.petDuration, petSpawnCount: rank.petSpawnCount, sourceFieldPaths: rank.sourceFieldPaths };
+      const progressionRank = fact.details.ranks[0];
+      if (progressionRank && ((progressionRank.pet?.entityKey != null && progressionRank.pet.entityKey !== entityKey("npcs", rank.petNpcId))
+        || progressionRank.petDuration !== rank.petDuration || progressionRank.petSpawnCount !== rank.petSpawnCount))
+        throw new Error(`Conflicting captured first pet rank for ${effectKey}.`);
+      if (rank.petNpcId !== npcId) blockers.push({ kind: "mismatched-adventurer-invite-pet", key: adventurerKey, detail: `Invite effect ${effectKey} summons NPC ${rank.petNpcId} instead of ${adventurerKey}.`, provenance: [pointer(reference, `/petEffects/${entry.index}/firstRank/petNpcId`), npcPointer] });
+    }
+    rows.push({ adventurerKey, effectKey, effectType: { value: effect.effectType.value, name: effect.effectType.name },
+      duration: effect.duration, endless: effect.endless, firstRank,
+      inviteEffectSourceFieldPath: `GameDatabase.GetNPCs()[${npcEntry.npc.sourceKey}].InviteEffectID`,
+      sourceFieldPath: effect.sourceFieldPath,
+      sourceFieldPaths: { effectType: effect.effectType.sourceFieldPath, ...effect.sourceFieldPaths },
+      firstRankSourceFieldPath: effect.firstRank.sourceFieldPath,
+      provenance: [npcPointer, effectPointer, ...fact.provenance, ...link.provenance] });
+  }
+  return rows;
+}
+
 function canonicalEntities(canonical: Canonical, buildId: string, reference: ArtifactReference): NormalizedEntity[] {
   const entities: NormalizedEntity[] = [];
   for (const kind of ["items", "npcs", "quests", "lootTables", "scenes", "resources", "stats", "regions", "properties"] as const) for (const [index, row] of canonical[kind].entries()) entities.push({ entityKey: entityKey(kind, row.nativeId), buildId, kind, nativeId: row.nativeId, ...publicEntityDetails(row), sourceKey: row.sourceKey, publicData: { localization: row.localization, gameplay: row.gameplay, icon: row.icon }, provenance: [pointer(reference, `/${kind}/${index}`)] });
@@ -92,7 +159,9 @@ function mergeEvidence<T extends { provenance: ProvenanceReference[] }>(rows: re
 }
 
 type FactRows = {
-  adventurerWorld: NonNullable<NormalizedDatabaseInput["adventurerWorld"]>;
+  adventurerWorld?: NonNullable<NormalizedDatabaseInput["adventurerWorld"]>;
+  dungeonFinderTank?: NormalizedDatabaseInput["dungeonFinderTank"];
+  adventurerInviteEffects?: NormalizedDatabaseInput["adventurerInviteEffects"];
   itemFacts: NonNullable<NormalizedDatabaseInput["itemFacts"]>; itemStats: NonNullable<NormalizedDatabaseInput["itemStats"]>; itemRandomStats: NonNullable<NormalizedDatabaseInput["itemRandomStats"]>; itemGemStats: NonNullable<NormalizedDatabaseInput["itemGemStats"]>; itemSockets: NonNullable<NormalizedDatabaseInput["itemSockets"]>; itemGameActions: NonNullable<NormalizedDatabaseInput["itemGameActions"]>;
   ownerGameActions?: NormalizedDatabaseInput["ownerGameActions"];
   npcFacts: NonNullable<NormalizedDatabaseInput["npcFacts"]>; npcStats: NonNullable<NormalizedDatabaseInput["npcStats"]>; npcAbilityPhases: NonNullable<NormalizedDatabaseInput["npcAbilityPhases"]>; npcPhaseAbilities: NonNullable<NormalizedDatabaseInput["npcPhaseAbilities"]>; npcFactionRewards: NonNullable<NormalizedDatabaseInput["npcFactionRewards"]>;
@@ -106,7 +175,7 @@ type FactRows = {
 
 export function collectTypedFacts(admitted: AdmittedCatalog, entities: NormalizedEntity[], bindings: NormalizedDatabaseInput["bindings"], conditions: NormalizedDatabaseInput["conditions"], blockers: Blocker[], progressionLabels: ReadonlyMap<string, string> = new Map()): FactRows {
   const settings = admitted.relationships.value.adventurerWorldSettings, settingsPath = "/adventurerWorldSettings";
-  const rows: FactRows = { itemFacts: [], itemStats: [], itemRandomStats: [], itemGemStats: [], itemSockets: [], itemGameActions: [], npcFacts: [], npcStats: [], npcAbilityPhases: [], npcPhaseAbilities: [], npcFactionRewards: [], questFacts: [], questObjectives: [], questRewards: [], placeFacts: [], propertyFacts: [], taskFacts: [], abilityFacts: [], recipeFacts: [], recipeRanks: [], recipeProducts: [], recipeMaterials: [], craftingStationFacts: [], gearSetFacts: [], gearSetMembers: [], gearSetTiers: [], gearSetTierStats: [], artworkAssets: [], artworkBindings: [], bonusArtworkBindings: [], adventurerWorld: { asset: settings.asset, equipmentRewardChance: settings.equipmentRewardChance, provenance: [pointer(admitted.relationships.reference, settingsPath)], links: [] } };
+  const rows: FactRows = { itemFacts: [], itemStats: [], itemRandomStats: [], itemGemStats: [], itemSockets: [], itemGameActions: [], npcFacts: [], npcStats: [], npcAbilityPhases: [], npcPhaseAbilities: [], npcFactionRewards: [], questFacts: [], questObjectives: [], questRewards: [], placeFacts: [], propertyFacts: [], taskFacts: [], abilityFacts: [], recipeFacts: [], recipeRanks: [], recipeProducts: [], recipeMaterials: [], craftingStationFacts: [], gearSetFacts: [], gearSetMembers: [], gearSetTiers: [], gearSetTierStats: [], artworkAssets: [], artworkBindings: [], bonusArtworkBindings: [] };
   const entityByKey = new Map(entities.map((row) => [row.entityKey, row]));
   const reference = (kind: string, nativeId: number | null | undefined, label: string, path: string, provenance: ProvenanceReference[]): NormalizedReference | null => {
     if (nativeId === undefined || nativeId === null) return null;
@@ -118,18 +187,33 @@ export function collectTypedFacts(admitted: AdmittedCatalog, entities: Normalize
     return { entityKey: key, label: target.name ?? label };
   };
   const issueRows = (subject: string, issues: GameplayCoverageIssue[], provenance: ArtifactReference) => { for (const issue of issues) blockers.push({ kind: "unsupported-enum", key: `${subject}:${issue.path}`, detail: issue.detail, provenance: [pointer(provenance, issue.path)] }); };
-  const addAdventurerLink = (kind: NonNullable<NormalizedDatabaseInput["adventurerWorld"]>["links"][number]["kind"], position: number, itemPosition: number, kitId: string | null, npcId: number | null, itemId: number | null, fieldPath: string, startingLevel: number | null = null, joinAfterHours: number | null = null, minimumContentLevel: number | null = null) => {
-    const path = `${settingsPath}/${fieldPath}`, provenance = [pointer(admitted.relationships.reference, path)];
-    rows.adventurerWorld.links.push({ kind, position, itemPosition, kitId, npc: reference("npcs", npcId, `NPC ${npcId}`, `${path}/npcId`, provenance), item: reference("items", itemId, `Item ${itemId}`, `${path}/itemId`, provenance), startingLevel, joinAfterHours, minimumContentLevel, provenance });
-  };
-  settings.roster.forEach((npcId, index) => addAdventurerLink("roster", index, 0, null, npcId, null, `roster/${index}`));
-  settings.arrivals.forEach((arrival, index) => addAdventurerLink("arrival", index, 0, null, arrival.npcId, null, `arrivals/${index}`, arrival.startingLevel, arrival.joinAfterHours));
-  settings.equipmentBands.forEach((band, index) => addAdventurerLink("equipmentBand", index, 0, null, null, band.itemId, `equipmentBands/${index}`, null, null, band.minimumContentLevel));
-  settings.equipmentRewards.forEach((itemId, index) => addAdventurerLink("equipmentReward", index, 0, null, null, itemId, `equipmentRewards/${index}`));
-  settings.kitUpgrades.forEach((kit, index) => {
-    addAdventurerLink("kitUpgrade", index, 0, kit.id, kit.npcId, null, `kitUpgrades/${index}`);
-    kit.itemIds.forEach((itemId, itemIndex) => addAdventurerLink("kitUpgradeItem", index, itemIndex, kit.id, kit.npcId, itemId, `kitUpgrades/${index}/itemIds/${itemIndex}`));
-  });
+  if ("unavailable" in settings) {
+    blockers.push({ kind: "unavailable-adventurer-world-settings", key: "adventurer-world", detail: `${settings.unavailable} Source field: ${settings.sourceFieldPath}.`, provenance: [pointer(admitted.relationships.reference, settingsPath)] });
+  } else {
+    const regionNames = settings.jobRegionNames;
+    const regions = "unavailable" in regionNames ? null : regionNames;
+    if ("unavailable" in regionNames) blockers.push({ kind: "unavailable-adventurer-job-regions", key: "adventurer-world:jobRegionNames", detail: `${regionNames.unavailable} Source field: ${regionNames.sourceFieldPath}.`, provenance: [pointer(admitted.relationships.reference, `${settingsPath}/jobRegionNames`)] });
+    const provenance = [pointer(admitted.relationships.reference, settingsPath), ...["maximumPresent", "minimumJobSeconds", "maximumJobSeconds", "experienceBarPerJob", "goldPerLevelPerJob", "equipmentRewardChance"].map((field) => pointer(admitted.relationships.reference, `${settingsPath}/${field}`))];
+    const world: NonNullable<NormalizedDatabaseInput["adventurerWorld"]> = {
+      asset: settings.asset, maximumPresent: settings.maximumPresent,
+      jobRegionNames: regions, minimumJobSeconds: settings.minimumJobSeconds, maximumJobSeconds: settings.maximumJobSeconds,
+      experienceBarPerJob: settings.experienceBarPerJob, goldPerLevelPerJob: settings.goldPerLevelPerJob,
+      equipmentRewardChance: settings.equipmentRewardChance, sourceFieldPaths: settings.sourceFieldPaths, provenance, links: [],
+    };
+    rows.adventurerWorld = world;
+    const addAdventurerLink = (kind: typeof world.links[number]["kind"], position: number, itemPosition: number, kitId: string | null, npcId: number | null, itemId: number | null, fieldPath: string, startingLevel: number | null = null, joinAfterHours: number | null = null, minimumContentLevel: number | null = null) => {
+      const path = `${settingsPath}/${fieldPath}`, linkProvenance = [pointer(admitted.relationships.reference, path)];
+      world.links.push({ kind, position, itemPosition, kitId, npc: reference("npcs", npcId, `NPC ${npcId}`, `${path}/npcId`, linkProvenance), item: reference("items", itemId, `Item ${itemId}`, `${path}/itemId`, linkProvenance), startingLevel, joinAfterHours, minimumContentLevel, provenance: linkProvenance });
+    };
+    settings.roster.forEach((npcId, index) => addAdventurerLink("roster", index, 0, null, npcId, null, `roster/${index}`));
+    settings.arrivals.forEach((arrival, index) => addAdventurerLink("arrival", index, 0, null, arrival.npcId, null, `arrivals/${index}`, arrival.startingLevel, arrival.joinAfterHours));
+    settings.equipmentBands.forEach((band, index) => addAdventurerLink("equipmentBand", index, 0, null, null, band.itemId, `equipmentBands/${index}`, null, null, band.minimumContentLevel));
+    settings.equipmentRewards.forEach((itemId, index) => addAdventurerLink("equipmentReward", index, 0, null, null, itemId, `equipmentRewards/${index}`));
+    settings.kitUpgrades.forEach((kit, index) => {
+      addAdventurerLink("kitUpgrade", index, 0, kit.id, kit.npcId, null, `kitUpgrades/${index}`);
+      kit.itemIds.forEach((itemId, itemIndex) => addAdventurerLink("kitUpgradeItem", index, itemIndex, kit.id, kit.npcId, itemId, `kitUpgrades/${index}/itemIds/${itemIndex}`));
+    });
+  }
   const conditionsByOwner = new Map<string, NormalizedDatabaseInput["conditions"]>();
   for (const condition of conditions) { const values = conditionsByOwner.get(condition.ownerKey) ?? []; values.push(condition); conditionsByOwner.set(condition.ownerKey, values); }
   const statPercent = new Map(admitted.canonical.value.stats.map((stat) => [stat.nativeId, stat.gameplay.isPercentStat === true]));
@@ -537,6 +621,7 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   const uniqueConditions = mergeEvidence(meaningfulConditions, (row) => row.conditionId, (row) => ({ ...row, sourceFieldPath: null, payload: conditionSemanticPayload(row.payload), provenance: [] }));
   const factRows = collectTypedFacts(admitted, entities, bindings, uniqueConditions, blockers, new Map(progression.progressionFacts.map((row) => [row.entityKey, row.name ?? row.entityKey])));
   factRows.raceStarts = raceStarts;
+  factRows.adventurerInviteEffects = collectAdventurerInviteEffects(factRows.adventurerWorld, canonical.value, progression.progressionFacts, canonical.reference, blockers);
   const ownerActionRows = ownerGameActions(canonical.value.ownerActions, entities, canonical.reference, blockers);
   factRows.ownerGameActions = mergeOwnerGameActions([...ownerActionRows, ...worldOwnerGameActions(contexts, ownerActionRows, entities, relations.itemIndex, blockers)]);
   const endpointFor = (kind: string, id: number | null | undefined) => {
@@ -555,14 +640,26 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
     });
   }
   const itemSources: ItemSource[] = canonical.value.items.map((row) => ({ itemKey: entityKey("items", row.nativeId), itemId: row.nativeId, sources: [...relations.itemIndex.get(row.nativeId)?.values() ?? []].sort((a, b) => `${a.sourceKind}:${a.sourceKey}`.localeCompare(`${b.sourceKind}:${b.sourceKey}`)).map((source) => ({ ...source, probability: null })) }));
-  const finderCaptures = admitted.sources.filter((source) => source.kind === "compendium.corruption-capture.v2");
-  type FinderCapture = { dungeonFinder: { supplyPackId: number | null; enabledSceneIds: number[] } };
-  const finder = finderCaptures[0]?.value as FinderCapture | undefined;
-  if (finderCaptures.some((source) => stableJson((source.value as FinderCapture).dungeonFinder) !== stableJson(finder?.dungeonFinder))) throw new Error("Conflicting Dungeon Finder settings across admitted scan targets.");
-  const dungeonFinder = finder === undefined ? null : {
-    supplyPack: endpointFor("items", finder.dungeonFinder.supplyPackId),
-    dungeons: finder.dungeonFinder.enabledSceneIds.map((id) => endpointFor("scenes", id)).filter((scene): scene is NonNullable<typeof scene> => scene !== null),
-  };
+  const finderCaptures = admitted.sources.filter((source) => source.kind === "compendium.corruption-capture.v3");
+  const finder = finderCaptures[0]?.value as CorruptionCapture | undefined;
+  if (finderCaptures.some((source) => stableJson((source.value as CorruptionCapture).dungeonFinder) !== stableJson(finder?.dungeonFinder))) throw new Error("Conflicting Dungeon Finder settings across admitted scan targets.");
+  let dungeonFinder: NormalizedDatabaseInput["dungeonFinder"] = null;
+  if (finder === undefined) {
+    blockers.push({ kind: "unavailable-dungeon-finder-settings", key: "dungeon-finder", detail: "No current Dungeon Finder settings capture is admitted.", provenance: [admitted.relationships.reference] });
+  } else if ("unavailable" in finder.dungeonFinder) {
+    blockers.push({ kind: "unavailable-dungeon-finder-settings", key: "dungeon-finder", detail: `${finder.dungeonFinder.unavailable} at ${finder.dungeonFinder.sourceFieldPath}.`, provenance: finderCaptures.map((source) => pointer(source.reference, "/dungeonFinder")) });
+  } else {
+    const settings = finder.dungeonFinder;
+    dungeonFinder = {
+      supplyPack: endpointFor("items", settings.supplyPackId),
+      dungeons: settings.enabledSceneIds.map((id) => endpointFor("scenes", id)).filter((scene): scene is NonNullable<typeof scene> => scene !== null),
+    };
+    factRows.dungeonFinderTank = {
+      tankItemPowerShare: settings.tankItemPowerShare, tankGearPieces: settings.tankGearPieces,
+      sourceFieldPaths: settings.tankSourceFieldPaths,
+      provenance: finderCaptures.flatMap((source) => [pointer(source.reference, "/dungeonFinder/tankItemPowerShare"), pointer(source.reference, "/dungeonFinder/tankGearPieces")]),
+    };
+  }
   const corruption = normalizeCorruption(admitted.sources, contexts, canonical.value, entities);
   // The canonical property records carry only the income. Each for-sale sign reads the whole authored record, so the
   // signs supply the type, the currency, and the prices. A field that both sources carry must agree.
@@ -626,6 +723,9 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   for (const row of patrolPaths) add("patrol-path", hashRelation("patrol", [row.sceneNativeId, row.name, row.worldPoints]), row.provenance);
   for (const row of sceneSpawns) add("scene-arrival", String(row.sceneNativeId), [pointer(canonical.reference, `/scenes/${canonical.value.scenes.findIndex((scene) => scene.nativeId === row.sceneNativeId)}`), pointer(canonical.reference, `/worldPositions/${positions.get(row.startPositionId)!.index}`)]);
   for (const row of raceStarts) add("race-start", row.raceKey, row.provenance);
+  if (factRows.adventurerWorld) add("adventurer-world-settings", "world", factRows.adventurerWorld.provenance);
+  if (factRows.dungeonFinderTank) add("dungeon-finder-tank-settings", "finder", factRows.dungeonFinderTank.provenance);
+  for (const row of factRows.adventurerInviteEffects ?? []) add("adventurer-invite-effect", row.adventurerKey, row.provenance);
   if (corruption) {
     add("corruption-settings", "combat", corruption.provenance);
     for (const dungeon of corruption.dungeons) add("corruption-dungeon", dungeon.scene.entityKey!, dungeon.provenance);

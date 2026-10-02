@@ -1,4 +1,6 @@
 var canonicalItems = new System.Collections.Generic.List<object>();
+var canonicalPetEffects = new System.Collections.Generic.List<object>();
+var npcInviteEffectIds = new System.Collections.Generic.HashSet<int>();
 var canonicalNpcs = new System.Collections.Generic.List<object>();
 var canonicalQuests = new System.Collections.Generic.List<object>();
 var canonicalLootTables = new System.Collections.Generic.List<object>();
@@ -625,6 +627,7 @@ if (npcs != null)
             }
         }
 
+        if (npc.InviteEffectID > 0) npcInviteEffectIds.Add(npc.InviteEffectID);
         canonicalNpcs.Add(new
         {
             sourceKey = npcPair.Key,
@@ -1199,12 +1202,39 @@ if (databaseAvailable)
     foreach (var pair in database.GetEffects())
     {
         var effect = pair.Value;
-        if (effect == null || effect.ranks == null) continue;
+        var effectPath = "GameDatabase.GetEffects()[" + pair.Key + "]";
+        var inviteReferenced = npcInviteEffectIds.Remove(pair.Key);
+        if (effect != null && effect.ID != pair.Key) inviteReferenced = npcInviteEffectIds.Remove(effect.ID) || inviteReferenced;
+        if (effect == null)
+        {
+            if (inviteReferenced) canonicalPetEffects.Add(new { nativeId = pair.Key, sourceFieldPath = effectPath, unavailable = "Invite effect record is null." });
+            continue;
+        }
+        if ((int)effect.effectType == 14 || inviteReferenced)
+        {
+            object firstRank;
+            if (effect.ranks == null || effect.ranks.Count == 0 || effect.ranks[0] == null)
+                firstRank = new { unavailable = "First effect rank is unavailable.", sourceFieldPath = effectPath + ".ranks[0]" };
+            else
+            {
+                var rank = effect.ranks[0];
+                firstRank = new { petNpcId = rank.petNPCDataID, petDuration = rank.petDuration, petSpawnCount = rank.petSPawnCount, sourceFieldPath = effectPath + ".ranks[0]",
+                    sourceFieldPaths = new { petNpcId = effectPath + ".ranks[0].petNPCDataID", petDuration = effectPath + ".ranks[0].petDuration", petSpawnCount = effectPath + ".ranks[0].petSPawnCount" } };
+            }
+            canonicalPetEffects.Add(new { nativeId = effect.ID, sourceFieldPath = effectPath, effectType = new { value = (int)effect.effectType, name = effect.effectType.ToString(), sourceFieldPath = effectPath + ".effectType" },
+                duration = effect.duration, endless = effect.endless, firstRank,
+                sourceFieldPaths = new { duration = effectPath + ".duration", endless = effectPath + ".endless" } });
+        }
+        if (effect.ranks == null) continue;
         for (var rank = 0; rank < effect.ranks.Count; rank++)
         {
             var data = effect.ranks[rank];
             if (data != null) addCanonicalOwnerActions("effects", effect.ID.ToString(), "effects/" + effect.ID + "/ranks/" + rank, data.GameActions, data.UseGameActionsTemplate ? data.GameActionsTemplate : null);
         }
+    }
+    foreach (var effectId in npcInviteEffectIds)
+    {
+        canonicalPetEffects.Add(new { nativeId = effectId, sourceFieldPath = "GameDatabase.GetEffects()[" + effectId + "]", unavailable = "NPC invite effect ID is missing from the effects database." });
     }
     foreach (var pair in database.GetAbilities())
     {
@@ -1299,7 +1329,7 @@ if (databaseAvailable)
 
 return new
 {
-    schemaVersion = "compendium.canonical.v6",
+    schemaVersion = "compendium.canonical.v7",
     databaseAvailable = databaseAvailable,
     databaseError = databaseError,
     localization = new
@@ -1348,4 +1378,5 @@ return new
     properties = canonicalProperties,
     worldPositions = canonicalWorldPositions,
     ownerActions = canonicalOwnerActions,
+    petEffects = canonicalPetEffects,
 };

@@ -2,7 +2,7 @@ import type { Canonical, CorruptionCapture } from "@afallon/contracts";
 import { entityKey, stableJson, type NormalizedCorruptionFacts, type NormalizedEntity, type NormalizedReference, type ProvenanceReference } from "@afallon/contracts/catalog";
 import { pointer, type SceneContext, type SourceRecord } from "./context";
 
-const CAPTURE_KINDS: Record<string, true> = { "compendium.corruption-capture.v1": true, "compendium.corruption-capture.v2": true };
+const CAPTURE_KINDS: Record<string, true> = { "compendium.corruption-capture.v1": true, "compendium.corruption-capture.v2": true, "compendium.corruption-capture.v3": true };
 
 type Capture = { value: CorruptionCapture; reference: ProvenanceReference; targetIdentity: string };
 

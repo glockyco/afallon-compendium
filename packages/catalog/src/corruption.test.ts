@@ -17,7 +17,7 @@ const canonical = { items: [
   { nativeId: 564, name: "Corruption Token", internalName: "Corruption Token", gameplay: { isCorruptionToken: true } },
 ] } as unknown as Canonical;
 const capture: CorruptionCapture = {
-  schemaVersion: "compendium.corruption-capture.v2",
+  schemaVersion: "compendium.corruption-capture.v3",
   combat: { maxLevel: 30, gearAllStatsPercentPerLevel: 5, sourceFieldPath: "GameDatabase.CombatSettings",
     gearStatBonuses: [
       { statId: 0, amountPerLevel: 15, isPercent: true, sourceFieldPath: "Combat.GearBonuses[0]" },
@@ -28,9 +28,10 @@ const capture: CorruptionCapture = {
   timer: { scenePath: "Duskfall.unity", sourceFieldPath: "Duskfall.unity/DungeonTimerManager", totalSeconds: 800, firstRemainingSeconds: 500,
     secondRemainingSeconds: 300, maxLootItems: 3, bosses: [{ id: 286, sourceFieldPath: "Timer.BossNPCs[0]" }],
     lootTables: [{ id: 114, sourceFieldPath: "Timer.LootTables[0]" }], token: { id: 564, sourceFieldPath: "Timer.CorruptionTokenItem" } },
-  dungeonFinder: { supplyPackId: 418, enabledSceneIds: [25], sourceFieldPath: "DungeonFinderService.Instance.Settings.SupplyPack" },
+  dungeonFinder: { supplyPackId: 418, enabledSceneIds: [25], sourceFieldPath: "DungeonFinderService.Instance.Settings.SupplyPack",
+    tankItemPowerShare: 0.6, tankGearPieces: 4, tankSourceFieldPaths: { tankItemPowerShare: "DungeonFinderService.Instance.Settings.TankItemPowerShare", tankGearPieces: "DungeonFinderService.Instance.Settings.TankGearPieces" } },
 };
-const source = (value: CorruptionCapture): SourceRecord => ({ kind: "compendium.corruption-capture.v2", value,
+const source = (value: CorruptionCapture): SourceRecord => ({ kind: "compendium.corruption-capture.v3", value,
   reference: { path: "objects/sha256/aa/" + hash.slice(2), sha256: hash }, key: "corruption", bytes: 1, runId: "run", targetIdentity: "build-scene:25", origins: [] });
 const context = { scenePath: "Duskfall.unity", sceneNativeId: 25, world: { interactions: [] } } as unknown as SceneContext;
 const copy = (): CorruptionCapture => structuredClone(capture);

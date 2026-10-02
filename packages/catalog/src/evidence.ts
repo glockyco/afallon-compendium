@@ -3,6 +3,7 @@ import type { Static, TSchema } from "typebox";
 import { Assert } from "typebox/value";
 import { ArtifactStore, resolveArtifactRun } from "@afallon/artifacts";
 import { ArtifactRunManifestSchema, ArtworkSchema, CaptureSetSchema, canonicalJson, CanonicalSchema, CanonicalV5Schema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema, QuestLevelsSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, NpcProducersSchema, WorldSourcesSchema, WorldSourcesV8Schema, WorldSourcesV9Schema, WorldSourcesV10Schema, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, ScanTargetEnvelopeSchema, ObservationContextSchema, WorldInventorySchema, CoverageLedgerSchema, ScanCoverageSchema, ScanPlanningEvidenceSchema, decodeContract, schemaRegistry, validateScanTargetEnvelope, type ArtifactRunManifest, type ContentIdentity, type ScanTargetEnvelope, type ScanCollectorFamily, type WorldInventory, type WorldSources, type WorldSourcesV10 } from "@afallon/contracts";
+import { CanonicalV6Schema } from "@afallon/contracts";
 import { PlacementRolesSchema, type ArtifactReference, type NormalizedDatabaseInput } from "@afallon/contracts/catalog";
 import { CatalogPlanSchema, CatalogImagerySchema, CoverageReviewSchema, CoveragePolicySchema, MechanicsRulesSchema, type CatalogPlan, type CatalogImagery, type CoverageAccountingInput, type MechanicsRules, type VerifiedCoverageEvidence, type RoleEvidence } from "@afallon/contracts/catalog";
 import { sourceIdentityRows } from "./placements";
@@ -11,12 +12,12 @@ import { coverageInventorySubjects, coverageTargetSubjects } from "./coverage-ac
 import type { SceneContext, SourceRecord } from "./context";
 
 const FAMILY_BY_SCHEMA: Readonly<Record<string, ScanCollectorFamily>> = {
-  "compendium.canonical.v4": "canonical", "compendium.canonical.v5": "canonical", "compendium.canonical.v6": "canonical", "compendium.localization.v1": "canonical", "compendium.quest-levels.v1": "canonical", "compendium.corruption-capture.v1": "canonical", "compendium.corruption-capture.v2": "canonical", "compendium.artwork.v1": "canonical",
+  "compendium.canonical.v4": "canonical", "compendium.canonical.v5": "canonical", "compendium.canonical.v6": "canonical", "compendium.canonical.v7": "canonical", "compendium.localization.v1": "canonical", "compendium.quest-levels.v1": "canonical", "compendium.corruption-capture.v1": "canonical", "compendium.corruption-capture.v2": "canonical", "compendium.corruption-capture.v3": "canonical", "compendium.artwork.v1": "canonical",
   "compendium.world-inventory.v2": "inventory", "compendium.addressable-locations.v1": "inventory",
   "compendium.npc-producers.v3": "producers", "compendium.world-sources.v8": "producers", "compendium.world-sources.v9": "producers", "compendium.world-sources.v10": "producers", "compendium.world-sources.v11": "producers",
   "compendium.placement-snapshot.v1": "placements", "compendium.placement-identities.v1": "placements", "compendium.serialized-assets.v2": "placements", "compendium.scene-source-issues.v2": "placements",
   "compendium.faction-roles.v1": "roles", "compendium.placement-roles.v1": "roles",
-  "compendium.relationships.v1": "relationships", "compendium.relationships.v2": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships", "compendium.support.v2": "relationships", "compendium.support.v3": "relationships", "compendium.support.v4": "relationships",
+  "compendium.relationships.v1": "relationships", "compendium.relationships.v2": "relationships", "compendium.relationships.v3": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships", "compendium.support.v2": "relationships", "compendium.support.v3": "relationships", "compendium.support.v4": "relationships",
   "compendium.scene-catalog.v1": "spatial", "compendium.map-geometry.v3": "spatial", "compendium.navigation-geometry.v2": "spatial",
   "compendium.scan-coverage.v1": "coverage", "compendium.coverage.v2": "coverage",
 };
@@ -204,9 +205,12 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
     const value = await readObject(store, artifact.content, schema, `${target.envelope.targetIdentity}/${family}`);
     return { value, reference: evidenceReference(artifact.content), content: artifact.content };
   };
-  const canonicalV6 = await loadOptional(canonicalTarget, "canonical", CanonicalSchema);
-  const canonicalV5 = canonicalV6 === null ? await load(canonicalTarget, "canonical", CanonicalV5Schema) : null;
-  const canonical = canonicalV6 ?? { ...canonicalV5!, value: { ...canonicalV5!.value, schemaVersion: "compendium.canonical.v6" as const, ownerActions: [] } };
+  const canonicalV7 = await loadOptional(canonicalTarget, "canonical", CanonicalSchema);
+  const canonicalV6 = canonicalV7 === null ? await loadOptional(canonicalTarget, "canonical", CanonicalV6Schema) : null;
+  const canonicalV5 = canonicalV7 === null && canonicalV6 === null ? await load(canonicalTarget, "canonical", CanonicalV5Schema) : null;
+  const canonical = canonicalV7 ?? (canonicalV6 !== null
+    ? { ...canonicalV6, value: { ...canonicalV6.value, schemaVersion: "compendium.canonical.v7" as const, petEffects: [] } }
+    : { ...canonicalV5!, value: { ...canonicalV5!.value, schemaVersion: "compendium.canonical.v7" as const, ownerActions: [], petEffects: [] } });
   // Only the scan plan's artwork target collects artwork, so the canonical target must be that target.
   const artwork = await load(canonicalTarget, "canonical", ArtworkSchema);
   const artworkOutputs = new Map(canonicalTarget.run.outputs.map((row) => [`${row.content.sha256}:${row.content.bytes}`, row]));
@@ -268,8 +272,9 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
       if (artifacts.length !== 1) throw new Error(`Target ${target.envelope.targetIdentity} requires one role input ${schemaId}.`);
       return evidenceReference(artifacts[0]!.content);
     };
-    const canonicalRoleSchemaId = target.envelope.artifacts.some((artifact) => artifact.schema.id === "compendium.canonical.v6") ? "compendium.canonical.v6" : "compendium.canonical.v5";
-    const roleEvidenceReferences: SceneContext["roleEvidenceReferences"] = { canonical: roleArtifact(canonicalRoleSchemaId), relationships: roleArtifact("compendium.relationships.v2"), "npc-producers": npc.reference, "world-sources": world.reference, "faction-roles": roleArtifact("compendium.faction-roles.v1") };
+    const canonicalRoleSchemaId = ["compendium.canonical.v7", "compendium.canonical.v6", "compendium.canonical.v5"].find((schemaId) => target.envelope.artifacts.some((artifact) => artifact.schema.id === schemaId))!;
+    const relationshipsRoleSchemaId = target.envelope.artifacts.some((artifact) => artifact.schema.id === "compendium.relationships.v3") ? "compendium.relationships.v3" : "compendium.relationships.v2";
+    const roleEvidenceReferences: SceneContext["roleEvidenceReferences"] = { canonical: roleArtifact(canonicalRoleSchemaId), relationships: roleArtifact(relationshipsRoleSchemaId), "npc-producers": npc.reference, "world-sources": world.reference, "faction-roles": roleArtifact("compendium.faction-roles.v1") };
     const upgradedWorld: WorldSources | WorldSourcesV10 = world.value.schemaVersion === "compendium.world-sources.v11" || world.value.schemaVersion === "compendium.world-sources.v10" ? world.value : world.value.schemaVersion === "compendium.world-sources.v9" ? {
       ...world.value, schemaVersion: "compendium.world-sources.v10",
       interactions: world.value.interactions.map((row) => "visualEffects" in row ? {

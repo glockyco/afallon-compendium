@@ -9,7 +9,7 @@ const reference = Type.Object({ id: Type.Integer({ minimum: 0 }), sourceFieldPat
 const nullableReference = Type.Union([reference, Type.Null()]);
 
 export const CorruptionCaptureSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.corruption-capture.v2"),
+  schemaVersion: Type.Literal("compendium.corruption-capture.v3"),
   combat: Type.Object({
     maxLevel: nullableInteger,
     gearAllStatsPercentPerLevel: nullableNumber,
@@ -30,12 +30,26 @@ export const CorruptionCaptureSchema = Type.Object({
     maxLootItems: nullableInteger, bosses: Type.Union([Type.Array(reference), Type.Null()]),
     lootTables: Type.Union([Type.Array(reference), Type.Null()]), token: nullableReference,
   })]),
+  dungeonFinder: Type.Union([
+    Type.Object({ unavailable: text, sourceFieldPath: text, assetCount: Type.Integer({ minimum: 0 }) }),
+    Type.Object({
+      supplyPackId: nullableInteger,
+      enabledSceneIds: Type.Array(Type.Integer({ minimum: 0 })),
+      sourceFieldPath: text,
+      tankItemPowerShare: Type.Number(), tankGearPieces: Type.Integer(),
+      tankSourceFieldPaths: Type.Object({ tankItemPowerShare: text, tankGearPieces: text }),
+    }),
+  ]),
+}, { additionalProperties: false });
+export const CorruptionCaptureV2Schema = Type.Object({
+  ...CorruptionCaptureSchema.properties,
+  schemaVersion: Type.Literal("compendium.corruption-capture.v2"),
   dungeonFinder: Type.Object({
     supplyPackId: nullableInteger,
     enabledSceneIds: Type.Array(Type.Integer({ minimum: 0 })),
     sourceFieldPath: text,
   }),
 }, { additionalProperties: false });
-const { dungeonFinder: _finder, ...legacyCorruption } = CorruptionCaptureSchema.properties;
+const { dungeonFinder: _finder, ...legacyCorruption } = CorruptionCaptureV2Schema.properties;
 export const CorruptionCaptureV1Schema = Type.Object({ ...legacyCorruption, schemaVersion: Type.Literal("compendium.corruption-capture.v1") }, { additionalProperties: false });
 export type CorruptionCapture = Static<typeof CorruptionCaptureSchema>;

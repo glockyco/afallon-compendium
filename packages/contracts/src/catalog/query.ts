@@ -7,10 +7,10 @@ import type { PlacementIdentityResult } from "../raw/placement";
 import type { SpatialResolution } from "../spatial/reviewed";
 import type { RoleScope } from "./roles";
 import type { TooltipLine } from "./tooltip";
-import type { CatalogDungeonFinder, CatalogQuestPickup } from "./facts";
+import type { CatalogAdventurerWorldSettings, CatalogDungeonFinderTankSettings, CatalogDungeonFinder, CatalogQuestPickup } from "./facts";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v14" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v15" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });
@@ -72,9 +72,17 @@ export interface NormalizedItemFact {
   sellPrice: number | null; sellCurrency: NormalizedReference | null; buyPrice: number | null; buyCurrency: NormalizedReference | null; currency: NormalizedReference | null; stackLimit: number; questDropOnly: boolean; corruptionToken: boolean;
   levelRequirement: number | null; actionAbilities: NormalizedContextualAbilityReference[]; useLines: TooltipLine[]; conditionIds: string[]; provenance: ProvenanceReference[];
 }
-export interface NormalizedAdventurerWorld {
-  asset: string; equipmentRewardChance: number; provenance: ProvenanceReference[];
+export interface NormalizedAdventurerWorld extends CatalogAdventurerWorldSettings {
   links: Array<{ kind: "roster" | "arrival" | "equipmentBand" | "equipmentReward" | "kitUpgrade" | "kitUpgradeItem"; position: number; itemPosition: number; kitId: string | null; npc: NormalizedReference | null; item: NormalizedReference | null; startingLevel: number | null; joinAfterHours: number | null; minimumContentLevel: number | null; provenance: ProvenanceReference[] }>;
+}
+export type NormalizedDungeonFinderTankSettings = CatalogDungeonFinderTankSettings;
+export interface NormalizedAdventurerInviteEffect {
+  adventurerKey: string; effectKey: string; effectType: { value: number; name: string };
+  duration: number; endless: boolean;
+  firstRank: { petNpcId: number; petDuration: number; petSpawnCount: number; sourceFieldPaths: { petNpcId: string; petDuration: string; petSpawnCount: string } } | null;
+  inviteEffectSourceFieldPath: string; sourceFieldPath: string; firstRankSourceFieldPath: string | null;
+  sourceFieldPaths: { effectType: string; duration: string; endless: string };
+  provenance: ProvenanceReference[];
 }
 export interface NormalizedItemStat { entityKey: string; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
 export interface NormalizedItemRandomStat { entityKey: string; statIndex: number; stat: NormalizedReference; min: number; max: number; isPercent: boolean; whole: boolean; chance: number | null; provenance: ProvenanceReference[] }
@@ -392,6 +400,8 @@ export interface NormalizedDatabaseInput {
   imagery?: CatalogImageryRow[];
   itemFacts?: NormalizedItemFact[];
   adventurerWorld?: NormalizedAdventurerWorld;
+  dungeonFinderTank?: NormalizedDungeonFinderTankSettings | null;
+  adventurerInviteEffects?: NormalizedAdventurerInviteEffect[];
   itemStats?: NormalizedItemStat[];
   itemRandomStats?: NormalizedItemRandomStat[];
   itemGemStats?: NormalizedItemGemStat[];

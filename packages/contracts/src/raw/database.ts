@@ -30,8 +30,22 @@ const canonicalWorldPosition = Type.Object({
 export const canonicalKinds = ["items", "npcs", "quests", "lootTables", "scenes", "resources", "stats", "regions", "properties", "worldPositions"] as const;
 const counts = Type.Object({ items: integer, npcs: integer, quests: integer, lootTables: integer, scenes: integer, resources: integer, stats: integer, regions: integer, properties: integer, worldPositions: integer });
 const guideCoverage = Type.Object({ regionsObserved: integer, regionsExported: integer, regionsOmittedReason: text });
+const petEffect = Type.Union([
+  Type.Object({ nativeId: integer, sourceFieldPath: text, unavailable: text }),
+  Type.Object({
+    nativeId: integer, sourceFieldPath: text,
+    effectType: Type.Object({ value: integer, name: text, sourceFieldPath: text }),
+    duration: number, endless: Type.Boolean(),
+    sourceFieldPaths: Type.Object({ duration: text, endless: text }),
+    firstRank: Type.Union([
+      Type.Object({ unavailable: text, sourceFieldPath: text }),
+      Type.Object({ petNpcId: integer, petDuration: number, petSpawnCount: integer, sourceFieldPath: text,
+        sourceFieldPaths: Type.Object({ petNpcId: text, petDuration: text, petSpawnCount: text }) }),
+    ]),
+  }),
+]);
 export const CanonicalSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.canonical.v6"),
+  schemaVersion: Type.Literal("compendium.canonical.v7"),
   databaseAvailable: Type.Literal(true),
   localization: Type.Object({ apiAvailable: Type.Literal(true), language: text, loadedEntryCount: integer }),
   sourceTotals: counts, exportedTotals: counts,
@@ -45,8 +59,11 @@ export const CanonicalSchema = Type.Object({
     template: Type.Union([Type.Null(), Type.Object({ nativeId: integer, internalName: nullableText, fileName: nullableText })]),
     actions: rawRows,
   })),
+  petEffects: Type.Array(petEffect),
 });
-const { ownerActions: _ownerActions, ...canonicalV5Properties } = CanonicalSchema.properties;
+const { petEffects: _petEffects, ...canonicalV6Properties } = CanonicalSchema.properties;
+export const CanonicalV6Schema = Type.Object({ ...canonicalV6Properties, schemaVersion: Type.Literal("compendium.canonical.v6") });
+const { ownerActions: _ownerActions, ...canonicalV5Properties } = CanonicalV6Schema.properties;
 export const CanonicalV5Schema = Type.Object({ ...canonicalV5Properties, schemaVersion: Type.Literal("compendium.canonical.v5") });
 export const CanonicalV4Schema = Type.Object({ ...canonicalV5Properties, schemaVersion: Type.Literal("compendium.canonical.v4") });
 export type Canonical = Static<typeof CanonicalSchema>;
@@ -137,7 +154,7 @@ export type Support = Static<typeof SupportSchema>;
 
 const requirementGroup = Type.Object({ nativeRequirementCount: integer, requirements: rawRows });
 const template = Type.Union([Type.Null(), Type.Object({ nativeId: integer, sourceName: text, groups: Type.Array(requirementGroup) })]);
-export const AdventurerWorldSettingsSchema = Type.Object({
+export const AdventurerWorldSettingsV2Schema = Type.Object({
   asset: text, instanceCount: Type.Literal(1),
   roster: Type.Array(integer),
   arrivals: Type.Array(Type.Object({ npcId: integer, startingLevel: integer, joinAfterHours: integer })),
@@ -145,8 +162,21 @@ export const AdventurerWorldSettingsSchema = Type.Object({
   equipmentRewardChance: number, equipmentRewards: Type.Array(integer),
   kitUpgrades: Type.Array(Type.Object({ id: text, npcId: integer, itemIds: Type.Array(integer) })),
 });
+export const AdventurerWorldSettingsSchema = Type.Union([
+  Type.Object({ unavailable: text, sourceFieldPath: text, assetCount: integer }),
+  Type.Object({
+    ...AdventurerWorldSettingsV2Schema.properties,
+    jobRegionNames: Type.Union([
+      Type.Array(Type.Object({ name: text, sourceFieldPath: text })),
+      Type.Object({ unavailable: text, sourceFieldPath: text }),
+    ]),
+    maximumPresent: integer, minimumJobSeconds: number, maximumJobSeconds: number,
+    experienceBarPerJob: number, goldPerLevelPerJob: number,
+    sourceFieldPaths: Type.Object({ maximumPresent: text, minimumJobSeconds: text, maximumJobSeconds: text, experienceBarPerJob: text, goldPerLevelPerJob: text, equipmentRewardChance: text }),
+  }),
+]);
 export const RelationshipsSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.relationships.v2"),
+  schemaVersion: Type.Literal("compendium.relationships.v3"),
   merchantBindings: Type.Array(Type.Object({ ownerNativeId: integer, merchantTableID: integer, bindingIndex: integer, requirementsTemplate: template })),
   merchantTables: Type.Array(definition), currencies: Type.Array(definition), resources: rawRows,
   merchantStock: Type.Array(Type.Object({ merchantTableID: integer, stockIndex: integer, itemID: integer, currencyID: integer, cost: integer, costSemantics: text })),
@@ -173,7 +203,12 @@ export const RelationshipsSchema = Type.Object({
   reconciliation: rawObject,
 });
 export type Relationships = Static<typeof RelationshipsSchema>;
-const { adventurerWorldSettings: _adventurerWorldSettings, lootTables: _newLootTables, ...legacyRelationships } = RelationshipsSchema.properties;
+export const RelationshipsV2Schema = Type.Object({
+  ...RelationshipsSchema.properties,
+  schemaVersion: Type.Literal("compendium.relationships.v2"),
+  adventurerWorldSettings: AdventurerWorldSettingsV2Schema,
+});
+const { adventurerWorldSettings: _adventurerWorldSettings, lootTables: _newLootTables, ...legacyRelationships } = RelationshipsV2Schema.properties;
 export const RelationshipsV1Schema = Type.Object({
   ...legacyRelationships,
   schemaVersion: Type.Literal("compendium.relationships.v1"),

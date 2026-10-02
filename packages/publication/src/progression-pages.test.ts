@@ -61,7 +61,7 @@ const craftingRules: CatalogMechanicsRule[] = [
   craftingRule("recipe-experience-rounding", {}), craftingRule("weapon-skill-hit", { hitExperience: 2 }), craftingRule("weapon-skills", {}, [{ entityKey: "skills:11", label: "Axes" }]),
 ];
 const facts: CatalogFacts = {
-  entities, items: [], npcs: [], quests: [], tasks: [], places: [], raceStarts: [], properties: [], gearSets: [], gatheringNodes: [], adventurerItems: [], itemLootTables: [],
+  entities, items: [], npcs: [], quests: [], tasks: [], places: [], raceStarts: [], properties: [], gearSets: [], gatheringNodes: [], adventurerItems: [], adventurerWorld: null, dungeonFinderTank: null, adventurerInviteEffects: [], itemLootTables: [],
   abilities: ["abilities:0", "abilities:1", "abilities:2"].map((entityKey) => ({ entityKey, ranks: [{ rankIndex: 0, lines }] })),
   recipes: [{ entityKey: "recipes:81", skill: ref("skills:0", "Alchemy"), station: null, learnedByDefault: true, ranks: [] }],
   progression: {

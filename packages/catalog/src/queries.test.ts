@@ -387,3 +387,41 @@ test("race start facts name only captured scenes and retain the authored first-s
     ]);
   } finally { db.close(); }
 });
+
+test("adventurer rules read captured job bounds, tank thresholds, and the invite's actual pet target", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "catalog.v1", "{}", "e".repeat(64));
+    const empty = queryCatalogFacts(db).records;
+    expect([empty.adventurerWorld, empty.dungeonFinderTank, empty.adventurerInviteEffects]).toEqual([null, null, []]);
+    const evidence = [{ path: "objects/world", sha256: "a".repeat(64), pointer: "/adventurerWorldSettings" }];
+    const sourceFieldPaths = {
+      maximumPresent: "AdventurerWorldSettings.MaximumPresent", minimumJobSeconds: "AdventurerWorldSettings.MinimumJobSeconds",
+      maximumJobSeconds: "AdventurerWorldSettings.MaximumJobSeconds", experienceBarPerJob: "AdventurerWorldSettings.ExperienceBarPerJob",
+      goldPerLevelPerJob: "AdventurerWorldSettings.GoldPerLevelPerJob", equipmentRewardChance: "AdventurerWorldSettings.EquipmentRewardChance",
+    };
+    db.query("INSERT INTO adventurer_world_settings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("build", "AdventurerWorld", 0.4,
+      JSON.stringify([{ name: "Coalway Woods", sourceFieldPath: "AdventurerWorldSettings.JobRegionNames[0]" }, { name: "Frostveil", sourceFieldPath: "AdventurerWorldSettings.JobRegionNames[1]" }]),
+      12, 120, 360, 0.05, 2, JSON.stringify(sourceFieldPaths), JSON.stringify(evidence));
+    const tankPaths = { tankItemPowerShare: "DungeonFinderSettings.TankItemPowerShare", tankGearPieces: "DungeonFinderSettings.TankGearPieces" };
+    db.query("INSERT INTO dungeon_finder_tank_settings VALUES (?, ?, ?, ?, ?)").run("build", 0.6, 4, JSON.stringify(tankPaths), JSON.stringify(evidence));
+    const insertEntity = db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    insertEntity.run("build", "npcs", 3, "npcs:3", "Guardian", null, null, 3, "{}", "[]");
+    insertEntity.run("build", "effects", 21, "effects:21", "Call Guardian", null, null, 21, "{}", "[]");
+    db.query("INSERT INTO progression_facts VALUES (?, ?, ?, ?, ?)").run("effects:21", "effects", "Call Guardian", JSON.stringify({ effectType: { value: 14, name: "Pet" }, duration: 45, endless: false, ranks: [] }), "[]");
+    const petPaths = { petNpcId: "GameDatabase.GetEffects()[21].ranks[0].petNPCDataID", petDuration: "GameDatabase.GetEffects()[21].ranks[0].petDuration", petSpawnCount: "GameDatabase.GetEffects()[21].ranks[0].petSPawnCount" };
+    db.query("INSERT INTO adventurer_invite_effects VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("npcs:3", "effects:21", JSON.stringify({ value: 14, name: "Pet" }), 45, 0,
+      JSON.stringify({ petNpcId: 3, petDuration: 0, petSpawnCount: 1, sourceFieldPaths: petPaths }), "GameDatabase.GetNPCs()[3].InviteEffectID", "GameDatabase.GetEffects()[21]", "GameDatabase.GetEffects()[21].ranks[0]",
+      JSON.stringify({ effectType: "GameDatabase.GetEffects()[21].effectType", duration: "GameDatabase.GetEffects()[21].duration", endless: "GameDatabase.GetEffects()[21].endless" }), JSON.stringify(evidence));
+    const facts = queryCatalogFacts(db).records;
+    expect(facts.adventurerWorld).toMatchObject({ minimumJobSeconds: 120, maximumJobSeconds: 360, maximumPresent: 12,
+      experienceBarPerJob: 0.05, goldPerLevelPerJob: 2, equipmentRewardChance: 0.4,
+      jobRegionNames: [{ name: "Coalway Woods" }, { name: "Frostveil" }], sourceFieldPaths, provenance: evidence });
+    expect(facts.dungeonFinderTank).toMatchObject({ tankItemPowerShare: 0.6, tankGearPieces: 4, sourceFieldPaths: tankPaths });
+    expect(facts.adventurerInviteEffects).toMatchObject([{ adventurer: { entityKey: "npcs:3", label: "Guardian" },
+      effect: { entityKey: "effects:21", label: "Call Guardian" }, effectType: { value: 14, name: "Pet" }, duration: 45, endless: false,
+      inviteEffectSourceFieldPath: "GameDatabase.GetNPCs()[3].InviteEffectID",
+      firstRank: { petNpcId: 3, pet: { entityKey: "npcs:3", label: "Guardian" }, petDuration: 0, petSpawnCount: 1, sourceFieldPaths: petPaths } }]);
+  } finally { db.close(); }
+});

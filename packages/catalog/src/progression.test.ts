@@ -151,7 +151,7 @@ test("bonus artwork resolves through progression facts while tree artwork binds 
   const image = { sha256: "b".repeat(64), bytes: 24, width: 2, height: 2 };
   const admitted = {
     canonical: { value: { items: [], npcs: [], quests: [], scenes: [], regions: [], properties: [], stats: [] }, reference },
-    relationships: { value: { tasks: [], adventurerWorldSettings: { asset: "AdventurerWorld", equipmentRewardChance: 0, roster: [], arrivals: [], equipmentBands: [], equipmentRewards: [], kitUpgrades: [] } }, reference },
+    relationships: { value: { tasks: [], adventurerWorldSettings: { unavailable: "No settings asset in this fixture.", sourceFieldPath: "Resources.LoadAll<AdventurerWorldSettings>(\"\")[0]", assetCount: 0 } }, reference },
     lootRules: { value: { itemLevels: [] }, reference },
     support: { value: { tables: {} }, reference },
     artwork: { value: { records: [

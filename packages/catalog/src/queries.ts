@@ -479,7 +479,33 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
     startingPositionId: row.starting_position_id,
     position: row.position_json === null ? null : parse(row.position_json) as { x: number; y: number; z: number },
   }));
-  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, raceStarts, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), adventurerItems, itemLootTables, ownerGameActions, corruption, questPickups, dungeonFinder, clothDrops: queryClothDrops(db, refs) } };
+  const worldRow = db.query<{ asset: string; job_region_names_json: string | null; maximum_present: number; minimum_job_seconds: number; maximum_job_seconds: number; experience_bar_per_job: number; gold_per_level_per_job: number; equipment_reward_chance: number; source_field_paths_json: string; provenance_json: string }, []>(
+    "SELECT asset, job_region_names_json, maximum_present, minimum_job_seconds, maximum_job_seconds, experience_bar_per_job, gold_per_level_per_job, equipment_reward_chance, source_field_paths_json, provenance_json FROM adventurer_world_settings",
+  ).get();
+  const adventurerWorld: CatalogFacts["adventurerWorld"] = worldRow === null ? null : {
+    asset: worldRow.asset, jobRegionNames: worldRow.job_region_names_json === null ? null : JSON.parse(worldRow.job_region_names_json),
+    maximumPresent: worldRow.maximum_present, minimumJobSeconds: worldRow.minimum_job_seconds,
+    maximumJobSeconds: worldRow.maximum_job_seconds, experienceBarPerJob: worldRow.experience_bar_per_job,
+    goldPerLevelPerJob: worldRow.gold_per_level_per_job, equipmentRewardChance: worldRow.equipment_reward_chance,
+    sourceFieldPaths: JSON.parse(worldRow.source_field_paths_json), provenance: JSON.parse(worldRow.provenance_json),
+  };
+  const tankRow = db.query<{ tank_item_power_share: number; tank_gear_pieces: number; source_field_paths_json: string; provenance_json: string }, []>(
+    "SELECT tank_item_power_share, tank_gear_pieces, source_field_paths_json, provenance_json FROM dungeon_finder_tank_settings",
+  ).get();
+  const dungeonFinderTank: CatalogFacts["dungeonFinderTank"] = tankRow === null ? null : {
+    tankItemPowerShare: tankRow.tank_item_power_share, tankGearPieces: tankRow.tank_gear_pieces,
+    sourceFieldPaths: JSON.parse(tankRow.source_field_paths_json), provenance: JSON.parse(tankRow.provenance_json),
+  };
+  const adventurerInviteEffects: CatalogFacts["adventurerInviteEffects"] = db.query<{ adventurer_key: string; effect_key: string; effect_type_json: string; duration: number; endless: number; first_rank_json: string | null; invite_effect_source_field_path: string; source_field_path: string; first_rank_source_field_path: string | null; source_field_paths_json: string; provenance_json: string }, []>(
+    "SELECT adventurer_key, effect_key, effect_type_json, duration, endless, first_rank_json, invite_effect_source_field_path, source_field_path, first_rank_source_field_path, source_field_paths_json, provenance_json FROM adventurer_invite_effects ORDER BY adventurer_key",
+  ).all().map((row) => {
+    const first = row.first_rank_json === null ? null : JSON.parse(row.first_rank_json) as { petNpcId: number; petDuration: number; petSpawnCount: number; sourceFieldPaths: { petNpcId: string; petDuration: string; petSpawnCount: string } };
+    return { adventurer: endpoint(refs, row.adventurer_key, row.adventurer_key), effect: endpoint(refs, row.effect_key, row.effect_key),
+      effectType: JSON.parse(row.effect_type_json), duration: row.duration, endless: row.endless === 1,
+      firstRank: first === null ? null : { ...first, pet: endpoint(refs, `npcs:${first.petNpcId}`, `NPC ${first.petNpcId}`) },
+      inviteEffectSourceFieldPath: row.invite_effect_source_field_path, sourceFieldPath: row.source_field_path, firstRankSourceFieldPath: row.first_rank_source_field_path, sourceFieldPaths: JSON.parse(row.source_field_paths_json), provenance: JSON.parse(row.provenance_json) };
+  });
+  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, raceStarts, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), adventurerItems, adventurerWorld, dungeonFinderTank, adventurerInviteEffects, itemLootTables, ownerGameActions, corruption, questPickups, dungeonFinder, clothDrops: queryClothDrops(db, refs) } };
 }
 
 // ClothDrops.Roll gives cloth only for a creature whose creature type (+0xF8) has the value 2 or 3.

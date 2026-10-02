@@ -375,7 +375,16 @@ export function openNormalizedDatabase(path: string): Database {
       ) STRICT;
       CREATE TABLE IF NOT EXISTS adventurer_world_settings (
         build_id TEXT PRIMARY KEY NOT NULL REFERENCES normalized_builds(build_id),
-        asset TEXT NOT NULL, equipment_reward_chance REAL NOT NULL, provenance_json TEXT NOT NULL
+        asset TEXT NOT NULL, equipment_reward_chance REAL NOT NULL,
+        job_region_names_json TEXT, maximum_present INTEGER NOT NULL,
+        minimum_job_seconds REAL NOT NULL, maximum_job_seconds REAL NOT NULL,
+        experience_bar_per_job REAL NOT NULL, gold_per_level_per_job REAL NOT NULL,
+        source_field_paths_json TEXT NOT NULL, provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS dungeon_finder_tank_settings (
+        build_id TEXT PRIMARY KEY NOT NULL REFERENCES normalized_builds(build_id),
+        tank_item_power_share REAL NOT NULL, tank_gear_pieces INTEGER NOT NULL,
+        source_field_paths_json TEXT NOT NULL, provenance_json TEXT NOT NULL
       ) STRICT;
       CREATE TABLE IF NOT EXISTS adventurer_world_links (
         build_id TEXT NOT NULL REFERENCES adventurer_world_settings(build_id),
@@ -496,6 +505,14 @@ export function openNormalizedDatabase(path: string): Database {
       ) STRICT;
       CREATE TABLE IF NOT EXISTS progression_facts (
         entity_key TEXT PRIMARY KEY NOT NULL, kind TEXT NOT NULL, name TEXT, details_json TEXT NOT NULL, provenance_json TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS adventurer_invite_effects (
+        adventurer_key TEXT PRIMARY KEY NOT NULL REFERENCES canonical_entities(entity_key),
+        effect_key TEXT NOT NULL REFERENCES progression_facts(entity_key),
+        effect_type_json TEXT NOT NULL, duration REAL NOT NULL,
+        endless INTEGER NOT NULL CHECK(endless IN (0, 1)), first_rank_json TEXT,
+        invite_effect_source_field_path TEXT NOT NULL, source_field_path TEXT NOT NULL, first_rank_source_field_path TEXT,
+        source_field_paths_json TEXT NOT NULL, provenance_json TEXT NOT NULL
       ) STRICT;
       CREATE TABLE IF NOT EXISTS progression_links (
         owner_key TEXT NOT NULL REFERENCES progression_facts(entity_key), link_kind TEXT NOT NULL CHECK(link_kind IN ('talentTree', 'spellbook')), link_index INTEGER NOT NULL CHECK(link_index >= 0),
@@ -695,8 +712,12 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const row of input.itemFacts ?? []) insertChecked(db, "item_facts", ["entity_key"], ["entity_key", "rarity", "item_type", "armor_slot", "weapon_slot", "weapon_type", "armor_type", "attack_speed", "min_damage", "max_damage", "weapon_damage_type", "attack_mode", "physical_label", "random_stats_max", "gem_type", "enchantment_entity_key", "enchantment_label", "sell_price", "sell_currency_entity_key", "sell_currency_label", "buy_price", "buy_currency_entity_key", "buy_currency_label", "currency_entity_key", "currency_label", "stack_limit", "quest_drop_only", "corruption_token", "level_requirement", "action_abilities_json", "use_lines_json", "condition_ids_json", "provenance_json"], [row.entityKey, row.rarity, row.itemType, row.armorSlot, row.weaponSlot, row.weaponType, row.armorType, row.attackSpeed, row.minDamage, row.maxDamage, row.weaponDamageType ?? null, row.attackMode ?? null, row.physicalLabel ?? null, row.randomStatsMax, row.gemType, row.enchantment?.entityKey ?? null, row.enchantment?.label ?? null, row.sellPrice, row.sellCurrency?.entityKey ?? null, row.sellCurrency?.label ?? null, row.buyPrice, row.buyCurrency?.entityKey ?? null, row.buyCurrency?.label ?? null, row.currency?.entityKey ?? null, row.currency?.label ?? null, row.stackLimit, row.questDropOnly ? 1 : 0, row.corruptionToken ? 1 : 0, row.levelRequirement, json(row.actionAbilities), json(row.useLines), json(row.conditionIds), json(row.provenance)]);
     if (input.adventurerWorld) {
       const settings = input.adventurerWorld;
-      insertChecked(db, "adventurer_world_settings", ["build_id"], ["build_id", "asset", "equipment_reward_chance", "provenance_json"], [input.buildId, settings.asset, settings.equipmentRewardChance, json(settings.provenance)]);
+      insertChecked(db, "adventurer_world_settings", ["build_id"], ["build_id", "asset", "equipment_reward_chance", "job_region_names_json", "maximum_present", "minimum_job_seconds", "maximum_job_seconds", "experience_bar_per_job", "gold_per_level_per_job", "source_field_paths_json", "provenance_json"], [input.buildId, settings.asset, settings.equipmentRewardChance, settings.jobRegionNames === null ? null : json(settings.jobRegionNames), settings.maximumPresent, settings.minimumJobSeconds, settings.maximumJobSeconds, settings.experienceBarPerJob, settings.goldPerLevelPerJob, json(settings.sourceFieldPaths), json(settings.provenance)]);
       for (const link of settings.links) insertChecked(db, "adventurer_world_links", ["build_id", "kind", "position", "item_position"], ["build_id", "kind", "position", "item_position", "kit_id", "npc_entity_key", "item_entity_key", "starting_level", "join_after_hours", "minimum_content_level", "provenance_json"], [input.buildId, link.kind, link.position, link.itemPosition, link.kitId, link.npc?.entityKey ?? null, link.item?.entityKey ?? null, link.startingLevel, link.joinAfterHours, link.minimumContentLevel, json(link.provenance)]);
+    }
+    if (input.dungeonFinderTank) {
+      const settings = input.dungeonFinderTank;
+      insertChecked(db, "dungeon_finder_tank_settings", ["build_id"], ["build_id", "tank_item_power_share", "tank_gear_pieces", "source_field_paths_json", "provenance_json"], [input.buildId, settings.tankItemPowerShare, settings.tankGearPieces, json(settings.sourceFieldPaths), json(settings.provenance)]);
     }
     for (const row of input.itemStats ?? []) insertChecked(db, "item_stats", ["entity_key", "stat_index"], ["entity_key", "stat_index", "stat_entity_key", "stat_label", "amount", "is_percent", "provenance_json"], [row.entityKey, row.statIndex, row.stat.entityKey, row.stat.label, row.amount, row.isPercent ? 1 : 0, json(row.provenance)]);
     for (const row of input.itemRandomStats ?? []) insertChecked(db, "item_random_stats", ["entity_key", "stat_index"], ["entity_key", "stat_index", "stat_entity_key", "stat_label", "min_value", "max_value", "is_percent", "whole", "chance", "provenance_json"], [row.entityKey, row.statIndex, row.stat.entityKey, row.stat.label, row.min, row.max, row.isPercent ? 1 : 0, row.whole ? 1 : 0, row.chance, json(row.provenance)]);
@@ -727,6 +748,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const row of input.gearSetTiers ?? []) insertChecked(db, "gear_set_tiers", ["entity_key", "tier_index"], ["entity_key", "tier_index", "equipped", "provenance_json"], [row.entityKey, row.tierIndex, row.equipped, json(row.provenance)]);
     for (const row of input.gearSetTierStats ?? []) insertChecked(db, "gear_set_tier_stats", ["entity_key", "tier_index", "stat_index"], ["entity_key", "tier_index", "stat_index", "stat_entity_key", "stat_label", "amount", "is_percent", "provenance_json"], [row.entityKey, row.tierIndex, row.statIndex, row.stat.entityKey, row.stat.label, row.amount, row.isPercent ? 1 : 0, json(row.provenance)]);
     for (const row of input.progressionFacts ?? []) insertChecked(db, "progression_facts", ["entity_key"], ["entity_key", "kind", "name", "details_json", "provenance_json"], [row.entityKey, row.kind, row.name, json(row.details), json(row.provenance)]);
+    for (const row of input.adventurerInviteEffects ?? []) insertChecked(db, "adventurer_invite_effects", ["adventurer_key"], ["adventurer_key", "effect_key", "effect_type_json", "duration", "endless", "first_rank_json", "invite_effect_source_field_path", "source_field_path", "first_rank_source_field_path", "source_field_paths_json", "provenance_json"], [row.adventurerKey, row.effectKey, json(row.effectType), row.duration, row.endless ? 1 : 0, row.firstRank === null ? null : json(row.firstRank), row.inviteEffectSourceFieldPath, row.sourceFieldPath, row.firstRankSourceFieldPath, json(row.sourceFieldPaths), json(row.provenance)]);
     for (const row of input.progressionLinks ?? []) insertChecked(db, "progression_links", ["owner_key", "link_kind", "link_index"], ["owner_key", "link_kind", "link_index", "target_key", "target_label", "provenance_json"], [row.ownerKey, row.linkKind, row.linkIndex, row.target.entityKey, row.target.label, json(row.provenance)]);
     for (const row of input.talentNodes ?? []) insertChecked(db, "talent_nodes", ["tree_key", "node_index"], ["tree_key", "node_index", "node_type_json", "target_key", "target_label", "tier", "row", "condition_id", "provenance_json"], [row.treeKey, row.nodeIndex, json(row.nodeType), row.target?.entityKey ?? null, row.target?.label ?? null, row.tier, row.row, row.conditionId, json(row.provenance)]);
     for (const row of input.spellbookNodes ?? []) insertChecked(db, "spellbook_nodes", ["book_key", "node_index"], ["book_key", "node_index", "node_type_json", "target_key", "target_label", "unlock_level", "provenance_json"], [row.bookKey, row.nodeIndex, json(row.nodeType), row.target?.entityKey ?? null, row.target?.label ?? null, row.unlockLevel, json(row.provenance)]);

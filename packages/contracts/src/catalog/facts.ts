@@ -58,6 +58,31 @@ export interface CatalogAdventurerItem {
   itemKey: string; kind: "kitUpgradeItem" | "equipmentBand" | "equipmentReward";
   adventurer: CatalogEndpoint | null; minimumContentLevel: number | null; rewardChance: number | null;
 }
+export interface CatalogAdventurerWorldSettings {
+  asset: string;
+  jobRegionNames: Array<{ name: string; sourceFieldPath: string }> | null;
+  maximumPresent: number; minimumJobSeconds: number; maximumJobSeconds: number;
+  experienceBarPerJob: number; goldPerLevelPerJob: number; equipmentRewardChance: number;
+  sourceFieldPaths: {
+    maximumPresent: string; minimumJobSeconds: string; maximumJobSeconds: string;
+    experienceBarPerJob: string; goldPerLevelPerJob: string; equipmentRewardChance: string;
+  };
+  provenance: Array<{ path: string; sha256: string; pointer?: string }>;
+}
+export interface CatalogDungeonFinderTankSettings {
+  tankItemPowerShare: number; tankGearPieces: number;
+  sourceFieldPaths: { tankItemPowerShare: string; tankGearPieces: string };
+  provenance: Array<{ path: string; sha256: string; pointer?: string }>;
+}
+export interface CatalogAdventurerInviteEffect {
+  adventurer: CatalogEndpoint; effect: CatalogEndpoint;
+  effectType: { value: number; name: string };
+  duration: number; endless: boolean;
+  firstRank: { petNpcId: number; pet: CatalogEndpoint; petDuration: number; petSpawnCount: number; sourceFieldPaths: { petNpcId: string; petDuration: string; petSpawnCount: string } } | null;
+  inviteEffectSourceFieldPath: string; sourceFieldPath: string; firstRankSourceFieldPath: string | null;
+  sourceFieldPaths: { effectType: string; duration: string; endless: string };
+  provenance: Array<{ path: string; sha256: string; pointer?: string }>;
+}
 // The supplemental cloth drops of the game's dropped loot. A kill of a creature of one of `creatureTypes` rolls
 // `dropChance` (a percentage before the loot drop multipliers) for `minCount` to `maxCount` pieces of one tier. The
 // creature's level picks the tier by weight: a tier's weight is `teaserWeight` below `startLevel`, and moves evenly from
@@ -300,6 +325,9 @@ export interface CatalogFacts {
   progression: CatalogProgression;
   gatheringNodes: CatalogGatheringNode[];
   adventurerItems: CatalogAdventurerItem[];
+  adventurerWorld: CatalogAdventurerWorldSettings | null;
+  dungeonFinderTank: CatalogDungeonFinderTankSettings | null;
+  adventurerInviteEffects: CatalogAdventurerInviteEffect[];
   itemLootTables: CatalogItemLootTable[];
   ownerGameActions?: CatalogOwnerGameAction[];
   corruption?: CatalogCorruptionFacts | null;
