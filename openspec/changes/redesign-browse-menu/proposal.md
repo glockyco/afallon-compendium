@@ -16,6 +16,7 @@ The Browse panel was a plain grid of text links whose columns were too narrow fo
 ### Modified Capabilities
 
 - `reference-layout`: The Browse panel's entries, phone layout, and the Ko-fi links.
+- `compendium-hub`: the hub's Mechanics section names the featured mechanics pages and links the full list.
 
 ## Impact
 
