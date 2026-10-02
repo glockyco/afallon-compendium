@@ -70,10 +70,13 @@
     <PlaceLootObjectsSection rows={document.lootObjects} {registry} />
     <QuestRowsSection id="quests" title="Quests" roleLabel="Role" rows={quests} {registry} />
     <LinkSection id="properties" title="Properties" refs={document.properties} {registry} />
-    {#if document.description || document.art.artwork}
-      <DetailsDisclosure id="place-story" title="Story and artwork">
+    {#if !summary.length && document.art.artwork}
+      <img class="artwork sparse-art" src={`${base}/data/${document.art.artwork.url}`} width={document.art.artwork.width} height={document.art.artwork.height} alt={`${document.ref.name} artwork`} />
+    {/if}
+    {#if document.description || (summary.length && document.art.artwork)}
+      <DetailsDisclosure id="place-story" title={document.art.artwork && summary.length ? 'Story and artwork' : 'Story'}>
         {#if document.description}<p class="description">{document.description}</p>{/if}
-        {#if document.art.artwork}<img class="artwork" src={`${base}/data/${document.art.artwork.url}`} width={document.art.artwork.width} height={document.art.artwork.height} alt={`${document.ref.name} artwork`} />{/if}
+        {#if summary.length && document.art.artwork}<img class="artwork" src={`${base}/data/${document.art.artwork.url}`} width={document.art.artwork.width} height={document.art.artwork.height} alt={`${document.ref.name} artwork`} />{/if}
       </DetailsDisclosure>
     {/if}
     <LinkSection id="areas" title="Areas" refs={document.regions} {registry} />
@@ -82,6 +85,7 @@
 
 <style>
   .artwork { display: block; width: 100%; max-height: 24rem; object-fit: cover; border: 1px solid var(--c-frame-strong); border-radius: var(--c-radius); background: var(--c-surface-sunken); }
+  .sparse-art { max-height: 13rem; }
   .description { white-space: pre-line; }
   .unmapped { margin: 0; color: var(--c-text-dim); }
   .answer-links { display: flex; flex-wrap: wrap; gap: .35rem 1rem; font-size: var(--c-text-small); }
