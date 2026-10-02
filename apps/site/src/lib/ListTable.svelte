@@ -323,7 +323,9 @@
 
   /* The count and the active filter chips stay in view while the list scrolls, and the table header sticks below them. */
   .result-bar { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .6rem; margin-bottom: .6rem; padding: .4rem 0; background: var(--c-surface-0); }
-  .list :global(.c-table--sticky thead th) { top: var(--bar-height, 0px); }
+  /* A table that flows sticks its header below the result bar. A table that scrolls inside its card sticks it at the
+     card's top, because the card is then its scrollport. */
+  .list :global(.c-table-scroll--flow-wide .c-table--sticky thead th) { top: var(--bar-height, 0px); }
   .result-bar p { margin: 0 .25rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-small); }
   .result-bar strong { color: var(--c-text); font-variant-numeric: tabular-nums; }
   .chips { display: contents; list-style: none; }

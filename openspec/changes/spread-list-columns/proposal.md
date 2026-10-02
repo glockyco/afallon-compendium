@@ -7,6 +7,7 @@ Lists gave all their spare width to the last column that is not a number. A list
 - A list's spare width first shows cut texts in full, as before, and the rest spreads in equal parts between neighbouring columns, and after the last column when its values are left-aligned. A part shows after a left-aligned value or before a number, so the space between values is the same across the row. A name keeps its cap and gains only its own part.
 - The skill list names each skill's type, Crafting, Gathering, or Weapon, from the ways it gains experience, and counts recipes and gathering nodes, blank where they do not apply.
 - The guide list shows what each guide explains.
+- Between 641 and 1023 px, every list hid its first row behind its column headings: the table's wrapper stayed a scroll container below 1024 px, so the headings stuck one result-bar height below the wrapper's top. A table that fits now flows at every width, and a table that scrolls inside its card sticks its headings at the card's top.
 
 ## Capabilities
 

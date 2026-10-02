@@ -42,3 +42,15 @@ The skill list SHALL name each skill's type: Crafting for a skill that a recipe 
 #### Scenario: Guide descriptions
 - **WHEN** a reader opens the guide list
 - **THEN** each guide shows what it explains next to its name
+
+### Requirement: List headings stay in view without covering rows
+
+Above phone widths a list's column headings SHALL start directly above its first row, and SHALL stay below the result count while the reader scrolls the page. A table that does not fit its card SHALL scroll inside the card with its headings at the card's top.
+
+#### Scenario: First row at a tablet width
+- **WHEN** a reader opens the recipe list at 800 px
+- **THEN** the first recipe shows directly below the column headings
+
+#### Scenario: Headings while scrolling
+- **WHEN** a reader scrolls down the item list
+- **THEN** the column headings stay directly below the result count

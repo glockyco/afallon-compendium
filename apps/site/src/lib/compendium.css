@@ -179,10 +179,8 @@ body { font-size: 1rem; line-height: 1.5; }
 }
 
 /* A scroll container is its own scrollport, so a sticky header inside one never reaches the
-   viewport. The list table therefore flows once the columns fit. */
-@media (min-width: 1024px) {
-  .c-table-scroll--flow-wide { overflow: visible; }
-}
+   viewport. The list table therefore flows whenever its columns fit. */
+.c-table-scroll--flow-wide { overflow: visible; }
 
 .c-table {
   width: 100%;
