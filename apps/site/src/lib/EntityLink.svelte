@@ -142,9 +142,10 @@
   .entity-link[data-rarity], .entity-text[data-rarity] { color: var(--c-rarity); }
   .entity-link[data-rarity]:hover { color: color-mix(in srgb, var(--c-rarity) 75%, var(--c-text-strong)); }
   [data-rarity] img { border-color: color-mix(in srgb, var(--c-rarity) 60%, transparent); }
-  /* A truncated link is a one-line flex row: the icon keeps its size and the name shrinks to an ellipsis. */
-  .tooltip-anchor.truncate { display: block; min-width: 0; }
-  .truncate.entity-link, .truncate.entity-text { display: flex; align-items: center; min-width: 0; white-space: nowrap; }
+  /* A truncated link is a one-line flex row: the icon keeps its size and the name shrinks to an ellipsis. The link is as
+     wide as its icon and name, up to its container, so hovering the empty space beside a short name does nothing. */
+  .tooltip-anchor.truncate { display: inline-flex; max-width: 100%; min-width: 0; vertical-align: middle; }
+  .truncate.entity-link, .truncate.entity-text { display: inline-flex; align-items: center; max-width: 100%; min-width: 0; white-space: nowrap; vertical-align: middle; }
   .truncate img, .truncate .kind-icon { flex: none; top: 0; }
   .truncate .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 </style>
