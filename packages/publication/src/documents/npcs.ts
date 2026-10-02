@@ -1,7 +1,7 @@
 import type { CatalogAvailabilityRule, CatalogCondition, CatalogNpcFacts, CatalogPlacementRow } from "@afallon/contracts/catalog";
 import { type AvailabilityRule, collectRefs, type NpcFacts, type NpcLocation, type NpcVariantFacts, type NpcVariantField, type PlacementRef, type PublicLevel, type PublicMarkerCategory, type PublicNpc, type QuestLinkRow, type NpcAdventurer, type PlacedRule } from "@afallon/contracts/public";
 import { markerCategories, shownCategories } from "../categories";
-import { phaseAbilities } from "../adventurers";
+import { phaseAbilities, recordStats } from "../adventurers";
 import { characterLevelCap, killExperience } from "../experience";
 import { chancePercent, choicesChance, enabledChance, levelUnion } from "../levels";
 import { placeSpots } from "../place-spots";
@@ -43,7 +43,7 @@ function npcRecordFacts(fact: CatalogNpcFacts, input: DocumentProjectionInput): 
     ...(fact.family ? { family: plainText(fact.family) } : {}), ...(faction === undefined ? {} : { faction }), ...(species === undefined ? {} : { species }),
     ...(fact.minRespawn === null || fact.maxRespawn === null ? {} : { respawn: { min: fact.minRespawn, max: fact.maxRespawn } }),
     ...(experience === null ? {} : { experience }),
-    stats: shownNpcStats(fact.stats).map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
+    stats: shownNpcStats(recordStats(fact)).map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })),
     immunities: [fact.immuneToStun ? "stun" : null, fact.immuneToSlow ? "slow" : null].filter((value): value is string => value !== null),
     ...(fact.aggroRange === null ? {} : { aggroRange: fact.aggroRange }),
     ...(fact.lootSpecialization === null ? {} : { lootSpecialization: {

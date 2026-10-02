@@ -1212,24 +1212,25 @@ test("quest pickups and the Dungeon Finder supply pack count as item sources", (
   expect([withoutSource(pickupsOnly), withoutSource({ ...bare, questPickups: [] }), withoutSource({ ...pickupsOnly, questPickups: [] })]).toEqual([false, false, true]);
 });
 
-test("a roster adventurer fights with its class abilities and shows its class, party role, preferred tree, and arrival", () => {
+test("a roster adventurer fights with its class abilities and stats and shows its class, party role, preferred tree, and arrival", () => {
   const npc = (entityKey: string, name: string): CatalogEntityRow => ({ ...entities[1]!, entityKey, nativeId: Number(entityKey.slice(5)), name });
   const cleave: CatalogEntityRow = { entityKey: "abilities:201", kind: "abilities", nativeId: 201, name: "Cleave", description: null, iconAssetName: null, artwork: [] };
   const all = [...entities, npc("npcs:7", "Wanderer"), npc("npcs:8", "Hermit"), cleave];
   const phases = [{ phaseIndex: 0, name: "Opening", requirement: null, abilities: [{ ability: { entityKey: "abilities:201", label: "Cleave" }, rankIndex: 0 }] }];
   const tree = (id: number, name: string) => ({ owner: "classes:0", linkIndex: id, linkKind: "talentTree" as const, target: { entityKey: `talentTrees:${id}`, label: name } });
   const adventurer = (specialization: NonNullable<CatalogNpcFacts["adventurer"]>["specialization"], keepPhaseAbilities = false, withClass = true): CatalogNpcFacts["adventurer"] => ({
-    class: withClass ? { entityKey: "classes:0", label: "Shieldmaster" } : null, race: null, preferredTree: { entityKey: "talentTrees:18", label: "Aegis Mastery" },
+    class: withClass ? { entityKey: "classes:0", label: "Shieldmaster" } : null, race: withClass ? { entityKey: "races:1", label: "Dwarf" } : null, preferredTree: { entityKey: "talentTrees:18", label: "Aegis Mastery" },
     keepPhaseAbilities, aiLogicTemplateKey: null, specialization });
   const specialization = (classKey: string, role: string) => ({ class: { entityKey: classKey, label: classKey }, role, preferredTree: { entityKey: "talentTrees:19", label: "Templar" },
     behaviorName: "", priorityAbilities: [{ entityKey: "abilities:201", label: "Cleave" }], blockedAbilities: [], blockedBonuses: [], allowedForms: [] });
+  const strength = [{ stat: { entityKey: "stats:1", label: "Strength" }, amount: 370, isPercent: false }];
   const source: CatalogFacts = { ...facts, entities: all,
     npcs: [
-      { ...facts.npcs[0]!, abilityPhases: phases, adventurer: adventurer(specialization("classes:0", "Tank")) },
+      { ...facts.npcs[0]!, abilityPhases: phases, stats: strength, adventurer: adventurer(specialization("classes:0", "Tank")) },
       // A specialization for another class does not count, so the Dungeon Finder places this adventurer as Damage.
       { ...facts.npcs[0]!, entityKey: "npcs:7", abilityPhases: phases, adventurer: adventurer(specialization("classes:5", "Healer")) },
       // Without a class, an adventurer fights with the phase abilities of its record.
-      { ...facts.npcs[0]!, entityKey: "npcs:8", abilityPhases: phases, adventurer: adventurer(null, false, false) },
+      { ...facts.npcs[0]!, entityKey: "npcs:8", abilityPhases: phases, stats: strength, adventurer: adventurer(null, false, false) },
     ],
     abilities: [{ entityKey: "abilities:201", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Cleave", tone: null, italic: false }] }] }] }],
     progression: { ...facts.progression, offeredClasses: ["classes:0"], links: [tree(18, "Aegis Mastery"), tree(19, "Templar")] },
@@ -1241,10 +1242,13 @@ test("a roster adventurer fights with its class abilities and shows its class, p
   const shieldmaster = { key: "classes:0", kind: "classes" as const, name: "Shieldmaster", slug: "shieldmaster" };
   const guardian = documents.get("npcs:2") as PublicNpc, wanderer = documents.get("npcs:7") as PublicNpc, hermit = documents.get("npcs:8") as PublicNpc;
   expect(guardian.abilityPhases).toEqual([]);
-  expect(guardian.adventurer).toEqual({ class: shieldmaster, role: "Tank", preferredTree: { ...shieldmaster, name: "Templar", variant: "tree-19" },
+  // A roster adventurer's stats come from its race and class at its level, so its record's Strength is not shown.
+  expect(guardian.facts.stats).toEqual([]);
+  expect(hermit.facts.stats.map((row) => row.amount)).toEqual([370]);
+  expect(guardian.adventurer).toEqual({ class: shieldmaster, race: { key: null, label: "Dwarf" }, role: "Tank", preferredTree: { ...shieldmaster, name: "Templar", variant: "tree-19" },
     startingLevel: 10, joinAfterHours: 2, priorityAbilities: [{ key: "abilities:201", kind: "abilities", name: "Cleave", slug: "cleave" }] });
   expect(guardian.placedRules).toContainEqual({ target: "adventurer", guide: expect.objectContaining({ key: "mechanics:adventurers" }), section: "roster" });
-  expect(wanderer.adventurer).toEqual({ class: shieldmaster, role: "Damage", defaultRole: true, preferredTree: { ...shieldmaster, name: "Aegis Mastery", variant: "tree-18" },
+  expect(wanderer.adventurer).toEqual({ class: shieldmaster, race: { key: null, label: "Dwarf" }, role: "Damage", defaultRole: true, preferredTree: { ...shieldmaster, name: "Aegis Mastery", variant: "tree-18" },
     startingLevel: 1, joinAfterHours: 0, priorityAbilities: [] });
   expect(hermit.adventurer).toBeUndefined();
   expect(hermit.abilityPhases[0]?.abilities[0]?.ability).toMatchObject({ key: "abilities:201" });

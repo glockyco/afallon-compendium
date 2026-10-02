@@ -1,6 +1,6 @@
 import type { CatalogEndpoint, CatalogFacts, CatalogNpcFacts } from "@afallon/contracts/catalog";
 import { NPC_VARIANT_FIELD_VALUES, type NpcVariantField } from "@afallon/contracts/public";
-import { phaseAbilities } from "./adventurers";
+import { phaseAbilities, recordStats } from "./adventurers";
 import { plainText } from "./text";
 
 type AbilityFacts = CatalogFacts["abilities"][number];
@@ -39,7 +39,7 @@ function fieldValues(fact: CatalogNpcFacts, abilityVersion: (key: string | null)
     family: plainText(fact.family ?? "") || null,
     faction: endpointKey(fact.faction), species: endpointKey(fact.species),
     respawn: [fact.minRespawn, fact.maxRespawn], experience: [fact.minExperience, fact.maxExperience],
-    stats: unordered(shownNpcStats(fact.stats).map((row) => [endpointKey(row.stat), row.amount, row.isPercent])),
+    stats: unordered(shownNpcStats(recordStats(fact)).map((row) => [endpointKey(row.stat), row.amount, row.isPercent])),
     immunities: [fact.immuneToStun, fact.immuneToSlow], aggroRange: fact.aggroRange, lootSpecialization: fact.lootSpecialization,
     abilityPhases: phaseAbilities(fact).map((phase) => [phase.phaseIndex, phase.name, phase.requirement, phase.abilities.map((ability) => [abilityVersion(ability.ability.entityKey), ability.rankIndex])]),
     factionRewards: unordered(fact.factionRewards.map((reward) => [endpointKey(reward.faction), reward.amount])),

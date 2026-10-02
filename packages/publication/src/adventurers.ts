@@ -15,6 +15,14 @@ export function phaseAbilities(fact: CatalogNpcFacts): CatalogNpcFacts["abilityP
 }
 
 /**
+ * The stats of an NPC record that the NPC has. An adventurer with a race and a class takes its stats from its race and
+ * class at its current level instead (MobCombatEntity.GetCustomStats), so the stats of its record are not its stats.
+ */
+export function recordStats(fact: CatalogNpcFacts): CatalogNpcFacts["stats"] {
+  return fact.adventurer?.class?.entityKey && fact.adventurer.race?.entityKey ? [] : fact.stats;
+}
+
+/**
  * The facts of each adventurer on the world roster, by NPC key, in roster order. A specialization counts only for the
  * adventurer's own class (AdventurerSpecialization.For). The Dungeon Finder places an adventurer without one in a damage
  * role (DungeonFinderRules.RoleOf), and a specialization's preferred tree replaces the NPC's own (AdventurerClassBuild).
