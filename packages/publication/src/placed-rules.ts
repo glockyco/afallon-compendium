@@ -12,6 +12,7 @@ export const MECHANICS_TOPIC_NAMES: Readonly<Record<MechanicsTopic, { name: stri
   adventurers: { name: "Adventurers", description: "How to meet adventurers, invite them to your party, and understand their jobs, gear, and Dungeon Finder roles." },
   factions: { name: "Factions and Reputation", description: "How your standing with each faction works and how factions treat you in combat." },
   "world-quests": { name: "World Quests", description: "Where World Quests appear, how their timers work, and what completing them rewards." },
+  travel: { name: "Travel", description: "Flight masters, discovered stops, routes, and fares." },
 };
 
 export function topicRef(topic: MechanicsTopic): EntityRef {

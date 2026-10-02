@@ -8,6 +8,7 @@
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import FactList from '../FactList.svelte';
+  import FlightStopLink from '../FlightStopLink.svelte';
   import FactRow from '../FactRow.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import { calculateKillAward, nearestCreatureLevel } from '../kill-calculator';
@@ -166,6 +167,29 @@
       </Section>
     {/if}
     <AbilitiesSection phases={document.abilityPhases} {registry} />
+    {#if document.flights?.length}
+      <Section id="flights" title="Flights">
+        <div class="flight-card c-stack">
+          <p>Direct routes from each stop. Other stops may be reachable through a connection.</p>
+          {#each document.flights as flight (flight.stop.id)}
+            <div class="flight-stop">
+              <h3>From <FlightStopLink stop={flight.stop} /></h3>
+              <div class="flight-routes">
+                <table>
+                  <thead><tr><th scope="col">Destination</th><th scope="col">Fare</th></tr></thead>
+                  <tbody>
+                    {#each flight.routes as route (route.destination.id)}
+                      <tr><td><FlightStopLink stop={route.destination} /></td><td>{route.fare}{#if route.currency}{' '}{nameOf(route.currency)}{/if}</td></tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {/each}
+          <a class="c-link" href={`${base}/mechanics/travel/`}>See the full flight network and how flights work</a>
+        </div>
+      </Section>
+    {/if}
     <VendorSection id="sells" title="Sells" counterpartLabel="Item" rows={document.sells} variants={document.variants} sort={{ id: 'name', dir: 'asc' }} {registry} />
     <QuestRowsSection id="quests" title="Quests" roleLabel="Role" rows={npcQuestRows(document.quests, document.usedInQuests)} {registry} />
     {#if variantTable}<VariantsSection {document} {registry} />{/if}
@@ -184,4 +208,12 @@
      its label to nothing. */
   .side-card :global(.fact-list dl) { grid-template-columns: max-content minmax(0, 1fr); gap: .35rem .75rem; }
   .side-card :global(.fact-row dd) { text-align: right; }
+  .flight-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  .flight-card > p { color: var(--c-text-dim); }
+  .flight-stop + .flight-stop { border-top: 1px solid var(--c-line-soft); padding-top: 1rem; }
+  .flight-stop h3 { font: 600 1.1rem/1.3 var(--c-serif); color: var(--c-text-strong); margin-bottom: .4rem; }
+  .flight-routes { overflow-x: auto; }
+  .flight-routes table { width: 100%; border-collapse: collapse; text-align: left; }
+  .flight-routes th, .flight-routes td { border-bottom: 1px solid var(--c-line-soft); padding: .6rem .4rem; }
+  .flight-routes th:last-child, .flight-routes td:last-child { text-align: right; white-space: nowrap; }
 </style>

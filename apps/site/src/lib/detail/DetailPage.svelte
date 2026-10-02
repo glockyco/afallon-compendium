@@ -38,7 +38,7 @@
 {:else if page.kind === 'mechanics' && page.document.topic === 'heroic-tier'}<HeroicTierPage document={page.document} {registry} />
 {:else if page.kind === 'mechanics' && page.document.topic === 'crafting-and-gathering'}<CraftingAndGatheringPage document={page.document} {registry} />
 {:else if page.kind === 'mechanics' && page.document.topic === 'corruption'}<CorruptionPage document={page.document} {registry} {inlineItem} />
-{:else if page.kind === 'mechanics' && (page.document.topic === 'loot' || page.document.topic === 'adventurers' || page.document.topic === 'factions' || page.document.topic === 'world-quests')}<GuidePage document={page.document} {registry} />
+{:else if page.kind === 'mechanics' && (page.document.topic === 'loot' || page.document.topic === 'adventurers' || page.document.topic === 'factions' || page.document.topic === 'world-quests' || page.document.topic === 'travel')}<GuidePage document={page.document} {registry} />
 {:else if page.kind === 'gatheringNodes'}<GatheringNodePage document={page.document} {registry} />
 {:else if page.kind === 'gearSets'}<GearSetPage document={page.document} {registry} />
 {:else if page.kind === 'currencies'}<CurrencyPage document={page.document} {registry} />

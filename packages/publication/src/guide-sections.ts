@@ -90,6 +90,14 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
       { id: "rewards", title: "Rewards And Heroic Cache", lead: "Each quest page shows the captured rewards, before any changes to currency awarded in play." },
     ],
   },
+  travel: {
+    overview: "Flight masters connect stops across the world. The routes below show the recorded connections and fares.",
+    sections: [
+      { id: "finding-flights", title: "Finding flights", lead: "Talk to a flight master to see destinations on their network." },
+      { id: "taking-flight", title: "Taking a flight", lead: "Flight routes follow the stops and paths shown below." },
+      { id: "network", title: "Flight network", lead: "Each stop has a flight master. Routes list the connections recorded for this build." },
+    ],
+  },
 };
 
 /** Whether the guide of a topic has a section with this id. */

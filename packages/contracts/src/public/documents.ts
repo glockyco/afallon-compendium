@@ -545,6 +545,24 @@ export const NpcAdventurerSchema = Type.Object({ ...adventurerFacts, priorityAbi
 export type NpcAdventurer = Static<typeof NpcAdventurerSchema>;
 export const AdventurerRosterRowSchema = Type.Object({ adventurer: RefSchema, ...adventurerFacts }, { additionalProperties: false });
 export type AdventurerRosterRow = Static<typeof AdventurerRosterRowSchema>;
+export const FlightStopSchema = Type.Object({
+  id: text, name: text, master: optional(RefSchema), knownInitially: Type.Boolean(),
+}, { additionalProperties: false });
+export type FlightStop = Static<typeof FlightStopSchema>;
+export const FlightRouteSchema = Type.Object({
+  from: text, to: text, bidirectional: Type.Boolean(), fare: count, currency: optional(RefSchema),
+}, { additionalProperties: false });
+export const FlightNetworkSchema = Type.Object({
+  id: text, scene: text, stops: Type.Array(FlightStopSchema), routes: Type.Array(FlightRouteSchema),
+}, { additionalProperties: false });
+export type FlightNetwork = Static<typeof FlightNetworkSchema>;
+export const NpcFlightsSchema = Type.Object({
+  stop: FlightStopSchema, routes: Type.Array(Type.Object({
+    destination: FlightStopSchema, fare: count, currency: optional(RefSchema),
+  }, { additionalProperties: false })),
+}, { additionalProperties: false });
+export type NpcFlights = Static<typeof NpcFlightsSchema>;
+
 // A page groups the records that share a display name. `variantFields` lists the record facts that differ between
 // them, so an empty list means that the variants differ only in where, when, and with what services they appear.
 export const PublicNpcSchema = Type.Object({
@@ -555,6 +573,7 @@ export const PublicNpcSchema = Type.Object({
   abilityPhases: Type.Array(AbilityPhaseSchema), factionRewards: Type.Array(FactionRewardRowSchema),
   usedInQuests: Type.Array(QuestObjectiveRowSchema), bossOf: refs, hunter: optional(RefSchema), linkedNpc: optional(RefSchema), placedRules: Type.Array(PlacedRuleSchema),
   adventurerGear: optional(NpcAdventurerGearSchema), adventurer: optional(NpcAdventurerSchema),
+  flights: optional(Type.Array(NpcFlightsSchema)),
 }, { additionalProperties: false });
 export type PublicNpc = Static<typeof PublicNpcSchema>;
 
@@ -970,7 +989,11 @@ export const WorldQuestsGuideSchema = Type.Object({
   ...documentBase, topic: Type.Literal("world-quests"), ...guide,
 }, { additionalProperties: false });
 export type WorldQuestsGuide = Static<typeof WorldQuestsGuideSchema>;
-export const PublicMechanicsSchema = Type.Union([CharacterProgressionSchema, HeroicTierSchema, CraftingAndGatheringSchema, CorruptionGuideSchema, LootGuideSchema, AdventurersGuideSchema, FactionsGuideSchema, WorldQuestsGuideSchema]);
+export const TravelGuideSchema = Type.Object({
+  ...documentBase, topic: Type.Literal("travel"), ...guide, networks: Type.Array(FlightNetworkSchema),
+}, { additionalProperties: false });
+export type TravelGuide = Static<typeof TravelGuideSchema>;
+export const PublicMechanicsSchema = Type.Union([CharacterProgressionSchema, HeroicTierSchema, CraftingAndGatheringSchema, CorruptionGuideSchema, LootGuideSchema, AdventurersGuideSchema, FactionsGuideSchema, WorldQuestsGuideSchema, TravelGuideSchema]);
 export type PublicMechanics = Static<typeof PublicMechanicsSchema>;
 
 
@@ -993,7 +1016,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v22", npcs: "compendium.static-npc.v11", quests: "compendium.static-quest.v7", places: "compendium.static-place.v11",
+  items: "compendium.static-item.v22", npcs: "compendium.static-npc.v12", quests: "compendium.static-quest.v7", places: "compendium.static-place.v11",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v8", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v16", gatheringNodes: "compendium.static-gathering-node.v6",
   gearSets: "compendium.static-gear-set.v1", currencies: "compendium.static-currency.v1", craftingStations: "compendium.static-crafting-station.v1",
@@ -1025,7 +1048,7 @@ export const StaticCraftingStationDocumentSchema = staticDocument("craftingStati
 export const StaticRaceDocumentSchema = staticDocument("races");
 export const StaticFactionDocumentSchema = staticDocument("factions");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v22": typeof StaticItemDocumentSchema; "compendium.static-npc.v11": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v22": typeof StaticItemDocumentSchema; "compendium.static-npc.v12": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v11": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v8": typeof StaticClassDocumentSchema;
@@ -1035,7 +1058,7 @@ export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-crafting-station.v1": typeof StaticCraftingStationDocumentSchema; "compendium.static-race.v1": typeof StaticRaceDocumentSchema;
   "compendium.static-faction.v1": typeof StaticFactionDocumentSchema;
 } = {
-  "compendium.static-item.v22": StaticItemDocumentSchema, "compendium.static-npc.v11": StaticNpcDocumentSchema,
+  "compendium.static-item.v22": StaticItemDocumentSchema, "compendium.static-npc.v12": StaticNpcDocumentSchema,
   "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v11": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v8": StaticClassDocumentSchema,
@@ -1051,7 +1074,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticGearSetDocumentSchema> | Static<typeof StaticCurrencyDocumentSchema> | Static<typeof StaticCraftingStationDocumentSchema>
   | Static<typeof StaticRaceDocumentSchema> | Static<typeof StaticFactionDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v22"), resourceReference("compendium.static-npc.v11"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v11"),
+  resourceReference("compendium.static-item.v22"), resourceReference("compendium.static-npc.v12"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v11"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v8"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v16"),
   resourceReference("compendium.static-gathering-node.v6"),

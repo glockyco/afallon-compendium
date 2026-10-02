@@ -7,6 +7,7 @@ import { chancePercent, choicesChance, enabledChance, levelUnion } from "../leve
 import { placeSpots } from "../place-spots";
 import { itemKind, itemTypeLabel } from "../item-type";
 import { placedRules, topicRef } from "../placed-rules";
+import { flightNetworks, npcFlights } from "../flight-network";
 import type { PublishedPage } from "../references";
 import { plainText } from "../text";
 import { shownNpcStats } from "../variants";
@@ -208,6 +209,7 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
     });
   // An adventurer on the world roster shows its class, role, preferred tree, and arrival, with the guide's roster.
   const adventurerFacts = page.members.map((member) => adventurers.get(member.entity.entityKey)).find((facts) => facts !== undefined);
+  const flights = records.some(({ fact }) => fact.flightNetwork?.stopId) ? npcFlights(input.facts, memberKeys, flightNetworks(input.facts, input.resolve)) : [];
   const adventurerRules: PlacedRule[] = [
     ...(adventurerFacts ? [{ target: "adventurer", guide: topicRef("adventurers"), section: "roster" }] : []),
     ...(adventurer ? [{ target: "adventurer-gear", guide: topicRef("adventurers"), section: "gear-upgrades" }] : []),
@@ -231,5 +233,6 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
     placedRules: [...npcPlacedRules, ...adventurerRules],
     ...(adventurer ? { adventurerGear: { rewardChance: chancePercent(world.equipmentRewardChance), kit } } : {}),
     ...(adventurerFacts ? { adventurer: adventurerFacts } : {}),
+    ...(flights.length ? { flights } : {}),
   };
 }

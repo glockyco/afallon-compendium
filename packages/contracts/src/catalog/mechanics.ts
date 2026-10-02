@@ -7,8 +7,8 @@ const text = Type.String({ minLength: 1 });
 const sha256 = Type.String({ pattern: "^[0-9a-f]{64}$" });
 const ruleId = Type.String({ pattern: "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" });
 
-export const MECHANICS_TOPICS = ["character-progression", "heroic-tier", "crafting-and-gathering", "corruption", "loot", "adventurers", "factions", "world-quests"] as const;
-export const MechanicsTopicSchema = Type.Union([Type.Literal("character-progression"), Type.Literal("heroic-tier"), Type.Literal("crafting-and-gathering"), Type.Literal("corruption"), Type.Literal("loot"), Type.Literal("adventurers"), Type.Literal("factions"), Type.Literal("world-quests")]);
+export const MECHANICS_TOPICS = ["character-progression", "heroic-tier", "crafting-and-gathering", "corruption", "loot", "adventurers", "factions", "world-quests", "travel"] as const;
+export const MechanicsTopicSchema = Type.Union([Type.Literal("character-progression"), Type.Literal("heroic-tier"), Type.Literal("crafting-and-gathering"), Type.Literal("corruption"), Type.Literal("loot"), Type.Literal("adventurers"), Type.Literal("factions"), Type.Literal("world-quests"), Type.Literal("travel")]);
 export type MechanicsTopic = Static<typeof MechanicsTopicSchema>;
 
 // Where a reader meets a rule. A `section` target lists the rule in that section of the page; a `fact` target makes the

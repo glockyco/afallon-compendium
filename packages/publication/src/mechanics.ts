@@ -1,7 +1,8 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { AdventurerGear, AdventurerRosterRow, AdventurersGuide, FactionsGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicFaction, PublicItem, PublicLevel, PublicMechanics, PublicNpc, PublicQuest, Ref, TalentPoints, WorldQuestsGuide } from "@afallon/contracts/public";
+import type { AdventurerGear, AdventurerRosterRow, AdventurersGuide, FactionsGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicFaction, PublicItem, PublicLevel, PublicMechanics, PublicNpc, PublicQuest, Ref, TalentPoints, TravelGuide, WorldQuestsGuide } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
+import { flightNetworks } from "./flight-network";
 import type { ReferenceResolver } from "./documents/projection";
 import { requiredLevel, spawnerExamples, verifiedOdds } from "./gathering";
 import type { CorruptionRewards } from "./corruption-rewards";
@@ -380,6 +381,7 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
     ...(topics.has("factions") ? [factionsGuide(facts, resolve, entityDocuments)] : []),
     ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_NAMES.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
     ...(topics.has("world-quests") ? [{ ref: topicRef("world-quests"), description: MECHANICS_TOPIC_NAMES["world-quests"].description, art: {}, topic: "world-quests", ...guide(facts, "world-quests", resolve) } satisfies WorldQuestsGuide] : []),
+    ...(topics.has("travel") ? [{ ref: topicRef("travel"), description: MECHANICS_TOPIC_NAMES.travel.description, art: {}, topic: "travel", ...guide(facts, "travel", resolve), networks: flightNetworks(facts, resolve) } satisfies TravelGuide] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));
 }
