@@ -217,7 +217,7 @@
           <svelte:fragment slot="cell" let:row>
             {#if row.kind === 'kitUpgradeItem'}Gear upgrade for <EntityLink ref={row.adventurer} {registry} />
             {:else if row.kind === 'equipmentBand'}Carried by adventurers of level {formatNumber(row.minimumContentLevel)} or higher
-            {:else}Adventurer job reward: each finished job has a {formatNumber(row.chance)}% chance to give the adventurer one upgrade from the reward list{/if}
+            {:else}When adventurers finish a job, they have a {formatNumber(row.chance)}% chance to equip a gear upgrade from a shared list of items that includes this one{/if}
           </svelte:fragment>
         </RelationTable>
       </Section>
