@@ -4,6 +4,7 @@
   import { nameOf } from '../../format';
   import type { RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
+  import TabSet from '../TabSet.svelte';
 
   /** The reward gear of all adventurers and the gear kits of single adventurers. */
   export let gear: AdventurerGear;
@@ -14,26 +15,31 @@
   const type: RelationColumn<Row> = { id: 'type', label: 'Type', value: (row) => row.type, sort: (row) => row.type };
   const level: RelationColumn<Row> = { id: 'level', label: 'Adventurer level', numeric: true, value: (row) => 'level' in row ? row.level : undefined,
     sort: (row) => 'level' in row ? row.level : undefined };
+  $: tabs = [
+    ...(gear.rewards.length ? [{ key: 'rewards', label: `Reward gear (${gear.rewards.length})` }] : []),
+    ...gear.kits.map((kit, index) => ({ key: `kit-${index + 1}`, label: `${nameOf(kit.adventurer)}'s kit (${kit.items.length})` })),
+  ];
 </script>
 
-{#if gear.rewards.length}
-  <h3>Reward gear <span>{gear.rewards.length}</span></h3>
-  <RelationTable columns={[item, type, level]} rows={gear.rewards} label="Reward gear" sort={{ id: 'level', dir: 'asc' }}>
-    <svelte:fragment slot="cell" let:row let:column>
-      {#if column === 'item'}<EntityLink ref={row.item} {registry} />{:else if column === 'type'}{row.type ?? ''}{:else if 'level' in row}{row.level}{/if}
-    </svelte:fragment>
-  </RelationTable>
-{/if}
-{#each gear.kits as kit (kit.adventurer.key)}
-  <h3>Kit of <EntityLink ref={kit.adventurer} {registry} /> <span>{kit.items.length}</span></h3>
-  <RelationTable columns={[item, type]} rows={kit.items} label={`Kit of ${nameOf(kit.adventurer)}`}>
-    <svelte:fragment slot="cell" let:row let:column>
-      {#if column === 'item'}<EntityLink ref={row.item} {registry} />{:else}{row.type ?? ''}{/if}
-    </svelte:fragment>
-  </RelationTable>
-{/each}
+<!-- One tab per list: the shared reward gear first, then each adventurer's kit. -->
+<TabSet {tabs} label="Adventurer gear" idPrefix="adventurer-gear" param="gear" let:key>
+  {#if key === 'rewards'}
+    <RelationTable columns={[item, type, level]} rows={gear.rewards} label="Reward gear" sort={{ id: 'level', dir: 'asc' }}>
+      <svelte:fragment slot="cell" let:row let:column>
+        {#if column === 'item'}<EntityLink ref={row.item} {registry} />{:else if column === 'type'}{row.type ?? ''}{:else if 'level' in row}{row.level}{/if}
+      </svelte:fragment>
+    </RelationTable>
+  {/if}
+  {#each gear.kits.filter((_, index) => key === `kit-${index + 1}`) as kit}
+    <p class="owner">The gear kit of <EntityLink ref={kit.adventurer} {registry} />.</p>
+    <RelationTable columns={[item, type]} rows={kit.items} label={`Kit of ${nameOf(kit.adventurer)}`}>
+      <svelte:fragment slot="cell" let:row let:column>
+        {#if column === 'item'}<EntityLink ref={row.item} {registry} />{:else}{row.type ?? ''}{/if}
+      </svelte:fragment>
+    </RelationTable>
+  {/each}
+</TabSet>
 
 <style>
-  h3 { margin: 1.25rem 0 .5rem; color: var(--c-text-strong); font-size: 1rem; font-weight: 700; }
-  h3 span { margin-left: .25rem; color: var(--c-text-mute); font-size: .875rem; font-weight: 500; }
+  .owner { margin-bottom: .75rem; }
 </style>
