@@ -90,7 +90,7 @@
       {#if sourceRows.length}<Section id="applied-by" title="Sources" count={sourceRows.length} line="Abilities, items, and other sources that apply this effect.">
         <RelationTable columns={sourcePlan.columns} rows={sourceRows} label="Effect sources"><svelte:fragment slot="cell" let:row let:column>
           {#if column === 'source'}<EntityLink ref={row.source} {registry} />
-          {:else if column === 'via'}{row.via === 'Stat On Hit' ? 'On hit' : row.via === 'Item Use' ? 'Using item' : row.via === 'Item Ability' ? 'Item ability' : row.via === 'NPC Ability' ? 'Creature ability' : row.via === 'Caster Ability' ? 'Caster ability' : row.via.toLowerCase()}
+          {:else if column === 'via'}{row.via === 'Stat On Hit' ? 'On hit' : row.via === 'Item Use' ? 'Using item' : row.via === 'Item Ability' ? 'Item ability' : row.via === 'NPC Ability' ? 'Creature ability' : row.via === 'Caster Ability' ? 'Caster ability' : `${row.via.charAt(0)}${row.via.slice(1).toLowerCase()}`}
           {:else if column === 'rank'}{row.rank === undefined ? '' : formatNumber(row.rank + 1)}
           {:else if column === 'chance'}{row.chance === undefined ? '' : `${formatNumber(row.chance)}%`}
           {:else if column === 'target'}{row.target ?? ''}{/if}
