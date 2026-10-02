@@ -9,4 +9,4 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Measure and view every list at 1440, 1100, 960, and 800 px, publish, and accept the update
+- [x] 3.1 Measure and view every list at 1440, 1100, 960, and 800 px, publish, and accept the update
