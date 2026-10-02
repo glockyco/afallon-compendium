@@ -5,6 +5,7 @@
   import { formatNumber } from '../../format';
   import GuideSection from '../GuideSection.svelte';
   import Hero from '../Hero.svelte';
+  import LinkGrid from '../LinkGrid.svelte';
   import RelationTable from '../RelationTable.svelte';
   import type { RelationColumn } from '../relation-table';
   import RulePhrase from '../sections/RulePhrase.svelte';
@@ -15,7 +16,6 @@
   export let registry: PublicKindEntry[];
 
   const PREVIEW = 4;
-  let expanded: string[] = [];
   const recoveryEntry = (row: CombatGuide['recovery'][number], when: 'outside-combat' | 'in-combat') => row.entries.find((entry) => entry.when === when);
   const recoveryText = (row: CombatGuide['recovery'][number], when: 'outside-combat' | 'in-combat') => {
     const entry = recoveryEntry(row, when);
@@ -59,8 +59,7 @@
             <p class="rule"><RulePhrase rule={rule.links.length > PREVIEW ? { ...rule, links: [] } : rule} {registry} /></p>
             {#if rule.links.length > PREVIEW}
               <div class="examples"><h3>{section.id === 'damage-and-defense' ? 'Resistance and penetration stats' : 'On-hit stats'}</h3>
-                <ul>{#each rule.links.slice(0, expanded.includes(rule.id) ? undefined : PREVIEW) as ref (ref.key ?? ref.label)}<li><EntityLink {ref} {registry} /></li>{/each}</ul>
-                {#if !expanded.includes(rule.id)}<button type="button" class="c-action" on:click={() => expanded = [...expanded, rule.id]}>Show {rule.links.length - PREVIEW} more</button>{/if}
+                <LinkGrid refs={rule.links} {registry} />
               </div>
             {/if}
           {/each}
@@ -94,9 +93,6 @@
   .rule-group + .rule-group { padding-top: 1rem; border-top: 1px solid var(--c-line-soft); }
   h3 { color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
   .examples { display: grid; gap: .5rem; margin-top: .65rem; }
-  .examples ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); gap: .35rem .8rem; list-style: none; margin: 0; padding: 0; }
-  .examples li { min-width: 0; }
-  .examples button { justify-self: start; }
   .effect-links { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem 1rem; padding-top: .8rem; border-top: 1px solid var(--c-line-soft); }
   .effect-links h3 { width: 100%; }
   .rule-details { border-top: 1px solid var(--c-line-soft); padding-top: .8rem; }

@@ -3,10 +3,12 @@
   import EntityLink from '../EntityLink.svelte';
   import { shownRowCount } from './relation-table';
 
-  // A grid of links that shows its first rows and a button for the rest, as a relation table does.
+  // A grid of links that shows its first rows and a button for the rest, as a relation table does. Each name stays on
+  // one line and ends with an ellipsis when its column is too narrow, and its hover card names it in full.
   export let refs: Ref[];
   export let registry: PublicKindEntry[];
-  let expanded = false;
+  /** Shows every link at once, for a grid that sits behind its own disclosure. */
+  export let expanded = false;
   $: shown = shownRowCount(refs.length, expanded);
 </script>
 

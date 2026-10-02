@@ -32,7 +32,7 @@
         <p>See where each quest starts, what you need to do, and what it rewards.</p>
         <a class="c-link" href={`${base}/quests/?questType=World+Quest`}>Browse{' '}{#if document.seeAlso?.length}{formatNumber(document.seeAlso.length)}{' '}{/if}World Quests</a>
         {#if document.seeAlso?.length}
-          <ul aria-label="Example World Quests">{#each document.seeAlso.slice(0, 3) as example (example.ref.key)}<li><EntityLink ref={example.ref} {registry} /></li>{/each}</ul>
+          <ul aria-label="Example World Quests">{#each document.seeAlso.slice(0, 3) as example (example.ref.key)}<li><EntityLink ref={example.ref} {registry} truncate /></li>{/each}</ul>
         {/if}
       </nav>
     {/if}

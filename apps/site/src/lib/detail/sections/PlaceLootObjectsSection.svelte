@@ -2,6 +2,7 @@
   import type { PlaceLootObject, PublicKindEntry } from '@afallon/contracts/public';
   import Availability from '../../Availability.svelte';
   import EntityLink from '../../EntityLink.svelte';
+  import LinkGrid from '../LinkGrid.svelte';
   import { formatNumber } from '../../format';
   import { spotOnMap } from '../../map-links';
   import Section from '../Section.svelte';
@@ -51,7 +52,7 @@
                 </div>
               </div>
               {#if row.items.length <= SHORT_LIST || open.has(row)}
-                <ul class="items">{#each row.items as item}<li><EntityLink ref={item} {registry} /></li>{/each}</ul>
+                <LinkGrid refs={row.items} {registry} expanded />
               {/if}
             </div>
           {/each}
@@ -74,6 +75,5 @@
   .conditions :global(.availability li) { font-size: var(--c-text-small); }
   .choice { color: var(--c-text-strong); font-weight: 600; }
   .meta { display: flex; align-items: center; gap: .75rem; font-size: var(--c-text-small); }
-  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: .3rem 1rem; margin: 0; padding: 0; list-style: none; line-height: 1.5; }
   .items li { min-width: 0; overflow-wrap: anywhere; }
 </style>

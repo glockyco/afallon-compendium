@@ -19,7 +19,7 @@
         <ul>
           {#each phase.abilities as reference}
             <li>
-              <EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} />
+              <EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} truncate />
             </li>
           {/each}
         </ul>
@@ -35,4 +35,5 @@
   h3 { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .45rem; color: var(--c-text-dim); font-size: var(--c-text-small); font-weight: 700; }
   .requirement { color: var(--c-text-mute); font-weight: 400; }
   ul { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); padding: 0; list-style: none; }
+  li { min-width: 0; }
 </style>
