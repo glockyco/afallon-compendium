@@ -102,7 +102,7 @@ A reviewed item whose only description is flavor, whose action has no identified
 
 ### Requirement: Enchanting and equipment controls share the side-card system
 
-An enchanting item's effect, applicable gear, success chance, time, and additional costs SHALL be grouped in one side card next to the game tooltip. Heroic, corruption, and enchantment options of equipment SHALL occupy a shared card rather than loose controls below the tooltip. The game tooltip SHALL not link an enchantment item back to itself.
+An enchanting item's effect, applicable gear, success chance, time, and additional costs SHALL be grouped in one side card next to the game tooltip. When a description already explains the effect, exceptionally long stat names SHALL remain linked behind stat-details disclosure rather than dominating the card. Heroic, corruption, and enchantment options of equipment SHALL occupy a shared card rather than loose controls below the tooltip. The game tooltip SHALL not link an enchantment item back to itself.
 
 #### Scenario: Enchanting kit
 - **WHEN** a reader opens Bolstering Kit I
@@ -111,6 +111,10 @@ An enchanting item's effect, applicable gear, success chance, time, and addition
 #### Scenario: Heroic armor
 - **WHEN** an armor item can drop Heroic and be enchanted
 - **THEN** its Heroic toggle and enchanting option appear together as gear options beside its tooltip
+
+#### Scenario: A long enchantment stat repeats the description
+- **WHEN** Enchant Fiery Weapon describes its on-hit effect and the corresponding stat has a long name
+- **THEN** the effect remains visible with the linked stat available under Stat details
 
 ### Requirement: Item pages identify effects from use and on-hit procs
 

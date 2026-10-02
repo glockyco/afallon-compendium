@@ -42,6 +42,7 @@
   $: facts = document.facts;
   $: tone = rarityTone(facts.rarity);
   $: enchantingGuide = document.placedRules.find((rule) => rule.target === 'enchants');
+  $: detailedEnchantStats = Boolean(document.description && facts.enchanting?.tiers.some((tier) => tier.stats.some((stat) => nameOf(stat.stat).length > 36)));
   $: chestGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.section === 'chests');
   $: packGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.section === 'supply-packs');
   $: corruptionGuide = document.placedRules.find((rule) => rule.target === 'corruption');
@@ -123,7 +124,7 @@
             <FactRow label="Fits">{facts.enchanting.fits.join(' or ')}</FactRow>
             {#each facts.enchanting.tiers as tier}
               {#if facts.enchanting.tiers.length > 1}<FactRow label="Tier">{formatNumber(tier.tier + 1)}</FactRow>{/if}
-              <FactRow label="Adds">{#each tier.stats as stat, index}{index ? ', ' : ''}{stat.amount < 0 ? '' : '+'}{formatNumber(stat.amount)}{stat.isPercent ? '%' : ''} <EntityLink ref={stat.stat} {registry} />{/each}</FactRow>
+              {#if !detailedEnchantStats}<FactRow label="Adds">{#each tier.stats as stat, index}{index ? ', ' : ''}{stat.amount < 0 ? '' : '+'}{formatNumber(stat.amount)}{stat.isPercent ? '%' : ''} <EntityLink ref={stat.stat} {registry} />{/each}</FactRow>{/if}
               <FactRow label="Success">{formatNumber(tier.successRate)}%</FactRow>
               <FactRow label="Time">{formatNumber(tier.seconds)} {tier.seconds === 1 ? 'second' : 'seconds'}</FactRow>
               {#if tier.currencyCosts.length || tier.itemCosts.length}
@@ -131,6 +132,13 @@
               {/if}
             {/each}
           </FactList>
+          {#if detailedEnchantStats}
+            <details class="enchant-stats"><summary>Stat details</summary><FactList>
+              {#each facts.enchanting.tiers as tier}
+                <FactRow label={facts.enchanting.tiers.length > 1 ? `Tier ${tier.tier + 1} adds` : 'Adds'}>{#each tier.stats as stat, index}{index ? ', ' : ''}{stat.amount < 0 ? '' : '+'}{formatNumber(stat.amount)}{stat.isPercent ? '%' : ''} <EntityLink ref={stat.stat} {registry} />{/each}</FactRow>
+              {/each}
+            </FactList></details>
+          {/if}
           {#if enchantingGuide}<HowItWorks guide={enchantingGuide.guide} section={enchantingGuide.section} label="How enchanting works" />{/if}
         </SideCard>
       {/if}
@@ -323,6 +331,9 @@
 <style>
   .corruption-control { display: grid; gap: .6rem; scroll-margin-top: 1rem; }
   .heroic-control { display: grid; justify-items: start; gap: .5rem; }
+  .enchant-stats { border-top: 1px solid var(--c-line-soft); padding-top: .55rem; }
+  .enchant-stats summary { cursor: pointer; color: var(--c-accent); font-weight: 600; }
+  .enchant-stats :global(.fact-list) { margin-top: .6rem; }
   .used-recipes, .used-quests, .used-stones { display: grid; gap: .5rem; scroll-margin-top: 1rem; }
   .adventurer-gear { display: grid; gap: .5rem; line-height: 1.55; }
   .used-row, .used-quest { min-width: 0; padding: .55rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
