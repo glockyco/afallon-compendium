@@ -32,6 +32,13 @@ export interface DetailNavigation {
   location: Writable<URL | null>;
   addRevealer(revealer: AnchorRevealer): () => void;
   reveal(id: string): Promise<void>;
+  /**
+   * Sets `location` to an address whose target a component already shows, such as a talent selected in the talent web,
+   * so tab sets follow it without scrolling. The caller writes the history entry.
+   */
+  showInPlace(url: URL): void;
+  /** Whether `showInPlace` set `url`. */
+  isShownInPlace(url: URL): boolean;
 }
 
 const KEY = Symbol('detail-navigation');
@@ -40,6 +47,8 @@ function createDetailNavigation(): DetailNavigation {
   const entries: SectionEntry[] = [];
   const sections = writable<SectionEntry[]>([]);
   const revealers = new Set<AnchorRevealer>();
+  const location = writable<URL | null>(null);
+  const shownInPlace = new WeakSet<URL>();
   // Sections register in render order. After they mount, the page order of their elements decides, because a section
   // that appears later, such as the panel of another tab, can stand between earlier ones.
   const publish = () => {
@@ -72,7 +81,7 @@ function createDetailNavigation(): DetailNavigation {
         },
       };
     },
-    location: writable<URL | null>(null),
+    location,
     addRevealer(revealer) {
       revealers.add(revealer);
       return () => revealers.delete(revealer);
@@ -80,6 +89,13 @@ function createDetailNavigation(): DetailNavigation {
     async reveal(id) {
       // A row can be inside a disclosure inside a tab: every owner must open before scrolling.
       for (const revealer of revealers) await revealer(id);
+    },
+    showInPlace(url) {
+      shownInPlace.add(url);
+      location.set(url);
+    },
+    isShownInPlace(url) {
+      return shownInPlace.has(url);
     },
   };
 }
@@ -92,6 +108,17 @@ export function provideDetailNavigation(): DetailNavigation {
 /** The navigation of the enclosing detail page, or undefined outside one. */
 export function detailNavigation(): DetailNavigation | undefined {
   return getContext<DetailNavigation | undefined>(KEY);
+}
+
+/**
+ * Scrolls the target of an anchor into view. A target inside an element marked `data-anchor-frame`, such as a talent in
+ * the talent web, is shown by that element itself, so the page only scrolls as far as it must to show the whole frame.
+ */
+export function scrollToAnchor(id: string): void {
+  const target = document.getElementById(id);
+  const frame = target?.closest('[data-anchor-frame]');
+  if (frame) frame.scrollIntoView({ block: 'nearest' });
+  else target?.scrollIntoView({ block: 'center' });
 }
 
 /**

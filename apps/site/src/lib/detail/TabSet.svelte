@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { pushState } from '$app/navigation';
-  import { detailNavigation, followLocation, provideDetailNavigation } from './detail-navigation';
+  import { detailNavigation, followLocation, provideDetailNavigation, scrollToAnchor } from './detail-navigation';
   import { fragmentId, selectTab, tabOwningAnchor, tabOwnsAnchor, withTab, type TabSpec } from './tab-state';
 
   /** The tabs in reading order. The first tab is selected when the address names no tab of this set. */
@@ -41,6 +41,7 @@
     }
     if (url === handled) return;
     handled = url;
+    if (navigation.isShownInPlace(url)) return;
     const anchor = fragmentId(url.hash);
     if (tabOwningAnchor(tabs, anchor) !== undefined) await scrollTo(anchor);
   }
@@ -50,7 +51,7 @@
     await navigation.reveal(anchor);
     // Back and Forward restore the scroll position of the entry in the same frame. The target scrolls into view after it.
     await new Promise((resolve) => requestAnimationFrame(resolve));
-    document.getElementById(anchor)?.scrollIntoView({ block: 'center' });
+    scrollToAnchor(anchor);
   }
 
   function choose(key: string, focus: boolean): void {
@@ -82,6 +83,7 @@
     const stopFollowing = parent ? undefined : followLocation(navigation);
     // A repeated click on the current fragment fires no `hashchange`, so the tab set scrolls to its target itself.
     const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented) return;
       const link = (event.target as Element | null)?.closest?.('a[href]');
       if (!(link instanceof HTMLAnchorElement) || link.origin !== window.location.origin || link.pathname !== window.location.pathname) return;
       const anchor = fragmentId(link.hash);
