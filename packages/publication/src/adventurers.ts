@@ -1,5 +1,5 @@
 import type { CatalogFacts, CatalogNpcFacts } from "@afallon/contracts/catalog";
-import { isEntityRef, type AdventurerRole, type NpcAdventurer, type Ref } from "@afallon/contracts/public";
+import { isEntityRef, type AdventurerRole, type Art, type NpcAdventurer, type Ref } from "@afallon/contracts/public";
 import { treeAnchor } from "./documents/classes";
 import type { ReferenceResolver } from "./documents/projection";
 import { displayName } from "./text";
@@ -18,9 +18,9 @@ export function phaseAbilities(fact: CatalogNpcFacts): CatalogNpcFacts["abilityP
  * The facts of each adventurer on the world roster, by NPC key, in roster order. A specialization counts only for the
  * adventurer's own class (AdventurerSpecialization.For). The Dungeon Finder places an adventurer without one in a damage
  * role (DungeonFinderRules.RoleOf), and a specialization's preferred tree replaces the NPC's own (AdventurerClassBuild).
- * The preferred tree links its tree on the class page.
+ * The preferred tree links its tree on the class page with the tree's icon.
  */
-export function adventurerRoster(facts: CatalogFacts, resolve: ReferenceResolver): ReadonlyMap<string, NpcAdventurer> {
+export function adventurerRoster(facts: CatalogFacts, resolve: ReferenceResolver, artByEntity: ReadonlyMap<string, Art>): ReadonlyMap<string, NpcAdventurer> {
   const npcs = new Map(facts.npcs.map((fact) => [fact.entityKey, fact]));
   const roster = new Map<string, NpcAdventurer>();
   for (const arrival of facts.adventurerWorld?.arrivals ?? []) {
@@ -32,9 +32,9 @@ export function adventurerRoster(facts: CatalogFacts, resolve: ReferenceResolver
     if (!ROLES.has(role)) throw new Error(`Roster adventurer ${arrival.adventurer.label} has an unknown role ${role}.`);
     const treeKey = (specialization?.preferredTree ?? adventurer.preferredTree)?.entityKey;
     const tree = treeKey ? facts.progression.links.find((link) => link.owner === classKey && link.linkKind === "talentTree" && link.target.entityKey === treeKey) : undefined;
-    const classRef = resolve(adventurer.class);
+    const classRef = resolve(adventurer.class), treeIcon = treeKey ? artByEntity.get(treeKey)?.icon : undefined;
     const preferredTree: Ref | undefined = !tree ? undefined : isEntityRef(classRef) && classRef.slug
-      ? { key: classRef.key, kind: classRef.kind, name: displayName(tree.target.label), slug: classRef.slug, variant: treeAnchor(treeKey!) }
+      ? { key: classRef.key, kind: classRef.kind, name: displayName(tree.target.label), slug: classRef.slug, variant: treeAnchor(treeKey!), ...(treeIcon ? { icon: treeIcon } : {}) }
       : { key: null, label: displayName(tree.target.label) };
     roster.set(key, {
       class: classRef, ...(adventurer.race ? { race: resolve(adventurer.race) } : {}),

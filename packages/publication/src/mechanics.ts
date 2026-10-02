@@ -1,6 +1,5 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
 import type { AdventurerGear, AdventurerRosterRow, AdventurersGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicItem, PublicLevel, PublicMechanics, PublicNpc, Ref, TalentPoints } from "@afallon/contracts/public";
-import { adventurerRoster } from "./adventurers";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
 import type { ReferenceResolver } from "./documents/projection";
@@ -55,11 +54,13 @@ function adventurerGear(facts: CatalogFacts, resolve: ReferenceResolver): Advent
   return { rewards, kits };
 }
 
-/** The adventurers of the world roster by name, with what the game sets up for each. Their pages also name priority abilities. */
-function adventurerRosterRows(facts: CatalogFacts, resolve: ReferenceResolver): AdventurerRosterRow[] {
-  const nameOf = (ref: Ref) => "name" in ref ? ref.name : ref.label;
-  return [...adventurerRoster(facts, resolve)].map(([key, { priorityAbilities, ...shown }]) => ({ adventurer: resolve({ entityKey: key, label: key }), ...shown }))
-    .sort((left, right) => nameOf(left.adventurer).localeCompare(nameOf(right.adventurer)));
+/** The adventurers of the world roster by name, with what their pages show except the abilities that they learn first. */
+function adventurerRosterRows(entityDocuments: ReadonlyMap<string, PublicDocument>): AdventurerRosterRow[] {
+  return [...entityDocuments.values()].flatMap((document) => {
+    if (document.ref.kind !== "npcs" || !(document as PublicNpc).adventurer) return [];
+    const { priorityAbilities, ...shown } = (document as PublicNpc).adventurer!;
+    return [{ adventurer: document.ref, ...shown }];
+  }).sort((left, right) => (left.adventurer as EntityRef).name.localeCompare((right.adventurer as EntityRef).name));
 }
 
 /** The overview and the sections of a guide whose rules come from the rules record. */
@@ -353,7 +354,7 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
     ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve)] : []),
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),
-    ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, resolve), roster: adventurerRosterRows(facts, resolve) } satisfies AdventurersGuide] : []),
+    ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, resolve), roster: adventurerRosterRows(entityDocuments) } satisfies AdventurersGuide] : []),
     ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_NAMES.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));

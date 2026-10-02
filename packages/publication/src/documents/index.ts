@@ -14,7 +14,7 @@ import { projectSkill } from "./skills";
 export function projectPublicDocuments(input: DocumentProjectionInput): ReadonlyMap<string, PublicDocument> {
   const indexes = relationIndexes(input.entities, input.facts, input.relations), conditions = conditionsById(input.relations.conditions);
   const startingGear = startingGearByItem(input.entities, input.facts, input.references.refs), fromItems = fromItemsByItem(input);
-  const adventurers = adventurerRoster(input.facts, input.resolve);
+  const adventurers = adventurerRoster(input.facts, input.resolve, input.artByEntity);
   const result = new Map<string, PublicDocument>();
   for (const [key, page] of input.references.pages) {
     if (!page.ref.slug) continue;

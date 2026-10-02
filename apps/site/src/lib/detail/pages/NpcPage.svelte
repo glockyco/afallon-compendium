@@ -113,7 +113,7 @@
           {#if adventurer.race}<FactRow label="Race"><EntityLink ref={adventurer.race} {registry} /></FactRow>{/if}
           <FactRow label="Party role">{adventurer.role}{adventurer.defaultRole ? ' by default' : ''}</FactRow>
           {#if adventurer.preferredTree}<FactRow label="Preferred tree"><EntityLink ref={adventurer.preferredTree} {registry} tooltip={false} /></FactRow>{/if}
-          {#if adventurer.priorityAbilities.length}<FactRow label="Learns first">{#each adventurer.priorityAbilities as ability, index}{index ? ', ' : ''}<EntityLink ref={ability} {registry} />{/each}</FactRow>{/if}
+          {#if adventurer.priorityAbilities.length}<FactRow label="Learns first"><ul class="learns">{#each adventurer.priorityAbilities as ability}<li><EntityLink ref={ability} {registry} /></li>{/each}</ul></FactRow>{/if}
           <FactRow label="Starting level">{formatNumber(adventurer.startingLevel)}</FactRow>
           <FactRow label="Joins">{joinText(adventurer.joinAfterHours)}</FactRow>
         </FactList>
@@ -160,6 +160,8 @@
   .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .kill { display: grid; gap: .75rem; }
   .adventurer { display: grid; gap: .75rem; }
+  /* One ability on each line keeps every icon beside its name. */
+  .learns { display: grid; justify-items: end; gap: .2rem; margin: 0; padding: 0; list-style: none; }
   .kill h2 { color: var(--c-text-strong); font: 600 1.05rem/1.3 var(--c-serif); }
   .kill p { line-height: 1.5; }
   .kill a { width: fit-content; font-size: var(--c-text-small); }
