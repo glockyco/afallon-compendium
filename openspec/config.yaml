@@ -1,10 +1,11 @@
 schema: spec-driven
 
 context: |
-  Afallon is a screenshot-first interactive map and eventual compendium.
+  Afallon Compendium is an interactive map, reference pages, and guides for the game Afallon, built from its own data.
+  README.md describes the pipeline (scan, evidence store, SQLite catalog, static publication, SvelteKit site) and its concepts.
   Game-provided maps are the default basemap. Captured overworld terrain is opt-in.
   Use deck.gl with an orthographic view for the SvelteKit map.
   Full reachable content coverage and linked game facts are required.
-  Read EXPLORATION.md for measured evidence and its limitations.
+  A game rule rests on decompiled game code or a recorded runtime check, recorded in the registered rules record.
   Game binaries, recovered code, saves, raw snapshots, and images stay outside Git.
   Prefer concrete game-specific modules over a reusable multi-game framework.

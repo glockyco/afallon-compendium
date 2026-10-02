@@ -7,13 +7,13 @@ description: Analyze build-matched Afallon IL2CPP native methods with a HotRepl 
 
 ## Select a build and question
 
-Use native analysis when an IL2CPP declaration supplies a field or signature but not its behavior. State the exact method and behavioral question first. Use [EXPLORATION.md: NPC levels in build 25434619](../../../EXPLORATION.md#npc-levels-in-build-25434619) as a worked reference. Decompiler pseudocode is not original C# and does not prove every branch. Compare uncertain branches with assembly and bounded runtime observations.
+Use native analysis when an IL2CPP declaration supplies a field or signature but not its behavior. State the exact method and behavioral question first. Earlier outputs under the ignored `research/ghidra/<build>/` of the main checkout, such as `research/ghidra/25434619/npc-level-functions.json`, are worked examples, and each verified rule in a rules record names the output that it rests on. Decompiler pseudocode is not original C# and does not prove every branch. Compare uncertain branches with assembly and bounded runtime observations.
 
 Keep the installed `GameAssembly.dll`, native metadata, target file, and Ghidra project on the same Steam build. Verify the binary SHA-256. Do not reuse absolute process addresses or an RVA from another build. The analysis shell supplies Ghidra. It does not install analysis software in CrossOver.
 
 ## Collect live native method addresses
 
-Follow [Runtime access](../../../EXPLORATION.md#runtime-access) and `.agent/skills/hotrepl-runtime-inspection/SKILL.md` before connecting. Do not connect while `scan` or `capture` owns the single HotRepl client.
+Follow the [runtime inspection skill](../hotrepl-runtime-inspection/SKILL.md) before connecting. Do not connect while `scan` or `capture` owns the single HotRepl client.
 
 `tools/probes/native-methods.csx` reads `NativeMethodInfoPtr_` fields from the live interop types. It reads native code pointers from their method metadata and subtracts the loaded `GameAssembly.dll` base. It returns decimal module-relative RVAs and reports unavailable fields. Its present type list covers combat NPC levels, zone rules, adventurer population, and NPC spawning. Change the type list only for a separately reviewed research question.
 
@@ -70,4 +70,13 @@ jq -e --slurpfile targets local/level-targets.json '
 ' research/ghidra/25434619/npc-level-functions-new.json
 ```
 
-This command checks recorded fields. It does not replace assembly review or prove that the decompiler recovered game source. Store target files, Ghidra projects, outputs, logs, and additional runtime evidence under ignored `research/ghidra/<build>/` or ignored `local/`. Do not commit game binaries, recovered declarations, save data, or bulk artwork. See [Open limitations](../../../EXPLORATION.md#open-limitations).
+This command checks recorded fields. It does not replace assembly review or prove that the decompiler recovered game source. Store target files, Ghidra projects, outputs, logs, and additional runtime evidence under ignored `research/ghidra/<build>/` or ignored `local/`. Do not commit game binaries, recovered declarations, save data, or bulk artwork.
+
+## Turn a finding into a published rule
+
+The site shows a game rule only from the registered rules record (`compendium.mechanics-rules.v2`, schema in `packages/contracts/src/catalog/mechanics.ts`). Each rule names its guide topic and section, its phrase with operands and links, the evidence objects and methods it rests on, and where entity pages place it.
+
+1. Copy the current record under ignored `local/` to a new name (`local/mechanics-rules-<build>-<n>.json`) and add or revise the rules. Write each phrase as a player reads it: what happens in play, not the code path that does it.
+2. Register every decompilation output that a rule cites (`bun run compendium register --store artifacts --build <build> --file <output>`), then register the record with `--schema compendium.mechanics-rules.v2`. An evidence entry names the object by its SHA-256.
+3. Copy the catalog plan to a new name with `mechanicsRules` set to the record's object, and build the catalog with `--candidate`. Compare it with the accepted catalog: only the mechanics rules and the new evidence manifests should differ.
+4. Publish from that catalog. Publication checks that guide sections exist and that placed rules fit their pages.

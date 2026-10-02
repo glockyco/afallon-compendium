@@ -7,11 +7,11 @@ description: Inspect or control Afallon through HotRepl in the CrossOver Steam b
 
 ## Use the configured runtime
 
-Read the selected configuration under ignored `local/` before launch. Use its `gamePath`, `hotreplUrl`, `character`, and scene restoration fields. Confirm the installed build against the selection in [EXPLORATION.md](../../../EXPLORATION.md#build-and-installation).
+Read the selected configuration under ignored `local/` before launch. Use its `gamePath`, `hotreplUrl`, `character`, and scene restoration fields. Confirm that the installed build is the one in the ignored `artifacts/accepted-build.json`, or the build of the update in progress.
 
 Do not assume a port. Afallon and another instrumented game can use different ports. A connection to the wrong game can return valid HotRepl data.
 
-Use repository-owned `scan` or `capture` for durable runtime work. Each operation verifies the local installation and the connected product before it claims ownership. See `packages/runtime/src/runtime.ts` and [Runtime access](../../../EXPLORATION.md#runtime-access).
+Use repository-owned `scan` or `capture` for durable runtime work. Each operation verifies the local installation and the connected product before it claims ownership (`packages/runtime/src/runtime.ts`). A reachable port alone does not establish game identity.
 
 ## Launch through CrossOver
 
@@ -44,9 +44,9 @@ Select the configured research character through the main menu. Confirm that its
 
 Do not use a character saved inside a challenge-stone instance for traversal. Such a save can remain behind the loading screen and prevent clean scene visits.
 
-Author scan arrivals from transitions discovered in the accepted catalog with `tools/update/author-scan-arrivals.ts`. Each visit records its selected doorway ID. A scene with no discovered doorway uses its authored start. Saved scene positions can be stale in build 25434619. See [Scenes and arrivals](../../../EXPLORATION.md#scenes-and-arrivals).
+Author scan arrivals from transitions discovered in the accepted catalog with `tools/update/author-scan-arrivals.ts`. Each visit records its selected doorway ID. A scene with no discovered doorway uses its authored start. A later scene entry can reuse a stale saved position that lies outside the destination and cancels the entry, which is why visits use doorways (`packages/scan/src/probes/scene-visit/support.csx`).
 
-Visit streamed sources before collecting a scene that requires them. A distant `ChunkHider` can make a loader inactive. The stream visit uses `HoldPosition` and disposes its hold on restoration. See [Scenes and arrivals](../../../EXPLORATION.md#scenes-and-arrivals) and `packages/scan/src/probes/stream-visit/support.csx`.
+Visit streamed sources before collecting a scene that requires them. A distant `ChunkHider` can make a loader inactive. The stream visit uses `HoldPosition` and disposes its hold on restoration (`packages/scan/src/probes/stream-visit/support.csx`). A loader that is present is not necessarily loaded or ready to render.
 
 ## Run one client at a time
 
@@ -67,7 +67,7 @@ Register frame cleanup before a temporary change in the current evaluation. Regi
 
 ## Capture and cleanup receipts
 
-Use a reviewed capture plan. Do not treat a PNG, a `MapZone` texture, or an inactive loader as proof of complete imagery. Wait for source readiness, stable frame evidence, visual restoration, and stream cleanup. The world-surface readiness limit is 900,000 ms in `packages/capture/src/capture-planner.ts`. See [Map imagery and capture](../../../EXPLORATION.md#map-imagery-and-capture).
+Use a reviewed capture plan. Do not treat a PNG, a `MapZone` texture, or an inactive loader as proof of complete imagery. Wait for source readiness, stable frame evidence, visual restoration, and stream cleanup. The world-surface readiness limit is 900,000 ms in `packages/capture/src/capture-planner.ts`. A timed-out load is a failure, not an empty tile.
 
 Call `runtime.complete()` before publishing the result of an owned research operation. The operation confirms a `clean` native receipt with no errors or remaining callbacks. Failed or missing receipts do not permit reuse of the affected state. Do not clear an unknown failed-owner record to force a new claim. Evidence: `packages/runtime/src/runtime.ts:191-239` and `packages/runtime/src/probes/runtime-owner.csx`.
 
@@ -81,4 +81,11 @@ Wait for the supervised game process to exit. Confirm that the configured port n
 
 A game exit leaves a `UnityCrashHandler64.exe` process behind, and a Steam exit can leave the bottle's wine services running for weeks. Before an update or a relaunch after errors, list the processes whose open files are under `Bottles/Steam` (`lsof -p <pid>`) and end the leftovers. A stale session can make a new Steam client hang without a log line.
 
-The game can end without a clean receipt after a forced exit. Preserve the failed run evidence and inspect the configured output root's `.runtime/` receipts before another mutation. See [Runtime access](../../../EXPLORATION.md#runtime-access) and `packages/runtime/src/runtime.ts`.
+The game can end without a clean receipt after a forced exit. Preserve the failed run evidence and inspect the configured output root's `.runtime/` receipts before another mutation (`packages/runtime/src/runtime.ts`).
+
+## Known failure modes
+
+- **Restoration fails to stream the destination.** The game logs `[AddressableLoader] Destination preload timed out` and returns to the main menu. A character saved inside a challenge-stone arena then cannot start scene visits. Create a new research character through the game's own menu, which starts in the Tutorial cave. Never edit a save file.
+- **The owner is stuck in `cleanupFailed`.** A failed restoration leaves the runtime owner in `cleanupFailed`, and every later ownership claim fails until the game restarts (`packages/runtime/src/probes/runtime-owner.csx`). At the main menu no character is loaded, so a restart there cannot move a saved character.
+- **A stream visit stops without an instance.** "A requested streamed asset stopped without producing an instance" has occurred when the loader was already active at the start of the visit. Its cause is not established. Retry from a fresh launch and keep the failed run.
+- **Objects that destroy themselves.** A `CountdownDestroyer` removes its object a fixed time after the scene starts, and the game can destroy scene objects at run time, which shifts the sibling indexes of the rest. The collectors read world sources before the slow artwork collector for this reason. Keep that order when adding collectors.

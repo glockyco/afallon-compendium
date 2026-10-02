@@ -1,101 +1,130 @@
 # Afallon Compendium
 
-An interactive world map and a searchable compendium for the single-player RPG [Afallon](https://store.steampowered.com/app/2597810/Afallon/): more than 3,700 mapped locations and a page for every item, creature, quest, place, property, ability, recipe, class, and skill in the supported build.
+An interactive world map and a searchable compendium for the single-player RPG [Afallon](https://store.steampowered.com/app/2597810/Afallon/), built from the game's own data.
 
 [Open the compendium](https://afallon.compendiums.org/) · [Steam guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3800843227) · [Project page](https://glockyco.com/projects/afallon/)
 
 ![Afallon Compendium showing the world map, interior maps, category filters, and search results](assets/afallon-compendium-map.png)
 
-## About
+The published site covers Afallon 0.16.3 (Steam build 25653798).
 
-Search and filter bosses, dungeons, merchants, quest givers, resources, and other points of interest across the overworld and interior maps.
+## What it offers
 
-The home page at `/` starts with search and leads to the map, the places by level range, the classes, crafting and gathering, and every list. The map is at `/map/`. The bar links Map, Items, Recipes, Quests, Classes, and Skills, and its Browse menu lists every destination. The compendium gives each published entity a page at `/<kind>/<slug>/` and each kind a filterable list at `/<kind>/`. Items, NPCs, quests, places, properties, abilities, classes, skills, and gathering nodes have pages. Recipes have a list, and each craft shows on the page of its product. Mechanics pages under `/mechanics/` explain character progression, the Heroic tier, crafting and gathering, and corruption step by step, and entity pages link the step that applies to them. Every page names the game release, the date of its data, and the patch notes of that release. A detail page starts with a title block and an answer to the main question for its kind, such as how to get an item. A side column shows the game tooltip or the secondary facts. Relation sections follow, and each shows eight rows before a "Show more" control. A page shows the relations of an entity in both directions, so an item names what drops, sells, and crafts it, and an NPC names what it drops. Currency item pages also show what merchants sell for that currency, including prices and sellers. Locations show as places with spot counts that link to the map. Relation links show a hover card with the facts of the counterpart. Each table explains its values in its column labels, so a reader needs no other page. A fact that the supported build does not establish shows a marked gap instead of a guess. `/coverage/` reports the published page counts and the pages with known gaps.
+- **Map** (`/map/`). The game's own drawn maps of the overworld and its interiors, with every creature, merchant, quest giver, resource, container, and doorway that the scans place on them, plus category filters and search.
+- **Reference pages** (`/<kind>/<slug>/`). A page for every item, NPC, quest, place, property, ability, class, skill, and gathering node, with where to find it, what it drops or sells, and how the pages relate. Each kind has a filterable list at `/<kind>/`, and recipes have a list whose crafts show on the pages of their products.
+- **Guides** (`/mechanics/`). Character Progression, Heroic Tier, Crafting and Gathering, Corruption, Loot, and Adventurers explain how the game works, with calculators where a value depends on your character. Entity pages link the guide section that explains their numbers.
+- **Coverage** (`/coverage/`). What the data covers and which pages have known gaps.
 
-The pipeline uses [HotRepl](https://github.com/glockyco/HotRepl), a runtime C# REPL for Unity games, to execute C# evidence probes inside the running game. Repository tooling validates immutable evidence into a canonical SQLite catalog and builds a static publication for the SvelteKit and deck.gl site.
+Every fact comes from the game's data or from game code that was read and verified for the supported build. A rule that is not verified is labelled unknown instead of guessed.
 
-## Project knowledge
+## How it works
 
-[`EXPLORATION.md`](EXPLORATION.md) records accepted-build game facts, evidence, and limits. Agent procedures live in [`.agent/skills/`](.agent/skills/), including runtime inspection and native analysis. This README gives operator commands. [`openspec/specs/`](openspec/specs/) and [`openspec/changes/`](openspec/changes/) hold requirements and design decisions.
+```mermaid
+flowchart LR
+  game["Afallon, running<br/>with HotRepl"] -->|scan, capture| store[("Evidence store<br/>artifacts/")]
+  native["Decompiled game code<br/>and runtime checks"] -->|register| store
+  store -->|catalog| catalog[("Catalog<br/>SQLite")]
+  catalog -->|publish| publication["Publication<br/>static JSON and images"]
+  publication -->|stage, build| site["Site<br/>SvelteKit and deck.gl"]
+  site -->|deploy| host["Cloudflare<br/>Static Assets"]
+```
 
-## Development
+1. **Scan and capture.** [HotRepl](https://github.com/glockyco/HotRepl), a C# REPL inside the running Unity game, runs the probes under `packages/scan` and `packages/capture`. Scans visit each scene and read the game database, the authored world objects, and the artwork. Captures render map imagery.
+2. **Evidence.** Every run writes immutable, content-addressed objects with a run manifest to the store. Plans and later steps cite objects by their hash, so any result can be traced to its inputs. Reviewed inputs, such as the map layout, the coverage review, and the record of verified game rules, are registered the same way.
+3. **Catalog.** `catalog` validates the evidence into one SQLite database, the source of truth for everything that follows. It records what it could not resolve as coverage issues instead of dropping it.
+4. **Publication.** `publish` turns the catalog into a static graph of JSON documents, lists, map parts, and sized WebP artwork, checks the graph, and selects it as a candidate.
+5. **Site.** A publication is staged into `apps/site`, which prerenders every page and serves the map from the staged files. No database or game access is needed at run time.
 
-Development requires [Bun](https://bun.sh/). Install dependencies and run the repository checks from the project root:
+### Concepts worth knowing
+
+- **Identity.** A database record, an authored world object, a placement on a map, and a live game object are different things with different identities. Runtime instance ids, names, and coordinates are observations, not keys. A placement that cannot be matched to its authored source stays unresolved rather than guessed.
+- **Map spaces.** A scene of the game is not a map. Reviewed scene bindings and horizontal frames decide which map a placement belongs to. A position outside every map stays unresolved instead of moving to the nearest map.
+- **Producers.** Spawners describe what can appear, not what is alive. A spawner keeps its options and weights whether or not anything is spawned when the scan reads it.
+- **Coverage.** Reachability, extraction, and imagery are separate. A scene without results is not proof that the game has none, and the accepted build is published in preview mode until its coverage is complete.
+- **Game rules.** Rules such as kill experience, loot rolls, or gathering odds rest on decompiled game code or a recorded runtime check. They live in a registered rules record, which the guides and entity pages render, so a number on the site always names its rule.
+
+## Repository layout
+
+| Path | What it holds |
+| --- | --- |
+| `apps/site` | The SvelteKit site: pages, the deck.gl map, search, and deployment scripts. |
+| `apps/compendium-cli` | `bun run compendium`, the operator command line for every pipeline step. |
+| `packages/contracts` | Schemas of evidence, catalog facts, and public documents, and the formulas that the publication and the site share. |
+| `packages/runtime` | The owned HotRepl connection: one client at a time, cleanup receipts, and game identity checks. |
+| `packages/scan`, `packages/capture` | The in-game probes and the runs that scan scenes and capture imagery. |
+| `packages/artifacts` | The content-addressed evidence store and its run manifests. |
+| `packages/catalog` | Validation of evidence into the SQLite catalog. |
+| `packages/publication` | Projection of the catalog into the static publication. |
+| `tools/update` | Scripts that author plans and compare results during a game update. |
+| `openspec` | Requirements (`specs/`) and the reasoning behind each change (`changes/`). |
+| `.agent/skills` | Step-by-step procedures for game updates, runtime inspection, and native analysis. |
+
+Game binaries, recovered code, saves, raw evidence, and extracted images never enter Git. The store (`artifacts/`), local configuration and research notes (`local/`), and decompiled code (`research/`) are ignored.
+
+## Getting started
+
+Development needs [Bun](https://bun.sh/). The Nix flake's default shell (`nix develop`) provides Bun, Node, SQLite, uv, and Python 3.13. Its `analysis` shell provides Ghidra for native analysis.
 
 ```sh
 bun install
-bun run check
-bun run check:dependencies
-bun test ./packages ./apps
-bun run --cwd apps/site check
+bun run check                      # type-check the packages
+bun run check:dependencies         # check the module boundaries
+bun run test                       # package and site tests, and the Python tests
+bun run --cwd apps/site check      # type-check the site
 ```
 
-The site requires a selected static publication. Stage it from the project root, then start the development server:
+### Run the site
+
+The site needs a staged publication. The repository holds none, because a publication comes out of the data pipeline below. Stage one into this checkout, then start the development server:
 
 ```sh
-bun run stage:production /path/to/publication-root /path/to/accepted-publication-directory
-bun run build:production
-SITE_STAGE=production bun run dev
+bun run stage:production <publication-root> <accepted-publication-directory>
+bun run dev
 ```
 
-Direct site builds also require `SITE_STAGE=production`. Without it the site has no staged resource graph and page prerendering fails.
+Staging verifies the candidate against the accepted publication that the second argument names (or `PUBLICATION_BASELINE_ROOT`), and refuses one that drops placements, maps, imagery, offsets, or search records that its exclusion list does not name. It writes into the `apps/site` of the checkout that runs it, so each checkout and worktree needs its own stage. After a public schema change, stage a publication built from the current commit, or the development server reports that a resource does not match its schema.
 
-Staging writes into the `apps/site` of the checkout that runs it, so every checkout, including a worktree, needs its own stage. After a public schema changes, stage a publication built from the current commit. An older stage makes the development server report that a resource does not match its schema.
-
-Staging verifies the candidate against a baseline publication root, which the second argument or `PUBLICATION_BASELINE_ROOT` supplies. Both roots pass the same graph verification, so the baseline is a real publication rather than a retained aggregate file.
+Production builds need `SITE_STAGE=production`: `bun run build:production`.
 
 ## Data pipeline
 
-Runtime extraction requires a locally installed copy of Afallon with the HotRepl host loaded. [`config.example.json`](config.example.json) lists the required runtime paths and connection settings.
+Runtime steps need a local copy of Afallon with the HotRepl host loaded. [`config.example.json`](config.example.json) lists the paths and connection settings. Every command runs from the project root:
 
-The workspace exposes one operator CLI:
+| Command | What it does |
+| --- | --- |
+| `bun run compendium update --config <file> --version <release>` | Installs a game build through Steam and records a receipt. |
+| `bun run compendium recover --config <file> --cpp2il <binary>` | Recovers the game's type declarations for comparison with the accepted build. |
+| `bun run compendium scan --config <file> --plan <file>` | Visits scenes in the running game and stores their evidence. |
+| `bun run compendium capture --config <file> --plan <file>` | Captures terrain imagery. `pyramid` tiles it and `game-map` stores the game's drawn maps. |
+| `bun run compendium register --store <dir> --build <id> --file <file>` | Stores a reviewed input, such as a rules record or a coverage review. |
+| `bun run compendium catalog --store <dir> --plan <file>` | Builds the SQLite catalog from the evidence that the plan names. |
+| `bun run compendium publish --store <dir> --output <dir> --plan <file>` | Builds and selects a static publication from a catalog. |
+| `bun run compendium accept-update --store <dir> --report <file> ...` | Accepts a checked candidate as the new build, from an update report. |
+| `bun run compendium clean --store <dir>` | Lists the intermediate manifest revisions of finished runs, and deletes them with `--apply`. |
 
-```sh
-bun run compendium scan --config local/config.json --plan local/scan-plan.json
-bun run compendium capture --config local/config.json --plan local/capture-plan.json
-bun run compendium catalog --store local/store --plan local/catalog-plan.json
-bun run compendium publish --store local/store --plan local/publish-plan.json --output local/publication
-```
-
-Add `--candidate` to produce a verified result without changing the workflow's selected reference. `scan` and `capture` write immutable, content-addressed evidence. Scan also reads each sprite the database references for an item, creature, ability, recipe, scene, region, or property and stores it as evidence, from which publication derives the sized WebP artwork the pages show. `catalog` validates that evidence into the canonical SQLite source of truth. `publish` queries the catalog and atomically selects a static publication. Its reviewed presentation input holds the world offsets, the spatial bounds, and a list of internal records, such as test items, that the publication leaves out. Each entry gives a reason and its evidence, and the publication fails when the catalog no longer supports the evidence. The map loads every map shard together at its reviewed world offset. Publication emits one typed document per entity, a partitioned list per kind, one search corpus shared by the map and the pages, and content-addressed artwork; every reference in a document is resolved and audited before a candidate is selected, so the site never resolves a name or builds a link of its own. Game-provided maps are enabled by default; captured terrain is available only when a reader selects it.
-
-Map-data readiness waits for every declared geometry part. Search loads independently, and overlay toggles use geometry that is already loaded. The 3,300,000-byte essential-resource budget excludes geometry; actual map-ready JSON transfer includes it. Pan stops on mouse or touch release. Selection does not move the camera.
+Add `--candidate` to scan, capture, catalog, or publish to produce a verified result without replacing the selected one. Only scan and capture need the running game.
 
 ### Game updates
 
-A new game build is installed, compared, scanned, captured, catalogued, and published as a candidate before `accept-update` selects it. The full procedure, with its failure modes, is the [`game-update` skill](.agent/skills/game-update/SKILL.md). In short:
-
-1. `bun run compendium update --config <config> --version <release>` installs the build and records a receipt. `bun run compendium recover --config <config> --cpp2il <binary>` and `bun tools/update/compare-declarations.ts` compare declarations with the accepted build.
-2. `bun run compendium scan --config <config> --plan <plan> --candidate` reads each scene. `bun tools/update/author-scan-arrivals.ts` assigns each scene an observed doorway from the accepted catalog.
-3. The map-profile, map-zone, game-map, overworld-texture, overworld-plan, capture-plan, and capture scripts under `tools/update/` produce the map spaces and imagery. Run `bun run compendium game-map`, `bun run compendium capture`, and `bun run compendium pyramid` with their required flags as described in the game-update skill.
-4. The bootstrap-review, catalog-plan, coverage-review, and catalog-comparison scripts under `tools/update/` prepare and compare the catalog. Run `bun run compendium catalog --store <store> --plan <plan> --candidate` for the candidate.
-5. `bun run compendium publish --store <store> --output <root> --plan <plan> --candidate`, `bun run stage:production <root> <accepted publication directory> --verified-update`, and a browser check produce the candidate. The update report records its checks. `bun run compendium accept-update --store <store> --report <report> --publication-root <accepted root> --baseline-root <accepted publication directory> --expected <descriptor SHA-256>` selects and stages the accepted result.
-
-The game-update skill gives the script names, arguments, and order. Each update repeats scan, capture, catalog, publication, comparison, staging, and acceptance against the accepted baseline. Scan plans set `streamedSources: "all"` on build-scene targets whose streamed sources should all load before collection.
-
-Generated artifacts, local configuration, and extracted game assets are not committed.
+A new game build goes through the whole pipeline as a candidate and is compared with the accepted build before `accept-update` selects it. The [game-update skill](.agent/skills/game-update/SKILL.md) gives the steps, scripts, arguments, and failure modes. In short: install and compare declarations, scan, rebuild the maps and imagery, catalog, review every rule against the new build, publish, check the site in a browser, write the update report, and accept.
 
 ## Deployment
 
-Preview or deploy a selected publication from the project root:
-
 ```sh
-bun run stage:production /path/to/publication-root /path/to/accepted-publication-directory
-bun run compendium preview
-bun run compendium deploy /path/to/publication-root
+bun run stage:production <publication-root> <accepted-publication-directory>
+bun run compendium preview                      # build and serve the staged site with its production headers
+bun run compendium deploy <publication-root>    # build, deploy to Cloudflare Static Assets, and smoke-test
 ```
 
-The preview command builds the staged publication before serving it. Staging rejects a candidate that removes deployed placements, map regions, imagery tiles, map spaces, reviewed offsets, or a search record that the exclusion list of the candidate does not name. The deploy command stages the selected immutable publication, builds and validates `apps/site`, deploys Cloudflare Static Assets with Wrangler, and smoke-tests production. Production excludes database access, runtime probes, authoring controls, and development detail panels.
+`deploy` stages the selected publication, builds and validates the site, deploys it with Wrangler, and smoke-tests production. Production has no database access, runtime probes, or development panels.
 
-Producer selection and deployment share the public graph semantics. Each boundary still verifies its own files or stored objects. Parity checks consume the verified candidate resources and independently read the tracked baseline. A retained publication can pass graph verification but fail the current parity gate; do not bypass that gate for rollback.
+To rehearse a rollback locally, `bun run verify:deployment <current-publication-root> <previous-publication-root>` builds and checks both publications and returns the stage to the current one. `bun run rollback:production` rolls the deployed site back with Wrangler.
 
-To rehearse a local rollback without deploying:
+## Further reading
 
-```sh
-bun run verify:deployment /path/to/current-publication-root /path/to/previous-publication-root
-```
-
-This command replaces the local production stage, builds and checks both publications, restores the previous identity, and returns the stage to the current identity. Both inputs must pass the current parity gate. Use a separate checkout when the existing local stage must remain untouched.
+- [`openspec/specs`](openspec/specs/) states what the site and the pipeline must do. Each change under [`openspec/changes`](openspec/changes/) records why it was made, and archived changes keep that history.
+- [`.agent/skills`](.agent/skills/) holds the procedures for [game updates](.agent/skills/game-update/SKILL.md), [runtime inspection](.agent/skills/hotrepl-runtime-inspection/SKILL.md), and [native analysis](.agent/skills/native-analysis/SKILL.md).
+- Commit messages explain why each change exists, and code comments cite the game rule that a piece of code implements.
 
 ## License
 

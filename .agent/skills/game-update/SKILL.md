@@ -49,7 +49,7 @@ Time the steps from the run manifests (`timestamps`) and, inside a scan, from th
 
 1. Copy the accepted coverage policy to the new build id and register it (`--schema compendium.coverage-policy.v1`): the review references the policy object, and the catalog fails with ENOENT on that object when it is not registered. `author-bootstrap-review.ts` writes the open review from the policy. Register the review (`--schema compendium.coverage-review.v1`), author the plan with `author-catalog-plan.ts` (`--canonical-scan` is the run of the artwork plan, `--canonical-target build-scene:44`), and run `bun run compendium catalog --store artifacts --plan <plan> --candidate`.
 2. `author-coverage-review.ts` writes the complete review from that catalog. Register it and build the final catalog.
-3. The plan names the reviewed mechanics rules. Rules cite evidence of one build; review each rule against the new build and register a new rules record for it.
+3. The plan names the reviewed mechanics rules. Rules cite evidence of one build: review each rule against the new build and register a new rules record for it, as the [native-analysis skill](../native-analysis/SKILL.md#turn-a-finding-into-a-published-rule) describes.
 4. `compare-catalogs.ts <accepted> <candidate>` lists what changed. Explain every removal before you publish.
 
 ## 6. Publish and check
@@ -63,4 +63,4 @@ Time the steps from the run manifests (`timestamps`) and, inside a scan, from th
 1. Author the update report (`compendium.update-report.v2`, contract in `packages/contracts/src/update-report.ts`). The previous reports and their author scripts under `local/` show the shape. Every pointer must be a run of the new build.
 2. Copy the candidate directory into the accepted publication root (the root whose `selected.json` names the accepted publication): `/bin/cp -cR <root>/publications/<id> <accepted root>/publications/`.
 3. Accepting needs the owner's approval. Then run `bun run compendium accept-update --store artifacts --report <report> --publication-root <accepted root> --baseline-root <accepted publication directory> --expected <sha256 of artifacts/accepted-build.json>`.
-4. Record the build facts in `EXPLORATION.md`, archive the update change, and fast-forward the main checkout.
+4. Update the supported version and build in `README.md`, archive the update change, and fast-forward the main checkout.
