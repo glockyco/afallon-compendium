@@ -39,7 +39,7 @@ export function packPicksText(pack: ItemUsePack): string {
   const count = `Gives ${formatNumber(pack.minimumPicks)} ${pack.minimumPicks === 1 ? 'item' : 'items'}`;
   const bonus = pack.bonusChance > 0 ? `, with a ${formatNumber(pack.bonusChance)}% chance of one more` : '';
   const limit = pack.maximumPicks !== undefined && pack.maximumPicks < pack.minimumPicks + 1 ? ` (at most ${formatNumber(pack.maximumPicks)})` : '';
-  const world = pack.worldShare > 0 ? ` Each item has a ${formatNumber(pack.worldShare)}% chance to be world loot for your class and level instead.` : '';
+  const world = pack.worldShare > 0 ? ` Each item has a ${formatNumber(pack.worldShare)}% chance to be random world loot instead of an item from the list.` : '';
   return `${count}${bonus}${limit}.${world}`;
 }
 

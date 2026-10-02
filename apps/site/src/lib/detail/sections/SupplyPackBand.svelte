@@ -23,7 +23,7 @@
 <div class="c-stack">
   {#if showLabel}<p class="band">{band.label}</p>{/if}
   {#if !picksShared}<p>{packPicksText(pack)}</p>{/if}
-  {#if pack.armorType || pack.stats.length}<p>World loot: {#if pack.armorType}{categoryLabel(pack.armorType)} armor{/if}{#if pack.stats.length}{pack.armorType ? ', ' : ''}{#each pack.stats as stat, statIndex}{#if statIndex}, {/if}<EntityLink ref={stat} {registry} />{/each}{/if}</p>{/if}
+  {#if pack.worldShare > 0}<p>World loot is gear from the loot tables of the whole world that your class can use, with a level requirement close to yours.{#if pack.armorType}{' '}World loot armor is {categoryLabel(pack.armorType).toLocaleLowerCase('en-US')}.{/if}{#if pack.stats.length}{' '}Gear with a main stat has {#each pack.stats as stat, statIndex}{#if statIndex}{statIndex === pack.stats.length - 1 ? ' or ' : ', '}{/if}<EntityLink ref={stat} {registry} />{/each}.{/if}</p>{/if}
   <RelationTable {columns} rows={pack.entries} label={`Items for ${band.label.toLocaleLowerCase('en-US')}`}>
     <svelte:fragment slot="cell" let:row let:column>
       {#if column === 'item'}<EntityLink ref={row.item} {registry} />
