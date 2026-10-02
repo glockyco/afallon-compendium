@@ -13,6 +13,8 @@
   /** The link that owns this tooltip. A relation table scrolls, so the tooltip is positioned
       against the viewport instead of the anchor's clipping box. */
   export let anchor: HTMLElement | undefined = undefined;
+  /** The pointer over the link, if any, so a link that wraps onto two lines places the card beside the hovered line. */
+  export let pointer: () => { x: number; y: number } | null = () => null;
 
   let open = false;
   let loading = false;
@@ -46,15 +48,27 @@
   onDestroy(() => floating.destroy());
 
   // A layout can stretch the anchor across its row, as in a list of materials. The card goes beside the visible link
-  // content instead: the union of the icon and the name, which also ends at the ellipsis of a truncated name.
+  // content instead: the union of the icon and the name, which also ends at the ellipsis of a truncated name. A name
+  // that wraps has one box per line, and the union of both lines spans the whole paragraph, so the card goes beside the
+  // line under the pointer, or beside the first line when the link has keyboard focus.
   function linkContent(anchorElement: HTMLElement): VirtualElement {
     return {
       contextElement: anchorElement,
       getBoundingClientRect() {
-        const parts = [...(anchorElement.querySelector('.entity-link')?.children ?? [])].map((part) => part.getBoundingClientRect()).filter((rect) => rect.width > 0);
+        const parts = [...(anchorElement.querySelector('.entity-link')?.children ?? [])]
+          .flatMap((part) => [...part.getClientRects()]).filter((rect) => rect.width > 0);
         if (!parts.length) return anchorElement.getBoundingClientRect();
-        const left = Math.min(...parts.map((rect) => rect.left)), right = Math.max(...parts.map((rect) => rect.right));
-        const top = Math.min(...parts.map((rect) => rect.top)), bottom = Math.max(...parts.map((rect) => rect.bottom));
+        const lines: DOMRect[][] = [];
+        for (const rect of [...parts].sort((a, b) => a.top - b.top)) {
+          const middle = (rect.top + rect.bottom) / 2;
+          const line = lines.find((boxes) => boxes.some((box) => middle >= box.top && middle <= box.bottom));
+          if (line) line.push(rect);
+          else lines.push([rect]);
+        }
+        const at = pointer();
+        const line = (at && lines.find((boxes) => boxes.some((box) => at.y >= box.top && at.y <= box.bottom))) ?? lines[0]!;
+        const left = Math.min(...line.map((rect) => rect.left)), right = Math.max(...line.map((rect) => rect.right));
+        const top = Math.min(...line.map((rect) => rect.top)), bottom = Math.max(...line.map((rect) => rect.bottom));
         return { x: left, y: top, left, top, right, bottom, width: right - left, height: bottom - top };
       },
     };

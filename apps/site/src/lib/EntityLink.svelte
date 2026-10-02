@@ -115,7 +115,7 @@
     <!-- The tooltip follows the anchor without a space, so punctuation after a link stays next to its name. -->
     <span class="tooltip-anchor" class:truncate role="group" bind:this={anchorElement}>
       <a class="entity-link" class:truncate class:plain={bare} data-rarity={rarity} {href} aria-describedby={tooltipId} bind:this={linkElement} on:pointerenter={onPointerEnter} on:pointermove={trackPointer} on:pointerdown={onPointerDown} on:pointerleave={onPointerLeave} on:focus={onFocus} on:blur={onBlur} on:click={onClick} on:keydown={(event) => tooltipController?.handleKeydown(event)}>{#if bare}{:else if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
-    </span>{#if tooltipId}<EntityTooltip bind:this={tooltipController} ref={resolved} {registry} {rankIndex} anchor={anchorElement} id={tooltipId} />{/if}
+    </span>{#if tooltipId}<EntityTooltip bind:this={tooltipController} ref={resolved} {registry} {rankIndex} anchor={anchorElement} id={tooltipId} pointer={() => (hovered ? { x: pointerX, y: pointerY } : null)} />{/if}
   {:else}
     <a class="entity-link" class:truncate class:plain={bare} data-rarity={rarity} {href} title={truncate ? resolved.name : undefined}>{#if bare}{:else if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
   {/if}

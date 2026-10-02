@@ -7,3 +7,4 @@
 - [x] 1.5 Add the shared side card frame and the facts card.
 - [x] 1.6 Show the first eight links of a link grid and a Show N more control.
 - [x] 1.7 Extract the item page's How to get it routes into a shared section.
+- [x] 1.8 Place a hover card beside the hovered line of a link that wraps.

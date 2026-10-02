@@ -10,6 +10,7 @@ Readers judge the Compendium by its weakest page. Stat links carried a framed ki
 - A page without side facts uses the full width. Side cards share one frame, and a facts card holds the numbers that used to sit in a lone stat strip.
 - Link grids show their first eight links and a Show N more control.
 - The item page's How to get it routes are one shared section, so other pages can show an item's routes.
+- A hover card opens beside the hovered line of a link that wraps, instead of beside the whole paragraph, where it ran off the screen.
 
 ## Capabilities
 
@@ -18,6 +19,7 @@ Readers judge the Compendium by its weakest page. Stat links carried a framed ki
 - `detail-pages`: the full-width layout without side facts and one side card frame.
 - `compendium-reference`: stat links.
 - `compendium-tooltips`: text links in item tooltips and the stat preview.
+- `reference-layout`: hover card placement for a link that wraps.
 
 ## Impact
 
