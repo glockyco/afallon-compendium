@@ -5,7 +5,7 @@ export interface TabSpec {
   anchors?: readonly string[];
 }
 
-/** The tab that the address selects, and whether the address must replace its `tab` value to name that tab. */
+/** The tab that the address selects, and whether the address must replace the value of its tab set to name that tab. */
 export interface TabSelection {
   key: string;
   replace: boolean;
@@ -31,12 +31,13 @@ export function tabOwningAnchor(tabs: readonly TabSpec[], anchor: string): strin
 }
 
 /**
- * The tab that the address selects. A fragment that a tab owns wins over the `tab` value. Without such a fragment, a
- * known `tab` value selects its tab, and an absent or unknown value selects the first tab. The address must then name
- * the selected tab when its value is unknown or names another tab than the owner of the fragment.
+ * The tab that the address selects. `param` is the query field of the tab set, so tab sets with different fields choose
+ * independently. A fragment that a tab owns wins over the field. Without such a fragment, a known value selects its tab,
+ * and an absent or unknown value selects the first tab. The address must then name the selected tab when its value is
+ * unknown or names another tab than the owner of the fragment.
  */
-export function selectTab(tabs: readonly TabSpec[], url: URL): TabSelection {
-  const requested = url.searchParams.get('tab');
+export function selectTab(tabs: readonly TabSpec[], url: URL, param: string): TabSelection {
+  const requested = url.searchParams.get(param);
   const owner = tabOwningAnchor(tabs, fragmentId(url.hash));
   if (owner !== undefined) return { key: owner, replace: requested !== owner };
   if (requested !== null && tabs.some((tab) => tab.key === requested)) return { key: requested, replace: false };
@@ -44,12 +45,12 @@ export function selectTab(tabs: readonly TabSpec[], url: URL): TabSelection {
 }
 
 /**
- * The address with `key` as its `tab` value. Other query fields keep their values. `clearHash` removes the fragment,
- * because an anchor of another view no longer names a visible target after an explicit tab choice.
+ * The address with `key` as the value of `param`. Other query fields keep their values. `clearHash` removes the
+ * fragment, because an anchor of another view no longer names a visible target after an explicit tab choice.
  */
-export function withTab(url: URL, key: string, clearHash: boolean): URL {
+export function withTab(url: URL, param: string, key: string, clearHash: boolean): URL {
   const next = new URL(url.href);
-  next.searchParams.set('tab', key);
+  next.searchParams.set(param, key);
   if (clearHash) next.hash = '';
   return next;
 }

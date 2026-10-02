@@ -407,6 +407,7 @@ export const ItemUsePackSchema = Type.Object({
   bonusChance: percent, worldShare: percent, minimumPicks: count, maximumPicks: optional(count),
   armorType: optional(text), stats: Type.Array(RefSchema),
 }, { additionalProperties: false });
+export type ItemUsePack = Static<typeof ItemUsePackSchema>;
 export const ItemUseSchema = Type.Object({
   chests: Type.Array(ItemUseChestSchema), packs: Type.Array(ItemUsePackSchema),
   itemChanges: Type.Array(Type.Object({ action: Type.Union([Type.Literal("Gain"), Type.Literal("Remove")]), item: RefSchema, count })),

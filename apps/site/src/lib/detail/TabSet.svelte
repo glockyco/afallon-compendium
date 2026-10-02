@@ -10,8 +10,10 @@
   export let label: string;
   /** Makes the control and panel ids unique when a page holds several tab sets with the same keys. */
   export let idPrefix: string;
+  /** The query field that holds the choice. Tab sets with different fields choose independently. */
+  export let param = 'tab';
 
-  // Tab sets of one page share the address, so a choice in one set selects the same key in every set.
+  // Tab sets of one page share the address, so a choice in one set selects the same key in every set with the same field.
   const parent = detailNavigation();
   const navigation = parent ?? provideDetailNavigation();
   const location = navigation.location;
@@ -20,16 +22,16 @@
   // are marked as handled, because they select a tab and do not scroll.
   let handled: URL | null = null;
 
-  $: selected = $location ? selectTab(tabs, $location).key : tabs[0]?.key ?? '';
+  $: selected = $location ? selectTab(tabs, $location, param).key : tabs[0]?.key ?? '';
   $: if ($location) void follow($location);
 
   // The address names the selected tab. A fragment that a tab owns opens that tab and then scrolls to its target.
   async function follow(url: URL): Promise<void> {
-    const selection = selectTab(tabs, url);
+    const selection = selectTab(tabs, url, param);
     if (selection.replace) {
       // The address is repaired while the page starts, before the router accepts `replaceState`. The browser call keeps
       // the router's history state, as the map does for its initial address.
-      const next = withTab(url, selection.key, false);
+      const next = withTab(url, param, selection.key, false);
       handled = next;
       window.history.replaceState(window.history.state, '', next);
       location.set(next);
@@ -53,10 +55,10 @@
 
   function choose(key: string, focus: boolean): void {
     const url = $location ?? new URL(window.location.href);
-    if (key !== selectTab(tabs, url).key) {
+    if (key !== selectTab(tabs, url, param).key) {
       // An anchor of another tab no longer names a visible target, so an explicit choice removes it.
       const owner = tabOwningAnchor(tabs, fragmentId(url.hash));
-      const next = withTab(url, key, owner !== undefined && owner !== key);
+      const next = withTab(url, param, key, owner !== undefined && owner !== key);
       handled = next;
       pushState(next, {});
       location.set(next);

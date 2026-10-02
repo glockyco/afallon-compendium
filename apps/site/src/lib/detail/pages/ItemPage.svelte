@@ -8,7 +8,6 @@
   import { formatNumber, nameOf, rarityTone } from '../../format';
   import { itemOnMap, spotOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
-  import DetailsDisclosure from '../DetailsDisclosure.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import LevelSlider from '../LevelSlider.svelte';
@@ -19,6 +18,7 @@
   import RelationTable from '../RelationTable.svelte';
   import { itemQuestSourceRows, itemQuestUseRows } from '../quest-rows';
   import CraftingSection from '../sections/CraftingSection.svelte';
+  import SupplyPackBands from '../sections/SupplyPackBands.svelte';
   import ContainerSection from '../sections/ContainerSection.svelte';
   import DroppedBySection from '../sections/DroppedBySection.svelte';
   import GatherSection from '../sections/GatherSection.svelte';
@@ -45,10 +45,6 @@
     ?? document.placedRules.find((rule) => rule.target === 'crafting');
   $: chestGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.section === 'chests');
   $: packGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.section === 'supply-packs');
-  $: firstPack = document.whenUsed.packs[0];
-  $: sharedPackPicks = firstPack && document.whenUsed.packs.every((pack) =>
-    pack.minimumPicks === firstPack.minimumPicks && pack.maximumPicks === firstPack.maximumPicks
-    && pack.bonusChance === firstPack.bonusChance && pack.worldShare === firstPack.worldShare) ? firstPack : undefined;
   $: corruptionGuide = document.placedRules.find((rule) => rule.target === 'corruption');
   $: dungeonGuide = document.placedRules.find((rule) => rule.target === 'dungeon-rewards');
   $: tokenGuide = document.placedRules.find((rule) => rule.target === 'corruption-token');
@@ -66,10 +62,6 @@
     { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
     { id: 'quantity', label: 'Quantity', hint: 'How many of the item drop. Every amount in the range is equally likely.', numeric: true, value: (row) => `${row.min}–${row.max}`, sort: (row) => row.max },
     { id: 'chance', label: 'Chance', hint: 'Each item rolls this chance on its own when the chest opens.', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
-  ];
-  const packColumns: RelationColumn<PublicItem['whenUsed']['packs'][number]['entries'][number]>[] = [
-    { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
-    { id: 'quantity', label: 'Quantity', hint: 'How many of the item you get when the pack gives it.', numeric: true, value: (row) => `${row.min}–${row.max}`, sort: (row) => row.max },
   ];
   const fromItemColumns: RelationColumn<PublicItem['fromItems'][number]>[] = [
     { id: 'source', label: 'Item', value: (row) => row.source.name, sort: (row) => row.source.name },
@@ -171,7 +163,8 @@
       <Section id="teaches" title="Teaches"><CraftingSection craft={document.teaches} pageKey={document.ref.key} rules={document.placedRules.filter((entry) => entry.target === 'teaches')} {registry} /></Section>
     {/if}
     {#if document.whenUsed.chests.length || document.whenUsed.packs.length || document.whenUsed.itemChanges.length}
-      <Section id="when-used" title="When used" count={document.whenUsed.chests.length + document.whenUsed.packs.length + document.whenUsed.itemChanges.length}>
+      <!-- Tabs choose the tables of a pack, so a section with pack tables shows no count. -->
+      <Section id="when-used" title="When used" count={document.whenUsed.packs.length ? undefined : document.whenUsed.chests.length + document.whenUsed.itemChanges.length}>
         <div class="c-stack">
           {#if document.whenUsed.chests.length}
             <div class="c-groups">
@@ -196,24 +189,7 @@
           {#each document.whenUsed.itemChanges as change}
             <p>Using it {change.action === 'Remove' ? 'consumes' : 'gives'} {formatNumber(change.count)} <EntityLink ref={change.item} {registry} />.</p>
           {/each}
-          {#if document.whenUsed.packs.length}
-            {#if sharedPackPicks}<p>Gives {formatNumber(sharedPackPicks.minimumPicks)} {sharedPackPicks.minimumPicks === 1 ? 'item' : 'items'}{#if sharedPackPicks.bonusChance > 0}, with a {formatNumber(sharedPackPicks.bonusChance)}% chance of one more{/if}{#if sharedPackPicks.maximumPicks !== undefined && sharedPackPicks.maximumPicks < sharedPackPicks.minimumPicks + 1} (at most {formatNumber(sharedPackPicks.maximumPicks)}){/if}.{#if sharedPackPicks.worldShare > 0}{' '}Each item has a {formatNumber(sharedPackPicks.worldShare)}% chance to be world loot for your class and level instead.{/if}</p>{/if}
-            {#if packGuide}<HowItWorks guide={packGuide.guide} section={packGuide.section} label="How supply packs work" />{/if}
-            <div class="c-disclosures">
-              {#each document.whenUsed.packs as pack, index}
-                <DetailsDisclosure title={packBandText(pack)} id={`supply-pack-${index + 1}`}>
-                  {#if !sharedPackPicks}<p>Gives {formatNumber(pack.minimumPicks)} {pack.minimumPicks === 1 ? 'item' : 'items'}{#if pack.bonusChance > 0}, with a {formatNumber(pack.bonusChance)}% chance of one more{/if}{#if pack.maximumPicks !== undefined && pack.maximumPicks < pack.minimumPicks + 1} (at most {formatNumber(pack.maximumPicks)}){/if}.{#if pack.worldShare > 0}{' '}Each item has a {formatNumber(pack.worldShare)}% chance to be world loot for your class and level instead.{/if}</p>{/if}
-                  {#if pack.armorType || pack.stats.length}<p>World loot: {#if pack.armorType}{categoryLabel(pack.armorType)} armor{/if}{#if pack.stats.length}{pack.armorType ? ', ' : ''}{#each pack.stats as stat, statIndex}{#if statIndex}, {/if}<EntityLink ref={stat} {registry} />{/each}{/if}</p>{/if}
-                  <RelationTable columns={packColumns} rows={pack.entries} label="Items in this class and level band">
-                    <svelte:fragment slot="cell" let:row let:column>
-                      {#if column === 'item'}<EntityLink ref={row.item} {registry} />
-                      {:else}{formatNumber(row.min)}{#if row.max !== row.min}–{formatNumber(row.max)}{/if}{/if}
-                    </svelte:fragment>
-                  </RelationTable>
-                </DetailsDisclosure>
-              {/each}
-            </div>
-          {/if}
+          {#if document.whenUsed.packs.length}<SupplyPackBands packs={document.whenUsed.packs} guide={packGuide} {registry} />{/if}
         </div>
       </Section>
     {/if}
