@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import type { CreatureRow, PlacementGroup, Ref } from '@afallon/contracts/public';
-import { placeCreatureRows, placePointsOfInterest } from './place-rows';
+import type { CreatureRow, Ref } from '@afallon/contracts/public';
+import { placeCreatureRows } from './place-rows';
 
 const boss: Ref = { key: 'npc:boss', kind: 'npcs', name: 'Boss', slug: 'boss' };
 const missingBoss: Ref = { key: 'npc:missing', kind: 'npcs', name: 'Missing Boss', slug: 'missing-boss' };
@@ -16,14 +16,5 @@ describe('place relation rows', () => {
     expect(result.bosses.map((row) => row.counterpart.key)).toEqual([boss.key, missingBoss.key]);
     expect(result.creatures.map((row) => row.counterpart.key)).toEqual([creature.key]);
     expect(result.bosses[1]?.placementCount).toBe(0);
-  });
-
-  test('shows only categories not represented by any inhabitant role, sorted by label', () => {
-    const groups: PlacementGroup[] = [
-      { category: 'oreVein', placementCount: 4 },
-      { category: 'merchant', placementCount: 3 },
-      { category: 'container', placementCount: 8 },
-    ];
-    expect(placePointsOfInterest(groups, [{ counterpart: creature, roles: ['merchant'], placementCount: 3 }]).map((row) => row.category)).toEqual(['container', 'oreVein']);
   });
 });

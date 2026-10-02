@@ -1,5 +1,4 @@
-import type { CreatureRow, PlacementGroup, Ref } from '@afallon/contracts/public';
-import { roleLabel } from '../format';
+import type { CreatureRow, Ref } from '@afallon/contracts/public';
 
 /** Show a boss only once, even when its place has no creature row for it. */
 export function placeCreatureRows(bosses: readonly Ref[], creatures: readonly CreatureRow[]): { bosses: CreatureRow[]; creatures: CreatureRow[] } {
@@ -15,10 +14,4 @@ export function placeCreatureRows(bosses: readonly Ref[], creatures: readonly Cr
     }
   }
   return { bosses: bossRows, creatures: otherRows };
-}
-
-/** A category already named by a creature or NPC row does not need a second listing. */
-export function placePointsOfInterest(groups: readonly PlacementGroup[], inhabitants: readonly CreatureRow[]): PlacementGroup[] {
-  const shownRoles = new Set(inhabitants.flatMap((row) => row.roles));
-  return groups.filter((group) => !shownRoles.has(group.category)).sort((left, right) => roleLabel(left.category).localeCompare(roleLabel(right.category)));
 }
