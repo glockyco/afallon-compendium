@@ -74,8 +74,8 @@ export const load: PageServerLoad = async ({ parent }) => {
     return rows.length ? [{ type, label, count: rows.length, icon: pick?.ref.icon ?? null, rarity: pick?.facets.rarity?.[0] ?? null }] : [];
   });
 
-  // The mechanics guides of the menu, each with the one sentence that says what it explains.
-  const guides: HubGuide[] = published.has('mechanics') ? (await Promise.all(GUIDE_TOPICS.map(async ({ slug }) => {
+  // The featured mechanics pages of the Browse panel, each with the one sentence that says what it explains.
+  const guides: HubGuide[] = published.has('mechanics') ? (await Promise.all(GUIDE_TOPICS.filter((topic) => topic.featured).map(async ({ slug }) => {
     const page = await loader.loadDocument('mechanics', slug);
     return page.kind === 'mechanics' ? [{ ref: page.document.ref, description: page.document.description }] : [];
   }))).flat() : [];

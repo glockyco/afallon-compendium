@@ -2,7 +2,8 @@ import { MECHANICS_TOPIC_DEFINITIONS, type PublicKindEntry } from '@afallon/cont
 
 /** A destination. `description` is the one line that the Browse panel shows under its label; `icon` names a kind glyph. */
 export interface NavigationLink { label: string; href: string; description?: string; icon?: string }
-export interface NavigationGroup { id: string; label: string; links: NavigationLink[] }
+/** `more` links the full list of a column that names only some of its destinations. */
+export interface NavigationGroup { id: string; label: string; links: NavigationLink[]; more?: NavigationLink }
 /** `primary` links stand in the bar; `sections` are the columns of the one Browse panel, which names every destination. */
 export interface Navigation { primary: NavigationLink[]; sections: NavigationGroup[] }
 
@@ -41,10 +42,10 @@ const DESCRIPTIONS: Readonly<Record<string, string>> = {
   effects: 'Buffs, debuffs, and states',
 };
 
-/** The mechanics guides in menu order. The hub uses these same destinations. */
-export const GUIDE_TOPICS: ReadonlyArray<{ label: string; slug: string; description: string }> =
-  [...MECHANICS_TOPIC_DEFINITIONS].sort((a, b) => a.menuOrder - b.menuOrder)
-    .map(({ id, name, menuDescription }) => ({ label: name, slug: id, description: menuDescription }));
+/** The mechanics pages in alphabetical order. The hub lists all of them; the Browse panel names the featured ones. */
+export const GUIDE_TOPICS: ReadonlyArray<{ label: string; slug: string; description: string; featured: boolean }> =
+  [...MECHANICS_TOPIC_DEFINITIONS].sort((a, b) => a.name.localeCompare(b.name))
+    .map(({ id, name, menuDescription, featured }) => ({ label: name, slug: id, description: menuDescription, featured }));
 
 /**
  * The navigation of a publication. A paged kind that no column names goes to an Other column, so the menu never hides a
@@ -55,9 +56,12 @@ export function siteNavigation(registry: readonly PublicKindEntry[], base: strin
   const named = new Set(SECTIONS.flatMap((section) => section.entries));
   const link = (entry: PublicKindEntry): NavigationLink => ({ label: entry.plural, href: `${base}/${entry.route}/`, icon: entry.icon,
     ...(DESCRIPTIONS[entry.kind] ? { description: DESCRIPTIONS[entry.kind] } : {}) });
-  // The registry names kinds, not individual mechanics documents, so the menu names each guide topic.
+  // The registry names kinds, not individual mechanics documents, so the menu names each mechanics topic.
   const mechanics = byKind.get('mechanics');
-  const topics: NavigationLink[] = mechanics ? GUIDE_TOPICS.map(({ label, slug, description }) => ({ label, href: `${base}/${mechanics.route}/${slug}/`, description })) : [];
+  const topics: NavigationLink[] = mechanics ? GUIDE_TOPICS.filter((topic) => topic.featured).map(({ label, slug, description }) => ({ label, href: `${base}/${mechanics.route}/${slug}/`, description })) : [];
+  // The Mechanics column names the featured pages and links the list of every mechanics page.
+  const allGuides: NavigationLink | undefined = mechanics && topics.length < GUIDE_TOPICS.length
+    ? { label: `All ${GUIDE_TOPICS.length} mechanics`, href: `${base}/${mechanics.route}/` } : undefined;
   const links = (id: string): NavigationLink[] => {
     if (id === 'map') return [{ label: 'Map', href: `${base}/map/`, icon: 'world-map', description: DESCRIPTIONS.map }];
     if (id === 'mechanics') return topics;
@@ -66,7 +70,8 @@ export function siteNavigation(registry: readonly PublicKindEntry[], base: strin
   };
   const other = registry.filter((entry) => entry.pages && !named.has(entry.kind)).map(link);
   const sections = [
-    ...SECTIONS.map((section) => ({ id: section.id, label: section.label, links: section.entries.flatMap(links) })),
+    ...SECTIONS.map((section): NavigationGroup => ({ id: section.id, label: section.label, links: section.entries.flatMap(links),
+      ...(section.id === 'mechanics' && allGuides ? { more: allGuides } : {}) })),
     { id: 'other', label: 'Other', links: other },
   ].filter((section) => section.links.length > 0);
   // The bar keeps its links short; the panel carries the descriptions and glyphs.

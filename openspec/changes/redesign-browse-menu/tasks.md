@@ -6,3 +6,4 @@
 - [x] 1.4 Check the panel at 1440, 1100, and 390 px for labels outside their highlight and sideways scroll.
 - [x] 1.5 Refine the bar: serif brand, five direct links with Mechanics, a current-page rule, a search glyph, and a quiet Support link.
 - [x] 1.6 Keep the search field wide enough for a query at every width and its results at least one result line wide.
+- [x] 1.7 Feature six mechanics pages in the Browse panel, sort them alphabetically, and link the list of all mechanics pages.

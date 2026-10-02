@@ -32,7 +32,7 @@
 
   // On a phone the panel stacks its columns, and each column opens on its own. The column of the current page starts open.
   let expanded: string | null = null;
-  $: if (browse && !browse.open) expanded = navigationModel.sections.find((section) => section.links.some((link) => current(link.href)))?.id ?? null;
+  $: if (browse && !browse.open) expanded = navigationModel.sections.find((section) => section.links.some((link) => current(link.href)) || (section.more && current(section.more.href)))?.id ?? null;
 
   function closeBrowse(): void {
     if (browse) browse.open = false;
@@ -89,6 +89,7 @@
                       <span class="copy"><span class="label">{link.label}</span>{#if link.description}<span class="description">{link.description}</span>{/if}</span>
                     </a></li>
                   {/each}</ul>
+                  {#if section.more}<a class="more" href={section.more.href}>{section.more.label}<span aria-hidden="true">→</span></a>{/if}
                 </section>
               {/each}
             </div>
@@ -182,6 +183,10 @@
   .label { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
   .description { color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.35; }
   .group a[aria-current='page'] .label { font-weight: 700; }
+  /* A column that names only some destinations ends with a link to all of them, aligned with the entry names. */
+  /* Entry names sit after the empty glyph column and its gap, so the link takes the same indent. */
+  .group a.more { display: inline-flex; gap: .4rem; margin-top: .35rem; padding: .35rem .55rem .35rem calc(.55rem + .65rem); color: var(--c-accent); font-size: var(--c-text-small); font-weight: 600; }
+  .group a.more:hover { background: var(--c-tint-hover); color: var(--c-accent-strong); }
   .kofi { display: inline-flex; align-items: center; gap: .45rem; color: var(--c-text-dim); text-decoration: none; }
   .kofi:hover { color: var(--c-text-strong); }
   .kofi :global(svg) { width: 1.15rem; height: 1.15rem; flex: none; }

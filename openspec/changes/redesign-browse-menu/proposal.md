@@ -8,7 +8,7 @@ The Browse panel was a plain grid of text links whose columns were too narrow fo
 - On phones the columns become full-width sections that open one at a time, starting with the section of the current page.
 - The bar ends with a Support link to Ko-fi, which shrinks to the Ko-fi cup where the bar is short of room. The page footer links Ko-fi too. The map's button uses the same glyph.
 - The bar's search field keeps room for a query and moves to its own row below 1024 px. Its results open at least 24rem wide.
-- The Mechanics column and the hub list the Travel and World Quests guides.
+- The Mechanics column names six featured mechanics pages in alphabetical order and links the list of all of them. The hub lists every mechanics page, including Travel and World Quests, in alphabetical order. No navigation text calls these pages guides.
 - The bar names the site in the serif of the page titles, links Map, Items, Quests, Classes, and Mechanics, marks the current link with a gold rule on its lower edge, gives search a glyph and a short placeholder, and sets the Support link apart as a quiet link.
 
 ## Capabilities

@@ -26,7 +26,7 @@
   $: pageHref = (ref: EntityRef) => { const route = routes.get(ref.kind); return route && ref.slug ? `${base}/${route}/${ref.slug}/${ref.variant ? `#${ref.variant}` : ''}` : undefined; };
   $: listHref = (kind: string) => { const route = data.registry.find((entry) => entry.kind === kind && entry.list)?.route; return route ? `${base}/${route}/` : undefined; };
   $: counts = new Map<string, number>([...data.pageCounts.map((entry) => [entry.kind, entry.count] as const), ['recipes', data.recipeCount] as const]);
-  // Browse tiles are reference lists. Mechanics pages are guides, which have their own section above.
+  // Browse tiles are reference lists. Mechanics pages have their own section above.
   $: browse = data.registry.filter((entry) => entry.list && entry.kind !== 'mechanics').map((entry) => ({ label: entry.plural, href: `${base}/${entry.route}/`, count: counts.get(entry.kind) ?? 0, glyph: kindGlyphSvg(entry.icon) }));
   // A tile without art shows the glyph of its kind in the same box, so the tiles stay aligned.
   $: kindGlyph = (kind: string) => kindGlyphSvg(data.registry.find((entry) => entry.kind === kind)?.icon) ?? '';
@@ -172,7 +172,10 @@
 
   {#if data.guides.length}
     <section class="section" aria-labelledby="hub-guides">
-      <div class="section-head"><h2 id="hub-guides">Mechanics</h2></div>
+      <div class="section-head">
+        <h2 id="hub-guides">Mechanics</h2>
+        {#if listHref('mechanics')}<a class="section-link" href={listHref('mechanics')}>All {countText(counts.get('mechanics') ?? 0, 'mechanic', 'mechanics')}</a>{/if}
+      </div>
       <ul class="guides">
         {#each data.guides as guide (guide.ref.key)}
           <li><a class="guide-tile" href={pageHref(guide.ref)}><span class="tile-name">{guide.ref.name}</span>{#if guide.description}<span class="guide-text">{guide.description}</span>{/if}</a></li>

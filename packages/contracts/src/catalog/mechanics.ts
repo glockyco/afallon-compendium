@@ -7,18 +7,21 @@ const text = Type.String({ minLength: 1 });
 const sha256 = Type.String({ pattern: "^[0-9a-f]{64}$" });
 const ruleId = Type.String({ pattern: "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" });
 
-/** One definition per published guide; schema order is the order of these declarations. */
+/**
+ * One definition per published mechanics page; schema order is the order of these declarations. A `featured` page is
+ * named in the Browse panel, which links the list of all mechanics pages for the others.
+ */
 export const MECHANICS_TOPIC_DEFINITIONS = [
-  { id: "character-progression", name: "Character Progression", description: "How a character gains experience, levels, and talent points.", menuDescription: "Experience and talents", menuOrder: 1 },
-  { id: "heroic-tier", name: "Heroic Tier", description: "How the Heroic tier changes kill experience, Heroic Essence, creatures, and gear.", menuDescription: "Heroic creatures and gear", menuOrder: 6 },
-  { id: "crafting-and-gathering", name: "Crafting and Gathering", description: "How crafting and gathering give items and skill experience.", menuDescription: "Recipes and nodes", menuOrder: 2 },
-  { id: "corruption", name: "Corruption", description: "How Corruption Tokens, timed dungeons, and corrupted equipment work.", menuDescription: "Tokens and timed dungeons", menuOrder: 4 },
-  { id: "loot", name: "Loot", description: "How bags, chests, supply packs, world objects, cloth drops, quest pickups, and the Dungeon Finder give items.", menuDescription: "Bags, chests, and packs", menuOrder: 7 },
-  { id: "adventurers", name: "Adventurers", description: "How to meet adventurers, invite them to your party, and understand their jobs, gear, and Dungeon Finder roles.", menuDescription: "Jobs and parties", menuOrder: 0 },
-  { id: "factions", name: "Factions and Reputation", description: "How your standing with each faction works and how factions treat you in combat.", menuDescription: "Standing and stances", menuOrder: 5 },
-  { id: "world-quests", name: "World Quests", description: "Where World Quests appear, how their timers work, and what completing them rewards.", menuDescription: "Timed quests in zones", menuOrder: 9 },
-  { id: "travel", name: "Travel", description: "Flight masters, discovered stops, routes, and fares.", menuDescription: "Flight masters and routes", menuOrder: 8 },
-  { id: "combat", name: "Combat", description: "How stats, damage, critical hits, on-hit effects, and lasting effects work.", menuDescription: "Stats, damage, and effects", menuOrder: 3 },
+  { id: "character-progression", name: "Character Progression", description: "How a character gains experience, levels, and talent points.", menuDescription: "Experience and talents", featured: true },
+  { id: "heroic-tier", name: "Heroic Tier", description: "How the Heroic tier changes kill experience, Heroic Essence, creatures, and gear.", menuDescription: "Heroic creatures and gear", featured: false },
+  { id: "crafting-and-gathering", name: "Crafting and Gathering", description: "How crafting and gathering give items and skill experience.", menuDescription: "Recipes and nodes", featured: true },
+  { id: "corruption", name: "Corruption", description: "How Corruption Tokens, timed dungeons, and corrupted equipment work.", menuDescription: "Tokens and timed dungeons", featured: true },
+  { id: "loot", name: "Loot", description: "How bags, chests, supply packs, world objects, cloth drops, quest pickups, and the Dungeon Finder give items.", menuDescription: "Bags, chests, and packs", featured: true },
+  { id: "adventurers", name: "Adventurers", description: "How to meet adventurers, invite them to your party, and understand their jobs, gear, and Dungeon Finder roles.", menuDescription: "Jobs and parties", featured: true },
+  { id: "factions", name: "Factions and Reputation", description: "How your standing with each faction works and how factions treat you in combat.", menuDescription: "Standing and stances", featured: true },
+  { id: "world-quests", name: "World Quests", description: "Where World Quests appear, how their timers work, and what completing them rewards.", menuDescription: "Timed quests in zones", featured: false },
+  { id: "travel", name: "Travel", description: "Flight masters, discovered stops, routes, and fares.", menuDescription: "Flight masters and routes", featured: false },
+  { id: "combat", name: "Combat", description: "How stats, damage, critical hits, on-hit effects, and lasting effects work.", menuDescription: "Stats, damage, and effects", featured: false },
 ] as const;
 export const MECHANICS_TOPICS = MECHANICS_TOPIC_DEFINITIONS.map(({ id }) => id);
 export const MechanicsTopicSchema = Type.Union(MECHANICS_TOPIC_DEFINITIONS.map(({ id }) => Type.Literal(id)) as [TLiteral<(typeof MECHANICS_TOPICS)[number]>, ...TLiteral<(typeof MECHANICS_TOPICS)[number]>[]]);
