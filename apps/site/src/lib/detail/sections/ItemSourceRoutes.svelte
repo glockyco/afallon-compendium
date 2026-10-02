@@ -37,7 +37,7 @@
       <li class="route" class:primary={entry === sources[0]} id={entry.id === 'crafting' || (entry.id === 'dropped-by' && singleDropInAnswer) ? entry.id : undefined}>
         {#if entry.id !== 'crafting' || sources.length > 1}<div class="route-head"><strong class="route-label">{entry.label}</strong>{#if entry.spotCount}<span class="route-count">{formatNumber(entry.spotCount)} map spots</span>{/if}</div>{/if}
         {#if entry.id === 'crafting' && craft}
-          <p class="craft-title">{#if craft.skill && firstRank}Requires <EntityLink ref={craft.skill} {registry} /> level {formatNumber(firstRank.requiredLevel)}{:else if craft.skill}Craft with <EntityLink ref={craft.skill} {registry} />{:else}Craft from the materials below{/if}{#if craft.station}{' at a '}{'name' in craft.station ? craft.station.name : craft.station.label} station{/if}.</p>
+          <p class="craft-title">{#if craft.skill && firstRank}Craft it with <EntityLink ref={craft.skill} {registry} /> level {formatNumber(firstRank.requiredLevel)}{:else if craft.skill}Craft it with <EntityLink ref={craft.skill} {registry} />{:else}Craft it from the materials below{/if}{#if craft.station}{' at a '}{'name' in craft.station ? craft.station.name : craft.station.label} station{/if}.</p>
           {#if craft.recipe.name !== document.ref.name}<p class="recipe-name">Recipe: {craft.recipe.name}</p>{/if}
           {#if materials.length}<div class="materials"><span>Materials</span><MaterialsList {materials} {registry} /></div>{/if}
           {#if craft.product && craft.product.count > 1}<p>Makes {formatNumber(craft.product.count)} per craft.</p>{/if}
