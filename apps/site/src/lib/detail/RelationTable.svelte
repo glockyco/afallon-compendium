@@ -26,6 +26,9 @@
   $: shown = shownRowCount(sorted.length, expanded);
   // A table with one row has nothing to order, so its headings are plain text.
   $: sortable = rows.length > 1;
+  // On a phone, up to two numbers sit beside the name when no other column comes before them. Every other column is a
+  // labelled detail line below the name.
+  $: besideName = columns.map((column, index) => index > 0 && index <= 2 && columns.slice(1, index + 1).every((entry) => entry.numeric));
 
   // The address can name an anchor in a row that the limit hides. Such a row opens the table and scrolls into view.
   async function revealTarget(): Promise<void> {
@@ -96,7 +99,7 @@
         <!-- svelte-ignore a11y_no_redundant_roles -->
         <tr role="row" hidden={index >= shown}>
           {#each columns as column, columnIndex}
-            <td role="cell" class:num={column.numeric} class:name={columnIndex === 0} class:detail={columnIndex > 0 && (!column.numeric || columnIndex > 2)}>
+            <td role="cell" class:num={column.numeric} class:name={columnIndex === 0} class:detail={columnIndex > 0 && !besideName[columnIndex]}>
               {#if columnIndex === 0}{#each rowAnchors(row) as anchor}<span class="anchor" id={anchor}></span>{/each}{/if}
               {#if columnIndex > 0}<span class="cell-label" aria-hidden="true">{column.label}</span>{/if}
               <span class="cell-value"><slot name="cell" {row} column={column.id} /></span>
@@ -141,6 +144,7 @@
     tbody td:not(.name):has(> .cell-value:empty) { display: none; }
     td.num { white-space: nowrap; }
     td.num:not(.detail) { text-align: right; }
+    td.num.detail { text-align: left; }
     .cell-label { display: none; }
     td.detail .cell-label { display: block; color: var(--c-text-mute); }
     .cell-value { min-width: 0; }
