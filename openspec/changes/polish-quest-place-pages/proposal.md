@@ -6,7 +6,7 @@ Place pages can lead with empty cards or large artwork while hiding ways to expl
 
 - Lead quest pages with their objectives and starts, move world quest timing into a disclosure, and separate objective hints and counts.
 - Link a world-change object to a published item only when the same quest explicitly asks for that item.
-- Lead place pages with access and useful relations, use the shared side-card frame, and place story and artwork after playable content.
+- Open place pages with their artwork as a banner, their description, and what a player finds there, and use the shared side-card frame.
 - Withhold reviewed scenes that have no published map space, prose, artwork, inhabitants, objectives, or placements through evidence-checked publication exclusions. Retain descriptive zones and show creatures and quests from verified, exactly matching named-area placements.
 - Use sentence-case labels and clarify that the Places facet refers to the game's Adventure Guide.
 

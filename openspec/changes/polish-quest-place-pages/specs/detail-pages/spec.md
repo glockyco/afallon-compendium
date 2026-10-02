@@ -22,7 +22,7 @@ A quest's identity SHALL show its type, available quest level, and chain step wi
 
 ### Requirement: Place pages show what a player finds there and how to get there
 
-A place's identity SHALL show its type and available level range without a lone stat strip. Its answer SHALL lead with access and the most useful available inhabitants, quests, or places to enter. Artwork and description SHALL remain available after the actionable relations. Its sections SHALL follow: Bosses with portraits, Creatures excluding bosses, NPCs, Gathering and objects with category counts, Quests, Areas. Available properties and points of interest SHALL remain reachable in the appropriate section rather than disappear. The place SHALL not infer a level range where none was published. When no actionable content exists, the page SHALL not display an empty answer card.
+A place's identity SHALL show its type and available level range without a lone stat strip. Its answer SHALL show the place's artwork as a banner and its description, followed by the most useful available inhabitants, quests, or places to enter with links to their sections. Its sections SHALL follow: Bosses with portraits, Creatures excluding bosses, NPCs, Gathering and objects with category counts, Quests, Areas. Available properties and points of interest SHALL remain reachable in the appropriate section rather than disappear. The place SHALL not infer a level range where none was published. When no actionable content exists, the page SHALL not display an empty answer card.
 
 The side SHALL show these cards when their facts exist:
 
@@ -63,7 +63,7 @@ The overworld page SHALL show a Places to enter section that groups the places a
 
 #### Scenario: Descriptive zone without map space
 - **WHEN** a zone has lore and published placements whose area exactly matches its name
-- **THEN** the place shows creatures and quests from those placements before its lore, without inventing a place map pin
+- **THEN** its answer shows its artwork, its lore, and the count of creatures and quests from those placements, and its sections list them, without inventing a place map pin
 
 #### Scenario: A shared creature level rule
 - **WHEN** every creature in a place scales with the player's level

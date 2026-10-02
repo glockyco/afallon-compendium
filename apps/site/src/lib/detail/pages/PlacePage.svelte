@@ -3,10 +3,9 @@
   import { categoryLabel } from '@afallon/contracts/public';
   import { base } from '$app/paths';
   import EntityLink from '../../EntityLink.svelte';
-  import { formatNumber, levelText } from '../../format';
+  import { formatNumber, levelText, listText } from '../../format';
   import { placeOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
-  import DetailsDisclosure from '../DetailsDisclosure.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import { placeCreatureRows } from '../place-rows';
   import { placeQuestRows } from '../quest-rows';
@@ -24,6 +23,7 @@
   export let registry: PublicKindEntry[];
 
   $: facts = document.facts;
+  $: artwork = document.art.artwork;
   $: inhabitants = placeCreatureRows(document.bosses, document.creatures);
   $: quests = placeQuestRows(document.quests, document.questObjectives);
   $: hasSide = document.startingRaces.length > 0 || document.challengeStoneStart !== undefined || document.entrances.length > 0
@@ -40,14 +40,17 @@
   ];
 </script>
 
-<DetailFrame side={hasSide} answer={Boolean(summary.length || document.variantOf || !document.space)}>
+<!-- The answer shows the place as the game pictures it, its own description, and then what a player finds there. -->
+<DetailFrame side={hasSide} answer={Boolean(artwork || document.description || summary.length || document.variantOf || !document.space)}>
   <svelte:fragment slot="head"><TitleBlock name={document.ref.name} typeLine={categoryLabel(facts.placeType)} facts={identity} mapHref={document.space ? placeOnMap(document.ref.key, document.variantOf ? 'all' : undefined) : undefined} {registry} /></svelte:fragment>
   <svelte:fragment slot="answer">
-    {#if summary.length || document.variantOf}
+    {#if artwork || document.description || summary.length || document.variantOf}
       <AnswerCard title="Explore this place">
+        {#if artwork}<img class="artwork" src={`${base}/data/${artwork.url}`} width={artwork.width} height={artwork.height} alt={`${document.ref.name} artwork`} />{/if}
         {#if document.variantOf}<p>A challenge version of <EntityLink ref={document.variantOf} {registry} />. It also contains copies of overworld content.</p>{/if}
-        {#if summary.length}<p>Find {summary.join(', ')} here.</p>{/if}
+        {#if document.description}<p class="description">{document.description}</p>{/if}
         {#if summary.length}
+          <p>Find {listText(summary)} here.</p>
           <nav class="answer-links" aria-label="Explore this place">
             {#if document.placesToEnter.length}<a class="c-link" href="#places-to-enter">Places to enter</a>{/if}
             {#if inhabitants.bosses.length}<a class="c-link" href="#bosses">Bosses</a>{/if}
@@ -55,9 +58,8 @@
             {#if quests.length}<a class="c-link" href="#quests">Quests</a>{/if}
             {#if document.resources.length || document.containers.length}<a class="c-link" href="#points-of-interest">Gathering and objects</a>{/if}
           </nav>
-        {/if}
+        {:else if !document.space}<p class="unmapped">This place has no mapped location or known points of interest.</p>{/if}
       </AnswerCard>
-    {:else if document.description}<p class="unmapped">This place has no mapped location or known points of interest.</p>
     {:else}<p class="unmapped">No location or points of interest are available for this place.</p>{/if}
   </svelte:fragment>
   <svelte:fragment slot="side"><PlaceSideCards {document} {registry} /></svelte:fragment>
@@ -70,22 +72,13 @@
     <PlaceLootObjectsSection rows={document.lootObjects} {registry} />
     <QuestRowsSection id="quests" title="Quests" roleLabel="Role" rows={quests} {registry} />
     <LinkSection id="properties" title="Properties" refs={document.properties} {registry} />
-    {#if !summary.length && document.art.artwork}
-      <img class="artwork sparse-art" src={`${base}/data/${document.art.artwork.url}`} width={document.art.artwork.width} height={document.art.artwork.height} alt={`${document.ref.name} artwork`} />
-    {/if}
-    {#if document.description || (summary.length && document.art.artwork)}
-      <DetailsDisclosure id="place-story" title={document.art.artwork && summary.length ? 'Story and artwork' : 'Story'}>
-        {#if document.description}<p class="description">{document.description}</p>{/if}
-        {#if summary.length && document.art.artwork}<img class="artwork" src={`${base}/data/${document.art.artwork.url}`} width={document.art.artwork.width} height={document.art.artwork.height} alt={`${document.ref.name} artwork`} />{/if}
-      </DetailsDisclosure>
-    {/if}
     <LinkSection id="areas" title="Areas" refs={document.regions} {registry} />
   </Sections>
 </DetailFrame>
 
 <style>
-  .artwork { display: block; width: 100%; max-height: 24rem; object-fit: cover; border: 1px solid var(--c-frame-strong); border-radius: var(--c-radius); background: var(--c-surface-sunken); }
-  .sparse-art { max-height: 13rem; }
+  /* The artwork keeps its wide shape at every width and stops at a banner's height, so the place's contents stay near. */
+  .artwork { display: block; width: 100%; height: auto; max-height: 15rem; object-fit: cover; border: 1px solid var(--c-frame-strong); border-radius: var(--c-radius); background: var(--c-surface-sunken); }
   .description { white-space: pre-line; }
   .unmapped { margin: 0; color: var(--c-text-dim); }
   .answer-links { display: flex; flex-wrap: wrap; gap: .35rem 1rem; font-size: var(--c-text-small); }
