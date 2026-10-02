@@ -1,5 +1,5 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { AdventurersGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicLevel, PublicMechanics, PublicNpc, TalentPoints } from "@afallon/contracts/public";
+import type { AdventurerGear, AdventurersGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicItem, PublicLevel, PublicMechanics, PublicNpc, Ref, TalentPoints } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
 import type { ReferenceResolver } from "./documents/projection";
@@ -10,6 +10,7 @@ import { GUIDES, guideSections } from "./guide-sections";
 import { killExperience } from "./experience";
 import { levelUnion } from "./levels";
 import { displayName } from "./text";
+import { itemTypeLabel } from "./item-type";
 
 /** Job operands must match the settings in this catalog, not an earlier reviewed value. */
 function adventurerRule(rule: CatalogMechanicsRule, facts: CatalogFacts): CatalogMechanicsRule {
@@ -23,6 +24,35 @@ function adventurerRule(rule: CatalogMechanicsRule, facts: CatalogFacts): Catalo
     if (rule.operands[name] !== value) throw new Error(`Adventurers rule ${rule.ruleId} disagrees with published ${name}.`);
   }
   return { ...rule, operands: { ...rule.operands, ...expected } };
+}
+
+/**
+ * The gear that adventurers can take. A reward item can be picked from its band's minimum level, or from level 1 when it
+ * has no band, as `GearContentLevel` decides. Kit items belong to their kit's adventurer and need no level.
+ */
+function adventurerGear(facts: CatalogFacts, entityDocuments: ReadonlyMap<string, PublicDocument>, resolve: ReferenceResolver): AdventurerGear {
+  const rows = facts.adventurerItems ?? [];
+  const isItem = (document: PublicDocument | undefined): document is PublicItem => document?.ref.kind === "items";
+  const gearItem = (key: string) => {
+    const document = entityDocuments.get(key);
+    const type = isItem(document) ? itemTypeLabel(document.facts) : null;
+    return { item: resolve({ entityKey: key, label: key }), ...(type ? { type } : {}) };
+  };
+  const nameOf = (ref: Ref) => "name" in ref ? ref.name : ref.label;
+  const bandLevel = new Map(rows.filter((row) => row.kind === "equipmentBand" && row.minimumContentLevel !== null).map((row) => [row.itemKey, Math.max(1, row.minimumContentLevel!)]));
+  const rewards = [...new Set(rows.filter((row) => row.kind === "equipmentReward").map((row) => row.itemKey))]
+    .map((key) => ({ ...gearItem(key), level: bandLevel.get(key) ?? 1 }))
+    .sort((left, right) => left.level - right.level || nameOf(left.item).localeCompare(nameOf(right.item)));
+  const kitItems = new Map<string, { adventurer: CatalogEndpoint; items: string[] }>();
+  for (const row of rows) {
+    if (row.kind !== "kitUpgradeItem" || !row.adventurer?.entityKey) continue;
+    const kit = kitItems.get(row.adventurer.entityKey) ?? { adventurer: row.adventurer, items: [] };
+    if (!kit.items.includes(row.itemKey)) kit.items.push(row.itemKey);
+    kitItems.set(row.adventurer.entityKey, kit);
+  }
+  const kits = [...kitItems.values()].map((kit) => ({ adventurer: resolve(kit.adventurer), items: kit.items.map(gearItem) }))
+    .sort((left, right) => nameOf(left.adventurer).localeCompare(nameOf(right.adventurer)));
+  return { rewards, kits };
 }
 
 /** The overview and the sections of a guide whose rules come from the rules record. */
@@ -326,7 +356,7 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
     ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve)] : []),
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),
-    ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve) } satisfies AdventurersGuide] : []),
+    ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, entityDocuments, resolve) } satisfies AdventurersGuide] : []),
     ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_NAMES.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));

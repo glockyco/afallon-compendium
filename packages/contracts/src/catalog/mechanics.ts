@@ -15,7 +15,7 @@ export type MechanicsTopic = Static<typeof MechanicsTopicSchema>;
 // rule the explanation of that label. `linked` places the rule only on the pages of the entities in its links. The
 // gathering node scopes `spawned` and `placed` limit a rule to nodes with that kind of source.
 export const RULE_PLACEMENT_TARGETS = {
-  items: { crafting: "section", teaches: "section", corruption: "section", "when-used": "section", "cloth-loot": "section", "collected-from": "section", "quest-pickups": "section", "dungeon-finder": "section" },
+  items: { crafting: "section", teaches: "section", corruption: "section", "when-used": "section", "cloth-loot": "section", "collected-from": "section", "quest-pickups": "section", "dungeon-finder": "section", adventurers: "section" },
   gatheringNodes: { "how-it-works": "section" },
   skills: { "how-to-gain-experience": "section" },
   npcs: { experience: "fact", adventurers: "fact" },

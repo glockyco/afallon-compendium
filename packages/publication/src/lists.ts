@@ -1,5 +1,6 @@
 import type { CatalogEndpoint, CatalogFacts } from "@afallon/contracts/catalog";
 import { categoryLabel } from "@afallon/contracts/public";
+import { itemTypeLabel } from "./item-type";
 import { resolveCatalogEndpoint } from "./references";
 import { levelText } from "./levels";
 import { partitionStaticRecords } from "./resources";
@@ -30,16 +31,6 @@ function refName(ref: Ref | undefined): string | null {
 
 function facetValue(value: string | null | undefined): string[] {
   return value ? [value] : [];
-}
-
-/**
- * What an item is, from its most specific facts: the weapon type, the slot of jewelry, the armor type with its slot, or
- * the item type. A weapon type already names its hands, so the slot is left out.
- */
-function itemTypeLabel(facts: PublicItem["facts"]): string | null {
-  if (facts.weaponType) return categoryLabel(facts.weaponType);
-  if (facts.armorType && facts.slot) return facts.armorType === "JEWELRY" ? categoryLabel(facts.slot) : `${categoryLabel(facts.armorType)} ${categoryLabel(facts.slot)}`;
-  return facts.itemType ? categoryLabel(facts.itemType) : null;
 }
 
 function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow {

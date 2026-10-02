@@ -51,7 +51,7 @@ const quest = (nativeId: number, max: number | null) => ({ entityKey: `quests:${
 const entities = ([
   ["npcs:1", "Zombie"], ["npcs:2", "Wolf"], ["npcs:3", "Infected Grain"], ["npcs:4", "Neonate Vampire"], ["npcs:5", "Unpublished"],
   ["npcs:6", "Aardvark"], ["npcs:7", "Badger"], ["npcs:8", "Aardvark"],
-  ["recipes:1", "Runeweave Regalia"], ["items:1", "Runeweave Regalia"], ["skills:7", "Mining"], ["skills:8", "Tailoring"], ["gatheringNodes:small-iron-vein", "Small Iron Vein"],
+  ["recipes:1", "Runeweave Regalia"], ["items:1", "Runeweave Regalia"], ["items:2", "Ash Bow"], ["items:3", "Oak Shield"], ["skills:7", "Mining"], ["skills:8", "Tailoring"], ["gatheringNodes:small-iron-vein", "Small Iron Vein"],
 ] as Array<[string, string]>).map(([entityKey, name]) => ({ entityKey, name }));
 const facts = {
   entities,
@@ -132,6 +132,20 @@ test("Adventurers guide places job and party rules in their sections and binds j
   expect(guide.sections[1]?.rules[0]?.operands).toEqual({ minimumJobSeconds: 180, maximumJobSeconds: 360 });
   expect(guide.sections[2]?.rules[0]?.operands).toEqual({ equipmentRewardPercent: 40 });
   expect(() => documents({ ...source, adventurerWorld: { ...source.adventurerWorld!, minimumJobSeconds: 120 } })).toThrow("disagrees with published minimumJobSeconds");
+});
+
+test("the Adventurers guide lists reward gear by the level an adventurer needs and kits by their adventurer", () => {
+  const band = (itemKey: string, minimumContentLevel: number) => ({ itemKey, kind: "equipmentBand" as const, adventurer: null, minimumContentLevel, rewardChance: null });
+  const reward = (itemKey: string) => ({ itemKey, kind: "equipmentReward" as const, adventurer: null, minimumContentLevel: null, rewardChance: 0.4 });
+  const kitItem = (itemKey: string, adventurer: string) => ({ itemKey, kind: "kitUpgradeItem" as const, adventurer: ref(adventurer, adventurer), minimumContentLevel: null, rewardChance: null });
+  const source = { ...facts, adventurerItems: [band("items:1", 17), reward("items:1"), reward("items:3"), band("items:2", 0), reward("items:2"), band("items:9", 24),
+    kitItem("items:3", "npcs:7"), kitItem("items:1", "npcs:7"), kitItem("items:2", "npcs:1")],
+    progression: { ...facts.progression, mechanicsRules: [...facts.progression.mechanicsRules, { ruleId: "adventurer-gear-list", topic: "adventurers", section: "gear-upgrades", ordinal: 0, status: "verified",
+      phrase: "Gear.", operands: {}, links: [], sources: [], placements: [] } as CatalogMechanicsRule] } } as CatalogFacts;
+  const gear = (documents(source).get("mechanics:adventurers") as AdventurersGuide).gear;
+  // A band below level 1 still needs level 1, an item without a band needs level 1, and a band without a reward entry lists nothing.
+  expect(gear.rewards.map((row) => [row.item.key, row.level])).toEqual([["items:2", 1], ["items:3", 1], ["items:1", 17]]);
+  expect(gear.kits.map((kit) => [kit.adventurer.key, kit.items.map((row) => row.item.key)])).toEqual([["npcs:7", ["items:3", "items:1"]], ["npcs:1", ["items:2"]]]);
 });
 
 test("a rule section that its guide does not define stops publication", () => {

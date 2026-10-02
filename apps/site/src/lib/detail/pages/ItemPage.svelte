@@ -84,9 +84,11 @@
     { id: 'level', label: 'Creature level', value: (row) => levelRangeText(row.minLevel, row.maxLevel), sort: (row) => row.minLevel },
     { id: 'chance', label: 'Chance per kill', hint: 'The chance that one kill drops this cloth. Inside a range of levels, it moves steadily from the first value to the second.', numeric: true, value: (row) => row.startChance, sort: (row) => row.startChance },
   ];
-  const adventurerColumns: RelationColumn<PublicItem['adventurers'][number]>[] = [
-    { id: 'relation', label: 'Adventurer gear', value: (row) => row.kind === 'kitUpgradeItem' ? ('name' in row.adventurer ? row.adventurer.name : row.adventurer.label) : row.kind },
-  ];
+  // An item on the reward gear list can be picked from its band's level, or from level 1 without a band.
+  $: rewardRow = document.adventurers.find((row) => row.kind === 'equipmentReward');
+  $: rewardLevel = Math.max(1, document.adventurers.find((row) => row.kind === 'equipmentBand')?.minimumContentLevel ?? 1);
+  $: kitRows = document.adventurers.flatMap((row) => row.kind === 'kitUpgradeItem' ? [row] : []);
+  $: adventurerGuide = document.placedRules.find((rule) => rule.target === 'adventurers');
   $: typeLine = [facts.rarity, facts.armorType ?? facts.weaponType ?? facts.itemType, facts.slot].filter((entry): entry is string => Boolean(entry)).map(categoryLabel).join(' · ');
 </script>
 
@@ -128,7 +130,7 @@
               </li>
             {/each}
           </ul>
-        {:else if document.adventurers.length}<p>Only adventurers carry this item. <a class="c-link" href="#adventurers">See adventurer gear</a>.</p>
+        {:else if document.adventurers.length}<p>Only adventurers can get this item. <a class="c-link" href="#adventurers">See adventurer gear</a>.</p>
         {:else}<p>No known way to get this item.</p>{/if}
       </AnswerCard>
     </svelte:fragment>
@@ -212,14 +214,12 @@
       </Section>
     {:else if !document.teaches && !document.buys.length}<Section id="used-for" title="Used for"><p>No known recipe or quest uses {document.ref.name}.</p></Section>{/if}
     {#if document.adventurers.length}
-      <Section id="adventurers" title="Adventurers" count={document.adventurers.length}>
-        <RelationTable columns={adventurerColumns} rows={document.adventurers} label="Adventurer gear">
-          <svelte:fragment slot="cell" let:row>
-            {#if row.kind === 'kitUpgradeItem'}Gear upgrade for <EntityLink ref={row.adventurer} {registry} />
-            {:else if row.kind === 'equipmentBand'}Carried by adventurers of level {formatNumber(row.minimumContentLevel)} or higher
-            {:else}When adventurers finish a job, they have a {formatNumber(row.chance)}% chance to equip a gear upgrade from a shared list of items that includes this one{/if}
-          </svelte:fragment>
-        </RelationTable>
+      <Section id="adventurers" title="Adventurers">
+        <div class="adventurer-gear">
+          {#if rewardRow}<p>After a job, an adventurer has a {formatNumber(rewardRow.chance)}% chance to take an upgrade from the reward gear list. This item is on it for {rewardLevel > 1 ? `adventurers of level ${formatNumber(rewardLevel)} or higher` : 'every adventurer'}.</p>{/if}
+          {#each kitRows as row}<p>Part of the gear kit of <EntityLink ref={row.adventurer} {registry} />.</p>{/each}
+          {#if adventurerGuide}<HowItWorks guide={adventurerGuide.guide} section={adventurerGuide.section} label="How adventurer gear works" />{/if}
+        </div>
       </Section>
     {/if}
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
@@ -314,6 +314,7 @@
   .description { color: var(--c-text-dim); }
   .side-fact { display: flex; justify-content: space-between; gap: .75rem; }
   .used-recipes, .used-quests, .used-stones { display: grid; gap: .5rem; scroll-margin-top: 1rem; }
+  .adventurer-gear { display: grid; gap: .5rem; line-height: 1.55; }
   .used-row, .used-quest { min-width: 0; padding: .55rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .used-quest { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .75rem; }
 </style>
