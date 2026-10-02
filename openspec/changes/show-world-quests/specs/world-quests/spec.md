@@ -14,7 +14,7 @@ A world quest page SHALL identify the zone locations at which it can start and d
 The quest list SHALL offer a quest-type facet that selects world quests from the presence of authored world quest facts, independently of the quest's other start types. Its non-world value SHALL omit world quests.
 
 #### Scenario: Find a world quest
-- **WHEN** a reader chooses World Quest in the Quest Type facet
+- **WHEN** a reader chooses World Quest in the Quest type facet
 - **THEN** only quests with captured world quest facts remain in the list
 - **AND** an area filter can further narrow the result
 

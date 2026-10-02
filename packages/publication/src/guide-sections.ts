@@ -75,9 +75,9 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     ],
   },
   factions: {
-    overview: "Every NPC belongs to a faction, and you have a standing with each faction. Your standing is a stance, such as Hated or Honored, and points toward the next stance.",
+    overview: "Every NPC belongs to a faction, and you have a standing with each faction. Your standing is one of the faction's stances, such as Hated, Neutral, or Honored. Each stance fills up with points, and a full stance moves you to the next one.",
     sections: [
-      { id: "standing-and-stances", title: "Standing and stances", lead: "Your standing with a faction is one of its stances, with points toward the next one." },
+      { id: "standing-and-stances", title: "Standing and stances", lead: "Points move your standing up and down through a faction's stances." },
       { id: "new-character-standing", title: "Standing of a new character", lead: "The table shows the stance and points that a new character starts with toward each faction." },
       { id: "combat-relations", title: "Factions in combat", lead: "Your stance with a faction decides whether its NPCs count as allies, neutral, or enemies in combat." },
       { id: "changing-standing", title: "Changing standing", lead: "Creature kills, quests, and items can be set up to change your standing." },
@@ -87,9 +87,9 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
   "world-quests": {
     overview: "World Quests become available for a limited time in zones across the map. Enter an active zone to join one, complete its objectives, and collect its rewards.",
     sections: [
-      { id: "availability", title: "Where And When They Appear", lead: "The times on each quest page belong to that quest. A zone may offer a different quest while this one waits." },
-      { id: "participation", title: "Joining And Completing", lead: "Check each quest's page for its objectives and the zone where it starts." },
-      { id: "rewards", title: "Rewards And Heroic Cache", lead: "Each quest page shows the captured rewards, before any changes to currency awarded in play." },
+      { id: "availability", title: "Where and when they appear", lead: "The times on each quest page belong to that quest. A zone may offer a different quest while this one waits." },
+      { id: "participation", title: "Joining and completing", lead: "Check each quest's page for its objectives and the zone where it starts." },
+      { id: "rewards", title: "Rewards and Heroic Cache", lead: "Each quest page shows the captured rewards, before any changes to currency awarded in play." },
     ],
   },
   travel: {
@@ -97,7 +97,7 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     sections: [
       { id: "finding-flights", title: "Finding flights", lead: "Talk to a flight master to see destinations on their network." },
       { id: "taking-flight", title: "Taking a flight", lead: "Flight routes follow the stops and paths shown below." },
-      { id: "network", title: "Flight network", lead: "Each stop has a flight master. Routes list the connections recorded for this build." },
+      { id: "network", title: "Flight network", lead: "Each stop has a flight master. Routes list the recorded connections." },
     ],
   },
 };

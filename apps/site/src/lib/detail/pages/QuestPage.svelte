@@ -35,7 +35,7 @@
   $: sideFacts = [
     ...(facts.levelRequirement !== undefined ? [{ label: 'Minimum level', value: String(facts.levelRequirement) }] : []),
     ...(facts.repeatable ? [{ label: 'Repeatable', value: 'Yes' }] : []),
-    ...(facts.worldQuest ? [{ label: 'Quest Type', value: 'World Quest' }] : []),
+    ...(facts.worldQuest ? [{ label: 'Quest type', value: 'World Quest' }] : []),
     ...(document.dungeon ? [{ label: 'Dungeon', value: nameOf(document.dungeon) }] : []),
   ];
 </script>
@@ -44,7 +44,7 @@
   <DetailFrame>
     <div slot="head"><TitleBlock name={document.ref.name} {registry}><StatStrip {stats} /></TitleBlock></div>
     <div slot="answer" class="answers">
-      <AnswerCard id="objectives" title="What To Do">
+      <AnswerCard id="objectives" title="What to do">
         <QuestObjectivesSection objectives={document.objectives} {registry} />
         <QuestStartSection {document} {registry} />
       </AnswerCard>
@@ -54,15 +54,15 @@
       {#if facts.requirements.length}<section><h2>Requirements</h2><Requirements requirements={facts.requirements} {registry} /></section>{/if}
       {#if sideFacts.length}<FactsGrid facts={sideFacts} />{/if}
       {#if facts.worldQuest}
-        <AnswerCard title="When It Appears">
+        <AnswerCard title="When it appears">
           <FactList>
-            <FactRow label="Active For">{intervalText(facts.worldQuest.availableSeconds)}</FactRow>
-            <FactRow label="After Completion">{intervalText(facts.worldQuest.cooldownAfterCompletionSeconds)} before another roll</FactRow>
-            <FactRow label="After Expiry">{intervalText(facts.worldQuest.cooldownAfterExpirySeconds)} before another roll</FactRow>
-            <FactRow label="Extra Wait">Up to {intervalText(facts.worldQuest.cooldownJitterSeconds)} on either cooldown</FactRow>
-            <FactRow label="First Roll">Within {intervalText(facts.worldQuest.initialRollSeconds)} of the zone starting</FactRow>
+            <FactRow label="Active for">{intervalText(facts.worldQuest.availableSeconds)}</FactRow>
+            <FactRow label="After completion">{intervalText(facts.worldQuest.cooldownAfterCompletionSeconds)} before another roll</FactRow>
+            <FactRow label="After expiry">{intervalText(facts.worldQuest.cooldownAfterExpirySeconds)} before another roll</FactRow>
+            <FactRow label="Extra wait">Up to {intervalText(facts.worldQuest.cooldownJitterSeconds)} on either cooldown</FactRow>
+            <FactRow label="First roll">Within {intervalText(facts.worldQuest.initialRollSeconds)} of the zone starting</FactRow>
           </FactList>
-          <HowItWorks guide={{ key: 'mechanics:world-quests', kind: 'mechanics', name: 'World Quests', slug: 'world-quests' }} section="availability" label="How World Quests Appear" />
+          <HowItWorks guide={{ key: 'mechanics:world-quests', kind: 'mechanics', name: 'World Quests', slug: 'world-quests' }} section="availability" label="How World Quests appear" />
         </AnswerCard>
       {/if}
     </svelte:fragment>
