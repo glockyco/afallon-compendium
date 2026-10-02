@@ -22,6 +22,8 @@
   // A type names a category in a few words. It stays on one line, and the name beside it wraps instead.
   const LABEL_FIELDS: Record<string, true> = { type: true, placeType: true };
   const STAT_COLUMN = 'stat:';
+  // The result bar stays at the top of the screen, and the table header sticks just below it.
+  let barHeight = 0;
   const PANEL_MIN_ROWS = 20;
 
   let filters: ListFilterState = emptyFilters();
@@ -164,7 +166,7 @@
       {#if hasPanel}<button type="button" class="filters-button" on:click={openSheet}>Filters{#if activeCount}{` (${formatNumber(activeCount)})`}{/if}</button>{/if}
     </div>
 
-    <div class="result-bar">
+    <div class="result-bar" bind:offsetHeight={barHeight}>
       <p aria-live="polite"><strong>{formatNumber(filteredRows.length)}</strong>{#if filteredRows.length !== list.rows.length}{' of '}{formatNumber(list.rows.length)}{/if} {list.rows.length === 1 ? readerNoun(kind.label) : readerNoun(kind.plural)}</p>
       {#if chips.length}
         <ul class="chips" aria-label="Active filters">
@@ -177,7 +179,7 @@
       {/each}
     </div>
 
-    <div class="list" class:fit-type={filters.stats.length === 0 && visibleColumns.some((column) => LABEL_FIELDS[column.id])}>
+    <div class="list" style={`--bar-height: ${barHeight}px`} class:fit-type={filters.stats.length === 0 && visibleColumns.some((column) => LABEL_FIELDS[column.id])}>
       <DataTable {columns} {sort} sticky flowWide onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
         {#each filteredRows as row (row.ref.key)}
           <tr>
@@ -237,7 +239,9 @@
   .search { flex: 1 1 auto; min-width: 0; min-height: 2.35rem; padding: .4rem .6rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); }
   .filters-button { display: none; flex: none; min-height: 2.35rem; padding: .4rem .8rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text); font-weight: 600; cursor: pointer; }
 
-  .result-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .6rem; margin-bottom: .6rem; }
+  /* The count and the active filter chips stay in view while the list scrolls, and the table header sticks below them. */
+  .result-bar { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .6rem; margin-bottom: .6rem; padding: .4rem 0; background: var(--c-surface-0); }
+  .list :global(.c-table--sticky thead th) { top: var(--bar-height, 0px); }
   .result-bar p { margin: 0 .25rem 0 0; color: var(--c-text-dim); font-size: var(--c-text-small); }
   .result-bar strong { color: var(--c-text); font-variant-numeric: tabular-nums; }
   .chips { display: contents; list-style: none; }
