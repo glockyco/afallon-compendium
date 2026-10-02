@@ -3,7 +3,8 @@
 // as `{' '}` or move the separator into an expression instead.
 import { Glob } from 'bun';
 
-const leading = /\{(?:#if|:else if|:else|#each)[^}]*\} (?=[^\s<{])/g;
+// A block tag may hold one level of braces, such as `{#each { length: count } as _}`.
+const leading = /\{(?:#if|:else if|:else|#each)(?:[^{}]|\{[^{}]*\})*\} (?=[^\s<{])/g;
 const trailing = /[^\s>}] (?=\{(?:\/if|\/each|:else)\b)/g;
 const problems: string[] = [];
 for await (const path of new Glob('src/**/*.svelte').scan({ cwd: new URL('..', import.meta.url).pathname })) {
