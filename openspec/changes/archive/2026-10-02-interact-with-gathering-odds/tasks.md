@@ -12,4 +12,4 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Publish, check the guide and a node page at 1440 and 390 px, check that a level carries to another page, and accept the update
+- [x] 3.1 Publish, check the guide and a node page at 1440 and 390 px, check that a level carries to another page, and accept the update

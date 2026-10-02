@@ -10,4 +10,4 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Publish, check Shieldmaster at 1440, 1100, and 390 px, follow the gear link, and accept the update
+- [x] 3.1 Publish, check Shieldmaster at 1440, 1100, and 390 px, follow the gear link, and accept the update

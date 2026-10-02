@@ -167,7 +167,7 @@ A page SHALL NOT show a stat whose amount is zero. A creature whose roles are al
 
 ### Requirement: NPC pages show who the NPC is, where it is, and what it gives
 
-When available, a combat creature's strip SHALL show level, health, experience per kill, and respawn. Its answer SHALL show Drops sorted by chance, with the loot roll in the heading and a second loot table as a labeled group. The side SHALL hold combat stats, faction, aggro range, immunities, and abilities as chips, and preserve other secondary facts without repeating the answer. Its remaining sections SHALL follow: Where to find grouped by place with counts, Sells, Quests, Variants. Each quest SHALL name whether the creature gives, completes, or is an objective; differing variant and placement facts SHALL remain accessible. A friendly service NPC SHALL not gain fabricated combat facts.
+When available, a combat creature's strip SHALL show level, health, experience per kill, and respawn. Its answer SHALL show Drops sorted by chance, with the loot roll in the heading and a second loot table as a labeled group. An adventurer without drops SHALL instead answer with its Gear: the published chance that a finished job takes an upgrade from the reward gear list, a link to that list, and the items and types of its own gear kit when it has one. A combat creature without drops SHALL say that no drops are published for it by name. A friendly NPC without drops SHALL have no answer card. Text that applies to every NPC SHALL call it an NPC or name it, and SHALL reserve "creature" for NPCs that you fight. An adventurer's gear preference SHALL be named as the gear that it prefers, with its armor type, weapon types, and favoured stat, and SHALL NOT be described as what its kills drop. The side SHALL hold combat stats, faction, aggro range, immunities, and abilities as chips, and preserve other secondary facts without repeating the answer. When the published kill experience has its level difference and the character level cap, the side SHALL show the experience per kill at the reader's remembered character level, with its level control, the creature level at that character level, and a link to the kill calculator. Its remaining sections SHALL follow: Where to find grouped by place with counts, Sells, Quests, Variants. Each quest SHALL name whether the creature gives, completes, or is an objective; differing variant and placement facts SHALL remain accessible. A friendly service NPC SHALL not gain fabricated combat facts.
 
 #### Scenario: Boss of one place
 - **WHEN** an NPC is boss of one place
@@ -176,6 +176,22 @@ When available, a combat creature's strip SHALL show level, health, experience p
 #### Scenario: Quest target and quest giver
 - **WHEN** an NPC gives one quest and is an objective in another
 - **THEN** its Quests section has one row per quest with the correct role
+
+#### Scenario: Merchant without drops
+- **WHEN** a reader opens Rickard, a merchant who drops nothing
+- **THEN** the page has no Drops card and no text that calls Rickard a creature
+
+#### Scenario: Adventurer gear
+- **WHEN** a reader opens Eldeth Goldvein
+- **THEN** the Gear card gives the job upgrade chance, links the reward gear list, and lists the nine items of the Oakheart kit with their types
+
+#### Scenario: Gear preference of an adventurer
+- **WHEN** a reader opens Agra Emberhide, whose specialization is Leather, Staff, and Strength
+- **THEN** the side reads Gear preference: Leather armor, Staff, favours Strength, with a link to the Adventurers guide's gear section
+
+#### Scenario: Experience at the reader's level
+- **WHEN** a reader at character level 15 opens a creature that spawns at levels 10 to 20 and scales with the player
+- **THEN** its Experience per kill card shows the experience of a level 15 kill, computed as the kill calculator computes it without followers, Heroic, or bonuses
 
 ### Requirement: Quest pages follow the course of the quest
 
@@ -215,7 +231,7 @@ An ability page SHALL show the game tooltip once in the side column, choosing th
 
 ### Requirement: Class pages show how a class progresses
 
-Only classes offered by a published race SHALL have pages. A class strip SHALL show races, weapon types, highest level, and talent tree count when known. Its answer SHALL present playstyle and auto attack. Its side SHALL present talent point gains. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with the established tabbed List/Grid views and row anchors. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
+Only classes offered by a published race SHALL have pages. A class strip SHALL show races, weapon types, highest level, and talent tree count when known. Its answer SHALL present playstyle and auto attack. Its side SHALL stay in view beside the trees and SHALL present how the class gains talent points, each talent tree with the points that learning every rank of every node takes and a link to its tab, the weapon types, and the gear link. A tree whose points differ from the most common points of the class SHALL name them with its cost. Where a guide explains how those points are earned, such as Heroic Essence in the Heroic Tier guide, the tree and the side SHALL link that guide section. A rank costs its own unlock cost, and the first rank of an ability that the class knows from the start SHALL cost nothing. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with the established tabbed List/Grid views and row anchors. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
 
 A passive talent rank SHALL show its changes to pets after its own changes. A change to pets SHALL name the pets as the game does: "Your beast" for the Hunter's beast, the NPC whose summons change, or "Summons" for every pet. The changes to the same pets SHALL share one line.
 
@@ -247,6 +263,12 @@ A passive talent rank SHALL show its changes to pets after its own changes. A ch
 #### Scenario: Talent that changes the character and the beast
 - **WHEN** Pathfinding gives the character and the Hunter's beast 1% Movement Speed at rank 1
 - **THEN** its row shows the character's change on one line and the beast's change on the next line
+
+#### Scenario: Tree costs beside the trees
+- **WHEN** a reader scrolls through the talent trees of Shieldmaster
+- **THEN** the side still shows each tree with the Talent Points that learning it in full takes
+- **AND** Heroic Ascension shows its cost in Heroic Essence
+- **AND** Heroic Essence links the Essence section of the Heroic Tier guide
 
 ### Requirement: Skill pages show recipes and levels
 
@@ -316,7 +338,7 @@ Reviewed rules SHALL remain available in their section of their mechanics guide.
 
 #### Scenario: Gathering probability endpoints
 - **WHEN** verified evidence supports a yield bonus at Mining level 1 and its highest level
-- **THEN** the node shows both computed values in a short sentence with a guide-section link, not the rule text
+- **THEN** the node shows the computed value at the reader's Mining level and both published values in a short sentence with a guide-section link, not the rule text
 
 #### Scenario: Rule explains a fact
 - **WHEN** a verified kill experience rule applies to a creature's experience fact
@@ -324,11 +346,16 @@ Reviewed rules SHALL remain available in their section of their mechanics guide.
 
 #### Scenario: Computed yield bonus
 - **WHEN** Small Iron Vein has no Mining gate and verified gathering yield bonus operands
-- **THEN** its Gives answer shows the bonus at Mining level 1 and at the highest Mining level, with a guide-section link rather than a How it works rules section
+- **THEN** its Gives answer shows the bonus at the reader's Mining level and at Mining level 1 and the highest Mining level, with a guide-section link rather than a How it works rules section
 
 #### Scenario: Items found in object chests
 - **WHEN** the rules record places the object chest rule on the Found in objects section of Human Skull
 - **THEN** that section links the World objects section of the Loot guide
+
+#### Scenario: Chance that a spawner picks a node
+- **WHEN** a reader sets their Mining level on Silver Vein and checks Prospector's Silver Tonic
+- **THEN** the side shows the chance that a spawner picks Silver Vein at that level with that attunement
+- **AND** Spawn odds shows every option of those spawners with its weight and chance at the same level
 
 ### Requirement: Currency Purchases on Item Detail Pages
 
@@ -409,11 +436,12 @@ The overworld page SHALL show a Places to enter section that groups the places a
 
 ### Requirement: Class pages link to the gear they can use
 
-Each published class page SHALL link to the item list with that class selected in its Usable by filter. The link SHALL use the same URL as selecting the class in the filter. The page SHALL NOT describe the linked items as ranked or recommended.
+Each published class page SHALL link to the item list with that class selected in its Usable by filter and the Weapon and Armor item types selected in its Type filter, so that the list shows only gear. The link SHALL use the same URL as selecting those filters. The page SHALL NOT describe the linked items as ranked or recommended.
 
 #### Scenario: Gear from a class page
 - **WHEN** a reader follows the gear link on the Shieldmaster page
-- **THEN** the item list opens with Shieldmaster selected in Usable by
+- **THEN** the item list opens with Shieldmaster selected in Usable by and Weapon and Armor selected in Type
+- **AND** it lists no potion or material
 - **AND** reloading the page keeps the selection
 
 ### Requirement: Place pages name the races that start there
@@ -427,3 +455,15 @@ A place where new characters of at least one playable race start SHALL say so in
 #### Scenario: One race starts elsewhere
 - **WHEN** only Orc characters start in a place
 - **THEN** that place's card says that new Orc characters start there
+
+### Requirement: Pages compute values at the reader's levels
+
+The site SHALL remember the character level and the skill levels that a reader sets on any page, across pages and visits, in the browser. A page that computes a value from one of these levels SHALL start at the remembered level, or at a stated default before the reader sets one, and SHALL show the control that changes it next to the value, so that no remembered level changes a value out of sight. A level outside a control's range SHALL show at the nearest end without changing the remembered level.
+
+#### Scenario: Level carries to another page
+- **WHEN** a reader sets their Fishing level to 75 on Golden Swirl and opens Teeming Fishing Hole
+- **THEN** its Fishing level control starts at 75 and its chance uses level 75
+
+#### Scenario: First visit
+- **WHEN** a reader who has set no Fishing level opens a fishing node
+- **THEN** its control starts at level 1 and shows that level

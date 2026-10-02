@@ -4,4 +4,4 @@
 
 ## 2. Verification
 
-- [ ] 2.1 Publish, check the section order in the browser, and accept the update
+- [x] 2.1 Publish, check the section order in the browser, and accept the update

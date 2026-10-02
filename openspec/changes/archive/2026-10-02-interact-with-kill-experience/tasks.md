@@ -8,4 +8,4 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Publish, check a scaling creature and a fixed-level creature at levels below, at, and above their range, and accept the update
+- [x] 3.1 Publish, check a scaling creature and a fixed-level creature at levels below, at, and above their range, and accept the update

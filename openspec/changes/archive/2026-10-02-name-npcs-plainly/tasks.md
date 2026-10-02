@@ -10,4 +10,4 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Publish, check Rickard, Eldeth Goldvein, and a creature without drops at 1440 and 390 px, and accept the update
+- [x] 3.1 Publish, check Rickard, Eldeth Goldvein, and a creature without drops at 1440 and 390 px, and accept the update

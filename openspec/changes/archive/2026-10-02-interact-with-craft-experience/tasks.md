@@ -9,4 +9,4 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Publish, check Runeweave Regalia and the guide at 1440 and 390 px with levels below, inside, and above the bands, and accept the update
+- [x] 3.1 Publish, check Runeweave Regalia and the guide at 1440 and 390 px with levels below, inside, and above the bands, and accept the update
