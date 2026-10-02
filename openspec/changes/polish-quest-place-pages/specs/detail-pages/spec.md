@@ -16,6 +16,10 @@ A quest's identity SHALL show its type, available quest level, and chain step wi
 - **WHEN** a world quest has one objective and completes automatically
 - **THEN** its objective and start are readable before the full timing disclosure
 
+#### Scenario: World quest with several start spots
+- **WHEN** an active world quest starts at three spots
+- **THEN** its start names three spots with one map link rather than three adjacent numbered links
+
 ### Requirement: Place pages show what a player finds there and how to get there
 
 A place's identity SHALL show its type and available level range without a lone stat strip. Its answer SHALL lead with access and the most useful available inhabitants, quests, or places to enter. Artwork and description SHALL remain available after the actionable relations. Its sections SHALL follow: Bosses with portraits, Creatures excluding bosses, NPCs, Gathering and objects with category counts, Quests, Areas. Available properties and points of interest SHALL remain reachable in the appropriate section rather than disappear. The place SHALL not infer a level range where none was published. When no actionable content exists, the page SHALL not display an empty answer card.
@@ -60,6 +64,10 @@ The overworld page SHALL show a Places to enter section that groups the places a
 #### Scenario: Descriptive zone without map space
 - **WHEN** a zone has lore and published placements whose area exactly matches its name
 - **THEN** the place shows creatures and quests from those placements before its lore, without inventing a place map pin
+
+#### Scenario: A shared creature level rule
+- **WHEN** every creature in a place scales with the player's level
+- **THEN** the Creatures section states the scaling rule once and each row shows its level range without repeating the rule
 
 ## ADDED Requirements
 

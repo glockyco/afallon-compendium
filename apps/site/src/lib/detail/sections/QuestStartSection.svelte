@@ -1,10 +1,9 @@
 <script lang="ts">
-  import type { PublicKindEntry, PublicQuest, QuestStart, QuestTurnIn } from '@afallon/contracts/public';
+  import type { PlacementRef, PublicKindEntry, PublicQuest, QuestStart, QuestTurnIn } from '@afallon/contracts/public';
   import Availability from '../../Availability.svelte';
   import EntityLink from '../../EntityLink.svelte';
-  import LocationLinks from '../../LocationLinks.svelte';
-  import { intervalText } from '../../format';
-  import { entityOnMap } from '../../map-links';
+  import { formatNumber, intervalText } from '../../format';
+  import { entityOnMap, spotOnMap } from '../../map-links';
 
   export let document: PublicQuest;
   export let registry: PublicKindEntry[];
@@ -25,6 +24,12 @@
   $: objects = document.starts.filter((start): start is Extract<QuestStart, { kind: 'object' }> => start.kind === 'object');
 </script>
 
+{#snippet startSpots(placements: PlacementRef[])}
+  {#if placements.length}
+    <a class="c-link" href={spotOnMap(placements[0]!.placementId)} aria-label={`Show ${placements.length === 1 ? 'the spot' : `the first of ${placements.length} spots`} on the map`}>{placements.length === 1 ? 'Show on map' : `${formatNumber(placements.length)} spots`}</a>
+  {/if}
+{/snippet}
+
 <div class="starters">
   {#each people as person}
     <div><h3>{person.ends ? 'Starts and ends with' : 'Starts with'}</h3>
@@ -33,13 +38,13 @@
   {/each}
   {#if zones.length || objects.length}<div><h3>Starts with</h3>
     {#each zones as zone}
-      <div class="source"><p>Enter the zone while its world quest is active, or stay inside until it appears.</p><LocationLinks placements={zone.placements} />
+      <div class="source"><p>Enter the zone while its world quest is active, or stay inside until it appears.</p>{@render startSpots(zone.placements)}
         {#if zone.availability.length}<Availability rules={zone.availability} {registry} />{/if}
         {#if zone.pool.length}<p>Other quests here: {#each zone.pool as quest, index}{index ? ', ' : ''}<EntityLink ref={quest} {registry} />{/each}</p>{/if}
         {#if zone.zoneDelaySeconds !== undefined}<p>Zone delay after a quest ends: {intervalText(zone.zoneDelaySeconds)}</p>{/if}
       </div>
     {/each}
-    {#each objects as object}<div class="source"><p>Use {object.label ?? 'an object'}</p><LocationLinks placements={object.placements} />{#if object.availability.length}<Availability rules={object.availability} {registry} />{/if}</div>{/each}
+    {#each objects as object}<div class="source"><p>Use {object.label ?? 'an object'}</p>{@render startSpots(object.placements)}{#if object.availability.length}<Availability rules={object.availability} {registry} />{/if}</div>{/each}
   </div>{/if}
   {#if remainingTurnIns.length || (!document.turnIns.length && (document.facts.turnInWithoutNpc || document.facts.worldQuest))}
     <div><h3>{document.facts.worldQuest && !document.turnIns.length ? 'Completion' : 'Turn in to'}</h3>

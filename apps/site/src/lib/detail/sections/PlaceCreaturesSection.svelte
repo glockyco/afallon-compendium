@@ -16,6 +16,7 @@
   let expanded = false;
   $: orderedBosses = [...rows].sort((left, right) => nameOf(left.counterpart).localeCompare(nameOf(right.counterpart)));
   $: shownBosses = orderedBosses.slice(0, shownRowCount(orderedBosses.length, expanded));
+  $: sharedScaling = id !== 'npcs' && rows.length > 1 && rows.every((row) => row.level?.scales);
 
   const columns: RelationColumn<CreatureRow>[] = [
     { id: 'name', label: 'Creature', value: (row) => nameOf(row.counterpart), sort: (row) => nameOf(row.counterpart) },
@@ -28,13 +29,13 @@
 </script>
 
 {#if rows.length}
-  <Section {id} {title} count={rows.length}>
+  <Section {id} {title} count={rows.length} line={sharedScaling ? `${title} scale with your level within their range.` : undefined}>
     {#if id === 'bosses'}
       <div class="boss-cards">
         {#each shownBosses as row}
           <article class="boss-card">
             <EntityLink ref={row.counterpart} {registry} />
-            {#if row.level}<p>Level <NpcLevel level={row.level} /></p>{/if}
+            {#if row.level}<p>Level <NpcLevel level={row.level} showScalingNote={!sharedScaling} /></p>{/if}
             {#if row.placementCount && row.counterpart.key}<a class="c-link" href={entityOnMap(row.counterpart.key)}>{row.placementCount} {row.placementCount === 1 ? 'spot' : 'spots'} on map</a>{/if}
           </article>
         {/each}
@@ -43,7 +44,7 @@
     {:else}<RelationTable columns={plan.columns} {rows} label={title} sort={{ id: 'name', dir: 'asc' }}>
       <svelte:fragment slot="cell" let:row let:column>
         {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />
-        {:else if column === 'level'}<NpcLevel level={row.level} />
+        {:else if column === 'level'}<NpcLevel level={row.level} showScalingNote={!sharedScaling} />
         {:else if column === 'role'}{row.roles.map(roleLabel).join(', ')}
         {:else if column === 'spots'}
           {#if row.placementCount && row.counterpart.key}<a class="c-link" href={entityOnMap(row.counterpart.key)}>{row.placementCount} {row.placementCount === 1 ? 'spot' : 'spots'}</a>
