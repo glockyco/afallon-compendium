@@ -1174,7 +1174,7 @@ export type ListRow = Static<typeof ListRowSchema>;
 // its reference, its icon, and its column and facet values, and a kind can hold thousands of rows.
 // The list page loads every part; the budget bounds each file, not the data.
 export const StaticKindListSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-kind-list.v6"), ...identity, kind: PublicListKindSchema, part: count, rows: Type.Array(ListRowSchema),
+  schemaVersion: Type.Literal("compendium.static-kind-list.v7"), ...identity, kind: PublicListKindSchema, part: count, rows: Type.Array(ListRowSchema),
 }, { additionalProperties: false });
 export type StaticKindList = Static<typeof StaticKindListSchema>;
 
@@ -1201,10 +1201,10 @@ export const StaticSearchIndexSchema = Type.Object({
 export type StaticSearchIndex = Static<typeof StaticSearchIndexSchema>;
 
 export const STATIC_COMPENDIUM_SCHEMAS: typeof STATIC_DOCUMENT_SCHEMAS & {
-  "compendium.static-kind-list.v6": typeof StaticKindListSchema; "compendium.static-search.v6": typeof StaticSearchIndexSchema;
+  "compendium.static-kind-list.v7": typeof StaticKindListSchema; "compendium.static-search.v6": typeof StaticSearchIndexSchema;
 } = {
   ...STATIC_DOCUMENT_SCHEMAS,
-  "compendium.static-kind-list.v6": StaticKindListSchema,
+  "compendium.static-kind-list.v7": StaticKindListSchema,
   "compendium.static-search.v6": StaticSearchIndexSchema,
 };
 export type StaticCompendiumResource = StaticDocument | StaticKindList | StaticSearchIndex;

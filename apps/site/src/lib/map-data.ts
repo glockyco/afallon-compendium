@@ -102,7 +102,7 @@ export class MapDataLoader {
     if (!references?.length) throw new Error(`Publication has no list for ${kind}.`);
     const parts = await Promise.all(references.map((reference) => this.#loadReference(reference, StaticKindListSchema, root)));
     if (parts.some((part, index) => part.kind !== kind || part.part !== index)) throw new Error(`Kind-list identity mismatch for ${kind}.`);
-    return { schemaVersion: 'compendium.static-kind-list.v6', buildId: root.buildId, catalogId: root.catalogId, kind, part: 0, rows: parts.flatMap((part) => part.rows) };
+    return { schemaVersion: 'compendium.static-kind-list.v7', buildId: root.buildId, catalogId: root.catalogId, kind, part: 0, rows: parts.flatMap((part) => part.rows) };
   }
 
   async loadDocument(kind: PublicPageKind, slug: string): Promise<StaticDocument> {

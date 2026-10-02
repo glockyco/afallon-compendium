@@ -109,7 +109,7 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
       { id: "damage-and-defense", title: "Damage and defense", lead: "Armor and matching resistance reduce damage. Armor penetration and matching resistance penetration weaken those defenses." },
       { id: "critical-hits", title: "Critical hits", lead: "Critical Hit Chance is a rating, not a flat percentage. Your level and the target's defense and level affect the chance to land a critical hit." },
       { id: "on-hit-effects", title: "On-hit effects", lead: "Eligible hits can trigger effects from on-hit stats. Each stat has a chance and cooldown, and its linked effects may also have their own chance." },
-      { id: "effects", title: "Effects", lead: "An effect can deal damage or heal immediately, change stats or deal damage over time, check a condition, or move you to another place. Its page shows the outcome, timing, and known sources." },
+      { id: "effects", title: "Effects", lead: "Timed effects can change stats or deal damage and healing in pulses. Requirements can check whether an effect is active." },
     ],
   },
 };

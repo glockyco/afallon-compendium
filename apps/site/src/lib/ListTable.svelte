@@ -277,7 +277,7 @@
                 {:else if column.id === 'role'}
                   <span class="badges">{#each cellValues(row, column.id) as role}<Badge label={listValueLabel(column.id, role)} tone={role === 'boss' ? 'boss' : 'neutral'} />{/each}</span>
                 {:else if row.relations?.[column.id]?.length}
-                  {#each row.relations[column.id] as ref, index}{#if index}{', '}{/if}<EntityLink {ref} {registry} truncate />{row.relationSuffixes?.[column.id]?.[index] ?? ''}{/each}
+                  {#each row.relations[column.id] as ref, index}{#if index}{', '}{/if}<EntityLink {ref} {registry} plain truncate />{row.relationSuffixes?.[column.id]?.[index] ?? ''}{/each}
                 {:else if typeof row.values[column.id] === 'number'}
                   <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>
                 {:else}

@@ -264,7 +264,7 @@ export function buildKindLists(
     if (!entry.list) continue;
     const kind = entry.kind as PublicListKind;
     result.set(kind, partitionStaticRecords(rowsByKind.get(kind) ?? [], (rows, part): StaticKindList => ({
-      schemaVersion: "compendium.static-kind-list.v6", ...identity, kind, part, rows,
+      schemaVersion: "compendium.static-kind-list.v7", ...identity, kind, part, rows,
     })));
   }
   return result;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import { MECHANICS_TOPIC_DETAILS, type AdventurersGuide, type CombatGuide, type FactionsGuide, type LootGuide, type PublicKindEntry, type TravelGuide, type WorldQuestsGuide } from '@afallon/contracts/public';
+  import { MECHANICS_TOPIC_DETAILS, type AdventurersGuide, type FactionsGuide, type PublicKindEntry, type TravelGuide, type WorldQuestsGuide } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber } from '../../format';
   import GuideSection from '../GuideSection.svelte';
@@ -9,8 +9,6 @@
   import AdventurerRoster from '../sections/AdventurerRoster.svelte';
   import FactionStandings from '../sections/FactionStandings.svelte';
   import FlightNetworkSection from '../sections/FlightNetworkSection.svelte';
-  import RelationTable from '../RelationTable.svelte';
-  import type { RelationColumn } from '../relation-table';
   import Hero from '../Hero.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
@@ -19,20 +17,9 @@
    * A mechanics page presents its rule sections and, where applicable, roster, gear, faction standings,
    * or flight networks. World Quests also routes readers to the filtered quest catalog.
    */
-  export let document: LootGuide | AdventurersGuide | FactionsGuide | TravelGuide | WorldQuestsGuide | CombatGuide;
+  export let document: AdventurersGuide | FactionsGuide | TravelGuide | WorldQuestsGuide;
   export let registry: PublicKindEntry[];
   const heroicTier = MECHANICS_TOPIC_DETAILS['heroic-tier'];
-  type RecoveryRow = CombatGuide['recovery'][number];
-  const recoveryEntry = (row: RecoveryRow, when: 'outside-combat' | 'in-combat') => row.entries.find((entry) => entry.when === when);
-  const recoveryText = (row: RecoveryRow, when: 'outside-combat' | 'in-combat') => {
-    const entry = recoveryEntry(row, when);
-    return entry ? `+${formatNumber(entry.amount)} every ${formatNumber(entry.interval)} seconds` : '';
-  };
-  const recoveryColumns: RelationColumn<RecoveryRow>[] = [
-    { id: 'stat', label: 'Resource', value: (row) => row.stat.key === null ? row.stat.label : row.stat.name, sort: (row) => row.stat.key === null ? row.stat.label : row.stat.name },
-    { id: 'outside', label: 'Outside combat', value: (row) => recoveryText(row, 'outside-combat') },
-    { id: 'inside', label: 'In combat', value: (row) => recoveryText(row, 'in-combat') },
-  ];
 </script>
 
 <article class="detail-page">
@@ -52,7 +39,7 @@
   </Hero>
   <Sections>
     {#each document.sections as section (section.id)}
-      <GuideSection {section} {registry} topic={document.topic}>
+      <GuideSection {section} {registry}>
         {#if document.topic === 'adventurers' && section.id === 'roster'}
           <AdventurerRoster roster={document.roster} {registry} />
         {:else if document.topic === 'adventurers' && section.id === 'gear-upgrades'}
@@ -65,18 +52,6 @@
           <HowItWorks guide={{ key: `mechanics:${heroicTier.id}`, kind: 'mechanics', name: heroicTier.name, slug: heroicTier.id }} section="settings" label="About the Heroic Tier" />
         {:else if document.topic === 'travel' && section.id === 'network'}
           <FlightNetworkSection networks={document.networks} />
-        {:else if document.topic === 'combat' && section.id === 'recovery'}
-          <RelationTable columns={recoveryColumns} rows={document.recovery} label="Health and resource recovery">
-            <svelte:fragment slot="cell" let:row let:column>
-              {#if column === 'stat'}
-                <EntityLink ref={row.stat} {registry} />
-              {:else if column === 'outside'}
-                {recoveryText(row, 'outside-combat')}
-              {:else}
-                {recoveryText(row, 'in-combat')}
-              {/if}
-            </svelte:fragment>
-          </RelationTable>
         {/if}
       </GuideSection>
     {/each}

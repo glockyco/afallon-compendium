@@ -3,6 +3,7 @@
   import type { Component } from 'svelte';
   import AbilityPage from './pages/AbilityPage.svelte';
   import CharacterProgressionPage from './pages/CharacterProgressionPage.svelte';
+  import CombatPage from './pages/CombatPage.svelte';
   import CraftingAndGatheringPage from './pages/CraftingAndGatheringPage.svelte';
   import CorruptionPage from './pages/CorruptionPage.svelte';
   import GatheringNodePage from './pages/GatheringNodePage.svelte';
@@ -15,6 +16,7 @@
   import HeroicTierPage from './pages/HeroicTierPage.svelte';
   import ItemPage from './pages/ItemPage.svelte';
   import GuidePage from './pages/GuidePage.svelte';
+  import LootPage from './pages/LootPage.svelte';
   import NpcPage from './pages/NpcPage.svelte';
   import PlacePage from './pages/PlacePage.svelte';
   import PropertyPage from './pages/PropertyPage.svelte';
@@ -33,8 +35,8 @@
   const guidePages = {
     'character-progression': CharacterProgressionPage, 'heroic-tier': HeroicTierPage,
     'crafting-and-gathering': CraftingAndGatheringPage, corruption: CorruptionPage,
-    loot: GuidePage, adventurers: GuidePage, factions: GuidePage, 'world-quests': GuidePage,
-    travel: GuidePage, combat: GuidePage,
+    loot: LootPage, adventurers: GuidePage, factions: GuidePage, 'world-quests': GuidePage,
+    travel: GuidePage, combat: CombatPage,
   } satisfies { [K in MechanicsTopic]: Component<DetailProps<Extract<PublicMechanics, { topic: K }>>> };
 
   /** The published document with its kind, which selects the page of that kind. */

@@ -192,7 +192,7 @@ export const StaticRootManifestSchema = Type.Object({
   world: PublicWorldSchema,
   maps: Type.Array(StaticMapSummarySchema),
   kinds: Type.Array(PublicKindEntrySchema, { minItems: 1 }),
-  lists: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z]*$" }), Type.Array(resourceReference("compendium.static-kind-list.v6"), { minItems: 1 })),
+  lists: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z]*$" }), Type.Array(resourceReference("compendium.static-kind-list.v7"), { minItems: 1 })),
   search: Type.Array(resourceReference("compendium.static-search.v6"), { minItems: 1 }),
   coverage: resourceReference("compendium.static-coverage.v4"),
   exclusions: resourceReference("compendium.static-exclusions.v1"),
@@ -410,7 +410,7 @@ export function staticResourceEdges(value: StaticResource): StaticResourceRefere
       ...[entry.ref.icon, entry.ref.portrait].filter((art) => art !== undefined)
         .map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" })),
     ]);
-    case "compendium.static-kind-list.v6": return value.rows.flatMap((row) => [
+    case "compendium.static-kind-list.v7": return value.rows.flatMap((row) => [
       row.ref, ...Object.values(row.relations ?? {}).flat().filter((ref): ref is EntityRef => ref.key !== null),
     ].flatMap((ref) => [ref.icon, ref.portrait]
       .filter((art) => art !== undefined)
