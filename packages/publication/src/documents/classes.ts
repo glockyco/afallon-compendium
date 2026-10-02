@@ -47,7 +47,9 @@ function talentResolver(classRef: Ref, anchors: ReadonlyMap<string, string>, inp
   return (endpoint) => {
     const anchor = endpoint.entityKey === null || !endpoint.entityKey.startsWith("bonuses:") ? undefined : anchors.get(endpoint.entityKey);
     if (anchor === undefined || !isEntityRef(classRef) || classRef.slug === undefined) return input.resolve(endpoint);
-    return { key: classRef.key, kind: classRef.kind, name: displayName(endpoint.label ?? ""), slug: classRef.slug, variant: anchor };
+    // A passive talent shows its own icon, as its row does.
+    const icon = input.artByEntity.get(endpoint.entityKey!)?.icon;
+    return { key: classRef.key, kind: classRef.kind, name: displayName(endpoint.label ?? ""), slug: classRef.slug, variant: anchor, ...(icon ? { icon } : {}) };
   };
 }
 
