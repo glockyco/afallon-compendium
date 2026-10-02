@@ -39,6 +39,7 @@ const topicRules: Record<NonNullable<CatalogMechanicsRule["topic"]>, Array<[stri
   loot: [["chest-row-rolls", "chests"], ["supply-pack-tables", "supply-packs"], ["supply-pack-picks", "supply-packs"], ["supply-pack-world-loot", "supply-packs"], ["supply-pack-lifecycle", "supply-packs"],
     ["cloth-drop-chance", "cloth"], ["cloth-tier-weights", "cloth"], ["object-chest", "world-objects"], ["altar-options", "world-objects"],
     ["quest-only-loot", "quest-items"], ["hunt-pickup", "quest-items"], ["quest-pickup-use", "quest-items"], ["random-run-supply-pack", "dungeon-finder"]],
+  "world-quests": [],
 };
 const rules: CatalogMechanicsRule[] = Object.entries(topicRules).flatMap(([topic, entries]) => entries.map(([ruleId, section], ordinal) => ({
   ruleId, topic: topic as CatalogMechanicsRule["topic"], section, ordinal, status: "verified" as const,
@@ -115,6 +116,23 @@ test("each guide shows every rule of its topic in the section that the rules rec
     const guide = all.get(`mechanics:${topic}`) as CharacterProgression | HeroicTier | CraftingAndGathering;
     expect(guide.sections.flatMap((section) => section.rules.map((rule) => rule.id)).sort()).toEqual(topicRules[topic].map(([id]) => id).sort());
   }
+});
+
+test("World Quests guide groups lifecycle and Heroic rewards under distinct sections", () => {
+  const questRules: CatalogMechanicsRule[] = [
+    { ruleId: "world-quest-zone-cycle", topic: "world-quests", section: "availability", ordinal: 0, status: "verified",
+      phrase: "Zones choose one quest at a time.", operands: {}, links: [], sources: [], placements: [] },
+    { ruleId: "world-quest-automatic-entry", topic: "world-quests", section: "participation", ordinal: 1, status: "verified",
+      phrase: "Entering an active zone adds the quest.", operands: {}, links: [], sources: [], placements: [] },
+    { ruleId: "world-quest-heroic-currency", topic: "world-quests", section: "rewards", ordinal: 2, status: "verified",
+      phrase: "Heroic Cache multiplies currency.", operands: {}, links: [], sources: [], placements: [] },
+  ];
+  const source = { ...facts, progression: { ...facts.progression, mechanicsRules: [...facts.progression.mechanicsRules, ...questRules] } };
+  const page = documents(source).get("mechanics:world-quests");
+  expect(page?.ref).toMatchObject({ name: "World Quests", slug: "world-quests" });
+  expect(page?.sections.map((section) => [section.id, section.rules.map((rule) => rule.id)])).toEqual([
+    ["availability", ["world-quest-zone-cycle"]], ["participation", ["world-quest-automatic-entry"]], ["rewards", ["world-quest-heroic-currency"]],
+  ]);
 });
 
 test("Adventurers guide places job and party rules in their sections and binds job settings", () => {

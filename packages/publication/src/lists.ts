@@ -80,7 +80,7 @@ function questRow(document: PublicQuest, rewardTypes: readonly string[]): ListRo
   return { ref: document.ref,
     values: { levelRange: range, chain: document.facts.chain?.name ?? null, area: areas.join(", ") || null,
       giver: giver?.kind === "npc" ? refName(giver.npc) : null },
-    facets: { startType: types, area: areas, chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)], rewardType: [...rewardTypes] } };
+    facets: { questType: [document.facts.worldQuest ? "World Quest" : "Other Quest"], startType: types, area: areas, chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)], rewardType: [...rewardTypes] } };
 }
 
 function placeRow(document: PublicPlace): ListRow {

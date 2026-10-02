@@ -82,6 +82,14 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
       { id: "reputation-display", title: "Reputation panel", lead: "The Reputation panel of the character window lists the factions that are marked to appear there." },
     ],
   },
+  "world-quests": {
+    overview: "World Quests become available for a limited time in zones across the map. Enter an active zone to join one, complete its objectives, and collect its rewards.",
+    sections: [
+      { id: "availability", title: "Where And When They Appear", lead: "The times on each quest page belong to that quest. A zone may offer a different quest while this one waits." },
+      { id: "participation", title: "Joining And Completing", lead: "Check each quest's page for its objectives and the zone where it starts." },
+      { id: "rewards", title: "Rewards And Heroic Cache", lead: "Each quest page shows the captured rewards, before any changes to currency awarded in play." },
+    ],
+  },
 };
 
 /** Whether the guide of a topic has a section with this id. */

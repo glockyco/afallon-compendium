@@ -966,7 +966,11 @@ export const FactionsGuideSchema = Type.Object({
   standingChanges: count,
 }, { additionalProperties: false });
 export type FactionsGuide = Static<typeof FactionsGuideSchema>;
-export const PublicMechanicsSchema = Type.Union([CharacterProgressionSchema, HeroicTierSchema, CraftingAndGatheringSchema, CorruptionGuideSchema, LootGuideSchema, AdventurersGuideSchema, FactionsGuideSchema]);
+export const WorldQuestsGuideSchema = Type.Object({
+  ...documentBase, topic: Type.Literal("world-quests"), ...guide,
+}, { additionalProperties: false });
+export type WorldQuestsGuide = Static<typeof WorldQuestsGuideSchema>;
+export const PublicMechanicsSchema = Type.Union([CharacterProgressionSchema, HeroicTierSchema, CraftingAndGatheringSchema, CorruptionGuideSchema, LootGuideSchema, AdventurersGuideSchema, FactionsGuideSchema, WorldQuestsGuideSchema]);
 export type PublicMechanics = Static<typeof PublicMechanicsSchema>;
 
 

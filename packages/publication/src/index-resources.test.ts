@@ -90,7 +90,8 @@ test("an NPC row counts its places in the column and offers each place in the fi
 test("quest rows expose the level range, chain, areas, and giver for every column", () => {
   const quest: PublicQuest = {
     ref: { key: "quests:3", kind: "quests", name: "Trial", slug: "trial" }, description: null, art: {},
-    facts: { repeatable: true, turnInWithoutNpc: false, requirements: [], chain: { name: "Pilgrimage", order: 2 }, levelRange: { min: 15, max: 30 }, levelRequirement: 16, experience: 120 },
+    facts: { repeatable: true, turnInWithoutNpc: false, requirements: [], chain: { name: "Pilgrimage", order: 2 }, levelRange: { min: 15, max: 30 }, levelRequirement: 16, experience: 120,
+      worldQuest: { availableSeconds: 600, cooldownAfterCompletionSeconds: 900, cooldownAfterExpirySeconds: 300, cooldownJitterSeconds: 60, initialRollSeconds: 30 } },
     starts: [
       { kind: "npc", npc: { key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }, areas: ["Cedar Ridge"] },
       { kind: "worldZone", placements: [{ placementId: "p1", mapSpaceId: "world", label: "Coalway Woods" }], availability: [], pool: [] },
@@ -104,8 +105,12 @@ test("quest rows expose the level range, chain, areas, and giver for every colum
   expect(row.values).toEqual({ levelRange: "15–30", chain: "Pilgrimage", area: "Cedar Ridge, Coalway Woods", giver: "Guardian" });
   expect(Object.keys(row.values).sort()).toEqual(registry.columns.map((column) => column.id).sort());
   expect(Object.keys(row.facets).sort()).toEqual(registry.facets.map((facet) => facet.id).sort());
-  expect(row.facets).toEqual({ startType: ["npc", "worldZone", "object"], area: ["Cedar Ridge", "Coalway Woods"],
+  expect(row.facets).toEqual({ questType: ["World Quest"], startType: ["npc", "worldZone", "object"], area: ["Cedar Ridge", "Coalway Woods"],
     chain: ["Pilgrimage"], repeatable: ["true"], rewardType: ["Experience", "item"] });
+  const ordinary = { ...quest, ref: { ...quest.ref, key: "quests:4", name: "Trial Two", slug: "trial-two" }, facts: { ...quest.facts, worldQuest: undefined } };
+  const ordinaryRow = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[ordinary.ref.key, ordinary]])).get("quests")![0]!.rows[0]!;
+  expect(ordinaryRow.facets.questType).toEqual(["Other Quest"]);
+  expect(ordinaryRow.facets.startType).toContain("worldZone");
 });
 
 test("item rows name the classes that can use them, what they are, their crafting use, and stats", () => {

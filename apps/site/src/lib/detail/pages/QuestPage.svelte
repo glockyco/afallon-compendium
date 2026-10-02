@@ -5,7 +5,10 @@
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import LinkGrid from '../LinkGrid.svelte';
+  import FactList from '../FactList.svelte';
+  import FactRow from '../FactRow.svelte';
   import FactsGrid from '../FactsGrid.svelte';
+  import HowItWorks from '../HowItWorks.svelte';
   import StatStrip from '../StatStrip.svelte';
   import TitleBlock from '../TitleBlock.svelte';
   import QuestChainSection from '../sections/QuestChainSection.svelte';
@@ -32,7 +35,7 @@
   $: sideFacts = [
     ...(facts.levelRequirement !== undefined ? [{ label: 'Minimum level', value: String(facts.levelRequirement) }] : []),
     ...(facts.repeatable ? [{ label: 'Repeatable', value: 'Yes' }] : []),
-    ...(facts.worldQuest ? [{ label: 'Quest type', value: 'World quest' }] : []),
+    ...(facts.worldQuest ? [{ label: 'Quest Type', value: 'World Quest' }] : []),
     ...(document.dungeon ? [{ label: 'Dungeon', value: nameOf(document.dungeon) }] : []),
   ];
 </script>
@@ -40,8 +43,8 @@
 <article class="detail-page">
   <DetailFrame>
     <div slot="head"><TitleBlock name={document.ref.name} {registry}><StatStrip {stats} /></TitleBlock></div>
-    <div slot="answer">
-      <AnswerCard id="objectives" title="What to do">
+    <div slot="answer" class="answers">
+      <AnswerCard id="objectives" title="What To Do">
         <QuestObjectivesSection objectives={document.objectives} {registry} />
         <QuestStartSection {document} {registry} />
       </AnswerCard>
@@ -50,7 +53,18 @@
       <QuestChainSection quests={document.chainQuests} currentKey={document.ref.key} chainName={facts.chain?.name} {registry} />
       {#if facts.requirements.length}<section><h2>Requirements</h2><Requirements requirements={facts.requirements} {registry} /></section>{/if}
       {#if sideFacts.length}<FactsGrid facts={sideFacts} />{/if}
-      {#if facts.worldQuest}<section class="timing"><h2>World quest timing</h2><p>Active for {intervalText(facts.worldQuest.availableSeconds)}. Returns {intervalText(facts.worldQuest.cooldownAfterCompletionSeconds)} after completion or {intervalText(facts.worldQuest.cooldownAfterExpirySeconds)} after expiry, with up to {intervalText(facts.worldQuest.cooldownJitterSeconds)} extra wait. First appears after a random wait of up to {intervalText(facts.worldQuest.initialRollSeconds)}.</p></section>{/if}
+      {#if facts.worldQuest}
+        <AnswerCard title="When It Appears">
+          <FactList>
+            <FactRow label="Active For">{intervalText(facts.worldQuest.availableSeconds)}</FactRow>
+            <FactRow label="After Completion">{intervalText(facts.worldQuest.cooldownAfterCompletionSeconds)} before another roll</FactRow>
+            <FactRow label="After Expiry">{intervalText(facts.worldQuest.cooldownAfterExpirySeconds)} before another roll</FactRow>
+            <FactRow label="Extra Wait">Up to {intervalText(facts.worldQuest.cooldownJitterSeconds)} on either cooldown</FactRow>
+            <FactRow label="First Roll">Within {intervalText(facts.worldQuest.initialRollSeconds)} of the zone starting</FactRow>
+          </FactList>
+          <HowItWorks guide={{ key: 'mechanics:world-quests', kind: 'mechanics', name: 'World Quests', slug: 'world-quests' }} section="availability" label="How World Quests Appear" />
+        </AnswerCard>
+      {/if}
     </svelte:fragment>
     <Sections>
       <QuestRewardsSection {document} {registry} />
@@ -66,6 +80,5 @@
 </article>
 
 <style>
-  h2 { margin-bottom: .5rem; color: var(--c-text-strong); font: 700 1.2rem/1.3 var(--c-serif); }
-  .timing p { color: var(--c-text-dim); line-height: 1.5; }
+  .answers { display: grid; gap: 1rem; }
 </style>
