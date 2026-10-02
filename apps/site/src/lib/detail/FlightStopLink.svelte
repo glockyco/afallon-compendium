@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { base } from '$app/paths';
-  import type { FlightStop } from '@afallon/contracts/public';
+  import type { FlightStop, PublicKindEntry } from '@afallon/contracts/public';
+  import EntityLink from '../EntityLink.svelte';
   export let stop: FlightStop;
+  export let registry: PublicKindEntry[];
 </script>
 
-{#if stop.master && 'slug' in stop.master && stop.master.slug}
-  <a class="c-link" href={`${base}/npcs/${stop.master.slug}/${stop.master.variant ? `#${stop.master.variant}` : ''}`}>{stop.name}</a>
+{#if stop.master && stop.master.key !== null}
+  <EntityLink ref={{ ...stop.master, name: stop.name }} {registry} />
 {:else}
   {stop.name}
 {/if}

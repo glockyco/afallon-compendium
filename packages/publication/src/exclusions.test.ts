@@ -25,6 +25,23 @@ test("an exclusion fails and names its entry when the catalog contradicts its ev
   expect(() => assertExclusionEvidence([{ ...devRing, key: "items:999" }], input)).toThrow("Exclusion items:999 (test-record) names a record that the catalog lacks.");
 });
 
+test("content-free NPC exclusion stops when a useful relationship appears", () => {
+  const absent: PublicationExclusion = { key: "npcs:124", reason: "content-free-record", evidence: "No location or gameplay relationship." };
+  assertExclusionEvidence([absent], input);
+  const stock: CatalogRelations = { ...relations, vendors: [{
+    npc: { entityKey: absent.key, label: "Innkeeper" }, item: { entityKey: "items:1", label: "Potion" },
+    currency: null, cost: 5, merchantTableId: 1, stockIndex: 0, conditionIds: [], placementIds: [],
+  }] };
+  expect(() => assertExclusionEvidence([absent], { ...input, relations: stock })).toThrow("the NPC has drops, stock, or a quest");
+  expect(() => assertExclusionEvidence([absent], { ...input, entities: input.entities.map((row) => row.entityKey === absent.key ? { ...row, description: "Offers passage." } : row) }))
+    .toThrow("the NPC has a description");
+  const bareRole = { ...({} as CatalogFacts["npcs"][number]), entityKey: absent.key, isQuestGiver: true, abilityPhases: [], factionRewards: [] };
+  assertExclusionEvidence([absent], { ...input, facts: { ...facts, npcs: [bareRole] } });
+  expect(() => assertExclusionEvidence([absent], { ...input, facts: { ...facts, npcs: [{
+    ...bareRole, linkedNpc: { entityKey: "npcs:2", label: "Companion" },
+  }] } })).toThrow("the NPC has an ability or gameplay relationship");
+});
+
 test("a crafting station stays excluded only while it has no map spot and makes no published recipe", () => {
   const savers: PublicationExclusion = { key: "craftingStations:4", reason: "progress-flag", evidence: "Savers makes only progress-flag recipes and stands nowhere." };
   const recipe = (entityKey: string) => ({ ...({} as CatalogFacts["recipes"][number]), entityKey, station: { entityKey: "craftingStations:4", label: "Savers" } });

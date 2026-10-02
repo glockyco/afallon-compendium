@@ -251,7 +251,8 @@ function isMarkerCategory(role: string): role is PublicMarkerCategory {
 }
 
 export function roleLabel(role: string): string {
-  return isMarkerCategory(role) ? PUBLIC_MARKER_CATEGORY_LABELS[role] : categoryLabel(role);
+  const label = isMarkerCategory(role) ? PUBLIC_MARKER_CATEGORY_LABELS[role] : categoryLabel(role);
+  return label.replace(/\b[A-Z][a-z]+\b/g, (word, offset) => offset === 0 ? word : word.toLowerCase());
 }
 
 /** The name of a reference, or its label when no published entity resolves it. */

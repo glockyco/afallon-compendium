@@ -79,7 +79,7 @@ test("an NPC row counts its places in the column and offers each place in the fi
     facts: { level: { min: 5, max: 5, scales: false }, roles: ["enemy"], stats: [], immunities: [] }, variantFields: [], variants: [],
     locations: [placement("Oakenvale"), placement("Coalway Woods")],
     places: [placement("Oakenvale"), placement("Coalway Woods")].map(({ label, placements }) => ({ label, mapSpaceId: "world", placementIds: placements.map((spot) => spot.placementId), spotCount: 1 })), spotCount: 2,
-    drops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], usedInQuests: [], bossOf: [], placedRules: [],
+    drops: [], sells: [], quests: [], abilityPhases: [], factionRewards: [], appliedEffects: [], usedInQuests: [], bossOf: [], placedRules: [],
   };
   const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "npcs")!;
   const row = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[npc.ref.key, npc]])).get("npcs")![0]!.rows[0]!;

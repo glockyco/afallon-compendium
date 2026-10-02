@@ -15,8 +15,10 @@
   $: unknown = rules.filter((rule) => rule.status === 'unknown');
 </script>
 
+<!-- The section reads as prose: the lead, its computed values, and then the verified rules. `top` holds data that readers
+     need before the rules, and the default slot holds tables and examples. Unknown rules close the section as notes. -->
 <Section id={section.id} title={section.title} {line} {level}>
-  <p class="lead">{section.lead}<slot name="lead" /></p>
+  {#if section.lead || $$slots.lead}<p class="lead">{section.lead}<slot name="lead" /></p>{/if}
   <slot name="top" />
   {#each verified as rule (rule.id)}<p class="rule"><RulePhrase {rule} {registry} /></p>{/each}
   <slot />

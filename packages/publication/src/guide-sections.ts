@@ -94,11 +94,11 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     ],
   },
   travel: {
-    overview: "Flight masters connect stops across the world. The routes below show the recorded connections and fares.",
+    overview: "Talk to a flight master to discover stops and fly to other stops in the same network. The connections below show which journeys are available.",
     sections: [
-      { id: "finding-flights", title: "Finding flights", lead: "Talk to a flight master to see destinations on their network." },
-      { id: "taking-flight", title: "Taking a flight", lead: "Flight routes follow the stops and paths shown below." },
-      { id: "network", title: "Flight network", lead: "Each stop has a flight master. Routes list the recorded connections." },
+      { id: "finding-flights", title: "Finding flights", lead: "" },
+      { id: "taking-flight", title: "Taking a flight", lead: "" },
+      { id: "network", title: "Flight network", lead: "Each stop has a flight master. Direct routes show where flights can connect." },
     ],
   },
   combat: {

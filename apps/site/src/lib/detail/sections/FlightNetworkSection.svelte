@@ -1,53 +1,58 @@
 <script lang="ts">
-  import type { FlightNetwork } from '@afallon/contracts/public';
+  import type { FlightNetwork, PublicKindEntry } from '@afallon/contracts/public';
   import { categoryLabel } from '@afallon/contracts/public';
+  import { nameOf } from '../../format';
+  import LinkGrid from '../LinkGrid.svelte';
+  import { omitAlways, planColumns, type RelationColumn } from '../relation-table';
+  import RelationTable from '../RelationTable.svelte';
   import FlightStopLink from '../FlightStopLink.svelte';
+
   export let networks: FlightNetwork[];
+  export let registry: PublicKindEntry[];
+  type Route = FlightNetwork['routes'][number] & { origin: FlightNetwork['stops'][number]; destination: FlightNetwork['stops'][number] };
+  const columns: RelationColumn<Route>[] = [
+    { id: 'from', label: 'From', value: (row) => row.origin.name, sort: (row) => row.origin.name },
+    { id: 'to', label: 'To', value: (row) => row.destination.name, sort: (row) => row.destination.name },
+    { id: 'direction', label: 'Direction', value: (row) => row.bidirectional ? 'Both directions' : 'One way', whenShared: omitAlways },
+    { id: 'fare', label: 'Fare', numeric: true, value: (row) => `${row.fare} ${row.currency ? nameOf(row.currency) : ''}`, sort: (row) => row.fare },
+  ];
+  function routesOf(network: FlightNetwork): Route[] {
+    const stops = new Map(network.stops.map((stop) => [stop.id, stop]));
+    return network.routes.flatMap((route) => {
+      const origin = stops.get(route.from), destination = stops.get(route.to);
+      return origin && destination ? [{ ...route, origin, destination }] : [];
+    });
+  }
 </script>
 
 {#each networks as network (`${network.id}:${network.scene}`)}
-  {@const allKnown = network.stops.every((stop) => stop.knownInitially)}
-  <div class="network c-stack">
+  {@const routes = routesOf(network)}
+  {@const allFree = routes.length > 0 && routes.every((route) => route.fare === 0 && !route.currency)}
+  {@const allInitiallyKnown = network.stops.every((stop) => stop.knownInitially)}
+  {@const sharedDirection = routes.length > 0 && routes.every((route) => route.bidirectional) ? 'All direct routes work both ways.' : routes.length > 0 && routes.every((route) => !route.bidirectional) ? 'All direct routes run one way.' : ''}
+  {@const planned = planColumns(columns.filter((column) => column.id !== 'fare' || !allFree), routes)}
+  <section class="network c-stack" aria-label={`${categoryLabel(network.scene)} flight network`}>
     <h3>{categoryLabel(network.scene)}</h3>
-    {#if allKnown}<p class="initial-note">All stops are known at the start.</p>{/if}
-    {#if network.routes.length > 0 && network.routes.every((route) => route.fare === 0 && !route.currency)}
-      <p class="initial-note">Every recorded route has a fare of 0. No currency is recorded for this network.</p>
+    <p>{allInitiallyKnown ? 'All stops are known at the start.' : 'Talk to a flight master to discover a stop.'} {#if allFree}Flights on this network are free.{/if} {sharedDirection}</p>
+    <h4>Flight stops</h4>
+    <LinkGrid refs={network.stops.map((stop) => stop.master?.key !== null && stop.master ? { ...stop.master, name: stop.name } : { key: null, label: stop.name })} {registry} />
+    {#if routes.length}
+      <h4>Direct routes</h4>
+      <RelationTable columns={planned.columns} rows={routes} label={`Direct routes in ${categoryLabel(network.scene)}`}>
+        <svelte:fragment slot="cell" let:row let:column>
+          {#if column === 'from'}<FlightStopLink stop={row.origin} {registry} />
+          {:else if column === 'to'}<FlightStopLink stop={row.destination} {registry} />
+          {:else if column === 'direction'}{row.bidirectional ? 'Both directions' : 'One way'}
+          {:else}{row.fare}{#if row.currency}{' '}{nameOf(row.currency)}{/if}{/if}
+        </svelte:fragment>
+      </RelationTable>
     {/if}
-    <div class="stops">
-      {#each network.stops as stop (stop.id)}
-        <div class="stop"><FlightStopLink {stop} />{#if stop.knownInitially && !allKnown}<span class="initial">Known at the start</span>{/if}</div>
-      {/each}
-    </div>
-    <div class="routes">
-      <table>
-        <caption>Routes in {categoryLabel(network.scene)}</caption>
-        <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">Fare</th></tr></thead>
-        <tbody>
-          {#each network.routes as route (`${route.from}:${route.to}`)}
-            <tr>
-              <td><FlightStopLink stop={network.stops.find((stop) => stop.id === route.from)!} /></td>
-              <td><FlightStopLink stop={network.stops.find((stop) => stop.id === route.to)!} />{#if route.bidirectional}<span class="return">Both directions</span>{/if}</td>
-              <td>{route.fare}{#if route.currency}{' '}{route.currency.key !== null ? route.currency.name : route.currency.label}{/if}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  </div>
+  </section>
 {/each}
 
 <style>
   .network + .network { margin-top: 2rem; }
   h3 { font: 600 1.15rem/1.3 var(--c-serif); color: var(--c-text-strong); }
-  .initial-note { color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .stops { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .5rem; }
-  .stop { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .5rem; padding: .65rem .8rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  .initial, .return { color: var(--c-text-dim); font-size: var(--c-text-small); }
-  .routes { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; text-align: left; }
-  caption { text-align: left; color: var(--c-text-dim); font-size: var(--c-text-small); padding: .5rem 0; }
-  th, td { padding: .7rem .6rem; border-bottom: 1px solid var(--c-line-soft); vertical-align: top; }
-  th:last-child, td:last-child { text-align: right; white-space: nowrap; }
-  .return { display: block; }
-  @media (max-width: 460px) { th, td { padding: .6rem .3rem; } }
+  h4 { color: var(--c-text-strong); font-size: var(--c-text-small); font-weight: 700; }
+  p { color: var(--c-text-dim); }
 </style>

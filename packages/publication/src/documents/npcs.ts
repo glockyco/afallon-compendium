@@ -1,5 +1,5 @@
 import type { CatalogAvailabilityRule, CatalogCondition, CatalogNpcFacts, CatalogPlacementRow } from "@afallon/contracts/catalog";
-import { type AvailabilityRule, collectRefs, type NpcFacts, type NpcLocation, type NpcVariantFacts, type NpcVariantField, type PlacementRef, type PublicLevel, type PublicMarkerCategory, type PublicNpc, type QuestLinkRow, type NpcAdventurer, type PlacedRule } from "@afallon/contracts/public";
+import { type AvailabilityRule, collectRefs, type NpcAppliedEffect, type NpcFacts, type NpcLocation, type NpcVariantFacts, type NpcVariantField, type PlacementRef, type PublicLevel, type PublicMarkerCategory, type PublicNpc, type QuestLinkRow, type NpcAdventurer, type PlacedRule } from "@afallon/contracts/public";
 import { markerCategories, shownCategories } from "../categories";
 import { phaseAbilities, recordStats } from "../adventurers";
 import { characterLevelCap, killExperience } from "../experience";
@@ -14,6 +14,7 @@ import { shownNpcStats } from "../variants";
 import { assertDistinctLootRules, lootFields } from "./loot";
 import { type DocumentProjectionInput, endpointOrUnknown, mergeRefs, optionalFactRef, pageBase, projectAvailability, type RelationIndexes, requirementsFor } from "./projection";
 import { objectiveForRow } from "./quests";
+import { appliedEffectsByAbility } from "./effects";
 
 const EMPTY_NPC_FACTS: Omit<CatalogNpcFacts, "entityKey"> = { minLevel: null, maxLevel: null, scalesWithPlayer: false, npcType: null, creatureType: null, family: null, faction: null, species: null, isMerchant: false, isQuestGiver: false, isCombatEnabled: false, isAuctioneer: false, isBanker: false, isFlightMaster: false, hunterTamable: false, hunterBeastRole: null, equipmentAppearanceSelections: null, adventurer: null, flightNetwork: null, minRespawn: null, maxRespawn: null, minExperience: null, maxExperience: null, lowerLevelExperienceModifier: null, higherLevelExperienceModifier: null, experienceBonusPerLevel: null, immuneToStun: false, immuneToSlow: false, aggroRange: null, stats: [], abilityPhases: [], factionRewards: [], linkedNpc: null, lootSpecialization: null };
 
@@ -143,6 +144,49 @@ function attributedRows<T>(rowsByVariant: ReadonlyArray<{ anchor: string; rows: 
   return [...merged.values()].map(({ row, anchors }) => anchors.length === holders ? row as T & { variants?: string[] } : { ...row, variants: anchors });
 }
 
+/** Invert the same invitation and ability applications that the effect pages list as NPC sources. */
+function appliedEffects(page: PublishedPage, input: DocumentProjectionInput, records: readonly { fact: CatalogNpcFacts }[], adventurers: ReadonlyMap<string, NpcAdventurer>): NpcAppliedEffect[] {
+  const keys = new Set(page.members.map((member) => member.entity.entityKey));
+  const result: NpcAppliedEffect[] = [];
+  const resolve = (key: string) => {
+    const ref = input.resolve({ entityKey: key, label: key });
+    return ref.key !== null && "slug" in ref && ref.slug ? ref : undefined;
+  };
+  for (const invite of input.facts.adventurerInviteEffects) {
+    if (!invite.adventurer.entityKey || !keys.has(invite.adventurer.entityKey) || !invite.effect.entityKey) continue;
+    const effect = resolve(invite.effect.entityKey);
+    if (!effect) continue;
+    const durationSeconds = invite.firstRank?.petDuration || invite.duration;
+    const summons = invite.firstRank?.pet?.entityKey ? input.resolve(invite.firstRank.pet) : undefined;
+    result.push({ effect, via: "Invitation", ...(durationSeconds > 0 ? { durationSeconds } : {}), ...(summons ? { summons } : {}) });
+  }
+  for (const source of input.effectWorldSources ?? []) {
+    if (source.family !== "npcInvitation" || !source.place?.entityKey || !keys.has(source.place.entityKey)) continue;
+    const effect = resolve(source.effectKey);
+    if (!effect) continue;
+    const fact = input.facts.progression.facts.find((entry) => entry.entityKey === source.effectKey);
+    const details = fact?.kind === "effects" ? fact.details : undefined;
+    const firstRank = details?.ranks[0];
+    const durationSeconds = firstRank?.petDuration || details?.duration || 0;
+    const summons = firstRank?.pet ? input.resolve(firstRank.pet) : undefined;
+    result.push({ effect, via: "Invitation", ...(durationSeconds > 0 ? { durationSeconds } : {}), ...(summons ? { summons } : {}) });
+  }
+  for (const { fact } of records) {
+    // Roster adventurers fight with class abilities, not the unused phases on their NPC records.
+    if (adventurers.has(fact.entityKey)) continue;
+    for (const phase of fact.abilityPhases) for (const ability of phase.abilities) {
+      for (const applied of appliedEffectsByAbility(input.facts, ability.ability.entityKey, ability.rankIndex)) {
+        const effect = resolve(applied.effectKey);
+        if (!effect) continue;
+        result.push({ effect, via: "NPC Ability", ability: input.resolve(ability.ability),
+          ...(applied.rank !== undefined ? { rank: applied.rank } : {}), ...(applied.chance !== undefined ? { chance: applied.chance } : {}),
+          ...(applied.target ? { target: applied.target } : {}) });
+      }
+    }
+  }
+  return [...new Map(result.map((row) => [JSON.stringify(row), row])).values()];
+}
+
 export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, adventurers: ReadonlyMap<string, NpcAdventurer>): PublicNpc {
   const variantFields = [...page.variantFields];
   const records = page.members.map((member) => ({ member, fact: npcFact(member.entity.entityKey, indexes) }));
@@ -210,6 +254,7 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
   // An adventurer on the world roster shows its class, role, preferred tree, and arrival, with the guide's roster.
   const adventurerFacts = page.members.map((member) => adventurers.get(member.entity.entityKey)).find((facts) => facts !== undefined);
   const flights = records.some(({ fact }) => fact.flightNetwork?.stopId) ? npcFlights(input.facts, memberKeys, flightNetworks(input.facts, input.resolve)) : [];
+  const effects = appliedEffects(page, input, records, adventurers);
   const adventurerRules: PlacedRule[] = [
     ...(adventurerFacts ? [{ target: "adventurer", guide: topicRef("adventurers"), section: "roster" }] : []),
     ...(adventurer ? [{ target: "adventurer-gear", guide: topicRef("adventurers"), section: "gear-upgrades" }] : []),
@@ -229,6 +274,7 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
     drops, sells, quests,
     abilityPhases: has("abilityPhases") ? shared.abilityPhases : [], factionRewards: has("factionRewards") ? shared.factionRewards : [],
     usedInQuests, bossOf, ...(hunter && "slug" in hunter && hunter.slug ? { hunter } : {}),
+    appliedEffects: effects,
     ...(has("linkedNpc") && shared.linkedNpc ? { linkedNpc: shared.linkedNpc } : {}),
     placedRules: [...npcPlacedRules, ...adventurerRules],
     ...(adventurer ? { adventurerGear: { rewardChance: chancePercent(world.equipmentRewardChance), kit } } : {}),

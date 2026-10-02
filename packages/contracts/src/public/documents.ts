@@ -15,7 +15,7 @@ const identity = StaticResourceIdentityFields;
 // kind union before the document schemas (which themselves contain entity references) are defined.
 const PAGE_DOCUMENTS = {
   items: { schema: () => PublicItemSchema, schemaId: "compendium.static-item.v23" },
-  npcs: { schema: () => PublicNpcSchema, schemaId: "compendium.static-npc.v12" },
+  npcs: { schema: () => PublicNpcSchema, schemaId: "compendium.static-npc.v13" },
   quests: { schema: () => PublicQuestSchema, schemaId: "compendium.static-quest.v7" },
   places: { schema: () => PublicPlaceSchema, schemaId: "compendium.static-place.v11" },
   properties: { schema: () => PublicPropertySchema, schemaId: "compendium.static-property.v4" },
@@ -600,6 +600,13 @@ export const NpcFlightsSchema = Type.Object({
 }, { additionalProperties: false });
 export type NpcFlights = Static<typeof NpcFlightsSchema>;
 
+export const NpcAppliedEffectSchema = Type.Object({
+  effect: RefSchema, via: Type.Union([Type.Literal("Invitation"), Type.Literal("NPC Ability")]), ability: optional(RefSchema),
+  durationSeconds: optional(number), summons: optional(RefSchema),
+  rank: optional(count), chance: optional(number), target: optional(text),
+}, { additionalProperties: false });
+export type NpcAppliedEffect = Static<typeof NpcAppliedEffectSchema>;
+
 // A page groups the records that share a display name. `variantFields` lists the record facts that differ between
 // them, so an empty list means that the variants differ only in where, when, and with what services they appear.
 export const PublicNpcSchema = Type.Object({
@@ -609,6 +616,7 @@ export const PublicNpcSchema = Type.Object({
   drops: Type.Array(NpcDropRowSchema), sells: Type.Array(NpcVendorRowSchema), quests: Type.Array(QuestLinkRowSchema),
   abilityPhases: Type.Array(AbilityPhaseSchema), factionRewards: Type.Array(FactionRewardRowSchema),
   usedInQuests: Type.Array(QuestObjectiveRowSchema), bossOf: refs, hunter: optional(RefSchema), linkedNpc: optional(RefSchema), placedRules: Type.Array(PlacedRuleSchema),
+  appliedEffects: Type.Array(NpcAppliedEffectSchema),
   adventurerGear: optional(NpcAdventurerGearSchema), adventurer: optional(NpcAdventurerSchema),
   flights: optional(Type.Array(NpcFlightsSchema)),
 }, { additionalProperties: false });
@@ -860,10 +868,10 @@ export const ExperienceSourcesSchema = Type.Object({
   levelModifiers: Type.Array(Type.Object({ lower: number, higher: number, creatures: count }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type ExperienceSources = Static<typeof ExperienceSourcesSchema>;
-// A guide explains its topic in sections. `overview` has at most three sentences. Each section covers one mechanic or one
-// context of the topic: its `lead` explains the mechanic, and `rules` are the rules of that mechanic in the rules record, in the
-// order of the rules record. The `id` is the anchor that placed rules link.
-export const GuideSectionSchema = Type.Object({ id: anchor, title: text, lead: text, rules: Type.Array(MechanicsRuleSchema) }, { additionalProperties: false });
+// A guide explains its topic in sections. `overview` has at most three sentences. Each section covers one mechanic or
+// context. Its `lead` adds context when the verified rules do not already say it, and `rules` follow their recorded order.
+// The `id` is the anchor that placed rules link.
+export const GuideSectionSchema = Type.Object({ id: anchor, title: text, lead: Type.String(), rules: Type.Array(MechanicsRuleSchema) }, { additionalProperties: false });
 export type GuideSection = Static<typeof GuideSectionSchema>;
 const guide = { overview: text, sections: Type.Array(GuideSectionSchema, { minItems: 1 }),
   seeAlso: optional(Type.Array(Type.Object({ lead: text, ref: EntityRefSchema }, { additionalProperties: false }))) };

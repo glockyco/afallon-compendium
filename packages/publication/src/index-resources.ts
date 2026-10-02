@@ -216,11 +216,12 @@ export async function generateIndexResources(
   const identity = { buildId: entities.buildId, catalogId: entities.catalogId };
   // Talent bonuses are not entities, but class pages show their icons.
   const bonusArtwork = facts.records.progression.facts.flatMap((fact) => fact.kind === "bonuses" && fact.artwork?.length ? [{ entityKey: fact.entityKey, artwork: fact.artwork }] : []);
+  const effectWorldSources = worldEffectSources(db);
   const artwork = await generateArtworkResources(store, [...entities.records, ...bonusArtwork], protection);
   const levelsByRecord = new Map<string, PublicLevel[]>();
   for (const levels of npcLevels.values()) for (const [key, level] of levels) levelsByRecord.set(key, [...levelsByRecord.get(key) ?? [], level]);
   const spawnedLevels = new Map([...levelsByRecord].map(([key, levels]) => [key, levelUnion(levels)!] as const));
-  const effectWorldSources = worldEffectSources(db), effectWorldChecks = worldEffectChecks(db);
+  const effectWorldChecks = worldEffectChecks(db);
   const references = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, excluded,
     npcLevels: spawnedLevels, effectWorldSources });
   const refs = references.refs;

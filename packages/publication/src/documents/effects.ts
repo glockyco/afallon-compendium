@@ -79,6 +79,7 @@ export function appliedAbilityTargets(applier: CatalogProgressionApplier, facts:
 export interface AppliedAbilityEffect { effectKey: string; rank?: number; chance?: number; target?: string }
 const appliedAbilityCache = new WeakMap<CatalogFacts, Map<string, AppliedAbilityEffect[]>>();
 
+
 /** Effects that a particular ability record applies, optionally restricted to the rank used by an item or creature. */
 export function appliedEffectsByAbility(facts: CatalogFacts, abilityKey: string | null, rankIndex?: number): readonly AppliedAbilityEffect[] {
   if (!abilityKey) return [];

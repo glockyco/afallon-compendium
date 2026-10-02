@@ -93,9 +93,19 @@ function contradiction(entity: CatalogEntityRow, input: ExclusionEvidenceInput, 
       if (input.lootItemKeys?.has(key)) return "a loot table grants the item";
       return null;
     }
-    case "npcs":
+    case "npcs": {
       if (relations.placements.some((placement) => placement.roles.some((role) => role.npcEntityKey === key))) return "the NPC has a placement";
-      return input.spawnCandidates.has(key) ? "the NPC is a spawn candidate" : null;
+      if (input.spawnCandidates.has(key)) return "the NPC is a spawn candidate";
+      if (reason !== "content-free-record") return null;
+      const fact = input.facts.npcs.find((row) => row.entityKey === key);
+      if (entity.description?.trim()) return "the NPC has a description";
+      // A role flag alone cannot direct a reader to a service without a placement, stock, or quest.
+      if (fact && (fact.flightNetwork || fact.adventurer || fact.abilityPhases.some((phase) => phase.abilities.length > 0)
+        || fact.factionRewards.length || fact.linkedNpc)) return "the NPC has an ability or gameplay relationship";
+      if (relations.drops.some((row) => keyOf(row.owner) === key) || relations.vendors.some((row) => keyOf(row.npc) === key)
+        || relations.quests.some((row) => keyOf(row.counterpart) === key)) return "the NPC has drops, stock, or a quest";
+      return null;
+    }
     case "scenes": {
       if (relations.placements.some((placement) => placement.sceneKey === key)) return "the scene has a placement";
       const place = input.facts.places.find((candidate) => candidate.entityKey === key);

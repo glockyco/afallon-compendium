@@ -51,7 +51,7 @@
         {:else if document.topic === 'world-quests' && section.id === 'rewards'}
           <HowItWorks guide={{ key: `mechanics:${heroicTier.id}`, kind: 'mechanics', name: heroicTier.name, slug: heroicTier.id }} section="settings" label="About the Heroic Tier" />
         {:else if document.topic === 'travel' && section.id === 'network'}
-          <FlightNetworkSection networks={document.networks} />
+          <FlightNetworkSection networks={document.networks} {registry} />
         {/if}
       </GuideSection>
     {/each}
