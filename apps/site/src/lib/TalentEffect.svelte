@@ -2,7 +2,7 @@
   import type { PublicKindEntry, TalentRow } from '@afallon/contracts/public';
   import EntityLink from './EntityLink.svelte';
   import NativeText from './NativeText.svelte';
-  import { statChange } from './progression-format';
+  import { statAmount } from './progression-format';
 
   /** A passive talent at its first rank and, when it has more ranks, at its last rank. */
   export let row: TalentRow;
@@ -20,9 +20,9 @@
     {#if ranks.length > 1}<span class="label">Rank {rank.rank}</span>{/if}
     <span class="effect">
       {#if rank.stats.length || rank.petStats.length}
-        {#if rank.stats.length}<span class="line">{rank.stats.map(statChange).join(', ')}</span>{/if}
+        {#if rank.stats.length}<span class="line">{#each rank.stats as stat, index}{index ? ', ' : ''}{statAmount(stat)} <EntityLink ref={stat.stat} {registry} />{/each}</span>{/if}
         {#each rank.petStats as group}
-          <span class="line">{#if group.pets.kind === 'npc'}<EntityLink ref={group.pets.npc} {registry} />{:else}{PETS[group.pets.kind]}{/if}: {group.stats.map(statChange).join(', ')}</span>
+          <span class="line">{#if group.pets.kind === 'npc'}<EntityLink ref={group.pets.npc} {registry} />{:else}{PETS[group.pets.kind]}{/if}: {#each group.stats as stat, index}{index ? ', ' : ''}{statAmount(stat)} <EntityLink ref={stat.stat} {registry} />{/each}</span>
         {/each}
       {:else}<NativeText lines={rank.text} />{/if}
     </span>

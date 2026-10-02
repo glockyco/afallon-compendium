@@ -5,6 +5,7 @@
   import CraftingStationTooltip from './CraftingStationTooltip.svelte';
   import CurrencyTooltip from './CurrencyTooltip.svelte';
   import FactionTooltip from './FactionTooltip.svelte';
+  import EffectTooltip from './EffectTooltip.svelte';
   import GatheringNodeTooltip from './GatheringNodeTooltip.svelte';
   import GearSetTooltip from './GearSetTooltip.svelte';
   import GuideTooltip from './GuideTooltip.svelte';
@@ -14,6 +15,7 @@
   import PropertyTooltip from './PropertyTooltip.svelte';
   import QuestTooltip from './QuestTooltip.svelte';
   import RaceTooltip from './RaceTooltip.svelte';
+  import StatTooltip from './StatTooltip.svelte';
   import SkillTooltip from './SkillTooltip.svelte';
   import { itemSourceLines, summaryText } from './detail/item-sources';
 
@@ -50,6 +52,8 @@
 {:else if page.kind === 'currencies'}<CurrencyTooltip document={page.document} />
 {:else if page.kind === 'craftingStations'}<CraftingStationTooltip document={page.document} />
 {:else if page.kind === 'races'}<RaceTooltip document={page.document} />
-{:else if page.kind === 'factions'}<FactionTooltip document={page.document} />{/if}
+{:else if page.kind === 'factions'}<FactionTooltip document={page.document} />
+{:else if page.kind === 'stats'}<StatTooltip document={page.document} {registry} />
+{:else if page.kind === 'effects'}<EffectTooltip document={page.document} />{/if}
 
 <style>.context { margin: .55rem 0 0; color: var(--c-text-dim); font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }</style>

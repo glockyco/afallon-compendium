@@ -100,6 +100,17 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
       { id: "network", title: "Flight network", lead: "Each stop has a flight master. Routes list the recorded connections." },
     ],
   },
+  combat: {
+    overview: "Your stats shape your attacks, defenses, and recovery. Abilities and equipment can also apply effects that deal damage, restore health, or change stats.",
+    sections: [
+      { id: "building-stats", title: "Building your stats", lead: "Equipment, socketed gems, talents, and active gear set bonuses can add flat or percentage amounts. Equip different listed set items to unlock each tier. Higher tiers keep the lower bonuses active." },
+      { id: "recovery", title: "Health and resource recovery", lead: "Health, Mana, Energy, and Endurance have their own configured recovery amounts and intervals. See each stat page for its recorded values. These settings do not establish the exact timing of recovery during play." },
+      { id: "damage-and-defense", title: "Damage and defense", lead: "An attack's damage type determines which defense matters. A stat's name alone does not establish every damage-type match." },
+      { id: "critical-hits", title: "Critical hits", lead: "Critical Hit Chance is a rating. Your level and the target's defense and level can change the actual chance." },
+      { id: "on-hit-effects", title: "On-hit effects", lead: "Some stats can trigger an effect on eligible hits. The stat page lists its linked effects, chances, and cooldown." },
+      { id: "effects", title: "Effects", lead: "Effects can be immediate or remain active for a duration. An effect page lists its recorded ranks, timing, and known sources." },
+    ],
+  },
 };
 
 /** Whether the guide of a topic has a section with this id. */

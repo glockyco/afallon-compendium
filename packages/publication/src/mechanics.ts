@@ -1,5 +1,5 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { AdventurerGear, AdventurerRosterRow, AdventurersGuide, FactionsGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicFaction, PublicItem, PublicLevel, PublicMechanics, PublicNpc, PublicQuest, Ref, TalentPoints, TravelGuide, WorldQuestsGuide } from "@afallon/contracts/public";
+import type { AdventurerGear, AdventurerRosterRow, AdventurersGuide, CombatGuide, FactionsGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicFaction, PublicItem, PublicLevel, PublicMechanics, PublicNpc, PublicQuest, Ref, TalentPoints, TravelGuide, WorldQuestsGuide } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
 import { flightNetworks } from "./flight-network";
@@ -398,6 +398,11 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),
     ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, resolve), roster: adventurerRosterRows(entityDocuments) } satisfies AdventurersGuide] : []),
     ...(topics.has("factions") ? [factionsGuide(facts, resolve, entityDocuments)] : []),
+    ...(topics.has("combat") ? [{ ref: topicRef("combat"), description: MECHANICS_TOPIC_NAMES.combat.description, art: {}, topic: "combat", ...guide(facts, "combat", resolve),
+      recovery: facts.progression.facts.flatMap((fact) => fact.kind === "stats" && ["Health", "Mana", "Energy", "Endurance"].includes(fact.name ?? "")
+        ? [{ stat: resolve({ entityKey: fact.entityKey, label: fact.name ?? fact.entityKey }),
+          entries: fact.details.regeneration.filter((entry) => entry.amount !== 0 && entry.interval > 0) }] : []),
+    } satisfies CombatGuide] : []),
     ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_NAMES.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
     ...(topics.has("world-quests") ? [{ ref: topicRef("world-quests"), description: MECHANICS_TOPIC_NAMES["world-quests"].description, art: {}, topic: "world-quests", ...guide(facts, "world-quests", resolve) } satisfies WorldQuestsGuide] : []),
     ...(topics.has("travel") ? [{ ref: topicRef("travel"), description: MECHANICS_TOPIC_NAMES.travel.description, art: {}, topic: "travel", ...guide(facts, "travel", resolve), networks: flightNetworks(facts, resolve) } satisfies TravelGuide] : []),

@@ -7,6 +7,9 @@ import { levelText } from "./levels";
 import { displayName, plainText } from "./text";
 import { gatheringNodeNames } from "./gathering";
 import { abilityVersions, npcVariantFields } from "./variants";
+import { isPlayerStat } from "./documents/stats";
+import type { EffectWorldSource } from "./documents/projection";
+import { effectPageKeys, effectFallbackName } from "./documents/effects";
 
 export interface ReferenceBuildContext {
   facts?: CatalogFacts;
@@ -16,6 +19,7 @@ export interface ReferenceBuildContext {
   npcLevels?: ReadonlyMap<string, PublicLevel>;
   /** The records that the reviewed exclusion list keeps out of the publication. */
   excluded?: ReadonlySet<string>;
+  effectWorldSources?: readonly EffectWorldSource[];
 }
 
 /** One authored record of a page. `label` tells it apart from the other records of the page. */
@@ -256,9 +260,13 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
   const excluded = context.excluded ?? new Set<string>();
   // An excluded record takes no part in grouping or name qualification, so a published record that shared its name only
   // with excluded records keeps the base name.
-  const groups = groupEntities(entities.filter((entity) => !excluded.has(entity.entityKey)));
+  const groups = groupEntities(entities.filter((entity) => !excluded.has(entity.entityKey))).map((group) =>
+    group.kind === "effects" && context.facts && !displayName(group.members[0]!.name ?? "")
+      ? { ...group, name: effectFallbackName(group.members[0]!, context.facts) } : group);
   const npcFacts = new Map((context.facts?.npcs ?? []).map((fact) => [fact.entityKey, fact]));
   const abilityFacts = new Map((context.facts?.abilities ?? []).map((fact) => [fact.entityKey, fact]));
+  const reachableEffects = context.facts && context.relations
+    ? effectPageKeys(context.facts, context.relations, context.effectWorldSources ?? []) : new Set<string>();
 
   // Ability versions first, because creature variants compare their abilities by version.
   const versionByAbility = new Map<string, string>(), versionsByGroup = new Map<string, PageVersion[]>();
@@ -289,6 +297,11 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
     if (same.length === 1) { names.set(same[0]!.key, same[0]!.name); continue; }
     const rows = same.map((group) => group.members[0]!).sort((left, right) => left.nativeId - right.nativeId);
     const kind = same[0]!.kind;
+    // Distinct effects can share an authored name. Their native number, not a shifting ordinal, identifies each.
+    if (kind === "effects") {
+      for (const group of same) names.set(group.key, `${group.name} (#${group.members[0]!.nativeId})`);
+      continue;
+    }
     const suffixes = recordLabels(rows, candidatesOf(kind), (position) => String(position), kind === "places" ? entrances : undefined);
     for (const group of same) names.set(group.key, `${group.name} (${suffixes.get(group.key)!.text})`);
   }
@@ -302,7 +315,10 @@ export function buildEntityReferences(entities: readonly CatalogEntityRow[], con
   for (const group of groups) {
     const registry = PUBLIC_KIND_BY_KIND[group.kind], name = names.get(group.key)!;
     // A class that no race offers is not playable, so it has no page.
-    const hasPage = registry.pages && (group.kind !== "classes" || offeredClasses.has(group.members[0]!.entityKey));
+    const hasPage = registry.pages && (group.kind !== "classes" || offeredClasses.has(group.members[0]!.entityKey))
+      && (group.kind !== "stats" || (isPlayerStat(group.members[0]!)
+        && context.facts?.progression.facts.some((fact) => fact.kind === "stats" && fact.entityKey === group.key)))
+      && (group.kind !== "effects" || reachableEffects.has(group.members[0]!.entityKey));
     let slug: string | undefined;
     if (hasPage) {
       const used = usedSlugs.get(group.kind) ?? new Set<string>();
@@ -387,7 +403,8 @@ function linkEnchantmentsToItems(refs: Array<readonly [string, EntityRef]>, byKe
 export function resolveCatalogEndpoint(refs: ReadonlyMap<string, EntityRef>, endpoint: CatalogEndpoint): EntityRef | UnresolvedRef {
   if (endpoint.entityKey !== null) {
     const ref = refs.get(endpoint.entityKey);
-    if (ref) return ref;
+    if (ref) return PUBLIC_KIND_BY_KIND[ref.kind].pages && !ref.slug
+      ? { key: null, label: ref.name } : ref;
   }
   return { key: null, label: plainText(endpoint.label ?? endpoint.entityKey ?? "") || "Unknown" };
 }

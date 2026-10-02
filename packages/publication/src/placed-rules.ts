@@ -13,6 +13,7 @@ export const MECHANICS_TOPIC_NAMES: Readonly<Record<MechanicsTopic, { name: stri
   factions: { name: "Factions and Reputation", description: "How your standing with each faction works and how factions treat you in combat." },
   "world-quests": { name: "World Quests", description: "Where World Quests appear, how their timers work, and what completing them rewards." },
   travel: { name: "Travel", description: "Flight masters, discovered stops, routes, and fares." },
+  combat: { name: "Combat", description: "How stats, damage, critical hits, on-hit effects, and lasting effects work." },
 };
 
 export function topicRef(topic: MechanicsTopic): EntityRef {

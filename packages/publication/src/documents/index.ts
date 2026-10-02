@@ -5,6 +5,7 @@ import { projectClass, startingGearByItem } from "./classes";
 import { projectCraftingStation } from "./crafting-stations";
 import { projectCurrency } from "./currencies";
 import { newCharacterStandings, projectFaction } from "./factions";
+import { projectEffectPage } from "./effects";
 import { projectGearSet } from "./gear-sets";
 import { fromItemsByItem, projectItem } from "./items";
 import { projectNpcPage } from "./npcs";
@@ -13,6 +14,7 @@ import { conditionsById, type DocumentProjectionInput, relationIndexes } from ".
 import { projectProperty } from "./properties";
 import { projectQuest } from "./quests";
 import { projectRace } from "./races";
+import { projectStat } from "./stats";
 import { projectSkill } from "./skills";
 
 /** One document for each published page, keyed by the page key. */
@@ -40,6 +42,8 @@ export function projectPublicDocuments(input: DocumentProjectionInput): Readonly
       case "currencies": document = projectCurrency(entity, ref, input, indexes); break;
       case "craftingStations": document = projectCraftingStation(entity, ref, input, indexes); break;
       case "races": document = projectRace(entity, ref, input); break;
+      case "stats": document = projectStat(entity, ref, input); break;
+      case "effects": document = projectEffectPage(page, input, conditions); break;
       case "factions": factions.push([key, entity, ref]); continue;
       default: continue;
     }

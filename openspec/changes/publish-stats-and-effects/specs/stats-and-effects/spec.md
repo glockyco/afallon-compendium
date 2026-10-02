@@ -1,0 +1,49 @@
+## Purpose
+
+Give readers linked, evidence-bounded explanations of player-relevant stats and reachable effects alongside a Combat guide that distinguishes recorded settings from verified game rules.
+
+## ADDED Requirements
+
+### Requirement: Player-relevant stats have navigable pages
+
+The publication SHALL provide a stat page, list row, searchable entry, and tooltip for every reviewed player-relevant stat definition. Internal-only candidates without a demonstrated player-facing use SHALL not receive pages. A stat page SHALL show its authored description, category, flat or percent unit, base value, configured bounds, and configured vitality recovery values. It SHALL link on-hit effects with their authored chance and cooldown. It SHALL offer the item-list filter for the stat and separate, linked counts or lists of item, gem, gear set, talent, effect, class, and enchantment sources where published, with large lists initially collapsed. References to a published stat SHALL link its page.
+
+#### Scenario: Strength and its sources
+- **WHEN** a reader opens Strength from an item or a class talent
+- **THEN** the stat page shows its authored description and configured bounds, offers the Strength item-list filter, and links its published gear, gem, talent, effect, and class sources
+
+#### Scenario: Vitality configuration
+- **WHEN** a reader opens Health
+- **THEN** its base value, bounds, starting percentage, and recorded recovery values are visible as configured data, not an unverified live tick guarantee
+
+#### Scenario: Internal stat
+- **WHEN** a record such as Rent count down has no demonstrated player-facing use
+- **THEN** it has no published page or searchable entry
+
+### Requirement: Source-connected effects have navigable pages
+
+The publication SHALL page every effect that a published ability, item, on-hit stat, creature ability, invitation, world interaction, or named requirement applies or checks. Unconnected effects SHALL remain unpaged. Unnamed connected effects SHALL use an effect-type and native-number fallback name rather than an invented proper name. The list SHALL expose effect type and source counts. A page SHALL distinguish instant effects from states and show type-relevant authored timing, pulse count and interval, stack limit, persistence, and removability as data, without asserting unverified stacking or user-interface actions. Each rank SHALL describe its type-specific recorded outcome in natural language and link referenced stats, pets, places, and effects where published. Applied-by and checked-by sources SHALL link owners when available and group repeated world sources by place. Effect references in requirements, abilities, and items SHALL link the pages.
+
+#### Scenario: Bleeding and a checked effect
+- **WHEN** a reader follows Bleeding from an ability or Potion Sickness from a requirement
+- **THEN** the effect page explains the recorded ranks and timing and distinguishes application sources from requirement checks
+
+#### Scenario: Shared world action
+- **WHEN** the same effect is used by many scanned world objects
+- **THEN** its page groups sources by place rather than repeating thousands of individual placements, and its serialized document remains below 262,144 bytes
+
+#### Scenario: Unnamed effect
+- **WHEN** a connected effect has no authored name
+- **THEN** its page title identifies its recorded type and native number
+
+### Requirement: Combat guide states only supported rules
+
+The Combat guide SHALL cover stat composition and bounds, gear set piece counting and cumulative tiers, recorded vitality recovery, damage and defenses, critical hits, on-hit effects, and timed effects with pulses, stat changes, persistence, and named requirement checks. Behavioral claims SHALL come from registered, verified evidence. Recovery shall show recorded amounts and intervals as configuration without implying measured live cadence. Pages SHALL link the relevant guide section. Stats, Effects, and Combat SHALL appear in their requested navigation groups and the home page's guide list.
+
+#### Scenario: Critical-hit explanation
+- **WHEN** a reader follows the Combat guide from Critical Hit Chance
+- **THEN** the guide explains level-aware rating, target defense and level, and a bounded final chance without promising an unverified fixed conversion
+
+#### Scenario: Gear set thresholds
+- **WHEN** a reader consults Building Your Stats
+- **THEN** the guide explains that distinct equipped set items reach thresholds and that higher tiers keep lower tier stat bonuses

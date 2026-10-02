@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PublicItem, PublicKindEntry, Ref } from '@afallon/contracts/public';
+  import type { PublicItem, PublicKindEntry } from '@afallon/contracts/public';
   import { categoryLabel } from '@afallon/contracts/public';
   import { equipmentDisplay, tooltipStat } from './detail/corruption';
   import EntityHeader, { type HeaderFact } from './EntityHeader.svelte';
@@ -30,7 +30,6 @@
     ...(slot ? [{ value: categoryLabel(slot) }] : []),
     ...(gearType ? [{ value: categoryLabel(gearType) }] : facts.itemType ? [{ value: categoryLabel(facts.itemType) }] : []),
   ] satisfies HeaderFact[];
-  const statName = (row: { stat: Ref }) => row.stat.key === null ? row.stat.label : row.stat.name;
   $: set = facts.gearSet;
 </script>
 
@@ -47,11 +46,11 @@
     {#if corruptionLevel > 0 && calculated}<p class="good">Corruption +{corruptionLevel}</p>{/if}
     {#if heroic && facts.heroic}<p class="good">Heroic · +{formatNumber(facts.heroic.statBonusPercent)}% base stats{facts.itemType === 'WEAPON' ? ' and weapon damage' : ''}</p>{/if}
 
-    {#each calculated?.stats ?? facts.stats as stat}<p class="good">{calculated ? `${stat.amount < 0 ? '-' : '+'}${tooltipStat(Math.abs(stat.amount))}${stat.isPercent ? '%' : ''}` : signedAmount(stat.amount, stat.isPercent)} {statName(stat)}</p>{/each}
+    {#each calculated?.stats ?? facts.stats as stat}<p class="good">{calculated ? `${stat.amount < 0 ? '-' : '+'}${tooltipStat(Math.abs(stat.amount))}${stat.isPercent ? '%' : ''}` : signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined}><EntityReference ref={stat.stat} {registry} /></slot></p>{/each}
     {#if facts.randomStats.length}
       <div class="group">
         <p class="dim">{facts.randomStatsMax > 0 ? `Up to ${facts.randomStatsMax} random stats` : 'Random stats'}</p>
-        {#each facts.randomStats as stat}<p class="good">+{rangeText(stat.min, stat.max)}{stat.isPercent ? '%' : ''} {statName(stat)}{#if stat.chance !== undefined}{' '}<span class="dim">({formatNumber(stat.chance)}%)</span>{/if}</p>{/each}
+        {#each facts.randomStats as stat}<p class="good">+{rangeText(stat.min, stat.max)}{stat.isPercent ? '%' : ''} <slot name="ref" ref={stat.stat} rankIndex={undefined}><EntityReference ref={stat.stat} {registry} /></slot>{#if stat.chance !== undefined}{' '}<span class="dim">({formatNumber(stat.chance)}%)</span>{/if}</p>{/each}
       </div>
     {/if}
 
@@ -61,14 +60,14 @@
     {/if}
 
     {#each facts.sockets as socket}<p class="dim">Empty {categoryLabel(socket.socketType ?? socket.gemType ?? 'socket')} socket</p>{/each}
-    {#if facts.gem}{#each facts.gem.stats as stat}<p class="good">{signedAmount(stat.amount, stat.isPercent)} {statName(stat)}</p>{/each}{/if}
+    {#if facts.gem}{#each facts.gem.stats as stat}<p class="good">{signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined}><EntityReference ref={stat.stat} {registry} /></slot></p>{/each}{/if}
     {#if facts.enchantment}<p>Enchantment: <slot name="ref" ref={facts.enchantment} rankIndex={undefined}><EntityReference ref={facts.enchantment} {registry} /></slot></p>{/if}
 
     {#if set}
       <section class="gear-set" aria-label={nameOf(set.set)}>
         <h4><slot name="ref" ref={set.set} rankIndex={undefined}><EntityReference ref={set.set} {registry} /></slot> <span class="dim">({set.members.length} pieces)</span></h4>
         <ul class="plain">{#each set.members as member}<li class:current={member.key === document.ref.key}><slot name="ref" ref={member} rankIndex={undefined}><EntityReference ref={member} {registry} /></slot></li>{/each}</ul>
-        <ul class="plain tiers">{#each set.tiers as tier}<li><span class="dim">({tier.equipped})</span> {#each tier.stats as stat, index}{index > 0 ? ', ' : ''}{signedAmount(stat.amount, stat.isPercent)} {statName(stat)}{/each}</li>{/each}</ul>
+        <ul class="plain tiers">{#each set.tiers as tier}<li><span class="dim">({tier.equipped})</span> {#each tier.stats as stat, index}{index > 0 ? ', ' : ''}{signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined}><EntityReference ref={stat.stat} {registry} /></slot>{/each}</li>{/each}</ul>
       </section>
     {/if}
 

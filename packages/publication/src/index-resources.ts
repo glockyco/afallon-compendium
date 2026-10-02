@@ -30,7 +30,7 @@ import { readerCoverage } from "./coverage";
 import { usableTeleports } from "./connections";
 import { projectPublicDocuments } from "./documents";
 import { startingGearByItem } from "./documents/classes";
-import { conditionsById, type PublishedPlacement, requirementsFor } from "./documents/projection";
+import { conditionsById, type EffectWorldCheck, type EffectWorldSource, type PublishedPlacement, requirementsFor } from "./documents/projection";
 import { projectGatheringNodeDocuments } from "./gathering";
 import { projectChallengeStoneUses, projectMechanicsDocuments } from "./mechanics";
 import { assertExclusionEvidence, withoutExcludedRelations } from "./exclusions";
@@ -45,6 +45,69 @@ import type { PlaceVariant } from "./place-variants";
 import { displayName } from "./text";
 import { categoryLabel } from "@afallon/contracts/public";
 import { auditPublicTooltipCoverage } from "./tooltip-coverage";
+
+/** World effect actions include nested game actions, which the general relation query does not expose. */
+function worldEffectSources(db: Database): EffectWorldSource[] {
+  const rows = db.query<{ effectId: number; family: string; sceneId: number; placementId: string; sourceId: string; label: string | null }, []>(`
+    SELECT DISTINCT CAST(j.atom AS INTEGER) AS effectId, d.family, p.scene_native_id AS sceneId,
+      d.placement_id AS placementId, d.source_id AS sourceId,
+      COALESCE(json_extract(d.data_json, '$.interactableName'), json_extract(d.data_json, '$.chestName')) AS label
+    FROM source_details d JOIN placements p ON p.placement_id = d.placement_id,
+      json_tree(d.data_json) j
+    WHERE j.key = 'nativeId' AND j.type = 'integer' AND j.path LIKE '$.actions%'
+      AND (j.path LIKE '%.effect' OR j.path LIKE '%.effectTeleport')
+      AND j.atom >= 0
+    ORDER BY effectId, sourceId, placementId
+  `).all();
+  const bySource = new Map<string, EffectWorldSource>();
+  for (const row of rows) {
+    // A world source can have several placements. Count its effect action once in a place.
+    const key = `${row.effectId}\u0000${row.sourceId}\u0000${row.sceneId}`;
+    const source = bySource.get(key) ?? { effectKey: `effects:${row.effectId}`, sourceId: row.sourceId, family: row.family,
+      place: { entityKey: `scenes:${row.sceneId}`, label: `Scene ${row.sceneId}` },
+      placementIds: [], label: row.label };
+    if (!source.placementIds.includes(row.placementId)) source.placementIds.push(row.placementId);
+    bySource.set(key, source);
+  }
+  const invites = db.query<{ entityKey: string; name: string | null; effectId: number }, []>(`
+    SELECT d.entity_key AS entityKey, e.name,
+      CAST(json_extract(d.detail_json, '$.publicData.gameplay.inviteEffectId') AS INTEGER) AS effectId
+    FROM entity_details d JOIN canonical_entities e ON e.entity_key = d.entity_key
+    WHERE d.entity_key LIKE 'npcs:%'
+      AND json_type(d.detail_json, '$.publicData.gameplay.inviteEffectId') = 'integer'
+      AND json_extract(d.detail_json, '$.publicData.gameplay.inviteEffectId') >= 0
+  `).all();
+  for (const { entityKey, name, effectId } of invites) {
+    bySource.set(`invite\u0000${entityKey}`, { effectKey: `effects:${effectId}`, sourceId: entityKey, family: "npcInvitation",
+      place: { entityKey, label: name ?? entityKey }, placementIds: [], label: name });
+  }
+  return [...bySource.values()];
+}
+
+/** Keep world-only requirement owners grouped by their recorded scene or source, not by raw occurrence. */
+function worldEffectChecks(db: Database): EffectWorldCheck[] {
+  const place = (id: number): EffectWorldCheck["place"] => ({ entityKey: `scenes:${id}`, label: `Scene ${id}` });
+  const result: EffectWorldCheck[] = [];
+  const world = db.query<{ conditionId: string; ownerKey: string }, []>(
+    "SELECT condition_id AS conditionId, owner_key AS ownerKey FROM conditions WHERE owner_type = 'world-source' ORDER BY condition_id",
+  ).all();
+  for (const row of world) {
+    const scene = row.ownerKey.match(/:build-scene:(\d+):([^:]+):/);
+    result.push({ conditionId: row.conditionId, sourceId: row.ownerKey,
+      family: scene?.[2] ?? "World Interaction", place: scene ? place(Number(scene[1])) : null });
+  }
+  const sources = db.query<{ conditionId: string; sourceId: string; family: string | null; sceneId: number }, []>(`
+    SELECT DISTINCT c.condition_id AS conditionId, s.source_id AS sourceId,
+      (SELECT d.family FROM source_details d WHERE d.source_id = s.source_id ORDER BY d.detail_id LIMIT 1) AS family,
+      p.scene_native_id AS sceneId
+    FROM conditions c JOIN source_identities s ON s.source_id = substr(c.owner_key, 8)
+      JOIN placements p ON p.placement_id = s.placement_id
+    WHERE c.owner_type = 'source'
+  `).all();
+  for (const row of sources) result.push({ conditionId: row.conditionId, sourceId: row.sourceId,
+    family: row.family ?? "World Interaction", place: place(row.sceneId) });
+  return result;
+}
 
 export interface GeneratedIndexResources {
   refs: ReadonlyMap<string, EntityRef>;
@@ -157,8 +220,9 @@ export async function generateIndexResources(
   const levelsByRecord = new Map<string, PublicLevel[]>();
   for (const levels of npcLevels.values()) for (const [key, level] of levels) levelsByRecord.set(key, [...levelsByRecord.get(key) ?? [], level]);
   const spawnedLevels = new Map([...levelsByRecord].map(([key, levels]) => [key, levelUnion(levels)!] as const));
+  const effectWorldSources = worldEffectSources(db), effectWorldChecks = worldEffectChecks(db);
   const references = buildEntityReferences(entities.records, { facts: facts.records, relations: relations.records, artByEntity: artwork.artByEntity, excluded,
-    npcLevels: spawnedLevels });
+    npcLevels: spawnedLevels, effectWorldSources });
   const refs = references.refs;
   const publishedKeys = new Set(refs.keys());
   // Each exclusion must still hold in this catalog, so the check reads the relations before exclusion.
@@ -191,7 +255,7 @@ export async function generateIndexResources(
   const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
     resolve, artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants,
     classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards, overworldMapSpaceIds, challengeStones,
-    worldLootTables: queryWorldLootTables(db).records });
+    worldLootTables: queryWorldLootTables(db).records, effectWorldSources, effectWorldChecks });
   const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards), ...nodeDocuments]);
   attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null, stoneUses);
 

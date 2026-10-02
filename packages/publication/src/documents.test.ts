@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { CatalogEntityRow, CatalogFacts, CatalogNpcFacts, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow } from "@afallon/contracts/catalog";
+import type { CatalogEntityRow, CatalogFacts, CatalogNpcFacts, CatalogProgressionFact, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow } from "@afallon/contracts/catalog";
 import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type EntityRef, type GearSetTier, type PublicDocument, type PublicGearSet, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
 import type { CatalogGatheringNode, CatalogMechanicsRule } from "@afallon/contracts/catalog";
 import { corruptionRewards, type CorruptionRewards } from "./corruption-rewards";
@@ -86,8 +86,16 @@ const relations: CatalogRelations = {
 };
 
 function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts, projectRelations: CatalogRelations, placements: DocumentProjectionInput["placements"] = new Map(), regionIdsByMapSpace: DocumentProjectionInput["regionIdsByMapSpace"] = new Map(), npcLevels: DocumentProjectionInput["npcLevels"] = new Map(), placementIdsByKey: DocumentProjectionInput["placementIdsByKey"] = new Map(), placeVariants: NonNullable<DocumentProjectionInput["placeVariants"]> = new Map(), rewards?: CorruptionRewards) {
-  const references = buildEntityReferences(projectEntities, { facts: projectFacts, relations: projectRelations });
-  const documents = projectPublicDocuments({ entities: projectEntities, facts: projectFacts, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants, corruptionRewards: rewards });
+  // Published stat references need definitions, just as the real catalog supplies them.
+  const statFacts = projectEntities.filter((entity) => entity.kind === "stats" && !projectFacts.progression.facts.some((row) => row.entityKey === entity.entityKey))
+    .map((entity) => ({ kind: "stats", entityKey: entity.entityKey, name: entity.name, details: {
+      minValue: null, maxValue: null, baseValue: 0, isPercentStat: false, isVitalityStat: false, isPersistent: false,
+      shiftsInSprint: false, shiftsInBlock: false, startPercentage: 100,
+      uiCategory: null, statCategory: null, procCooldown: 0, regeneration: [], statBonuses: [], onHitEffects: [],
+    } }) as CatalogProgressionFact);
+  const withStats: CatalogFacts = { ...projectFacts, progression: { ...projectFacts.progression, facts: [...projectFacts.progression.facts, ...statFacts] } };
+  const references = buildEntityReferences(projectEntities, { facts: withStats, relations: projectRelations });
+  const documents = projectPublicDocuments({ entities: projectEntities, facts: withStats, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants, corruptionRewards: rewards });
   return { refs: references.refs, documents };
 }
 test("an enchantment's authored requirements and tiers live on its item, with its own search name", () => {
@@ -178,7 +186,7 @@ test("only eligible gear publishes captured corruption settings and the guide-se
   const trinketPage = projected.get(trinket.entityKey) as PublicItem;
   const ordinaryPage = projected.get(ordinary.entityKey) as PublicItem;
   expect(gear.facts.corruption).toEqual({ maxLevel: 30, allStatsPercentPerLevel: 5,
-    statBonuses: [{ stat: { key: "stats:53", kind: "stats", name: "Item Power" }, amountPerLevel: 5, isPercent: false }] });
+    statBonuses: [{ stat: { key: "stats:53", kind: "stats", name: "Item Power", slug: "item-power" }, amountPerLevel: 5, isPercent: false }] });
   expect(gear.facts.dungeonRewards).toEqual([{ place: expect.objectContaining({ key: "scenes:10" }), bosses: [expect.objectContaining({ key: "npcs:2" })], guaranteed: false }]);
   expect(gear.facts.stats[0]?.amount).toBe(42);
   expect(gear.facts.itemPower).toBe(99);
@@ -190,7 +198,7 @@ test("only eligible gear publishes captured corruption settings and the guide-se
     dungeonRewards: gear.facts.dungeonRewards });
   expect(ordinaryPage.facts.corruption).toBeUndefined();
   expect(ordinaryPage.facts.dungeonRewards).toBeUndefined();
-  expect(token.facts.tokenInfo).toEqual({ mobStatBonuses: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amountPerLevel: 10, isPercent: true }], affixesPerToken: 3 });
+  expect(token.facts.tokenInfo).toEqual({ mobStatBonuses: [{ stat: { key: "stats:27", kind: "stats", name: "Strength", slug: "strength" }, amountPerLevel: 10, isPercent: true }], affixesPerToken: 3 });
   expect(token.placedRules).toContainEqual({ target: "corruption-token", guide: expect.objectContaining({ key: "mechanics:corruption" }), section: "tokens" });
   expect(token.placedRules.some((entry) => entry.target === "corruption")).toBe(false);
   const heart: CatalogEntityRow = { entityKey: "items:162", kind: "items", nativeId: 162, name: "Heart of Corruption", description: null, iconAssetName: null, artwork: [] };
@@ -248,25 +256,21 @@ test("projects one symmetric boss drop row and strips native rich text", () => {
   expect(item.facts).toMatchObject({ weaponSlot: "MAIN HAND", weaponType: "One handed sword", attackSpeed: 1.8, minDamage: 75, maxDamage: 124,
     itemPower: 99 });
   expect(item.facts.damagePerSecond).toBeCloseTo(55.27777777777778);
-  expect(item.facts.stats).toEqual([{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amount: 42, isPercent: false }]);
+  expect(item.facts.stats).toEqual([{ stat: { key: "stats:27", kind: "stats", name: "Strength", slug: "strength" }, amount: 42, isPercent: false }]);
   expect(item.facts).not.toHaveProperty("slot");
   expect(item.facts).not.toHaveProperty("armorType");
   expect(item.facts).not.toHaveProperty("enchantment");
   expect(item.facts).not.toHaveProperty("buyPrice");
-  // Neither class is offered in this fixture, so neither has a page, and a requirement names each as text.
-  expect(item.facts.equipmentRequirements).toEqual([
-    { mode: "any", checkCount: true, requiredCount: 1, requirements: [
-      { type: { value: 0, name: "Class" }, rule: { value: 1, name: "Optional" }, label: "Shieldmaster", spans: [{ text: "Shieldmaster" }] },
-      { type: { value: 0, name: "Class" }, rule: { value: 1, name: "Optional" }, label: "Assassin", spans: [{ text: "Assassin" }] },
-    ] },
-    { mode: "all", checkCount: false, requirements: [{ type: { value: 13, name: "Level" }, rule: { value: 0, name: "Mandatory" }, label: "Level 27", spans: [{ text: "Level 27" }] }] },
-  ]);
+  // Unoffered classes remain named requirements, but cannot link to nonexistent class pages.
+  const classRequirements = item.facts.equipmentRequirements[0]!.requirements;
+  expect(classRequirements.map((row) => row.label)).toEqual(["Shieldmaster", "Assassin"]);
+  expect(classRequirements.flatMap((row) => row.spans).some((span) => "ref" in span && span.ref.key !== null)).toBe(false);
   expect(item.facts.useLines).toEqual([{ spans: [{ text: "Use: Test", tone: "positive", italic: false }] }]);
   const itemList = buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")?.[0];
   const itemRow = itemList?.rows.find((row) => row.ref.key === "items:1");
   expect(itemRow).toMatchObject({ values: { type: "One Handed Sword", itemPower: 99, levelRequirement: 27 }, facets: { slot: ["MAIN HAND"] } });
   expect(npc.facts).not.toHaveProperty("species");
-  expect(npc.facts.lootSpecialization).toEqual({ armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { key: "stats:5", kind: "stats", name: "Loot Stat" } });
+  expect(npc.facts.lootSpecialization).toEqual({ armorType: "PLATE", weaponTypes: ["AXE", "Shield"], stat: { key: "stats:5", kind: "stats", name: "Loot Stat", slug: "loot-stat" } });
   expect(item.droppedBy).toHaveLength(1);
   expect(npc.drops).toHaveLength(1);
   const { counterpart: itemCounterpart, ...itemValues } = item.droppedBy[0]!;
@@ -527,7 +531,7 @@ test("projects representative item use text, effective stats and contextual abil
   });
   expect((documents.get("items:103") as PublicItem).facts.actionAbilities).toEqual([{ ability: { key: "abilities:201", kind: "abilities", name: "Cleave", slug: "cleave" } }]);
   expect((documents.get("items:102") as PublicItem).facts.useLines).toEqual(line("Increases weapon damage."));
-  expect((documents.get("items:103") as PublicItem).facts.stats).toEqual([{ stat: { key: "stats:104", kind: "stats", name: "Lifesteal" }, amount: 2, isPercent: true }]);
+  expect((documents.get("items:103") as PublicItem).facts.stats).toEqual([{ stat: { key: "stats:104", kind: "stats", name: "Lifesteal", slug: "lifesteal" }, amount: 2, isPercent: true }]);
   expect((documents.get("npcs:2") as PublicNpc).abilityPhases[0]?.abilities).toEqual([{ ability: { key: "abilities:201", kind: "abilities", name: "Cleave", slug: "cleave" }, rankIndex: 0 }]);
   const cleave = documents.get("abilities:201") as PublicAbility;
   const healingPotion = documents.get("abilities:202") as PublicAbility;
@@ -592,8 +596,8 @@ test("shows a gear set in full on its member item and on the set's own page", ()
   const item = documents.get("items:1") as PublicItem;
   const setRef: EntityRef = { key: "gearSets:17", kind: "gearSets", name: "Adept Leather", slug: "adept-leather" };
   const tiers: GearSetTier[] = [
-    { equipped: 3, stats: [{ stat: { key: "stats:12", kind: "stats", name: "Poison Damage" }, amount: 10, isPercent: true }] },
-    { equipped: 7, stats: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amount: 40, isPercent: false }] },
+    { equipped: 3, stats: [{ stat: { key: "stats:12", kind: "stats", name: "Poison Damage", slug: "poison-damage" }, amount: 10, isPercent: true }] },
+    { equipped: 7, stats: [{ stat: { key: "stats:27", kind: "stats", name: "Strength", slug: "strength" }, amount: 40, isPercent: false }] },
   ];
   expect(item.facts.gearSet).toEqual({
     set: setRef, members: [{ key: "items:1", kind: "items", name: "Oathbreaker's Edge", slug: "oathbreakers-edge" }, { key: null, label: "Item 999" }], tiers,

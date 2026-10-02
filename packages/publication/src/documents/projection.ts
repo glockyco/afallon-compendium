@@ -12,6 +12,21 @@ import { displayName, plainText, withoutMarkup } from "../text";
 export type ReferenceResolver = (endpoint: CatalogEndpoint) => Ref;
 
 export type PublishedPlacement = PlacementRef & { categories: readonly PublicMarkerCategory[] };
+/** An effect action on a scanned world source, before equivalent sources are grouped for a page. */
+export interface EffectWorldSource {
+  sourceId: string;
+  effectKey: string;
+  family: string;
+  place: CatalogEndpoint | null;
+  placementIds: string[];
+  label: string | null;
+}
+export interface EffectWorldCheck {
+  conditionId: string;
+  family: string;
+  place: CatalogEndpoint | null;
+  sourceId: string;
+}
 
 export interface DocumentProjectionInput {
   entities: readonly CatalogEntityRow[];
@@ -37,6 +52,8 @@ export interface DocumentProjectionInput {
   challengeStones?: ReadonlyMap<string, PlacementRef>;
   /** The global world loot tables, which also feed the world loot of supply packs. */
   worldLootTables?: readonly CatalogWorldLootTable[];
+  effectWorldSources?: readonly EffectWorldSource[];
+  effectWorldChecks?: readonly EffectWorldCheck[];
 }
 
 export type RelationIndexes = {

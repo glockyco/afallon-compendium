@@ -4,8 +4,11 @@ import { nameOf } from './format';
 const amountText = (amount: number) => Number.isInteger(amount) ? String(amount) : String(Number(amount.toFixed(2)));
 
 /** A stat change as the game writes it: "+2 Block Chance", "+10% Haste", "-5 Armor". */
+export function statAmount(row: StatRow): string {
+  return `${row.amount < 0 ? '-' : '+'}${amountText(Math.abs(row.amount))}${row.isPercent ? '%' : ''}`;
+}
 export function statChange(row: StatRow): string {
-  return `${row.amount < 0 ? '-' : '+'}${amountText(Math.abs(row.amount))}${row.isPercent ? '%' : ''} ${nameOf(row.stat)}`;
+  return `${statAmount(row)} ${nameOf(row.stat)}`;
 }
 
 const TRIGGERS: Record<TalentPoints['gains'][number]['trigger'], string> = {

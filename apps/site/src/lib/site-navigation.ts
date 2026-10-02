@@ -46,6 +46,7 @@ export const GUIDE_TOPICS: ReadonlyArray<{ label: string; slug: string; descript
   { label: 'Adventurers', slug: 'adventurers', description: 'Jobs and parties' },
   { label: 'Character Progression', slug: 'character-progression', description: 'Experience and talents' },
   { label: 'Crafting and Gathering', slug: 'crafting-and-gathering', description: 'Recipes and nodes' },
+  { label: 'Combat', slug: 'combat', description: 'Stats, damage, and effects' },
   { label: 'Corruption', slug: 'corruption', description: 'Tokens and timed dungeons' },
   { label: 'Factions and Reputation', slug: 'factions', description: 'Standing and stances' },
   { label: 'Heroic Tier', slug: 'heroic-tier', description: 'Heroic creatures and gear' },

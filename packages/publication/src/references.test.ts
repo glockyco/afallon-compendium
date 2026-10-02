@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import type { CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogNpcFacts, CatalogRelations } from "@afallon/contracts/catalog";
-import { buildEntityReferences } from "./references";
+import type { CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogNpcFacts, CatalogProgressionFact, CatalogRelations } from "@afallon/contracts/catalog";
+import { buildEntityReferences, createReferenceResolver } from "./references";
 
 const entity = (kind: string, nativeId: number, name: string): CatalogEntityRow => ({
   entityKey: `${kind}:${nativeId}`, kind, nativeId, name, description: null, iconAssetName: null, artwork: [],
@@ -71,6 +71,27 @@ test("qualifies separate items of one name by the fact that differs, and compare
   expect(refs.get("items:0")).toMatchObject({ name: "Peasant Chest (Cloth)", slug: "peasant-chest-cloth" });
   expect(refs.get("items:4")).toMatchObject({ name: "Peasant Chest (Leather)", slug: "peasant-chest-leather" });
   expect(refs.get("stats:3")).toEqual({ key: "stats:3", kind: "stats", name: "Power" });
+});
+
+test("connected effects get stable pages while orphan effects stay plain text", () => {
+  const entities = [entity("effects", 435, ""), entity("effects", 301, "RESET RENT TIMER 2"), entity("effects", 62, "Potion Sickness")];
+  const effects = entities.map((row) => ({ kind: "effects", entityKey: row.entityKey, name: row.name,
+    details: { effectType: { name: row.nativeId === 435 ? "Dismount" : "DamageOverTime" } } }) as CatalogProgressionFact);
+  const facts: CatalogFacts = { ...emptyFacts, entities, progression: { ...emptyFacts.progression, facts: effects } };
+  const conditions: CatalogRelations["conditions"] = [{
+    conditionId: "potion-gate", label: "Potion Sickness must be inactive", semantics: "condition", scope: null,
+    requirements: [{ mode: "all", checkCount: false, requiredCount: null, requirements: [{
+      type: { name: "Effect", value: 4 }, effectCondition: { name: "Effect", value: 0 },
+      references: { effect: { entityKey: "effects:62", label: "Potion Sickness" } },
+    } as CatalogRelations["conditions"][number]["requirements"][number]["requirements"][number]] }],
+  }];
+  const sources = [{ effectKey: "effects:435", family: "interactableObject", sourceId: "door",
+    place: { entityKey: "scenes:10", label: "Duskfall Depths" }, placementIds: ["door-1"], label: "Exit" }];
+  const { refs, pages } = buildEntityReferences(entities, { facts, relations: { ...emptyRelations, conditions }, effectWorldSources: sources });
+  expect(pages.get("effects:435")?.ref.name).toBe("Dismount Effect #435");
+  expect(pages.has("effects:62")).toBe(true);
+  expect(pages.has("effects:301")).toBe(false);
+  expect(createReferenceResolver(refs)({ entityKey: "effects:301", label: "RESET RENT TIMER 2" })).toEqual({ key: null, label: "Reset Rent Timer 2" });
 });
 
 test("qualifies places of one name by the area of their entrance and numbers places that share it", () => {

@@ -4,7 +4,7 @@ import {
   ArtRefSchema, PlaceEntranceSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, UsedInRecipeRowSchema, VendorRowSchema,
   PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
-  type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicClass, type PublicSkill, type CharacterProgression, type HeroicTier, type MechanicsRule, type CraftingAndGathering, type PublicGatheringNode, type PublicGearSet, type PublicCurrency, type PublicCraftingStation, type PublicRace, type PublicFaction,
+  type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicClass, type PublicSkill, type CharacterProgression, type HeroicTier, type MechanicsRule, type CraftingAndGathering, type PublicGatheringNode, type PublicGearSet, type PublicCurrency, type PublicCraftingStation, type PublicRace, type PublicFaction, type PublicStat, type PublicEffect,
   type StaticRootManifest, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, StaticItemDocumentSchema, type StaticCoverage,
 } from "./index";
 import type { Static } from "typebox";
@@ -140,6 +140,15 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
     start: { key: "scenes:22", kind: "places", name: "Abandoned Quarry", slug: "abandoned-quarry" }, adventurers: [boss] } satisfies PublicRace,
   factions: { ...base, ref: { key: "factions:1", kind: "factions", name: "Hostile", slug: "hostile" }, stances: [{ name: "Hated", points: 100, alignment: "enemy" }],
     relations: [{ faction: { key: "factions:0", kind: "factions", name: "Humans", slug: "humans" }, stance: "Hated", startingPoints: 0 }], members: 129, shownInReputation: false } satisfies PublicFaction,
+  stats: { ...base, ref: { key: "stats:27", kind: "stats", name: "Strength", slug: "strength" },
+    category: "Offense", unit: "flat", base: 0, min: 0, vitality: false, recovery: [],
+    bonuses: [{ type: "Physical Damage", amount: 1 }], onHit: [], procCooldown: 0,
+    sources: { fixedItems: [item], randomItems: [], gems: [], sets: [], talents: [], effects: [], classes: [], enchantments: [] } } satisfies PublicStat,
+  effects: { ...base, ref: { key: "effects:64", kind: "effects", name: "Strength", slug: "strength" },
+    type: "Stat", isState: true, durationSeconds: 600, endless: false, pulses: 1, stackLimit: 1,
+    persistent: false, canBeManuallyRemoved: true, ranks: [{ rank: 0, actions: [{ label: "Changes", amount: 10,
+      target: { key: "stats:27", kind: "stats", name: "Strength", slug: "strength" } }] }],
+    appliedBy: [{ source: item, via: "Item Use" }], checkedBy: [], worldSources: [] } satisfies PublicEffect,
 };
 
 test("every kind document validates and rejects unknown properties", () => {

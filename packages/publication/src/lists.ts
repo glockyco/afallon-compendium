@@ -14,6 +14,8 @@ import type {
   PublicDocument,
   PublicFaction,
   PublicGearSet,
+  PublicStat,
+  PublicEffect,
   PublicGatheringNode,
   PublicItem,
   PublicKindEntry,
@@ -160,6 +162,23 @@ function factionRow(document: PublicFaction): ListRow {
   return { ref: document.ref, values: { members: document.members || null }, facets: {} };
 }
 
+function statRow(document: PublicStat): ListRow {
+  const sources = document.sources;
+  const items = new Set([...sources.fixedItems, ...sources.randomItems, ...sources.gems].flatMap((ref) => ref.key ? [ref.key] : []));
+  return { ref: document.ref, values: {
+    category: document.category ?? "Uncategorized", unit: document.unit === "percent" ? "Percent" : "Flat",
+    items: items.size || null,
+    otherSources: sources.sets.length + sources.talents.length + sources.effects.length + sources.classes.length + sources.enchantments.length || null,
+  }, facets: { category: [document.category ?? "Uncategorized"] } };
+}
+
+function effectRow(document: PublicEffect): ListRow {
+  return { ref: document.ref, values: {
+    type: document.type, appliedBy: document.appliedBy.length + document.worldSources.reduce((sum, row) => sum + row.sourceCount, 0) || null,
+    checkedBy: document.checkedBy.length || null,
+  }, facets: { type: [document.type] } };
+}
+
 export function buildKindLists(
   identity: { buildId: string; catalogId: string },
   registry: readonly PublicKindEntry[],
@@ -189,6 +208,8 @@ export function buildKindLists(
       case "craftingStations": row = craftingStationRow(document as PublicCraftingStation); break;
       case "races": row = raceRow(document as PublicRace); break;
       case "factions": row = factionRow(document as PublicFaction); break;
+      case "stats": row = statRow(document as PublicStat); break;
+      case "effects": row = effectRow(document as PublicEffect); break;
       default: continue;
     }
     const rows = rowsByKind.get(document.ref.kind) ?? [];
