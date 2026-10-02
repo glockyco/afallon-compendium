@@ -21,7 +21,12 @@
   // Currency columns carry the game's coin colour, as a price does on a page.
   const PRICE_FIELDS: Record<string, true> = { sellPrice: true, buyPrice: true, price: true, income: true };
   // The groups that most readers use start open; every other group starts closed. Lists without an entry open all groups.
-  const OPEN_GROUPS: Record<string, readonly string[]> = { items: ['slot', 'rarity', 'levelRequirement', 'stats'] };
+  // Long lists of names, such as places, factions, quest areas, and quest chains, start closed.
+  const OPEN_GROUPS: Record<string, readonly string[]> = {
+    items: ['slot', 'rarity', 'levelRequirement', 'stats'],
+    npcs: ['role', 'class', 'partyRole', 'level'],
+    quests: ['rewardType', 'questType', 'startType', 'repeatable'],
+  };
   const STAT_COLUMN = 'stat:';
   // The result bar stays at the top of the screen, and the table header sticks just below it.
   let barHeight = 0;
