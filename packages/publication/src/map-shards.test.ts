@@ -90,6 +90,7 @@ test("keeps map records isolated and stable across equivalent compilations", asy
     expect(first.map((map) => map.resources.map((part) => part.identity.sha256))).toEqual(second.map((map) => map.resources.map((part) => part.identity.sha256)));
     expect(first.map((map) => map.summary.mapSpaceId)).toEqual(["a", "b"]);
     expect(first[0]!.resources.flatMap((part) => part.value.placements.map((placement) => placement[0]))).toEqual(["icon-a", "placement-a"]);
+    expect([...first[0]!.mergedInto]).toEqual([["icon-b", "icon-a"]]);
     const servicePlacement = first[0]!.resources.flatMap((part) => part.value.placements).find((placement) => placement[0] === "placement-a");
     expect(servicePlacement?.[3]).toBe("Wayfarer's Camp Flight Point");
     expect(servicePlacement?.[4]).toEqual(expect.arrayContaining(["auctioneer", "banker", "flightPoint"]));
@@ -98,6 +99,7 @@ test("keeps map records isolated and stable across equivalent compilations", asy
     expect(serviceGeometry?.travel?.destination).toEqual({ status: "resolved", mapSpaceId: "a", position: [2, 2] });
     const cropped = await generateMapShards(db, store, new Map(), offsets, undefined, new Set(["a", "b"]), new Map<string, readonly [number, number, number, number]>([["a", [0, 0, 4, 4]], ["b", [0, 0, 4, 4]]]));
     expect(cropped[0]!.resources.flatMap((part) => part.value.placements.map((placement) => placement[0]))).toEqual(["placement-a"]);
+    expect([...cropped[0]!.mergedInto]).toEqual([]);
     const withoutCopy = await generateMapShards(db, store, new Map(), offsets, undefined, undefined, undefined, new Set(["icon-a", "placement-a"]));
     expect(withoutCopy[0]!.resources.flatMap((part) => part.value.placements.map((placement) => placement[0]))).toEqual(["icon-b"]);
     expect(withoutCopy[1]!.resources.flatMap((part) => part.value.placements.map((placement) => placement[0]))).toEqual(["placement-b"]);

@@ -29,13 +29,14 @@ const HOSTILE_CATEGORIES: ReadonlySet<PublicMarkerCategory> = new Set<PublicMark
 function creaturesForPlace(placements: readonly CatalogPlacementRow[], input: DocumentProjectionInput, indexes: RelationIndexes, hostile: boolean): CreatureRow[] {
   const byPage = new Map<string, { refs: Ref[]; placementIds: Set<string>; levels: PublicLevel[]; roles: Set<PublicMarkerCategory> }>();
   for (const placement of placements) {
-    if (!input.placements.has(placement.placementId)) continue;
+    const published = input.placements.get(placement.placementId);
+    if (!published) continue;
     for (const npcKey of new Set(placement.roles.map((role) => role.npcEntityKey))) {
       if (npcKey === null) continue;
       const ref = input.resolve({ entityKey: npcKey, label: npcKey });
       const row = byPage.get(refKey(ref)) ?? { refs: [], placementIds: new Set<string>(), levels: [], roles: new Set<PublicMarkerCategory>() };
       row.refs.push(ref);
-      row.placementIds.add(placement.placementId);
+      row.placementIds.add(published.placementId);
       const level = input.npcLevels.get(placement.placementId)?.get(npcKey);
       if (level) row.levels.push(level);
       for (const category of markerCategories(placement.roles.filter((role) => role.npcEntityKey === npcKey), [npcFact(npcKey, indexes)])) row.roles.add(category);
@@ -123,7 +124,7 @@ export function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: Do
   return {
     ...baseDocument(entity, ref, input, fact?.guideDescription),
     facts: { placeType, ...(fact?.levelRange ? { levelRange: fact.levelRange } : {}), guideIncluded: fact?.guideIncluded ?? false },
-    space: mapSpaceId === null ? null : { mapSpaceId, regionIds: variant ? [] : [...(input.regionIdsByMapSpace.get(mapSpaceId) ?? [])], ...(variant ? { placementIds: [...here].sort() } : {}) },
+    space: mapSpaceId === null ? null : { mapSpaceId, regionIds: variant ? [] : [...(input.regionIdsByMapSpace.get(mapSpaceId) ?? [])], ...(variant ? { placementIds: [...new Set([...here].map((id) => input.placements.get(id)!.placementId))].sort() } : {}) },
     ...(variant ? { variantOf: input.resolve({ entityKey: variant.hostKey, label: variant.hostKey }) } : {}),
     bosses: mergeRefs((fact?.bosses ?? []).filter((boss) => !variant || npcPlacedHere(boss.entityKey)).map((boss) => input.resolve(boss)), input), creatures: creaturesForPlace(placePlacements, input, indexes, true), npcs: creaturesForPlace(placePlacements, input, indexes, false),
     services: placementGroups(placePlacements, serviceCategories, input), resources: placementGroups(placePlacements, resourceCategories, input), containers: placementGroups(placePlacements, containerCategories, input),

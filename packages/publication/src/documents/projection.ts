@@ -200,9 +200,9 @@ export function publishedPlacements(ids: readonly string[], placements: Readonly
   const seen = new Set<string>();
   for (const id of ids) {
     const placement = placements.get(id);
-    if (placement && !seen.has(id)) {
+    if (placement && !seen.has(placement.placementId)) {
       result.push({ placementId: placement.placementId, mapSpaceId: placement.mapSpaceId, label: placement.label });
-      seen.add(id);
+      seen.add(placement.placementId);
     }
   }
   return result;

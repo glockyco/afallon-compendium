@@ -238,7 +238,8 @@ function craftingStationCategory(placement: CatalogMapPlacement, canonicalNames:
   return supported && canonicalNames.get(stationId)?.trim() === supported.name ? supported.category : "craftingStation";
 }
 
-function foldMapIcons(placements: readonly CatalogMapPlacement[]): CatalogMapPlacement[] {
+// Each fold records the placement that each merged placement now shows as, so that pages can link a merged spot.
+function foldMapIcons(placements: readonly CatalogMapPlacement[], merged: Map<string, string>): CatalogMapPlacement[] {
   const groups = new Map<string, CatalogMapPlacement[]>();
   const result: CatalogMapPlacement[] = [];
   for (const placement of placements) {
@@ -253,6 +254,7 @@ function foldMapIcons(placements: readonly CatalogMapPlacement[]): CatalogMapPla
     group.sort((left, right) => left.placementId.localeCompare(right.placementId));
     const labels = [...new Set(group.map((placement) => placement.label).filter((label): label is string => Boolean(label?.trim())))];
     if (labels.length > 1) throw new Error(`Map icons at one point carry different titles: ${labels.join(" / ")}`);
+    for (const placement of group.slice(1)) merged.set(placement.placementId, group[0]!.placementId);
     result.push(labels.length === 1 && group[0]!.label !== labels[0] ? { ...group[0]!, label: labels[0]! } : group[0]!);
   }
   return result.sort((left, right) => left.placementId.localeCompare(right.placementId));
@@ -298,7 +300,7 @@ function sameTravelDestination(left: PublicTravel, right: PublicTravel): boolean
   if (a.status === "unresolved") return a.reason === b.reason && a.position === undefined && b.position === undefined;
   return a.position !== undefined && b.position !== undefined && Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1]) <= 0.1;
 }
-function foldTravelPlacements(placements: readonly ProjectedPlacement[]): ProjectedPlacement[] {
+function foldTravelPlacements(placements: readonly ProjectedPlacement[], merged: Map<string, string>): ProjectedPlacement[] {
   const claimed = new Set<string>(), mergedTravel = new Map<string, ProjectedPlacement>();
   const travelPoints = placements.filter((placement) => placement.categories.includes("travelPoint") && placement.travel !== undefined);
   for (const representative of [...travelPoints].sort((left, right) => left.placementId.localeCompare(right.placementId))) {
@@ -308,7 +310,10 @@ function foldTravelPlacements(placements: readonly ProjectedPlacement[]): Projec
     const labels = equivalents.map((travel) => travel.label).filter(namedTravelLabel).sort((left, right) => left.localeCompare(right));
     const mergedLabel = labels[0] ?? representative.label;
     const mergedCategories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => equivalents.some((travel) => travel.categories.includes(category)));
-    for (const travel of equivalents) if (travel.placementId !== representative.placementId) claimed.add(travel.placementId);
+    for (const travel of equivalents) if (travel.placementId !== representative.placementId) {
+      claimed.add(travel.placementId);
+      merged.set(travel.placementId, representative.placementId);
+    }
     mergedTravel.set(representative.placementId, { ...representative, label: mergedLabel, categories: mergedCategories, entityKeys: [...new Set(equivalents.flatMap((travel) => travel.entityKeys))].sort(), itemKeys: [...new Set(equivalents.flatMap((travel) => travel.itemKeys))].sort(), searchText: [mergedLabel, ...mergedCategories.map((category) => CATEGORY_LABELS[category])].join(" ") });
   }
   const deduplicated = placements.filter((placement) => !claimed.has(placement.placementId)).map((placement) => mergedTravel.get(placement.placementId) ?? placement);
@@ -319,7 +324,10 @@ function foldTravelPlacements(placements: readonly ProjectedPlacement[]): Projec
     const representative = nearby[0];
     if (!representative?.travel || representative.travel.destination.status !== "resolved") continue;
     const equivalents = nearby.filter((candidate) => candidate.travel && (candidate.travel.destination.status === "unresolved" || sameTravelDestination(representative.travel!, candidate.travel)));
-    for (const candidate of equivalents) claimed.add(candidate.placementId);
+    for (const candidate of equivalents) {
+      claimed.add(candidate.placementId);
+      merged.set(candidate.placementId, dungeon.placementId);
+    }
     const mergedCategories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => category === "travelPoint" || dungeon.categories.includes(category));
     const mergedLabel = namedTravelLabel(representative.label) ? representative.label : dungeon.label;
     mergedDungeons.set(dungeon.placementId, { ...dungeon, label: mergedLabel, categories: mergedCategories, entityKeys: [...new Set([...dungeon.entityKeys, ...equivalents.flatMap((candidate) => candidate.entityKeys)])].sort(), itemKeys: [...new Set([...dungeon.itemKeys, ...equivalents.flatMap((candidate) => candidate.itemKeys)])].sort(), travel: representative.travel, searchText: [mergedLabel, ...mergedCategories.map((category) => CATEGORY_LABELS[category])].join(" ") });
@@ -333,6 +341,8 @@ export interface GeneratedMapShard {
   geometry: GeneratedStaticResource<StaticGeometry>[];
   /** For each published placement, the level of each creature record that it produces. */
   npcLevels: ReadonlyMap<string, ReadonlyMap<string, PublicLevel>>;
+  /** The published placement that shows each placement that a fold merged into another marker. */
+  mergedInto: ReadonlyMap<string, string>;
 }
 
 /** The page that shows a creature record, by record key. */
@@ -362,7 +372,8 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
     const offset = offsets.get(map.mapSpaceId) ?? { worldX: 0, worldY: 0 };
     const extent = publishedExtents?.get(map.mapSpaceId);
     const npcLevels = new Map<string, ReadonlyMap<string, PublicLevel>>();
-    const unfoldedPlacements: ProjectedPlacement[] = foldMapIcons(queried.records.placements.filter((placement) => !copiedPlacementIds.has(placement.placementId))).flatMap((placement) => {
+    const merged = new Map<string, string>();
+    const unfoldedPlacements: ProjectedPlacement[] = foldMapIcons(queried.records.placements.filter((placement) => !copiedPlacementIds.has(placement.placementId)), merged).flatMap((placement) => {
       if (extent && outsideExtent(placement.position, extent)) return [];
       const recordKeys = [...new Set(placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [role.npcEntityKey]))].sort();
       const entityKeys = [...new Set([...recordKeys.map((key) => pageOf.get(key)?.key ?? key), ...propertiesSold(placement)])].sort();
@@ -398,7 +409,7 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
         ...(travel ? { travel } : {}),
       }];
     });
-    const placements = foldTravelPlacements(unfoldedPlacements);
+    const placements = foldTravelPlacements(unfoldedPlacements, merged);
     const regions = foldRegions(queried.records.regions.map(publicRegion).filter((region): region is PublicRegion => region !== null).map((region) => ({ ...region, polygon: region.polygon.map(([x, y]) => [x + offset.worldX, y + offset.worldY]) })));
     const identity = { buildId: maps.buildId, catalogId: maps.catalogId, mapSpaceId: map.mapSpaceId };
     // The item keys stay beside each tuple until a part is cut, so each part lists every distinct item set once.
@@ -407,6 +418,13 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
       tuple: [placement.placementId, placement.position, placement.height, placement.label, placement.categories, placement.entityKeys, null, placement.level ?? null, placement.travel?.enabled ?? null, placement.areaRadius, placement.alternative ?? null] as PublicEssentialPlacement,
     }));
     const published = new Set(placements.map((placement) => placement.placementId));
+    const mergedInto = new Map<string, string>();
+    for (const placementId of merged.keys()) {
+      let target = merged.get(placementId);
+      const seen = new Set([placementId]);
+      while (target !== undefined && !published.has(target) && !seen.has(target)) { seen.add(target); target = merged.get(target); }
+      if (target !== undefined && published.has(target)) mergedInto.set(placementId, target);
+    }
     for (const placementId of [...npcLevels.keys()]) if (!published.has(placementId)) npcLevels.delete(placementId);
     type MapRecord = { placement: (typeof compact)[number] } | { region: PublicRegion };
     const mapRecords: MapRecord[] = [...compact.map((placement) => ({ placement })), ...regions.map((region) => ({ region }))];
@@ -450,7 +468,7 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
     const points = [...placements.flatMap<[number, number]>(({ position: [x, y], areaRadius }) => areaRadius === null ? [[x, y]] : [[x - areaRadius, y - areaRadius], [x + areaRadius, y + areaRadius]]), ...regions.flatMap((region) => region.polygon)];
     const bounds = points.reduce((bounds, [x, y]) => ({ min: { x: Math.min(bounds.min.x, x), y: Math.min(bounds.min.y, y) }, max: { x: Math.max(bounds.max.x, x), y: Math.max(bounds.max.y, y) } }), { min: { x: Infinity, y: Infinity }, max: { x: -Infinity, y: -Infinity } });
     if (points.length === 0) { bounds.min = { x: offset.worldX, y: offset.worldY }; bounds.max = { ...bounds.min }; }
-    result.push({ summary: { mapSpaceId: map.mapSpaceId, label: map.label, bounds, parts: resources.map((resource) => resource.reference), optionalGeometry: geometry.map((resource) => resource.reference) }, resources, geometry, npcLevels });
+    result.push({ summary: { mapSpaceId: map.mapSpaceId, label: map.label, bounds, parts: resources.map((resource) => resource.reference), optionalGeometry: geometry.map((resource) => resource.reference) }, resources, geometry, npcLevels, mergedInto });
   }
   return result;
 }
