@@ -1,7 +1,7 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import type { PublicKindEntry, Ref } from '@afallon/contracts/public';
-  import { kindGlyphSvg } from './kind-icon';
+  import { kindGlyphSvg, plainKind } from './kind-icon';
 
   export let ref: Ref;
   export let registry: PublicKindEntry[];
@@ -12,10 +12,11 @@
   $: resolved = ref.key !== null ? ref : null;
   $: kind = resolved ? registry.find((entry) => entry.kind === resolved.kind) : undefined;
   $: glyph = kindGlyphSvg(kind?.icon);
+  $: bare = plain || plainKind(resolved?.kind);
 </script>
 
 <!-- A reference flows with the text around it, like a page link, so its name sits on the line's baseline. -->
-<span class="entity-reference" class:plain data-rarity={rarity}>{#if plain}{:else if resolved?.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" />{:else if resolved && glyph}<span class="kind-icon" aria-hidden="true">{@html glyph}</span>{/if}<span>{resolved?.name ?? (ref.key === null ? ref.label : '')}</span></span>
+<span class="entity-reference" class:plain={bare} data-rarity={rarity}>{#if bare}{:else if resolved?.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" />{:else if resolved && glyph}<span class="kind-icon" aria-hidden="true">{@html glyph}</span>{/if}<span>{resolved?.name ?? (ref.key === null ? ref.label : '')}</span></span>
 
 <style>
   .entity-reference { color: var(--c-text); overflow-wrap: break-word; }

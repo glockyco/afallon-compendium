@@ -4,10 +4,11 @@
   export let answer = true;
 </script>
 
-<div class="detail-frame" class:no-answer={!answer}>
+<!-- A page without side content gives its main column the full width instead of an empty column beside it. -->
+<div class="detail-frame" class:no-answer={!answer} class:no-side={!$$slots.side}>
   <div class="head"><slot name="head" /></div>
   {#if answer}<div class="answer"><slot name="answer" /></div>{/if}
-  <aside class="side" aria-label="Additional details"><slot name="side" /></aside>
+  {#if $$slots.side}<aside class="side" aria-label="Additional details"><slot name="side" /></aside>{/if}
   <div class="rest"><slot /></div>
 </div>
 
@@ -24,6 +25,8 @@
     align-items: start;
   }
   .detail-frame.no-answer { grid-template-areas: 'head .' 'rest side'; grid-template-rows: auto 1fr; }
+  .detail-frame.no-side { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'head' 'answer' 'rest'; grid-template-rows: none; }
+  .detail-frame.no-side.no-answer { grid-template-areas: 'head' 'rest'; }
   .head { grid-area: head; }
   .answer { grid-area: answer; }
   /* The side scrolls when it is taller than the window. The scroll box clips anything outside it, so a small padding
@@ -35,6 +38,8 @@
   @media (max-width: 1023px) {
     .detail-frame { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'head' 'answer' 'side' 'rest'; grid-template-rows: none; }
     .detail-frame.no-answer { grid-template-areas: 'head' 'side' 'rest'; }
+    .detail-frame.no-side { grid-template-areas: 'head' 'answer' 'rest'; }
+    .detail-frame.no-side.no-answer { grid-template-areas: 'head' 'rest'; }
     .side { position: static; max-height: none; overflow: visible; margin: 0; padding: 0; }
   }
 </style>

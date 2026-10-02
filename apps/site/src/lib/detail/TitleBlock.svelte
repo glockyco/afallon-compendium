@@ -36,9 +36,10 @@
     {#if imageUrl}<div class="identity-art" class:portrait><img src={imageUrl} alt="" /></div>{/if}
     <div class="identity">
       <h1 class:coloured={Boolean(rarity)}>{name}</h1>
-      {#if typeLine || typeRef}<p class="type-line">{#if typeRef}<EntityLink ref={typeRef} {registry} />{/if}{#if typeLine}{typeRef ? ' ' : ''}{typeLine}{/if}</p>{/if}
-      {#if facts.length}
+      <!-- What the entity is and the facts that place it share one line, so the title block stays two lines tall. -->
+      {#if typeLine || typeRef || facts.length}
         <ul class="facts">
+          {#if typeLine || typeRef}<li class="type">{#if typeRef}<EntityLink ref={typeRef} {registry} />{/if}{#if typeLine}{typeRef ? ' ' : ''}{typeLine}{/if}</li>{/if}
           {#each facts as fact}
             <li>
               {#if fact.label}<span class="label">{fact.label}</span>{/if}
@@ -68,12 +69,12 @@
   .identity-art.portrait img { object-fit: cover; }
   h1 { min-width: 0; margin: 0; color: var(--c-text-strong); font: 700 clamp(1.7rem, 3.5vw, 2.25rem)/1.1 var(--c-serif); overflow-wrap: break-word; }
   .coloured { color: var(--c-rarity); }
-  .type-line { margin: .35rem 0 0; color: var(--c-text-dim); }
   .map { flex: none; }
   .glyph { display: inline-grid; place-items: center; }
   .glyph :global(svg) { width: .95rem; height: .95rem; }
   .facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 0; margin: .35rem 0 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   .facts li { display: inline-flex; align-items: baseline; gap: .35rem; }
+  .facts .type { display: inline; color: var(--c-text-dim); }
   .facts li + li::before { content: '·'; margin: 0 .55rem; color: var(--c-text-mute); }
   .label { color: var(--c-text-dim); }
   .value { color: var(--c-text-strong); }

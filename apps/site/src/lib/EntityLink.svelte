@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import type { EntityRef, PublicKindEntry, Ref } from '@afallon/contracts/public';
   import EntityTooltip from './EntityTooltip.svelte';
-  import { kindGlyphSvg } from './kind-icon';
+  import { kindGlyphSvg, plainKind } from './kind-icon';
 
   export let ref: Ref;
   export let registry: PublicKindEntry[];
@@ -17,7 +17,7 @@
    * and the hover card shows the full name; a link without a hover card names it in its title.
    */
   export let truncate = false;
-  /** A link inside game text, such as a stat in an item tooltip: no icon, the colour of the text around it. */
+  /** A link inside game text, such as a name in an item tooltip: no icon, the colour of the text around it. */
   export let plain = false;
 
   // A list page shows a thousand links, so a link mounts its preview only on focus, pointer intent, or tap.
@@ -102,6 +102,7 @@
   $: resolved = ref.key !== null ? ref : null;
   $: kind = resolved ? registry.find((entry) => entry.kind === resolved?.kind) : undefined;
   $: linked = Boolean(resolved?.slug && kind?.pages);
+  $: bare = plain || plainKind(resolved?.kind);
   // A link to a part of the page that the reader is on is a fragment link, so it keeps the reader's tabs and views.
   $: pagePath = resolved && kind ? `${base}/${kind.route}/${resolved.slug}/` : '';
   $: href = !pagePath ? '' : resolved?.variant ? `${pagePath === $page.url.pathname ? '' : pagePath}#${resolved.variant}` : pagePath;
@@ -113,13 +114,13 @@
   {#if tooltip}
     <!-- The tooltip follows the anchor without a space, so punctuation after a link stays next to its name. -->
     <span class="tooltip-anchor" class:truncate role="group" bind:this={anchorElement}>
-      <a class="entity-link" class:truncate class:plain data-rarity={rarity} {href} aria-describedby={tooltipId} bind:this={linkElement} on:pointerenter={onPointerEnter} on:pointermove={trackPointer} on:pointerdown={onPointerDown} on:pointerleave={onPointerLeave} on:focus={onFocus} on:blur={onBlur} on:click={onClick} on:keydown={(event) => tooltipController?.handleKeydown(event)}>{#if plain}{:else if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
+      <a class="entity-link" class:truncate class:plain={bare} data-rarity={rarity} {href} aria-describedby={tooltipId} bind:this={linkElement} on:pointerenter={onPointerEnter} on:pointermove={trackPointer} on:pointerdown={onPointerDown} on:pointerleave={onPointerLeave} on:focus={onFocus} on:blur={onBlur} on:click={onClick} on:keydown={(event) => tooltipController?.handleKeydown(event)}>{#if bare}{:else if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
     </span>{#if tooltipId}<EntityTooltip bind:this={tooltipController} ref={resolved} {registry} {rankIndex} anchor={anchorElement} id={tooltipId} />{/if}
   {:else}
-    <a class="entity-link" class:truncate class:plain data-rarity={rarity} {href} title={truncate ? resolved.name : undefined}>{#if plain}{:else if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
+    <a class="entity-link" class:truncate class:plain={bare} data-rarity={rarity} {href} title={truncate ? resolved.name : undefined}>{#if bare}{:else if art}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{:else}<span class="kind-icon" aria-hidden="true">{@html glyph ?? ''}</span>{/if}<span class="name">{resolved.name}</span></a>
   {/if}
 {:else if resolved}
-  <span class="entity-text" class:truncate class:plain data-rarity={rarity} title={truncate ? resolved.name : undefined}>{#if art && !plain}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{/if}<span class="name">{resolved.name}</span></span>
+  <span class="entity-text" class:truncate class:plain={bare} data-rarity={rarity} title={truncate ? resolved.name : undefined}>{#if art && !bare}<img src={`${base}/data/${art.url}`} width={art.width} height={art.height} alt="" loading="lazy" />{/if}<span class="name">{resolved.name}</span></span>
 {:else if ref.key === null}
   <span class="entity-text">{ref.label}</span>
 {/if}

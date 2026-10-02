@@ -39,7 +39,7 @@
 <article class="detail-page">
   <DetailFrame>
     <div slot="head">
-      <TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} typeLine="Crafting Station"
+      <TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} typeLine="Crafting station"
         facts={document.skills.length ? [{ label: document.skills.length === 1 ? 'Skill' : 'Skills', refs: document.skills }] : []}
         mapHref={spots ? entityOnMap(document.ref.key) : undefined} {registry}><StatStrip {stats} /></TitleBlock>
     </div>

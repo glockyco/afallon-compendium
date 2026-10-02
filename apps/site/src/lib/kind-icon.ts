@@ -29,6 +29,17 @@ const KIND_ICONS: Record<string, IconNode> = {
   'gathering-node': Pickaxe,
 };
 
+/**
+ * The kinds whose links read as part of the text around them: no icon, the colour of that text, and a dotted
+ * underline. A stat is the noun of an amount such as "+15 Armor", so a framed glyph and an accent colour would outweigh
+ * the number that matters.
+ */
+const PLAIN_KINDS: ReadonlySet<string> = new Set(['stats']);
+
+export function plainKind(kind: string | undefined): boolean {
+  return kind !== undefined && PLAIN_KINDS.has(kind);
+}
+
 export function kindGlyphSvg(icon: string | undefined): string | undefined {
   const node = icon ? KIND_ICONS[icon] : undefined;
   return node ? iconNodeToSvg(node, 'currentColor') : undefined;
