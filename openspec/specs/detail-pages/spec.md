@@ -406,3 +406,24 @@ The overworld page SHALL show a Places to enter section that groups the places a
 #### Scenario: NPCs without services
 - **WHEN** a place has merchants and bankers
 - **THEN** the Services card counts them, and the NPC section lists the NPCs without a services list
+
+### Requirement: Class pages link to the gear they can use
+
+Each published class page SHALL link to the item list with that class selected in its Usable by filter. The link SHALL use the same URL as selecting the class in the filter. The page SHALL NOT describe the linked items as ranked or recommended.
+
+#### Scenario: Gear from a class page
+- **WHEN** a reader follows the gear link on the Shieldmaster page
+- **THEN** the item list opens with Shieldmaster selected in Usable by
+- **AND** reloading the page keeps the selection
+
+### Requirement: Place pages name the races that start there
+
+A place where new characters of at least one playable race start SHALL say so in its Getting there card. When every playable race starts there, the card SHALL say that new characters start there. Otherwise it SHALL name the races that do. The card SHALL show this even when the place has no entrance.
+
+#### Scenario: Every race starts in one place
+- **WHEN** every playable race starts new characters in Abandoned Quarry (Level 1–5)
+- **THEN** its Getting there card says that new characters start there
+
+#### Scenario: One race starts elsewhere
+- **WHEN** only Orc characters start in a place
+- **THEN** that place's card says that new Orc characters start there

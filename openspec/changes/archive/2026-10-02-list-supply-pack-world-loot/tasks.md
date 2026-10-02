@@ -9,5 +9,7 @@
 
 ## 3. Page
 
-- [ ] 3.1 List the world loot items under each band on the supply pack page with their character levels.
-- [ ] 3.2 Publish, check the supply pack page in a browser at 1440 px and 390 px, and accept the publication.
+- [x] 3.1 List the world loot items under each band on the supply pack page with their character levels.
+  - Result: each band of the Adventurer's Supply Pack lists its world loot for each class with the character levels at which each item can appear.
+- [x] 3.2 Publish, check the supply pack page in a browser at 1440 px and 390 px, and accept the publication.
+  - Result: checked at 1440, 1100, and 390 px without sideways scroll. Accepted with catalog `bc70e233` and publication `bb9d1a14` (update report `local/update-report-25653798-talent-capture.json`, accepted descriptor `8ec84a05` in the main checkout).
