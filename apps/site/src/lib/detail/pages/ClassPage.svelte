@@ -54,7 +54,7 @@
         <h2>Talent points</h2>
         {#each facts.talentPoints as points}<p>{#if points.name !== commonPoints}<strong>{points.name}:</strong>{' '}{/if}{talentPointText(points)}</p>{/each}
         <h3>Points to learn every rank</h3>
-        <ul class="tree-costs">{#each document.trees as tree (tree.anchor)}<li><a class="c-link" href={`#${tree.anchor}`}>{tree.name}</a><span>{formatNumber(tree.cost)}{tree.points && tree.points !== commonPoints ? ` ${tree.points}` : ''}</span></li>{/each}</ul>
+        <ul class="tree-costs">{#each document.trees as tree (tree.anchor)}<li><a class="c-link" href={`#${tree.anchor}`}>{tree.name}</a><span>{formatNumber(tree.cost)}{#if tree.points && tree.points !== commonPoints}<small>{tree.points}</small>{/if}</span></li>{/each}</ul>
         {#if talentGuide}<HowItWorks guide={talentGuide.guide} section={talentGuide.section} label="How talent points work" />{/if}
       </section>{/if}
       {#if facts.weapons.length}<section><h2>Gear</h2><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul><a class="c-link gear" href={gearHref}>Weapons and armor for {document.ref.name}</a></section>{/if}
@@ -89,8 +89,10 @@
   .side-facts strong { color: var(--c-text-strong); }
   h3 { margin: 1rem 0 .4rem; color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 600; }
   .tree-costs { display: grid; gap: .3rem; margin-bottom: .75rem; padding: 0; list-style: none; }
-  .tree-costs li { display: flex; justify-content: space-between; gap: 1rem; }
+  .tree-costs li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 1rem; }
+  .tree-costs a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tree-costs span { color: var(--c-text-dim); font-variant-numeric: tabular-nums; text-align: right; }
+  .tree-costs small { display: block; color: var(--c-text-mute); font-size: var(--c-text-small); }
   .weapons { display: flex; flex-wrap: wrap; gap: .4rem; padding: 0; list-style: none; }
   .gear { display: inline-block; margin-top: .65rem; }
   .weapons li { padding: .25rem .5rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); color: var(--c-text-dim); font-size: .875rem; }
