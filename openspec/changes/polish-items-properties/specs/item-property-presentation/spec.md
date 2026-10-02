@@ -75,7 +75,7 @@ An item page SHALL show its name and applicable map action in the title, and its
 
 ### Requirement: Property facts come from authored for-sale signs
 
-For-sale signs SHALL supply the authored `RPGProperty` type, currency, purchase price, sell price, and income to the catalog. Signs of one property SHALL agree on these fields. A conflicting canonical value SHALL fail normalization. Sign markers SHALL link to the property page. The property page SHALL show available picture, type, purchase price, income per payment, sell price, and where to buy it. Its three prices SHALL appear once, together in a shared side card beside the picture; its location SHALL link to the sign area when that exact area has a published place page. It SHALL not name an income interval or income currency without confirmed facts.
+For-sale signs SHALL supply the authored `RPGProperty` type, currency, purchase price, sell price, and income to the catalog. Signs of one property SHALL agree on these fields. A conflicting canonical value SHALL fail normalization. Sign markers SHALL link to the property page. The property page SHALL show available picture, type, purchase price, income per payment, sell price, and where to buy it. Its three prices SHALL appear once, beside the picture in the page's answer, which uses the full width without a side column, followed by where to buy it; its location SHALL link to the sign area when that exact area has a published place page. It SHALL not name an income interval or income currency without confirmed facts.
 
 #### Scenario: Two signs sell the same property
 - **WHEN** two scanned for-sale signs refer to one property with matching facts
