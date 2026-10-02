@@ -139,21 +139,3 @@ export function summaryText(entry: SummaryLine): string {
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0] ?? '';
 }
 
-/** Condense contiguous published experience bands without treating base experience as the final modified award. */
-export function craftExperienceSentence(craft: Craft): string | undefined {
-  const rank = craft.ranks[0];
-  if (!rank || rank.bands.length === 0) return undefined;
-  const bands: { from: number; to?: number; experience: number }[] = [];
-  for (const band of rank.bands) {
-    const previous = bands.at(-1);
-    if (previous && previous.experience === band.experience && previous.to !== undefined && previous.to + 1 === band.from) previous.to = band.to;
-    else bands.push({ from: band.from, to: band.to, experience: band.experience });
-  }
-  const skill = craft.skill ? `${nameOf(craft.skill)} ` : '';
-  const pieces = bands.map((band, index) => {
-    if (band.experience === 0) return `none from ${formatNumber(band.from)}`;
-    if (index === 0) return `${formatNumber(band.experience)} ${skill}experience per craft${band.to === undefined ? ` from level ${formatNumber(band.from)}` : ` until level ${formatNumber(band.to)}`}`;
-    return `${formatNumber(band.experience)}${band.to === undefined ? ` from ${formatNumber(band.from)}` : ` until ${formatNumber(band.to)}`}`;
-  });
-  return `Gives ${pieces.length > 1 ? `${pieces.slice(0, -1).join(', ')}, and ${pieces.at(-1)}` : pieces[0]}.`;
-}

@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { DropRow, EntityRef, PublicItem, PublicKindEntry, VendorRow } from '@afallon/contracts/public';
-import { craftExperienceSentence, itemSourceLines, lineHref, summaryText } from './item-sources';
+import { itemSourceLines, lineHref, summaryText } from './item-sources';
 
 const npc = (id: number, name: string): EntityRef => ({ key: `npcs:${id}`, kind: 'npcs', name, slug: name.toLowerCase().replaceAll(' ', '-') });
 const gold: EntityRef = { key: 'currencies:0', kind: 'currencies', name: 'Gold Coin' };
@@ -71,15 +71,4 @@ test('timed dungeon reward distinguishes a guaranteed token from chance gear', (
   const [gearRoute] = itemSourceLines(gear);
   expect(gearRoute?.guaranteedYield).toBeUndefined();
   expect(gearRoute?.detail).toBe('Chance from boss reward bags');
-});
-
-test('a craft names its base experience until each breakpoint', () => {
-  const crafted = item([], []);
-  crafted.crafting = { recipe: { key: 'recipes:1', name: 'Runeweave Regalia' }, skill: { key: 'skills:1', kind: 'skills', name: 'Tailoring', slug: 'tailoring' },
-    learnedByDefault: false, materials: [], ranks: [{ rank: 1, requiredLevel: 150, highestLevel: 300, baseExperience: 1200, bands: [
-      { band: 'full', from: 150, to: 169, experience: 1200 },
-      { band: 'half', from: 170, to: 184, experience: 600 },
-      { band: 'none', from: 185, experience: 0 },
-    ] }], taughtBy: [] };
-  expect(craftExperienceSentence(crafted.crafting)).toBe('Gives 1,200 Tailoring experience per craft until level 169, 600 until 184, and none from 185.');
 });

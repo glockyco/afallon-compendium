@@ -8,12 +8,13 @@
   import { formatNumber, nameOf, rarityTone } from '../../format';
   import { itemOnMap, spotOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
+  import CraftExperience from '../CraftExperience.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import LevelSlider from '../LevelSlider.svelte';
   import MaterialsList from '../MaterialsList.svelte';
   import RecipeEquation from '../RecipeEquation.svelte';
-  import { craftExperienceSentence, itemSourceLines, levelRangeText, lineHref, packBandText } from '../item-sources';
+  import { itemSourceLines, levelRangeText, lineHref, packBandText } from '../item-sources';
   import { planColumns, shownRowCount, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import { itemQuestSourceRows, itemQuestUseRows } from '../quest-rows';
@@ -40,7 +41,6 @@
   $: sources = itemSourceLines(document);
   $: craft = document.crafting;
   $: materials = craft?.materials.map((row) => ({ item: row.counterpart, quantity: row.count })) ?? [];
-  $: experience = craft ? craftExperienceSentence(craft) : undefined;
   $: craftGuide = document.placedRules.find((rule) => rule.target === 'crafting' && rule.section === 'crafting-experience')
     ?? document.placedRules.find((rule) => rule.target === 'crafting');
   $: chestGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.section === 'chests');
@@ -109,7 +109,7 @@
                   {#if materials.length}<MaterialsList {materials} {registry} />{/if}
                   {#if craft.product && craft.product.count > 1}<p>Makes {formatNumber(craft.product.count)} per craft.</p>{/if}
                   {#if craft.taughtBy.length}<p>Learn the recipe from {#each craft.taughtBy as teacher, index}{index > 0 ? ', ' : ''}<EntityLink ref={teacher} {registry} />{/each}.</p>{:else if craft.learnedByDefault}<p>Learned by default.</p>{/if}
-                  {#if experience}<p>{experience} <span class="qualification">Base experience before skill modifiers.</span></p>{/if}
+                  {#if craft.ranks[0]?.bands.length}<CraftExperience rank={craft.ranks[0]} skill={craft.skill} id="crafting-level" /><p class="qualification">Base experience before skill modifiers.</p>{/if}
                   {#if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label={craftGuide.section === 'crafting-experience' ? 'How crafting experience works' : 'How crafting works'} />{/if}
                 {:else if entry.id === 'dungeon-rewards' && facts.dungeonRewards}
                   {#if facts.dungeonRewards.every((reward) => reward.guaranteed)}
