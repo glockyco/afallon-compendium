@@ -72,7 +72,8 @@ export interface NormalizedItemFact {
   sellPrice: number | null; sellCurrency: NormalizedReference | null; buyPrice: number | null; buyCurrency: NormalizedReference | null; currency: NormalizedReference | null; stackLimit: number; questDropOnly: boolean; corruptionToken: boolean;
   levelRequirement: number | null; actionAbilities: NormalizedContextualAbilityReference[]; useLines: TooltipLine[]; conditionIds: string[]; provenance: ProvenanceReference[];
 }
-export interface NormalizedAdventurerWorld extends CatalogAdventurerWorldSettings {
+// The normalized world keeps arrivals among its links, and the query reads them back as CatalogAdventurerWorldSettings.arrivals.
+export interface NormalizedAdventurerWorld extends Omit<CatalogAdventurerWorldSettings, "arrivals"> {
   links: Array<{ kind: "roster" | "arrival" | "equipmentBand" | "equipmentReward" | "kitUpgrade" | "kitUpgradeItem"; position: number; itemPosition: number; kitId: string | null; npc: NormalizedReference | null; item: NormalizedReference | null; startingLevel: number | null; joinAfterHours: number | null; minimumContentLevel: number | null; provenance: ProvenanceReference[] }>;
 }
 export type NormalizedDungeonFinderTankSettings = CatalogDungeonFinderTankSettings;

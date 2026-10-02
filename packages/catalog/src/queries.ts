@@ -486,6 +486,9 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
     asset: worldRow.asset, jobRegionNames: worldRow.job_region_names_json === null ? null : JSON.parse(worldRow.job_region_names_json),
     maximumPresent: worldRow.maximum_present, minimumJobSeconds: worldRow.minimum_job_seconds,
     maximumJobSeconds: worldRow.maximum_job_seconds, experienceBarPerJob: worldRow.experience_bar_per_job,
+    arrivals: db.query<{ npc_entity_key: string; starting_level: number; join_after_hours: number }, []>(
+      "SELECT npc_entity_key, starting_level, join_after_hours FROM adventurer_world_links WHERE kind = 'arrival' ORDER BY position",
+    ).all().map((row) => ({ adventurer: endpoint(refs, row.npc_entity_key, row.npc_entity_key), startingLevel: row.starting_level, joinAfterHours: row.join_after_hours })),
     goldPerLevelPerJob: worldRow.gold_per_level_per_job, equipmentRewardChance: worldRow.equipment_reward_chance,
     sourceFieldPaths: JSON.parse(worldRow.source_field_paths_json), provenance: JSON.parse(worldRow.provenance_json),
   };

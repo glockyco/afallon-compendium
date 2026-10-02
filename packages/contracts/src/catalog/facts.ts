@@ -63,6 +63,9 @@ export interface CatalogAdventurerWorldSettings {
   jobRegionNames: Array<{ name: string; sourceFieldPath: string }> | null;
   maximumPresent: number; minimumJobSeconds: number; maximumJobSeconds: number;
   experienceBarPerJob: number; goldPerLevelPerJob: number; equipmentRewardChance: number;
+  // The world roster in authored order. AdventurerWorldEngine starts an adventurer's save at startingLevel and lets them join
+  // once the save's in-game play time reaches joinAfterHours hours.
+  arrivals: Array<{ adventurer: CatalogEndpoint; startingLevel: number; joinAfterHours: number }>;
   sourceFieldPaths: {
     maximumPresent: string; minimumJobSeconds: string; maximumJobSeconds: string;
     experienceBarPerJob: string; goldPerLevelPerJob: string; equipmentRewardChance: string;
