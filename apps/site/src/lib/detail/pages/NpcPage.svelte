@@ -46,9 +46,7 @@
     .sort((left, right) => combatRank(nameOf(left.stat)) - combatRank(nameOf(right.stat)));
   // An adventurer's band names what the game sets up for it. Its NPC record's stats are not its own, so it shows none.
   $: classRoute = registry.find((kind) => kind.kind === 'classes')?.route;
-  // When an adventurer arrives belongs with where to meet it.
   $: hours = adventurer?.joinAfterHours ?? 0;
-  $: arrival = adventurer ? `${document.ref.name} joins the world at level ${formatNumber(adventurer.startingLevel)} ${hours ? `after ${formatNumber(hours)} ${hours === 1 ? 'hour' : 'hours'} of play on your character` : 'at the start of a new character'}.` : '';
   $: stats = adventurer ? [
     { label: 'Class', value: nameOf(adventurer.class), ...(adventurer.class.key !== null && adventurer.class.slug && classRoute ? { href: `${base}/${classRoute}/${adventurer.class.slug}/` } : {}) },
     ...(adventurer.race ? [{ label: 'Race', value: nameOf(adventurer.race) }] : []),
@@ -119,6 +117,15 @@
 
   <svelte:fragment slot="side">
     {#if document.description}<p class="description">{document.description}</p>{/if}
+    {#if adventurer}
+      <div class="side-card arrival">
+        <FactList title="Arrival">
+          <FactRow label="Starting level">{formatNumber(adventurer.startingLevel)}</FactRow>
+          <FactRow label="Joins">{hours ? `After ${formatNumber(hours)} ${hours === 1 ? 'hour' : 'hours'} of play` : 'At the start'}</FactRow>
+        </FactList>
+        {#if adventurerGuide}<HowItWorks guide={adventurerGuide.guide} section={adventurerGuide.section} label="How adventurers join your party" />{/if}
+      </div>
+    {/if}
     {#if combat && combatStats.length || moreFacts}
       <div class="side-card">
         <FactList title={combat && combatStats.length ? 'Combat' : 'About'}>
@@ -148,8 +155,7 @@
   <Sections>
     <!-- An adventurer has no fixed spot, so its empty location says how to meet it once it has joined. -->
     <LocationsSection {document} {registry} {variantTable}
-      emptyText={adventurerGuide ? `No known location. ${arrival} Once they have joined, add them as a friend with Find in the Friends panel, then invite them from your friends.` : undefined}
-      emptyGuide={adventurerGuide ? { guide: adventurerGuide.guide, section: adventurerGuide.section, label: 'How adventurers join your party' } : undefined} />
+      emptyText={adventurerGuide ? `No known location. Once ${document.ref.name} has joined, find them with Find in the Friends panel.` : undefined} />
     {#if adventurer}
       <Section id="talents" title="Talents">
         <div class="c-stack">
@@ -168,7 +174,7 @@
 
 <style>
   .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  .kill { display: grid; gap: .75rem; }
+  .kill, .arrival { display: grid; gap: .75rem; }
   .learns { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); margin: 0; padding: 0; list-style: none; }
   .kill h2 { color: var(--c-text-strong); font: 600 1.05rem/1.3 var(--c-serif); }
   .kill p { line-height: 1.5; }
