@@ -231,8 +231,8 @@
 
   /* A dungeon card is one link. Its boss links sit above the card link, so a boss opens its own page. */
   .dungeons { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1rem; }
-  .dungeon { position: relative; isolation: isolate; display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
-  .dungeon:hover { border-color: var(--c-frame-hover); transform: translateY(-2px); box-shadow: 0 12px 28px var(--c-shadow); }
+  .dungeon { position: relative; isolation: isolate; display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); transition: border-color .15s ease; }
+  .dungeon:hover { border-color: var(--c-frame-hover); }
   .dungeon:has(.dungeon-link:focus-visible) { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .dungeon-art { position: relative; aspect-ratio: 16 / 10; background: var(--c-surface-deep); }
   .dungeon-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -251,8 +251,8 @@
   /* Item groups: two rows of four on desktop and two columns on a phone. Each tile puts the icon beside its name, as the
      skill tiles do. The icon ring takes the rarity color of the pictured item. */
   .item-groups { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
-  .item-group { display: flex; align-items: center; gap: .9rem; height: 100%; padding: .85rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
-  .item-group:hover { border-color: var(--c-frame-hover); transform: translateY(-2px); }
+  .item-group { display: flex; align-items: center; gap: .9rem; height: 100%; padding: .85rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; transition: border-color .15s ease; }
+  .item-group:hover { border-color: var(--c-frame-hover); }
   .item-group img, .item-art { flex: none; width: 3.25rem; height: 3.25rem; border: 1px solid var(--c-frame); border-radius: 10px; background: var(--c-surface-sunken); box-shadow: 0 6px 16px var(--c-shadow); }
   .item-group img[data-rarity] { border-color: color-mix(in srgb, var(--c-rarity) 70%, transparent); }
   .item-group .tile-name { font-size: var(--c-text-lead); }
@@ -268,8 +268,8 @@
   .band a:hover { color: var(--c-accent-strong); }
 
   .classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1rem; }
-  .class-tile { display: grid; justify-items: center; gap: .3rem; height: 100%; padding: 1.4rem .8rem 1.15rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: radial-gradient(120% 90% at 50% 0%, var(--c-surface-3) 0%, var(--c-surface-1) 60%); color: var(--c-text); text-align: center; text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
-  .class-tile:hover { border-color: var(--c-frame-hover); transform: translateY(-2px); }
+  .class-tile { display: grid; justify-items: center; gap: .3rem; height: 100%; padding: 1.4rem .8rem 1.15rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: radial-gradient(120% 90% at 50% 0%, var(--c-surface-3) 0%, var(--c-surface-1) 60%); color: var(--c-text); text-align: center; text-decoration: none; transition: border-color .15s ease; }
+  .class-tile:hover { border-color: var(--c-frame-hover); }
   .class-art { width: 4.5rem; height: 4.5rem; margin-bottom: .5rem; border: 1px solid var(--c-frame); border-radius: 14px; background: var(--c-surface-sunken); box-shadow: 0 8px 20px var(--c-shadow); }
 
   .skills { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .75rem; }
@@ -288,8 +288,8 @@
 
   /* Each guide is a card with its name and the sentence that says what it explains. */
   .guides { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
-  .guide-tile { display: grid; align-content: start; gap: .35rem; height: 100%; padding: .95rem 1.1rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
-  .guide-tile:hover { border-color: var(--c-frame-hover); transform: translateY(-2px); }
+  .guide-tile { display: grid; align-content: start; gap: .35rem; height: 100%; padding: .95rem 1.1rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; transition: border-color .15s ease; }
+  .guide-tile:hover { border-color: var(--c-frame-hover); }
   .guide-text { color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.45; }
 
   /* Browse is the index of every list, below the featured sections, so each link is one compact line. */
@@ -332,6 +332,5 @@
 
   @media (prefers-reduced-motion: reduce) {
     .dungeon, .class-tile, .item-group, .guide-tile { transition: none; }
-    .dungeon:hover, .class-tile:hover, .item-group:hover, .guide-tile:hover { transform: none; }
   }
 </style>
