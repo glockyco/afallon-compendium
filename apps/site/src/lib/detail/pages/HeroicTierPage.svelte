@@ -43,12 +43,12 @@
         {#if section.id === 'essence' && document.example}
           <h3>Essence per kill</h3>
           <p>Essence per kill by creature rank and number of affixes, at a health factor of 1.</p>
-          <div class="table-scroll"><table class="essence">
+          <div class="c-table-scroll"><table class="c-table c-table--reference" aria-label="Essence per kill by rank and affixes">
             <thead>
-              <tr><th scope="col" rowspan="2">Creature rank</th><th scope="colgroup" colspan={document.example.affixCounts.length} class="group">Affixes</th></tr>
-              <tr>{#each document.example.affixCounts as count}<th scope="col" class="count">{count}</th>{/each}</tr>
+              <tr><th scope="col" rowspan="2">Creature rank</th><th scope="colgroup" colspan={document.example.affixCounts.length}>Affixes</th></tr>
+              <tr>{#each document.example.affixCounts as count}<th scope="col" class="c-num">{count}</th>{/each}</tr>
             </thead>
-            <tbody>{#each document.example.rows as row}<tr><th scope="row">{row.rank === 'other' ? 'Other' : row.rank === 'elite' ? 'Elite' : row.rank === 'rare' ? 'Rare' : 'Boss'}</th>{#each row.essence as amount}<td>{format(amount)}</td>{/each}</tr>{/each}</tbody>
+            <tbody>{#each document.example.rows as row}<tr><th scope="row">{row.rank === 'other' ? 'Other' : row.rank === 'elite' ? 'Elite' : row.rank === 'rare' ? 'Rare' : 'Boss'}</th>{#each row.essence as amount}<td class="c-num">{format(amount)}</td>{/each}</tr>{/each}</tbody>
           </table></div>
         {:else if section.id === 'settings'}
           {#if unavailable}<p>{unavailable}</p>
@@ -74,12 +74,4 @@
 
 <style>
   h3 { color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
-  .table-scroll { max-width: 100%; overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
-  th, td { padding: .55rem .7rem; border-bottom: 1px solid var(--c-line); white-space: nowrap; }
-  th { color: var(--c-text-dim); font-weight: 600; }
-  thead th[rowspan] { vertical-align: bottom; }
-  .group { padding-bottom: .2rem; border-bottom-color: var(--c-line-soft); text-align: center; }
-  .count, td { text-align: right; }
-  @media (max-width: 640px) { th, td { padding-inline: .45rem; } }
 </style>

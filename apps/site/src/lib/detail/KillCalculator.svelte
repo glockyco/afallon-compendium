@@ -91,10 +91,10 @@
           {:else}{killCount} {kills.low === 1 && kills.high === 1 ? 'kill' : 'kills'} from level {formatNumber(characterLevel)} to level {formatNumber(characterLevel + 1)}, which needs {formatNumber(toNext)} experience.{/if}
         </p>
       </div>
-      <table class="steps">
+      <table class="c-table c-table--calculator" aria-label="Experience calculation">
         <caption>How it adds up</caption>
-        <thead><tr><th scope="col">Step</th><th scope="col">Experience</th></tr></thead>
-        <tbody>{#each result.steps as step}<tr><th scope="row">{step.label}</th><td>{range(step.low, step.high)}</td></tr>{/each}</tbody>
+        <thead><tr><th scope="col">Step</th><th scope="col" class="c-num">Experience</th></tr></thead>
+        <tbody>{#each result.steps as step}<tr><th scope="row">{step.label}</th><td class="c-num">{range(step.low, step.high)}</td></tr>{/each}</tbody>
       </table>
       <p class="note">This leaves out world modifiers and some other game modifiers.{#if experienceBonus > 0}{' '}The game may round the final amount.{/if}</p>
     </div>
@@ -126,12 +126,6 @@
   h3 { margin: 0 0 .45rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
   .award { margin: 0; color: var(--c-text-strong); font: 700 1.75rem/1.2 var(--c-serif); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .kills { margin: .35rem 0 0; line-height: 1.5; }
-  .steps { width: 100%; margin-top: .9rem; table-layout: fixed; border-collapse: collapse; font-size: .875rem; font-variant-numeric: tabular-nums; }
-  .steps caption { margin: 0 0 .45rem; text-align: left; color: var(--c-text-strong); font-size: 1rem; font-weight: 600; }
-  .steps th, .steps td { padding: .25rem .375rem; border-bottom: 1px solid var(--c-line-soft); }
-  .steps th { color: var(--c-text-dim); font-weight: 500; text-align: left; overflow-wrap: anywhere; }
-  .steps :is(td, thead th:last-child) { width: 7rem; text-align: right; white-space: nowrap; }
-  .steps td { color: var(--c-text); }
   .note { margin: .75rem 0 0; color: var(--c-text-dim); font-size: .875rem; line-height: 1.5; }
   @container kill-calculator (min-width: 46rem) {
     .body { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1.5rem; }

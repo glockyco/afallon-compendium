@@ -6,6 +6,8 @@
   import GuideSection from '../GuideSection.svelte';
   import Hero from '../Hero.svelte';
   import Section from '../Section.svelte';
+  import RelationTable from '../RelationTable.svelte';
+  import type { RelationColumn } from '../relation-table';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
@@ -18,6 +20,14 @@
   $: powerBonus = document.gearStatBonuses?.find((bonus) => bonus.stat.toLowerCase() === 'item power');
   $: healthBonus = document.gearStatBonuses?.find((bonus) => bonus.stat === 'Health');
   $: rules = document.nativeRules;
+  type Dungeon = CorruptionGuide['dungeons'][number];
+  const dungeonColumns: RelationColumn<Dungeon>[] = [
+    { id: 'place', label: 'Dungeon', value: (row) => row.place.name, sort: (row) => row.place.name },
+    { id: 'timer', label: 'Timer', numeric: true, value: (row) => row.totalSeconds, sort: (row) => row.totalSeconds },
+    { id: 'first', label: 'First threshold', numeric: true, value: (row) => row.firstRemainingSeconds, sort: (row) => row.firstRemainingSeconds },
+    { id: 'second', label: 'Second threshold', numeric: true, value: (row) => row.secondRemainingSeconds, sort: (row) => row.secondRemainingSeconds },
+    { id: 'loot', label: 'Maximum loot', numeric: true, value: (row) => row.maxLootItems, sort: (row) => row.maxLootItems },
+  ];
 </script>
 
 <article class="detail-page">
@@ -49,9 +59,15 @@
           </details>
         {:else if section.id === 'timed-dungeons' && document.dungeons.length}
           <p>Thresholds count the time <strong>left</strong> on the timer when the last boss dies. Maximum loot is the most items a reward bag holds besides the token.</p>
-          <div class="table-scroll"><table class="timer-table"><thead><tr><th scope="col">Dungeon</th><th scope="col">Timer</th><th scope="col">First threshold</th><th scope="col">Second threshold</th><th scope="col">Maximum loot</th></tr></thead>
-            <tbody>{#each document.dungeons as dungeon}<tr><th scope="row"><EntityLink ref={dungeon.place} {registry} /></th><td data-label="Timer">{dungeon.totalSeconds === undefined ? 'Unavailable' : `${format(dungeon.totalSeconds)} s`}</td><td data-label="First threshold">{dungeon.firstRemainingSeconds === undefined ? 'Unavailable' : `${format(dungeon.firstRemainingSeconds)} s left`}</td><td data-label="Second threshold">{dungeon.secondRemainingSeconds === undefined ? 'Unavailable' : `${format(dungeon.secondRemainingSeconds)} s left`}</td><td data-label="Maximum loot">{dungeon.maxLootItems === undefined ? 'Unavailable' : format(dungeon.maxLootItems)}</td></tr>{/each}</tbody>
-          </table></div>
+          <RelationTable rows={document.dungeons} columns={dungeonColumns} label="Timed dungeons">
+            <svelte:fragment slot="cell" let:row let:column>
+              {#if column === 'place'}<EntityLink ref={row.place} {registry} />
+              {:else if column === 'timer'}{row.totalSeconds === undefined ? 'Unavailable' : `${format(row.totalSeconds)} s`}
+              {:else if column === 'first'}{row.firstRemainingSeconds === undefined ? 'Unavailable' : `${format(row.firstRemainingSeconds)} s left`}
+              {:else if column === 'second'}{row.secondRemainingSeconds === undefined ? 'Unavailable' : `${format(row.secondRemainingSeconds)} s left`}
+              {:else if column === 'loot'}{row.maxLootItems === undefined ? 'Unavailable' : format(row.maxLootItems)}{/if}
+            </svelte:fragment>
+          </RelationTable>
           <details class="dungeon-associations"><summary>Bosses</summary>
             {#if document.dungeons.every((dungeon) => dungeon.rewardsFromBossDrops)}
               <p>The reward bag's extra loot comes from the same tables as the bosses' own drops, so each boss page lists its chances.</p>
@@ -75,11 +91,6 @@
   .see-also { color: var(--c-text-dim); }
   /* Section text only: the overview paragraph keeps the shared prose style. */
   :global(.c-sections) p, :global(.c-sections) li { line-height: 1.55; }
-  .table-scroll { max-width: 100%; overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
-  th, td { padding: .55rem .65rem; border-bottom: 1px solid var(--c-line); }
-  th { color: var(--c-text-dim); font-weight: 600; }
-  td:not(:first-child), th:not(:first-child) { text-align: right; }
   .affix-details ul { padding-left: 1.3rem; }
   .affix-details li + li { margin-top: .35rem; }
   details { line-height: 1.55; }
@@ -87,13 +98,4 @@
   details[open] > * + * { margin-top: .65rem; }
   summary { cursor: pointer; min-height: 24px; }
   .dungeon-associations li + li { margin-top: .65rem; }
-  @media (max-width: 640px) {
-    .timer-table, .timer-table tbody, .timer-table tr, .timer-table th, .timer-table td { display: block; width: 100%; }
-    .timer-table thead { display: none; }
-    .timer-table tr { padding: .65rem 0; border-bottom: 1px solid var(--c-line); }
-    .timer-table th, .timer-table td { box-sizing: border-box; padding: .2rem 0; border: 0; text-align: left; }
-    .timer-table td { display: flex; justify-content: space-between; gap: .5rem; }
-    .timer-table td::before { content: attr(data-label); color: var(--c-text-dim); }
-    .timer-table td { font-variant-numeric: tabular-nums; }
-  }
 </style>

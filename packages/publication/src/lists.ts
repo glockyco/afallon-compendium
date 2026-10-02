@@ -37,6 +37,9 @@ function refName(ref: Ref | undefined): string | null {
   return ref.key === null ? ref.label : ref.name;
 }
 
+function namedRelation(names: readonly string[], places: ReadonlyMap<string, EntityRef>): Ref[] {
+  return names.map((name) => places.get(name) ?? { key: null, label: name });
+}
 function facetValue(value: string | null | undefined): string[] {
   return value ? [value] : [];
 }
@@ -63,7 +66,7 @@ function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow
   };
 }
 
-function npcRow(document: PublicNpc): ListRow {
+function npcRow(document: PublicNpc, placesByName: ReadonlyMap<string, EntityRef>): ListRow {
   const level = document.facts.level ? levelText(document.facts.level) : null;
   const places = new Set(document.locations.map((location) => location.label));
   const place = places.size === 1 ? places.values().next().value! : places.size > 1 ? `${places.size} places` : null;
@@ -71,10 +74,12 @@ function npcRow(document: PublicNpc): ListRow {
   return { ref: document.ref, values: { level, role: document.facts.roles.join(", ") || null, place, faction },
     // The column names one place or counts them. The filter offers each place, so an NPC in several places matches each.
     facets: { role: document.facts.roles, places: [...places].sort(), faction: facetValue(faction),
-      class: facetValue(document.adventurer ? refName(document.adventurer.class) : null), partyRole: document.adventurer ? [document.adventurer.role] : [] } };
+      class: facetValue(document.adventurer ? refName(document.adventurer.class) : null), partyRole: document.adventurer ? [document.adventurer.role] : [] },
+    relations: { ...(place && places.size === 1 ? { place: namedRelation([place], placesByName) } : {}),
+      ...(document.facts.faction ? { faction: [document.facts.faction] } : {}) } };
 }
 
-function questRow(document: PublicQuest, rewardTypes: readonly string[]): ListRow {
+function questRow(document: PublicQuest, rewardTypes: readonly string[], placesByName: ReadonlyMap<string, EntityRef>): ListRow {
   const starts = document.starts;
   const types = [...new Set(starts.map((start) => start.kind))];
   const areas = [...new Set(starts.flatMap((start) => start.kind === "npc" ? start.areas : start.placements.map((placement) => placement.label)))].sort();
@@ -83,7 +88,9 @@ function questRow(document: PublicQuest, rewardTypes: readonly string[]): ListRo
   return { ref: document.ref,
     values: { levelRange: range, chain: document.facts.chain?.name ?? null, area: areas.join(", ") || null,
       giver: giver?.kind === "npc" ? refName(giver.npc) : null },
-    facets: { questType: [document.facts.worldQuest ? "World Quest" : "Other Quest"], startType: types, area: areas, chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)], rewardType: [...rewardTypes] } };
+    facets: { questType: [document.facts.worldQuest ? "World Quest" : "Other Quest"], startType: types, area: areas, chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)], rewardType: [...rewardTypes] },
+    relations: { ...(areas.length ? { area: namedRelation(areas, placesByName) } : {}),
+      ...(giver?.kind === "npc" ? { giver: [giver.npc] } : {}) } };
 }
 
 function placeRow(document: PublicPlace): ListRow {
@@ -95,7 +102,8 @@ function placeRow(document: PublicPlace): ListRow {
 function propertyRow(document: PublicProperty): ListRow {
   const place = refName(document.place), type = document.facts.propertyType ?? null;
   return { ref: document.ref, values: { type, place, price: document.facts.price?.amount ?? null, income: document.facts.income?.amount ?? null },
-    facets: { type: facetValue(type), place: facetValue(place) } };
+    facets: { type: facetValue(type), place: facetValue(place) },
+    ...(document.place ? { relations: { place: [document.place] } } : {}) };
 }
 
 function abilityRow(document: PublicAbility): ListRow {
@@ -110,13 +118,21 @@ function abilityRow(document: PublicAbility): ListRow {
   const items = [...new Set(document.versions.flatMap((version) => version.usedByItems).map((ref) => refName(ref)).filter((name): name is string => name !== null))].sort();
   const sourceKind = classes.length ? "Class" : creatures.length ? "Creature" : items.length ? "Item" : "No Known Use";
   const source = classes.length > 2 ? `${classes.length} classes` : classes.length ? classSources.join(", ") : creatures.length > 2 ? `${creatures.length} creatures` : creatures.length ? creatures.join(", ") : items.join(", ") || "No Known Use";
-  return { ref: document.ref, values: { source }, facets: { sourceKind: [sourceKind], class: classes } };
+  const shownNames = classes.length ? classes : creatures.length ? creatures : items;
+  const sourceRefs = classes.length ? learners.map((learner) => learner.class)
+    : creatures.length ? document.versions.flatMap((version) => version.usedBy)
+      : document.versions.flatMap((version) => version.usedByItems);
+  const linked = shownNames.length <= 2 ? shownNames.map((name) => sourceRefs.find((ref) => refName(ref) === name)!) : [];
+  return { ref: document.ref, values: { source }, facets: { sourceKind: [sourceKind], class: classes },
+    ...(linked.length ? { relations: { source: linked },
+      ...(classes.length ? { relationSuffixes: { source: classSources.map((value, index) => value.slice(classes[index]!.length)) } } : {}) } : {}) };
 }
 
 function recipeRow(ref: EntityRef, station: Ref | undefined, skill: Ref | undefined): ListRow {
   const stationName = refName(station), skillName = refName(skill);
   return { ref, values: { station: stationName, skill: skillName },
-    facets: { station: facetValue(stationName), skill: facetValue(skillName) } };
+    facets: { station: facetValue(stationName), skill: facetValue(skillName) },
+    relations: { ...(station ? { station: [station] } : {}), ...(skill ? { skill: [skill] } : {}) } };
 }
 
 function isClass(document: PublicDocument): document is PublicClass { return document.ref.kind === "classes"; }
@@ -138,7 +154,8 @@ function skillRow(document: PublicSkill): ListRow {
 function gatheringNodeRow(document: PublicGatheringNode): ListRow {
   const skill = refName(document.facts.skill);
   const locations = [...document.spawners, ...document.placed].reduce((sum, group) => sum + group.placementCount, 0);
-  return { ref: document.ref, values: { skill, requiredLevel: document.facts.requiredLevel ?? null, locations }, facets: { skill: facetValue(skill) } };
+  return { ref: document.ref, values: { skill, requiredLevel: document.facts.requiredLevel ?? null, locations }, facets: { skill: facetValue(skill) },
+    ...(document.facts.skill ? { relations: { skill: [document.facts.skill] } } : {}) };
 }
 
 function gearSetRow(document: PublicGearSet): ListRow {
@@ -155,11 +172,13 @@ function currencyRow(document: PublicCurrency): ListRow {
 
 function craftingStationRow(document: PublicCraftingStation): ListRow {
   const spots = document.places.reduce((sum, place) => sum + place.spotCount, 0);
-  return { ref: document.ref, values: { skill: document.skills.map(refName).join(", ") || null, recipes: document.recipes.length || null, spots: spots || null }, facets: {} };
+  return { ref: document.ref, values: { skill: document.skills.map(refName).join(", ") || null, recipes: document.recipes.length || null, spots: spots || null }, facets: {},
+    ...(document.skills.length ? { relations: { skill: document.skills } } : {}) };
 }
 
 function raceRow(document: PublicRace): ListRow {
-  return { ref: document.ref, values: { start: refName(document.start), classes: document.classes.length || null, adventurers: document.adventurers.length || null }, facets: {} };
+  return { ref: document.ref, values: { start: refName(document.start), classes: document.classes.length || null, adventurers: document.adventurers.length || null }, facets: {},
+    ...(document.start ? { relations: { start: [document.start] } } : {}) };
 }
 
 function factionRow(document: PublicFaction): ListRow {
@@ -173,7 +192,8 @@ function statRow(document: PublicStat): ListRow {
     category: document.category ?? "Uncategorized", unit: document.unit === "percent" ? "Percent" : "Flat",
     items: items.size || null,
     otherSources: sources.sets.length + sources.talents.length + sources.effects.length + sources.classes.length + sources.enchantments.length || null,
-  }, facets: { category: [document.category ?? "Uncategorized"] } };
+    occurrences: items.size + sources.sets.length + sources.talents.length + sources.effects.length + sources.classes.length + sources.enchantments.length || null,
+  }, facets: { category: [document.category ?? "Uncategorized"], proc: [document.onHit.length ? "On-hit trigger" : "Other stats"] } };
 }
 
 function effectRow(document: PublicEffect): ListRow {
@@ -194,12 +214,13 @@ export function buildKindLists(
 ): ReadonlyMap<string, StaticKindList[]> {
   const rowsByKind = new Map<string, ListRow[]>();
   const classes = [...documents.values()].filter(isClass);
+  const placesByName = new Map([...documents.values()].filter((entry): entry is PublicPlace => entry.ref.kind === "places").map((entry) => [entry.ref.name, entry.ref]));
   for (const document of documents.values()) {
     let row: ListRow;
     switch (document.ref.kind) {
       case "items": row = itemRow(document as PublicItem, classes); break;
-      case "npcs": row = npcRow(document as PublicNpc); break;
-      case "quests": row = questRow(document as PublicQuest, questRewardTypes.get(document.ref.key) ?? []); break;
+      case "npcs": row = npcRow(document as PublicNpc, placesByName); break;
+      case "quests": row = questRow(document as PublicQuest, questRewardTypes.get(document.ref.key) ?? [], placesByName); break;
       case "places": row = placeRow(document as PublicPlace); break;
       case "properties": row = propertyRow(document as PublicProperty); break;
       case "abilities": row = abilityRow(document as PublicAbility); break;

@@ -73,7 +73,7 @@
         {#if section.id === 'kill-experience'}
           <h3>Level difference</h3>
           <p class="table-intro">Each creature has one modifier for when it is above your level and one for when it is below. These are the pairs in use, with the number of creatures that have each.</p>
-          <div class="table-scroll"><table>
+          <div class="c-table-scroll"><table class="c-table c-table--reference" aria-label="Level difference modifiers">
             <thead><tr><th scope="col">Creatures</th><th scope="col">Creature above the player</th><th scope="col">Creature below the player</th></tr></thead>
             <tbody>
               {#each sources.levelModifiers as row}<tr><td>{formatNumber(row.creatures)}</td><td>{modifierText(row.higher)}</td><td>{modifierText(row.lower)}</td></tr>{/each}
@@ -97,9 +97,4 @@
   .creatures { padding-left: 1.4rem; line-height: 1.8; }
   .level { color: var(--c-text-dim); }
   h3 { color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
-  .table-scroll { max-width: 100%; overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
-  th, td { padding: .55rem .7rem; border-bottom: 1px solid var(--c-line); }
-  th { color: var(--c-text-dim); font-weight: 600; }
-  td:not(:first-child) { white-space: nowrap; }
 </style>

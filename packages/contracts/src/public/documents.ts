@@ -1162,6 +1162,10 @@ export const ListStatSchema = Type.Object({ name: text, percent: Type.Boolean(),
 export type ListStat = Static<typeof ListStatSchema>;
 export const ListRowSchema = Type.Object({
   ref: EntityRefSchema, values: Type.Record(Type.String(), listValue), facets: Type.Record(Type.String(), Type.Array(Type.String())),
+  // References for relation-valued columns, in the same order as their displayed names.
+  relations: optional(Type.Record(Type.String(), Type.Array(RefSchema, { minItems: 1 }))),
+  // Additional text after each linked name, such as the talent tree through which a class grants an ability.
+  relationSuffixes: optional(Type.Record(Type.String(), Type.Array(Type.String()))),
   stats: optional(Type.Array(ListStatSchema)),
 }, { additionalProperties: false });
 export type ListRow = Static<typeof ListRowSchema>;

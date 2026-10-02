@@ -386,6 +386,14 @@ function factionsGuide(facts: CatalogFacts, resolve: ReferenceResolver, entityDo
   };
 }
 
+/** Only published World Quests count toward the route out of the mechanics page. */
+function worldQuestLinks(documents: ReadonlyMap<string, PublicDocument>): WorldQuestsGuide["seeAlso"] {
+  return [...documents.values()]
+    .filter((document) => document.ref.kind === "quests" && Boolean((document as PublicQuest).facts.worldQuest))
+    .map((document) => ({ lead: "World Quest", ref: document.ref }))
+    .sort((left, right) => left.ref.name.localeCompare(right.ref.name));
+}
+
 /** Project reviewed guides and the guide derived from captured Corruption facts. */
 export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver, conditions: ReadonlyMap<string, CatalogCondition>,
   entityDocuments: ReadonlyMap<string, PublicDocument>, bossDropTables: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
@@ -404,7 +412,7 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
           entries: fact.details.regeneration.filter((entry) => entry.amount !== 0 && entry.interval > 0) }] : []),
     } satisfies CombatGuide] : []),
     ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_DETAILS.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
-    ...(topics.has("world-quests") ? [{ ref: topicRef("world-quests"), description: MECHANICS_TOPIC_DETAILS["world-quests"].description, art: {}, topic: "world-quests", ...guide(facts, "world-quests", resolve) } satisfies WorldQuestsGuide] : []),
+    ...(topics.has("world-quests") ? [{ ref: topicRef("world-quests"), description: MECHANICS_TOPIC_DETAILS["world-quests"].description, art: {}, topic: "world-quests", ...guide(facts, "world-quests", resolve), seeAlso: worldQuestLinks(entityDocuments) } satisfies WorldQuestsGuide] : []),
     ...(topics.has("travel") ? [{ ref: topicRef("travel"), description: MECHANICS_TOPIC_DETAILS.travel.description, art: {}, topic: "travel", ...guide(facts, "travel", resolve), networks: flightNetworks(facts, resolve) } satisfies TravelGuide] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));

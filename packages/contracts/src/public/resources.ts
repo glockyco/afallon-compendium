@@ -2,7 +2,7 @@ import { Type, type Static, type TSchema } from "typebox";
 import { Assert } from "typebox/value";
 import { schemaRegistry } from "../schema-registry";
 import { ContentIdentitySchema } from "../lifecycle";
-import { EntityRefSchema, PublicKindEntrySchema, PublicPageKindSchema, STATIC_COMPENDIUM_SCHEMAS, artEdges, isStaticDocument, type StaticCompendiumResource } from "./documents";
+import { EntityRefSchema, PublicKindEntrySchema, PublicPageKindSchema, STATIC_COMPENDIUM_SCHEMAS, artEdges, isStaticDocument, type EntityRef, type StaticCompendiumResource } from "./documents";
 import { calendarDate, count, hash, number, point, position, publicMarkerCategory, resourceReference, steamArticleUrl, text, url, PublicAlternativeSchema, PublicLevelRangeSchema, PublicLevelSchema, StaticResourceIdentityFields, StaticResourceReferenceSchema, PUBLIC_MARKER_CATEGORY_LABELS, type StaticResourceReference } from "./primitives";
 export { PUBLIC_MARKER_CATEGORY_VALUES, PUBLIC_MARKER_CATEGORY_LABELS, publicMarkerCategory, PublicAlternativeSchema, PublicLevelRangeSchema, PublicLevelSchema, StaticResourceReferenceSchema, resourceReference, type PublicAlternative, type PublicMarkerCategory, type PublicLevel, type PublicLevelRange, type StaticResourceReference } from "./primitives";
 
@@ -410,9 +410,11 @@ export function staticResourceEdges(value: StaticResource): StaticResourceRefere
       ...[entry.ref.icon, entry.ref.portrait].filter((art) => art !== undefined)
         .map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" })),
     ]);
-    case "compendium.static-kind-list.v6": return value.rows.flatMap((row) => [row.ref.icon, row.ref.portrait]
+    case "compendium.static-kind-list.v6": return value.rows.flatMap((row) => [
+      row.ref, ...Object.values(row.relations ?? {}).flat().filter((ref): ref is EntityRef => ref.key !== null),
+    ].flatMap((ref) => [ref.icon, ref.portrait]
       .filter((art) => art !== undefined)
-      .map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" })));
+      .map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" }))));
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));
     case "compendium.static-map.v4":
     case "compendium.static-geometry.v1":

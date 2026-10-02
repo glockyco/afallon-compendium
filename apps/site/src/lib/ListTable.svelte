@@ -28,7 +28,7 @@
   const PANEL_MIN_ROWS = 20;
 
   let filters: ListFilterState = emptyFilters();
-  let sort: SortState = { id: 'name', dir: 'asc' };
+  let sort: SortState = kind.kind === 'stats' ? { id: 'occurrences', dir: 'desc' } : { id: 'name', dir: 'asc' };
   let sheet: HTMLDialogElement;
 
   // A column that has the same value in every row, or no value in any, says nothing about one row, so it leaves. A
@@ -136,10 +136,11 @@
 
   function readUrl(url: URL): void {
     filters = readFilters(url.searchParams, kind, rangeIds);
-    const requested = url.searchParams.get('sort') ?? 'name';
+    const defaultSort: SortState = kind.kind === 'stats' ? { id: 'occurrences', dir: 'desc' } : { id: 'name', dir: 'asc' };
+    const requested = url.searchParams.get('sort') ?? defaultSort.id;
     const known = requested === 'name' || kind.columns.some((column) => column.id === requested)
       || (requested.startsWith(STAT_COLUMN) && filters.stats.some((filter) => filter.key === requested.slice(STAT_COLUMN.length)));
-    sort = { id: known ? requested : 'name', dir: url.searchParams.get('dir') === 'desc' ? 'desc' : 'asc' };
+    sort = { id: known ? requested : defaultSort.id, dir: url.searchParams.get('dir') === 'desc' ? 'desc' : url.searchParams.has('dir') ? 'asc' : defaultSort.dir };
   }
 
   function writeUrl(history: 'push' | 'replace'): void {
@@ -222,9 +223,10 @@
     return values && values.length > 0 ? values : [String(row.values[id])];
   }
 
-  // A cut value shows in full as the cell's title. Values that fit get no title, so hovering them shows nothing extra.
+  // Only plain cut text needs a native title. An EntityLink has its own full-name hover card.
   function titleIfCut(event: PointerEvent): void {
     const cell = event.currentTarget as HTMLElement;
+    if (cell.querySelector('.entity-link')) return;
     if (cell.scrollWidth > cell.clientWidth) cell.title = cell.textContent?.trim() ?? '';
     else cell.removeAttribute('title');
   }
@@ -274,6 +276,8 @@
                   <span data-rarity={rarityTone(String(row.values[column.id]))}><Badge label={listValueLabel(column.id, String(row.values[column.id]))} tone="rarity" /></span>
                 {:else if column.id === 'role'}
                   <span class="badges">{#each cellValues(row, column.id) as role}<Badge label={listValueLabel(column.id, role)} tone={role === 'boss' ? 'boss' : 'neutral'} />{/each}</span>
+                {:else if row.relations?.[column.id]?.length}
+                  {#each row.relations[column.id] as ref, index}{#if index}{', '}{/if}<EntityLink {ref} {registry} truncate />{row.relationSuffixes?.[column.id]?.[index] ?? ''}{/each}
                 {:else if typeof row.values[column.id] === 'number'}
                   <span class:c-price={PRICE_FIELDS[column.id]}>{formatNumber(row.values[column.id] as number)}</span>
                 {:else}

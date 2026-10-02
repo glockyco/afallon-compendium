@@ -3,6 +3,7 @@
   import { MapPin } from 'lucide';
   import type { ArtRef, EntityRef } from '@afallon/contracts/public';
   import CompendiumSearch from '$lib/CompendiumSearch.svelte';
+  import EntityLink from '$lib/EntityLink.svelte';
   import { formatCalendarDate, formatNumber, rarityTone } from '$lib/format';
   import { iconNodeToSvg } from '$lib/icon-svg';
   import { kindGlyphSvg } from '$lib/kind-icon';
@@ -78,7 +79,7 @@
       <p class="release">Afallon {data.release.version} · Patched {formatCalendarDate(data.release.patchNotes.date)} · Data from {formatCalendarDate(data.release.dataDate)} · <a href={data.release.patchNotes.url} rel="external">Patch notes</a></p>
     </div>
     {#if data.world}
-      <a class="hero-caption" href={pageHref(data.world.ref)}>{data.world.ref.name}{#if data.world.range}, levels {data.world.range.min}–{data.world.range.max}{/if}</a>
+      <span class="hero-caption"><EntityLink ref={data.world.ref} registry={data.registry} plain />{#if data.world.range}, levels {data.world.range.min}–{data.world.range.max}{/if}</span>
     {/if}
   </section>
 
@@ -111,11 +112,11 @@
               {#if dungeon.artwork}<img src={artUrl(dungeon.artwork)} width={dungeon.artwork.width} height={dungeon.artwork.height} alt="" loading="lazy" decoding="async" />{/if}
               <span class="levels">Levels {dungeon.min}–{dungeon.max}</span>
             </div>
-            <h3><a class="dungeon-link" href={pageHref(dungeon.ref)}>{dungeon.ref.name}</a></h3>
+            <h3 class="dungeon-link"><EntityLink ref={dungeon.ref} registry={data.registry} plain /></h3>
             {#if dungeon.bosses.length}
               <ul class="bosses" aria-label={`Bosses of ${dungeon.ref.name}`}>
                 {#each dungeon.bosses as boss (boss.ref.key)}
-                  <li><a href={pageHref(boss.ref)}>{#if boss.portrait}<img class="avatar" src={artUrl(boss.portrait)} width="28" height="28" alt="" loading="lazy" decoding="async" />{:else}<span class="avatar" aria-hidden="true"></span>{/if}<span>{boss.ref.name}</span></a></li>
+                  <li><span class="boss-link"><EntityLink ref={{ ...boss.ref, ...(boss.portrait ? { portrait: boss.portrait } : {}) }} registry={data.registry} /></span></li>
                 {/each}
               </ul>
             {/if}
@@ -157,11 +158,11 @@
       <ul class="classes">
         {#each data.classes as entry (entry.ref.key)}
           <li>
-            <a class="class-tile" href={pageHref(entry.ref)}>
+            <div class="class-tile">
               {#if entry.ref.icon}<img class="class-art" src={artUrl(entry.ref.icon)} width="72" height="72" alt="" loading="lazy" decoding="async" />{:else}<span class="class-art fallback" aria-hidden="true">{@html kindGlyph(entry.ref.kind)}</span>{/if}
-              <span class="tile-name">{entry.ref.name}</span>
+              <span class="tile-name"><EntityLink ref={entry.ref} registry={data.registry} plain /></span>
               <span class="tile-meta">{[entry.talentTrees === null ? null : countText(entry.talentTrees, 'talent tree', 'talent trees'), entry.abilities === null ? null : countText(entry.abilities, 'ability', 'abilities')].filter(Boolean).join(' · ')}</span>
-            </a>
+            </div>
           </li>
         {/each}
       </ul>
@@ -180,10 +181,10 @@
       <ul class="skills">
         {#each data.craftingSkills as skill (skill.ref.key)}
           <li>
-            <a class="skill-tile" href={pageHref(skill.ref)}>
+            <div class="skill-tile">
               {#if skill.ref.icon}<img class="skill-art" src={artUrl(skill.ref.icon)} width="44" height="44" alt="" loading="lazy" decoding="async" />{:else}<span class="skill-art fallback" aria-hidden="true">{@html kindGlyph(skill.ref.kind)}</span>{/if}
-              <span class="skill-copy"><span class="tile-name">{skill.ref.name}</span><span class="tile-meta">{countText(skill.recipes, 'recipe', 'recipes')}</span></span>
-            </a>
+              <span class="skill-copy"><span class="tile-name"><EntityLink ref={skill.ref} registry={data.registry} plain /></span><span class="tile-meta">{countText(skill.recipes, 'recipe', 'recipes')}</span></span>
+            </div>
           </li>
         {/each}
       </ul>
@@ -241,8 +242,9 @@
   .glyph :global(svg) { width: 100%; height: 100%; }
   .release { margin: 1rem 0 0; color: var(--c-text); font-size: var(--c-text-small); text-shadow: 0 1px 8px var(--c-shadow-strong); }
   .release a { color: var(--c-accent-strong); }
-  .hero-caption { position: absolute; right: max(1.5rem, calc((100% - 72rem) / 2 + 1.5rem)); bottom: 1.1rem; color: color-mix(in srgb, var(--c-text) 82%, transparent); font-size: var(--c-text-small); text-decoration: none; text-shadow: 0 1px 6px var(--c-shadow-strong); }
-  .hero-caption:hover { color: var(--c-accent-strong); text-decoration: underline; text-underline-offset: .18em; }
+  .hero-caption { position: absolute; right: max(1.5rem, calc((100% - 72rem) / 2 + 1.5rem)); bottom: 1.1rem; color: color-mix(in srgb, var(--c-text) 82%, transparent); font-size: var(--c-text-small); text-shadow: 0 1px 6px var(--c-shadow-strong); }
+  .hero-caption :global(.entity-link) { color: inherit; }
+  .hero-caption :global(.entity-link:hover) { color: var(--c-accent-strong); }
   .hero :focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
 
   .section { margin-top: 3.25rem; }
@@ -255,24 +257,23 @@
   .tile-name { color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.25 var(--c-serif); }
   .tile-meta { color: var(--c-text-mute); font-size: var(--c-text-small); font-variant-numeric: tabular-nums; }
 
-  /* A dungeon card is one link. Its boss links sit above the card link, so a boss opens its own page. */
+  /* The dungeon title links the card; the boss links remain separately clickable above it. */
   .dungeons { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1rem; }
   .dungeon { position: relative; isolation: isolate; display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); transition: border-color .15s ease; }
   .dungeon:hover { border-color: var(--c-frame-hover); }
-  .dungeon:has(.dungeon-link:focus-visible) { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  .dungeon:has(.dungeon-link :global(.entity-link:focus-visible)) { outline: 2px solid var(--c-accent); outline-offset: 2px; }
   .dungeon-art { position: relative; aspect-ratio: 16 / 10; background: var(--c-surface-deep); }
   .dungeon-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .dungeon-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, var(--c-surface-1) 0%, transparent 32%); }
   .levels { position: absolute; z-index: 1; top: .6rem; left: .6rem; padding: .22rem .55rem; border: 1px solid color-mix(in srgb, var(--c-accent) 45%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--c-surface-deep) 80%, transparent); color: var(--c-accent-strong); font-size: var(--c-text-label); font-weight: 600; font-variant-numeric: tabular-nums; }
   .dungeon h3 { margin: .6rem .9rem .7rem; font: 600 var(--c-text-lead)/1.25 var(--c-serif); }
-  .dungeon-link { color: var(--c-text-strong); text-decoration: none; }
-  .dungeon-link:focus-visible { outline: none; }
-  .dungeon-link::after { content: ''; position: absolute; inset: 0; z-index: 1; }
+  .dungeon-link :global(.entity-link) { color: var(--c-text-strong); }
+  .dungeon-link :global(.entity-link::after) { content: ''; position: absolute; inset: 0; z-index: 1; }
   .bosses { display: grid; grid-template-columns: minmax(0, 1fr); gap: .35rem; margin: 0 .9rem .95rem; }
-  .bosses a { position: relative; z-index: 2; display: flex; align-items: center; gap: .5rem; min-width: 0; min-height: 1.5rem; color: var(--c-text-dim); font-size: var(--c-text-small); text-decoration: none; }
-  .bosses a:hover { color: var(--c-accent-strong); }
-  .bosses span { min-width: 0; line-height: 1.25; }
-  .avatar { flex: none; width: 1.75rem; height: 1.75rem; border: 1px solid var(--c-frame); border-radius: 50%; background: var(--c-surface-deep); object-fit: cover; }
+  .boss-link { position: relative; z-index: 2; display: flex; align-items: center; gap: .5rem; min-width: 0; min-height: 1.5rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .boss-link :global(.entity-link) { color: inherit; }
+  .boss-link :global(.entity-link:hover) { color: var(--c-accent-strong); }
+  .boss-link :global(.entity-link img), .boss-link :global(.entity-link .kind-icon) { width: 1.75rem; height: 1.75rem; border-radius: 50%; object-fit: cover; }
 
   /* Item groups: two rows of four on desktop and two columns on a phone. Each tile puts the icon beside its name, as the
      skill tiles do. The icon ring takes the rarity color of the pictured item. */
@@ -303,12 +304,12 @@
   .your-level input:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
 
   .classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1rem; }
-  .class-tile { display: grid; justify-items: center; gap: .3rem; height: 100%; padding: 1.4rem .8rem 1.15rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: radial-gradient(120% 90% at 50% 0%, var(--c-surface-3) 0%, var(--c-surface-1) 60%); color: var(--c-text); text-align: center; text-decoration: none; transition: border-color .15s ease; }
+  .class-tile { position: relative; display: grid; justify-items: center; gap: .3rem; height: 100%; padding: 1.4rem .8rem 1.15rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: radial-gradient(120% 90% at 50% 0%, var(--c-surface-3) 0%, var(--c-surface-1) 60%); color: var(--c-text); text-align: center; transition: border-color .15s ease; }
   .class-tile:hover { border-color: var(--c-frame-hover); }
   .class-art { width: 4.5rem; height: 4.5rem; margin-bottom: .5rem; border: 1px solid var(--c-frame); border-radius: 14px; background: var(--c-surface-sunken); box-shadow: 0 8px 20px var(--c-shadow); }
 
   .skills { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .75rem; }
-  .skill-tile { display: flex; align-items: center; gap: .75rem; height: 100%; padding: .75rem .85rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; transition: border-color .15s ease; }
+  .skill-tile { position: relative; display: flex; align-items: center; gap: .75rem; height: 100%; padding: .75rem .85rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); transition: border-color .15s ease; }
   .skill-tile:hover { border-color: var(--c-frame-hover); }
   .skill-art { flex: none; width: 2.75rem; height: 2.75rem; border: 1px solid var(--c-frame); border-radius: 10px; background: var(--c-surface-sunken); }
   .fallback { display: grid; place-items: center; color: var(--c-text-mute); }
@@ -321,11 +322,15 @@
   .gathering a { display: inline-flex; align-items: center; gap: .4rem; padding: .32rem .7rem .32rem .5rem; border: 1px solid var(--c-line); border-radius: 999px; background: var(--c-surface-1); color: var(--c-text); font-size: var(--c-text-small); text-decoration: none; }
   .gathering a:hover { border-color: var(--c-frame-strong); color: var(--c-accent-strong); }
 
-  /* Each guide is a card with its name and the sentence that says what it explains. */
+  /* Each mechanics page is a card with its name and a sentence about what it explains. */
   .guides { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
   .guide-tile { display: grid; align-content: start; gap: .35rem; height: 100%; padding: .95rem 1.1rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; transition: border-color .15s ease; }
   .guide-tile:hover { border-color: var(--c-frame-hover); }
   .guide-text { color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.45; }
+  .class-tile :global(.entity-link), .skill-tile :global(.entity-link) { color: var(--c-text-strong); }
+  .class-tile :global(.entity-link::after), .skill-tile :global(.entity-link::after) { content: ''; position: absolute; inset: 0; }
+  .class-tile:has(:global(.entity-link:focus-visible)), .skill-tile:has(:global(.entity-link:focus-visible)) { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  .class-tile :global(.plain .name), .skill-tile :global(.plain .name), .dungeon-link :global(.plain .name), .boss-link :global(.plain .name), .band :global(.plain .name), .hero-caption :global(.plain .name) { text-decoration: none; }
 
   /* Browse is the index of every list, below the featured sections, so each link is one compact line. */
   .browse { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: .4rem; }

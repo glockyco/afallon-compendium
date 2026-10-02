@@ -23,12 +23,12 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     ],
   },
   "heroic-tier": {
-    overview: "Heroic creatures give more experience when you kill them, and can give Heroic Essence. The Heroic tier also has settings for Heroic creatures, their affixes, and Heroic gear.",
+    overview: "Heroic creatures give more experience when you kill them and can give Heroic Essence. Heroic gear from creature drops gains a bonus, while affixes and creature strength depend on the Heroic tier's settings.",
     sections: [
-      { id: "kill-experience", title: "Kill experience", lead: "Heroic creatures give more experience than normal ones." },
-      { id: "essence", title: "Heroic Essence", lead: "Heroic creatures can also give Heroic Essence." },
-      { id: "heroic-gear", title: "Heroic gear", lead: "Some gear from loot during the Heroic tier carries a Heroic bonus." },
-      { id: "settings", title: "Creature and gear settings", lead: "These are the Heroic tier's values for creatures, affixes, and gear." },
+      { id: "kill-experience", title: "Kill experience", lead: "A Heroic creature increases experience from a kill, not the experience from a quest." },
+      { id: "essence", title: "Heroic Essence", lead: "Earn Heroic Essence from eligible Heroic kills. Creature rank, affixes, and a bounded comparison with your character affect the amount. Fractions carry over to later kills." },
+      { id: "heroic-gear", title: "Heroic gear", lead: "Equipment dropped by creatures during the Heroic tier can gain a Heroic bonus. Chests, crafting, and quest rewards do not use this drop bonus." },
+      { id: "settings", title: "Creature and gear settings", lead: "Affix odds, creature strength, and gear bonuses depend on these settings." },
     ],
   },
   "crafting-and-gathering": {
@@ -55,10 +55,10 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     ],
   },
   loot: {
-    overview: "Besides creatures, vendors, quests, and crafting, items also come from bags, supply packs, cloth drops, objects in the world, quest pickups, and the Dungeon Finder. This page explains how each of these works.",
+    overview: "Items can come from bags, supply packs, cloth drops, objects in the world, quest pickups, and the Dungeon Finder, as well as creatures, vendors, quests, and crafting. See each item's page for its rewards and sources.",
     sections: [
-      { id: "chests", title: "Items that open a chest", lead: "Some items open a chest of loot when you use them. Each item's page lists what its chest can hold." },
-      { id: "supply-packs", title: "Supply packs", lead: "Supply packs give a few items when you open them. The pack's page lists every possible item." },
+      { id: "chests", title: "Items that open a chest", lead: "Use a bag to open its chest of possible loot. The item's page shows what can be inside." },
+      { id: "supply-packs", title: "Supply packs", lead: "Open a supply pack to get items from the table for your class and level. The pack's page shows what you can get and how to obtain the pack. The details of each pick are below." },
       { id: "cloth", title: "Cloth from kills", lead: "Some creatures drop cloth on top of their normal loot. Each cloth's page shows its chance per kill by creature level." },
       { id: "world-objects", title: "World objects", lead: "Some objects in the world hold loot, such as graves and sacrificial altars." },
       { id: "quest-items", title: "Quest items", lead: "Some items only drop or appear while a quest needs them." },
@@ -88,9 +88,9 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
   "world-quests": {
     overview: "World Quests become available for a limited time in zones across the map. Enter an active zone to join one, complete its objectives, and collect its rewards.",
     sections: [
-      { id: "availability", title: "Where and when they appear", lead: "The times on each quest page belong to that quest. A zone may offer a different quest while this one waits." },
-      { id: "participation", title: "Joining and completing", lead: "Check each quest's page for its objectives and the zone where it starts." },
-      { id: "rewards", title: "Rewards and Heroic Cache", lead: "Each quest page shows the captured rewards, before any changes to currency awarded in play." },
+      { id: "availability", title: "Where and when they appear", lead: "A World Quest can become active in its zone for a limited time. Quest pages show where each one takes place and how long it lasts." },
+      { id: "participation", title: "Joining and completing", lead: "Enter an active quest's zone to join it. See each quest's page for its objectives and starting area." },
+      { id: "rewards", title: "Rewards and Heroic Cache", lead: "Each quest page shows the rewards you can earn. During the Heroic tier, Heroic Cache can increase its currency reward." },
     ],
   },
   travel: {
@@ -104,15 +104,18 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
   combat: {
     overview: "Your stats shape your attacks, defenses, and recovery. Abilities and equipment can also apply effects that deal damage, restore health, or change stats.",
     sections: [
-      { id: "building-stats", title: "Building your stats", lead: "Equipment, socketed gems, talents, and active gear set bonuses can add flat or percentage amounts. Equip different listed set items to unlock each tier. Higher tiers keep the lower bonuses active." },
-      { id: "recovery", title: "Health and resource recovery", lead: "Health, Mana, Energy, and Endurance have their own configured recovery amounts and intervals. See each stat page for its recorded values. These settings do not establish the exact timing of recovery during play." },
-      { id: "damage-and-defense", title: "Damage and defense", lead: "An attack's damage type determines which defense matters. A stat's name alone does not establish every damage-type match." },
-      { id: "critical-hits", title: "Critical hits", lead: "Critical Hit Chance is a rating. Your level and the target's defense and level can change the actual chance." },
-      { id: "on-hit-effects", title: "On-hit effects", lead: "Some stats can trigger an effect on eligible hits. The stat page lists its linked effects, chances, and cooldown." },
-      { id: "effects", title: "Effects", lead: "Effects can be immediate or remain active for a duration. An effect page lists its recorded ranks, timing, and known sources." },
+      { id: "building-stats", title: "Building your stats", lead: "Equipment, gems, talents, and gear set bonuses can raise your stats. Flat and percentage bonuses combine differently, and gear sets unlock tiers when you equip distinct pieces." },
+      { id: "recovery", title: "Health and resource recovery", lead: "Health, Mana, Energy, and Endurance each have their own recovery amounts and intervals, in or out of combat. See the values below for each resource." },
+      { id: "damage-and-defense", title: "Damage and defense", lead: "Armor and matching resistance reduce damage. Armor penetration and matching resistance penetration weaken those defenses." },
+      { id: "critical-hits", title: "Critical hits", lead: "Critical Hit Chance is a rating, not a flat percentage. Your level and the target's defense and level affect the chance to land a critical hit." },
+      { id: "on-hit-effects", title: "On-hit effects", lead: "Eligible hits can trigger effects from on-hit stats. Each stat has a chance and cooldown, and its linked effects may also have their own chance." },
+      { id: "effects", title: "Effects", lead: "An effect can deal damage or heal immediately, change stats or deal damage over time, check a condition, or move you to another place. Its page shows the outcome, timing, and known sources." },
     ],
   },
 };
+
+// These research-only Heroic questions have no player action or result and no placements from an entity page.
+const HEROIC_RESEARCH_NOTES: Record<string, true> = { "essence-health-stat": true, "affix-count-source": true, "settings-behavior-unverified": true };
 
 /** Whether the guide of a topic has a section with this id. */
 export function guideHasSection(topic: MechanicsTopic, section: string): boolean {
@@ -128,7 +131,10 @@ export function guideSections(topic: MechanicsTopic, rules: readonly { section: 
   for (const { section, rule } of rules) {
     if (!guideHasSection(topic, section)) throw new Error(`Rule ${rule.id} names section ${section}, which guide ${topic} does not define.`);
   }
-  return GUIDES[topic].sections.map((section) => {
-    return { ...section, rules: rules.filter((entry) => entry.section === section.id).map((entry) => entry.rule) };
-  });
+  return GUIDES[topic].sections.map((section) => ({
+    ...section,
+    rules: rules.filter((entry) => entry.section === section.id
+      && !(topic === "heroic-tier" && entry.rule.status === "unknown" && HEROIC_RESEARCH_NOTES[entry.rule.id]))
+      .map((entry) => entry.rule),
+  }));
 }

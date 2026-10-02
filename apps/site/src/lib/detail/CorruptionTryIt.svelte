@@ -109,10 +109,10 @@
   <div class="to-control"><LevelSlider id="corruption-to" label="To" min={0} max={guide.maxLevel ?? 30} bind:level={to} readout={(level) => level === 0 ? 'None' : `+${level}`} valueText={(level) => level === 0 ? 'None' : `+${level}`} /></div>
   <div class="summary" aria-live="polite" aria-atomic="true">
     <h3>What changes</h3>
-    <table class="stat-changes">
+    <table class="c-table c-table--calculator c-table--comparison" aria-label="Corrupted item stat changes">
       <caption>From {from === 0 ? 'None' : `+${from}`} to {to === 0 ? 'None' : `+${to}`}</caption>
-      <thead><tr><th scope="col">Stat</th><th scope="col" class="from-value">From</th><th scope="col" class="to-value">To</th><th scope="col" class="change-value">Change</th></tr></thead>
-      <tbody>{#each changes as change}<tr><th scope="row">{change.name}</th><td class="from-value">{change.before}</td><td class="to-value">{change.after}</td><td class:negative={change.negative} class="difference change-value">{change.difference}</td></tr>{/each}</tbody>
+      <thead><tr><th scope="col">Stat</th><th scope="col" class="c-num from-value">From</th><th scope="col" class="c-num to-value">To</th><th scope="col" class="c-num change-value">Change</th></tr></thead>
+      <tbody>{#each changes as change}<tr><th scope="row">{change.name}</th><td class="c-num from-value">{change.before}</td><td class="c-num to-value">{change.after}</td><td class:negative={change.negative} class:positive={!change.negative} class="c-num change-value">{change.difference}</td></tr>{/each}</tbody>
     </table>
     {#if item}
       {#if from === to}<p>Both levels are the same.</p>{:else if !changes.length}<p>These levels show the same item values.</p>{/if}
@@ -139,16 +139,6 @@
   .tooltip-frame { box-sizing: border-box; }
   .summary { box-sizing: border-box; padding: .8rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); }
   h3 { margin: 0 0 .45rem; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
-  .stat-changes { width: min(100%, 48.25rem); table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .875rem; }
-  .stat-changes caption { margin: 0 0 .45rem; text-align: left; font-size: 1rem; font-weight: 600; }
-  .stat-changes :is(.from-value, .to-value, .change-value) { width: 4.85rem; }
-  .stat-changes th, .stat-changes td { padding: .25rem .375rem; border-bottom: 1px solid var(--c-line-soft); }
-  .stat-changes tbody th { overflow-wrap: anywhere; }
-  .stat-changes td { white-space: nowrap; }
-  .stat-changes th { color: var(--c-text-dim); font-weight: 500; text-align: left; }
-  .stat-changes :is(td, thead th:not(:first-child)) { text-align: right; }
-  .stat-changes .difference { color: var(--c-positive); }
-  .stat-changes .negative { color: var(--c-tone-negative); }
   .summary p { margin: .45rem 0 0; }
   .drop-list { margin: .5rem 0 0; padding-top: .3rem; border-top: 1px solid var(--c-line-soft); }
   .drop-list dd { margin: 0; }
@@ -166,8 +156,5 @@
      change. A 61rem section leaves at least 207px for wrapping labels in each third. */
   @container try-it (min-width: 61rem) {
     .comparison { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "from to ." "fromTip toTip summary"; grid-template-rows: auto 1fr; align-items: stretch; }
-    .stat-changes { width: 100%; }
-    .stat-changes .from-value, .stat-changes .to-value { display: none; }
-    .stat-changes .change-value { width: 5rem; }
   }
 </style>

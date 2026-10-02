@@ -57,6 +57,7 @@ test("emits documents, lists, and one page-indexing search corpus", async () => 
     expect(entries).toHaveLength(4);
     const npcRows = generated.lists.get("npcs")?.flatMap((part) => part.value.rows) ?? [];
     expect(npcRows.find((row) => row.ref.key === "npcs:2")?.values.place).toBe("Raven Camp");
+    expect(npcRows.find((row) => row.ref.key === "npcs:2")?.relations?.place?.[0]).toEqual({ key: null, label: "Raven Camp" });
     expect(generated.documents.get("npcs:2")?.value.document).toMatchObject({ locations: [{ label: "Raven Camp" }] });
     const documentPaths = new Set([...generated.documents.values()].map((resource) => resource.reference.path));
     for (const entry of entries) expect(entry.document && documentPaths.has(entry.document.path)).toBe(true);
@@ -107,6 +108,8 @@ test("quest rows expose the level range, chain, areas, and giver for every colum
   expect(Object.keys(row.facets).sort()).toEqual(registry.facets.map((facet) => facet.id).sort());
   expect(row.facets).toEqual({ questType: ["World Quest"], startType: ["npc", "worldZone", "object"], area: ["Cedar Ridge", "Coalway Woods"],
     chain: ["Pilgrimage"], repeatable: ["true"], rewardType: ["Experience", "item"] });
+  expect(row.relations?.giver).toEqual([{ key: "npcs:2", kind: "npcs", name: "Guardian", slug: "guardian" }]);
+  expect(row.relations?.area).toEqual([{ key: null, label: "Cedar Ridge" }, { key: null, label: "Coalway Woods" }]);
   const ordinary = { ...quest, ref: { ...quest.ref, key: "quests:4", name: "Trial Two", slug: "trial-two" }, facts: { ...quest.facts, worldQuest: undefined } };
   const ordinaryRow = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[ordinary.ref.key, ordinary]])).get("quests")![0]!.rows[0]!;
   expect(ordinaryRow.facets.questType).toEqual(["Other Quest"]);

@@ -610,6 +610,10 @@ test("ability list sources prefer classes, summarize many creatures, and retain 
     ["Brown Horse", ["Item"], []],
     ["No Known Use", ["No Known Use"], []],
   ]);
+  expect(rows[0]?.relations?.source).toEqual([classRef]);
+  expect(rows[0]?.relationSuffixes?.source).toEqual([" · Shadowcraft"]);
+  expect(rows[1]?.relations?.source).toBeUndefined();
+  expect(rows[2]?.relations?.source).toEqual([itemRef]);
 });
 
 test("shows a gear set in full on its member item and on the set's own page", () => {
