@@ -15,7 +15,9 @@
   <header class="head">
     <h1>{data.kind.plural}</h1>
   </header>
-  <ListTable list={data.list} kind={data.kind} registry={data.registry} />
+  <!-- The route reuses this page between lists, and each list keeps its own filters, sort, and column widths, so the
+       table mounts again for another kind and reads that list's address. -->
+  {#key data.kind.kind}<ListTable list={data.list} kind={data.kind} registry={data.registry} />{/key}
 </PageShell>
 
 <style>
