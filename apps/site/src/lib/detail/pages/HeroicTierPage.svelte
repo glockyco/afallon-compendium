@@ -1,77 +1,140 @@
 <script lang="ts">
   import type { HeroicTier, PublicKindEntry } from '@afallon/contracts/public';
-  import FactList from '../FactList.svelte';
-  import FactRow from '../FactRow.svelte';
+  import EntityLink from '../../EntityLink.svelte';
+  import { formatNumber } from '../../format';
+  import CompareTable from '../CompareTable.svelte';
+  import GuidePart from '../GuidePart.svelte';
   import GuideSection from '../GuideSection.svelte';
-  import Hero from '../Hero.svelte';
+  import GuideStart from '../GuideStart.svelte';
+  import type { RelationColumn } from '../relation-table';
+  import RelationTable from '../RelationTable.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
   export let document: HeroicTier;
   export let registry: PublicKindEntry[];
 
-  const format = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 4 });
-  const percent = (fraction: number) => `${format(fraction * 100)}%`;
+  // The page answers three questions in order: how to turn the tier on, what changes, and what it gives. The opening
+  // states each answer in one sentence from the rules' values, and the parts below hold the rules in full.
+  const PARTS = [
+    { id: 'getting-started', title: 'Getting started', sections: ['entering'] },
+    { id: 'what-changes', title: 'What changes', sections: ['empowered-creatures', 'affixes'] },
+    { id: 'rewards', title: 'Rewards', sections: ['kill-experience', 'essence', 'currency', 'heroic-gear'] },
+  ] as const;
+  $: byId = new Map(document.sections.map((section) => [section.id, section]));
+  // A section that no part names still shows, after the parts.
+  $: parts = [
+    ...PARTS.map((part) => ({ ...part, sections: part.sections.flatMap((id) => byId.get(id) ?? []) })),
+    { id: 'more', title: 'More', sections: document.sections.filter((section) => !PARTS.some((part) => (part.sections as readonly string[]).includes(section.id))) },
+  ].filter((part) => part.sections.length);
+
+  $: rules = new Map(document.sections.flatMap((section) => section.rules).filter((rule) => rule.status === 'verified').map((rule) => [rule.id, rule]));
+  const value = (id: string, operand: string) => rules.get(id)?.operands[operand];
+  $: consoles = rules.get('heroic-tier-console-locations')?.links ?? [];
+  $: level = value('heroic-tier-recommended-level', 'level');
+  $: health = value('heroic-tier-creature-health-scaling', 'health');
+  $: damage = value('heroic-tier-creature-damage-scaling', 'damage');
+  $: maxAffixes = value('heroic-tier-affix-rolls', 'maximum');
+  $: killExperience = value('heroic-kill-experience', 'multiplier');
+  $: bossCurrency = value('heroic-tier-boss-currency', 'multiplier');
+  $: questCurrency = value('heroic-tier-world-quest-currency', 'multiplier');
+  $: gearBonus = value('heroic-gear-base-stats', 'statBonusPercent');
+  $: rewards = [
+    killExperience === undefined ? undefined : `${formatNumber(killExperience)} times the kill experience`,
+    bossCurrency === undefined || questCurrency === undefined ? undefined
+      : bossCurrency === questCurrency ? `${formatNumber(bossCurrency)} times the currency from Bosses and World Quests`
+        : `${formatNumber(bossCurrency)} times the currency from Bosses and ${formatNumber(questCurrency)} times from World Quests`,
+    byId.has('essence') ? 'Heroic Essence' : undefined,
+    gearBonus === undefined ? undefined : `Heroic gear with ${formatNumber(gearBonus)}% stronger fixed stats`,
+  ].filter((text): text is string => Boolean(text));
+  const list = (texts: string[]) => texts.length < 3 ? texts.join(' and ') : `${texts.slice(0, -1).join(', ')}, and ${texts.at(-1)}`;
+
+  // How strong an empowered creature is at three gear scores: none, half of the score that reaches the cap, and the cap.
+  type Strength = { score: number; health: number; damage: number };
+  $: percentPerPoint = value('heroic-tier-gear-bonus-cap', 'percentPerPoint');
+  $: capScore = value('heroic-tier-gear-bonus-cap', 'capScore');
+  $: capPercent = value('heroic-tier-gear-bonus-cap', 'capPercent');
+  $: strength = health !== undefined && damage !== undefined && percentPerPoint !== undefined && capScore !== undefined && capPercent !== undefined
+    ? [0, capScore / 2, capScore].map((score): Strength => {
+      const factor = 1 + Math.min(score * percentPerPoint, capPercent) / 100;
+      return { score, health: health * factor, damage: damage * factor };
+    })
+    : [];
+  const STRENGTH_FACTS = [{ id: 'health', label: 'Creature health' }, { id: 'damage', label: 'Creature damage' }];
+  // Factors and Essence amounts keep their decimals, such as a health factor of 0.25.
+  const exact = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 });
+
   $: settings = 'unavailable' in document.settings ? undefined : document.settings;
-  $: unavailable = 'unavailable' in document.settings ? document.settings.unavailable : undefined;
+  const rankLabel = (rank: string) => rank === 'other' ? 'Other' : rank === 'elite' ? 'Elite' : rank === 'rare' ? 'Rare' : 'Boss';
+  const rankMultiplier = (rank: string) => !settings || rank === 'other' ? undefined
+    : rank === 'elite' ? settings.essenceEliteMultiplier : rank === 'rare' ? settings.essenceRareMultiplier : settings.essenceBossMultiplier;
+  type EssenceRow = NonNullable<HeroicTier['example']>['rows'][number];
+  $: essenceColumns = [
+    { id: 'rank', label: 'Creature rank', value: (row: EssenceRow) => rankLabel(row.rank) },
+    ...(document.example?.affixCounts ?? []).map((count, index): RelationColumn<EssenceRow> => ({
+      id: `affixes-${count}`, label: count === 1 ? '1 affix' : `${formatNumber(count)} affixes`, numeric: true, value: (row) => row.essence[index],
+    })),
+  ] satisfies RelationColumn<EssenceRow>[];
 </script>
 
 <article class="detail-page">
   <TitleBlock name={document.ref.name} {registry} />
-  <Hero><p class="c-prose">{document.overview}</p></Hero>
+  <GuideStart overview={document.overview}>
+    {#if consoles.length}
+      <div>
+        <h2>Turn it on</h2>
+        <p>Use a Heroic Console in {#each consoles as place, index}{index ? (index === consoles.length - 1 ? (consoles.length === 2 ? ' or ' : ', or ') : ', ') : ''}<EntityLink ref={place} {registry} />{/each}, then confirm.{#if level !== undefined}{' '}The console recommends level {formatNumber(level)} or higher.{/if}</p>
+        <a class="c-link more" href="#entering">Turning it on and off</a>
+      </div>
+    {/if}
+    {#if health !== undefined && damage !== undefined}
+      <div>
+        <h2>What changes</h2>
+        <p>Creatures have {formatNumber(health)} times their health and deal {formatNumber(damage)} times their damage, more as your gear improves.{#if maxAffixes !== undefined}{' '}They can carry up to {formatNumber(maxAffixes)} affixes.{/if}</p>
+        <a class="c-link more" href="#empowered-creatures">Empowered creatures</a>
+      </div>
+    {/if}
+    {#if rewards.length}
+      <div>
+        <h2>What you get</h2>
+        <p>{list(rewards)}.</p>
+        <a class="c-link more" href="#kill-experience">Rewards</a>
+      </div>
+    {/if}
+  </GuideStart>
+
   <Sections>
-    {#each document.sections as section (section.id)}
-      <GuideSection {section} {registry}>
-        <svelte:fragment slot="lead">{#if section.id === 'essence' && settings}{' '}Each kill starts from {format(settings.essenceBaseAmount)} Essence, plus {format(settings.essencePerAffix)} for each of the creature's affixes.{/if}</svelte:fragment>
-        <svelte:fragment slot="top">
-          {#if section.id === 'kill-experience' || section.id === 'essence'}
-            {#if unavailable}<p>{unavailable}</p>
-            {:else if settings && section.id === 'kill-experience'}
-              <FactList><FactRow label="Kill experience multiplier">{format(settings.killExperienceMultiplier)}×</FactRow></FactList>
-            {:else if settings}
-              <FactList>
-                {#if settings.essencePoints}<FactRow label="Points">{settings.essencePoints}</FactRow>{/if}
-                <FactRow label="Elite rank multiplier">{format(settings.essenceEliteMultiplier)}×</FactRow>
-                <FactRow label="Rare rank multiplier">{format(settings.essenceRareMultiplier)}×</FactRow>
-                <FactRow label="Boss rank multiplier">{format(settings.essenceBossMultiplier)}×</FactRow>
-                <FactRow label="Health baseline">{format(settings.essenceHealthBaseline)}×</FactRow>
-                <FactRow label="Health factor bounds">{format(settings.essenceHealthFactorMin)}–{format(settings.essenceHealthFactorMax)}</FactRow>
-              </FactList>
+    {#each parts as part (part.id)}
+      <GuidePart id={part.id} title={part.title}>
+        {#each part.sections as section (section.id)}
+          <GuideSection {section} {registry} level={3}>
+            {#if section.id === 'empowered-creatures' && strength.length}
+              <CompareTable items={strength} facts={STRENGTH_FACTS} has={() => true} anchor={(row) => `gear-score-${row.score}`} label="Empowered creature strength by your gear score" minColumn={60}>
+                <svelte:fragment slot="corner">Your gear score</svelte:fragment>
+                <svelte:fragment slot="head" let:item><span class="score">{formatNumber(item.score)}{item.score === capScore ? '+' : ''}</span></svelte:fragment>
+                <svelte:fragment slot="cell" let:item let:fact>{exact.format(fact === 'health' ? item.health : item.damage)}×</svelte:fragment>
+              </CompareTable>
+            {:else if section.id === 'essence' && document.example}
+              <RelationTable columns={essenceColumns} rows={document.example.rows} label="Essence per kill by creature rank and affixes">
+                <svelte:fragment slot="cell" let:row let:column>
+                  {@const index = document.example.affixCounts.findIndex((count) => column === `affixes-${count}`)}
+                  {#if column === 'rank'}{rankLabel(row.rank)}{#if rankMultiplier(row.rank) !== undefined}<small>{exact.format(rankMultiplier(row.rank) ?? 1)}× Essence</small>{/if}
+                  {:else if index >= 0}{exact.format(row.essence[index] ?? 0)}{/if}
+                </svelte:fragment>
+              </RelationTable>
+              {#if settings}<p class="note">Essence per kill at a health factor of 1. The health baseline is {exact.format(settings.essenceHealthBaseline)}, and the health factor stays between {exact.format(settings.essenceHealthFactorMin)} and {exact.format(settings.essenceHealthFactorMax)}.</p>{/if}
             {/if}
-          {/if}
-        </svelte:fragment>
-        {#if section.id === 'essence' && document.example}
-          <h3>Essence per kill</h3>
-          <p>Essence per kill by creature rank and number of affixes, at a health factor of 1.</p>
-          <div class="c-table-scroll"><table class="c-table c-table--reference" aria-label="Essence per kill by rank and affixes">
-            <thead>
-              <tr><th scope="col" rowspan="2">Creature rank</th><th scope="colgroup" colspan={document.example.affixCounts.length}>Affixes</th></tr>
-              <tr>{#each document.example.affixCounts as count}<th scope="col" class="c-num">{count}</th>{/each}</tr>
-            </thead>
-            <tbody>{#each document.example.rows as row}<tr><th scope="row">{row.rank === 'other' ? 'Other' : row.rank === 'elite' ? 'Elite' : row.rank === 'rare' ? 'Rare' : 'Boss'}</th>{#each row.essence as amount}<td class="c-num">{format(amount)}</td>{/each}</tr>{/each}</tbody>
-          </table></div>
-        {:else if section.id === 'settings'}
-          {#if unavailable}<p>{unavailable}</p>
-          {:else if settings}
-            <FactList>
-              <FactRow label="Creature health multiplier">{format(settings.baseHealthMultiplier)}×</FactRow>
-              <FactRow label="Creature damage multiplier">{format(settings.baseDamageMultiplier)}×</FactRow>
-              <FactRow label="Gear scaling coefficient">{format(settings.gearScoreCoefficient)}</FactRow>
-              <FactRow label="Maximum gear bonus">{format(settings.maxGearBonus)}</FactRow>
-              <FactRow label="First affix chance">{percent(settings.affixChance)}</FactRow>
-              <FactRow label="Later affix chance">{percent(settings.extraAffixChance)}</FactRow>
-              <FactRow label="Maximum affixes">{format(settings.maxAffixes)}</FactRow>
-              <FactRow label="Guaranteed affixes for Rare creatures">{format(settings.rareGuaranteedAffixes)}</FactRow>
-              <FactRow label="Affix loot multiplier">{format(settings.affixLootDropMultiplier)}×</FactRow>
-              <FactRow label="Heroic gear stat bonus">{format(settings.heroicGearStatBonusPercent)}%</FactRow>
-            </FactList>
-          {/if}
-        {/if}
-      </GuideSection>
+          </GuideSection>
+        {/each}
+      </GuidePart>
     {/each}
   </Sections>
 </article>
 
 <style>
-  h3 { color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
+  p { margin: 0; line-height: 1.55; }
+  .more { width: fit-content; font-size: var(--c-text-small); }
+  .note { color: var(--c-text-dim); font-size: var(--c-text-small); }
+  /* A gear score is one short number, so it never breaks across lines. */
+  .score { white-space: nowrap; }
 </style>

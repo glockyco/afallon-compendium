@@ -23,12 +23,15 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
     ],
   },
   "heroic-tier": {
-    overview: "Heroic creatures give more experience when you kill them and can give Heroic Essence. Heroic gear from creature drops gains a bonus, while affixes and creature strength depend on the Heroic tier's settings.",
+    overview: "The Heroic tier makes the open world harder for a character who turns it on. Creatures gain health, damage, and dangerous affixes, and in return give more experience and currency, Heroic Essence, and stronger gear.",
     sections: [
-      { id: "kill-experience", title: "Kill experience", lead: "A Heroic creature increases experience from a kill, not the experience from a quest." },
-      { id: "essence", title: "Heroic Essence", lead: "Earn Heroic Essence from eligible Heroic kills. Creature rank, affixes, and a bounded comparison with your character affect the amount. Fractions carry over to later kills." },
-      { id: "heroic-gear", title: "Heroic gear", lead: "Equipment dropped by creatures during the Heroic tier can gain a Heroic bonus. Chests, crafting, and quest rewards do not use this drop bonus." },
-      { id: "settings", title: "Creature and gear settings", lead: "Affix odds, creature strength, and gear bonuses depend on these settings." },
+      { id: "entering", title: "Turning it on and off", lead: "A Heroic Console opens a panel that explains the tier and asks you to confirm." },
+      { id: "empowered-creatures", title: "Empowered creatures", lead: "Empowered creatures are much tougher than usual, and they keep pace with your gear." },
+      { id: "affixes", title: "Affixes", lead: "An empowered creature can carry affixes, extra powers that make it more dangerous and its loot more plentiful." },
+      { id: "kill-experience", title: "Kill experience", lead: "An empowered creature gives more experience when you kill it. Quest experience does not change." },
+      { id: "essence", title: "Heroic Essence", lead: "Earn Heroic Essence from empowered kills. Creature rank, affixes, and the creature's health compared with yours affect the amount." },
+      { id: "currency", title: "Currency", lead: "Bosses and World Quests pay more currency." },
+      { id: "heroic-gear", title: "Heroic gear", lead: "Heroic gear carries a bonus to its fixed stats and weapon damage." },
     ],
   },
   "crafting-and-gathering": {
@@ -114,9 +117,6 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
   },
 };
 
-// These research-only Heroic questions have no player action or result and no placements from an entity page.
-const HEROIC_RESEARCH_NOTES: Record<string, true> = { "essence-health-stat": true, "affix-count-source": true, "settings-behavior-unverified": true };
-
 /** Whether the guide of a topic has a section with this id. */
 export function guideHasSection(topic: MechanicsTopic, section: string): boolean {
   return GUIDES[topic].sections.some((entry) => entry.id === section);
@@ -133,8 +133,6 @@ export function guideSections(topic: MechanicsTopic, rules: readonly { section: 
   }
   return GUIDES[topic].sections.map((section) => ({
     ...section,
-    rules: rules.filter((entry) => entry.section === section.id
-      && !(topic === "heroic-tier" && entry.rule.status === "unknown" && HEROIC_RESEARCH_NOTES[entry.rule.id]))
-      .map((entry) => entry.rule),
+    rules: rules.filter((entry) => entry.section === section.id).map((entry) => entry.rule),
   }));
 }

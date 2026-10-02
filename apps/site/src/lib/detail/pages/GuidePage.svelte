@@ -49,7 +49,7 @@
         {:else if document.topic === 'factions' && section.id === 'changing-standing'}
           <p>{document.standingChanges ? `${formatNumber(document.standingChanges)} creatures, quests, and items on this site change your standing.` : 'No creature, quest, or item on this site changes your standing.'}</p>
         {:else if document.topic === 'world-quests' && section.id === 'rewards'}
-          <HowItWorks guide={{ key: `mechanics:${heroicTier.id}`, kind: 'mechanics', name: heroicTier.name, slug: heroicTier.id }} section="settings" label="About the Heroic Tier" />
+          <HowItWorks guide={{ key: `mechanics:${heroicTier.id}`, kind: 'mechanics', name: heroicTier.name, slug: heroicTier.id }} section="currency" label="Heroic Tier currency" />
         {:else if document.topic === 'travel' && section.id === 'network'}
           <FlightNetworkSection networks={document.networks} {registry} />
         {/if}
