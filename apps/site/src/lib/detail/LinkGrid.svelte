@@ -19,7 +19,7 @@
 
 <style>
   .link-grid-wrap { display: grid; gap: .6rem; justify-items: start; }
-  .link-grid { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); width: 100%; margin: 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
+  .link-grid { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); width: 100%; margin: 0; padding: 0; list-style: none; font-size: var(--c-text-body); }
   .link-grid li { min-width: 0; }
   .show-all { min-height: 1.5rem; }
 </style>

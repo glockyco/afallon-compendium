@@ -45,7 +45,7 @@
         {#if main.useRequirements.length}<SideCard title="Use requirements"><Requirements requirements={main.useRequirements} {registry} kindLabels={false} /></SideCard>{/if}
       </svelte:fragment>
     <Sections>
-      <AbilityVersionsSection versions={document.versions} {registry} {showAllUsers} />
+      <AbilityVersionsSection versions={document.versions} {registry} {showAllUsers} icon={document.art.icon ?? document.ref.icon} />
       {#if document.versions.length === 1 && shownRowCount(document.versions[0]!.usedBy.length, false) < document.versions[0]!.usedBy.length}<AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} />{/if}
       {#if document.versions.length === 1 && shownRowCount(document.versions[0]!.usedByItems.length, false) < document.versions[0]!.usedByItems.length}<AbilityReferencesSection versions={document.versions} relation="usedByItems" {registry} />{/if}
     </Sections>
