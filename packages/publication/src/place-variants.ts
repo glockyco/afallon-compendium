@@ -7,14 +7,17 @@ const POSITION_TOLERANCE = 0.05;
 const MIN_MATCHES = 50;
 const MIN_HOST_RATIO = 3;
 
-type ScenePlacement = Pick<CatalogMapPlacement, "placementId" | "sceneNativeId" | "position" | "roles"> & { sourceTypes: readonly string[] };
+type ScenePlacement = Pick<CatalogMapPlacement, "placementId" | "sceneNativeId" | "position" | "roles" | "itemEntityKeys"> & { sourceTypes: readonly string[] };
 export interface PlaceVariant { hostKey: string; copiedPlacementIds: ReadonlySet<string> }
 export interface PlaceVariants { byScene: ReadonlyMap<string, PlaceVariant>; copiedPlacementIds: ReadonlySet<string>; copyHostByPlacement: ReadonlyMap<string, string> }
 
+// A copy has the same roles, source types, and items as its host. Two objects at one spot that give different items
+// are different objects, such as a grave of a challenge scene above a tomb of the host scene.
 function signature(placement: ScenePlacement): string {
   return JSON.stringify([
     [...new Set(placement.roles.map(({ role, npcEntityKey }) => JSON.stringify([role, npcEntityKey])))].sort(),
     [...new Set(placement.sourceTypes)].sort(),
+    [...new Set(placement.itemEntityKeys)].sort(),
   ]);
 }
 
@@ -85,7 +88,7 @@ export function catalogPlaceVariants(db: Database, publishedMapSpaceIds: Readonl
   for (const map of queryCatalogMaps(db).records) {
     if (!publishedMapSpaceIds.has(map.mapSpaceId)) continue;
     const rows = queryCatalogMap(db, map.mapSpaceId).records?.placements ?? [];
-    spaces.set(map.mapSpaceId, rows.map((row) => ({ placementId: row.placementId, sceneNativeId: row.sceneNativeId, position: row.position, roles: row.roles, sourceTypes: sources.get(row.placementId) ?? [] })));
+    spaces.set(map.mapSpaceId, rows.map((row) => ({ placementId: row.placementId, sceneNativeId: row.sceneNativeId, position: row.position, roles: row.roles, itemEntityKeys: row.itemEntityKeys, sourceTypes: sources.get(row.placementId) ?? [] })));
   }
   return derivePlaceVariants(spaces);
 }
