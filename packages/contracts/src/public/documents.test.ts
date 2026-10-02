@@ -114,7 +114,7 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
     places: [{ label: "Duskfall Depths", mapSpaceId: "duskfall", placementIds: ["p1"], spotCount: 1 }], spotCount: 1,
     drops: [{ counterpart: item, min: 1, max: 1, requirements: [] }], sells: [], quests: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], usedInQuests: [], bossOf: [], placedRules: [] } satisfies PublicNpc,
   quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, starts: [{ kind: "npc", npc: boss, areas: ["Duskfall Depths"] }], turnIns: [], objectives: [{ index: 0, text: "Kill 3 Branchweavers", completions: [], type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [], placedRules: [] } satisfies PublicQuest,
-  places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], lootObjects: [], quests: [], questObjectives: [], properties: [], entrances: [{ place: { key: "scenes:47", kind: "places", name: "Afallon", slug: "afallon" }, placements: [placement] }], placesToEnter: [], regions: [],
+  places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], lootObjects: [], quests: [], questObjectives: [], properties: [], entrances: [{ place: { key: "scenes:47", kind: "places", name: "Afallon", slug: "afallon" }, placements: [placement] }], placesToEnter: [], startingRaces: [], allPlayableRacesStartHere: false, regions: [],
     dungeonFinder: { supplyPack: item }, timedDungeon: { totalSeconds: 800, thresholds: [{ remainingSeconds: 500, tokenLevels: 2 }, { remainingSeconds: 300, tokenLevels: 1 }], maxLootItems: 3, altars: [placement],
       guide: { key: "mechanics:corruption", kind: "mechanics", name: "Corruption", slug: "corruption" } } } satisfies PublicPlace,
   properties: { ...located, ref: { key: "properties:1", kind: "properties", name: "Mill", slug: "mill" }, facts: { income: { amount: 60, currency: gold }, incomeInterval: 300 } } satisfies PublicProperty,
@@ -157,6 +157,13 @@ test("Heart stone routes, place answers, and guide cross-links keep their own st
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.places, { ...fixtures.places,
     challengeStoneStart: { heart: item, stoneName: use.stoneName, regionName: use.regionName, spot: { ...placement, mapSpaceId: null }, count: 1 } })).toThrow();
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, seeAlso: [{ lead: "See", ref: { key: null, label: "Unknown" } }] })).toThrow();
+});
+
+test("place starts carry only named races and reject incomplete start details", () => {
+  const place = fixtures.places as PublicPlace;
+  Assert(PUBLIC_DOCUMENT_SCHEMAS.places, { ...place, startingRaces: [{ entityKey: "races:1", name: "Orc" }], allPlayableRacesStartHere: true });
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.places, { ...place, startingRaces: [{ entityKey: "races:1" }] })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.places, { ...place, startingRaces: [{ entityKey: "races:1", name: "Orc", startingSceneId: 10 }] })).toThrow();
 });
 
 test("node source groups publish counts without repeating placements needed only by map places", () => {

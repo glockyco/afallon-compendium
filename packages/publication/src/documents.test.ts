@@ -381,6 +381,39 @@ test("a place names where it is entered, and the overworld lists the places to e
   expect((documents.get("scenes:10") as PublicPlace).placesToEnter).toEqual([]);
 });
 
+test("only playable races with resolved scenes appear on their starting places", () => {
+  const scene: CatalogEntityRow = { entityKey: "scenes:11", kind: "scenes", nativeId: 11, name: "Other Place", description: null, iconAssetName: null, artwork: [] };
+  const races = ["Human", "Orc", "Unplayable"].map((name, index): CatalogEntityRow => ({
+    entityKey: `races:${index}`, kind: "races", nativeId: index, name, description: null, iconAssetName: null, artwork: [],
+  }));
+  const allEntities = [...entities, scene, ...races];
+  const endpoint = (key: string, label: string) => ({ entityKey: key, label });
+  const start = (race: CatalogEntityRow, sceneKey: string | null) => ({
+    race: endpoint(race.entityKey, race.name ?? race.entityKey), scene: sceneKey ? endpoint(sceneKey, sceneKey) : null,
+    startingSceneId: 10, startingPositionId: 1, position: { x: 1, y: 2, z: 3 },
+  });
+  const progression: CatalogFacts["progression"] = { ...facts.progression,
+    facts: races.map((race) => ({
+      entityKey: race.entityKey, name: race.name, kind: "races" as const, artwork: [],
+      details: { offeredClasses: race.name === "Unplayable" ? [] : [endpoint("classes:0", "Shieldmaster")] },
+    })) };
+  const allFacts: CatalogFacts = { ...facts, entities: allEntities, progression,
+    places: [...facts.places, { ...facts.places[0]!, entityKey: scene.entityKey }],
+    raceStarts: [start(races[0]!, "scenes:10"), start(races[1]!, "scenes:10"), start(races[2]!, scene.entityKey)] };
+  const place = (key: string, raceStarts: CatalogFacts["raceStarts"]) =>
+    project(allEntities, { ...allFacts, raceStarts }, relations).documents.get(key) as PublicPlace;
+  const shared = place("scenes:10", allFacts.raceStarts);
+  expect(shared.startingRaces).toEqual([{ entityKey: "races:0", name: "Human" }, { entityKey: "races:1", name: "Orc" }]);
+  expect(shared.allPlayableRacesStartHere).toBe(true);
+  expect(shared.entrances).toEqual([]);
+  expect(place(scene.entityKey, allFacts.raceStarts).startingRaces).toEqual([]);
+
+  const separated = [start(races[0]!, "scenes:10"), start(races[1]!, scene.entityKey), start(races[2]!, "scenes:10")];
+  expect(place(scene.entityKey, separated)).toMatchObject({ startingRaces: [{ entityKey: "races:1", name: "Orc" }], allPlayableRacesStartHere: false });
+  expect(place("scenes:10", separated)).toMatchObject({ startingRaces: [{ entityKey: "races:0", name: "Human" }], allPlayableRacesStartHere: false });
+  expect(place("scenes:10", [start(races[0]!, "scenes:10"), start(races[1]!, null)])).toMatchObject({ allPlayableRacesStartHere: false });
+});
+
 test("variant places keep unique objects and quests without inheriting copied host content", () => {
   const host: CatalogEntityRow = { entityKey: "scenes:47", kind: "scenes", nativeId: 47, name: "Afallon", description: null, iconAssetName: null, artwork: [] };
   const uniqueQuest: CatalogEntityRow = { entityKey: "quests:4", kind: "quests", nativeId: 4, name: "Challenge", description: null, iconAssetName: null, artwork: [] };

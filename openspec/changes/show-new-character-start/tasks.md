@@ -5,7 +5,7 @@
 
 ## 2. Page
 
-- [ ] 2.1 Publish the starting races on the place document, and show them in the Getting there card. Test all races in one place and one race in another.
+- [x] 2.1 Publish the starting races on the place document, and show them in the Getting there card. Test all races in one place and one race in another.
 
 ## 3. Release
 

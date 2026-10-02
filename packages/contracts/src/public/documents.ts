@@ -584,11 +584,15 @@ export const PlaceLootObjectSchema = Type.Object({
   availability: Type.Array(AvailabilityRuleSchema), items: Type.Array(RefSchema, { minItems: 1 }), placements,
 }, { additionalProperties: false });
 export type PlaceLootObject = Static<typeof PlaceLootObjectSchema>;
+// Playable races whose new characters start in this scene. A race has no page, so keep its key and display name.
+export const PlaceStartingRaceSchema = Type.Object({ entityKey: text, name: text }, { additionalProperties: false });
+export type PlaceStartingRace = Static<typeof PlaceStartingRaceSchema>;
 export const PublicPlaceSchema = Type.Object({
   ...documentBase, facts: PlaceFactsSchema, space: Type.Union([PlaceSpaceSchema, Type.Null()]), variantOf: optional(RefSchema),
   bosses: refs, creatures: Type.Array(CreatureRowSchema), npcs: Type.Array(CreatureRowSchema),
   services: Type.Array(PlacementGroupSchema), resources: Type.Array(PlacementGroupSchema), containers: Type.Array(PlacementGroupSchema), lootObjects: Type.Array(PlaceLootObjectSchema),
   quests: refs, questObjectives: refs, properties: refs, entrances: Type.Array(PlaceEntranceSchema), placesToEnter: Type.Array(PlaceToEnterSchema),
+  startingRaces: Type.Array(PlaceStartingRaceSchema, { uniqueItems: true }), allPlayableRacesStartHere: Type.Boolean(),
   regions: refs, parent: optional(RefSchema), challengeStoneStart: optional(ChallengeStoneStartSchema),
   dungeonFinder: optional(PlaceDungeonFinderSchema), timedDungeon: optional(TimedDungeonSchema),
 }, { additionalProperties: false });
@@ -858,7 +862,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v20", npcs: "compendium.static-npc.v9", quests: "compendium.static-quest.v7", places: "compendium.static-place.v10",
+  items: "compendium.static-item.v20", npcs: "compendium.static-npc.v9", quests: "compendium.static-quest.v7", places: "compendium.static-place.v11",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v6", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v11", gatheringNodes: "compendium.static-gathering-node.v5",
 } as const satisfies Record<PublicPageKind, string>;
@@ -884,14 +888,14 @@ export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-item.v20": typeof StaticItemDocumentSchema; "compendium.static-npc.v9": typeof StaticNpcDocumentSchema;
-  "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v10": typeof StaticPlaceDocumentSchema;
+  "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v11": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v6": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v11": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v5": typeof StaticGatheringNodeDocumentSchema;
 } = {
   "compendium.static-item.v20": StaticItemDocumentSchema, "compendium.static-npc.v9": StaticNpcDocumentSchema,
-  "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v10": StaticPlaceDocumentSchema,
+  "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v11": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v6": StaticClassDocumentSchema,
   "compendium.static-skill.v6": StaticSkillDocumentSchema, "compendium.static-mechanics.v11": StaticMechanicsDocumentSchema,
@@ -901,7 +905,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v20"), resourceReference("compendium.static-npc.v9"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v10"),
+  resourceReference("compendium.static-item.v20"), resourceReference("compendium.static-npc.v9"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v11"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v6"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v11"),
   resourceReference("compendium.static-gathering-node.v5"),
@@ -1063,6 +1067,7 @@ schemaRegistry.register("compendium.public-creature-row.v1", CreatureRowSchema);
 schemaRegistry.register("compendium.public-placement-group.v1", PlacementGroupSchema);
 schemaRegistry.register("compendium.public-place-entrance.v1", PlaceEntranceSchema);
 schemaRegistry.register("compendium.public-place-to-enter.v1", PlaceToEnterSchema);
+schemaRegistry.register("compendium.public-place-starting-race.v1", PlaceStartingRaceSchema);
 schemaRegistry.register("compendium.public-timed-dungeon.v1", TimedDungeonSchema);
 schemaRegistry.register("compendium.public-kind-entry.v3", PublicKindEntrySchema);
 schemaRegistry.register("compendium.public-search-entry.v2", PublicSearchEntrySchema);

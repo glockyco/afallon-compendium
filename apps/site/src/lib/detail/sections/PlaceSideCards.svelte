@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PlacementRef, PublicKindEntry, PublicPlace } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { formatNumber, nameOf, roleLabel, timerText } from '../../format';
+  import { formatNumber, listText, nameOf, roleLabel, timerText } from '../../format';
   import { placeOnMap, spotOnMap } from '../../map-links';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
@@ -12,7 +12,7 @@
 
   $: start = document.challengeStoneStart;
   $: timed = document.timedDungeon;
-  $: gettingThere = start !== undefined || document.entrances.length > 0 || document.dungeonFinder !== undefined;
+  $: gettingThere = document.startingRaces.length > 0 || start !== undefined || document.entrances.length > 0 || document.dungeonFinder !== undefined;
   // Services a player looks for first lead, and crafting stations follow.
   const SERVICE_ORDER = ['banker', 'auctioneer', 'flightPoint', 'merchant', 'questGiver', 'craftingStation', 'alchemyStation', 'cookingStation', 'furnace', 'smithingStation', 'tailoringStation'];
   $: services = [...document.services].sort((left, right) => SERVICE_ORDER.indexOf(left.category) - SERVICE_ORDER.indexOf(right.category));
@@ -28,6 +28,9 @@
   <div class="side-card" id="getting-there">
     <h2>Getting there</h2>
     <ul>
+      {#if document.startingRaces.length}
+        <li>{document.allPlayableRacesStartHere ? 'New characters start here.' : `New ${listText(document.startingRaces.map((race) => race.name))} characters start here.`}</li>
+      {/if}
       {#if start}<li>Start at <a class="c-link" href={spotOnMap(start.spot.placementId)}>a challenge stone in {start.regionName}</a> with {formatNumber(start.count)} <EntityLink ref={start.heart} {registry} />.</li>{/if}
       {#each document.entrances as entrance}
         <li class="entrance"><span>{entrance.placements.length > 1 ? `${formatNumber(entrance.placements.length)} entrances` : 'Entrance'} in <EntityLink ref={entrance.place} {registry} /></span>{@render spotLinks(entrance.placements, nameOf(entrance.place))}</li>

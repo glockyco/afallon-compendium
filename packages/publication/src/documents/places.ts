@@ -188,6 +188,22 @@ function timedDungeon(placeKey: string, input: DocumentProjectionInput, altarIds
     altars: publishedPlacements(altarIds, input.placements), guide: topicRef("corruption"),
   };
 }
+/** Name only playable races with a resolved start in this scene; an unresolved start never counts as "all races". */
+function startingRaces(placeKey: string, input: DocumentProjectionInput): Pick<PublicPlace, "startingRaces" | "allPlayableRacesStartHere"> {
+  const playable = new Set(input.facts.progression.facts
+    .filter((fact) => fact.kind === "races" && fact.details.offeredClasses.length > 0)
+    .map((fact) => fact.entityKey));
+  const starting = new Map<string, PublicPlace["startingRaces"][number]>();
+  for (const start of input.facts.raceStarts) {
+    const raceKey = start.race.entityKey;
+    if (start.scene?.entityKey !== placeKey || raceKey === null || !playable.has(raceKey)) continue;
+    const race = input.resolve(start.race);
+    if (!isEntityRef(race) || race.kind !== "races") continue;
+    starting.set(raceKey, { entityKey: raceKey, name: race.name });
+  }
+  const races = [...starting.values()].sort((left, right) => left.name.localeCompare(right.name) || left.entityKey.localeCompare(right.entityKey));
+  return { startingRaces: races, allPlayableRacesStartHere: playable.size > 0 && races.length === playable.size };
+}
 
 export function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>): PublicPlace {
   const fact = input.facts.places.find((candidate) => candidate.entityKey === entity.entityKey);
@@ -224,6 +240,7 @@ export function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: Do
     lootObjects: lootObjects(entity.entityKey, variant ? { key: variant.hostKey, here } : undefined, input, indexes, conditions),
     quests: questRefs(startsHere), questObjectives: questRefs(objectiveHere),
     properties: input.facts.properties.filter((property) => propertySceneKey(property.entityKey, input) === entity.entityKey).map((property) => input.resolve({ entityKey: property.entityKey, label: property.entityKey })),
+    ...startingRaces(entity.entityKey, input),
     entrances: entrances(entity.entityKey, input, routes), placesToEnter: placesToEnter(entity.entityKey, input, routes),
     regions: variant ? [] : input.facts.places.filter((candidate) => candidate.placeType === "region" && candidate.parentSceneKey === entity.entityKey).map((candidate) => input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey })),
     ...(fact?.parentSceneKey ? { parent: input.resolve({ entityKey: fact.parentSceneKey, label: fact.parentSceneKey }) } : {}),
