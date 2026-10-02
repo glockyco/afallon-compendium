@@ -65,7 +65,8 @@
   // group, and Spawn odds shows every option of those groups at the same level.
   let level = 1;
   let active: string[] = [];
-  $: skillCap = Math.max(1, ...document.spawners.map((group) => group.skillCap));
+  // Weights stop changing at the spawners' cap, but the skill and the extra-item chance go on to the skill's highest level.
+  $: skillCap = Math.max(1, ...document.spawners.map((group) => group.skillCap), ...(bonus?.levelChances?.map((point) => point.level) ?? []));
   $: oddsGroups = document.spawners.filter((group) => group.oddsVerified);
   $: groupChances = oddsGroups.map((group) => {
     const index = group.options.findIndex((option) => option.node.key === document.ref.key);
@@ -97,7 +98,7 @@
           </RelationTable>
         {:else}<p>No yields are published for this node.</p>{/if}
         {#if bonus?.levelChances}
-          <p class="bonus">Each item can yield one extra: <strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> at your {skillName ?? 'skill'} level of {formatNumber(level)} ({#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}). <HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
+          <p class="bonus">Each item can yield one extra: {#if document.facts.requiredLevel !== undefined && level < document.facts.requiredLevel}you can gather it from {skillName ?? 'skill'} level {formatNumber(document.facts.requiredLevel)}, above your level of {formatNumber(level)}{:else}<strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> at your {skillName ?? 'skill'} level of {formatNumber(level)}{/if} ({#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}). <HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
         {/if}
       </AnswerCard>
     </div>
@@ -119,7 +120,7 @@
             <dl class="spawn-facts">
               {#each groupChances as row, index}<div><dt>{groupChances.length > 1 ? `Chance in group ${index + 1}, ${formatNumber(row.group.spawners)} spawners` : 'Chance that a spawner picks it'}</dt><dd>{row.percent === undefined ? '' : `${bonusPercent.format(Math.round(row.percent * 10) / 10)}%`}</dd></div>{/each}
             </dl>
-            <AttunementToggles attunements={document.attunements} {registry} bind:active />
+            <AttunementToggles attunements={document.attunements.filter((attunement) => attunement.nodes.some((node) => node.key === document.ref.key))} {registry} compact bind:active />
             <a class="c-link" href="#spawn-odds">Every node these spawners choose from</a>
           </div>
         {:else if spawnerTotal}
@@ -140,6 +141,8 @@
     {#if document.spawners.length}
       <DetailsDisclosure title="Spawn odds" id="spawn-odds" summary="Weights and chances by skill level">
         <p class="intro">Each spawner picks one of its options. The weights and chances below use the {skillName ?? 'skill'} level and attunements that you chose{#if oddsGroups.length < document.spawners.length}, and a group without verified odds shows its weights only{/if}.</p>
+        {#if oddsGroups.length}<ReaderLevel id="spawn-odds-level" readerId={skillLevelId(document.facts.skill ?? { key: null, label: 'gathering' })} label={`${skillName ?? 'Skill'} level`} max={skillCap} fallback={1} />{/if}
+        <AttunementToggles attunements={document.attunements} {registry} bind:active />
         {#if selectionGuide || attunementGuide}<div class="guides">{#if selectionGuide}<HowItWorks guide={selectionGuide.guide} section={selectionGuide.section} label="How spawners choose nodes" />{/if}{#if attunementGuide}<HowItWorks guide={attunementGuide.guide} section={attunementGuide.section} label="How attunement changes the odds" />{/if}</div>{/if}
         <div class="c-groups">
           {#each document.spawners as group, index}

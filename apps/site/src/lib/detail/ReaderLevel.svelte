@@ -18,4 +18,9 @@
   $: level = Math.min(max, Math.max(min, $readerLevels[readerId] ?? fallback));
 </script>
 
-<LevelSlider {id} {label} {min} {max} {level} onSelect={(value) => setReaderLevel(readerId, value)} />
+<!-- A level control stays a comfortable width in a wide column. -->
+<div class="reader-level"><LevelSlider {id} {label} {min} {max} {level} onSelect={(value) => setReaderLevel(readerId, value)} /></div>
+
+<style>
+  .reader-level { max-width: 28rem; }
+</style>

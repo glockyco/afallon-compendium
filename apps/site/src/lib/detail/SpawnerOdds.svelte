@@ -42,7 +42,9 @@
   tr.current td { color: var(--c-text-strong); font-weight: 600; }
   .boost { color: var(--c-text-mute); font-size: var(--c-text-small); font-weight: 400; }
   /* The bar shows the chance at a glance and the number gives its value. */
-  .chance { position: relative; display: inline-block; min-width: 4.5rem; }
-  .bar { position: absolute; inset: auto auto -.2rem 0; height: 3px; border-radius: 2px; background: var(--c-accent); opacity: .7; }
+  .chance { position: relative; display: inline-block; min-width: 4.5rem; padding-bottom: .3rem; }
+  /* A faint track under the value shows the whole range, so a small chance reads as a short fill and not as a dot. */
+  .chance::before { content: ''; position: absolute; inset: auto 0 0 0; height: 3px; border-radius: 2px; background: var(--c-line-soft); }
+  .bar { position: absolute; inset: auto auto 0 0; height: 3px; border-radius: 2px; background: var(--c-accent); }
   .value { position: relative; }
 </style>

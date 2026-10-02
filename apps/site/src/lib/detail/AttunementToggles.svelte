@@ -8,6 +8,8 @@
   export let registry: PublicKindEntry[];
   /** The items whose attunements are active. */
   export let active: string[] = [];
+  /** Leaves out the nodes, for a list of the attunements of one node. */
+  export let compact = false;
 
   function toggle(key: string, on: boolean): void {
     active = on ? [...active, key] : active.filter((entry) => entry !== key);
@@ -20,7 +22,7 @@
     {#each attunements as attunement (keyOf(attunement))}
       <label>
         <input type="checkbox" checked={active.includes(keyOf(attunement))} on:change={(event) => toggle(keyOf(attunement), event.currentTarget.checked)} />
-        <span><EntityLink ref={attunement.item} {registry} /> gives {attunement.effect}: +{formatNumber(attunement.boost)} weight for {attunement.nodes.map(nameOf).join(' and ')}{#if attunement.minutes !== undefined}, {formatNumber(attunement.minutes)} minutes{/if}</span>
+        <span><EntityLink ref={attunement.item} {registry} />{#if compact}: +{formatNumber(attunement.boost)} weight{:else}{' '}gives {attunement.effect}: +{formatNumber(attunement.boost)} weight for {attunement.nodes.map(nameOf).join(' and ')}{/if}{#if attunement.minutes !== undefined}, {formatNumber(attunement.minutes)} minutes{/if}</span>
       </label>
     {/each}
   </fieldset>
