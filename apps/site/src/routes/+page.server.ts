@@ -1,10 +1,12 @@
 import type { PageServerLoad } from './$types';
 import { serverMapLoader } from '$lib/server/publication';
+import { GUIDE_TOPICS } from '$lib/site-navigation';
 import type { ArtRef, EntityRef } from '@afallon/contracts/public';
 
 export interface HubWorld { ref: EntityRef; range: { min: number; max: number } | null; artwork: ArtRef | null }
 export interface HubDungeon { ref: EntityRef; min: number; max: number; artwork: ArtRef | null; bosses: Array<{ ref: EntityRef; portrait: ArtRef | null }> }
 export interface HubBand { min: number; max: number; places: EntityRef[] }
+export interface HubGuide { ref: EntityRef; description: string | null }
 export interface HubItemGroup { type: string; label: string; count: number; icon: ArtRef | null; rarity: string | null }
 
 // The item types that the hub offers, in reading order, with their plural labels. A type without items is left out.
@@ -72,8 +74,15 @@ export const load: PageServerLoad = async ({ parent }) => {
     return rows.length ? [{ type, label, count: rows.length, icon: pick?.ref.icon ?? null, rarity: pick?.facets.rarity?.[0] ?? null }] : [];
   });
 
+  // The mechanics guides of the menu, each with the one sentence that says what it explains.
+  const guides: HubGuide[] = published.has('mechanics') ? (await Promise.all(GUIDE_TOPICS.map(async ({ slug }) => {
+    const page = await loader.loadDocument('mechanics', slug);
+    return page.kind === 'mechanics' ? [{ ref: page.document.ref, description: page.document.description }] : [];
+  }))).flat() : [];
+
   return {
     itemGroups,
+    guides,
     world,
     dungeons,
     bands,

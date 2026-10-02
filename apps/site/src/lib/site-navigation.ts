@@ -15,6 +15,13 @@ const SECTIONS: ReadonlyArray<{ id: string; label: string; entries: readonly str
   { id: 'mechanics', label: 'Mechanics', entries: ['mechanics'] },
 ];
 
+/** The mechanics guides in the order of the menu: each topic's label and the slug of its page. The hub lists them too. */
+export const GUIDE_TOPICS: ReadonlyArray<{ label: string; slug: string }> = [
+  { label: 'Adventurers', slug: 'adventurers' }, { label: 'Character Progression', slug: 'character-progression' },
+  { label: 'Crafting and Gathering', slug: 'crafting-and-gathering' }, { label: 'Corruption', slug: 'corruption' },
+  { label: 'Heroic Tier', slug: 'heroic-tier' }, { label: 'Loot', slug: 'loot' },
+];
+
 /**
  * The navigation of a publication. A paged kind that no column names goes to an Other column, so the menu never hides a
  * published kind. A column without a published destination is left out.
@@ -25,10 +32,7 @@ export function siteNavigation(registry: readonly PublicKindEntry[], base: strin
   const link = (entry: PublicKindEntry): NavigationLink => ({ label: entry.plural, href: `${base}/${entry.route}/` });
   // The registry names kinds, not individual mechanics documents, so the menu names each guide topic.
   const mechanics = byKind.get('mechanics');
-  const topics: NavigationLink[] = mechanics ? [
-    ['Adventurers', 'adventurers'], ['Character Progression', 'character-progression'], ['Crafting and Gathering', 'crafting-and-gathering'],
-    ['Corruption', 'corruption'], ['Heroic Tier', 'heroic-tier'], ['Loot', 'loot'],
-  ].map(([label, slug]) => ({ label: label!, href: `${base}/${mechanics.route}/${slug}/` })) : [];
+  const topics: NavigationLink[] = mechanics ? GUIDE_TOPICS.map(({ label, slug }) => ({ label, href: `${base}/${mechanics.route}/${slug}/` })) : [];
   const links = (id: string): NavigationLink[] => {
     if (id === 'map') return [{ label: 'Map', href: `${base}/map/` }];
     if (id === 'mechanics') return topics;

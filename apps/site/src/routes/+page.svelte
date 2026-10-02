@@ -26,7 +26,7 @@
   $: pageHref = (ref: EntityRef) => { const route = routes.get(ref.kind); return route && ref.slug ? `${base}/${route}/${ref.slug}/${ref.variant ? `#${ref.variant}` : ''}` : undefined; };
   $: listHref = (kind: string) => { const route = data.registry.find((entry) => entry.kind === kind && entry.list)?.route; return route ? `${base}/${route}/` : undefined; };
   $: counts = new Map<string, number>([...data.pageCounts.map((entry) => [entry.kind, entry.count] as const), ['recipes', data.recipeCount] as const]);
-  // Browse tiles are reference lists. Mechanics pages are guides, and the Mechanics column of the Browse menu links them.
+  // Browse tiles are reference lists. Mechanics pages are guides, which have their own section above.
   $: browse = data.registry.filter((entry) => entry.list && entry.kind !== 'mechanics').map((entry) => ({ label: entry.plural, href: `${base}/${entry.route}/`, count: counts.get(entry.kind) ?? 0, glyph: kindGlyphSvg(entry.icon) }));
   // A tile without art shows the glyph of its kind in the same box, so the tiles stay aligned.
   $: kindGlyph = (kind: string) => kindGlyphSvg(data.registry.find((entry) => entry.kind === kind)?.icon) ?? '';
@@ -170,6 +170,17 @@
     </div>
   </section>
 
+  {#if data.guides.length}
+    <section class="section" aria-labelledby="hub-guides">
+      <div class="section-head"><h2 id="hub-guides">Mechanics</h2></div>
+      <ul class="guides">
+        {#each data.guides as guide (guide.ref.key)}
+          <li><a class="guide-tile" href={pageHref(guide.ref)}><span class="tile-name">{guide.ref.name}</span>{#if guide.description}<span class="guide-text">{guide.description}</span>{/if}</a></li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+
   <section class="section" aria-labelledby="hub-browse">
     <div class="section-head"><h2 id="hub-browse">Browse the compendium</h2></div>
     <ul class="browse">
@@ -272,6 +283,12 @@
   .gathering a { display: inline-flex; align-items: center; gap: .4rem; padding: .32rem .7rem .32rem .5rem; border: 1px solid var(--c-line); border-radius: 999px; background: var(--c-surface-1); color: var(--c-text); font-size: var(--c-text-small); text-decoration: none; }
   .gathering a:hover { border-color: var(--c-frame-strong); color: var(--c-accent-strong); }
 
+  /* Each guide is a card with its name and the sentence that says what it explains. */
+  .guides { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+  .guide-tile { display: grid; align-content: start; gap: .35rem; height: 100%; padding: .95rem 1.1rem 1rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+  .guide-tile:hover { border-color: var(--c-frame-hover); transform: translateY(-2px); }
+  .guide-text { color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.45; }
+
   /* Browse is the index of every list, below the featured sections, so each link is one compact line. */
   .browse { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: .4rem; }
   .browse a { display: flex; align-items: center; gap: .55rem; min-height: 2.5rem; padding: .35rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius-sm); background: var(--c-surface-1); color: var(--c-text); text-decoration: none; }
@@ -283,7 +300,7 @@
   .browse-copy { display: flex; flex: 1; align-items: baseline; justify-content: space-between; gap: .5rem; min-width: 0; }
   .browse-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--c-text-body); }
 
-  @media (max-width: 1100px) { .dungeons { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 1100px) { .dungeons { grid-template-columns: repeat(3, minmax(0, 1fr)); } .guides { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
   @media (max-width: 760px) {
     .hero { min-height: 0; }
@@ -303,7 +320,7 @@
     .item-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
     .item-group { flex-direction: column; gap: .55rem; padding: .9rem .6rem .8rem; text-align: center; }
     .item-group img, .item-art { width: 3rem; height: 3rem; }
-    .classes { grid-template-columns: minmax(0, 1fr); gap: .6rem; }
+    .classes, .guides { grid-template-columns: minmax(0, 1fr); gap: .6rem; }
     .class-tile { grid-template-columns: auto minmax(0, 1fr); justify-items: start; align-items: center; column-gap: .9rem; row-gap: .1rem; padding: .75rem .9rem; text-align: left; }
     .class-art { grid-row: 1 / span 2; width: 3.25rem; height: 3.25rem; margin: 0; }
     .class-tile .tile-name { grid-column: 2; align-self: end; }
@@ -311,7 +328,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .dungeon, .class-tile, .item-group { transition: none; }
-    .dungeon:hover, .class-tile:hover, .item-group:hover { transform: none; }
+    .dungeon, .class-tile, .item-group, .guide-tile { transition: none; }
+    .dungeon:hover, .class-tile:hover, .item-group:hover, .guide-tile:hover { transform: none; }
   }
 </style>
