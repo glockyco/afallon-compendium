@@ -12,10 +12,14 @@
   export let label: string | undefined = undefined;
   /** A sticky header needs the wide layout to scroll with the page, not inside the wrapper. */
   export let flowWide = false;
+  /** Pixel widths of the columns. With widths the table lays out by them instead of by its content. */
+  export let widths: number[] | undefined = undefined;
+  $: fixed = widths !== undefined && widths.length === columns.length;
 </script>
 
 <div class="c-table-scroll" class:c-table-scroll--flow-wide={flowWide}>
-  <table class="c-table" class:c-table--sticky={sticky} aria-label={label}>
+  <table class="c-table" class:c-table--sticky={sticky} class:c-table--fixed={fixed} style={fixed ? `width: ${widths!.reduce((sum, width) => sum + width, 0)}px` : undefined} aria-label={label}>
+    {#if fixed}<colgroup>{#each widths ?? [] as width}<col style={`width: ${width}px`} />{/each}</colgroup>{/if}
     <thead>
       <tr>
         {#each columns as column}

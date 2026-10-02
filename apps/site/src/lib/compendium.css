@@ -199,8 +199,11 @@ body { font-size: 1rem; line-height: 1.5; }
   vertical-align: middle;
 }
 
-/* A name after an icon sits on the text baseline, so plain values in the same row line up with it. */
-.c-table tbody td { vertical-align: baseline; }
+/* A list row holds one line of values, so every cell centers on it, whatever the height of its icon or badge. */
+.c-table tbody td { vertical-align: middle; }
+
+/* Computed column widths replace the content-driven automatic layout. The table may then be wider than its wrapper. */
+.c-table--fixed { table-layout: fixed; min-width: 0; }
 
 .c-table thead th {
   border-bottom: 1px solid var(--c-line);

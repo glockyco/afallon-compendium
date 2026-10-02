@@ -1,6 +1,6 @@
 <script lang="ts">
   import { pushState, replaceState } from '$app/navigation';
-  import { onMount } from 'svelte';
+  import { afterUpdate, onMount, tick } from 'svelte';
   import type { ListRow, PublicKindEntry, StaticKindList } from '@afallon/contracts/public';
   import Badge from './Badge.svelte';
   import DataTable, { type TableColumn } from './DataTable.svelte';
@@ -11,6 +11,7 @@
     activeFilterCount, emptyFilters, facetOptions, listValueLabel, matchesFilters, readFilters, statAmounts, statLabel, statOptions,
     statSortValue, writeFilters, type ListFilterState,
   } from './list-filters';
+  import { columnShape, columnWidths, type ColumnShape } from './list-layout';
   import { sortRows, toggleSort, type SortState, type SortValue } from './table';
 
   export let list: StaticKindList;
@@ -19,8 +20,6 @@
 
   // Currency columns carry the game's coin colour, as a price does on a page.
   const PRICE_FIELDS: Record<string, true> = { sellPrice: true, buyPrice: true, price: true, income: true };
-  // A type names a category in a few words. It stays on one line, and the name beside it wraps instead.
-  const LABEL_FIELDS: Record<string, true> = { type: true, placeType: true };
   // The groups that most readers use start open; every other group starts closed. Lists without an entry open all groups.
   const OPEN_GROUPS: Record<string, readonly string[]> = { items: ['slot', 'rarity', 'levelRequirement', 'stats'] };
   const STAT_COLUMN = 'stat:';
@@ -32,9 +31,12 @@
   let sort: SortState = { id: 'name', dir: 'asc' };
   let sheet: HTMLDialogElement;
 
-  // A column no row fills says nothing about this kind, so it leaves rather than print a dash in
-  // every row. A column some rows fill stays, and the rows without a value stay blank.
-  $: visibleColumns = kind.columns.filter((column) => list.rows.some((row) => row.values[column.id] !== null && row.values[column.id] !== undefined));
+  // A column that has the same value in every row, or no value in any, says nothing about one row, so it leaves. A
+  // column some rows fill stays, and the rows without a value stay blank.
+  $: visibleColumns = kind.columns.filter((column) => {
+    const values = list.rows.map((row) => row.values[column.id] ?? null);
+    return values.some((value) => value !== null) && (values.length === 1 || new Set(values).size > 1);
+  });
   $: ranges = visibleColumns.filter((column) => column.numeric);
   $: rangeIds = ranges.map((column) => column.id);
   $: groups = kind.facets.map((facet) => ({ facet, options: facetOptions(list.rows, filters, kind, rangeIds, facet) })).filter((group) => group.options.length > 0);
@@ -42,11 +44,61 @@
   // A short list fits on one screen, so filters would only add noise beside it.
   $: hasPanel = list.rows.length >= PANEL_MIN_ROWS && (groups.length > 0 || ranges.length > 0 || stats.length > 0);
   $: statColumns = filters.stats.map((filter) => ({ id: `${STAT_COLUMN}${filter.key}`, label: statLabel(filter.key), numeric: true, sortable: true }));
-  $: columns = [
+  $: columns = <TableColumn[]>[
     { id: 'name', label: kind.label, sortable: true },
     ...visibleColumns.map((column) => ({ id: column.id, label: column.label, numeric: column.numeric, sortable: column.sortable })),
     ...statColumns,
-  ] satisfies TableColumn[];
+  ];
+  $: shapes = columns.map((column) => columnShape(column.id, column.numeric === true));
+
+  // Column widths follow the widest value of each column (see list-layout.ts). Above phone widths the table measures
+  // its cells after each render and keeps the widest width it has seen per column, so filtering does not make columns
+  // jump. On a phone each row is a card and the table keeps no widths.
+  let listElement: HTMLDivElement;
+  let natural: Record<string, number> = {};
+  let available = 0;
+  let wide = false;
+  let widths: number[] | undefined;
+  let measuredFor: unknown[] = [];
+  $: widths = wide && available > 0 && columns.every((column) => natural[column.id] !== undefined)
+    ? sameWidths(widths, columnWidths(columns.map((column, index) => ({ shape: shapes[index]!, natural: natural[column.id]! })), available))
+    : undefined;
+
+  // A table wider than its card, even with every column at its floor, scrolls inside the card instead of moving the
+  // page sideways. Its header then sticks within the card only.
+  $: overflowing = widths !== undefined && widths.reduce((sum, width) => sum + width, 0) > available;
+
+  function sameWidths(previous: number[] | undefined, next: number[]): number[] {
+    return previous && previous.length === next.length && previous.every((width, index) => width === next[index]) ? previous : next;
+  }
+
+  function measure(): void {
+    const table = listElement?.querySelector('table');
+    if (!table || !wide) return;
+    const cellPadding = (cell: Element) => { const style = getComputedStyle(cell); return parseFloat(style.paddingLeft) + parseFloat(style.paddingRight); };
+    const next = { ...natural };
+    const grow = (id: string, width: number) => { next[id] = Math.ceil(Math.max(next[id] ?? 0, width)); };
+    // A numeric heading's sort button fills its cell, so the heading measures the extent of its text and sort mark.
+    const range = document.createRange();
+    table.querySelectorAll('thead th').forEach((cell, index) => {
+      const column = columns[index];
+      if (!column) return;
+      range.selectNodeContents(cell.querySelector('.c-sort') ?? cell);
+      grow(column.id, range.getBoundingClientRect().width + cellPadding(cell));
+    });
+    for (const row of table.querySelectorAll('tbody tr')) {
+      row.querySelectorAll(':scope > td').forEach((cell, index) => {
+        const column = columns[index];
+        if (!column) return;
+        // A truncated name shows less than its text: the whole width is the link without its name, plus the name's text.
+        const link = cell.querySelector('.entity-link, .entity-text'), name = link?.querySelector('.name');
+        const content = column.id === 'name' && link && name ? link.getBoundingClientRect().width - name.clientWidth + name.scrollWidth
+          : cell.querySelector('.cell')?.scrollWidth ?? 0;
+        grow(column.id, content + cellPadding(cell));
+      });
+    }
+    if (Object.keys(next).some((id) => next[id] !== natural[id])) natural = next;
+  }
   $: filteredRows = sortRows(list.rows.filter((row) => matchesFilters(row, filters, kind, rangeIds)), sortValue, sort);
   $: activeCount = activeFilterCount(filters);
   $: chips = filterChips(filters);
@@ -58,7 +110,28 @@
     const restore = () => readUrl(new URL(window.location.href));
     restore();
     window.addEventListener('popstate', restore);
-    return () => window.removeEventListener('popstate', restore);
+    const query = window.matchMedia('(min-width: 641px)');
+    const onMedia = () => { wide = query.matches; measuredFor = []; };
+    onMedia();
+    query.addEventListener('change', onMedia);
+    // The table fills the card, so the width it may take is the results column's, less the card's own frame.
+    const column = listElement.parentElement!;
+    const observer = new ResizeObserver(() => {
+      const style = getComputedStyle(listElement);
+      const frame = ['paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth'].reduce((sum, key) => sum + parseFloat(style[key as 'paddingLeft']), 0);
+      available = Math.max(0, column.clientWidth - frame);
+    });
+    observer.observe(column);
+    // Widths measured in a fallback font are wrong once the page font arrives, so the table measures again.
+    void document.fonts?.ready.then(() => { natural = {}; measuredFor = []; });
+    return () => { window.removeEventListener('popstate', restore); query.removeEventListener('change', onMedia); observer.disconnect(); };
+  });
+
+  // The table measures again when its rows or columns change, not when only its widths do.
+  afterUpdate(() => {
+    const key = [filteredRows, columns, wide, natural];
+    if (key.length === measuredFor.length && key.every((value, index) => value === measuredFor[index])) return;
+    void tick().then(() => { measure(); measuredFor = [filteredRows, columns, wide, natural]; });
   });
 
   function readUrl(url: URL): void {
@@ -149,6 +222,13 @@
     return values && values.length > 0 ? values : [String(row.values[id])];
   }
 
+  // A cut value shows in full as the cell's title. Values that fit get no title, so hovering them shows nothing extra.
+  function titleIfCut(event: PointerEvent): void {
+    const cell = event.currentTarget as HTMLElement;
+    if (cell.scrollWidth > cell.clientWidth) cell.title = cell.textContent?.trim() ?? '';
+    else cell.removeAttribute('title');
+  }
+
   function openSheet(): void {
     sheet.showModal();
   }
@@ -181,13 +261,13 @@
       {/each}
     </div>
 
-    <div class="list" style={`--bar-height: ${barHeight}px`} class:fit-type={filters.stats.length === 0 && visibleColumns.some((column) => LABEL_FIELDS[column.id])}>
-      <DataTable {columns} {sort} sticky flowWide onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
+    <div class="list" style={`--bar-height: ${barHeight}px`} bind:this={listElement}>
+      <DataTable {columns} {widths} {sort} sticky flowWide={!overflowing} onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
         {#each filteredRows as row (row.ref.key)}
           <tr>
-            <td data-label={kind.label}><span class="name-cell"><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} truncate /></span></td>
-            {#each visibleColumns as column}
-              <td data-label={column.label} class:c-num={column.numeric} class:label={LABEL_FIELDS[column.id]} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}>
+            <td data-label={kind.label}><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} truncate /></td>
+            {#each visibleColumns as column, index}
+              <td data-label={column.label} class:c-num={column.numeric} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}><span class={`cell ${shapes[index + 1]}`} on:pointerenter={titleIfCut}>
                 {#if row.values[column.id] === null || row.values[column.id] === undefined}
                   <!-- A list cell without a value states nothing: the entity has no such fact. -->
                 {:else if column.id === 'rarity'}
@@ -199,11 +279,11 @@
                 {:else}
                   {cellValues(row, column.id).map((value) => listValueLabel(column.id, value)).join(', ')}
                 {/if}
-              </td>
+              </span></td>
             {/each}
             {#each filters.stats as filter (filter.key)}
               {@const text = statText(row, filter.key)}
-              <td data-label={statLabel(filter.key)} class="c-num" class:blank={!text}>{text}</td>
+              <td data-label={statLabel(filter.key)} class="c-num" class:blank={!text}><span class="cell number">{text}</span></td>
             {/each}
           </tr>
         {/each}
@@ -278,17 +358,14 @@
   @media (min-width: 960px) {
     .sheet { display: none; }
   }
-  /* A name stays on one line and ends in an ellipsis; its tooltip and page show the whole name. Above phone widths, a
-     list with a type column and no stat columns sizes the name column to its longest name, up to a cap near the longest
-     ordinary name, and gives the spare width to the type, so a name reads next to its type and the numbers sit at the
-     right edge. Any other list gives the name the width that its other columns leave. */
+  /* Above phone widths every value stays on one line. A name, a text, or a label past its column width ends in an ellipsis;
+     the tooltip, the page, or the title of a cut cell shows the whole value. A cell's content is only as wide as its value, which
+     is the width that the table measures. A label is cut only when the names and texts beside it are at their floors. */
   @media (min-width: 641px) {
-    td.label { white-space: nowrap; }
-    .fit-type td.label { width: 100%; }
-    .fit-type .name-cell { width: max-content; max-width: 22rem; }
-    .list:not(.fit-type) td:first-child { width: 100%; max-width: 0; }
+    .cell { display: inline-block; max-width: 100%; vertical-align: middle; white-space: nowrap; }
+    .cell.text, .cell.label { overflow: hidden; text-overflow: ellipsis; }
+    .cell .badges { flex-wrap: nowrap; }
   }
-  .name-cell { display: block; min-width: 0; }
 
   @media (max-width: 640px) {
     .list { padding: 0; border: 0; background: none; }
