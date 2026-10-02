@@ -2,7 +2,7 @@
 
 See proposal.md for motivation and scope. The repository contains local extraction tooling, research evidence, planning artifacts, a normalization pipeline, and a static site.
 
-Afallon build 25153357 uses `GameAssembly.dll` and `global-metadata.dat` distinct from build 25144591. A full recovered-type diff reports six differences, all in combat and corruption types: a requirement effect-consumption change with an added `RequirementsMet` overload, an item-tooltip parameter, a character-updater addition, a new combat-settings field that shifts later offsets in that one type, and a new `CorruptionGearBonus` type. No map, guide, loot, scene, producer, `RegionTemplate`, or category type changed. Artifacts produced against 25144591 remain valid evidence for that build and cannot be reproduced; runtime work targets 25153357, and existing build-identity hashes prevent mixing the two.
+The selected local Afallon build is 25653798 (0.16.3). `artifacts/accepted-build.json` identifies the accepted preview and its catalog and publication hashes. Recovered declarations, runtime scans, and update reports belong to that build. Older-build artifacts remain build-scoped evidence and cannot replace current-build verification.
 
 Afallon uses Unity 2022.3.62f2, IL2CPP, and the built-in render pipeline. The existing generic HotRepl host evaluates C# against Afallon-generated interop assemblies. Direct `ImageConversion.EncodeToPNG` works, despite the generic screenshot command's earlier encoding failure.
 
@@ -29,7 +29,7 @@ The compendium therefore publishes the entry rate the same way, matching the gam
 **Non-Goals:**
 - A shared multi-game framework, plugin system, graph engine, public API service, accounts, or live player tracking.
 - Automatic save editing, forced loot rolls, or modification of unrelated characters.
-- Public deployment without explicit user authorization.
+- Automatic deployment or a new public release. The validated preview has separate authorization.
 
 ## Decisions
 
@@ -107,9 +107,7 @@ The map contract has no floors. Maps are single-plane. World height stays an ord
 
 Player-facing categories come from the game's own enums, not from extraction families: `CursorType` gives merchant, quest giver, interactive object, crafting station, and enemy entity; `NameplateUnitType` gives enemy, neutral, and ally; nameplate sprites distinguish available, ongoing, and completed quests. Level ranges come from `RegionTemplate.LevelRangeMin/Max`, `RPGGameScene.DungeonLevelMin/Max` and `ZoneScalingMin/Max`, `NPCSpawner` scaling overrides, and `QuestLevelRange`. `MinimapDisplay` renders them beside a name, as in `Coalway swamp (lvl.1-20)`.
 
-The compendium's information architecture mirrors the in-game Adventure Guide: dungeons with artwork, description, level range and bosses; a boss with abilities, stats and loot; regions; properties. That structure is authored in `RPGGameScene` guide metadata and boss references and in `RegionTemplate` guide metadata. In build 25153357, the runtime assigns `RegionTemplate` records an integer ID of `-1` while `GameDatabase` exposes them under string dictionary keys. The integer identity contract therefore keeps these records observed but unpublished until a separate identity change provides evidence for those keys.
-
-Guide publication contains no artwork or boss portraits. `RPGGameScene.adventureGuideImageKey` is extracted as scene gameplay metadata. Canonical NPC records expose `entryIcon` metadata with a name, rect, and texture name. The native `ADVENTURE_GUIDE_BOSS` record contains only `npcID`; it has no portrait reference. `RegionTemplate.adventureGuideImage` is a Sprite reference, but `RegionTemplate` records are unpublished because their runtime identity is a string key outside the integer identity contract. Real guide artwork requires an asset path that resolves image keys, serializes sprite and texture bytes, hashes and validates the assets, and adds image references to the guide publication and site. That extraction and publication path is absent.
+The site presents dungeons and regions as place pages, bosses as NPC pages, and properties as property pages. It does not have a separate Adventure Guide surface. The pages draw on the extracted scene, region, NPC, and property facts where available.
 
 Evidence honesty belongs to the producer that owns each measurement. Coverage figures, preview mode, and diagnostic totals live in the run manifest, publication metadata, and coverage report. The interface does not display completeness disclosures, counts, or unresolved-semantics notices.
 
@@ -145,11 +143,11 @@ Each capture records the camera's actual center, extent, and clipping planes, no
 
 Each PNG has a hashed `CaptureRaster` artifact defined in `packages/contracts/src/capture/evidence.ts`, linked by its image hash. Its `worldFromPixelEdge` frame maps top-left image edges into source-scene XZ coordinates. Pixel centers use `(column + 0.5, row + 0.5)`. Positive image X increases world X; positive image Y decreases world Z. Source-scene registration remains separate from reviewed map-space registration.
 
-Each calibrated layer carries an explicit world-to-image transform. The offline illustration command verifies immutable image bytes, the reviewed map-space profile, and evidence hashes and JSON pointers. Calibrated artwork requires four distinct pixel controls, with one or more controls outside the three-point affine fit. Declared and independently fitted transforms must satisfy a quarter-pixel residual limit. Where artwork lacks verified registration, preserve it as an orientation-only layer without a marker transform. Illustration output cannot satisfy primary imagery or complete coverage.
+Each calibrated layer carries an explicit world-to-image transform. The offline illustration command verifies immutable image bytes, a reviewed map-space profile, and evidence hashes and JSON pointers. Artwork without a verified transform remains an orientation-only reference without precise marker registration. Verified game-provided maps, including the illustrated overworld map, can supply default imagery. An unregistered orientation-only illustration cannot establish precise imagery coverage.
 
 The overworld artwork is the game's own map texture, and the game registers it itself: `MapZone.GetWorldPosition` maps a centred normalised position in [-1, 1] to world space and `GetNormalizedPos` inverts it. A probe samples the four texture corners and the centre through that pair and reads the player's own position as an independent control. The result is an axis-aligned transform with no rotation at 0.991 world units per artwork pixel on both axes, so the drawing is an undistorted orthographic map rather than a stylised warp. The corner controls fit with zero residual and the player control with 0.00008 pixels, against a 0.05-pixel limit. Image-based fitting against captured imagery was tried first and rejected: a snow-mask intersection search topped out at 0.18 to 0.23 and would have claimed an alignment it did not have.
 
-An illustration is an ordinary layer drawn beneath the captured tiles in world coordinates, with the markers and the camera unchanged. A calibrated illustration is published as a tile pyramid on the same lattice as captured imagery, clipped to its map's reviewed bounds, with the finest level at the artwork's own resolution; the overworld artwork is 263 tiles and 4 MB where one image was 57 MB, and the reader loads only the tiles in view. An illustration without a reviewed transform has no lattice position, so it ships as one image bounded to a 4096-pixel edge, fitted to its map's world bounds, and labelled approximate on screen.
+The game's overworld artwork is a calibrated tile layer drawn in world coordinates. It is the default imagery, with optional captured terrain disabled until a reader selects it. Its pyramid uses the artwork's own resolution and loads only visible tiles. Orientation-only artwork has no verified lattice position and cannot carry precise markers.
 
 Every interior scene carries a `MapZone` with the texture the game draws on its map screen and the conversion that places the player on it. A probe blits each texture to a render target, reads it back, and samples the conversion at the texture corners and centre, so each game map arrives with an exact registration; the eighteen interiors took under three minutes. The residuals sit below 0.002 pixels. Coalway catacombs is rotated 24.96 degrees, so a calibrated pyramid is built by mapping each lattice pixel back through the inverse transform and sampling the artwork bilinearly rather than by resizing an axis-aligned image. Two textures are shared by the game itself: Sanctum of the Veilpiercer shows `Tutorial cave` and Cave coalway woods 2 shows `Abandoned quarry map 1`. The publication carries what the game shows.
 
@@ -179,15 +177,7 @@ Each probe source compiles once per runtime session into a delegate the runtime 
 
 Geometry readiness resolves the same transient policy that rendering uses. Excluded renderer IDs and reasons remain in each inventory but do not affect geometry stability or missing-binding checks. Capture hashes the shared prelude with its other inputs. Session, restoration, and geometry observations use their v3 contracts.
 
-A cut is off by default and set by review. A plan without a cut captures with the camera frame it declares, which covers every world surface extent. A map whose content is covered by geometry above it carries a cut that cites the scene's hashed navigation survey.
-
-One height per map does not serve a dungeon. Duskfall's walkable surface spans 170 units inside single 128-unit tiles (tile 2,3 runs from −818 to −650), so a plane at −766 hid every ledge above it while still showing ceilings over the low floor. Its ceilings are 503 hanging objects plus about 360 boulder meshes that are wall and ceiling at once, so marking objects cannot cut the boulders. The cut therefore follows the walkable surface: capture rasterizes the highest navmesh height under every pixel, fills pixels without walkable surface from the nearest walkable neighbour so a wall beside a path cuts at the path's height, and derives one slice per step across the tile's range. The session probe renders every slice in the one frame-local operation with only the near plane changing, publishes each slice with its hash, and the host composes each pixel from the first slice at or above its surface plus headroom. The composite is the tile image; the slices stay as native context. The raster and readiness record the walkable range, the slice heights, and the survey hash, and the compatibility key carries the survey hash so a changed survey recaptures. Measured on Duskfall: up to 32 slices per tile, 1.2 to 5 seconds per tile, sixteen tiles in 72 seconds, with floor, water, paths, the skeleton landmark, and ledges visible and no ceiling. Seams appear only where the walkable height jumps, and a boulder the cut passes through shows its cross-section, which is the cost of cutting continuous meshes.
-
-Renderer-name rules do not identify ceilings either. One cave scene contains `Massive_Cave_Ceiling_*` renderers at about 50 units above its floor, and a reviewed dungeon scene contains no renderer whose name matches ceiling or roof. A positive control confirms that absence. Skybox objects such as `Planet` and `Rings` sit thousands of units up, so a highest-renderer rule is unusable as well.
-
-A probe shows a clip plane at camera height -800 exposing a Duskfall room without disabling or deleting geometry, while a high camera sees only its rocky ceiling. Clipping, not suppression, is the mechanism.
-
-A scene whose content spans more vertical range than one height can serve stays an explicit unresolved gap. A mixed surface-and-cave scene is the expected case: no height both keeps the hillside and reveals the cave.
+The accepted terrain plans capture the overworld only, using each declared camera frame. Interior imagery comes from the game's own maps. The earlier Duskfall ceiling and walkable-surface experiments explain why interior screenshot coverage was not accepted, not a current capture path.
 
 Capture visits each requested source scene through the owned scene visitor. The readiness budget bounds each transition. A sweep finishes in the configured known-good scene, Coalway woods, with its configured position and rotation; it does not restore the scene that was active at the start. Native owner cleanup restores frame-local state and streams after failure or disconnection.
 
@@ -209,13 +199,13 @@ Publish WebP delivery tiles with `tileSize: 256` and global integer `(x, y)` ind
 
 The user reports that the developer welcomes a wiki or similar project and directed us not to pursue a separate asset-permission check. Asset preparation can proceed without that checkpoint. The branded production build measures 7,728 files, 99,974,342 bytes in total, and 4,844,373 bytes for its largest file. Use a files-only Cloudflare Workers Static Assets service: these measurements fit the 20,000-file Free limit and 25 MiB per-file limit, and static requests do not invoke or require a Worker. R2, Pages, an assets binding, and request-time code add no value for this artifact.
 
-### 9. Small previews, persistent details, and source navigation
+### 9. Search, development details, and source navigation
 
 Use deck.gl, as requested by the user, with a browser-only `OrthographicView` and Cartesian coordinates. `TileLayer` loads screenshot tiles through `BitmapLayer` sublayers. Marker and area layers remain separate from the basemap. No geographic projection or Mapbox/MapLibre base map is required.
 
 Pin deck.gl `9.3.7` and its Luma WebGL stack to `9.3.3`, matching the proven Ancient Kingdoms renderer generation. Deck.gl `9.4.0` changed GPU attribute buffering, render passes, and line antialiasing; the user observed corrupted lines and a full-canvas cyan primitive on Windows 10 with the Firefox-based Zen Browser after that upgrade. Do not adopt the 9.4 renderer until the map passes hover and selection checks on that browser family.
 
-Use `OrthographicView({flipY: false})` so positive map Y points upward. The publication transform maps Unity X/Z into pixel-aligned map coordinates. Normalized placement records retain Unity world Y, but the current public placement contract does not expose that height. This requirement remains unmet: 743 coincident groups share exact X/Z coordinates, and 386 groups contain distinct authored objects in one scene, so height can be the only distinguishing field. The same transform determines tile bounds and marker positions. Tile origin, resolution, and zoom indexing come from the emitted manifest, not scattered browser constants. Verify image orientation with landmarks rather than applying another ad hoc Y negation.
+Use `OrthographicView({flipY: false})` so positive map Y points upward. The publication transform maps Unity X/Z into pixel-aligned map coordinates. Normalized placements retain Unity world Y, but the public placement contract does not expose height. This remains a measured limit for stacked placements. The same transform determines tile bounds and marker positions. Verify orientation with landmarks rather than applying another Y negation.
 
 The [OrthographicView contract](https://deck.gl/docs/api-reference/core/orthographic-view) defines zoom zero as one map unit per screen pixel. The [TileLayer contract](https://deck.gl/docs/api-reference/geo-layers/tile-layer) supports non-geographic indexing from the origin. The generated tile grid must match that indexing and the true image tile size.
 
@@ -229,13 +219,13 @@ Afallon's current public contract has typed spatial endpoints only for travel tr
 
 Use IconLayer or ScatterplotLayer for placements and appropriate polygon/path layers for areas and transitions. A spatial index supplies low-zoom aggregation and the accessible result list. GPU rendering does not remove the need to limit labels and avoid overlapping markers. Keep stable layer IDs and data references so selection does not rebuild all geometry.
 
-The map controller owns accepted URL state. Svelte renders its snapshot, controls, panels, and accessible list. Focused modules own render-data projection and layer construction. A small adapter owns Deck lifecycle, the live camera, and picking. Deck handles pan and bounded zoom with inertia disabled. Its controlled view stays inside the adapter without a parent camera echo. View callbacks are observations for URL persistence and viewport results; they do not rebuild layers. Selection changes semantic state only. Explicit zoom, fit, and history restoration commands can move the camera. The left controls and right details occupy persistent full-height columns, so opening details does not resize the map or the results region. Finalize Deck and release image resources when the view unmounts. Keep game semantics and coordinate conversion outside that adapter.
+The map controller owns accepted URL state. Svelte renders its snapshot, controls, and accessible list. The Deck adapter owns the live camera and picking. Pan and bounded zoom have no inertia. Selection does not move the camera or rebuild unchanged imagery. Explicit zoom, fit, and history restoration can move the camera. Production keeps the map full width. Development reserves a right-side detail column. Finalize Deck and release image resources on teardown.
 
 Leaflet was a reasonable raster-only alternative, but deck.gl fits dense markers and areas while retaining the user's established stack. Do not create a generic renderer interface for an unneeded second renderer. Verify full-data performance, texture memory, and narrow-screen interaction before adding more machinery.
 
-A marker preview contains identity, category, level, and a concise summary. Selection opens a side panel on desktop and a bottom sheet on narrow screens. The panel owns searchable full lists and conditions. It avoids a large popup that hides the selected area.
+Development selection has a side panel with searchable facts and conditions. Production selection keeps the full map width and links to compendium pages for entity detail. The dev panel is not a public detail interface.
 
-Panels present player questions in the game's words. They carry no coordinates, provenance, source configuration dumps, or unresolved-semantics notices. A value that is not established is omitted, not annotated. Vendor stock groups retain requirements and currency costs. An item result links to all known source types and their places. At initial load, search uses place labels, entity names and descriptions, item names, source names, and source kinds; forward keys resolve matching placements. After selection, the item detail document adds condition values, requirements, and quantities to the detail search. The full source-text field was 1,562,949 bytes, more than one third of the 4,275,809-byte compact publication, so the map index keeps only distinct source names and kinds, measured at 147,623 bytes.
+Development details include a location's coordinates and published data for inspection. Production links entities to their compendium pages rather than showing that panel. Unestablished facts stay absent from player-facing pages. Search starts from place labels, entity names and descriptions, item names, source names, and source kinds. Item documents provide detailed conditions and quantities when loaded. The compact map index does not copy full source text.
 
 There is one world map, so there is no map selector, no floor selector, and no layer selector unless a map actually has an alternative layer. The sidebar carries game-vocabulary category sections and a level filter, following the sibling maps.
 
@@ -255,12 +245,12 @@ The site consumes published contracts only. SQL projections and spatial conversi
 
 - [Distance streaming can omit authored objects and geometry] → Inventory source loaders and test near/far traversal, inactive content, and repeated extraction.
 - [Capture shows ceilings, billboard artifacts, effects, or incomplete geometry] → Compare the actual game view, the shipped map texture, and neighboring chunks before accepting a profile.
-- [A cut survey misses a walkable area or the navmesh omits a reachable ledge] → The nearest-neighbour fill cuts that area at its neighbour's height; review the composite and extend the survey rather than reintroducing floors or a per-map height.
+- [Interior ceiling experiments do not supply production capture] Keep interior capture out of the pipeline and use the calibrated game-provided maps.
 - [Manual world placement drifts or is forgotten for a new map] → Keep offsets in a reviewed file, report unplaced maps, and never infer a position from native scene coordinates.
 - [A map-space bound is misleading] → Validate landmarks, source geometry, and placement coverage independently for each space.
 - [Dynamic gear and nested chance rules cannot be flattened safely] → Preserve rules, resolve behavior through targeted inspection, and withhold unsupported percentages.
 - [Stable placement identity is unavailable on some producers] → Retain source evidence and stop silent merging. Prove fallbacks across repeat runs.
-- [Complete coverage grows beyond initial samples] → Keep full coverage as the delivery gate. Representative samples validate mechanisms, not reduced scope.
+- [The accepted preview is not complete coverage] Preserve outstanding extraction, capture, and full-build performance limits in the coverage records.
 - [Capture state restoration is incomplete] → Test success and injected failure, inspect state immediately, and keep unrelated saves untouched.
 - [Static artifact volume exceeds host limits] → Measure complete pyramid size and file count before selecting deployment storage.
 
@@ -268,17 +258,15 @@ The site consumes published contracts only. SQL projections and spatial conversi
 
 Preserve research evidence in ignored local storage. Integrate world probes first, then establish coverage states, placement identities, and identity constraints. Implement bounded traversal and capture mechanisms under exclusive runtime ownership.
 
-The representative world surface and zone path covers extraction, repeat-load identities, capture, normalization, and browser picking from generated static contracts. It includes adjacent chunk seams, a zone cut along its walkable surface, a producer without a live node, and item-to-source navigation. Full-world extraction and imagery remain separate release gates.
+The accepted build 25653798 has a working static map and compendium pages, with game-provided maps as the default imagery and captured overworld terrain as an opt-in layer. Its scan, catalog, publication, browser checks, and accepted update reports prove the bounded pipeline, not complete source or capture coverage.
 
-The current pipeline has no floor domains, floor resolution, ceiling selectors, per-floor pyramids, floor scoping, or floor and map URL state. The current build baseline is 25153357; artifacts for 25144591 remain frozen reference data and cannot mix with it.
-
-The mechanism is implemented and measured, but it does not reduce the complete-release coverage gate. After explicit user authorization, production may host a validated preview without a user-facing completeness disclosure. Its machine-readable publication metadata remains in preview mode. Only a complete artifact may use release mode. A validated successful artifact set remains available for rollback.
+The pipeline has no floor domains, floor selector, or floor and active-map URL state. The accepted descriptor has `coverageComplete: false` and mode `preview`. Complete-release extraction, imagery, and full-build performance remain unverified. `EXPLORATION.md` records these limits. A validated accepted artifact remains available for rollback.
 
 ## Open Questions
 
-- The finest resolution and tile dimensions remain open. Select them after complete-build detail and byte-size measurements.
+- The accepted optional capture remains incomplete. The 256-pixel delivery tile shape is defined, but full-world detail and byte-size measurements are not established.
 - Mixed world surface and zone scenes remain open. Settle each scene through complete geometry inventory and rendered-image review.
-- The Adventure Guide displays the authored entry rate rounded to one decimal place. It does not compose an effective probability from outer rates, drop limits, or the minimum-drop pass. Evidence: `research/spikes/guide-drop-chance-result.json`.
+- The game's Adventure Guide displays the authored entry rate rounded to one decimal place, not an effective per-kill probability. Evidence: `research/spikes/guide-drop-chance-result.json`.
 - Illustrated-layer registration remains open for layers without four reviewed landmark controls. Keep those layers orientation-only until the controls and residual checks are available.
 
 These decisions are parameters within the defined capture and publication contracts. They do not remove any required map coverage.

@@ -86,9 +86,9 @@ Geometry observations SHALL retain query scope and world Y coordinates. Navigati
 
 ### Requirement: Reviewed map membership
 
-The extractor SHALL retain reviewed map profiles separately from native MapZone registrations and capture bounds. Profiles SHALL bind exact source-scene IDs and paths to horizontal coordinate frames and membership domains. The extractor SHALL verify referenced review evidence hashes and JSON pointers. Missing profiles, unmatched domains, and contradictory scene bindings SHALL remain explicit.
+The extractor SHALL retain reviewed map profiles separately from native MapZone registrations and capture bounds. Profiles SHALL bind exact source-scene IDs and paths to horizontal coordinate frames and membership domains. Missing profiles, unmatched domains, and contradictory scene bindings SHALL remain explicit. The reviewed domains define placement membership, not an automatic capture boundary.
 
-Membership SHALL be horizontal. A profile SHALL NOT define floor domains, and a placement SHALL NOT carry a floor identity. Each placement SHALL retain its world height as an ordinary field, which the map presents as a fact rather than using to select imagery.
+Membership SHALL be horizontal. Profiles and placements SHALL NOT assign floor identities. Normalized placements SHALL retain world height, but the current public map placement contract does not publish that field.
 
 #### Scenario: Several source scenes share one rendered map
 - **WHEN** reviewed bindings place several source scenes in one map space
@@ -100,19 +100,19 @@ Membership SHALL be horizontal. A profile SHALL NOT define floor domains, and a 
 - **THEN** the matching domain selects the map-space candidate
 - **AND** a position outside every domain remains unresolved without clamping
 
-A reviewed box domain is the map's frame. It decides what the map shows: capture covers the boxes, and a placement outside every box of its scene's bindings is a deliberate exclusion. Normalization SHALL record each such placement in an exclusion ledger with its reason and the binding evidence, separate from unresolved blockers. A tool MAY propose a box from the game's MapZone rectangle and nearby scene-local placements; the reviewer owns the final coordinates.
+A reviewed box domain limits map membership. Normalization SHALL record a placement outside every box of its scene bindings in an exclusion ledger with its reason and binding evidence, separate from unresolved blockers. A tool MAY propose a box from the game's MapZone rectangle and nearby scene-local placements, but reviewed coordinates control the final frame. Overworld capture uses its own reviewed extent; interiors use game-provided maps and are not captured.
 
 #### Scenario: A reviewer frames a dungeon
 - **WHEN** a binding declares box domains and a scene-independent object sits outside them
 - **THEN** that placement appears in the exclusion ledger with the binding evidence
 - **AND** it is not an unresolved blocker
-- **AND** the capture plan for that map covers exactly the boxes
+- **AND** the published interior game map uses its reviewed bounds
 
 #### Scenario: Stacked placements share horizontal coordinates
 - **WHEN** placements share XZ coordinates at different heights
-- **THEN** they project to the same map position and retain distinct identities
-- **AND** each retains its own world height
-- **AND** neither is merged, discarded, or displaced
+- **THEN** their normalized placements retain distinct identities and world heights
+- **AND** they project to the same horizontal map position
+- **AND** neither is merged or displaced solely because it shares that position
 
 #### Scenario: Area geometry is unsupported
 - **WHEN** an authored area has unsupported or contradictory collider geometry
@@ -204,7 +204,7 @@ A published effective chance SHALL rest on a measurement, not on an assumed comp
 
 Publication SHALL reject unresolved required references, duplicate placement identities, mismatched game builds, and placements outside their declared spatial coverage. Deliberate exclusions SHALL appear in a machine-readable report with their reasons. Repeated runs SHALL not create duplicate placements.
 
-A local preview MAY use explicitly bounded partial coverage. It SHALL retain the outstanding coverage ledger and visibly identify itself as incomplete. References, identities, build agreement, and spatial bounds SHALL still validate for every included record. This preview SHALL NOT satisfy the complete-release coverage gate.
+A preview MAY use explicitly bounded partial coverage. It SHALL retain outstanding coverage in machine-readable metadata and reports without a user-facing map completeness disclosure. References, identities, build agreement, and spatial bounds SHALL validate for included records. A preview SHALL NOT satisfy the complete-release coverage gate.
 
 #### Scenario: A marker has no valid map coverage
 - **WHEN** a placement cannot resolve a map space or lies outside validated bounds

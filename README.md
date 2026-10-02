@@ -33,7 +33,7 @@ bun run --cwd apps/site check
 The site requires a selected static publication. Stage it from the project root, then start the development server:
 
 ```sh
-bun run stage:production /path/to/publication-root
+bun run stage:production /path/to/publication-root /path/to/accepted-publication-directory
 bun run build:production
 SITE_STAGE=production bun run dev
 ```
@@ -65,13 +65,13 @@ Map-data readiness waits for every declared geometry part. Search loads independ
 
 A new game build is installed, compared, scanned, captured, catalogued, and published as a candidate before `accept-update` selects it. The full procedure, with its failure modes, is the [`game-update` skill](.agent/skills/game-update/SKILL.md). In short:
 
-1. `bun run compendium update` installs the build through Steam and records a receipt. `recover` and `tools/update/compare-declarations.ts` compare the game's declarations with the previous build.
-2. `scan` reads each scene. `author-scan-arrivals.ts` gives each scene an observed doorway from the accepted catalog as its arrival.
-3. `author-map-profile.ts`, `sweep-map-zones.ts`, `author-game-map-plans.ts`, `extract-overworld-texture.py`, `author-overworld-plan.ts`, `author-capture-plans.ts`, and `capture-plans.ts` produce the map spaces and imagery.
-4. `author-bootstrap-review.ts`, `author-catalog-plan.ts`, and `author-coverage-review.ts` produce the coverage review and the catalog plans. `compare-catalogs.ts` compares the new catalog with the accepted one.
-5. `publish`, `stage:production`, and a browser check produce the candidate. An update report and `accept-update` select it.
+1. `bun run compendium update --config <config> --version <release>` installs the build and records a receipt. `bun run compendium recover --config <config> --cpp2il <binary>` and `bun tools/update/compare-declarations.ts` compare declarations with the accepted build.
+2. `bun run compendium scan --config <config> --plan <plan> --candidate` reads each scene. `bun tools/update/author-scan-arrivals.ts` assigns each scene an observed doorway from the accepted catalog.
+3. The map-profile, map-zone, game-map, overworld-texture, overworld-plan, capture-plan, and capture scripts under `tools/update/` produce the map spaces and imagery. Run `bun run compendium game-map`, `bun run compendium capture`, and `bun run compendium pyramid` with their required flags as described in the game-update skill.
+4. The bootstrap-review, catalog-plan, coverage-review, and catalog-comparison scripts under `tools/update/` prepare and compare the catalog. Run `bun run compendium catalog --store <store> --plan <plan> --candidate` for the candidate.
+5. `bun run compendium publish --store <store> --output <root> --plan <plan> --candidate`, `bun run stage:production <root> <accepted publication directory> --verified-update`, and a browser check produce the candidate. The update report records its checks. `bun run compendium accept-update --store <store> --report <report> --publication-root <accepted root> --baseline-root <accepted publication directory> --expected <descriptor SHA-256>` selects and stages the accepted result.
 
-Each script in [`tools/update/`](tools/update/) prints its usage when it is started without arguments. Scan plans set `streamedSources: "all"` on build-scene targets whose streamed sources should all load before collection.
+The game-update skill gives the script names, arguments, and order. Each update repeats scan, capture, catalog, publication, comparison, staging, and acceptance against the accepted baseline. Scan plans set `streamedSources: "all"` on build-scene targets whose streamed sources should all load before collection.
 
 Generated artifacts, local configuration, and extracted game assets are not committed.
 
@@ -80,7 +80,7 @@ Generated artifacts, local configuration, and extracted game assets are not comm
 Preview or deploy a selected publication from the project root:
 
 ```sh
-bun run stage:production /path/to/publication-root
+bun run stage:production /path/to/publication-root /path/to/accepted-publication-directory
 bun run compendium preview
 bun run compendium deploy /path/to/publication-root
 ```

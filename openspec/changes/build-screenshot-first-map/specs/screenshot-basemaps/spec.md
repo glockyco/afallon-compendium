@@ -1,14 +1,8 @@
-## Purpose
-
-Provide recognizable Afallon terrain imagery through reproducible in-game capture, with trustworthy spatial registration and optional illustrated map layers.
-
 ## ADDED Requirements
 
-### Requirement: Game-provided maps are the default imagery
+### Requirement: Native game-map registration
 
-The world surface MAY carry terrain imagery captured by this project from the supported game build. Screenshot capture covers the overworld only: capture plans SHALL name the world surface, and interiors SHALL publish the game's own map instead. Missing or failed captures SHALL remain explicit in capture coverage. They SHALL NOT block publication of a verified game-provided map.
-
-Where the game ships its own map for a zone as a `MapZone` texture, publication SHALL carry that texture as a calibrated layer registered through the game's own world-to-map conversion. The map SHALL enable game-provided maps by default for the world surface and every interior. Captured terrain SHALL remain disabled until a reader selects it and SHALL NOT replace game-provided imagery.
+Where the game ships a `MapZone` texture, publication SHALL carry that texture as a calibrated layer registered through the game's world-to-map conversion. Shared textures SHALL preserve the game's zone association. Unavailable optional terrain capture SHALL NOT replace a verified game map.
 
 #### Scenario: A zone ships its own map
 - **WHEN** a scene carries a `MapZone` with a texture
@@ -21,25 +15,15 @@ Where the game ships its own map for a zone as a `MapZone` texture, publication 
 
 #### Scenario: A map has both image sources
 - **WHEN** a reader opens the map without a saved layer choice
-- **THEN** the map displays the game-provided map
-- **AND** captured terrain remains available but disabled
+- **THEN** the map displays the calibrated game-provided map
+- **AND** captured terrain remains available only where a capture was published and selected
 - **AND** changing layers preserves the shared world location
 
-#### Scenario: Only a game-provided map is available
-- **WHEN** a shipped map texture exists but project capture is missing or failed
-- **THEN** the game-provided map remains the default basemap
-- **AND** capture coverage retains the missing or failed state
 
 ### Requirement: Each map is one horizontal plane
 
-Every map SHALL have exactly one image plane per layer. Capture SHALL NOT produce floor slices, and the published artifact SHALL NOT expose floor membership, floor selection, or per-floor imagery. Vertically stacked content SHALL project onto that single plane, matching the game, which ships one map texture for each `MapZone` including its multi-level dungeons.
+Every published map SHALL have one image plane per layer with no floor-specific image selection. Captured terrain covers the overworld, not interior floors. Vertically stacked placements SHALL keep distinct identities on the same horizontal plane. The public placement contract does not yet expose world height.
 
-Overlapping markers from stacked content SHALL remain distinct records at their own coordinates. The published artifact SHALL retain each placement's world height as an ordinary field. That field SHALL NOT select an image layer.
-
-#### Scenario: A dungeon has stacked walkable levels
-- **WHEN** capture renders that dungeon
-- **THEN** it produces one image plane covering the whole dungeon
-- **AND** placements on different levels keep their own coordinates and heights on that plane
 
 #### Scenario: Two placements project onto the same point
 - **WHEN** a placement on an upper level shares its horizontal position with one below
@@ -71,18 +55,13 @@ The game switches a terrain's objects off unless the player stands inside that t
 
 Capture SHALL render an extent as chunks sized for its resolution, and tile generation SHALL produce the delivery pyramid from those chunks. Delivery tiles SHALL use `tileSize: 256`, global integer `(x, y)` indices, and `z` values where each tile covers `[x·256/2^z, (x+1)·256/2^z] × [y·256/2^z, (y+1)·256/2^z]` world units. Zoom levels SHALL run contiguously from `minZoom` through `maxZoom`, with `maxZoom = log2(1024 / captureEdge)` and each coarser level formed by a 2×2 parent merge. Pixel row zero SHALL be the top edge, and the finest extent SHALL be the union of emitted finest tiles. One image file per map SHALL NOT be a requirement, and neither SHALL one chunk per delivery tile.
 
-Every published marker position SHALL sample primary imagery that is present and non-blank at the finest level. A marker over absent or blank imagery SHALL fail tile generation or publication rather than reach a reader.
+The publication SHALL retain explicit positions for available and missing capture tiles. Optional captured terrain is not a complete-coverage claim and SHALL NOT prevent publication of a verified game-provided map.
 
 #### Scenario: An extent needs several chunks
 - **WHEN** its resolution exceeds one practical render target
 - **THEN** capture renders adjacent chunks with a shared pixel density
 - **AND** their pixel-edge transforms meet without a gap or an extra Y reversal
 - **AND** tile generation produces one pyramid with a single finest level
-
-#### Scenario: A marker has no terrain beneath it
-- **WHEN** a published placement samples a blank or absent finest-level pixel
-- **THEN** the run reports that placement and its sampled position
-- **AND** publication rejects the artifact set
 
 ### Requirement: Images and markers share explicit registration
 
@@ -137,16 +116,16 @@ Capture SHALL exclude active game lights from rendering and use its controlled l
 
 The capture plan SHALL carry a reviewed suppression policy: shader-name prefixes whose renderers hide during capture, and whether terrain-instanced trees and details hide. The game marks foliage with no layer or tag, so the shader family is the identifying evidence. Capture SHALL record each suppressed renderer and terrain with its reason, restore every one after the tile, and fail the tile when restoration cannot be verified.
 
-#### Scenario: Foliage covers a dungeon floor
-- **WHEN** a plan names the foliage shader families and terrain trees for suppression
-- **THEN** the captured tile shows the floor and rock walls without tree canopy
-- **AND** the restoration audit lists every suppressed renderer and terrain with its reason
-- **AND** the scene's foliage renders again before the next gameplay frame
+#### Scenario: Foliage obscures the overworld
+- **WHEN** a plan names foliage shader families and terrain trees for suppression
+- **THEN** the captured tile preserves static landmarks without the tree canopy
+- **AND** the restoration audit lists the suppressed renderers and terrain
+- **AND** foliage renders again before the next gameplay frame
 
 #### Scenario: The requested scene differs from gameplay
 - **WHEN** capture enters another source scene
 - **THEN** native ownership covers the scene transition and capture
-- **AND** success requires restoration of the original scene, position, and rotation
+- **AND** the sweep ends in its configured known-good scene and position after owned state is cleaned up
 
 #### Scenario: Gameplay lighting inputs differ
 - **WHEN** the same area is captured with different native ambient and game-light settings
@@ -184,15 +163,3 @@ The capture plan SHALL carry a reviewed suppression policy: shader-name prefixes
 - **WHEN** the capture cannot read the restored visual state
 - **THEN** the capture remains unsuccessful and records the missing observation
 - **AND** it does not substitute the earlier state as evidence of restoration
-
-### Requirement: Tile artifacts are coherent and resumable
-
-The output SHALL include build identity, capture inputs, spatial metadata, tile coordinates, file hashes, and coverage results. Reuse SHALL require compatible inputs and verified file integrity. The tile pyramid SHALL have a single defined finest resolution, explicit empty positions, and no unexplained holes. A failed capture SHALL not replace the last valid artifact set.
-
-#### Scenario: A capture resumes with changed inputs
-- **WHEN** the game build, geometry coverage, calibration, navigation survey, suppression, or capture profile changes
-- **THEN** incompatible chunks are recaptured rather than reused as current output
-
-#### Scenario: Captured imagery and markers belong to different builds
-- **WHEN** publication attempts to combine their artifacts
-- **THEN** publication fails with the mismatched build identities

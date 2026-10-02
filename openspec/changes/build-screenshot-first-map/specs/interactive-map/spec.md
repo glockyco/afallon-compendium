@@ -1,7 +1,3 @@
-## Purpose
-
-Let Afallon players find places, creatures, services, and item sources on maps that look and read like the game's own maps.
-
 ## ADDED Requirements
 
 ### Requirement: Categories use the game's own vocabulary
@@ -87,7 +83,7 @@ Placement SHALL be translation only at a shared world scale. The map SHALL NOT r
 
 An offset MAY be any world translation. Publication SHALL NOT snap an offset to the tile lattice; a placed map's pyramid is indexed in that map's own coordinates and the map translates it when drawing. The reviewed layout places interiors on a ring around the overworld: the four corner maps have their centres at one distance from the overworld centre on each axis, and the maps on each side are spaced evenly between the corners, so every map keeps the same gap to the overworld.
 
-A placement SHALL publish when it resolves to a placed map, whether or not that map's imagery covers its position, and a map's bounds SHALL include every published placement. A door SHALL resolve to the published position of its arrival point through every action kind the game uses for a teleport: an interactable Effect action, a nested GameActions teleport, or a nested Effect game action whose effect teleports. Every published interior SHALL have at least one resolved door into it.
+A placement SHALL publish when it resolves to a reviewed placed map, including where the game art is transparent. Map bounds SHALL include published placements. An unresolved arrival position SHALL NOT be guessed from a destination scene name.
 
 Each placed map SHALL show its player-facing name above its bounds. The label SHALL move with the map and remain legible without covering its terrain at the map's working zoom.
 
@@ -110,10 +106,6 @@ Each placed map SHALL show its player-facing name above its bounds. The label SH
 - **WHEN** the world map is built
 - **THEN** the run reports that map as unplaced
 
-#### Scenario: A door teleports through a nested effect
-- **WHEN** a placement's only teleport is a GameActions template whose nested Effect game action applies a Teleport effect
-- **THEN** the door resolves to that effect's arrival position on its destination map
-- **AND** the map draws the connection when the door is selected or hovered
 
 #### Scenario: A placement lies outside the map art
 - **WHEN** a resolved placement sits where its map's imagery has no opaque pixels
@@ -146,142 +138,20 @@ The authoring mode SHALL render connections while a reviewer positions maps, bec
 - **THEN** the lines between that dungeon and its entrances stay visible while it moves
 - **AND** the reviewer can use them to judge the placement
 
-### Requirement: Details answer player questions
+### Requirement: Mobile controls and trusted embedding
 
-Production selection SHALL show the public name, category, level, and location without loading an authoring or evidence panel. A development build MAY load independently addressable entity and item details for review: what a creature drops, what a vendor sells and for how much, what a resource yields and what gathering it requires, what a container holds, and where a travel point leads. Requirements and conditions SHALL stay attached to the entries they gate. Large lists SHALL remain searchable without covering the map.
-
-Development detail panels SHALL NOT appear in production. They SHALL NOT show unresolved-semantics notices, provenance, hashes, or raw configuration dumps.
-
-#### Scenario: A vendor has several progression stock groups
-- **WHEN** a reader selects that vendor
-- **THEN** the map distinguishes unconditional and conditional stock
-- **AND** the reader can search the complete stock list while retaining the selected location
-
-#### Scenario: A fact is not established
-- **WHEN** a value such as an effective drop chance is not established for the supported build
-- **THEN** the entry omits that value
-- **AND** the panel does not carry a note explaining the omission
-
-### Requirement: The map conveys scale and hover identity
-
-The map SHALL show a scale indicator in world units that updates with zoom, so a reader can judge travel distance. Hovering a marker SHALL show its name and a short description, matching the game's own map, which supports pan, zoom, and hover descriptions.
-
-Hover SHALL NOT replace selection, and it SHALL NOT open a panel that covers the map.
-
-#### Scenario: A reader zooms out
-- **WHEN** the view scale changes
-- **THEN** the scale indicator updates to the new world distance
-
-#### Scenario: A reader hovers a marker
-- **WHEN** the pointer rests on it
-- **THEN** its name and short description appear
-- **AND** the current selection does not change
-
-### Requirement: Map interaction preserves the reader's context
-
-The rendering adapter SHALL own the live pan and zoom state. Pointer interaction SHALL update that camera directly and report snapshots for URL persistence. Semantic changes, such as selection, filtering, and hover, SHALL NOT send the reported camera back to the adapter or rebuild imagery during a camera change. The interface SHALL reveal the canvas only after the renderer has produced a frame at the canvas's displayed dimensions.
-
-Selecting a marker SHALL update selection only. A separate focus or fit action MAY move the camera. The selected physical placement SHALL have a primary highlight. Other placements that carry the same exact entity identity SHALL have a distinct group highlight. Group membership SHALL NOT use a shared label or category. Hovering or focusing a result SHALL highlight the exact placements that result resolves: one placement for a location, all placements for an entity, and all known source placements for an item. A result hover SHALL render above a group highlight and below the primary selection. Captured imagery and orientation-only illustrations SHALL keep separate camera snapshots, so switching layers does not discard the reader's position in either coordinate space.
-
-#### Scenario: A reader opens the map
-- **WHEN** the renderer is still sizing its canvas
-- **THEN** the interface keeps that canvas hidden behind the map loading surface
-- **AND** reveals it only after a correctly sized frame has rendered
-
-#### Scenario: A reader selects a marker
-- **WHEN** the reader selects a visible marker
-- **THEN** the selection and details update
-- **AND** the camera target and zoom remain unchanged
-
-#### Scenario: One entity has several placements
-- **WHEN** the reader selects one of those placements
-- **THEN** that placement has the primary highlight
-- **AND** the other placements with the same entity identity have the group highlight
-
-#### Scenario: A reader previews a result
-- **WHEN** the reader hovers or focuses an entity or item result
-- **THEN** every exact placement resolved for that result has the hover highlight
-- **AND** the current selection remains unchanged
-
-#### Scenario: A reader releases a non-inertial pan
-- **WHEN** the reader releases a pan gesture
-- **THEN** the camera stops without inertial continuation or snapping back
-- **AND** imagery layers are not reconstructed for each camera update
-
-#### Scenario: A reader switches image coordinate spaces
-- **WHEN** the reader switches from captured imagery to an orientation-only illustration and back
-- **THEN** each layer restores its own last camera target and zoom
-
-### Requirement: Search connects items to places
-
-Search SHALL find places, creatures, NPCs, resources, and items by their displayed names. Item results SHALL expose their known source types, including drops, vendors, containers, and resource yields. Selecting a source SHALL navigate to its place on the map without losing the item context.
-
-#### Scenario: A player searches for a vendor item
-- **WHEN** the item has stock entries on several vendors
-- **THEN** search exposes the vendors and stock conditions
-- **AND** selecting one opens its location and corresponding stock entry
-
-### Requirement: Navigation is shareable and reversible
-
-The URL SHALL preserve the map, the selected place, the basemap choice, and relevant browsing state. Browser back and forward SHALL restore prior selections. A travel point SHALL navigate to its destination while preserving the source context and a return control. A stale link SHALL explain the missing selection rather than select an unrelated entity.
-
-#### Scenario: A reader follows a dungeon entrance
-- **WHEN** its destination is published
-- **THEN** the map opens that destination and keeps the entrance as source context
-- **AND** browser back restores the entrance selection
-
-#### Scenario: A link names a removed place
-- **WHEN** the current build no longer contains it
-- **THEN** the map reports the stale selection and offers navigation to available content
-
-### Requirement: Accessible responsive browsing
-
-The map SHALL support keyboard navigation and narrow screens. Search and a synchronized result list SHALL provide access to marker details without pointer-only map interaction. Selection panels SHALL have predictable focus behavior and a visible close action. Marker meaning SHALL NOT depend on color alone. Map geometry SHALL remain visually stable in current Chromium and Firefox-based browsers while hovering and selecting results.
-
-#### Scenario: A keyboard reader selects a search result
-- **WHEN** the reader opens the result details and then closes them
-- **THEN** the details are operable without a pointer
-- **AND** focus returns to a useful originating control
-
-#### Scenario: A Firefox reader previews a result
-- **WHEN** hovering the result updates highlight and travel-connection layers
-- **THEN** the map retains the same basemap and vector geometry
-- **AND** no picking color, stray line, or malformed primitive reaches the visible canvas
+The map SHALL offer a dismissible category drawer at phone width and keep search and results within the viewport. Only the trusted `glockyco.com` portfolio SHALL be allowed to frame the published map.
 
 #### Scenario: A phone reader browses the map
 - **WHEN** the viewport is no wider than 680 CSS pixels
 - **THEN** the map and results use the full viewport width without horizontal scrolling
-- **AND** the closed category panel occupies only one touch target
-- **AND** the open category panel appears as a dismissible drawer above the map
-- **AND** touch zoom stays within useful map bounds without browser gesture interference
+- **AND** the closed category panel occupies one compact touch target
+- **AND** the open panel is a dismissible drawer
 
 #### Scenario: The portfolio embeds the map
-- **WHEN** `glockyco.com` frames the published map as a project demo
-- **THEN** the browser permits the trusted frame origin
-- **AND** other external origins remain unable to frame the map
-
-#### Scenario: WebGL2 cannot start
-- **WHEN** the browser cannot create the WebGL2 renderer
-- **THEN** the map replaces the loading state and raw driver error with a concise compatibility message
-- **AND** links to the WebGL2 support check
-- **AND** keeps search and reference results available
-
-### Requirement: Evidence limits stay outside the interface
-
-The map SHALL run from generated static artifacts without access to the game, raw snapshots, or an extraction endpoint. It SHALL NOT display completeness disclosures, coverage counts, or unresolved-semantics notices.
-
-Preview mode, coverage figures, diagnostic totals, and exclusion reasons SHALL live in the generated publication metadata, run manifest, and coverage report, which own those measurements. Progressive map loading SHALL NOT require downloading full-resolution imagery before interaction.
-
-#### Scenario: A reader opens a partial research snapshot
-- **WHEN** coverage is incomplete
-- **THEN** the publication metadata remains in preview mode
-- **AND** the interface does not claim that the snapshot is complete
-- **AND** no marker, panel, or control displays completeness or coverage notices
-
-#### Scenario: An operator audits publication coverage
-- **WHEN** the operator reads the generated publication metadata and run manifest
-- **THEN** those artifacts report the build, mode, coverage figures, and exclusions
-- **AND** the interface does not restate those values
+- **WHEN** `glockyco.com` frames the published map
+- **THEN** the browser permits that origin
+- **AND** other external origins cannot frame the map
 
 ### Requirement: Shared map links carry Afallon identity
 
