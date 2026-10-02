@@ -26,7 +26,7 @@
     <svelte:fragment slot="cell" let:row let:column>
       {#if column === 'item'}<EntityLink ref={row.item} {registry} />
       {:else if column === 'cost'}<Price price={row.price} showName />
-      {:else}{#each row.soldBy as seller, index}{#if index}, {/if}<EntityLink ref={seller} {registry} />{/each}{/if}
+      {:else}{#each row.soldBy as seller, index}{index ? ', ' : ''}<EntityLink ref={seller} {registry} />{/each}{/if}
     </svelte:fragment>
   </RelationTable>
 </Section>
