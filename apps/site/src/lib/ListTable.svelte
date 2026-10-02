@@ -229,7 +229,9 @@
   .layout { display: block; }
   /* The filters sit beside the results where the page is wide enough for both. */
   .layout.with-panel { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); gap: 1.75rem; align-items: start; }
-  .sidebar { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; padding-right: .5rem; }
+  /* The panel scrolls with the page. A sticky panel with its own scroll hid its end below the screen until the page
+     itself scrolled, and the chips above the results keep the active filters in view. */
+  .sidebar { padding-right: .5rem; }
   .results { min-width: 0; }
   .toolbar { display: flex; gap: .6rem; margin-bottom: .75rem; }
   .search { flex: 1 1 auto; min-width: 0; min-height: 2.35rem; padding: .4rem .6rem; border: 1px solid var(--c-line-strong); border-radius: var(--c-radius-sm); background: var(--c-surface-sunken); color: var(--c-text); }
