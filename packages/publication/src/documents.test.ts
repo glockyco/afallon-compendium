@@ -91,7 +91,7 @@ function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts
   return { refs: references.refs, documents };
 }
 
-test("only eligible gear publishes captured corruption settings and the guide-step placement", () => {
+test("only eligible gear publishes captured corruption settings and the guide-section placement", () => {
   const consumable: CatalogEntityRow = { entityKey: "items:6", kind: "items", nativeId: 6, name: "Corruption Token", description: null, iconAssetName: null, artwork: [] };
   const source = { path: "targets/0/corruption.json", sha256: "a".repeat(64) };
   const captured: NonNullable<CatalogFacts["corruption"]> = {
@@ -122,7 +122,8 @@ test("only eligible gear publishes captured corruption settings and the guide-st
   expect(gear.facts.dungeonRewards).toEqual([{ place: expect.objectContaining({ key: "scenes:10" }), bosses: [expect.objectContaining({ key: "npcs:2" })], guaranteed: false }]);
   expect(gear.facts.stats[0]?.amount).toBe(42);
   expect(gear.facts.itemPower).toBe(99);
-  expect(gear.placedRules).toContainEqual({ target: "corruption", guide: expect.objectContaining({ key: "mechanics:corruption" }), stepId: "compare-corrupted-gear" });
+  expect(gear.placedRules).toContainEqual({ target: "corruption", guide: expect.objectContaining({ key: "mechanics:corruption" }), section: "gear" });
+  expect(token.placedRules).toContainEqual({ target: "dungeon-rewards", guide: expect.objectContaining({ key: "mechanics:corruption" }), section: "timed-dungeons" });
   expect(token.facts.corruption).toBeUndefined();
   expect(token.facts.dungeonRewards).toEqual([{ place: expect.objectContaining({ key: "scenes:10" }), bosses: [expect.objectContaining({ key: "npcs:2" })], guaranteed: true }]);
   expect(trinketPage.facts).toMatchObject({ itemType: "Trinket", slot: "Trinket", armorType: "JEWELRY", corruption: gear.facts.corruption,
@@ -130,7 +131,7 @@ test("only eligible gear publishes captured corruption settings and the guide-st
   expect(ordinaryPage.facts.corruption).toBeUndefined();
   expect(ordinaryPage.facts.dungeonRewards).toBeUndefined();
   expect(token.facts.tokenInfo).toEqual({ mobStatBonuses: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amountPerLevel: 10, isPercent: true }], affixesPerToken: 3 });
-  expect(token.placedRules).toContainEqual({ target: "corruption-token", guide: expect.objectContaining({ key: "mechanics:corruption" }), stepId: "read-the-token" });
+  expect(token.placedRules).toContainEqual({ target: "corruption-token", guide: expect.objectContaining({ key: "mechanics:corruption" }), section: "tokens" });
   expect(token.placedRules.some((entry) => entry.target === "corruption")).toBe(false);
   const heart: CatalogEntityRow = { entityKey: "items:162", kind: "items", nativeId: 162, name: "Heart of Corruption", description: null, iconAssetName: null, artwork: [] };
   const withHeart = [...sourceEntities, heart];
@@ -772,8 +773,8 @@ test("recipe items teach one craft, and product pages show the full recipe", () 
     materials: [{ counterpart: expect.objectContaining({ key: "items:22" }), count: 2 }],
     taughtBy: [expect.objectContaining({ key: "items:20" })],
   });
-  expect(product.placedRules).toEqual([{ target: "crafting", guide: expect.objectContaining({ key: "mechanics:crafting-and-gathering" }), stepId: "check-the-crafting-level" }]);
-  expect(item.placedRules).toEqual([{ target: "teaches", guide: expect.objectContaining({ key: "mechanics:crafting-and-gathering" }), stepId: "provide-materials-and-space" }]);
+  expect(product.placedRules).toEqual([{ target: "crafting", guide: expect.objectContaining({ key: "mechanics:crafting-and-gathering" }), section: "crafting" }]);
+  expect(item.placedRules).toEqual([{ target: "teaches", guide: expect.objectContaining({ key: "mechanics:crafting-and-gathering" }), section: "crafting" }]);
   expect((documents.get("items:22") as PublicItem).placedRules).toEqual([]);
   expect((documents.get("items:22") as PublicItem).usedInRecipes[0]?.counterpart).toMatchObject({ key: "items:21", variant: "crafting" });
   const moreProduct = { ...craftRelations, recipes: craftRelations.recipes.map((row) =>
@@ -843,7 +844,7 @@ test("a node yield links the node from the item and the item from the node, and 
   expect(node.spotCount).toBe(1);
   expect(ore.sourceSpotCount).toBe(1);
   // Only the attunement that names this node applies to it.
-  expect(node.placedRules.map((rule) => rule.stepId)).toEqual(["wait-for-the-node", "wait-for-the-node", "pick-a-node"]);
+  expect(node.placedRules.map((rule) => rule.section)).toEqual(["node-availability", "attunement"]);
 });
 
 test("placed rules select linked nodes and source scopes and compute yield chances", () => {
@@ -866,12 +867,12 @@ test("placed rules select linked nodes and source scopes and compute yield chanc
   const resolve = createReferenceResolver(references.refs), conditions = conditionsById(craftRelations.conditions);
   const nodes = projectGatheringNodeDocuments(scoped, craftRelations, { resolve, conditions, placements: new Map(),
     requirements: (ids) => requirementsFor(ids, conditions, resolve) });
-  expect(nodes.get(vein.entityKey)?.placedRules.map((row) => row.stepId)).toEqual(["pick-a-node", "wait-for-the-node", "gather-the-items"]);
-  expect(nodes.get(silver.entityKey)?.placedRules.map((row) => row.stepId)).toEqual(["pick-a-node", "pick-a-node", "gather-the-items"]);
-  expect(nodes.get(direct.entityKey)?.placedRules.map((row) => row.stepId)).toEqual(["wait-for-the-node", "gather-the-items"]);
-  expect(nodes.get(silver.entityKey)?.placedRules.find((row) => row.stepId === "gather-the-items")?.levelChances)
+  expect(nodes.get(vein.entityKey)?.placedRules.map((row) => row.section)).toEqual(["node-selection", "node-availability", "node-rewards"]);
+  expect(nodes.get(silver.entityKey)?.placedRules.map((row) => row.section)).toEqual(["attunement", "node-selection", "node-rewards"]);
+  expect(nodes.get(direct.entityKey)?.placedRules.map((row) => row.section)).toEqual(["node-availability", "node-rewards"]);
+  expect(nodes.get(silver.entityKey)?.placedRules.find((row) => row.section === "node-rewards")?.levelChances)
     .toEqual([{ level: 1, chance: 0.1 }, { level: 300, chance: 30 }]);
-  expect(nodes.get(vein.entityKey)?.placedRules.find((row) => row.stepId === "gather-the-items")?.levelChances)
+  expect(nodes.get(vein.entityKey)?.placedRules.find((row) => row.section === "node-rewards")?.levelChances)
     .toEqual([{ level: 5, chance: 0.5 }, { level: 300, chance: 30 }]);
 });
 
@@ -921,8 +922,8 @@ test("a node with an unsupported yield operand has a guide link but no invented 
   const resolve = createReferenceResolver(refs), conditions = conditionsById(craftRelations.conditions);
   const node = projectGatheringNodeDocuments(uncertain, craftRelations, { resolve, conditions, placements: new Map(),
     requirements: (ids) => requirementsFor(ids, conditions, resolve) }).get(vein.entityKey)!;
-  expect(node.placedRules.find((row) => row.stepId === "gather-the-items")).toEqual({
-    target: "how-it-works", guide: expect.objectContaining({ key: "mechanics:crafting-and-gathering" }), stepId: "gather-the-items",
+  expect(node.placedRules.find((row) => row.section === "node-rewards")).toEqual({
+    target: "how-it-works", guide: expect.objectContaining({ key: "mechanics:crafting-and-gathering" }), section: "node-rewards",
   });
 });
 
@@ -1043,7 +1044,7 @@ test("a linked When used rule appears on its item and not on unrelated items", (
     progression: { ...facts.progression, mechanicsRules: [{ ...linked, topic: "loot" }] } };
   const { documents } = project([...entities, other], withRule, relations);
   expect((documents.get("items:1") as PublicItem).placedRules).toContainEqual(expect.objectContaining({
-    target: "when-used", guide: expect.objectContaining({ key: "mechanics:loot" }), stepId: "open-a-chest",
+    target: "when-used", guide: expect.objectContaining({ key: "mechanics:loot" }), section: "chests",
   }));
   expect((documents.get(other.entityKey) as PublicItem).placedRules.some((rule) => rule.target === "when-used")).toBe(false);
 });

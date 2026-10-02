@@ -1,7 +1,7 @@
 <script lang="ts" context="module">
   import type { EntityRef } from '@afallon/contracts/public';
-  /** `guide` links the value to the mechanics step that explains how the game computes it. */
-  export interface Stat { label: string; value: string; note?: string; href?: string; guide?: { guide: EntityRef; stepId: string } }
+  /** `guide` links the value to the guide section that explains how the game computes it. */
+  export interface Stat { label: string; value: string; note?: string; href?: string; guide?: { guide: EntityRef; section: string } }
 </script>
 <script lang="ts">
   import '../compendium.css';
@@ -14,7 +14,7 @@
     {#each stats as stat}
       <div class="stat">
         <dt>{stat.label}</dt>
-        <dd>{#if stat.href}<a class="c-link" href={stat.href}>{stat.value}</a>{:else}{stat.value}{/if}{#if stat.note}<span class="note">{stat.note}</span>{/if}{#if stat.guide}<span class="guide"><HowItWorks guide={stat.guide.guide} stepId={stat.guide.stepId} /></span>{/if}</dd>
+        <dd>{#if stat.href}<a class="c-link" href={stat.href}>{stat.value}</a>{:else}{stat.value}{/if}{#if stat.note}<span class="note">{stat.note}</span>{/if}{#if stat.guide}<span class="guide"><HowItWorks guide={stat.guide.guide} section={stat.guide.section} /></span>{/if}</dd>
       </div>
     {/each}
   </dl>

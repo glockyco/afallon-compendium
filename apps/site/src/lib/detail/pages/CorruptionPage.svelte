@@ -1,14 +1,12 @@
 <script lang="ts">
   import type { CorruptionGuide, PublicItem, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import TitleBlock from '../TitleBlock.svelte';
   import CorruptionTryIt from '../CorruptionTryIt.svelte';
-  import GuideSteps from '../GuideSteps.svelte';
+  import GuideSection from '../GuideSection.svelte';
   import Hero from '../Hero.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
-  import MechanicsRules from '../sections/MechanicsRules.svelte';
-  import { ruleNumbers } from '../rule-numbers';
+  import TitleBlock from '../TitleBlock.svelte';
 
   export let document: CorruptionGuide;
   export let registry: PublicKindEntry[];
@@ -18,7 +16,7 @@
   $: underglow = document.dungeons.find((dungeon) => dungeon.place.name === 'The Underglow');
   $: powerBonus = document.gearStatBonuses?.find((bonus) => bonus.stat.toLowerCase() === 'item power');
   $: healthBonus = document.gearStatBonuses?.find((bonus) => bonus.stat === 'Health');
-  $: numbers = ruleNumbers(document.rules);
+  $: rules = document.nativeRules;
 </script>
 
 <article class="detail-page">
@@ -28,51 +26,47 @@
     {#each document.seeAlso ?? [] as entry}<p class="see-also">{entry.lead} <EntityLink ref={entry.ref} {registry} />.</p>{/each}
   </Hero>
   <Sections>
-    <GuideSteps steps={document.steps} ruleNumbers={numbers}>
-      <svelte:fragment slot="content" let:step>
-        {#if step.id === 'use-the-altar'}
-          <p>{step.text} Without a token, the altar adds +{format(document.nativeRules.altarWithoutTokenIncrement)}. A {#if document.token}<EntityLink ref={document.token} {registry} />{:else}token{/if} adds its value and activates up to {format(document.affixesPerToken ?? 0)} affixes. The dungeon starts at no more than +{format(document.maxLevel ?? 0)}.</p>
-        {:else if step.id === 'read-the-token'}
-          <p>{step.text} New tokens roll up to {format(document.affixesPerToken ?? 0)} available affixes. Token value and item corruption level are separate.</p>
-        {:else if step.id === 'face-corrupted-creatures'}
-          <p>{step.text} {#if document.mobStatBonuses?.length}{document.mobStatBonuses.map((bonus) => `+${format(bonus.amountPerLevel)}${bonus.isPercent ? '%' : ''} ${bonus.stat}`).join(', ')}.{:else}Stat bonuses depend on the dungeon.{/if} Affixes add other effects.</p>
-        {:else if step.id === 'finish-the-timer'}
-          <p>{step.text} With time left, the reward token gains +{format(document.nativeRules.completionFirstBonus)}, +{format(document.nativeRules.completionSecondBonus)}, or +{format(document.nativeRules.completionOtherwiseBonus)} levels. On timeout, its value falls by {format(document.nativeRules.timeoutDecrease)} to at least {format(document.nativeRules.timeoutMinimum)}, and the bag holds no regular loot. A completed bag holds up to {format(lootLimit)} loot rolls{#if underglow?.maxLootItems !== undefined}{' '}({format(underglow.maxLootItems)} in The Underglow){/if}.</p>
-        {:else if step.id === 'compare-corrupted-gear'}
-          <p>{step.text}{#if document.gearAllStatsPercentPerLevel !== undefined}{' '}by +{format(document.gearAllStatsPercentPerLevel)}%{/if}{#if powerBonus}, adds +{format(powerBonus.amountPerLevel)} Item Power{/if}{#if healthBonus}, and adds +{format(healthBonus.amountPerLevel)}% Health on items with a Health stat{/if}. Random stats and gems keep their values. Equippable reward-bag items carry the dungeon's corruption level.</p>
-        {:else}<p>{step.text}</p>{/if}
-      </svelte:fragment>
-    </GuideSteps>
-    <Section id="try-it" title="Try it on an item">
-      <CorruptionTryIt guide={document} {inlineItem} {registry} />
-    </Section>
-    {#if document.dungeons.length}
-      <Section id="timed-dungeons" title="Timed dungeons">
-        <p>The thresholds are the seconds <strong>left</strong> on the timer when the last boss dies. Maximum loot items is the most regular loot a reward bag can hold besides the token.</p>
-        <div class="table-scroll"><table class="timer-table"><thead><tr><th scope="col">Dungeon</th><th scope="col">Timer</th><th scope="col">First threshold</th><th scope="col">Second threshold</th><th scope="col">Maximum loot items</th></tr></thead>
-          <tbody>{#each document.dungeons as dungeon}<tr><th scope="row"><EntityLink ref={dungeon.place} {registry} /></th><td data-label="Timer">{dungeon.totalSeconds === undefined ? 'Unavailable' : `${format(dungeon.totalSeconds)} s`}</td><td data-label="First threshold">{dungeon.firstRemainingSeconds === undefined ? 'Unavailable' : `${format(dungeon.firstRemainingSeconds)} s left`}</td><td data-label="Second threshold">{dungeon.secondRemainingSeconds === undefined ? 'Unavailable' : `${format(dungeon.secondRemainingSeconds)} s left`}</td><td data-label="Maximum loot items">{dungeon.maxLootItems === undefined ? 'Unavailable' : format(dungeon.maxLootItems)}</td></tr>{/each}</tbody>
-        </table></div>
-        <details class="dungeon-associations"><summary>Bosses</summary>
-          {#if document.dungeons.every((dungeon) => dungeon.rewardsFromBossDrops)}
-            <p>Defeating all bosses in time fills the reward bag. Its extra loot comes from the same tables as each boss's own drops, which the boss pages list with chances.</p>
+    {#each document.sections as section (section.id)}
+      <GuideSection {section} {registry}>
+        <svelte:fragment slot="lead">
+          {#if section.id === 'altars'}
+            {' '}Without a token, the altar adds +{format(rules.altarWithoutTokenIncrement)}. A {#if document.token}<EntityLink ref={document.token} {registry} />{:else}token{/if} adds its value and activates up to {format(document.affixesPerToken ?? 0)} affixes. The dungeon starts at no more than +{format(document.maxLevel ?? 0)}.
+          {:else if section.id === 'tokens'}
+            {' '}New tokens roll up to {format(document.affixesPerToken ?? 0)} available affixes. Token value and item corruption level are separate.
+          {:else if section.id === 'enemies' && document.mobStatBonuses?.length}
+            {' '}At each corruption level, enemies gain {document.mobStatBonuses.map((bonus) => `+${format(bonus.amountPerLevel)}${bonus.isPercent ? '%' : ''} ${bonus.stat}`).join(', ')}. Affixes add other effects.
+          {:else if section.id === 'timed-dungeons'}
+            {' '}With time left, the reward token gains +{format(rules.completionFirstBonus)}, +{format(rules.completionSecondBonus)}, or +{format(rules.completionOtherwiseBonus)} levels. On timeout, its value falls by {format(rules.timeoutDecrease)} to at least {format(rules.timeoutMinimum)}, and the bag holds no regular loot. A completed bag holds up to {format(lootLimit)} loot rolls{#if underglow?.maxLootItems !== undefined}{' '}({format(underglow.maxLootItems)} in The Underglow){/if}.
+          {:else if section.id === 'gear' && document.gearAllStatsPercentPerLevel !== undefined}
+            {' '}Each corruption level increases equipment's base stats and weapon damage by +{format(document.gearAllStatsPercentPerLevel)}%{#if powerBonus}, adds +{format(powerBonus.amountPerLevel)} Item Power{/if}{#if healthBonus}, and adds +{format(healthBonus.amountPerLevel)}% Health on items with a Health stat{/if}. Random stats and gems keep their values.
           {/if}
-          <ul>{#each document.dungeons as dungeon}<li><strong><EntityLink ref={dungeon.place} {registry} /></strong>:
-            {#if dungeon.bosses?.length}{#each dungeon.bosses as boss, index}{index ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}.{:else} Bosses unavailable.{/if}
-          </li>{/each}</ul>
-        </details>
-      </Section>
-    {/if}
-    {#if document.affixes?.length}
-      <Section id="dungeon-affixes" title="Dungeon affixes">
-        <p>{document.affixes.filter((affix) => !affix.available).length} affixes cannot appear on new tokens.</p>
-        <details class="affix-details"><summary>Show all dungeon affixes</summary>
-          <ul>{#each document.affixes as affix}<li><strong>{affix.name}</strong>{affix.available ? '' : ' (Cannot appear on new tokens)'}: {affix.description.replaceAll(' — ', ', ')}</li>{/each}</ul>
-        </details>
-      </Section>
-    {/if}
-    <Section id="rules-reference" title="Rules reference">
-      <MechanicsRules rules={document.rules} {registry} />
-    </Section>
+        </svelte:fragment>
+        {#if section.id === 'tokens' && document.affixes?.length}
+          <p>{document.affixes.filter((affix) => !affix.available).length} affixes cannot appear on new tokens.</p>
+          <details class="affix-details"><summary>Show all dungeon affixes</summary>
+            <ul>{#each document.affixes as affix}<li><strong>{affix.name}</strong>{affix.available ? '' : ' (Cannot appear on new tokens)'}: {affix.description.replaceAll(' — ', ', ')}</li>{/each}</ul>
+          </details>
+        {:else if section.id === 'timed-dungeons' && document.dungeons.length}
+          <p>The thresholds are the seconds <strong>left</strong> on the timer when the last boss dies. Maximum loot items is the most regular loot a reward bag can hold besides the token.</p>
+          <div class="table-scroll"><table class="timer-table"><thead><tr><th scope="col">Dungeon</th><th scope="col">Timer</th><th scope="col">First threshold</th><th scope="col">Second threshold</th><th scope="col">Maximum loot items</th></tr></thead>
+            <tbody>{#each document.dungeons as dungeon}<tr><th scope="row"><EntityLink ref={dungeon.place} {registry} /></th><td data-label="Timer">{dungeon.totalSeconds === undefined ? 'Unavailable' : `${format(dungeon.totalSeconds)} s`}</td><td data-label="First threshold">{dungeon.firstRemainingSeconds === undefined ? 'Unavailable' : `${format(dungeon.firstRemainingSeconds)} s left`}</td><td data-label="Second threshold">{dungeon.secondRemainingSeconds === undefined ? 'Unavailable' : `${format(dungeon.secondRemainingSeconds)} s left`}</td><td data-label="Maximum loot items">{dungeon.maxLootItems === undefined ? 'Unavailable' : format(dungeon.maxLootItems)}</td></tr>{/each}</tbody>
+          </table></div>
+          <details class="dungeon-associations"><summary>Bosses</summary>
+            {#if document.dungeons.every((dungeon) => dungeon.rewardsFromBossDrops)}
+              <p>Defeating all bosses in time fills the reward bag. Its extra loot comes from the same tables as each boss's own drops, which the boss pages list with chances.</p>
+            {/if}
+            <ul>{#each document.dungeons as dungeon}<li><strong><EntityLink ref={dungeon.place} {registry} /></strong>:
+              {#if dungeon.bosses?.length}{#each dungeon.bosses as boss, index}{index ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}.{:else} Bosses unavailable.{/if}
+            </li>{/each}</ul>
+          </details>
+        {/if}
+      </GuideSection>
+      {#if section.id === 'gear'}
+        <Section id="try-it" title="Try it on an item">
+          <CorruptionTryIt guide={document} {inlineItem} {registry} />
+        </Section>
+      {/if}
+    {/each}
   </Sections>
 </article>
 

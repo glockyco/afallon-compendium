@@ -95,14 +95,13 @@ test("corruption guide projects authored item and time-remaining thresholds from
   expect(document.seeAlso).toEqual([{ lead: "For the item that starts challenge stones, see", ref: refs.get("items:162")! }]);
   expect(document).not.toHaveProperty("heartRequirements");
   expect(Value.Check(CorruptionGuideSchema, { ...document, heartRequirements: [] })).toBe(false);
-  expect(document.rules.map((rule) => rule.id)).not.toContain("corruption-heart");
+  expect(document.sections.flatMap((section) => section.rules).map((rule) => rule.id)).not.toContain("corruption-heart");
   expect(uses()).toEqual([{ stoneName: "Challenge Stone Poison", regionName: "Coalway Swamp",
     destinations: [expect.objectContaining({ name: "Duskfall Depths" }), expect.objectContaining({ name: "Felheart Crucible" })],
     spot: stoneSpot, count: 1 }]);
   expect(document.affixes).toEqual([{ name: "Bolstering", description: "Nearby allies grow stronger.", available: true },
     { name: "Spiteful", description: "Ghosts appear.", available: false }]);
-  expect(document.steps.find((step) => step.id === "compare-corrupted-gear")?.rules).toEqual(["corruption-gear"]);
-  expect(document.rules.find((row) => row.id === "corruption-gear")?.sources.length).toBeGreaterThan(0);
+  expect(document.sections.find((section) => section.id === "gear")?.rules.map((rule) => rule.id)).toEqual(["corruption-gear"]);
 });
 
 test("reward attribution requires every table to belong to a listed boss", () => {
@@ -182,7 +181,6 @@ test("unavailable build settings cannot create numeric guide claims while reward
   expect(unavailable.tryIt.defaultItem.name).toBe("Axe");
   expect(unavailable.affixes).toBeUndefined();
   expect(unavailable).not.toHaveProperty("heartRequirements");
-  expect(unavailable.unknowns).not.toContain("Challenge-stone requirements are unavailable.");
   expect(uses({ ...facts, corruption: { ...corruption, heartRequirements: null } })).toBeUndefined();
   expect(unavailable.dungeons[0]).toEqual({ place: expect.objectContaining({ name: "Duskfall Depths" }) });
 });

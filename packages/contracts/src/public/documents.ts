@@ -327,19 +327,16 @@ export type Craft = Static<typeof CraftSchema>;
 // A mechanics topic explains a game system of the published build. Its key and slug belong to the publication, not to a
 // game record. A rule is `verified` when native evidence of the build proves its phrase, and `unknown` when the phrase
 // names a branch that the evidence does not resolve. `phrase` names each operand as `{name}`, and `operands` holds its
-// number. `sources` name the game methods that the evidence covers. `appearsOn` names the pages and sections where the
-// rules record also places the rule.
+// number. The phrase ends with words that lead into its `links`. The evidence stays in the rules record and the catalog.
 export const MechanicsRuleSchema = Type.Object({
-  id: anchor, section: anchor, status: Type.Union([Type.Literal("verified"), Type.Literal("unknown")]), phrase: text,
+  id: anchor, status: Type.Union([Type.Literal("verified"), Type.Literal("unknown")]), phrase: text,
   operands: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z0-9]*$" }), number), links: refs,
-  sources: Type.Array(Type.Object({ method: text, evidence: text }, { additionalProperties: false }), { minItems: 1 }),
-  appearsOn: Type.Array(text, { uniqueItems: true }),
 }, { additionalProperties: false });
 export type MechanicsRule = Static<typeof MechanicsRuleSchema>;
 
-// Entity placements retain only a target and a link to the explanatory guide step. Rule prose and evidence live in the guide.
+// Entity placements retain only a target and the guide section that explains it. Rule prose lives in the guide.
 export const PlacedRuleSchema = Type.Object({
-  target: anchor, guide: EntityRefSchema, stepId: anchor,
+  target: anchor, guide: EntityRefSchema, section: anchor,
   levelChances: optional(Type.Array(Type.Object({ level: count, chance: percent }, { additionalProperties: false }), { minItems: 1 })),
 }, { additionalProperties: false });
 export type PlacedRule = Static<typeof PlacedRuleSchema>;
@@ -715,11 +712,12 @@ export const ExperienceSourcesSchema = Type.Object({
   levelModifiers: Type.Array(Type.Object({ lower: number, higher: number, creatures: count }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type ExperienceSources = Static<typeof ExperienceSourcesSchema>;
-// A guide explains its topic before it lists the rules. `overview` has at most three sentences. Each step summarizes the
-// named rules of the topic in the order in which the game applies them.
-export const GuideStepSchema = Type.Object({ id: anchor, title: text, text, rules: Type.Array(anchor, { minItems: 1, uniqueItems: true }) }, { additionalProperties: false });
-export type GuideStep = Static<typeof GuideStepSchema>;
-const guide = { overview: text, steps: Type.Array(GuideStepSchema, { minItems: 1 }),
+// A guide explains its topic in sections. `overview` has at most three sentences. Each section covers one mechanic or one
+// context of the topic: its `lead` says where the mechanic applies, and `rules` are every rule of that mechanic, in the
+// order of the rules record. The `id` is the anchor that placed rules link.
+export const GuideSectionSchema = Type.Object({ id: anchor, title: text, lead: text, rules: Type.Array(MechanicsRuleSchema, { minItems: 1 }) }, { additionalProperties: false });
+export type GuideSection = Static<typeof GuideSectionSchema>;
+const guide = { overview: text, sections: Type.Array(GuideSectionSchema, { minItems: 1 }),
   seeAlso: optional(Type.Array(Type.Object({ lead: text, ref: EntityRefSchema }, { additionalProperties: false }))) };
 // Each entry is a published creature at one place where it spawns, with its levels there, the levels that its NPC page
 // shows. `minExperience` and `maxExperience` are the lowest and highest whole amounts that a kill rolls before modifiers,
@@ -737,7 +735,7 @@ export const KillCalculatorSchema = Type.Object({
 export type KillCalculator = Static<typeof KillCalculatorSchema>;
 export const CharacterProgressionSchema = Type.Object({
   ...documentBase, topic: Type.Literal("character-progression"), curve: LevelCurveSchema, sources: ExperienceSourcesSchema,
-  talentPoints: Type.Array(TalentPointsSchema), rules: Type.Array(MechanicsRuleSchema), ...guide, killCalculator: KillCalculatorSchema,
+  talentPoints: Type.Array(TalentPointsSchema), ...guide, killCalculator: KillCalculatorSchema,
 }, { additionalProperties: false });
 export type CharacterProgression = Static<typeof CharacterProgressionSchema>;
 // The captured values of the build's Heroic tier settings, or the reason that the scan has none.
@@ -760,7 +758,7 @@ export const EssenceExampleSchema = Type.Object({
 }, { additionalProperties: false });
 export type EssenceExample = Static<typeof EssenceExampleSchema>;
 export const HeroicTierSchema = Type.Object({
-  ...documentBase, topic: Type.Literal("heroic-tier"), settings: HeroicSettingsSchema, rules: Type.Array(MechanicsRuleSchema), ...guide, example: optional(EssenceExampleSchema),
+  ...documentBase, topic: Type.Literal("heroic-tier"), settings: HeroicSettingsSchema, ...guide, example: optional(EssenceExampleSchema),
 }, { additionalProperties: false });
 export type HeroicTier = Static<typeof HeroicTierSchema>;
 // The most common spawner group of each gathering skill, as an example of weighted node selection. An example names no
@@ -777,14 +775,14 @@ export const CraftingExampleSchema = Type.Object({
 }, { additionalProperties: false });
 export type CraftingExample = Static<typeof CraftingExampleSchema>;
 export const CraftingAndGatheringSchema = Type.Object({
-  ...documentBase, topic: Type.Literal("crafting-and-gathering"), rules: Type.Array(MechanicsRuleSchema), ...guide,
+  ...documentBase, topic: Type.Literal("crafting-and-gathering"), ...guide,
   spawnerExamples: Type.Array(SpawnerExampleSchema), example: CraftingExampleSchema,
 }, { additionalProperties: false });
 export type CraftingAndGathering = Static<typeof CraftingAndGatheringSchema>;
 // Build-specific settings stay alongside the guide, not embedded as numeric constants in site copy.
 const CorruptionBonusSchema = Type.Object({ stat: text, amountPerLevel: number, isPercent: Type.Boolean() }, { additionalProperties: false });
 export const CorruptionGuideSchema = Type.Object({
-  ...documentBase, topic: Type.Literal("corruption"), rules: Type.Array(MechanicsRuleSchema), ...guide,
+  ...documentBase, topic: Type.Literal("corruption"), ...guide,
   maxLevel: optional(count), gearAllStatsPercentPerLevel: optional(number),
   nativeRules: Type.Object({
     altarWithoutTokenIncrement: count, completionFirstBonus: count, completionSecondBonus: count,
@@ -806,11 +804,10 @@ export const CorruptionGuideSchema = Type.Object({
     }, { additionalProperties: false }), { minItems: 1 }),
     defaultItem: EntityRefSchema,
   }, { additionalProperties: false }),
-  evidence: Type.Array(text), unknowns: Type.Array(text),
 }, { additionalProperties: false });
 export type CorruptionGuide = Static<typeof CorruptionGuideSchema>;
 export const LootGuideSchema = Type.Object({
-  ...documentBase, topic: Type.Literal("loot"), rules: Type.Array(MechanicsRuleSchema), ...guide,
+  ...documentBase, topic: Type.Literal("loot"), ...guide,
 }, { additionalProperties: false });
 export type LootGuide = Static<typeof LootGuideSchema>;
 export const PublicMechanicsSchema = Type.Union([CharacterProgressionSchema, HeroicTierSchema, CraftingAndGatheringSchema, CorruptionGuideSchema, LootGuideSchema]);
@@ -831,9 +828,9 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v18", npcs: "compendium.static-npc.v8", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
+  items: "compendium.static-item.v19", npcs: "compendium.static-npc.v9", quests: "compendium.static-quest.v7", places: "compendium.static-place.v8",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
-  classes: "compendium.static-class.v5", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v9", gatheringNodes: "compendium.static-gathering-node.v4",
+  classes: "compendium.static-class.v6", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v10", gatheringNodes: "compendium.static-gathering-node.v5",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -856,28 +853,28 @@ export const StaticSkillDocumentSchema = staticDocument("skills");
 export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v18": typeof StaticItemDocumentSchema; "compendium.static-npc.v8": typeof StaticNpcDocumentSchema;
-  "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v8": typeof StaticPlaceDocumentSchema;
+  "compendium.static-item.v19": typeof StaticItemDocumentSchema; "compendium.static-npc.v9": typeof StaticNpcDocumentSchema;
+  "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v8": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
-  "compendium.static-class.v5": typeof StaticClassDocumentSchema;
-  "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v9": typeof StaticMechanicsDocumentSchema;
-  "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
+  "compendium.static-class.v6": typeof StaticClassDocumentSchema;
+  "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v10": typeof StaticMechanicsDocumentSchema;
+  "compendium.static-gathering-node.v5": typeof StaticGatheringNodeDocumentSchema;
 } = {
-  "compendium.static-item.v18": StaticItemDocumentSchema, "compendium.static-npc.v8": StaticNpcDocumentSchema,
-  "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v8": StaticPlaceDocumentSchema,
+  "compendium.static-item.v19": StaticItemDocumentSchema, "compendium.static-npc.v9": StaticNpcDocumentSchema,
+  "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v8": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
-  "compendium.static-class.v5": StaticClassDocumentSchema,
-  "compendium.static-skill.v5": StaticSkillDocumentSchema, "compendium.static-mechanics.v9": StaticMechanicsDocumentSchema,
-  "compendium.static-gathering-node.v4": StaticGatheringNodeDocumentSchema,
+  "compendium.static-class.v6": StaticClassDocumentSchema,
+  "compendium.static-skill.v6": StaticSkillDocumentSchema, "compendium.static-mechanics.v10": StaticMechanicsDocumentSchema,
+  "compendium.static-gathering-node.v5": StaticGatheringNodeDocumentSchema,
 };
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v18"), resourceReference("compendium.static-npc.v8"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
+  resourceReference("compendium.static-item.v19"), resourceReference("compendium.static-npc.v9"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v8"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
-  resourceReference("compendium.static-class.v5"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v9"),
-  resourceReference("compendium.static-gathering-node.v4"),
+  resourceReference("compendium.static-class.v6"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v10"),
+  resourceReference("compendium.static-gathering-node.v5"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;
 
@@ -1019,7 +1016,7 @@ schemaRegistry.register("compendium.public-world-quest-facts.v1", WorldQuestFact
 schemaRegistry.register("compendium.public-recipe-row.v1", RecipeRowSchema);
 schemaRegistry.register("compendium.public-used-in-recipe-row.v1", UsedInRecipeRowSchema);
 schemaRegistry.register("compendium.public-craft.v1", CraftSchema);
-schemaRegistry.register("compendium.public-placed-rule.v2", PlacedRuleSchema);
+schemaRegistry.register("compendium.public-placed-rule.v3", PlacedRuleSchema);
 schemaRegistry.register("compendium.public-contextual-ability-ref.v1", ContextualAbilityRefSchema);
 schemaRegistry.register("compendium.public-ability-rank.v1", AbilityRankSchema);
 schemaRegistry.register("compendium.public-ability-version.v3", AbilityVersionSchema);

@@ -1,5 +1,5 @@
 import { expect, jest, test } from 'bun:test';
-import type { PublicSearchEntry, StaticDocument, StaticResourceReference, StaticRootManifest } from '@afallon/contracts/public';
+import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicSearchEntry, type StaticDocument, type StaticResourceReference, type StaticRootManifest } from '@afallon/contracts/public';
 import { MapDataLoader, type MapFetch } from './map-data';
 import { _loadGuideInlineItem } from '../routes/[kind]/[slug]/+page.server';
 import { MapController, type MapSnapshot } from './map-controller';
@@ -23,7 +23,7 @@ function fixture() {
     const ref = { key, kind: 'items' as const, name, slug: name };
     refs.set(key, ref);
     documents.set(key, register({
-      schemaVersion: 'compendium.static-item.v18', ...identity, kind: 'items',
+      schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.items, ...identity, kind: 'items',
       document: {
         ref, description: null, art: {}, sourceSpotCount: 1, sourceAvailabilities: [],
         facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 1, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
@@ -207,7 +207,7 @@ test('a gathering node map action selects every published spawner and placed spo
   const data = fixture();
   const ref = { key: 'gatheringNodes:iron', kind: 'gatheringNodes' as const, name: 'Small Iron Vein', slug: 'small-iron-vein' };
   const node = data.register({
-    schemaVersion: 'compendium.static-gathering-node.v4', ...data.identity, kind: 'gatheringNodes',
+    schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.gatheringNodes, ...data.identity, kind: 'gatheringNodes',
     document: {
       ref, description: null, art: {}, facts: { requirements: [], variant: false },
       yields: [], spawners: [], placed: [], placedRules: [],

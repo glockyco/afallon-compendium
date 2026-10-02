@@ -1,22 +1,19 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, MechanicsRule, PlacementRef, PublicDocument, PublicLevel, PublicMechanics, PublicNpc, TalentPoints } from "@afallon/contracts/public";
+import type { ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicLevel, PublicMechanics, PublicNpc, TalentPoints } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import type { ReferenceResolver } from "./documents/projection";
 import { requiredLevel, spawnerExamples } from "./gathering";
 import type { CorruptionRewards } from "./corruption-rewards";
 import { MECHANICS_TOPIC_NAMES, placedRules, projectRule, topicRef } from "./placed-rules";
-import { GUIDES } from "./guide-steps";
+import { GUIDES, guideSections } from "./guide-sections";
 import { killExperience } from "./experience";
 import { levelUnion } from "./levels";
 import { displayName } from "./text";
 
+/** The overview and the sections of a guide whose rules come from the rules record. */
 function guide(facts: CatalogFacts, topic: MechanicsTopic, resolve: ReferenceResolver) {
   const rules = facts.progression.mechanicsRules.filter((rule) => rule.topic === topic).sort((a, b) => a.ordinal - b.ordinal);
-  const ids = new Set(rules.map((rule) => rule.ruleId));
-  for (const step of GUIDES[topic].steps) for (const id of step.rules) {
-    if (!ids.has(id)) throw new Error(`Guide ${topic} step ${step.title} names missing rule ${id}.`);
-  }
-  return { ...GUIDES[topic], rules: rules.map((rule) => projectRule(rule, resolve)) };
+  return { overview: GUIDES[topic].overview, sections: guideSections(topic, rules.map((rule) => ({ section: rule.section, rule: projectRule(rule, resolve) }))) };
 }
 
 /** Every offered class uses the same template because the guide shows one curve. */
@@ -196,7 +193,7 @@ function craftingExample(facts: CatalogFacts, published: ReadonlySet<string>, co
   verifiedRule(facts, "node-yield-bonus");
   const levels = [...new Set([requiredLevel(node, conditions) ?? 1, nodeSkill.details.maxLevel])];
   const chances = placedRules(facts, "gatheringNodes", { entityKey: node.entityKey, sourceKinds: new Set(node.sources.map((source) => source.sourceKind)), yieldLevels: levels }, resolve)
-    .find((placed) => placed.stepId === "gather-the-items" && placed.levelChances !== undefined)?.levelChances;
+    .find((placed) => placed.section === "node-rewards" && placed.levelChances !== undefined)?.levelChances;
   if (!chances) throw new Error("The Small Iron Vein example has no placed node-yield-bonus rule.");
   return {
     craft: { product: { ...publishedRef(resolve, product.item.entityKey, product.item.label ?? "Runeweave Regalia"), variant: "crafting" }, skill: publishedRef(resolve, recipe.skill.entityKey, recipe.skill.label ?? "Skill"), rank },
@@ -247,17 +244,14 @@ export function projectChallengeStoneUses(facts: CatalogFacts, published: Readon
   });
 }
 
-
-// Native and live evidence establish the behavior; values come only from this build's captured catalog facts.
+// Native and live evidence establish these rules; values come only from this build's captured catalog facts.
 const CORRUPTION_RULES = [
-  { id: "corruption-altar", section: "altar", phrase: "Only an altar that you have not used yet adds levels or takes a token.", method: "Altar and dungeon corruption rules", evidence: "The altar and level-cap rules come from the game code." },
-  { id: "corruption-token", section: "tokens", phrase: "The affixes of a new token are all different.", method: "Token tooltip and affix rules", evidence: "The token and affix rules come from the game code and a token tooltip in the game." },
-  { id: "corruption-creatures", section: "creatures", phrase: "Each corruption level adds the enemy stat bonuses once more.", method: "Creature bonuses", evidence: "The bonus rule comes from the game code and its combat settings." },
-  { id: "corruption-gear", section: "gear", phrase: "An item keeps the corruption level only when the level is above zero. The level raises the weapon's own damage, and the damage of a full hit is unknown.", method: "Reward equipment and combat", evidence: "The reward and combat rules come from the game code. In-game checks cover equipment, tooltips, the weapon component, random rolls and gems." },
-  { id: "corruption-timer", section: "timer", phrase: "The reward token starts at the dungeon's start level. Its bonus depends on the time left at each of the dungeon's thresholds.", method: "Dungeon timer and rewards", evidence: "Completion and reward rules come from the game code and the dungeon timers." },
+  { id: "corruption-altar", section: "altars", phrase: "Only an altar that you have not used yet adds levels or takes a token." },
+  { id: "corruption-token", section: "tokens", phrase: "The affixes of a new token are all different." },
+  { id: "corruption-creatures", section: "enemies", phrase: "Each corruption level adds the enemy stat bonuses once more." },
+  { id: "corruption-timer", section: "timed-dungeons", phrase: "The reward token starts at the dungeon's start level. Its bonus depends on the time left at each of the dungeon's thresholds." },
+  { id: "corruption-gear", section: "gear", phrase: "An item keeps the corruption level only when the level is above zero. The level raises the weapon's own damage, and the damage of a full hit is unknown." },
 ] as const;
-
-
 
 function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, resolve: ReferenceResolver,
   bossDropTables: ReadonlyMap<string, ReadonlySet<number>> = new Map(), rewards?: CorruptionRewards): CorruptionGuide {
@@ -301,10 +295,9 @@ function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, re
     ref: topicRef("corruption"), description: MECHANICS_TOPIC_NAMES.corruption.description, art: {}, topic: "corruption",
     nativeRules: { altarWithoutTokenIncrement: 1, completionFirstBonus: 2, completionSecondBonus: 1,
       completionOtherwiseBonus: 0, timeoutDecrease: 1, timeoutMinimum: 1 },
-    ...GUIDES.corruption, rules: CORRUPTION_RULES.map(({ id, section, phrase, method, evidence }): MechanicsRule => ({
-      id, section, phrase, status: "verified", operands: {}, links: [], sources: [{ method, evidence }],
-      appearsOn: id === "corruption-gear" ? ["Item pages, Corruption"] : [],
-    })), ...(token ? { token } : {}), ...(heart ? { seeAlso: [{ lead: "For the item that starts challenge stones, see", ref: heart }] } : {}),
+    overview: GUIDES.corruption.overview,
+    sections: guideSections("corruption", CORRUPTION_RULES.map(({ id, section, phrase }) => ({ section, rule: { id, phrase, status: "verified", operands: {}, links: [] } }))),
+    ...(token ? { token } : {}), ...(heart ? { seeAlso: [{ lead: "For the item that starts challenge stones, see", ref: heart }] } : {}),
     ...(settings.maxLevel === null ? {} : { maxLevel: settings.maxLevel }),
     ...(settings.gearAllStatsPercentPerLevel === null ? {} : { gearAllStatsPercentPerLevel: settings.gearAllStatsPercentPerLevel }),
     ...(settings.gearStatBonuses === null ? {} : { gearStatBonuses: bonuses(settings.gearStatBonuses) }),
@@ -313,11 +306,6 @@ function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, re
     ...(settings.affixes === null ? {} : { affixes: settings.affixes.map(({ name, description, available }) => ({ name, description, available })) }),
     dungeons,
     tryIt: rewards.tryIt,
-    evidence: ["Altar, reward, timer, affix and gear rules come from the game's code. Combat settings and dungeon timers come from the game and its scene assets.",
-      "In-game checks showed the gear label, token description, equipped-stat changes and weapon component. Fixed random rolls and gems did not change."],
-    unknowns: ["The weapon component does not tell us the final damage of a hit after mitigation.",
-      "The meaning of keystone terminology and any further Heart effect on token rewards, dungeon levels or timers are unknown.",
-      ...(!token || !heart ? ["A separate token or Heart item page is unavailable."] : [])],
   };
 }
 

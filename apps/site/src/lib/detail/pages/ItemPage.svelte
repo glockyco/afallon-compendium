@@ -41,15 +41,16 @@
   $: craft = document.crafting;
   $: materials = craft?.materials.map((row) => ({ item: row.counterpart, quantity: row.count })) ?? [];
   $: experience = craft ? craftExperienceSentence(craft) : undefined;
-  $: craftGuide = document.placedRules.find((rule) => rule.target === 'crafting');
-  $: chestGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.stepId === 'open-a-chest');
-  $: packGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.stepId !== 'open-a-chest');
+  $: craftGuide = document.placedRules.find((rule) => rule.target === 'crafting' && rule.section === 'crafting-experience')
+    ?? document.placedRules.find((rule) => rule.target === 'crafting');
+  $: chestGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.section === 'chests');
+  $: packGuide = document.placedRules.find((rule) => rule.target === 'when-used' && rule.section === 'supply-packs');
   $: firstPack = document.whenUsed.packs[0];
   $: sharedPackPicks = firstPack && document.whenUsed.packs.every((pack) =>
     pack.minimumPicks === firstPack.minimumPicks && pack.maximumPicks === firstPack.maximumPicks
     && pack.bonusChance === firstPack.bonusChance && pack.worldShare === firstPack.worldShare) ? firstPack : undefined;
   $: corruptionGuide = document.placedRules.find((rule) => rule.target === 'corruption');
-  $: dungeonGuide = document.placedRules.find((rule) => rule.target === 'corruption' || rule.target === 'corruption-token');
+  $: dungeonGuide = document.placedRules.find((rule) => rule.target === 'dungeon-rewards');
   $: tokenGuide = document.placedRules.find((rule) => rule.target === 'corruption-token');
   $: questUses = itemQuestUseRows(document.usedInQuests);
   $: onlyDrop = document.droppedBy.length === 1 ? document.droppedBy[0] : undefined;
@@ -80,6 +81,7 @@
   $: clothGuide = document.placedRules.find((rule) => rule.target === 'cloth-loot');
   $: pickupGuide = document.placedRules.find((rule) => rule.target === 'quest-pickups');
   $: finderGuide = document.placedRules.find((rule) => rule.target === 'dungeon-finder');
+  $: objectGuide = document.placedRules.find((rule) => rule.target === 'collected-from');
   const pickupColumns: RelationColumn<PublicItem['questPickups'][number]>[] = [
     { id: 'source', label: 'Where it appears', value: (row) => row.kind === 'creature' ? nameOf(row.counterpart) : row.places[0]?.label ?? 'Placed pickup', sort: (row) => row.kind === 'creature' ? nameOf(row.counterpart) : row.places[0]?.label ?? '' },
     { id: 'amount', label: 'Amount', hint: 'The most that one pickup gives. It never gives more than the quest still needs.', numeric: true, value: (row) => row.amount, sort: (row) => row.amount },
@@ -114,7 +116,7 @@
                   {#if craft.product && craft.product.count > 1}<p>Makes {formatNumber(craft.product.count)} per craft.</p>{/if}
                   {#if craft.taughtBy.length}<p>Learn the recipe from {#each craft.taughtBy as teacher, index}{index > 0 ? ', ' : ''}<EntityLink ref={teacher} {registry} />{/each}.</p>{:else if craft.learnedByDefault}<p>Learned by default.</p>{/if}
                   {#if experience}<p>{experience} <span class="qualification">Base experience before skill modifiers.</span></p>{/if}
-                  {#if craftGuide}<HowItWorks guide={craftGuide.guide} stepId={craftGuide.stepId} label="How crafting experience works" />{/if}
+                  {#if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label={craftGuide.section === 'crafting-experience' ? 'How crafting experience works' : 'How crafting works'} />{/if}
                 {:else if entry.id === 'dungeon-rewards' && facts.dungeonRewards}
                   {#if facts.dungeonRewards.every((reward) => reward.guaranteed)}
                     <p>Every timed dungeon run ends with a reward bag that holds one Corruption Token.</p>
@@ -126,7 +128,7 @@
                       <li><EntityLink ref={reward.place} {registry} />{#if !reward.guaranteed && reward.bosses.length}{' · '}{#each reward.bosses as boss, index}{index ? ', ' : ''}<EntityLink ref={boss} {registry} />{/each}{/if}</li>
                     {/each}
                   </ul>
-                  {#if dungeonGuide}<HowItWorks guide={dungeonGuide.guide} stepId="finish-the-timer" label="How dungeon rewards work" />{/if}
+                  {#if dungeonGuide}<HowItWorks guide={dungeonGuide.guide} section={dungeonGuide.section} label="How dungeon rewards work" />{/if}
                 {:else}
                   <p>{#if entry.id === 'dropped-by' && singleDropInAnswer && entry.text}{entry.text}{:else}<SummaryValue {entry} {registry} />{/if}{#if entry.detail}{' · '}{entry.detail}{/if}{#if entry.guaranteedYield}{' · '}{formatNumber(entry.guaranteedYield)} guaranteed{/if}</p>
                   {#if entry.id !== 'dropped-by' || !singleDropInAnswer}{#if entry.id !== 'starting-gear-of'}<a class="c-link route-more" href={lineHref(entry, registry, base)}>{entry.linkText ?? `See full ${entry.label.toLowerCase()} sources`}</a>{/if}{/if}
@@ -144,7 +146,7 @@
       {#if facts.corruption}
         <div id="corruption" class="corruption-control">
           <LevelSlider id="corruption-level" label="Corruption level" min={0} max={facts.corruption.maxLevel} bind:level={corruptionLevel} readout={(level) => level === 0 ? 'None' : `+${level}`} valueText={(level) => level === 0 ? 'None' : `+${level}`} />
-          {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} stepId={corruptionGuide.stepId} label="How corruption works" />{/if}
+          {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} section={corruptionGuide.section} label="How corruption works" />{/if}
           {#if facts.dungeonRewards?.length}<p>Can appear with corruption in the reward bags from {#each facts.dungeonRewards as source, index}{index ? (index === facts.dungeonRewards.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={source.place} {registry} />{/each}.</p>{/if}
           {#if corruptionLevel > 0 && facts.randomStats.length}<p>Random stats keep their rolled values.</p>{/if}
         </div>
@@ -162,7 +164,7 @@
           <p><strong>NPC stat bonuses:</strong> {facts.tokenInfo.mobStatBonuses.map((bonus) => `+${formatNumber(bonus.amountPerLevel)}${bonus.isPercent ? '%' : ''} × N ${bonus.stat.key === null ? bonus.stat.label : bonus.stat.name}`).join(', ')}.</p>
         {/if}
         <p><strong>Dungeon affixes:</strong> The saved token lists its affix names and descriptions.{#if facts.tokenInfo.affixesPerToken !== undefined}{' '}A new token can roll up to {facts.tokenInfo.affixesPerToken} distinct eligible affixes.{/if}</p>
-        {#if tokenGuide}<HowItWorks guide={tokenGuide.guide} stepId={tokenGuide.stepId} label="How tokens work" />{/if}
+        {#if tokenGuide}<HowItWorks guide={tokenGuide.guide} section={tokenGuide.section} label="How tokens work" />{/if}
       </Section>
     {/if}
     {#if document.teaches}
@@ -189,14 +191,14 @@
                 </div>
               {/each}
             </div>
-            {#if chestGuide}<HowItWorks guide={chestGuide.guide} stepId={chestGuide.stepId} label="How bag contents work" />{/if}
+            {#if chestGuide}<HowItWorks guide={chestGuide.guide} section={chestGuide.section} label="How bag contents work" />{/if}
           {/if}
           {#each document.whenUsed.itemChanges as change}
             <p>Using it {change.action === 'Remove' ? 'consumes' : 'gives'} {formatNumber(change.count)} <EntityLink ref={change.item} {registry} />.</p>
           {/each}
           {#if document.whenUsed.packs.length}
             {#if sharedPackPicks}<p>Gives {formatNumber(sharedPackPicks.minimumPicks)} {sharedPackPicks.minimumPicks === 1 ? 'item' : 'items'}{#if sharedPackPicks.bonusChance > 0}, with a {formatNumber(sharedPackPicks.bonusChance)}% chance of one more{/if}{#if sharedPackPicks.maximumPicks !== undefined && sharedPackPicks.maximumPicks < sharedPackPicks.minimumPicks + 1} (at most {formatNumber(sharedPackPicks.maximumPicks)}){/if}.{#if sharedPackPicks.worldShare > 0}{' '}Each item has a {formatNumber(sharedPackPicks.worldShare)}% chance to be world loot for your class and level instead.{/if}</p>{/if}
-            {#if packGuide}<HowItWorks guide={packGuide.guide} stepId={packGuide.stepId} label="How supply packs work" />{/if}
+            {#if packGuide}<HowItWorks guide={packGuide.guide} section={packGuide.section} label="How supply packs work" />{/if}
             <div class="c-disclosures">
               {#each document.whenUsed.packs as pack, index}
                 <DetailsDisclosure title={packBandText(pack)} id={`supply-pack-${index + 1}`}>
@@ -261,7 +263,7 @@
       <Section id="cloth-loot" title="Cloth loot">
         <div class="c-stack">
           <p>Killing a {document.clothDrop.creatureTypes.map(categoryLabel).join(' or ')} creature has a {formatNumber(document.clothDrop.chance)}% chance to drop {formatNumber(document.clothDrop.min)}–{formatNumber(document.clothDrop.max)} cloth. The creature's level decides which cloth it is.</p>
-          {#if clothGuide}<HowItWorks guide={clothGuide.guide} stepId={clothGuide.stepId} label="How cloth loot works" />{/if}
+          {#if clothGuide}<HowItWorks guide={clothGuide.guide} section={clothGuide.section} label="How cloth loot works" />{/if}
           <RelationTable columns={clothColumns} rows={document.clothDrop.levels} label="Chance per kill by creature level">
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'level'}{levelRangeText(row.minLevel, row.maxLevel)}
@@ -272,14 +274,14 @@
       </Section>
     {/if}
     <VendorSection id="sold-by" title="Sold by" counterpartLabel="Vendor" rows={document.soldBy} sort={{ id: 'price', dir: 'asc' }} {registry} />
-    <ContainerSection id="collected-from" title="Found in objects" rows={document.collectedFrom} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
+    <ContainerSection id="collected-from" title="Found in objects" guide={objectGuide} guideLabel="How world object loot works" rows={document.collectedFrom} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
     <ContainerSection id="found-in-containers" title="Found in containers" rows={document.inContainers} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
     <QuestRowsSection id="from-quests" title="Quest rewards" roleLabel="Given as" rows={itemQuestSourceRows(document.rewardedBy, document.givenBy)} {registry} />
     {#if document.questPickups.length}
       <Section id="quest-pickups" title="Quest pickups" count={document.questPickups.length}>
         <div class="c-stack">
           <p>A quest pickup gives {document.ref.name} only while the quest's task to get it is open, and never more than the task still needs.</p>
-          {#if pickupGuide}<HowItWorks guide={pickupGuide.guide} stepId={pickupGuide.stepId} label="How quest pickups work" />{/if}
+          {#if pickupGuide}<HowItWorks guide={pickupGuide.guide} section={pickupGuide.section} label="How quest pickups work" />{/if}
           <RelationTable columns={pickupPlan.columns} rows={document.questPickups} label="Quest pickups">
             <svelte:fragment slot="cell" let:row let:column>
               {#if column === 'source'}{#if row.kind === 'creature'}Where <EntityLink ref={row.counterpart} {registry} /> dies{:else}{row.places[0]?.label ?? 'Placed pickup'}{#if row.placementCount > 1}{' '}({formatNumber(row.placementCount)} spots){/if}{#if row.singleUse}{' '}· once{/if}{/if}
@@ -297,7 +299,7 @@
           <ul class="dungeon-list">
             {#each document.dungeonFinder.dungeons as dungeon}<li><EntityLink ref={dungeon} {registry} /></li>{/each}
           </ul>
-          {#if finderGuide}<HowItWorks guide={finderGuide.guide} stepId={finderGuide.stepId} label="How Dungeon Finder rewards work" />{/if}
+          {#if finderGuide}<HowItWorks guide={finderGuide.guide} section={finderGuide.section} label="How Dungeon Finder rewards work" />{/if}
         </div>
       </Section>
     {/if}

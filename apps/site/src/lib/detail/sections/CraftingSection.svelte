@@ -11,7 +11,8 @@
   export let pageKey: string | undefined = undefined;
   $: teachers = craft.taughtBy.filter((teacher) => teacher.key !== pageKey);
   $: materials = craft.materials.map((row) => ({ item: row.counterpart, quantity: row.count }));
-  $: guide = rules.find((rule) => rule.target === 'teaches') ?? rules[0];
+  // The experience section explains the experience sentence. Without it, the section that the rules record places here.
+  $: guide = rules.find((rule) => rule.section === 'crafting-experience') ?? rules[0];
   $: experience = craftExperienceSentence(craft);
 </script>
 
@@ -22,7 +23,7 @@
   {/if}
   {#if experience}<p class="qualification">Base experience before skill modifiers.</p>{/if}
   {#if teachers.length}<p>Also taught by {#each teachers as teacher, index}{index > 0 ? ', ' : ''}<EntityLink ref={teacher} {registry} />{/each}.</p>{/if}
-  {#if guide}<HowItWorks guide={guide.guide} stepId={guide.stepId} label="How crafting experience works" />{/if}
+  {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label={guide.section === 'crafting-experience' ? 'How crafting experience works' : 'How crafting works'} />{/if}
 </div>
 
 <style>

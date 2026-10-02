@@ -85,7 +85,7 @@
             {#if column.sort && sortable}
               <button type="button" class="c-sort" on:click={() => sortBy(column)}>{column.label}<span class="c-sort-mark" class:c-sort-mark--idle={sort?.id !== column.id} aria-hidden="true">{sort?.id === column.id ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
             {:else}{column.label}{/if}
-            {#each column.rules ?? [] as entry}<HowItWorks guide={entry.guide} stepId={entry.stepId} />{/each}
+            {#each column.rules ?? [] as entry}<HowItWorks guide={entry.guide} section={entry.section} />{/each}
           </th>
         {/each}
       </tr>

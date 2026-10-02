@@ -6,6 +6,7 @@
   import { talentPointText } from '../../progression-format';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
+  import HowItWorks from '../HowItWorks.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
@@ -19,6 +20,7 @@
   export let registry: PublicKindEntry[];
 
   $: facts = document.facts;
+  $: talentGuide = document.placedRules.find((rule) => rule.target === 'talent-points');
   $: stats = [
     ...(facts.races.length ? [{ label: 'Races', value: facts.races.join(', ') }] : []),
     ...(facts.highestLevel ? [{ label: 'Highest level', value: String(facts.highestLevel), href: `${base}/mechanics/character-progression/` }] : []),
@@ -46,7 +48,7 @@
     <div slot="side" class="side-facts">
       {#if facts.talentPoints.length}<section><h2>Talent points</h2>{#each facts.talentPoints as points}<p>{#if points.name.toLocaleLowerCase() !== 'talent points'}<strong>{points.name}:</strong>{' '}{/if}{talentPointText(points)}</p>{/each}</section>{/if}
       {#if facts.weapons.length}<section><h2>Weapons</h2><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul></section>{/if}
-      <a class="c-link" href={`${base}/mechanics/character-progression/`}>Character Progression</a>
+      {#if talentGuide}<HowItWorks guide={talentGuide.guide} section={talentGuide.section} label="How talent points work" />{:else}<a class="c-link" href={`${base}/mechanics/character-progression/`}>Character Progression</a>{/if}
     </div>
     <Sections>
       {#if document.startingGear.length}

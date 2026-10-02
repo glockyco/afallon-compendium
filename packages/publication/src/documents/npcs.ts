@@ -177,7 +177,7 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
   const placedRuleKeys = new Set<string>();
   const npcPlacedRules = page.members.flatMap((member) => placedRules(input.facts, "npcs", { entityKey: member.entity.entityKey }, input.resolve))
     .filter((rule) => {
-      const key = `${rule.target}\u0000${rule.guide.key}\u0000${rule.stepId}`;
+      const key = `${rule.target}\u0000${rule.guide.key}\u0000${rule.section}`;
       if (placedRuleKeys.has(key)) return false;
       placedRuleKeys.add(key);
       return true;

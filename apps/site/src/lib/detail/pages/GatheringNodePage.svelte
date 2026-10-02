@@ -28,6 +28,9 @@
   ];
   $: yieldPlan = planColumns(yieldColumns, document.yields);
   $: bonus = document.placedRules.find((rule) => rule.levelChances?.length);
+  $: selectionGuide = document.placedRules.find((rule) => rule.section === 'node-selection');
+  $: attunementGuide = document.placedRules.find((rule) => rule.section === 'attunement');
+  $: timerGuide = document.placedRules.find((rule) => rule.section === 'node-availability');
   $: skillName = document.facts.skill ? nameOf(document.facts.skill) : undefined;
   $: titleRequirements = document.facts.requirements.filter((group) => group.mode === 'all' && !group.checkCount).flatMap((group) => group.requirements)
     .filter((requirement) => !skillName || !requirement.label.toLocaleLowerCase().startsWith(`${skillName.toLocaleLowerCase()} `))
@@ -84,7 +87,7 @@
           </RelationTable>
         {:else}<p>No yields are published for this node.</p>{/if}
         {#if bonus?.levelChances}
-          <p class="bonus">Each item can yield one extra at higher {document.facts.skill ? nameOf(document.facts.skill) : 'skill'} levels: {#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ', and ' : ', ') : ''}<strong>{bonusPercent.format(endpoint.chance)}%</strong> at level {formatNumber(endpoint.level)}{/each}. <HowItWorks guide={bonus.guide} stepId={bonus.stepId} label="How gathering works" /></p>
+          <p class="bonus">Each item can yield one extra at higher {document.facts.skill ? nameOf(document.facts.skill) : 'skill'} levels: {#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ', and ' : ', ') : ''}<strong>{bonusPercent.format(endpoint.chance)}%</strong> at level {formatNumber(endpoint.level)}{/each}. <HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
         {/if}
       </AnswerCard>
     </div>
@@ -125,6 +128,7 @@
     {#if document.spawners.length}
       <DetailsDisclosure title="Spawn odds" id="spawn-odds" summary="Weights and chances by skill level">
         <p class="intro">Each spawner chooses among its options. Weights determine each option's chance. Some chances are unknown.</p>
+        {#if selectionGuide || attunementGuide}<div class="guides">{#if selectionGuide}<HowItWorks guide={selectionGuide.guide} section={selectionGuide.section} label="How spawners choose nodes" />{/if}{#if attunementGuide}<HowItWorks guide={attunementGuide.guide} section={attunementGuide.section} label="How attunement changes the odds" />{/if}</div>{/if}
         <div class="c-groups">
           {#each document.spawners as group, index}
             <div class="c-stack">
@@ -139,6 +143,7 @@
       </DetailsDisclosure>
     {/if}
       <DetailsDisclosure title="Timers and ranges" id="timers">
+        {#if timerGuide}<HowItWorks guide={timerGuide.guide} section={timerGuide.section} label="How node timers work" />{/if}
         <div class="c-groups">
           {#each document.spawners as group, index}
             <div class="c-stack">
@@ -163,6 +168,7 @@
 <style>
   .intro, .footnote, .explanation { color: var(--c-text-dim); line-height: 1.5; }
   .bonus { line-height: 1.5; }
+  .guides { display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; }
   .bonus strong { color: var(--c-text-strong); }
   .side-facts { border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); padding: 1rem; background: var(--c-surface-1); }
   h2 { margin-bottom: .75rem; color: var(--c-text-strong); font: 600 1.2rem/1.3 var(--c-serif); }

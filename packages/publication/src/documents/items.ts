@@ -311,8 +311,9 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     placedRules: placedRules(input.facts, "items", { entityKey: entity.entityKey }, input.resolve)
       .filter((rule) => rule.target !== "crafting" || crafting !== undefined)
       .filter((rule) => rule.target !== "teaches" || teaches !== undefined)
-      .concat(corruption ? [{ target: "corruption", guide: topicRef("corruption"), stepId: "compare-corrupted-gear" }] : [])
-      .concat(tokenInfo ? [{ target: "corruption-token", guide: topicRef("corruption"), stepId: "read-the-token" }] : []),
+      .concat(corruption ? [{ target: "corruption", guide: topicRef("corruption"), section: "gear" }] : [])
+      .concat(tokenInfo ? [{ target: "corruption-token", guide: topicRef("corruption"), section: "tokens" }] : [])
+      .concat(dungeonRewards?.length ? [{ target: "dungeon-rewards", guide: topicRef("corruption"), section: "timed-dungeons" }] : []),
     usedInRecipes: recipeRows.filter((row) => row.role === "material").map((row) => {
       const recipeKey = row.recipe.entityKey;
       const craft = recipeKey === null ? undefined : projectCraft(recipeKey, input, indexes);

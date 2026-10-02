@@ -23,9 +23,10 @@
   $: facts = document.facts;
   $: hasQuestText = Boolean(document.description || facts.objectiveText || facts.completedDescription);
   $: step = document.chainQuests.findIndex((quest) => quest.key === document.ref.key);
+  $: experienceGuide = document.placedRules.find((rule) => rule.target === 'experience');
   $: stats = [
     ...(facts.levelRange ? [{ label: 'Quest level', value: levelText(facts.levelRange) }] : []),
-    ...(facts.experience ? [{ label: 'Experience', value: formatNumber(facts.experience) }] : []),
+    ...(facts.experience ? [{ label: 'Experience', value: formatNumber(facts.experience), ...(experienceGuide ? { guide: experienceGuide } : {}) }] : []),
     ...(facts.chain && step >= 0 && document.chainQuests.length > 1 ? [{ label: 'Chain step', value: `${step + 1} of ${document.chainQuests.length}` }] : []),
   ];
   $: sideFacts = [

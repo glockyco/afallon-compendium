@@ -1,7 +1,7 @@
 import { placementTargetKind, type CatalogFacts, type CatalogMechanicsRule, type MechanicsTopic, type RulePlacement, type RulePlacementPage } from "@afallon/contracts/catalog";
 import type { EntityRef, MechanicsRule, PlacedRule } from "@afallon/contracts/public";
 import type { ReferenceResolver } from "./documents/projection";
-import { guideStepFor } from "./guide-steps";
+import { guideHasSection } from "./guide-sections";
 
 export const MECHANICS_TOPIC_NAMES: Readonly<Record<MechanicsTopic, { name: string; description: string }>> = {
   "character-progression": { name: "Character Progression", description: "How a character gains experience, levels, and talent points." },
@@ -15,22 +15,8 @@ export function topicRef(topic: MechanicsTopic): EntityRef {
   return { key: `mechanics:${topic}`, kind: "mechanics", name: MECHANICS_TOPIC_NAMES[topic].name, slug: topic };
 }
 
-// The reader name of each page kind and target, for the guide's list of where a rule also appears.
-const PAGE_NAMES: Readonly<Record<RulePlacementPage, string>> = {
-  items: "Item pages", gatheringNodes: "Gathering node pages", skills: "Skill pages", npcs: "NPC pages", quests: "Quest pages", classes: "Class pages",
-};
-const TARGET_NAMES: Readonly<Record<string, string>> = {
-  crafting: "Crafting", teaches: "Teaches", corruption: "Corruption", "when-used": "When used", "cloth-loot": "Cloth loot", "collected-from": "Found in objects", "quest-pickups": "Quest pickups", "dungeon-finder": "Dungeon Finder", "how-it-works": "How it works", "how-to-gain-experience": "How to gain experience", experience: "Experience", "talent-points": "Talent points",
-};
-
-/** The pages and sections where the rules record places a rule, as reader text. */
-export function appearsOn(rule: CatalogMechanicsRule): string[] {
-  return rule.placements.map((placement) => `${PAGE_NAMES[placement.page]}, ${TARGET_NAMES[placement.target]}`);
-}
-
 export function projectRule(rule: CatalogMechanicsRule, resolve: ReferenceResolver): MechanicsRule {
-  return { id: rule.ruleId, section: rule.section, status: rule.status, phrase: rule.phrase, operands: rule.operands, links: rule.links.map(resolve),
-    sources: rule.sources.map((source) => ({ method: source.method, evidence: source.description })), appearsOn: appearsOn(rule) };
+  return { id: rule.ruleId, status: rule.status, phrase: rule.phrase, operands: rule.operands, links: rule.links.map(resolve) };
 }
 
 /**
@@ -58,19 +44,24 @@ function levelChances(rule: CatalogMechanicsRule, context: PlacementContext): Pl
     .map((level) => ({ level, chance: Math.min(100, Math.round(level * perLevel * 1000) / 1000) }));
 }
 
-/** The rules that the rules record places on one page, in topic order and then in record order. */
+/**
+ * The guide sections that the rules record places on one page, in topic order and then in record order. A target links
+ * a section once, however many of its rules the record places there. The yield bonus chances of a section come from
+ * the one rule that has them.
+ */
 export function placedRules(facts: CatalogFacts, page: RulePlacementPage, context: PlacementContext, resolve: ReferenceResolver): PlacedRule[] {
-  const result: PlacedRule[] = [];
+  const result = new Map<string, PlacedRule>();
   for (const rule of facts.progression.mechanicsRules) {
     for (const placement of rule.placements) {
       if (placement.page !== page || !inScope(rule, placement, context)) continue;
       if (placementTargetKind(page, placement.target) === null) throw new Error(`Rule ${rule.ruleId} names target ${placement.target}, which ${page} pages lack.`);
       if (rule.topic === null) throw new Error(`Rule ${rule.ruleId} places itself without a mechanics guide topic.`);
-      const stepId = guideStepFor(rule.topic, rule.ruleId);
-      if (!stepId) throw new Error(`Rule ${rule.ruleId} has no step in guide ${rule.topic}.`);
+      if (!guideHasSection(rule.topic, rule.section)) throw new Error(`Rule ${rule.ruleId} names section ${rule.section}, which guide ${rule.topic} does not define.`);
+      const key = `${placement.target}\u0000${rule.topic}\u0000${rule.section}`;
       const chances = levelChances(rule, context);
-      result.push({ target: placement.target, guide: topicRef(rule.topic), stepId, ...(chances?.length ? { levelChances: chances } : {}) });
+      const placed = result.get(key) ?? { target: placement.target, guide: topicRef(rule.topic), section: rule.section };
+      result.set(key, chances?.length ? { ...placed, levelChances: chances } : placed);
     }
   }
-  return result;
+  return [...result.values()];
 }

@@ -69,13 +69,13 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
 
 const base = { description: null, art: {} };
 const located = { ...base, locations: [placement] };
-const rule: MechanicsRule = { id: "weapon-skill-hit", section: "skill-experience", status: "verified", phrase: "Each hit gives {hitExperience} experience.", operands: { hitExperience: 2 }, links: [], sources: [{ method: "SkillSystem.OnPlayerAutoAttackHit", evidence: "Bounded decompilation" }], appearsOn: [] };
+const rule: MechanicsRule = { id: "weapon-skill-hit", status: "verified", phrase: "Each hit gives {hitExperience} experience.", operands: { hitExperience: 2 }, links: [] };
 const characterProgression: CharacterProgression = {
   ...base, ref: { key: "mechanics:character-progression", kind: "mechanics", name: "Character Progression", slug: "character-progression" }, topic: "character-progression",
   curve: { template: "Character levels", cap: 3, rows: [{ level: 1, toNext: 20 }, { level: 2, toNext: 40 }] },
   sources: { fixedCreatures: { count: 185, minLevel: 1, maxLevel: 30 }, scalingCreatures: { count: 31, aboveFixed: [{ creature: boss, level: { min: 1, scales: true } }] }, quests: { count: 136, maxLevel: 31, maxRequirement: 24, withoutRange: 4 }, levelModifiers: [{ lower: 0, higher: -30, creatures: 59 }] },
-  talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], rules: [rule],
-  overview: "Character experience determines levels.", steps: [{ id: "gain-experience", title: "Gain experience", text: "Each hit gives experience.", rules: ["weapon-skill-hit"] }],
+  talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }],
+  overview: "Character experience determines levels.", sections: [{ id: "skill-experience", title: "Skill experience", lead: "Skills gain experience.", rules: [rule] }],
   killCalculator: { groups: [{ place: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, name: "Duskfall Depths",
     creatures: [{ creature: boss, level: { min: 15, max: 30, scales: true }, minExperience: 20, maxExperience: 40, experiencePerLevel: 2, lowerModifier: 15, higherModifier: -10 }] }],
     defaultCreature: boss, heroicMultiplier: 5 },
@@ -84,8 +84,8 @@ const heroicTier: HeroicTier = {
   ...base, ref: { key: "mechanics:heroic-tier", kind: "mechanics", name: "Heroic Tier", slug: "heroic-tier" }, topic: "heroic-tier",
   settings: { killExperienceMultiplier: 5, essencePoints: "Heroic Essence", essenceBaseAmount: 3, essencePerAffix: 3, essenceEliteMultiplier: 1.5, essenceRareMultiplier: 2, essenceBossMultiplier: 3, essenceHealthBaseline: 1, essenceHealthFactorMin: 0.25, essenceHealthFactorMax: 4,
     baseHealthMultiplier: 3, baseDamageMultiplier: 2, gearScoreCoefficient: 0.0008, maxGearBonus: 1, affixChance: 0.25, extraAffixChance: 0.08, maxAffixes: 4, rareGuaranteedAffixes: 1, affixLootDropMultiplier: 1.5, heroicGearStatBonusPercent: 50 },
-  rules: [{ ...rule, id: "heroic-kill-rounding-ties", section: "kill-experience", status: "unknown", phrase: "The tie rule is not known.", operands: {} }],
-  overview: "Heroic creatures give more experience.", steps: [{ id: "gain-experience", title: "Gain experience", text: "Heroic kills use a multiplier.", rules: ["heroic-kill-rounding-ties"] }],
+  overview: "Heroic creatures give more experience.",
+  sections: [{ id: "kill-experience", title: "Kill experience", lead: "Heroic kills use a multiplier.", rules: [{ ...rule, id: "heroic-kill-rounding-ties", status: "unknown", phrase: "The tie rule is not known.", operands: {} }] }],
   example: { affixCounts: [0, 1], rows: [{ rank: "other", essence: [3, 6] }] },
 };
 const mining: EntityRef = { key: "skills:7", kind: "skills", name: "Mining", slug: "mining" };
@@ -98,13 +98,12 @@ const gatheringNode: PublicGatheringNode = {
   spawners: [{ ...spawnerTiming, options: [{ node: vein, lowSkillWeight: 70, highSkillWeight: 24, teaserWeight: 0 }], spawners: 3, placementCount: 1, unplaced: 2 }],
   placed: [{ cooldownSeconds: 300, objects: 1, placementCount: 1, unplaced: 0 }],
   places: [{ label: "Duskfall Depths", mapSpaceId: "duskfall", spotCount: 1, placementIds: ["p1"] }], spotCount: 1,
-  placedRules: [{ target: "how-it-works", guide: { key: "mechanics:crafting-and-gathering", kind: "mechanics", name: "Crafting and Gathering", slug: "crafting-and-gathering" }, stepId: "wait-for-the-node" }],
+  placedRules: [{ target: "how-it-works", guide: { key: "mechanics:crafting-and-gathering", kind: "mechanics", name: "Crafting and Gathering", slug: "crafting-and-gathering" }, section: "node-availability" }],
 };
 const craftingAndGathering: CraftingAndGathering = {
   ...base, ref: { key: "mechanics:crafting-and-gathering", kind: "mechanics", name: "Crafting and Gathering", slug: "crafting-and-gathering" }, topic: "crafting-and-gathering",
-  rules: [{ ...rule, id: "recipe-experience-bands", section: "crafting-experience", phrase: "Half experience from +{halfFromLevels} levels.", operands: { halfFromLevels: 20 } }],
   spawnerExamples: [{ ...spawnerTiming, options: [{ node: vein, lowSkillWeight: 70, highSkillWeight: 24, teaserWeight: 0 }], spawners: 3 }],
-  overview: "Crafting makes items.", steps: [{ id: "make-an-item", title: "Make an item", text: "The skill gate controls crafting.", rules: ["recipe-experience-bands"] }],
+  overview: "Crafting makes items.", sections: [{ id: "crafting-experience", title: "Crafting experience", lead: "A rank sets its base experience.", rules: [{ ...rule, id: "recipe-experience-bands", phrase: "Half experience from +{halfFromLevels} levels.", operands: { halfFromLevels: 20 } }] }],
   example: { craft: { product: { ...item, variant: "crafting" }, skill: mining, rank: { rank: 1, requiredLevel: 1, baseExperience: 0, bands: [] } },
     gather: { node: vein, skill: mining, levelChances: [{ level: 1, chance: 0.1 }] } },
 };
@@ -181,7 +180,8 @@ test("every mechanics topic validates, and a mechanics document of an unknown to
   Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...heroicTier, settings: { unavailable: "The scan of this build recorded no Heroic tier settings." } });
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...heroicTier, topic: "corruption" })).toThrow();
   expect(() => Assert(schema, { schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.mechanics, ...identity, kind: "guides", document: characterProgression })).toThrow();
-  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, rules: [{ ...rule, status: "inferred" }] })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, sections: [{ ...characterProgression.sections[0], rules: [{ ...rule, status: "inferred" }] }] })).toThrow();
+  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, sections: [{ ...characterProgression.sections[0], rules: [] }] })).toThrow();
 });
 
 test("an item names each published class that starts with it", () => {

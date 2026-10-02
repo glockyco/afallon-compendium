@@ -5,10 +5,10 @@
   /** The section that holds the rows behind the fact. */
   export let href: string | undefined = undefined;
   export let rules: PlacedRule[] = [];
-  $: guides = [...new Map(rules.map((entry) => [`${entry.guide.key}:${entry.stepId}`, entry])).values()];
+  $: guides = [...new Map(rules.map((entry) => [`${entry.guide.key}:${entry.section}`, entry])).values()];
 </script>
 
-<div class="fact-row"><dt>{#if href}<a class="c-link" {href}>{label}</a>{:else}{label}{/if}</dt><dd><slot />{#each guides as guide}<span class="guide"><HowItWorks guide={guide.guide} stepId={guide.stepId} /></span>{/each}</dd></div>
+<div class="fact-row"><dt>{#if href}<a class="c-link" {href}>{label}</a>{:else}{label}{/if}</dt><dd><slot />{#each guides as guide}<span class="guide"><HowItWorks guide={guide.guide} section={guide.section} /></span>{/each}</dd></div>
 
 <style>
   /* The rows share the columns of the list, so labels and values line up. */

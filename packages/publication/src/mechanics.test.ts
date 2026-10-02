@@ -20,15 +20,25 @@ const progressionFacts: CatalogProgressionFact[] = [
     affixLootDropMultiplier: 1.5, heroicGearStatBonusPercent: 50,
   } },
 ];
-const topicRules: Record<NonNullable<CatalogMechanicsRule["topic"]>, string[]> = {
-  "character-progression": ["kill-base-roll", "kill-level-difference", "kill-heroic-multiplier", "kill-companion-split", "kill-game-modifiers", "experience-bonus-stat", "world-modifier-multiplier", "quest-reward-level-scale", "quest-action-amount", "quest-reward-skip-flag", "quest-no-heroic-multiplier", "surplus-experience-carries", "level-cap-stops-experience", "skill-award-sources", "skill-award-modifiers", "talent-point-modifiers"],
-  "heroic-tier": ["heroic-kill-experience", "affix-count-source", "essence-requires-points", "essence-rank-multiplier", "essence-health-factor", "essence-fraction-carry"],
-  "crafting-and-gathering": ["recipe-rank-gate", "recipe-craft-needs", "recipe-item-tooltip", "recipe-product-roll", "recipe-experience-bands", "recipe-experience-rounding", "recipe-experience-condition", "recipe-experience-modifiers", "spawner-weighted-pick", "spawner-weight-limits", "spawner-weights-relative", "spawner-check-interval", "spawner-player-range", "spawner-respawn", "placed-node-cooldown", "node-requirements", "node-loot-roll", "node-yield-bonus", "node-experience", "attunement-98", "attunement-642", "attunement-643", "attunement-644", "attunement-645", "attunement-646", "attunement-647", "weapon-skills", "weapon-skills-untrained", "crafting-skill-source", "enchanting-skill-source", "unmapped-skill-sources"],
+// The rules of each topic with the section that the rules record gives them.
+const topicRules: Record<NonNullable<CatalogMechanicsRule["topic"]>, Array<[string, string]>> = {
+  "character-progression": [["kill-base-roll", "kill-experience"], ["kill-level-difference", "kill-experience"], ["kill-heroic-multiplier", "kill-experience"], ["kill-companion-split", "kill-experience"], ["kill-game-modifiers", "kill-experience"],
+    ["experience-bonus-stat", "all-experience"], ["world-modifier-multiplier", "all-experience"], ["quest-reward-level-scale", "quest-experience"], ["quest-action-amount", "quest-experience"], ["quest-reward-skip-flag", "quest-experience"], ["quest-no-heroic-multiplier", "quest-experience"],
+    ["surplus-experience-carries", "level-curve"], ["level-cap-stops-experience", "level-curve"], ["skill-award-sources", "skill-experience"], ["skill-award-modifiers", "skill-experience"], ["talent-point-modifiers", "talent-points"]],
+  "heroic-tier": [["heroic-kill-experience", "kill-experience"], ["affix-count-source", "essence"], ["essence-requires-points", "essence"], ["essence-rank-multiplier", "essence"], ["essence-health-factor", "essence"], ["essence-fraction-carry", "essence"], ["settings-behavior-unverified", "settings"]],
+  "crafting-and-gathering": [["recipe-rank-gate", "crafting"], ["recipe-craft-needs", "crafting"], ["recipe-item-tooltip", "crafting"], ["recipe-product-roll", "crafting"],
+    ["recipe-experience-bands", "crafting-experience"], ["recipe-experience-rounding", "crafting-experience"], ["recipe-experience-condition", "crafting-experience"], ["recipe-experience-modifiers", "crafting-experience"],
+    ["spawner-weighted-pick", "node-selection"], ["spawner-weight-limits", "node-selection"], ["spawner-weights-relative", "node-selection"],
+    ["spawner-check-interval", "node-availability"], ["spawner-player-range", "node-availability"], ["spawner-respawn", "node-availability"], ["placed-node-cooldown", "node-availability"], ["node-requirements", "node-availability"],
+    ["node-loot-roll", "node-rewards"], ["node-yield-bonus", "node-rewards"], ["node-experience", "node-rewards"], ["attunement-98", "attunement"], ["attunement-642", "attunement"],
+    ["weapon-skills", "skill-experience"], ["weapon-skills-untrained", "skill-experience"], ["crafting-skill-source", "skill-experience"], ["enchanting-skill-source", "skill-experience"], ["unmapped-skill-sources", "skill-experience"]],
   corruption: [],
-  loot: ["chest-row-rolls", "supply-pack-tables", "supply-pack-picks", "supply-pack-world-loot", "supply-pack-lifecycle", "cloth-drop-chance", "cloth-tier-weights", "object-chest", "altar-options", "quest-only-loot", "hunt-pickup", "quest-pickup-use", "random-run-supply-pack"],
+  loot: [["chest-row-rolls", "chests"], ["supply-pack-tables", "supply-packs"], ["supply-pack-picks", "supply-packs"], ["supply-pack-world-loot", "supply-packs"], ["supply-pack-lifecycle", "supply-packs"],
+    ["cloth-drop-chance", "cloth"], ["cloth-tier-weights", "cloth"], ["object-chest", "world-objects"], ["altar-options", "world-objects"],
+    ["quest-only-loot", "quest-items"], ["hunt-pickup", "quest-items"], ["quest-pickup-use", "quest-items"], ["random-run-supply-pack", "dungeon-finder"]],
 };
-const rules: CatalogMechanicsRule[] = Object.entries(topicRules).flatMap(([topic, ids]) => ids.map((ruleId, ordinal) => ({
-  ruleId, topic: topic as CatalogMechanicsRule["topic"], section: topic, ordinal, status: "verified" as const,
+const rules: CatalogMechanicsRule[] = Object.entries(topicRules).flatMap(([topic, entries]) => entries.map(([ruleId, section], ordinal) => ({
+  ruleId, topic: topic as CatalogMechanicsRule["topic"], section, ordinal, status: "verified" as const,
   phrase: "A recorded rule applies.", operands: {
     ...(ruleId === "recipe-rank-gate" ? { minimumRequiredLevel: 1 } : {}),
     ...(ruleId === "recipe-experience-bands" ? { halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 } : {}),
@@ -87,13 +97,26 @@ const entityDocuments = new Map<string, PublicDocument>([
 const conditions = new Map();
 const documents = (source: CatalogFacts = facts) => projectMechanicsDocuments(source, published, spawned, resolve, conditions, entityDocuments);
 
-test("the Loot Mechanics page publishes its ordered guide steps and reviewed rules", () => {
-  const loot = documents().get("mechanics:loot") as LootGuide;
+test("each guide shows every rule of its topic in the section that the rules record names", () => {
+  const all = documents();
+  const loot = all.get("mechanics:loot") as LootGuide;
   expect(loot.ref).toMatchObject({ name: "Loot", slug: "loot" });
-  expect(loot.steps.map((step) => step.id)).toEqual([
-    "open-a-chest", "choose-a-table", "pick-the-items", "draw-from-world-loot", "keep-the-pack", "collect-cloth", "open-an-object", "pick-up-quest-items", "finish-a-random-run",
+  expect(loot.sections.map((section) => [section.id, section.rules.map((rule) => rule.id)])).toEqual([
+    ["chests", ["chest-row-rolls"]], ["supply-packs", ["supply-pack-tables", "supply-pack-picks", "supply-pack-world-loot", "supply-pack-lifecycle"]],
+    ["cloth", ["cloth-drop-chance", "cloth-tier-weights"]], ["world-objects", ["object-chest", "altar-options"]],
+    ["quest-items", ["quest-only-loot", "hunt-pickup", "quest-pickup-use"]], ["dungeon-finder", ["random-run-supply-pack"]],
   ]);
-  expect(loot.rules.map((rule) => rule.id)).toEqual(topicRules.loot);
+  for (const topic of ["character-progression", "heroic-tier", "crafting-and-gathering"] as const) {
+    const guide = all.get(`mechanics:${topic}`) as CharacterProgression | HeroicTier | CraftingAndGathering;
+    expect(guide.sections.flatMap((section) => section.rules.map((rule) => rule.id)).sort()).toEqual(topicRules[topic].map(([id]) => id).sort());
+  }
+});
+
+test("a rule section that its guide does not define, and a guide section without a rule, stop publication", () => {
+  const renamed = rules.map((rule) => rule.ruleId === "random-run-supply-pack" ? { ...rule, section: "random-runs" } : rule);
+  expect(() => documents({ ...facts, progression: { ...facts.progression, mechanicsRules: renamed } })).toThrow("random-runs");
+  const emptied = rules.filter((rule) => rule.ruleId !== "random-run-supply-pack");
+  expect(() => documents({ ...facts, progression: { ...facts.progression, mechanicsRules: emptied } })).toThrow("dungeon-finder");
 });
 
 test("experience sources count creatures by the level at which their spawners place them", () => {
@@ -121,9 +144,7 @@ test("the kill calculator offers each creature at each place where it spawns, wi
   ]);
   expect(calculator.groups[0]!.creatures[0]).toEqual({ creature: expect.objectContaining({ key: "npcs:6" }), level: aardvarkSpawn,
     minExperience: 5, maxExperience: 11, experiencePerLevel: 1, lowerModifier: 0, higherModifier: 0 });
-  expect(progression.steps[0]?.rules).toEqual(["kill-base-roll"]);
-  expect(progression.rules.find((rule) => rule.id === "kill-base-roll")?.appearsOn).toEqual(["NPC pages, Experience"]);
-  expect(progression.rules.some((rule) => rule.id === "placed-only")).toBe(false);
+  expect(progression.sections.find((section) => section.id === "kill-experience")?.rules.map((rule) => rule.id)).toContain("kill-base-roll");
 });
 
 test("grouped NPC variants keep their page link and their own place", () => {
@@ -199,11 +220,6 @@ test("craft and gather guide computes the named product bands and node yield bon
   expect(guide.example.gather).toEqual({ node: expect.objectContaining({ key: "gatheringNodes:small-iron-vein" }), skill: expect.objectContaining({ key: "skills:7" }), levelChances: [{ level: 1, chance: 0.15 }, { level: 100, chance: 15 }] });
   expect(() => documents({ ...facts, recipes: [] })).toThrow("Runeweave Regalia");
   expect(() => documents({ ...facts, gatheringNodes: [] })).toThrow("Small Iron Vein");
-});
-
-test("a guide step naming a rule outside its topic stops publication", () => {
-  const without = rules.filter((rule) => rule.ruleId !== "kill-base-roll");
-  expect(() => projectMechanicsDocuments({ ...facts, progression: { ...facts.progression, mechanicsRules: without } }, published, spawned, resolve, conditions, entityDocuments)).toThrow("Guide character-progression step Roll kill experience names missing rule kill-base-roll");
 });
 
 test("a catalog without reviewed rules has no mechanics topics", () => {

@@ -97,7 +97,7 @@
           {/if}
           {#if !document.experience.crafting && !document.experience.gathering && !document.experience.autoAttack}<li>No known experience source is listed for this skill.</li>{/if}
         </ul>
-        {#if levelingGuide}<p class="guide"><HowItWorks guide={levelingGuide.guide} stepId={levelingGuide.stepId} /></p>{/if}
+        {#if levelingGuide}<p class="guide"><HowItWorks guide={levelingGuide.guide} section={levelingGuide.section} /></p>{/if}
       </AnswerCard>
     </div>
 

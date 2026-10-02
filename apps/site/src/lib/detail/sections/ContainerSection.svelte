@@ -1,10 +1,11 @@
 <script lang="ts">
-  import type { AvailabilityRule, ContainerRow, PublicKindEntry } from '@afallon/contracts/public';
+  import type { AvailabilityRule, ContainerRow, PlacedRule, PublicKindEntry } from '@afallon/contracts/public';
   import Availability from '../../Availability.svelte';
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber, rangeText } from '../../format';
   import { itemSourceOnMap } from '../../map-links';
   import { shownRowCount } from '../relation-table';
+  import HowItWorks from '../HowItWorks.svelte';
   import Section from '../Section.svelte';
 
   export let id: string;
@@ -13,6 +14,9 @@
   export let sourceAvailabilities: AvailabilityRule[][];
   export let itemKey: string;
   export let registry: PublicKindEntry[];
+  /** The guide section that explains these rows, and the label of its link. */
+  export let guide: PlacedRule | undefined = undefined;
+  export let guideLabel = 'How it works';
   let expanded = false;
   $: ordered = [...rows].sort((a, b) => (b.chance ?? -1) - (a.chance ?? -1));
   $: rowIndices = new Map(rows.map((row, index) => [row, index]));
@@ -40,6 +44,7 @@
       {/each}
       {#if shown < rows.length}<button type="button" class="c-action show-more" on:click={() => (expanded = true)}>Show {rows.length - shown} more</button>{/if}
     </div>
+    {#if guide}<HowItWorks guide={guide.guide} section={guide.section} label={guideLabel} />{/if}
   </Section>
 {/if}
 

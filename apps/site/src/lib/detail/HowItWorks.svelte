@@ -2,11 +2,12 @@
   import { base } from '$app/paths';
   import type { EntityRef } from '@afallon/contracts/public';
   export let guide: EntityRef;
-  export let stepId: string;
+  /** The anchor of the guide section that explains the value. */
+  export let section: string;
   export let label = 'How it works';
 </script>
 
-<a class="how-it-works" href={`${base}/mechanics/${guide.slug}/#step-${stepId}`}><span class="mark" aria-hidden="true">?</span><span class="label">{label}</span></a>
+<a class="how-it-works" href={`${base}/mechanics/${guide.slug}/#${section}`}><span class="mark" aria-hidden="true">?</span><span class="label">{label}</span></a>
 
 <!-- The underline sits on the label only: a parent underline also draws under the "?" mark and cannot be removed there. -->
 <style>
