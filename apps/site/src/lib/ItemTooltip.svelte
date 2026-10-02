@@ -46,36 +46,36 @@
     {#if corruptionLevel > 0 && calculated}<p class="good">Corruption +{corruptionLevel}</p>{/if}
     {#if heroic && facts.heroic}<p class="good">Heroic · +{formatNumber(facts.heroic.statBonusPercent)}% base stats{facts.itemType === 'WEAPON' ? ' and weapon damage' : ''}</p>{/if}
 
-    {#each calculated?.stats ?? facts.stats as stat}<p class="good">{calculated ? `${stat.amount < 0 ? '-' : '+'}${tooltipStat(Math.abs(stat.amount))}${stat.isPercent ? '%' : ''}` : signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined}><EntityReference ref={stat.stat} {registry} /></slot></p>{/each}
+    {#each calculated?.stats ?? facts.stats as stat}<p class="good">{calculated ? `${stat.amount < 0 ? '-' : '+'}${tooltipStat(Math.abs(stat.amount))}${stat.isPercent ? '%' : ''}` : signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined} plain={true}><EntityReference ref={stat.stat} {registry} plain /></slot></p>{/each}
     {#if facts.randomStats.length}
       <div class="group">
         <p class="dim">{facts.randomStatsMax > 0 ? `Up to ${facts.randomStatsMax} random stats` : 'Random stats'}</p>
-        {#each facts.randomStats as stat}<p class="good">+{rangeText(stat.min, stat.max)}{stat.isPercent ? '%' : ''} <slot name="ref" ref={stat.stat} rankIndex={undefined}><EntityReference ref={stat.stat} {registry} /></slot>{#if stat.chance !== undefined}{' '}<span class="dim">({formatNumber(stat.chance)}%)</span>{/if}</p>{/each}
+        {#each facts.randomStats as stat}<p class="good">+{rangeText(stat.min, stat.max)}{stat.isPercent ? '%' : ''} <slot name="ref" ref={stat.stat} rankIndex={undefined} plain={true}><EntityReference ref={stat.stat} {registry} plain /></slot>{#if stat.chance !== undefined}{' '}<span class="dim">({formatNumber(stat.chance)}%)</span>{/if}</p>{/each}
       </div>
     {/if}
 
     {#if facts.useLines.length}<NativeText lines={facts.useLines} />{/if}
     {#if facts.actionAbilities.length}
-      <ul class="plain">{#each facts.actionAbilities as reference}<li>Use: <slot name="ref" ref={reference.ability} rankIndex={reference.rankIndex}><EntityReference ref={reference.ability} {registry} /></slot>{#if reference.rankIndex !== undefined} <span class="dim">Rank {reference.rankIndex + 1}</span>{/if}</li>{/each}</ul>
+      <ul class="plain">{#each facts.actionAbilities as reference}<li>Use: <slot name="ref" ref={reference.ability} rankIndex={reference.rankIndex} plain={true}><EntityReference ref={reference.ability} {registry} plain /></slot>{#if reference.rankIndex !== undefined} <span class="dim">Rank {reference.rankIndex + 1}</span>{/if}</li>{/each}</ul>
     {/if}
 
     {#each facts.sockets as socket}<p class="dim">Empty {categoryLabel(socket.socketType ?? socket.gemType ?? 'socket')} socket</p>{/each}
-    {#if facts.gem}{#each facts.gem.stats as stat}<p class="good">{signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined}><EntityReference ref={stat.stat} {registry} /></slot></p>{/each}{/if}
-    {#if facts.enchantment}<p>Enchantment: <slot name="ref" ref={facts.enchantment} rankIndex={undefined}><EntityReference ref={facts.enchantment} {registry} /></slot></p>{/if}
+    {#if facts.gem}{#each facts.gem.stats as stat}<p class="good">{signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined} plain={true}><EntityReference ref={stat.stat} {registry} plain /></slot></p>{/each}{/if}
+    {#if facts.enchantment}<p>Enchantment: <slot name="ref" ref={facts.enchantment} rankIndex={undefined} plain={true}><EntityReference ref={facts.enchantment} {registry} plain /></slot></p>{/if}
 
     {#if set}
       <section class="gear-set" aria-label={nameOf(set.set)}>
-        <h4><slot name="ref" ref={set.set} rankIndex={undefined}><EntityReference ref={set.set} {registry} /></slot> <span class="dim">({set.members.length} pieces)</span></h4>
-        <ul class="plain">{#each set.members as member}<li class:current={member.key === document.ref.key}><slot name="ref" ref={member} rankIndex={undefined}><EntityReference ref={member} {registry} /></slot></li>{/each}</ul>
-        <ul class="plain tiers">{#each set.tiers as tier}<li><span class="dim">({tier.equipped})</span> {#each tier.stats as stat, index}{index > 0 ? ', ' : ''}{signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined}><EntityReference ref={stat.stat} {registry} /></slot>{/each}</li>{/each}</ul>
+        <h4><slot name="ref" ref={set.set} rankIndex={undefined} plain={true}><EntityReference ref={set.set} {registry} plain /></slot> <span class="dim">({set.members.length} pieces)</span></h4>
+        <ul class="plain">{#each set.members as member}<li class:current={member.key === document.ref.key}><slot name="ref" ref={member} rankIndex={undefined} plain={true}><EntityReference ref={member} {registry} plain /></slot></li>{/each}</ul>
+        <ul class="plain tiers">{#each set.tiers as tier}<li><span class="dim">({tier.equipped})</span> {#each tier.stats as stat, index}{index > 0 ? ', ' : ''}{signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined} plain={true}><EntityReference ref={stat.stat} {registry} plain /></slot>{/each}</li>{/each}</ul>
       </section>
     {/if}
 
     {#if facts.equipmentRequirements.length}
-      <div class="requirements"><RequirementList requirements={facts.equipmentRequirements} let:ref><slot name="ref" {ref} rankIndex={undefined}><EntityReference {ref} {registry} /></slot></RequirementList></div>
+      <div class="requirements"><RequirementList requirements={facts.equipmentRequirements} let:ref><slot name="ref" {ref} rankIndex={undefined} plain={true}><EntityReference {ref} {registry} plain /></slot></RequirementList></div>
     {/if}
     {#if facts.useConditions.length}
-      <div class="group"><p class="dim">Use requires</p><RequirementList requirements={facts.useConditions} let:ref><slot name="ref" {ref} rankIndex={undefined}><EntityReference {ref} {registry} /></slot></RequirementList></div>
+      <div class="group"><p class="dim">Use requires</p><RequirementList requirements={facts.useConditions} let:ref><slot name="ref" {ref} rankIndex={undefined} plain={true}><EntityReference {ref} {registry} plain /></slot></RequirementList></div>
     {/if}
     {#if facts.questDropOnly}<p class="dim">Quest item</p>{/if}
     {#if facts.corruptionToken}<p class="dim">Corruption token</p>{/if}

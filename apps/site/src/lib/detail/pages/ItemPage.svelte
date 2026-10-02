@@ -136,7 +136,7 @@
     </svelte:fragment>
 
     <svelte:fragment slot="side">
-      <div class="c-game-frame"><ItemTooltip {document} {registry} {corruptionLevel} {heroic}><svelte:fragment slot="ref" let:ref let:rankIndex><EntityLink {ref} {rankIndex} {registry} /></svelte:fragment></ItemTooltip></div>
+      <div class="c-game-frame"><ItemTooltip {document} {registry} {corruptionLevel} {heroic}><svelte:fragment slot="ref" let:ref let:rankIndex let:plain><EntityLink {ref} {rankIndex} {registry} {plain} /></svelte:fragment></ItemTooltip></div>
       {#if facts.heroic}
         <div class="heroic-control">
           <button type="button" class="c-action" aria-pressed={heroic} on:click={() => (heroic = !heroic)}>{heroic ? 'Showing Heroic Gear' : 'Show Heroic Gear'}</button>

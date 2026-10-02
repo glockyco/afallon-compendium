@@ -6,6 +6,8 @@
   export let ref: Ref;
   export let registry: PublicKindEntry[];
   export let rarity: string | undefined = undefined;
+  /** A reference inside game text: no icon, the colour of the text around it. */
+  export let plain = false;
 
   $: resolved = ref.key !== null ? ref : null;
   $: kind = resolved ? registry.find((entry) => entry.kind === resolved.kind) : undefined;
@@ -13,7 +15,7 @@
 </script>
 
 <!-- A reference flows with the text around it, like a page link, so its name sits on the line's baseline. -->
-<span class="entity-reference" data-rarity={rarity}>{#if resolved?.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" />{:else if resolved && glyph}<span class="kind-icon" aria-hidden="true">{@html glyph}</span>{/if}<span>{resolved?.name ?? (ref.key === null ? ref.label : '')}</span></span>
+<span class="entity-reference" class:plain data-rarity={rarity}>{#if plain}{:else if resolved?.icon}<img src={`${base}/data/${resolved.icon.url}`} width={resolved.icon.width} height={resolved.icon.height} alt="" />{:else if resolved && glyph}<span class="kind-icon" aria-hidden="true">{@html glyph}</span>{/if}<span>{resolved?.name ?? (ref.key === null ? ref.label : '')}</span></span>
 
 <style>
   .entity-reference { color: var(--c-text); overflow-wrap: break-word; }
@@ -23,5 +25,6 @@
   .kind-icon { display: inline-grid; place-items: center; border-color: var(--c-frame); background: var(--c-surface-2); color: var(--c-text-mute); }
   .kind-icon :global(svg) { width: .65em; height: .65em; }
   [data-rarity] { color: var(--c-rarity); }
+  .plain { color: inherit; }
   [data-rarity] img { border-color: color-mix(in srgb, var(--c-rarity) 60%, transparent); }
 </style>
