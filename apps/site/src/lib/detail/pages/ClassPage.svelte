@@ -2,7 +2,7 @@
   import { base } from '$app/paths';
   import type { PublicClass, PublicKindEntry, StartingItemRow } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { nameOf } from '../../format';
+  import { formatNumber, nameOf } from '../../format';
   import { talentPointText } from '../../progression-format';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
@@ -36,6 +36,8 @@
     { id: 'equipped', label: 'Equipped', value: (row) => row.equipped ? 'Yes' : 'No' },
   ];
   $: gearPlan = planColumns(gearColumns, document.startingGear);
+  // Weapons follow the class's weapon types, and the game sets no class rule for armor.
+  $: gearHref = `${base}/items/?class=${encodeURIComponent(document.ref.name)}&itemType=WEAPON&itemType=ARMOR`;
 </script>
 
 <article class="detail-page">
@@ -45,10 +47,17 @@
       {#if document.description}<p class="description">{document.description}</p>{/if}
       {#if facts.autoAttack}<p>Auto attack: <EntityLink ref={facts.autoAttack} {registry} /></p>{/if}
     </AnswerCard></div>
+    <!-- The side stays in view beside the trees: the points that the class earns, what learning each tree in full costs,
+         and the gear that it can use. -->
     <div slot="side" class="side-facts">
-      {#if facts.talentPoints.length}<section><h2>Talent points</h2>{#each facts.talentPoints as points}<p>{#if points.name.toLocaleLowerCase() !== 'talent points'}<strong>{points.name}:</strong>{' '}{/if}{talentPointText(points)}</p>{/each}</section>{/if}
-      {#if facts.weapons.length}<section><h2>Weapons</h2><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul><a class="c-link gear" href={`${base}/items/?class=${encodeURIComponent(document.ref.name)}`}>Gear this class can use</a></section>{/if}
-      {#if talentGuide}<HowItWorks guide={talentGuide.guide} section={talentGuide.section} label="How talent points work" />{:else}<a class="c-link" href={`${base}/mechanics/character-progression/`}>Character Progression</a>{/if}
+      {#if document.trees.length}<section>
+        <h2>Talent points</h2>
+        {#each facts.talentPoints as points}<p>{#if points.name !== commonPoints}<strong>{points.name}:</strong>{' '}{/if}{talentPointText(points)}</p>{/each}
+        <h3>Points to learn every rank</h3>
+        <ul class="tree-costs">{#each document.trees as tree (tree.anchor)}<li><a class="c-link" href={`#${tree.anchor}`}>{tree.name}</a><span>{formatNumber(tree.cost)}{tree.points && tree.points !== commonPoints ? ` ${tree.points}` : ''}</span></li>{/each}</ul>
+        {#if talentGuide}<HowItWorks guide={talentGuide.guide} section={talentGuide.section} label="How talent points work" />{/if}
+      </section>{/if}
+      {#if facts.weapons.length}<section><h2>Gear</h2><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul><a class="c-link gear" href={gearHref}>Weapons and armor for {document.ref.name}</a></section>{/if}
     </div>
     <Sections>
       {#if document.startingGear.length}
@@ -77,8 +86,11 @@
   h2 { margin-bottom: .75rem; color: var(--c-text-strong); font: 700 1.2rem/1.3 var(--c-serif); }
   .side-facts p { color: var(--c-text-dim); }
   .side-facts p + p { margin-top: .45rem; }
-  .side-facts > a { width: fit-content; }
   .side-facts strong { color: var(--c-text-strong); }
+  h3 { margin: 1rem 0 .4rem; color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 600; }
+  .tree-costs { display: grid; gap: .3rem; margin-bottom: .75rem; padding: 0; list-style: none; }
+  .tree-costs li { display: flex; justify-content: space-between; gap: 1rem; }
+  .tree-costs span { color: var(--c-text-dim); font-variant-numeric: tabular-nums; text-align: right; }
   .weapons { display: flex; flex-wrap: wrap; gap: .4rem; padding: 0; list-style: none; }
   .gear { display: inline-block; margin-top: .65rem; }
   .weapons li { padding: .25rem .5rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); color: var(--c-text-dim); font-size: .875rem; }

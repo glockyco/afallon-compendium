@@ -136,6 +136,18 @@ test("an item names the offered classes that start with it, and coverage counts 
   expect(withoutSource({ ...potion, startingGearOf: [], fromItems: [] })).toBe(true);
 });
 
+test("a tree costs the sum of its rank costs, and the first rank of an ability that the class knows from the start is free", () => {
+  const paid = (rank: ProgressionBonusRank, unlockCost: number) => ({ ...rank, unlockCost });
+  const cleave = abilityDetails(null);
+  const priced = progressionFacts.map((fact) => fact.entityKey === "bonuses:288" && fact.kind === "bonuses" ? { ...fact, details: { ...fact.details, ranks: fact.details.ranks.map((rank, index) => paid(rank, index + 1)) } }
+    : fact.entityKey === "abilities:0" ? { ...fact, details: { ...cleave, learnedByDefault: true, ranks: [{ ...cleave.ranks[0]!, unlockCost: 1 }, { ...cleave.ranks[0]!, rank: 1, unlockCost: 4 }] } } as CatalogProgressionFact : fact);
+  const source = { ...facts, progression: { ...facts.progression, facts: priced } };
+  const references = buildEntityReferences(entities, { facts: source, relations });
+  const documents = projectPublicDocuments({ entities, facts: source, relations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements: new Map(), regionIdsByMapSpace: new Map(), npcLevels: new Map(), placementIdsByKey: new Map(), classWeapons: new Map() });
+  // Weighted Strikes costs 1 to 5 for its five ranks, Heroic Resolve 1, and Cleave only its second rank.
+  expect((documents.get("classes:0") as PublicClass).trees.map((tree) => tree.cost)).toEqual([15 + 1 + 4, 1]);
+});
+
 test("a talent shared by several trees resolves to the row of the class that owns the page", () => {
   const assassin = project().documents.get("classes:5") as PublicClass;
   expect(assassin.trees[0]!.rows[1]!.requirements[0]?.requirements[0]?.spans[0]).toEqual({ ref: { key: "classes:5", kind: "classes", name: "Heroic Might", slug: "assassin", variant: "talent-27-0" } });

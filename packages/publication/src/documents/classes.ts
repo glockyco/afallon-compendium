@@ -1,4 +1,4 @@
-import type { CatalogCondition, CatalogEndpoint, CatalogEntityRow, CatalogFacts, ProgressionBonusRank, ProgressionPetStat, ProgressionStat } from "@afallon/contracts/catalog";
+import type { CatalogCondition, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogProgressionFact, ProgressionBonusRank, ProgressionPetStat, ProgressionStat } from "@afallon/contracts/catalog";
 import { type EntityRef, isEntityRef, type LearnerRow, type PublicClass, type Ref, type TalentPets, type TalentPoints, type TalentRank, type TalentTree } from "@afallon/contracts/public";
 import { placedRules } from "../placed-rules";
 import { displayName, withoutMarkup } from "../text";
@@ -101,6 +101,15 @@ function talentRank(rank: ProgressionBonusRank, input: DocumentProjectionInput):
   };
 }
 
+// The points that learning every rank of a talent node takes. Ranking up spends the next rank's `unlockCost` from the
+// tree's points (`AbilityManager.RankUpAbility`, `BonusManager.RankUpBonus`). An ability that the class knows from the
+// start already holds its first rank.
+function nodeCost(fact: CatalogProgressionFact | undefined): number {
+  if (fact?.kind !== "abilities" && fact?.kind !== "bonuses") return 0;
+  const ranks = fact.kind === "abilities" && fact.details.learnedByDefault ? fact.details.ranks.slice(1) : fact.details.ranks;
+  return ranks.reduce((sum, rank) => sum + Math.max(0, rank.unlockCost), 0);
+}
+
 // The level cap of a level template: the game stops experience at the template's `levels` value.
 function templateCap(template: CatalogEndpoint | null | undefined, input: DocumentProjectionInput): number | undefined {
   const fact = template?.entityKey ? input.facts.progression.facts.find((candidate) => candidate.entityKey === template.entityKey) : undefined;
@@ -116,6 +125,7 @@ export function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: Do
     const nodes = progression.talentNodes.filter((node) => node.tree === treeKey && node.target?.entityKey).sort((a, b) => a.tier - b.tier || a.row - b.row || a.nodeIndex - b.nodeIndex);
     return {
       anchor: `tree-${treeKey.slice(treeKey.indexOf(":") + 1)}`, name: displayName(link.target.label), ...(points?.label ? { points: displayName(points.label) } : {}),
+      cost: nodes.reduce((sum, node) => sum + nodeCost(facts.get(node.target!.entityKey!)), 0),
       rows: nodes.map((node) => {
         const target = node.target!, bonus = node.nodeType === "bonus" ? facts.get(target.entityKey!) : undefined;
         const ranks = bonus?.kind === "bonuses" ? bonus.details.ranks : [];
