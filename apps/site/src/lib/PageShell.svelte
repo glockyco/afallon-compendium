@@ -93,6 +93,7 @@
                 </section>
               {/each}
             </div>
+            <p class="panel-foot"><a href={KOFI_URL} rel="external"><KofiGlyph /><span>Support the Compendium on Ko-fi</span></a></p>
           </div>
         </details>
       </nav>
@@ -169,6 +170,11 @@
      the bar, not the button, and keeps each column wide enough for a label and its line. A long label wraps inside its
      own highlight. */
   .panel { position: absolute; z-index: 1; top: calc(100% + .35rem); left: 1.5rem; width: min(66rem, calc(100% - 3rem)); max-height: calc(100vh - 5rem); overflow-y: auto; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); box-shadow: 0 14px 32px var(--c-shadow); }
+  /* The panel ends with one quiet line that links Ko-fi, aligned with the entry glyphs. */
+  .panel-foot { margin: 0; padding: .7rem 1.65rem .8rem; border-top: 1px solid var(--c-line-soft); background: var(--c-surface-2); font-size: var(--c-text-small); }
+  .panel-foot a { display: inline-flex; align-items: center; gap: .45rem; color: var(--c-text-dim); text-decoration: none; }
+  .panel-foot a:hover { color: var(--c-accent); }
+  .panel-foot :global(svg) { width: 1.15rem; height: 1.15rem; flex: none; }
   .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr)); gap: 1.25rem 1rem; padding: 1.1rem 1.1rem .9rem; }
   .group h2 { margin: 0 0 .4rem; padding: 0 .55rem .45rem; border-bottom: 1px solid var(--c-line-soft); color: var(--c-accent); font-size: .8125rem; font-weight: 600; line-height: 1.3; letter-spacing: .06em; text-transform: uppercase; }
   .group h2 button { all: unset; display: block; width: 100%; cursor: default; }
@@ -223,6 +229,7 @@
   }
 
   @media (max-width: 640px) {
+    .panel-foot { padding: .7rem 1.05rem; }
     /* The panel stacks its columns as sections that open one at a time, with full-width rows. */
     .panel { left: .5rem; width: calc(100% - 1rem); }
     .columns { grid-template-columns: 1fr; gap: 0; padding: .4rem .5rem; }
