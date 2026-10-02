@@ -189,7 +189,8 @@
   .kofi:hover :global(svg) { color: var(--c-accent); }
   .divider { align-self: center; width: 1px; height: 1.5rem; margin-left: auto; background: var(--c-line); }
   .bar-search + .divider { margin-left: 0; }
-  .bar-search { align-self: center; min-width: 0; flex: 1; max-width: 20rem; margin-left: auto; }
+  /* The field keeps room for a query. Where the bar cannot give it that room, the field moves to a row of its own. */
+  .bar-search { align-self: center; flex: 1 1 14rem; min-width: 14rem; max-width: 20rem; margin-left: auto; }
 
   .c-page { width: min(72rem, 100%); margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
   .crumbs { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1.1rem; color: var(--c-text-mute); font-size: var(--c-text-small); }
@@ -198,10 +199,15 @@
 
   footer { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--c-line); color: var(--c-text-mute); font-size: var(--c-text-small); overflow-wrap: anywhere; }
 
-  @media (max-width: 860px) {
+  /* Below the width of the full bar, Support keeps only the Ko-fi cup, so the search field keeps its room. */
+  @media (max-width: 1180px) {
+    .kofi span { display: none; }
+  }
+
+  @media (max-width: 1023px) {
     .bar-inner { flex-wrap: wrap; gap: 0 1rem; padding: 0 1rem .7rem; }
     .brand, .site-nav { min-height: 3.75rem; }
-    .bar-search { flex-basis: 100%; max-width: none; margin-left: 0; order: 3; }
+    .bar-search { flex-basis: 100%; min-width: 0; max-width: none; margin-left: 0; order: 3; }
     .bar-search :global(.compendium-search) { max-width: none; }
     .bar-search + .divider { margin-left: auto; }
   }

@@ -84,7 +84,8 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
   input:focus-visible, a:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
-  ul, .empty { position: absolute; z-index: 12; left: 0; right: 0; margin: .25rem 0 0; border: 1px solid var(--c-line-strong); background: var(--c-surface-1); box-shadow: 0 8px 22px var(--c-shadow); }
+  /* The results open under the field's right edge and are never narrower than a result line, even beside a short field. */
+  ul, .empty { position: absolute; z-index: 12; right: 0; width: max(100%, min(24rem, calc(100vw - 2rem))); margin: .25rem 0 0; border: 1px solid var(--c-line-strong); background: var(--c-surface-1); box-shadow: 0 8px 22px var(--c-shadow); }
   ul { display: grid; gap: 0; padding: .3rem; list-style: none; }
   .empty { padding: .75rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
   li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .15rem .7rem; align-items: center; padding: .45rem; }
