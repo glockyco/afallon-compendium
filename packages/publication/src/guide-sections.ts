@@ -59,7 +59,7 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
       { id: "cloth", title: "Cloth from kills", lead: "Some creatures drop cloth on top of their normal loot. Each cloth's page shows its chance per kill by creature level." },
       { id: "world-objects", title: "World objects", lead: "Some objects in the world hold loot, such as graves and sacrificial altars." },
       { id: "quest-items", title: "Quest items", lead: "Some items only drop or appear while a quest needs them." },
-      { id: "dungeon-finder", title: "Dungeon Finder", lead: "The Dungeon Finder can send you on a Random run to one of several dungeons." },
+      { id: "dungeon-finder", title: "Dungeon Finder", lead: "The Dungeon Finder sends you to a dungeon that you choose, or to a random one when you queue for a Random run." },
     ],
   },
 };
