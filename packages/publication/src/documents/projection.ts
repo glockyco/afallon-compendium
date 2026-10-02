@@ -137,8 +137,21 @@ function projectRequirement(requirement: CatalogRequirement, resolve: ReferenceR
   };
 }
 
+// A group that needs every requirement reads a lowest and a highest level as one range: "levels 1–10".
+function withLevelRanges(group: CatalogRequirementGroup): CatalogRequirement[] {
+  if (group.mode !== "all") return group.requirements;
+  const level = (name: string) => group.requirements.filter((requirement) => requirement.type.name === "Level" && requirement.value?.name === name);
+  const [lowest, highest] = [level("EqualOrAbove"), level("EqualOrBelow")];
+  if (lowest.length !== 1 || highest.length !== 1 || lowest[0]!.rule.value !== highest[0]!.rule.value) return group.requirements;
+  const low = lowest[0]!.amounts.primary, high = highest[0]!.amounts.primary;
+  if (low > high) return group.requirements;
+  const text = low === high ? `level ${low}` : `levels ${low}–${high}`;
+  return group.requirements.flatMap((requirement) => requirement === highest[0] ? []
+    : requirement === lowest[0] ? [{ ...requirement, label: text, spans: [{ text }] }] : [requirement]);
+}
+
 export function projectRequirementGroups(groups: readonly CatalogRequirementGroup[], resolve: ReferenceResolver): RequirementGroup[] {
-  return groups.map((group) => ({ mode: group.mode, checkCount: group.checkCount, ...(group.requiredCount === null ? {} : { requiredCount: Math.max(0, group.requiredCount) }), requirements: group.requirements.map((requirement) => projectRequirement(requirement, resolve)) }));
+  return groups.map((group) => ({ mode: group.mode, checkCount: group.checkCount, ...(group.requiredCount === null ? {} : { requiredCount: Math.max(0, group.requiredCount) }), requirements: withLevelRanges(group).map((requirement) => projectRequirement(requirement, resolve)) }));
 }
 
 export function requirementsFor(conditionIds: readonly string[], conditions: ReadonlyMap<string, CatalogCondition>, resolve: ReferenceResolver): RequirementGroup[] {

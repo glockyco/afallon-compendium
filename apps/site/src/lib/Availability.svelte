@@ -15,14 +15,14 @@
   ) : rules;
 </script>
 
-<!-- The rules form one sentence: "Has Iron Key and not while in combat". Only its first word starts with a capital. -->
+<!-- Each rule is its own item, such as "Uses up 1 Chest Key" and "Levels 1–10", so no rule reads as part of another. -->
 {#if orderedRules.length}
   <ul class="availability">
-    {#each orderedRules as rule, index}
+    {#each orderedRules as rule}
       <li>
-        {#if rule.effect === 'excludes'}{index ? 'not' : 'Not'} while{' '}
-        {:else if rule.effect === 'temporary'}{index ? 'for' : 'For'} {#if rule.durationSeconds === undefined}<MissingValue explanation="The toggle's duration is not published" />{:else}{formatDuration(rule.durationSeconds)}{/if} after{' '}{/if}
-        <Requirements requirements={rule.requirements} {registry} opensSentence={index === 0 && rule.effect === 'requires'} />
+        {#if rule.effect === 'excludes'}Not while{' '}
+        {:else if rule.effect === 'temporary'}For {#if rule.durationSeconds === undefined}<MissingValue explanation="The toggle's duration is not published" />{:else}{formatDuration(rule.durationSeconds)}{/if} after{' '}{/if}
+        <Requirements requirements={rule.requirements} {registry} opensSentence={rule.effect === 'requires'} />
       </li>
     {/each}
   </ul>
@@ -31,5 +31,5 @@
 <style>
   .availability { margin: 0; padding: 0; list-style: none; line-height: 1.5; }
   li { display: inline; font-size: var(--c-text-body); }
-  li + li::before { content: ' and '; color: var(--c-text-dim); }
+  li + li::before { content: ' · '; color: var(--c-text-mute); }
 </style>

@@ -9,3 +9,8 @@ test("names read in title case with one spelling for words in capitals, abbrevia
 test("keeps a hyphenated pun as the game spells it", () => {
   expect(["Fang-tastic", "Thorek Flame-Keeper"].map(displayName)).toEqual(["Fang-tastic", "Thorek Flame-Keeper"]);
 });
+
+test("a colored state at the end of a name reads in parentheses", () => {
+  expect(displayName("Wooden treasure chest <color=red>Locked</color>")).toBe("Wooden Treasure Chest (Locked)");
+  expect(displayName("<color=red>Locked</color>")).toBe("Locked");
+});

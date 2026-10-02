@@ -13,6 +13,15 @@ export function plainText(value: string): string {
   return withoutMarkup(value).trim();
 }
 
+// The game colors a state at the end of some object names, such as "Wooden treasure chest <color=red>Locked</color>".
+// The state reads in parentheses, because without its color it would run into the name.
+const coloredState = /^(.*\S)\s*<color=[^>]*>([^<]+)<\/color>\s*$/is;
+
+function stateSuffix(value: string): string {
+  const match = coloredState.exec(value);
+  return match ? `${match[1]} (${match[2]!.trim()})` : value;
+}
+
 /**
  * A name in title case. The game spells one name in several ways, such as "Mara dreggs" and "Mara Dreggs", so every
  * published name and place label follows one rule for each word: "DEV RING" reads "Dev Ring", "Gold npc" reads
@@ -21,7 +30,7 @@ export function plainText(value: string): string {
  */
 export function displayName(value: string): string {
   let first = true;
-  return plainText(value).replaceAll(/[‘’]/gu, "'").replace(/\S+/g, (word) => {
+  return plainText(stateSuffix(value)).replaceAll(/[‘’]/gu, "'").replace(/\S+/g, (word) => {
     const formatted = titleWord(word, first);
     first = false;
     return formatted;
