@@ -12,4 +12,4 @@
 ## 3. Publication and acceptance
 
 - [x] 3.1 Publish a candidate against the accepted publication, check the five guides in the browser at 1440 px and 390 px, and stage it.
-- [ ] 3.2 Write the update report, accept the update, stage the accepted publication in the main checkout, and sync the delta specs.
+- [x] 3.2 Write the update report, accept the update, stage the accepted publication in the main checkout, and sync the delta specs.
