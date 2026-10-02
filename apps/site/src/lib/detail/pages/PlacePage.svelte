@@ -12,6 +12,7 @@
   import ConnectionsSection from '../sections/ConnectionsSection.svelte';
   import LinkSection from '../sections/LinkSection.svelte';
   import PlaceCreaturesSection from '../sections/PlaceCreaturesSection.svelte';
+  import PlaceLootObjectsSection from '../sections/PlaceLootObjectsSection.svelte';
   import PointsOfInterestSection from '../sections/PointsOfInterestSection.svelte';
   import QuestRowsSection from '../sections/QuestRowsSection.svelte';
   import StatStrip, { type Stat } from '../StatStrip.svelte';
@@ -51,6 +52,7 @@
     <PlaceCreaturesSection id="creatures" title="Creatures" rows={inhabitants.creatures} {registry} />
     <PlaceCreaturesSection id="npcs" title="NPCs and services" rows={document.npcs} services={document.services} placeKey={document.space ? document.ref.key : undefined} {registry} />
     <PointsOfInterestSection id="points-of-interest" title="Gathering and objects" rows={[...document.resources, ...document.containers]} placeKey={document.ref.key} hasSpace={document.space !== null} />
+    <PlaceLootObjectsSection rows={document.lootObjects} {registry} />
     <QuestRowsSection id="quests" title="Quests" roleLabel="Role" rows={quests} {registry} />
     <LinkSection id="properties" title="Properties" refs={document.properties} {registry} />
     <LinkSection id="areas" title="Areas" refs={document.regions} {registry} />

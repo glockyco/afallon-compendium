@@ -8,7 +8,7 @@ import { placedRules, topicRef } from "../placed-rules";
 import { displayName, plainText } from "../text";
 import { roundWeaponDamage, weaponDamageLabel } from "../weapon-display";
 import { lootFields } from "./loot";
-import { baseDocument, type DocumentProjectionInput, endpointOrUnknown, groupPlacementCounts, mergeCounterpartRows, optionalChance, optionalCount, optionalFactRef, projectAvailability, projectRequirementGroups, publishedPlacements, refName, type RelationIndexes, requirementsFor, skillHighestLevel } from "./projection";
+import { baseDocument, interactionLabel, type DocumentProjectionInput, endpointOrUnknown, groupPlacementCounts, mergeCounterpartRows, optionalChance, optionalCount, optionalFactRef, projectAvailability, projectRequirementGroups, publishedPlacements, refName, type RelationIndexes, requirementsFor, skillHighestLevel } from "./projection";
 import { objectiveForRow } from "./quests";
 
 /**
@@ -227,8 +227,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   }))).map(withAvailabilityIndex);
   const collectedFrom = groupPlacementCounts(itemInteractions.filter((row) => !indexes.placedNodes.has(row.sourceId)).map((row) => ({
     ...(row.place === null ? {} : { counterpart: input.resolve(row.place) }),
-    // The "For sale 2500 gold" signs are not property signs: a use costs Gold Coin and rolls a loot table.
-    label: /^For sale \d+ gold$/i.test(row.objectName ?? "") ? "For Sale Sign" : displayName(row.objectName ?? "") || "Object",
+    label: interactionLabel(row.objectName),
     ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
     ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }), ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }),
     ...(row.prefabChoices !== undefined && row.prefabChoices > 1 ? { prefabChoices: row.prefabChoices } : {}),

@@ -1,10 +1,11 @@
-import type { CatalogEntityRow, CatalogPlacementRow, CatalogQuestRow } from "@afallon/contracts/catalog";
-import type { ConnectionRow, CreatureRow, EntityRef, PlacementGroup, PublicLevel, PublicMarkerCategory, PublicPlace, Ref } from "@afallon/contracts/public";
+import type { CatalogCondition, CatalogEntityRow, CatalogPlacementRow, CatalogQuestRow } from "@afallon/contracts/catalog";
+import type { ConnectionRow, CreatureRow, EntityRef, PlaceLootObject, PlacementGroup, PublicLevel, PublicMarkerCategory, PublicPlace, Ref } from "@afallon/contracts/public";
 import { markerCategories } from "../categories";
 import { levelUnion } from "../levels";
 import { npcFact } from "./npcs";
-import { baseDocument, type DocumentProjectionInput, endpointOrUnknown, mergeRefs, pageOrVariant, publishedPlacements, refKey, type RelationIndexes } from "./projection";
+import { baseDocument, type DocumentProjectionInput, endpointOrUnknown, interactionLabel, mergeRefs, pageOrVariant, projectAvailability, publishedPlacements, refKey, type RelationIndexes } from "./projection";
 import { propertySceneKey } from "./properties";
+import { displayName } from "../text";
 
 function placementGroups(placements: readonly CatalogPlacementRow[], categories: Readonly<Record<string, true>>, input: DocumentProjectionInput): PlacementGroup[] {
   const grouped = new Map<PublicMarkerCategory, Set<string>>();
@@ -50,7 +51,42 @@ function creaturesForPlace(placements: readonly CatalogPlacementRow[], input: Do
   return rows.sort((left, right) => ("name" in left.counterpart ? left.counterpart.name : left.counterpart.label).localeCompare("name" in right.counterpart ? right.counterpart.name : right.counterpart.label));
 }
 
-export function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes): PublicPlace {
+/**
+ * The objects of a place that give items when used, such as graves and locked chests. A placed gathering node is a node,
+ * so the node pages list it. Objects with the same label, cost, choice, and availability merge, and keep their items in
+ * order of first appearance. A variant keeps only the spots inside it.
+ */
+function lootObjects(placeKey: string, host: { key: string; here: ReadonlySet<string> } | undefined, input: DocumentProjectionInput,
+  indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>): PlaceLootObject[] {
+  const groups = new Map<string, { object: Omit<PlaceLootObject, "items" | "placements">; items: Map<string, Ref>; placements: Set<string> }>();
+  const rows = [
+    ...(indexes.interactionsByPlace.get(placeKey) ?? []).map((row) => ({ row, placementIds: row.placementIds })),
+    ...(host ? (indexes.interactionsByPlace.get(host.key) ?? []).flatMap((row) => {
+      const placementIds = row.placementIds.filter((id) => host.here.has(id));
+      return placementIds.length ? [{ row, placementIds }] : [];
+    }) : []),
+  ];
+  for (const { row, placementIds } of rows) {
+    if (indexes.placedNodes.has(row.sourceId)) continue;
+    const object = {
+      label: interactionLabel(row.objectName), ...(row.choiceLabel ? { choiceLabel: displayName(row.choiceLabel) } : {}),
+      ...(row.cost ? { cost: { currency: input.resolve(row.cost.currency), amount: row.cost.amount } } : {}),
+      availability: projectAvailability(row.availability, conditions, input.resolve),
+    };
+    // Rows merge by what a reader sees, so two conditions with the same text are one row.
+    const key = JSON.stringify([object.label, object.choiceLabel, object.cost?.amount, object.cost ? refKey(object.cost.currency) : null,
+      object.availability.map((rule) => [rule.effect, rule.requirements.map((group) => group.requirements.map((requirement) => requirement.label))])]);
+    const group = groups.get(key) ?? { object, items: new Map(), placements: new Set() };
+    const item = input.resolve(row.item);
+    group.items.set(refKey(item), item);
+    for (const id of placementIds) group.placements.add(id);
+    groups.set(key, group);
+  }
+  return [...groups.values()].map(({ object, items, placements }) => ({ ...object, items: [...items.values()], placements: publishedPlacements([...placements].sort(), input.placements) }))
+    .sort((left, right) => right.placements.length - left.placements.length || left.label.localeCompare(right.label));
+}
+
+export function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>): PublicPlace {
   const fact = input.facts.places.find((candidate) => candidate.entityKey === entity.entityKey);
   const mapSpaceId = fact?.mapSpaceIds.find((candidate) => input.regionIdsByMapSpace.has(candidate)) ?? null;
   const placeType = fact?.placeType ?? (entity.kind === "regions" ? "region" : "zone");
@@ -88,6 +124,7 @@ export function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: Do
     ...(variant ? { variantOf: input.resolve({ entityKey: variant.hostKey, label: variant.hostKey }) } : {}),
     bosses: mergeRefs((fact?.bosses ?? []).filter((boss) => !variant || npcPlacedHere(boss.entityKey)).map((boss) => input.resolve(boss)), input), creatures: creaturesForPlace(placePlacements, input, indexes, true), npcs: creaturesForPlace(placePlacements, input, indexes, false),
     services: placementGroups(placePlacements, serviceCategories, input), resources: placementGroups(placePlacements, resourceCategories, input), containers: placementGroups(placePlacements, containerCategories, input),
+    lootObjects: lootObjects(entity.entityKey, variant ? { key: variant.hostKey, here } : undefined, input, indexes, conditions),
     quests: questRefs(startsHere), questObjectives: questRefs(objectiveHere),
     properties: input.facts.properties.filter((property) => propertySceneKey(property.entityKey, input) === entity.entityKey).map((property) => input.resolve({ entityKey: property.entityKey, label: property.entityKey })),
     connections, regions: variant ? [] : input.facts.places.filter((candidate) => candidate.placeType === "region" && candidate.parentSceneKey === entity.entityKey).map((candidate) => input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey })),

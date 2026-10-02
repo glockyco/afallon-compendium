@@ -22,7 +22,7 @@ export function projectPublicDocuments(input: DocumentProjectionInput): Readonly
       case "items": document = projectItem(entity, ref, input, indexes, conditions, startingGear, fromItems); break;
       case "npcs": document = projectNpcPage(page, input, indexes, conditions); break;
       case "quests": document = projectQuest(entity, ref, input, indexes, conditions); break;
-      case "places": document = projectPlace(entity, ref, input, indexes); break;
+      case "places": document = projectPlace(entity, ref, input, indexes, conditions); break;
       case "properties": document = projectProperty(entity, ref, input); break;
       case "abilities": document = projectAbilityPage(page, input, conditions); break;
       case "classes": document = projectClass(entity, ref, input, conditions); break;

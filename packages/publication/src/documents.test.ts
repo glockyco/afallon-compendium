@@ -605,6 +605,9 @@ test("projects quest starts, world effects, and related item, NPC, and place pag
   const placements = new Map(["p1", "p2", "p3", "p4"].map((placementId) => [placementId,
     { placementId, mapSpaceId: "world", label: placementId === "p3" ? "Coalway Woods" : "Raven Camp", categories: [] }] as const));
   const { refs, documents } = project(scenarioEntities, scenarioFacts, scenarioRelations, placements, new Map([["world", []]]));
+  // The place lists the object that gives the item, with its spot and its conditions.
+  expect((documents.get("scenes:10") as PublicPlace).lootObjects).toEqual([expect.objectContaining({ label: "Egg Cluster", items: [refs.get("items:1")!],
+    placements: [expect.objectContaining({ placementId: "p4" })], availability: [expect.objectContaining({ effect: "requires" })] })]);
   const publicQuest = documents.get("quests:3") as PublicQuest;
   expect(publicQuest.facts).toMatchObject({ levelRequirement: 16, experience: 500, chain: { name: "Pilgrimage", order: 2 },
     objectiveText: "Meet the trial", completedDescription: "Done",

@@ -6,7 +6,7 @@ import { placedNodeBySource } from "../gathering";
 import { placeSpots } from "../place-spots";
 import type { PlaceVariant } from "../place-variants";
 import type { EntityReferences, PublishedPage } from "../references";
-import { plainText, withoutMarkup } from "../text";
+import { displayName, plainText, withoutMarkup } from "../text";
 
 export type ReferenceResolver = (endpoint: CatalogEndpoint) => Ref;
 
@@ -53,6 +53,7 @@ export type RelationIndexes = {
   gathersByItem: Map<string, CatalogRelations["gathers"]>;
   containersByItem: Map<string, CatalogRelations["containers"]>;
   interactionsByItem: Map<string, CatalogRelations["interactions"]>;
+  interactionsByPlace: Map<string, CatalogRelations["interactions"]>;
   questsByQuest: Map<string, CatalogRelations["quests"]>;
   questsByCounterpart: Map<string, CatalogRelations["quests"]>;
   gatedSourcesBySubject: Map<string, CatalogGatedSourceRow[]>;
@@ -77,7 +78,7 @@ export function relationIndexes(entities: readonly CatalogEntityRow[], facts: Ca
     teachings: recipeTeachings(facts), teachersByRecipe: new Map(), placedNodes: placedNodeBySource(facts.gatheringNodes),
     nodes: new Map(facts.gatheringNodes.map((node) => [node.entityKey, node])), crafting: facts.recipes.some((recipe) => recipe.skill?.entityKey && recipe.ranks.length > 0) ? craftingRule(facts) : null,
     dropsByOwner: new Map(), dropsByItem: new Map(), vendorsByNpc: new Map(), vendorsByItem: new Map(), vendorsByCurrency: new Map(),
-    gathersByResource: new Map(), gathersByItem: new Map(), containersByItem: new Map(), interactionsByItem: new Map(), questsByQuest: new Map(),
+    gathersByResource: new Map(), gathersByItem: new Map(), containersByItem: new Map(), interactionsByItem: new Map(), interactionsByPlace: new Map(), questsByQuest: new Map(),
     questsByCounterpart: new Map(), gatedSourcesBySubject: new Map(), recipesByRecipe: new Map(), recipesByItem: new Map(), placementsByNpc: new Map(), placementsByScene: new Map(),
     chainOrder: new Map(facts.quests.flatMap((quest) => quest.chainOrder === null ? [] : [[quest.entityKey, quest.chainOrder] as const])),
   };
@@ -96,7 +97,10 @@ export function relationIndexes(entities: readonly CatalogEntityRow[], facts: Ca
     pushIndex(result.gathersByItem, row.item.entityKey, row);
   }
   for (const row of relations.containers) pushIndex(result.containersByItem, row.item.entityKey, row);
-  for (const row of relations.interactions) pushIndex(result.interactionsByItem, row.item.entityKey, row);
+  for (const row of relations.interactions) {
+    pushIndex(result.interactionsByItem, row.item.entityKey, row);
+    if (row.place?.entityKey) pushIndex(result.interactionsByPlace, row.place.entityKey, row);
+  }
   for (const row of relations.quests) {
     pushIndex(result.questsByQuest, row.quest.entityKey, row);
     pushIndex(result.questsByCounterpart, row.counterpart?.entityKey ?? null, row);
@@ -111,6 +115,11 @@ export function relationIndexes(entities: readonly CatalogEntityRow[], facts: Ca
     for (const npcKey of new Set(placement.roles.map((role) => role.npcEntityKey))) pushIndex(result.placementsByNpc, npcKey, placement);
   }
   return result;
+}
+
+/** The reader name of an object that gives items. The "For sale 2500 gold" signs are not property signs: a use costs Gold Coin and rolls a loot table. */
+export function interactionLabel(objectName: string | null): string {
+  return /^For sale \d+ gold$/i.test(objectName ?? "") ? "For Sale Sign" : displayName(objectName ?? "") || "Object";
 }
 
 export function conditionsById(conditions: readonly CatalogCondition[]): ReadonlyMap<string, CatalogCondition> {
