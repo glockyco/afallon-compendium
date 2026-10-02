@@ -1,4 +1,4 @@
-import { HEROIC_TIER_KEY, type CatalogAvailabilityRule, type CatalogClothDrops, type CatalogCondition, type CatalogEntityRow, type CatalogGatheringNode, type CatalogItemFacts, type CatalogQuestPickup } from "@afallon/contracts/catalog";
+import { HEROIC_TIER_KEY, type CatalogAvailabilityRule, type CatalogClothDrops, type CatalogCondition, type CatalogEntityRow, type CatalogGatheringNode, type CatalogItemFacts, type CatalogProgressionFact, type CatalogQuestPickup } from "@afallon/contracts/catalog";
 import { categoryLabel, type AvailabilityRule, type ClothDrop, type Craft, type DungeonFinderReward, type Enchanting, type EntityRef, type FromItemRow, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
 import { isCorruptibleEquipment } from "../corruption-rewards";
 import { recipeRank } from "../crafting";
@@ -213,6 +213,51 @@ function projectEnchanting(key: string | null | undefined, input: DocumentProjec
   })) };
 }
 
+const effectFactsByInput = new WeakMap<DocumentProjectionInput, Map<string, CatalogProgressionFact>>();
+/** Item effects follow the same direct actions and progression appliers as an effect page's Applied by rows. */
+export function projectItemEffects(fact: CatalogItemFacts | undefined, enchanting: Enchanting | undefined, input: DocumentProjectionInput): PublicItem["appliesEffects"] {
+  if (!fact) return [];
+  const abilities = new Map<string, Set<number | null>>();
+  for (const action of fact.actionAbilities) if (action.ability.entityKey) {
+    const ranks = abilities.get(action.ability.entityKey) ?? new Set<number | null>();
+    ranks.add(action.rankIndex);
+    abilities.set(action.ability.entityKey, ranks);
+  }
+  for (const action of fact.gameActions) if (action.type === "Ability" && action.target?.entityKey) {
+    const ranks = abilities.get(action.target.entityKey) ?? new Set<number | null>();
+    ranks.add(null);
+    abilities.set(action.target.entityKey, ranks);
+  }
+  const statKeys = new Set([...fact.stats, ...fact.randomStats, ...(fact.gem?.stats ?? [])].map((row) => row.stat.entityKey));
+  const enchantStatKeys = new Set(enchanting?.tiers.flatMap((tier) => tier.stats.map((row) => row.stat.key)) ?? []);
+  let effects = effectFactsByInput.get(input);
+  if (!effects) {
+    effects = new Map(input.facts.progression.facts.filter((row) => row.kind === "effects").map((row) => [row.entityKey, row]));
+    effectFactsByInput.set(input, effects);
+  }
+  const rows: PublicItem["appliesEffects"] = [];
+  const seen = new Set<string>();
+  const add = (key: string, trigger: PublicItem["appliesEffects"][number]["trigger"], chance: number) => {
+    const effectFact = effects.get(key);
+    if (effectFact?.kind !== "effects") return;
+    const identity = `${key}:${trigger}:${chance}`;
+    if (seen.has(identity)) return;
+    seen.add(identity);
+    rows.push({ effect: input.resolve({ entityKey: key, label: effectFact.name ?? key }), trigger,
+      ...(chance < 100 ? { chance } : {}), ...(!effectFact.details.endless && effectFact.details.duration > 0 ? { durationSeconds: effectFact.details.duration } : {}) });
+  };
+  for (const action of fact.gameActions) if (action.type === "Effect" && action.target?.entityKey) add(action.target.entityKey, "Use", action.chance);
+  for (const applier of input.facts.progression.appliers) {
+    const source = applier.source.entityKey;
+    if (source && applier.via === "statOnHit" && statKeys.has(source)) add(applier.effect, "On hit", applier.chance);
+    if (source && applier.via === "statOnHit" && enchantStatKeys.has(source)) add(applier.effect, "After enchanting, on hit", applier.chance);
+    const ranks = source ? abilities.get(source) : undefined;
+    if ((applier.via === "ability" || applier.via === "casterAbility") && ranks
+      && (ranks.has(null) || applier.rank === null || ranks.has(applier.rank))) add(applier.effect, "Use", applier.chance);
+  }
+  return rows;
+}
+
 export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, startingGear: ReadonlyMap<string, readonly EntityRef[]>, fromItems: ReadonlyMap<string, readonly FromItemRow[]>): PublicItem {
   const fact = input.facts.items.find((candidate) => candidate.entityKey === entity.entityKey);
   const clothDrop = projectClothDrop(entity.entityKey, input);
@@ -398,7 +443,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     questPickups,
     ...(dungeonFinder ? { dungeonFinder } : {}),
     adventurers,
-    whenUsed: projectItemUse(fact, input),
+    whenUsed: projectItemUse(fact, input), appliesEffects: projectItemEffects(fact, enchanting, input),
   };
 }
 

@@ -37,3 +37,26 @@ test("no relation row names an excluded record", () => {
   const kept = withoutExcludedRelations({ ...relations, transitions: [teleport("scenes:18"), teleport("scenes:14")] }, new Set(["scenes:18"]));
   expect(kept.transitions.map((row) => row.destinationSceneKey)).toEqual(["scenes:14"]);
 });
+
+test("reviewed thin items reappear if their catalog gains an actionable fact or any inbound reference", () => {
+  const records = [
+    { ...entity("items", 50, "Alchemy table"), description: "A portable alchemist's workbench, stained by a hundred experiments." },
+    { ...entity("items", 84, "Forest Demon Quest"), description: "" },
+    { ...entity("items", 835, "Expedition Supply Pack"), description: "A weatherproofed canvas pack stamped with the Emberpeak Expedition seal. Rations, lamp oil, and a coil of good dwarven rope." },
+  ];
+  const item = (key: string) => ({ entityKey: key, actionAbilities: [], useLines: [], stats: [], randomStats: [], sockets: [], gem: null,
+    enchantment: null, gearSet: null, currency: null, corruptionToken: false, equipmentRequirements: [], useConditions: [],
+    gameActions: key === "items:835" ? [] : key === "items:50"
+      ? [{ type: "GameObject", alterAction: "Gain", amount: 0, target: null }, { type: "Item", alterAction: "Remove", amount: 1, target: { entityKey: key, label: key } }]
+      : [{ type: "Item", alterAction: "Remove", amount: 1, target: { entityKey: key, label: key } }, { type: "Quest", alterAction: "Gain", amount: 0, target: null }],
+  } as unknown as CatalogFacts["items"][number]);
+  const itemFacts = { ...facts, items: records.map((record) => item(record.entityKey)) };
+  const entries: PublicationExclusion[] = records.map((record) => ({ key: record.entityKey, reason: "content-free-record", evidence: "No identified source or use." }));
+  const evidence: ExclusionEvidenceInput = { ...input, entities: records, facts: itemFacts, relations, lootItemKeys: new Set() };
+  assertExclusionEvidence(entries, evidence);
+  expect(() => assertExclusionEvidence(entries, { ...evidence, entities: records.map((row) => row.entityKey === "items:84" ? { ...row, description: "Grants an ability" } : row) })).toThrow("the item's description names a use");
+  expect(() => assertExclusionEvidence(entries, { ...evidence, facts: { ...itemFacts, items: itemFacts.items.map((row) => row.entityKey === "items:50" ? { ...row, stats: [{ stat: { entityKey: "stats:20", label: "Armor" }, amount: 3, isPercent: false }] } : row) } })).toThrow("the item has a usable fact");
+  expect(() => assertExclusionEvidence(entries, { ...evidence, relations: { ...relations, quests: [{ counterpart: { entityKey: "items:835", label: "Expedition Supply Pack" } } as CatalogRelations["quests"][number]] } })).toThrow("the item is named in a relation");
+  expect(() => assertExclusionEvidence(entries, { ...evidence, lootItemKeys: new Set(["items:835"]) })).toThrow("a loot table grants the item");
+  expect(() => assertExclusionEvidence(entries, { ...evidence, facts: { ...itemFacts, items: itemFacts.items.map((row) => row.entityKey === "items:84" ? { ...row, gameActions: [...row.gameActions, { ...row.gameActions[1]!, target: { entityKey: "quests:5", label: "Forest Demon" } }] } : row) } })).toThrow("the item has an identified use");
+});

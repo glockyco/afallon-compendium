@@ -20,7 +20,14 @@ export function projectProperty(entity: CatalogEntityRow, ref: EntityRef, input:
   const purchase = price(fact?.purchasePrice), sale = price(fact?.sellPrice), income = price(fact?.income);
   const locations = propertySigns(entity.entityKey, input);
   const sceneKey = propertySceneKey(entity.entityKey, input);
-  const place = sceneKey === undefined ? undefined : input.resolve({ entityKey: sceneKey, label: sceneKey });
+  const area = locations[0]?.label;
+  const matchingPlaces = area && locations.every((sign) => sign.label === area)
+    ? input.facts.places.flatMap((candidate) => {
+      const place = input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey });
+      return "name" in place && place.kind === "places" && place.slug && place.name === area ? [place] : [];
+    }) : [];
+  const place = matchingPlaces.length === 1 ? matchingPlaces[0]
+    : sceneKey === undefined ? undefined : input.resolve({ entityKey: sceneKey, label: sceneKey });
   return {
     ...baseDocument(entity, ref, input),
     locations,

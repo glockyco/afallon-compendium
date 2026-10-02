@@ -14,7 +14,7 @@ const identity = StaticResourceIdentityFields;
 // Register each paged kind once. Schema getters are deferred because entity references use the
 // kind union before the document schemas (which themselves contain entity references) are defined.
 const PAGE_DOCUMENTS = {
-  items: { schema: () => PublicItemSchema, schemaId: "compendium.static-item.v22" },
+  items: { schema: () => PublicItemSchema, schemaId: "compendium.static-item.v23" },
   npcs: { schema: () => PublicNpcSchema, schemaId: "compendium.static-npc.v12" },
   quests: { schema: () => PublicQuestSchema, schemaId: "compendium.static-quest.v7" },
   places: { schema: () => PublicPlaceSchema, schemaId: "compendium.static-place.v11" },
@@ -485,6 +485,11 @@ export type QuestPickupRow = Static<typeof QuestPickupRowSchema>;
 export const DungeonFinderRewardSchema = Type.Object({ dungeons: Type.Array(EntityRefSchema) }, { additionalProperties: false });
 export type DungeonFinderReward = Static<typeof DungeonFinderRewardSchema>;
 
+// Effects applied by using the item or by a stat's on-hit proc, including the duration of the effect itself.
+export const ItemAppliedEffectSchema = Type.Object({
+  effect: RefSchema, trigger: Type.Union([Type.Literal("Use"), Type.Literal("On hit"), Type.Literal("After enchanting, on hit")]),
+  chance: optional(number), durationSeconds: optional(number),
+}, { additionalProperties: false });
 export const PublicItemSchema = Type.Object({
   ...documentBase, facts: ItemFactsSchema, sourceSpotCount: count, sourceAvailabilities: Type.Array(availability),
   droppedBy: Type.Array(DropRowSchema), soldBy: Type.Array(VendorRowSchema), buys: Type.Array(CurrencyPurchaseRowSchema), gatheredFrom: Type.Array(GatherRowSchema),
@@ -496,7 +501,7 @@ export const PublicItemSchema = Type.Object({
   startingGearOf: Type.Array(StartingGearOfRowSchema), fromItems: Type.Array(FromItemRowSchema), clothDrop: optional(ClothDropSchema),
   questPickups: Type.Array(QuestPickupRowSchema), dungeonFinder: optional(DungeonFinderRewardSchema), placedRules: Type.Array(PlacedRuleSchema),
   adventurers: Type.Array(AdventurerItemRowSchema),
-  whenUsed: ItemUseSchema,
+  whenUsed: ItemUseSchema, appliesEffects: Type.Array(ItemAppliedEffectSchema),
   challengeStoneUses: optional(Type.Array(ChallengeStoneUseSchema)),
 }, { additionalProperties: false });
 export type PublicItem = Static<typeof PublicItemSchema>;
@@ -688,7 +693,7 @@ export const PropertyFactsSchema = Type.Object({
 }, { additionalProperties: false });
 export type PropertyFacts = Static<typeof PropertyFactsSchema>;
 
-// `locations` are the for-sale signs of the property, and `place` is the place that holds them.
+// `locations` are the for-sale signs. `place` is their exact named area when it has a page, or their containing scene.
 export const PublicPropertySchema = Type.Object({ ...documentBase, facts: PropertyFactsSchema, locations: placements, place: optional(RefSchema) }, { additionalProperties: false });
 export type PublicProperty = Static<typeof PublicPropertySchema>;
 

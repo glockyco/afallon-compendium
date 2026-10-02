@@ -14,10 +14,9 @@
 <article class="property-panel">
   {#if image}<img src={`${base}/data/${image.url}`} width={image.width} height={image.height} alt={`${document.ref.name} picture`} />{/if}
   <dl>
-    {#if facts.propertyType}<dt>Type</dt><dd>{facts.propertyType}</dd>{/if}
-    {#if facts.price}<dt>Price</dt><dd><Price price={facts.price} showName /></dd>{/if}
+    {#if facts.price}<dt>Purchase price</dt><dd><Price price={facts.price} showName /></dd>{/if}
     {#if facts.income}<dt>Income</dt><dd class="income"><Price price={facts.income} showName />{#if facts.incomeInterval}<span>every {intervalText(facts.incomeInterval)} of active play</span>{/if}</dd>{/if}
-    {#if facts.sellPrice}<dt>Sells for</dt><dd><Price price={facts.sellPrice} showName /></dd>{/if}
+    {#if facts.sellPrice}<dt>Sell price</dt><dd><Price price={facts.sellPrice} showName /></dd>{/if}
   </dl>
 </article>
 

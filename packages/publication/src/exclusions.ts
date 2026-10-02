@@ -14,6 +14,8 @@ export interface ExclusionEvidenceInput {
   placementIdsByKey: ReadonlyMap<string, readonly string[]>;
   /** Every excluded record, so a record whose only uses are excluded records stays excluded. */
   excluded: ReadonlySet<string>;
+  /** Item keys in loot tables that have at least one binding or owner. */
+  lootItemKeys?: ReadonlySet<string>;
 }
 
 const keyOf = (endpoint: CatalogEndpoint | null): string | null => endpoint?.entityKey ?? null;
@@ -36,7 +38,7 @@ export function withoutExcludedRelations(relations: CatalogRelations, excluded: 
 }
 
 /** The facts that contradict an exclusion of this record, or null when its evidence still holds. */
-function contradiction(entity: CatalogEntityRow, input: ExclusionEvidenceInput): string | null {
+function contradiction(entity: CatalogEntityRow, input: ExclusionEvidenceInput, reason: PublicationExclusion["reason"]): string | null {
   const key = entity.entityKey, relations = input.relations;
   switch (entity.kind) {
     case "items": {
@@ -45,7 +47,26 @@ function contradiction(entity: CatalogEntityRow, input: ExclusionEvidenceInput):
         || relations.interactions.some((row) => keyOf(row.item) === key)
         || relations.quests.some((row) => keyOf(row.counterpart) === key && (row.kind === "reward" || row.kind === "rewardChoice" || row.kind === "itemGiven"))
         || relations.recipes.some((row) => keyOf(row.item) === key && row.role === "product") || (input.startingGear.get(key)?.length ?? 0) > 0;
-      return sources ? "the item has a source" : null;
+      if (sources) return "the item has a source";
+      if (reason !== "content-free-record") return null;
+      const fact = input.facts.items.find((row) => row.entityKey === key);
+      if (!fact) return "the item has no checked facts";
+      if (/\b(uses?|usable|increases?|grants?|gives?|teleports?|restores?|adds?|teaches?|equips?|deals?|heals?|summons?|opens?|activates?|crafts?)\b/i.test(entity.description ?? "")) return "the item's description names a use";
+      if (fact.actionAbilities.length || fact.useLines.length || fact.stats.length || fact.randomStats.length
+        || fact.sockets.length || fact.gem || fact.enchantment || fact.gearSet || fact.currency || fact.corruptionToken
+        || fact.equipmentRequirements.length || fact.useConditions.length || (fact.maxDamage ?? 0) > 0 || (fact.minDamage ?? 0) > 0) return "the item has a usable fact";
+      const inertAction = (action: typeof fact.gameActions[number]) =>
+        action.type === "Item" && action.alterAction === "Remove" && action.target?.entityKey === key
+        || (action.type === "Quest" || action.type === "GameObject") && action.alterAction === "Gain" && !action.target?.entityKey && action.amount === 0;
+      if (!fact.gameActions.every(inertAction)) return "the item has an identified use";
+      if (Object.values(relations).some((rows) => JSON.stringify(rows).includes(`"${key}"`))) return "the item is named in a relation";
+      // A table containing only this item has no usable source without a binding, checked by lootItemKeys.
+      const otherFacts = { ...input.facts, entities: input.facts.entities.filter((row) => row.entityKey !== key),
+        items: input.facts.items.filter((row) => row.entityKey !== key),
+        itemLootTables: input.facts.itemLootTables.filter((table) => table.entries.some((entry) => entry.item.entityKey !== key)) };
+      if (JSON.stringify(otherFacts).includes(`"${key}"`)) return "another fact names the item";
+      if (input.lootItemKeys?.has(key)) return "a loot table grants the item";
+      return null;
     }
     case "npcs":
       if (relations.placements.some((placement) => placement.roles.some((role) => role.npcEntityKey === key))) return "the NPC has a placement";
@@ -74,7 +95,7 @@ export function assertExclusionEvidence(exclusions: readonly PublicationExclusio
   for (const exclusion of exclusions) {
     const entity = entities.get(exclusion.key);
     if (!entity) throw new Error(`Exclusion ${exclusion.key} (${exclusion.reason}) names a record that the catalog lacks.`);
-    const reason = contradiction(entity, input);
+    const reason = contradiction(entity, input, exclusion.reason);
     if (reason !== null) throw new Error(`Exclusion ${exclusion.key} (${exclusion.reason}) no longer holds: ${reason}.`);
   }
 }

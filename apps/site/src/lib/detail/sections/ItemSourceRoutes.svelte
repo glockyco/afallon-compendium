@@ -19,6 +19,7 @@
   $: sources = itemSourceLines(document);
   $: craft = document.crafting;
   $: materials = craft?.materials.map((row) => ({ item: row.counterpart, quantity: row.count })) ?? [];
+  $: firstRank = craft?.ranks[0];
   $: craftGuide = document.placedRules.find((rule) => rule.target === 'crafting' && rule.section === 'crafting-experience')
     ?? document.placedRules.find((rule) => rule.target === 'crafting');
   $: dungeonGuide = document.placedRules.find((rule) => rule.target === 'dungeon-rewards');
@@ -36,13 +37,15 @@
       <li class="route" class:primary={entry === sources[0]} id={entry.id === 'crafting' || (entry.id === 'dropped-by' && singleDropInAnswer) ? entry.id : undefined}>
         {#if entry.id !== 'crafting' || sources.length > 1}<div class="route-head"><strong class="route-label">{entry.label}</strong>{#if entry.spotCount}<span class="route-count">{formatNumber(entry.spotCount)} map spots</span>{/if}</div>{/if}
         {#if entry.id === 'crafting' && craft}
-          <p class="craft-title">{#if craft.skill}Crafted with <EntityLink ref={craft.skill} {registry} />{#if craft.ranks[0]}{' '}{formatNumber(craft.ranks[0].requiredLevel)}{/if}{:else}Crafted from the materials below{/if}{#if craft.station}{' at a '}{'name' in craft.station ? craft.station.name : craft.station.label} station{/if}</p>
+          <p class="craft-title">{#if craft.skill && firstRank}Requires <EntityLink ref={craft.skill} {registry} /> level {formatNumber(firstRank.requiredLevel)}{:else if craft.skill}Craft with <EntityLink ref={craft.skill} {registry} />{:else}Craft from the materials below{/if}{#if craft.station}{' at a '}{'name' in craft.station ? craft.station.name : craft.station.label} station{/if}.</p>
           {#if craft.recipe.name !== document.ref.name}<p class="recipe-name">Recipe: {craft.recipe.name}</p>{/if}
-          {#if materials.length}<MaterialsList {materials} {registry} />{/if}
+          {#if materials.length}<div class="materials"><span>Materials</span><MaterialsList {materials} {registry} /></div>{/if}
           {#if craft.product && craft.product.count > 1}<p>Makes {formatNumber(craft.product.count)} per craft.</p>{/if}
-          {#if craft.taughtBy.length}<p>Learn the recipe from {#each craft.taughtBy as teacher, index}{index > 0 ? ', ' : ''}<EntityLink ref={teacher} {registry} />{/each}.</p>{:else if craft.learnedByDefault}<p>Learned by default.</p>{/if}
-          {#if craft.ranks[0]?.bands.length}<CraftExperience rank={craft.ranks[0]} skill={craft.skill} id="crafting-level" /><p class="qualification">Base experience before skill modifiers.</p>{/if}
-          {#if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label={craftGuide.section === 'crafting-experience' ? 'How crafting experience works' : 'How crafting works'} />{/if}
+          {#if craft.taughtBy.length}<p>Learn the recipe from {#each craft.taughtBy as teacher, index}{index > 0 ? ', ' : ''}<EntityLink ref={teacher} {registry} />{/each}.</p>{:else if craft.learnedByDefault}<p>The recipe is known by default.</p>{/if}
+          {#if firstRank?.bands.length}
+            <p>Base experience: {formatNumber(firstRank.baseExperience)} per craft before skill modifiers.</p>
+            <details class="experience"><summary>Experience by skill level</summary><CraftExperience rank={firstRank} skill={craft.skill} id="crafting-level" />{#if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label={craftGuide.section === 'crafting-experience' ? 'How crafting experience works' : 'How crafting works'} />{/if}</details>
+          {:else if craftGuide}<HowItWorks guide={craftGuide.guide} section={craftGuide.section} label="How crafting works" />{/if}
         {:else if entry.id === 'dungeon-rewards' && facts.dungeonRewards}
           {#if facts.dungeonRewards.every((reward) => reward.guaranteed)}
             <p>Every timed dungeon run ends with a reward bag that holds one Corruption Token.</p>
@@ -75,7 +78,12 @@
   .route.primary .route-label { color: var(--c-accent); }
   .craft-title { font-size: 1.15rem; }
   .recipe-name { color: var(--c-text-dim); }
-  .route-count, .qualification { color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .route-count { color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .materials { display: grid; gap: .25rem; }
+  .materials > span { color: var(--c-text-dim); font-size: var(--c-text-small); }
+  .experience { border-top: 1px solid var(--c-line-soft); padding-top: .55rem; }
+  .experience summary { cursor: pointer; color: var(--c-accent); font-weight: 600; }
+  .experience :global(.craft-experience) { margin-top: .75rem; }
   .route-more { justify-self: start; font-size: var(--c-text-small); min-height: 1.5rem; }
   .route p { line-height: 1.5; }
   .dungeon-list { display: grid; gap: .35rem; padding-left: 1.25rem; min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }

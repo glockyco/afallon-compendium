@@ -5,15 +5,15 @@
   import ItemTooltip from '../../ItemTooltip.svelte';
   import ObjectiveText from '../../ObjectiveText.svelte';
   import Price from '../../Price.svelte';
-  import { formatNumber, nameOf, rarityTone } from '../../format';
+  import { formatNumber, intervalText, nameOf, rarityTone } from '../../format';
   import { itemOnMap, spotOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import LevelSlider from '../LevelSlider.svelte';
   import RecipeEquation from '../RecipeEquation.svelte';
-  import { levelRangeText, packBandText } from '../item-sources';
-  import { planColumns, shownRowCount, type RelationColumn } from '../relation-table';
+  import { itemSourceLines, levelRangeText, packBandText } from '../item-sources';
+  import { omitAlways, planColumns, shownRowCount, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import { itemQuestSourceRows, itemQuestUseRows } from '../quest-rows';
   import CraftingSection from '../sections/CraftingSection.svelte';
@@ -27,6 +27,7 @@
   import VendorSection from '../sections/VendorSection.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
+  import SideCard from '../SideCard.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
   import FactList from '../FactList.svelte';
@@ -47,6 +48,10 @@
   $: heroicGuide = document.placedRules.find((rule) => rule.target === 'heroic-gear');
   $: tokenGuide = document.placedRules.find((rule) => rule.target === 'corruption-token');
   $: questUses = itemQuestUseRows(document.usedInQuests);
+  $: hasSources = itemSourceLines(document).length > 0 || document.adventurers.length > 0;
+  $: itemChanges = document.whenUsed.itemChanges.filter((change) => change.item.key !== document.ref.key);
+  $: useEffects = document.appliesEffects.filter((row) => row.trigger === 'Use');
+  $: hitEffects = document.appliesEffects.filter((row) => row.trigger !== 'Use');
   $: onlyDrop = document.droppedBy.length === 1 ? document.droppedBy[0] : undefined;
   $: singleDropInAnswer = Boolean(onlyDrop?.creatureLevel && !onlyDrop.requirements.length && (onlyDrop.min ?? 1) === 1 && (onlyDrop.max ?? 1) === 1 && onlyDrop.chance !== undefined);
   $: onMap = document.sourceSpotCount > 0;
@@ -76,6 +81,14 @@
     { id: 'level', label: 'Creature level', value: (row) => levelRangeText(row.minLevel, row.maxLevel), sort: (row) => row.minLevel },
     { id: 'chance', label: 'Chance per kill', hint: 'The chance that one kill drops this cloth. Inside a range of levels, it moves steadily from the first value to the second.', numeric: true, value: (row) => row.startChance, sort: (row) => row.startChance },
   ];
+  const effectColumns: RelationColumn<PublicItem['appliesEffects'][number]>[] = [
+    { id: 'effect', label: 'Effect', value: (row) => nameOf(row.effect), sort: (row) => nameOf(row.effect) },
+    { id: 'trigger', label: 'When', value: (row) => row.trigger, whenShared: omitAlways },
+    { id: 'chance', label: 'Chance', numeric: true, value: (row) => row.chance, sort: (row) => row.chance },
+    { id: 'duration', label: 'Duration', numeric: true, value: (row) => row.durationSeconds, sort: (row) => row.durationSeconds },
+  ];
+  $: useEffectPlan = planColumns(effectColumns, useEffects);
+  $: hitEffectPlan = planColumns(effectColumns, hitEffects);
   // An item on the reward gear list can be picked from its band's level, or from level 1 without a band.
   $: rewardRow = document.adventurers.find((row) => row.kind === 'equipmentReward');
   $: rewardLevel = Math.max(1, document.adventurers.find((row) => row.kind === 'equipmentBand')?.minimumContentLevel ?? 1);
@@ -89,34 +102,66 @@
     <svelte:fragment slot="head"><TitleBlock name={document.ref.name} rarity={tone} imageUrl={document.art.icon || document.ref.icon ? `${base}/data/${(document.art.icon ?? document.ref.icon)!.url}` : undefined} {typeLine} mapHref={onMap ? itemOnMap(document.ref.key) : undefined} {registry} /></svelte:fragment>
 
     <svelte:fragment slot="answer">
-      <AnswerCard title="How to get it">
-        <ItemSourceRoutes {document} {registry} />
-      </AnswerCard>
+      {#if hasSources}
+        <AnswerCard title="How to get it"><ItemSourceRoutes {document} {registry} /></AnswerCard>
+      {:else if document.description || useEffects.length}
+        <AnswerCard title="What it does">
+          {#if document.description}<p>{document.description}</p>{/if}
+          {#if useEffects.length}<p>Using it applies {#each useEffects as row, index}{index ? ', ' : ''}<EntityLink ref={row.effect} {registry} />{#if row.chance}{' '}({formatNumber(row.chance)}% chance){/if}{#if row.durationSeconds}{' '}for {intervalText(row.durationSeconds)}{/if}{/each}.</p>{/if}
+          <p class="unknown-source">No known way to get this item.</p>
+        </AnswerCard>
+      {:else}<p class="unknown-source">No known way to get this item.</p>{/if}
     </svelte:fragment>
 
     <svelte:fragment slot="side">
       <div class="c-game-frame"><ItemTooltip {document} {registry} {corruptionLevel} {heroic}><svelte:fragment slot="ref" let:ref let:rankIndex let:plain><EntityLink {ref} {rankIndex} {registry} {plain} /></svelte:fragment></ItemTooltip></div>
-      {#if facts.heroic}
-        <div class="heroic-control">
-          <button type="button" class="c-action" aria-pressed={heroic} on:click={() => (heroic = !heroic)}>{heroic ? 'Showing Heroic Gear' : 'Show Heroic Gear'}</button>
-          <p>Can drop Heroic while the Heroic tier is live. Random stat rolls keep their rolled values.</p>
-          {#if heroicGuide}<HowItWorks guide={heroicGuide.guide} section={heroicGuide.section} label="How Heroic gear works" />{/if}
-        </div>
+      {#if facts.enchanting}
+        <SideCard title="What it does" id="enchants">
+          {#if document.description}<p>{document.description}</p>{/if}
+          <p>Applying it consumes the item. A successful enchantment replaces any different enchantment on the gear.</p>
+          <FactList>
+            <FactRow label="Fits">{facts.enchanting.fits.join(' or ')}</FactRow>
+            {#each facts.enchanting.tiers as tier}
+              {#if facts.enchanting.tiers.length > 1}<FactRow label="Tier">{formatNumber(tier.tier + 1)}</FactRow>{/if}
+              <FactRow label="Adds">{#each tier.stats as stat, index}{index ? ', ' : ''}{stat.amount < 0 ? '' : '+'}{formatNumber(stat.amount)}{stat.isPercent ? '%' : ''} <EntityLink ref={stat.stat} {registry} />{/each}</FactRow>
+              <FactRow label="Success">{formatNumber(tier.successRate)}%</FactRow>
+              <FactRow label="Time">{formatNumber(tier.seconds)} {tier.seconds === 1 ? 'second' : 'seconds'}</FactRow>
+              {#if tier.currencyCosts.length || tier.itemCosts.length}
+                <FactRow label="Extra cost">{#each tier.currencyCosts as price, index}{index ? ', ' : ''}<Price {price} showName />{/each}{#each tier.itemCosts as cost, index}{index || tier.currencyCosts.length ? ', ' : ''}{formatNumber(cost.count)} <EntityLink ref={cost.item} {registry} />{/each}</FactRow>
+              {/if}
+            {/each}
+          </FactList>
+          {#if enchantingGuide}<HowItWorks guide={enchantingGuide.guide} section={enchantingGuide.section} label="How enchanting works" />{/if}
+        </SideCard>
       {/if}
-      {#if facts.corruption}
-        <div id="corruption" class="corruption-control">
-          <LevelSlider id="corruption-level" label="Corruption level" min={0} max={facts.corruption.maxLevel} bind:level={corruptionLevel} readout={(level) => level === 0 ? 'None' : `+${level}`} valueText={(level) => level === 0 ? 'None' : `+${level}`} />
-          {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} section={corruptionGuide.section} label="How corruption works" />{/if}
-          {#if facts.dungeonRewards?.length}<p>Can appear with corruption in the reward bags from {#each facts.dungeonRewards as source, index}{index ? (index === facts.dungeonRewards.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={source.place} {registry} />{/each}.</p>{/if}
-          {#if corruptionLevel > 0 && facts.randomStats.length}<p>Random stats keep their rolled values.</p>{/if}
-        </div>
+      {#if facts.heroic || facts.itemType === 'ARMOR' || facts.itemType === 'WEAPON' || facts.corruption}
+        <SideCard title="Gear options">
+          {#if facts.heroic}
+            <div class="heroic-control">
+              <button type="button" class="c-action" aria-pressed={heroic} on:click={() => (heroic = !heroic)}>{heroic ? 'Showing Heroic gear' : 'Show Heroic gear'}</button>
+              <p>Creature drops can be Heroic while the Heroic tier is live. Random stat rolls keep their rolled values.</p>
+              {#if heroicGuide}<HowItWorks guide={heroicGuide.guide} section={heroicGuide.section} label="How Heroic gear works" />{/if}
+            </div>
+          {/if}
+          {#if facts.corruption}
+            <div id="corruption" class="corruption-control">
+              <LevelSlider id="corruption-level" label="Corruption level" min={0} max={facts.corruption.maxLevel} bind:level={corruptionLevel} readout={(level) => level === 0 ? 'None' : `+${level}`} valueText={(level) => level === 0 ? 'None' : `+${level}`} />
+              {#if corruptionGuide}<HowItWorks guide={corruptionGuide.guide} section={corruptionGuide.section} label="How corruption works" />{/if}
+              {#if facts.dungeonRewards?.length}<p>Can appear with corruption in the reward bags from {#each facts.dungeonRewards as source, index}{index ? (index === facts.dungeonRewards.length - 1 ? ' and ' : ', ') : ''}<EntityLink ref={source.place} {registry} />{/each}.</p>{/if}
+              {#if corruptionLevel > 0 && facts.randomStats.length}<p>Random stats keep their rolled values.</p>{/if}
+            </div>
+          {/if}
+          {#if facts.itemType === 'ARMOR' || facts.itemType === 'WEAPON'}
+            <p>Can be enchanted. <a class="c-link" href={`${base}/mechanics/crafting-and-gathering/#enchanting`}>See enchanting items</a></p>
+          {/if}
+        </SideCard>
       {/if}
-      {#if document.description}<p class="description">{document.description}</p>{/if}
-      {#if facts.itemType === 'ARMOR' || facts.itemType === 'WEAPON'}
-        <p class="side-fact">Can be enchanted <a class="c-link" href={`${base}/mechanics/crafting-and-gathering/#enchanting`}>See enchanting items</a></p>
+      {#if !facts.enchanting && hasSources && (document.description || facts.buyPrice)}
+        <SideCard title="About this item">
+          {#if document.description}<p>{document.description}</p>{/if}
+          {#if facts.buyPrice}<FactList><FactRow label="Buy price"><Price price={facts.buyPrice} showName /></FactRow></FactList>{/if}
+        </SideCard>
       {/if}
-      {#if facts.buyPrice}<p class="side-fact">Buy price <Price price={facts.buyPrice} showName /></p>{/if}
-      {#if facts.stackLimit > 1}<p class="side-fact">Stack size {formatNumber(facts.stackLimit)}</p>{/if}
     </svelte:fragment>
 
     <Sections>
@@ -133,33 +178,9 @@
     {#if document.teaches}
       <Section id="teaches" title="Teaches"><CraftingSection craft={document.teaches} pageKey={document.ref.key} rules={document.placedRules.filter((entry) => entry.target === 'teaches')} {registry} /></Section>
     {/if}
-    {#if facts.enchanting}
-      <Section id="enchants" title="Enchants">
-        <div class="c-stack">
-          <FactList>
-            <FactRow label="Fits">{facts.enchanting.fits.join(' and ')}</FactRow>
-            {#each facts.enchanting.tiers as tier}
-              <FactRow label={facts.enchanting.tiers.length > 1 ? `Tier ${tier.tier + 1} adds` : 'Adds'}>
-                {#each tier.stats as stat, index}{index ? ', ' : ''}{stat.amount < 0 ? '' : '+'}{formatNumber(stat.amount)}{stat.isPercent ? '%' : ''} <EntityLink ref={stat.stat} {registry} />{/each}
-              </FactRow>
-              <FactRow label={facts.enchanting.tiers.length > 1 ? `Tier ${tier.tier + 1} chance` : 'Success chance'}>{formatNumber(tier.successRate)}%</FactRow>
-              <FactRow label={facts.enchanting.tiers.length > 1 ? `Tier ${tier.tier + 1} time` : 'Time'}>{formatNumber(tier.seconds)} {tier.seconds === 1 ? 'second' : 'seconds'}</FactRow>
-              {#if tier.currencyCosts.length || tier.itemCosts.length}
-                <FactRow label="Additional cost">
-                  {#each tier.currencyCosts as price, index}{index ? ', ' : ''}<Price {price} showName />{/each}
-                  {#each tier.itemCosts as cost, index}{index || tier.currencyCosts.length ? ', ' : ''}{formatNumber(cost.count)} <EntityLink ref={cost.item} {registry} />{/each}
-                </FactRow>
-              {/if}
-            {/each}
-          </FactList>
-          <p>Using this item uses it up. A successful enchantment replaces any different enchantment already on the gear.</p>
-          {#if enchantingGuide}<HowItWorks guide={enchantingGuide.guide} section={enchantingGuide.section} label="How enchanting works" />{/if}
-        </div>
-      </Section>
-    {/if}
-    {#if document.whenUsed.chests.length || document.whenUsed.packs.length || document.whenUsed.itemChanges.length}
+    {#if document.whenUsed.chests.length || document.whenUsed.packs.length || itemChanges.length || useEffects.length}
       <!-- Tabs choose the tables of a pack, so a section with pack tables shows no count. -->
-      <Section id="when-used" title="When used" count={document.whenUsed.packs.length ? undefined : document.whenUsed.chests.length + document.whenUsed.itemChanges.length}>
+      <Section id="when-used" title="When used" count={document.whenUsed.packs.length ? undefined : document.whenUsed.chests.length + itemChanges.length + useEffects.length}>
         <div class="c-stack">
           {#if document.whenUsed.chests.length}
             <div class="c-groups">
@@ -181,11 +202,32 @@
             </div>
             {#if chestGuide}<HowItWorks guide={chestGuide.guide} section={chestGuide.section} label="How bag contents work" />{/if}
           {/if}
-          {#each document.whenUsed.itemChanges as change}
+          {#if useEffects.length}
+            <RelationTable columns={useEffectPlan.columns} rows={useEffects} label="Effects when used">
+              <svelte:fragment slot="cell" let:row let:column>
+                {#if column === 'effect'}<EntityLink ref={row.effect} {registry} />
+                {:else if column === 'chance'}{row.chance === undefined ? '' : `${formatNumber(row.chance)}%`}
+                {:else}{row.durationSeconds === undefined ? '' : intervalText(row.durationSeconds)}{/if}
+              </svelte:fragment>
+            </RelationTable>
+          {/if}
+          {#each itemChanges as change}
             <p>Using it {change.action === 'Remove' ? 'consumes' : 'gives'} {formatNumber(change.count)} <EntityLink ref={change.item} {registry} />.</p>
           {/each}
           {#if document.whenUsed.packs.length}<SupplyPackBands packs={document.whenUsed.packs} guide={packGuide} {registry} />{/if}
         </div>
+      </Section>
+    {/if}
+    {#if hitEffects.length}
+      <Section id="on-hit-effects" title="On-hit effects" count={hitEffects.length} line={hitEffects.every((row) => row.trigger === 'After enchanting, on hit') ? 'These effects can trigger after enchanting the gear.' : 'These effects can trigger when the gear hits.'}>
+        <RelationTable columns={hitEffectPlan.columns} rows={hitEffects} label="Effects on hit">
+          <svelte:fragment slot="cell" let:row let:column>
+            {#if column === 'effect'}<EntityLink ref={row.effect} {registry} />
+            {:else if column === 'trigger'}{row.trigger}
+            {:else if column === 'chance'}{row.chance === undefined ? '' : `${formatNumber(row.chance)}%`}
+            {:else}{row.durationSeconds === undefined ? '' : intervalText(row.durationSeconds)}{/if}
+          </svelte:fragment>
+        </RelationTable>
       </Section>
     {/if}
     {#if document.usedInRecipes.length || questUses.length || document.challengeStoneUses?.length}
@@ -205,7 +247,7 @@
           {/each}
         </div>{/if}
       </Section>
-    {:else if !document.teaches && !document.buys.length && !facts.enchanting}<Section id="used-for" title="Used for"><p>No known recipe or quest uses {document.ref.name}.</p></Section>{/if}
+    {/if}
     {#if document.adventurers.length}
       <Section id="adventurers" title="Adventurers">
         <div class="adventurer-gear">
@@ -279,13 +321,8 @@
 </article>
 
 <style>
-  .description, .side-fact { line-height: 1.5; }
   .corruption-control { display: grid; gap: .6rem; scroll-margin-top: 1rem; }
-  .corruption-control p { color: var(--c-text-dim); line-height: 1.5; }
   .heroic-control { display: grid; justify-items: start; gap: .5rem; }
-  .heroic-control p { color: var(--c-text-dim); line-height: 1.5; }
-  .description { color: var(--c-text-dim); }
-  .side-fact { display: flex; justify-content: space-between; gap: .75rem; }
   .used-recipes, .used-quests, .used-stones { display: grid; gap: .5rem; scroll-margin-top: 1rem; }
   .adventurer-gear { display: grid; gap: .5rem; line-height: 1.55; }
   .used-row, .used-quest { min-width: 0; padding: .55rem .7rem; border: 1px solid var(--c-line); border-radius: var(--c-radius); background: var(--c-surface-1); }

@@ -283,6 +283,7 @@ export type StaticCoverage = Static<typeof StaticCoverageSchema>;
 const exclusionReason = Type.Union([
   Type.Literal("test-record"), Type.Literal("appearance-option"), Type.Literal("unplaced-record"),
   Type.Literal("unloadable-scene"), Type.Literal("character-creation-scene"), Type.Literal("progress-flag"),
+  Type.Literal("content-free-record"),
 ]);
 export type ExclusionReason = Static<typeof exclusionReason>;
 

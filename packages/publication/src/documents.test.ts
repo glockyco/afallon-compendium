@@ -7,6 +7,7 @@ import { readerCoverage } from "./coverage";
 import { projectGatheringNodeDocuments, spawnerGroups } from "./gathering";
 import { projectPublicDocuments } from "./documents";
 import { conditionsById, type DocumentProjectionInput, requirementsFor } from "./documents/projection";
+import { projectItemEffects } from "./documents/items";
 import { projectQuestObjective } from "./documents/quests";
 import { assertCompleteTooltipCoverage, auditPublicTooltipCoverage } from "./tooltip-coverage";
 import { searchAliases } from "./index-resources";
@@ -98,6 +99,26 @@ function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts
   const documents = projectPublicDocuments({ entities: projectEntities, facts: withStats, relations: projectRelations, references, resolve: createReferenceResolver(references.refs), artByEntity: new Map(), placements, regionIdsByMapSpace, npcLevels, placementIdsByKey, placeVariants, corruptionRewards: rewards });
   return { refs: references.refs, documents };
 }
+test("item effects include direct use, ranked ability, and stat proc without mixing their triggers", () => {
+  const effect = (key: string, duration: number) => ({ entityKey: key, name: key, kind: "effects",
+    details: { duration, endless: false } } as CatalogProgressionFact);
+  const effectRef = (key: string) => ({ entityKey: key, label: key });
+  const input = { facts: { progression: { facts: [effect("effects:10", 600), effect("effects:11", 45), effect("effects:12", 60)], appliers: [
+    { effect: "effects:11", source: effectRef("abilities:7"), rank: 1, via: "ability", chance: 100 },
+    { effect: "effects:12", source: effectRef("stats:9"), rank: 0, via: "statOnHit", chance: 15 },
+  ] } }, resolve: (endpoint: { entityKey: string | null; label: string }) =>
+    ({ key: endpoint.entityKey, name: endpoint.label, kind: "effects", slug: endpoint.label }) } as unknown as DocumentProjectionInput;
+  const item = { ...facts.items[0]!, stats: [{ stat: effectRef("stats:9"), amount: 15, isPercent: false }],
+    actionAbilities: [{ ability: effectRef("abilities:7"), rankIndex: 1 }],
+    gameActions: [{ type: "Effect", target: effectRef("effects:10"), chance: 100 }],
+  } as CatalogFacts["items"][number];
+  expect(projectItemEffects(item, undefined, input)).toEqual([
+    { effect: { key: "effects:10", name: "effects:10", kind: "effects", slug: "effects:10" }, trigger: "Use", durationSeconds: 600 },
+    { effect: { key: "effects:11", name: "effects:11", kind: "effects", slug: "effects:11" }, trigger: "Use", durationSeconds: 45 },
+    { effect: { key: "effects:12", name: "effects:12", kind: "effects", slug: "effects:12" }, trigger: "On hit", chance: 15, durationSeconds: 60 },
+  ]);
+});
+
 test("an enchantment's authored requirements and tiers live on its item, with its own search name", () => {
   const kit = { ...entities[0]!, entityKey: "items:88", nativeId: 88, name: "Enchant Health" };
   const enchantment = { ...entities[0]!, entityKey: "enchantments:0", kind: "enchantments", nativeId: 0, name: "Health Enchantment" };

@@ -61,7 +61,7 @@
 
     {#each facts.sockets as socket}<p class="dim">Empty {categoryLabel(socket.socketType ?? socket.gemType ?? 'socket')} socket</p>{/each}
     {#if facts.gem}{#each facts.gem.stats as stat}<p class="good">{signedAmount(stat.amount, stat.isPercent)} <slot name="ref" ref={stat.stat} rankIndex={undefined} plain={true}><EntityReference ref={stat.stat} {registry} plain /></slot></p>{/each}{/if}
-    {#if facts.enchantment}<p>Enchantment: <slot name="ref" ref={facts.enchantment} rankIndex={undefined} plain={true}><EntityReference ref={facts.enchantment} {registry} plain /></slot></p>{/if}
+    {#if facts.enchantment && facts.enchantment.key !== document.ref.key}<p>Enchantment: <slot name="ref" ref={facts.enchantment} rankIndex={undefined} plain={true}><EntityReference ref={facts.enchantment} {registry} plain /></slot></p>{/if}
 
     {#if set}
       <section class="gear-set" aria-label={nameOf(set.set)}>
@@ -79,6 +79,7 @@
     {/if}
     {#if facts.questDropOnly}<p class="dim">Quest item</p>{/if}
     {#if facts.corruptionToken}<p class="dim">Corruption token</p>{/if}
+    {#if facts.stackLimit > 1}<p class="dim">Stack size {formatNumber(facts.stackLimit)}</p>{/if}
     {#if facts.sellPrice}<p class="sell-price"><span>Sell price</span> <Price price={facts.sellPrice} showName /></p>{/if}
   </div>
 </article>

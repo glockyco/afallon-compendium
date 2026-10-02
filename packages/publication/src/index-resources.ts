@@ -228,7 +228,8 @@ export async function generateIndexResources(
   // Each exclusion must still hold in this catalog, so the check reads the relations before exclusion.
   const spawnCandidates = querySpawnCandidateNpcs(db);
   assertSameIdentity(entities, spawnCandidates, "Spawn candidate");
-  assertExclusionEvidence(exclusions, { entities: entities.records, facts: facts.records, relations: usable, spawnCandidates: new Set(spawnCandidates.records), startingGear: startingGearByItem(entities.records, facts.records, refs), placementIdsByKey, excluded });
+  assertExclusionEvidence(exclusions, { entities: entities.records, facts: facts.records, relations: usable, spawnCandidates: new Set(spawnCandidates.records), startingGear: startingGearByItem(entities.records, facts.records, refs), placementIdsByKey, excluded,
+    lootItemKeys: new Set((db.query("SELECT DISTINCT e.item_entity_key AS itemKey FROM loot_entries e JOIN loot_bindings b ON b.loot_table_id = e.loot_table_id").all() as Array<{ itemKey: string }>).map((row) => row.itemKey)) });
   const catalogPlacements = new Map(relations.records.placements.map((placement) => [placement.placementId, placement]));
   const publishedPlacements = new Map([...placements].map(([placementId, placement]) => {
     const catalogPlacement = catalogPlacements.get(placementId), scene = catalogPlacement ? refs.get(catalogPlacement.sceneKey) : undefined;
