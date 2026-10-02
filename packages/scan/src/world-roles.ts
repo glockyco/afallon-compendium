@@ -7,6 +7,8 @@ export type WorldRoleRow = {
     | "interactions"
     | "containers"
     | "questZones"
+    | "questFieldInteractions"
+    | "huntTanneryDirectors"
     | "transitions"
     | "services"
     | "conditionSources"
@@ -27,6 +29,8 @@ const collections: readonly Collection[] = [
   "resourceProducers",
   "interactions",
   "containers",
+  "questFieldInteractions",
+  "huntTanneryDirectors",
   "questZones",
   "transitions",
   "services",
@@ -733,6 +737,10 @@ function classify(collection: Collection, row: RecordValue, rowPath: string): { 
     case "containers": classifyContainer(row, rowPath, facts, issues); break;
     case "questZones": classifyQuestZone(row, rowPath, facts, issues); break;
     case "transitions": classifyTransition(row, rowPath, facts, issues); break;
+    case "questFieldInteractions":
+      addFact(facts, "questLocation", refs(`${rowPath}/fields/kind`));
+      break;
+    case "huntTanneryDirectors": break;
     case "services": classifyService(row, rowPath, facts, issues); break;
     case "conditionSources": classifyCondition(row, rowPath, facts, issues); break;
     case "unsupportedSources": classifyUnsupported(row, rowPath, issues); break;

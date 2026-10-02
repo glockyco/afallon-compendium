@@ -9,7 +9,7 @@ const reference = Type.Object({ id: Type.Integer({ minimum: 0 }), sourceFieldPat
 const nullableReference = Type.Union([reference, Type.Null()]);
 
 export const CorruptionCaptureSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.corruption-capture.v1"),
+  schemaVersion: Type.Literal("compendium.corruption-capture.v2"),
   combat: Type.Object({
     maxLevel: nullableInteger,
     gearAllStatsPercentPerLevel: nullableNumber,
@@ -30,5 +30,12 @@ export const CorruptionCaptureSchema = Type.Object({
     maxLootItems: nullableInteger, bosses: Type.Union([Type.Array(reference), Type.Null()]),
     lootTables: Type.Union([Type.Array(reference), Type.Null()]), token: nullableReference,
   })]),
+  dungeonFinder: Type.Object({
+    supplyPackId: nullableInteger,
+    enabledSceneIds: Type.Array(Type.Integer({ minimum: 0 })),
+    sourceFieldPath: text,
+  }),
 }, { additionalProperties: false });
+const { dungeonFinder: _finder, ...legacyCorruption } = CorruptionCaptureSchema.properties;
+export const CorruptionCaptureV1Schema = Type.Object({ ...legacyCorruption, schemaVersion: Type.Literal("compendium.corruption-capture.v1") }, { additionalProperties: false });
 export type CorruptionCapture = Static<typeof CorruptionCaptureSchema>;

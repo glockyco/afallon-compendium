@@ -49,6 +49,83 @@ var sourceRegionTotal = regions == null ? -1 : regions.Count;
 var sourcePropertyTotal = properties == null ? -1 : properties.Count;
 var sourceWorldPositionTotal = worldPositions == null ? -1 : worldPositions.Count;
 
+System.Collections.Generic.List<object> canonicalProjectGameActions(Il2CppSystem.Collections.Generic.List<Il2Cpp.GameActionsData.GameAction> itemGameActionList)
+{
+        var itemGameActions = new System.Collections.Generic.List<object>();
+        if (itemGameActionList != null)
+        {
+            for (var gameActionIndex = 0; gameActionIndex < itemGameActionList.Count; gameActionIndex++)
+            {
+                var gameAction = itemGameActionList[gameActionIndex];
+                if (gameAction == null) { itemGameActions.Add(new { sourceIndex = gameActionIndex, unavailable = "null GameAction record" }); continue; }
+                var effectTemplate = gameAction.VisualEffectEntry == null ? null : gameAction.VisualEffectEntry.Template;
+                var effectPrefabs = new System.Collections.Generic.List<object>();
+                if (gameAction.type.ToString() == "TriggerVisualEffect" && effectTemplate != null && effectTemplate.PrefabKeys != null)
+                {
+                    for (var prefabIndex = 0; prefabIndex < effectTemplate.PrefabKeys.Count; prefabIndex++)
+                    {
+                        var key = effectTemplate.PrefabKeys[prefabIndex];
+                        var loaded = UnityEngine.Resources.Load("RPGBSoft/" + key);
+                        var pointer = loaded == null ? null : loaded.TryCast<Il2Cpp.AssetPointer>();
+                        var asset = pointer == null ? null : pointer.Asset;
+                        var prefab = asset == null ? null : asset.TryCast<UnityEngine.GameObject>();
+                        var chests = new System.Collections.Generic.List<object>();
+                        if (prefab != null)
+                        {
+                            foreach (var chest in prefab.GetComponentsInChildren<Il2CppBLINK.RPGBuilder.World.Chest>(true))
+                            {
+                                var loot = new System.Collections.Generic.List<object>();
+                                for (var lootIndex = 0; chest.lootInstances != null && lootIndex < chest.lootInstances.Count; lootIndex++)
+                                {
+                                    var row = chest.lootInstances[lootIndex];
+                                    if (row == null) continue;
+                                    loot.Add(new { sourceIndex = lootIndex, itemId = row.item == null ? -1 : row.item.ID, min = row.minCount, max = row.maxCount, chance = row.dropChance });
+                                }
+                                chests.Add(new { name = chest.gameObject.name, maxDrops = chest.maxDrops, rows = loot });
+                            }
+                        }
+                        effectPrefabs.Add(new { key, loaded = loaded != null, prefabAvailable = prefab != null, chests });
+                    }
+                }
+                var actionRequirements = new System.Collections.Generic.List<object>();
+                for (var groupIndex = 0; gameAction.Requirements != null && groupIndex < gameAction.Requirements.Count; groupIndex++)
+                {
+                    var group = gameAction.Requirements[groupIndex];
+                    if (group == null) continue;
+                    var checks = new System.Collections.Generic.List<object>();
+                    for (var checkIndex = 0; group.Requirements != null && checkIndex < group.Requirements.Count; checkIndex++)
+                    {
+                        var check = group.Requirements[checkIndex];
+                        if (check != null) checks.Add(new { type = check.type.ToString(), rule = check.condition.ToString(), classId = check.ClassID, level = check.Amount1, levelMax = check.Amount2, comparison = check.Value.ToString() });
+                    }
+                    actionRequirements.Add(new { checkCount = group.checkCount, requiredCount = group.requiredCount, checks });
+                }
+                itemGameActions.Add(new
+                {
+                    sourceIndex = gameActionIndex,
+                    type = new { value = (int)gameAction.type, name = gameAction.type.ToString() },
+                    chance = gameAction.chance,
+                    alterAction = gameAction.AlterAction.ToString(),
+                    requirements = actionRequirements,
+                    visualEffect = effectTemplate == null ? null : (object)new { name = effectTemplate.entryName, prefabs = effectPrefabs },
+                    nodeAction = new { value = (int)gameAction.NodeAction, name = gameAction.NodeAction.ToString() },
+                    progressionType = new { value = (int)gameAction.ProgressionType, name = gameAction.ProgressionType.ToString() },
+                    teleportType = new { value = (int)gameAction.TeleportType, name = gameAction.TeleportType.ToString() },
+                    amount = gameAction.Amount,
+                    targets = new
+                    {
+                        abilityId = gameAction.AbilityID, bonusId = gameAction.BonusID, recipeId = gameAction.RecipeID, resourceId = gameAction.ResourceID,
+                        effectId = gameAction.EffectID, npcId = gameAction.NPCID, factionId = gameAction.FactionID, itemId = gameAction.ItemID,
+                        currencyId = gameAction.CurrencyID, pointId = gameAction.PointID, talentTreeId = gameAction.TalentTreeID, skillId = gameAction.SkillID,
+                        weaponTemplateId = gameAction.WeaponTemplateID, questId = gameAction.QuestID, dialogueId = gameAction.DialogueID,
+                        gameSceneId = gameAction.GameSceneID, lootTableId = gameAction.LootTableID
+                    }
+                });
+            }
+        }
+    return itemGameActions;
+}
+
 if (items != null)
 {
     foreach (var itemPair in items)
@@ -175,78 +252,7 @@ if (items != null)
         // The item reads its template actions when enabled and available, otherwise its own actions.
         var itemActionsTemplate = item.UseGameActionsTemplate ? item.GameActionsTemplate : null;
         var itemGameActionList = itemActionsTemplate != null ? itemActionsTemplate.GameActions : item.GameActions;
-        var itemGameActions = new System.Collections.Generic.List<object>();
-        if (itemGameActionList != null)
-        {
-            for (var gameActionIndex = 0; gameActionIndex < itemGameActionList.Count; gameActionIndex++)
-            {
-                var gameAction = itemGameActionList[gameActionIndex];
-                if (gameAction == null) { itemGameActions.Add(new { sourceIndex = gameActionIndex, unavailable = "null GameAction record" }); continue; }
-                var effectTemplate = gameAction.VisualEffectEntry == null ? null : gameAction.VisualEffectEntry.Template;
-                var effectPrefabs = new System.Collections.Generic.List<object>();
-                if (gameAction.type.ToString() == "TriggerVisualEffect" && effectTemplate != null && effectTemplate.PrefabKeys != null)
-                {
-                    for (var prefabIndex = 0; prefabIndex < effectTemplate.PrefabKeys.Count; prefabIndex++)
-                    {
-                        var key = effectTemplate.PrefabKeys[prefabIndex];
-                        var loaded = UnityEngine.Resources.Load("RPGBSoft/" + key);
-                        var pointer = loaded == null ? null : loaded.TryCast<Il2Cpp.AssetPointer>();
-                        var asset = pointer == null ? null : pointer.Asset;
-                        var prefab = asset == null ? null : asset.TryCast<UnityEngine.GameObject>();
-                        var chests = new System.Collections.Generic.List<object>();
-                        if (prefab != null)
-                        {
-                            foreach (var chest in prefab.GetComponentsInChildren<Il2CppBLINK.RPGBuilder.World.Chest>(true))
-                            {
-                                var loot = new System.Collections.Generic.List<object>();
-                                for (var lootIndex = 0; chest.lootInstances != null && lootIndex < chest.lootInstances.Count; lootIndex++)
-                                {
-                                    var row = chest.lootInstances[lootIndex];
-                                    if (row == null) continue;
-                                    loot.Add(new { sourceIndex = lootIndex, itemId = row.item == null ? -1 : row.item.ID, min = row.minCount, max = row.maxCount, chance = row.dropChance });
-                                }
-                                chests.Add(new { name = chest.gameObject.name, maxDrops = chest.maxDrops, rows = loot });
-                            }
-                        }
-                        effectPrefabs.Add(new { key, loaded = loaded != null, prefabAvailable = prefab != null, chests });
-                    }
-                }
-                var actionRequirements = new System.Collections.Generic.List<object>();
-                for (var groupIndex = 0; gameAction.Requirements != null && groupIndex < gameAction.Requirements.Count; groupIndex++)
-                {
-                    var group = gameAction.Requirements[groupIndex];
-                    if (group == null) continue;
-                    var checks = new System.Collections.Generic.List<object>();
-                    for (var checkIndex = 0; group.Requirements != null && checkIndex < group.Requirements.Count; checkIndex++)
-                    {
-                        var check = group.Requirements[checkIndex];
-                        if (check != null) checks.Add(new { type = check.type.ToString(), rule = check.condition.ToString(), classId = check.ClassID, level = check.Amount1, levelMax = check.Amount2, comparison = check.Value.ToString() });
-                    }
-                    actionRequirements.Add(new { checkCount = group.checkCount, requiredCount = group.requiredCount, checks });
-                }
-                itemGameActions.Add(new
-                {
-                    sourceIndex = gameActionIndex,
-                    type = new { value = (int)gameAction.type, name = gameAction.type.ToString() },
-                    chance = gameAction.chance,
-                    alterAction = gameAction.AlterAction.ToString(),
-                    requirements = actionRequirements,
-                    visualEffect = effectTemplate == null ? null : (object)new { name = effectTemplate.entryName, prefabs = effectPrefabs },
-                    nodeAction = new { value = (int)gameAction.NodeAction, name = gameAction.NodeAction.ToString() },
-                    progressionType = new { value = (int)gameAction.ProgressionType, name = gameAction.ProgressionType.ToString() },
-                    teleportType = new { value = (int)gameAction.TeleportType, name = gameAction.TeleportType.ToString() },
-                    amount = gameAction.Amount,
-                    targets = new
-                    {
-                        abilityId = gameAction.AbilityID, bonusId = gameAction.BonusID, recipeId = gameAction.RecipeID, resourceId = gameAction.ResourceID,
-                        effectId = gameAction.EffectID, npcId = gameAction.NPCID, factionId = gameAction.FactionID, itemId = gameAction.ItemID,
-                        currencyId = gameAction.CurrencyID, pointId = gameAction.PointID, talentTreeId = gameAction.TalentTreeID, skillId = gameAction.SkillID,
-                        weaponTemplateId = gameAction.WeaponTemplateID, questId = gameAction.QuestID, dialogueId = gameAction.DialogueID,
-                        gameSceneId = gameAction.GameSceneID, lootTableId = gameAction.LootTableID
-                    }
-                });
-            }
-        }
+        var itemGameActions = canonicalProjectGameActions(itemGameActionList);
 
         canonicalItems.Add(new
         {
@@ -1176,9 +1182,124 @@ if (worldPositions != null)
     }
 }
 
+var canonicalOwnerActions = new System.Collections.Generic.List<object>();
+void addCanonicalOwnerActions(string ownerKind, string ownerId, string ownerPath, Il2CppSystem.Collections.Generic.List<Il2Cpp.GameActionsData.GameAction> inlineActions, Il2CppBLINK.RPGBuilder.Templates.GameActionsTemplate template)
+{
+    var selected = template == null ? inlineActions : template.GameActions;
+    if (selected == null || selected.Count == 0) return;
+    canonicalOwnerActions.Add(new
+    {
+        ownerKind, ownerId, ownerPath,
+        template = template == null ? null : (object)new { nativeId = template.ID, internalName = template.entryName, fileName = template.entryFileName },
+        actions = canonicalProjectGameActions(selected)
+    });
+}
+if (databaseAvailable)
+{
+    foreach (var pair in database.GetEffects())
+    {
+        var effect = pair.Value;
+        if (effect == null || effect.ranks == null) continue;
+        for (var rank = 0; rank < effect.ranks.Count; rank++)
+        {
+            var data = effect.ranks[rank];
+            if (data != null) addCanonicalOwnerActions("effects", effect.ID.ToString(), "effects/" + effect.ID + "/ranks/" + rank, data.GameActions, data.UseGameActionsTemplate ? data.GameActionsTemplate : null);
+        }
+    }
+    foreach (var pair in database.GetAbilities())
+    {
+        var ability = pair.Value;
+        if (ability == null || ability.ranks == null) continue;
+        for (var rank = 0; rank < ability.ranks.Count; rank++)
+        {
+            var data = ability.ranks[rank];
+            if (data == null || data.Actions == null) continue;
+            for (var index = 0; index < data.Actions.Count; index++)
+            {
+                var entry = data.Actions[index];
+                if (entry != null && entry.GameActionsTemplate != null) addCanonicalOwnerActions("abilities", ability.ID.ToString(), "abilities/" + ability.ID + "/ranks/" + rank + "/actions/" + index, null, entry.GameActionsTemplate);
+            }
+        }
+    }
+    foreach (var pair in database.GetStats())
+    {
+        var stat = pair.Value;
+        if (stat == null || stat.vitalityActions == null) continue;
+        for (var index = 0; index < stat.vitalityActions.Count; index++)
+        {
+            var entry = stat.vitalityActions[index];
+            if (entry != null && entry.GameActionsTemplate != null) addCanonicalOwnerActions("stats", stat.ID.ToString(), "stats/" + stat.ID + "/vitalityActions/" + index, null, entry.GameActionsTemplate);
+        }
+    }
+    foreach (var pair in database.GetNPCs())
+    {
+        var npc = pair.Value;
+        if (npc == null) continue;
+        if (npc.stats != null) for (var statIndex = 0; statIndex < npc.stats.Count; statIndex++)
+        {
+            var stat = npc.stats[statIndex];
+            if (stat == null || stat.vitalityActions == null) continue;
+            for (var index = 0; index < stat.vitalityActions.Count; index++)
+            {
+                var entry = stat.vitalityActions[index];
+                if (entry != null && entry.GameActionsTemplate != null) addCanonicalOwnerActions("npcs", npc.ID.ToString(), "npcs/" + npc.ID + "/stats/" + statIndex + "/vitalityActions/" + index, null, entry.GameActionsTemplate);
+            }
+        }
+        if (npc.Phases != null) for (var phaseIndex = 0; phaseIndex < npc.Phases.Count; phaseIndex++)
+        {
+            var phase = npc.Phases[phaseIndex];
+            var phaseActions = phase == null || phase.PhaseTemplate == null ? null : phase.PhaseTemplate.ActionsTemplate;
+            if (phaseActions == null || phaseActions.PhaseActions == null) continue;
+            for (var index = 0; index < phaseActions.PhaseActions.Count; index++)
+            {
+                var entry = phaseActions.PhaseActions[index];
+                if (entry != null && entry.GameActionsTemplate != null) addCanonicalOwnerActions("npcPhases", npc.ID.ToString(), "npcs/" + npc.ID + "/phases/" + phaseIndex + "/actions/" + index, null, entry.GameActionsTemplate);
+            }
+        }
+    }
+    foreach (var pair in database.GetSpecies())
+    {
+        var species = pair.Value;
+        if (species == null || species.stats == null) continue;
+        for (var statIndex = 0; statIndex < species.stats.Count; statIndex++)
+        {
+            var stat = species.stats[statIndex];
+            if (stat == null || stat.vitalityActions == null) continue;
+            for (var index = 0; index < stat.vitalityActions.Count; index++)
+            {
+                var entry = stat.vitalityActions[index];
+                if (entry != null && entry.GameActionsTemplate != null) addCanonicalOwnerActions("species", species.ID.ToString(), "species/" + species.ID + "/stats/" + statIndex + "/vitalityActions/" + index, null, entry.GameActionsTemplate);
+            }
+        }
+    }
+    foreach (var pair in database.GetRegionTemplates())
+    {
+        var region = pair.Value;
+        if (region == null) continue;
+        if (region.EnterGameActionsTemplate != null) addCanonicalOwnerActions("regions", pair.Key, "regions/" + pair.Key + "/enter", null, region.EnterGameActionsTemplate);
+        if (region.ExitGameActionsTemplate != null) addCanonicalOwnerActions("regions", pair.Key, "regions/" + pair.Key + "/exit", null, region.ExitGameActionsTemplate);
+    }
+    foreach (var pair in database.GetDialogues())
+    {
+        var dialogue = pair.Value;
+        if (dialogue == null || dialogue.dialogueGraph == null || dialogue.dialogueGraph.nodes == null) continue;
+        for (var index = 0; index < dialogue.dialogueGraph.nodes.Count; index++)
+        {
+            var node = dialogue.dialogueGraph.nodes[index] == null ? null : dialogue.dialogueGraph.nodes[index].TryCast<Il2Cpp.RPGDialogueTextNode>();
+            if (node != null && node.GameActionsTemplate != null) addCanonicalOwnerActions("dialogues", dialogue.ID.ToString(), "dialogues/" + dialogue.ID + "/nodes/" + index, null, node.GameActionsTemplate);
+        }
+    }
+    var loadedTemplates = UnityEngine.Resources.FindObjectsOfTypeAll(Il2CppInterop.Runtime.Il2CppType.Of<Il2CppBLINK.RPGBuilder.Templates.GameActionsTemplate>());
+    foreach (var candidate in loadedTemplates)
+    {
+        var template = candidate == null ? null : candidate.TryCast<Il2CppBLINK.RPGBuilder.Templates.GameActionsTemplate>();
+        if (template != null) addCanonicalOwnerActions("templates", template.entryName, "templates/" + template.entryName, template.GameActions, null);
+    }
+}
+
 return new
 {
-    schemaVersion = "compendium.canonical.v5",
+    schemaVersion = "compendium.canonical.v6",
     databaseAvailable = databaseAvailable,
     databaseError = databaseError,
     localization = new
@@ -1225,5 +1346,6 @@ return new
     stats = canonicalStats,
     regions = canonicalRegions,
     properties = canonicalProperties,
-    worldPositions = canonicalWorldPositions
+    worldPositions = canonicalWorldPositions,
+    ownerActions = canonicalOwnerActions,
 };

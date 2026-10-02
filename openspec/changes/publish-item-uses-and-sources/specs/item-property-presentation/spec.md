@@ -2,7 +2,7 @@
 
 ### Requirement: An item page shows its tooltip and sources
 
-An item page SHALL show its name and applicable map action in the title, and its in-game tooltip once with description in the side column (after its answer on narrow screens). Its How to get it answer SHALL show one linked route per available source kind—craft, mine, loot, search, buy, quest reward, starting gear, another item, a world object that spawns a chest, a dungeon reward, a quest pickup, or a cloth drop—ordered by guaranteed yield then known spot count, without treating a chance as guaranteed. Each route SHALL identify a useful example, relevant quantity or chance, and its full anchored source section; an unknown source SHALL be stated plainly. A crafted route SHALL show the materials, known teacher, skill and level, and a computed experience sentence with guide-step link. Its sections SHALL follow Teaches, Used for, then applicable Crafting, Mined from, Dropped by, Sold by, Found in objects, Found in containers, and Quest rewards. Recipe relations SHALL use equations; full relations SHALL remain accessible. Price and stack size SHALL remain available once as secondary facts. A starting-gear route SHALL name only published classes and link their Starting gear sections.
+An item page SHALL show its name and applicable map action in the title, and its in-game tooltip once with description in the side column (after its answer on narrow screens). Its How to get it answer SHALL show one linked route per available source kind—craft, mine, loot, search, buy, quest reward, starting gear, another item, a world object that spawns a chest, a dungeon reward, a Dungeon Finder run, a quest pickup, or a cloth drop—ordered by guaranteed yield then known spot count, without treating a chance as guaranteed. Each route SHALL identify a useful example, relevant quantity or chance, and its full anchored source section; an unknown source SHALL be stated plainly. A crafted route SHALL show the materials, known teacher, skill and level, and a computed experience sentence with guide-step link. Its sections SHALL follow Teaches, Used for, then applicable Crafting, Mined from, Dropped by, Sold by, Found in objects, Found in containers, and Quest rewards. Recipe relations SHALL use equations; full relations SHALL remain accessible. Price and stack size SHALL remain available once as secondary facts. A starting-gear route SHALL name only published classes and link their Starting gear sections.
 
 #### Scenario: Item has several sources
 - **WHEN** an item drops from seven creatures and is sold by two vendors
@@ -42,9 +42,9 @@ An item page SHALL show its name and applicable map action in the title, and its
 - **WHEN** the chest that Slime covered sack spawns gives Poison Sword
 - **THEN** the page of Poison Sword shows a From items row for Slime covered sack with the recorded row chance
 
-#### Scenario: Item comes from a grave
-- **WHEN** the chest that a grave spawns gives Human skull
-- **THEN** the page of Human skull shows a Collected from route and section that name the graves and the recorded 30% row chance
+#### Scenario: Item comes from a tomb
+- **WHEN** the chest that a tomb's visual effect spawns gives Human Skull
+- **THEN** the page of Human Skull shows a Search route and a Found in objects row for Tomb with the recorded 30% row chance and its map spots
 
 #### Scenario: Item comes from a sacrificial altar
 - **WHEN** the sacrifice of 15 Corrupted emeralds at a sacrificial altar loads one of six item sets, and one set holds Frost Shard Necklace
@@ -55,9 +55,17 @@ An item page SHALL show its name and applicable map action in the title, and its
 - **WHEN** the reward bag of a dungeon timer gives Corruption Token
 - **THEN** the page of Corruption Token shows a Dungeon rewards route with each dungeon
 
-#### Scenario: Quest pickup
+#### Scenario: Creature quest pickup
 - **WHEN** an Infected boar dies while the task "Collect 6 Boar Haunches" is open
-- **THEN** the page of Boar Haunch shows a Dropped by row for Infected boar that names the quest Bait for a Beast
+- **THEN** the page of Boar Haunch shows a Quest pickup route and a Quest pickups row where Infected Boar dies that names the quest Bait for a Beast
+
+#### Scenario: Placed quest pickup
+- **WHEN** pickups of Fallen Crusader's Signet lie in the world for the quest Rest for the Fallen
+- **THEN** the page of Fallen Crusader's Signet shows a Quest pickups row that names the quest, the amount of one pickup, and the map spots
+
+#### Scenario: Dungeon Finder reward
+- **WHEN** a successful Random run of the Dungeon Finder gives Adventurer's Supply Pack
+- **THEN** the page of Adventurer's Supply Pack shows a Dungeon Finder route and section that list the dungeons that the finder can queue
 
 #### Scenario: Cloth drop
 - **WHEN** Linen Cloth is a tier of the supplemental cloth drops

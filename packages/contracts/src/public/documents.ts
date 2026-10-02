@@ -159,9 +159,15 @@ export const GatherRowSchema = Type.Object({
 export type GatherRow = Static<typeof GatherRowSchema>;
 
 // Sources keep their distinct published spots and index the item's shared availability groups.
+// `prefabChoices` is present when the object's visual effect picks one of that many chests at random, so the row's
+// chance applies only when the effect picks this row's chest. `choiceLabel` names the option that the player selects
+// at the object, `cost` is the currency that the option takes, and `pickOne` is the number of items that the player
+// picks one of. `actionChance` is present when the object's action that gives the loot runs only that often.
 export const ContainerRowSchema = Type.Object({
-  counterpart: optional(RefSchema), label: text, min: optional(count), max: optional(count), chance: optional(percent), availabilityIndex: count, placementCount: count,
-  places: Type.Array(PlaceSpotsSchema),
+  counterpart: optional(RefSchema), label: text, min: optional(count), max: optional(count), chance: optional(percent), prefabChoices: optional(count),
+  choiceLabel: optional(text), cost: optional(Type.Object({ currency: RefSchema, amount: count }, { additionalProperties: false })), pickOne: optional(count),
+  actionChance: optional(percent),
+  availabilityIndex: count, placementCount: count, places: Type.Array(PlaceSpotsSchema),
 }, { additionalProperties: false });
 export type ContainerRow = Static<typeof ContainerRowSchema>;
 
@@ -425,6 +431,17 @@ export const ClothDropSchema = Type.Object({
   levels: Type.Array(Type.Object({ minLevel: count, maxLevel: optional(count), startChance: percent, endChance: optional(percent) }, { additionalProperties: false }), { minItems: 1 }),
 }, { additionalProperties: false });
 export type ClothDrop = Static<typeof ClothDropSchema>;
+// A quest pickup that gives this item while its quest's task to get the item is open, and no more than the task still
+// needs. A creature pickup appears where a creature of `counterpart` dies; a placed pickup sits at the spots of `places`.
+// `amount` is the most that one pickup gives.
+export const QuestPickupRowSchema = Type.Union([
+  Type.Object({ kind: Type.Literal("creature"), counterpart: RefSchema, quest: optional(RefSchema), amount: count }, { additionalProperties: false }),
+  Type.Object({ kind: Type.Literal("placed"), quest: optional(RefSchema), amount: count, singleUse: Type.Boolean(), placementCount: count, places: Type.Array(PlaceSpotsSchema) }, { additionalProperties: false }),
+]);
+export type QuestPickupRow = Static<typeof QuestPickupRowSchema>;
+// The Dungeon Finder gives this item once after each successful Random run. `dungeons` are the places that it can queue.
+export const DungeonFinderRewardSchema = Type.Object({ dungeons: Type.Array(EntityRefSchema) }, { additionalProperties: false });
+export type DungeonFinderReward = Static<typeof DungeonFinderRewardSchema>;
 
 export const PublicItemSchema = Type.Object({
   ...documentBase, facts: ItemFactsSchema, sourceSpotCount: count, sourceAvailabilities: Type.Array(availability),
@@ -434,7 +451,8 @@ export const PublicItemSchema = Type.Object({
   // which the game's item tooltip reads. A row of `usedInRecipes` links the product's Crafting section and carries the
   // matching product quantity, skill, and verified first-rank gate for the material's recipe equation.
   crafting: optional(CraftSchema), teaches: optional(CraftSchema), usedInRecipes: Type.Array(UsedInRecipeRowSchema), usedInQuests: Type.Array(QuestObjectiveRowSchema),
-  startingGearOf: Type.Array(StartingGearOfRowSchema), fromItems: Type.Array(FromItemRowSchema), clothDrop: optional(ClothDropSchema), placedRules: Type.Array(PlacedRuleSchema),
+  startingGearOf: Type.Array(StartingGearOfRowSchema), fromItems: Type.Array(FromItemRowSchema), clothDrop: optional(ClothDropSchema),
+  questPickups: Type.Array(QuestPickupRowSchema), dungeonFinder: optional(DungeonFinderRewardSchema), placedRules: Type.Array(PlacedRuleSchema),
   adventurers: Type.Array(AdventurerItemRowSchema),
   whenUsed: ItemUseSchema,
   challengeStoneUses: optional(Type.Array(ChallengeStoneUseSchema)),
@@ -813,7 +831,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v17", npcs: "compendium.static-npc.v8", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
+  items: "compendium.static-item.v18", npcs: "compendium.static-npc.v8", quests: "compendium.static-quest.v6", places: "compendium.static-place.v8",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v5", skills: "compendium.static-skill.v5", mechanics: "compendium.static-mechanics.v9", gatheringNodes: "compendium.static-gathering-node.v4",
 } as const satisfies Record<PublicPageKind, string>;
@@ -838,14 +856,14 @@ export const StaticSkillDocumentSchema = staticDocument("skills");
 export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v17": typeof StaticItemDocumentSchema; "compendium.static-npc.v8": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v18": typeof StaticItemDocumentSchema; "compendium.static-npc.v8": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v6": typeof StaticQuestDocumentSchema; "compendium.static-place.v8": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v5": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v5": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v9": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v4": typeof StaticGatheringNodeDocumentSchema;
 } = {
-  "compendium.static-item.v17": StaticItemDocumentSchema, "compendium.static-npc.v8": StaticNpcDocumentSchema,
+  "compendium.static-item.v18": StaticItemDocumentSchema, "compendium.static-npc.v8": StaticNpcDocumentSchema,
   "compendium.static-quest.v6": StaticQuestDocumentSchema, "compendium.static-place.v8": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v5": StaticClassDocumentSchema,
@@ -856,7 +874,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v17"), resourceReference("compendium.static-npc.v8"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
+  resourceReference("compendium.static-item.v18"), resourceReference("compendium.static-npc.v8"), resourceReference("compendium.static-quest.v6"), resourceReference("compendium.static-place.v8"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v5"), resourceReference("compendium.static-skill.v5"), resourceReference("compendium.static-mechanics.v9"),
   resourceReference("compendium.static-gathering-node.v4"),

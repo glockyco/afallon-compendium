@@ -31,7 +31,7 @@ export const canonicalKinds = ["items", "npcs", "quests", "lootTables", "scenes"
 const counts = Type.Object({ items: integer, npcs: integer, quests: integer, lootTables: integer, scenes: integer, resources: integer, stats: integer, regions: integer, properties: integer, worldPositions: integer });
 const guideCoverage = Type.Object({ regionsObserved: integer, regionsExported: integer, regionsOmittedReason: text });
 export const CanonicalSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.canonical.v5"),
+  schemaVersion: Type.Literal("compendium.canonical.v6"),
   databaseAvailable: Type.Literal(true),
   localization: Type.Object({ apiAvailable: Type.Literal(true), language: text, loadedEntryCount: integer }),
   sourceTotals: counts, exportedTotals: counts,
@@ -40,8 +40,15 @@ export const CanonicalSchema = Type.Object({
   lootTables: Type.Array(canonicalEntry), scenes: Type.Array(canonicalEntry), resources: Type.Array(canonicalEntry), stats: Type.Array(canonicalEntry),
   regions: Type.Array(canonicalEntry), properties: Type.Array(canonicalEntry),
   worldPositions: Type.Array(canonicalWorldPosition),
+  ownerActions: Type.Array(Type.Object({
+    ownerKind: text, ownerId: text, ownerPath: text,
+    template: Type.Union([Type.Null(), Type.Object({ nativeId: integer, internalName: nullableText, fileName: nullableText })]),
+    actions: rawRows,
+  })),
 });
-export const CanonicalV4Schema = Type.Object({ ...CanonicalSchema.properties, schemaVersion: Type.Literal("compendium.canonical.v4") });
+const { ownerActions: _ownerActions, ...canonicalV5Properties } = CanonicalSchema.properties;
+export const CanonicalV5Schema = Type.Object({ ...canonicalV5Properties, schemaVersion: Type.Literal("compendium.canonical.v5") });
+export const CanonicalV4Schema = Type.Object({ ...canonicalV5Properties, schemaVersion: Type.Literal("compendium.canonical.v4") });
 export type Canonical = Static<typeof CanonicalSchema>;
 
 export function validateCanonicalIdentityAndCounts(canonical: Canonical): Record<string, Set<number>> {

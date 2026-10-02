@@ -79,4 +79,18 @@ if (matches.Count == 1)
         lootTables = value.LootTables == null ? null : (object)tables,
         token = value.CorruptionTokenItem == null ? null : (object)new { id = value.CorruptionTokenItem.ID, sourceFieldPath = path + ".CorruptionTokenItem" } };
 }
-return new { schemaVersion = "compendium.corruption-capture.v1", combat = combat, affixSettings = affixSettings, affixes = names, timer = timer };
+var finderAssets = UnityEngine.Resources.FindObjectsOfTypeAll<Il2CppBLINK.RPGBuilder.Dungeons.DungeonFinderSettings>();
+if (finderAssets != null && finderAssets.Length > 1) throw new System.InvalidOperationException("Multiple DungeonFinderSettings assets loaded; cannot select an arbitrary one.");
+var finderService = Il2CppBLINK.RPGBuilder.Dungeons.DungeonFinderService.Instance;
+var finderSettings = finderService == null ? (finderAssets == null || finderAssets.Length == 0 ? null : finderAssets[0]) : finderService.Settings;
+if (finderSettings == null) throw new System.InvalidOperationException("DungeonFinderSettings is unavailable from the service and Resources.FindObjectsOfTypeAll.");
+var finderScenes = new System.Collections.Generic.List<int>();
+var gameScenes = database == null ? null : database.GetGameScenes();
+if (gameScenes != null) foreach (var scenePair in gameScenes)
+{
+    if (scenePair.Value != null && scenePair.Value.DungeonFinderEnabled) finderScenes.Add(scenePair.Value.ID);
+}
+finderScenes.Sort();
+var dungeonFinder = new { supplyPackId = finderSettings == null || finderSettings.SupplyPack == null ? (int?)null : finderSettings.SupplyPack.ID,
+    enabledSceneIds = finderScenes, sourceFieldPath = finderService == null ? "Resources.FindObjectsOfTypeAll<DungeonFinderSettings>()[0].SupplyPack; GameDatabase.GetGameScenes().DungeonFinderEnabled" : "DungeonFinderService.Instance.Settings.SupplyPack; GameDatabase.GetGameScenes().DungeonFinderEnabled" };
+return new { schemaVersion = "compendium.corruption-capture.v2", combat = combat, affixSettings = affixSettings, affixes = names, timer = timer, dungeonFinder = dungeonFinder };

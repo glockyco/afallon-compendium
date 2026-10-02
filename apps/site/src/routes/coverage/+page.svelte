@@ -13,7 +13,7 @@
   const GAPS: Record<CoverageGap, { title: string; text: string }> = {
     itemWithoutSource: {
       title: 'Items without a known source',
-      text: 'The scanned game data names no creature, vendor, container, object, resource, quest, recipe, usable item, dungeon reward, or published starting gear that gives these items.',
+      text: 'The scanned game data names no creature, vendor, container, object, resource, quest, recipe, usable item, dungeon reward, Dungeon Finder run, quest pickup, or published starting gear that gives these items.',
     },
     itemAdventurerOnly: {
       title: 'Items carried only by adventurers',

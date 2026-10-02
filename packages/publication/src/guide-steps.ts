@@ -48,7 +48,7 @@ export const GUIDES: Record<MechanicsTopic, { overview: string; steps: GuideStep
     ],
   },
   loot: {
-    overview: "A bag opens a chest of loot. A supply pack gives items from the loot table for your class and level. Some creatures also drop cloth.",
+    overview: "A bag opens a chest of loot. A supply pack gives items from the loot table for your class and level. World objects, cloth drops, quest pickups, and the Dungeon Finder give items too.",
     steps: [
       { id: "open-a-chest", title: "Loot the chest", text: "Each item in the chest rolls its own chance.", rules: ["chest-row-rolls"] },
       { id: "choose-a-table", title: "Get your table", text: "The pack uses the loot table for your class and level.", rules: ["supply-pack-tables"] },
@@ -56,6 +56,9 @@ export const GUIDES: Record<MechanicsTopic, { overview: string; steps: GuideStep
       { id: "draw-from-world-loot", title: "Swap in world loot", text: "Each item can come from world loot for your level and class instead.", rules: ["supply-pack-world-loot"] },
       { id: "keep-the-pack", title: "Empty the pack", text: "The pack is gone once you take everything in it.", rules: ["supply-pack-lifecycle"] },
       { id: "collect-cloth", title: "Collect cloth", text: "A kill can add cloth to the loot.", rules: ["cloth-drop-chance", "cloth-tier-weights"] },
+      { id: "open-an-object", title: "Open an object", text: "Some objects in the world hold a chest.", rules: ["object-chest", "altar-options"] },
+      { id: "pick-up-quest-items", title: "Pick up quest items", text: "Some quest items appear only while a quest asks for them.", rules: ["quest-only-loot", "hunt-pickup", "quest-pickup-use"] },
+      { id: "finish-a-random-run", title: "Finish a Random run", text: "The Dungeon Finder rewards a finished Random run.", rules: ["random-run-supply-pack"] },
     ],
   },
 };

@@ -1,10 +1,56 @@
 import { expect, test } from "bun:test";
 import type { NormalizedDatabaseInput, NormalizedEntity } from "@afallon/contracts/catalog";
-import { collectTypedFacts, entityGameplay } from "./normalize";
+import { collectQuestPickups, collectTypedFacts, entityGameplay } from "./normalize";
 import { classifyItemCondition } from "./conditions";
 import type { AdmittedCatalog } from "./evidence";
-import type { Blocker } from "./context";
+import type { Blocker, SceneContext } from "./context";
 import { questMinimumLevel } from "./decoders";
+import { ownerGameActions, worldOwnerGameActions } from "./owner-actions";
+import { worldRelations } from "./world";
+import type { ItemSourceAccumulator } from "./relations";
+
+test("placed and hunt-creature pickups link matching get-item tasks and keep every placed source", () => {
+  const fields = (kind: string, itemId: number) => ({
+    kind: { name: kind }, item: { nativeId: itemId }, quest: { nativeId: 3 }, task: { nativeId: 4 },
+    prerequisiteTask: { nativeId: 5 }, amount: 2, requiredItemCount: 1, singleUse: true,
+  });
+  const context = {
+    sceneNativeId: 42, sourceByComponent: new Map([[19, { sourceId: "pickup-interaction" }], [21, { sourceId: "other-interaction" }]]),
+    world: {
+      questFieldInteractions: [
+        { source: { componentInstanceId: 17, gameObjectInstanceId: 88 }, fields: fields("Pickup", 7) },
+        { source: { componentInstanceId: 20, gameObjectInstanceId: 89 }, fields: fields("Pickup", 7) },
+        { source: { componentInstanceId: 18, gameObjectInstanceId: 90 }, fields: fields("Workstation", 7) },
+      ],
+      interactions: [
+        { family: "interactableObject", source: { componentInstanceId: 19, gameObjectInstanceId: 88 } },
+        { family: "interactableObject", source: { componentInstanceId: 21, gameObjectInstanceId: 89 } },
+      ],
+      huntTanneryDirectors: [{ drops: [{ npcID: 9, prefab: fields("Pickup", 7) }, { npcID: 9, prefab: fields("Pickup", 8) }] }],
+    },
+  } as unknown as SceneContext;
+  const tasks = [{ entityKey: "tasks:4", taskType: "getItem", target: { entityKey: "items:7", label: "Sealed satchel" } }] as NonNullable<NormalizedDatabaseInput["taskFacts"]>;
+  const endpoint = (kind: string, id: number | null | undefined) => id == null ? null : { entityKey: `${kind}:${id}`, label: ({ "items:7": "Sealed satchel", "npcs:9": "Forest boar" } as Record<string, string>)[`${kind}:${id}`] ?? `${kind} ${id}` };
+  const requiredEndpoint = (kind: string, id: number) => {
+    const value = endpoint(kind, id);
+    if (value === null) throw new Error(`Missing fixture endpoint ${kind}:${id}`);
+    return value;
+  };
+  const placements = new Map([["pickup-interaction", "pickup-placement"], ["other-interaction", "other-placement"]]);
+  const rows = collectQuestPickups([context], placements, tasks, endpoint);
+  expect(rows).toEqual([
+    { item: requiredEndpoint("items", 7), amount: 2, quest: endpoint("quests", 3), task: endpoint("tasks", 4),
+      prerequisiteTask: endpoint("tasks", 5), requiredItemCount: 1, singleUse: true,
+      origin: { kind: "placed", placementId: "pickup-placement", sceneNativeId: 42 } },
+    { item: requiredEndpoint("items", 7), amount: 2, quest: endpoint("quests", 3), task: endpoint("tasks", 4),
+      prerequisiteTask: endpoint("tasks", 5), requiredItemCount: 1, singleUse: true,
+      origin: { kind: "placed", placementId: "other-placement", sceneNativeId: 42 } },
+    { item: requiredEndpoint("items", 7), amount: 2, quest: endpoint("quests", 3), task: endpoint("tasks", 4),
+      prerequisiteTask: endpoint("tasks", 5), requiredItemCount: 1, singleUse: true,
+      origin: { kind: "creature", npc: requiredEndpoint("npcs", 9), sceneNativeId: 42 } },
+  ]);
+  expect(collectQuestPickups([context, context], placements, tasks, endpoint)).toEqual(rows);
+});
 
 const reference = { path: "objects/support.json", sha256: "a".repeat(64) };
 const emptyAdventurerWorld = { asset: "AdventurerWorld", instanceCount: 1, roster: [], arrivals: [], equipmentBands: [], equipmentRewardChance: 0, equipmentRewards: [], kitUpgrades: [] };
@@ -182,6 +228,98 @@ test("keeps each item game action in order with its resolved target, and reports
     ["unset-game-action-target", "items:2:3"],
     ["uncaptured-item-game-actions", "items"],
   ]);
+});
+
+test("retains non-item owners' inline and selected template actions and reports a newly granted item", () => {
+  const owners = [
+    { ownerKind: "effects", ownerId: "2", ownerPath: "effects/2/ranks/0", template: null,
+      actions: [gameAction(0, "Item", { itemId: 7 }), gameAction(1, "Item", { itemId: 999 })] },
+    { ownerKind: "stats", ownerId: "3", ownerPath: "stats/3/vitalityActions/0",
+      template: { nativeId: -1, internalName: "StopSprint", fileName: "StopSprint" },
+      actions: [gameAction(0, "ResetSprint")] },
+  ] as Parameters<typeof ownerGameActions>[0];
+  const blockers: Blocker[] = [];
+  const rows = ownerGameActions(owners, [entity("effects", 2, "Enraged"), entity("items", 7, "Sealed satchel"), entity("stats", 3, "Stamina")], reference, blockers);
+  expect(rows.map((row) => [row.ownerKind, row.ownerPath, row.template?.name, row.actionIndex, row.target, row.targets.itemId])).toEqual([
+    ["effects", "effects/2/ranks/0", undefined, 0, { entityKey: "items:7", label: "Sealed satchel" }, 7],
+    ["effects", "effects/2/ranks/0", undefined, 1, { entityKey: null, label: "Item 999" }, 999],
+    ["stats", "stats/3/vitalityActions/0", "StopSprint", 0, null, -1],
+  ]);
+  expect(blockers.filter((row) => row.kind === "non-item-game-action-grant").map((row) => row.key)).toEqual([
+    "effects:effects/2/ranks/0:0", "effects:effects/2/ranks/0:1",
+  ]);
+  expect(blockers.some((row) => row.kind === "unresolved-game-action-target" && row.detail.includes("items:999"))).toBe(true);
+});
+
+test("flags a placed object's template grant while retaining its removal actions", () => {
+  const remove = { ...gameAction(1, "Item", { itemId: 7 }), alterAction: "Remove" };
+  const rankDown = { ...gameAction(2, "Recipe", { recipeId: 43 }), nodeAction: { value: 1, name: "RankDown" } };
+  const template = [{ ownerKind: "templates", ownerId: "Recipe unlock", ownerPath: "templates/Recipe unlock", template: null,
+    actions: [gameAction(0, "Recipe", { recipeId: 43 }), remove, rankDown] }] as Parameters<typeof ownerGameActions>[0];
+  const blockers: Blocker[] = [];
+  const templateRows = ownerGameActions(template, [entity("recipes", 43, "Tavern"), entity("items", 7, "Sealed satchel")], reference, blockers);
+  const context = { sceneNativeId: 44, worldReference: reference, sourceByComponent: new Map([[19, { sourceId: "object-19" }]]), world: { interactions: [{
+    family: "interactableObject", interactableName: "Tavern Workbench",
+    source: { componentInstanceId: 19, source: { hierarchyPath: "Workbench[0]", componentIndex: 0 } },
+    actions: [{ type: { name: "GameActions" }, gameActions: {
+      template: { nativeId: -1, name: "Recipe unlock", internalName: "Recipe unlock", available: true,
+        actions: [gameAction(0, "Recipe", { recipeId: 43 }), remove, rankDown] },
+      inline: { actions: [gameAction(0, "Item", { itemId: 7 })] },
+    } }],
+  }] } } as unknown as SceneContext;
+  const ownerRows = worldOwnerGameActions([context], templateRows, [entity("recipes", 43, "Tavern"), entity("items", 7, "Sealed satchel")], new Map(), blockers);
+  expect(ownerRows.map((row) => [row.ownerKind, row.ownerId, row.type, row.target?.entityKey, row.alterAction, row.nodeAction])).toEqual([
+    ["interactableObjects", "object-19", "Recipe", "recipes:43", "Gain", "RankUp"],
+    ["interactableObjects", "object-19", "Item", "items:7", "Remove", "RankUp"],
+    ["interactableObjects", "object-19", "Recipe", "recipes:43", "Gain", "RankDown"],
+    ["interactableObjects", "object-19", "Item", "items:7", "Gain", "RankUp"],
+  ]);
+  expect(blockers.filter((row) => row.kind === "non-item-game-action-grant").map((row) => row.key)).toEqual([
+    "object-19/actions/0/0-template/Recipe unlock:0",
+    "object-19/actions/0/1-inline:0",
+  ]);
+});
+
+test("preserves item and interactable loot owners while publishing placed Item Gain counts", () => {
+  const entities = [entity("items", 1, "Supply Sack"), entity("items", 2, "Healing balm"), entity("lootTables", 30, "Sack Rewards")];
+  const item = collectTypedFacts(admittedItems([{ nativeId: 1, gameplay: itemGameplay({
+    gameActions: { useTemplateFlag: false, template: null, available: true, actions: [gameAction(0, "LootTable", { lootTableId: 30 })] },
+  }) }]), entities, [] as NormalizedDatabaseInput["bindings"], [], []);
+  const context = {
+    snapshotId: "snapshot", sceneNativeId: 44, worldReference: reference, identityReference: reference,
+    sourceByComponent: new Map([[20, { sourceId: "sack-object", componentInstanceId: 20, identityIndex: 0 }]]),
+    world: { resourceProducers: [], containers: [], transitions: [], questZones: [], interactions: [{
+      family: "interactableObject", interactableName: "Reward Chest", visualEffects: [],
+      source: { componentInstanceId: 20, source: { hierarchyPath: "Reward Chest[0]", componentIndex: 0 } },
+      actions: [{ type: { name: "GameActions" }, activationType: { name: "Completed" }, chance: 75, sourceFieldPath: "actions/0", gameActions: {
+        template: null, inline: { actions: [
+          { ...gameAction(0, "LootTable", { lootTableId: 30 }), lootTableID: 30, chance: 25 },
+          { ...gameAction(1, "Item", { itemId: 2 }), amount: 3, chance: 40 },
+        ] },
+      } }],
+    }] },
+  } as unknown as SceneContext;
+  const sources = new Map<number, Map<string, ItemSourceAccumulator>>(), blockers: Blocker[] = [];
+  worldRelations([context], new Map([["sack-object", "sack-placement"]]),
+    [{ lootTableID: 30, itemID: 2, entryIndex: 0, min: 1, max: 2, dropRate: 55, provenance: [reference] }] as never,
+    [], sources, blockers);
+  const object = worldOwnerGameActions([context], [], entities, sources, blockers);
+  expect(item.itemGameActions.map((row) => [row.entityKey, row.target])).toEqual([
+    ["items:1", { entityKey: "lootTables:30", label: "Sack Rewards" }],
+  ]);
+  expect(object.map((row) => [row.ownerId, row.ownerName, row.target])).toEqual([
+    ["sack-object", "Reward Chest", { entityKey: "lootTables:30", label: "Sack Rewards" }],
+    ["sack-object", "Reward Chest", { entityKey: "items:2", label: "Healing balm" }],
+  ]);
+  expect([...sources.get(2)!.values()].map((row) => ({
+    min: row.context.min, max: row.context.max, chance: row.context.rawRate,
+    actionChance: row.context.authoredActionChance, gameActionChance: row.context.gameActionChance,
+    placementIds: row.placementIds,
+  }))).toEqual([
+    { min: 1, max: 2, chance: 55, actionChance: 75, gameActionChance: 25, placementIds: ["sack-placement"] },
+    { min: 3, max: 3, chance: null, actionChance: 75, gameActionChance: 40, placementIds: ["sack-placement"] },
+  ]);
+  expect(blockers).toEqual([]);
 });
 
 test("combines row and canonical percentage semantics for item stats", () => {

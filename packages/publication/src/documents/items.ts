@@ -1,5 +1,5 @@
-import type { CatalogAvailabilityRule, CatalogClothDrops, CatalogCondition, CatalogEntityRow, CatalogGatheringNode, CatalogItemFacts } from "@afallon/contracts/catalog";
-import { type AvailabilityRule, type ClothDrop, type Craft, type EntityRef, type FromItemRow, type GearSet, isEntityRef, type ItemUse, type PublicItem, type Ref } from "@afallon/contracts/public";
+import type { CatalogAvailabilityRule, CatalogClothDrops, CatalogCondition, CatalogEntityRow, CatalogGatheringNode, CatalogItemFacts, CatalogQuestPickup } from "@afallon/contracts/catalog";
+import { type AvailabilityRule, type ClothDrop, type Craft, type DungeonFinderReward, type EntityRef, type FromItemRow, type GearSet, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
 import { isCorruptibleEquipment } from "../corruption-rewards";
 import { recipeRank } from "../crafting";
 import { requiredLevel } from "../gathering";
@@ -120,9 +120,40 @@ function projectClothDrop(itemKey: string, input: DocumentProjectionInput): Clot
   return { creatureTypes: cloth.creatureTypes.map((type) => plainText(type)), chance: cloth.dropChance, min: cloth.minCount, max: cloth.maxCount, levels };
 }
 
+/** The quest pickups that give this item: one row per creature and quest, and one row per group of placed pickups with equal facts. */
+function projectQuestPickups(itemKey: string, input: DocumentProjectionInput): QuestPickupRow[] {
+  const rows = (input.facts.questPickups ?? []).filter((row) => row.item.entityKey === itemKey);
+  const quest = (row: CatalogQuestPickup) => row.quest === null ? {} : { quest: input.resolve(row.quest) };
+  const creatures = new Map<string, QuestPickupRow>();
+  for (const row of rows) {
+    if (row.origin.kind !== "creature") continue;
+    const projected: QuestPickupRow = { kind: "creature", counterpart: input.resolve(row.origin.npc), ...quest(row), amount: row.amount };
+    creatures.set(JSON.stringify(projected), projected);
+  }
+  const placed = groupPlacementCounts(rows.flatMap((row) => row.origin.kind === "placed"
+    ? [{ kind: "placed" as const, ...quest(row), amount: row.amount, singleUse: row.singleUse, placements: publishedPlacements(row.origin.placementId === null ? [] : [row.origin.placementId], input.placements) }]
+    : []));
+  return [...creatures.values(), ...placed];
+}
+
+/** The finder dungeons, when this item is the supply pack that a successful Random Dungeon Finder run gives. */
+function projectDungeonFinder(itemKey: string, input: DocumentProjectionInput): DungeonFinderReward | undefined {
+  const finder = input.facts.dungeonFinder;
+  if (!finder || finder.supplyPack?.entityKey !== itemKey) return undefined;
+  return { dungeons: finder.dungeons.map((dungeon) => input.resolve(dungeon)).filter(isEntityRef) };
+}
+
+// The chance that the object's action that gives the loot runs, when its own action and its game action roll below 100.
+function actionChance(row: { actionChance?: number; gameActionChance?: number }): { actionChance?: number } {
+  const chance = (row.actionChance ?? 100) * (row.gameActionChance ?? 100) / 100;
+  return chance < 100 ? { actionChance: Math.round(chance * 10) / 10 } : {};
+}
+
 export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>, startingGear: ReadonlyMap<string, readonly EntityRef[]>, fromItems: ReadonlyMap<string, readonly FromItemRow[]>): PublicItem {
   const fact = input.facts.items.find((candidate) => candidate.entityKey === entity.entityKey);
   const clothDrop = projectClothDrop(entity.entityKey, input);
+  const dungeonFinder = projectDungeonFinder(entity.entityKey, input);
+  const questPickups = projectQuestPickups(entity.entityKey, input);
   const directAbilities = fact?.actionAbilities ?? [];
   const directlyReferenced = new Set(directAbilities.map((row) => row.ability.entityKey));
   const gameAbilities = (fact?.gameActions ?? []).filter((action) => action.type === "Ability" && action.target?.entityKey && !directlyReferenced.has(action.target.entityKey));
@@ -200,6 +231,11 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     label: /^For sale \d+ gold$/i.test(row.objectName ?? "") ? "For Sale Sign" : displayName(row.objectName ?? "") || "Object",
     ...(optionalCount(row.min) === undefined ? {} : { min: optionalCount(row.min) }),
     ...(optionalCount(row.max) === undefined ? {} : { max: optionalCount(row.max) }), ...(optionalChance(row.rawRate) === undefined ? {} : { chance: optionalChance(row.rawRate) }),
+    ...(row.prefabChoices !== undefined && row.prefabChoices > 1 ? { prefabChoices: row.prefabChoices } : {}),
+    ...(row.choiceLabel ? { choiceLabel: displayName(row.choiceLabel) } : {}),
+    ...(row.cost ? { cost: { currency: input.resolve(row.cost.currency), amount: row.cost.amount } } : {}),
+    ...(row.pickOne !== undefined && row.pickOne > 1 ? { pickOne: row.pickOne } : {}),
+    ...actionChance(row),
     availability: projectAvailability(row.availability, conditions, input.resolve),
     placements: publishedPlacements(row.placementIds, input.placements),
   }))).map(withAvailabilityIndex);
@@ -268,7 +304,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
       ...(gearSet === undefined ? {} : { gearSet }),
     },
     ...(crafting ? { crafting } : {}), ...(teaches ? { teaches } : {}),
-    sourceSpotCount: new Set([...gatheredFrom, ...inContainers, ...collectedFrom].flatMap((row) => row.places.flatMap((place) => place.placementIds))).size,
+    sourceSpotCount: new Set([...gatheredFrom, ...inContainers, ...collectedFrom, ...questPickups.flatMap((row) => row.kind === "placed" ? [row] : [])].flatMap((row) => row.places.flatMap((place) => place.placementIds))).size,
     droppedBy, soldBy, buys, gatheredFrom, sourceAvailabilities, inContainers, collectedFrom,
     rewardedBy: questRows.filter((row) => row.kind === "reward" || row.kind === "rewardChoice").map((row) => ({ counterpart: input.resolve(row.quest), count: Math.max(0, row.count ?? 1), choice: row.kind === "rewardChoice" })),
     givenBy: questRows.filter((row) => row.kind === "itemGiven").map((row) => ({ counterpart: input.resolve(row.quest), count: Math.max(0, row.count ?? 1) })),
@@ -293,6 +329,8 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     startingGearOf: (startingGear.get(entity.entityKey) ?? []).map((classRef) => ({ class: classRef })),
     fromItems: [...fromItems.get(entity.entityKey) ?? []],
     ...(clothDrop ? { clothDrop } : {}),
+    questPickups,
+    ...(dungeonFinder ? { dungeonFinder } : {}),
     adventurers: (input.facts.adventurerItems ?? []).filter((row) => row.itemKey === entity.entityKey).flatMap<PublicItem["adventurers"][number]>((row) => {
       if (row.kind === "kitUpgradeItem") return row.adventurer ? [{ kind: row.kind, adventurer: input.resolve(row.adventurer) }] : [];
       if (row.kind === "equipmentBand") return row.minimumContentLevel !== null ? [{ kind: row.kind, minimumContentLevel: row.minimumContentLevel }] : [];

@@ -1068,3 +1068,32 @@ test("a cloth item gives its chance per kill by creature level and counts as sou
   delete bare.crafting;
   expect(readerCoverage([bare]).gaps.some((gap) => gap.gap === "itemWithoutSource")).toBe(false);
 });
+
+test("quest pickups and the Dungeon Finder supply pack count as item sources", () => {
+  const pickup = { item: { entityKey: "items:1", label: "Blade" }, amount: 2, quest: { entityKey: "quests:3", label: "Quest" }, task: null, prerequisiteTask: null, requiredItemCount: 0, singleUse: true };
+  const pickupFacts: CatalogFacts = { ...facts,
+    questPickups: [
+      { ...pickup, origin: { kind: "creature", npc: { entityKey: "npcs:2", label: "Guardian" }, sceneNativeId: 10 } },
+      { ...pickup, origin: { kind: "creature", npc: { entityKey: "npcs:2", label: "Guardian" }, sceneNativeId: 10 } },
+      { ...pickup, origin: { kind: "placed", placementId: "p1", sceneNativeId: 10 } },
+      { ...pickup, origin: { kind: "placed", placementId: "p2", sceneNativeId: 10 } },
+    ],
+    dungeonFinder: { supplyPack: { entityKey: "items:1", label: "Blade" }, dungeons: [{ entityKey: "scenes:10", label: "Place" }] } };
+  const { documents } = project(entities, pickupFacts, relations, new Map([
+    ["p1", { placementId: "p1", mapSpaceId: "world", label: "World", categories: [] }],
+    ["p2", { placementId: "p2", mapSpaceId: "world", label: "World", categories: [] }],
+  ]));
+  const blade = documents.get("items:1") as PublicItem;
+  // Two pickups of one creature and quest give one row. Placed pickups with equal facts share one row with both spots.
+  expect(blade.questPickups).toEqual([
+    { kind: "creature", counterpart: expect.objectContaining({ key: "npcs:2" }), quest: expect.objectContaining({ key: "quests:3" }), amount: 2 },
+    { kind: "placed", quest: expect.objectContaining({ key: "quests:3" }), amount: 2, singleUse: true, placementCount: 2,
+      places: [{ label: "World", mapSpaceId: "world", spotCount: 2, placementIds: ["p1", "p2"] }] },
+  ]);
+  expect(blade.dungeonFinder).toEqual({ dungeons: [expect.objectContaining({ key: "scenes:10" })] });
+  const withoutSource = (document: PublicItem) => readerCoverage([document]).gaps.some((gap) => gap.gap === "itemWithoutSource");
+  const { crafting: _crafting, ...rest } = blade;
+  const bare: PublicItem = { ...rest, droppedBy: [], soldBy: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], startingGearOf: [], fromItems: [] };
+  const { dungeonFinder: _finder, ...pickupsOnly } = bare;
+  expect([withoutSource(pickupsOnly), withoutSource({ ...bare, questPickups: [] }), withoutSource({ ...pickupsOnly, questPickups: [] })]).toEqual([false, false, true]);
+});

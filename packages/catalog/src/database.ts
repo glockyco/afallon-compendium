@@ -34,6 +34,11 @@ export function openNormalizedDatabase(path: string): Database {
         build_id TEXT PRIMARY KEY NOT NULL REFERENCES normalized_builds(build_id),
         facts_json TEXT NOT NULL CHECK(json_valid(facts_json))
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS item_grant_facts (
+        build_id TEXT PRIMARY KEY NOT NULL REFERENCES normalized_builds(build_id),
+        quest_pickups_json TEXT NOT NULL CHECK(json_valid(quest_pickups_json)),
+        dungeon_finder_json TEXT NOT NULL CHECK(json_valid(dungeon_finder_json))
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS source_manifests (
         source_key TEXT PRIMARY KEY NOT NULL,
         kind TEXT NOT NULL,
@@ -395,6 +400,12 @@ export function openNormalizedDatabase(path: string): Database {
         alter_action TEXT, requirements_json TEXT NOT NULL CHECK(json_valid(requirements_json)), visual_effect_json TEXT NOT NULL CHECK(json_valid(visual_effect_json)),
         target_key TEXT, target_label TEXT, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, action_index)
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS owner_game_actions (
+        owner_kind TEXT NOT NULL, owner_id TEXT NOT NULL, owner_path TEXT NOT NULL,
+        owner_entity_key TEXT REFERENCES canonical_entities(entity_key), action_index INTEGER NOT NULL CHECK(action_index >= 0),
+        action_json TEXT NOT NULL CHECK(json_valid(action_json)),
+        PRIMARY KEY(owner_kind, owner_path, action_index)
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS item_sockets (
         entity_key TEXT NOT NULL REFERENCES item_facts(entity_key), socket_index INTEGER NOT NULL CHECK(socket_index >= 0), socket_type TEXT, gem_type TEXT, provenance_json TEXT NOT NULL, PRIMARY KEY(entity_key, socket_index)
       ) STRICT;
@@ -659,6 +670,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const identity of input.identityResults) recordPlacementIdentities(db, { runId: identity.runId, snapshotId: identity.snapshotId, snapshotPrefix: identity.snapshotPrefix, snapshotSha256: identity.snapshotSha256, character: identity.character, sceneHandle: identity.sceneHandle }, identity.result);
     insertChecked(db, "normalized_builds", ["build_id"], ["build_id", "schema_version", "provenance_json"], [input.buildId, NORMALIZED_OUTPUT_SCHEMA_VERSION, json(input.provenance)]);
     if (input.corruption) insertChecked(db, "corruption_facts", ["build_id"], ["build_id", "facts_json"], [input.buildId, json(input.corruption)]);
+    insertChecked(db, "item_grant_facts", ["build_id"], ["build_id", "quest_pickups_json", "dungeon_finder_json"], [input.buildId, json(input.questPickups ?? []), json(input.dungeonFinder ?? null)]);
     for (const source of sourceFiles) addSourceManifest(db, input.buildId, source.key, source.kind, source.ref.path, source.ref.sha256);
 
     const sceneRows = new Map<number, { nativeId: number; path: string; name: string | null }>();
@@ -680,6 +692,7 @@ export function populateNormalizedDatabase(db: Database, input: NormalizedDataba
     for (const row of input.itemRandomStats ?? []) insertChecked(db, "item_random_stats", ["entity_key", "stat_index"], ["entity_key", "stat_index", "stat_entity_key", "stat_label", "min_value", "max_value", "is_percent", "whole", "chance", "provenance_json"], [row.entityKey, row.statIndex, row.stat.entityKey, row.stat.label, row.min, row.max, row.isPercent ? 1 : 0, row.whole ? 1 : 0, row.chance, json(row.provenance)]);
     for (const row of input.itemGemStats ?? []) insertChecked(db, "item_gem_stats", ["entity_key", "stat_index"], ["entity_key", "stat_index", "stat_entity_key", "stat_label", "amount", "is_percent", "provenance_json"], [row.entityKey, row.statIndex, row.stat.entityKey, row.stat.label, row.amount, row.isPercent ? 1 : 0, json(row.provenance)]);
     for (const row of input.itemGameActions ?? []) insertChecked(db, "item_game_actions", ["entity_key", "action_index"], ["entity_key", "action_index", "template_json", "action_type", "chance", "node_action", "progression_type", "teleport_type", "amount", "alter_action", "requirements_json", "visual_effect_json", "target_key", "target_label", "provenance_json"], [row.entityKey, row.actionIndex, row.template === null ? null : json(row.template), row.type, row.chance, row.nodeAction, row.progressionType, row.teleportType, row.amount, row.alterAction, json(row.requirements), json(row.visualEffect), row.target?.entityKey ?? null, row.target?.label ?? null, json(row.provenance)]);
+    for (const row of input.ownerGameActions ?? []) insertChecked(db, "owner_game_actions", ["owner_kind", "owner_path", "action_index"], ["owner_kind", "owner_id", "owner_path", "owner_entity_key", "action_index", "action_json"], [row.ownerKind, row.ownerId, row.ownerPath, row.ownerEntityKey, row.actionIndex, json(row)]);
     for (const row of input.itemSockets ?? []) insertChecked(db, "item_sockets", ["entity_key", "socket_index"], ["entity_key", "socket_index", "socket_type", "gem_type", "provenance_json"], [row.entityKey, row.socketIndex, row.socketType, row.gemType, json(row.provenance)]);
     for (const row of input.npcFacts ?? []) insertChecked(db, "npc_facts", ["entity_key"], ["entity_key", "min_level", "max_level", "scales_with_player", "npc_type", "creature_type", "family", "faction_entity_key", "faction_label", "species_entity_key", "species_label", "is_merchant", "is_quest_giver", "is_combat_enabled", "is_auctioneer", "is_banker", "is_flight_master", "hunter_tamable", "hunter_beast_role", "equipment_appearance_selections", "adventurer_json", "flight_network_json", "min_respawn", "max_respawn", "min_experience", "max_experience", "lower_level_experience_modifier", "higher_level_experience_modifier", "experience_bonus_per_level", "immune_to_stun", "immune_to_slow", "aggro_range", "linked_npc_entity_key", "linked_npc_label", "loot_specialization_json", "provenance_json"], [row.entityKey, row.minLevel, row.maxLevel, row.scalesWithPlayer ? 1 : 0, row.npcType, row.creatureType, row.family, row.faction?.entityKey ?? null, row.faction?.label ?? null, row.species?.entityKey ?? null, row.species?.label ?? null, row.isMerchant ? 1 : 0, row.isQuestGiver ? 1 : 0, row.isCombatEnabled ? 1 : 0, row.isAuctioneer ? 1 : 0, row.isBanker ? 1 : 0, row.isFlightMaster ? 1 : 0, row.hunterTamable ? 1 : 0, row.hunterBeastRole ?? null, row.equipmentAppearanceSelections ?? null, row.adventurer == null ? null : json(row.adventurer), row.flightNetwork == null ? null : json(row.flightNetwork), row.minRespawn, row.maxRespawn, row.minExperience, row.maxExperience, row.lowerLevelExperienceModifier, row.higherLevelExperienceModifier, row.experienceBonusPerLevel, row.immuneToStun ? 1 : 0, row.immuneToSlow ? 1 : 0, row.aggroRange, row.linkedNpc?.entityKey ?? null, row.linkedNpc?.label ?? null, row.lootSpecialization === null ? null : json(row.lootSpecialization), json(row.provenance)]);
     for (const row of input.npcStats ?? []) insertChecked(db, "npc_stats", ["entity_key", "stat_index"], ["entity_key", "stat_index", "stat_entity_key", "stat_label", "amount", "is_percent", "provenance_json"], [row.entityKey, row.statIndex, row.stat.entityKey, row.stat.label, row.amount, row.isPercent ? 1 : 0, json(row.provenance)]);

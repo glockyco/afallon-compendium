@@ -85,6 +85,20 @@ export function collectWorldConditions(contexts: readonly SceneContext[], blocke
     if (!identity) blockers.push({ kind: "unresolved-world-source", key: `${context.snapshotId}:${collection}:${index}`, detail: "World source has no verified serialized source binding.", provenance: [reference] });
     const ownerKey = identity ? `source:${identity.sourceId}` : `${context.snapshotId}:${collection}:${index}`;
     conditions.push(...conditionRowsFor("world-source", ownerKey, row, reference));
+    if (collection !== "interactions" || !("actions" in row)) continue;
+    for (const [actionIndex, action] of row.actions.entries()) {
+      if ("unavailable" in action || action.type.name !== "GameActions") continue;
+      for (const [family, actions] of [["template", action.gameActions.template?.actions], ["inline", action.gameActions.inline.actions]] as const) {
+        if (!actions) continue;
+        for (const [nestedIndex, nested] of actions.entries()) {
+          if ("unavailable" in nested || nested.requirements.length === 0) continue;
+          const nestedOwner = `world-game-action:${ownerKey}:actions/${actionIndex}/${family}/${nested.sourceIndex}`;
+          conditions.push(conditionFrom("world-game-action", nestedOwner,
+            { groups: nested.requirements }, "game-action-requirements", null,
+            [pointer(reference, `/actions/${actionIndex}/gameActions/${family}/actions/${nestedIndex}/requirements`)]));
+        }
+      }
+    }
   }
   return conditions;
 }

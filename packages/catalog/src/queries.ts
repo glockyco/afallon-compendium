@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import type { EntityDetail, NormalizedPatrolPath, CatalogDerivation, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogItemFacts, CatalogStatValue, CatalogNpcFacts, CatalogNpcAdventurer, CatalogNpcFlightNetwork, NormalizedNpcAdventurer, NormalizedNpcFlightNetwork, CatalogTaskFacts, CatalogQuestFacts, CatalogPlaceFacts, CatalogPropertyFacts, CatalogAbilityFacts, CatalogRecipeFacts, CatalogGearSetFacts, CatalogDropRow, CatalogVendorRow, CatalogGatherRow, CatalogContainerRow, CatalogInteractionRow, CatalogGatedSourceRow, CatalogAvailabilityRule, CatalogQuestRow, CatalogRecipeRow, CatalogPlacementRow, CatalogTransitionRow, CatalogCondition, CatalogRequirement, CatalogRequirementSpan, CatalogRequirementGroup, CatalogRequirementNamedValue, CatalogRequirementEntry, CatalogRequirementTime, CatalogRelations } from "@afallon/contracts/catalog";
 import type { CatalogClothDrops, CatalogCorruptionFacts } from "@afallon/contracts/catalog";
-import type { CatalogGatheringNode, CatalogMechanicsRule, CatalogProgression, CatalogProgressionApplier, CatalogProgressionFact, CatalogProgressionLearner, CatalogProgressionUnlock, CatalogRandomChoice, NormalizedReference, ProgressionDetails } from "@afallon/contracts/catalog";
+import type { CatalogGatheringNode, CatalogMechanicsRule, CatalogProgression, CatalogProgressionApplier, CatalogProgressionFact, CatalogProgressionLearner, CatalogProgressionUnlock, CatalogRandomChoice, NormalizedOwnerGameAction, NormalizedReference, ProgressionDetails } from "@afallon/contracts/catalog";
 import { categoryLabel } from "@afallon/contracts/public";
 import { readCoverageAccountingSummary, type CoverageAccountingSummary } from "./coverage-accounting";
 import { CREATURE_TYPES } from "./decoders";
@@ -460,7 +460,17 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
   });
   const corruptionRow = db.query<{ facts_json: string }, []>("SELECT facts_json FROM corruption_facts").get();
   const corruption = corruptionRow === null ? null : parse(corruptionRow.facts_json) as CatalogCorruptionFacts;
-  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), adventurerItems, itemLootTables, corruption, clothDrops: queryClothDrops(db, refs) } };
+  const itemGrantRow = db.query<{ quest_pickups_json: string; dungeon_finder_json: string }, []>("SELECT quest_pickups_json, dungeon_finder_json FROM item_grant_facts").get();
+  const questPickups = itemGrantRow === null ? [] : parse(itemGrantRow.quest_pickups_json) as NonNullable<CatalogFacts["questPickups"]>;
+  const dungeonFinder = itemGrantRow === null ? null : parse(itemGrantRow.dungeon_finder_json) as CatalogFacts["dungeonFinder"];
+  const ownerGameActions: NonNullable<CatalogFacts["ownerGameActions"]> = db.query<{ action_json: string }, []>("SELECT action_json FROM owner_game_actions ORDER BY owner_kind, owner_path, action_index").all().map(({ action_json }) => {
+    const row = JSON.parse(action_json) as NormalizedOwnerGameAction;
+    return { ownerKind: row.ownerKind, ownerId: row.ownerId, ownerName: row.ownerName, ownerPath: row.ownerPath, owner: row.ownerEntityKey === null ? null : endpoint(refs, row.ownerEntityKey, row.ownerEntityKey),
+      sceneNativeId: row.sceneNativeId, actionIndex: row.actionIndex, targets: row.targets, template: row.template, type: row.type, chance: row.chance, nodeAction: row.nodeAction,
+      progressionType: row.progressionType, teleportType: row.teleportType, amount: row.amount, alterAction: row.alterAction,
+      requirements: row.requirements, visualEffect: row.visualEffect, target: row.target === null ? null : endpoint(refs, row.target.entityKey, row.target.label) };
+  });
+  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), adventurerItems, itemLootTables, ownerGameActions, corruption, questPickups, dungeonFinder, clothDrops: queryClothDrops(db, refs) } };
 }
 
 // ClothDrops.Roll gives cloth only for a creature whose creature type (+0xF8) has the value 2 or 3.
@@ -601,7 +611,26 @@ export function queryInteractionRows(db: Database): CatalogQueryResult<CatalogIn
     const placementIds = textArray(row.placement_ids_json);
     if (placementIds.length === 0) placementIds.push(...sources.get(sourceId) ?? []);
     const placement = placementIds.length === 0 ? null : db.query<{ scene_native_id: number }, [string]>("SELECT scene_native_id FROM placements WHERE placement_id = ?").get(placementIds[0]!);
-    records.push({ objectName: typeof context.objectName === "string" ? context.objectName : null, sourceId, place: placement === null ? null : endpoint(refs, `scenes:${placement.scene_native_id}`, `Scene ${placement.scene_native_id}`), item: endpoint(refs, row.item_entity_key, row.item_entity_key), min: typeof context.min === "number" ? context.min : null, max: typeof context.max === "number" ? context.max : null, rawRate: typeof context.rawRate === "number" ? context.rawRate : null, availability: itemSourceAvailability(textArray(row.condition_ids_json), gates.get(sourceId) ?? []), placementIds });
+    records.push({
+      objectName: typeof context.objectName === "string" ? context.objectName : null,
+      sourceId,
+      place: placement === null ? null : endpoint(refs, `scenes:${placement.scene_native_id}`, `Scene ${placement.scene_native_id}`),
+      item: endpoint(refs, row.item_entity_key, row.item_entity_key),
+      min: typeof context.min === "number" ? context.min : null,
+      max: typeof context.max === "number" ? context.max : null,
+      rawRate: typeof context.rawRate === "number" ? context.rawRate : null,
+      ...(typeof context.authoredActionChance === "number" ? { actionChance: context.authoredActionChance } : {}),
+      ...(typeof context.gameActionChance === "number" ? { gameActionChance: context.gameActionChance } : {}),
+      ...(typeof context.gameActionTemplate === "string" || context.gameActionTemplate === null ? { gameActionTemplate: context.gameActionTemplate } : {}),
+      ...(typeof context.prefabChoices === "number" ? { prefabChoices: context.prefabChoices } : {}),
+      ...(typeof context.costCurrencyId === "number" && typeof context.costAmount === "number" ? {
+        cost: { currency: endpoint(refs, `currencies:${context.costCurrencyId}`, `Currency ${context.costCurrencyId}`), amount: context.costAmount },
+      } : {}),
+      ...(typeof context.pickOne === "number" ? { pickOne: context.pickOne } : {}),
+      ...(typeof context.choiceLabel === "string" ? { choiceLabel: context.choiceLabel } : {}),
+      availability: itemSourceAvailability(textArray(row.condition_ids_json), gates.get(sourceId) ?? []),
+      placementIds,
+    });
   }
   return { ...identity(db), records };
 }

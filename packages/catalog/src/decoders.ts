@@ -63,7 +63,7 @@ const actionRequirements = Type.Array(Type.Object({
     type: text, rule: text, classId: integer, level: number, levelMax: number, comparison: text,
   })),
 }));
-const itemGameActions = Type.Object({
+export const ItemGameActionsSchema = Type.Object({
   useTemplateFlag: boolean, template: Type.Union([Type.Object({ nativeId: integer, internalName: nullableText, fileName: nullableText }), Type.Null()]), available: boolean,
   actions: Type.Array(Type.Union([
     Type.Object({ sourceIndex: integer, unavailable: text }),
@@ -78,7 +78,7 @@ export const ItemGameplaySchema = Type.Object({
   isCorruptionToken: optional(boolean), enchantmentId: optional(integer), randomStatsMax: optional(integer), stats: optional(Type.Array(stat)),
   randomStats: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), statId: integer, minValue: number, maxValue: number, isPercent: boolean, isInt: optional(boolean), chance: optional(number) }))), sockets: optional(Type.Array(Type.Object({ sourceIndex: optional(integer), socketType: optional(text), gemSocketType: optional(availableEnum) }))),
   gemDataAvailable: optional(boolean), gemData: optional(Type.Object({ socketType: optional(text), gemSocketType: optional(availableEnum), statsAvailable: optional(boolean), stats: optional(Type.Array(stat)) })),
-  actionAbilities: Type.Array(contextualAbilityReference), gameActions: optional(itemGameActions), nativeUseTooltip: itemNativeTooltip,
+  actionAbilities: Type.Array(contextualAbilityReference), gameActions: optional(ItemGameActionsSchema), nativeUseTooltip: itemNativeTooltip,
   requirementsGroupCount: optional(integer), useRequirementsTemplate: optional(boolean), requirementsTemplateId: optional(Type.Union([integer, Type.Null()])),
 });
 export type ItemGameplay = Static<typeof ItemGameplaySchema>;

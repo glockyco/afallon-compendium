@@ -43,6 +43,17 @@ export interface CatalogItemGameAction {
   visualEffect?: { name: string | null; prefabs: Array<{ key: string; loaded: boolean; prefabAvailable: boolean; chests: Array<{ name: string; maxDrops: number; rows: Array<{ sourceIndex: number; itemId: number; min: number; max: number; chance: number }> }> }> } | null;
   target: CatalogEndpoint | null;
 }
+export interface CatalogOwnerGameAction extends Omit<CatalogItemGameAction, "requirements"> {
+  ownerKind: string;
+  ownerId: string;
+  ownerName: string | null;
+  ownerPath: string;
+  owner: CatalogEndpoint | null;
+  sceneNativeId: number | null;
+  actionIndex: number;
+  requirements?: unknown;
+  targets: Record<string, number>;
+}
 export interface CatalogAdventurerItem {
   itemKey: string; kind: "kitUpgradeItem" | "equipmentBand" | "equipmentReward";
   adventurer: CatalogEndpoint | null; minimumContentLevel: number | null; rewardChance: number | null;
@@ -55,6 +66,16 @@ export interface CatalogClothDrops {
   creatureTypes: string[]; dropChance: number; minCount: number; maxCount: number;
   tiers: Array<{ item: CatalogEndpoint; startLevel: number; rampEnd: number; lowWeight: number; highWeight: number; teaserWeight: number }>;
 }
+// A quest pickup: an object that gives `amount` of `item` for an unfinished get-item task, up to the task goal. A placed
+// pickup sits in a scene; a creature pickup appears where a creature of `npc` dies while the task is open.
+export interface CatalogQuestPickup {
+  item: CatalogEndpoint; amount: number; quest: CatalogEndpoint | null; task: CatalogEndpoint | null;
+  prerequisiteTask: CatalogEndpoint | null; requiredItemCount: number; singleUse: boolean;
+  origin: { kind: "placed"; placementId: string | null; sceneNativeId: number } | { kind: "creature"; npc: CatalogEndpoint; sceneNativeId: number };
+}
+// The Dungeon Finder: `supplyPack` is the item that a successful Random run gives once; `dungeons` are the places that the
+// finder can queue.
+export interface CatalogDungeonFinder { supplyPack: CatalogEndpoint | null; dungeons: CatalogEndpoint[] }
 export interface CatalogItemLootTable {
   id: number; name: string; includeWorldLoot: boolean; worldLootShare: number; bonusDropChance: number;
   hasMinimumDrops: boolean; minDroppedItems: number; limitDroppedItems: boolean; maxDroppedItems: number;
@@ -275,8 +296,11 @@ export interface CatalogFacts {
   gatheringNodes: CatalogGatheringNode[];
   adventurerItems: CatalogAdventurerItem[];
   itemLootTables: CatalogItemLootTable[];
+  ownerGameActions?: CatalogOwnerGameAction[];
   corruption?: CatalogCorruptionFacts | null;
   clothDrops?: CatalogClothDrops | null;
+  questPickups?: CatalogQuestPickup[];
+  dungeonFinder?: CatalogDungeonFinder | null;
 }
 
 export interface CatalogCondition { conditionId: string; semantics: string; scope: "equipment" | "use" | null; label: string; requirements: CatalogRequirementGroup[] }
@@ -394,8 +418,8 @@ export interface CatalogContainerRow {
   placementIds: string[];
 }
 
-// Loot from an interactive object whose `Chest` action names a loot table: a pumpkin, a coin purse, or an
-// egg cluster that a quest asks for. `objectName` is the object's authored display name, which can carry markup.
+// Loot from an interactive object's Chest or nested GameActions LootTable action, or from a Chest spawned by
+// its visual effect. `objectName` is the object's authored display name, which can carry markup.
 export interface CatalogInteractionRow {
   objectName: string | null;
   sourceId: string;
@@ -404,7 +428,21 @@ export interface CatalogInteractionRow {
   min: number | null;
   max: number | null;
   rawRate: number | null;
+  /** Chance of completing the object's action; separate from the loot table's row chance. */
+  actionChance?: number;
+  /** Chance of a nested GameActions action, after the object's action fires. */
+  gameActionChance?: number;
+  /** The selected GameActions template, or null for an inline nested action. */
+  gameActionTemplate?: string | null;
   availability: CatalogAvailabilityRule[];
+  /** Number of equally selectable prefab keys at the random effect that leads to this row. */
+  prefabChoices?: number;
+  /** Currency consumed by the chosen branch before its reward effect can complete. */
+  cost?: { currency: CatalogEndpoint; amount: number };
+  /** Number of sibling reward objects the player can choose from after the random prefab is selected. */
+  pickOne?: number;
+  /** Authored label of the selectable branch leading to this reward. */
+  choiceLabel?: string;
   placementIds: string[];
 }
 

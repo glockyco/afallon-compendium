@@ -27,6 +27,10 @@
           <div class="source-row">
             <div class="source-main"><strong>{row.label}</strong><div class="source-sub">
               {#if row.counterpart}<EntityLink ref={row.counterpart} {registry} />{:else if row.places[0]}{row.places[0].label}{/if}
+              {#if row.cost}<span>Pay {formatNumber(row.cost.amount)} <EntityLink ref={row.cost.currency} {registry} /></span>{:else if row.choiceLabel}<span>Choose {row.choiceLabel}</span>{/if}
+              {#if row.prefabChoices}<span>Opens 1 of {formatNumber(row.prefabChoices)} {row.pickOne ? 'sets' : 'chests'} at random</span>{/if}
+              {#if row.pickOne}<span>You pick 1 of {formatNumber(row.pickOne)} items</span>{/if}
+              {#if row.actionChance !== undefined}<span>Gives loot {formatNumber(row.actionChance)}% of the time</span>{/if}
               {#if sourceAvailabilities[row.availabilityIndex]?.length}<Availability rules={sourceAvailabilities[row.availabilityIndex] ?? []} {registry} />{/if}
             </div></div>
             <div class="source-values">{#if row.min !== undefined}<span>×{rangeText(row.min, row.max)}</span>{/if}{#if row.chance !== undefined}<span>{formatNumber(row.chance)}%</span>{/if}</div>

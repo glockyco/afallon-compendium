@@ -25,9 +25,9 @@ An item source investigation of build 25434619 found these facts. The evidence i
 
 ## Decisions
 
-### Record every owner, and publish item grants only
+### Record every owner, and publish verified item grants
 
-The collectors record the game actions of each owner type in the order that the game reads them. Each action keeps its owner, its template, its type, chance, node action, amount, and targets. The catalog reports a coverage issue when another owner type than an item gives an item, a loot table, a currency, or a recipe through game actions. A later build then cannot add a grant that the publication misses without a report.
+The collectors record the game actions of each owner type in the order that the game reads them. Each action keeps its owner, its template, its type, chance, node, alter, and progression actions, amount, targets, and requirement groups. `GameActionsManager.TriggerGameActions` runs the actions of every owner, so the LootTable and the Item gain actions of an interactable object give items as they do for an item use. The catalog keeps such a grant as a Found in objects source of the object, with the action chances and the requirements of the action. It reports a coverage issue for every other grant of a non-item owner: an item, a loot table, a currency, or a recipe that it does not keep as an item source. A later build then cannot add a grant that the publication misses without a report. In 0.16.3 the remaining issues are the recipe unlocks of the tavern and companion templates.
 
 ### Name the items that an item use gives
 
@@ -37,11 +37,15 @@ A LootTable action of an item makes the item a From items source of each item in
 
 A visual effect entry of an interactable object names a visual effect template. The scan resolves each prefab key of the template and reads the Chest components of the prefab. A prefab can also hold interactable objects whose Chest actions name loot tables. The scan loads the prefabs at the main menu with `Resources.Load`, as the item collector does. The catalog keeps the template, the number of prefab choices, each chest, and the costs and requirements of the object.
 
-The sacrificial altar of the challenge stones uses both forms. Its visual effect spawns three sacrifice objects with their own costs. Their visual effects load one of several chests or item sets. A Collected from row names the altar, the cost of the sacrifice, and the number of prefabs. Thus a 100% row in an item set does not read as a certain result.
+The sacrificial altar of the challenge stones uses both forms. Its visual effect spawns a window with three options, each a child interactable object with a currency cost that the use consumes. The visual effect of an option loads one of several chests or item sets at random, and an item set lets the player pick one of three items. The scan follows child interactable objects to a depth of three. A Found in objects row names the altar, the cost of the option, the number of chests or sets, and the number of items to pick from. Thus a 100% row in an item set does not read as a certain result. An interactable object whose visual effects give items gets the useful interaction role, so it has a map marker.
 
 ### Read the item grants of scene components and runtime rules
 
-The corruption collector keeps the boss loot tables, `maxLootItems`, the target times, and the token item of each `DungeonTimerManager`. The Corruption Token page names the dungeons that give it, and coverage counts dungeon rewards as a source. `HuntTanneryDirector` keeps its creature and pickup pairs. A pickup row names its quest and task, because the pickup appears only while that task is open. `DungeonFinderSettings.SupplyPack` gives Adventurer's Supply Pack to a completed Random run.
+The corruption collector keeps the boss loot tables, `maxLootItems`, the target times, and the token item of each `DungeonTimerManager`. The Corruption Token page names the dungeons that give it, and coverage counts dungeon rewards as a source. `HuntTanneryDirector` keeps its creature and pickup pairs, and every placed `QuestFieldInteraction` pickup keeps the placement of its object and the quest location role. A Quest pickups row names its quest, because the pickup gives its item only while that task is open. `DungeonFinderSettings.SupplyPack` gives Adventurer's Supply Pack to a completed Random run, and the scenes with `DungeonFinderEnabled` are the dungeons that a Dungeon Finder section lists.
+
+### Show Challenge stone Lumberjack on the surface map
+
+The targeted scan captures Challenge stone Lumberjack. Its map zone is the surface map zone, so the spatial profile binds it to the surface map, as it binds the other challenge stones. Most of its objects copy objects of Coalway outdoors at the same spots, so the publication omits them as copies. A copy must have the same roles, source types, and items as its host object: a grave of a challenge scene above a tomb of the host scene is a different object. When an equal travel point or region with a smaller ID joins a fold group, it takes over the marker or the region, and stage parity accepts this.
 
 ### Publish cloth drops with their verified creature rule
 

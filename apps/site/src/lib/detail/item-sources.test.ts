@@ -11,7 +11,7 @@ function item(droppedBy: DropRow[], soldBy: VendorRow[], startingGearOf: PublicI
   return {
     ref: { key: 'items:1', kind: 'items', name: 'Iron Bar', slug: 'iron-bar' }, description: null, art: {}, sourceSpotCount: 0, sourceAvailabilities: [[]],
     facts: { stats: [], randomStats: [], randomStatsMax: 0, sockets: [], stackLimit: 20, questDropOnly: false, corruptionToken: false, actionAbilities: [], useLines: [], equipmentRequirements: [], useConditions: [] },
-    droppedBy, soldBy, buys: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf, fromItems: [], placedRules: [], adventurers: [], whenUsed: { chests: [], packs: [], itemChanges: [] },
+    droppedBy, soldBy, buys: [], gatheredFrom: [], inContainers: [], collectedFrom: [], rewardedBy: [], givenBy: [], usedInRecipes: [], usedInQuests: [], startingGearOf, fromItems: [], questPickups: [], placedRules: [], adventurers: [], whenUsed: { chests: [], packs: [], itemChanges: [] },
   };
 }
 

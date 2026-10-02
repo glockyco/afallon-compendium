@@ -2,7 +2,7 @@ import type { Canonical, CorruptionCapture } from "@afallon/contracts";
 import { entityKey, stableJson, type NormalizedCorruptionFacts, type NormalizedEntity, type NormalizedReference, type ProvenanceReference } from "@afallon/contracts/catalog";
 import { pointer, type SceneContext, type SourceRecord } from "./context";
 
-const captureKind = "compendium.corruption-capture.v1";
+const CAPTURE_KINDS: Record<string, true> = { "compendium.corruption-capture.v1": true, "compendium.corruption-capture.v2": true };
 
 type Capture = { value: CorruptionCapture; reference: ProvenanceReference; targetIdentity: string };
 
@@ -22,7 +22,7 @@ function checked(value: number | null, label: string, integer = false): number |
 }
 
 export function normalizeCorruption(sources: readonly SourceRecord[], contexts: readonly SceneContext[], canonical: Canonical, entities: readonly NormalizedEntity[]): NormalizedCorruptionFacts | null {
-  const captures: Capture[] = sources.filter(source => source.kind === captureKind).map(source => ({ value: source.value as CorruptionCapture, reference: source.reference, targetIdentity: source.targetIdentity }));
+  const captures: Capture[] = sources.filter(source => CAPTURE_KINDS[source.kind]).map(source => ({ value: source.value as CorruptionCapture, reference: source.reference, targetIdentity: source.targetIdentity }));
   if (!captures.length) return null;
   const entityByKey = new Map(entities.map(entity => [entity.entityKey, entity]));
   const ref = (kind: string, id: number, label: string): NormalizedReference => {

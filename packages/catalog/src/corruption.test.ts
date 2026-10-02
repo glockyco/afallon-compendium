@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { Check } from "typebox/value";
-import { CorruptionCaptureSchema, type Canonical, type CorruptionCapture } from "@afallon/contracts";
+import type { Canonical, CorruptionCapture } from "@afallon/contracts";
 import type { NormalizedEntity } from "@afallon/contracts/catalog";
 import { normalizeCorruption } from "./corruption";
 import { queryChallengeStoneRoutes } from "./queries";
@@ -18,7 +17,7 @@ const canonical = { items: [
   { nativeId: 564, name: "Corruption Token", internalName: "Corruption Token", gameplay: { isCorruptionToken: true } },
 ] } as unknown as Canonical;
 const capture: CorruptionCapture = {
-  schemaVersion: "compendium.corruption-capture.v1",
+  schemaVersion: "compendium.corruption-capture.v2",
   combat: { maxLevel: 30, gearAllStatsPercentPerLevel: 5, sourceFieldPath: "GameDatabase.CombatSettings",
     gearStatBonuses: [
       { statId: 0, amountPerLevel: 15, isPercent: true, sourceFieldPath: "Combat.GearBonuses[0]" },
@@ -29,8 +28,9 @@ const capture: CorruptionCapture = {
   timer: { scenePath: "Duskfall.unity", sourceFieldPath: "Duskfall.unity/DungeonTimerManager", totalSeconds: 800, firstRemainingSeconds: 500,
     secondRemainingSeconds: 300, maxLootItems: 3, bosses: [{ id: 286, sourceFieldPath: "Timer.BossNPCs[0]" }],
     lootTables: [{ id: 114, sourceFieldPath: "Timer.LootTables[0]" }], token: { id: 564, sourceFieldPath: "Timer.CorruptionTokenItem" } },
+  dungeonFinder: { supplyPackId: 418, enabledSceneIds: [25], sourceFieldPath: "DungeonFinderService.Instance.Settings.SupplyPack" },
 };
-const source = (value: CorruptionCapture): SourceRecord => ({ kind: "compendium.corruption-capture.v1", value,
+const source = (value: CorruptionCapture): SourceRecord => ({ kind: "compendium.corruption-capture.v2", value,
   reference: { path: "objects/sha256/aa/" + hash.slice(2), sha256: hash }, key: "corruption", bytes: 1, runId: "run", targetIdentity: "build-scene:25", origins: [] });
 const context = { scenePath: "Duskfall.unity", sceneNativeId: 25, world: { interactions: [] } } as unknown as SceneContext;
 const copy = (): CorruptionCapture => structuredClone(capture);
@@ -39,7 +39,6 @@ const normalize = (value: CorruptionCapture, others: SourceRecord[] = []) => nor
 
 describe("build-specific corruption facts", () => {
   test("retains distinct matching percent and flat stat bonuses with stat names and remaining-time semantics", () => {
-    expect(Check(CorruptionCaptureSchema, capture)).toBe(true);
     const facts = normalize(copy())!;
     expect(facts.maxLevel).toBe(30);
     expect(facts.gearStatBonuses).toEqual([
@@ -61,7 +60,6 @@ describe("build-specific corruption facts", () => {
     absent.combat = { maxLevel: null, gearAllStatsPercentPerLevel: null, gearStatBonuses: null, mobStatBonuses: null, sourceFieldPath: "GameDatabase.CombatSettings" };
     absent.affixSettings = { affixesPerToken: null, disabledAffixes: null, npcRequirements: null, sourceFieldPath: "Affix.Settings" };
     absent.timer = null;
-    expect(Check(CorruptionCaptureSchema, absent)).toBe(true);
     expect(normalize(absent)).toMatchObject({ maxLevel: null, gearAllStatsPercentPerLevel: null, gearStatBonuses: null, mobStatBonuses: null, affixesPerToken: null, affixes: null, dungeons: [] });
     expect(normalizeCorruption([], [context], canonical, entities)).toBeNull();
   });

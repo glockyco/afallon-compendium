@@ -7,7 +7,7 @@ type Resolve = (kind: string, nativeId: number, label: string, path: string, pro
 
 // The target field that GameActionsManager reads for each action type, and the catalog kind of that target. A null kind
 // is a target that the scan does not capture as a record.
-const TARGETS: Readonly<Record<string, { field: keyof Targets; kind: string | null; label: string }>> = {
+export const GAME_ACTION_TARGETS: Readonly<Record<string, { field: keyof Targets; kind: string | null; label: string }>> = {
   Ability: { field: "abilityId", kind: "abilities", label: "Ability" },
   Bonus: { field: "bonusId", kind: "bonuses", label: "Bonus" },
   Recipe: { field: "recipeId", kind: "recipes", label: "Recipe" },
@@ -42,7 +42,7 @@ export function itemGameActions(entityKey: string, gameActions: ItemGameplay["ga
       throw new Error(`Item ${entityKey} action ${action.sourceIndex} lacks the 0.16.3 action mode, requirements, or visual effect capture.`);
     }
     const type = action.type.name, teleport = type === "Teleport";
-    const spec = teleport ? (action.teleportType.name === "GameScene" ? { field: "gameSceneId" as const, kind: "scenes", label: "Scene" } : null) : TARGETS[type] ?? null;
+    const spec = teleport ? (action.teleportType.name === "GameScene" ? { field: "gameSceneId" as const, kind: "scenes", label: "Scene" } : null) : GAME_ACTION_TARGETS[type] ?? null;
     if (spec === null && !teleport && !UNTARGETED.has(type)) blockers.push({ kind: "unsupported-game-action", key: `${entityKey}:${action.sourceIndex}`, detail: `Game action type ${type} has no known target rule.`, provenance });
     let target: NormalizedReference | null = null;
     if (spec !== null) {

@@ -5,7 +5,7 @@
   import ItemTooltip from '../../ItemTooltip.svelte';
   import ObjectiveText from '../../ObjectiveText.svelte';
   import Price from '../../Price.svelte';
-  import { formatNumber, rarityTone } from '../../format';
+  import { formatNumber, nameOf, rarityTone } from '../../format';
   import { itemOnMap, spotOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailsDisclosure from '../DetailsDisclosure.svelte';
@@ -78,6 +78,14 @@
   ];
   $: fromItemPlan = planColumns(fromItemColumns, document.fromItems);
   $: clothGuide = document.placedRules.find((rule) => rule.target === 'cloth-loot');
+  $: pickupGuide = document.placedRules.find((rule) => rule.target === 'quest-pickups');
+  $: finderGuide = document.placedRules.find((rule) => rule.target === 'dungeon-finder');
+  const pickupColumns: RelationColumn<PublicItem['questPickups'][number]>[] = [
+    { id: 'source', label: 'Where it appears', value: (row) => row.kind === 'creature' ? nameOf(row.counterpart) : row.places[0]?.label ?? 'Placed pickup', sort: (row) => row.kind === 'creature' ? nameOf(row.counterpart) : row.places[0]?.label ?? '' },
+    { id: 'amount', label: 'Amount', hint: 'The most that one pickup gives. It never gives more than the quest still needs.', numeric: true, value: (row) => row.amount, sort: (row) => row.amount },
+    { id: 'quest', label: 'Quest', value: (row) => row.quest ? nameOf(row.quest) : undefined, sort: (row) => row.quest ? nameOf(row.quest) : '' },
+  ];
+  $: pickupPlan = planColumns(pickupColumns, document.questPickups);
   const clothColumns: RelationColumn<NonNullable<PublicItem['clothDrop']>['levels'][number]>[] = [
     { id: 'level', label: 'Creature level', value: (row) => levelRangeText(row.minLevel, row.maxLevel), sort: (row) => row.minLevel },
     { id: 'chance', label: 'Chance per kill', hint: 'The chance that one kill drops this cloth. Inside a range of levels, it moves steadily from the first value to the second.', numeric: true, value: (row) => row.startChance, sort: (row) => row.startChance },
@@ -267,6 +275,32 @@
     <ContainerSection id="collected-from" title="Found in objects" rows={document.collectedFrom} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
     <ContainerSection id="found-in-containers" title="Found in containers" rows={document.inContainers} sourceAvailabilities={document.sourceAvailabilities} itemKey={document.ref.key} {registry} />
     <QuestRowsSection id="from-quests" title="Quest rewards" roleLabel="Given as" rows={itemQuestSourceRows(document.rewardedBy, document.givenBy)} {registry} />
+    {#if document.questPickups.length}
+      <Section id="quest-pickups" title="Quest pickups" count={document.questPickups.length}>
+        <div class="c-stack">
+          <p>A quest pickup gives {document.ref.name} only while the quest's task to get it is open, and never more than the task still needs.</p>
+          {#if pickupGuide}<HowItWorks guide={pickupGuide.guide} stepId={pickupGuide.stepId} label="How quest pickups work" />{/if}
+          <RelationTable columns={pickupPlan.columns} rows={document.questPickups} label="Quest pickups">
+            <svelte:fragment slot="cell" let:row let:column>
+              {#if column === 'source'}{#if row.kind === 'creature'}Where <EntityLink ref={row.counterpart} {registry} /> dies{:else}{row.places[0]?.label ?? 'Placed pickup'}{#if row.placementCount > 1}{' '}({formatNumber(row.placementCount)} spots){/if}{#if row.singleUse}{' '}· once{/if}{/if}
+              {:else if column === 'quest'}{#if row.quest}<EntityLink ref={row.quest} {registry} />{/if}
+              {:else}{formatNumber(row.amount)}{/if}
+            </svelte:fragment>
+          </RelationTable>
+        </div>
+      </Section>
+    {/if}
+    {#if document.dungeonFinder}
+      <Section id="dungeon-finder" title="Dungeon Finder">
+        <div class="c-stack">
+          <p>Each successful Random run of the Dungeon Finder gives one {document.ref.name}. The Dungeon Finder can send a Random run to these dungeons:</p>
+          <ul class="dungeon-list">
+            {#each document.dungeonFinder.dungeons as dungeon}<li><EntityLink ref={dungeon} {registry} /></li>{/each}
+          </ul>
+          {#if finderGuide}<HowItWorks guide={finderGuide.guide} stepId={finderGuide.stepId} label="How Dungeon Finder rewards work" />{/if}
+        </div>
+      </Section>
+    {/if}
     {#if document.fromItems.length}
       <Section id="from-items" title="From items" count={document.fromItems.length}>
         <RelationTable columns={fromItemPlan.columns} rows={document.fromItems} label="From items">

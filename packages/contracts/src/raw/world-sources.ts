@@ -208,6 +208,17 @@ const gameAction = Type.Object({
   unsupported: boolean,
 });
 const gameActionRow = Type.Union([gameAction, actionUnavailable]);
+const gameActionV11 = Type.Object({
+  ...gameAction.properties,
+  alterAction: text, nodeAction: enumValue, progressionType: enumValue, amount: integer,
+  targets: Type.Object({
+    abilityId: integer, bonusId: integer, recipeId: integer, resourceId: integer, effectId: integer, npcId: integer,
+    factionId: integer, itemId: integer, currencyId: integer, pointId: integer, talentTreeId: integer, skillId: integer,
+    weaponTemplateId: integer, questId: integer, dialogueId: integer, gameSceneId: integer, lootTableId: integer,
+  }),
+});
+const gameActionRowV11 = Type.Union([gameActionV11, actionUnavailable]);
+export type WorldGameAction = Static<typeof gameActionV11>;
 const gameActionList = Type.Object({
   available: boolean,
   nativeActionCount: integer,
@@ -776,9 +787,79 @@ const diagnostic = Type.Object({
   sourceFieldPath: Type.Optional(text),
   source: Type.Optional(sourceEvidence),
 });
+const pickupFields = Type.Object({
+  kind: enumValue, quest: projectedReference, task: projectedReference, prerequisiteTask: projectedReference,
+  item: projectedReference, amount: integer, requiredItemCount: integer, singleUse: boolean,
+  directorInstanceId: nullable(integer),
+});
+const questFieldInteraction = Type.Object({ source: sourceEvidence, fields: pickupFields });
+const huntDirector = Type.Object({
+  source: sourceEvidence,
+  drops: Type.Array(Type.Object({ npcID: integer, prefab: pickupFields, sourceFieldPath: text })),
+  revisedQuests: Type.Array(canonicalReference), bearQuest: projectedReference,
+  baitTask: projectedReference, bearTask: projectedReference,
+});
+const visualEffect = Type.Object({
+  targetType: enumValue, activationType: enumValue, templateName: nullableText, prefabCount: integer,
+  prefabs: Type.Array(Type.Object({
+    key: text, loaded: boolean, prefabAvailable: boolean,
+    chests: Type.Array(chestLootProjection),
+  })),
+});
+const interactionV9 = Type.Union([
+  Type.Object({ ...interaction.anyOf[0]!.properties, visualEffects: Type.Array(visualEffect) }),
+  interaction.anyOf[1]!, interaction.anyOf[2]!, interaction.anyOf[3]!,
+]);
+// Native prefab traversal stops after three prefab hops. The fourth effect level can
+// only contain unresolved prefab keys, so no further child effects are admitted.
+function visualEffectWithChildren<T extends TSchema>(childEffect: T) {
+  return Type.Object({
+    targetType: enumValue, activationType: enumValue, templateName: nullableText, prefabCount: integer,
+    prefabs: Type.Array(Type.Object({
+      key: text, loaded: boolean, prefabAvailable: boolean, chests: Type.Array(chestLootProjection),
+      childInteractables: Type.Array(Type.Object({
+        name: nullableText, activeSelf: boolean, playerChoice: boolean, requirementsTemplate: nullableText,
+        requirements: Type.Array(Type.Object({
+          checkCount: boolean, requiredCount: integer, rows: Type.Array(Type.Object({
+            type: enumValue, condition: enumValue, ownership: enumValue, value: enumValue,
+            itemID: integer, currencyID: integer, amount1: integer, consume: boolean,
+          })),
+        })),
+        chestActions: Type.Array(Type.Object({
+          activationType: enumValue, chance: number, lootTableId: nullable(integer),
+          lootRows: Type.Array(Type.Object({ itemID: integer, min: integer, max: integer, dropRate: number })),
+        })),
+        visualEffects: Type.Array(childEffect),
+      })),
+    })),
+  });
+}
+const visualEffectV10 = visualEffectWithChildren(visualEffectWithChildren(visualEffectWithChildren(visualEffectWithChildren(Type.Never()))));
+const gameActionsV11 = Type.Object({
+  executionOrder: Type.Literal("template-then-inline"),
+  template: nullable(Type.Object({
+    instanceId: integer, nativeId: integer, name: nullableText, internalName: nullableText, fileName: nullableText,
+    available: boolean, nativeActionCount: integer, actions: Type.Array(gameActionRowV11),
+  })),
+  inline: Type.Object({ available: boolean, nativeActionCount: integer, actions: Type.Array(gameActionRowV11) }),
+});
+const actionV11 = Type.Union([
+  Type.Object({ ...action.properties, gameActions: gameActionsV11 }),
+  actionUnavailable,
+]);
+const interactionV11 = Type.Union([
+  Type.Object({ ...interaction.anyOf[0]!.properties, actions: Type.Array(actionV11), visualEffects: Type.Array(visualEffectV10) }),
+  interaction.anyOf[1]!, interaction.anyOf[2]!, interaction.anyOf[3]!,
+]);
+const interactionV10 = Type.Union([
+  Type.Object({ ...interaction.anyOf[0]!.properties, visualEffects: Type.Array(visualEffectV10) }),
+  interaction.anyOf[1]!, interaction.anyOf[2]!, interaction.anyOf[3]!,
+]);
 const sourceTotals = Type.Object({
   oreSpawners: integer,
   interactableObjects: integer,
+  questFieldInteractions: integer,
+  huntTanneryDirectors: integer,
   interactableTriggers: integer,
   storageContainers: integer,
   interactiveNodes: integer,
@@ -804,6 +885,8 @@ const sourceTotals = Type.Object({
 const exportedTotals = Type.Object({
   resourceProducers: integer,
   interactions: integer,
+  questFieldInteractions: integer,
+  huntTanneryDirectors: integer,
   containers: integer,
   questZones: integer,
   transitions: integer,
@@ -817,7 +900,7 @@ const exportedTotals = Type.Object({
 });
 
 export const WorldSourcesSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.world-sources.v8"),
+  schemaVersion: Type.Literal("compendium.world-sources.v11"),
   coverage: Type.Object({
     scope: text,
     fullGameCoverage: boolean,
@@ -835,7 +918,9 @@ export const WorldSourcesSchema = Type.Object({
   }),
   nativeNamingUncertainties: Type.Array(text),
   resourceProducers: Type.Array(resourceProducer),
-  interactions: Type.Array(interaction),
+  interactions: Type.Array(interactionV11),
+  questFieldInteractions: Type.Array(questFieldInteraction),
+  huntTanneryDirectors: Type.Array(huntDirector),
   containers: Type.Array(Type.Union([container, storageContainer])),
   questZones: Type.Array(questZone),
   transitions: Type.Array(transition),
@@ -848,5 +933,25 @@ export const WorldSourcesSchema = Type.Object({
   randomActivators: Type.Array(randomActivator),
   totals: Type.Object({ source: sourceTotals, exported: exportedTotals, unresolved: integer }),
   unresolved: Type.Array(diagnostic),
+});
+export const WorldSourcesV10Schema = Type.Object({
+  ...WorldSourcesSchema.properties,
+  schemaVersion: Type.Literal("compendium.world-sources.v10"),
+  interactions: Type.Array(interactionV10),
+});
+export type WorldSourcesV10 = Static<typeof WorldSourcesV10Schema>;
+export const WorldSourcesV9Schema = Type.Object({
+  ...WorldSourcesV10Schema.properties,
+  schemaVersion: Type.Literal("compendium.world-sources.v9"),
+  interactions: Type.Array(interactionV9),
+});
+const { questFieldInteractions: _questPickups, huntTanneryDirectors: _huntDirectors, ...legacyWorldProperties } = WorldSourcesSchema.properties;
+const { questFieldInteractions: _sourcePickups, huntTanneryDirectors: _sourceDirectors, ...legacySourceTotals } = sourceTotals.properties;
+const { questFieldInteractions: _exportPickups, huntTanneryDirectors: _exportDirectors, ...legacyExportedTotals } = exportedTotals.properties;
+export const WorldSourcesV8Schema = Type.Object({
+  ...legacyWorldProperties,
+  schemaVersion: Type.Literal("compendium.world-sources.v8"),
+  interactions: Type.Array(interaction),
+  totals: Type.Object({ source: Type.Object(legacySourceTotals), exported: Type.Object(legacyExportedTotals), unresolved: integer }),
 });
 export type WorldSources = Static<typeof WorldSourcesSchema>;

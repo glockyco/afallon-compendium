@@ -3,6 +3,7 @@ import type { ArtifactReference, NormalizedCondition, NormalizedRandomChoice, No
 import { hashRelation } from "./database";
 import { pointer, type SceneContext, type SourceIdentityRow, type Blocker } from "./context";
 import { addSourceIndex, type ItemSourceAccumulator, type RelationData } from "./relations";
+import { capturedWorldAction } from "./owner-actions";
 
 export interface WorldRelationData {
   resourceYields: Array<Record<string, unknown> & { yieldId: string; itemID: number; sourceId: string; provenance: ProvenanceReference[] }>;
@@ -10,6 +11,8 @@ export interface WorldRelationData {
   questAssociations: Array<Record<string, unknown> & { associationId: string; associationKind: string; provenance: ProvenanceReference[] }>;
   /** One row per offering zone and context; normalization merges rows of the same quest and rejects conflicting timing. */
   worldQuestFacts: NormalizedWorldQuestFact[];
+  /** Placed interactables whose completed visual effects actually provide item rewards. */
+  visualEffectRoles: Array<{ sourceId: string; placementId: string; evidence: ProvenanceReference[] }>;
 }
 
 export function containerTypeFromHierarchyPath(path: string | null): string | null {
@@ -29,7 +32,7 @@ export function containerTypeFromHierarchyPath(path: string | null): string | nu
 
 // The authored display name of an interactive object, which can carry rich-text markup; publication removes the
 // markup with every other published name.
-function objectNameOf(interaction: WorldSources["interactions"][number]): string | null {
+function objectNameOf(interaction: SceneContext["world"]["interactions"][number]): string | null {
   return "interactableName" in interaction && interaction.interactableName ? interaction.interactableName : null;
 }
 
@@ -39,6 +42,7 @@ type LootEntry = RelationData["lootEntries"][number];
 export function worldRelations(contexts: readonly SceneContext[], sourcePlacement: ReadonlyMap<string, string>, lootEntries: readonly LootEntry[], conditions: readonly NormalizedCondition[], itemIndex: Map<number, Map<string, ItemSourceAccumulator>>, blockers: Blocker[]): WorldRelationData {
   const resourceYields: WorldRelationData["resourceYields"] = [], transitions: WorldRelationData["transitions"] = [], questAssociations: WorldRelationData["questAssociations"] = [];
   const worldQuestFacts: NormalizedWorldQuestFact[] = [];
+  const visualEffectRoles = new Map<string, WorldRelationData["visualEffectRoles"][number]>();
   const entriesByTable = new Map<number, LootEntry[]>();
   for (const entry of lootEntries) { const rows = entriesByTable.get(entry.lootTableID) ?? []; rows.push(entry); entriesByTable.set(entry.lootTableID, rows); }
   const sourceConditions = new Map<string, string[]>();
@@ -47,14 +51,14 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
     const identityFor = (source: WorldSource) => source.componentInstanceId === null ? undefined : context.sourceByComponent.get(source.componentInstanceId);
     const conditionIds = (identity: SourceIdentityRow) => sourceConditions.get(`source:${identity.sourceId}`) ?? [];
     const placementIds = (identity: SourceIdentityRow) => { const placement = sourcePlacement.get(identity.sourceId); return placement ? [placement] : []; };
-    function tableOutputs(identity: SourceIdentityRow, tableId: number, sourceKey: string, reference: ArtifactReference, sourceKind: "resource" | "container" | "interaction", details: Record<string, unknown>) {
+    function tableOutputs(identity: SourceIdentityRow, tableId: number, sourceKey: string, reference: ArtifactReference, sourceKind: "resource" | "container" | "interaction", details: Record<string, unknown>, actionConditions: readonly string[] = []) {
       const entries = entriesByTable.get(tableId);
       if (!entries) { blockers.push({ kind: "missing-reference", key: `${identity.sourceId}:lootTables:${tableId}`, detail: `World output references an unavailable loot table ${tableId}.`, provenance: [reference] }); return; }
       for (const entry of entries) {
         const provenance = [reference, ...entry.provenance, pointer(context.identityReference, `/identities/${identity.identityIndex}`)];
         const yieldId = hashRelation(`${sourceKind}-output`, [identity.sourceId, sourceKey, tableId, entry.entryIndex]);
         if (sourceKind === "resource") resourceYields.push({ yieldId, sourceId: identity.sourceId, itemID: entry.itemID, resourceID: null, rank: null, min: entry.min, max: entry.max, lootTableID: tableId, rawRate: entry.dropRate, provenance, ...details });
-        addSourceIndex(itemIndex, entry.itemID, sourceKind, yieldId, placementIds(identity), conditionIds(identity), { sourceId: identity.sourceId, lootTableId: tableId, min: entry.min, max: entry.max, rawRate: entry.dropRate, probability: null, provenance, ...details });
+        addSourceIndex(itemIndex, entry.itemID, sourceKind, yieldId, placementIds(identity), [...conditionIds(identity), ...actionConditions], { sourceId: identity.sourceId, lootTableId: tableId, min: entry.min, max: entry.max, rawRate: entry.dropRate, probability: null, provenance, ...details });
       }
     }
     for (const [index, producer] of context.world.resourceProducers.entries()) {
@@ -113,6 +117,77 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
       if (!("actions" in interaction)) continue;
       const identity = identityFor(interaction.source);
       const objectName = objectNameOf(interaction);
+      if (interaction.family === "interactableObject" && identity) {
+        type VisualEffect = (typeof interaction.visualEffects)[number];
+        type Branch = { choiceLabel?: string; costCurrencyId?: number; costAmount?: number; pickOne?: number };
+        const identityReference = pointer(context.identityReference, `/identities/${identity.identityIndex}`);
+        const markVisualEffectRole = (rootEffectPath: string): void => {
+          const placementId = sourcePlacement.get(identity.sourceId);
+          if (placementId && !visualEffectRoles.has(identity.sourceId)) visualEffectRoles.set(identity.sourceId, {
+            sourceId: identity.sourceId, placementId, evidence: [pointer(context.worldReference, rootEffectPath)],
+          });
+        };
+        const projectEffect = (effect: VisualEffect, effectPath: string, rootEffectPath: string, branch: Branch): void => {
+          if (effect.activationType.name !== "Completed") return;
+          for (const [prefabIndex, prefab] of effect.prefabs.entries()) {
+            const reference = pointer(context.worldReference, `${effectPath}/prefabs/${prefabIndex}`);
+            if (!prefab.prefabAvailable) {
+              blockers.push({ kind: "unresolved-visual-effect-prefab", key: `${identity.sourceId}:${effectPath}:${prefabIndex}`, detail: `Visual effect prefab ${prefab.key} did not resolve.`, provenance: [reference] });
+              continue;
+            }
+            for (const [chestIndex, chest] of prefab.chests.entries()) for (const [entryIndex, entry] of chest.lootInstances.entries()) {
+              const entryReference = pointer(reference, `/chests/${chestIndex}/lootInstances/${entryIndex}`);
+              if ("unavailable" in entry || entry.itemID === null || entry.itemID < 0) {
+                blockers.push({ kind: "unresolved-visual-effect-chest", key: `${identity.sourceId}:${effectPath}:${prefabIndex}:${chestIndex}:${entryIndex}`, detail: "The visual-effect chest has an unresolved loot entry.", provenance: [entryReference] });
+                continue;
+              }
+              const sourceKey = hashRelation("visual-effect-chest", [identity.sourceId, effectPath, prefabIndex, chestIndex, entryIndex, entry.itemID]);
+              addSourceIndex(itemIndex, entry.itemID, "interaction", sourceKey, placementIds(identity), conditionIds(identity), {
+                sourceId: identity.sourceId, objectName, activationType: effect.activationType.name,
+                ...branch, prefabChoices: effect.prefabCount, prefabKey: prefab.key, maxDrops: chest.maxDrops,
+                min: entry.minCount, max: entry.maxCount, rawRate: entry.dropChance,
+                provenance: [entryReference, identityReference],
+              });
+              markVisualEffectRole(rootEffectPath);
+            }
+            const playerChoices = prefab.childInteractables.filter((child) => child.playerChoice).length;
+            for (const [choiceIndex, choice] of prefab.childInteractables.entries()) {
+              const choicePath = `${effectPath}/prefabs/${prefabIndex}/childInteractables/${choiceIndex}`;
+              const costs = choice.requirements.flatMap((group) => group.rows.filter((row) =>
+                row.type.name === "Currency" && row.ownership.name === "Owned" && row.value.name === "EqualOrAbove" && row.condition.name === "Mandatory" && row.consume
+              ));
+              if (costs.length > 1) blockers.push({ kind: "ambiguous-visual-effect-cost", key: `${identity.sourceId}:${choicePath}`, detail: "The nested choice consumes multiple currencies.", provenance: [pointer(context.worldReference, `${choicePath}/requirements`)] });
+              const cost = costs.length === 1 ? costs[0]! : null;
+              const selectedBranch: Branch = {
+                ...branch,
+                ...(branch.choiceLabel === undefined && choice.name ? { choiceLabel: choice.name } : {}),
+                ...(choice.playerChoice && playerChoices > 1 && choice.chestActions.some((action) => action.activationType.name === "Completed") ? { pickOne: playerChoices } : {}),
+                ...(cost ? { costCurrencyId: cost.currencyID, costAmount: cost.amount1 } : {}),
+              };
+              for (const [actionIndex, action] of choice.chestActions.entries()) {
+                if (action.activationType.name !== "Completed") continue;
+                for (const [entryIndex, entry] of action.lootRows.entries()) {
+                  if (entry.itemID < 0) continue;
+                  const entryReference = pointer(context.worldReference, `${choicePath}/chestActions/${actionIndex}/lootRows/${entryIndex}`);
+                  const sourceKey = hashRelation("visual-effect-choice", [identity.sourceId, choicePath, actionIndex, entryIndex, entry.itemID]);
+                  addSourceIndex(itemIndex, entry.itemID, "interaction", sourceKey, placementIds(identity), conditionIds(identity), {
+                    sourceId: identity.sourceId, objectName, activationType: action.activationType.name,
+                    ...selectedBranch, prefabChoices: effect.prefabCount, prefabKey: prefab.key,
+                    min: entry.min, max: entry.max, rawRate: entry.dropRate, authoredActionChance: action.chance,
+                    provenance: [entryReference, identityReference],
+                  });
+                  markVisualEffectRole(rootEffectPath);
+                }
+              }
+              for (const [nestedIndex, nestedEffect] of choice.visualEffects.entries()) projectEffect(nestedEffect, `${choicePath}/visualEffects/${nestedIndex}`, rootEffectPath, selectedBranch);
+            }
+          }
+        };
+        for (const [effectIndex, effect] of interaction.visualEffects.entries()) {
+          const effectPath = `/interactions/${index}/visualEffects/${effectIndex}`;
+          projectEffect(effect, effectPath, effectPath, {});
+        }
+      }
       for (const [actionIndex, action] of interaction.actions.entries()) {
         if ("unavailable" in action) continue;
         const reference = pointer(context.worldReference, `/interactions/${index}/actions/${actionIndex}`);
@@ -129,6 +204,20 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
           if (!actions) continue;
           for (const [nestedIndex, nested] of actions.entries()) {
             if ("unavailable" in nested) continue;
+            if (identity && capturedWorldAction(nested) && nested.nodeAction.name !== "RankDown") {
+              const gameActionReference = pointer(reference, `/gameActions/${family}/actions/${nestedIndex}`);
+              const gameActionConditions = sourceConditions.get(`world-game-action:source:${identity.sourceId}:actions/${actionIndex}/${family}/${nested.sourceIndex}`) ?? [];
+              const gameActionDetails = { objectName, activationType: action.activationType.name, authoredActionChance: action.chance,
+                gameActionChance: nested.chance, gameActionTemplate: family === "template" ? action.gameActions.template?.internalName ?? action.gameActions.template?.name : null };
+              if (nested.type.name === "LootTable" && nested.lootTableID !== null && nested.lootTableID >= 0)
+                tableOutputs(identity, nested.lootTableID, `${action.sourceFieldPath}:${family}:${nested.sourceIndex}`, gameActionReference, "interaction", gameActionDetails, gameActionConditions);
+              if (nested.type.name === "Item" && nested.alterAction === "Gain" && nested.targets.itemId >= 0)
+                addSourceIndex(itemIndex, nested.targets.itemId, "interaction",
+                  hashRelation("interaction-item-game-action", [identity.sourceId, action.sourceFieldPath, family, nested.sourceIndex, nested.targets.itemId]),
+                  placementIds(identity), [...conditionIds(identity), ...gameActionConditions],
+                  { sourceId: identity.sourceId, itemId: nested.targets.itemId, min: nested.amount, max: nested.amount, count: nested.amount,
+                    rawRate: null, provenance: [gameActionReference, pointer(context.identityReference, `/identities/${identity.identityIndex}`)], ...gameActionDetails });
+            }
             if (nested.teleport) addTeleport(nested.teleport, "game-action-teleport", pointer(reference, `/gameActions/${family}/actions/${nestedIndex}/teleport`));
             if (nested.effectTeleport) addTeleport(nested.effectTeleport, "game-action-effect-teleport", pointer(reference, `/gameActions/${family}/actions/${nestedIndex}/effectTeleport`));
           }
@@ -136,7 +225,7 @@ export function worldRelations(contexts: readonly SceneContext[], sourcePlacemen
       }
     }
   }
-  return { resourceYields, transitions, questAssociations, worldQuestFacts };
+  return { resourceYields, transitions, questAssociations, worldQuestFacts, visualEffectRoles: [...visualEffectRoles.values()] };
 }
 
 /** The authored RPGProperty fields that a for-sale sign reads from the property it sells. */

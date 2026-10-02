@@ -2,14 +2,19 @@
 
 ### Requirement: Game action owners retain their actions
 
-The catalog SHALL retain the game actions of every owner type in the order that the game reads them. Each action SHALL keep its owner identity, type, chance, node action, amount, target references, and requirement groups. When an owner uses a game actions template, the catalog SHALL retain the actions of the template and the template identity. A loot table that a LootTable action of an item names SHALL link to that item with the requirement groups of the action. A game action of a non-item owner that gives an item, a loot table, a currency, or a recipe SHALL be a coverage issue. The Chest action of an interactable object is not a game action. An unresolved owner or target SHALL remain visible as a coverage issue.
+The catalog SHALL retain the game actions of every owner type in the order that the game reads them. Each action SHALL keep its owner identity, type, chance, node action, amount, target references, and requirement groups. When an owner uses a game actions template, the catalog SHALL retain the actions of the template and the template identity. A loot table that a LootTable action of an item names SHALL link to that item with the requirement groups of the action. The LootTable and Item gain actions of an interactable object SHALL be item sources of that object, with the action chances and requirements. Any other game action of a non-item owner that gives an item, a loot table, a currency, or a recipe SHALL be a coverage issue. The Chest action of an interactable object is not a game action. An unresolved owner or target SHALL remain visible as a coverage issue.
 
 #### Scenario: Item names a loot table
 - **WHEN** a captured item action names a loot table with a class and level requirement group
 - **THEN** the catalog links that loot table to the item with the requirement group
 
-#### Scenario: Another owner gives an item
-- **WHEN** a captured game action of a dialogue node, effect, region, stat, or interactable object gives an item
+#### Scenario: An interactable object gives a loot table
+- **WHEN** a locked Wooden treasure chest runs a LootTable game action for the world loot table of the player's level band
+- **THEN** each item of that table has a Found in objects source of the chest with the level band and the Chest Key requirement
+- **AND** the catalog records no coverage issue for that action
+
+#### Scenario: Another owner gives a recipe
+- **WHEN** a captured game action of a dialogue node, effect, region, stat, or interactable object unlocks a recipe or gives an item that the catalog does not keep as an item source
 - **THEN** the catalog keeps the action and records a coverage issue
 
 #### Scenario: Target does not resolve

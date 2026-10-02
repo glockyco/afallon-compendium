@@ -2,7 +2,7 @@ import { stat } from "node:fs/promises";
 import type { Static, TSchema } from "typebox";
 import { Assert } from "typebox/value";
 import { ArtifactStore, resolveArtifactRun } from "@afallon/artifacts";
-import { ArtifactRunManifestSchema, ArtworkSchema, CaptureSetSchema, canonicalJson, CanonicalSchema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema, QuestLevelsSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, NpcProducersSchema, WorldSourcesSchema, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, ScanTargetEnvelopeSchema, ObservationContextSchema, WorldInventorySchema, CoverageLedgerSchema, ScanCoverageSchema, ScanPlanningEvidenceSchema, validateScanTargetEnvelope, decodeContract, schemaRegistry, type ContentIdentity, type ScanTargetEnvelope, type ScanCollectorFamily, type ArtifactRunManifest, type WorldInventory } from "@afallon/contracts";
+import { ArtifactRunManifestSchema, ArtworkSchema, CaptureSetSchema, canonicalJson, CanonicalSchema, CanonicalV5Schema, RelationshipsSchema, LootRulesSchema, SupportSchema, LocalizationSchema, QuestLevelsSchema, PlacementIdentityResultSchema, PlacementSnapshotSchema, NpcProducersSchema, WorldSourcesSchema, WorldSourcesV8Schema, WorldSourcesV9Schema, WorldSourcesV10Schema, MapGeometrySchema, MapSpaceProfileSchema, SceneCatalogSchema, ScanTargetEnvelopeSchema, ObservationContextSchema, WorldInventorySchema, CoverageLedgerSchema, ScanCoverageSchema, ScanPlanningEvidenceSchema, decodeContract, schemaRegistry, validateScanTargetEnvelope, type ArtifactRunManifest, type ContentIdentity, type ScanTargetEnvelope, type ScanCollectorFamily, type WorldInventory, type WorldSources, type WorldSourcesV10 } from "@afallon/contracts";
 import { PlacementRolesSchema, type ArtifactReference, type NormalizedDatabaseInput } from "@afallon/contracts/catalog";
 import { CatalogPlanSchema, CatalogImagerySchema, CoverageReviewSchema, CoveragePolicySchema, MechanicsRulesSchema, type CatalogPlan, type CatalogImagery, type CoverageAccountingInput, type MechanicsRules, type VerifiedCoverageEvidence, type RoleEvidence } from "@afallon/contracts/catalog";
 import { sourceIdentityRows } from "./placements";
@@ -11,9 +11,9 @@ import { coverageInventorySubjects, coverageTargetSubjects } from "./coverage-ac
 import type { SceneContext, SourceRecord } from "./context";
 
 const FAMILY_BY_SCHEMA: Readonly<Record<string, ScanCollectorFamily>> = {
-  "compendium.canonical.v4": "canonical", "compendium.canonical.v5": "canonical", "compendium.localization.v1": "canonical", "compendium.quest-levels.v1": "canonical", "compendium.corruption-capture.v1": "canonical", "compendium.artwork.v1": "canonical",
+  "compendium.canonical.v4": "canonical", "compendium.canonical.v5": "canonical", "compendium.canonical.v6": "canonical", "compendium.localization.v1": "canonical", "compendium.quest-levels.v1": "canonical", "compendium.corruption-capture.v1": "canonical", "compendium.corruption-capture.v2": "canonical", "compendium.artwork.v1": "canonical",
   "compendium.world-inventory.v2": "inventory", "compendium.addressable-locations.v1": "inventory",
-  "compendium.npc-producers.v3": "producers", "compendium.world-sources.v8": "producers",
+  "compendium.npc-producers.v3": "producers", "compendium.world-sources.v8": "producers", "compendium.world-sources.v9": "producers", "compendium.world-sources.v10": "producers", "compendium.world-sources.v11": "producers",
   "compendium.placement-snapshot.v1": "placements", "compendium.placement-identities.v1": "placements", "compendium.serialized-assets.v2": "placements", "compendium.scene-source-issues.v2": "placements",
   "compendium.faction-roles.v1": "roles", "compendium.placement-roles.v1": "roles",
   "compendium.relationships.v1": "relationships", "compendium.relationships.v2": "relationships", "compendium.loot-rules.v1": "relationships", "compendium.support.v1": "relationships", "compendium.support.v2": "relationships", "compendium.support.v3": "relationships", "compendium.support.v4": "relationships",
@@ -204,7 +204,9 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
     const value = await readObject(store, artifact.content, schema, `${target.envelope.targetIdentity}/${family}`);
     return { value, reference: evidenceReference(artifact.content), content: artifact.content };
   };
-  const canonical = await load(canonicalTarget, "canonical", CanonicalSchema);
+  const canonicalV6 = await loadOptional(canonicalTarget, "canonical", CanonicalSchema);
+  const canonicalV5 = canonicalV6 === null ? await load(canonicalTarget, "canonical", CanonicalV5Schema) : null;
+  const canonical = canonicalV6 ?? { ...canonicalV5!, value: { ...canonicalV5!.value, schemaVersion: "compendium.canonical.v6" as const, ownerActions: [] } };
   // Only the scan plan's artwork target collects artwork, so the canonical target must be that target.
   const artwork = await load(canonicalTarget, "canonical", ArtworkSchema);
   const artworkOutputs = new Map(canonicalTarget.run.outputs.map((row) => [`${row.content.sha256}:${row.content.bytes}`, row]));
@@ -239,7 +241,13 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
     const roles = await load(target, "roles", PlacementRolesSchema);
     const snapshot = await load(target, "placements", PlacementSnapshotSchema);
     const npc = await load(target, "producers", NpcProducersSchema);
-    const world = await load(target, "producers", WorldSourcesSchema);
+    const world = target.envelope.artifacts.some((artifact) => artifact.schema.id === "compendium.world-sources.v11")
+      ? await load(target, "producers", WorldSourcesSchema)
+      : target.envelope.artifacts.some((artifact) => artifact.schema.id === "compendium.world-sources.v10")
+        ? await load(target, "producers", WorldSourcesV10Schema)
+        : target.envelope.artifacts.some((artifact) => artifact.schema.id === "compendium.world-sources.v9")
+          ? await load(target, "producers", WorldSourcesV9Schema)
+          : await load(target, "producers", WorldSourcesV8Schema);
     const geometry = await load(target, "spatial", MapGeometrySchema);
     const scene = snapshot.value.context;
     const snapshotArtifact = target.envelope.artifacts.find((artifact) => artifact.schema.id === "compendium.placement-snapshot.v1")!;
@@ -260,8 +268,22 @@ export async function admitCatalogPlan(store: ArtifactStore, input: CatalogPlan)
       if (artifacts.length !== 1) throw new Error(`Target ${target.envelope.targetIdentity} requires one role input ${schemaId}.`);
       return evidenceReference(artifacts[0]!.content);
     };
-    const roleEvidenceReferences: SceneContext["roleEvidenceReferences"] = { canonical: roleArtifact("compendium.canonical.v5"), relationships: roleArtifact("compendium.relationships.v2"), "npc-producers": npc.reference, "world-sources": world.reference, "faction-roles": roleArtifact("compendium.faction-roles.v1") };
-    contexts.push({ roleEvidenceReferences, role: roles.value, identities: identities.value, npc: npc.value, world: world.value, mapGeometry: geometry.value, mapGeometryReference: geometry.reference, sceneNativeId: scene.gameSceneNativeId, scenePath: scene.scene.path, sourceByComponent, sourceById, roleReference: roles.reference, identityReference: identities.reference, npcReference: npc.reference, worldReference: world.reference, snapshotReference: snapshot.reference, snapshotRunId: target.envelope.sourceRunId, snapshotPrefix: target.envelope.targetIdentity, snapshotId: identitySnapshotId(target.envelope.sourceRunId, target.envelope.targetIdentity), identityResult: identities.value, sceneHandle: scene.scene.handle, character: scene.character });
+    const canonicalRoleSchemaId = target.envelope.artifacts.some((artifact) => artifact.schema.id === "compendium.canonical.v6") ? "compendium.canonical.v6" : "compendium.canonical.v5";
+    const roleEvidenceReferences: SceneContext["roleEvidenceReferences"] = { canonical: roleArtifact(canonicalRoleSchemaId), relationships: roleArtifact("compendium.relationships.v2"), "npc-producers": npc.reference, "world-sources": world.reference, "faction-roles": roleArtifact("compendium.faction-roles.v1") };
+    const upgradedWorld: WorldSources | WorldSourcesV10 = world.value.schemaVersion === "compendium.world-sources.v11" || world.value.schemaVersion === "compendium.world-sources.v10" ? world.value : world.value.schemaVersion === "compendium.world-sources.v9" ? {
+      ...world.value, schemaVersion: "compendium.world-sources.v10",
+      interactions: world.value.interactions.map((row) => "visualEffects" in row ? {
+        ...row, visualEffects: row.visualEffects.map((effect) => ({
+          ...effect, prefabs: effect.prefabs.map((prefab) => ({ ...prefab, childInteractables: [] })),
+        })),
+      } : row),
+    } : {
+      ...world.value, schemaVersion: "compendium.world-sources.v10",
+      questFieldInteractions: [], huntTanneryDirectors: [],
+      interactions: world.value.interactions.map((row) => "requirementsTemplate" in row ? { ...row, visualEffects: [] } : row),
+      totals: { ...world.value.totals, source: { ...world.value.totals.source, questFieldInteractions: 0, huntTanneryDirectors: 0 }, exported: { ...world.value.totals.exported, questFieldInteractions: 0, huntTanneryDirectors: 0 } },
+    };
+    contexts.push({ roleEvidenceReferences, role: roles.value, identities: identities.value, npc: npc.value, world: upgradedWorld, mapGeometry: geometry.value, mapGeometryReference: geometry.reference, sceneNativeId: scene.gameSceneNativeId, scenePath: scene.scene.path, sourceByComponent, sourceById, roleReference: roles.reference, identityReference: identities.reference, npcReference: npc.reference, worldReference: world.reference, snapshotReference: snapshot.reference, snapshotRunId: target.envelope.sourceRunId, snapshotPrefix: target.envelope.targetIdentity, identityResult: identities.value, sceneHandle: scene.scene.handle, character: scene.character, snapshotId: identitySnapshotId(target.envelope.sourceRunId, target.envelope.targetIdentity) });
   }
   for (const item of evidence) {
     if (item.family === "inventory") continue;

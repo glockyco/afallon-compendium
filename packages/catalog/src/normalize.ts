@@ -1,6 +1,6 @@
 import { CoverageLedgerSchema, ScanCoverageSchema, ScanTargetEnvelopeSchema, decodeContract, type Canonical } from "@afallon/contracts";
 import { compileMapSpaces } from "@afallon/contracts/spatial";
-import { entityKey, publicEntityDetails, stableJson, type ArtifactReference, type NormalizedDatabaseInput, type NormalizedEntity, type ItemSource, type NormalizedSceneSpawn, type ProvenanceReference, type CatalogDerivation, type NormalizedReference } from "@afallon/contracts/catalog";
+import { entityKey, publicEntityDetails, stableJson, type ArtifactReference, type NormalizedDatabaseInput, type NormalizedEntity, type ItemSource, type NormalizedSceneSpawn, type ProvenanceReference, type CatalogDerivation, type CatalogEndpoint, type NormalizedReference } from "@afallon/contracts/catalog";
 import { collectPlacements, collectRegions, attachShapes } from "./placements";
 import { collectPatrolPaths, collectWorldConditions, conditionRowsFor, conditionSemanticPayload, classifyItemCondition, producerRows } from "./conditions";
 import { addSourceIndex, relationRows } from "./relations";
@@ -9,7 +9,7 @@ import { entityDetails } from "./projections";
 import { decodeAbilityGameplay, decodeCraftingStationGameplay, decodedPrice, decodeGearSetGameplay, decodeItemGameplay, decodeNpcGameplay, decodePropertyGameplay, decodeQuestGameplay, decodeQuestLocalization, questMinimumLevel, decodeRecipeGameplay, decodeRegionGameplay, decodeSceneGameplay, decodeTaskGameplay, validateSupportedSemantics, type GameplayCoverageIssue, type RequirementGroupPayload } from "./decoders";
 import { parseTooltipMarkup } from "./tooltip-markup";
 import { assertEvidencePointer, evidenceReference, type AdmittedCatalog } from "./evidence";
-import { pointer, type Blocker, type Exclusion } from "./context";
+import { pointer, type Blocker, type Exclusion, type SceneContext } from "./context";
 import { hashRelation } from "./database";
 import { collectSourceGates } from "./availability";
 import { collectPlacementAreas } from "./areas";
@@ -17,6 +17,7 @@ import { normalizeProgression } from "./progression";
 import { normalizeMechanicsRules } from "./mechanics";
 import { gatheringNodes, linkGatheringYields } from "./gathering";
 import { itemGameActions } from "./item-actions";
+import { mergeOwnerGameActions, ownerGameActions, worldOwnerGameActions } from "./owner-actions";
 import { normalizeCorruption } from "./corruption";
 
 // A place has a closed level range only when its maximum is a level. The game reads a zone scaling of 0 to 0 as no
@@ -60,6 +61,7 @@ function mergeEvidence<T extends { provenance: ProvenanceReference[] }>(rows: re
 type FactRows = {
   adventurerWorld: NonNullable<NormalizedDatabaseInput["adventurerWorld"]>;
   itemFacts: NonNullable<NormalizedDatabaseInput["itemFacts"]>; itemStats: NonNullable<NormalizedDatabaseInput["itemStats"]>; itemRandomStats: NonNullable<NormalizedDatabaseInput["itemRandomStats"]>; itemGemStats: NonNullable<NormalizedDatabaseInput["itemGemStats"]>; itemSockets: NonNullable<NormalizedDatabaseInput["itemSockets"]>; itemGameActions: NonNullable<NormalizedDatabaseInput["itemGameActions"]>;
+  ownerGameActions?: NormalizedDatabaseInput["ownerGameActions"];
   npcFacts: NonNullable<NormalizedDatabaseInput["npcFacts"]>; npcStats: NonNullable<NormalizedDatabaseInput["npcStats"]>; npcAbilityPhases: NonNullable<NormalizedDatabaseInput["npcAbilityPhases"]>; npcPhaseAbilities: NonNullable<NormalizedDatabaseInput["npcPhaseAbilities"]>; npcFactionRewards: NonNullable<NormalizedDatabaseInput["npcFactionRewards"]>;
   questFacts: NonNullable<NormalizedDatabaseInput["questFacts"]>; questObjectives: NonNullable<NormalizedDatabaseInput["questObjectives"]>; questRewards: NonNullable<NormalizedDatabaseInput["questRewards"]>;
   placeFacts: NonNullable<NormalizedDatabaseInput["placeFacts"]>; propertyFacts: NonNullable<NormalizedDatabaseInput["propertyFacts"]>; taskFacts: NonNullable<NormalizedDatabaseInput["taskFacts"]>; abilityFacts: NonNullable<NormalizedDatabaseInput["abilityFacts"]>;
@@ -268,6 +270,53 @@ export function collectTypedFacts(admitted: AdmittedCatalog, entities: Normalize
   return rows;
 }
 
+interface QuestInteractionOwner { sourceId: string; placementId: string; interactionIndex: number }
+
+function questInteractionOwners(context: SceneContext, sourcePlacement: ReadonlyMap<string, string>): Map<number, QuestInteractionOwner> {
+  const owners = new Map<number, QuestInteractionOwner>();
+  context.world.interactions.forEach((interaction, interactionIndex) => {
+    if (interaction.family !== "interactableObject" || interaction.source.gameObjectInstanceId === null || interaction.source.componentInstanceId === null) return;
+    const identity = context.sourceByComponent.get(interaction.source.componentInstanceId);
+    const placementId = identity === undefined ? undefined : sourcePlacement.get(identity.sourceId);
+    if (identity !== undefined && placementId !== undefined) owners.set(interaction.source.gameObjectInstanceId, { sourceId: identity.sourceId, placementId, interactionIndex });
+  });
+  return owners;
+}
+
+export function collectQuestPickups(
+  contexts: readonly SceneContext[],
+  sourcePlacement: ReadonlyMap<string, string>,
+  taskFacts: NonNullable<NormalizedDatabaseInput["taskFacts"]>,
+  endpointFor: (kind: string, id: number | null | undefined) => CatalogEndpoint | null,
+): NonNullable<NormalizedDatabaseInput["questPickups"]> {
+  const questPickups: NonNullable<NormalizedDatabaseInput["questPickups"]> = [];
+  const taskByKey = new Map(taskFacts.map((row) => [row.entityKey, row]));
+  const addPickup = (fields: SceneContext["world"]["questFieldInteractions"][number]["fields"], origin: NonNullable<NormalizedDatabaseInput["questPickups"]>[number]["origin"]) => {
+    if (fields.kind.name !== "Pickup" || fields.item === null || fields.task === null) return;
+    const item = endpointFor("items", fields.item.nativeId), task = endpointFor("tasks", fields.task.nativeId);
+    if (item === null || task === null) return;
+    const taskFact = taskByKey.get(task.entityKey!);
+    if (taskFact?.taskType !== "getItem" || taskFact.target?.entityKey !== item.entityKey) return;
+    questPickups.push({ item, amount: fields.amount, quest: endpointFor("quests", fields.quest?.nativeId),
+      task, prerequisiteTask: endpointFor("tasks", fields.prerequisiteTask?.nativeId),
+      requiredItemCount: fields.requiredItemCount, singleUse: fields.singleUse, origin });
+  };
+  for (const context of contexts) {
+    const owners = questInteractionOwners(context, sourcePlacement);
+    for (const pickup of context.world.questFieldInteractions) {
+      const source = pickup.source.componentInstanceId === null ? null : context.sourceByComponent.get(pickup.source.componentInstanceId);
+      const placementId = (source === null || source === undefined ? undefined : sourcePlacement.get(source.sourceId))
+        ?? (pickup.source.gameObjectInstanceId === null ? undefined : owners.get(pickup.source.gameObjectInstanceId)?.placementId) ?? null;
+      addPickup(pickup.fields, { kind: "placed", placementId, sceneNativeId: context.sceneNativeId });
+    }
+    for (const director of context.world.huntTanneryDirectors) for (const drop of director.drops) {
+      const npc = endpointFor("npcs", drop.npcID);
+      if (npc !== null) addPickup(drop.prefab, { kind: "creature", npc, sceneNativeId: context.sceneNativeId });
+    }
+  }
+  return [...new Map(questPickups.map((row) => [stableJson(row), row] as const)).values()];
+}
+
 export function normalizeCatalog(admitted: AdmittedCatalog, planReference: ArtifactReference): NormalizedDatabaseInput {
   const { plan, profile, contexts, canonical, relationships, lootRules } = admitted;
   const profileReference = evidenceReference(plan.spatialProfile);
@@ -302,6 +351,22 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   for (const [index, row] of relationships.value.tasks.entries()) { const key = entityKey("tasks", row.nativeId); if (!admittedKeys.has(key)) { entities.push({ entityKey: key, buildId: plan.buildId, kind: "tasks", nativeId: row.nativeId, ...publicEntityDetails(row), sourceKey: null, publicData: { localization: null, gameplay: row, icon: null }, provenance: [pointer(relationships.reference, `/tasks/${index}`)] }); admittedKeys.add(key); } }
   entities.sort((a, b) => a.entityKey.localeCompare(b.entityKey));
   const knownEntities = new Set(entities.map((row) => row.entityKey));
+  // A QuestFieldInteraction shares its GameObject with the authored InteractableObject. The quest
+  // component itself has no verified serialized identity, so attach its role to that verified opener.
+  const questRolePlacements = new Set(placements.roles.filter((role) => role.role === "questLocation").map((role) => role.placementId));
+  for (const context of contexts) {
+    const owners = questInteractionOwners(context, placements.sourcePlacement);
+    context.world.questFieldInteractions.forEach((interaction, index) => {
+      const objectId = interaction.source.gameObjectInstanceId;
+      const owner = objectId === null ? undefined : owners.get(objectId);
+      if (owner === undefined || questRolePlacements.has(owner.placementId)) return;
+      questRolePlacements.add(owner.placementId);
+      placements.roles.push({ placementId: owner.placementId, sourceId: owner.sourceId, role: "questLocation", npcId: null, scope: "authored", evidence: [
+        pointer(context.worldReference, `/questFieldInteractions/${index}/fields/kind`),
+        pointer(context.worldReference, `/interactions/${owner.interactionIndex}/source`),
+      ] });
+    });
+  }
   const roles = placements.roles.filter((role) => {
     if (role.npcId !== null && role.npcId < 0) { role.npcId = null; return true; }
     if (role.npcId === null || knownEntities.has(entityKey("npcs", role.npcId))) return true;
@@ -336,6 +401,19 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   const omittedConditionIds = new Set(conditions.filter((row) => !meaningfulConditionIds.has(row.conditionId)).map((row) => row.conditionId));
   for (const binding of [...relations.merchantBindings, ...relations.lootBindings]) if (binding.conditionId !== null && omittedConditionIds.has(binding.conditionId)) binding.conditionId = null;
   const worlds = worldRelations(contexts, placements.sourcePlacement, relations.lootEntries, meaningfulConditions, relations.itemIndex, blockers);
+  // Visual-effect rewards can make an InteractableObject useful even when its own Actions list is empty.
+  // Derive this role from projected item rows, so an unresolved/decorative effect does not become a map spot.
+  for (const candidate of worlds.visualEffectRoles) {
+    const existing = roles.find((role) => role.placementId === candidate.placementId && role.sourceId === candidate.sourceId && role.role === "usefulInteraction");
+    if (existing) {
+      for (const evidence of candidate.evidence) if (!existing.evidence.some((row) => row.sha256 === evidence.sha256 && row.pointer === evidence.pointer)) existing.evidence.push(evidence);
+      continue;
+    }
+    const role = { placementId: candidate.placementId, sourceId: candidate.sourceId, role: "usefulInteraction" as const,
+      npcId: null, scope: "authored" as const, evidence: candidate.evidence };
+    roles.push(role);
+    placements.roles.push(role);
+  }
   const sourceGates = collectSourceGates(contexts, meaningfulConditions, blockers);
   const placementAreas = collectPlacementAreas(placements.placements, regions);
   const bindingsByScene = new Map<number, Set<string>>();
@@ -377,7 +455,6 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
     if (!knownEntities.has(entityKey("items", startItem.itemId))) { blockers.push({ kind: "missing-reference", key: `npc-start-item:${npc.nativeId}:${startIndex}:items:${startItem.itemId}`, detail: `NPC starter inventory references missing item ${startItem.itemId}.`, provenance }); continue; }
     addSourceIndex(relations.itemIndex, startItem.itemId, "npc-start-item", `${npc.nativeId}:${startItem.sourceIndex ?? startIndex}`, npcPlacements.get(npc.nativeId) ?? [], [], { ownerEntityKey: entityKey("npcs", npc.nativeId), ownerLabel: npc.name, count: startItem.count, equipped: startItem.equipped, provenance });
   }
-  const itemSources: ItemSource[] = canonical.value.items.map((row) => ({ itemKey: entityKey("items", row.nativeId), itemId: row.nativeId, sources: [...relations.itemIndex.get(row.nativeId)?.values() ?? []].sort((a, b) => `${a.sourceKind}:${a.sourceKey}`.localeCompare(`${b.sourceKind}:${b.sourceKey}`)).map((source) => ({ ...source, probability: null })) }));
   const rolesByPlacement = new Map<string, typeof roles>();
   for (const role of roles) { const rows = rolesByPlacement.get(role.placementId) ?? []; rows.push(role); rolesByPlacement.set(role.placementId, rows); }
   for (const placement of placements.placements) placement.roles = (rolesByPlacement.get(placement.placementId) ?? []).map((row) => ({ role: row.role, npcId: row.npcId, scope: row.scope, sourceIds: [row.sourceId] }));
@@ -422,6 +499,32 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   }
   const uniqueConditions = mergeEvidence(meaningfulConditions, (row) => row.conditionId, (row) => ({ ...row, sourceFieldPath: null, payload: conditionSemanticPayload(row.payload), provenance: [] }));
   const factRows = collectTypedFacts(admitted, entities, bindings, uniqueConditions, blockers, new Map(progression.progressionFacts.map((row) => [row.entityKey, row.name ?? row.entityKey])));
+  const ownerActionRows = ownerGameActions(canonical.value.ownerActions, entities, canonical.reference, blockers);
+  factRows.ownerGameActions = mergeOwnerGameActions([...ownerActionRows, ...worldOwnerGameActions(contexts, ownerActionRows, entities, relations.itemIndex, blockers)]);
+  const endpointFor = (kind: string, id: number | null | undefined) => {
+    if (id === null || id === undefined || id < 0) return null;
+    const key = entityKey(kind, id), entity = entities.find((row) => row.entityKey === key);
+    if (!entity) throw new Error(`Quest pickup or Dungeon Finder references missing ${key}.`);
+    return { entityKey: key, label: entity.name ?? key };
+  };
+  const questPickups = collectQuestPickups(contexts, placements.sourcePlacement, factRows.taskFacts, endpointFor);
+  for (const pickup of questPickups) {
+    if (pickup.origin.kind !== "placed" || pickup.origin.placementId === null || pickup.item.entityKey === null) continue;
+    const itemId = Number(pickup.item.entityKey.slice("items:".length));
+    addSourceIndex(relations.itemIndex, itemId, "quest-pickup", pickup.origin.placementId, [pickup.origin.placementId], [], {
+      questEntityKey: pickup.quest?.entityKey ?? null, taskEntityKey: pickup.task?.entityKey ?? null,
+      amount: pickup.amount, requiredItemCount: pickup.requiredItemCount, singleUse: pickup.singleUse,
+    });
+  }
+  const itemSources: ItemSource[] = canonical.value.items.map((row) => ({ itemKey: entityKey("items", row.nativeId), itemId: row.nativeId, sources: [...relations.itemIndex.get(row.nativeId)?.values() ?? []].sort((a, b) => `${a.sourceKind}:${a.sourceKey}`.localeCompare(`${b.sourceKind}:${b.sourceKey}`)).map((source) => ({ ...source, probability: null })) }));
+  const finderCaptures = admitted.sources.filter((source) => source.kind === "compendium.corruption-capture.v2");
+  type FinderCapture = { dungeonFinder: { supplyPackId: number | null; enabledSceneIds: number[] } };
+  const finder = finderCaptures[0]?.value as FinderCapture | undefined;
+  if (finderCaptures.some((source) => stableJson((source.value as FinderCapture).dungeonFinder) !== stableJson(finder?.dungeonFinder))) throw new Error("Conflicting Dungeon Finder settings across admitted scan targets.");
+  const dungeonFinder = finder === undefined ? null : {
+    supplyPack: endpointFor("items", finder.dungeonFinder.supplyPackId),
+    dungeons: finder.dungeonFinder.enabledSceneIds.map((id) => endpointFor("scenes", id)).filter((scene): scene is NonNullable<typeof scene> => scene !== null),
+  };
   const corruption = normalizeCorruption(admitted.sources, contexts, canonical.value, entities);
   // The canonical property records carry only the income. Each for-sale sign reads the whole authored record, so the
   // signs supply the type, the currency, and the prices. A field that both sources carry must agree.
@@ -446,9 +549,11 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   }
   const recipeProductKeys = new Set(factRows.recipeProducts.flatMap((row) => row.item.entityKey === null ? [] : [row.item.entityKey]));
   const entitiesByKey = new Map(entities.map((row) => [row.entityKey, row]));
-  for (const item of itemSources) if (item.sources.length === 0 && !recipeProductKeys.has(item.itemKey)) {
+  const sceneGrantItems = new Set(questPickups.flatMap((row) => row.item.entityKey === null ? [] : [row.item.entityKey]));
+  if (dungeonFinder?.supplyPack?.entityKey) sceneGrantItems.add(dungeonFinder.supplyPack.entityKey);
+  for (const item of itemSources) if (item.sources.length === 0 && !recipeProductKeys.has(item.itemKey) && !sceneGrantItems.has(item.itemKey)) {
     const entity = entitiesByKey.get(item.itemKey)!;
-    blockers.push({ kind: "unmodeled-item-source", key: item.itemKey, detail: `No admitted merchant, loot, container, interactive object, resource, quest, NPC starter-inventory, or recipe-product relation exists for ${entity.name ?? item.itemKey}. Class and race starting gear and other acquisition paths are not projected by the admitted evidence.`, provenance: entity.provenance });
+    blockers.push({ kind: "unmodeled-item-source", key: item.itemKey, detail: `No admitted merchant, loot, container, interactive object, resource, quest, NPC starter-inventory, recipe-product, quest-pickup, or Dungeon Finder source exists for ${entity.name ?? item.itemKey}. Class and race starting gear and other acquisition paths are not projected by the admitted evidence.`, provenance: entity.provenance });
   }
   // Yields of resource node records keep their resource link; build 25434619 has no such record.
   const worldYields = linkGatheringYields(mergeEvidence(worlds.resourceYields, (row) => row.yieldId), gathering.nodeBySpawnerOutput, blockers);
@@ -508,5 +613,5 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   const sourceRunIds = Object.fromEntries(admitted.sources.map((source) => [source.reference.sha256, [...new Set(source.origins.map((origin) => origin.runId))]]));
   const sourceRunId = contexts[0]?.snapshotRunId;
   if (!sourceRunId) throw new Error("Catalog has no admitted observation context.");
-  return { buildId: plan.buildId, sourceRunId, sourceRunIds, derivations: [...derivationIndex.values()], imagery: admitted.imagery.map(({ reference, document }) => ({ assetId: `${document.layer.mapSpaceId}:${document.layer.id}`, mapSpaceId: document.layer.mapSpaceId, kind: document.layer.kind, sha256: reference.sha256, bytes: reference.bytes, metadata: document.layer, provenance: [evidenceReference(reference)] })), ...factRows, corruption, progressionFacts: progression.progressionFacts, progressionLinks: progression.progressionLinks, talentNodes: progression.talentNodes, spellbookNodes: progression.spellbookNodes, mechanicsRules, gatheringNodes: gathering.gatheringNodes, gatheringNodeSources: gathering.gatheringNodeSources, worldQuestFacts: worlds.worldQuestFacts, identityResults: contexts.map((context) => ({ runId: context.snapshotRunId, snapshotId: context.snapshotId, snapshotPrefix: context.snapshotPrefix, snapshotSha256: context.snapshotReference.sha256, character: context.character, sceneHandle: context.sceneHandle, result: context.identityResult })), entities, scenes: [...sceneRows.values()], mapSpaces: profile.mapSpaces, bindings, placements: placements.placements, sources: placements.sources, roles, regions, conditions: uniqueConditions, spawnCandidates: mergeEvidence(spawn.candidates, (row) => `${row.sourceId}:${row.candidateIndex}`), sourceGates, randomChoices: choices, placementAreas, merchantTables: relations.merchantTables, merchantBindings: relations.merchantBindings, merchantStock: relations.merchantStock, lootTables: relations.lootTables, lootBindings: relations.lootBindings, lootEntries: relations.lootEntries, linkedNpcRules: relations.linkedNpcRules, resourceYields, questAssociations, transitions: worlds.transitions, itemSources, entityDetails: details, sourceDetails: sourceDetails(contexts, placements.sourcePlacement), patrolPaths, sceneSpawns, blockers: [...new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values()], coverageOccurrences, exclusions: [...new Map(exclusions.map((row) => [row.key, row])).values()], inputCoverage: null, provenance: { plan: planReference, profile: profileReference, sources: admitted.sources.map((source) => source.reference) } };
+  return { buildId: plan.buildId, sourceRunId, sourceRunIds, derivations: [...derivationIndex.values()], imagery: admitted.imagery.map(({ reference, document }) => ({ assetId: `${document.layer.mapSpaceId}:${document.layer.id}`, mapSpaceId: document.layer.mapSpaceId, kind: document.layer.kind, sha256: reference.sha256, bytes: reference.bytes, metadata: document.layer, provenance: [evidenceReference(reference)] })), ...factRows, corruption, questPickups, dungeonFinder, progressionFacts: progression.progressionFacts, progressionLinks: progression.progressionLinks, talentNodes: progression.talentNodes, spellbookNodes: progression.spellbookNodes, mechanicsRules, gatheringNodes: gathering.gatheringNodes, gatheringNodeSources: gathering.gatheringNodeSources, worldQuestFacts: worlds.worldQuestFacts, identityResults: contexts.map((context) => ({ runId: context.snapshotRunId, snapshotId: context.snapshotId, snapshotPrefix: context.snapshotPrefix, snapshotSha256: context.snapshotReference.sha256, character: context.character, sceneHandle: context.sceneHandle, result: context.identityResult })), entities, scenes: [...sceneRows.values()], mapSpaces: profile.mapSpaces, bindings, placements: placements.placements, sources: placements.sources, roles, regions, conditions: uniqueConditions, spawnCandidates: mergeEvidence(spawn.candidates, (row) => `${row.sourceId}:${row.candidateIndex}`), sourceGates, randomChoices: choices, placementAreas, merchantTables: relations.merchantTables, merchantBindings: relations.merchantBindings, merchantStock: relations.merchantStock, lootTables: relations.lootTables, lootBindings: relations.lootBindings, lootEntries: relations.lootEntries, linkedNpcRules: relations.linkedNpcRules, resourceYields, questAssociations, transitions: worlds.transitions, itemSources, entityDetails: details, sourceDetails: sourceDetails(contexts, placements.sourcePlacement), patrolPaths, sceneSpawns, blockers: [...new Map(blockers.map((row) => [`${row.kind}:${row.key}`, row])).values()], coverageOccurrences, exclusions: [...new Map(exclusions.map((row) => [row.key, row])).values()], inputCoverage: null, provenance: { plan: planReference, profile: profileReference, sources: admitted.sources.map((source) => source.reference) } };
 }

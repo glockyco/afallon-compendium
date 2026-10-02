@@ -2,6 +2,8 @@ var worldResourceProducers = new System.Collections.Generic.List<object>();
 var worldInteractions = new System.Collections.Generic.List<object>();
 var worldContainers = new System.Collections.Generic.List<object>();
 var worldQuestZones = new System.Collections.Generic.List<object>();
+var worldQuestFieldInteractions = new System.Collections.Generic.List<object>();
+var worldHuntDirectors = new System.Collections.Generic.List<object>();
 var worldTransitions = new System.Collections.Generic.List<object>();
 var worldMapZones = new System.Collections.Generic.List<object>();
 var worldRegions = new System.Collections.Generic.List<object>();
@@ -355,6 +357,11 @@ var worldQuestReference = new System.Func<Il2Cpp.RPGQuest, object>((quest) =>
     };
 });
 
+var worldTaskReference = new System.Func<Il2Cpp.RPGTask, object>((task) =>
+{
+    if (task == null) return null;
+    return new { nativeId = task.ID, name = getEntryName(task), internalName = task.entryName, fileName = task.entryFileName };
+});
 var worldWorldQuestReference = new System.Func<Il2Cpp.RPGWorldQuest, object>((worldQuest) =>
 {
     if (worldQuest == null)
@@ -644,6 +651,18 @@ var worldGameActionProjection = new System.Func<Il2Cpp.GameActionsData.GameActio
         sourceIndex = sourceIndex,
         type = new { value = (int)gameAction.type, name = gameAction.type.ToString() },
         chance = gameAction.chance,
+        alterAction = gameAction.AlterAction.ToString(),
+        nodeAction = new { value = (int)gameAction.NodeAction, name = gameAction.NodeAction.ToString() },
+        progressionType = new { value = (int)gameAction.ProgressionType, name = gameAction.ProgressionType.ToString() },
+        amount = gameAction.Amount,
+        targets = new
+        {
+            abilityId = gameAction.AbilityID, bonusId = gameAction.BonusID, recipeId = gameAction.RecipeID, resourceId = gameAction.ResourceID,
+            effectId = gameAction.EffectID, npcId = gameAction.NPCID, factionId = gameAction.FactionID, itemId = gameAction.ItemID,
+            currencyId = gameAction.CurrencyID, pointId = gameAction.PointID, talentTreeId = gameAction.TalentTreeID, skillId = gameAction.SkillID,
+            weaponTemplateId = gameAction.WeaponTemplateID, questId = gameAction.QuestID, dialogueId = gameAction.DialogueID,
+            gameSceneId = gameAction.GameSceneID, lootTableId = gameAction.LootTableID
+        },
         nativeRequirementGroupCount = nativeRequirementGroups == null ? -1 : requirementGroupCount,
         requirements = requirementGroups,
         teleport = isTeleport ? (object)new
@@ -1359,6 +1378,159 @@ for (var spawnerIndex = 0; spawnerIndex < worldOreSpawnerCount; spawnerIndex++)
     }
 }
 
+var worldQuestPickupFields = new System.Func<Il2CppBLINK.RPGBuilder.World.QuestFieldInteraction, object>((pickup) => new
+{
+    kind = new { value = (int)pickup.Kind, name = pickup.Kind.ToString() },
+    quest = worldQuestReference(pickup.Quest),
+    task = worldTaskReference(pickup.Task),
+    prerequisiteTask = worldTaskReference(pickup.PrerequisiteTask),
+    item = worldItemReference(pickup.Item),
+    amount = pickup.Amount,
+    requiredItemCount = pickup.RequiredItemCount,
+    singleUse = pickup.SingleUse,
+    directorInstanceId = pickup.Director == null ? (int?)null : pickup.Director.GetInstanceID()
+});
+var worldPlacedPickups = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.QuestFieldInteraction>(true);
+for (var index = 0; worldPlacedPickups != null && index < worldPlacedPickups.Length; index++)
+{
+    var pickup = worldPlacedPickups[index];
+    if (pickup == null) { unresolved.Add(new { kind = "questFieldInteraction", sourceFieldPath = "QuestFieldInteraction[" + index + "]", detail = "Found null QuestFieldInteraction component." }); continue; }
+    worldQuestFieldInteractions.Add(new { source = worldSource(pickup, "Il2CppBLINK.RPGBuilder.World.QuestFieldInteraction", index), fields = worldQuestPickupFields(pickup) });
+}
+var worldDirectors = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.HuntTanneryDirector>(true);
+for (var index = 0; worldDirectors != null && index < worldDirectors.Length; index++)
+{
+    var director = worldDirectors[index];
+    if (director == null) { unresolved.Add(new { kind = "huntTanneryDirector", sourceFieldPath = "HuntTanneryDirector[" + index + "]", detail = "Found null HuntTanneryDirector component." }); continue; }
+    var drops = new System.Collections.Generic.List<object>();
+    if (director.Drops == null) unresolved.Add(new { kind = "huntDirectorDrops", sourceFieldPath = "HuntTanneryDirector[" + index + "].Drops", detail = "The director's drop list is unavailable." });
+    for (var dropIndex = 0; director.Drops != null && dropIndex < director.Drops.Count; dropIndex++)
+    {
+        var drop = director.Drops[dropIndex];
+        var path = "HuntTanneryDirector[" + index + "].Drops[" + dropIndex + "]";
+        if (drop == null || drop.Prefab == null) { unresolved.Add(new { kind = "huntDirectorDropPrefab", sourceFieldPath = path, detail = "The director's configured pickup prefab is null." }); continue; }
+        drops.Add(new { npcID = drop.NPCID, prefab = worldQuestPickupFields(drop.Prefab), sourceFieldPath = path });
+    }
+    var revisedQuests = new System.Collections.Generic.List<object>();
+    for (var questIndex = 0; director.RevisedQuests != null && questIndex < director.RevisedQuests.Count; questIndex++)
+    {
+        var quest = director.RevisedQuests[questIndex];
+        if (quest == null) unresolved.Add(new { kind = "huntDirectorRevisedQuest", sourceFieldPath = "HuntTanneryDirector[" + index + "].RevisedQuests[" + questIndex + "]", detail = "The revised quest is null." });
+        else revisedQuests.Add(worldQuestReference(quest));
+    }
+    worldHuntDirectors.Add(new { source = worldSource(director, "Il2CppBLINK.RPGBuilder.World.HuntTanneryDirector", index), drops, revisedQuests, bearQuest = worldQuestReference(director.BearQuest), baitTask = worldTaskReference(director.BaitTask), bearTask = worldTaskReference(director.BearTask) });
+}
+
+object worldVisualEffectProjection(Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectVisualEffect effect, string effectPath, int depth, System.Collections.Generic.HashSet<string> pathKeys)
+{
+    if (effect == null)
+    {
+        unresolved.Add(new { kind = "interactableVisualEffect", sourceFieldPath = effectPath, detail = "The visual effect row is null." });
+        return null;
+    }
+    var template = effect.VisualEntry == null ? null : effect.VisualEntry.Template;
+    if (effect.VisualEntry != null && template == null) unresolved.Add(new { kind = "visualEffectTemplate", sourceFieldPath = effectPath + ".VisualEntry.Template", detail = "The visual effect entry has no template." });
+    var prefabs = new System.Collections.Generic.List<object>();
+    var keys = template == null ? null : template.PrefabKeys;
+    if (template != null && keys == null) unresolved.Add(new { kind = "visualEffectPrefabKeys", sourceFieldPath = effectPath + ".VisualEntry.Template.PrefabKeys", detail = "The prefab keys list is null." });
+    for (var prefabIndex = 0; keys != null && prefabIndex < keys.Count; prefabIndex++)
+    {
+        var key = keys[prefabIndex];
+        var keyPath = effectPath + ".VisualEntry.Template.PrefabKeys[" + prefabIndex + "]";
+        if (depth >= 3 || pathKeys.Contains(key))
+        {
+            unresolved.Add(new { kind = "visualEffectPrefabTraversal", sourceFieldPath = keyPath, detail = depth >= 3 ? "Nested visual effect exceeded the three-prefab traversal limit." : "Nested visual effect repeats a prefab key on its current path." });
+            prefabs.Add(new { key, loaded = false, prefabAvailable = false, chests = new System.Collections.Generic.List<object>(), childInteractables = new System.Collections.Generic.List<object>() });
+            continue;
+        }
+        pathKeys.Add(key);
+        try
+        {
+            var loaded = UnityEngine.Resources.Load("RPGBSoft/" + key);
+            var pointer = loaded == null ? null : loaded.TryCast<Il2Cpp.AssetPointer>();
+            var asset = pointer == null ? null : pointer.Asset;
+            var prefab = asset == null ? null : asset.TryCast<UnityEngine.GameObject>();
+            if (prefab == null) unresolved.Add(new { kind = "visualEffectPrefab", sourceFieldPath = keyPath, prefabKey = key, detail = "The prefab key did not resolve through Resources.Load -> AssetPointer -> GameObject." });
+            var chests = new System.Collections.Generic.List<object>();
+            if (prefab != null) foreach (var chest in prefab.GetComponentsInChildren<Il2CppBLINK.RPGBuilder.World.Chest>(true))
+            {
+                if (chest == null) { unresolved.Add(new { kind = "visualEffectChest", sourceFieldPath = keyPath, prefabKey = key, detail = "Prefab contains a null Chest component." }); continue; }
+                chests.Add(worldChestLootProjection(chest, keyPath + ".Chest[" + chests.Count + "]"));
+            }
+            var childInteractables = new System.Collections.Generic.List<object>();
+            if (prefab != null && chests.Count == 0)
+            {
+                var choiceTargets = new System.Collections.Generic.HashSet<int>();
+                foreach (var button in prefab.GetComponentsInChildren<UnityEngine.UI.Button>(true))
+                {
+                    if (button == null || button.onClick == null) continue;
+                    for (var eventIndex = 0; eventIndex < button.onClick.GetPersistentEventCount(); eventIndex++)
+                    {
+                        if (button.onClick.GetPersistentMethodName(eventIndex) != "SetActive") continue;
+                        var target = button.onClick.GetPersistentTarget(eventIndex);
+                        var targetObject = target == null ? null : target.TryCast<UnityEngine.GameObject>();
+                        if (targetObject != null) choiceTargets.Add(targetObject.GetInstanceID());
+                    }
+                }
+                var authoredChildren = prefab.GetComponentsInChildren<Il2CppBLINK.RPGBuilder.World.InteractableObject>(true);
+                for (var childIndex = 0; childIndex < authoredChildren.Length; childIndex++)
+                {
+                    var child = authoredChildren[childIndex];
+                    var childPath = keyPath + ".InteractableObject[" + childIndex + "]";
+                    if (child == null) { unresolved.Add(new { kind = "visualEffectChildInteractable", sourceFieldPath = childPath, detail = "Prefab contains a null child interactable." }); continue; }
+                    var requirementGroups = new System.Collections.Generic.List<object>();
+                    var requirementsTemplate = child.RequirementsTemplate;
+                    if (requirementsTemplate != null && requirementsTemplate.Requirements == null) unresolved.Add(new { kind = "visualEffectChildRequirements", sourceFieldPath = childPath + ".RequirementsTemplate.Requirements", detail = "The child interactable's requirements are unavailable." });
+                    for (var groupIndex = 0; requirementsTemplate != null && requirementsTemplate.Requirements != null && groupIndex < requirementsTemplate.Requirements.Count; groupIndex++)
+                    {
+                        var group = requirementsTemplate.Requirements[groupIndex];
+                        var groupPath = childPath + ".RequirementsTemplate.Requirements[" + groupIndex + "]";
+                        if (group == null || group.Requirements == null) { unresolved.Add(new { kind = "visualEffectChildRequirementGroup", sourceFieldPath = groupPath, detail = "The requirement group or its rows are unavailable." }); continue; }
+                        var rows = new System.Collections.Generic.List<object>();
+                        for (var requirementIndex = 0; requirementIndex < group.Requirements.Count; requirementIndex++)
+                        {
+                            var requirement = group.Requirements[requirementIndex];
+                            if (requirement == null) { unresolved.Add(new { kind = "visualEffectChildRequirement", sourceFieldPath = groupPath + ".Requirements[" + requirementIndex + "]", detail = "The requirement row is null." }); continue; }
+                            rows.Add(new { type = new { value = (int)requirement.type, name = requirement.type.ToString() }, condition = new { value = (int)requirement.condition, name = requirement.condition.ToString() }, ownership = new { value = (int)requirement.Ownership, name = requirement.Ownership.ToString() }, value = new { value = (int)requirement.Value, name = requirement.Value.ToString() }, itemID = requirement.ItemID, currencyID = requirement.CurrencyID, amount1 = requirement.Amount1, consume = requirement.Consume });
+                        }
+                        requirementGroups.Add(new { checkCount = group.checkCount, requiredCount = group.requiredCount, rows });
+                    }
+                    var chestActions = new System.Collections.Generic.List<object>();
+                    if (child.Actions == null) unresolved.Add(new { kind = "visualEffectChildActions", sourceFieldPath = childPath + ".Actions", detail = "The child interactable's actions are unavailable." });
+                    for (var actionIndex = 0; child.Actions != null && actionIndex < child.Actions.Count; actionIndex++)
+                    {
+                        var action = child.Actions[actionIndex];
+                        if (action == null) { unresolved.Add(new { kind = "visualEffectChildAction", sourceFieldPath = childPath + ".Actions[" + actionIndex + "]", detail = "The child action is null." }); continue; }
+                        if (action.type != Il2CppBLINK.RPGBuilder.World.InteractableObjectData.InteractableObjectActionType.Chest) continue;
+                        var lootRows = new System.Collections.Generic.List<object>();
+                        if (action.LootTable == null || action.LootTable.lootItems == null) unresolved.Add(new { kind = "visualEffectChildLootTable", sourceFieldPath = childPath + ".Actions[" + actionIndex + "].LootTable.lootItems", detail = "The child Chest action has no available loot rows." });
+                        for (var lootIndex = 0; action.LootTable != null && action.LootTable.lootItems != null && lootIndex < action.LootTable.lootItems.Count; lootIndex++)
+                        {
+                            var loot = action.LootTable.lootItems[lootIndex];
+                            if (loot == null) { unresolved.Add(new { kind = "visualEffectChildLoot", sourceFieldPath = childPath + ".Actions[" + actionIndex + "].LootTable.lootItems[" + lootIndex + "]", detail = "The authored loot row is null." }); continue; }
+                            if (worldDatabaseItems == null || !worldDatabaseItems.ContainsKey(loot.itemID) || worldDatabaseItems[loot.itemID] == null) unresolved.Add(new { kind = "visualEffectChildLootItem", sourceFieldPath = childPath + ".Actions[" + actionIndex + "].LootTable.lootItems[" + lootIndex + "].itemID", detail = "The authored loot item does not resolve in GameDatabase.GetItems()." });
+                            lootRows.Add(new { itemID = loot.itemID, min = loot.min, max = loot.max, dropRate = loot.dropRate });
+                        }
+                        chestActions.Add(new { activationType = new { value = (int)action.ActivationType, name = action.ActivationType.ToString() }, chance = action.chance, lootTableId = action.LootTable == null ? (int?)null : (int?)action.LootTable.ID, lootRows });
+                    }
+                    var nestedEffects = new System.Collections.Generic.List<object>();
+                    for (var nestedIndex = 0; child.VisualEfects != null && nestedIndex < child.VisualEfects.Count; nestedIndex++)
+                    {
+                        var nested = child.VisualEfects[nestedIndex];
+                        if (nested == null) { unresolved.Add(new { kind = "visualEffectChildVisualEffect", sourceFieldPath = childPath + ".VisualEfects[" + nestedIndex + "]", detail = "The child visual effect row is null." }); continue; }
+                        if (nested.ActivationType.ToString() != "Completed") continue;
+                        nestedEffects.Add(worldVisualEffectProjection(nested, childPath + ".VisualEfects[" + nestedIndex + "]", depth + 1, pathKeys));
+                    }
+                    childInteractables.Add(new { name = child.gameObject.name, activeSelf = child.gameObject.activeSelf, playerChoice = choiceTargets.Contains(child.gameObject.GetInstanceID()), requirementsTemplate = requirementsTemplate == null ? null : requirementsTemplate.entryName, requirements = requirementGroups, chestActions, visualEffects = nestedEffects });
+                }
+            }
+            prefabs.Add(new { key, loaded = loaded != null, prefabAvailable = prefab != null, chests, childInteractables });
+        }
+        finally { pathKeys.Remove(key); }
+    }
+    return new { targetType = new { value = (int)effect.TargetType, name = effect.TargetType.ToString() }, activationType = new { value = (int)effect.ActivationType, name = effect.ActivationType.ToString() }, templateName = template == null ? null : template.entryName, prefabCount = keys == null ? -1 : keys.Count, prefabs };
+}
+
 var worldInteractables = UnityEngine.Object.FindObjectsOfType<Il2CppBLINK.RPGBuilder.World.InteractableObject>(true);
 var worldInteractableCount = worldInteractables == null ? 0 : worldInteractables.Length;
 for (var index = 0; index < worldInteractableCount; index++)
@@ -1387,6 +1559,15 @@ for (var index = 0; index < worldInteractableCount; index++)
     var rankCount = nativeRanks == null ? 0 : nativeRanks.Count;
     var ranks = new System.Collections.Generic.List<string>(rankCount);
     for (var rankIndex = 0; rankIndex < rankCount; rankIndex++) ranks.Add(nativeRanks[rankIndex]);
+    var visualEffects = new System.Collections.Generic.List<object>();
+    var nativeEffects = interactable.VisualEfects;
+    if (nativeEffects == null) unresolved.Add(new { kind = "interactableVisualEffects", sourceFieldPath = sourcePath + ".VisualEfects", detail = "The visual effect list is null." });
+    for (var effectIndex = 0; nativeEffects != null && effectIndex < nativeEffects.Count; effectIndex++)
+    {
+        var effectPath = sourcePath + ".VisualEfects[" + effectIndex + "]";
+        var projection = worldVisualEffectProjection(nativeEffects[effectIndex], effectPath, 0, new System.Collections.Generic.HashSet<string>());
+        if (projection != null) visualEffects.Add(projection);
+    }
     worldInteractions.Add(new
     {
         source = sourceEvidence,
@@ -1400,6 +1581,7 @@ for (var index = 0; index < worldInteractableCount; index++)
         actionsAvailable = nativeActions != null,
         actionCount = nativeActions == null ? -1 : actionCount,
         actions = actions,
+        visualEffects = visualEffects,
         requirementsTemplate = requirements,
         requirementsOwner = interactable.RequirementsTemplate == null ? null : (object)new { ownerKind = "interactableObject", sourceFieldPath = sourcePath + ".RequirementsTemplate.Requirements", source = sourceEvidence },
         resource = interactable.Resource == null ? null : (object)worldResourceReference(interactable.Resource),
@@ -2348,6 +2530,8 @@ var worldSourceTotal = new
 {
     oreSpawners = worldOreSpawnerCount,
     interactableObjects = worldInteractableCount,
+    questFieldInteractions = worldPlacedPickups == null ? 0 : worldPlacedPickups.Length,
+    huntTanneryDirectors = worldDirectors == null ? 0 : worldDirectors.Length,
     interactiveNodes = worldNodeCount,
     chests = worldChestCount,
     worldQuestZones = worldQuestZoneCount,
@@ -2374,6 +2558,8 @@ var worldExportedTotal = new
 {
     resourceProducers = worldResourceProducers.Count,
     interactions = worldInteractions.Count,
+    questFieldInteractions = worldQuestFieldInteractions.Count,
+    huntTanneryDirectors = worldHuntDirectors.Count,
     containers = worldContainers.Count,
     questZones = worldQuestZones.Count,
     transitions = worldTransitions.Count,
@@ -2388,7 +2574,7 @@ var worldExportedTotal = new
 
 return new
 {
-    schemaVersion = "compendium.world-sources.v8",
+    schemaVersion = "compendium.world-sources.v11",
     coverage = new
     {
         scope = "currently loaded Unity scenes and candidate prefab assets visible to the current process",
@@ -2417,6 +2603,8 @@ return new
     },
     resourceProducers = worldResourceProducers,
     interactions = worldInteractions,
+    questFieldInteractions = worldQuestFieldInteractions,
+    huntTanneryDirectors = worldHuntDirectors,
     containers = worldContainers,
     questZones = worldQuestZones,
     transitions = worldTransitions,

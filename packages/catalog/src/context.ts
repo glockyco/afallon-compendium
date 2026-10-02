@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Canonical, LootRules, NpcProducersInput, PlacementIdentityResult, PlacementSnapshot, Relationships, WorldSources, MapGeometry, SpatialResolution } from "@afallon/contracts";
+import type { Canonical, LootRules, NpcProducersInput, PlacementIdentityResult, PlacementSnapshot, Relationships, WorldSources, WorldSourcesV10, MapGeometry, SpatialResolution } from "@afallon/contracts";
 import type { ArtifactReference, NormalizedCondition, NormalizedDatabaseInput, NormalizedEntity, ItemSource, NormalizedPlacement, NormalizedRegion, NormalizedRegionGeometry, NormalizedPatrolPath, NormalizedSource, NormalizedSourceDetail, NormalizedSceneSpawn, NormalizedSpawnCandidate, EntityDetail, CategoryMetadata, CatalogCoverageState, PlacementRoles } from "@afallon/contracts/catalog";
 import { entityKey, publicEntityDetails, stableJson } from "@afallon/contracts/catalog";
 import { hashRelation } from "./database";
@@ -30,7 +30,7 @@ export type SceneContext = {
   role: PlacementRoles;
   identities: PlacementIdentityResult;
   npc: NpcProducersInput;
-  world: WorldSources;
+  world: WorldSources | WorldSourcesV10;
   mapGeometry: MapGeometry;
   mapGeometryReference: ArtifactReference;
   sceneNativeId: number;
