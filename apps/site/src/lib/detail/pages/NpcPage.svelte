@@ -3,13 +3,16 @@
   import type { PublicKindEntry, PublicNpc } from '@afallon/contracts/public';
   import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, roleLabel, signedAmount } from '../../format';
+  import { creatureTypeLabel, durationRangeText, formatNumber, killExperienceText, nameOf, npcLevelText, npcTypeLabel, onlyFriendlyRoles, rangeText, roleLabel, signedAmount } from '../../format';
   import { entityOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import { calculateKillAward, nearestCreatureLevel } from '../kill-calculator';
+  import ReaderLevel from '../ReaderLevel.svelte';
+  import { CHARACTER_LEVEL } from '../../reader-levels';
   import type { RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import { npcQuestRows } from '../quest-rows';
@@ -51,6 +54,13 @@
   $: experienceGuide = document.placedRules.find((rule) => rule.target === 'experience');
   $: adventurerGuide = document.placedRules.find((rule) => rule.target === 'adventurers');
   $: gearGuide = document.placedRules.find((rule) => rule.target === 'adventurer-gear');
+  // Kill experience at the reader's character level: the creature spawns at the level nearest to the reader's within its
+  // range, and the level difference changes the roll. Followers, Heroic, and bonuses are left to the kill calculator.
+  let characterLevel = 1;
+  $: kill = combat && facts.experience?.levelDifference && facts.experience.levelCap && facts.level ? facts.experience : undefined;
+  $: creatureLevel = kill && facts.level ? nearestCreatureLevel(facts.level, characterLevel, kill.levelCap!) : undefined;
+  $: award = kill && creatureLevel !== undefined ? calculateKillAward({ minExperience: kill.min, maxExperience: kill.max, experiencePerLevel: kill.perLevel,
+    higherModifier: kill.levelDifference!.higher, lowerModifier: kill.levelDifference!.lower }, creatureLevel, characterLevel, undefined, 0, 0).award : undefined;
   $: gear = document.adventurerGear;
   // The answer card says what you get from this NPC: its drops, an adventurer's gear, or for an NPC you fight that it
   // drops nothing. A friendly NPC without drops has no answer card, and its sections say what it offers.
@@ -108,6 +118,14 @@
         </FactList>
       </div>
     {/if}
+    {#if kill && award && creatureLevel !== undefined}
+      <div class="side-card kill">
+        <h2>Experience per kill</h2>
+        <ReaderLevel id="npc-character-level" readerId={CHARACTER_LEVEL} label="Your level" max={kill.levelCap ?? 1} fallback={facts.level?.min ?? 1} bind:level={characterLevel} />
+        <p><strong>{rangeText(award.low, award.high)}</strong> experience for a level {formatNumber(creatureLevel)} {document.ref.name}.</p>
+        {#if experienceGuide}<a class="c-link" href={`${base}/mechanics/${experienceGuide.guide.slug}/#try-it-on-a-creature`}>Followers, Heroic, and bonuses in the kill calculator</a>{/if}
+      </div>
+    {/if}
     <AbilitiesSection phases={document.abilityPhases} {registry} chips />
   </svelte:fragment>
 
@@ -121,6 +139,10 @@
 
 <style>
   .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
+  .kill { display: grid; gap: .75rem; }
+  .kill h2 { color: var(--c-text-strong); font: 600 1.05rem/1.3 var(--c-serif); }
+  .kill p { line-height: 1.5; }
+  .kill a { width: fit-content; font-size: var(--c-text-small); }
   .description { color: var(--c-text-dim); }
   /* Labels keep their own width and values take the rest, right-aligned, so a long value wraps instead of squeezing
      its label to nothing. */

@@ -478,7 +478,12 @@ export type LootSpecialization = Static<typeof LootSpecializationSchema>;
 // between variants is absent here and appears in each variant.
 // `experience` describes one kill before modifiers: a whole roll from `min` to `max`, plus `perLevel` for each level
 // of the killed creature.
-const killExperience = Type.Object({ min: count, max: count, perLevel: count }, { additionalProperties: false });
+// A kill's roll and level bonus. `levelDifference` holds the percentages that change a kill of a creature above or below
+// the player's level, and `levelCap` the character level cap, where a creature level range without a maximum ends.
+const killExperience = Type.Object({
+  min: count, max: count, perLevel: count,
+  levelDifference: optional(Type.Object({ higher: number, lower: number }, { additionalProperties: false })), levelCap: optional(count),
+}, { additionalProperties: false });
 export const NpcFactsSchema = Type.Object({
   level: optional(PublicLevelSchema),
   npcType: optional(text), creatureType: optional(text), tameable: optional(Type.Boolean()), family: optional(text),

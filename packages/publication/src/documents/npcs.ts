@@ -1,7 +1,7 @@
 import type { CatalogAvailabilityRule, CatalogCondition, CatalogNpcFacts, CatalogPlacementRow } from "@afallon/contracts/catalog";
 import { type AvailabilityRule, collectRefs, type NpcFacts, type NpcLocation, type NpcVariantFacts, type NpcVariantField, type PlacementRef, type PublicLevel, type PublicMarkerCategory, type PublicNpc, type QuestLinkRow } from "@afallon/contracts/public";
 import { markerCategories, shownCategories } from "../categories";
-import { killExperience } from "../experience";
+import { characterLevelCap, killExperience } from "../experience";
 import { chancePercent, choicesChance, enabledChance, levelUnion } from "../levels";
 import { placeSpots } from "../place-spots";
 import { itemKind, itemTypeLabel } from "../item-type";
@@ -19,11 +19,23 @@ export function npcFact(key: string, indexes: RelationIndexes): CatalogNpcFacts 
   return indexes.npcFacts.get(key) ?? { entityKey: key, ...EMPTY_NPC_FACTS };
 }
 
+// The character level cap is one fact of the whole projection, so it is read once per projection input.
+const levelCaps = new WeakMap<DocumentProjectionInput, number | undefined>();
+function levelCapOf(input: DocumentProjectionInput): number | undefined {
+  if (!levelCaps.has(input)) levelCaps.set(input, characterLevelCap(input.facts));
+  return levelCaps.get(input);
+}
+
 // Every record fact that the page can show, for one record.
 function npcRecordFacts(fact: CatalogNpcFacts, input: DocumentProjectionInput): Required<Pick<NpcVariantFacts, "stats" | "immunities" | "abilityPhases" | "factionRewards">> & NpcVariantFacts {
   const faction = optionalFactRef(input.resolve, fact.faction), species = optionalFactRef(input.resolve, fact.species);
   const linkedNpc = optionalFactRef(input.resolve, fact.linkedNpc), lootStat = optionalFactRef(input.resolve, fact.lootSpecialization?.stat);
-  const experience = killExperience(fact);
+  const roll = killExperience(fact), cap = levelCapOf(input);
+  const experience = roll && {
+    ...roll,
+    ...(fact.lowerLevelExperienceModifier !== null && fact.higherLevelExperienceModifier !== null ? { levelDifference: { higher: fact.higherLevelExperienceModifier, lower: fact.lowerLevelExperienceModifier } } : {}),
+    ...(cap === undefined ? {} : { levelCap: cap }),
+  };
   return {
     ...(fact.npcType ? { npcType: plainText(fact.npcType) } : {}), ...(fact.creatureType ? { creatureType: plainText(fact.creatureType) } : {}),
     tameable: fact.npcType === "MOB" && fact.creatureType === "BEAST" && fact.hunterTamable,

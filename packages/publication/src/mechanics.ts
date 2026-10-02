@@ -7,7 +7,7 @@ import { requiredLevel, spawnerExamples, verifiedOdds } from "./gathering";
 import type { CorruptionRewards } from "./corruption-rewards";
 import { MECHANICS_TOPIC_NAMES, placedRules, projectRule, topicRef } from "./placed-rules";
 import { GUIDES, guideSections } from "./guide-sections";
-import { killExperience } from "./experience";
+import { characterLevelTemplate, killExperience } from "./experience";
 import { levelUnion } from "./levels";
 import { displayName } from "./text";
 import { attunements } from "./attunements";
@@ -61,16 +61,6 @@ function guide(facts: CatalogFacts, topic: MechanicsTopic, resolve: ReferenceRes
 }
 
 /** Every offered class uses the same template because the guide shows one curve. */
-function characterTemplate(facts: CatalogFacts) {
-  const progression = facts.progression.facts;
-  const keys = new Set(progression.flatMap((fact) => fact.kind === "classes" && facts.progression.offeredClasses.includes(fact.entityKey) && fact.details.levelTemplate?.entityKey ? [fact.details.levelTemplate.entityKey] : []));
-  if (keys.size !== 1) throw new Error(`The offered classes use ${keys.size} level templates; the character progression page needs exactly one.`);
-  const key = [...keys][0]!;
-  const template = progression.find((fact) => fact.entityKey === key);
-  if (template?.kind !== "levels") throw new Error(`The class level template ${key} has no level facts.`);
-  return template;
-}
-
 function publishedRef(resolve: ReferenceResolver, key: string, label: string): EntityRef {
   const ref = resolve({ entityKey: key, label });
   if (ref.key !== key || !ref.slug) throw new Error(`The guide example entity ${label} (${key}) has no published page.`);
@@ -188,7 +178,7 @@ function levelUpTalentPoints(facts: CatalogFacts): TalentPoints[] {
 
 function characterProgression(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver,
   entityDocuments: ReadonlyMap<string, PublicDocument>): CharacterProgression {
-  const template = characterTemplate(facts), cap = template.details.levels;
+  const template = characterLevelTemplate(facts), cap = template.details.levels;
   const rows = template.details.rows.slice(0, Math.max(0, cap - 1)).map((row, index) => ({ level: index + 1, toNext: Math.max(0, row.experienceRequired) }));
   if (rows.length === 0 || rows.length !== cap - 1) throw new Error(`The class level template has ${template.details.rows.length} rows for its cap ${cap}.`);
   return {

@@ -987,6 +987,15 @@ test("spawners with the same options form one group, and only a complete option 
   expect([...spawnerGroups([original, other], resolve, new Map(), false).values()].map((group) => group.oddsVerified)).toEqual([false]);
 });
 
+test("an NPC's kill experience carries its level difference only when both modifiers are known", () => {
+  const withRoll = (lower: number | null, higher: number | null): CatalogFacts => ({ ...facts, npcs: facts.npcs.map((npc) => ({ ...npc, minExperience: 10, maxExperience: 15, experienceBonusPerLevel: 2,
+    lowerLevelExperienceModifier: lower, higherLevelExperienceModifier: higher })) });
+  const experienceOf = (source: CatalogFacts) => (project(entities, source, relations).documents.get("npcs:2") as PublicNpc).facts.experience;
+  // The fixture offers no class, so no level template gives a cap.
+  expect(experienceOf(withRoll(-20, 20))).toEqual({ min: 10, max: 14, perLevel: 2, levelDifference: { higher: 20, lower: -20 } });
+  expect(experienceOf(withRoll(null, 20))).toEqual({ min: 10, max: 14, perLevel: 2 });
+});
+
 test("an inverted authored loot quantity cannot become a displayed range", () => {
   const invalid: CatalogRelations = { ...relations, drops: [{ ...relations.drops[0]!, min: 15, max: 3 }] };
   const { documents } = project(entities, facts, invalid);
