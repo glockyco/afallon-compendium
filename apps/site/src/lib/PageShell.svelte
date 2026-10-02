@@ -180,6 +180,8 @@
   .group h2 button { all: unset; display: block; width: 100%; cursor: default; }
   .group ul { display: grid; gap: .15rem; margin: 0; padding: 0; list-style: none; }
   .group a { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .65rem; padding: .5rem .55rem; border-radius: var(--c-radius-sm); color: var(--c-text); text-decoration: none; }
+  /* An entry without a glyph, such as a mechanics page, starts its name where the column heading starts. */
+  .group a:not(:has(.glyph)) { grid-template-columns: minmax(0, 1fr); }
   .group a:hover { background: var(--c-tint-hover); }
   .group a:hover .label, .group a[aria-current='page'] .label { color: var(--c-accent); }
   .glyph { display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); background: var(--c-surface-2); color: var(--c-text-dim); }
@@ -190,8 +192,7 @@
   .description { color: var(--c-text-dim); font-size: var(--c-text-small); line-height: 1.35; }
   .group a[aria-current='page'] .label { font-weight: 700; }
   /* A column that names only some destinations ends with a link to all of them, aligned with the entry names. */
-  /* Entry names sit after the empty glyph column and its gap, so the link takes the same indent. */
-  .group a.more { display: inline-flex; gap: .4rem; margin-top: .35rem; padding: .35rem .55rem .35rem calc(.55rem + .65rem); color: var(--c-accent); font-size: var(--c-text-small); font-weight: 600; }
+  .group a.more { display: inline-flex; gap: .4rem; margin-top: .35rem; padding: .35rem .55rem; color: var(--c-accent); font-size: var(--c-text-small); font-weight: 600; }
   .group a.more:hover { background: var(--c-tint-hover); color: var(--c-accent-strong); }
   .kofi { display: inline-flex; align-items: center; gap: .45rem; color: var(--c-text-dim); text-decoration: none; }
   .kofi:hover { color: var(--c-text-strong); }
