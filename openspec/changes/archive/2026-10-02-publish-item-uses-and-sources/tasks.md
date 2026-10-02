@@ -27,5 +27,5 @@
 
 - [x] 5.1 Publish a candidate from the compared catalog candidate, and stage it against the accepted publication. Verify zero publication issues, a valid graph, and parity with only the listed removals.
 - [x] 5.2 Check the staged site at 1440 px and 390 px. Verify the pages from section 4, the coverage count of items without a known source, and no sideways scroll.
-- [ ] 5.3 Write an update report, and accept the catalog and publication candidates together. Verify that the former publication remains the rollback.
-- [ ] 5.4 Run the targeted scan, catalog, publication, and site tests. Run the repository checks once. Verify that `openspec validate publish-item-uses-and-sources --strict` passes.
+- [x] 5.3 Write an update report, and accept the catalog and publication candidates together. Verify that the former publication remains the rollback.
+- [x] 5.4 Run the targeted scan, catalog, publication, and site tests. Run the repository checks once. Verify that `openspec validate publish-item-uses-and-sources --strict` passes.

@@ -11,7 +11,7 @@ Define the coverage page that tells readers what the site publishes for the curr
 The reader-facing coverage page SHALL show the number of published pages per kind, maps, and map locations. It SHALL list affected page links for each nonempty gap: `itemWithoutSource`, `npcWithoutLocation`, `npcWithoutLevel`, `placeWithoutMap`, `unresolvedReference`, `recipeWithoutTeacher`, and `recipeWithoutProduct`. An item that only adventurers carry SHALL not count as an item without a source; coverage SHALL list it under adventurer-only items. A recipe gap SHALL link to the Crafting section of the product, or to the recipe row on its skill page when the recipe has no published product. A creature without a location SHALL not also count as a creature without a level. The map SHALL not load coverage to render markers.
 
 #### Scenario: An item has no published source
-- **WHEN** an item page has no drop, vendor, gather, container, interaction, quest, recipe, starting-gear, or adventurer source
+- **WHEN** an item page has no drop, vendor, gather, container, interaction, quest, recipe, starting-gear, item, world object chest, dungeon reward, Dungeon Finder reward, quest pickup, cloth drop, or adventurer source
 - **THEN** its page appears under Items without a known source
 
 #### Scenario: Only adventurers carry an item
@@ -36,6 +36,18 @@ The reader-facing coverage page SHALL show the number of published pages per kin
 - **WHEN** the recipe Ring of Bleed Damage is not learned by default and no captured item action teaches it
 - **THEN** it appears under Recipes without a teaching item
 - **AND** its link leads to the Crafting section of Bloodthrall Signet
+
+#### Scenario: Another item is the only source
+- **WHEN** the only source of an item is a supply pack band or a use chest of another item
+- **THEN** its page does not appear under Items without a known source
+
+#### Scenario: A dungeon reward is the only source
+- **WHEN** the only source of Corruption Token is the reward bag of the timed dungeons
+- **THEN** its page does not appear under Items without a known source
+
+#### Scenario: A cloth drop is the only source
+- **WHEN** the only source of an item is the supplemental cloth drop
+- **THEN** its page does not appear under Items without a known source
 
 ### Requirement: The publication graph verifies coverage
 
