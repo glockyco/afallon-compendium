@@ -1,7 +1,7 @@
 ## 1. Evidence
 
 - [x] 1.1 Decompile the equip check of build 25653798 (`InventoryManager.CanEquipWeaponFromBag`, the `EquipItem` paths, and the callees that read `RPGClass.AllowedWeaponTypes` or item types). Record the class rule for each hand, shields, off-hand items, armor, and jewelry, and how captured class weapon types match item weapon types.
-- [ ] 1.2 Confirm the rule in the running game: `WeaponEquipmentRules.CanUse` for the Wizard with an allowed staff, a disallowed shield, and plate armor.
+- [x] 1.2 Confirm the rule in the running game: `WeaponEquipmentRules.CanUse` for the Wizard with an allowed staff, a disallowed shield, and plate armor.
 
 ## 2. Data
 
@@ -15,7 +15,7 @@
 - [x] 3.2 Build the phone filter sheet with the active filter count and the result button.
 - [x] 3.3 Keep every filter in the URL with push and replace history, and restore it on load, Back, and Forward.
 - [x] 3.4 Add a sortable column for each selected stat, the Gear column, and readable labels for gear types, reward types, and stat units.
-- [ ] 3.5 Link each class page to the item list with its class selected.
+- [x] 3.5 Link each class page to the item list with its class selected.
 
 ## 4. Release
 
