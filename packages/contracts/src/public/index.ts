@@ -3,3 +3,4 @@ export * from "./documents";
 export * from "./graph";
 export * from "./labels";
 export * from "./phrase";
+export * from "./spawner-weights";

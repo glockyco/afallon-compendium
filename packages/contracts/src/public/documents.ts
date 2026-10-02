@@ -712,16 +712,22 @@ export const PublicSkillSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicSkill = Static<typeof PublicSkillSchema>;
 
-// Authored weights are not probabilities. Shares use the verified effective weights at each endpoint.
-export const SpawnerOptionSchema = Type.Object({ node: RefSchema, lowSkillWeight: number, highSkillWeight: number, teaserWeight: number,
-  shares: optional(Type.Array(Type.Object({ skillLevel: count, percent }, { additionalProperties: false }), { minItems: 1 })),
+// An item that gives an attunement when you use it. While the attunement lasts, `boost` is added to the weight of each
+// of `nodes`. `minutes` is how long it lasts, absent when it lasts until removed.
+export const AttunementSchema = Type.Object({
+  item: RefSchema, effect: text, boost: number, nodes: Type.Array(RefSchema, { minItems: 1 }), minutes: optional(number),
 }, { additionalProperties: false });
+export type Attunement = Static<typeof AttunementSchema>;
+// Authored weights are not probabilities. `spawnerChances` turns them into each option's chance at a skill level.
+export const SpawnerOptionSchema = Type.Object({ node: RefSchema, lowSkillWeight: number, highSkillWeight: number, teaserWeight: number }, { additionalProperties: false });
 export type SpawnerOption = Static<typeof SpawnerOptionSchema>;
-// One group's denominator is one spawner's eligible options, not the sum of all spawners in the group.
-export const SpawnerGroupSchema = Type.Object({
+// One group's denominator is one spawner's eligible options, not the sum of all spawners in the group. `oddsVerified`
+// is true when verified rules decide how the weights become chances, so a page may show chances and not only weights.
+const spawnerGroupFields = {
   skill: optional(RefSchema), skillCap: count, respawnSeconds: number, jitterSeconds: number, despawnSeconds: number, playerRange: number,
-  options: Type.Array(SpawnerOptionSchema, { minItems: 1 }), spawners: Type.Integer({ minimum: 1 }), placementCount: count, unplaced: count,
-}, { additionalProperties: false });
+  options: Type.Array(SpawnerOptionSchema, { minItems: 1 }), spawners: Type.Integer({ minimum: 1 }), oddsVerified: Type.Boolean(),
+};
+export const SpawnerGroupSchema = Type.Object({ ...spawnerGroupFields, placementCount: count, unplaced: count }, { additionalProperties: false });
 export type SpawnerGroup = Static<typeof SpawnerGroupSchema>;
 // Objects that a scene places directly and that share one cooldown.
 export const PlacedNodeGroupSchema = Type.Object({ cooldownSeconds: number, objects: Type.Integer({ minimum: 1 }), placementCount: count, unplaced: count }, { additionalProperties: false });
@@ -740,6 +746,8 @@ export const PublicGatheringNodeSchema = Type.Object({
   ...documentBase, facts: GatheringNodeFactsSchema, yields: Type.Array(NodeYieldRowSchema),
   spawners: Type.Array(SpawnerGroupSchema), placed: Type.Array(PlacedNodeGroupSchema), places: Type.Array(PlaceSpotsSchema),
   spotCount: count, placedRules: Type.Array(PlacedRuleSchema),
+  // The attunements that favour a node of this node's spawner groups.
+  attunements: Type.Array(AttunementSchema),
 }, { additionalProperties: false });
 export type PublicGatheringNode = Static<typeof PublicGatheringNodeSchema>;
 
@@ -806,10 +814,7 @@ export const HeroicTierSchema = Type.Object({
 export type HeroicTier = Static<typeof HeroicTierSchema>;
 // The most common spawner group of each gathering skill, as an example of weighted node selection. An example names no
 // placements; the gathering node pages list them.
-export const SpawnerExampleSchema = Type.Object({
-  skill: optional(RefSchema), skillCap: count, respawnSeconds: number, jitterSeconds: number, despawnSeconds: number, playerRange: number,
-  options: Type.Array(SpawnerOptionSchema, { minItems: 1 }), spawners: Type.Integer({ minimum: 1 }),
-}, { additionalProperties: false });
+export const SpawnerExampleSchema = Type.Object(spawnerGroupFields, { additionalProperties: false });
 export type SpawnerExample = Static<typeof SpawnerExampleSchema>;
 // A worked craft and a worked gather. `product` links the Crafting section of the crafted item.
 export const CraftingExampleSchema = Type.Object({
@@ -819,7 +824,7 @@ export const CraftingExampleSchema = Type.Object({
 export type CraftingExample = Static<typeof CraftingExampleSchema>;
 export const CraftingAndGatheringSchema = Type.Object({
   ...documentBase, topic: Type.Literal("crafting-and-gathering"), ...guide,
-  spawnerExamples: Type.Array(SpawnerExampleSchema), example: CraftingExampleSchema,
+  spawnerExamples: Type.Array(SpawnerExampleSchema), attunements: Type.Array(AttunementSchema), example: CraftingExampleSchema,
 }, { additionalProperties: false });
 export type CraftingAndGathering = Static<typeof CraftingAndGatheringSchema>;
 // Build-specific settings stay alongside the guide, not embedded as numeric constants in site copy.
@@ -885,7 +890,7 @@ export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DO
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
   items: "compendium.static-item.v20", npcs: "compendium.static-npc.v10", quests: "compendium.static-quest.v7", places: "compendium.static-place.v11",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
-  classes: "compendium.static-class.v7", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v13", gatheringNodes: "compendium.static-gathering-node.v5",
+  classes: "compendium.static-class.v7", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v14", gatheringNodes: "compendium.static-gathering-node.v6",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -912,15 +917,15 @@ export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v11": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v7": typeof StaticClassDocumentSchema;
-  "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v13": typeof StaticMechanicsDocumentSchema;
-  "compendium.static-gathering-node.v5": typeof StaticGatheringNodeDocumentSchema;
+  "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v14": typeof StaticMechanicsDocumentSchema;
+  "compendium.static-gathering-node.v6": typeof StaticGatheringNodeDocumentSchema;
 } = {
   "compendium.static-item.v20": StaticItemDocumentSchema, "compendium.static-npc.v10": StaticNpcDocumentSchema,
   "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v11": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v7": StaticClassDocumentSchema,
-  "compendium.static-skill.v6": StaticSkillDocumentSchema, "compendium.static-mechanics.v13": StaticMechanicsDocumentSchema,
-  "compendium.static-gathering-node.v5": StaticGatheringNodeDocumentSchema,
+  "compendium.static-skill.v6": StaticSkillDocumentSchema, "compendium.static-mechanics.v14": StaticMechanicsDocumentSchema,
+  "compendium.static-gathering-node.v6": StaticGatheringNodeDocumentSchema,
 };
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
@@ -928,8 +933,8 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
 export const documentReference = Type.Union([
   resourceReference("compendium.static-item.v20"), resourceReference("compendium.static-npc.v10"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v11"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
-  resourceReference("compendium.static-class.v7"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v13"),
-  resourceReference("compendium.static-gathering-node.v5"),
+  resourceReference("compendium.static-class.v7"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v14"),
+  resourceReference("compendium.static-gathering-node.v6"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;
 

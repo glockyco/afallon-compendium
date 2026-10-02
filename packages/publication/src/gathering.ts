@@ -1,5 +1,6 @@
 import type { CatalogCondition, CatalogEndpoint, CatalogFacts, CatalogGatheringNode, CatalogRelations } from "@afallon/contracts/catalog";
 import type { NodeYieldRow, PlacedNodeGroup, PlacementRef, PublicGatheringNode, Ref, SpawnerExample, SpawnerGroup } from "@afallon/contracts/public";
+import { attunements } from "./attunements";
 import type { ReferenceResolver } from "./documents/projection";
 import { displayName } from "./text";
 import { placedRules } from "./placed-rules";
@@ -32,19 +33,10 @@ export function gatheringNodeNames(nodes: readonly CatalogGatheringNode[]): Read
 type SpawnerSource = CatalogGatheringNode["sources"][number] & { spawner: NonNullable<CatalogGatheringNode["sources"][number]["spawner"]> };
 type SpawnerWithPlacements = Omit<SpawnerGroup, "placementCount"> & { placements: PlacementRef[]; nodeKeys: Set<string> };
 type PlacedWithPlacements = Omit<PlacedNodeGroup, "placementCount"> & { placements: PlacementRef[] };
-/** Effective selection weights before attunement, which is not assumed for an unmodified character. */
-export function spawnerShares(options: readonly SpawnerSource[], skillCap: number): ReadonlyMap<number, { skillLevel: number; percent: number }[]> {
-  if (!Number.isInteger(skillCap) || skillCap < 1 || options.length === 0
-    || options.some((option, index) => option.optionIndex !== index || ![option.spawner.weightAtLowSkill, option.spawner.weightAtHighSkill, option.spawner.teaserWeight].every(Number.isFinite))) return new Map();
-  const result = new Map<number, { skillLevel: number; percent: number }[]>();
-  for (const level of new Set([1, skillCap])) {
-    const fraction = skillCap <= 1 ? 1 : (level - 1) / (skillCap - 1);
-    const weights = options.map(({ spawner }) => Math.max(0, spawner.teaserWeight, spawner.weightAtLowSkill + (spawner.weightAtHighSkill - spawner.weightAtLowSkill) * fraction));
-    const total = weights.reduce((sum, weight) => sum + weight, 0);
-    if (!(total > 0)) return new Map();
-    options.forEach((option, index) => result.set(option.optionIndex!, [...result.get(option.optionIndex!) ?? [], { skillLevel: level, percent: weights[index]! / total * 100 }]));
-  }
-  return result;
+/** Whether verified rules decide how spawner weights become chances, so pages can show chances and not only weights. */
+export function verifiedOdds(facts: CatalogFacts): boolean {
+  return ["spawner-weighted-pick", "spawner-weight-limits", "spawner-weights-relative"].every((id) =>
+    facts.progression.mechanicsRules.some((rule) => rule.ruleId === id && rule.status === "verified"));
 }
 
 
@@ -52,7 +44,7 @@ export function spawnerShares(options: readonly SpawnerSource[], skillCap: numbe
  * Spawners grouped by their skill, timing, and complete option list. Locations stay internal until the per-place map
  * spots are derived; the published group carries only the count.
  */
-export function spawnerGroups(nodes: readonly CatalogGatheringNode[], resolve: Resolve, placements: ReadonlyMap<string, PlacementRef>, verifiedWeights = false): ReadonlyMap<string, SpawnerWithPlacements> {
+export function spawnerGroups(nodes: readonly CatalogGatheringNode[], resolve: Resolve, placements: ReadonlyMap<string, PlacementRef>, oddsVerified: boolean): ReadonlyMap<string, SpawnerWithPlacements> {
   const bySpawner = new Map<string, Array<SpawnerSource & { nodeKey: string }>>();
   for (const node of nodes) for (const source of node.sources) {
     if (source.sourceKind !== "spawner-option" || source.spawner === null) continue;
@@ -62,12 +54,13 @@ export function spawnerGroups(nodes: readonly CatalogGatheringNode[], resolve: R
   for (const options of bySpawner.values()) {
     options.sort((left, right) => (left.optionIndex ?? 0) - (right.optionIndex ?? 0));
     const first = options[0]!.spawner;
-    const shares = verifiedWeights ? spawnerShares(options, first.skillCap) : new Map<number, { skillLevel: number; percent: number }[]>();
     const facts = {
       ...(first.skill?.entityKey ? { skill: resolve(first.skill) } : {}), skillCap: Math.max(0, first.skillCap), respawnSeconds: first.respawnTime, jitterSeconds: first.respawnJitter,
       despawnSeconds: first.despawnDelay, playerRange: first.playerRange,
-      options: options.map((option) => ({ node: resolve({ entityKey: option.nodeKey, label: option.nodeKey }), lowSkillWeight: option.spawner.weightAtLowSkill, highSkillWeight: option.spawner.weightAtHighSkill, teaserWeight: option.spawner.teaserWeight,
-        ...(shares.has(option.optionIndex!) ? { shares: shares.get(option.optionIndex!) } : {}) })),
+      options: options.map((option) => ({ node: resolve({ entityKey: option.nodeKey, label: option.nodeKey }), lowSkillWeight: option.spawner.weightAtLowSkill, highSkillWeight: option.spawner.weightAtHighSkill, teaserWeight: option.spawner.teaserWeight })),
+      // A spawner's chances need all of its options: a missing option index or weight would change every chance.
+      oddsVerified: oddsVerified && first.skillCap >= 1 && options.every((option, index) => option.optionIndex === index
+        && [option.spawner.weightAtLowSkill, option.spawner.weightAtHighSkill, option.spawner.teaserWeight].every(Number.isFinite)),
     };
     const key = JSON.stringify(facts);
     const group: SpawnerWithPlacements = groups.get(key) ?? { ...facts, spawners: 0, placements: [], unplaced: 0, nodeKeys: new Set<string>() };
@@ -108,9 +101,8 @@ export function placedNodeBySource(nodes: readonly CatalogGatheringNode[]): Read
 export function projectGatheringNodeDocuments(facts: CatalogFacts, relations: CatalogRelations, input: {
   resolve: Resolve; requirements: Requirements; conditions: ReadonlyMap<string, CatalogCondition>; placements: ReadonlyMap<string, PlacementRef>;
 }): ReadonlyMap<string, PublicGatheringNode> {
-  const verifiedWeights = ["spawner-weighted-pick", "spawner-weight-limits", "spawner-weights-relative"].every((id) =>
-    facts.progression.mechanicsRules.some((rule) => rule.ruleId === id && rule.status === "verified"));
-  const groups = [...spawnerGroups(facts.gatheringNodes, input.resolve, input.placements, verifiedWeights).values()];
+  const groups = [...spawnerGroups(facts.gatheringNodes, input.resolve, input.placements, verifiedOdds(facts)).values()];
+  const allAttunements = attunements(facts, input.resolve);
   const placedBySource = placedNodeBySource(facts.gatheringNodes);
   const yields = new Map<string, Map<string, NodeYieldRow>>();
   const addYield = (nodeKey: string, row: { item: CatalogEndpoint; min: number | null; max: number | null; rawRate: number | null }) => {
@@ -147,15 +139,16 @@ export function projectGatheringNodeDocuments(facts: CatalogFacts, relations: Ca
       placed: placed.map(({ placements, ...group }) => ({ ...group, placementCount: placements.length })),
       places, spotCount: places.reduce((sum, place) => sum + place.spotCount, 0),
       placedRules: placedRules(facts, "gatheringNodes", { entityKey: node.entityKey, sourceKinds: kinds, yieldLevels }, input.resolve),
+      attunements: allAttunements.filter((attunement) => attunement.nodes.some((target) => nodeSpawners.some((group) => group.options.some((option) => option.node.key === target.key)))),
     });
   }
   return result;
 }
 
 /** The most common spawner group of each gathering skill, as the mechanics page's example of weighted selection. */
-export function spawnerExamples(nodes: readonly CatalogGatheringNode[], resolve: Resolve, placements: ReadonlyMap<string, PlacementRef>): SpawnerExample[] {
+export function spawnerExamples(nodes: readonly CatalogGatheringNode[], resolve: Resolve, placements: ReadonlyMap<string, PlacementRef>, oddsVerified: boolean): SpawnerExample[] {
   const bySkill = new Map<string, SpawnerExample>();
-  for (const { nodeKeys: _nodeKeys, placements: _placements, unplaced: _unplaced, ...group } of spawnerGroups(nodes, resolve, placements).values()) {
+  for (const { nodeKeys: _nodeKeys, placements: _placements, unplaced: _unplaced, ...group } of spawnerGroups(nodes, resolve, placements, oddsVerified).values()) {
     const skill = group.skill && group.skill.key !== null ? group.skill.key : "";
     const current = bySkill.get(skill);
     if (!current || group.spawners > current.spawners) bySkill.set(skill, group);

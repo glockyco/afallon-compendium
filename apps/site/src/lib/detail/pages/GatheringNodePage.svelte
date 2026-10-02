@@ -1,20 +1,25 @@
 <script lang="ts">
   import { base } from '$app/paths';
-  import type { NodeYieldRow, PublicGatheringNode, PublicKindEntry, SpawnerOption } from '@afallon/contracts/public';
+  import { spawnerChances, type NodeYieldRow, type PublicGatheringNode, type PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import MissingValue from '../../MissingValue.svelte';
   import Requirements from '../../Requirements.svelte';
   import { formatNumber, nameOf, rangeText, sentenceStart } from '../../format';
   import { nodeOnMap, nodePlaceOnMap } from '../../map-links';
+  import { skillLevelId } from '../../reader-levels';
   import AnswerCard from '../AnswerCard.svelte';
+  import AttunementToggles from '../AttunementToggles.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import DetailsDisclosure from '../DetailsDisclosure.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import { attunementBoosts, interpolateChance } from '../gathering-odds';
   import PlacesList from '../PlacesList.svelte';
+  import ReaderLevel from '../ReaderLevel.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
+  import SpawnerOdds from '../SpawnerOdds.svelte';
   import StatStrip from '../StatStrip.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
@@ -56,14 +61,19 @@
   const duration = (seconds: number) => seconds >= 60 && seconds % 60 === 0
     ? `${formatNumber(seconds / 60)} ${seconds === 60 ? 'minute' : 'minutes'}`
     : `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
-  const isThisNode = (option: SpawnerOption) => option.node.key === document.ref.key;
-  // One row per spawner group that can choose this node. A group without a supported share keeps its row, so the table
-  // does not hide spawners; its chance cells stay empty.
-  $: shareRows = document.spawners.flatMap((group) => group.options.filter(isThisNode).map((option) => ({
-    spawners: group.spawners, options: group.options.length, shares: new Map((option.shares ?? []).map((share) => [share.skillLevel, share.percent])),
-  })));
-  $: shareLevels = [...new Set(shareRows.flatMap((row) => [...row.shares.keys()]))].sort((left, right) => left - right);
-  $: missingShare = shareRows.some((row) => row.shares.size === 0);
+  // The reader's skill level and attunements decide the odds. The side card shows this node's chance in each spawner
+  // group, and Spawn odds shows every option of those groups at the same level.
+  let level = 1;
+  let active: string[] = [];
+  $: skillCap = Math.max(1, ...document.spawners.map((group) => group.skillCap));
+  $: oddsGroups = document.spawners.filter((group) => group.oddsVerified);
+  $: groupChances = oddsGroups.map((group) => {
+    const index = group.options.findIndex((option) => option.node.key === document.ref.key);
+    const chances = spawnerChances(group.options, level, group.skillCap, attunementBoosts(group.options, document.attunements, active));
+    return { group, percent: index < 0 ? undefined : chances[index]!.percent };
+  });
+  // The extra-item chance grows evenly with the skill level between the published levels.
+  $: bonusAtLevel = bonus?.levelChances ? interpolateChance(bonus.levelChances, level) : undefined;
 </script>
 
 <article class="detail-page">
@@ -87,7 +97,7 @@
           </RelationTable>
         {:else}<p>No yields are published for this node.</p>{/if}
         {#if bonus?.levelChances}
-          <p class="bonus">Each item can yield one extra at higher {document.facts.skill ? nameOf(document.facts.skill) : 'skill'} levels: {#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ', and ' : ', ') : ''}<strong>{bonusPercent.format(endpoint.chance)}%</strong> at level {formatNumber(endpoint.level)}{/each}. <HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
+          <p class="bonus">Each item can yield one extra: <strong>{bonusPercent.format(bonusAtLevel ?? 0)}%</strong> at your {skillName ?? 'skill'} level of {formatNumber(level)} ({#each bonus.levelChances as endpoint, index}{index ? (index === bonus.levelChances.length - 1 ? ' and ' : ', ') : ''}{bonusPercent.format(endpoint.chance)}% at level {formatNumber(endpoint.level)}{/each}). <HowItWorks guide={bonus.guide} section={bonus.section} label="How gathering works" /></p>
         {/if}
       </AnswerCard>
     </div>
@@ -103,13 +113,15 @@
           {#if spawnerTotal}<div><dt>Spawners</dt><dd>{formatNumber(spawnerTotal)}</dd></div>{/if}
           {#if placedTotal}<div><dt>Placed in the world</dt><dd>{formatNumber(placedTotal)}</dd></div>{/if}
         </dl>
-        {#if shareLevels.length}
-          <table class="shares">
-            <caption>Chance that a spawner chooses this node</caption>
-            <thead><tr><th scope="col">Spawners</th><th scope="col">Options</th>{#each shareLevels as level}<th scope="col">Level {formatNumber(level)}</th>{/each}</tr></thead>
-            <tbody>{#each shareRows as row}<tr><td>{formatNumber(row.spawners)}</td><td>{formatNumber(row.options)}</td>{#each shareLevels as level}<td>{#if row.shares.has(level)}{formatNumber(row.shares.get(level) ?? 0)}%{/if}</td>{/each}</tr>{/each}</tbody>
-          </table>
-          <p class="explanation">Each spawner picks one of its group's options. The chance depends on the {skillName ?? 'gathering'} level and does not include attunement.{#if missingShare} An empty cell means the chance is unknown.{/if}</p>
+        {#if oddsGroups.length}
+          <div class="odds">
+            <ReaderLevel id="node-skill-level" readerId={skillLevelId(document.facts.skill ?? { key: null, label: 'gathering' })} label={`${skillName ?? 'Skill'} level`} max={skillCap} fallback={1} bind:level />
+            <dl class="spawn-facts">
+              {#each groupChances as row, index}<div><dt>{groupChances.length > 1 ? `Chance in group ${index + 1}, ${formatNumber(row.group.spawners)} spawners` : 'Chance that a spawner picks it'}</dt><dd>{row.percent === undefined ? '' : `${bonusPercent.format(Math.round(row.percent * 10) / 10)}%`}</dd></div>{/each}
+            </dl>
+            <AttunementToggles attunements={document.attunements} {registry} bind:active />
+            <a class="c-link" href="#spawn-odds">Every node these spawners choose from</a>
+          </div>
         {:else if spawnerTotal}
           <p class="explanation">The chance of choosing this node is unknown for these spawners.</p>
         {/if}
@@ -127,16 +139,13 @@
     <div class="c-disclosures">
     {#if document.spawners.length}
       <DetailsDisclosure title="Spawn odds" id="spawn-odds" summary="Weights and chances by skill level">
-        <p class="intro">Each spawner chooses among its options. Weights determine each option's chance. Some chances are unknown.</p>
+        <p class="intro">Each spawner picks one of its options. The weights and chances below use the {skillName ?? 'skill'} level and attunements that you chose{#if oddsGroups.length < document.spawners.length}, and a group without verified odds shows its weights only{/if}.</p>
         {#if selectionGuide || attunementGuide}<div class="guides">{#if selectionGuide}<HowItWorks guide={selectionGuide.guide} section={selectionGuide.section} label="How spawners choose nodes" />{/if}{#if attunementGuide}<HowItWorks guide={attunementGuide.guide} section={attunementGuide.section} label="How attunement changes the odds" />{/if}</div>{/if}
         <div class="c-groups">
           {#each document.spawners as group, index}
             <div class="c-stack">
               <h3>{group.skill ? nameOf(group.skill) : 'Spawner'}{document.spawners.length > 1 ? ` · Group ${index + 1}` : ''} · {formatNumber(group.spawners)} {group.spawners === 1 ? 'spawner' : 'spawners'}</h3>
-              <div class="table-scroll"><table>
-                <thead><tr><th scope="col">Node</th><th scope="col">Weight at level 1</th><th scope="col">Weight at level {formatNumber(group.skillCap)}</th><th scope="col">Minimum weight</th></tr></thead>
-                <tbody>{#each group.options as option}<tr class:current={isThisNode(option)}><td>{#if isThisNode(option)}{nameOf(option.node)}{:else}<EntityLink ref={option.node} {registry} />{/if}</td><td>{formatNumber(option.lowSkillWeight)}</td><td>{formatNumber(option.highSkillWeight)}</td><td>{formatNumber(option.teaserWeight)}</td></tr>{/each}</tbody>
-              </table></div>
+              <SpawnerOdds options={group.options} skillCap={group.skillCap} {level} boosts={attunementBoosts(group.options, document.attunements, active)} oddsVerified={group.oddsVerified} current={document.ref.key} {registry} label={`Spawn odds, group ${index + 1}`} />
             </div>
           {/each}
         </div>
@@ -178,16 +187,6 @@
   .spawn-facts div, .timer-facts div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .2rem .6rem; padding: .35rem 0; }
   .spawn-facts dt, .timer-facts dt { color: var(--c-text-dim); }
   .spawn-facts dd, .timer-facts dd { color: var(--c-text-strong); font-variant-numeric: tabular-nums; }
-  .table-scroll { max-width: 100%; overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
-  th, td { padding: .5rem .7rem; border-bottom: 1px solid var(--c-line-soft); }
-  th { color: var(--c-text-dim); font-weight: 600; }
-  td:not(:first-child), th:not(:first-child) { text-align: right; white-space: nowrap; }
-  /* The side column is narrow, so the share table uses tighter cells and right-aligns every number. */
-  .shares { margin-top: .75rem; font-size: var(--c-text-small); }
-  .shares caption { margin-bottom: .35rem; color: var(--c-text-strong); font-weight: 600; text-align: left; }
-  .shares th, .shares td { padding: .4rem .35rem; text-align: right; }
-  .shares th:first-child, .shares td:first-child { padding-left: 0; }
-  .shares th:last-child, .shares td:last-child { padding-right: 0; }
-  tr.current td { color: var(--c-text-strong); font-weight: 600; }
+  .odds { display: grid; gap: .85rem; margin-top: .75rem; }
+  .odds > a { width: fit-content; font-size: var(--c-text-small); }
 </style>

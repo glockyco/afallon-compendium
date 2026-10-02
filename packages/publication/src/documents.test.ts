@@ -4,7 +4,7 @@ import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, ty
 import type { CatalogGatheringNode, CatalogMechanicsRule } from "@afallon/contracts/catalog";
 import { corruptionRewards, type CorruptionRewards } from "./corruption-rewards";
 import { readerCoverage } from "./coverage";
-import { projectGatheringNodeDocuments, spawnerGroups, spawnerShares } from "./gathering";
+import { projectGatheringNodeDocuments, spawnerGroups } from "./gathering";
 import { projectPublicDocuments } from "./documents";
 import { conditionsById, type DocumentProjectionInput, requirementsFor } from "./documents/projection";
 import { projectQuestObjective } from "./documents/quests";
@@ -796,6 +796,13 @@ const skillFact = (entityKey: string, name: string) => ({ entityKey, name, kind:
 const ruleRow = (ruleId: string, section: string, operands: Record<string, number>, links: Array<{ entityKey: string; label: string }> = [], placements: CatalogMechanicsRule["placements"] = []): CatalogMechanicsRule => ({
   ruleId, topic: "crafting-and-gathering", section, ordinal: 0, status: "verified", phrase: "Rule.", operands, links, placements,
   sources: [{ method: "Method", description: "Evidence", object: { sha256: "a".repeat(64), bytes: 1 } }] });
+// An attunement rule links the item that gives the effect and then the node that it favours.
+const attunementRow = (ruleId: string, itemKey: string, effect: string, node: { entityKey: string; label: string }): CatalogMechanicsRule => ({
+  ...ruleRow(ruleId, "attunement", { boostWeight: 10 }, [{ entityKey: itemKey, label: effect }, node], [{ page: "gatheringNodes", target: "how-it-works", scope: "linked" }]),
+  phrase: `Using {#0} gives ${effect}, which adds {boostWeight} to the weight of {#1}.`,
+});
+const attunementItem = (itemKey: string, effectKey: string, effect: string) => ({ ...facts.items[0]!, entityKey: itemKey, gearSet: null, conditionIds: [], equipmentRequirements: [],
+  gameActions: [{ ...recipeAction(null), type: "Effect", target: { entityKey: effectKey, label: effect } }] });
 const vein: CatalogGatheringNode = { entityKey: "gatheringNodes:iron-vein", name: "Iron vein", levelHint: "Mining 5", variant: false, skill: { entityKey: "skills:7", label: "Mining" }, skillExperience: 15, characterExperience: 4,
   lootTable: { entityKey: null, label: "Iron vein" }, conditionId: "vein-gate", sources: [
     { nodeKey: "gatheringNodes:iron-vein", sourceId: "spawner-1", sourceKind: "spawner-option", optionIndex: 0, cooldown: null, placementId: "p1",
@@ -804,21 +811,23 @@ const vein: CatalogGatheringNode = { entityKey: "gatheringNodes:iron-vein", name
   ] };
 const recipeAction = (target: string | null) => ({ template: null, type: "Recipe", chance: 100, nodeAction: "RankUp", progressionType: "Unlock", teleportType: "GameScene", amount: 0, target: target === null ? null : { entityKey: target, label: target } });
 const craftFacts: CatalogFacts = { ...facts, entities: craftEntities,
-  items: [...facts.items, { ...facts.items[0]!, entityKey: "items:20", gearSet: null, conditionIds: [], equipmentRequirements: [], gameActions: [{ ...recipeAction(null), type: "TriggerSound" }, recipeAction("recipes:7"), recipeAction("recipes:8")] }],
+  items: [...facts.items, { ...facts.items[0]!, entityKey: "items:20", gearSet: null, conditionIds: [], equipmentRequirements: [], gameActions: [{ ...recipeAction(null), type: "TriggerSound" }, recipeAction("recipes:7"), recipeAction("recipes:8")] },
+    attunementItem("items:30", "effects:98", "Prospecting"), attunementItem("items:31", "effects:642", "Silver Attunement")],
   recipes: [
     { entityKey: "recipes:7", skill: { entityKey: "skills:0", label: "Alchemy" }, station: null, learnedByDefault: false, ranks: [{ rank: 1, unlockCost: 40, experience: 7, craftTime: 1, products: [], materials: [] }] },
     { entityKey: "recipes:8", skill: { entityKey: "skills:0", label: "Alchemy" }, station: null, learnedByDefault: false, ranks: [{ rank: 1, unlockCost: 0, experience: 0, craftTime: 1, products: [], materials: [] }] },
     { entityKey: "recipes:9", skill: { entityKey: null, label: "Skill 99" }, station: null, learnedByDefault: false, ranks: [{ rank: 1, unlockCost: 5, experience: 3, craftTime: 1, products: [], materials: [] }] },
   ],
-  progression: { ...facts.progression, facts: [skillFact("skills:0", "Alchemy"), skillFact("skills:7", "Mining"), skillFact("skills:11", "Axes")] as never, mechanicsRules: [
+  progression: { ...facts.progression, facts: [skillFact("skills:0", "Alchemy"), skillFact("skills:7", "Mining"), skillFact("skills:11", "Axes"),
+    { entityKey: "effects:98", name: "Prospecting", kind: "effects", details: { duration: 900, endless: false } }, { entityKey: "effects:642", name: "Silver Attunement", kind: "effects", details: { duration: 900, endless: false } }] as never, mechanicsRules: [
     ruleRow("recipe-rank-gate", "crafting", { minimumRequiredLevel: 1 }, [], [{ page: "items", target: "crafting", scope: "all" }]),
     ruleRow("recipe-experience-bands", "crafting-experience", { halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 }),
     ruleRow("recipe-experience-rounding", "crafting-experience", {}), ruleRow("weapon-skill-hit", "skill-experience", { hitExperience: 2 }), ruleRow("weapon-skills", "skill-experience", {}, [{ entityKey: "skills:11", label: "Axes" }]),
     ruleRow("recipe-item-tooltip", "crafting", {}, [], [{ page: "items", target: "teaches", scope: "all" }]),
     ruleRow("spawner-respawn", "node-availability", { minimumRespawnSeconds: 5 }, [], [{ page: "gatheringNodes", target: "how-it-works", scope: "spawned" }]),
     ruleRow("placed-node-cooldown", "node-availability", {}, [], [{ page: "gatheringNodes", target: "how-it-works", scope: "placed" }]),
-    ruleRow("attunement-98", "attunement", { boostWeight: 10 }, [{ entityKey: "gatheringNodes:iron-vein", label: "Iron vein" }], [{ page: "gatheringNodes", target: "how-it-works", scope: "linked" }]),
-    ruleRow("attunement-642", "attunement", { boostWeight: 10 }, [{ entityKey: "gatheringNodes:silver-vein", label: "Silver vein" }], [{ page: "gatheringNodes", target: "how-it-works", scope: "linked" }]),
+    attunementRow("attunement-98", "items:30", "Prospecting", { entityKey: "gatheringNodes:iron-vein", label: "Iron vein" }),
+    attunementRow("attunement-642", "items:31", "Silver Attunement", { entityKey: "gatheringNodes:silver-vein", label: "Silver vein" }),
   ] },
   gatheringNodes: [vein] };
 const gate = requirement("Skill", "Mining 5", { type: { value: 26, name: "Skill" }, references: { ...emptyRequirementReferences, skill: { entityKey: "skills:7", label: "Mining" } }, amounts: { primary: 5, secondary: 0, float: 0, isPercent: false } });
@@ -937,8 +946,7 @@ test("placed rules select linked nodes and source scopes and compute yield chanc
     sources: [{ ...vein.sources[1]!, nodeKey: "gatheringNodes:direct-vein", sourceId: "direct-object" }] };
   const scoped: CatalogFacts = { ...craftFacts, gatheringNodes: [vein, silver, direct],
     progression: { ...craftFacts.progression, mechanicsRules: [
-      ruleRow("attunement-642", "attunement", {}, [{ entityKey: silver.entityKey, label: silver.name }],
-        [{ page: "gatheringNodes", target: "how-it-works", scope: "linked" }]),
+      attunementRow("attunement-642", "items:31", "Silver Attunement", { entityKey: silver.entityKey, label: silver.name }),
       ruleRow("spawner-weighted-pick", "node-selection", {}, [],
         [{ page: "gatheringNodes", target: "how-it-works", scope: "spawned" }]),
       ruleRow("placed-node-cooldown", "node-availability", {}, [],
@@ -959,29 +967,24 @@ test("placed rules select linked nodes and source scopes and compute yield chanc
     .toEqual([{ level: 5, chance: 0.5 }, { level: 300, chance: 30 }]);
 });
 
-test("weighted spawner shares use effective endpoint weights per group without inventing an aggregate", () => {
+test("spawners with the same options form one group, and only a complete option list has verified odds", () => {
   const source = vein.sources[0]!;
   const candidate = (optionIndex: number, nodeKey: string, low: number, high: number, minimum: number) => ({
     ...source, nodeKey, optionIndex, spawner: { ...source.spawner!, weightAtLowSkill: low, weightAtHighSkill: high, teaserWeight: minimum },
   });
   const first = candidate(0, vein.entityKey, 70, 10, 20);
   const second = candidate(1, "gatheringNodes:silver-vein", 30, 90, 0);
-  const shares = spawnerShares([first, second], 151);
-  expect(shares.get(0)?.map((share) => [share.skillLevel, share.percent])).toEqual([[1, 70], [151, 20 / 110 * 100]]);
-  expect(shares.get(1)?.map((share) => [share.skillLevel, share.percent])).toEqual([[1, 30], [151, 90 / 110 * 100]]);
-  expect(spawnerShares([first, candidate(2, vein.entityKey, 30, 90, 0)], 151).size).toBe(0);
-  expect(spawnerShares([candidate(0, vein.entityKey, 0, 0, 0)], 151).size).toBe(0);
   const resolve = createReferenceResolver(buildEntityReferences(craftEntities, { facts: craftFacts, relations: craftRelations }).refs);
   const other: CatalogGatheringNode = { ...vein, entityKey: "gatheringNodes:silver-vein", name: "Silver vein", sources: [{ ...second, sourceId: "spawner-1" }] };
   const original: CatalogGatheringNode = { ...vein, sources: [first, ...vein.sources.slice(1)] };
   const groups = [...spawnerGroups([original, other], resolve, new Map(), true).values()];
-  expect(groups).toHaveLength(1);
-  expect(groups[0]?.options[0]?.shares?.[1]?.percent).toBeCloseTo(20 / 110 * 100);
-  expect(groups[0]?.options[1]?.shares?.[1]?.percent).toBeCloseTo(90 / 110 * 100);
+  expect(groups.map((group) => [group.options.map((option) => option.lowSkillWeight), group.oddsVerified])).toEqual([[[70, 30], true]]);
   const alternative: CatalogGatheringNode = { ...vein, sources: [{ ...candidate(0, vein.entityKey, 1, 1, 0), sourceId: "spawner-2" }] };
-  const separate = [...spawnerGroups([original, other, alternative], resolve, new Map(), true).values()];
-  expect(separate).toHaveLength(2);
-  expect(separate.map((group) => group.options.map((option) => option.shares?.[0]?.percent))).toEqual([[70, 30], [100]]);
+  expect([...spawnerGroups([original, other, alternative], resolve, new Map(), true).values()]).toHaveLength(2);
+  // A spawner whose option 1 is missing cannot give chances, and unverified rules give no chances to any spawner.
+  const gap: CatalogGatheringNode = { ...vein, sources: [{ ...candidate(0, vein.entityKey, 1, 1, 0), sourceId: "spawner-3" }, { ...candidate(2, vein.entityKey, 5, 5, 0), sourceId: "spawner-3" }] };
+  expect([...spawnerGroups([gap], resolve, new Map(), true).values()].map((group) => group.oddsVerified)).toEqual([false]);
+  expect([...spawnerGroups([original, other], resolve, new Map(), false).values()].map((group) => group.oddsVerified)).toEqual([false]);
 });
 
 test("an inverted authored loot quantity cannot become a displayed range", () => {

@@ -210,7 +210,7 @@ test('a gathering node map action selects every published spawner and placed spo
     schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.gatheringNodes, ...data.identity, kind: 'gatheringNodes',
     document: {
       ref, description: null, art: {}, facts: { requirements: [], variant: false },
-      yields: [], spawners: [], placed: [], placedRules: [],
+      yields: [], spawners: [], placed: [], placedRules: [], attunements: [],
       places: [{ label: 'Map', mapSpaceId: 'map', spotCount: 2, placementIds: ['place:a', 'place:b'] }],
       spotCount: 2,
     },

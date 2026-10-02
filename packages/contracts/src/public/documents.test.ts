@@ -94,14 +94,14 @@ const spawnerTiming = { skill: mining, skillCap: 150, respawnSeconds: 120, jitte
 const gatheringNode: PublicGatheringNode = {
   ...base, ref: vein, facts: { skill: mining, requiredLevel: 1, skillExperience: 15, characterExperience: 4, requirements: [{ mode: "all", checkCount: false, requirements: [requirement("Skill", "Mining 1")] }], variant: false },
   yields: [{ counterpart: item, min: 1, max: 2, chance: 100 }, { counterpart: unresolved, min: 1, max: 1, chance: 5 }],
-  spawners: [{ ...spawnerTiming, options: [{ node: vein, lowSkillWeight: 70, highSkillWeight: 24, teaserWeight: 0 }], spawners: 3, placementCount: 1, unplaced: 2 }],
+  spawners: [{ ...spawnerTiming, options: [{ node: vein, lowSkillWeight: 70, highSkillWeight: 24, teaserWeight: 0 }], spawners: 3, oddsVerified: true, placementCount: 1, unplaced: 2 }],
   placed: [{ cooldownSeconds: 300, objects: 1, placementCount: 1, unplaced: 0 }],
   places: [{ label: "Duskfall Depths", mapSpaceId: "duskfall", spotCount: 1, placementIds: ["p1"] }], spotCount: 1,
-  placedRules: [{ target: "how-it-works", guide: { key: "mechanics:crafting-and-gathering", kind: "mechanics", name: "Crafting and Gathering", slug: "crafting-and-gathering" }, section: "node-availability" }],
+  placedRules: [{ target: "how-it-works", guide: { key: "mechanics:crafting-and-gathering", kind: "mechanics", name: "Crafting and Gathering", slug: "crafting-and-gathering" }, section: "node-availability" }], attunements: [],
 };
 const craftingAndGathering: CraftingAndGathering = {
   ...base, ref: { key: "mechanics:crafting-and-gathering", kind: "mechanics", name: "Crafting and Gathering", slug: "crafting-and-gathering" }, topic: "crafting-and-gathering",
-  spawnerExamples: [{ ...spawnerTiming, options: [{ node: vein, lowSkillWeight: 70, highSkillWeight: 24, teaserWeight: 0 }], spawners: 3 }],
+  spawnerExamples: [{ ...spawnerTiming, options: [{ node: vein, lowSkillWeight: 70, highSkillWeight: 24, teaserWeight: 0 }], spawners: 3, oddsVerified: true }], attunements: [{ item, effect: "Silver Attunement", boost: 10, nodes: [vein], minutes: 15 }],
   overview: "Crafting makes items.", sections: [{ id: "crafting-experience", title: "Crafting experience", lead: "A rank sets its base experience.", rules: [{ ...rule, id: "recipe-experience-bands", phrase: "Half experience from +{halfFromLevels} levels.", operands: { halfFromLevels: 20 } }] }],
   example: { craft: { product: { ...item, variant: "crafting" }, skill: mining, rank: { rank: 1, requiredLevel: 1, baseExperience: 0, bands: [] } },
     gather: { node: vein, skill: mining, levelChances: [{ level: 1, chance: 0.1 }] } },

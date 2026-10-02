@@ -11,6 +11,7 @@ const progressionFacts: CatalogProgressionFact[] = [
   { entityKey: "levels:0", name: null, kind: "levels", details: { levels: 3, baseExperience: 20, increaseAmount: 20, rows: [20, 40, 60].map((experienceRequired, index) => ({ level: index + 1, name: null, experienceRequired })) } },
   { entityKey: "skills:7", name: "Mining", kind: "skills", details: { maxLevel: 100 } } as CatalogProgressionFact,
   { entityKey: "skills:8", name: "Tailoring", kind: "skills", details: { maxLevel: 90 } } as CatalogProgressionFact,
+  { entityKey: "effects:98", name: "Prospecting", kind: "effects", details: { duration: 900, endless: false } } as CatalogProgressionFact,
   { entityKey: HEROIC_TIER_KEY, name: "Heroic Tier", kind: "heroicTier", details: {
     asset: "Heroic", killExperienceMultiplier: 5, essenceTreePoint: null, essenceBaseAmount: 3, essencePerAffix: 2,
     essenceEliteMultiplier: 1.5, essenceRareMultiplier: 2, essenceBossMultiplier: 3,
@@ -40,23 +41,25 @@ const topicRules: Record<NonNullable<CatalogMechanicsRule["topic"]>, Array<[stri
 };
 const rules: CatalogMechanicsRule[] = Object.entries(topicRules).flatMap(([topic, entries]) => entries.map(([ruleId, section], ordinal) => ({
   ruleId, topic: topic as CatalogMechanicsRule["topic"], section, ordinal, status: "verified" as const,
-  phrase: "A recorded rule applies.", operands: {
+  phrase: ruleId.startsWith("attunement-") ? "Using {#0} gives Prospecting, which adds {boostWeight} to the weight of {#1}." : "A recorded rule applies.", operands: {
+    ...(ruleId.startsWith("attunement-") ? { boostWeight: 10 } : {}),
     ...(ruleId === "recipe-rank-gate" ? { minimumRequiredLevel: 1 } : {}),
     ...(ruleId === "recipe-experience-bands" ? { halfFromLevels: 20, noneFromLevels: 35, halfMultiplier: 0.5 } : {}),
     ...(ruleId === "node-yield-bonus" ? { chancePerLevel: 0.15 } : {}),
-  }, links: [], sources: [{ method: "Game.Method", description: "Bounded decompilation", object: { sha256: "a".repeat(64), bytes: 1 } }], placements: ruleId === "kill-base-roll" ? [{ page: "npcs" as const, target: "experience" as const, scope: "all" as const }] : ruleId === "node-yield-bonus" ? [{ page: "gatheringNodes" as const, target: "how-it-works" as const, scope: "all" as const }] : [],
+  }, links: ruleId.startsWith("attunement-") ? [ref("items:7", "Miners Intuition Elixir"), ref("gatheringNodes:small-iron-vein", "Small Iron Vein")] : [], sources: [{ method: "Game.Method", description: "Bounded decompilation", object: { sha256: "a".repeat(64), bytes: 1 } }], placements: ruleId === "kill-base-roll" ? [{ page: "npcs" as const, target: "experience" as const, scope: "all" as const }] : ruleId === "node-yield-bonus" ? [{ page: "gatheringNodes" as const, target: "how-it-works" as const, scope: "all" as const }] : [],
 })));
 const npc = (nativeId: number, minLevel: number, maxLevel: number, scalesWithPlayer: boolean, lower = 0, higher = 0, minExperience = 4, maxExperience = 10) => ({ entityKey: `npcs:${nativeId}`, minLevel, maxLevel, scalesWithPlayer, minExperience, maxExperience, lowerLevelExperienceModifier: lower, higherLevelExperienceModifier: higher, experienceBonusPerLevel: 1 }) as CatalogNpcFacts;
 const quest = (nativeId: number, max: number | null) => ({ entityKey: `quests:${nativeId}`, experience: 50, levelRequirement: max === null ? null : max - 2, levelRange: max === null ? null : { min: 1, max } }) as CatalogQuestFacts;
 const entities = ([
   ["npcs:1", "Zombie"], ["npcs:2", "Wolf"], ["npcs:3", "Infected Grain"], ["npcs:4", "Neonate Vampire"], ["npcs:5", "Unpublished"],
   ["npcs:6", "Aardvark"], ["npcs:7", "Badger"], ["npcs:8", "Aardvark"],
-  ["recipes:1", "Runeweave Regalia"], ["items:1", "Runeweave Regalia"], ["items:2", "Ash Bow"], ["items:3", "Oak Shield"], ["skills:7", "Mining"], ["skills:8", "Tailoring"], ["gatheringNodes:small-iron-vein", "Small Iron Vein"],
+  ["recipes:1", "Runeweave Regalia"], ["items:1", "Runeweave Regalia"], ["items:2", "Ash Bow"], ["items:3", "Oak Shield"], ["items:7", "Miners Intuition Elixir"], ["skills:7", "Mining"], ["skills:8", "Tailoring"], ["gatheringNodes:small-iron-vein", "Small Iron Vein"],
 ] as Array<[string, string]>).map(([entityKey, name]) => ({ entityKey, name }));
 const facts = {
   entities,
   npcs: [npc(1, 1, 30, false, 20, -20), npc(2, 5, 12, false, 20, -20), npc(3, 100, 100, true), npc(4, 1, 20, true), npc(5, 40, 40, false), npc(6, 8, 8, false, 0, 0, 5, 12), npc(7, 9, 9, false, 0, 0, 7, 7), npc(8, 11, 11, false, 0, 0, 2, 9)],
   quests: [quest(1, 31), quest(2, null)],
+  items: [{ entityKey: "items:7", gameActions: [{ type: "Effect", target: ref("effects:98", "Prospecting") }] }],
   progression: { facts: progressionFacts, offeredClasses: ["classes:0"], mechanicsRules: rules },
   recipes: [{ entityKey: "recipes:1", skill: ref("skills:8", "Tailoring"), station: null, learnedByDefault: true, ranks: [{ rank: 1, unlockCost: 40, experience: 7, craftTime: 1, products: [{ item: ref("items:1", "Runeweave Regalia"), count: 1, chance: 100 }], materials: [] }] }],
   gatheringNodes: [{ entityKey: "gatheringNodes:small-iron-vein", name: "Small iron vein", levelHint: null, variant: false, skill: ref("skills:7", "Mining"), skillExperience: 3, characterExperience: null, lootTable: null, conditionId: null, sources: [] }],
@@ -138,7 +141,7 @@ test("the Adventurers guide lists reward gear by the level an adventurer needs a
   const band = (itemKey: string, minimumContentLevel: number) => ({ itemKey, kind: "equipmentBand" as const, adventurer: null, minimumContentLevel, rewardChance: null });
   const reward = (itemKey: string) => ({ itemKey, kind: "equipmentReward" as const, adventurer: null, minimumContentLevel: null, rewardChance: 0.4 });
   const kitItem = (itemKey: string, adventurer: string) => ({ itemKey, kind: "kitUpgradeItem" as const, adventurer: ref(adventurer, adventurer), minimumContentLevel: null, rewardChance: null });
-  const source = { ...facts, items: [{ entityKey: "items:2", itemType: "WEAPON", weaponType: "BOW", weaponSlot: "TWO_HAND", armorType: "PLATE", armorSlot: null }], adventurerItems: [band("items:1", 17), reward("items:1"), reward("items:3"), band("items:2", 0), reward("items:2"), band("items:9", 24),
+  const source = { ...facts, items: [...facts.items, { entityKey: "items:2", itemType: "WEAPON", weaponType: "BOW", weaponSlot: "TWO_HAND", armorType: "PLATE", armorSlot: null }], adventurerItems: [band("items:1", 17), reward("items:1"), reward("items:3"), band("items:2", 0), reward("items:2"), band("items:9", 24),
     kitItem("items:3", "npcs:7"), kitItem("items:1", "npcs:7"), kitItem("items:2", "npcs:1")],
     progression: { ...facts.progression, mechanicsRules: [...facts.progression.mechanicsRules, { ruleId: "adventurer-gear-list", topic: "adventurers", section: "gear-upgrades", ordinal: 0, status: "verified",
       phrase: "Gear.", operands: {}, links: [], sources: [], placements: [] } as CatalogMechanicsRule] } } as CatalogFacts;
@@ -148,6 +151,13 @@ test("the Adventurers guide lists reward gear by the level an adventurer needs a
   // A weapon is named by its weapon type, not by armor values that the catalog keeps for it.
   expect(gear.rewards[0]?.type).toBe("Bow");
   expect(gear.kits.map((kit) => [kit.adventurer.key, kit.items.map((row) => row.item.key)])).toEqual([["npcs:7", ["items:3", "items:1"]], ["npcs:1", ["items:2"]]]);
+});
+
+test("an attunement names its item's effect, its bonus, its nodes, and how long it lasts", () => {
+  const guide = documents().get("mechanics:crafting-and-gathering") as CraftingAndGathering;
+  expect(guide.attunements[0]).toEqual({ item: expect.objectContaining({ key: "items:7" }), effect: "Prospecting", boost: 10, nodes: [expect.objectContaining({ key: "gatheringNodes:small-iron-vein" })], minutes: 15 });
+  const renamed = facts.progression.mechanicsRules.map((rule) => rule.ruleId === "attunement-98" ? { ...rule, phrase: "Using {#0} gives Silver Attunement." } : rule);
+  expect(() => documents({ ...facts, progression: { ...facts.progression, mechanicsRules: renamed } })).toThrow("does not name Prospecting");
 });
 
 test("a rule section that its guide does not define stops publication", () => {

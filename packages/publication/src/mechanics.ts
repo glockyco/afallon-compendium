@@ -3,13 +3,14 @@ import type { AdventurerGear, AdventurersGuide, ChallengeStoneUse, CharacterProg
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
 import type { ReferenceResolver } from "./documents/projection";
-import { requiredLevel, spawnerExamples } from "./gathering";
+import { requiredLevel, spawnerExamples, verifiedOdds } from "./gathering";
 import type { CorruptionRewards } from "./corruption-rewards";
 import { MECHANICS_TOPIC_NAMES, placedRules, projectRule, topicRef } from "./placed-rules";
 import { GUIDES, guideSections } from "./guide-sections";
 import { killExperience } from "./experience";
 import { levelUnion } from "./levels";
 import { displayName } from "./text";
+import { attunements } from "./attunements";
 import { itemKind, itemTypeLabel } from "./item-type";
 
 /** Job operands must match the settings in this catalog, not an earlier reviewed value. */
@@ -247,7 +248,7 @@ function craftingExample(facts: CatalogFacts, published: ReadonlySet<string>, co
 function craftingAndGathering(facts: CatalogFacts, published: ReadonlySet<string>, conditions: ReadonlyMap<string, CatalogCondition>, resolve: ReferenceResolver): CraftingAndGathering {
   return {
     ref: topicRef("crafting-and-gathering"), description: MECHANICS_TOPIC_NAMES["crafting-and-gathering"].description, art: {}, topic: "crafting-and-gathering",
-    ...guide(facts, "crafting-and-gathering", resolve), spawnerExamples: spawnerExamples(facts.gatheringNodes, resolve, new Map()),
+    ...guide(facts, "crafting-and-gathering", resolve), spawnerExamples: spawnerExamples(facts.gatheringNodes, resolve, new Map(), verifiedOdds(facts)), attunements: attunements(facts, resolve),
     example: craftingExample(facts, published, conditions, resolve),
   };
 }

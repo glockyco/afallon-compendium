@@ -2,7 +2,12 @@
   import { base } from '$app/paths';
   import type { CraftingAndGathering, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
-  import { formatNumber } from '../../format';
+  import { formatNumber, nameOf } from '../../format';
+  import { skillLevelId } from '../../reader-levels';
+  import AttunementToggles from '../AttunementToggles.svelte';
+  import ReaderLevel from '../ReaderLevel.svelte';
+  import SpawnerOdds from '../SpawnerOdds.svelte';
+  import { attunementBoosts, relevantAttunements } from '../gathering-odds';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
   import GuideSection from '../GuideSection.svelte';
@@ -16,6 +21,9 @@
   $: nodes = registry.find((entry) => entry.kind === 'gatheringNodes' && entry.pages);
   const bandNames: Record<string, string> = { full: 'Full', half: 'Half', none: 'None' };
   const percent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+  // Each example has its own level control, which the skill's saved level starts, and its own attunements.
+  let levels: number[] = [];
+  let active: string[][] = [];
 </script>
 
 <article class="detail-page">
@@ -43,14 +51,13 @@
           </div>
         {:else if section.id === 'node-selection'}
           <div class="c-groups">
-            {#each document.spawnerExamples as example}
+            {#each document.spawnerExamples as example, index}
               <div class="c-stack">
                 <h3>{#if example.skill}<EntityLink ref={example.skill} {registry} />{:else}Spawner{/if} example</h3>
-                <p class="table-intro">{formatNumber(example.spawners)} {example.spawners === 1 ? 'spawner uses' : 'spawners share'} this set of nodes. Each weight changes evenly from level 1 to level {formatNumber(example.skillCap)}.</p>
-                <div class="table-scroll"><table>
-                  <thead><tr><th scope="col">Node</th><th scope="col">Weight at level 1</th><th scope="col">Weight at level {formatNumber(example.skillCap)}</th><th scope="col">Minimum weight</th></tr></thead>
-                  <tbody>{#each example.options as option}<tr><td><EntityLink ref={option.node} {registry} /></td><td>{formatNumber(option.lowSkillWeight)}</td><td>{formatNumber(option.highSkillWeight)}</td><td>{formatNumber(option.teaserWeight)}</td></tr>{/each}</tbody>
-                </table></div>
+                <p class="table-intro">{formatNumber(example.spawners)} {example.spawners === 1 ? 'spawner uses' : 'spawners share'} this set of nodes. Change the level to see how the chances move.</p>
+                <ReaderLevel id={`spawner-level-${index}`} readerId={skillLevelId(example.skill ?? { key: null, label: 'gathering' })} label={`${example.skill ? nameOf(example.skill) : 'Skill'} level`} max={example.skillCap} fallback={1} bind:level={levels[index]} />
+                <AttunementToggles attunements={relevantAttunements(example.options, document.attunements)} {registry} bind:active={active[index]} />
+                <SpawnerOdds options={example.options} skillCap={example.skillCap} level={levels[index] ?? 1} boosts={attunementBoosts(example.options, document.attunements, active[index] ?? [])} oddsVerified={example.oddsVerified} {registry} label={`${example.skill ? nameOf(example.skill) : 'Spawner'} example`} />
               </div>
             {/each}
           </div>

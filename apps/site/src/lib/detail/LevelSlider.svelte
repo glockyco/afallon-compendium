@@ -6,9 +6,13 @@
   export let level: number;
   export let readout: (level: number) => string = (value) => value.toLocaleString('en-US');
   export let valueText: ((level: number) => string) | undefined = undefined;
+  /** Called with each level that the reader selects, for a level that the slider does not own. */
+  export let onSelect: ((level: number) => void) | undefined = undefined;
 
   function select(value: number): void {
-    if (Number.isFinite(value)) level = Math.min(max, Math.max(min, Math.trunc(value)));
+    if (!Number.isFinite(value)) return;
+    level = Math.min(max, Math.max(min, Math.trunc(value)));
+    onSelect?.(level);
   }
 </script>
 
