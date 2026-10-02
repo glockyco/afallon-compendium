@@ -16,6 +16,10 @@ Item power is the game's own measure of gear quality and the column that readers
 
 Variants of one item differ only at the end of the name, such as "Poison Blade (Uncommon)" and "Poison Blade (Rare)", or the stat list of "Gilded Helm (Haste +17, Stamina +9, Strength +20)". An ellipsis would cut exactly the part that tells them apart, so names keep wrapping. The merged column gives the name the width of the two removed columns.
 
+### Keep type labels on one line
+
+After the merge, the table still broke "Two Handed Sword" across two lines while the name column had room to spare, because a table gives spare width to its widest content. A broken label reads worse than a wrapped name, so the item Type and the place Type stay on one line from 641 px, and names wrap instead. On a phone each value has its own line in the row's card, so a long type may wrap there.
+
 ### Every filter group is a disclosure with a chevron
 
 Facet groups already opened and closed, but their summary hid the browser's marker, so nothing showed it. The range and Stats groups were fieldsets whose legends sat on the group's top border, so the separator ran through their headings. All groups are now disclosures with the chevron of the map sidebar, which points up when the group is open, and with a count of the group's active filters. A closed group keeps its filters, and the chips above the results still name them.

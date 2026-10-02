@@ -19,6 +19,8 @@
 
   // Currency columns carry the game's coin colour, as a price does on a page.
   const PRICE_FIELDS: Record<string, true> = { sellPrice: true, buyPrice: true, price: true, income: true };
+  // A type names a category in a few words. It stays on one line, and the name beside it wraps instead.
+  const LABEL_FIELDS: Record<string, true> = { type: true, placeType: true };
   const STAT_COLUMN = 'stat:';
   const PANEL_MIN_ROWS = 20;
 
@@ -181,7 +183,7 @@
           <tr>
             <td data-label={kind.label}><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} /></td>
             {#each visibleColumns as column}
-              <td data-label={column.label} class:c-num={column.numeric} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}>
+              <td data-label={column.label} class:c-num={column.numeric} class:label={LABEL_FIELDS[column.id]} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}>
                 {#if row.values[column.id] === null || row.values[column.id] === undefined}
                   <!-- A list cell without a value states nothing: the entity has no such fact. -->
                 {:else if column.id === 'rarity'}
@@ -267,6 +269,10 @@
   }
   @media (min-width: 960px) {
     .sheet { display: none; }
+  }
+  /* On a phone each value has its own line in the row's card, so a long type may wrap there. */
+  @media (min-width: 641px) {
+    td.label { white-space: nowrap; }
   }
 
   @media (max-width: 640px) {
