@@ -10,5 +10,7 @@
 ## 3. Guide
 
 - [x] 3.1 Write the rules record phrases and guide sections from verified rules only, with sentences that name values from published data.
-- [ ] 3.2 Publish the guide, link it from the Browse menu and adventurer NPC pages, and check it in a browser at 1440 px and 390 px.
-- [ ] 3.3 Accept the catalog and publication together.
+- [x] 3.2 Publish the guide, link it from the Browse menu and adventurer NPC pages, and check it in a browser at 1440 px and 390 px.
+  - Result: candidate `al` (`34c23d7b`) publishes the guide with four sections. It shows at 1440 and 390 px without sideways scroll, the Browse menu lists it, Zarrok Grimhowl and the other 114 roster adventurers link How adventurers join your party, and an NPC outside the roster does not.
+- [x] 3.3 Accept the catalog and publication together.
+  - Result: Accepted with catalog `51f119e8` and publication `34c23d7b` (update report `local/update-report-25653798-adventurers.json`, accepted descriptor `cbb7987c` in the main checkout).

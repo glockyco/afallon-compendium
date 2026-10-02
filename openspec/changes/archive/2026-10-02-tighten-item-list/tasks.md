@@ -10,4 +10,5 @@
 
 ## 3. Release
 
-- [ ] 3.1 Publish, check the item, quest, NPC, and place lists at 1440, 1100, and 390 px (no sideways scroll, fewer wrapped rows, open and closed groups), and accept the publication.
+- [x] 3.1 Publish, check the item, quest, NPC, and place lists at 1440, 1100, and 390 px (no sideways scroll, fewer wrapped rows, open and closed groups), and accept the publication.
+  - Result: the item, quest, NPC, and place lists show no sideways scroll at 1440, 1100, and 390 px, every filter group opens and closes with its chevron and keeps its filters, and the phone sheet shows the same headings. Accepted with catalog `51f119e8` and publication `34c23d7b` (update report `local/update-report-25653798-adventurers.json`, accepted descriptor `cbb7987c` in the main checkout).
