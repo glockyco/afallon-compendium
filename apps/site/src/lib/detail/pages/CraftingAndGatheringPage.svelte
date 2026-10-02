@@ -6,7 +6,9 @@
   import { skillLevelId } from '../../reader-levels';
   import AttunementToggles from '../AttunementToggles.svelte';
   import CraftExperience from '../CraftExperience.svelte';
+  import GuidePart from '../GuidePart.svelte';
   import GuideSection from '../GuideSection.svelte';
+  import GuideStart from '../GuideStart.svelte';
   import LinkGrid from '../LinkGrid.svelte';
   import ReaderLevel from '../ReaderLevel.svelte';
   import { planColumns, stateInHeading, type RelationColumn } from '../relation-table';
@@ -78,34 +80,30 @@
 
 <article class="detail-page">
   <TitleBlock name={document.ref.name} {registry} />
-  <section class="start" aria-label="Where to start">
-    <p class="overview">{document.overview}</p>
-    <div class="activities">
-      {#if document.craftingSkills.length}
-        <div class="activity">
-          <h2>Crafting skills</h2>
-          <ul class="skills">
-            {#each document.craftingSkills as row (row.skill.key)}<li><EntityLink ref={row.skill} {registry} /><span>{formatNumber(row.recipes)} {row.recipes === 1 ? 'recipe' : 'recipes'}</span></li>{/each}
-          </ul>
-          {#if recipesList}<a class="c-link all" href={`${base}/${recipesList.route}/`}>All recipes</a>{/if}
-        </div>
-      {/if}
-      {#if document.gatheringSkills.length}
-        <div class="activity">
-          <h2>Gathering skills</h2>
-          <ul class="skills">
-            {#each document.gatheringSkills as row (row.skill.key)}<li><EntityLink ref={row.skill} {registry} /><span>{formatNumber(row.nodes)} {row.nodes === 1 ? 'node' : 'nodes'}</span></li>{/each}
-          </ul>
-          {#if nodesList}<a class="c-link all" href={`${base}/${nodesList.route}/`}>All gathering nodes</a>{/if}
-        </div>
-      {/if}
-    </div>
-  </section>
+  <GuideStart overview={document.overview}>
+    {#if document.craftingSkills.length}
+      <div>
+        <h2>Crafting skills</h2>
+        <ul class="skills">
+          {#each document.craftingSkills as row (row.skill.key)}<li><EntityLink ref={row.skill} {registry} /><span>{formatNumber(row.recipes)} {row.recipes === 1 ? 'recipe' : 'recipes'}</span></li>{/each}
+        </ul>
+        {#if recipesList}<a class="c-link all" href={`${base}/${recipesList.route}/`}>All recipes</a>{/if}
+      </div>
+    {/if}
+    {#if document.gatheringSkills.length}
+      <div>
+        <h2>Gathering skills</h2>
+        <ul class="skills">
+          {#each document.gatheringSkills as row (row.skill.key)}<li><EntityLink ref={row.skill} {registry} /><span>{formatNumber(row.nodes)} {row.nodes === 1 ? 'node' : 'nodes'}</span></li>{/each}
+        </ul>
+        {#if nodesList}<a class="c-link all" href={`${base}/${nodesList.route}/`}>All gathering nodes</a>{/if}
+      </div>
+    {/if}
+  </GuideStart>
 
   <Sections>
     {#each parts as part (part.id)}
-      <section class="part" aria-labelledby={`${part.id}-title`}>
-        <h2 class="part-title" id={`${part.id}-title`}>{part.title}</h2>
+      <GuidePart id={part.id} title={part.title}>
         {#each part.sections as section (section.id)}
           {#if section.id === 'enchanting'}
             <GuideSection {section} {registry} level={3}>
@@ -179,26 +177,17 @@
             <GuideSection {section} {registry} level={3} />
           {/if}
         {/each}
-      </section>
+      </GuidePart>
     {/each}
   </Sections>
 </article>
 
 <style>
   /* The page opens with what crafting and gathering are and the skills where each starts. */
-  .start { display: grid; gap: 1.1rem; margin-bottom: var(--c-space-section); padding: 1.1rem 1.25rem 1.2rem; border: 1px solid var(--c-frame); border-radius: .625rem; background: linear-gradient(180deg, var(--c-accent-surface), var(--c-surface-1) 70%); }
-  .overview { margin: 0; color: var(--c-text-strong); line-height: 1.55; }
-  .activities { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem 2rem; }
-  .activity { display: grid; gap: .55rem; align-content: start; }
-  .activity h2 { margin: 0; color: var(--c-accent); font-size: var(--c-text-body); font-weight: 700; }
   .skills { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
   .skills li { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding-bottom: .35rem; border-bottom: 1px solid var(--c-line-soft); }
   .skills span { color: var(--c-text-dim); font-size: var(--c-text-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .all { width: fit-content; font-size: var(--c-text-small); }
-
-  /* A part names one activity. Its sections follow under it, and the part's rule marks where the next activity starts. */
-  .part { display: grid; gap: var(--c-space-section); }
-  .part-title { margin: 0; padding-bottom: .45rem; border-bottom: 1px solid var(--c-accent-line); color: var(--c-text-strong); font: 700 1.6rem/1.2 var(--c-serif); }
 
   .example { display: grid; gap: .75rem; padding: 1rem 1.1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
   .example h4 { margin: 0; color: var(--c-text-strong); font: 600 var(--c-text-lead)/1.3 var(--c-serif); }
