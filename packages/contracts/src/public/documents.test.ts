@@ -4,7 +4,7 @@ import {
   ArtRefSchema, PlaceEntranceSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, UsedInRecipeRowSchema, VendorRowSchema,
   PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
-  type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicClass, type PublicSkill, type CharacterProgression, type HeroicTier, type MechanicsRule, type CraftingAndGathering, type PublicGatheringNode,
+  type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicClass, type PublicSkill, type CharacterProgression, type HeroicTier, type MechanicsRule, type CraftingAndGathering, type PublicGatheringNode, type PublicGearSet, type PublicCurrency, type PublicCraftingStation, type PublicRace, type PublicFaction,
   type StaticRootManifest, type StaticSearchIndex, type StaticKindList, type StaticResource, type UnresolvedRef, StaticItemDocumentSchema, type StaticCoverage,
 } from "./index";
 import type { Static } from "typebox";
@@ -128,6 +128,17 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
     gatheringNodes: [], experience: { crafting: true, gathering: false }, placedRules: [] } satisfies PublicSkill,
   mechanics: characterProgression,
   gatheringNodes: gatheringNode,
+  gearSets: { ...base, ref: { key: "gearSets:17", kind: "gearSets", name: "Adept Leather", slug: "adept-leather" }, type: "Leather", pieces: [{ item, type: "Leather Gloves" }],
+    tiers: [{ equipped: 3, stats: [{ stat: { key: "stats:12", kind: "stats", name: "Poison Damage" }, amount: 10, isPercent: true }] }] } satisfies PublicGearSet,
+  currencies: { ...base, ref: { key: "currencies:0", kind: "currencies", name: "Gold Coin", slug: "gold-coin" }, item, purchases: [{ item, price: { amount: 30, currency: gold }, soldBy: [boss] }],
+    properties: [{ property: { key: "properties:1", kind: "properties", name: "Mill", slug: "mill" }, price: 3000 }], rewards: [{ quest: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, amount: 60, choice: false }] } satisfies PublicCurrency,
+  craftingStations: { ...base, ref: { key: "craftingStations:0", kind: "craftingStations", name: "Alchemy", slug: "alchemy" }, skills: [{ key: "skills:0", kind: "skills", name: "Alchemy", slug: "alchemy" }],
+    recipes: [{ recipe: { key: "recipes:81", kind: "recipes", name: "Aetherial Elixir" }, product: { ...item, variant: "crafting" }, requiredLevel: 1 }],
+    places: [{ label: "Coalway", mapSpaceId: "coalway", spotCount: 1, placementIds: ["p1"] }] } satisfies PublicCraftingStation,
+  races: { ...base, ref: { key: "races:6", kind: "races", name: "Dwarf", slug: "dwarf" }, classes: [{ key: "classes:0", kind: "classes", name: "Shieldmaster", slug: "shieldmaster" }],
+    start: { key: "scenes:22", kind: "places", name: "Abandoned Quarry", slug: "abandoned-quarry" }, adventurers: [boss] } satisfies PublicRace,
+  factions: { ...base, ref: { key: "factions:1", kind: "factions", name: "Hostile", slug: "hostile" }, stances: [{ name: "Hated", points: 100, alignment: "enemy" }],
+    relations: [{ faction: { key: "factions:0", kind: "factions", name: "Humans", slug: "humans" }, stance: "Hated", startingPoints: 0 }], members: 129, shownInReputation: false } satisfies PublicFaction,
 };
 
 test("every kind document validates and rejects unknown properties", () => {

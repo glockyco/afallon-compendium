@@ -5,7 +5,7 @@
   import MissingValue from '../../MissingValue.svelte';
   import Requirements from '../../Requirements.svelte';
   import { formatNumber, nameOf, rangeText, sentenceStart } from '../../format';
-  import { nodeOnMap, nodePlaceOnMap } from '../../map-links';
+  import { nodeOnMap, entityPlaceOnMap } from '../../map-links';
   import { skillLevelId } from '../../reader-levels';
   import AnswerCard from '../AnswerCard.svelte';
   import AttunementToggles from '../AttunementToggles.svelte';
@@ -54,7 +54,7 @@
   $: places = document.places.map((place) => ({
     place: { key: null, label: place.label } as const,
     spotCount: place.spotCount,
-    nameHref: place.placementIds.length ? nodePlaceOnMap(document.ref.key, place) : undefined,
+    nameHref: place.placementIds.length ? entityPlaceOnMap(document.ref.key, place) : undefined,
   }));
 
   const bonusPercent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 });

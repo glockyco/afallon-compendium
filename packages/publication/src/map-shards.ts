@@ -224,15 +224,20 @@ function creatureServices(gameplay: Record<string, unknown> | null): CreatureSer
   return { isAuctioneer: gameplay?.isAuctioneer === true, isBanker: gameplay?.isBanker === true, isFlightMaster: gameplay?.isFlightMaster === true };
 }
 
-function craftingStationCategory(placement: CatalogMapPlacement, canonicalNames: ReadonlyMap<number, string>): PublicMarkerCategory {
+/** The one crafting station that every station detail of the placement resolves to, or null when they disagree or none resolves. */
+function craftingStationId(placement: CatalogMapPlacement): number | null {
   const details = placement.sourceDetails.filter((detail) => detail.family === "craftingStation");
   let stationId: number | null = null;
   for (const { data } of details) {
     const id = data.stationID, station = record(data.station);
-    if (data.stationReferenceStatus !== "resolved" || typeof id !== "number" || !Number.isInteger(id) || !station || station.nativeId !== id) return "craftingStation";
-    if (stationId !== null && stationId !== id) return "craftingStation";
+    if (data.stationReferenceStatus !== "resolved" || typeof id !== "number" || !Number.isInteger(id) || !station || station.nativeId !== id) return null;
+    if (stationId !== null && stationId !== id) return null;
     stationId = id;
   }
+  return stationId;
+}
+
+function craftingStationCategory(stationId: number | null, canonicalNames: ReadonlyMap<number, string>): PublicMarkerCategory {
   if (stationId === null) return "craftingStation";
   const supported = CRAFTING_STATION_CATEGORIES[stationId];
   return supported && canonicalNames.get(stationId)?.trim() === supported.name ? supported.category : "craftingStation";
@@ -376,12 +381,15 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
     const unfoldedPlacements: ProjectedPlacement[] = foldMapIcons(queried.records.placements.filter((placement) => !copiedPlacementIds.has(placement.placementId)), merged).flatMap((placement) => {
       if (extent && outsideExtent(placement.position, extent)) return [];
       const recordKeys = [...new Set(placement.roles.flatMap((role) => role.npcEntityKey === null ? [] : [role.npcEntityKey]))].sort();
-      const entityKeys = [...new Set([...recordKeys.map((key) => pageOf.get(key)?.key ?? key), ...propertiesSold(placement)])].sort();
+      // A crafting station's spot carries the station's key, so its page can show the station's spots on the map.
+      const stationId = placement.roles.some((role) => role.role === "craftingService") ? craftingStationId(placement) : null;
+      const stationKeys = stationId !== null && craftingStationNames.has(stationId) ? [`craftingStations:${stationId}`] : [];
+      const entityKeys = [...new Set([...recordKeys.map((key) => pageOf.get(key)?.key ?? key), ...propertiesSold(placement), ...stationKeys])].sort();
       const serviceData = recordKeys.map((key) => record(gameplayByEntity.get(key)));
       const foundCategories = new Set(markerCategories(placement.roles, serviceData.map(creatureServices)));
       const stoneName = heartChallengeStoneName(placement);
       if (stoneName) foundCategories.add("interactiveObject");
-      if (foundCategories.delete("craftingStation")) foundCategories.add(craftingStationCategory(placement, craftingStationNames));
+      if (foundCategories.delete("craftingStation")) foundCategories.add(craftingStationCategory(stationId, craftingStationNames));
       const placementCategories = PUBLIC_MARKER_CATEGORY_VALUES.filter((category) => foundCategories.has(category));
       if (placementCategories.length === 0) return [];
       const serviceLabel = serviceData.map(flightPointLabel).find((value): value is string => value !== null);

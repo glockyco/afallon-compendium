@@ -10,6 +10,10 @@ export interface ExclusionEvidenceInput {
   spawnCandidates: ReadonlySet<string>;
   /** The classes with a page that start with each item. */
   startingGear: ReadonlyMap<string, readonly EntityRef[]>;
+  /** The published map spots of each record, such as the spots of a crafting station. */
+  placementIdsByKey: ReadonlyMap<string, readonly string[]>;
+  /** Every excluded record, so a record whose only uses are excluded records stays excluded. */
+  excluded: ReadonlySet<string>;
 }
 
 const keyOf = (endpoint: CatalogEndpoint | null): string | null => endpoint?.entityKey ?? null;
@@ -51,6 +55,9 @@ function contradiction(entity: CatalogEntityRow, input: ExclusionEvidenceInput):
       return (input.facts.places.find((place) => place.entityKey === key)?.mapSpaceIds.length ?? 0) > 0 ? "the scene has a map space" : null;
     case "recipes":
       return relations.recipes.some((row) => keyOf(row.recipe) === key) ? "the recipe has a material or a product" : null;
+    case "craftingStations":
+      if ((input.placementIdsByKey.get(key)?.length ?? 0) > 0) return "the station has a map spot";
+      return input.facts.recipes.some((recipe) => recipe.station?.entityKey === key && !input.excluded.has(recipe.entityKey)) ? "the station makes a published recipe" : null;
     case "skills": {
       const fact = input.facts.progression.facts.find((candidate) => candidate.entityKey === key);
       if (fact?.kind !== "skills") return "the catalog has no skill facts for it";

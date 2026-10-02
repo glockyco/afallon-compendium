@@ -1,5 +1,5 @@
 import type { CatalogAvailabilityRule, CatalogClothDrops, CatalogCondition, CatalogEntityRow, CatalogGatheringNode, CatalogItemFacts, CatalogQuestPickup } from "@afallon/contracts/catalog";
-import { type AvailabilityRule, categoryLabel, type ClothDrop, type Craft, type DungeonFinderReward, type EntityRef, type FromItemRow, type GearSet, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
+import { type AvailabilityRule, categoryLabel, type ClothDrop, type Craft, type DungeonFinderReward, type EntityRef, type FromItemRow, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
 import { isCorruptibleEquipment } from "../corruption-rewards";
 import { recipeRank } from "../crafting";
 import { requiredLevel } from "../gathering";
@@ -12,6 +12,8 @@ import { itemKind } from "../item-type";
 import { lootFields } from "./loot";
 import { baseDocument, interactionLabel, type DocumentProjectionInput, endpointOrUnknown, groupPlacementCounts, mergeCounterpartRows, optionalChance, optionalCount, optionalFactRef, projectAvailability, projectRequirementGroups, publishedPlacements, refName, type RelationIndexes, requirementsFor, skillHighestLevel } from "./projection";
 import { objectiveForRow } from "./quests";
+import { currencyPurchases } from "./currencies";
+import { projectItemGearSet } from "./gear-sets";
 
 const refLabel = (ref: Ref) => isEntityRef(ref) ? ref.name : ref.label;
 
@@ -201,7 +203,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   const enchantment = optionalFactRef(input.resolve, fact?.enchantment);
   const sellCurrency = optionalFactRef(input.resolve, fact?.sellCurrency), buyCurrency = optionalFactRef(input.resolve, fact?.buyCurrency);
   const currency = optionalFactRef(input.resolve, fact?.currency);
-  const gearSet = fact?.gearSet?.entityKey ? projectGearSet(fact.gearSet.entityKey, input) : undefined;
+  const gearSet = fact?.gearSet?.entityKey ? projectItemGearSet(fact.gearSet.entityKey, input) : undefined;
   const droppedBy = mergeCounterpartRows((indexes.dropsByItem.get(entity.entityKey) ?? []).map((row) => ({
     counterpart: input.resolve(row.owner), ...lootFields(row, conditions, input),
   })), input);
@@ -209,19 +211,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     counterpart: input.resolve(row.npc), price: { amount: Math.max(0, row.cost), currency: endpointOrUnknown(input.resolve, row.currency, "Unknown currency") },
     requirements: requirementsFor(row.conditionIds, conditions, input.resolve),
   })), input);
-  const refName = (value: Ref) => isEntityRef(value) ? value.name : value.label;
-  const offers = new Map<string, { item: Ref; price: { amount: number; currency: NonNullable<typeof currency> }; sellers: Map<string, Ref> }>();
-  if (currency && fact?.currency?.entityKey) for (const row of indexes.vendorsByCurrency.get(fact.currency.entityKey) ?? []) {
-    const item = input.resolve(row.item), seller = input.resolve(row.npc);
-    const itemKey = row.item.entityKey ?? row.item.label, sellerKey = row.npc.entityKey ?? row.npc.label;
-    const amount = Math.max(0, row.cost), key = `${itemKey}:${amount}`;
-    const offer = offers.get(key) ?? { item: isEntityRef(item) ? item : { ...item, label: displayName(item.label) }, price: { amount, currency }, sellers: new Map() };
-    offer.sellers.set(sellerKey, isEntityRef(seller) ? seller : { ...seller, label: displayName(seller.label) });
-    offers.set(key, offer);
-  }
-  const buys = [...offers.values()].map(({ item, price, sellers }) => ({
-    item, price, soldBy: [...sellers.values()].sort((a, b) => refName(a).localeCompare(refName(b))),
-  })).sort((a, b) => refName(a.item).localeCompare(refName(b.item)) || a.price.amount - b.price.amount);
+  const buys = currency && fact?.currency?.entityKey ? currencyPurchases(fact.currency.entityKey, currency, indexes, input) : [];
   // A yield of a gathering node links the node. A row of an object that a scene places belongs to the node of that
   // object, so it reads as gathered, not collected.
   const itemInteractions = indexes.interactionsByItem.get(entity.entityKey) ?? [];
@@ -400,21 +390,5 @@ export function projectCraft(recipeKey: string, input: DocumentProjectionInput, 
     learnedByDefault: fact.learnedByDefault,
     materials: rows.filter((row) => row.role === "material").map((row) => ({ counterpart: input.resolve(row.item), count: Math.max(0, row.count) })),
     ranks, taughtBy,
-  };
-}
-
-/**
- * The gear set of an item, in full: its members, then each tier as the number of equipped members it needs and the
- * stats it grants, which is the order the game's own item tooltip shows.
- */
-function projectGearSet(setKey: string, input: DocumentProjectionInput): GearSet | undefined {
-  const fact = input.facts.gearSets.find((candidate) => candidate.entityKey === setKey);
-  if (!fact || !input.entities.some((candidate) => candidate.entityKey === setKey)) return undefined;
-  // The set's reference carries its formatted and qualified name, so the tooltip names the set as every other link does.
-  const set = input.resolve({ entityKey: setKey, label: setKey });
-  return {
-    key: setKey, name: isEntityRef(set) ? set.name : set.label, members: fact.members.map(input.resolve),
-    tiers: fact.tiers.map((tier) => ({ equipped: Math.max(1, tier.equipped),
-      stats: tier.stats.map((row) => ({ stat: input.resolve(row.stat), amount: row.amount, isPercent: row.isPercent })) })),
   };
 }

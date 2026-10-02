@@ -1,24 +1,29 @@
 ## Why
 
-The catalog records effects, stats, enchantments, and factions, but the publication does not give them linked homes. Readers cannot follow their references or inspect recorded rules. Separate pages for every record would obscure the useful relationships in this build.
+Readers meet gear sets, currencies, crafting stations, races, and factions on many pages, but none of them has a page. A set name, a price in Honor, a station on the map, a class's races, and an NPC's faction read as plain text, so a reader cannot see what the set gives, what a currency buys, where a station stands, which classes a race offers, or how a faction treats them. The owner also asked for factions and reputation to be explained.
 
 ## What Changes
 
-- Publish one glossary page each at `/effects/`, `/stats/`, and `/factions/`. Give every reachable catalog record one anchored row, a search entry, a link target, and a tooltip based on that row.
-- Show recorded effect behavior, applications, and requirements. Show stat meanings and verified rules, with links to filtered items and the classes and skills that name the stat. Show faction stances, default relations, member counts, and filtered NPCs.
-- Put each enchantment's recorded tiers, eligibility, costs, rate, time, and skill facts in the Enchants section of its item page. Publish `/enchantments/` as a list of enchanting items linked to those sections. Give an enchantment without a published item an anchored list row and a coverage gap.
-- Put the four entry points in the Reference navigation group. Keep every reachable catalog record and its entity key. Label absent links and evidence without inventing values.
+- Give gear sets, currencies, crafting stations, races, and factions regular entity pages, lists, search entries, and hover tooltips, in the same page model as other kinds. Their references across the site become links.
+- A gear set page shows the set's bonuses with the verified rule for when they apply, and its pieces with what each piece is. An item's gear set names and links the set.
+- A currency page shows how to get the currency, what merchants sell for it, the properties priced in it, and the quests that reward it.
+- A crafting station page shows where the station stands, with map links, and the recipes made at it. Map spots of a station carry the station's key, and the internal Savers station is excluded with reviewed evidence.
+- A race page shows where its characters start, the classes it offers, and its adventurers.
+- A faction page shows a new character's standing with the faction, the faction's stances, its stance toward each faction, and a link to its NPCs. A new Factions and Reputation guide explains standing, factions in combat, changing standing, and the Reputation panel with native-verified rules.
+- The Browse panel lists the new kinds in the World, Items, and Character columns, and the Mechanics column and the hub list the new guide.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `reference-kinds`: Define glossary rows, item Enchants sections, the enchantment list, search, tooltips, and reference targets for these kinds.
+- `reference-kinds`: Pages, lists, search, and tooltips for gear sets, currencies, crafting stations, races, and factions, and the Factions and Reputation guide.
 
 ### Modified Capabilities
 
-None. The new capability defines the added item section without replacing an existing item-page requirement. Its search and document keys satisfy the existing publication parity requirement.
+- `item-property-presentation`: An item's gear set links the set's page instead of standing in for a page.
+- `compendium-tooltips`: An item tooltip links its gear set's name.
+- `reference-layout`: The Browse panel columns name the new kinds and every guide topic.
 
 ## Impact
 
-The change updates catalog queries and, only if evidence requires it, capture and catalog extraction. It adds public glossary and item-section contracts, publication projections, reference resolution, search entries, and site views. It uses the Reference navigation group from `build-compendium-hub` and the home-page anchor pattern from `restructure-page-model`. Its stat and faction links depend on URL-backed list filters from `add-list-filters`. The NPC list already has a Faction column and facet. Publication, staging, browser checks, and joint catalog/publication acceptance follow the existing update workflow. No redirects or old slugs are retained.
+Public contracts gain five page kinds and their schemas, item documents move to `compendium.static-item.v22`, and mechanics documents move to `compendium.static-mechanics.v16` for the new topic. The publication projects the new documents, list rows, and the factions guide, and checks the Savers exclusion. The map shards add station keys to station spots. The rules record gains the factions topic. The site adds five pages, five tooltips, a shared purchases section, and the guide's standings table. Stats, effects, and enchantments are separate changes.

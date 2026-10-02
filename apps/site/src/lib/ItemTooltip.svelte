@@ -7,7 +7,7 @@
   import NativeText from './NativeText.svelte';
   import Price from './Price.svelte';
   import RequirementList from './RequirementList.svelte';
-  import { formatNumber, rangeText, rarityTone, signedAmount } from './format';
+  import { formatNumber, nameOf, rangeText, rarityTone, signedAmount } from './format';
 
   // The item as the game's own tooltip shows it. A page links the entities that it names through the `ref` slot.
   // A hover tooltip names them with EntityReference, because a link opens a tooltip of its own.
@@ -64,8 +64,8 @@
     {#if facts.enchantment}<p>Enchantment: <slot name="ref" ref={facts.enchantment} rankIndex={undefined}><EntityReference ref={facts.enchantment} {registry} /></slot></p>{/if}
 
     {#if set}
-      <section class="gear-set" aria-label={set.name}>
-        <h4>{set.name} <span class="dim">({set.members.length} pieces)</span></h4>
+      <section class="gear-set" aria-label={nameOf(set.set)}>
+        <h4><slot name="ref" ref={set.set} rankIndex={undefined}><EntityReference ref={set.set} {registry} /></slot> <span class="dim">({set.members.length} pieces)</span></h4>
         <ul class="plain">{#each set.members as member}<li class:current={member.key === document.ref.key}><slot name="ref" ref={member} rankIndex={undefined}><EntityReference ref={member} {registry} /></slot></li>{/each}</ul>
         <ul class="plain tiers">{#each set.tiers as tier}<li><span class="dim">({tier.equipped})</span> {#each tier.stats as stat, index}{index > 0 ? ', ' : ''}{signedAmount(stat.amount, stat.isPercent)} {statName(stat)}{/each}</li>{/each}</ul>
       </section>

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { CatalogEntityRow, CatalogFacts, CatalogNpcFacts, CatalogRelations, CatalogTaskFacts, CatalogRequirement, CatalogQuestRow } from "@afallon/contracts/catalog";
-import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type PublicDocument, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
+import { STATIC_DOCUMENT_SCHEMA_IDS, type PublicAbility, type EntityRef, type GearSetTier, type PublicDocument, type PublicGearSet, type PublicItem, type PublicNpc, type PublicPlace, type PublicProperty, type PublicQuest, type PublicSkill } from "@afallon/contracts/public";
 import type { CatalogGatheringNode, CatalogMechanicsRule } from "@afallon/contracts/catalog";
 import { corruptionRewards, type CorruptionRewards } from "./corruption-rewards";
 import { readerCoverage } from "./coverage";
@@ -546,18 +546,22 @@ test("ability list sources prefer classes, summarize many creatures, and retain 
   ]);
 });
 
-test("shows a gear set in full on its member item and publishes no gear set page", () => {
+test("shows a gear set in full on its member item and on the set's own page", () => {
   const { documents } = project(entities, facts, relations);
   const item = documents.get("items:1") as PublicItem;
-  expect(documents.has("gearSets:17")).toBe(false);
+  const setRef: EntityRef = { key: "gearSets:17", kind: "gearSets", name: "Adept Leather", slug: "adept-leather" };
+  const tiers: GearSetTier[] = [
+    { equipped: 3, stats: [{ stat: { key: "stats:12", kind: "stats", name: "Poison Damage" }, amount: 10, isPercent: true }] },
+    { equipped: 7, stats: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amount: 40, isPercent: false }] },
+  ];
   expect(item.facts.gearSet).toEqual({
-    key: "gearSets:17", name: "Adept Leather",
-    members: [{ key: "items:1", kind: "items", name: "Oathbreaker's Edge", slug: "oathbreakers-edge" }, { key: null, label: "Item 999" }],
-    tiers: [
-      { equipped: 3, stats: [{ stat: { key: "stats:12", kind: "stats", name: "Poison Damage" }, amount: 10, isPercent: true }] },
-      { equipped: 7, stats: [{ stat: { key: "stats:27", kind: "stats", name: "Strength" }, amount: 40, isPercent: false }] },
-    ],
+    set: setRef, members: [{ key: "items:1", kind: "items", name: "Oathbreaker's Edge", slug: "oathbreakers-edge" }, { key: null, label: "Item 999" }], tiers,
   });
+  const set = documents.get("gearSets:17") as PublicGearSet;
+  expect(set.pieces).toEqual([{ item: { key: "items:1", kind: "items", name: "Oathbreaker's Edge", slug: "oathbreakers-edge" }, type: "One Handed Sword" }, { item: { key: null, label: "Item 999" } }]);
+  expect(set.tiers).toEqual(tiers);
+  // A set with a piece of unknown kind names no type, so the list offers no type for it.
+  expect(set.type).toBeUndefined();
 });
 
 test("projects only the armor branch when native weapon defaults remain", () => {

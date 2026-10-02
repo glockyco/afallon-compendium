@@ -23,6 +23,7 @@
   import ContainerSection from '../sections/ContainerSection.svelte';
   import DroppedBySection from '../sections/DroppedBySection.svelte';
   import GatherSection from '../sections/GatherSection.svelte';
+  import PurchasesSection from '../sections/PurchasesSection.svelte';
   import QuestRowsSection from '../sections/QuestRowsSection.svelte';
   import VendorSection from '../sections/VendorSection.svelte';
   import Section from '../Section.svelte';
@@ -52,12 +53,6 @@
   $: onlyDrop = document.droppedBy.length === 1 ? document.droppedBy[0] : undefined;
   $: singleDropInAnswer = Boolean(onlyDrop?.creatureLevel && !onlyDrop.requirements.length && (onlyDrop.min ?? 1) === 1 && (onlyDrop.max ?? 1) === 1 && onlyDrop.chance !== undefined);
   $: onMap = document.sourceSpotCount > 0;
-  const buyColumns: RelationColumn<PublicItem['buys'][number]>[] = [
-    { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
-    { id: 'cost', label: 'Cost', value: (row) => row.price.amount, sort: (row) => row.price.amount },
-    { id: 'sold-by', label: 'Sold by', value: (row) => row.soldBy.map((seller) => 'name' in seller ? seller.name : seller.label).join(', ') },
-  ];
-  $: buyPlan = planColumns(buyColumns, document.buys);
   const chestColumns: RelationColumn<PublicItem['whenUsed']['chests'][number]['rows'][number]>[] = [
     { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
     { id: 'quantity', label: 'Quantity', hint: 'How many of the item drop. Every amount in the range is equally likely.', numeric: true, value: (row) => `${row.min}–${row.max}`, sort: (row) => row.max },
@@ -223,17 +218,7 @@
       </Section>
     {/if}
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
-    {#if document.buys.length}
-      <Section id="buys" title="Buys" count={document.buys.length}>
-        <RelationTable columns={buyPlan.columns} rows={document.buys} label="Buys">
-          <svelte:fragment slot="cell" let:row let:column>
-            {#if column === 'item'}<EntityLink ref={row.item} {registry} />
-            {:else if column === 'cost'}<Price price={row.price} showName />
-            {:else}{#each row.soldBy as seller, index}{#if index}, {/if}<EntityLink ref={seller} {registry} />{/each}{/if}
-          </svelte:fragment>
-        </RelationTable>
-      </Section>
-    {/if}
+    {#if document.buys.length}<PurchasesSection id="buys" title="Buys" rows={document.buys} {registry} />{/if}
     {#if document.droppedBy.length && !singleDropInAnswer}<DroppedBySection rows={document.droppedBy} {registry} />{/if}
     {#if document.clothDrop}
       <Section id="cloth-loot" title="Cloth loot">

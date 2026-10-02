@@ -35,6 +35,7 @@ const topicRules: Record<NonNullable<CatalogMechanicsRule["topic"]>, Array<[stri
     ["weapon-skills", "skill-experience"], ["weapon-skills-untrained", "skill-experience"], ["crafting-skill-source", "skill-experience"], ["enchanting-skill-source", "skill-experience"], ["unmapped-skill-sources", "skill-experience"]],
   adventurers: [],
   corruption: [],
+  factions: [],
   loot: [["chest-row-rolls", "chests"], ["supply-pack-tables", "supply-packs"], ["supply-pack-picks", "supply-packs"], ["supply-pack-world-loot", "supply-packs"], ["supply-pack-lifecycle", "supply-packs"],
     ["cloth-drop-chance", "cloth"], ["cloth-tier-weights", "cloth"], ["object-chest", "world-objects"], ["altar-options", "world-objects"],
     ["quest-only-loot", "quest-items"], ["hunt-pickup", "quest-items"], ["quest-pickup-use", "quest-items"], ["random-run-supply-pack", "dungeon-finder"]],

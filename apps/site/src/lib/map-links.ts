@@ -11,8 +11,8 @@ export const entityOnMap = (key: string) => mapHref({ entity: key });
 
 /** Every published spot of a gathering node, including categories hidden by default. */
 export const nodeOnMap = (key: string) => mapHref({ entity: key, categories: 'all' });
-/** Every spot of a node in one published place, including distinct areas on the same map. */
-export const nodePlaceOnMap = (key: string, place: { mapSpaceId: string; label: string }) =>
+/** Every spot of a gathering node or a crafting station in one published place, including distinct areas on the same map. */
+export const entityPlaceOnMap = (key: string, place: { mapSpaceId: string; label: string }) =>
   mapHref({ entity: key, 'node-place': nodePlaceKey(place), categories: 'all' });
 
 /**

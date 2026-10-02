@@ -39,16 +39,22 @@ export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
   // Gathering nodes come from world objects, not from game records. Their keys belong to the catalog.
   { kind: "gatheringNodes", label: "Gathering Node", plural: "Gathering Nodes", route: "gathering-nodes", icon: "gathering-node", pages: true, list: true, searchable: true,
     columns: [column("skill", "Skill"), column("requiredLevel", "Required level", true), column("locations", "Locations", true)], facets: [facet("skill", "Skill")] },
-  { kind: "gearSets", label: "Gear Set", plural: "Gear Sets", route: "gear-sets", icon: "gear-set", pages: false, list: false, searchable: false, columns: [], facets: [] },
-  { kind: "currencies", label: "Currency", plural: "Currencies", route: "currencies", icon: "currency", pages: false, list: false, searchable: false, columns: [], facets: [] },
+  // A gear set names what its pieces are, how many pieces it has, and how many pieces its last bonus needs.
+  { kind: "gearSets", label: "Gear Set", plural: "Gear Sets", route: "gear-sets", icon: "gear-set", pages: true, list: true, searchable: true,
+    columns: [column("type", "Type"), column("pieces", "Pieces", true), column("fullBonus", "Pieces for last bonus", true)], facets: [facet("type", "Type")] },
+  { kind: "currencies", label: "Currency", plural: "Currencies", route: "currencies", icon: "currency", pages: true, list: true, searchable: true,
+    columns: [column("purchases", "Items sold for it", true), column("rewards", "Quest rewards", true)], facets: [] },
   { kind: "stats", label: "Stat", plural: "Stats", route: "stats", icon: "stat", pages: false, list: false, searchable: false, columns: [], facets: [] },
-  { kind: "factions", label: "Faction", plural: "Factions", route: "factions", icon: "faction", pages: false, list: false, searchable: false, columns: [], facets: [] },
-  { kind: "races", label: "Race", plural: "Races", route: "races", icon: "race", pages: false, list: false, searchable: false, columns: [], facets: [] },
+  { kind: "factions", label: "Faction", plural: "Factions", route: "factions", icon: "faction", pages: true, list: true, searchable: true,
+    columns: [column("members", "NPCs", true)], facets: [] },
+  { kind: "races", label: "Race", plural: "Races", route: "races", icon: "race", pages: true, list: true, searchable: true,
+    columns: [column("start", "Starting place"), column("classes", "Classes", true), column("adventurers", "Adventurers", true)], facets: [] },
   { kind: "enchantments", label: "Enchantment", plural: "Enchantments", route: "enchantments", icon: "enchantment", pages: false, list: false, searchable: false, columns: [], facets: [] },
   { kind: "effects", label: "Effect", plural: "Effects", route: "effects", icon: "effect", pages: false, list: false, searchable: false, columns: [], facets: [] },
   { kind: "species", label: "Species", plural: "Species", route: "species", icon: "species", pages: false, list: false, searchable: false, columns: [], facets: [] },
   { kind: "lootTables", label: "Loot Table", plural: "Loot Tables", route: "loot-tables", icon: "loot-table", pages: false, list: false, searchable: false, columns: [], facets: [] },
-  { kind: "craftingStations", label: "Crafting Station", plural: "Crafting Stations", route: "crafting-stations", icon: "crafting-station", pages: false, list: false, searchable: false, columns: [], facets: [] },
+  { kind: "craftingStations", label: "Crafting Station", plural: "Crafting Stations", route: "crafting-stations", icon: "crafting-station", pages: true, list: true, searchable: true,
+    columns: [column("skill", "Skill"), column("recipes", "Recipes", true), column("spots", "Map spots", true)], facets: [] },
 ] satisfies PublicKindEntry[]);
 
 export const PUBLIC_KIND_BY_KIND: Readonly<Record<PublicReferenceKind, PublicKindEntry>> = Object.freeze(

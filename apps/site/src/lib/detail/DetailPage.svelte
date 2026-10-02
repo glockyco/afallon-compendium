@@ -6,6 +6,10 @@
   import CorruptionPage from './pages/CorruptionPage.svelte';
   import GatheringNodePage from './pages/GatheringNodePage.svelte';
   import ClassPage from './pages/ClassPage.svelte';
+  import CraftingStationPage from './pages/CraftingStationPage.svelte';
+  import CurrencyPage from './pages/CurrencyPage.svelte';
+  import FactionPage from './pages/FactionPage.svelte';
+  import GearSetPage from './pages/GearSetPage.svelte';
   import HeroicTierPage from './pages/HeroicTierPage.svelte';
   import ItemPage from './pages/ItemPage.svelte';
   import GuidePage from './pages/GuidePage.svelte';
@@ -13,6 +17,7 @@
   import PlacePage from './pages/PlacePage.svelte';
   import PropertyPage from './pages/PropertyPage.svelte';
   import QuestPage from './pages/QuestPage.svelte';
+  import RacePage from './pages/RacePage.svelte';
   import SkillPage from './pages/SkillPage.svelte';
 
   /** The published document with its kind, which selects the page of that kind. */
@@ -33,5 +38,10 @@
 {:else if page.kind === 'mechanics' && page.document.topic === 'heroic-tier'}<HeroicTierPage document={page.document} {registry} />
 {:else if page.kind === 'mechanics' && page.document.topic === 'crafting-and-gathering'}<CraftingAndGatheringPage document={page.document} {registry} />
 {:else if page.kind === 'mechanics' && page.document.topic === 'corruption'}<CorruptionPage document={page.document} {registry} {inlineItem} />
-{:else if page.kind === 'mechanics' && (page.document.topic === 'loot' || page.document.topic === 'adventurers')}<GuidePage document={page.document} {registry} />
-{:else if page.kind === 'gatheringNodes'}<GatheringNodePage document={page.document} {registry} />{/if}
+{:else if page.kind === 'mechanics' && (page.document.topic === 'loot' || page.document.topic === 'adventurers' || page.document.topic === 'factions')}<GuidePage document={page.document} {registry} />
+{:else if page.kind === 'gatheringNodes'}<GatheringNodePage document={page.document} {registry} />
+{:else if page.kind === 'gearSets'}<GearSetPage document={page.document} {registry} />
+{:else if page.kind === 'currencies'}<CurrencyPage document={page.document} {registry} />
+{:else if page.kind === 'craftingStations'}<CraftingStationPage document={page.document} {registry} />
+{:else if page.kind === 'races'}<RacePage document={page.document} {registry} />
+{:else if page.kind === 'factions'}<FactionPage document={page.document} {registry} />{/if}

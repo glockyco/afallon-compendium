@@ -2,12 +2,17 @@
   import type { PublicKindEntry, StaticDocument } from '@afallon/contracts/public';
   import AbilityTooltip from './AbilityTooltip.svelte';
   import ClassTooltip from './ClassTooltip.svelte';
+  import CraftingStationTooltip from './CraftingStationTooltip.svelte';
+  import CurrencyTooltip from './CurrencyTooltip.svelte';
+  import FactionTooltip from './FactionTooltip.svelte';
   import GatheringNodeTooltip from './GatheringNodeTooltip.svelte';
+  import GearSetTooltip from './GearSetTooltip.svelte';
   import ItemTooltip from './ItemTooltip.svelte';
   import NpcTooltip from './NpcTooltip.svelte';
   import PlaceTooltip from './PlaceTooltip.svelte';
   import PropertyTooltip from './PropertyTooltip.svelte';
   import QuestTooltip from './QuestTooltip.svelte';
+  import RaceTooltip from './RaceTooltip.svelte';
   import SkillTooltip from './SkillTooltip.svelte';
   import { itemSourceLines, summaryText } from './detail/item-sources';
 
@@ -38,6 +43,11 @@
 {:else if page.kind === 'properties'}<PropertyTooltip document={page.document} />
 {:else if page.kind === 'classes'}<ClassTooltip document={page.document} {variant} />
 {:else if page.kind === 'skills'}<SkillTooltip document={page.document} />
-{:else if page.kind === 'gatheringNodes'}<GatheringNodeTooltip document={page.document} />{/if}
+{:else if page.kind === 'gatheringNodes'}<GatheringNodeTooltip document={page.document} />
+{:else if page.kind === 'gearSets'}<GearSetTooltip document={page.document} />
+{:else if page.kind === 'currencies'}<CurrencyTooltip document={page.document} />
+{:else if page.kind === 'craftingStations'}<CraftingStationTooltip document={page.document} />
+{:else if page.kind === 'races'}<RaceTooltip document={page.document} />
+{:else if page.kind === 'factions'}<FactionTooltip document={page.document} />{/if}
 
 <style>.context { margin: .55rem 0 0; color: var(--c-text-dim); font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }</style>

@@ -113,7 +113,7 @@
   $: itemPlacementIds = new Set((itemKey ? searchIndexes.placementsByEntryKey.get(itemKey) ?? [] : []).map((placement) => placement.placementId));
   $: selectedNode = selectedEntityKey && entriesByKey.get(selectedEntityKey)?.ref.kind === 'gatheringNodes';
   $: nodePlacementIds = new Set((selectedNode ? searchIndexes.placementsByEntryKey.get(selectedEntityKey!) ?? [] : []).map((placement) => placement.placementId));
-  $: nodePlaceIds = nodePlace && selectedPage?.kind === 'gatheringNodes' ? nodePlacePlacementIds(selectedPage.document, nodePlace) : null;
+  $: nodePlaceIds = nodePlace && (selectedPage?.kind === 'gatheringNodes' || selectedPage?.kind === 'craftingStations') ? nodePlacePlacementIds(selectedPage.document, nodePlace) : null;
   $: corpusEntries = searchIndexes.searchEntries;
   $: placementSearchText = searchIndexes.placementSearchText;
   $: searchNeedle = query.trim().toLocaleLowerCase();

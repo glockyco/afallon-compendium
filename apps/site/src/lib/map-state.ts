@@ -230,7 +230,7 @@ export function nodePlaceKey(place: { mapSpaceId: string; label: string }): stri
   return JSON.stringify([place.mapSpaceId, place.label]);
 }
 
-/** Spots of one gathering node in one published place, not every node in that place. */
+/** Spots of one gathering node or crafting station in one published place, not every spot in that place. */
 export function nodePlacePlacementIds(node: { places: readonly { mapSpaceId: string; label: string; placementIds: readonly string[] }[] }, placeKey: string): Set<string> {
   return new Set(node.places.filter((place) => nodePlaceKey(place) === placeKey).flatMap((place) => place.placementIds));
 }

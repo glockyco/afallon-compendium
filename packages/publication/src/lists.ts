@@ -9,7 +9,11 @@ import type {
   ListStat,
   PublicAbility,
   PublicClass,
+  PublicCraftingStation,
+  PublicCurrency,
   PublicDocument,
+  PublicFaction,
+  PublicGearSet,
   PublicGatheringNode,
   PublicItem,
   PublicKindEntry,
@@ -18,6 +22,7 @@ import type {
   PublicPlace,
   PublicProperty,
   PublicQuest,
+  PublicRace,
   PublicSkill,
   EntityRef,
   Ref,
@@ -133,6 +138,28 @@ function gatheringNodeRow(document: PublicGatheringNode): ListRow {
   return { ref: document.ref, values: { skill, requiredLevel: document.facts.requiredLevel ?? null, locations }, facets: { skill: facetValue(skill) } };
 }
 
+function gearSetRow(document: PublicGearSet): ListRow {
+  return { ref: document.ref, values: { type: document.type ?? null, pieces: document.pieces.length,
+    fullBonus: document.tiers.length ? Math.max(...document.tiers.map((tier) => tier.equipped)) : null }, facets: { type: facetValue(document.type) } };
+}
+
+function currencyRow(document: PublicCurrency): ListRow {
+  return { ref: document.ref, values: { purchases: document.purchases.length || null, rewards: document.rewards.length || null }, facets: {} };
+}
+
+function craftingStationRow(document: PublicCraftingStation): ListRow {
+  const spots = document.places.reduce((sum, place) => sum + place.spotCount, 0);
+  return { ref: document.ref, values: { skill: document.skills.map(refName).join(", ") || null, recipes: document.recipes.length || null, spots: spots || null }, facets: {} };
+}
+
+function raceRow(document: PublicRace): ListRow {
+  return { ref: document.ref, values: { start: refName(document.start), classes: document.classes.length || null, adventurers: document.adventurers.length || null }, facets: {} };
+}
+
+function factionRow(document: PublicFaction): ListRow {
+  return { ref: document.ref, values: { members: document.members || null }, facets: {} };
+}
+
 export function buildKindLists(
   identity: { buildId: string; catalogId: string },
   registry: readonly PublicKindEntry[],
@@ -157,6 +184,11 @@ export function buildKindLists(
       case "skills": if (!isSkill(document)) continue; row = skillRow(document); break;
       case "mechanics": row = { ref: document.ref, values: { description: document.description }, facets: {} }; break;
       case "gatheringNodes": row = gatheringNodeRow(document as PublicGatheringNode); break;
+      case "gearSets": row = gearSetRow(document as PublicGearSet); break;
+      case "currencies": row = currencyRow(document as PublicCurrency); break;
+      case "craftingStations": row = craftingStationRow(document as PublicCraftingStation); break;
+      case "races": row = raceRow(document as PublicRace); break;
+      case "factions": row = factionRow(document as PublicFaction); break;
       default: continue;
     }
     const rows = rowsByKind.get(document.ref.kind) ?? [];

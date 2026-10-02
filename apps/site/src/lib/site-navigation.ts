@@ -9,9 +9,9 @@ export interface Navigation { primary: NavigationLink[]; sections: NavigationGro
 const PRIMARY: readonly string[] = ['map', 'items', 'recipes', 'quests', 'classes', 'skills'];
 // Browse panel columns in order. Recipes have a list without detail pages.
 const SECTIONS: ReadonlyArray<{ id: string; label: string; entries: readonly string[] }> = [
-  { id: 'world', label: 'World', entries: ['map', 'places', 'npcs', 'quests', 'properties'] },
-  { id: 'items', label: 'Items', entries: ['items', 'recipes', 'gatheringNodes'] },
-  { id: 'character', label: 'Character', entries: ['classes', 'skills', 'abilities'] },
+  { id: 'world', label: 'World', entries: ['map', 'places', 'npcs', 'quests', 'properties', 'factions'] },
+  { id: 'items', label: 'Items', entries: ['items', 'recipes', 'gatheringNodes', 'gearSets', 'currencies', 'craftingStations'] },
+  { id: 'character', label: 'Character', entries: ['classes', 'races', 'skills', 'abilities'] },
   { id: 'mechanics', label: 'Mechanics', entries: ['mechanics'] },
 ];
 
@@ -19,7 +19,7 @@ const SECTIONS: ReadonlyArray<{ id: string; label: string; entries: readonly str
 export const GUIDE_TOPICS: ReadonlyArray<{ label: string; slug: string }> = [
   { label: 'Adventurers', slug: 'adventurers' }, { label: 'Character Progression', slug: 'character-progression' },
   { label: 'Crafting and Gathering', slug: 'crafting-and-gathering' }, { label: 'Corruption', slug: 'corruption' },
-  { label: 'Heroic Tier', slug: 'heroic-tier' }, { label: 'Loot', slug: 'loot' },
+  { label: 'Factions and Reputation', slug: 'factions' }, { label: 'Heroic Tier', slug: 'heroic-tier' }, { label: 'Loot', slug: 'loot' },
 ];
 
 /**

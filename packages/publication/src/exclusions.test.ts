@@ -6,7 +6,8 @@ import { assertExclusionEvidence, withoutExcludedRelations, type ExclusionEviden
 const entity = (kind: string, nativeId: number, name: string): CatalogEntityRow => ({ entityKey: `${kind}:${nativeId}`, kind, nativeId, name, description: null, iconAssetName: null, artwork: [] });
 const relations: CatalogRelations = { drops: [], vendors: [], gathers: [], containers: [], interactions: [], quests: [], recipes: [], placements: [], transitions: [], conditions: [], gatedSources: [] };
 const facts: CatalogFacts = { entities: [], items: [], npcs: [], quests: [], tasks: [], places: [], raceStarts: [], properties: [], abilities: [], recipes: [], gearSets: [], progression: { facts: [], links: [], talentNodes: [], spellbookNodes: [], learners: [], unlocks: [], appliers: [], offeredClasses: [], mechanicsRules: [] }, gatheringNodes: [], adventurerItems: [], adventurerWorld: null, dungeonFinderTank: null, adventurerInviteEffects: [], itemLootTables: [] };
-const input: ExclusionEvidenceInput = { entities: [entity("items", 417, "DEV RING"), entity("npcs", 124, "SM_hc_Inn"), entity("scenes", 18, "Challenge stone frost")], facts, relations, spawnCandidates: new Set(), startingGear: new Map() };
+const input: ExclusionEvidenceInput = { entities: [entity("items", 417, "DEV RING"), entity("npcs", 124, "SM_hc_Inn"), entity("scenes", 18, "Challenge stone frost"), entity("craftingStations", 4, "Savers")], facts, relations, spawnCandidates: new Set(), startingGear: new Map(),
+  placementIdsByKey: new Map(), excluded: new Set(["recipes:36"]) };
 const devRing: PublicationExclusion = { key: "items:417", reason: "test-record", evidence: "The name DEV RING marks a developer record." };
 const inn: PublicationExclusion = { key: "npcs:124", reason: "unplaced-record", evidence: "SM_hc_Inn is a model name with no role or placement." };
 
@@ -20,6 +21,15 @@ test("an exclusion fails and names its entry when the catalog contradicts its ev
   expect(() => assertExclusionEvidence([inn], { ...input, relations: placed })).toThrow("Exclusion npcs:124 (unplaced-record) no longer holds: the NPC has a placement.");
   expect(() => assertExclusionEvidence([inn], { ...input, spawnCandidates: new Set(["npcs:124"]) })).toThrow("the NPC is a spawn candidate");
   expect(() => assertExclusionEvidence([{ ...devRing, key: "items:999" }], input)).toThrow("Exclusion items:999 (test-record) names a record that the catalog lacks.");
+});
+
+test("a crafting station stays excluded only while it has no map spot and makes no published recipe", () => {
+  const savers: PublicationExclusion = { key: "craftingStations:4", reason: "progress-flag", evidence: "Savers makes only progress-flag recipes and stands nowhere." };
+  const recipe = (entityKey: string) => ({ ...({} as CatalogFacts["recipes"][number]), entityKey, station: { entityKey: "craftingStations:4", label: "Savers" } });
+  assertExclusionEvidence([savers], { ...input, facts: { ...facts, recipes: [recipe("recipes:36")] } });
+  expect(() => assertExclusionEvidence([savers], { ...input, facts: { ...facts, recipes: [recipe("recipes:36"), recipe("recipes:5")] } }))
+    .toThrow("Exclusion craftingStations:4 (progress-flag) no longer holds: the station makes a published recipe.");
+  expect(() => assertExclusionEvidence([savers], { ...input, placementIdsByKey: new Map([["craftingStations:4", ["p1"]]]) })).toThrow("the station has a map spot");
 });
 
 test("no relation row names an excluded record", () => {

@@ -288,3 +288,8 @@ const FRIENDLY_ROLES = new Set(['questGiver', 'merchant', 'townsfolk', 'banker',
 export function onlyFriendlyRoles(roles: readonly string[]): boolean {
   return roles.length > 0 && roles.every((role) => FRIENDLY_ROLES.has(role));
 }
+
+/** The game's name of the alignment that a faction stance gives toward the player. */
+export function alignmentLabel(alignment: 'ally' | 'neutral' | 'enemy'): string {
+  return { ally: 'Ally', neutral: 'Neutral', enemy: 'Enemy' }[alignment];
+}

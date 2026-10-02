@@ -72,6 +72,16 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
       { id: "gear-upgrades", title: "Gear upgrades", lead: "Adventurers improve their own equipment from a shared list of reward gear, and some also from a gear kit of their own." },
     ],
   },
+  factions: {
+    overview: "Every NPC belongs to a faction, and you have a standing with each faction. Your standing is a stance, such as Hated or Honored, and points toward the next stance.",
+    sections: [
+      { id: "standing-and-stances", title: "Standing and stances", lead: "Your standing with a faction is one of its stances, with points toward the next one." },
+      { id: "new-character-standing", title: "Standing of a new character", lead: "The table shows the stance and points that a new character starts with toward each faction." },
+      { id: "combat-relations", title: "Factions in combat", lead: "Your stance with a faction decides whether its NPCs count as allies, neutral, or enemies in combat." },
+      { id: "changing-standing", title: "Changing standing", lead: "Creature kills, quests, and items can be set up to change your standing." },
+      { id: "reputation-display", title: "Reputation panel", lead: "The Reputation panel of the character window lists the factions that are marked to appear there." },
+    ],
+  },
 };
 
 /** Whether the guide of a topic has a section with this id. */

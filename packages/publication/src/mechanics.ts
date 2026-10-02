@@ -1,5 +1,5 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { AdventurerGear, AdventurerRosterRow, AdventurersGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicItem, PublicLevel, PublicMechanics, PublicNpc, Ref, TalentPoints } from "@afallon/contracts/public";
+import type { AdventurerGear, AdventurerRosterRow, AdventurersGuide, FactionsGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicFaction, PublicItem, PublicLevel, PublicMechanics, PublicNpc, PublicQuest, Ref, TalentPoints } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
 import type { ReferenceResolver } from "./documents/projection";
@@ -12,6 +12,7 @@ import { levelUnion } from "./levels";
 import { displayName } from "./text";
 import { attunements } from "./attunements";
 import { itemKind, itemTypeLabel } from "./item-type";
+import { newCharacterStandings } from "./documents/factions";
 
 /** Job operands must match the settings in this catalog, not an earlier reviewed value. */
 function adventurerRule(rule: CatalogMechanicsRule, facts: CatalogFacts): CatalogMechanicsRule {
@@ -344,6 +345,27 @@ function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, re
   };
 }
 
+/**
+ * The factions guide: a new character's standing with each published faction, with its NPC count, and the number of
+ * published creatures, quests, and items that change standing.
+ */
+function factionsGuide(facts: CatalogFacts, resolve: ReferenceResolver, entityDocuments: ReadonlyMap<string, PublicDocument>): FactionsGuide {
+  const standings = newCharacterStandings(facts);
+  const rows = [...entityDocuments.values()].filter((document): document is PublicFaction => document.ref.kind === "factions").flatMap((faction) => {
+    const standing = standings.get(faction.ref.key);
+    return standing ? [{ faction: faction.ref, standing, members: faction.members }] : [];
+  }).sort((a, b) => a.faction.name.localeCompare(b.faction.name));
+  if (rows.length === 0) throw new Error("The factions guide needs the verified starting standing of a new character.");
+  const creatures = [...entityDocuments.values()].filter((document) => document.ref.kind === "npcs" && (document as PublicNpc).factionRewards.length > 0).length;
+  const quests = [...entityDocuments.values()].filter((document) => document.ref.kind === "quests"
+    && (document as PublicQuest).rewards.some((row) => row.counterpart.key !== null && row.counterpart.kind === "factions")).length;
+  const items = facts.items.filter((item) => entityDocuments.has(item.entityKey) && (item.gameActions ?? []).some((action) => action.type === "Faction")).length;
+  return {
+    ref: topicRef("factions"), description: MECHANICS_TOPIC_NAMES.factions.description, art: {}, topic: "factions", ...guide(facts, "factions", resolve),
+    standings: rows, standingChanges: creatures + quests + items,
+  };
+}
+
 /** Project reviewed guides and the guide derived from captured Corruption facts. */
 export function projectMechanicsDocuments(facts: CatalogFacts, published: ReadonlySet<string>, spawned: ReadonlyMap<string, PublicLevel>, resolve: ReferenceResolver, conditions: ReadonlyMap<string, CatalogCondition>,
   entityDocuments: ReadonlyMap<string, PublicDocument>, bossDropTables: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
@@ -355,6 +377,7 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve)] : []),
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),
     ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve), gear: adventurerGear(facts, resolve), roster: adventurerRosterRows(entityDocuments) } satisfies AdventurersGuide] : []),
+    ...(topics.has("factions") ? [factionsGuide(facts, resolve, entityDocuments)] : []),
     ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_NAMES.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));

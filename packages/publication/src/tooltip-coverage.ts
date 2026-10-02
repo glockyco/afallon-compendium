@@ -3,7 +3,7 @@ import {
   STATIC_DOCUMENT_SCHEMA_IDS,
   type AbilityVersion,
   type AbilityPhase,
-  type GearSet,
+  type PublicGearSet,
   type PublicAbility,
   type PublicClass,
   type PublicDocument,
@@ -112,14 +112,13 @@ export function auditPublicTooltipCoverage(
     issues.push(`Condition ${condition.conditionId} has unclassified or mixed requirement predicates.`);
   }
 
-  // A gear set shows in full on the page of each member. Each set is checked once.
-  const sets = new Map<string, GearSet>();
+  // A gear set shows in full on its own page and on the page of each member.
   for (const document of documents.values()) {
+    if (document.ref.kind === "gearSets") for (const [index, piece] of (document as PublicGearSet).pieces.entries()) {
+      if (piece.item.key === null) issues.push(`Gear set ${document.ref.key} has unresolved public piece ${index}: ${piece.item.label}.`);
+    }
     const set = document.ref.kind === "items" ? (document as PublicItem).facts.gearSet : undefined;
-    if (set) sets.set(set.key, set);
-  }
-  for (const set of sets.values()) for (const [index, member] of set.members.entries()) if (member.key === null) {
-    issues.push(`Gear set ${set.key} has unresolved public member ${index}: ${member.label}.`);
+    if (set && set.set.key === null) issues.push(`Item ${document.ref.key} names the unresolved gear set ${set.set.label}.`);
   }
 
   if (schemaIdByKey) for (const [key, document] of documents) {
