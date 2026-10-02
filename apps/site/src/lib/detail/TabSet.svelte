@@ -101,10 +101,12 @@
       <button type="button" role="tab" id={`${idPrefix}-tab-${tab.key}`} aria-controls={`${idPrefix}-panel-${tab.key}`} aria-selected={tab.key === selected} tabindex={tab.key === selected ? 0 : -1} bind:this={buttons[index]} on:click={() => choose(tab.key, false)} on:keydown={(event) => keydown(event, index)}>{tab.label}</button>
     {/each}
   </div>
-  <!-- Every tab names a panel. Only the selected panel renders its content, so hidden sections stay out of the page. -->
+  <!-- Every tab names a panel. Only the selected panel renders its content, so hidden sections stay out of the page. A
+       hidden panel keeps an empty target for each anchor that it owns, so a link to the anchor names an element of the
+       page before the panel opens. -->
   {#each tabs as tab (tab.key)}
     <div role="tabpanel" id={`${idPrefix}-panel-${tab.key}`} aria-labelledby={`${idPrefix}-tab-${tab.key}`} tabindex="0" hidden={tab.key !== selected}>
-      {#if tab.key === selected}<slot key={tab.key} />{/if}
+      {#if tab.key === selected}<slot key={tab.key} />{:else}{#each tab.anchors ?? [] as anchor (anchor)}<span id={anchor}></span>{/each}{/if}
     </div>
   {/each}
 </div>
