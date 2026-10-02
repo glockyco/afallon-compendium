@@ -48,7 +48,7 @@ export function recipeRank(rank: { rank: number; unlockCost: number; experience:
     { band: "none", from: requiredLevel + rule.noneFromLevels, to: highestLevel, experience: 0 },
   ];
   const bands = base === 0 ? [] : segments.filter((segment) => segment.from <= highestLevel).map(({ band, from, to, experience }) => ({ band, from, ...(to < highestLevel ? { to } : {}), experience }));
-  return { rank: Math.max(0, rank.rank), requiredLevel, baseExperience: base, bands };
+  return { rank: Math.max(0, rank.rank), requiredLevel, highestLevel, baseExperience: base, bands };
 }
 
 /**

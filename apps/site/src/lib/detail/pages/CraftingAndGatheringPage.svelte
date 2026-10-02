@@ -5,6 +5,7 @@
   import { formatNumber, nameOf } from '../../format';
   import { skillLevelId } from '../../reader-levels';
   import AttunementToggles from '../AttunementToggles.svelte';
+  import CraftExperience from '../CraftExperience.svelte';
   import ReaderLevel from '../ReaderLevel.svelte';
   import SpawnerOdds from '../SpawnerOdds.svelte';
   import { attunementBoosts, relevantAttunements } from '../gathering-odds';
@@ -23,6 +24,7 @@
   const percent = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
   // Each example has its own level control, which the skill's saved level starts, and its own attunements.
   let levels: number[] = [];
+  let craftLevel = 1;
   let active: string[][] = [];
 </script>
 
@@ -42,10 +44,11 @@
           <div class="c-stack">
             <h3>Example: Runeweave Regalia</h3>
             <p><EntityLink ref={document.example.craft.product} {registry} /> needs <EntityLink ref={document.example.craft.skill} {registry} /> level {formatNumber(document.example.craft.rank.requiredLevel)} and gives {formatNumber(document.example.craft.rank.baseExperience)} base experience, which drops as your skill rises:</p>
+            <CraftExperience rank={document.example.craft.rank} skill={document.example.craft.skill} id="craft-example-level" bind:level={craftLevel} />
             {#if document.example.craft.rank.bands.length}
               <div class="table-scroll"><table>
                 <thead><tr><th scope="col">Experience band</th><th scope="col">Skill levels</th><th scope="col">Base experience</th></tr></thead>
-                <tbody>{#each document.example.craft.rank.bands as band}<tr><th scope="row">{bandNames[band.band]}</th><td>{formatNumber(band.from)}{band.to === undefined ? '+' : `–${formatNumber(band.to)}`}</td><td>{formatNumber(band.experience)}</td></tr>{/each}</tbody>
+                <tbody>{#each document.example.craft.rank.bands as band}<tr class:current={craftLevel >= band.from && (band.to === undefined || craftLevel <= band.to)}><th scope="row">{bandNames[band.band]}</th><td>{formatNumber(band.from)}{band.to === undefined ? '+' : `–${formatNumber(band.to)}`}</td><td>{formatNumber(band.experience)}</td></tr>{/each}</tbody>
               </table></div>
             {/if}
           </div>
@@ -85,4 +88,5 @@
   th, td { padding: .5rem .7rem; border-bottom: 1px solid var(--c-line); }
   th { color: var(--c-text-dim); font-weight: 600; }
   td:not(:first-child), th:not(:first-child) { text-align: right; white-space: nowrap; }
+  tr.current th, tr.current td { color: var(--c-text-strong); font-weight: 600; }
 </style>

@@ -886,10 +886,10 @@ test("recipe items teach one craft, and product pages show the full recipe", () 
 
 test("recipe ranks show the recorded gate and bands only when the skill resolves", () => {
   const { documents } = project(craftEntities, craftFacts, craftRelations);
-  expect((documents.get("items:21") as PublicItem).crafting?.ranks).toEqual([{ rank: 1, requiredLevel: 40, baseExperience: 7, bands: [
+  expect((documents.get("items:21") as PublicItem).crafting?.ranks).toEqual([{ rank: 1, requiredLevel: 40, highestLevel: 300, baseExperience: 7, bands: [
     { band: "full", from: 40, to: 59, experience: 7 }, { band: "half", from: 60, to: 74, experience: 4 }, { band: "none", from: 75, experience: 0 },
   ] }]);
-  expect((documents.get("items:23") as PublicItem).crafting?.ranks).toEqual([{ rank: 1, requiredLevel: 1, baseExperience: 0, bands: [] }]);
+  expect((documents.get("items:23") as PublicItem).crafting?.ranks).toEqual([{ rank: 1, requiredLevel: 1, highestLevel: 300, baseExperience: 0, bands: [] }]);
   expect((documents.get("items:24") as PublicItem).crafting?.ranks).toEqual([]);
   expect(() => project(craftEntities, { ...craftFacts, progression: { ...craftFacts.progression, mechanicsRules: [] } }, craftRelations)).toThrow("recipe-rank-gate");
 });

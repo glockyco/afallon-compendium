@@ -48,7 +48,7 @@ test('starting gear only links published classes and no source remains unknown',
 test('craft output outranks chance routes and links its own section', () => {
   const crafted = item([drop(npc(1, 'Thornmaw'), 100)], []);
   crafted.crafting = { recipe: { key: 'recipes:1', name: 'Ring of Bleed Damage' }, skill: { key: 'skills:1', kind: 'skills', name: 'Smithing', slug: 'smithing' },
-    learnedByDefault: false, materials: [], product: { counterpart: crafted.ref, count: 2 }, ranks: [{ rank: 1, requiredLevel: 150, baseExperience: 42, bands: [] }], taughtBy: [] };
+    learnedByDefault: false, materials: [], product: { counterpart: crafted.ref, count: 2 }, ranks: [{ rank: 1, requiredLevel: 150, highestLevel: 300, baseExperience: 42, bands: [] }], taughtBy: [] };
   const lines = itemSourceLines(crafted);
   expect(lines.map((entry) => entry.label)).toEqual(['Craft', 'Loot']);
   expect(lines[0]?.guaranteedYield).toBe(2);
@@ -76,7 +76,7 @@ test('timed dungeon reward distinguishes a guaranteed token from chance gear', (
 test('a craft names its base experience until each breakpoint', () => {
   const crafted = item([], []);
   crafted.crafting = { recipe: { key: 'recipes:1', name: 'Runeweave Regalia' }, skill: { key: 'skills:1', kind: 'skills', name: 'Tailoring', slug: 'tailoring' },
-    learnedByDefault: false, materials: [], ranks: [{ rank: 1, requiredLevel: 150, baseExperience: 1200, bands: [
+    learnedByDefault: false, materials: [], ranks: [{ rank: 1, requiredLevel: 150, highestLevel: 300, baseExperience: 1200, bands: [
       { band: 'full', from: 150, to: 169, experience: 1200 },
       { band: 'half', from: 170, to: 184, experience: 600 },
       { band: 'none', from: 185, experience: 0 },

@@ -258,7 +258,7 @@ test("Heroic guide computes Essence at health factor one for each rank and affix
 test("craft and gather guide computes the named product bands and node yield bonus", () => {
   const guide = documents().get("mechanics:crafting-and-gathering") as CraftingAndGathering;
   expect(guide.example.craft).toEqual({ product: expect.objectContaining({ key: "items:1", variant: "crafting" }), skill: expect.objectContaining({ key: "skills:8" }), rank: {
-    rank: 1, requiredLevel: 40, baseExperience: 7, bands: [
+    rank: 1, requiredLevel: 40, highestLevel: 90, baseExperience: 7, bands: [
       { band: "full", from: 40, to: 59, experience: 7 },
       { band: "half", from: 60, to: 74, experience: 4 }, { band: "none", from: 75, experience: 0 },
     ],
