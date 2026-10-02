@@ -307,6 +307,11 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
   const level = fact?.equipmentRequirements.flatMap((group) => group.requirements).find((requirement) => requirement.type.name === "Level")?.amounts.primary;
   const levelRequirement = level !== undefined && Number.isInteger(level) && level > 0 ? level : undefined;
   const damageLabel = isWeapon && fact ? weaponDamageLabel(fact) : undefined;
+  const adventurers = (input.facts.adventurerItems ?? []).filter((row) => row.itemKey === entity.entityKey).flatMap<PublicItem["adventurers"][number]>((row) => {
+    if (row.kind === "kitUpgradeItem") return row.adventurer ? [{ kind: row.kind, adventurer: input.resolve(row.adventurer) }] : [];
+    if (row.kind === "equipmentBand") return row.minimumContentLevel !== null ? [{ kind: row.kind, minimumContentLevel: row.minimumContentLevel }] : [];
+    return row.rewardChance !== null ? [{ kind: row.kind, chance: chancePercent(row.rewardChance) }] : [];
+  });
   return {
     ...baseDocument(entity, ref, input),
     facts: {
@@ -350,6 +355,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     placedRules: placedRules(input.facts, "items", { entityKey: entity.entityKey }, input.resolve)
       .filter((rule) => rule.target !== "crafting" || crafting !== undefined)
       .filter((rule) => rule.target !== "teaches" || teaches !== undefined)
+      .filter((rule) => rule.target !== "adventurers" || adventurers.length > 0)
       .concat(corruption ? [{ target: "corruption", guide: topicRef("corruption"), section: "gear" }] : [])
       .concat(tokenInfo ? [{ target: "corruption-token", guide: topicRef("corruption"), section: "tokens" }] : [])
       .concat(dungeonRewards?.length ? [{ target: "dungeon-rewards", guide: topicRef("corruption"), section: "timed-dungeons" }] : []),
@@ -371,11 +377,7 @@ export function projectItem(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     ...(clothDrop ? { clothDrop } : {}),
     questPickups,
     ...(dungeonFinder ? { dungeonFinder } : {}),
-    adventurers: (input.facts.adventurerItems ?? []).filter((row) => row.itemKey === entity.entityKey).flatMap<PublicItem["adventurers"][number]>((row) => {
-      if (row.kind === "kitUpgradeItem") return row.adventurer ? [{ kind: row.kind, adventurer: input.resolve(row.adventurer) }] : [];
-      if (row.kind === "equipmentBand") return row.minimumContentLevel !== null ? [{ kind: row.kind, minimumContentLevel: row.minimumContentLevel }] : [];
-      return row.rewardChance !== null ? [{ kind: row.kind, chance: chancePercent(row.rewardChance) }] : [];
-    }),
+    adventurers,
     whenUsed: projectItemUse(fact, input),
   };
 }

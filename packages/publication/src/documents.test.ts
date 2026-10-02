@@ -836,6 +836,15 @@ const craftRelations: CatalogRelations = { ...relations,
   conditions: [...relations.conditions, { conditionId: "vein-gate", semantics: "requirements-template", scope: null, label: "Requirements", requirements: [{ mode: "all", checkCount: false, requiredCount: null, requirements: [gate] }] }] };
 const p1 = { placementId: "p1", mapSpaceId: "world", label: "Crypt", categories: [] };
 
+test("only an item that adventurers can take links the adventurer gear guide", () => {
+  const gearRule = { ...ruleRow("adventurer-gear-list", "gear-upgrades", {}, [], [{ page: "items", target: "adventurers", scope: "all" }]), topic: "adventurers" as const };
+  const source = { ...craftFacts, progression: { ...craftFacts.progression, mechanicsRules: [...craftFacts.progression.mechanicsRules, gearRule] },
+    adventurerItems: [{ itemKey: "items:22", kind: "equipmentReward" as const, adventurer: null, minimumContentLevel: null, rewardChance: 0.4 }] };
+  const { documents } = project(craftEntities, source, craftRelations);
+  expect((documents.get("items:22") as PublicItem).placedRules).toEqual([{ target: "adventurers", guide: expect.objectContaining({ key: "mechanics:adventurers" }), section: "gear-upgrades" }]);
+  expect((documents.get("items:21") as PublicItem).placedRules.map((rule) => rule.target)).toEqual(["crafting"]);
+});
+
 test("recipe items teach one craft, and product pages show the full recipe", () => {
   const { documents } = project(craftEntities, craftFacts, craftRelations);
   const item = documents.get("items:20") as PublicItem, product = documents.get("items:21") as PublicItem;
