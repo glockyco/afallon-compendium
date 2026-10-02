@@ -8,6 +8,7 @@ Currency, faction, gear set, crafting station, and race pages waste space on rep
 - Consolidate identical purchase sellers and faction thresholds, retaining varying offers and starting points.
 - Give each of the five kinds an answer, an identity line, and a compact side card instead of redundant stat strips.
 - Keep race start and playable classes together, and show cumulative set bonuses without counting duplicate pieces twice.
+- Show a gear set's final-bonus threshold in its list row only when it differs from the number of available pieces.
 
 ## Capabilities
 
@@ -15,7 +16,8 @@ Currency, faction, gear set, crafting station, and race pages waste space on rep
 
 - `currency-purchases`: Purchase tables identify their currency once and consolidate shared sellers without hiding different offers.
 - `detail-pages`: These five detail kinds display their decisive player answers and meaningful side facts without duplicated hero strips or empty desktop columns.
+- `list-filters`: Gear set rows avoid an almost identical second count column while preserving exceptional thresholds.
 
 ## Impact
 
-Site detail pages, purchase presentation, and the server-side item document lookup. Published document shapes and the catalog remain unchanged.
+Site detail pages, purchase presentation, gear set list projection, and the server-side item document lookup. Published document schemas and the catalog remain unchanged.

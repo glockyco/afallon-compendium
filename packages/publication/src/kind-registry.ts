@@ -39,9 +39,9 @@ const kindEntries = [
   // Gathering nodes come from world objects, not from game records. Their keys belong to the catalog.
   { kind: "gatheringNodes", label: "Gathering Node", plural: "Gathering Nodes", route: "gathering-nodes", icon: "gathering-node", pages: true, list: true, searchable: true,
     columns: [column("skill", "Skill"), column("requiredLevel", "Required level", true), column("locations", "Locations", true)], facets: [facet("skill", "Skill")] },
-  // A gear set names what its pieces are, how many pieces it has, and how many pieces its last bonus needs.
+  // Name a last-bonus threshold in the Pieces cell only when it differs from the set's size.
   { kind: "gearSets", label: "Gear Set", plural: "Gear Sets", route: "gear-sets", icon: "gear-set", pages: true, list: true, searchable: true,
-    columns: [column("type", "Type"), column("pieces", "Pieces", true), column("fullBonus", "Pieces for last bonus", true)], facets: [facet("type", "Type")] },
+    columns: [column("type", "Type"), column("pieces", "Pieces")], facets: [facet("type", "Type")] },
   { kind: "currencies", label: "Currency", plural: "Currencies", route: "currencies", icon: "currency", pages: true, list: true, searchable: true,
     columns: [column("purchases", "Items sold for it", true), column("rewards", "Quest rewards", true)], facets: [] },
   { kind: "stats", label: "Stat", plural: "Stats", route: "stats", icon: "stat", pages: true, list: true, searchable: true,

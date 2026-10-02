@@ -7,6 +7,7 @@
 
 - [x] 2.1 Replace redundant strips with real side facts and useful answers for gear sets, crafting stations, and races. Verify weakest, typical, and richest published pages across desktop and phone sizes.
 - [x] 2.2 Present faction standing and threshold invariants without hiding the differing Humans relation. Verify all five factions and the starting-standing facts.
+- [x] 2.3 Combine the gear set list's nearly identical piece counts, preserving the exception. Publish a candidate and verify ordinary and exceptional rows at desktop and phone widths.
 
 ## 3. Delivery
 

@@ -14,8 +14,10 @@ See proposal.md. The currency document has a reference to its inventory item but
 - Derive shared sellers from every purchase row and show them once only when all rows agree. The price cell omits its icon and name only when its actual currency key matches the page's subject currency.
 - Use FactsCard for side summaries and the existing RelationTable for every relation. Suppress faction threshold and starting-point columns only where the full row set makes them invariant, preserving the Humans exception.
 - Move classes into the race answer, where they sit beside the start location, and leave the larger adventurer roster as the secondary relation.
+- The gear set list's Pieces cell displays the final bonus only for a set whose threshold differs from the total. A text value permits the exception in one cell without a sparse second column.
 
 ## Risks / Trade-offs
 
 - Honor has no linked inventory item. Its existing battleground description remains its acquisition explanation; the item-route component is used only where the reference exists.
 - An item's quest-reward routes and currency rewards can describe different reward mechanisms. Both remain visible when published, rather than conflating their counts.
+- The combined Pieces display no longer offers a numeric range filter, but it remains sortable and the list retains its Type facet.

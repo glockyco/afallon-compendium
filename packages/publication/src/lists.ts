@@ -142,8 +142,11 @@ function gatheringNodeRow(document: PublicGatheringNode): ListRow {
 }
 
 function gearSetRow(document: PublicGearSet): ListRow {
-  return { ref: document.ref, values: { type: document.type ?? null, pieces: document.pieces.length,
-    fullBonus: document.tiers.length ? Math.max(...document.tiers.map((tier) => tier.equipped)) : null }, facets: { type: facetValue(document.type) } };
+  const pieces = document.pieces.length;
+  const lastBonus = document.tiers.length ? Math.max(...document.tiers.map((tier) => tier.equipped)) : undefined;
+  return { ref: document.ref,
+    values: { type: document.type ?? null, pieces: lastBonus === undefined || lastBonus === pieces ? String(pieces) : `${pieces} (last bonus at ${lastBonus})` },
+    facets: { type: facetValue(document.type) } };
 }
 
 function currencyRow(document: PublicCurrency): ListRow {
