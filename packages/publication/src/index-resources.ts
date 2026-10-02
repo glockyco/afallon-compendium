@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { Assert, AssertError } from "typebox/value";
 import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
-import { queryCatalogEntities, queryCatalogFacts, queryCatalogFullEntities, queryCatalogRelations, queryChallengeStoneRoutes, querySpawnCandidateNpcs } from "@afallon/catalog";
+import { queryCatalogEntities, queryCatalogFacts, queryCatalogFullEntities, queryCatalogRelations, queryChallengeStoneRoutes, queryQuestRewardTypes, querySpawnCandidateNpcs } from "@afallon/catalog";
 import {
   PUBLICATION_DOCUMENT_BUDGET,
   STATIC_DOCUMENT_SCHEMA_IDS,
@@ -211,7 +211,7 @@ export async function generateIndexResources(
   const schemaIdByKey = new Map([...documents].map(([key, resource]) => [key, resource.reference.schemaId]));
   const publicationIssues = auditPublicTooltipCoverage(facts.records, relations.records, publicDocuments, schemaIdByKey);
 
-  const listValues = buildKindLists(identity, PUBLIC_KIND_REGISTRY, publicDocuments, facts.records, relations.records, refs, excluded);
+  const listValues = buildKindLists(identity, PUBLIC_KIND_REGISTRY, publicDocuments, facts.records, relations.records, refs, excluded, queryQuestRewardTypes(db).records);
   const lists = new Map<string, GeneratedStaticResource<StaticKindList>[]>();
   for (const [kind, values] of listValues) {
     const resources: GeneratedStaticResource<StaticKindList>[] = [];

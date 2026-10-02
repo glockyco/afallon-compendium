@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArtifactStore } from "@afallon/artifacts";
-import { PUBLICATION_PART_BUDGET, type PublicNpc, type PublicQuest } from "@afallon/contracts/public";
+import { PUBLICATION_PART_BUDGET, type PublicClass, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest } from "@afallon/contracts/public";
 import { openNormalizedDatabase } from "../../catalog/src/database";
 import { generateIndexResources } from "./index-resources";
 import { buildKindLists } from "./lists";
@@ -99,10 +99,42 @@ test("quest rows expose the level range, chain, areas, and giver for every colum
     turnIns: [], objectives: [], itemsGiven: [], rewards: [], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [], placedRules: [],
   };
   const registry = PUBLIC_KIND_REGISTRY.find((entry) => entry.kind === "quests")!;
-  const row = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[quest.ref.key, quest]])).get("quests")![0]!.rows[0]!;
+  const row = buildKindLists({ buildId: "build", catalogId: "catalog" }, [registry], new Map([[quest.ref.key, quest]]), undefined, undefined, undefined, undefined,
+    new Map([[quest.ref.key, ["Experience", "item"]]])).get("quests")![0]!.rows[0]!;
   expect(row.values).toEqual({ levelRange: "15–30", chain: "Pilgrimage", area: "Cedar Ridge, Coalway Woods", giver: "Guardian" });
   expect(Object.keys(row.values).sort()).toEqual(registry.columns.map((column) => column.id).sort());
   expect(Object.keys(row.facets).sort()).toEqual(registry.facets.map((facet) => facet.id).sort());
   expect(row.facets).toEqual({ startType: ["npc", "worldZone", "object"], area: ["Cedar Ridge", "Coalway Woods"],
-    chain: ["Pilgrimage"], repeatable: ["true"] });
+    chain: ["Pilgrimage"], repeatable: ["true"], rewardType: ["Experience", "item"] });
+});
+
+test("item rows name the classes that can use them, their gear type, crafting use, and stats", () => {
+  const ref = (key: string, name: string) => ({ key, kind: key.split(":")[0] as "items", name, slug: name.toLowerCase().replaceAll(" ", "-") });
+  const stat = (key: string, name: string) => ({ key, kind: "stats" as const, name });
+  const item = (key: string, name: string, facts: Partial<PublicItem["facts"]>, usedInRecipes: PublicItem["usedInRecipes"] = []) => ({
+    ref: ref(key, name), facts: { itemType: "ARMOR", stats: [], randomStats: [], ...facts }, usedInRecipes,
+  }) as unknown as PublicItem;
+  const shieldmaster = { ref: { ...ref("classes:0", "Shieldmaster"), kind: "classes" }, facts: { weapons: ["Shield", "One Handed Sword"] }, trees: [] } as unknown as PublicClass;
+  const arcanist = { ref: { ...ref("classes:1", "Arcanist"), kind: "classes" }, facts: { weapons: ["Staff"] }, trees: [] } as unknown as PublicClass;
+  const documents = new Map<string, PublicDocument>([
+    ["items:1", item("items:1", "Buckler", { itemType: "WEAPON", weaponType: "Shield", stats: [{ stat: stat("stats:20", "Armor"), amount: 7, isPercent: false }] })],
+    ["items:2", item("items:2", "Oak Staff", { itemType: "WEAPON", weaponType: "STAFF", randomStats: [{ stat: stat("stats:0", "Health"), min: 10, max: 40, isPercent: false, whole: true }] })],
+    ["items:3", item("items:3", "Cloth Hood", { armorType: "CLOTH", slot: "HEAD", stats: [{ stat: stat("stats:7", "Lifesteal"), amount: 2, isPercent: true }] })],
+    ["items:4", item("items:4", "Copper Ore", { itemType: "MATERIAL" }, [{ counterpart: ref("items:5", "Copper Bar"), count: 2 } as never])],
+    ["classes:0", shieldmaster], ["classes:1", arcanist],
+  ]);
+  const rows = new Map(buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents).get("items")![0]!.rows.map((row) => [row.ref.name, row]));
+  expect(rows.get("Buckler")!.facets.class).toEqual(["Shieldmaster"]);
+  expect(rows.get("Oak Staff")!.facets.class).toEqual(["Arcanist"]);
+  expect(rows.get("Cloth Hood")!.facets.class).toEqual(["Arcanist", "Shieldmaster"]);
+  expect(rows.get("Buckler")!.values.gear).toBe("Shield");
+  expect(rows.get("Cloth Hood")!.facets.gear).toEqual(["CLOTH"]);
+  expect(rows.get("Copper Ore")!.facets.gear).toEqual([]);
+  expect(rows.get("Copper Ore")!.facets.material).toEqual(["true"]);
+  expect(rows.get("Buckler")!.facets.material).toEqual(["false"]);
+  expect(rows.get("Oak Staff")!.stats).toEqual([{ name: "Health", percent: false, min: 10, max: 40 }]);
+  expect(rows.get("Cloth Hood")!.stats).toEqual([{ name: "Lifesteal", percent: true, min: 2, max: 2 }]);
+  expect(rows.get("Copper Ore")!.stats).toBeUndefined();
+  documents.set("items:6", item("items:6", "War Scythe", { itemType: "WEAPON", weaponType: "Scythe" }));
+  expect(() => buildKindLists({ buildId: "build", catalogId: "catalog" }, PUBLIC_KIND_REGISTRY, documents)).toThrow("No offered class can use the weapon type Scythe");
 });

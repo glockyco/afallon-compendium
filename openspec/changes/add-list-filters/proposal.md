@@ -1,31 +1,32 @@
 ## Why
 
-The list pages expose few ways to compare equipment or find quest rewards. The accepted catalog records item stats, recipe materials, and typed quest rewards, but these facts do not reach the list filters.
+The browse lists are the main way into the compendium for a new reader. The item list has 1,198 rows, but it filters only by slot, type, and rarity, and each filter takes one value. A reader cannot find the gear that a class can use, a weapon or armor type, items with a stat, or crafting materials. The quest list cannot be filtered by reward. On a phone, the filter fields fill the first screen before any result shows.
 
 ## What Changes
 
-- Add an item class filter based on the game's verified equip rule. Read the native equip check before defining the published match rule.
-- Add item stat and stat range filters. Distinguish fixed values from possible random values and flat values from percentages.
-- Add a crafting-material filter for items that a published recipe uses.
-- Add a quest reward type filter and a Class column on the ability list.
-- Add a Gear column and filter to the item list. It shows the weapon type or armor type that the game's item tooltip names, such as Shield or Cloth. The Type column keeps the broad item type.
-- Keep filter selections in list URLs. Link each published class page to its filtered equipment list.
-- Preserve every published list row, including items with unknown equip facts. Filters must not rank equipment or claim that one item is best.
+- On wide screens, lists show their filters in a sidebar beside the results. On phones, a Filters button opens a sheet with the same filters and a button that shows the result count.
+- A filter can take several values. Each value shows how many results it would give. Active filters show as removable chips above the results, with Clear all. Values that every row shares are not offered.
+- The item list gets Usable by (class), Gear (weapon or armor type), Used in crafting, and stat filters. A stat filter takes a minimum and a maximum, and several stats can be combined. Each filtered stat shows as a sortable column.
+- The quest list gets a Reward type filter.
+- **BREAKING** Item list rows carry their stat amounts and gear type, and the static kind-list schema gets a new id.
+- Each class page links to the item list with its class selected.
+- Filters never rank items or call one item better than another.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `list-filters`: Published item, quest, and ability list facts, filter behavior, URL state, and result coverage.
+- `list-filters`: The filter panel, the item and quest filters, URL state, and the rule that filters do not rank.
 
 ### Modified Capabilities
 
-- `detail-pages`: Class pages link to the class-filtered item list.
+- `detail-pages`: Class pages link to the gear that the class can use.
 
 ## Impact
 
-- Read-only evidence: the accepted catalog and bounded native review of `InventoryManager` equip methods for build 25434619.
-- Catalog and contracts: expose the typed facts needed by list rows without changing game values in site code.
-- Publication: `packages/publication/src/kind-registry.ts`, `lists.ts`, and the list projection path.
-- Site: `apps/site/src/lib/ListTable.svelte` and the class detail page.
-- Release: compare a catalog candidate with the accepted catalog, stage a publication candidate against the accepted publication, check both viewport sizes in the browser, and accept both together.
+- Read-only evidence: native review of the equip check of build 25653798 and the accepted catalog `d3b56f3f`.
+- Contracts: the list row stat entries and the static kind-list schema id.
+- Catalog: a query that returns the reward types of each quest.
+- Publication: `packages/publication/src/kind-registry.ts` and `packages/publication/src/lists.ts`.
+- Site: `apps/site/src/lib/ListTable.svelte` and new filter components, and the class page.
+- Release: publish a candidate from the accepted catalog, check the lists in a browser at 1440 px, 1100 px, and 390 px, and accept the publication.

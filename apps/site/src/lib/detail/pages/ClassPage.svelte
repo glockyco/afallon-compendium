@@ -47,7 +47,7 @@
     </AnswerCard></div>
     <div slot="side" class="side-facts">
       {#if facts.talentPoints.length}<section><h2>Talent points</h2>{#each facts.talentPoints as points}<p>{#if points.name.toLocaleLowerCase() !== 'talent points'}<strong>{points.name}:</strong>{' '}{/if}{talentPointText(points)}</p>{/each}</section>{/if}
-      {#if facts.weapons.length}<section><h2>Weapons</h2><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul></section>{/if}
+      {#if facts.weapons.length}<section><h2>Weapons</h2><ul class="weapons">{#each facts.weapons as weapon}<li>{weapon}</li>{/each}</ul><a class="c-link gear" href={`${base}/items/?class=${encodeURIComponent(document.ref.name)}`}>Gear this class can use</a></section>{/if}
       {#if talentGuide}<HowItWorks guide={talentGuide.guide} section={talentGuide.section} label="How talent points work" />{:else}<a class="c-link" href={`${base}/mechanics/character-progression/`}>Character Progression</a>{/if}
     </div>
     <Sections>
@@ -80,5 +80,6 @@
   .side-facts > a { width: fit-content; }
   .side-facts strong { color: var(--c-text-strong); }
   .weapons { display: flex; flex-wrap: wrap; gap: .4rem; padding: 0; list-style: none; }
+  .gear { display: inline-block; margin-top: .65rem; }
   .weapons li { padding: .25rem .5rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius-sm); color: var(--c-text-dim); font-size: .875rem; }
 </style>

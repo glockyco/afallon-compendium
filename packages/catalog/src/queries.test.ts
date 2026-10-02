@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { openNormalizedDatabase, recordCoverageIssue } from "./database";
-import { queryCatalogCoverage, queryCatalogEntity, queryCatalogImagery, queryCatalogItemSources, queryCatalogMaps, queryCatalogSearch, queryConditions, queryContainerRows, queryDropRows, queryVendorRows, queryQuestRows, queryInteractionRows, queryContainment, queryGatedSources, queryCatalogFacts } from "./queries";
+import { queryCatalogCoverage, queryCatalogEntity, queryCatalogImagery, queryCatalogItemSources, queryCatalogMaps, queryCatalogSearch, queryConditions, queryContainerRows, queryDropRows, queryVendorRows, queryQuestRewardTypes, queryQuestRows, queryInteractionRows, queryContainment, queryGatedSources, queryCatalogFacts } from "./queries";
 import { relationRows } from "./relations";
 import { containerTypeFromHierarchyPath } from "./world";
 
@@ -224,6 +224,27 @@ test("typed currency rewards never expose a stale item endpoint or item source",
     db.query("INSERT INTO quest_rewards VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("quests:8", "given", 0, "currency", "currencies:2", "Gold Coin", 40, null, "[]");
     db.query("INSERT INTO quest_associations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("authored-reward", "build", "quest-reward", null, "quests:8", null, null, null, JSON.stringify(relations.questAssociations[0]));
     expect(queryQuestRows(db).records).toMatchObject([{ kind: "reward", counterpart: { entityKey: "currencies:2", label: "Gold Coin" }, count: 40, rewardType: "currency" }]);
+  } finally { db.close(); }
+});
+
+test("quest reward types count untargeted rewards and choices but not supplied items", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "schema", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "schema", "{}", "d".repeat(64));
+    const entity = db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    for (const [kind, id] of [["quests", 8], ["quests", 9], ["items", 1]] as const) entity.run("build", kind, id, `${kind}:${id}`, `${kind} ${id}`, null, null, null, "{}", "[]");
+    const quest = db.query("INSERT INTO quest_facts(entity_key, repeatable, turn_in_without_npc, condition_ids_json, provenance_json) VALUES (?, ?, ?, ?, ?)");
+    quest.run("quests:8", 0, 0, "[]", "[]");
+    quest.run("quests:9", 0, 0, "[]", "[]");
+    const reward = db.query("INSERT INTO quest_rewards VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    reward.run("quests:8", "given", 0, "Experience", null, null, null, 120, "[]");
+    reward.run("quests:8", "pick", 0, "item", "items:1", "Blade", 1, null, "[]");
+    reward.run("quests:9", "given", 0, "Experience", null, null, null, 40, "[]");
+    reward.run("quests:9", "itemGiven", 0, "item", "items:1", "Blade", 1, null, "[]");
+    const types = queryQuestRewardTypes(db).records;
+    expect(types.get("quests:8")).toEqual(["Experience", "item", "item choice"]);
+    expect(types.get("quests:9")).toEqual(["Experience"]);
   } finally { db.close(); }
 });
 

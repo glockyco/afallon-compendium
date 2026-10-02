@@ -918,14 +918,21 @@ export const PublicKindEntrySchema = Type.Object({
 export type PublicKindEntry = Static<typeof PublicKindEntrySchema>;
 
 const listValue = Type.Union([Type.String(), Type.Number(), Type.Null()]);
-export const ListRowSchema = Type.Object({ ref: EntityRefSchema, values: Type.Record(Type.String(), listValue), facets: Type.Record(Type.String(), Type.Array(Type.String())) }, { additionalProperties: false });
+// A stat of an item row: its name, whether it is a percentage, and its amount. A fixed stat has equal `min` and `max`.
+// A random stat has the range that it can roll.
+export const ListStatSchema = Type.Object({ name: text, percent: Type.Boolean(), min: Type.Number(), max: Type.Number() }, { additionalProperties: false });
+export type ListStat = Static<typeof ListStatSchema>;
+export const ListRowSchema = Type.Object({
+  ref: EntityRefSchema, values: Type.Record(Type.String(), listValue), facets: Type.Record(Type.String(), Type.Array(Type.String())),
+  stats: optional(Type.Array(ListStatSchema)),
+}, { additionalProperties: false });
 export type ListRow = Static<typeof ListRowSchema>;
 
 // A kind's list is partitioned like the map shards and the search corpus, because one row carries
 // its reference, its icon, and its column and facet values, and a kind can hold thousands of rows.
 // The list page loads every part; the budget bounds each file, not the data.
 export const StaticKindListSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-kind-list.v5"), ...identity, kind: PublicListKindSchema, part: count, rows: Type.Array(ListRowSchema),
+  schemaVersion: Type.Literal("compendium.static-kind-list.v6"), ...identity, kind: PublicListKindSchema, part: count, rows: Type.Array(ListRowSchema),
 }, { additionalProperties: false });
 export type StaticKindList = Static<typeof StaticKindListSchema>;
 
@@ -952,10 +959,10 @@ export const StaticSearchIndexSchema = Type.Object({
 export type StaticSearchIndex = Static<typeof StaticSearchIndexSchema>;
 
 export const STATIC_COMPENDIUM_SCHEMAS: typeof STATIC_DOCUMENT_SCHEMAS & {
-  "compendium.static-kind-list.v5": typeof StaticKindListSchema; "compendium.static-search.v6": typeof StaticSearchIndexSchema;
+  "compendium.static-kind-list.v6": typeof StaticKindListSchema; "compendium.static-search.v6": typeof StaticSearchIndexSchema;
 } = {
   ...STATIC_DOCUMENT_SCHEMAS,
-  "compendium.static-kind-list.v5": StaticKindListSchema,
+  "compendium.static-kind-list.v6": StaticKindListSchema,
   "compendium.static-search.v6": StaticSearchIndexSchema,
 };
 export type StaticCompendiumResource = StaticDocument | StaticKindList | StaticSearchIndex;

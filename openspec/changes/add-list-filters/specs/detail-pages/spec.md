@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
-### Requirement: Class pages link to compatible gear
+### Requirement: Class pages link to the gear they can use
 
-Each published class page SHALL link to the item list with that class selected. The link SHALL open the Class filter with the same class and include the equipment that the verified equip rule permits. The page SHALL not describe the filtered items as ranked or recommended gear.
+Each published class page SHALL link to the item list with that class selected in its Usable by filter. The link SHALL use the same URL as selecting the class in the filter. The page SHALL NOT describe the linked items as ranked or recommended.
 
-#### Scenario: Open gear from a class page
-- **WHEN** a reader selects the gear list link on the Shieldmaster page
-- **THEN** the item list opens with Shieldmaster selected in its Class filter
-- **AND** reloading that URL preserves the filtered list
+#### Scenario: Gear from a class page
+- **WHEN** a reader follows the gear link on the Shieldmaster page
+- **THEN** the item list opens with Shieldmaster selected in Usable by
+- **AND** reloading the page keeps the selection

@@ -6,15 +6,15 @@ const facet = (id: string, label: string, defaultHiddenValues?: string[]): Publi
 export const PUBLIC_KIND_REGISTRY: readonly PublicKindEntry[] = Object.freeze([
   { kind: "items", label: "Item", plural: "Items", route: "items", icon: "item", pages: true, list: true, searchable: true,
     // The name colour shows the rarity, so rarity is a filter and not a column.
-    columns: [column("itemType", "Type"), column("slot", "Slot"), column("itemPower", "Item power", true), column("levelRequirement", "Level", true)],
-    facets: [facet("slot", "Slot"), facet("itemType", "Type"), facet("rarity", "Rarity")] },
+    columns: [column("itemType", "Type"), column("gear", "Gear"), column("slot", "Slot"), column("itemPower", "Item power", true), column("levelRequirement", "Level", true)],
+    facets: [facet("class", "Usable by"), facet("gear", "Gear"), facet("slot", "Slot"), facet("itemType", "Type"), facet("rarity", "Rarity"), facet("material", "Used in crafting")] },
   { kind: "npcs", label: "NPC", plural: "NPCs", route: "npcs", icon: "npc", pages: true, list: true, searchable: true,
     columns: [column("level", "Level", true), column("role", "Role"), column("place", "Place"), column("faction", "Faction")],
     facets: [facet("role", "Role"), facet("places", "Place"), facet("faction", "Faction")] },
   { kind: "quests", label: "Quest", plural: "Quests", route: "quests", icon: "quest", pages: true, list: true, searchable: true,
     columns: [column("levelRange", "Quest level"), column("chain", "Chain"),
       column("area", "Area"), column("giver", "Giver")],
-    facets: [facet("startType", "Start type"), facet("area", "Area"), facet("chain", "Chain"), facet("repeatable", "Repeatable")] },
+    facets: [facet("rewardType", "Reward type"), facet("startType", "Start type"), facet("area", "Area"), facet("chain", "Chain"), facet("repeatable", "Repeatable")] },
   { kind: "places", label: "Place", plural: "Places", route: "places", icon: "place", pages: true, list: true, searchable: true,
     columns: [column("placeType", "Type"), column("levelRange", "Level range"), column("bosses", "Bosses", true)],
     facets: [facet("placeType", "Type"), facet("guideIncluded", "Guide included")] },

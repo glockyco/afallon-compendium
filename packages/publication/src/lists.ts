@@ -1,9 +1,11 @@
 import type { CatalogEndpoint, CatalogFacts, CatalogRelations } from "@afallon/contracts/catalog";
+import { categoryLabel } from "@afallon/contracts/public";
 import { resolveCatalogEndpoint } from "./references";
 import { levelText } from "./levels";
 import { partitionStaticRecords } from "./resources";
 import type {
   ListRow,
+  ListStat,
   PublicAbility,
   PublicClass,
   PublicDocument,
@@ -30,14 +32,27 @@ function facetValue(value: string | null | undefined): string[] {
   return value ? [value] : [];
 }
 
-function itemRow(document: PublicItem): ListRow {
-  const slot = document.facts.slot ?? document.facts.weaponSlot;
+function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow {
+  const facts = document.facts;
+  const slot = facts.slot ?? facts.weaponSlot;
+  const gear = facts.weaponType ?? facts.armorType ?? null;
+  // A weapon fits the classes whose weapon types include its type. The game sets no class rule for any other item.
+  const weaponType = facts.weaponType === undefined ? undefined : categoryLabel(facts.weaponType);
+  const usableBy = classes.filter((entry) => weaponType === undefined || entry.facts.weapons.includes(weaponType)).map((entry) => entry.ref.name).sort();
+  // Class lists and items share weapon type names, not ids, so a renamed type would leave its weapons without a class.
+  if (weaponType !== undefined && classes.length > 0 && usableBy.length === 0) throw new Error(`No offered class can use the weapon type ${weaponType} of ${document.ref.key}.`);
+  const stats: ListStat[] = [
+    ...facts.stats.flatMap((row) => { const name = refName(row.stat); return name ? [{ name, percent: row.isPercent, min: row.amount, max: row.amount }] : []; }),
+    ...facts.randomStats.flatMap((row) => { const name = refName(row.stat); return name ? [{ name, percent: row.isPercent, min: row.min, max: row.max }] : []; }),
+  ];
   return {
     ref: document.ref,
     // `rarity` colours the name.
-    values: { rarity: document.facts.rarity ?? null, itemType: document.facts.itemType ?? null, slot: slot ?? null,
-      itemPower: document.facts.itemPower ?? null, levelRequirement: document.facts.levelRequirement ?? null },
-    facets: { slot: facetValue(slot), itemType: facetValue(document.facts.itemType), rarity: facetValue(document.facts.rarity) },
+    values: { rarity: facts.rarity ?? null, itemType: facts.itemType ?? null, gear, slot: slot ?? null,
+      itemPower: facts.itemPower ?? null, levelRequirement: facts.levelRequirement ?? null },
+    facets: { class: usableBy, gear: facetValue(gear), slot: facetValue(slot), itemType: facetValue(facts.itemType), rarity: facetValue(facts.rarity),
+      material: [String(document.usedInRecipes.length > 0)] },
+    ...(stats.length ? { stats } : {}),
   };
 }
 
@@ -51,7 +66,7 @@ function npcRow(document: PublicNpc): ListRow {
     facets: { role: document.facts.roles, places: [...places].sort(), faction: facetValue(faction) } };
 }
 
-function questRow(document: PublicQuest): ListRow {
+function questRow(document: PublicQuest, rewardTypes: readonly string[]): ListRow {
   const starts = document.starts;
   const types = [...new Set(starts.map((start) => start.kind))];
   const areas = [...new Set(starts.flatMap((start) => start.kind === "npc" ? start.areas : start.placements.map((placement) => placement.label)))].sort();
@@ -60,7 +75,7 @@ function questRow(document: PublicQuest): ListRow {
   return { ref: document.ref,
     values: { levelRange: range, chain: document.facts.chain?.name ?? null, area: areas.join(", ") || null,
       giver: giver?.kind === "npc" ? refName(giver.npc) : null },
-    facets: { startType: types, area: areas, chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)] } };
+    facets: { startType: types, area: areas, chain: facetValue(document.facts.chain?.name), repeatable: [String(document.facts.repeatable)], rewardType: [...rewardTypes] } };
 }
 
 function placeRow(document: PublicPlace): ListRow {
@@ -122,18 +137,19 @@ export function buildKindLists(
   relations?: CatalogRelations,
   refs?: ReadonlyMap<string, EntityRef>,
   excluded?: ReadonlySet<string>,
+  questRewardTypes: ReadonlyMap<string, readonly string[]> = new Map(),
 ): ReadonlyMap<string, StaticKindList[]> {
   const rowsByKind = new Map<string, ListRow[]>();
+  const classes = [...documents.values()].filter(isClass);
   for (const document of documents.values()) {
     let row: ListRow;
     switch (document.ref.kind) {
-      case "items": row = itemRow(document as PublicItem); break;
+      case "items": row = itemRow(document as PublicItem, classes); break;
       case "npcs": row = npcRow(document as PublicNpc); break;
-      case "quests": row = questRow(document as PublicQuest); break;
+      case "quests": row = questRow(document as PublicQuest, questRewardTypes.get(document.ref.key) ?? []); break;
       case "places": row = placeRow(document as PublicPlace); break;
       case "properties": row = propertyRow(document as PublicProperty); break;
       case "abilities": row = abilityRow(document as PublicAbility); break;
-      
       case "classes": if (!isClass(document)) continue; row = classRow(document); break;
       case "skills": if (!isSkill(document)) continue; row = skillRow(document); break;
       case "mechanics": row = { ref: document.ref, values: {}, facets: {} }; break;
@@ -163,7 +179,7 @@ export function buildKindLists(
     if (!entry.list) continue;
     const kind = entry.kind as PublicListKind;
     result.set(kind, partitionStaticRecords(rowsByKind.get(kind) ?? [], (rows, part): StaticKindList => ({
-      schemaVersion: "compendium.static-kind-list.v5", ...identity, kind, part, rows,
+      schemaVersion: "compendium.static-kind-list.v6", ...identity, kind, part, rows,
     })));
   }
   return result;

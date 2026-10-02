@@ -746,6 +746,24 @@ export function queryTransitions(db: Database): CatalogQueryResult<CatalogTransi
   }));
   return { ...identity(db), records };
 }
+/**
+ * The reward types of each quest, from its given and choice rewards. A reward without a target, such as experience,
+ * counts. A choice reward counts as its type and as that type's choice, such as `item` and `item choice`. An item
+ * that a quest supplies (`itemGiven`) is not a reward.
+ */
+export function queryQuestRewardTypes(db: Database): CatalogQueryResult<ReadonlyMap<string, readonly string[]>> {
+  const types = new Map<string, Set<string>>();
+  for (const row of db.query<{ quest: string; set: "given" | "pick"; type: string }, []>(
+    "SELECT DISTINCT quest_entity_key AS quest, reward_set AS \"set\", reward_type AS type FROM quest_rewards WHERE reward_set IN ('given', 'pick')",
+  ).all()) {
+    const set = types.get(row.quest) ?? new Set<string>();
+    set.add(row.type);
+    if (row.set === "pick") set.add(`${row.type} choice`);
+    types.set(row.quest, set);
+  }
+  const records = new Map([...types].sort(([left], [right]) => left.localeCompare(right)).map(([quest, set]) => [quest, [...set].sort()] as const));
+  return { ...identity(db), records };
+}
 /** A Heart-gated stone owns its inactive and active bowl actions, not copied generic game-action teleports. */
 export function queryChallengeStoneRoutes(db: Database, parentSourceIds: readonly string[]): Array<{ sourceId: string; placementId: string; stoneName: string; regionName: string; transitionIds: string[] }> {
   if (parentSourceIds.length === 0) return [];
