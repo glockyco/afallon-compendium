@@ -35,3 +35,11 @@ test('tab sets with different fields choose independently', () => {
   // A class choice keeps the level band, so the next class opens at the same band.
   expect(withTab(address, 'tab', 'druid', false).href).toBe('https://example.test/classes/shieldmaster/?tab=druid&level=levels-6-11');
 });
+
+test('a fragment that two views render keeps the requested view, and selects the first view without one', () => {
+  const views = [{ key: 'web', label: 'Web', anchors: ['talent-1'] }, { key: 'list', label: 'List', anchors: ['talent-1', 'tree-1'] }];
+  expect(selectTab(views, new URL('https://example.test/classes/a/?view=list#talent-1'), 'view')).toEqual({ key: 'list', replace: false });
+  expect(selectTab(views, new URL('https://example.test/classes/a/#talent-1'), 'view')).toEqual({ key: 'web', replace: true });
+  // An anchor that only the list renders still opens the list.
+  expect(selectTab(views, new URL('https://example.test/classes/a/?view=web#tree-1'), 'view')).toEqual({ key: 'list', replace: true });
+});

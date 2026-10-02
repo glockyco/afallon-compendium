@@ -1,6 +1,7 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogEndpoint, type CatalogEntityRow, type CatalogFacts, type CatalogProgressionFact, type ProgressionBonusRank, type ProgressionPetStat, type ProgressionStat } from "@afallon/contracts/catalog";
-import { type EntityRef, isEntityRef, type LearnerRow, type PublicClass, type Ref, type TalentPets, type TalentPoints, type TalentRank, type TalentTree } from "@afallon/contracts/public";
+import { type EntityRef, isEntityRef, type LearnerRow, type PublicClass, type Ref, type TalentPets, type TalentPoints, type TalentRank, type TalentTree, type TalentWeb } from "@afallon/contracts/public";
 import { placedRules, topicRef } from "../placed-rules";
+import { talentWebInputs, talentWebLayout } from "../talent-web";
 import { displayName, withoutMarkup } from "../text";
 import { baseDocument, type DocumentProjectionInput, optionalFactRef, pushIndex, type ReferenceResolver, requirementsFor } from "./projection";
 
@@ -144,6 +145,18 @@ export function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: Do
       }),
     };
   });
+  // The web lays the trees out as the game's talent screen does (talent-web.ts). It shows only talents with a row.
+  const rowAnchors = new Set(projectedTrees.flatMap((tree) => tree.rows.map((row) => row.anchor)));
+  const treeAnchor = (treeKey: string) => `tree-${treeKey.slice(treeKey.indexOf(":") + 1)}`;
+  const layout = talentWebLayout(talentWebInputs(entity.entityKey, input.facts, conditions));
+  const web: TalentWeb | undefined = layout.wedges.length === 0 ? undefined : {
+    wedges: layout.wedges.map((wedge) => ({ tree: treeAnchor(wedge.treeKey), angle: wedge.angle, width: wedge.width })),
+    nodes: layout.nodes.flatMap((node) => { const talent = talentAnchor(node.treeKey, node.nodeIndex); return rowAnchors.has(talent) ? [{ talent, x: node.x, y: node.y }] : []; }),
+    edges: layout.edges.flatMap((edge) => {
+      const from = talentAnchor(edge.treeKey, edge.source), to = talentAnchor(edge.treeKey, edge.target);
+      return rowAnchors.has(from) && rowAnchors.has(to) ? [{ from, to, points: edge.points.map(([x, y]) => [x, y] as [number, number]) }] : [];
+    }),
+  };
   // Talent points that no rule grants and that have no start amount carry no information.
   const pointKeys = [...new Set(trees.flatMap((link) => { const tree = facts.get(link.target.entityKey!); return tree?.kind === "talentTrees" && tree.details.treePoint?.entityKey ? [tree.details.treePoint.entityKey] : []; }))];
   const talentPoints = pointKeys.flatMap((key): TalentPoints[] => {
@@ -162,6 +175,7 @@ export function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: Do
     ...baseDocument(entity, ref, input),
     facts: { races, weapons: [...(input.classWeapons?.get(entity.entityKey) ?? [])], ...(autoAttack ? { autoAttack } : {}), talentPoints, ...(highestLevel === undefined ? {} : { highestLevel }) },
     trees: projectedTrees,
+    ...(web ? { web } : {}),
     startingGear: (details?.startItems ?? []).map((row) => ({ item: input.resolve(row.item), count: Math.max(0, row.count), equipped: row.equipped })),
     placedRules: placedRules(input.facts, "classes", { entityKey: entity.entityKey }, input.resolve),
   };

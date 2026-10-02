@@ -677,6 +677,16 @@ export type TalentRow = Static<typeof TalentRowSchema>;
 // own amount, and a rank that the class knows from the start costs nothing.
 export const TalentTreeSchema = Type.Object({ anchor, name: text, points: optional(text), pointsGuide: optional(PlacedRuleSchema), cost: count, rows: Type.Array(TalentRowSchema) }, { additionalProperties: false });
 export type TalentTree = Static<typeof TalentTreeSchema>;
+// A class's talents as the game's talent screen lays them out: each tree is a wedge around the centre, `angle` its middle
+// and `width` its span in degrees, and each talent sits at the game's position, in the game's coordinates with y pointing
+// up. `edges` are the lines that the screen draws from a talent to a talent that requires it, through `points`.
+const point = Type.Tuple([number, number]);
+export const TalentWebSchema = Type.Object({
+  wedges: Type.Array(Type.Object({ tree: anchor, angle: number, width: number }, { additionalProperties: false }), { minItems: 1 }),
+  nodes: Type.Array(Type.Object({ talent: anchor, x: number, y: number }, { additionalProperties: false })),
+  edges: Type.Array(Type.Object({ from: anchor, to: anchor, points: Type.Array(point, { minItems: 2 }) }, { additionalProperties: false })),
+}, { additionalProperties: false });
+export type TalentWeb = Static<typeof TalentWebSchema>;
 export const TalentPointsSchema = Type.Object({
   name: text, start: count, max: count,
   gains: Type.Array(Type.Object({ trigger: Type.Union([Type.Literal("characterLevelUp"), Type.Literal("skillLevelUp"), Type.Literal("npcKilled"), Type.Literal("itemGained"), Type.Literal("weaponTemplateLevelUp")]), amount: count }, { additionalProperties: false })),
@@ -692,7 +702,7 @@ export type StartingItemRow = Static<typeof StartingItemRowSchema>;
 export const LevelCurveSchema = Type.Object({ template: text, cap: count, rows: Type.Array(Type.Object({ level: count, toNext: count }, { additionalProperties: false }), { minItems: 1 }) }, { additionalProperties: false });
 export type LevelCurve = Static<typeof LevelCurveSchema>;
 export const PublicClassSchema = Type.Object({
-  ...documentBase, facts: ClassFactsSchema, trees: Type.Array(TalentTreeSchema), startingGear: Type.Array(StartingItemRowSchema), placedRules: Type.Array(PlacedRuleSchema),
+  ...documentBase, facts: ClassFactsSchema, trees: Type.Array(TalentTreeSchema), web: optional(TalentWebSchema), startingGear: Type.Array(StartingItemRowSchema), placedRules: Type.Array(PlacedRuleSchema),
 }, { additionalProperties: false });
 export type PublicClass = Static<typeof PublicClassSchema>;
 // `automatic` is false when a character does not receive the skill automatically.

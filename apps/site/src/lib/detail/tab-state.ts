@@ -30,15 +30,22 @@ export function tabOwningAnchor(tabs: readonly TabSpec[], anchor: string): strin
   return tabs.find((tab) => tab.anchors?.includes(anchor))?.key;
 }
 
+/** Whether the tab with this key renders the anchor. */
+export function tabOwnsAnchor(tabs: readonly TabSpec[], key: string, anchor: string): boolean {
+  return Boolean(anchor) && tabs.some((tab) => tab.key === key && tab.anchors?.includes(anchor));
+}
+
 /**
  * The tab that the address selects. `param` is the query field of the tab set, so tab sets with different fields choose
- * independently. A fragment that a tab owns wins over the field. Without such a fragment, a known value selects its tab,
- * and an absent or unknown value selects the first tab. The address must then name the selected tab when its value is
- * unknown or names another tab than the owner of the fragment.
+ * independently. A fragment that a tab owns wins over the field, unless the requested tab owns it too: two views of the
+ * same content, such as a diagram and a list, both render its anchors, and a link keeps the reader's view. Without such a
+ * fragment, a known value selects its tab, and an absent or unknown value selects the first tab. The address must then
+ * name the selected tab when its value is unknown or names another tab than the one that shows the fragment.
  */
 export function selectTab(tabs: readonly TabSpec[], url: URL, param: string): TabSelection {
   const requested = url.searchParams.get(param);
-  const owner = tabOwningAnchor(tabs, fragmentId(url.hash));
+  const anchor = fragmentId(url.hash);
+  const owner = requested !== null && tabOwnsAnchor(tabs, requested, anchor) ? requested : tabOwningAnchor(tabs, anchor);
   if (owner !== undefined) return { key: owner, replace: requested !== owner };
   if (requested !== null && tabs.some((tab) => tab.key === requested)) return { key: requested, replace: false };
   return { key: tabs[0]?.key ?? '', replace: requested !== null };

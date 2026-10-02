@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { pushState } from '$app/navigation';
   import { detailNavigation, followLocation, provideDetailNavigation } from './detail-navigation';
-  import { fragmentId, selectTab, tabOwningAnchor, withTab, type TabSpec } from './tab-state';
+  import { fragmentId, selectTab, tabOwningAnchor, tabOwnsAnchor, withTab, type TabSpec } from './tab-state';
 
   /** The tabs in reading order. The first tab is selected when the address names no tab of this set. */
   export let tabs: TabSpec[];
@@ -56,9 +56,9 @@
   function choose(key: string, focus: boolean): void {
     const url = $location ?? new URL(window.location.href);
     if (key !== selectTab(tabs, url, param).key) {
-      // An anchor of another tab no longer names a visible target, so an explicit choice removes it.
-      const owner = tabOwningAnchor(tabs, fragmentId(url.hash));
-      const next = withTab(url, param, key, owner !== undefined && owner !== key);
+      // An anchor that the chosen tab does not render no longer names a visible target, so an explicit choice removes it.
+      const anchor = fragmentId(url.hash);
+      const next = withTab(url, param, key, tabOwningAnchor(tabs, anchor) !== undefined && !tabOwnsAnchor(tabs, key, anchor));
       handled = next;
       pushState(next, {});
       location.set(next);
@@ -106,7 +106,7 @@
        page before the panel opens. -->
   {#each tabs as tab (tab.key)}
     <div role="tabpanel" id={`${idPrefix}-panel-${tab.key}`} aria-labelledby={`${idPrefix}-tab-${tab.key}`} tabindex="0" hidden={tab.key !== selected}>
-      {#if tab.key === selected}<slot key={tab.key} />{:else}{#each tab.anchors ?? [] as anchor (anchor)}<span id={anchor}></span>{/each}{/if}
+      {#if tab.key === selected}<slot key={tab.key} />{:else}{#each (tab.anchors ?? []).filter((anchor) => !tabOwnsAnchor(tabs, selected, anchor)) as anchor (anchor)}<span id={anchor}></span>{/each}{/if}
     </div>
   {/each}
 </div>

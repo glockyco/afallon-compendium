@@ -15,6 +15,7 @@
   import TabSet from '../TabSet.svelte';
   import TitleBlock from '../TitleBlock.svelte';
   import TalentTreeSection from '../sections/TalentTreeSection.svelte';
+  import TalentWeb from '../sections/TalentWeb.svelte';
 
   export let document: PublicClass;
   export let registry: PublicKindEntry[];
@@ -27,6 +28,8 @@
     ...(document.trees.length ? [{ label: 'Talent trees', value: String(document.trees.length) }] : []),
   ];
   $: tabs = document.trees.map((tree) => ({ key: tree.anchor, label: tree.name, anchors: [tree.anchor, ...tree.rows.map((row) => row.anchor)] }));
+  $: allAnchors = tabs.flatMap((tab) => tab.anchors);
+  $: views = [{ key: 'web', label: 'Web', anchors: allAnchors }, { key: 'list', label: 'List', anchors: allAnchors }];
   // Most trees of a class spend Talent Points. A tree that spends other points, such as Heroic Essence, says so.
   $: pointCounts = document.trees.reduce((counts, tree) => counts.set(tree.points, (counts.get(tree.points) ?? 0) + 1), new Map<string | undefined, number>());
   $: commonPoints = [...pointCounts].sort((a, b) => b[1] - a[1])[0]?.[0];
@@ -71,9 +74,22 @@
       {/if}
       {#if document.trees.length}
         <Section id="talent-trees" title="Talent trees">
-          <TabSet {tabs} label="Talent trees" idPrefix="class-trees" let:key>
-            {#each document.trees.filter((tree) => tree.anchor === key) as tree (tree.anchor)}<TalentTreeSection {tree} points={tree.points !== commonPoints ? tree.points : undefined} pointsGuide={tree.pointsGuide} {registry} />{/each}
-          </TabSet>
+          {#if document.web}
+            <!-- The web shows the trees as the game's talent screen does, and the list shows each tree as a table. Both
+                 views render every tree and talent anchor, so a link keeps the reader's view. -->
+            <TabSet tabs={views} label="Talent tree view" idPrefix="talent-view" param="view" let:key={view}>
+              {#if view === 'web'}<TalentWeb web={document.web} trees={document.trees} {registry} />
+              {:else}
+                <TabSet {tabs} label="Talent trees" idPrefix="class-trees" let:key>
+                  {#each document.trees.filter((tree) => tree.anchor === key) as tree (tree.anchor)}<TalentTreeSection {tree} points={tree.points !== commonPoints ? tree.points : undefined} pointsGuide={tree.pointsGuide} {registry} />{/each}
+                </TabSet>
+              {/if}
+            </TabSet>
+          {:else}
+            <TabSet {tabs} label="Talent trees" idPrefix="class-trees" let:key>
+              {#each document.trees.filter((tree) => tree.anchor === key) as tree (tree.anchor)}<TalentTreeSection {tree} points={tree.points !== commonPoints ? tree.points : undefined} pointsGuide={tree.pointsGuide} {registry} />{/each}
+            </TabSet>
+          {/if}
         </Section>
       {/if}
     </Sections>
