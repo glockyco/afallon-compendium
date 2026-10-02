@@ -50,6 +50,8 @@
 
 {#if page.kind === 'mechanics'}
   {#if guide}<svelte:component this={guide} document={page.document} {registry} {inlineItem} />{/if}
+{:else if page.kind === 'currencies'}
+  <CurrencyPage document={page.document} {registry} {inlineItem} />
 {:else if detail}
   <svelte:component this={detail} document={page.document} {registry} />
 {/if}

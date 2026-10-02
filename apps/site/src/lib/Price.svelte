@@ -5,6 +5,8 @@
 
   export let price: Price;
   export let showName = false;
+  /** The surrounding heading already identifies the currency. */
+  export let showIcon = true;
 
   $: currency = price.currency;
   $: icon = currency.key === null ? undefined : currency.icon;
@@ -12,4 +14,4 @@
 </script>
 
 <!-- A price flows with the text around it: the amount sits on the line's baseline and the coin centers on the letters. -->
-<span class="c-price">{#if icon}<img src={`${base}/data/${icon.url}`} width={icon.width} height={icon.height} alt={currencyName} loading="lazy" />{/if}{formatNumber(price.amount)}{#if showName}&nbsp;{currencyName}{/if}</span>
+<span class="c-price">{#if showIcon && icon}<img src={`${base}/data/${icon.url}`} width={icon.width} height={icon.height} alt={currencyName} loading="lazy" />{/if}{formatNumber(price.amount)}{#if showName}&nbsp;{currencyName}{/if}</span>

@@ -6,12 +6,13 @@
   import { entityOnMap, entityPlaceOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
+  import FactRow from '../FactRow.svelte';
+  import FactsCard from '../FactsCard.svelte';
   import PlacesList from '../PlacesList.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
-  import StatStrip from '../StatStrip.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
   export let document: PublicCraftingStation;
@@ -19,9 +20,10 @@
 
   $: icon = document.art.icon ?? document.ref.icon;
   $: spots = document.places.reduce((sum, place) => sum + place.spotCount, 0);
-  $: stats = [
+  $: sideFacts = [
     ...(document.recipes.length ? [{ label: 'Recipes', value: formatNumber(document.recipes.length), href: '#recipes' }] : []),
     ...(spots ? [{ label: 'Map spots', value: formatNumber(spots), href: '#where-to-find' }] : []),
+    ...(document.places.length ? [{ label: 'Areas', value: formatNumber(document.places.length), href: '#where-to-find' }] : []),
   ];
   $: places = document.places.map((place) => ({
     place: { key: null, label: place.label } as const, spotCount: place.spotCount, nameHref: entityPlaceOnMap(document.ref.key, place),
@@ -40,8 +42,7 @@
   <DetailFrame>
     <div slot="head">
       <TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} typeLine="Crafting station"
-        facts={document.skills.length ? [{ label: document.skills.length === 1 ? 'Skill' : 'Skills', refs: document.skills }] : []}
-        mapHref={spots ? entityOnMap(document.ref.key) : undefined} {registry}><StatStrip {stats} /></TitleBlock>
+        mapHref={spots ? entityOnMap(document.ref.key) : undefined} {registry} />
     </div>
 
     <div slot="answer">
@@ -51,6 +52,11 @@
       </AnswerCard>
     </div>
 
+    <svelte:fragment slot="side">
+      <FactsCard facts={sideFacts} title="At a glance">
+        {#if document.skills.length}<FactRow label={document.skills.length === 1 ? 'Skill' : 'Skills'}>{#each document.skills as skill, index}{index ? ', ' : ''}<EntityLink ref={skill} {registry} />{/each}</FactRow>{/if}
+      </FactsCard>
+    </svelte:fragment>
     <Sections>
       {#if document.recipes.length}
         <Section id="recipes" title="Recipes" count={document.recipes.length}>

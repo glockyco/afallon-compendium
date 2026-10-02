@@ -216,7 +216,7 @@
       </Section>
     {/if}
     <GatherSection rows={document.gatheredFrom} itemKey={document.ref.key} {registry} />
-    {#if document.buys.length}<PurchasesSection id="buys" title="Buys" rows={document.buys} {registry} />{/if}
+    {#if document.buys.length}<PurchasesSection id="buys" title="Buys" rows={document.buys} subjectCurrency={facts.currency} {registry} />{/if}
     {#if document.droppedBy.length && !singleDropInAnswer}<DroppedBySection rows={document.droppedBy} {registry} />{/if}
     {#if document.clothDrop}
       <Section id="cloth-loot" title="Cloth loot">

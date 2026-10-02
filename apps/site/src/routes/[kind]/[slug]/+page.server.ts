@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { EntryGenerator, PageServerLoad } from './$types';
 import { serverMapLoader } from '$lib/server/publication';
-import { isPublicPageKind, type StaticDocument } from '@afallon/contracts/public';
+import { isEntityRef, isPublicPageKind, type StaticDocument } from '@afallon/contracts/public';
 
 export const entries: EntryGenerator = async () => {
   const loader = serverMapLoader();
@@ -13,16 +13,17 @@ export const entries: EntryGenerator = async () => {
 
 type InlineItem = Extract<StaticDocument, { kind: 'items' }>['document'];
 
-/** Resolve the item's published page using the reference carried by the guide, not its URL. */
+/** Resolve the item whose sources also explain how a currency can be obtained. */
 export async function _loadGuideInlineItem(
   page: StaticDocument,
   loader: Pick<ReturnType<typeof serverMapLoader>, 'loadPageForRef'>,
 ): Promise<InlineItem | undefined> {
-  if (page.kind !== 'mechanics' || page.document.topic !== 'corruption') return undefined;
-  const ref = page.document.tryIt.defaultItem;
+  const ref = page.kind === 'currencies' ? page.document.item
+    : page.kind === 'mechanics' && page.document.topic === 'corruption' ? page.document.tryIt.defaultItem : undefined;
+  if (!ref || !isEntityRef(ref) || !ref.slug) return undefined;
   const item = await loader.loadPageForRef(ref);
   if (item.kind !== 'items' || item.document.ref.key !== ref.key) {
-    throw new Error(`Corruption guide item ${ref.key} does not resolve to its published item page.`);
+    throw new Error(`Inline item ${ref.key} does not resolve to its published item page.`);
   }
   return item.document;
 }

@@ -4,22 +4,20 @@
   import { formatNumber, nameOf, signedAmount } from '../../format';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
+  import FactsCard from '../FactsCard.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
   import Sections from '../Sections.svelte';
-  import StatStrip from '../StatStrip.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
   export let document: PublicGearSet;
   export let registry: PublicKindEntry[];
 
   $: pieceCount = document.pieces.length;
-  $: lastTier = document.tiers.at(-1);
-  $: stats = [
+  $: sideFacts = [
     { label: 'Pieces', value: formatNumber(pieceCount), href: '#pieces' },
-    ...(document.tiers.length ? [{ label: 'Set bonuses', value: formatNumber(document.tiers.length), href: '#set-bonuses' }] : []),
-    ...(lastTier ? [{ label: 'Pieces for the last bonus', value: formatNumber(lastTier.equipped) }] : []),
+    ...(document.tiers.length ? [{ label: 'Bonus tiers', value: formatNumber(document.tiers.length), href: '#set-bonuses' }] : []),
   ];
   const columns: RelationColumn<GearSetPiece>[] = [
     { id: 'item', label: 'Piece', value: (row) => nameOf(row.item), sort: (row) => nameOf(row.item) },
@@ -31,14 +29,14 @@
 <article class="detail-page">
   <DetailFrame>
     <div slot="head">
-      <TitleBlock name={document.ref.name} typeLine={document.type ? `${document.type} Gear Set` : 'Gear Set'} {registry}><StatStrip {stats} /></TitleBlock>
+      <TitleBlock name={document.ref.name} typeLine={document.type ? `${document.type} gear set` : 'Gear set'} {registry} />
     </div>
 
     <div slot="answer">
       <AnswerCard title="Set bonuses" id="set-bonuses">
         {#if document.description}<p class="description">{document.description}</p>{/if}
         {#if document.tiers.length}
-          <p>A bonus is active while you wear at least that many different pieces of the set. Two copies of one piece count once, and reaching a higher bonus keeps the lower ones.</p>
+          <p>Bonuses unlock as you equip different pieces of the set. Higher tiers keep the earlier bonuses.</p>
           <ul class="tiers">
             {#each document.tiers as tier}
               <li><strong>{formatNumber(tier.equipped)} {tier.equipped === 1 ? 'piece' : 'pieces'}</strong>
@@ -49,6 +47,11 @@
       </AnswerCard>
     </div>
 
+    <svelte:fragment slot="side">
+      <FactsCard facts={sideFacts} title="At a glance">
+        <p slot="after">Two copies of the same piece count only once.</p>
+      </FactsCard>
+    </svelte:fragment>
     <Sections>
       <Section id="pieces" title="Pieces" count={pieceCount}>
         <RelationTable columns={plan.columns} rows={document.pieces} label="Pieces">
