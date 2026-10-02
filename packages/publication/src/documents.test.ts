@@ -91,6 +91,25 @@ function project(projectEntities: CatalogEntityRow[], projectFacts: CatalogFacts
   return { refs: references.refs, documents };
 }
 
+test("a timed dungeon names its thresholds, token bonuses, and altar, and a Dungeon Finder dungeon names the supply pack", () => {
+  const dungeon = (firstRemainingSeconds: number | null): NonNullable<CatalogFacts["corruption"]>["dungeons"][number] => ({ scene: { entityKey: "scenes:10", label: "Crypt" },
+    totalSeconds: 860, firstRemainingSeconds, secondRemainingSeconds: 300, maxLootItems: 3, bosses: null, lootTables: null, token: null, provenance: [] });
+  const corruption = (row: ReturnType<typeof dungeon>): NonNullable<CatalogFacts["corruption"]> => ({ maxLevel: null, gearAllStatsPercentPerLevel: null, gearStatBonuses: null,
+    mobStatBonuses: null, affixesPerToken: null, affixes: null, token: null, heart: null, dungeons: [row], heartRequirements: null, provenance: [] });
+  const altarRelations: CatalogRelations = { ...relations, placements: [...relations.placements,
+    { placementId: "altar", sceneNativeId: 10, sceneKey: "scenes:10", mapSpaceId: "world", label: "Altar of Corruption", area: null, roles: [], families: [], randomChoices: [] }] };
+  const placements = new Map([["altar", { placementId: "altar", mapSpaceId: "world", label: "Crypt", categories: ["corruptionAltar" as const] }]]);
+  const place = (corruptionFacts: NonNullable<CatalogFacts["corruption"]>, finder: CatalogFacts["dungeonFinder"]) =>
+    project(entities, { ...facts, corruption: corruptionFacts, dungeonFinder: finder }, altarRelations, placements, new Map([["world", []]])).documents.get("scenes:10") as PublicPlace;
+  const timed = place(corruption(dungeon(500)), { supplyPack: { entityKey: "items:1", label: "Blade" }, dungeons: [{ entityKey: "scenes:10", label: "Crypt" }] });
+  expect(timed.timedDungeon).toEqual({ totalSeconds: 860, thresholds: [{ remainingSeconds: 500, tokenLevels: 2 }, { remainingSeconds: 300, tokenLevels: 1 }], maxLootItems: 3,
+    altars: [{ placementId: "altar", mapSpaceId: "world", label: "Crypt" }], guide: expect.objectContaining({ key: "mechanics:corruption" }) });
+  expect(timed.dungeonFinder).toEqual({ supplyPack: expect.objectContaining({ key: "items:1" }) });
+  const partial = place(corruption(dungeon(null)), { supplyPack: null, dungeons: [] });
+  expect(partial.timedDungeon?.thresholds).toEqual([{ remainingSeconds: 300, tokenLevels: 1 }]);
+  expect(partial.dungeonFinder).toBeUndefined();
+});
+
 test("only eligible gear publishes captured corruption settings and the guide-section placement", () => {
   const consumable: CatalogEntityRow = { entityKey: "items:6", kind: "items", nativeId: 6, name: "Corruption Token", description: null, iconAssetName: null, artwork: [] };
   const source = { path: "targets/0/corruption.json", sha256: "a".repeat(64) };
@@ -331,18 +350,35 @@ test("a place lists the properties whose for-sale signs stand in it", () => {
   expect((documents.get("properties:30") as PublicProperty).place).toMatchObject({ key: "scenes:10", name: "Crypt" });
 });
 
-test("a place lists each teleport with its direction and the spots where it starts", () => {
-  const placeEntities: CatalogEntityRow[] = [...entities, { entityKey: "scenes:47", kind: "scenes", nativeId: 47, name: "Afallon", description: null, iconAssetName: null, artwork: [] }];
+test("a place names where it is entered, and the overworld lists the places to enter", () => {
+  const scene = (nativeId: number, name: string): CatalogEntityRow => ({ entityKey: `scenes:${nativeId}`, kind: "scenes", nativeId, name, description: null, iconAssetName: null, artwork: [] });
+  const placeEntities = [...entities, scene(47, "Afallon"), scene(31, "Cave"), scene(26, "Vault"), scene(15, "Challenge Stone Blood")];
+  const place = (entityKey: string, placeType: "dungeon" | "zone", mapSpaceId: string, levelRange: { min: number; max: number } | null = null) =>
+    ({ entityKey, placeType, guideIncluded: false, guideDescription: null, levelRange, mapSpaceIds: [mapSpaceId], bosses: [], parentSceneKey: null });
+  const placeFacts: CatalogFacts = { ...facts, entities: placeEntities, places: [place("scenes:10", "dungeon", "crypt", { min: 18, max: 20 }),
+    place("scenes:47", "zone", "world"), place("scenes:31", "zone", "cave"), place("scenes:26", "zone", "vault"), place("scenes:15", "zone", "world")] };
   const teleport = (transitionId: string, sourceSceneKey: string, destinationSceneKey: string, placementIds: string[]) => ({ transitionId, sourceSceneKey, destinationSceneKey, transitionKind: "effect-teleport", placementIds, start: null });
-  const { documents } = project(placeEntities, facts, { ...relations, transitions: [
-    teleport("into-crypt", "scenes:47", "scenes:10", ["door"]), teleport("out-of-crypt", "scenes:10", "scenes:47", ["exit"]), teleport("inside-crypt", "scenes:10", "scenes:10", []),
-  ] }, new Map([
-    ["door", { placementId: "door", mapSpaceId: "world", label: "Afallon", categories: ["travelPoint"] }],
-    ["exit", { placementId: "exit", mapSpaceId: "crypt", label: "Crypt", categories: ["travelPoint"] }],
-  ]), new Map([["world", []]]));
-  const rows = (key: string) => (documents.get(key) as PublicPlace).connections.map((row) => [row.direction, row.counterpart.key, row.placements.map((placement) => placement.placementId)]);
-  expect(rows("scenes:10")).toEqual([["from", "scenes:47", ["door"]], ["to", "scenes:47", ["exit"]], ["within", "scenes:10", []]]);
-  expect(rows("scenes:47")).toEqual([["to", "scenes:10", ["door"]], ["from", "scenes:10", ["exit"]]]);
+  const placeRelations = { ...relations, transitions: [
+    teleport("into-crypt", "scenes:47", "scenes:10", ["door"]), teleport("out-of-crypt", "scenes:10", "scenes:47", ["exit"]),
+    teleport("into-cave", "scenes:47", "scenes:31", ["cave-door"]), teleport("copy-into-cave", "scenes:15", "scenes:31", ["stone-copy"]),
+    teleport("into-stone", "scenes:47", "scenes:15", ["stone"]), teleport("into-vault", "scenes:31", "scenes:26", ["vault-door"]), teleport("out-of-vault", "scenes:26", "scenes:31", ["vault-exit"]),
+  ] };
+  const spot = (placementId: string, mapSpaceId: string) => [placementId, { placementId, mapSpaceId, label: "Afallon", categories: ["travelPoint" as const] }] as const;
+  const placements = new Map([spot("door", "world"), spot("exit", "crypt"), spot("cave-door", "world"), spot("stone-copy", "world"), spot("stone", "world"), spot("vault-door", "cave"), spot("vault-exit", "vault")]);
+  const references = buildEntityReferences(placeEntities, { facts: placeFacts, relations: placeRelations });
+  const documents = projectPublicDocuments({ entities: placeEntities, facts: placeFacts, relations: placeRelations, references, resolve: createReferenceResolver(references.refs),
+    artByEntity: new Map(), placements, regionIdsByMapSpace: new Map([["world", []], ["crypt", []], ["cave", []], ["vault", []]]), npcLevels: new Map(), placementIdsByKey: new Map(),
+    overworldMapSpaceIds: new Set(["world"]), challengeStones: new Map([["scenes:15", placements.get("stone")!]]) });
+  const entrances = (key: string) => (documents.get(key) as PublicPlace).entrances.map((row) => [row.place.key, row.placements.map((placement) => placement.placementId)]);
+  expect(entrances("scenes:10")).toEqual([["scenes:47", ["door"]]]);
+  expect(entrances("scenes:31")).toEqual([["scenes:47", ["cave-door"]]]);
+  expect(entrances("scenes:26")).toEqual([["scenes:31", ["vault-door"]]]);
+  expect(entrances("scenes:47")).toEqual([]);
+  expect(entrances("scenes:15")).toEqual([]);
+  expect((documents.get("scenes:47") as PublicPlace).placesToEnter.map((row) => [row.group, row.place.key, row.levelRange ?? null, row.placements.map((placement) => placement.placementId)])).toEqual([
+    ["dungeon", "scenes:10", { min: 18, max: 20 }, ["door"]], ["challengeStone", "scenes:15", null, ["stone"]], ["other", "scenes:31", null, ["cave-door"]],
+  ]);
+  expect((documents.get("scenes:10") as PublicPlace).placesToEnter).toEqual([]);
 });
 
 test("variant places keep unique objects and quests without inheriting copied host content", () => {
@@ -380,7 +416,6 @@ test("variant places keep unique objects and quests without inheriting copied ho
   expect(challenge.containers).toEqual([{ category: "container", placementCount: 1 }]);
   expect(challenge.resources).toEqual([{ category: "interactiveObject", placementCount: 1 }]);
   expect(challenge.quests.map((ref) => ref.key)).toEqual(["quests:4"]);
-  expect(challenge.connections.map((row) => row.placements.map((placement) => placement.placementId))).toEqual([["challenge-chest"]]);
   expect(overworld.npcs.map((row) => row.counterpart.key)).toEqual(["npcs:2"]);
   expect(overworld.space?.regionIds).toEqual(["entire-world"]);
 });

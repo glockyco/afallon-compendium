@@ -41,6 +41,12 @@ export function intervalText(seconds: number): string {
   return `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
 }
 
+/** A timer in minutes and seconds: "14 min 20 s", "5 min", "45 s". */
+export function timerText(seconds: number): string {
+  const minutes = Math.floor(seconds / 60), rest = Math.round(seconds - minutes * 60);
+  return [minutes ? `${formatNumber(minutes)} min` : '', rest || !minutes ? `${formatNumber(rest)} s` : ''].filter(Boolean).join(' ');
+}
+
 /** Item source kinds are native-style ids. An interactive object source reads as the object that gives the item. */
 const SOURCE_KIND_LABELS: Record<string, string> = { interaction: 'Object', startingGear: 'Starting gear' };
 

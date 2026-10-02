@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { mergeRows, omitAlways, omitWhenShared, planColumns, shownRowCount, stateInHeading, uniquePlacements, type RelationColumn } from './relation-table';
+import { mergeRows, omitAlways, omitWhenShared, planColumns, shownRowCount, stateInHeading, type RelationColumn } from './relation-table';
 
 type Drop = { item: string; quantity: number; chance: number; roll?: string; requirement?: string };
 const columns: RelationColumn<Drop>[] = [
@@ -45,11 +45,6 @@ test('merging joins only rows with the same key, in first-seen order', () => {
   const rows = [{ quest: 'Cold Clutch', role: 'gives' }, { quest: 'Brood', role: 'gives' }, { quest: 'Cold Clutch', role: 'completes' }];
   const merged = mergeRows(rows, (row) => row.quest, (group) => ({ quest: group[0]!.quest, roles: group.map((row) => row.role) }));
   expect(merged).toEqual([{ quest: 'Cold Clutch', roles: ['gives', 'completes'] }, { quest: 'Brood', roles: ['gives'] }]);
-});
-
-test('merged rows count a shared map spot once', () => {
-  const spot = (placementId: string) => ({ placementId, mapSpaceId: 'world', label: 'Coalway Woods' });
-  expect(uniquePlacements([[spot('a'), spot('b')], [spot('b'), spot('c')]]).map((placement) => placement.placementId)).toEqual(['a', 'b', 'c']);
 });
 
 test('a list of up to ten rows shows them all, and a longer list hides at least three behind Show more', () => {

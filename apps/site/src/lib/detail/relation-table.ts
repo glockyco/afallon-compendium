@@ -1,4 +1,4 @@
-import type { PlacedRule, PlacementRef } from '@afallon/contracts/public';
+import type { PlacedRule } from '@afallon/contracts/public';
 import type { SortValue } from '../table';
 
 /** A value that decides whether a column shows: text, a number, or `undefined` when the row has no value. */
@@ -74,13 +74,6 @@ export function mergeRows<Row, Merged>(rows: readonly Row[], key: (row: Row) => 
     else groups.set(id, [row]);
   }
   return [...groups.values()].map(merge);
-}
-
-/** The distinct placements of several rows, in first-seen order, so a merged row counts each map spot once. */
-export function uniquePlacements(groups: readonly (readonly PlacementRef[])[]): PlacementRef[] {
-  const seen = new Map<string, PlacementRef>();
-  for (const placements of groups) for (const placement of placements) if (!seen.has(placement.placementId)) seen.set(placement.placementId, placement);
-  return [...seen.values()];
 }
 
 /**

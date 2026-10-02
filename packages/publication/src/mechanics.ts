@@ -1,6 +1,7 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
 import type { ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicLevel, PublicMechanics, PublicNpc, TalentPoints } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
+import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
 import type { ReferenceResolver } from "./documents/projection";
 import { requiredLevel, spawnerExamples } from "./gathering";
 import type { CorruptionRewards } from "./corruption-rewards";
@@ -285,8 +286,7 @@ function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, re
   });
   return {
     ref: topicRef("corruption"), description: MECHANICS_TOPIC_NAMES.corruption.description, art: {}, topic: "corruption",
-    nativeRules: { altarWithoutTokenIncrement: 1, completionFirstBonus: 2, completionSecondBonus: 1,
-      completionOtherwiseBonus: 0, timeoutDecrease: 1, timeoutMinimum: 1 },
+    nativeRules: { ...CORRUPTION_NATIVE_RULES },
     overview: GUIDES.corruption.overview,
     // Native and live evidence establish the corruption rules that the leads and computed sentences state.
     sections: guideSections("corruption", []),

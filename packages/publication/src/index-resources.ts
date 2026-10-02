@@ -139,6 +139,7 @@ export async function generateIndexResources(
   exclusions: readonly PublicationExclusion[],
   protection?: ObjectWriteProtection,
   placeVariants: ReadonlyMap<string, PlaceVariant> = new Map(),
+  overworldMapSpaceIds: ReadonlySet<string> = new Set(),
 ): Promise<GeneratedIndexResources> {
   const entities = queryCatalogEntities(db), facts = queryCatalogFacts(db), catalogRelations = queryCatalogRelations(db);
   assertSameIdentity(entities, facts, "Fact");
@@ -182,12 +183,13 @@ export async function generateIndexResources(
       db.query("SELECT loot_table_id AS lootTableId, item_entity_key AS itemKey FROM loot_entries")
         .all() as Array<{ lootTableId: number; itemKey: string }>, bossDropTables, publishedKeys, resolve)
     : undefined;
+  const stoneUses = projectChallengeStoneUses(facts.records, publishedKeys, resolve, catalogRelations.records.transitions, publishedPlacements, stoneRoutes);
+  const challengeStones = new Map((stoneUses ?? []).flatMap((use) => use.spot ? use.destinations.map((destination) => [destination.key, use.spot!] as const) : []));
   const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
     resolve, artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants,
-    classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards });
+    classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards, overworldMapSpaceIds, challengeStones });
   const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards), ...nodeDocuments]);
-  attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null,
-    projectChallengeStoneUses(facts.records, publishedKeys, resolve, catalogRelations.records.transitions, publishedPlacements, stoneRoutes));
+  attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null, stoneUses);
 
   const documents = new Map<string, GeneratedStaticResource<StaticDocument>>();
   for (const [key, document] of publicDocuments) {

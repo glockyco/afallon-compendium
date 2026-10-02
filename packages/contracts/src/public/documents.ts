@@ -209,13 +209,17 @@ const markerCategory = publicMarkerCategory;
 export const PlacementGroupSchema = Type.Object({ category: markerCategory, placementCount: Type.Integer({ minimum: 1 }) }, { additionalProperties: false });
 export type PlacementGroup = Static<typeof PlacementGroupSchema>;
 
-// A teleport of a place. `direction` is `to` when the teleport starts in the place and ends in the counterpart, `from`
-// when it starts in the counterpart and ends in the place, and `within` when it starts and ends in the place. The
-// placements are the published spots of the object that starts the teleport.
-export const ConnectionRowSchema = Type.Object({
-  counterpart: RefSchema, direction: Type.Union([Type.Literal("to"), Type.Literal("from"), Type.Literal("within")]), placements,
+// A place that a player enters this place from, and the published spots of the teleports that lead here from it.
+export const PlaceEntranceSchema = Type.Object({ place: RefSchema, placements }, { additionalProperties: false });
+export type PlaceEntrance = Static<typeof PlaceEntranceSchema>;
+
+// A place that a player can enter from the overworld. `placements` are the spots of its entrances in the overworld, or the
+// challenge stone that starts it.
+export const PlaceToEnterSchema = Type.Object({
+  place: EntityRefSchema, group: Type.Union([Type.Literal("dungeon"), Type.Literal("challengeStone"), Type.Literal("other")]),
+  levelRange: optional(PublicLevelRangeSchema), placements,
 }, { additionalProperties: false });
-export type ConnectionRow = Static<typeof ConnectionRowSchema>;
+export type PlaceToEnter = Static<typeof PlaceToEnterSchema>;
 
 // An interactive object whose `CompleteTask` action completes an objective's task. The object has no page,
 // so the row carries its placements.
@@ -554,7 +558,17 @@ export const ChallengeStoneStartSchema = Type.Object({
   heart: EntityRefSchema, stoneName: text, regionName: text, spot: PlacementRefSchema, count,
 }, { additionalProperties: false });
 export type ChallengeStoneStart = Static<typeof ChallengeStoneStartSchema>;
-
+// The timer of a timed dungeon. Each threshold is the time left on the timer when the last boss dies, and the token levels
+// that beating it adds. `maxLootItems` is the most items that the reward bag holds besides the token. `altars` are the
+// spots of the dungeon's Altar of Corruption, and `guide` is the Corruption guide.
+export const TimedDungeonSchema = Type.Object({
+  totalSeconds: optional(Type.Number({ exclusiveMinimum: 0 })),
+  thresholds: Type.Array(Type.Object({ remainingSeconds: Type.Number({ exclusiveMinimum: 0 }), tokenLevels: Type.Integer({ minimum: 1 }) }, { additionalProperties: false })),
+  maxLootItems: optional(count), token: optional(EntityRefSchema), altars: placements, guide: EntityRefSchema,
+}, { additionalProperties: false });
+export type TimedDungeon = Static<typeof TimedDungeonSchema>;
+// The Dungeon Finder can send a player to the dungeon, and a finished Random run gives `supplyPack`.
+export const PlaceDungeonFinderSchema = Type.Object({ supplyPack: optional(EntityRefSchema) }, { additionalProperties: false });
 
 // `quests` start in the place; `questObjectives` have an objective target or a completion object in it.
 // An object in the place that gives items when used, such as a grave or a locked chest. Rows with the same label, cost,
@@ -568,8 +582,9 @@ export const PublicPlaceSchema = Type.Object({
   ...documentBase, facts: PlaceFactsSchema, space: Type.Union([PlaceSpaceSchema, Type.Null()]), variantOf: optional(RefSchema),
   bosses: refs, creatures: Type.Array(CreatureRowSchema), npcs: Type.Array(CreatureRowSchema),
   services: Type.Array(PlacementGroupSchema), resources: Type.Array(PlacementGroupSchema), containers: Type.Array(PlacementGroupSchema), lootObjects: Type.Array(PlaceLootObjectSchema),
-  quests: refs, questObjectives: refs, properties: refs, connections: Type.Array(ConnectionRowSchema), regions: refs, parent: optional(RefSchema),
-  challengeStoneStart: optional(ChallengeStoneStartSchema),
+  quests: refs, questObjectives: refs, properties: refs, entrances: Type.Array(PlaceEntranceSchema), placesToEnter: Type.Array(PlaceToEnterSchema),
+  regions: refs, parent: optional(RefSchema), challengeStoneStart: optional(ChallengeStoneStartSchema),
+  dungeonFinder: optional(PlaceDungeonFinderSchema), timedDungeon: optional(TimedDungeonSchema),
 }, { additionalProperties: false });
 export type PublicPlace = Static<typeof PublicPlaceSchema>;
 
@@ -837,7 +852,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v19", npcs: "compendium.static-npc.v9", quests: "compendium.static-quest.v7", places: "compendium.static-place.v9",
+  items: "compendium.static-item.v19", npcs: "compendium.static-npc.v9", quests: "compendium.static-quest.v7", places: "compendium.static-place.v10",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v6", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v11", gatheringNodes: "compendium.static-gathering-node.v5",
 } as const satisfies Record<PublicPageKind, string>;
@@ -863,14 +878,14 @@ export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-item.v19": typeof StaticItemDocumentSchema; "compendium.static-npc.v9": typeof StaticNpcDocumentSchema;
-  "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v9": typeof StaticPlaceDocumentSchema;
+  "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v10": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v6": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v11": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v5": typeof StaticGatheringNodeDocumentSchema;
 } = {
   "compendium.static-item.v19": StaticItemDocumentSchema, "compendium.static-npc.v9": StaticNpcDocumentSchema,
-  "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v9": StaticPlaceDocumentSchema,
+  "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v10": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v6": StaticClassDocumentSchema,
   "compendium.static-skill.v6": StaticSkillDocumentSchema, "compendium.static-mechanics.v11": StaticMechanicsDocumentSchema,
@@ -880,7 +895,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v19"), resourceReference("compendium.static-npc.v9"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v9"),
+  resourceReference("compendium.static-item.v19"), resourceReference("compendium.static-npc.v9"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v10"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v6"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v11"),
   resourceReference("compendium.static-gathering-node.v5"),
@@ -1033,7 +1048,9 @@ schemaRegistry.register("compendium.public-ability-phase.v2", AbilityPhaseSchema
 schemaRegistry.register("compendium.public-faction-reward-row.v1", FactionRewardRowSchema);
 schemaRegistry.register("compendium.public-creature-row.v1", CreatureRowSchema);
 schemaRegistry.register("compendium.public-placement-group.v1", PlacementGroupSchema);
-schemaRegistry.register("compendium.public-connection-row.v2", ConnectionRowSchema);
+schemaRegistry.register("compendium.public-place-entrance.v1", PlaceEntranceSchema);
+schemaRegistry.register("compendium.public-place-to-enter.v1", PlaceToEnterSchema);
+schemaRegistry.register("compendium.public-timed-dungeon.v1", TimedDungeonSchema);
 schemaRegistry.register("compendium.public-kind-entry.v3", PublicKindEntrySchema);
 schemaRegistry.register("compendium.public-search-entry.v2", PublicSearchEntrySchema);
 // Schema ids are lower case with hyphens, so a camel-case kind becomes hyphenated. A public document schema

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Assert } from "typebox/value";
 import {
-  ArtRefSchema, ConnectionRowSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, UsedInRecipeRowSchema, VendorRowSchema,
+  ArtRefSchema, PlaceEntranceSchema, DropRowSchema, EntityRefSchema, RequirementGroupSchema, GatherRowSchema, ContainerRowSchema, QuestObjectiveRowSchema, RecipeRowSchema, UsedInRecipeRowSchema, VendorRowSchema,
   PUBLIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMAS, STATIC_DOCUMENT_SCHEMA_IDS, StaticRootManifestSchema, StaticSearchIndexSchema, StaticKindListSchema,
   assertStaticPublicationSemantics, staticResourceEdges, collectRefs,
   type ArtRef, type EntityRef, type PublicDocument, type PublicItem, type PublicNpc, type PublicQuest, type PublicPlace, type PublicProperty, type PublicAbility, type PublicClass, type PublicSkill, type CharacterProgression, type HeroicTier, type MechanicsRule, type CraftingAndGathering, type PublicGatheringNode,
@@ -59,9 +59,8 @@ test("relation rows accept an unresolved endpoint and omit an unmeasured chance"
   Assert(ContainerRowSchema, { counterpart: unresolved, label: "Chest", availabilityIndex: 0, placementCount: 1, places: [{ label: "Duskfall Depths", mapSpaceId: "duskfall", spotCount: 1, placementIds: ["p1"] }] });
   Assert(RecipeRowSchema, { counterpart: item, count: 1 });
   Assert(UsedInRecipeRowSchema, { counterpart: item, count: 3, product: { counterpart: boss, count: 2 }, skill: item, requiredLevel: 1 });
-  Assert(ConnectionRowSchema, { counterpart: unresolved, direction: "to", placements: [placement] });
-  expect(() => Assert(ConnectionRowSchema, { counterpart: boss, kind: "effect-teleport", placements: [] })).toThrow();
-  expect(() => Assert(ConnectionRowSchema, { counterpart: boss, direction: "both", placements: [] })).toThrow();
+  Assert(PlaceEntranceSchema, { place: unresolved, placements: [placement] });
+  expect(() => Assert(PlaceEntranceSchema, { place: boss, direction: "from", placements: [] })).toThrow();
   Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 0, text: "Kill 3 Branchweavers", completions: [], type: "killNpc", target: boss, count: 3 } });
   Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 1, text: "?", completions: [], type: "unsupported", rawType: "customTask" } });
   expect(() => Assert(QuestObjectiveRowSchema, { counterpart: boss, objective: { index: 0, text: "x", completions: [], type: "killNpc", target: boss } })).toThrow();
@@ -115,7 +114,9 @@ const fixtures: { [K in keyof typeof PUBLIC_DOCUMENT_SCHEMAS]: PublicDocument } 
     places: [{ label: "Duskfall Depths", mapSpaceId: "duskfall", placementIds: ["p1"], spotCount: 1 }], spotCount: 1,
     drops: [{ counterpart: item, min: 1, max: 1, requirements: [] }], sells: [], quests: [], abilityPhases: [{ phaseIndex: 0, name: "Bug boss", abilities: [] }], factionRewards: [], usedInQuests: [], bossOf: [], placedRules: [] } satisfies PublicNpc,
   quests: { ...base, ref: { key: "quests:10", kind: "quests", name: "The Bonebind Ritual", slug: "the-bonebind-ritual" }, facts: { repeatable: false, turnInWithoutNpc: false, requirements: [] }, starts: [{ kind: "npc", npc: boss, areas: ["Duskfall Depths"] }], turnIns: [], objectives: [{ index: 0, text: "Kill 3 Branchweavers", completions: [], type: "killNpc", target: boss, count: 3 }], itemsGiven: [], rewards: [{ counterpart: item, count: 1, choice: false }], rewardChoices: [], chainQuests: [], unlocks: [], worldChanges: [], placedRules: [] } satisfies PublicQuest,
-  places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], lootObjects: [], quests: [], questObjectives: [], properties: [], connections: [], regions: [] } satisfies PublicPlace,
+  places: { ...base, ref: { key: "scenes:10", kind: "places", name: "Duskfall Depths", slug: "duskfall-depths" }, facts: { placeType: "dungeon", levelRange: { min: 18, max: 20 }, guideIncluded: true }, space: { mapSpaceId: "duskfall", regionIds: [] }, bosses: [boss], creatures: [], npcs: [], services: [], resources: [], containers: [], lootObjects: [], quests: [], questObjectives: [], properties: [], entrances: [{ place: { key: "scenes:47", kind: "places", name: "Afallon", slug: "afallon" }, placements: [placement] }], placesToEnter: [], regions: [],
+    dungeonFinder: { supplyPack: item }, timedDungeon: { totalSeconds: 800, thresholds: [{ remainingSeconds: 500, tokenLevels: 2 }, { remainingSeconds: 300, tokenLevels: 1 }], maxLootItems: 3, altars: [placement],
+      guide: { key: "mechanics:corruption", kind: "mechanics", name: "Corruption", slug: "corruption" } } } satisfies PublicPlace,
   properties: { ...located, ref: { key: "properties:1", kind: "properties", name: "Mill", slug: "mill" }, facts: { income: { amount: 60, currency: gold }, incomeInterval: 300 } } satisfies PublicProperty,
   abilities: { ...base, ref: { key: "abilities:194", kind: "abilities", name: "Blacktar Eruption", slug: "blacktar-eruption" }, versions: [{ keys: ["abilities:194"], anchor: "n194", ranks: [{ rankIndex: 0, lines: [{ spans: [{ text: "Deals damage", tone: "damage", italic: false }] }] }], useRequirements: [], learnedBy: [], usedBy: [boss], usedByItems: [], taughtBy: [] }] } satisfies PublicAbility,
   classes: { ...base, ref: { key: "classes:0", kind: "classes", name: "Shieldmaster", slug: "shieldmaster" }, facts: { races: ["Dwarf"], weapons: ["Shield"], talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], highestLevel: 60 },

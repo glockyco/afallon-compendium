@@ -81,7 +81,7 @@ const npcPage = (id: number, locations: NpcLocation[] = []): PublicNpc => ({
 const place = (name: string, mapSpaceId: string): PublicPlace => ({
   ref: { key: `scenes:${mapSpaceId}`, kind: "places", name, slug: mapSpaceId }, description: null, art: {},
   facts: { placeType: "zone", guideIncluded: true }, space: { mapSpaceId, regionIds: [] },
-  bosses: [], creatures: [], npcs: [], services: [], resources: [], containers: [], lootObjects: [], quests: [], questObjectives: [], properties: [], connections: [], regions: [],
+  bosses: [], creatures: [], npcs: [], services: [], resources: [], containers: [], lootObjects: [], quests: [], questObjectives: [], properties: [], entrances: [], placesToEnter: [], regions: [],
 });
 const entityDocuments = new Map<string, PublicDocument>([
   ["npcs:1", npcPage(1, [location("Oakenvale", "oakenvale", "n1", zombieSpawn)])],

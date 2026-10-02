@@ -104,7 +104,7 @@ export async function buildStaticPublication(
   // A page that names a placement that a fold merged links the marker that shows it.
   const spots = new Map(placements);
   for (const entry of mapShards) for (const [placementId, target] of entry.mergedInto) spots.set(placementId, placements.get(target)!);
-  const indexes = await generateIndexResources(db, store, spots, placementIdsByKey, regionIdsByMapSpace, npcLevels, publishedExtents, exclusions, protection, variants.byScene);
+  const indexes = await generateIndexResources(db, store, spots, placementIdsByKey, regionIdsByMapSpace, npcLevels, publishedExtents, exclusions, protection, variants.byScene, new Set(capturedMapSpaceIds));
   const identity = queryCatalogMaps(db);
   assertCompleteTooltipCoverage(gate.complete, indexes.publicationIssues);
   const coverage: StaticCoverage = {

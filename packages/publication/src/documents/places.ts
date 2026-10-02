@@ -1,9 +1,11 @@
 import type { CatalogCondition, CatalogEntityRow, CatalogPlacementRow, CatalogQuestRow } from "@afallon/contracts/catalog";
-import type { ConnectionRow, CreatureRow, EntityRef, PlaceLootObject, PlacementGroup, PublicLevel, PublicMarkerCategory, PublicPlace, Ref } from "@afallon/contracts/public";
+import { type CreatureRow, type EntityRef, isEntityRef, type PlaceEntrance, type PlaceLootObject, type PlacementGroup, type PlacementRef, type PlaceToEnter, type PublicLevel, type PublicMarkerCategory, type PublicPlace, type Ref, type TimedDungeon } from "@afallon/contracts/public";
+import { CORRUPTION_NATIVE_RULES } from "../corruption-rules";
 import { markerCategories } from "../categories";
 import { levelUnion } from "../levels";
 import { npcFact } from "./npcs";
-import { baseDocument, type DocumentProjectionInput, endpointOrUnknown, interactionLabel, mergeRefs, pageOrVariant, projectAvailability, publishedPlacements, refKey, type RelationIndexes } from "./projection";
+import { baseDocument, type DocumentProjectionInput, interactionLabel, mergeRefs, pageOrVariant, projectAvailability, publishedPlacements, refKey, type RelationIndexes } from "./projection";
+import { topicRef } from "../placed-rules";
 import { propertySceneKey } from "./properties";
 import { displayName } from "../text";
 
@@ -90,15 +92,109 @@ function lootObjects(placeKey: string, host: { key: string; here: ReadonlySet<st
     .sort((left, right) => right.placements.length - left.placements.length || left.label.localeCompare(right.label));
 }
 
+const refName = (ref: Ref) => isEntityRef(ref) ? ref.name : ref.label;
+
+// The services that a player uses. Townsfolk, neutral creatures, and travel points are not services.
+const SERVICE_CATEGORIES = { merchant: true, auctioneer: true, banker: true, questGiver: true, flightPoint: true,
+  craftingStation: true, alchemyStation: true, cookingStation: true, smithingStation: true, furnace: true, tailoringStation: true } as const;
+
+const routesByInput = new WeakMap<DocumentProjectionInput, ReturnType<typeof computePlaceRoutes>>();
+
+/** How places relate: each place's map space, whether it is a challenge stone or the overworld, and its teleport depth. */
+function placeRoutes(input: DocumentProjectionInput) {
+  let routes = routesByInput.get(input);
+  if (!routes) routesByInput.set(input, routes = computePlaceRoutes(input));
+  return routes;
+}
+
+function computePlaceRoutes(input: DocumentProjectionInput) {
+  const facts = new Map(input.facts.places.map((fact) => [fact.entityKey, fact]));
+  const mapSpace = (key: string) => facts.get(key)?.mapSpaceIds.find((candidate) => input.regionIdsByMapSpace.has(candidate)) ?? null;
+  const challengeStone = (key: string) => (input.challengeStones?.has(key) ?? false) || (input.placeVariants?.has(key) ?? false);
+  const overworld = (key: string) => { const space = mapSpace(key); return space !== null && (input.overworldMapSpaceIds?.has(space) ?? false) && !challengeStone(key); };
+  // The fewest teleports from the overworld to each place. A teleport into a place from a deeper place is its way back.
+  const depth = new Map(input.facts.places.filter((fact) => overworld(fact.entityKey)).map((fact) => [fact.entityKey, 0]));
+  for (let frontier = [...depth.keys()]; frontier.length;) {
+    const next: string[] = [];
+    for (const row of input.relations.transitions) {
+      const { sourceSceneKey: source, destinationSceneKey: destination } = row;
+      if (source === null || destination === null || !frontier.includes(source) || depth.has(destination) || challengeStone(destination)) continue;
+      depth.set(destination, depth.get(source)! + 1);
+      next.push(destination);
+    }
+    frontier = next;
+  }
+  return { facts, mapSpace, challengeStone, overworld, depth };
+}
+
+/**
+ * The places that a player enters this place from, merged by place. Copies of the entrance in challenge stones do not count,
+ * and neither does the way back from a place that is farther from the overworld.
+ */
+function entrances(placeKey: string, input: DocumentProjectionInput, routes: ReturnType<typeof placeRoutes>): PlaceEntrance[] {
+  if (routes.overworld(placeKey) || routes.challengeStone(placeKey) || routes.mapSpace(placeKey) === null) return [];
+  const depth = routes.depth.get(placeKey) ?? Infinity;
+  const bySource = new Map<string, string[]>();
+  for (const row of input.relations.transitions) {
+    const source = row.sourceSceneKey;
+    if (row.destinationSceneKey !== placeKey || source === null || source === placeKey || routes.challengeStone(source)) continue;
+    if ((routes.depth.get(source) ?? Infinity) > depth) continue;
+    bySource.set(source, [...bySource.get(source) ?? [], ...row.placementIds]);
+  }
+  return [...bySource].map(([source, ids]) => ({ place: input.resolve({ entityKey: source, label: source }), placements: publishedPlacements(ids, input.placements) }))
+    .sort((left, right) => Number(routes.overworld(right.place.key ?? "")) - Number(routes.overworld(left.place.key ?? "")) || refName(left.place).localeCompare(refName(right.place)));
+}
+
+const PLACE_GROUP_ORDER: Record<PlaceToEnter["group"], number> = { dungeon: 0, challengeStone: 1, other: 2 };
+
+/** The places with their own map that a player enters from the overworld, and the challenge stones that it holds. */
+function placesToEnter(placeKey: string, input: DocumentProjectionInput, routes: ReturnType<typeof placeRoutes>): PlaceToEnter[] {
+  if (!routes.overworld(placeKey)) return [];
+  const space = routes.mapSpace(placeKey);
+  const spots = new Map<string, string[]>();
+  for (const row of input.relations.transitions) {
+    const destination = row.destinationSceneKey;
+    if (row.sourceSceneKey !== placeKey || destination === null || destination === placeKey || routes.challengeStone(destination)) continue;
+    const destinationSpace = routes.mapSpace(destination);
+    if (destinationSpace === null || input.overworldMapSpaceIds?.has(destinationSpace)) continue;
+    spots.set(destination, [...spots.get(destination) ?? [], ...row.placementIds]);
+  }
+  const rows: PlaceToEnter[] = [];
+  const add = (key: string, group: PlaceToEnter["group"], placements: PlacementRef[]) => {
+    const ref = input.resolve({ entityKey: key, label: key });
+    if (!isEntityRef(ref) || ref.kind !== "places") return;
+    const levelRange = routes.facts.get(key)?.levelRange;
+    rows.push({ place: ref, group, ...(levelRange ? { levelRange } : {}), placements });
+  };
+  for (const [key, ids] of spots) add(key, routes.facts.get(key)?.placeType === "dungeon" ? "dungeon" : "other", publishedPlacements(ids, input.placements));
+  for (const [key, spot] of input.challengeStones ?? []) if (spot.mapSpaceId === space) add(key, "challengeStone", [spot]);
+  return rows.sort((left, right) => PLACE_GROUP_ORDER[left.group] - PLACE_GROUP_ORDER[right.group] || left.place.name.localeCompare(right.place.name));
+}
+
+/** The timer, thresholds, reward bag, and altars of a timed dungeon. */
+function timedDungeon(placeKey: string, input: DocumentProjectionInput, altarIds: readonly string[]): TimedDungeon | undefined {
+  const corruption = input.facts.corruption;
+  const row = corruption?.dungeons.find((dungeon) => dungeon.scene.entityKey === placeKey);
+  if (!corruption || !row) return undefined;
+  const thresholds = [
+    ...(row.firstRemainingSeconds === null ? [] : [{ remainingSeconds: row.firstRemainingSeconds, tokenLevels: CORRUPTION_NATIVE_RULES.completionFirstBonus }]),
+    ...(row.secondRemainingSeconds === null ? [] : [{ remainingSeconds: row.secondRemainingSeconds, tokenLevels: CORRUPTION_NATIVE_RULES.completionSecondBonus }]),
+  ];
+  const tokenEndpoint = row.token ?? corruption.token;
+  const token = tokenEndpoint?.entityKey ? input.resolve({ entityKey: tokenEndpoint.entityKey, label: tokenEndpoint.label ?? tokenEndpoint.entityKey }) : undefined;
+  return {
+    ...(row.totalSeconds === null ? {} : { totalSeconds: row.totalSeconds }), thresholds,
+    ...(row.maxLootItems === null ? {} : { maxLootItems: row.maxLootItems }), ...(token && isEntityRef(token) ? { token } : {}),
+    altars: publishedPlacements(altarIds, input.placements), guide: topicRef("corruption"),
+  };
+}
+
 export function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: DocumentProjectionInput, indexes: RelationIndexes, conditions: ReadonlyMap<string, CatalogCondition>): PublicPlace {
   const fact = input.facts.places.find((candidate) => candidate.entityKey === entity.entityKey);
   const mapSpaceId = fact?.mapSpaceIds.find((candidate) => input.regionIdsByMapSpace.has(candidate)) ?? null;
   const placeType = fact?.placeType ?? (entity.kind === "regions" ? "region" : "zone");
   const variant = input.placeVariants?.get(entity.entityKey);
   const placePlacements = (indexes.placementsByScene.get(entity.entityKey) ?? []).filter((placement) => !variant?.copiedPlacementIds.has(placement.placementId));
-  const serviceCategories = { merchant: true, auctioneer: true, banker: true, questGiver: true, flightPoint: true, townsfolk: true,
-    craftingStation: true, alchemyStation: true, cookingStation: true, smithingStation: true, furnace: true, tailoringStation: true,
-    travelPoint: true, neutral: true } as const;
   const resourceCategories: Record<string, true> = { oreVein: true, herb: true, mushroom: true, fishingSpot: true };
   if (variant) resourceCategories.interactiveObject = true;
   const containerCategories = { container: true } as const;
@@ -113,25 +209,25 @@ export function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: Do
     || row.completions.some((completion) => placedHere(completion.placementIds)));
   const questRefs = (predicate: (row: CatalogQuestRow) => boolean) => [...new Map(input.relations.quests
     .filter(predicate).map((row) => [row.quest.entityKey ?? row.quest.label, input.resolve(row.quest)] as const)).values()];
-  const connections = input.relations.transitions.flatMap((row): ConnectionRow[] => {
-    const startsHere = row.sourceSceneKey === entity.entityKey, endsHere = row.destinationSceneKey === entity.entityKey;
-    if (!startsHere && !endsHere) return [];
-    if (variant && !placedHere(row.placementIds)) return [];
-    const direction = startsHere && endsHere ? "within" : startsHere ? "to" : "from";
-    const counterpartKey = direction === "from" ? row.sourceSceneKey : row.destinationSceneKey;
-    return [{ counterpart: endpointOrUnknown(input.resolve, counterpartKey === null ? null : { entityKey: counterpartKey, label: counterpartKey }, "Unknown place"), direction, placements: publishedPlacements(row.placementIds, input.placements) }];
-  });
+  const routes = placeRoutes(input);
+  const altarIds = [...here].filter((id) => input.placements.get(id)!.categories.includes("corruptionAltar")).sort();
+  const finder = input.facts.dungeonFinder;
+  const supplyPack = finder?.supplyPack?.entityKey ? input.resolve({ entityKey: finder.supplyPack.entityKey, label: finder.supplyPack.label ?? finder.supplyPack.entityKey }) : undefined;
+  const timed = timedDungeon(entity.entityKey, input, altarIds);
   return {
     ...baseDocument(entity, ref, input, fact?.guideDescription),
     facts: { placeType, ...(fact?.levelRange ? { levelRange: fact.levelRange } : {}), guideIncluded: fact?.guideIncluded ?? false },
     space: mapSpaceId === null ? null : { mapSpaceId, regionIds: variant ? [] : [...(input.regionIdsByMapSpace.get(mapSpaceId) ?? [])], ...(variant ? { placementIds: [...new Set([...here].map((id) => input.placements.get(id)!.placementId))].sort() } : {}) },
     ...(variant ? { variantOf: input.resolve({ entityKey: variant.hostKey, label: variant.hostKey }) } : {}),
     bosses: mergeRefs((fact?.bosses ?? []).filter((boss) => !variant || npcPlacedHere(boss.entityKey)).map((boss) => input.resolve(boss)), input), creatures: creaturesForPlace(placePlacements, input, indexes, true), npcs: creaturesForPlace(placePlacements, input, indexes, false),
-    services: placementGroups(placePlacements, serviceCategories, input), resources: placementGroups(placePlacements, resourceCategories, input), containers: placementGroups(placePlacements, containerCategories, input),
+    services: placementGroups(placePlacements, SERVICE_CATEGORIES, input), resources: placementGroups(placePlacements, resourceCategories, input), containers: placementGroups(placePlacements, containerCategories, input),
     lootObjects: lootObjects(entity.entityKey, variant ? { key: variant.hostKey, here } : undefined, input, indexes, conditions),
     quests: questRefs(startsHere), questObjectives: questRefs(objectiveHere),
     properties: input.facts.properties.filter((property) => propertySceneKey(property.entityKey, input) === entity.entityKey).map((property) => input.resolve({ entityKey: property.entityKey, label: property.entityKey })),
-    connections, regions: variant ? [] : input.facts.places.filter((candidate) => candidate.placeType === "region" && candidate.parentSceneKey === entity.entityKey).map((candidate) => input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey })),
+    entrances: entrances(entity.entityKey, input, routes), placesToEnter: placesToEnter(entity.entityKey, input, routes),
+    regions: variant ? [] : input.facts.places.filter((candidate) => candidate.placeType === "region" && candidate.parentSceneKey === entity.entityKey).map((candidate) => input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey })),
     ...(fact?.parentSceneKey ? { parent: input.resolve({ entityKey: fact.parentSceneKey, label: fact.parentSceneKey }) } : {}),
+    ...(finder?.dungeons.some((dungeon) => dungeon.entityKey === entity.entityKey) ? { dungeonFinder: supplyPack && isEntityRef(supplyPack) ? { supplyPack } : {} } : {}),
+    ...(timed ? { timedDungeon: timed } : {}),
   };
 }

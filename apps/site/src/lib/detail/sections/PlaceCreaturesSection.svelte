@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { CreatureRow, PlacementGroup, PublicKindEntry } from '@afallon/contracts/public';
+  import type { CreatureRow, PublicKindEntry } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import MissingValue from '../../MissingValue.svelte';
   import NpcLevel from '../../NpcLevel.svelte';
   import { levelText, nameOf, roleLabel } from '../../format';
-  import { entityOnMap, placeOnMap } from '../../map-links';
+  import { entityOnMap } from '../../map-links';
   import { planColumns, shownRowCount, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
   import Section from '../Section.svelte';
@@ -13,8 +13,6 @@
   export let title: string;
   export let rows: CreatureRow[];
   export let registry: PublicKindEntry[];
-  export let services: PlacementGroup[] = [];
-  export let placeKey: string | undefined = undefined;
   let expanded = false;
   $: orderedBosses = [...rows].sort((left, right) => nameOf(left.counterpart).localeCompare(nameOf(right.counterpart)));
   $: shownBosses = orderedBosses.slice(0, shownRowCount(orderedBosses.length, expanded));
@@ -29,8 +27,8 @@
   $: plan = planColumns(columns.filter((column) => id === 'npcs' ? column.id !== 'level' : true).map((column) => column.id === 'name' ? { ...column, label: id === 'npcs' ? 'NPC' : 'Creature' } : column), rows);
 </script>
 
-{#if rows.length || services.length}
-  <Section {id} {title} count={rows.length + services.length}>
+{#if rows.length}
+  <Section {id} {title} count={rows.length}>
     {#if id === 'bosses'}
       <div class="boss-cards">
         {#each shownBosses as row}
@@ -42,7 +40,7 @@
         {/each}
       </div>
       {#if shownBosses.length < orderedBosses.length}<button type="button" class="c-action more" on:click={() => (expanded = true)}>Show {orderedBosses.length - shownBosses.length} more</button>{/if}
-    {:else if rows.length}<RelationTable columns={plan.columns} {rows} label={title} sort={{ id: 'name', dir: 'asc' }}>
+    {:else}<RelationTable columns={plan.columns} {rows} label={title} sort={{ id: 'name', dir: 'asc' }}>
       <svelte:fragment slot="cell" let:row let:column>
         {#if column === 'name'}<EntityLink ref={row.counterpart} {registry} />
         {:else if column === 'level'}<NpcLevel level={row.level} />
@@ -54,11 +52,6 @@
         {/if}
       </svelte:fragment>
     </RelationTable>{/if}
-    {#if services.length}
-      <div class="services">
-        <ul>{#each services as service}<li><span>{roleLabel(service.category)}</span>{#if placeKey}<a class="c-link" href={placeOnMap(placeKey, service.category)}>{service.placementCount} {service.placementCount === 1 ? 'spot' : 'spots'} on map</a>{:else}<span>{service.placementCount} {service.placementCount === 1 ? 'spot' : 'spots'}</span>{/if}</li>{/each}</ul>
-      </div>
-    {/if}
   </Section>
 {/if}
 
@@ -70,6 +63,4 @@
   .boss-card :global(.entity-link .kind-icon) { width: 3.5rem; height: 3.5rem; margin: 0; }
   .boss-card p { margin: .55rem 0 .4rem; color: var(--c-text-dim); font-size: var(--c-text-small); }
   .boss-card > a { font-size: var(--c-text-small); }
-  .services ul { display: grid; gap: .5rem; padding: 0; list-style: none; }
-  .services li { display: flex; justify-content: space-between; gap: 1rem; padding: .5rem .75rem; border-bottom: 1px solid var(--c-line-soft); }
 </style>

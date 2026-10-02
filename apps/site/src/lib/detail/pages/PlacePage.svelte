@@ -4,15 +4,16 @@
   import { categoryLabel } from '@afallon/contracts/public';
   import EntityLink from '../../EntityLink.svelte';
   import { formatNumber, levelText } from '../../format';
-  import { placeOnMap, spotOnMap } from '../../map-links';
+  import { placeOnMap } from '../../map-links';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import { placeCreatureRows } from '../place-rows';
   import { placeQuestRows } from '../quest-rows';
-  import ConnectionsSection from '../sections/ConnectionsSection.svelte';
   import LinkSection from '../sections/LinkSection.svelte';
   import PlaceCreaturesSection from '../sections/PlaceCreaturesSection.svelte';
   import PlaceLootObjectsSection from '../sections/PlaceLootObjectsSection.svelte';
+  import PlaceSideCards from '../sections/PlaceSideCards.svelte';
+  import PlacesToEnterSection from '../sections/PlacesToEnterSection.svelte';
   import PointsOfInterestSection from '../sections/PointsOfInterestSection.svelte';
   import QuestRowsSection from '../sections/QuestRowsSection.svelte';
   import StatStrip, { type Stat } from '../StatStrip.svelte';
@@ -39,18 +40,17 @@
       {#if document.art.artwork}<img class="artwork" src={`${base}/data/${document.art.artwork.url}`} width={document.art.artwork.width} height={document.art.artwork.height} alt={`${document.ref.name} artwork`} />{/if}
       {#if document.description}<p class="description">{document.description}</p>{/if}
       {#if document.variantOf}<p class="description">A challenge version of <EntityLink ref={document.variantOf} {registry} />. It also contains copies of overworld content.</p>{/if}
-      {#if document.challengeStoneStart}<p class="description">Start it at <a class="c-link" href={spotOnMap(document.challengeStoneStart.spot.placementId)}>a challenge stone in {document.challengeStoneStart.regionName}</a> with {document.challengeStoneStart.count} <EntityLink ref={document.challengeStoneStart.heart} {registry} />.</p>{/if}
       {#if document.space}<a class="c-action" href={placeOnMap(document.ref.key, document.variantOf ? 'all' : undefined)}>Show on map</a>{/if}
     </AnswerCard>
   </svelte:fragment>
   <svelte:fragment slot="side">
-    {#if document.parent}<div class="side-card"><h2>Part of</h2><EntityLink ref={document.parent} {registry} /></div>{/if}
-    <ConnectionsSection connections={document.connections} {registry} compact />
+    <PlaceSideCards {document} {registry} />
   </svelte:fragment>
   <Sections>
+    <PlacesToEnterSection rows={document.placesToEnter} {registry} />
     <PlaceCreaturesSection id="bosses" title="Bosses" rows={inhabitants.bosses} {registry} />
     <PlaceCreaturesSection id="creatures" title="Creatures" rows={inhabitants.creatures} {registry} />
-    <PlaceCreaturesSection id="npcs" title="NPCs and services" rows={document.npcs} services={document.services} placeKey={document.space ? document.ref.key : undefined} {registry} />
+    <PlaceCreaturesSection id="npcs" title="NPCs" rows={document.npcs} {registry} />
     <PointsOfInterestSection id="points-of-interest" title="Gathering and objects" rows={[...document.resources, ...document.containers]} placeKey={document.ref.key} hasSpace={document.space !== null} />
     <PlaceLootObjectsSection rows={document.lootObjects} {registry} />
     <QuestRowsSection id="quests" title="Quests" roleLabel="Role" rows={quests} {registry} />
@@ -62,6 +62,4 @@
 <style>
   .artwork { display: block; width: 100%; height: auto; border: 1px solid var(--c-frame-strong); border-radius: var(--c-radius); background: var(--c-surface-sunken); }
   .description { white-space: pre-line; }
-  .side-card { padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  h2 { margin-bottom: .5rem; font-size: 1rem; }
 </style>

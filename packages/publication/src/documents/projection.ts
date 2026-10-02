@@ -30,6 +30,10 @@ export interface DocumentProjectionInput {
   /** The weapon types that each class can use, as the game names them. */
   classWeapons?: ReadonlyMap<string, readonly string[]>;
   corruptionRewards?: CorruptionRewards;
+  /** The map spaces of the overworld. A place on one of them that is not a variant or a challenge stone is the overworld. */
+  overworldMapSpaceIds?: ReadonlySet<string>;
+  /** The spot of the challenge stone that starts each challenge stone place, by place key. */
+  challengeStones?: ReadonlyMap<string, PlacementRef>;
 }
 
 export type RelationIndexes = {
