@@ -469,8 +469,9 @@ export const PublicItemSchema = Type.Object({
 }, { additionalProperties: false });
 export type PublicItem = Static<typeof PublicItemSchema>;
 
-// What gear family this creature's dynamic loot favours. The game rolls level-band gear against
-// these constraints, so a reader can tell a plate dropper from a cloth dropper.
+// An adventurer's gear preference: the armor type and weapon types that it takes as upgrades or claims from loot, and the
+// stat that counts most when it scores gear (AdventurerWorldEngine.UpgradeEquipment and EquipmentScore,
+// CompanionLootManager.ShouldCompanionNeed). It does not change what a kill drops.
 export const LootSpecializationSchema = Type.Object({ armorType: optional(text), weaponTypes: Type.Array(text), stat: optional(RefSchema) }, { additionalProperties: false });
 export type LootSpecialization = Static<typeof LootSpecializationSchema>;
 

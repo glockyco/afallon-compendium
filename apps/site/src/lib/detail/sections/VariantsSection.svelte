@@ -14,7 +14,7 @@
 
   const FIELD_LABELS: Record<NpcVariantField, string> = {
     npcType: 'Type', creatureType: 'Creature type', tameable: 'Hunter pet', family: 'Family', faction: 'Faction', species: 'Species', respawn: 'Respawn',
-    experience: 'Experience', stats: 'Stats', immunities: 'Immune to', aggroRange: 'Aggro range', lootSpecialization: 'Favoured loot',
+    experience: 'Experience', stats: 'Stats', immunities: 'Immune to', aggroRange: 'Aggro range', lootSpecialization: 'Gear preference',
     abilityPhases: 'Abilities', factionRewards: 'Faction changes', linkedNpc: 'Linked NPC',
   };
 
@@ -69,8 +69,8 @@
       {:else if field === 'abilityPhases' && row.facts.abilityPhases}
         <ul>{#each row.facts.abilityPhases.flatMap((phase) => phase.abilities) as reference}<li><EntityLink ref={reference.ability} rankIndex={reference.rankIndex} {registry} /></li>{/each}</ul>
       {:else if field === 'lootSpecialization' && row.facts.lootSpecialization}
-        {@const loot = row.facts.lootSpecialization}
-        {[loot.armorType ? categoryLabel(loot.armorType) : '', ...loot.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if loot.stat}<div><EntityLink ref={loot.stat} {registry} /></div>{/if}
+        {@const preference = row.facts.lootSpecialization}
+        {[preference.armorType ? `${categoryLabel(preference.armorType)} armor` : '', ...preference.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if preference.stat}<div>Favours <EntityLink ref={preference.stat} {registry} /></div>{/if}
       {:else if field}{fieldValue(row, field) ?? 'None'}{/if}
     </svelte:fragment>
   </RelationTable>

@@ -6,6 +6,7 @@
 
 - [x] 2.1 Choose the NPC answer card by drops, adventurer gear, and combat, and let a page have no answer card
 - [x] 2.2 Replace labels that call every NPC a creature, the coverage gap titles, and Placed by scenes
+- [x] 2.3 Name an adventurer's gear preference as its preference, and add it to the guide's gear score rule in rules record 22
 
 ## 3. Verification
 

@@ -49,8 +49,9 @@
     ...(combat && facts.experience && (facts.experience.max > 0 || facts.experience.perLevel > 0) ? [{ label: 'Experience', value: killExperienceText(facts.experience, facts.level), note: 'Per kill', ...(experienceGuide ? { guide: experienceGuide } : {}) }] : []),
     ...(combat && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: durationRangeText(facts.respawn.min, facts.respawn.max) }] : []),
   ] satisfies Stat[];
-  $: loot = facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length || facts.lootSpecialization.stat) ? facts.lootSpecialization : undefined;
-  $: moreFacts = Boolean(adventurerGuide || facts.tameable || facts.faction || facts.species || facts.family || facts.aggroRange !== undefined && facts.aggroRange > 0 && combat || facts.immunities.length && combat || loot || document.factionRewards.length || document.linkedNpc);
+  // An adventurer's gear preference: the armor type and weapon types it takes, and the stat it values most in gear.
+  $: preference = facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length || facts.lootSpecialization.stat) ? facts.lootSpecialization : undefined;
+  $: moreFacts = Boolean(adventurerGuide || facts.tameable || facts.faction || facts.species || facts.family || facts.aggroRange !== undefined && facts.aggroRange > 0 && combat || facts.immunities.length && combat || preference || document.factionRewards.length || document.linkedNpc);
   $: experienceGuide = document.placedRules.find((rule) => rule.target === 'experience');
   $: adventurerGuide = document.placedRules.find((rule) => rule.target === 'adventurers');
   $: gearGuide = document.placedRules.find((rule) => rule.target === 'adventurer-gear');
@@ -111,7 +112,7 @@
           {#if facts.tameable}<FactRow label="Taming">{#if document.hunter}<EntityLink ref={document.hunter} {registry} />{:else}Hunter{/if} of its level or higher, with no pet, within 30 m</FactRow>{/if}
           {#if combat && facts.aggroRange !== undefined && facts.aggroRange > 0}<FactRow label="Aggro range">{formatNumber(facts.aggroRange)} m</FactRow>{/if}
           {#if combat && facts.immunities.length}<FactRow label="Immune to">{facts.immunities.map(categoryLabel).join(', ')}</FactRow>{/if}
-          {#if loot}<FactRow label="Gear drops favour">{[loot.armorType ? categoryLabel(loot.armorType) : '', ...loot.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if loot.stat}{loot.armorType || loot.weaponTypes.length ? ', ' : ''}<EntityLink ref={loot.stat} {registry} />{/if}</FactRow>{/if}
+          {#if preference}<FactRow label="Gear preference">{[preference.armorType ? `${categoryLabel(preference.armorType)} armor` : '', ...preference.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if preference.stat}{preference.armorType || preference.weaponTypes.length ? ', favours ' : 'Favours '}<EntityLink ref={preference.stat} {registry} />{/if}{#if gearGuide}<HowItWorks guide={gearGuide.guide} section={gearGuide.section} label="How adventurers choose gear" />{/if}</FactRow>{/if}
           {#if document.factionRewards.length}<FactRow label="Faction standing per kill">{#each document.factionRewards as reward, index}{index ? ', ' : ''}<EntityLink ref={reward.counterpart} {registry} /> {signedAmount(reward.amount)}{/each}</FactRow>{/if}
           {#if document.linkedNpc}<FactRow label="Linked NPC"><EntityLink ref={document.linkedNpc} {registry} /></FactRow>{/if}
           {#if adventurerGuide}<FactRow label="Adventurers"><HowItWorks guide={adventurerGuide.guide} section={adventurerGuide.section} label="How adventurers join your party" /></FactRow>{/if}

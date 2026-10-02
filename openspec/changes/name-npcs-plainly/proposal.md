@@ -8,6 +8,7 @@ The site uses "creature" for things you fight and "NPC" for anyone, but several 
 - The Gear card of an adventurer gives the chance that a finished job takes an upgrade from the reward gear list, links that list, and shows the adventurer's own gear kit.
 - Labels that cover every NPC say NPC: the Variants line names the NPC, ability users are NPCs, a quest world change of an NPC is an NPC, and the coverage page lists NPCs without a map location or level. Adventurer-only items are items only adventurers can get.
 - Gathering node pages say Placed in the world instead of Placed by scenes.
+- An adventurer's gear preference reads as Gear preference, with its armor type, weapon types, and favoured stat, and links the Adventurers guide. It was labelled Gear drops favour, but native code shows that it decides which gear the adventurer takes and how it scores gear, and that it does not change what a kill drops. Rules record 22 adds the preference to the guide's gear score rule.
 - The NPC document schema moves to `compendium.static-npc.v10` for the adventurer gear. Item types come from one derivation for item pages, the guide, and NPC pages.
 
 ## Capabilities
