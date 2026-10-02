@@ -14,5 +14,5 @@
 
 ## 4. Layout decision input
 
-- [ ] 4.1 Save screenshots of the in-game talent tree panel for two classes, including a tree with lines and a Heroic tree.
+- [x] 4.1 Save screenshots of the in-game talent tree panel for two classes, including a tree with lines and a Heroic tree.
 - [ ] 4.2 Render the same trees from the catalog in a throwaway preview with icons, tiers, rows, and lines, and hand both sets to the owner.

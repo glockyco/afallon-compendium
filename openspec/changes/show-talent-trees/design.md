@@ -10,6 +10,10 @@ Build-matched native evidence is `research/ghidra/25653798/talent-panel-function
 
 The tree-selection UI's `CombatTreeSlot.InitSlot` (RVA `0x8f2090`) sets its image from `RPGTalentTree.entryIcon` (+0x38), not `RPGTalentTree.icon` (+0x60). The panel's `TreeNodeHolder.Init` (RVA `0x9135b0`) sets its bonus-node image from `RPGBonus.entryIcon` (+0x38), not `RPGBonus.icon` (+0x60); its other node types likewise use their `entryIcon`. `TalentTreePanel.InitTree` reads the tree display name (+0x30) but does not display a separate tree icon inside the panel. These two additional display methods were decompiled against the same binary to establish the sprite source. Native pseudocode is not recovered game source; the captured screenshots will still check presentation against the running game.
 
+The panel that players see is a different one. In the running game, `TalentTreePanel.Show` leaves its object inactive in the hierarchy, and the talent screen titled "Shieldmaster Talents" is `TalentWebPanel`, a radial web. `TalentWebPanel.BuildWeb` (RVA `0xa781d0`, `research/ghidra/25653798/talent-web-functions-20261002.json`) takes the class's trees in order and keeps those with `TiersAmount > 0`, `treePointAcceptedID >= 0`, and nodes. It gives each one a wedge of 360/n degrees, starting at 90 degrees (up) and going clockwise; the constants 90 and 360 were read from the binary. `BuildBranch` (RVA `0xa77ba0`) narrows each wedge by `wedgeGapDegrees` (20) and calls `TalentWebLayout.Build` (RVA `0xa75210`) with `ringStart` 300, `ringStep` 185, `nodeArc` 145, and `nodeSize` 100. `Build` links a node to the nodes named by its Known requirements, with the same type mapping as the grid panel, places the nodes in layers, and orders each layer to reduce line crossings. How it uses tier and row was not decoded. Inspecting an adventurer (`ShowForEntity`, RVA `0xa7bd40`) shows the trees in the order of the adventurer's build, so the same class can face a different way.
+
+A read-only HotRepl call of `TalentWebLayout.Build` for every class, with the panel's own values, returned each node's position and each line's points (`local/research/runtime-20261002/talent-web-layout.data.json` in the main checkout). Every wedge has zero crossings. Screenshots of the Shieldmaster web, the Wizard web of an inspected adventurer, and a closer view of a Heroic Ascension wedge are in `local/research/talent-screenshots-20261002/`.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -41,7 +45,7 @@ Talent icon and layout capture alone does not add a talent page or change class 
 
 ### Screenshots for the layout decision
 
-With the game running, open the talent tree panel of two classes, including one tree with lines between nodes and one Heroic tree, and save screenshots under ignored `local/research/`. Render the same trees from the catalog candidate in a throwaway preview with the captured icons, tiers, rows, and lines. Both sets go to the owner for the layout decision.
+With the game running, open the talent web of two classes, including one tree with lines between nodes and one Heroic tree, and save screenshots under ignored `local/research/`. Render the same trees in a throwaway preview from the catalog candidate's icons, tiers, rows, and requirement lines, and from the game's own web layout. Both sets go to the owner for the layout decision. If the owner chooses the game's web, a later change decides whether to capture its positions or compute them.
 
 ## Risks / Trade-offs
 
