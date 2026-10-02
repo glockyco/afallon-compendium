@@ -33,7 +33,7 @@
         {#if section.id === 'crafting-experience'}
           <div class="c-stack">
             <h3>Example: Runeweave Regalia</h3>
-            <p><EntityLink ref={document.example.craft.product} {registry} /> needs <EntityLink ref={document.example.craft.skill} {registry} /> level {formatNumber(document.example.craft.rank.requiredLevel)}. The recipe rank gives {formatNumber(document.example.craft.rank.baseExperience)} base experience before skill modifiers.</p>
+            <p><EntityLink ref={document.example.craft.product} {registry} /> needs <EntityLink ref={document.example.craft.skill} {registry} /> level {formatNumber(document.example.craft.rank.requiredLevel)} and gives {formatNumber(document.example.craft.rank.baseExperience)} base experience, which drops as your skill rises:</p>
             {#if document.example.craft.rank.bands.length}
               <div class="table-scroll"><table>
                 <thead><tr><th scope="col">Experience band</th><th scope="col">Skill levels</th><th scope="col">Base experience</th></tr></thead>
@@ -46,7 +46,7 @@
             {#each document.spawnerExamples as example}
               <div class="c-stack">
                 <h3>{#if example.skill}<EntityLink ref={example.skill} {registry} />{:else}Spawner{/if} example</h3>
-                <p class="table-intro">The most common {example.skill && 'name' in example.skill ? example.skill.name : ''} spawner options serve {formatNumber(example.spawners)} {example.spawners === 1 ? 'spawner' : 'spawners'}. Each weight moves in a straight line from level 1 to level {formatNumber(example.skillCap)}.</p>
+                <p class="table-intro">{formatNumber(example.spawners)} {example.spawners === 1 ? 'spawner uses' : 'spawners share'} this set of nodes. Each weight changes evenly from level 1 to level {formatNumber(example.skillCap)}.</p>
                 <div class="table-scroll"><table>
                   <thead><tr><th scope="col">Node</th><th scope="col">Weight at level 1</th><th scope="col">Weight at level {formatNumber(example.skillCap)}</th><th scope="col">Minimum weight</th></tr></thead>
                   <tbody>{#each example.options as option}<tr><td><EntityLink ref={option.node} {registry} /></td><td>{formatNumber(option.lowSkillWeight)}</td><td>{formatNumber(option.highSkillWeight)}</td><td>{formatNumber(option.teaserWeight)}</td></tr>{/each}</tbody>
@@ -57,7 +57,7 @@
         {:else if section.id === 'node-rewards'}
           <div class="c-stack">
             <h3>Example: Small Iron Vein</h3>
-            <p><EntityLink ref={document.example.gather.node} {registry} /> uses <EntityLink ref={document.example.gather.skill} {registry} />. Each listed chance is the chance for one extra item after the loot roll.</p>
+            <p>You gather <EntityLink ref={document.example.gather.node} {registry} /> with <EntityLink ref={document.example.gather.skill} {registry} />. The chance that each item you get comes with one extra:</p>
             <div class="table-scroll"><table>
               <thead><tr><th scope="col">Skill level</th><th scope="col">Extra item chance</th></tr></thead>
               <tbody>{#each document.example.gather.levelChances as row}<tr><td>{formatNumber(row.level)}</td><td>{percent.format(row.chance)}%</td></tr>{/each}</tbody>

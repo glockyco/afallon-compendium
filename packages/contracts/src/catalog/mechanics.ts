@@ -45,7 +45,8 @@ export function placementScopeAllowed(page: RulePlacementPage, scope: string): b
 // registered store object: a bounded decompilation, a read-only probe output, a caller scan, or a constant read. A rule
 // is `verified` when its evidence proves the whole phrase and `unknown` when the phrase names an unresolved branch.
 // `phrase` names each operand as `{name}`; the number itself stays in `operands`. `links` name catalog entities that
-// the rule reads, such as the Experience Bonus stat. A rule with a `topic` appears in the guide of that topic; its
+// the rule reads, such as the Experience Bonus stat. `{#n}` places link `n` inside the phrase; a phrase without such
+// tokens leads into the closing list of its links. A rule with a `topic` appears in the guide of that topic; its
 // `placements` name the pages where it also appears. A rule needs a topic, a placement, or both.
 export const MechanicsRulesSchema = Type.Object({
   schemaVersion: Type.Literal("compendium.mechanics-rules.v2"),

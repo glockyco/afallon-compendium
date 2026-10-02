@@ -39,3 +39,13 @@ test("a placement that its page lacks stops the build", () => {
   expect(() => normalizeMechanicsRules(rules({ placements: [{ page: "items", target: "crafting", scope: "placed" }] }), reference, new Map(), [])).toThrow("scope placed");
   expect(() => normalizeMechanicsRules(rules({ placements: [{ page: "gatheringNodes", target: "how-it-works", scope: "linked" }] }), reference, new Map(), [])).toThrow("linked scope without links");
 });
+
+test("link tokens name every link once, or the phrase names none and closes with its links", () => {
+  const links = ["items:142", "items:377"], labels = new Map([["items:142", "Slime Covered Sack"], ["items:377", "Soaked Bag"]]);
+  const phrased = (phrase: string) => () => normalizeMechanicsRules(rules({ phrase, operands: {}, links }), reference, labels, []);
+  expect(phrased("Using a {#1} or a {#0} opens a chest.")()[0]?.links.map((link) => link.label)).toEqual(["Slime Covered Sack", "Soaked Bag"]);
+  expect(phrased("These bags open a chest:")()[0]?.phrase).toBe("These bags open a chest:");
+  expect(phrased("Using a {#2} opens a chest.")).toThrow("names links [2] that the rule lacks");
+  expect(phrased("Using a {#0} opens a chest.")).toThrow("leaves links [1] out of its sentence");
+  expect(phrased("Using a {#0} or a {#0} or a {#1} opens a chest.")).toThrow("names links [0] more than once");
+});

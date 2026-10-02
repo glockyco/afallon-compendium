@@ -95,13 +95,11 @@ test("corruption guide projects authored item and time-remaining thresholds from
   expect(document.seeAlso).toEqual([{ lead: "For the item that starts challenge stones, see", ref: refs.get("items:162")! }]);
   expect(document).not.toHaveProperty("heartRequirements");
   expect(Value.Check(CorruptionGuideSchema, { ...document, heartRequirements: [] })).toBe(false);
-  expect(document.sections.flatMap((section) => section.rules).map((rule) => rule.id)).not.toContain("corruption-heart");
   expect(uses()).toEqual([{ stoneName: "Challenge Stone Poison", regionName: "Coalway Swamp",
     destinations: [expect.objectContaining({ name: "Duskfall Depths" }), expect.objectContaining({ name: "Felheart Crucible" })],
     spot: stoneSpot, count: 1 }]);
   expect(document.affixes).toEqual([{ name: "Bolstering", description: "Nearby allies grow stronger.", available: true },
     { name: "Spiteful", description: "Ghosts appear.", available: false }]);
-  expect(document.sections.find((section) => section.id === "gear")?.rules.map((rule) => rule.id)).toEqual(["corruption-gear"]);
 });
 
 test("reward attribution requires every table to belong to a listed boss", () => {

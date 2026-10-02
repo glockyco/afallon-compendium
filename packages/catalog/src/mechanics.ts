@@ -1,11 +1,13 @@
 import { placementScopeAllowed, placementTargetKind, type ArtifactReference, type MechanicsRules, type NormalizedMechanicsRule } from "@afallon/contracts/catalog";
+import { phraseLinkProblem } from "@afallon/contracts/public";
 import { pointer, type Blocker } from "./context";
 
 /**
  * Turns the reviewed mechanics rules into catalog rows. Each rule keeps the evidence object of every cited method and
  * resolves its links against catalog records. An unknown evidence id, a phrase operand without a value, a value that
- * the phrase does not name, a rule without a topic or a placement, and a placement with a target or scope that its page
- * kind lacks stop the build; a link to a missing record is a coverage issue.
+ * the phrase does not name, a link token that does not fit the links, a rule without a topic or a placement, and a
+ * placement with a target or scope that its page kind lacks stop the build; a link to a missing record is a coverage
+ * issue.
  */
 export function normalizeMechanicsRules(rules: MechanicsRules, reference: ArtifactReference, labels: ReadonlyMap<string, string | null>, blockers: Blocker[]): NormalizedMechanicsRule[] {
   const evidence = new Map(rules.evidence.map((item) => [item.id, item]));
@@ -19,6 +21,8 @@ export function normalizeMechanicsRules(rules: MechanicsRules, reference: Artifa
     const operands = Object.keys(rule.operands);
     const missing = [...named].filter((name) => !operands.includes(name)), unused = operands.filter((name) => !named.has(name));
     if (missing.length > 0 || unused.length > 0) throw new Error(`Mechanics rule ${rule.id} names operands [${missing.join(", ")}] without values and has values [${unused.join(", ")}] outside its phrase.`);
+    const linkProblem = phraseLinkProblem(rule.phrase, rule.links.length);
+    if (linkProblem) throw new Error(`Mechanics rule ${rule.id} ${linkProblem}.`);
     if (rule.topic === undefined) throw new Error(`Mechanics rule ${rule.id} needs a mechanics guide topic.`);
     const placed = new Set<string>();
     for (const placement of rule.placements) {

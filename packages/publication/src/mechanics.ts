@@ -244,14 +244,6 @@ export function projectChallengeStoneUses(facts: CatalogFacts, published: Readon
   });
 }
 
-// Native and live evidence establish these rules; values come only from this build's captured catalog facts.
-const CORRUPTION_RULES = [
-  { id: "corruption-altar", section: "altars", phrase: "Only an altar that you have not used yet adds levels or takes a token." },
-  { id: "corruption-token", section: "tokens", phrase: "The affixes of a new token are all different." },
-  { id: "corruption-creatures", section: "enemies", phrase: "Each corruption level adds the enemy stat bonuses once more." },
-  { id: "corruption-timer", section: "timed-dungeons", phrase: "The reward token starts at the dungeon's start level. Its bonus depends on the time left at each of the dungeon's thresholds." },
-  { id: "corruption-gear", section: "gear", phrase: "An item keeps the corruption level only when the level is above zero. The level raises the weapon's own damage, and the damage of a full hit is unknown." },
-] as const;
 
 function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, resolve: ReferenceResolver,
   bossDropTables: ReadonlyMap<string, ReadonlySet<number>> = new Map(), rewards?: CorruptionRewards): CorruptionGuide {
@@ -296,7 +288,8 @@ function corruptionGuide(facts: CatalogFacts, published: ReadonlySet<string>, re
     nativeRules: { altarWithoutTokenIncrement: 1, completionFirstBonus: 2, completionSecondBonus: 1,
       completionOtherwiseBonus: 0, timeoutDecrease: 1, timeoutMinimum: 1 },
     overview: GUIDES.corruption.overview,
-    sections: guideSections("corruption", CORRUPTION_RULES.map(({ id, section, phrase }) => ({ section, rule: { id, phrase, status: "verified", operands: {}, links: [] } }))),
+    // Native and live evidence establish the corruption rules that the leads and computed sentences state.
+    sections: guideSections("corruption", []),
     ...(token ? { token } : {}), ...(heart ? { seeAlso: [{ lead: "For the item that starts challenge stones, see", ref: heart }] } : {}),
     ...(settings.maxLevel === null ? {} : { maxLevel: settings.maxLevel }),
     ...(settings.gearAllStatsPercentPerLevel === null ? {} : { gearAllStatsPercentPerLevel: settings.gearAllStatsPercentPerLevel }),

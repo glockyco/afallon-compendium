@@ -112,11 +112,9 @@ test("each guide shows every rule of its topic in the section that the rules rec
   }
 });
 
-test("a rule section that its guide does not define, and a guide section without a rule, stop publication", () => {
+test("a rule section that its guide does not define stops publication", () => {
   const renamed = rules.map((rule) => rule.ruleId === "random-run-supply-pack" ? { ...rule, section: "random-runs" } : rule);
   expect(() => documents({ ...facts, progression: { ...facts.progression, mechanicsRules: renamed } })).toThrow("random-runs");
-  const emptied = rules.filter((rule) => rule.ruleId !== "random-run-supply-pack");
-  expect(() => documents({ ...facts, progression: { ...facts.progression, mechanicsRules: emptied } })).toThrow("dungeon-finder");
 });
 
 test("experience sources count creatures by the level at which their spawners place them", () => {

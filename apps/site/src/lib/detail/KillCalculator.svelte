@@ -86,7 +86,7 @@
       <div aria-live="polite" aria-atomic="true">
         <p class="award">{range(result.award.low, result.award.high)}</p>
         <p class="kills">
-          {#if toNext === undefined}Level {formatNumber(characterLevel)} is the level cap. The character keeps no experience from kills.
+          {#if toNext === undefined}Level {formatNumber(characterLevel)} is the level cap, so kills give no more experience.
           {:else if kills === null}With these settings, a kill gives no experience.
           {:else}{killCount} {kills.low === 1 && kills.high === 1 ? 'kill' : 'kills'} from level {formatNumber(characterLevel)} to level {formatNumber(characterLevel + 1)}, which needs {formatNumber(toNext)} experience.{/if}
         </p>
@@ -96,7 +96,7 @@
         <thead><tr><th scope="col">Step</th><th scope="col">Experience</th></tr></thead>
         <tbody>{#each result.steps as step}<tr><th scope="row">{step.label}</th><td>{range(step.low, step.high)}</td></tr>{/each}</tbody>
       </table>
-      <p class="note">World modifiers and some game modifiers are not included.{#if experienceBonus > 0} The game may round the final amount.{/if}</p>
+      <p class="note">This leaves out world modifiers and some other game modifiers.{#if experienceBonus > 0} The game may round the final amount.{/if}</p>
     </div>
   </div>
 </div>

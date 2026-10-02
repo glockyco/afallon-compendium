@@ -22,7 +22,7 @@
   <Sections>
     {#each document.sections as section (section.id)}
       <GuideSection {section} {registry}>
-        <svelte:fragment slot="lead">{#if section.id === 'essence' && settings}{' '}A kill starts from {format(settings.essenceBaseAmount)} Essence, and each affix adds {format(settings.essencePerAffix)} before the rank multiplier.{/if}</svelte:fragment>
+        <svelte:fragment slot="lead">{#if section.id === 'essence' && settings}{' '}Each kill starts from {format(settings.essenceBaseAmount)} Essence, plus {format(settings.essencePerAffix)} for each of the creature's affixes.{/if}</svelte:fragment>
         <svelte:fragment slot="top">
           {#if section.id === 'kill-experience' || section.id === 'essence'}
             {#if unavailable}<p>{unavailable}</p>
@@ -42,7 +42,7 @@
         </svelte:fragment>
         {#if section.id === 'essence' && document.example}
           <h3>Essence per kill</h3>
-          <p>At health factor 1, before the stored fraction. The example uses no creature's health.</p>
+          <p>Essence per kill by creature rank and number of affixes, at a health factor of 1.</p>
           <div class="table-scroll"><table class="essence">
             <thead>
               <tr><th scope="col" rowspan="2">Creature rank</th><th scope="colgroup" colspan={document.example.affixCounts.length} class="group">Affixes</th></tr>

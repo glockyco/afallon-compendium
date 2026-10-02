@@ -327,7 +327,8 @@ export type Craft = Static<typeof CraftSchema>;
 // A mechanics topic explains a game system of the published build. Its key and slug belong to the publication, not to a
 // game record. A rule is `verified` when native evidence of the build proves its phrase, and `unknown` when the phrase
 // names a branch that the evidence does not resolve. `phrase` names each operand as `{name}`, and `operands` holds its
-// number. The phrase ends with words that lead into its `links`. The evidence stays in the rules record and the catalog.
+// number, and `{#n}` names link `n` inside the sentence. A phrase without link tokens leads into the closing list of its
+// `links`. The evidence stays in the rules record and the catalog.
 export const MechanicsRuleSchema = Type.Object({
   id: anchor, status: Type.Union([Type.Literal("verified"), Type.Literal("unknown")]), phrase: text,
   operands: Type.Record(Type.String({ pattern: "^[a-z][A-Za-z0-9]*$" }), number), links: refs,
@@ -714,9 +715,9 @@ export const ExperienceSourcesSchema = Type.Object({
 }, { additionalProperties: false });
 export type ExperienceSources = Static<typeof ExperienceSourcesSchema>;
 // A guide explains its topic in sections. `overview` has at most three sentences. Each section covers one mechanic or one
-// context of the topic: its `lead` says where the mechanic applies, and `rules` are every rule of that mechanic, in the
+// context of the topic: its `lead` explains the mechanic, and `rules` are the rules of that mechanic in the rules record, in the
 // order of the rules record. The `id` is the anchor that placed rules link.
-export const GuideSectionSchema = Type.Object({ id: anchor, title: text, lead: text, rules: Type.Array(MechanicsRuleSchema, { minItems: 1 }) }, { additionalProperties: false });
+export const GuideSectionSchema = Type.Object({ id: anchor, title: text, lead: text, rules: Type.Array(MechanicsRuleSchema) }, { additionalProperties: false });
 export type GuideSection = Static<typeof GuideSectionSchema>;
 const guide = { overview: text, sections: Type.Array(GuideSectionSchema, { minItems: 1 }),
   seeAlso: optional(Type.Array(Type.Object({ lead: text, ref: EntityRefSchema }, { additionalProperties: false }))) };
@@ -831,7 +832,7 @@ export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DO
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
   items: "compendium.static-item.v19", npcs: "compendium.static-npc.v9", quests: "compendium.static-quest.v7", places: "compendium.static-place.v8",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
-  classes: "compendium.static-class.v6", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v10", gatheringNodes: "compendium.static-gathering-node.v5",
+  classes: "compendium.static-class.v6", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v11", gatheringNodes: "compendium.static-gathering-node.v5",
 } as const satisfies Record<PublicPageKind, string>;
 export type StaticDocumentSchemaId = typeof STATIC_DOCUMENT_SCHEMA_IDS[PublicPageKind];
 
@@ -858,14 +859,14 @@ export const STATIC_DOCUMENT_SCHEMAS: {
   "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v8": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v6": typeof StaticClassDocumentSchema;
-  "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v10": typeof StaticMechanicsDocumentSchema;
+  "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v11": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v5": typeof StaticGatheringNodeDocumentSchema;
 } = {
   "compendium.static-item.v19": StaticItemDocumentSchema, "compendium.static-npc.v9": StaticNpcDocumentSchema,
   "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v8": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v6": StaticClassDocumentSchema,
-  "compendium.static-skill.v6": StaticSkillDocumentSchema, "compendium.static-mechanics.v10": StaticMechanicsDocumentSchema,
+  "compendium.static-skill.v6": StaticSkillDocumentSchema, "compendium.static-mechanics.v11": StaticMechanicsDocumentSchema,
   "compendium.static-gathering-node.v5": StaticGatheringNodeDocumentSchema,
 };
 export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<typeof StaticNpcDocumentSchema> | Static<typeof StaticQuestDocumentSchema>
@@ -874,7 +875,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
 export const documentReference = Type.Union([
   resourceReference("compendium.static-item.v19"), resourceReference("compendium.static-npc.v9"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v8"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
-  resourceReference("compendium.static-class.v6"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v10"),
+  resourceReference("compendium.static-class.v6"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v11"),
   resourceReference("compendium.static-gathering-node.v5"),
 ]);
 export type DocumentReference = Static<typeof documentReference>;

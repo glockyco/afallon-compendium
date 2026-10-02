@@ -180,6 +180,11 @@ export function searchPlaceholder(plurals: readonly string[]): string {
   return `Search ${new Intl.ListFormat('en-US', { type: 'conjunction' }).format(shown)}`;
 }
 
+/** "A", "A and B", or "A, B, and C". */
+export function listText(values: readonly string[]): string {
+  return new Intl.ListFormat('en-US', { type: 'conjunction' }).format(values);
+}
+
 /** The rarity tone drives the name colour, the icon ring, and the badge through one attribute. */
 export function rarityTone(rarity: string | undefined): string | undefined {
   if (!rarity) return undefined;

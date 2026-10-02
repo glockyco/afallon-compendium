@@ -181,7 +181,6 @@ test("every mechanics topic validates, and a mechanics document of an unknown to
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...heroicTier, topic: "corruption" })).toThrow();
   expect(() => Assert(schema, { schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.mechanics, ...identity, kind: "guides", document: characterProgression })).toThrow();
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, sections: [{ ...characterProgression.sections[0], rules: [{ ...rule, status: "inferred" }] }] })).toThrow();
-  expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.mechanics, { ...characterProgression, sections: [{ ...characterProgression.sections[0], rules: [] }] })).toThrow();
 });
 
 test("an item names each published class that starts with it", () => {

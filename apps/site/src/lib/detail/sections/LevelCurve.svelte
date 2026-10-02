@@ -44,7 +44,7 @@
   }
 </script>
 
-<p class="intro">Each point shows the experience needed to advance from that level to the next. The vertical axis uses a logarithmic scale.</p>
+<p class="intro">Each point shows the experience from that level to the next. The scale is logarithmic, so each grid line is ten times the one below it.</p>
 <!-- The scrollable chart needs focus so keyboard readers can pan it without changing the selected level. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div class="chart-scroll" class:compact role="region" aria-label={compact ? 'Level curve chart' : 'Level curve chart; scroll horizontally to see all levels'} tabindex="0">
@@ -73,16 +73,15 @@
 </div>
 <div class="selector">
   <LevelSlider id={`${uid}-level`} label={`${subject} level`} min={1} max={curve.cap} bind:level readout={format} />
-  <p class="note">These totals show a fresh start. They do not include saved progress.</p>
   <dl class="totals">
-    <div><dt>Experience to next level</dt><dd>{format(next)}</dd></div>
-    <div><dt>Experience earned before level {format(level)}</dt><dd>{format(earned)}</dd></div>
-    <div><dt>Experience left to reach level {format(curve.cap)}</dt><dd>{format(remaining)}</dd></div>
+    <div><dt>Experience to the next level</dt><dd>{format(next)}</dd></div>
+    <div><dt>Total experience to reach level {format(level)}</dt><dd>{format(earned)}</dd></div>
+    <div><dt>Experience from level {format(level)} to {format(curve.cap)}</dt><dd>{format(remaining)}</dd></div>
   </dl>
 </div>
 
 <style>
-  .intro, .note { color: var(--c-text-dim); line-height: 1.5; }
+  .intro { color: var(--c-text-dim); line-height: 1.5; }
   .chart-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
   svg { display: block; width: 100%; min-width: 36rem; height: auto; background: var(--c-surface-sunken); border-radius: var(--c-radius-sm); }
   .chart-scroll.compact svg { min-width: 0; }
