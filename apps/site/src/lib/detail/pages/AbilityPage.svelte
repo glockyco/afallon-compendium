@@ -2,6 +2,7 @@
   import { base } from '$app/paths';
   import type { PublicAbility, PublicKindEntry } from '@afallon/contracts/public';
   import AbilityTooltip from '../../AbilityTooltip.svelte';
+  import NativeText from '../../NativeText.svelte';
   import Requirements from '../../Requirements.svelte';
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
@@ -20,11 +21,12 @@
   $: main = document.versions.reduce((chosen, version) => version.usedBy.length + version.usedByItems.length > chosen.usedBy.length + chosen.usedByItems.length ? version : chosen);
   $: icon = main.icon ?? document.art.icon ?? document.ref.icon;
   $: hasSources = document.versions.some((version) => version.learnedBy.length || version.usedBy.length || version.usedByItems.length);
+  $: outcomeLines = main.ranks[0]?.lines.filter((line) => line.spans.some((span) => span.tone !== 'muted' && span.text.trim())) ?? [];
   let showAllUsers = false;
 </script>
 
 <article class="detail-page">
-  <DetailFrame side={hasSources || main.useRequirements.length > 0}>
+  <DetailFrame>
     <div slot="head"><TitleBlock name={document.ref.name} imageUrl={icon ? `${base}/data/${icon.url}` : undefined} {registry} /></div>
     <div slot="answer"><AnswerCard title={hasSources ? 'Who learns and uses it' : 'What it does'}>
       {#if hasSources}
@@ -32,13 +34,13 @@
         <AbilityReferencesSection versions={document.versions} relation="usedBy" {registry} compact showAllHref={document.versions.length > 1 ? '#versions' : '#used-by'} onShowAll={() => (showAllUsers = true)} />
         <AbilityReferencesSection versions={document.versions} relation="usedByItems" {registry} compact showAllHref={document.versions.length > 1 ? '#versions' : '#used-by-items'} onShowAll={() => (showAllUsers = true)} />
       {:else}
-        <div class="c-game-frame"><AbilityTooltip {document} variant={main.anchor} /></div>
-        <AppliedEffects rows={main.appliedEffects} {registry} />
+        {#if main.appliedEffects.length}<AppliedEffects rows={main.appliedEffects} {registry} heading={false} />
+        {:else if outcomeLines.length}<NativeText lines={outcomeLines} />{/if}
         <p class="source-note">No learner or user is listed for this ability.</p>
       {/if}
     </AnswerCard></div>
       <svelte:fragment slot="side">
-        {#if hasSources}<div class="c-game-frame"><AbilityTooltip {document} variant={main.anchor} /></div>{/if}
+        <div class="c-game-frame"><AbilityTooltip {document} variant={main.anchor} /></div>
         {#if hasSources && main.appliedEffects.length}<SideCard title="Applies effects"><AppliedEffects rows={main.appliedEffects} {registry} heading={false} /></SideCard>{/if}
         {#if main.useRequirements.length}<SideCard title="Use requirements"><Requirements requirements={main.useRequirements} {registry} kindLabels={false} /></SideCard>{/if}
       </svelte:fragment>

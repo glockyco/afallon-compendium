@@ -10,11 +10,17 @@
   let showAll = false;
   $: shown = shownRowCount(rows.length, showAll);
 
-  const duration = (seconds: number) => `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
+  const duration = (seconds: number) => {
+    if (seconds < 60) return `${formatNumber(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return `${seconds % 60 ? 'About ' : ''}${formatNumber(minutes)} ${minutes === 1 ? 'minute' : 'minutes'}`;
+    const hours = Math.floor(minutes / 60), remaining = minutes % 60;
+    return `${seconds % 60 ? 'About ' : ''}${formatNumber(hours)} ${hours === 1 ? 'hour' : 'hours'}${remaining ? ` ${remaining} ${remaining === 1 ? 'minute' : 'minutes'}` : ''}`;
+  };
   const context = (row: AbilityAppliedEffect) => [
     row.rank === undefined ? undefined : `Rank ${row.rank + 1}`,
     row.chance === undefined ? undefined : `${formatNumber(row.chance)}% chance`,
-    row.target,
+    row.target === 'Target' ? 'on the target' : row.target === 'Caster' ? 'on the caster' : row.target ? `on ${row.target.toLocaleLowerCase()}` : undefined,
     row.endless ? 'Ongoing' : row.durationSeconds ? duration(row.durationSeconds) : undefined,
   ].filter(Boolean).join(' · ');
 </script>

@@ -48,7 +48,7 @@
   $: stats = [
     ...(document.facts.skillExperience ? [{ label: 'Skill experience', value: formatNumber(document.facts.skillExperience), note: 'Per use' }] : []),
     ...(document.facts.characterExperience ? [{ label: 'Character experience', value: formatNumber(document.facts.characterExperience), note: 'Per use' }] : []),
-    ...(respawnValues.length ? [{ label: 'Respawn', value: respawnValues.length === 1 ? duration(respawnValues[0]!) : 'Varies', href: '#timers' }] : []),
+    ...(respawnValues.length ? [{ label: 'Respawn', value: respawnValues.length === 1 ? summaryDuration(respawnValues[0]!) : 'Varies', href: '#timers' }] : []),
     ...(spots ? [{ label: 'Spots', value: formatNumber(spots), href: '#locations' }] : []),
     ...(!spawnerTotal && placedTotal && placedTotal !== spots ? [{ label: 'Placed nodes', value: formatNumber(placedTotal) }] : []),
   ];
@@ -67,6 +67,11 @@
       minutes && `${formatNumber(minutes)} ${minutes === 1 ? 'minute' : 'minutes'}`,
       remainder && `${formatNumber(remainder)} ${remainder === 1 ? 'second' : 'seconds'}`,
     ].filter(Boolean).join(' ');
+  };
+  const summaryDuration = (seconds: number) => {
+    if (seconds <= 3600) return duration(seconds);
+    const minutes = Math.round(seconds / 60), hours = Math.floor(minutes / 60), remaining = minutes % 60;
+    return `${seconds % 60 ? 'About ' : ''}${formatNumber(hours)} ${hours === 1 ? 'hour' : 'hours'}${remaining ? ` ${remaining} ${remaining === 1 ? 'minute' : 'minutes'}` : ''}`;
   };
   // The reader's skill level and attunements decide the odds. The side card shows this node's chance in each spawner
   // group, and Spawn odds shows every option of those groups at the same level.

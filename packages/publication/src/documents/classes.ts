@@ -174,7 +174,8 @@ export function projectClass(entity: CatalogEntityRow, ref: EntityRef, input: Do
     });
     return gains.length === 0 && point.details.startAmount <= 0 ? [] : [{ name: displayName(point.name ?? ""), start: Math.max(0, point.details.startAmount), max: Math.max(0, point.details.maxPoints), gains }];
   });
-  const races = progression.facts.flatMap((race) => race.kind === "races" && race.details.offeredClasses.some((row) => row.entityKey === entity.entityKey) ? [displayName(race.name ?? "")] : []).filter(Boolean);
+  const races = progression.facts.flatMap((race) => race.kind === "races" && race.details.offeredClasses.some((row) => row.entityKey === entity.entityKey)
+    ? [input.resolve({ entityKey: race.entityKey, label: displayName(race.name ?? "") })] : []);
   const highestLevel = templateCap(details?.levelTemplate, input);
   const autoAttack = optionalFactRef(input.resolve, details?.autoAttackAbility);
   return {

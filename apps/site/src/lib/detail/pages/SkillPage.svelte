@@ -71,12 +71,16 @@
     ...(document.gatheringNodes.length ? [{ label: 'Gathering nodes', value: formatNumber(document.gatheringNodes.length), href: '#gathering-nodes' }] : []),
     ...(total !== undefined ? [{ label: 'Experience to highest level', value: formatNumber(total), href: '#levels' }] : []),
   ];
-  const weaponCategory: Record<string, string> = {
-    'One-Handed Swords': 'One handed sword', 'Two-Handed Swords': 'Two handed sword',
-    Axes: 'AXE', 'Two-Handed Axes': 'Two-Handed Axe', Bows: 'BOW', Staves: 'STAFF',
-    'Fist Weapons': 'Fist weapon', Crossbows: 'CROSSBOW', 'Two-Handed Maces': 'Two-Handed Mace',
+  const weaponCategory: Record<string, { value: string; singular: string }> = {
+    'One-Handed Swords': { value: 'One handed sword', singular: 'a one-handed sword' },
+    'Two-Handed Swords': { value: 'Two handed sword', singular: 'a two-handed sword' },
+    Axes: { value: 'AXE', singular: 'an axe' }, 'Two-Handed Axes': { value: 'Two-Handed Axe', singular: 'a two-handed axe' },
+    Bows: { value: 'BOW', singular: 'a bow' }, Staves: { value: 'STAFF', singular: 'a staff' },
+    'Fist Weapons': { value: 'Fist weapon', singular: 'a fist weapon' }, Crossbows: { value: 'CROSSBOW', singular: 'a crossbow' },
+    'Two-Handed Maces': { value: 'Two-Handed Mace', singular: 'a two-handed mace' },
   };
-  $: weaponHref = weaponCategory[document.ref.name] ? `${base}/items/?weapon=${encodeURIComponent(weaponCategory[document.ref.name]!)}` : `${base}/items/?itemType=WEAPON`;
+  $: weapon = weaponCategory[document.ref.name];
+  $: weaponHref = weapon ? `${base}/items/?weapon=${encodeURIComponent(weapon.value)}` : `${base}/items/?itemType=WEAPON`;
   $: firstRecipe = sortedRecipes.find((row) => row.requiredLevel !== undefined) ?? sortedRecipes[0];
   $: lastRecipe = sortedRecipes.findLast((row) => row.requiredLevel !== undefined);
   $: firstNode = sortedNodes[0];
@@ -102,8 +106,7 @@
             <li><strong>Gather from nodes</strong><span>Each use awards the node's published skill experience. From <EntityLink ref={firstNode.node} {registry} />{#if gate(firstNode)}{' '}({gate(firstNode)}){/if}{#if lastNode && lastNode !== firstNode}{' '}to <EntityLink ref={lastNode.node} {registry} />{#if gate(lastNode)}{' '}({gate(lastNode)}){/if}{/if}.</span></li>
           {/if}
           {#if document.experience.autoAttack}
-            <li><strong>Auto-attack hits</strong><span>Each hit with this weapon type awards {formatNumber(document.experience.autoAttack.perHit)} skill experience below the highest level.</span></li>
-            <li><strong>Weapons that use this skill</strong><span><a class="c-link" href={weaponHref}>Browse {document.ref.name.toLocaleLowerCase()} weapons</a> to find gear for those auto-attack hits.</span></li>
+            <li><strong>Auto-attack hits</strong><span>Every hit with {weapon?.singular ?? 'this weapon type'} gives {formatNumber(document.experience.autoAttack.perHit)} skill experience{document.facts.highestLevel ? ` until the skill reaches level ${formatNumber(document.facts.highestLevel)}` : ' below its highest level'}.{' '}<a class="c-link" href={weaponHref}>See all {document.ref.name.toLocaleLowerCase()}</a>.</span></li>
           {/if}
           {#if !document.experience.crafting && !document.experience.gathering && !document.experience.autoAttack}<li>No known experience source is listed for this skill.</li>{/if}
         </ul>

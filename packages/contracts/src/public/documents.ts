@@ -20,7 +20,7 @@ const PAGE_DOCUMENTS = {
   places: { schema: () => PublicPlaceSchema, schemaId: "compendium.static-place.v11" },
   properties: { schema: () => PublicPropertySchema, schemaId: "compendium.static-property.v4" },
   abilities: { schema: () => PublicAbilitySchema, schemaId: "compendium.static-ability.v7" },
-  classes: { schema: () => PublicClassSchema, schemaId: "compendium.static-class.v8" },
+  classes: { schema: () => PublicClassSchema, schemaId: "compendium.static-class.v9" },
   skills: { schema: () => PublicSkillSchema, schemaId: "compendium.static-skill.v6" },
   mechanics: { schema: () => PublicMechanicsSchema, schemaId: "compendium.static-mechanics.v18" },
   gatheringNodes: { schema: () => PublicGatheringNodeSchema, schemaId: "compendium.static-gathering-node.v6" },
@@ -772,7 +772,7 @@ export const TalentPointsSchema = Type.Object({
 }, { additionalProperties: false });
 export type TalentPoints = Static<typeof TalentPointsSchema>;
 export const ClassFactsSchema = Type.Object({
-  races: Type.Array(text), weapons: Type.Array(text), autoAttack: optional(RefSchema), talentPoints: Type.Array(TalentPointsSchema), highestLevel: optional(count),
+  races: refs, weapons: Type.Array(text), autoAttack: optional(RefSchema), talentPoints: Type.Array(TalentPointsSchema), highestLevel: optional(count),
 }, { additionalProperties: false });
 export type ClassFacts = Static<typeof ClassFactsSchema>;
 export const StartingItemRowSchema = Type.Object({ item: RefSchema, count, equipped: Type.Boolean() }, { additionalProperties: false });

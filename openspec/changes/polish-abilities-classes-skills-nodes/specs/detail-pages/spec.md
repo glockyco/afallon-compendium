@@ -2,7 +2,7 @@
 
 ### Requirement: The hero shows the entity as the game shows it
 
-The primary answer SHALL be a distinct card in the main column. An item tooltip SHALL appear once in the side column at wide widths and after the answer on narrow screens. An ability with a known learner or user SHALL show its tooltip once in the side column. An ability without a known learner or user SHALL put its effect tooltip in the primary answer instead. A place's artwork and description SHALL be part of its answer. NPC portraits, class and skill icons SHALL identify their title or relation row; descriptions and secondary stats SHALL appear once in the answer or side facts. A missing image SHALL not create an empty image frame. No side panel SHALL stretch just to match another panel's height.
+The primary answer SHALL be a distinct card in the main column. The game's item or ability tooltip SHALL appear once in the side column at wide widths and after the answer on narrow screens. An ability without a known learner or user SHALL keep its tooltip in that same narrow side column, while its primary answer shows what it does and one quiet missing-source line. A place's artwork and description SHALL be part of its answer. NPC portraits, class and skill icons SHALL identify their title or relation row; descriptions and secondary stats SHALL appear once in the answer or side facts. A missing image SHALL not create an empty image frame. No side panel SHALL stretch just to match another panel's height.
 
 #### Scenario: NPC without a portrait
 - **WHEN** an NPC has stats but no portrait
@@ -18,7 +18,7 @@ The primary answer SHALL be a distinct card in the main column. An item tooltip 
 
 ### Requirement: Ability pages compare versions
 
-An ability without an effect, description, learner, creature user, item use, or applied effect SHALL be withheld by a reviewed exclusion with catalog evidence checked at publication, and references to it SHALL remain readable as plain text. Other ability pages SHALL choose the tooltip version with most users and the first in a tie. An ability with known learners or users SHALL identify them in its answer and put the game tooltip in the side column. An ability without a known learner or user SHALL lead with its effect in the primary answer and give one short missing-source line. Costs and activation requirements SHALL remain in the tooltip. Applied effects SHALL appear as linked outcomes beside or below the game tooltip, with their ability rank, chance, target, and duration when published. These rows SHALL use the same application evidence as each effect page's Applied by list and omit withheld effects. When multiple versions exist, a Versions section SHALL compare their distinct text, use requirements, users, and applied effects. Teaching items and all usable rank links SHALL remain available without repeating the tooltip.
+An ability without an effect, description, learner, creature user, item use, or applied effect SHALL be withheld by a reviewed exclusion with catalog evidence checked at publication, and references to it SHALL remain readable as plain text. Other ability pages SHALL choose the tooltip version with most users and the first in a tie. An ability with known learners or users SHALL identify them in its answer and put the game tooltip in the side column. An ability without a known learner or user SHALL give the applied effects or described outcome in the primary answer, keep the game tooltip narrow in the side column, and give one short missing-source line. Costs and activation requirements SHALL remain in the tooltip. Applied effects SHALL appear as linked outcomes beside or below the game tooltip, with their ability rank, chance, target in player words, and duration in human units when published. These rows SHALL use the same application evidence as each effect page's Applied by list and omit withheld effects. When multiple versions exist, a Versions section SHALL compare their distinct text, use requirements, users, and applied effects. Teaching items and all usable rank links SHALL remain available without repeating the tooltip.
 
 #### Scenario: Ability with five versions
 - **WHEN** an ability has five versions
@@ -38,7 +38,7 @@ An ability without an effect, description, learner, creature user, item use, or 
 
 #### Scenario: Effectful ability without a known user
 - **WHEN** a reader opens AoE Cursed
-- **THEN** its combat effect appears in the primary answer and no empty users card appears
+- **THEN** its linked combat effects appear in the primary answer, the narrow game tooltip sits in the side column, and no empty users card appears
 
 #### Scenario: Reciprocal applied effects
 - **WHEN** Beacon of Dawn applies Beacon of Dawn Hot to a target for 10 seconds
@@ -48,9 +48,13 @@ An ability without an effect, description, learner, creature user, item use, or 
 - **WHEN** an ability applies two effects with different ranks, chances, targets, or durations
 - **THEN** each linked outcome retains its own published context, including its version where several ability versions exist
 
+#### Scenario: Long applied-effect duration
+- **WHEN** an ability applies an effect for 120 seconds
+- **THEN** the effect outcome reads 2 minutes instead of 120 seconds
+
 ### Requirement: Class pages show how a class progresses
 
-Only classes offered by a published race SHALL have pages. A side facts card SHALL show races, highest level, and talent tree count when known. A separate gear card SHALL show weapon types. Its answer SHALL present playstyle and auto attack. Its side SHALL stay in view beside the trees and SHALL present how the class gains talent points, each talent tree with the points that learning every rank of every node takes and a link to its tab, the weapon types, and the gear link. A tree whose points differ from the most common points of the class SHALL name them with its cost. Where a mechanics page explains how those points are earned, such as Heroic Essence in the Heroic Tier mechanics page, the tree and the side SHALL link that mechanics page section. A class whose starting gear is all equipped SHALL state that once above the table and omit its Equipped column. A class with mixed equipped and unequipped gear SHALL keep the column. The Web SHALL initially focus one arm with talent links at least 24 px wide at 390 px and offer a tree focus navigator while preserving pan, zoom, and List. A rank costs its own unlock cost, and the first rank of an ability that the class knows from the start SHALL cost nothing. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with row anchors. The talent trees SHALL have two views, switchable with tabs: Web, the default, which lays out every tree of the class as the game's talent screen does, with the game's positions and requirement lines, and List, which shows each tree as a table in its own tab. Both views SHALL render every tree and talent anchor, so a link to a talent or a tree selects it in the reader's current view. Every talent SHALL show its icon. The web SHALL let a reader move it, zoom it, and select a talent to see its ranks, effect, requirements, and the talents that it unlocks. Selecting a talent SHALL highlight every talent that it needs, back to the first tier of its tree, with the lines between them, and the talents that it unlocks. Selecting a talent in the web SHALL move neither the page nor the web, except that the web SHALL glide to a selected talent outside its view at the same zoom. A link to a talent or a tree from elsewhere on the page SHALL scroll the page only as far as needed to show the whole web. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
+Only classes offered by a published race SHALL have pages. A side facts card SHALL link available races and show the highest level when known, without repeating the talent tree count. A separate gear card SHALL show weapon types. Its answer SHALL present playstyle and auto attack. Its side SHALL stay in view beside the trees and SHALL present how the class gains talent points, each talent tree with the points that learning every rank of every node takes and a link to its tab, the weapon types, and the gear link. A tree whose points differ from the most common points of the class SHALL name them with its cost. Where a mechanics page explains how those points are earned, such as Heroic Essence in the Heroic Tier mechanics page, the tree and the side SHALL link that mechanics page section. A class whose starting gear is all equipped SHALL state that once above the table and omit its Equipped column. A class with mixed equipped and unequipped gear SHALL keep the column. The Web SHALL initially focus one arm with talent links at least 24 px wide at 390 px and offer a tree focus navigator while preserving pan, zoom, and List. A rank costs its own unlock cost, and the first rank of an ability that the class knows from the start SHALL cost nothing. Starting gear SHALL come before the talent trees, which SHALL remain in authored order with row anchors. The talent trees SHALL have two views, switchable with tabs: Web, the default, which lays out every tree of the class as the game's talent screen does, with the game's positions and requirement lines, and List, which shows each tree as a table in its own tab. Both views SHALL render every tree and talent anchor, so a link to a talent or a tree selects it in the reader's current view. Every talent SHALL show its icon. The web SHALL let a reader move it, zoom it, and select a talent to see its ranks, effect, requirements, and the talents that it unlocks. Selecting a talent SHALL highlight every talent that it needs, back to the first tier of its tree, with the lines between them, and the talents that it unlocks. Selecting a talent in the web SHALL move neither the page nor the web, except that the web SHALL glide to a selected talent outside its view at the same zoom. A link to a talent or a tree from elsewhere on the page SHALL scroll the page only as far as needed to show the whole web. The page SHALL link to Character Progression for the character level curve rather than remove access to it, and SHALL not display an Experience table.
 
 A passive talent rank SHALL show its changes to pets after its own changes. A change to pets SHALL name the pets as the game does: "Your beast" for the Hunter's beast, the NPC whose summons change, or "Summons" for every pet. The changes to the same pets SHALL share one line.
 
@@ -58,6 +62,10 @@ A passive talent rank SHALL show its changes to pets after its own changes. A ch
 - **WHEN** a reader opens Shieldmaster
 - **THEN** Starting gear, then Bastion Breaker, Guardian, Templar, Aegis Mastery, and Heroic Ascension remain reachable in order
 - **AND** the page links Character Progression
+
+#### Scenario: Playable races on a class page
+- **WHEN** a reader opens Druid
+- **THEN** its race names link to their pages without a second talent tree count in the side facts
 
 #### Scenario: Class that no race offers
 - **WHEN** no race offers a class
@@ -111,7 +119,7 @@ A passive talent rank SHALL show its changes to pets after its own changes. A ch
 
 #### Scenario: Touch navigation in a talent web
 - **WHEN** a reader opens Druid on a 390 px screen
-- **THEN** a focused arm has talent links at least 24 px wide and the reader can focus another tree without losing Web pan, zoom, or List
+- **THEN** the web's interactive talent links have targets at least 24 px wide and high, and tree navigation stays available through focus controls without losing Web pan, zoom, or List
 
 ### Requirement: Skill pages show recipes and levels
 
@@ -131,7 +139,7 @@ Each non-excluded skill SHALL have a page. Its side facts card SHALL show availa
 
 #### Scenario: Weapon skill
 - **WHEN** a reader opens Axes
-- **THEN** its level curve and auto-attack experience source remain available without an Experience table
+- **THEN** the answer says an axe hit awards 2 skill experience until level 300, links all axes, and retains its level curve without an Experience table
 
 #### Scenario: Skill without levels
 - **WHEN** a published skill has a highest level of zero
@@ -149,11 +157,11 @@ Each non-excluded skill SHALL have a page. Its side facts card SHALL show availa
 
 ### Requirement: Gathering node timers remain readable
 
-A gathering node SHALL state available experience, spots, and respawn in a side facts card. Respawn SHALL retain its published duration and express long durations in hours, minutes, and seconds. Technical timer and range detail SHALL remain available in its existing disclosure. Its tooltip SHALL distinguish needed items from items consumed per use.
+A gathering node SHALL state available experience, spots, and respawn in a side facts card. Respawn SHALL retain its published duration, round times above an hour to the nearest minute with "About" when needed, and leave the exact seconds in the Timers and ranges disclosure. Its tooltip SHALL distinguish needed items from items consumed per use.
 
 #### Scenario: Long respawn
 - **WHEN** Mireblossom has a 9,999-second respawn
-- **THEN** the card shows 2 hours 46 minutes 39 seconds without changing the underlying duration
+- **THEN** the card shows About 2 hours 47 minutes while Timers and ranges retains the exact 2 hours 46 minutes 39 seconds
 
 #### Scenario: Fishing consumable
 - **WHEN** Fishing Hole (Coalway) requires Makeshift Angler and uses one Fish Bait

@@ -138,10 +138,9 @@
     move({ cx: count ? x / count : fallback![0], cy: count ? y / count : fallback![1], zoom: Math.max(.28, fitted.zoom) });
   }
 
-  // Links to a talent or a tree of the web select it without the browser's jump to the target. A link inside the web
-  // selects in place: the page stays put, and the web only moves to a talent outside its view. A link from elsewhere on
-  // the page, such as a tree in the side card, also scrolls the web into view. The web's link to the list switches the
-  // view on this page, as the view tabs do. A click that ends a drag selects nothing.
+  // Talent links select in place without jumping the page, and the tree buttons focus one readable arm at a time.
+  // A link from elsewhere on the page, such as a tree in the side card, scrolls the web into view. The web's link to
+  // the list switches the view on this page, as the view tabs do. A click that ends a drag selects nothing.
   let root: HTMLDivElement;
   function followLink(event: MouseEvent): void {
     const target = event.target instanceof Element ? event.target : null;
@@ -201,7 +200,7 @@
         {#each web.wedges as wedge (wedge.tree)}
           {@const tree = treesByAnchor.get(wedge.tree)}
           <path class="wedge" class:marked={markedTree === wedge.tree} d={wedgePath(wedge.angle, wedge.width, RING_START - NODE, outer)} />
-          {#if tree}<a href={`#${wedge.tree}`} class="tree-name"><text id={wedge.tree} style:font-size={`${LABEL_PX / view.zoom}px`} class:marked={markedTree === wedge.tree}><textPath href={`#talent-web-label-${wedge.tree}`} startOffset="50%">{tree.name}</textPath></text></a>{/if}
+          {#if tree}<text id={wedge.tree} class="tree-name" style:font-size={`${LABEL_PX / view.zoom}px`} class:marked={markedTree === wedge.tree}><textPath href={`#talent-web-label-${wedge.tree}`} startOffset="50%">{tree.name}</textPath></text>{/if}
         {/each}
         {#each web.edges as edge (`${edge.from}>${edge.to}`)}
           <polyline class="edge" class:related={selected && lit(edge)} class:dim={selected && !lit(edge)} points={edge.points.map(([x, y]) => drawPoint(x, y).join(',')).join(' ')} />
@@ -258,8 +257,8 @@
   svg:active { cursor: grabbing; }
   .wedge { fill: var(--c-surface-1); stroke: var(--c-line-soft); stroke-width: 4; }
   .wedge.marked { fill: var(--c-tint-hover); stroke: var(--c-accent); }
-  .tree-name text { fill: var(--c-text-dim); font-weight: 600; font-family: var(--c-serif); text-anchor: middle; }
-  .tree-name text.marked, .tree-name:hover text { fill: var(--c-accent-strong); }
+  .tree-name { fill: var(--c-text-dim); font-weight: 600; font-family: var(--c-serif); text-anchor: middle; }
+  .tree-name.marked { fill: var(--c-accent-strong); }
   .edge { fill: none; stroke: var(--c-frame); stroke-width: 10; stroke-linejoin: round; }
   .edge.related { stroke: var(--c-accent); stroke-width: 14; }
   .edge.dim { opacity: .35; }

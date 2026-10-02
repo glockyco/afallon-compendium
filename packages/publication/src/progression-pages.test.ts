@@ -114,7 +114,7 @@ test("only classes that a race offers get a page", () => {
 
 test("a class page shows its trees in order, talent ranks, requirements, and progression", () => {
   const shieldmaster = project().documents.get("classes:0") as PublicClass;
-  expect(shieldmaster.facts).toEqual({ races: ["Dwarf"], weapons: ["Shield"], autoAttack: { key: "abilities:2", kind: "abilities", name: "Auto Attack", slug: "auto-attack" }, talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], highestLevel: 3 });
+  expect(shieldmaster.facts).toEqual({ races: [{ key: "races:1", kind: "races", name: "Dwarf", slug: "dwarf" }], weapons: ["Shield"], autoAttack: { key: "abilities:2", kind: "abilities", name: "Auto Attack", slug: "auto-attack" }, talentPoints: [{ name: "Talent Points", start: 1, max: 180, gains: [{ trigger: "characterLevelUp", amount: 3 }] }], highestLevel: 3 });
   const [breaker, heroic] = shieldmaster.trees;
   expect([breaker?.name, breaker?.points, heroic?.name, heroic?.points]).toEqual(["Bastion Breaker", "Talent Points", "Heroic Ascension", undefined]);
   expect(breaker?.rows.map((row) => [row.tier, row.name, row.anchor])).toEqual([[1, "Cleave", "talent-0-0"], [2, "Weighted Strikes", "talent-0-1"], [3, "Heroic Resolve", "talent-0-2"]]);

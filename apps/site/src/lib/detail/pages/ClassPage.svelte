@@ -7,6 +7,7 @@
   import AnswerCard from '../AnswerCard.svelte';
   import DetailFrame from '../DetailFrame.svelte';
   import FactsCard from '../FactsCard.svelte';
+  import FactRow from '../FactRow.svelte';
   import HowItWorks from '../HowItWorks.svelte';
   import { planColumns, type RelationColumn } from '../relation-table';
   import RelationTable from '../RelationTable.svelte';
@@ -24,9 +25,7 @@
   $: facts = document.facts;
   $: talentGuide = document.placedRules.find((rule) => rule.target === 'talent-points');
   $: classFacts = [
-    ...(facts.races.length ? [{ label: 'Races', value: facts.races.join(', ') }] : []),
     ...(facts.highestLevel ? [{ label: 'Highest level', value: String(facts.highestLevel), href: `${base}/mechanics/character-progression/` }] : []),
-    ...(document.trees.length ? [{ label: 'Talent trees', value: String(document.trees.length), href: '#talent-trees' }] : []),
   ];
   $: tabs = document.trees.map((tree) => ({ key: tree.anchor, label: tree.name, anchors: [tree.anchor, ...tree.rows.map((row) => row.anchor)] }));
   $: allAnchors = tabs.flatMap((tab) => tab.anchors);
@@ -54,7 +53,9 @@
     <!-- The side stays in view beside the trees: the points that the class earns, what learning each tree in full costs,
          and the gear that it can use. -->
     <div slot="side" class="side-content">
-      <FactsCard facts={classFacts} title="At a glance" />
+      <FactsCard facts={classFacts} title="At a glance">
+        {#if facts.races.length}<FactRow label="Races"><span class="race-links">{#each facts.races as race}<EntityLink ref={race} {registry} />{/each}</span></FactRow>{/if}
+      </FactsCard>
       {#if document.trees.length}<SideCard title="Talent points">
         {#each facts.talentPoints as points}<p>{#if points.name !== commonPoints}<strong>{points.name}:</strong>{' '}{/if}{talentPointText(points)}</p>{/each}
         <h3>Points to learn every rank</h3>
@@ -101,6 +102,7 @@
   .description { white-space: pre-line; }
   .side-content { display: grid; align-content: start; gap: 1rem; }
   .side-content strong { color: var(--c-text-strong); }
+  .race-links { display: flex; justify-content: flex-start; flex-wrap: wrap; gap: .3rem .6rem; }
   h3 { margin: 1rem 0 .4rem; color: var(--c-text-mute); font-size: var(--c-text-label); font-weight: 600; }
   .tree-costs { display: grid; gap: .3rem; margin-bottom: .75rem; padding: 0; list-style: none; }
   .tree-costs li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 1rem; }
