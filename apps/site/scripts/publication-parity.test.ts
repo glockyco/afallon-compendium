@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import type { PublicTileLayer } from "@afallon/contracts/public";
 import { assertCorrectedPublicationParity, assertNonRegressivePublication, assertUpdatePublicationParity, summarizePublication, type PublicationSummary, type PublicationView } from "./publication-parity";
 
+const regionKey = (id: string, polygon = [[0, 0], [1, 0], [1, 1]]) => JSON.stringify({ mapSpaceId: "world", id, shape: "box", polygon });
 function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummary {
   return {
     mapIds: new Set(["world", "dungeon"]),
@@ -14,7 +15,7 @@ function summary(overrides: Partial<PublicationSummary> = {}): PublicationSummar
     ]),
     entityKeys: new Set(["npcs:1"]),
     itemKeys: new Set(["items:1"]),
-    regionKeys: new Set(["region-1"]),
+    regionKeys: new Set([regionKey("region-1")]),
     placementIds: new Set(["placement-1", "placement-2"]),
     placementLocations: new Map([
       ["placement-1", { mapSpaceId: "world", position: [2, 2] as const, categories: ["enemy"] }],
@@ -120,6 +121,8 @@ test("same-build corrections only remove placements outside exact game-map bound
   const folded = summary({ placementIds: new Set(["dungeon"]), placementLocations: new Map([["dungeon", { mapSpaceId: "world", position: [3, 2] as const, categories: ["dungeonEntrance", "travelPoint"] }]]) });
   assertCorrectedPublicationParity(folded, travelBaseline);
   expect(() => assertCorrectedPublicationParity({ ...folded, placementLocations: new Map([["dungeon", { mapSpaceId: "world", position: [3, 2] as const, categories: ["travelPoint"] }]]) }, travelBaseline)).toThrow("in-bounds placements");
+  const travelAtSameSpot = summary({ placementIds: new Set(["other-travel"]), placementLocations: new Map([["other-travel", { mapSpaceId: "world", position: [2, 2] as const, categories: ["travelPoint"] }]]) });
+  assertCorrectedPublicationParity(travelAtSameSpot, travelBaseline);
 });
 
 test("same-build placement copies require a surviving equivalent host marker", () => {
@@ -174,6 +177,9 @@ test("rejects missing entities and region records", () => {
   expect(() => assertNonRegressivePublication(summary({ entityKeys: new Set() }), summary())).toThrow("published entities: npcs:1");
   expect(() => assertNonRegressivePublication(summary({ itemKeys: new Set() }), summary())).toThrow("searchable items");
   expect(() => assertNonRegressivePublication(summary({ regionKeys: new Set() }), summary())).toThrow("map regions");
+  // A region may change its ID when an equal region keeps its geometry, but not when the geometry changes.
+  assertNonRegressivePublication(summary({ regionKeys: new Set([regionKey("region-0")]) }), summary());
+  expect(() => assertNonRegressivePublication(summary({ regionKeys: new Set([regionKey("region-0", [[0, 0], [2, 0], [2, 2]])]) }), summary())).toThrow("map regions");
 });
 
 test("rejects a removed artwork asset", () => {

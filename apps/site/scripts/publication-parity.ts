@@ -206,6 +206,17 @@ function assertContains(candidate: Set<string>, baseline: Set<string>, subject: 
   throw new Error(`Publication removes ${subject}: ${missing.slice(0, 20).join(", ")}${remainder}.`);
 }
 
+// Regions with equal names and geometry fold into the one with the first ID, so a new equal region can take over the
+// group. A region therefore stays when the candidate keeps a region of the same map, shape, and geometry.
+function assertRegions(candidate: PublicationSummary, baseline: PublicationSummary): void {
+  const geometry = (key: string) => {
+    const { id: _id, ...rest } = JSON.parse(key) as Record<string, unknown>;
+    return JSON.stringify(rest);
+  };
+  const kept = new Set([...candidate.regionKeys].map(geometry));
+  assertContains(candidate.regionKeys, baseline.regionKeys, "map regions", (key) => kept.has(geometry(key)));
+}
+
 // The candidate may leave out an entity that its exclusion list names, and the artwork that only such entities showed.
 function assertListedRemovals(candidate: PublicationSummary, baseline: PublicationSummary): void {
   const excluded = (key: string) => candidate.excludedKeys.has(key);
@@ -226,7 +237,7 @@ export function assertNonRegressivePublication(candidate: PublicationSummary, ba
   assertAtLeast(candidate.placementsByMap, baseline.placementsByMap, "per-map placement coverage");
   assertAtLeast(candidate.placementsByCategory, baseline.placementsByCategory, "per-category placement coverage");
   assertListedRemovals(candidate, baseline);
-  assertContains(candidate.regionKeys, baseline.regionKeys, "map regions");
+  assertRegions(candidate, baseline);
   assertContains(candidate.listKinds, new Set([...baseline.listKinds].filter((kind) => (candidate.declaredListKinds ?? candidate.pageKinds).has(kind))), "published lists");
   for (const [mapSpaceId, expected] of baseline.offsets) {
     const actual = candidate.offsets.get(mapSpaceId);
@@ -321,11 +332,14 @@ export function assertCorrectedPublicationParity(candidate: PublicationSummary, 
       if (host ? sameMarker(host) : [...candidate.placementLocations.values()].some(sameMarker)) return false;
     }
     const foldedIntoDungeon = placement.categories.length === 1 && placement.categories[0] === "travelPoint" && [...candidate.placementLocations.values()].some((replacement) => replacement.mapSpaceId === placement.mapSpaceId && replacement.categories.includes("dungeonEntrance") && replacement.categories.includes("travelPoint") && Math.hypot(replacement.position[0] - translatedPosition[0], replacement.position[1] - translatedPosition[1]) <= 6);
-    return !foldedIntoDungeon;
+    // Equal travel points at one spot fold into the one with the first placement ID, so a new equal travel point can take
+    // over the marker of a baseline one.
+    const foldedTravel = placement.categories.includes("travelPoint") && [...candidate.placementLocations.values()].some((replacement) => replacement.mapSpaceId === placement.mapSpaceId && replacement.categories.includes("travelPoint") && Math.hypot(replacement.position[0] - translatedPosition[0], replacement.position[1] - translatedPosition[1]) <= 0.1);
+    return !foldedIntoDungeon && !foldedTravel;
   });
   if (unexpectedRemovals.length > 0) throw new Error(`Publication correction removes in-bounds placements: ${unexpectedRemovals.slice(0, 20).map(([id]) => id).join(", ")}.`);
   assertListedRemovals(candidate, baseline);
-  assertContains(candidate.regionKeys, baseline.regionKeys, "map regions");
+  assertRegions(candidate, baseline);
   assertContains(candidate.listKinds, new Set([...baseline.listKinds].filter((kind) => candidate.pageKinds.has(kind))), "published lists");
 }
 
