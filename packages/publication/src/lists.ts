@@ -45,7 +45,6 @@ function itemTypeLabel(facts: PublicItem["facts"]): string | null {
 function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow {
   const facts = document.facts;
   const slot = facts.slot ?? facts.weaponSlot;
-  const gear = facts.weaponType ?? facts.armorType ?? null;
   // A weapon fits the classes whose weapon types include its type. The game sets no class rule for any other item.
   const weaponType = facts.weaponType === undefined ? undefined : categoryLabel(facts.weaponType);
   const usableBy = classes.filter((entry) => weaponType === undefined || entry.facts.weapons.includes(weaponType)).map((entry) => entry.ref.name).sort();
@@ -59,7 +58,7 @@ function itemRow(document: PublicItem, classes: readonly PublicClass[]): ListRow
     ref: document.ref,
     // `rarity` colours the name.
     values: { rarity: facts.rarity ?? null, type: itemTypeLabel(facts), itemPower: facts.itemPower ?? null, levelRequirement: facts.levelRequirement ?? null },
-    facets: { class: usableBy, gear: facetValue(gear), slot: facetValue(slot), itemType: facetValue(facts.itemType), rarity: facetValue(facts.rarity),
+    facets: { class: usableBy, weapon: facetValue(facts.weaponType), armor: facetValue(facts.armorType), slot: facetValue(slot), itemType: facetValue(facts.itemType), rarity: facetValue(facts.rarity),
       material: [String(document.usedInRecipes.length > 0)] },
     ...(stats.length ? { stats } : {}),
   };

@@ -177,11 +177,11 @@
       {/each}
     </div>
 
-    <div class="list">
+    <div class="list" class:fit-type={filters.stats.length === 0 && visibleColumns.some((column) => LABEL_FIELDS[column.id])}>
       <DataTable {columns} {sort} sticky flowWide onSort={(id, numeric) => { sort = toggleSort(sort, id, numeric); writeUrl('push'); }} label={kind.plural}>
         {#each filteredRows as row (row.ref.key)}
           <tr>
-            <td data-label={kind.label}><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} /></td>
+            <td data-label={kind.label}><span class="name-cell"><EntityLink ref={row.ref} {registry} rarity={rarityTone(String(row.values.rarity ?? ''))} truncate /></span></td>
             {#each visibleColumns as column}
               <td data-label={column.label} class:c-num={column.numeric} class:label={LABEL_FIELDS[column.id]} class:blank={row.values[column.id] === null || row.values[column.id] === undefined}>
                 {#if row.values[column.id] === null || row.values[column.id] === undefined}
@@ -270,10 +270,17 @@
   @media (min-width: 960px) {
     .sheet { display: none; }
   }
-  /* On a phone each value has its own line in the row's card, so a long type may wrap there. */
+  /* A name stays on one line and ends in an ellipsis; its tooltip and page show the whole name. Above phone widths, a
+     list with a type column and no stat columns sizes the name column to its longest name, up to a cap near the longest
+     ordinary name, and gives the spare width to the type, so a name reads next to its type and the numbers sit at the
+     right edge. Any other list gives the name the width that its other columns leave. */
   @media (min-width: 641px) {
     td.label { white-space: nowrap; }
+    .fit-type td.label { width: 100%; }
+    .fit-type .name-cell { width: max-content; max-width: 22rem; }
+    .list:not(.fit-type) td:first-child { width: 100%; max-width: 0; }
   }
+  .name-cell { display: block; min-width: 0; }
 
   @media (max-width: 640px) {
     .list { padding: 0; border: 0; background: none; }

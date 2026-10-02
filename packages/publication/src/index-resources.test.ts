@@ -130,8 +130,10 @@ test("item rows name the classes that can use them, what they are, their craftin
   expect(rows.get("Cloth Hood")!.facets.class).toEqual(["Arcanist", "Shieldmaster"]);
   // A weapon type names its hands, jewelry is named by its slot, and other armor by its armor type and slot.
   expect(["Buckler", "Cloth Hood", "Silver Ring", "Copper Ore"].map((name) => rows.get(name)!.values.type)).toEqual(["Shield", "Cloth Head", "Ring", "Material"]);
-  expect(rows.get("Cloth Hood")!.facets.gear).toEqual(["CLOTH"]);
-  expect(rows.get("Copper Ore")!.facets.gear).toEqual([]);
+  // Weapon types and armor types are separate filters, so a selection in one never mixes the other kind of gear in.
+  expect([rows.get("Buckler")!.facets.weapon, rows.get("Buckler")!.facets.armor]).toEqual([["Shield"], []]);
+  expect([rows.get("Cloth Hood")!.facets.weapon, rows.get("Cloth Hood")!.facets.armor]).toEqual([[], ["CLOTH"]]);
+  expect([rows.get("Copper Ore")!.facets.weapon, rows.get("Copper Ore")!.facets.armor]).toEqual([[], []]);
   expect(rows.get("Copper Ore")!.facets.material).toEqual(["true"]);
   expect(rows.get("Buckler")!.facets.material).toEqual(["false"]);
   expect(rows.get("Oak Staff")!.stats).toEqual([{ name: "Health", percent: false, min: 10, max: 40 }]);

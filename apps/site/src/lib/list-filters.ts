@@ -15,7 +15,7 @@ type Facet = PublicKindEntry['facets'][number];
 
 // Published column and facet ids whose values are native enums, marker roles, item source kinds, or quest start
 // kinds rather than authored names. Everything else prints as published, because a place or faction name is text.
-const ENUM_FIELDS: Record<string, true> = { rarity: true, itemType: true, slot: true, placeType: true, gear: true, rewardType: true };
+const ENUM_FIELDS: Record<string, true> = { rarity: true, itemType: true, slot: true, placeType: true, weapon: true, armor: true, rewardType: true };
 const BOOLEAN_LABELS: Record<string, string> = { true: 'Yes', false: 'No' };
 
 /** The reader-facing label of a published column or facet value. */
