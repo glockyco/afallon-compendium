@@ -111,9 +111,11 @@ export function summarizePublication(graph: PublicationView): PublicationSummary
     for (const part of array(map.parts)) {
       const shard = resource(part);
       for (const tuple of array(shard.placements)) {
-        const [placementId, position, , , categories, entityKeys, itemKeys] = array(tuple);
+        const [placementId, position, , , categories, entityKeys, items] = array(tuple);
         const [x = Number.NaN, y = Number.NaN] = array(position).map(number);
-        placements.push({ placementId: text(placementId), mapSpaceId, position: [x, y], categories: array(categories).map(text), entityKeys: array(entityKeys).map(text), itemKeys: array(itemKeys).map(text) });
+        // A baseline map part can list the item keys in the tuple; a current one names an item set of its part.
+        const itemKeys = items === null ? [] : typeof items === "number" ? array(array(shard.itemSets)[items]) : array(items);
+        placements.push({ placementId: text(placementId), mapSpaceId, position: [x, y], categories: array(categories).map(text), entityKeys: array(entityKeys).map(text), itemKeys: itemKeys.map(text) });
       }
       regions.push(...array(shard.regions).map(object));
     }

@@ -167,7 +167,7 @@ export const StaticMapSummarySchema = Type.Object({
   mapSpaceId: text,
   label: text,
   bounds: Type.Object({ min: point, max: point }, { additionalProperties: false }),
-  parts: Type.Array(resourceReference("compendium.static-map.v3"), { minItems: 1 }),
+  parts: Type.Array(resourceReference("compendium.static-map.v4"), { minItems: 1 }),
   optionalGeometry: Type.Array(resourceReference("compendium.static-geometry.v1")),
   imagery: resourceReference("compendium.static-imagery.v2"),
 }, { additionalProperties: false });
@@ -199,12 +199,13 @@ export const StaticRootManifestSchema = Type.Object({
 }, { additionalProperties: false });
 export type StaticRootManifest = Static<typeof StaticRootManifestSchema>;
 
-// A placement as a tuple: id, position, height, label, categories, page keys, item keys, level, travel enabled, area
-// radius, and random choice.
+// A placement as a tuple: id, position, height, label, categories, page keys, item set, level, travel enabled, area
+// radius, and random choice. The item set is the index of the placement's item keys in the `itemSets` of its map part,
+// or null when the placement gives no item. Containers of one loot table share one set.
 export const PublicEssentialPlacementSchema = Type.Tuple([
   text, position, number, text,
   Type.Array(publicMarkerCategory, { minItems: 1, uniqueItems: true }),
-  Type.Array(text, { uniqueItems: true }), Type.Array(text, { uniqueItems: true }),
+  Type.Array(text, { uniqueItems: true }), Type.Union([count, Type.Null()]),
   Type.Union([PublicLevelSchema, Type.Null()]),
   Type.Union([Type.Boolean(), Type.Null()]),
   Type.Union([Type.Number({ exclusiveMinimum: 0 }), Type.Null()]),
@@ -212,21 +213,24 @@ export const PublicEssentialPlacementSchema = Type.Tuple([
 ]);
 export type PublicEssentialPlacement = Static<typeof PublicEssentialPlacementSchema>;
 
-export function expandEssentialPlacement(value: PublicEssentialPlacement, mapSpaceId: string): PublicPlacement {
-  const [placementId, position, height, label, categories, entityKeys, itemKeys, level, travelEnabled, areaRadius, alternative] = value;
+export function expandEssentialPlacement(value: PublicEssentialPlacement, mapSpaceId: string, itemSets: readonly (readonly string[])[]): PublicPlacement {
+  const [placementId, position, height, label, categories, entityKeys, itemSet, level, travelEnabled, areaRadius, alternative] = value;
+  const itemKeys = itemSet === null ? [] : itemSets[itemSet];
+  if (itemKeys === undefined) throw new Error(`Placement ${placementId} names the missing item set ${itemSet}.`);
   const areas: PublicPlacement["areas"] = areaRadius === null ? [] : [Array.from({ length: 48 }, (_, index) => {
     const angle = index * Math.PI * 2 / 48;
     return [position[0] + areaRadius * Math.cos(angle), position[1] + areaRadius * Math.sin(angle)];
   })];
-  return { placementId, mapSpaceId, position, height, label, categories, entityKeys, itemKeys,
+  return { placementId, mapSpaceId, position, height, label, categories, entityKeys, itemKeys: [...itemKeys],
     ...(level === null ? {} : { level }), ...(alternative === null ? {} : { alternative }), ...(travelEnabled === null ? {} : { travelEnabled }), searchText: [label, ...categories.map((category) => PUBLIC_MARKER_CATEGORY_LABELS[category])].join(" "), areas, movement: [] };
 }
 
 export const StaticMapShardSchema = Type.Object({
-  schemaVersion: Type.Literal("compendium.static-map.v3"),
+  schemaVersion: Type.Literal("compendium.static-map.v4"),
   ...StaticResourceIdentityFields,
   mapSpaceId: text,
   part: count,
+  itemSets: Type.Array(Type.Array(text, { minItems: 1, uniqueItems: true })),
   placements: Type.Array(PublicEssentialPlacementSchema),
   regions: Type.Array(PublicRegionSchema),
 }, { additionalProperties: false });
@@ -378,12 +382,12 @@ schemaRegistry.register("compendium.publication-presentation.v2", PublicationPre
 
 // An explicit type that names each schema keeps the declaration small enough for the compiler to emit.
 export const STATIC_RESOURCE_SCHEMAS: typeof STATIC_COMPENDIUM_SCHEMAS & {
-  "compendium.static-root.v8": typeof StaticRootManifestSchema; "compendium.static-map.v3": typeof StaticMapShardSchema;
+  "compendium.static-root.v8": typeof StaticRootManifestSchema; "compendium.static-map.v4": typeof StaticMapShardSchema;
   "compendium.static-geometry.v1": typeof StaticGeometrySchema; "compendium.static-coverage.v4": typeof StaticCoverageSchema;
   "compendium.static-imagery.v2": typeof StaticImagerySchema; "compendium.static-exclusions.v1": typeof StaticExclusionsSchema;
 } = {
   "compendium.static-root.v8": StaticRootManifestSchema,
-  "compendium.static-map.v3": StaticMapShardSchema,
+  "compendium.static-map.v4": StaticMapShardSchema,
   "compendium.static-geometry.v1": StaticGeometrySchema,
   "compendium.static-coverage.v4": StaticCoverageSchema,
   "compendium.static-imagery.v2": StaticImagerySchema,
@@ -409,7 +413,7 @@ export function staticResourceEdges(value: StaticResource): StaticResourceRefere
       .filter((art) => art !== undefined)
       .map((art) => ({ path: art.url, sha256: art.sha256, bytes: art.bytes, schemaId: "image/webp" })));
     case "compendium.static-imagery.v2": return value.layers.flatMap((layer) => layer.tiles.map((tile) => ({ path: tile.url, sha256: tile.sha256, bytes: tile.bytes, schemaId: tile.schemaId })));
-    case "compendium.static-map.v3":
+    case "compendium.static-map.v4":
     case "compendium.static-geometry.v1":
     case "compendium.static-coverage.v4":
     case "compendium.static-exclusions.v1": return [];

@@ -138,7 +138,7 @@ export class MapDataLoader {
     const placements = parts.flatMap((part, index) => {
       if (part.mapSpaceId !== mapSpaceId || part.part !== index) throw new Error(`Map part identity mismatch for ${mapSpaceId}:${index}.`);
       return part.placements.map((tuple) => {
-        const placement = expandEssentialPlacement(tuple, mapSpaceId);
+        const placement = expandEssentialPlacement(tuple, mapSpaceId, part.itemSets);
         if (ids.has(placement.placementId)) throw new Error(`Duplicate placement ${placement.placementId}.`);
         ids.add(placement.placementId);
         return placement;

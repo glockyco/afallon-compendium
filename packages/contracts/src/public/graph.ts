@@ -57,12 +57,14 @@ export function assertStaticPublicationSemantics(root: StaticRootManifest, value
     const travelGeometryIds = new Set<string>();
     for (const [part, reference] of map.parts.entries()) {
       const value = values.get(reference.path);
-      if (value?.schemaVersion !== "compendium.static-map.v3" || value.mapSpaceId !== map.mapSpaceId || value.part !== part) throw new Error(`Map part identity mismatch: ${reference.path}.`);
+      if (value?.schemaVersion !== "compendium.static-map.v4" || value.mapSpaceId !== map.mapSpaceId || value.part !== part) throw new Error(`Map part identity mismatch: ${reference.path}.`);
       for (const placement of value.placements) {
         if (placementIds.has(placement[0])) throw new Error(`Duplicate public placement: ${placement[0]}.`);
         placementIds.add(placement[0]);
         mapPlacementStates.set(placement[0], placement[8]);
-        for (const key of [...placement[5], ...placement[6]]) if (excluded.has(key)) throw new Error(`Placement ${placement[0]} names an excluded record: ${key}.`);
+        const itemKeys = placement[6] === null ? [] : value.itemSets[placement[6]];
+        if (itemKeys === undefined) throw new Error(`Placement ${placement[0]} names a missing item set: ${reference.path}.`);
+        for (const key of [...placement[5], ...itemKeys]) if (excluded.has(key)) throw new Error(`Placement ${placement[0]} names an excluded record: ${key}.`);
       }
       if (value.regions.some((region) => region.mapSpaceId !== map.mapSpaceId)) throw new Error(`Map region identity mismatch: ${reference.path}.`);
     }

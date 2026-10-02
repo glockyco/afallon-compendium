@@ -401,17 +401,35 @@ export async function generateMapShards(db: Database, store: ArtifactStore, page
     const placements = foldTravelPlacements(unfoldedPlacements);
     const regions = foldRegions(queried.records.regions.map(publicRegion).filter((region): region is PublicRegion => region !== null).map((region) => ({ ...region, polygon: region.polygon.map(([x, y]) => [x + offset.worldX, y + offset.worldY]) })));
     const identity = { buildId: maps.buildId, catalogId: maps.catalogId, mapSpaceId: map.mapSpaceId };
-    const compact: PublicEssentialPlacement[] = placements.map((placement) => [placement.placementId, placement.position, placement.height, placement.label, placement.categories, placement.entityKeys, placement.itemKeys, placement.level ?? null, placement.travel?.enabled ?? null, placement.areaRadius, placement.alternative ?? null]);
+    // The item keys stay beside each tuple until a part is cut, so each part lists every distinct item set once.
+    const compact = placements.map((placement) => ({
+      itemKeys: placement.itemKeys,
+      tuple: [placement.placementId, placement.position, placement.height, placement.label, placement.categories, placement.entityKeys, null, placement.level ?? null, placement.travel?.enabled ?? null, placement.areaRadius, placement.alternative ?? null] as PublicEssentialPlacement,
+    }));
     const published = new Set(placements.map((placement) => placement.placementId));
     for (const placementId of [...npcLevels.keys()]) if (!published.has(placementId)) npcLevels.delete(placementId);
-    type MapRecord = { placement: PublicEssentialPlacement } | { region: PublicRegion };
+    type MapRecord = { placement: (typeof compact)[number] } | { region: PublicRegion };
     const mapRecords: MapRecord[] = [...compact.map((placement) => ({ placement })), ...regions.map((region) => ({ region }))];
     const resources: GeneratedStaticResource<StaticMapShard>[] = [];
-    for (const shard of partitionStaticRecords(mapRecords, (rows, part): StaticMapShard => ({
-      schemaVersion: "compendium.static-map.v3", ...identity, part,
-      placements: rows.flatMap((row) => "placement" in row ? [row.placement] : []),
-      regions: rows.flatMap((row) => "region" in row ? [row.region] : []),
-    }))) {
+    for (const shard of partitionStaticRecords(mapRecords, (rows, part): StaticMapShard => {
+      const itemSets: string[][] = [], setIndex = new Map<string, number>();
+      const partPlacements = rows.flatMap((row) => {
+        if (!("placement" in row)) return [];
+        const { itemKeys, tuple } = row.placement;
+        if (itemKeys.length === 0) return [tuple];
+        const key = JSON.stringify(itemKeys);
+        let index = setIndex.get(key);
+        if (index === undefined) {
+          index = itemSets.length;
+          itemSets.push([...itemKeys]);
+          setIndex.set(key, index);
+        }
+        const indexed: PublicEssentialPlacement = [...tuple];
+        indexed[6] = index;
+        return [indexed];
+      });
+      return { schemaVersion: "compendium.static-map.v4", ...identity, part, itemSets, placements: partPlacements, regions: rows.flatMap((row) => "region" in row ? [row.region] : []) };
+    })) {
       Assert(StaticMapShardSchema, shard);
       resources.push(await writeStaticJson(store, shard.schemaVersion, shard, protection));
     }

@@ -75,7 +75,7 @@ test("rejects rehashed semantic corruption at both readers without replacing sel
           empty.optionalGeometry = world.optionalGeometry;
           world.optionalGeometry = [];
           for (const resource of resources.values()) {
-            if (resource.schemaVersion === "compendium.static-map.v3" && resource.mapSpaceId === "world") for (const placement of resource.placements) placement[8] = null;
+            if (resource.schemaVersion === "compendium.static-map.v4" && resource.mapSpaceId === "world") for (const placement of resource.placements) placement[8] = null;
             if (resource.schemaVersion === "compendium.static-geometry.v1" && resource.mapSpaceId === "world") resource.mapSpaceId = "empty";
           }
         },
@@ -124,7 +124,7 @@ test("rejects rehashed semantic corruption at both readers without replacing sel
     verifyPublicationParity(parityGraph, selectedDirectory);
     const regressive = await rewriteGraph(store, graph, (_publication, resources) => {
       for (const resource of resources.values()) {
-        if (resource.schemaVersion === "compendium.static-map.v3") resource.placements = [];
+        if (resource.schemaVersion === "compendium.static-map.v4") resource.placements = [];
         if (resource.schemaVersion === "compendium.static-geometry.v1") resource.placements = [];
         if (resource.schemaVersion === "compendium.static-coverage.v4") resource.placementCount = 0;
       }

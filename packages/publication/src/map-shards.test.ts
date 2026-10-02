@@ -144,7 +144,7 @@ test("classifies five canonical crafting stations while preserving overlap and s
   expect(byId.get("station-5")?.[4]).toEqual(["tailoringStation"]);
   const stationCategories = new Set(["craftingStation", "alchemyStation", "cookingStation", "smithingStation", "furnace", "tailoringStation"]);
   for (const placement of placements) expect(placement[4].filter((category) => stationCategories.has(category))).toHaveLength(1);
-  expect(expandEssentialPlacement(byId.get("station-1")!, "world").searchText).toContain(PUBLIC_MARKER_CATEGORY_LABELS.cookingStation);
+  expect(expandEssentialPlacement(byId.get("station-1")!, "world", []).searchText).toContain(PUBLIC_MARKER_CATEGORY_LABELS.cookingStation);
 });
 
 test("keeps ambiguous and unsupported crafting references generic", async () => {
@@ -172,7 +172,7 @@ test("keeps ambiguous and unsupported crafting references generic", async () => 
     ["typed-conflict", ["craftingStation"]],
     ["unresolved", ["craftingStation"]],
   ]);
-  expect(expandEssentialPlacement(placements.find((placement) => placement[0] === "unresolved")!, "world").searchText).toContain(PUBLIC_MARKER_CATEGORY_LABELS.craftingStation);
+  expect(expandEssentialPlacement(placements.find((placement) => placement[0] === "unresolved")!, "world", []).searchText).toContain(PUBLIC_MARKER_CATEGORY_LABELS.craftingStation);
 });
 
 test("names an object by its readable authored name and ignores placeholder names such as 0", async () => {
