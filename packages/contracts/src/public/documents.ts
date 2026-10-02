@@ -1031,12 +1031,21 @@ export function isStaticDocument(value: { schemaVersion: string }): value is Sta
 
 export function isEntityRef(ref: Ref): ref is EntityRef { return ref.key !== null; }
 
+// Every artwork reference inside a document, wherever it sits, such as a reference's icon or a passive talent's icon. The
+// publication ships exactly these files, and the publication graph checks them, so no field of artwork can be left out.
 export function artEdges(document: PublicDocument): ArtRef[] {
-  const art = [document.art.icon, document.art.portrait, document.art.artwork];
-  if ("variants" in document) for (const variant of document.variants) art.push(variant.portrait);
-  if ("versions" in document) for (const version of document.versions) art.push(version.icon);
-  for (const ref of collectRefs(document)) { if (ref.icon) art.push(ref.icon); if (ref.portrait) art.push(ref.portrait); }
-  return art.filter((value): value is ArtRef => value !== undefined);
+  const into: ArtRef[] = [];
+  collectArt(document, into);
+  return into;
+}
+
+const ART_URL = /^art\/[a-f0-9]{64}\.webp$/;
+function collectArt(value: unknown, into: ArtRef[]): void {
+  if (Array.isArray(value)) { for (const item of value) collectArt(item, into); return; }
+  if (value === null || typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  if (typeof record.url === "string" && ART_URL.test(record.url)) { into.push(record as ArtRef); return; }
+  for (const child of Object.values(record)) collectArt(child, into);
 }
 
 // Every `EntityRef` inside a document, wherever it sits. Documents are plain JSON: any object with

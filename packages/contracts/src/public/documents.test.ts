@@ -204,6 +204,14 @@ test("an item names each published class that starts with it", () => {
   expect(() => Assert(PUBLIC_DOCUMENT_SCHEMAS.items, { ...staff, startingGearOf: [{ class: unresolved }] })).toThrow();
 });
 
+test("a document's graph edges reach every artwork that it carries, such as a passive talent's icon", () => {
+  const passive: ArtRef = { url: `art/${"f".repeat(64)}.webp`, sha256: "f".repeat(64), bytes: 9, width: 64, height: 64 };
+  const document = structuredClone(fixtures.classes) as PublicClass;
+  document.trees[0]!.rows[0]!.icon = passive;
+  const edges = staticResourceEdges({ schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.classes, ...identity, kind: "classes", document } as StaticResource);
+  expect(edges.map((edge) => edge.path).sort()).toEqual([art.url, passive.url].sort());
+});
+
 test("a root reaches documents and artwork through graph edges and passes semantics", () => {
   const ref = (schemaId: string, sha: string) => ({ path: `resources/${sha}.json`, sha256: sha, bytes: 10, schemaId });
   const itemDocument: Static<typeof StaticItemDocumentSchema> = { schemaVersion: STATIC_DOCUMENT_SCHEMA_IDS.items, ...identity, kind: "items", document: fixtures.items as PublicItem };
