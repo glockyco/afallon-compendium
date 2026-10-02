@@ -17,7 +17,7 @@ The publication MUST attribute a scene to a substantially larger host in the sam
 - **THEN** its existing place and map content remain unchanged.
 
 ### Requirement: Unique Place Content
-A variant place MUST show only its unique creatures, services, containers, resources, quests, objectives, properties, and connections; the host place MUST retain its existing content. Its presentation MUST link the host and explain that the variant also contains copies of overworld content.
+A variant place MUST show only its unique creatures, services, containers, resources, quests, objectives, and properties. The host place MUST retain its existing content. Its presentation MUST link the host and explain that the variant also contains copies of overworld content.
 
 #### Scenario: Pyromancer place
 - **WHEN** a reader opens Challenge Stone Pyromancer

@@ -10,4 +10,4 @@
 
 ## 3. Publication
 
-- [ ] 3.1 Publish, accept, and stage the candidate.
+- [x] 3.1 Publish, accept, and stage the candidate.

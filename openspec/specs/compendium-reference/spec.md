@@ -23,7 +23,7 @@ The site SHALL prerender a detail page at `/<kind>/<slug>/` for each published d
 #### Scenario: A reader opens a quest or place page
 - **WHEN** a reader requests a published quest page
 - **THEN** it shows its objectives, start, rewards, and available chain, requirements, and quest text
-- **AND** a published place page shows its available artwork, description, creatures, bosses, quest roles, connections, and grouped services and resources
+- **AND** a published place page shows its available artwork, description, creatures, bosses, quest roles, how to get there, and grouped services and resources
 
 #### Scenario: A reader follows an obsolete page URL
 - **WHEN** an entity route has no published document for its kind and slug
