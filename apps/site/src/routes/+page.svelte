@@ -26,7 +26,7 @@
   $: pageHref = (ref: EntityRef) => { const route = routes.get(ref.kind); return route && ref.slug ? `${base}/${route}/${ref.slug}/${ref.variant ? `#${ref.variant}` : ''}` : undefined; };
   $: listHref = (kind: string) => { const route = data.registry.find((entry) => entry.kind === kind && entry.list)?.route; return route ? `${base}/${route}/` : undefined; };
   $: counts = new Map<string, number>([...data.pageCounts.map((entry) => [entry.kind, entry.count] as const), ['recipes', data.recipeCount] as const]);
-  // Browse tiles are reference lists. Mechanics pages are not a reference list; the Mechanics column of the Browse menu links them.
+  // Browse tiles are reference lists. Mechanics pages are guides, and the Mechanics column of the Browse menu links them.
   $: browse = data.registry.filter((entry) => entry.list && entry.kind !== 'mechanics').map((entry) => ({ label: entry.plural, href: `${base}/${entry.route}/`, count: counts.get(entry.kind) ?? 0, glyph: kindGlyphSvg(entry.icon) }));
   // A tile without art shows the glyph of its kind in the same box, so the tiles stay aligned.
   $: kindGlyph = (kind: string) => kindGlyphSvg(data.registry.find((entry) => entry.kind === kind)?.icon) ?? '';

@@ -23,13 +23,12 @@ export function siteNavigation(registry: readonly PublicKindEntry[], base: strin
   const byKind = new Map<string, PublicKindEntry>(registry.filter((entry) => entry.pages || entry.list).map((entry) => [entry.kind, entry]));
   const named = new Set(SECTIONS.flatMap((section) => section.entries));
   const link = (entry: PublicKindEntry): NavigationLink => ({ label: entry.plural, href: `${base}/${entry.route}/` });
-  // The registry names kinds, not individual mechanics documents. The menu lists the main topics only. The other topics
-  // stay reachable through the How it works links of the pages that use their rules.
+  // The registry names kinds, not individual mechanics documents, so the menu names each guide topic.
   const mechanics = byKind.get('mechanics');
   const topics: NavigationLink[] = mechanics ? [
-    { label: 'Character Progression', href: `${base}/${mechanics.route}/character-progression/` },
-    { label: 'Corruption', href: `${base}/${mechanics.route}/corruption/` },
-  ] : [];
+    ['Character Progression', 'character-progression'], ['Crafting and Gathering', 'crafting-and-gathering'],
+    ['Corruption', 'corruption'], ['Heroic Tier', 'heroic-tier'], ['Loot', 'loot'],
+  ].map(([label, slug]) => ({ label: label!, href: `${base}/${mechanics.route}/${slug}/` })) : [];
   const links = (id: string): NavigationLink[] => {
     if (id === 'map') return [{ label: 'Map', href: `${base}/map/` }];
     if (id === 'mechanics') return topics;
