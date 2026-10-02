@@ -19,7 +19,6 @@ export interface ExclusionEvidenceInput {
 }
 
 const keyOf = (endpoint: CatalogEndpoint | null): string | null => endpoint?.entityKey ?? null;
-
 /** The relations without the rows that name an excluded record, so no page shows a row for it. */
 export function withoutExcludedRelations(relations: CatalogRelations, excluded: ReadonlySet<string>): CatalogRelations {
   if (excluded.size === 0) return relations;
@@ -71,9 +70,18 @@ function contradiction(entity: CatalogEntityRow, input: ExclusionEvidenceInput, 
     case "npcs":
       if (relations.placements.some((placement) => placement.roles.some((role) => role.npcEntityKey === key))) return "the NPC has a placement";
       return input.spawnCandidates.has(key) ? "the NPC is a spawn candidate" : null;
-    case "scenes":
+    case "scenes": {
       if (relations.placements.some((placement) => placement.sceneKey === key)) return "the scene has a placement";
-      return (input.facts.places.find((place) => place.entityKey === key)?.mapSpaceIds.length ?? 0) > 0 ? "the scene has a map space" : null;
+      const place = input.facts.places.find((candidate) => candidate.entityKey === key);
+      if ((place?.mapSpaceIds.length ?? 0) > 0) return "the scene has a map space";
+      if (reason !== "content-free-record") return null;
+      if (!place) return "the scene lacks place facts to verify the exclusion";
+      if (entity.description?.trim() || place.guideDescription?.trim()) return "the scene has a description";
+      if (entity.artwork.length) return "the scene has artwork";
+      if (place.levelRange || place.bosses.length) return "the scene has level or inhabitant facts";
+      if (relations.quests.some((row) => row.kind === "objective" && row.task?.target?.entityKey === key)) return "the scene is a quest objective";
+      return null;
+    }
     case "recipes":
       return relations.recipes.some((row) => keyOf(row.recipe) === key) ? "the recipe has a material or a product" : null;
     case "craftingStations":

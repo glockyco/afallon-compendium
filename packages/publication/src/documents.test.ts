@@ -785,6 +785,27 @@ test("projects quest starts, world effects, and related item, NPC, and place pag
   const place = documents.get("scenes:10") as PublicPlace;
   expect(place.quests.map((ref) => ref.key)).toEqual(["quests:3", "quests:1", "quests:4"]);
   expect(place.questObjectives.map((ref) => ref.key)).toEqual(["quests:3", "quests:4", "quests:1"]);
+  const matching = project(scenarioEntities, scenarioFacts, { ...scenarioRelations,
+    quests: [...scenarioRelations.quests, row("collect-blade", "objective", {
+      task: { entityKey: "tasks:8", taskType: "getItem", target: endpoint("items:1", "Blade"), count: 1, keepItems: false, sceneName: null },
+    })],
+    gatedSources: [...scenarioRelations.gatedSources, { sourceId: "named-blade", family: "interaction", label: "Blade",
+      subjects: [], placementIds: ["p4"], availability: [afterQuest] }],
+  }, placements, new Map([["world", []]]));
+  const changes = (matching.documents.get("quests:3") as PublicQuest).worldChanges;
+  expect(changes.find((change) => change.subjects.some((subject) => subject.key === "items:1"))?.label).toBeUndefined();
+  expect(changes.find((change) => change.label === "Locked Altar")?.subjects).toEqual([]);
+  const zoneKey = "scenes:3";
+  const zone = project([...scenarioEntities, { ...scenarioEntities.find((entry) => entry.entityKey === "scenes:10")!,
+    entityKey: zoneKey, name: "Coalway Woods", description: "Autumn woods" }],
+  { ...scenarioFacts, places: [...scenarioFacts.places, { ...scenarioFacts.places[0]!, entityKey: zoneKey,
+    mapSpaceIds: [], placeType: "zone", guideDescription: "Autumn woods", bosses: [] }] },
+  { ...scenarioRelations, placements: scenarioRelations.placements.map((placement) =>
+    placement.placementId === "p3" ? { ...placement, roles: [{ role: "friendly", npcEntityKey: "npcs:2", scope: "authored" }] } : placement) },
+  placements, new Map([["world", []]])).documents.get(zoneKey) as PublicPlace;
+  expect(zone.space).toBeNull();
+  expect(zone.npcs.map((entry) => entry.counterpart.key)).toContain("npcs:2");
+  expect(zone.quests.map((entry) => entry.key)).toContain("quests:3");
 });
 
 test("Hunter tameability distinguishes flagged Elite variants and retains placement scaling", () => {

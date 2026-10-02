@@ -19,7 +19,7 @@ const kindEntries = [
     facets: [facet("rewardType", "Reward type"), facet("questType", "Quest type"), facet("startType", "Start type"), facet("area", "Area"), facet("chain", "Chain"), facet("repeatable", "Repeatable")] },
   { kind: "places", label: "Place", plural: "Places", route: "places", icon: "place", pages: true, list: true, searchable: true,
     columns: [column("placeType", "Type"), column("levelRange", "Level range"), column("bosses", "Bosses", true)],
-    facets: [facet("placeType", "Type"), facet("guideIncluded", "Guide included")] },
+    facets: [facet("placeType", "Type"), facet("guideIncluded", "In the Adventure Guide")] },
   { kind: "properties", label: "Property", plural: "Properties", route: "properties", icon: "property", pages: true, list: true, searchable: true,
     columns: [column("type", "Type"), column("place", "Place"), column("price", "Price", true), column("income", "Income", true)], facets: [facet("type", "Type"), facet("place", "Place")] },
   { kind: "abilities", label: "Ability", plural: "Abilities", route: "abilities", icon: "ability", pages: true, list: true, searchable: true,

@@ -33,7 +33,7 @@
   {/each}
   {#if zones.length || objects.length}<div><h3>Starts with</h3>
     {#each zones as zone}
-      <div class="source"><p>Enter the zone while its World Quest is active, or stay inside until it appears.</p><LocationLinks placements={zone.placements} />
+      <div class="source"><p>Enter the zone while its world quest is active, or stay inside until it appears.</p><LocationLinks placements={zone.placements} />
         {#if zone.availability.length}<Availability rules={zone.availability} {registry} />{/if}
         {#if zone.pool.length}<p>Other quests here: {#each zone.pool as quest, index}{index ? ', ' : ''}<EntityLink ref={quest} {registry} />{/each}</p>{/if}
         {#if zone.zoneDelaySeconds !== undefined}<p>Zone delay after a quest ends: {intervalText(zone.zoneDelaySeconds)}</p>{/if}

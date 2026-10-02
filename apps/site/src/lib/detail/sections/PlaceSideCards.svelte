@@ -6,6 +6,7 @@
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
   import HowItWorks from '../HowItWorks.svelte';
+  import SideCard from '../SideCard.svelte';
 
   export let document: PublicPlace;
   export let registry: PublicKindEntry[];
@@ -25,8 +26,7 @@
 {/snippet}
 
 {#if gettingThere}
-  <div class="side-card" id="getting-there">
-    <h2>Getting there</h2>
+  <SideCard id="getting-there" title="Getting there">
     <ul>
       {#if document.startingRaces.length}
         <li>{document.allPlayableRacesStartHere ? 'New characters start here.' : `New ${listText(document.startingRaces.map((race) => race.name))} characters start here.`}</li>
@@ -39,12 +39,11 @@
         <li>The Dungeon Finder can also send you here. Choose this dungeon, or queue for a Random run that can pick it.{#if document.dungeonFinder.supplyPack}{' '}Only a finished Random run gives an <EntityLink ref={document.dungeonFinder.supplyPack} {registry} />.{/if}</li>
       {/if}
     </ul>
-  </div>
+  </SideCard>
 {/if}
 
 {#if timed}
-  <div class="side-card" id="timed-dungeon">
-    <h2>Timed dungeon</h2>
+  <SideCard id="timed-dungeon" title="Timed dungeon">
     <FactList>
       {#if timed.totalSeconds !== undefined}<FactRow label="Timer">{timerText(timed.totalSeconds)}</FactRow>{/if}
       {#if timed.altars.length}<FactRow label="Altar of Corruption"><a class="c-link" href={spotOnMap(timed.altars[0]!.placementId)}>Show on map</a></FactRow>{/if}
@@ -54,27 +53,22 @@
       {#if timed.maxLootItems !== undefined}<li>The reward bag holds {#if timed.token}a <EntityLink ref={timed.token} {registry} /> and{/if} up to {formatNumber(timed.maxLootItems)} other {timed.maxLootItems === 1 ? 'item' : 'items'}.</li>{/if}
     </ul>
     <HowItWorks guide={timed.guide} section="timed-dungeons" label="How timed dungeons work" />
-  </div>
+  </SideCard>
 {/if}
 
 {#if services.length}
-  <div class="side-card" id="services">
-    <h2>Services</h2>
+  <SideCard id="services" title="Services">
     <FactList>
       {#each services as service}
-        <FactRow label={roleLabel(service.category)}>{#if document.space}<a class="c-link" href={placeOnMap(document.ref.key, service.category)}>{formatNumber(service.placementCount)} on map</a>{:else}{formatNumber(service.placementCount)}{/if}</FactRow>
+        <FactRow label={roleLabel(service.category).toLowerCase().replace(/^./, (initial) => initial.toUpperCase())}>{#if document.space}<a class="c-link" href={placeOnMap(document.ref.key, service.category)}>{formatNumber(service.placementCount)} on map</a>{:else}{formatNumber(service.placementCount)}{/if}</FactRow>
       {/each}
     </FactList>
-  </div>
+  </SideCard>
 {/if}
 
 <style>
-  .side-card { display: grid; gap: .75rem; padding: 1rem; border: 1px solid var(--c-line-soft); border-radius: var(--c-radius); background: var(--c-surface-1); }
-  h2 { margin: 0; font-size: 1rem; }
   ul { display: grid; gap: .65rem; margin: 0; padding: 0; list-style: none; line-height: 1.5; }
   li + li { padding-top: .65rem; border-top: 1px solid var(--c-line-soft); }
   .entrance { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem .75rem; }
   .spots { display: flex; flex-wrap: wrap; gap: .25rem .65rem; }
-  .side-card :global(.fact-list dl) { grid-template-columns: max-content minmax(0, 1fr); gap: .35rem .75rem; }
-  .side-card :global(.fact-row dd) { text-align: right; }
 </style>

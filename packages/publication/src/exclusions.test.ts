@@ -60,3 +60,19 @@ test("reviewed thin items reappear if their catalog gains an actionable fact or 
   expect(() => assertExclusionEvidence(entries, { ...evidence, lootItemKeys: new Set(["items:835"]) })).toThrow("a loot table grants the item");
   expect(() => assertExclusionEvidence(entries, { ...evidence, facts: { ...itemFacts, items: itemFacts.items.map((row) => row.entityKey === "items:84" ? { ...row, gameActions: [...row.gameActions, { ...row.gameActions[1]!, target: { entityKey: "quests:5", label: "Forest Demon" } }] } : row) } })).toThrow("the item has an identified use");
 });
+
+test("a withheld place must stay free of player-facing content", () => {
+  const empty = entity("scenes", 12, "Sylvan Thickets");
+  const place: CatalogFacts["places"][number] = {
+    entityKey: empty.entityKey, placeType: "zone", guideIncluded: false, guideDescription: null,
+    levelRange: null, mapSpaceIds: [], bosses: [], parentSceneKey: null,
+  };
+  const exclusion: PublicationExclusion = { key: empty.entityKey, reason: "content-free-record",
+    evidence: "No map space, description, artwork, level, inhabitants, quest objective, or placement." };
+  const state: ExclusionEvidenceInput = { ...input, entities: [empty], facts: { ...facts, places: [place] } };
+  assertExclusionEvidence([exclusion], state);
+  expect(() => assertExclusionEvidence([exclusion], { ...state, entities: [{ ...empty, description: "A mountain area" }] }))
+    .toThrow("scene has a description");
+  expect(() => assertExclusionEvidence([exclusion], { ...state, facts: { ...state.facts, places: [{ ...place, mapSpaceIds: ["world"] }] } }))
+    .toThrow("scene has a map space");
+});

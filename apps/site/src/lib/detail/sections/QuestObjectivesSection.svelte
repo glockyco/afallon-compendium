@@ -9,6 +9,8 @@
 
   export let objectives: QuestObjective[];
   export let registry: PublicKindEntry[];
+  $: authoredCounts = objectives.map((objective) => 'count' in objective
+    && new RegExp(`\\b${objective.count}\\b`).test(objective.text));
 </script>
 
 {#if objectives.length}
@@ -16,7 +18,7 @@
     {#each objectives as objective, index}
       <li>
         <span class="number" aria-hidden="true">{index + 1}</span>
-        <div class="task"><p><ObjectiveText {objective} />{#if 'count' in objective}<strong class="count">{formatNumber(objective.count)} required</strong>{/if}</p>
+        <div class="task"><p class="instruction"><ObjectiveText {objective} />{#if 'count' in objective && !authoredCounts[index]}<strong class="count">{formatNumber(objective.count)} required</strong>{/if}</p>
           {#if 'target' in objective}<p class="target">Target: <EntityLink ref={objective.target} {registry} />{#if objective.target.key !== null && objective.target.kind === 'npcs'}{' '}· <a class="c-link" href={entityOnMap(objective.target.key)}>Show on map</a>{/if}</p>{/if}
           {#each objective.completions as completion}<div class="completion">
             <p>{completion.label ?? 'Interactive object'}</p>
@@ -36,6 +38,6 @@
   .task { min-width: 0; padding: .1rem 0 .7rem; border-bottom: 1px solid var(--c-line-soft); }
   li:last-child .task { border-bottom: 0; }
   p { margin: 0; line-height: 1.5; }
-  .count { margin-left: .5rem; color: var(--c-text-dim); font-size: .875rem; font-weight: 600; white-space: nowrap; }
+  .count { display: inline-block; margin-left: .55rem; color: var(--c-text-dim); font-size: .875rem; font-weight: 600; white-space: nowrap; }
   .target, .completion { margin-top: .35rem; color: var(--c-text-dim); font-size: .875rem; }
 </style>

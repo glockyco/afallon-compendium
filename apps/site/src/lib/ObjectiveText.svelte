@@ -2,8 +2,11 @@
   import type { QuestObjective } from '@afallon/contracts/public';
   import { formatDuration } from './format';
 
-  // The objective's authored text with its time limit and item retention, as every objective table shows them.
   export let objective: QuestObjective;
 </script>
 
-{objective.text}{#if objective.timeLimit !== undefined}<small>{formatDuration(objective.timeLimit)} time limit</small>{/if}{#if 'keepItems' in objective && objective.keepItems}<small>Keep items</small>{/if}
+<span>{objective.text}</span>{#if objective.timeLimit !== undefined}<small>{formatDuration(objective.timeLimit)} time limit</small>{/if}{#if 'keepItems' in objective && objective.keepItems}<small>Keep items</small>{/if}
+
+<style>
+  small { display: inline-block; margin-left: .55rem; color: var(--c-text-dim); white-space: nowrap; }
+</style>

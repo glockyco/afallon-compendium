@@ -210,7 +210,13 @@ export function projectPlace(entity: CatalogEntityRow, ref: EntityRef, input: Do
   const mapSpaceId = fact?.mapSpaceIds.find((candidate) => input.regionIdsByMapSpace.has(candidate)) ?? null;
   const placeType = fact?.placeType ?? (entity.kind === "regions" ? "region" : "zone");
   const variant = input.placeVariants?.get(entity.entityKey);
-  const placePlacements = (indexes.placementsByScene.get(entity.entityKey) ?? []).filter((placement) => !variant?.copiedPlacementIds.has(placement.placementId));
+  // A placement whose published area exactly names an unmapped zone proves its inhabitants and quests are there.
+  const namedArea = mapSpaceId === null && placeType === "zone" && (fact?.guideDescription?.trim() || entity.description?.trim())
+    ? displayName(entity.name ?? "") : "";
+  const placePlacements = (namedArea
+    ? input.relations.placements.filter((placement) => input.placements.get(placement.placementId)?.label === namedArea)
+    : indexes.placementsByScene.get(entity.entityKey) ?? [])
+    .filter((placement) => !variant?.copiedPlacementIds.has(placement.placementId));
   const resourceCategories: Record<string, true> = { oreVein: true, herb: true, mushroom: true, fishingSpot: true };
   if (variant) resourceCategories.interactiveObject = true;
   const containerCategories = { container: true } as const;

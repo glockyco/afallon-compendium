@@ -88,11 +88,19 @@ export function projectQuest(entity: CatalogEntityRow, ref: EntityRef, input: Do
   }))));
   const unlocks = input.facts.quests.filter((candidate) => candidate.conditionIds.some((id) => conditionNamesQuest(id, entity.entityKey, conditions)))
     .map((candidate) => input.resolve({ entityKey: candidate.entityKey, label: candidate.entityKey }));
+  // Only resolve a source name to an item when this quest explicitly asks for that same item.
+  // Matching arbitrary page names would turn similarly named world objects into false item links.
+  const objectiveItems = rows.filter((row) => row.kind === "objective" && row.task?.taskType === "getItem" && row.task.target?.entityKey)
+    .map((row) => input.resolve(row.task!.target!)).filter((target): target is EntityRef => "kind" in target && target.kind === "items");
   const worldChanges = groupPlacedRows(input.relations.gatedSources.filter((source) =>
     source.availability.some((rule) => conditionNamesQuest(rule.conditionId, entity.entityKey, conditions))).map((source) => ({
-    sourceKind: WORLD_SOURCE_KIND[source.family], subjects: mergeRefs(source.subjects.map(input.resolve), input).sort((left, right) =>
+    sourceKind: WORLD_SOURCE_KIND[source.family],
+    subjects: mergeRefs([...source.subjects.map(input.resolve), ...objectiveItems.filter((item) =>
+      source.family === "interaction" && displayName(source.label ?? "") === item.name)], input).sort((left, right) =>
       (left.key ?? left.label).localeCompare(right.key ?? right.label)),
-    ...(displayName(source.label ?? "") ? { label: displayName(source.label!) } : {}),
+    ...(displayName(source.label ?? "") && !objectiveItems.some((item) =>
+      source.family === "interaction" && displayName(source.label ?? "") === item.name)
+      ? { label: displayName(source.label!) } : {}),
     availability: projectAvailability(source.availability, conditions, input.resolve),
     placements: publishedPlacements(source.placementIds, input.placements),
   }))).filter((row) => row.availability.length > 0);
