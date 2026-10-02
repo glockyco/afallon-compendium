@@ -28,7 +28,7 @@ const FAMILY_ORDER: Readonly<Record<PublicStat["grants"][number]["family"], numb
 // Item Power comes from the stats:53 fixed item stat and is also published as the item's itemPower fact.
 const STAT_NOTES: Readonly<Record<string, { text: string; replaceDescription?: true }>> = {
   "stats:98": { text: "Its in-game description refers to Fire damage, so it does not establish which damage this resistance reduces.", replaceDescription: true },
-  "stats:53": { text: "Each item's Item Power value appears on its item page." },
+  "stats:53": { text: "Item Power is an equipment rating shown in item tooltips." },
 };
 // The item list's itemPower column is projected from the same stats:53 item stat.
 const ITEM_LIST_COLUMNS: Readonly<Record<string, string>> = { "stats:53": "itemPower" };
@@ -110,6 +110,11 @@ export function projectStat(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     || (isEntityRef(a.source) ? a.source.name : a.source.label).localeCompare(isEntityRef(b.source) ? b.source.name : b.source.label)
     || (a.tier ?? 0) - (b.tier ?? 0));
   const details = fact.details;
+  const recovery = details.regeneration.filter((row) => row.amount !== 0 && row.interval > 0)
+    .map((row) => ({ when: row.when, amount: row.amount, interval: row.interval }));
+  // The raw vitality flag also marks zero-base Item Power and Armor Penetration. In this catalog,
+  // only Health, Mana, Energy, and Endurance have both a starting pool and active recovery.
+  const vitality = details.isVitalityStat && details.baseValue > 0 && recovery.length > 0;
   return {
     ...baseDocument(entity, ref, input),
     ...(STAT_NOTES[key] ? { note: STAT_NOTES[key].text, ...(STAT_NOTES[key].replaceDescription ? { description: null } : {}) } : {}),
@@ -119,9 +124,9 @@ export function projectStat(entity: CatalogEntityRow, ref: EntityRef, input: Doc
     unit: details.isPercentStat ? "percent" : "flat", base: details.baseValue,
     ...(details.minValue === null ? {} : { min: details.minValue }),
     ...(details.maxValue === null ? {} : { max: details.maxValue }),
-    vitality: details.isVitalityStat,
-    ...(details.isVitalityStat ? { startPercentage: details.startPercentage } : {}),
-    recovery: details.regeneration.filter((row) => row.amount !== 0 && row.interval > 0).map((row) => ({ when: row.when, amount: row.amount, interval: row.interval })),
+    vitality,
+    ...(vitality ? { startPercentage: details.startPercentage } : {}),
+    recovery,
     grants,
     bonuses: details.statBonuses.flatMap((bonus) => {
       const type = BONUS_NAMES[bonus.statType.name];

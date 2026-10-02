@@ -119,6 +119,25 @@ test("item effects include direct use, ranked ability, and stat proc without mix
   ]);
 });
 
+test("a zero-base item rating does not inherit resource-pool behavior", () => {
+  const energy: CatalogEntityRow = { entityKey: "stats:2", kind: "stats", nativeId: 2, name: "Energy", description: "Used by abilities.", iconAssetName: null, artwork: [] };
+  const statDetails = {
+    minValue: null, maxValue: null, baseValue: 0, isPercentStat: false, isVitalityStat: true, isPersistent: false,
+    shiftsInSprint: false, shiftsInBlock: false, startPercentage: 100,
+    uiCategory: null, statCategory: null, procCooldown: 0, regeneration: [], statBonuses: [], onHitEffects: [],
+  };
+  const progression: CatalogFacts["progression"] = { ...facts.progression, facts: [
+    { kind: "stats", entityKey: "stats:53", name: "Item power", details: statDetails } as CatalogProgressionFact,
+    { kind: "stats", entityKey: energy.entityKey, name: energy.name, details: {
+      ...statDetails, baseValue: 50, maxValue: 50, regeneration: [{ when: "outside-combat", amount: 10, interval: 3 }],
+    } } as CatalogProgressionFact,
+  ] };
+  const documents = project([...entities, energy], { ...facts, progression }, relations).documents;
+  expect(documents.get("stats:53")).toMatchObject({ vitality: false, note: expect.stringContaining("equipment rating"), itemListColumn: "itemPower", itemListCount: 1 });
+  expect(documents.get("stats:53")).not.toHaveProperty("startPercentage");
+  expect(documents.get("stats:2")).toMatchObject({ vitality: true, startPercentage: 100, recovery: [{ when: "outside-combat", amount: 10, interval: 3 }] });
+});
+
 test("an enchantment's authored requirements and tiers live on its item, with its own search name", () => {
   const kit = { ...entities[0]!, entityKey: "items:88", nativeId: 88, name: "Enchant Health" };
   const enchantment = { ...entities[0]!, entityKey: "enchantments:0", kind: "enchantments", nativeId: 0, name: "Health Enchantment" };

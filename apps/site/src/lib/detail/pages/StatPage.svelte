@@ -57,7 +57,7 @@
     ...(document.recovery.map((row) => ({ label: row.when === 'in-combat' ? 'In combat' : 'Out of combat', value: `${formatNumber(row.amount)} every ${formatNumber(row.interval)} seconds` }))),
   ];
   $: guideSection = document.onHit.length ? 'on-hit-effects' : document.vitality || document.recovery.length ? 'recovery' : document.category === 'Defense' || document.bonuses.some((row) => ['Resistance', 'Penetration', 'Damage'].includes(row.type)) ? 'damage-and-defense' : 'building-stats';
-  $: itemsHref = document.itemListColumn ? `${base}/items/?min.${encodeURIComponent(document.itemListColumn)}=0` : `${base}/items/?stat=${encodeURIComponent(`${document.ref.name}*`)}`;
+  $: itemsHref = document.itemListColumn ? `${base}/items/?min.${encodeURIComponent(document.itemListColumn)}=0&sort=${encodeURIComponent(document.itemListColumn)}&dir=desc` : `${base}/items/?stat=${encodeURIComponent(`${document.ref.name}*`)}`;
   $: onHit = document.onHit.length > 0;
 </script>
 

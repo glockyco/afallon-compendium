@@ -2,11 +2,24 @@
 
 ### Requirement: Stat pages explain and quantify sources
 
-The site SHALL lead with a stat's player-facing function and show its published source families in separate tabs, each with a sortable relation table and bonus amounts or roll ranges. Empty source families SHALL have no tabs. Item sources SHALL distinguish fixed bonuses and possible rolls. Gear sets SHALL show their piece tier, talents their class and rank, and class growth SHALL remain a separate table. The item-list link SHALL match both flat and percentage variants of the stat while ordinary item-list variant filters retain their separate meaning. Intrinsic item power SHALL link to the published numeric item power column instead.
+The site SHALL lead with a stat's player-facing function and show its published source families in separate tabs, each with a sortable relation table and bonus amounts or roll ranges. Empty source families SHALL have no tabs. Item sources SHALL distinguish fixed bonuses and possible rolls. Gear sets SHALL show their piece tier, talents their class and rank, and class growth SHALL remain a separate table. The item-list link SHALL match both flat and percentage variants of the stat while ordinary item-list variant filters retain their separate meaning.
 
 #### Scenario: A stat has multiple bonus forms
 - **WHEN** a reader visits a stat that appears on fixed items and as a possible item roll
 - **THEN** the page distinguishes those ways of obtaining the stat, shows amounts or roll ranges, and its item-list link includes every item with either bonus form
+
+### Requirement: Item power is an equipment rating, not a resource pool
+
+The publication SHALL describe Item Power only with supported item data. Its item-list link SHALL filter to items with a rating and sort by that numeric rating. A stat SHALL be presented as a recoverable resource only when its vitality flag is supported by a positive starting pool and active recovery.
+
+#### Scenario: Item Power has a raw vitality flag but no resource behavior
+- **WHEN** a reader opens Item Power
+- **THEN** the page identifies the equipment rating, links to the rated items sorted by Item Power, and makes no claim about a current amount or maximum
+
+#### Scenario: Energy is a recoverable resource
+- **WHEN** a reader opens Energy
+- **THEN** its documented starting value and recovery are available without relying on the raw flag alone
+
 
 ### Requirement: Effect pages prioritize observable outcomes
 
