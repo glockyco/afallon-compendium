@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { HEROIC_TIER_KEY, type CatalogFacts, type CatalogMechanicsRule, type CatalogNpcFacts, type CatalogProgressionFact, type CatalogQuestFacts } from "@afallon/contracts/catalog";
-import type { CharacterProgression, CraftingAndGathering, HeroicTier, LootGuide, NpcLocation, PublicDocument, PublicLevel, PublicNpc, PublicPlace } from "@afallon/contracts/public";
+import type { AdventurersGuide, CharacterProgression, CraftingAndGathering, HeroicTier, LootGuide, NpcLocation, PublicDocument, PublicLevel, PublicNpc, PublicPlace } from "@afallon/contracts/public";
 import { projectMechanicsDocuments } from "./mechanics";
 import { createReferenceResolver } from "./references";
 
@@ -32,6 +32,7 @@ const topicRules: Record<NonNullable<CatalogMechanicsRule["topic"]>, Array<[stri
     ["spawner-check-interval", "node-availability"], ["spawner-player-range", "node-availability"], ["spawner-respawn", "node-availability"], ["placed-node-cooldown", "node-availability"], ["node-requirements", "node-availability"],
     ["node-loot-roll", "node-rewards"], ["node-yield-bonus", "node-rewards"], ["node-experience", "node-rewards"], ["attunement-98", "attunement"], ["attunement-642", "attunement"],
     ["weapon-skills", "skill-experience"], ["weapon-skills-untrained", "skill-experience"], ["crafting-skill-source", "skill-experience"], ["enchanting-skill-source", "skill-experience"], ["unmapped-skill-sources", "skill-experience"]],
+  adventurers: [],
   corruption: [],
   loot: [["chest-row-rolls", "chests"], ["supply-pack-tables", "supply-packs"], ["supply-pack-picks", "supply-packs"], ["supply-pack-world-loot", "supply-packs"], ["supply-pack-lifecycle", "supply-packs"],
     ["cloth-drop-chance", "cloth"], ["cloth-tier-weights", "cloth"], ["object-chest", "world-objects"], ["altar-options", "world-objects"],
@@ -110,6 +111,27 @@ test("each guide shows every rule of its topic in the section that the rules rec
     const guide = all.get(`mechanics:${topic}`) as CharacterProgression | HeroicTier | CraftingAndGathering;
     expect(guide.sections.flatMap((section) => section.rules.map((rule) => rule.id)).sort()).toEqual(topicRules[topic].map(([id]) => id).sort());
   }
+});
+
+test("Adventurers guide places job and party rules in their sections and binds job settings", () => {
+  const adventurerRules: CatalogMechanicsRule[] = [
+    { ruleId: "adventurer-job-duration", topic: "adventurers", section: "jobs-and-progress", ordinal: 0, status: "verified",
+      phrase: "Jobs last {minimumJobSeconds}–{maximumJobSeconds} seconds.", operands: { minimumJobSeconds: 180, maximumJobSeconds: 360 }, links: [], sources: [], placements: [] },
+    { ruleId: "adventurer-gear-chance", topic: "adventurers", section: "gear-upgrades", ordinal: 1, status: "verified",
+      phrase: "Gear chance {equipmentRewardPercent}%.", operands: { equipmentRewardPercent: 40 }, links: [], sources: [], placements: [] },
+    { ruleId: "adventurer-finder-roles", topic: "adventurers", section: "dungeon-finder-parties", ordinal: 2, status: "verified",
+      phrase: "A tank, a healer, and {damageRoles} damage roles.", operands: { damageRoles: 3 }, links: [], sources: [], placements: [] },
+  ];
+  const source = { ...facts, adventurerWorld: { minimumJobSeconds: 180, maximumJobSeconds: 360, equipmentRewardChance: 0.4 } as CatalogFacts["adventurerWorld"],
+    progression: { ...facts.progression, mechanicsRules: [...facts.progression.mechanicsRules, ...adventurerRules] } };
+  const guide = documents(source).get("mechanics:adventurers") as AdventurersGuide;
+  expect(guide.sections.map((section) => [section.id, section.rules.map((rule) => rule.id)])).toEqual([
+    ["meeting-and-inviting", []], ["jobs-and-progress", ["adventurer-job-duration"]],
+    ["gear-upgrades", ["adventurer-gear-chance"]], ["dungeon-finder-parties", ["adventurer-finder-roles"]],
+  ]);
+  expect(guide.sections[1]?.rules[0]?.operands).toEqual({ minimumJobSeconds: 180, maximumJobSeconds: 360 });
+  expect(guide.sections[2]?.rules[0]?.operands).toEqual({ equipmentRewardPercent: 40 });
+  expect(() => documents({ ...source, adventurerWorld: { ...source.adventurerWorld!, minimumJobSeconds: 120 } })).toThrow("disagrees with published minimumJobSeconds");
 });
 
 test("a rule section that its guide does not define stops publication", () => {

@@ -1018,6 +1018,24 @@ test("placed and spawned node spots count distinct identities across places", ()
     .toEqual([["Coalway Woods", 1, ["p2"]], ["Crypt", 1, ["p1"]]]);
 });
 
+test("only adventurers on the world roster link their NPC page to the invitation guide", () => {
+  const visitor: CatalogEntityRow = { ...entities[1]!, entityKey: "npcs:99", nativeId: 99, name: "Visitor" };
+  const invite = { adventurer: { entityKey: "npcs:2", label: "Guardian" }, effect: { entityKey: "effects:21", label: "Invite Guardian" },
+    effectType: { value: 14, name: "Pet" }, duration: 3600, endless: true, firstRank: null,
+    inviteEffectSourceFieldPath: "NPC.InviteEffectID", sourceFieldPath: "Effect", firstRankSourceFieldPath: null,
+    sourceFieldPaths: { effectType: "Effect.type", duration: "Effect.duration", endless: "Effect.endless" }, provenance: [] };
+  const rule: CatalogMechanicsRule = { ruleId: "adventurer-friends-panel", topic: "adventurers", section: "meeting-and-inviting",
+    ordinal: 0, status: "verified", phrase: "Add a friend before inviting them.", operands: {}, links: [], sources: [],
+    placements: [{ page: "npcs", target: "adventurers", scope: "all" }] };
+  const source = { ...facts, entities: [...entities, visitor], npcs: [...facts.npcs, { ...facts.npcs[0]!, entityKey: visitor.entityKey }],
+    adventurerInviteEffects: [invite], progression: { ...facts.progression, mechanicsRules: [rule] } };
+  const projected = project(source.entities, source, relations).documents;
+  expect((projected.get("npcs:2") as PublicNpc).placedRules).toContainEqual({
+    target: "adventurers", guide: expect.objectContaining({ key: "mechanics:adventurers" }), section: "meeting-and-inviting",
+  });
+  expect((projected.get(visitor.entityKey) as PublicNpc).placedRules.some((entry) => entry.target === "adventurers")).toBe(false);
+});
+
 test("adventurer-only kits have their own coverage group, while player sources remain independent", () => {
   const kit: CatalogEntityRow = { ...entities[0]!, entityKey: "items:901", nativeId: 901, name: "Guardian's tank kit" };
   const band: CatalogEntityRow = { ...entities[0]!, entityKey: "items:902", nativeId: 902, name: "Adventurer's cloak" };

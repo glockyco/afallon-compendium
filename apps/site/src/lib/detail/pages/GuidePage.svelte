@@ -1,11 +1,12 @@
 <script lang="ts">
-  import type { LootGuide, PublicKindEntry } from '@afallon/contracts/public';
+  import type { AdventurersGuide, LootGuide, PublicKindEntry } from '@afallon/contracts/public';
   import GuideSection from '../GuideSection.svelte';
   import Hero from '../Hero.svelte';
   import Sections from '../Sections.svelte';
   import TitleBlock from '../TitleBlock.svelte';
 
-  export let document: LootGuide;
+  /** A guide whose page is its overview and its rule sections. */
+  export let document: LootGuide | AdventurersGuide;
   export let registry: PublicKindEntry[];
 </script>
 

@@ -175,7 +175,9 @@ export function projectNpcPage(page: PublishedPage, input: DocumentProjectionInp
   const hunter = hunterEntity && input.references.refs.get(hunterEntity.entityKey);
   const base = pageBase(page, input);
   const placedRuleKeys = new Set<string>();
-  const npcPlacedRules = page.members.flatMap((member) => placedRules(input.facts, "npcs", { entityKey: member.entity.entityKey }, input.resolve))
+  const roster = new Set((input.facts.adventurerInviteEffects ?? []).map((effect) => effect.adventurer.entityKey));
+  const npcPlacedRules = page.members.flatMap((member) => placedRules(input.facts, "npcs", { entityKey: member.entity.entityKey }, input.resolve)
+    .filter((rule) => rule.target !== "adventurers" || roster.has(member.entity.entityKey)))
     .filter((rule) => {
       const key = `${rule.target}\u0000${rule.guide.key}\u0000${rule.section}`;
       if (placedRuleKeys.has(key)) return false;

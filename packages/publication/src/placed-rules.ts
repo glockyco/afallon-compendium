@@ -9,6 +9,7 @@ export const MECHANICS_TOPIC_NAMES: Readonly<Record<MechanicsTopic, { name: stri
   "crafting-and-gathering": { name: "Crafting and Gathering", description: "How crafting and gathering give items and skill experience." },
   corruption: { name: "Corruption", description: "How Corruption Tokens, timed dungeons, and corrupted equipment work." },
   loot: { name: "Loot", description: "How bags, chests, supply packs, world objects, cloth drops, quest pickups, and the Dungeon Finder give items." },
+  adventurers: { name: "Adventurers", description: "How to meet adventurers, invite them to your party, and understand their jobs, gear, and Dungeon Finder roles." },
 };
 
 export function topicRef(topic: MechanicsTopic): EntityRef {

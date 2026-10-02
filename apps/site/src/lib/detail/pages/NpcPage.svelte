@@ -9,6 +9,7 @@
   import DetailFrame from '../DetailFrame.svelte';
   import FactList from '../FactList.svelte';
   import FactRow from '../FactRow.svelte';
+  import HowItWorks from '../HowItWorks.svelte';
   import { npcQuestRows } from '../quest-rows';
   import AbilitiesSection from '../sections/AbilitiesSection.svelte';
   import DropsSection from '../sections/DropsSection.svelte';
@@ -44,8 +45,9 @@
     ...(combat && facts.respawn && facts.respawn.max > 0 ? [{ label: 'Respawn', value: durationRangeText(facts.respawn.min, facts.respawn.max) }] : []),
   ] satisfies Stat[];
   $: loot = facts.lootSpecialization && (facts.lootSpecialization.armorType || facts.lootSpecialization.weaponTypes.length || facts.lootSpecialization.stat) ? facts.lootSpecialization : undefined;
-  $: moreFacts = Boolean(facts.tameable || facts.faction || facts.species || facts.family || facts.aggroRange !== undefined && facts.aggroRange > 0 && combat || facts.immunities.length && combat || loot || document.factionRewards.length || document.linkedNpc);
+  $: moreFacts = Boolean(adventurerGuide || facts.tameable || facts.faction || facts.species || facts.family || facts.aggroRange !== undefined && facts.aggroRange > 0 && combat || facts.immunities.length && combat || loot || document.factionRewards.length || document.linkedNpc);
   $: experienceGuide = document.placedRules.find((rule) => rule.target === 'experience');
+  $: adventurerGuide = document.placedRules.find((rule) => rule.target === 'adventurers');
 </script>
 
 <DetailFrame>
@@ -76,6 +78,7 @@
           {#if loot}<FactRow label="Gear drops favour">{[loot.armorType ? categoryLabel(loot.armorType) : '', ...loot.weaponTypes.map(categoryLabel)].filter(Boolean).join(', ')}{#if loot.stat}{loot.armorType || loot.weaponTypes.length ? ', ' : ''}<EntityLink ref={loot.stat} {registry} />{/if}</FactRow>{/if}
           {#if document.factionRewards.length}<FactRow label="Faction standing per kill">{#each document.factionRewards as reward, index}{index ? ', ' : ''}<EntityLink ref={reward.counterpart} {registry} /> {signedAmount(reward.amount)}{/each}</FactRow>{/if}
           {#if document.linkedNpc}<FactRow label="Linked NPC"><EntityLink ref={document.linkedNpc} {registry} /></FactRow>{/if}
+          {#if adventurerGuide}<FactRow label="Adventurers"><HowItWorks guide={adventurerGuide.guide} section={adventurerGuide.section} label="How adventurers join your party" /></FactRow>{/if}
         </FactList>
       </div>
     {/if}

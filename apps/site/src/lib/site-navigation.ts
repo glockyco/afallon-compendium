@@ -26,7 +26,7 @@ export function siteNavigation(registry: readonly PublicKindEntry[], base: strin
   // The registry names kinds, not individual mechanics documents, so the menu names each guide topic.
   const mechanics = byKind.get('mechanics');
   const topics: NavigationLink[] = mechanics ? [
-    ['Character Progression', 'character-progression'], ['Crafting and Gathering', 'crafting-and-gathering'],
+    ['Adventurers', 'adventurers'], ['Character Progression', 'character-progression'], ['Crafting and Gathering', 'crafting-and-gathering'],
     ['Corruption', 'corruption'], ['Heroic Tier', 'heroic-tier'], ['Loot', 'loot'],
   ].map(([label, slug]) => ({ label: label!, href: `${base}/${mechanics.route}/${slug}/` })) : [];
   const links = (id: string): NavigationLink[] => {

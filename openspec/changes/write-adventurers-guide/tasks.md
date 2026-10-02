@@ -9,6 +9,6 @@
 
 ## 3. Guide
 
-- [ ] 3.1 Write the rules record phrases and guide sections from verified rules only, with sentences that name values from published data.
+- [x] 3.1 Write the rules record phrases and guide sections from verified rules only, with sentences that name values from published data.
 - [ ] 3.2 Publish the guide, link it from the Browse menu and adventurer NPC pages, and check it in a browser at 1440 px and 390 px.
 - [ ] 3.3 Accept the catalog and publication together.

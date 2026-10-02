@@ -62,6 +62,15 @@ export const GUIDES: Record<MechanicsTopic, GuideText> = {
       { id: "dungeon-finder", title: "Dungeon Finder", lead: "The Dungeon Finder sends you to a dungeon that you choose, or to a random one when you queue for a Random run." },
     ],
   },
+  adventurers: {
+    overview: "Adventurers appear in the world, take jobs while they are away, and can join your party through the Friends panel or the Dungeon Finder.",
+    sections: [
+      { id: "meeting-and-inviting", title: "Meeting and inviting", lead: "Find adventurers in the Friends panel, then invite them from your saved friends." },
+      { id: "jobs-and-progress", title: "Jobs and progress", lead: "Adventurers work on their own progress while they are away." },
+      { id: "gear-upgrades", title: "Gear upgrades", lead: "Completed jobs can improve an adventurer's equipment." },
+      { id: "dungeon-finder-parties", title: "Dungeon Finder parties", lead: "The Dungeon Finder looks for adventurers who can complete your party." },
+    ],
+  },
 };
 
 /** Whether the guide of a topic has a section with this id. */

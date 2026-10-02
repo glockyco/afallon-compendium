@@ -1,5 +1,5 @@
 import { HEROIC_TIER_KEY, type CatalogCondition, type CatalogCorruptionFacts, type CatalogEndpoint, type CatalogFacts, type CatalogMechanicsRule, type CatalogTransitionRow, type MechanicsTopic } from "@afallon/contracts/catalog";
-import type { ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicLevel, PublicMechanics, PublicNpc, TalentPoints } from "@afallon/contracts/public";
+import type { AdventurersGuide, ChallengeStoneUse, CharacterProgression, CorruptionGuide, CraftingAndGathering, EntityRef, ExperienceSources, HeroicTier, LootGuide, PlacementRef, PublicDocument, PublicLevel, PublicMechanics, PublicNpc, TalentPoints } from "@afallon/contracts/public";
 import { craftingRule, recipeRank, verifiedRule } from "./crafting";
 import { CORRUPTION_NATIVE_RULES } from "./corruption-rules";
 import type { ReferenceResolver } from "./documents/projection";
@@ -11,10 +11,24 @@ import { killExperience } from "./experience";
 import { levelUnion } from "./levels";
 import { displayName } from "./text";
 
+/** Job operands must match the settings in this catalog, not an earlier reviewed value. */
+function adventurerRule(rule: CatalogMechanicsRule, facts: CatalogFacts): CatalogMechanicsRule {
+  if (rule.topic !== "adventurers" || !["adventurer-job-duration", "adventurer-gear-chance"].includes(rule.ruleId)) return rule;
+  const settings = facts.adventurerWorld;
+  if (!settings) throw new Error("Adventurers guide needs published adventurer world settings.");
+  const expected: Record<string, number> = rule.ruleId === "adventurer-job-duration"
+    ? { minimumJobSeconds: settings.minimumJobSeconds, maximumJobSeconds: settings.maximumJobSeconds }
+    : { equipmentRewardPercent: settings.equipmentRewardChance * 100 };
+  for (const [name, value] of Object.entries(expected)) {
+    if (rule.operands[name] !== value) throw new Error(`Adventurers rule ${rule.ruleId} disagrees with published ${name}.`);
+  }
+  return { ...rule, operands: { ...rule.operands, ...expected } };
+}
+
 /** The overview and the sections of a guide whose rules come from the rules record. */
 function guide(facts: CatalogFacts, topic: MechanicsTopic, resolve: ReferenceResolver) {
   const rules = facts.progression.mechanicsRules.filter((rule) => rule.topic === topic).sort((a, b) => a.ordinal - b.ordinal);
-  return { overview: GUIDES[topic].overview, sections: guideSections(topic, rules.map((rule) => ({ section: rule.section, rule: projectRule(rule, resolve) }))) };
+  return { overview: GUIDES[topic].overview, sections: guideSections(topic, rules.map((rule) => ({ section: rule.section, rule: projectRule(adventurerRule(rule, facts), resolve) }))) };
 }
 
 /** Every offered class uses the same template because the guide shows one curve. */
@@ -312,6 +326,7 @@ export function projectMechanicsDocuments(facts: CatalogFacts, published: Readon
     ...(topics.has("heroic-tier") ? [heroicTier(facts, resolve)] : []),
     ...(topics.has("crafting-and-gathering") ? [craftingAndGathering(facts, published, conditions, resolve)] : []),
     ...(facts.corruption ? [corruptionGuide(facts, published, resolve, bossDropTables, rewards)] : []),
+    ...(topics.has("adventurers") ? [{ ref: topicRef("adventurers"), description: MECHANICS_TOPIC_NAMES.adventurers.description, art: {}, topic: "adventurers", ...guide(facts, "adventurers", resolve) } satisfies AdventurersGuide] : []),
     ...(topics.has("loot") ? [{ ref: topicRef("loot"), description: MECHANICS_TOPIC_NAMES.loot.description, art: {}, topic: "loot", ...guide(facts, "loot", resolve) } satisfies LootGuide] : []),
   ];
   return new Map(documents.map((document) => [document.ref.key, document]));
