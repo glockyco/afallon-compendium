@@ -13,6 +13,12 @@
   export let showLabel = false;
   export let registry: PublicKindEntry[];
 
+  type WorldRow = PackBand['worldLoot'][number];
+  const levelsText = (row: WorldRow) => row.levels.map((range) => range.max === undefined ? `${formatNumber(range.min)}+` : range.max === range.min ? formatNumber(range.min) : `${formatNumber(range.min)}–${formatNumber(range.max)}`).join(', ');
+  const worldColumns: RelationColumn<WorldRow>[] = [
+    { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
+    { id: 'levels', label: 'Character levels', hint: 'The levels of your character at which the item can be world loot from this band.', numeric: true, value: levelsText, sort: (row) => row.levels[0]?.min },
+  ];
   const columns: RelationColumn<ItemUsePack['entries'][number]>[] = [
     { id: 'item', label: 'Item', value: (row) => 'name' in row.item ? row.item.name : row.item.label, sort: (row) => 'name' in row.item ? row.item.name : row.item.label },
     { id: 'quantity', label: 'Quantity', hint: 'How many of the item you get when the pack gives it.', numeric: true, value: (row) => `${row.min}–${row.max}`, sort: (row) => row.max },
@@ -30,8 +36,18 @@
       {:else}{formatNumber(row.min)}{#if row.max !== row.min}–{formatNumber(row.max)}{/if}{/if}
     </svelte:fragment>
   </RelationTable>
+  {#if band.worldLoot.length}
+    <h3>World loot</h3>
+    <p>The world loot that this band can give, with the levels of your character at which each item can appear.</p>
+    <RelationTable columns={worldColumns} rows={band.worldLoot} label={`World loot for ${band.label.toLocaleLowerCase('en-US')}`}>
+      <svelte:fragment slot="cell" let:row let:column>
+        {#if column === 'item'}<EntityLink ref={row.item} {registry} />{:else}{levelsText(row)}{/if}
+      </svelte:fragment>
+    </RelationTable>
+  {/if}
 </div>
 
 <style>
   .band { color: var(--c-text-strong); font-weight: 600; }
+  h3 { margin: .5rem 0 0; font-size: 1rem; }
 </style>

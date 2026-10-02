@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { Assert, AssertError } from "typebox/value";
 import { ArtifactStore, type ObjectWriteProtection } from "@afallon/artifacts";
-import { queryCatalogEntities, queryCatalogFacts, queryCatalogFullEntities, queryCatalogRelations, queryChallengeStoneRoutes, queryQuestRewardTypes, querySpawnCandidateNpcs } from "@afallon/catalog";
+import { queryCatalogEntities, queryCatalogFacts, queryCatalogFullEntities, queryCatalogRelations, queryChallengeStoneRoutes, queryQuestRewardTypes, querySpawnCandidateNpcs, queryWorldLootTables } from "@afallon/catalog";
 import {
   PUBLICATION_DOCUMENT_BUDGET,
   STATIC_DOCUMENT_SCHEMA_IDS,
@@ -187,7 +187,8 @@ export async function generateIndexResources(
   const challengeStones = new Map((stoneUses ?? []).flatMap((use) => use.spot ? use.destinations.map((destination) => [destination.key, use.spot!] as const) : []));
   const entityDocuments = projectPublicDocuments({ entities: entities.records, facts: facts.records, relations: relations.records, references,
     resolve, artByEntity: artwork.artByEntity, placements: publishedPlacements, regionIdsByMapSpace, npcLevels, placementIdsByKey, excluded, placeVariants,
-    classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards, overworldMapSpaceIds, challengeStones });
+    classWeapons: classWeapons(queryCatalogFullEntities(db).records), corruptionRewards: rewards, overworldMapSpaceIds, challengeStones,
+    worldLootTables: queryWorldLootTables(db).records });
   const publicDocuments = new Map<string, PublicDocument>([...entityDocuments, ...projectMechanicsDocuments(facts.records, publishedKeys, spawnedLevels, resolve, conditions, entityDocuments, bossDropTables, rewards), ...nodeDocuments]);
   attachChallengeStonePages(publicDocuments, facts.records.corruption?.heart?.entityKey ?? null, stoneUses);
 

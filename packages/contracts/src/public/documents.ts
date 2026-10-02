@@ -411,6 +411,12 @@ export const ItemUsePackSchema = Type.Object({
   entries: Type.Array(Type.Object({ item: RefSchema, min: count, max: count })),
   bonusChance: percent, worldShare: percent, minimumPicks: count, maximumPicks: optional(count),
   armorType: optional(text), stats: Type.Array(RefSchema),
+  // The world loot that the band can give each class, with the character levels at which each item can appear. An
+  // item without `max` stays available at every higher level of an open band.
+  worldLoot: Type.Array(Type.Object({
+    class: EntityRefSchema,
+    items: Type.Array(Type.Object({ item: RefSchema, levels: Type.Array(Type.Object({ min: count, max: optional(count) }, { additionalProperties: false }), { minItems: 1 }) }, { additionalProperties: false })),
+  }, { additionalProperties: false })),
 }, { additionalProperties: false });
 export type ItemUsePack = Static<typeof ItemUsePackSchema>;
 export const ItemUseSchema = Type.Object({
@@ -852,7 +858,7 @@ export type PublicDocument = PublicItem | PublicNpc | PublicQuest | PublicPlace 
 export type PublicDocumentOf<K extends PublicPageKind> = Static<typeof PUBLIC_DOCUMENT_SCHEMAS[K]>;
 
 export const STATIC_DOCUMENT_SCHEMA_IDS = {
-  items: "compendium.static-item.v19", npcs: "compendium.static-npc.v9", quests: "compendium.static-quest.v7", places: "compendium.static-place.v10",
+  items: "compendium.static-item.v20", npcs: "compendium.static-npc.v9", quests: "compendium.static-quest.v7", places: "compendium.static-place.v10",
   properties: "compendium.static-property.v4", abilities: "compendium.static-ability.v6",
   classes: "compendium.static-class.v6", skills: "compendium.static-skill.v6", mechanics: "compendium.static-mechanics.v11", gatheringNodes: "compendium.static-gathering-node.v5",
 } as const satisfies Record<PublicPageKind, string>;
@@ -877,14 +883,14 @@ export const StaticSkillDocumentSchema = staticDocument("skills");
 export const StaticMechanicsDocumentSchema = staticDocument("mechanics");
 export const StaticGatheringNodeDocumentSchema = staticDocument("gatheringNodes");
 export const STATIC_DOCUMENT_SCHEMAS: {
-  "compendium.static-item.v19": typeof StaticItemDocumentSchema; "compendium.static-npc.v9": typeof StaticNpcDocumentSchema;
+  "compendium.static-item.v20": typeof StaticItemDocumentSchema; "compendium.static-npc.v9": typeof StaticNpcDocumentSchema;
   "compendium.static-quest.v7": typeof StaticQuestDocumentSchema; "compendium.static-place.v10": typeof StaticPlaceDocumentSchema;
   "compendium.static-property.v4": typeof StaticPropertyDocumentSchema; "compendium.static-ability.v6": typeof StaticAbilityDocumentSchema;
   "compendium.static-class.v6": typeof StaticClassDocumentSchema;
   "compendium.static-skill.v6": typeof StaticSkillDocumentSchema; "compendium.static-mechanics.v11": typeof StaticMechanicsDocumentSchema;
   "compendium.static-gathering-node.v5": typeof StaticGatheringNodeDocumentSchema;
 } = {
-  "compendium.static-item.v19": StaticItemDocumentSchema, "compendium.static-npc.v9": StaticNpcDocumentSchema,
+  "compendium.static-item.v20": StaticItemDocumentSchema, "compendium.static-npc.v9": StaticNpcDocumentSchema,
   "compendium.static-quest.v7": StaticQuestDocumentSchema, "compendium.static-place.v10": StaticPlaceDocumentSchema,
   "compendium.static-property.v4": StaticPropertyDocumentSchema, "compendium.static-ability.v6": StaticAbilityDocumentSchema,
   "compendium.static-class.v6": StaticClassDocumentSchema,
@@ -895,7 +901,7 @@ export type StaticDocument = Static<typeof StaticItemDocumentSchema> | Static<ty
   | Static<typeof StaticPlaceDocumentSchema> | Static<typeof StaticPropertyDocumentSchema> | Static<typeof StaticAbilityDocumentSchema>
   | Static<typeof StaticClassDocumentSchema> | Static<typeof StaticSkillDocumentSchema> | Static<typeof StaticMechanicsDocumentSchema> | Static<typeof StaticGatheringNodeDocumentSchema>;
 export const documentReference = Type.Union([
-  resourceReference("compendium.static-item.v19"), resourceReference("compendium.static-npc.v9"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v10"),
+  resourceReference("compendium.static-item.v20"), resourceReference("compendium.static-npc.v9"), resourceReference("compendium.static-quest.v7"), resourceReference("compendium.static-place.v10"),
   resourceReference("compendium.static-property.v4"), resourceReference("compendium.static-ability.v6"),
   resourceReference("compendium.static-class.v6"), resourceReference("compendium.static-skill.v6"), resourceReference("compendium.static-mechanics.v11"),
   resourceReference("compendium.static-gathering-node.v5"),

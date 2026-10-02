@@ -1,5 +1,5 @@
 import type { CatalogAvailabilityRule, CatalogClothDrops, CatalogCondition, CatalogEntityRow, CatalogGatheringNode, CatalogItemFacts, CatalogQuestPickup } from "@afallon/contracts/catalog";
-import { type AvailabilityRule, type ClothDrop, type Craft, type DungeonFinderReward, type EntityRef, type FromItemRow, type GearSet, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
+import { type AvailabilityRule, categoryLabel, type ClothDrop, type Craft, type DungeonFinderReward, type EntityRef, type FromItemRow, type GearSet, isEntityRef, type ItemUse, type PublicItem, type QuestPickupRow, type Ref } from "@afallon/contracts/public";
 import { isCorruptibleEquipment } from "../corruption-rewards";
 import { recipeRank } from "../crafting";
 import { requiredLevel } from "../gathering";
@@ -7,9 +7,37 @@ import { chancePercent } from "../levels";
 import { placedRules, topicRef } from "../placed-rules";
 import { displayName, plainText } from "../text";
 import { roundWeaponDamage, weaponDamageLabel } from "../weapon-display";
+import { bandWorldLoot, type WorldLootItem, type WorldLootTable } from "../world-loot";
 import { lootFields } from "./loot";
 import { baseDocument, interactionLabel, type DocumentProjectionInput, endpointOrUnknown, groupPlacementCounts, mergeCounterpartRows, optionalChance, optionalCount, optionalFactRef, projectAvailability, projectRequirementGroups, publishedPlacements, refName, type RelationIndexes, requirementsFor, skillHighestLevel } from "./projection";
 import { objectiveForRow } from "./quests";
+
+const refLabel = (ref: Ref) => isEntityRef(ref) ? ref.name : ref.label;
+
+const worldLootByInput = new WeakMap<DocumentProjectionInput, { tables: WorldLootTable[]; items: Map<string, WorldLootItem> }>();
+
+/** The global world loot tables and the facts of their items that the supply pack world loot rules read. */
+function worldLootInput(input: DocumentProjectionInput): { tables: WorldLootTable[]; items: Map<string, WorldLootItem> } {
+  const cached = worldLootByInput.get(input);
+  if (cached) return cached;
+  const tables = (input.worldLootTables ?? []).map((table) => ({ minimumLevel: table.minimumLevel, maximumLevel: table.maximumLevel,
+    hasRequirements: table.hasRequirements, itemKeys: table.entries.map((entry) => entry.itemKey) }));
+  const keys = new Set(tables.flatMap((table) => table.itemKeys));
+  const items = new Map<string, WorldLootItem>();
+  for (const fact of input.facts.items) {
+    if (!keys.has(fact.entityKey)) continue;
+    const level = fact.equipmentRequirements.flatMap((group) => group.requirements).find((requirement) => requirement.type.name === "Level")?.amounts.primary;
+    const statId = (key: string | null) => Number(key?.split(":")[1]);
+    items.set(fact.entityKey, {
+      key: fact.entityKey, itemType: fact.itemType, weaponType: fact.weaponType === null ? null : categoryLabel(fact.weaponType), armorType: fact.armorType,
+      armorSlot: fact.armorSlot, levelRequirement: typeof level === "number" ? level : 0, questOnly: fact.questDropOnly,
+      stats: [...fact.stats, ...fact.randomStats].map((row) => statId(row.stat.entityKey)).filter((id) => Number.isInteger(id)),
+    });
+  }
+  const result = { tables, items };
+  worldLootByInput.set(input, result);
+  return result;
+}
 
 /**
  * What using an item gives: the chests that its visual effects spawn, the loot table bands of a supply pack, and the
@@ -40,6 +68,17 @@ function projectItemUse(fact: CatalogItemFacts | undefined, input: DocumentProje
     const playable = classKeys.filter((key) => offeredClasses.has(key));
     if (classKeys.length > 0 && playable.length === 0) return [];
     const classes = playable.map((entityKey) => input.resolve({ entityKey, label: "Unknown class" }));
+    // World loot depends on the class's weapon types, so each class of the band has its own list.
+    const world = worldLootInput(input);
+    const worldLoot = table.worldLootShare > 0 && world.tables.length > 0 ? (playable.length ? playable : [...offeredClasses].sort()).flatMap((classKey) => {
+      const ref = input.resolve({ entityKey: classKey, label: "Unknown class" });
+      if (!isEntityRef(ref)) return [];
+      const weapons = new Set((input.classWeapons?.get(classKey) ?? []).map((weapon) => weapon.toUpperCase()));
+      const rows = bandWorldLoot({ minLevel: minLevel ?? 1, maxLevel, armorType: table.worldLootArmorType?.name ?? null, stats: table.worldLootStats ?? [] }, world.tables, world.items, weapons)
+        .map((row) => ({ item: input.resolve({ entityKey: row.key, label: row.key }), levels: row.levels }))
+        .sort((left, right) => left.levels[0]!.min - right.levels[0]!.min || refLabel(left.item).localeCompare(refLabel(right.item)));
+      return [{ class: ref, items: rows }];
+    }) : [];
     return [{ classes,
       ...(minLevel === undefined ? {} : { minLevel }), ...(maxLevel === undefined ? {} : { maxLevel }),
       entries: table.entries.map((entry) => ({ item: input.resolve(entry.item), min: Math.max(0, entry.min), max: Math.max(0, entry.max) })),
@@ -48,6 +87,7 @@ function projectItemUse(fact: CatalogItemFacts | undefined, input: DocumentProje
       ...(table.limitDroppedItems && table.maxDroppedItems > 0 ? { maximumPicks: table.maxDroppedItems } : {}),
       ...(table.worldLootArmorType?.name ? { armorType: plainText(table.worldLootArmorType.name) } : {}),
       stats: (table.worldLootStats ?? []).map((stat) => input.resolve({ entityKey: `stats:${stat}`, label: `Stat ${stat}` })),
+      worldLoot,
     }];
   });
   const itemChanges = (fact?.gameActions ?? []).flatMap<ItemUse["itemChanges"][number]>((action) => {

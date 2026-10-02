@@ -1,5 +1,6 @@
 import type { CatalogAvailabilityRule, CatalogCondition, CatalogEndpoint, CatalogEntityRow, CatalogFacts, CatalogGatedSourceRow, CatalogGatheringNode, CatalogNpcFacts, CatalogPlacementRow, CatalogRelations, CatalogRequirement, CatalogRequirementGroup } from "@afallon/contracts/catalog";
 import { type Art, type AvailabilityRule, type EntityRef, isEntityRef, isPublicPageKind, type PlacementRef, type PlaceSpots, type PublicLevel, type PublicMarkerCategory, type Ref, type RequirementGroup, type RequirementRef } from "@afallon/contracts/public";
+import type { CatalogWorldLootTable } from "@afallon/catalog";
 import type { CorruptionRewards } from "../corruption-rewards";
 import { type CraftingRule, craftingRule, recipeTeachings } from "../crafting";
 import { placedNodeBySource } from "../gathering";
@@ -34,6 +35,8 @@ export interface DocumentProjectionInput {
   overworldMapSpaceIds?: ReadonlySet<string>;
   /** The spot of the challenge stone that starts each challenge stone place, by place key. */
   challengeStones?: ReadonlyMap<string, PlacementRef>;
+  /** The global world loot tables, which also feed the world loot of supply packs. */
+  worldLootTables?: readonly CatalogWorldLootTable[];
 }
 
 export type RelationIndexes = {

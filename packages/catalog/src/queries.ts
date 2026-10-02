@@ -746,6 +746,28 @@ export function queryTransitions(db: Database): CatalogQueryResult<CatalogTransi
   }));
   return { ...identity(db), records };
 }
+/** A global world loot table: its player level window, where 0 or less leaves a bound open, and its rows. */
+export interface CatalogWorldLootTable { lootTableId: number; minimumLevel: number; maximumLevel: number; hasRequirements: boolean; entries: Array<{ itemKey: string; rate: number | null }> }
+
+/** The world loot tables of the economy settings, which also feed the world loot of supply packs. */
+export function queryWorldLootTables(db: Database): CatalogQueryResult<CatalogWorldLootTable[]> {
+  const tables = new Map<number, CatalogWorldLootTable>();
+  for (const row of db.query<{ binding_index: number; loot_table_id: number; payload_json: string; item_entity_key: string; raw_rate: number | null }, []>(`
+    SELECT b.binding_index, b.loot_table_id, b.payload_json, e.item_entity_key, e.raw_rate
+    FROM loot_bindings b JOIN loot_entries e ON e.build_id = b.build_id AND e.loot_table_id = b.loot_table_id
+    WHERE b.context = 'world' ORDER BY b.binding_index, e.entry_index`).all()) {
+    let table = tables.get(row.binding_index);
+    if (!table) {
+      const binding = object(row.payload_json);
+      table = { lootTableId: row.loot_table_id, minimumLevel: typeof binding.minimumNPCLevel === "number" ? binding.minimumNPCLevel : 0,
+        maximumLevel: typeof binding.maximumNPCLevel === "number" ? binding.maximumNPCLevel : 0, hasRequirements: binding.requirementsTemplate != null, entries: [] };
+      tables.set(row.binding_index, table);
+    }
+    table.entries.push({ itemKey: row.item_entity_key, rate: row.raw_rate });
+  }
+  return { ...identity(db), records: [...tables.values()] };
+}
+
 /**
  * The reward types of each quest, from its given and choice rewards. A reward without a target, such as experience,
  * counts. A choice reward counts as its type and as that type's choice, such as `item` and `item choice`. An item

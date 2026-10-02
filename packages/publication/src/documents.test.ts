@@ -1060,7 +1060,7 @@ test("used bags publish independent chest rows and supply packs keep their gated
     { classes: [expect.objectContaining({ key: "classes:0" })], minLevel: 1, maxLevel: 5,
       entries: [{ item: expect.objectContaining({ key: "items:1" }), min: 1, max: 1 }],
       bonusChance: 20, worldShare: 50, minimumPicks: 1, maximumPicks: 2,
-      armorType: "PLATE", stats: [expect.objectContaining({ key: "stats:27" })] },
+      armorType: "PLATE", stats: [expect.objectContaining({ key: "stats:27" })], worldLoot: [] },
   ]);
   // The item of a chest row and of a playable band names the item that gives it. The currency row and the band of an
   // unplayable class give no row.
