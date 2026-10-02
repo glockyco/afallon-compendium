@@ -78,7 +78,7 @@
         <div class="c-stack">
           <p>After a job, {document.ref.name} has a {formatNumber(gear.rewardChance)}% chance to take an upgrade from the {#if gearGuide}<a class="c-link" href={`${base}/mechanics/${gearGuide.guide.slug}/#${gearGuide.section}`}>reward gear list</a>{:else}reward gear list{/if}.</p>
           {#if gear.kit.length}
-            <p>{document.ref.name} also has a gear kit, which is tried once, the first time {document.ref.name} appears in the world after joining.</p>
+            <p>{document.ref.name} also wears this gear kit, except where {document.ref.name}'s own gear is better.</p>
             <RelationTable columns={kitColumns} rows={gear.kit} label={`Gear kit of ${document.ref.name}`}>
               <svelte:fragment slot="cell" let:row let:column>{#if column === 'item'}<EntityLink ref={row.item} {registry} />{:else}{row.type ?? ''}{/if}</svelte:fragment>
             </RelationTable>
