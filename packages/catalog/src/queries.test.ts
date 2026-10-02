@@ -368,3 +368,22 @@ test("consumed requirements read as costs, phrases stay lowercase inside a sente
     expect(conditions.map((condition) => condition.label)).toEqual(["Costs 100 Gold Coin", "Uses up 20 Iron Bar", "Has Iron Bar", "Gold Coin 50 or higher"]);
   } finally { db.close(); }
 });
+
+test("race start facts name only captured scenes and retain the authored first-spawn position", () => {
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    db.query("INSERT INTO normalized_builds VALUES (?, ?, ?)").run("build", "catalog.v1", "{}");
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "catalog.v1", "{}", "e".repeat(64));
+    const insertEntity = db.query("INSERT INTO canonical_entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    insertEntity.run("build", "races", 1, "races:1", "Human", null, null, 1, "{}", "[]");
+    insertEntity.run("build", "races", 7, "races:7", "Orc", null, null, 7, "{}", "[]");
+    insertEntity.run("build", "scenes", 22, "scenes:22", "Abandoned Quarry", null, null, 22, "{}", "[]");
+    const insertStart = db.query("INSERT INTO race_starts VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    insertStart.run("races:1", 22, "scenes:22", 18, JSON.stringify({ x: 1065.1, y: 32.97, z: -634.39 }), "GameDatabase.Races[1].startingSceneID", "GameDatabase.Races[1].startingPositionID", "[]");
+    insertStart.run("races:7", 99, null, 35, null, "GameDatabase.Races[7].startingSceneID", "GameDatabase.Races[7].startingPositionID", "[]");
+    expect(queryCatalogFacts(db).records.raceStarts).toEqual([
+      { race: { entityKey: "races:1", label: "Human" }, scene: { entityKey: "scenes:22", label: "Abandoned Quarry" }, startingSceneId: 22, startingPositionId: 18, position: { x: 1065.1, y: 32.97, z: -634.39 } },
+      { race: { entityKey: "races:7", label: "Orc" }, scene: null, startingSceneId: 99, startingPositionId: 35, position: null },
+    ]);
+  } finally { db.close(); }
+});

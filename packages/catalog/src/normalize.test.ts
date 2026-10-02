@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
+import type { Canonical } from "@afallon/contracts";
 import type { NormalizedDatabaseInput, NormalizedEntity } from "@afallon/contracts/catalog";
-import { collectQuestPickups, collectTypedFacts, entityGameplay } from "./normalize";
+import { collectQuestPickups, collectTypedFacts, collectRaceStarts } from "./normalize";
 import { classifyItemCondition } from "./conditions";
 import type { AdmittedCatalog } from "./evidence";
 import type { Blocker, SceneContext } from "./context";
@@ -435,10 +436,46 @@ test("finds the maximum all-mode level threshold and ignores upper limits, optio
   expect(questMinimumLevel([{ requirements: [requirement(19, "Below"), requirement(30, "EqualOrBelow")] }])).toBeNull();
 });
 
-test("entity rows keep only the gameplay that v1 support evidence carried", () => {
-  const ranks = [{ rankIndex: 0, text: "Deals damage" }];
-  expect(entityGameplay("abilities", { ranks, rankMechanics: [{ rankIndex: 0, cooldown: 4 }], abilityType: { value: 0, name: "Normal" } })).toEqual({ ranks });
-  expect(entityGameplay("classes", { allowedWeaponTypes: [], talentTreeIds: [{ sourceIndex: 0, talentTreeId: 0 }] })).toEqual({ allowedWeaponTypes: [] });
-  expect(entityGameplay("effects", { effectType: { value: 5, name: "Stun" } })).toBeNull();
-  expect(entityGameplay("recipes", { learnedByDefault: true })).toEqual({ learnedByDefault: true });
+test("binds tree artwork to its entity and bonus artwork to its progression fact without dropping unavailable nodes", () => {
+  const image = { path: "artwork/shared.png", sha256: "f".repeat(64), bytes: 12, width: 2, height: 2 };
+  const records = [
+    { family: "talentTrees", nativeId: 4, role: "icon", sourceName: "Tree", sourceFieldPath: "talentTrees[4].entryIcon", status: "extracted", image, reason: null },
+    { family: "bonuses", nativeId: 7, role: "icon", sourceName: "Talent", sourceFieldPath: "Bonus.entryIcon", status: "extracted", image, reason: null },
+    { family: "bonuses", nativeId: 8, role: "icon", sourceName: "Missing", sourceFieldPath: "Bonus.entryIcon", status: "missing", image: null, reason: "Sprite absent" },
+    { family: "bonuses", nativeId: 9, role: "icon", sourceName: "Unreadable", sourceFieldPath: "Bonus.entryIcon", status: "unsupported", image: null, reason: "Unreadable sprite" },
+    { family: "bonuses", nativeId: 99, role: "icon", sourceName: "Unrecognized", sourceFieldPath: "Bonus.entryIcon", status: "extracted", image, reason: null },
+  ] as const;
+  const candidate = { ...admittedItems([]), artwork: { value: { records }, reference } } as unknown as AdmittedCatalog;
+  const blockers: Blocker[] = [];
+  const result = collectTypedFacts(candidate, [entity("talentTrees", 4, "Guardian")], [], [], blockers, new Map([["bonuses:7", "Talent"], ["bonuses:8", "Missing"], ["bonuses:9", "Unreadable"]]));
+  expect(result.artworkBindings).toMatchObject([{ entityKey: "talentTrees:4", role: "icon", assetId: image.sha256 }]);
+  expect(result.bonusArtworkBindings).toMatchObject([{ factKey: "bonuses:7", role: "icon", assetId: image.sha256, provenance: [{ pointer: "/records/1" }] }]);
+  expect(result.artworkAssets).toHaveLength(1);
+  expect(blockers.map((row) => [row.kind, row.key])).toEqual([
+    ["artwork-unavailable", "bonuses:8:icon"],
+    ["artwork-unavailable", "bonuses:9:icon"],
+    ["missing-reference", "artwork:bonuses:99:icon"],
+  ]);
+});
+
+test("race starts resolve their own world positions and do not infer an absent scene from its arrival", () => {
+  const races = [
+    { sourceKey: 1, entry: { nativeId: 1, name: "Human", internalName: "Human" }, gameplay: { startingSceneId: 22, startingPositionId: 18 } },
+    { sourceKey: 7, entry: { nativeId: 7, name: "Orc", internalName: "Orc" }, gameplay: { startingSceneId: 99, startingPositionId: 35 } },
+  ];
+  const positions = new Map<number, { row: Canonical["worldPositions"][number]; index: number }>([
+    [18, { row: { position: { x: 1065.1, y: 32.97, z: -634.39 } } as Canonical["worldPositions"][number], index: 4 }],
+  ]);
+  const blockers: Blocker[] = [];
+  const starts = collectRaceStarts(races, [entity("races", 1, "Human"), entity("races", 7, "Orc"), entity("scenes", 22, "Abandoned Quarry")], positions, reference, reference, blockers);
+  expect(starts.map(({ raceKey, sceneKey, startingSceneId, startingPositionId, position }) => ({ raceKey, sceneKey, startingSceneId, startingPositionId, position }))).toEqual([
+    { raceKey: "races:1", sceneKey: "scenes:22", startingSceneId: 22, startingPositionId: 18, position: { x: 1065.1, y: 32.97, z: -634.39 } },
+    { raceKey: "races:7", sceneKey: null, startingSceneId: 99, startingPositionId: 35, position: null },
+  ]);
+  expect(starts[0]?.sceneSourceFieldPath).toBe("GameDatabase.Races[1].startingSceneID");
+  expect(starts[0]?.positionSourceFieldPath).toBe("GameDatabase.Races[1].startingPositionID");
+  expect(blockers.map(({ kind, key, provenance }) => [kind, key, provenance[0]?.pointer])).toEqual([
+    ["missing-reference", "race-start:races:7:scenes:99", "/tables/races/1/gameplay/startingSceneId"],
+    ["missing-reference", "race-start:races:7:worldPositions:35", "/tables/races/1/gameplay/startingPositionId"],
+  ]);
 });

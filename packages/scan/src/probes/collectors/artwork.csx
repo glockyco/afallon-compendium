@@ -107,6 +107,8 @@ try
     foreach (var pair in database.GetFactions()) iconRecord("factions", pair.Value, "icon");
     foreach (var pair in database.GetClasses()) iconRecord("classes", pair.Value, "icon");
     foreach (var pair in database.GetRaces()) iconRecord("races", pair.Value, "icon");
+    foreach (var pair in database.GetTalentTrees()) iconRecord("talentTrees", pair.Value, "icon");
+    foreach (var pair in database.GetBonuses()) iconRecord("bonuses", pair.Value, "icon");
     foreach (var pair in database.GetEnchantments()) iconRecord("enchantments", pair.Value, "icon");
     foreach (var pair in database.GetGearSets()) iconRecord("gearSets", pair.Value, "icon");
     foreach (var pair in database.GetStats()) iconRecord("stats", pair.Value, "icon");

@@ -197,7 +197,7 @@ foreach (var pair in database.GetArmorSlots())
     armorSlots.Add(new { sourceKey = armorSlot.ID, entry = projectSupportEntry(armorSlot, null), gameplay = new { itemSlot = itemSlot == null ? (object)null : new { nativeId = itemSlot.ID, name = itemSlot.entryDisplayName ?? itemSlot.entryName } } });
 }
 var races = new System.Collections.Generic.List<object>();
-foreach (var pair in database.GetRaces()) { if (pair.Value == null) { races.Add(NullRecord("Races", pair.Key)); continue; } races.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "race"), gameplay = new { availableClasses = ListOf(pair.Value.availableClasses, At("GameDatabase.Races", pair.Key) + ".availableClasses", (row, index, rowPath) => (object)new { sourceIndex = index, classId = row.classID }) } }); }
+foreach (var pair in database.GetRaces()) { if (pair.Value == null) { races.Add(NullRecord("Races", pair.Key)); continue; } races.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, "race"), gameplay = new { startingSceneId = pair.Value.startingSceneID, startingPositionId = pair.Value.startingPositionID, availableClasses = ListOf(pair.Value.availableClasses, At("GameDatabase.Races", pair.Key) + ".availableClasses", (row, index, rowPath) => (object)new { sourceIndex = index, classId = row.classID }) } }); }
 var levels = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetLevels())
 {
@@ -346,13 +346,15 @@ foreach (var pair in database.GetBonuses())
 var dialogues = new System.Collections.Generic.List<object>();
 foreach (var pair in database.GetDialogues()) { if (pair.Value == null) { dialogues.Add(NullRecord("Dialogues", pair.Key)); continue; } dialogues.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(pair.Value, null) }); }
 var talentTrees = new System.Collections.Generic.List<object>();
+var progressionSettings = database.GetProgressionSettings();
+if (progressionSettings == null) throw new System.InvalidOperationException("The game's progression settings are not initialized.");
 foreach (var pair in database.GetTalentTrees())
 {
     if (pair.Value == null) { talentTrees.Add(NullRecord("TalentTrees", pair.Key)); continue; }
     var tree = pair.Value; var path = At("GameDatabase.TalentTrees", pair.Key);
     talentTrees.Add(new { sourceKey = pair.Key, entry = projectSupportEntry(tree, "talenttree"), gameplay = new
     {
-        tiers = tree.TiersAmount, treePointId = tree.treePointAcceptedID,
+        tiers = tree.TiersAmount, slotsPerTier = progressionSettings.TalentTreeNodesPerTier, slotsPerTierSourceFieldPath = "GameDatabase.ProgressionSettings.TalentTreeNodesPerTier", treePointId = tree.treePointAcceptedID,
         nodes = ListOf(tree.nodeList, path + ".nodeList", (node, index, nodePath) => (object)new { sourceIndex = index, nodeType = Named(node.nodeType), abilityId = node.abilityID, recipeId = node.recipeID, resourceNodeId = node.resourceNodeID, bonusId = node.bonusID, tier = node.Tier, row = node.Row, requirements = Requirements(node.UseRequirementsTemplate, node.RequirementsTemplate, node.Requirements, nodePath) })
     } });
 }

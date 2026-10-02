@@ -1,4 +1,5 @@
 import type { CatalogMechanicsRule } from "./mechanics";
+import type { CatalogArtworkBinding } from "./facts";
 import type { NormalizedReference, ProvenanceReference } from "./query";
 
 // Progression facts: how characters progress and what game systems do. The catalog resolves each native id to a
@@ -93,7 +94,7 @@ export interface ProgressionPetStat extends ProgressionStat { targetType: Progre
 export interface ProgressionBonusRank { rank: number; unlockCost: number; isEmpty: boolean; emptyTooltip: string | null; conditionId: string | null; statEffects: ProgressionStat[]; petStatEffects: ProgressionPetStat[] }
 export interface ProgressionBonus { learnedByDefault: boolean; ranks: ProgressionBonusRank[] }
 
-export interface ProgressionTalentTree { tiers: number; treePoint: NormalizedReference | null }
+export interface ProgressionTalentTree { tiers: number; slotsPerTier: number; treePoint: NormalizedReference | null }
 export interface ProgressionSpellbook { sourceType: ProgressionEnum }
 // The classes that a race offers, in authored order. A class without a record keeps its id in the label and has no key.
 export interface ProgressionRace { offeredClasses: NormalizedReference[] }
@@ -143,7 +144,7 @@ export interface NormalizedSpellbookNode { bookKey: string; nodeIndex: number; n
 
 // Query output. `learners` answers who gives an ability, `unlocks` which talent node unlocks a recipe or a resource
 // node, and `appliers` what applies an effect.
-export type CatalogProgressionFact = ProgressionDetails & { entityKey: string; name: string | null };
+export type CatalogProgressionFact = ProgressionDetails & { entityKey: string; name: string | null; artwork?: CatalogArtworkBinding[] };
 export interface CatalogProgressionLearner {
   ability: string;
   owner: NormalizedReference;

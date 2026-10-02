@@ -36,9 +36,9 @@ const progressionFacts: CatalogProgressionFact[] = [
   { entityKey: "levels:0", name: null, kind: "levels", details: { levels: 3, baseExperience: 20, increaseAmount: 0, rows: [{ level: 1, name: null, experienceRequired: 20 }, { level: 2, name: null, experienceRequired: 40 }, { level: 3, name: null, experienceRequired: 50 }] } },
   { entityKey: "levels:3", name: null, kind: "levels", details: { levels: 3, baseExperience: 4, increaseAmount: 0, rows: [4, 8, 12].map((experienceRequired, index) => ({ level: 0, name: `Point ${index + 1}`, experienceRequired })) } },
   { entityKey: "treePoints:0", name: "Talent Points", kind: "treePoints", details: { startAmount: 1, maxPoints: 180, gainRules: [{ trigger: named(0, "characterLevelUp"), amount: 3, class: null, skill: null, item: null, itemCount: 0, npc: null, weaponTemplateId: null }] } },
-  { entityKey: "talentTrees:0", name: "Bastion Breaker", kind: "talentTrees", details: { tiers: 9, treePoint: ref("treePoints:0", "Talent Points") } },
-  { entityKey: "talentTrees:23", name: "Heroic Ascension", kind: "talentTrees", details: { tiers: 4, treePoint: null } },
-  { entityKey: "talentTrees:27", name: "Heroic Ascension", kind: "talentTrees", details: { tiers: 4, treePoint: null } },
+  { entityKey: "talentTrees:0", name: "Bastion Breaker", kind: "talentTrees", details: { tiers: 9, slotsPerTier: 4, treePoint: ref("treePoints:0", "Talent Points") } },
+  { entityKey: "talentTrees:23", name: "Heroic Ascension", kind: "talentTrees", details: { tiers: 4, slotsPerTier: 4, treePoint: null } },
+  { entityKey: "talentTrees:27", name: "Heroic Ascension", kind: "talentTrees", details: { tiers: 4, slotsPerTier: 4, treePoint: null } },
   { entityKey: "bonuses:288", name: "Weighted Strikes", kind: "bonuses", details: { learnedByDefault: false, ranks: [1, 2, 3, 4, 5].map((rank, index) => bonusRank(index, rank * 2)) } },
   { entityKey: "bonuses:103", name: "Heroic Might", kind: "bonuses", details: { learnedByDefault: false, ranks: [bonusRank(0, 1)] } },
   { entityKey: "bonuses:104", name: "Heroic Resolve", kind: "bonuses", details: { learnedByDefault: false, ranks: [bonusRank(0, 1)] } },
@@ -61,7 +61,7 @@ const craftingRules: CatalogMechanicsRule[] = [
   craftingRule("recipe-experience-rounding", {}), craftingRule("weapon-skill-hit", { hitExperience: 2 }), craftingRule("weapon-skills", {}, [{ entityKey: "skills:11", label: "Axes" }]),
 ];
 const facts: CatalogFacts = {
-  entities, items: [], npcs: [], quests: [], tasks: [], places: [], properties: [], gearSets: [], gatheringNodes: [], adventurerItems: [], itemLootTables: [],
+  entities, items: [], npcs: [], quests: [], tasks: [], places: [], raceStarts: [], properties: [], gearSets: [], gatheringNodes: [], adventurerItems: [], itemLootTables: [],
   abilities: ["abilities:0", "abilities:1", "abilities:2"].map((entityKey) => ({ entityKey, ranks: [{ rankIndex: 0, lines }] })),
   recipes: [{ entityKey: "recipes:81", skill: ref("skills:0", "Alchemy"), station: null, learnedByDefault: true, ranks: [] }],
   progression: {

@@ -10,7 +10,7 @@ import type { TooltipLine } from "./tooltip";
 import type { CatalogDungeonFinder, CatalogQuestPickup } from "./facts";
 
 export const NORMALIZED_PLAN_SCHEMA_VERSION = "compendium.normalization-plan.v1" as const;
-export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v13" as const;
+export const NORMALIZED_OUTPUT_SCHEMA_VERSION = "compendium.normalized-output.v14" as const;
 
 const hash = Type.String({ pattern: "^[a-f0-9]{64}$" });
 const text = Type.String({ minLength: 1 });
@@ -123,6 +123,12 @@ export interface NormalizedNpcFactionReward { entityKey: string; rewardIndex: nu
 export interface NormalizedQuestFact { entityKey: string; chainName: string | null; chainOrder: number | null; repeatable: boolean; turnInWithoutNpc: boolean; completedDescription: string | null; objectiveText: string | null; levelRequirement: number | null; levelRange: { min: number; max: number } | null; dungeon: NormalizedReference | null; experience: number | null; conditionIds: string[]; provenance: ProvenanceReference[] }
 export interface NormalizedQuestObjective { questEntityKey: string; objectiveIndex: number; taskType: string; task: NormalizedReference; target: NormalizedReference | null; count: number | null; keepItems: boolean | null; sceneName: string | null; provenance: ProvenanceReference[] }
 export interface NormalizedQuestReward { questEntityKey: string; rewardSet: "given" | "pick" | "itemGiven"; rewardIndex: number; rewardType: string; target: NormalizedReference | null; count: number | null; experience: number | null; provenance: ProvenanceReference[] }
+/** The race's first-spawn destination, independent of a scene's default arrival. */
+export interface NormalizedRaceStart {
+  raceKey: string; startingSceneId: number; startingPositionId: number;
+  sceneKey: string | null; position: { x: number; y: number; z: number } | null;
+  sceneSourceFieldPath: string; positionSourceFieldPath: string; provenance: ProvenanceReference[];
+}
 // The authored timing of the `RPGWorldQuest` that grants a quest; see `CatalogWorldQuestFacts`.
 export interface NormalizedWorldQuestFact { entityKey: string; worldQuestNativeId: number; availableSeconds: number; cooldownAfterCompletionSeconds: number; cooldownAfterExpirySeconds: number; cooldownJitterSeconds: number; initialRollSeconds: number; provenance: ProvenanceReference[] }
 // One availability rule of a world source. `viaSourceId` is the source whose condition gives the rule: the
@@ -152,6 +158,7 @@ export interface NormalizedGearSetTier { entityKey: string; tierIndex: number; e
 export interface NormalizedGearSetTierStat { entityKey: string; tierIndex: number; statIndex: number; stat: NormalizedReference; amount: number; isPercent: boolean; provenance: ProvenanceReference[] }
 export interface NormalizedArtworkAsset { assetId: string; sha256: string; bytes: number; width: number; height: number; sourceName: string; provenance: ProvenanceReference[] }
 export interface NormalizedArtworkBinding { entityKey: string; role: "icon" | "portrait" | "artwork"; assetId: string; provenance: ProvenanceReference[] }
+export interface NormalizedBonusArtworkBinding { factKey: string; role: "icon" | "portrait" | "artwork"; assetId: string; provenance: ProvenanceReference[] }
 
 export interface NormalizedEntity {
   entityKey: string;
@@ -400,6 +407,7 @@ export interface NormalizedDatabaseInput {
   questObjectives?: NormalizedQuestObjective[];
   questRewards?: NormalizedQuestReward[];
   worldQuestFacts?: NormalizedWorldQuestFact[];
+  raceStarts?: NormalizedRaceStart[];
   placeFacts?: NormalizedPlaceFact[];
   propertyFacts?: NormalizedPropertyFact[];
   taskFacts?: NormalizedTaskFact[];
@@ -425,6 +433,7 @@ export interface NormalizedDatabaseInput {
   gatheringNodeSources?: NormalizedGatheringNodeSource[];
   artworkAssets?: NormalizedArtworkAsset[];
   artworkBindings?: NormalizedArtworkBinding[];
+  bonusArtworkBindings?: NormalizedBonusArtworkBinding[];
   identityResults: Array<{ runId: string; snapshotId: string; snapshotPrefix: string; snapshotSha256: string; character: string; sceneHandle: number; result: PlacementIdentityResult }>;
   entities: NormalizedEntity[];
   scenes: Array<{ nativeId: number; path: string; name: string | null }>;

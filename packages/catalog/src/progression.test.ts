@@ -2,9 +2,11 @@ import { expect, test } from "bun:test";
 import type { Support } from "@afallon/contracts";
 import type { NormalizedDatabaseInput } from "@afallon/contracts/catalog";
 import { openNormalizedDatabase, populateNormalizedDatabase } from "./database";
+import { collectTypedFacts } from "./normalize";
 import { normalizeProgression } from "./progression";
-import { queryCatalogFacts } from "./queries";
+import { queryCatalogEntities, queryCatalogFacts } from "./queries";
 import type { Blocker } from "./context";
+import type { AdmittedCatalog } from "./evidence";
 
 const reference = { path: "objects/support.json", sha256: "a".repeat(64) };
 const named = (value: number, name: string) => ({ value, name });
@@ -39,8 +41,8 @@ const fixture = support({
   treePoints: table([{ id: 2, name: "Heroic Essence", gameplay: { startAmount: 0, maxPoints: 0, gainRules: [] } }]),
   skills: table([{ id: 5, name: "Cooking", gameplay: { automaticallyAdded: true, maxLevel: 300, levelTemplateId: -1, talentTreeIds: [{ sourceIndex: 0, talentTreeId: 9 }], stats: [], customStats: [], useStatListTemplate: false, statListTemplate: null, startItems: [], actionAbilities: [] } }]),
   talentTrees: table([
-    { id: 0, name: "Bastion Breaker", gameplay: { tiers: 9, treePointId: -1, nodes: [node(0, [0, "ability"], { abilityId: 1 }, 1, 4, levelRequirement), node(1, [0, "ability"], { abilityId: 404 }, 2, 1), node(2, [3, "bonus"], { bonusId: 7 }, 3, 2)] } },
-    { id: 9, name: "Cooking Mastery", gameplay: { tiers: 3, treePointId: -1, nodes: [node(0, [1, "recipe"], { recipeId: 12 }, 2, 3)] } },
+    { id: 0, name: "Bastion Breaker", gameplay: { tiers: 9, slotsPerTier: 4, treePointId: -1, nodes: [node(0, [0, "ability"], { abilityId: 1 }, 1, 4, levelRequirement), node(1, [0, "ability"], { abilityId: 404 }, 2, 1), node(2, [3, "bonus"], { bonusId: 7 }, 3, 2)] } },
+    { id: 9, name: "Cooking Mastery", gameplay: { tiers: 3, slotsPerTier: 4, treePointId: -1, nodes: [node(0, [1, "recipe"], { recipeId: 12 }, 2, 3)] } },
   ]),
   spellbooks: table([{ id: 1, name: "Warrior", gameplay: { sourceType: named(0, "_class"), nodes: [{ sourceIndex: 0, nodeType: named(0, "ability"), abilityId: 2, bonusId: -1, unlockLevel: 10 }] } }]),
   bonuses: table([{ id: 7, name: "Thick Skin", gameplay: { learnedByDefault: false, ranks: [{ rankIndex: 0, unlockCost: 1, isEmpty: false, emptyTooltip: null, requirements: noRequirements, statEffects: [{ sourceIndex: 0, statId: 3, amount: 5, isPercent: true }], petStatEffects: [{ sourceIndex: 0, targetType: named(3, "HunterBeast"), npcId: -1, speciesId: -1, statId: 3, amount: 4, isPercent: false }] }] } }]),
@@ -108,7 +110,7 @@ test("an unavailable record adds no fact", () => {
 });
 
 test("a class counts as offered only when a race names its record", () => {
-  const withRace = support({ ...fixture.tables, races: table([{ id: 1, name: "Dwarf", gameplay: { availableClasses: [{ sourceIndex: 0, classId: 0 }, { sourceIndex: 1, classId: 99 }] } }]) });
+  const withRace = support({ ...fixture.tables, races: table([{ id: 1, name: "Dwarf", gameplay: { startingSceneId: 22, startingPositionId: 18, availableClasses: [{ sourceIndex: 0, classId: 0 }, { sourceIndex: 1, classId: 99 }] } }]) });
   const blockers: Blocker[] = [];
   const rows = normalizeProgression(withRace, reference, new Map([...entityNames, ["races:1", "Dwarf"]]), noPercentStats, blockers);
   expect(blockers.filter((row) => row.kind === "missing-reference" && row.key.includes("classes:99"))).toHaveLength(1);
@@ -120,6 +122,11 @@ test("a class counts as offered only when a race names its record", () => {
   } finally { db.close(); }
 });
 
+test("race start evidence requires numeric scene and world-position IDs", () => {
+  const races = table([{ id: 1, name: "Human", gameplay: { startingSceneId: "unknown", startingPositionId: 18, availableClasses: [] } }]);
+  expect(() => normalizeProgression(support({ ...fixture.tables, races }), reference, entityNames, noPercentStats, [])).toThrow();
+});
+
 test("Heroic settings keep their values, and a missing asset is a coverage issue instead of defaults", () => {
   const rows = normalizeProgression(fixture, reference, entityNames, noPercentStats, []);
   const heroic = rows.progressionFacts.find((row) => row.kind === "heroicTier");
@@ -128,4 +135,54 @@ test("Heroic settings keep their values, and a missing asset is a coverage issue
   const missing = normalizeProgression(support(fixture.tables, { unavailable: "HeroicTierSettings.Get() returned null", sourceFieldPath: "HeroicTierSettings.Get()" }), reference, entityNames, noPercentStats, blockers);
   expect(missing.progressionFacts.some((row) => row.kind === "heroicTier")).toBe(false);
   expect(blockers.filter((row) => row.kind === "unavailable-progression-data").map((row) => row.key)).toEqual(["support:/heroicTierSettings"]);
+});
+
+test("bonus artwork resolves through progression facts while tree artwork binds its canonical entity", () => {
+  const trees = table([{ id: 0, name: "Bastion Breaker", gameplay: { tiers: 3, slotsPerTier: 4, treePointId: -1, nodes: [
+    node(0, [3, "bonus"], { bonusId: 7 }, 2, 1),
+    node(1, [3, "bonus"], { bonusId: 8 }, 3, 2),
+  ] } }]);
+  const tables = { ...fixture.tables, talentTrees: trees, bonuses: [
+    ...(fixture.tables.bonuses ?? []),
+    ...table([{ id: 8, name: "No Sprite", gameplay: { learnedByDefault: false, ranks: [] } }]),
+  ] };
+  const normalized = normalizeProgression(support(tables), reference, entityNames, noPercentStats, []);
+  const treeEntity = { entityKey: "talentTrees:0", buildId: "build", kind: "talentTrees", nativeId: 0, name: "Bastion Breaker", internalName: null, description: null, sourceKey: 0, publicData: { localization: null, gameplay: null, icon: null }, provenance: [reference] };
+  const image = { sha256: "b".repeat(64), bytes: 24, width: 2, height: 2 };
+  const admitted = {
+    canonical: { value: { items: [], npcs: [], quests: [], scenes: [], regions: [], properties: [], stats: [] }, reference },
+    relationships: { value: { tasks: [], adventurerWorldSettings: { asset: "AdventurerWorld", equipmentRewardChance: 0, roster: [], arrivals: [], equipmentBands: [], equipmentRewards: [], kitUpgrades: [] } }, reference },
+    lootRules: { value: { itemLevels: [] }, reference },
+    support: { value: { tables: {} }, reference },
+    artwork: { value: { records: [
+      { family: "talentTrees", nativeId: 0, role: "icon", sourceName: "Tree", status: "extracted", image },
+      { family: "bonuses", nativeId: 7, role: "icon", sourceName: "Talent icon", status: "extracted", image },
+      { family: "bonuses", nativeId: 8, role: "icon", sourceName: "No Sprite", status: "missing", image: null, reason: "Sprite absent" },
+    ] }, reference },
+  } as unknown as AdmittedCatalog;
+  const blockers: Blocker[] = [];
+  const artwork = collectTypedFacts(admitted, [treeEntity], [], [], blockers, new Map(normalized.progressionFacts.map((fact) => [fact.entityKey, fact.name ?? fact.entityKey])));
+  expect(blockers.filter((issue) => issue.kind === "artwork-unavailable").map((issue) => issue.key)).toEqual(["bonuses:8:icon"]);
+  const db = openNormalizedDatabase(":memory:");
+  try {
+    populateNormalizedDatabase(db, { ...emptyInput, entities: [treeEntity], progressionFacts: normalized.progressionFacts, talentNodes: normalized.talentNodes,
+      artworkAssets: artwork.artworkAssets, artworkBindings: artwork.artworkBindings, bonusArtworkBindings: artwork.bonusArtworkBindings }, []);
+    db.query("INSERT INTO catalog_metadata VALUES (?, ?, ?, ?, ?)").run("c".repeat(64), "build", "catalog.v1", "{}", "f".repeat(64));
+    const progression = queryCatalogFacts(db).records.progression;
+    expect(progression.facts.find((fact) => fact.entityKey === "bonuses:7")?.artwork).toMatchObject([{ role: "icon", assetId: image.sha256, sha256: image.sha256 }]);
+    expect(progression.facts.find((fact) => fact.entityKey === "bonuses:8")?.artwork).toEqual([]);
+    const tree = progression.facts.find((fact) => fact.entityKey === treeEntity.entityKey);
+    expect(tree?.kind === "talentTrees" ? [tree.details.tiers, tree.details.slotsPerTier] : null).toEqual([3, 4]);
+    expect(progression.talentNodes.map((talent) => [talent.target?.entityKey, talent.tier, talent.row])).toEqual([
+      ["bonuses:7", 2, 1], ["bonuses:8", 3, 2],
+    ]);
+    expect(queryCatalogEntities(db).records.find((entity) => entity.entityKey === treeEntity.entityKey)?.artwork).toMatchObject([{ role: "icon", assetId: image.sha256 }]);
+    expect(queryCatalogEntities(db).records.some((entity) => entity.entityKey.startsWith("bonuses:"))).toBe(false);
+    expect(db.query("SELECT fact_key, role, asset_id, provenance_json FROM bonus_artwork_bindings").get()).toEqual({
+      fact_key: "bonuses:7", role: "icon", asset_id: image.sha256, provenance_json: JSON.stringify([{ ...reference, pointer: "/records/1" }]),
+    });
+    expect(() => db.query("INSERT INTO bonus_artwork_bindings VALUES (?, ?, ?, ?)").run("bonuses:404", "icon", image.sha256, "[]")).toThrow();
+    expect(() => db.query("INSERT INTO bonus_artwork_bindings VALUES (?, ?, ?, ?)").run("bonuses:8", "icon", "missing-asset", "[]")).toThrow();
+    expect(() => db.query("INSERT INTO bonus_artwork_bindings VALUES (?, ?, ?, ?)").run("bonuses:8", "banner", image.sha256, "[]")).toThrow();
+  } finally { db.close(); }
 });

@@ -51,15 +51,15 @@ const StatSchema = Type.Object({
 const FactionSchema = Type.Object({ showInReputation: boolean, stances: indexed(Type.Object({ stance: record, pointsRequired: integer, alignmentToPlayer: valueEnum })), relations: indexed(Type.Object({ factionId: integer, defaultStance: record, startingPoints: integer })) });
 const TreePointSchema = Type.Object({ startAmount: integer, maxPoints: integer, gainRules: indexed(Type.Object({ gainType: valueEnum, amount: integer, classId: integer, skillId: integer, itemId: integer, itemCount: integer, npcId: integer, weaponTemplateId: integer })) });
 const BonusSchema = Type.Object({ learnedByDefault: boolean, ranks: list(Type.Object({ rankIndex: integer, unlockCost: integer, isEmpty: boolean, emptyTooltip: nullableText, requirements: requirementGroups, statEffects: stat, petStatEffects: indexed(Type.Object({ targetType: valueEnum, npcId: integer, speciesId: integer, statId: integer, amount: number, isPercent: boolean })) })) });
-const TalentTreeSchema = Type.Object({ tiers: integer, treePointId: integer, nodes: indexed(Type.Object({ nodeType: valueEnum, abilityId: integer, recipeId: integer, resourceNodeId: integer, bonusId: integer, tier: integer, row: integer, requirements: requirementGroups })) });
-const RaceSchema = Type.Object({ availableClasses: indexed(Type.Object({ classId: integer })) });
+const TalentTreeSchema = Type.Object({ tiers: integer, slotsPerTier: integer, treePointId: integer, nodes: indexed(Type.Object({ nodeType: valueEnum, abilityId: integer, recipeId: integer, resourceNodeId: integer, bonusId: integer, tier: integer, row: integer, requirements: requirementGroups })) });
+const RaceSchema = Type.Object({ startingSceneId: integer, startingPositionId: integer, availableClasses: indexed(Type.Object({ classId: integer })) });
 const SpellbookSchema = Type.Object({ sourceType: valueEnum, nodes: indexed(Type.Object({ nodeType: valueEnum, abilityId: integer, bonusId: integer, unlockLevel: integer })) });
 const AbilitySchema = Type.Object({
   abilityType: valueEnum, learnedByDefault: boolean, requiresRangedWeapon: boolean,
   rankMechanics: list(Type.Object({ rankIndex: integer, unlockCost: integer, activationType: valueEnum, castTime: number, channelTime: number, cooldown: number, usesGlobalCooldown: boolean, minRange: number, maxRange: number, targetType: valueEnum, areaRadius: number, coneDegree: number, coneRange: number, projectileCount: integer, maxUnitsHit: integer, effectsApplied: applied, casterEffectsApplied: applied, requirements: requirementGroups })),
 }, { additionalProperties: true });
 
-for (const [name, schema] of [["class", ClassSchema], ["skill", SkillSchema], ["level-template", LevelSchema], ["effect", EffectSchema], ["enchantment", EnchantmentSchema], ["stat", StatSchema], ["faction", FactionSchema], ["tree-point", TreePointSchema], ["bonus", BonusSchema], ["talent-tree", TalentTreeSchema], ["spellbook", SpellbookSchema], ["race", RaceSchema], ["ability", AbilitySchema]] as const) schemaRegistry.register(`compendium.catalog-${name}-progression.v${name === "effect" ? 2 : 1}`, schema);
+for (const [name, schema] of [["class", ClassSchema], ["skill", SkillSchema], ["level-template", LevelSchema], ["effect", EffectSchema], ["enchantment", EnchantmentSchema], ["stat", StatSchema], ["faction", FactionSchema], ["tree-point", TreePointSchema], ["bonus", BonusSchema], ["talent-tree", TalentTreeSchema], ["spellbook", SpellbookSchema], ["race", RaceSchema], ["ability", AbilitySchema]] as const) schemaRegistry.register(`compendium.catalog-${name}-progression.v${["effect", "talent-tree", "race"].includes(name) ? 2 : 1}`, schema);
 
 type Rows<T> = Static<typeof unavailableList> | Array<T | Static<typeof unavailableRow>>;
 
@@ -240,7 +240,7 @@ export function normalizeProgression(support: Support, reference: ArtifactRefere
   });
   each("talentTrees", (key, gameplay, path) => {
     const value = decode(TalentTreeSchema, gameplay, path);
-    fact({ entityKey: key, kind: "talentTrees", details: { tiers: value.tiers, treePoint: ref("treePoints", value.treePointId, `${path}/treePointId`) } }, path);
+    fact({ entityKey: key, kind: "talentTrees", details: { tiers: value.tiers, slotsPerTier: value.slotsPerTier, treePoint: ref("treePoints", value.treePointId, `${path}/treePointId`) } }, path);
     for (const { row, path: nodePath } of rows(value.nodes, `${path}/nodes`)) {
       const nodeType = named(row.nodeType, `${nodePath}/nodeType`);
       const target = nodeTarget(nodeType.name, { ability: row.abilityId, bonus: row.bonusId, recipe: row.recipeId, resourceNode: row.resourceNodeId }, nodePath);

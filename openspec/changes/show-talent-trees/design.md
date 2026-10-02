@@ -1,10 +1,14 @@
 ## Context
 
-The accepted catalog `d3b56f3f` (build 25653798) has 31 `talentTrees` canonical entities, 558 `bonuses` progression facts, and `talent_nodes` rows with each node's tree, index, type, target, `tier`, `row`, and condition. Its `artwork_bindings` cover other entity kinds but no talent tree. Bonuses have no canonical entity rows.
+The accepted catalog `d3b56f3f` (build 25653798) has 31 `talentTrees` canonical entities, 558 `bonuses` progression facts, and `talent_nodes` rows with each node's tree, index, type, target, `tier`, `row`, and condition. Its `artwork_bindings` cover other entity kinds but no talent tree. Bonuses have no canonical entity rows. The catalog retains each node's authored requirement condition and each tree's tier count, but does not expose the global slots-per-tier setting or resolved prerequisite-line edges.
 
-`packages/scan/src/probes/collectors/artwork.csx` exports the `entryIcon` of many database families through one sprite reader, but not of talent trees or bonuses. `RPGTalentTree` (recovered declaration `RPGTalentTree.cs`) is an `RPGBuilderDatabaseEntry`. It has its own `icon` sprite (+0x60), `TiersAmount` (+0x68), `treePointAcceptedID` (+0x6C), and `nodeList` (+0x70) of `Node_DATA` with `nodeType`, `abilityID`, `recipeID`, `resourceNodeID`, `bonusID`, `Tier`, `Row`, and requirements. `RPGBonus` is also an `RPGBuilderDatabaseEntry`.
+`packages/scan/src/probes/collectors/artwork.csx` exports the `entryIcon` of many database families through one sprite reader, but not of talent trees or bonuses. `RPGTalentTree` and `RPGBonus` inherit `RPGBuilderDatabaseEntry.entryIcon` (+0x38), but each also declares a separate `icon` (+0x60). `RPGTalentTree` declares `TiersAmount` (+0x68), `treePointAcceptedID` (+0x6C), and `nodeList` (+0x70); its `Node_DATA` has `nodeType`, target IDs, `Tier` (+0x30), `Row` (+0x34), and requirements. These recovered declarations identify fields, not the behavior of the game panel.
 
-The game draws a tree in `TalentTreePanel` (`Blink/RPGBuilder/Managers/TalentTreePanel.cs`): tier slots from `TierSlotPrefab`, separate prefabs for active and passive nodes, `GenerateLine` and `InitTalentTreeNodeLines` for lines between nodes, and spacing fields such as `nodeXStartOffset` and `nodeDistanceOffset`. Those fields and the line rule decide what the page should mirror.
+Build-matched native evidence is `research/ghidra/25653798/talent-panel-functions-20261002.json` (GameAssembly SHA-256 `3625dbe861e3a3d31a07378065f4d8862be07fa77e83f15592ebc080452a952c`), checked against `cpp2il-method-addresses-20261001.json` and recovered declarations. `TalentTreePanel.InitTree` (RVA `0x9f9640`) creates `tree.TiersAmount` tiers and, within each tier, `GameDatabase.ProgressionSettings.TalentTreeNodesPerTier` slots. That setting is `GameDatabase.ProgressionSettings` (+0x50) → `RPGBuilderProgressionSettings.TalentTreeNodesPerTier` (+0x48); `GameDatabase.GetProgressionSettings()` exposes it to the collector. The loop filters `nodeList` first by `Node_DATA.Tier == tier index + 1` (`<InitTree>b__0`, RVA `0xa074d0`), then by `Node_DATA.Row == slot index + 1` (`<InitTree>b__1`, RVA `0xa074f0`), so stored tier and row are one-based slot coordinates. The two small predicates were separately decompiled against the same binary.
+
+`InitTalentTreeLines` (RVA `0x9f8890`) visits occupied node slots. `InitTalentTreeNodeLines` (RVA `0x9f8a90`) examines each tree node's selected requirements: inline `Node_DATA.Requirements` (+0x48), or `RequirementsTemplate.Requirements` (+0x48) when `UseRequirementsTemplate` (+0x38) selects the template (+0x40). A prerequisite line is considered when a `RequirementsData.Requirement` has `Knowledge == Known` (+0x7C == 0), its `RequirementType` (+0x10) is Ability (0), Bonus (1), Recipe (2), or Resource (3), and its corresponding `AbilityID` (+0x18), `BonusID` (+0x1C), `RecipeID` (+0x20), or `ResourceID` (+0x24) matches the occupied source slot's target ID. The panel then resolves the dependent node's holder before `GenerateLine` (RVA `0x9f8000`); learned/rank/other requirements affect line appearance rather than changing those prerequisite-ID matches. `getNodeTierSlotIndex` (RVAs `0x9fba30` and `0x9fbf10`) looks up each endpoint in the constructed tiers/slots to position the line; `HandleLine` (RVA `0x9f8430`) sets its rendered geometry.
+
+The tree-selection UI's `CombatTreeSlot.InitSlot` (RVA `0x8f2090`) sets its image from `RPGTalentTree.entryIcon` (+0x38), not `RPGTalentTree.icon` (+0x60). The panel's `TreeNodeHolder.Init` (RVA `0x9135b0`) sets its bonus-node image from `RPGBonus.entryIcon` (+0x38), not `RPGBonus.icon` (+0x60); its other node types likewise use their `entryIcon`. `TalentTreePanel.InitTree` reads the tree display name (+0x30) but does not display a separate tree icon inside the panel. These two additional display methods were decompiled against the same binary to establish the sprite source. Native pseudocode is not recovered game source; the captured screenshots will still check presentation against the running game.
 
 ## Goals / Non-Goals
 
@@ -21,19 +25,19 @@ The game draws a tree in `TalentTreePanel` (`Blink/RPGBuilder/Managers/TalentTre
 
 ### Read the panel code before deciding what to capture
 
-Decompile `TalentTreePanel.InitTree`, `InitTalentTreeLines`, `InitTalentTreeNodeLines`, `GenerateLine`, `HandleLine`, and `getNodeTierSlotIndex`. Record how the panel turns `Tier` and `Row` into a slot, which requirement makes a line between two nodes, and whether the tree icon comes from `icon` or `entryIcon`. Capture only the fields that this code reads and the catalog lacks. Spacing constants of the panel are presentation values of one prefab and stay out of the catalog unless the layout decision needs them.
+The only panel layout value absent from the captured facts is `GameDatabase.ProgressionSettings.TalentTreeNodesPerTier`. Capture it with its source field path on each tree record and normalize it as `slotsPerTier`. Existing tree tier counts, one-based node tier and row values, node types and targets, and selected requirement conditions already retain the source facts needed to derive prerequisite lines: match the Known requirements' typed IDs to another occupied node's typed target within the tree. A resolved line-edge table is not an additional authored fact. Keep spacing constants of the panel out of the catalog unless the layout decision needs them.
 
 ### Export tree and bonus icons through the artwork collector
 
-Extend `artwork.csx` with the `talentTrees` and `bonuses` families. Use the sprite that the panel code shows for each. Keep `extracted`, `missing`, and `unsupported` statuses with source paths, as the other families do.
+Extend `artwork.csx` with the `talentTrees` and `bonuses` families. Export inherited `entryIcon` for each, because the displayed tree-selection icon and bonus-node icon both read that field rather than the separate `icon` field. Keep `extracted`, `missing`, and `unsupported` statuses with source paths, as the other families do.
 
 ### Bind bonus icons to progression facts
 
 Trees bind through the existing `artwork_bindings` table, because they are canonical entities. Bonuses need a binding table keyed to `progression_facts`, with an asset reference, a role, and provenance, and with a foreign key to the fact. Inserting fake canonical bonus entities to reuse `artwork_bindings` was rejected. Both kinds reuse the content-hashed `artwork_assets` table.
 
-### Keep the published pages unchanged
+### Keep talent changes out of published pages
 
-The catalog candidate must publish the same pages as the accepted publication, apart from the catalog identity. The publication comparison shows any other difference, which needs an explanation before acceptance.
+Talent icon and layout capture alone does not add a talent page or change class documents. This scan also implements `show-new-character-start`, which deliberately changes place documents and their Getting there cards where captured playable races start. Compare the candidate publication against the accepted one and explain those expected place changes and every other difference before acceptance.
 
 ### Screenshots for the layout decision
 
@@ -47,4 +51,4 @@ With the game running, open the talent tree panel of two classes, including one 
 
 ## Migration Plan
 
-Decompile the panel code. Extend the collectors and the catalog. Scan build 25653798 with a clean runtime receipt. Build a catalog candidate, compare it with `d3b56f3f`, publish from it, and check that pages are unchanged. Accept the catalog and publication together. Take the screenshots and the preview for the layout decision.
+Decompile the panel code. Extend the collectors and the catalog. Scan build 25653798 with a clean runtime receipt. Build a catalog candidate, compare it with `d3b56f3f`, publish from it, and account for the planned race-start place changes and any other page differences. Accept the catalog and publication together. Take the screenshots and the preview for the layout decision.

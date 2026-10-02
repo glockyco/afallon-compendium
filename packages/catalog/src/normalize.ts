@@ -1,6 +1,6 @@
 import { CoverageLedgerSchema, ScanCoverageSchema, ScanTargetEnvelopeSchema, decodeContract, type Canonical } from "@afallon/contracts";
 import { compileMapSpaces } from "@afallon/contracts/spatial";
-import { entityKey, publicEntityDetails, stableJson, type ArtifactReference, type NormalizedDatabaseInput, type NormalizedEntity, type ItemSource, type NormalizedSceneSpawn, type ProvenanceReference, type CatalogDerivation, type CatalogEndpoint, type NormalizedReference } from "@afallon/contracts/catalog";
+import { entityKey, publicEntityDetails, stableJson, type ArtifactReference, type NormalizedDatabaseInput, type NormalizedEntity, type ItemSource, type NormalizedSceneSpawn, type NormalizedRaceStart, type ProvenanceReference, type CatalogDerivation, type CatalogEndpoint, type NormalizedReference } from "@afallon/contracts/catalog";
 import { collectPlacements, collectRegions, attachShapes } from "./placements";
 import { collectPatrolPaths, collectWorldConditions, conditionRowsFor, conditionSemanticPayload, classifyItemCondition, producerRows } from "./conditions";
 import { addSourceIndex, relationRows } from "./relations";
@@ -35,8 +35,41 @@ export function entityGameplay(kind: string, gameplay: Record<string, unknown> |
   if (gameplay === undefined) return null;
   if (kind === "abilities") return { ranks: gameplay.ranks };
   if (kind === "classes") return { allowedWeaponTypes: gameplay.allowedWeaponTypes };
+  if (kind === "races") return { startingSceneId: gameplay.startingSceneId, startingPositionId: gameplay.startingPositionId };
   if (kind === "recipes" || kind === "craftingStations" || kind === "gearSets") return gameplay;
   return null;
+}
+
+export function collectRaceStarts(
+  races: NonNullable<AdmittedCatalog["support"]["value"]["tables"]["races"]>,
+  entities: readonly NormalizedEntity[],
+  positions: ReadonlyMap<number, { row: Canonical["worldPositions"][number]; index: number }>,
+  supportReference: ArtifactReference,
+  canonicalReference: ArtifactReference,
+  blockers: Blocker[],
+): NormalizedRaceStart[] {
+  const raceStarts: NormalizedRaceStart[] = [];
+  for (const [index, record] of races.entries()) {
+    if ("unavailable" in record) continue;
+    const raceKey = entityKey("races", record.entry.nativeId);
+    const raceGameplay = record.gameplay;
+    const path = `/tables/races/${index}/gameplay`;
+    const scenePath = `${path}/startingSceneId`, positionPath = `${path}/startingPositionId`;
+    const sceneSourceFieldPath = `GameDatabase.Races[${record.sourceKey}].startingSceneID`;
+    const positionSourceFieldPath = `GameDatabase.Races[${record.sourceKey}].startingPositionID`;
+    const sceneId = raceGameplay?.startingSceneId, positionId = raceGameplay?.startingPositionId;
+    if (typeof sceneId !== "number" || !Number.isInteger(sceneId) || typeof positionId !== "number" || !Number.isInteger(positionId)) {
+      blockers.push({ kind: "unavailable-race-start", key: raceKey, detail: `Race start IDs are missing at ${sceneSourceFieldPath} or ${positionSourceFieldPath}.`, provenance: [pointer(supportReference, path)] });
+      continue;
+    }
+    const sceneKey = entityKey("scenes", sceneId), scene = entities.find((row) => row.entityKey === sceneKey);
+    if (!scene) blockers.push({ kind: "missing-reference", key: `race-start:${raceKey}:${sceneKey}`, detail: `Race starting scene ${sceneKey} at ${sceneSourceFieldPath} is not captured.`, provenance: [pointer(supportReference, scenePath)] });
+    const worldPosition = positions.get(positionId);
+    if (!worldPosition) blockers.push({ kind: "missing-reference", key: `race-start:${raceKey}:worldPositions:${positionId}`, detail: `Race starting world position ${positionId} at ${positionSourceFieldPath} is not captured.`, provenance: [pointer(supportReference, positionPath)] });
+    raceStarts.push({ raceKey, startingSceneId: sceneId, startingPositionId: positionId, sceneKey: scene ? sceneKey : null, position: worldPosition?.row.position ?? null, sceneSourceFieldPath, positionSourceFieldPath,
+      provenance: [pointer(supportReference, scenePath), pointer(supportReference, positionPath), ...(worldPosition ? [pointer(canonicalReference, `/worldPositions/${worldPosition.index}`)] : [])] });
+  }
+  return raceStarts;
 }
 
 function canonicalEntities(canonical: Canonical, buildId: string, reference: ArtifactReference): NormalizedEntity[] {
@@ -65,14 +98,15 @@ type FactRows = {
   npcFacts: NonNullable<NormalizedDatabaseInput["npcFacts"]>; npcStats: NonNullable<NormalizedDatabaseInput["npcStats"]>; npcAbilityPhases: NonNullable<NormalizedDatabaseInput["npcAbilityPhases"]>; npcPhaseAbilities: NonNullable<NormalizedDatabaseInput["npcPhaseAbilities"]>; npcFactionRewards: NonNullable<NormalizedDatabaseInput["npcFactionRewards"]>;
   questFacts: NonNullable<NormalizedDatabaseInput["questFacts"]>; questObjectives: NonNullable<NormalizedDatabaseInput["questObjectives"]>; questRewards: NonNullable<NormalizedDatabaseInput["questRewards"]>;
   placeFacts: NonNullable<NormalizedDatabaseInput["placeFacts"]>; propertyFacts: NonNullable<NormalizedDatabaseInput["propertyFacts"]>; taskFacts: NonNullable<NormalizedDatabaseInput["taskFacts"]>; abilityFacts: NonNullable<NormalizedDatabaseInput["abilityFacts"]>;
+  raceStarts?: NormalizedDatabaseInput["raceStarts"];
   recipeFacts: NonNullable<NormalizedDatabaseInput["recipeFacts"]>; recipeRanks: NonNullable<NormalizedDatabaseInput["recipeRanks"]>; recipeProducts: NonNullable<NormalizedDatabaseInput["recipeProducts"]>; recipeMaterials: NonNullable<NormalizedDatabaseInput["recipeMaterials"]>; craftingStationFacts: NonNullable<NormalizedDatabaseInput["craftingStationFacts"]>;
   gearSetFacts: NonNullable<NormalizedDatabaseInput["gearSetFacts"]>; gearSetMembers: NonNullable<NormalizedDatabaseInput["gearSetMembers"]>; gearSetTiers: NonNullable<NormalizedDatabaseInput["gearSetTiers"]>; gearSetTierStats: NonNullable<NormalizedDatabaseInput["gearSetTierStats"]>;
-  artworkAssets: NonNullable<NormalizedDatabaseInput["artworkAssets"]>; artworkBindings: NonNullable<NormalizedDatabaseInput["artworkBindings"]>;
+  artworkAssets: NonNullable<NormalizedDatabaseInput["artworkAssets"]>; artworkBindings: NonNullable<NormalizedDatabaseInput["artworkBindings"]>; bonusArtworkBindings: NonNullable<NormalizedDatabaseInput["bonusArtworkBindings"]>;
 };
 
 export function collectTypedFacts(admitted: AdmittedCatalog, entities: NormalizedEntity[], bindings: NormalizedDatabaseInput["bindings"], conditions: NormalizedDatabaseInput["conditions"], blockers: Blocker[], progressionLabels: ReadonlyMap<string, string> = new Map()): FactRows {
   const settings = admitted.relationships.value.adventurerWorldSettings, settingsPath = "/adventurerWorldSettings";
-  const rows: FactRows = { itemFacts: [], itemStats: [], itemRandomStats: [], itemGemStats: [], itemSockets: [], itemGameActions: [], npcFacts: [], npcStats: [], npcAbilityPhases: [], npcPhaseAbilities: [], npcFactionRewards: [], questFacts: [], questObjectives: [], questRewards: [], placeFacts: [], propertyFacts: [], taskFacts: [], abilityFacts: [], recipeFacts: [], recipeRanks: [], recipeProducts: [], recipeMaterials: [], craftingStationFacts: [], gearSetFacts: [], gearSetMembers: [], gearSetTiers: [], gearSetTierStats: [], artworkAssets: [], artworkBindings: [], adventurerWorld: { asset: settings.asset, equipmentRewardChance: settings.equipmentRewardChance, provenance: [pointer(admitted.relationships.reference, settingsPath)], links: [] } };
+  const rows: FactRows = { itemFacts: [], itemStats: [], itemRandomStats: [], itemGemStats: [], itemSockets: [], itemGameActions: [], npcFacts: [], npcStats: [], npcAbilityPhases: [], npcPhaseAbilities: [], npcFactionRewards: [], questFacts: [], questObjectives: [], questRewards: [], placeFacts: [], propertyFacts: [], taskFacts: [], abilityFacts: [], recipeFacts: [], recipeRanks: [], recipeProducts: [], recipeMaterials: [], craftingStationFacts: [], gearSetFacts: [], gearSetMembers: [], gearSetTiers: [], gearSetTierStats: [], artworkAssets: [], artworkBindings: [], bonusArtworkBindings: [], adventurerWorld: { asset: settings.asset, equipmentRewardChance: settings.equipmentRewardChance, provenance: [pointer(admitted.relationships.reference, settingsPath)], links: [] } };
   const entityByKey = new Map(entities.map((row) => [row.entityKey, row]));
   const reference = (kind: string, nativeId: number | null | undefined, label: string, path: string, provenance: ProvenanceReference[]): NormalizedReference | null => {
     if (nativeId === undefined || nativeId === null) return null;
@@ -252,21 +286,23 @@ export function collectTypedFacts(admitted: AdmittedCatalog, entities: Normalize
     }
   }
 
-  // Artwork bindings of the canonical target.
+  // Tree artwork belongs to its canonical entity; bonus artwork belongs to its progression fact.
   const assets = new Map<string, NonNullable<NormalizedDatabaseInput["artworkAssets"]>[number]>(), bindingsByRole = new Map<string, string>();
   for (const [index, record] of admitted.artwork.value.records.entries()) {
     const provenance = [pointer(admitted.artwork.reference, `/records/${index}`)], key = entityKey(record.family, record.nativeId);
     if (record.status !== "extracted" || record.image === null) { blockers.push({ kind: "artwork-unavailable", key: `${key}:${record.role}`, detail: record.reason ?? `Artwork status is ${record.status}.`, provenance }); continue; }
-    if (!entityByKey.has(key)) { blockers.push({ kind: "missing-reference", key: `artwork:${key}:${record.role}`, detail: `Artwork references missing ${key}.`, provenance }); continue; }
+    if (record.family === "bonuses" ? !progressionLabels.has(key) : !entityByKey.has(key)) { blockers.push({ kind: "missing-reference", key: `artwork:${key}:${record.role}`, detail: `Artwork references missing ${key}.`, provenance }); continue; }
     const previous = assets.get(record.image.sha256), asset = { assetId: record.image.sha256, sha256: record.image.sha256, bytes: record.image.bytes, width: record.image.width, height: record.image.height, sourceName: record.sourceName, provenance };
     if (previous && (previous.bytes !== asset.bytes || previous.width !== asset.width || previous.height !== asset.height)) throw new Error(`Artwork asset ${asset.sha256} has conflicting metadata.`);
     if (previous) { previous.provenance.push(...provenance); if (asset.sourceName.localeCompare(previous.sourceName) < 0) previous.sourceName = asset.sourceName; }
     else assets.set(asset.sha256, asset);
     const roleKey = `${key}:${record.role}`, bound = bindingsByRole.get(roleKey); if (bound && bound !== asset.assetId) throw new Error(`Artwork binding ${roleKey} names multiple assets.`); bindingsByRole.set(roleKey, asset.assetId);
-    rows.artworkBindings.push({ entityKey: key, role: record.role, assetId: asset.assetId, provenance });
+    if (record.family === "bonuses") rows.bonusArtworkBindings.push({ factKey: key, role: record.role, assetId: asset.assetId, provenance });
+    else rows.artworkBindings.push({ entityKey: key, role: record.role, assetId: asset.assetId, provenance });
   }
   rows.artworkAssets.push(...[...assets.values()].sort((a, b) => a.assetId.localeCompare(b.assetId)));
   rows.artworkBindings = mergeEvidence(rows.artworkBindings, (row) => `${row.entityKey}:${row.role}`);
+  rows.bonusArtworkBindings = mergeEvidence(rows.bonusArtworkBindings, (row) => `${row.factKey}:${row.role}`);
   return rows;
 }
 
@@ -490,6 +526,7 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   }
   const sceneSpawns: NormalizedSceneSpawn[] = [];
   const positions = new Map(canonical.value.worldPositions.map((row, index) => [row.nativeId, { row, index }]));
+  const raceStarts = collectRaceStarts(admitted.support.value.tables.races ?? [], entities, positions, admitted.support.reference, canonical.reference, blockers);
   for (const scene of canonical.value.scenes) {
     const startPositionId = gameplay.get(entityKey("scenes", scene.nativeId))?.startPositionId;
     if (startPositionId === undefined || startPositionId < 0) continue;
@@ -499,6 +536,7 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   }
   const uniqueConditions = mergeEvidence(meaningfulConditions, (row) => row.conditionId, (row) => ({ ...row, sourceFieldPath: null, payload: conditionSemanticPayload(row.payload), provenance: [] }));
   const factRows = collectTypedFacts(admitted, entities, bindings, uniqueConditions, blockers, new Map(progression.progressionFacts.map((row) => [row.entityKey, row.name ?? row.entityKey])));
+  factRows.raceStarts = raceStarts;
   const ownerActionRows = ownerGameActions(canonical.value.ownerActions, entities, canonical.reference, blockers);
   factRows.ownerGameActions = mergeOwnerGameActions([...ownerActionRows, ...worldOwnerGameActions(contexts, ownerActionRows, entities, relations.itemIndex, blockers)]);
   const endpointFor = (kind: string, id: number | null | undefined) => {
@@ -587,6 +625,7 @@ export function normalizeCatalog(admitted: AdmittedCatalog, planReference: Artif
   for (const row of resourceYields) add("resource-yield", row.yieldId, row.provenance);
   for (const row of patrolPaths) add("patrol-path", hashRelation("patrol", [row.sceneNativeId, row.name, row.worldPoints]), row.provenance);
   for (const row of sceneSpawns) add("scene-arrival", String(row.sceneNativeId), [pointer(canonical.reference, `/scenes/${canonical.value.scenes.findIndex((scene) => scene.nativeId === row.sceneNativeId)}`), pointer(canonical.reference, `/worldPositions/${positions.get(row.startPositionId)!.index}`)]);
+  for (const row of raceStarts) add("race-start", row.raceKey, row.provenance);
   if (corruption) {
     add("corruption-settings", "combat", corruption.provenance);
     for (const dungeon of corruption.dungeons) add("corruption-dungeon", dungeon.scene.entityKey!, dungeon.provenance);

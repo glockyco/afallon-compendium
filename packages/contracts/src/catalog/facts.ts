@@ -288,6 +288,11 @@ export interface CatalogFacts {
   quests: CatalogQuestFacts[];
   tasks: CatalogTaskFacts[];
   places: CatalogPlaceFacts[];
+  raceStarts: Array<{
+    race: CatalogEndpoint; scene: CatalogEndpoint | null;
+    startingSceneId: number; startingPositionId: number;
+    position: { x: number; y: number; z: number } | null;
+  }>;
   properties: CatalogPropertyFacts[];
   abilities: CatalogAbilityFacts[];
   recipes: CatalogRecipeFacts[];

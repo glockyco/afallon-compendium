@@ -470,7 +470,16 @@ export function queryCatalogFacts(db: Database): CatalogQueryResult<CatalogFacts
       progressionType: row.progressionType, teleportType: row.teleportType, amount: row.amount, alterAction: row.alterAction,
       requirements: row.requirements, visualEffect: row.visualEffect, target: row.target === null ? null : endpoint(refs, row.target.entityKey, row.target.label) };
   });
-  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), adventurerItems, itemLootTables, ownerGameActions, corruption, questPickups, dungeonFinder, clothDrops: queryClothDrops(db, refs) } };
+  const raceStarts: CatalogFacts["raceStarts"] = db.query<{ race_key: string; starting_scene_id: number; scene_key: string | null; starting_position_id: number; position_json: string | null }, []>(
+    "SELECT race_key, starting_scene_id, scene_key, starting_position_id, position_json FROM race_starts ORDER BY race_key",
+  ).all().map((row) => ({
+    race: endpoint(refs, row.race_key, row.race_key),
+    scene: row.scene_key === null ? null : endpoint(refs, row.scene_key, row.scene_key),
+    startingSceneId: row.starting_scene_id,
+    startingPositionId: row.starting_position_id,
+    position: row.position_json === null ? null : parse(row.position_json) as { x: number; y: number; z: number },
+  }));
+  return { ...identity(db), records: { entities: queryCatalogEntities(db).records, items, npcs, quests, tasks, places, raceStarts, properties, abilities, recipes, gearSets, progression: queryProgression(db), gatheringNodes: queryGatheringNodes(db), adventurerItems, itemLootTables, ownerGameActions, corruption, questPickups, dungeonFinder, clothDrops: queryClothDrops(db, refs) } };
 }
 
 // ClothDrops.Roll gives cloth only for a creature whose creature type (+0xF8) has the value 2 or 3.
@@ -843,9 +852,19 @@ function requirementTime(value: unknown): CatalogRequirementTime | null {
 // recipe or resource node, and what applies each effect. Relations follow the facts, so the catalog stores them once.
 function queryProgression(db: Database): CatalogProgression {
   const ref = (key: string | null, label: string | null): NormalizedReference => ({ entityKey: key, label: label ?? key ?? "Unknown" });
+  const bonusArtwork = new Map<string, CatalogEntityRow["artwork"]>();
+  for (const row of db.query<{ fact_key: string; role: CatalogEntityRow["artwork"][number]["role"]; asset_id: string; sha256: string; bytes: number; width: number; height: number; source_name: string }, []>(`
+    SELECT b.fact_key, b.role, a.asset_id, a.sha256, a.bytes, a.width, a.height, a.source_name
+    FROM bonus_artwork_bindings b JOIN artwork_assets a ON a.asset_id = b.asset_id
+    ORDER BY b.fact_key, b.role
+  `).all()) {
+    const values = bonusArtwork.get(row.fact_key) ?? [];
+    values.push({ role: row.role, assetId: row.asset_id, sha256: row.sha256, bytes: row.bytes, width: row.width, height: row.height, sourceName: row.source_name });
+    bonusArtwork.set(row.fact_key, values);
+  }
   const facts: CatalogProgressionFact[] = db.query<{ entity_key: string; name: string | null; kind: string; details_json: string }, []>("SELECT entity_key, name, kind, details_json FROM progression_facts ORDER BY entity_key").all().map((row) => {
     const details: ProgressionDetails = JSON.parse(`{"kind":${JSON.stringify(row.kind)},"details":${row.details_json}}`);
-    return { ...details, entityKey: row.entity_key, name: row.name };
+    return { ...details, entityKey: row.entity_key, name: row.name, ...(details.kind === "bonuses" ? { artwork: bonusArtwork.get(row.entity_key) ?? [] } : {}) };
   });
   const names = new Map(facts.map((fact) => [fact.entityKey, fact.name]));
   const links = db.query<{ owner_key: string; link_kind: "talentTree" | "spellbook"; link_index: number; target_key: string | null; target_label: string }, []>("SELECT owner_key, link_kind, link_index, target_key, target_label FROM progression_links ORDER BY owner_key, link_kind, link_index").all()
